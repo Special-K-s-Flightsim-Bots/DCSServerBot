@@ -44,7 +44,7 @@ __all__ = [
     "KIND_BOOL", "KIND_INT", "KIND_STR", "KIND_SEQ",
     "GROUP_ORDER", "GROUP_LABELS", "GROUP_IDENTITY", "GROUP_BEHAVIOUR", "GROUP_REQUIREMENTS",
     "GROUP_RESTRICTIONS", "GROUP_ANTICHEAT", "GROUP_CHANNELS", "GROUP_MISSION", "GROUP_COALITIONS",
-    "ConfigField", "EDITABLE_FIELDS", "READONLY_FIELDS", "MISSION_INDEX_FIELDS",
+    "ConfigField", "EDITABLE_FIELDS", "READONLY_FIELDS",
     "FieldView", "ConfigGroup", "ChannelView", "ServerConfigView",
     "PROTECTED", "UNPROTECTED", "PROTECTED_SENTINEL",
     "WRITABLE_RAW", "STOP_FIRST_SENTENCE", "SET_SENTINEL", "UNSET_SENTINEL",
@@ -69,7 +69,10 @@ KIND_SEQ = "seq"
 
 # ------------------------------------------------------------------------------------ groups
 # The meaning-groups, in render order. The ``channels`` group is the ``servers.yaml`` face and the
-# ``mission`` group is the read-only block that owns ``missionList`` / ``listStartIndex`` / ``current``.
+# ``mission`` group is the read-only declaration the drift test pins (``missionList`` + the two
+# coalition hashes). ``listStartIndex`` / ``current`` are NOT here: they belong to the Missions tab
+# (``pages/server_detail``), which reads them through the ``get_mission_list`` action and never off
+# ``server.settings``.
 
 GROUP_IDENTITY = "identity"
 GROUP_BEHAVIOUR = "behaviour"
@@ -267,10 +270,10 @@ EDITABLE_FIELDS: tuple[ConfigField, ...] = (
 #: the ONE declaration above so the form, the drift test and the submit path cannot disagree.
 EDITABLE_BY_KEY: dict[str, ConfigField] = {field.key: field for field in EDITABLE_FIELDS}
 
-#: The declared READ-ONLY fields — the same three keys the action's ``DCS_READONLY_FIELDS`` declares.
-#: ``missionList`` is shown (its count) in the read-only mission block; the two coalition password
-#: HASHES are declared here so the drift test can pin them and are NEVER read into a view record or
-#: rendered.
+#: The declared READ-ONLY fields — the same three keys the action's ``DCS_READONLY_FIELDS`` declares,
+#: kept so the drift test can pin them. ``missionList`` and the two coalition password HASHES are
+#: NEVER read into a view record or rendered: the Missions tab owns the list (through the
+#: ``get_mission_list`` action, never off ``server.settings``), and the hashes stay secret.
 READONLY_FIELDS: tuple[ConfigField, ...] = (
     ConfigField("missionList", KIND_SEQ, "Mission list",
                 "The missions DCS cycles through, in order. Managed by the mission autoscan and "
@@ -280,16 +283,6 @@ READONLY_FIELDS: tuple[ConfigField, ...] = (
                 "", GROUP_MISSION, protection=PROTECTED, readonly=True),
     ConfigField("advanced.redPasswordHash", KIND_STR, "Red coalition password (hash)",
                 "", GROUP_MISSION, protection=PROTECTED, readonly=True),
-)
-
-#: The two keys that index the mission list. They belong to the later missions feature (with
-#: ``missionList``), shown read-only in the same block, and are NOT part of this slice's editable set.
-MISSION_INDEX_FIELDS: tuple[ConfigField, ...] = (
-    ConfigField("listStartIndex", KIND_INT, "Start index",
-                "Which mission the server loads next (1-based). Written by the autoscan and by DCS "
-                "when a mission ends.", GROUP_MISSION, readonly=True),
-    ConfigField("current", KIND_INT, "Current mission",
-                "The mission DCS is on right now. DCS owns this value.", GROUP_MISSION, readonly=True),
 )
 
 # ------------------------------------------------------------------------------------ coalitions
@@ -590,8 +583,6 @@ class ServerConfigView:
     status: StatusView
     groups: tuple[ConfigGroup, ...]
     channels: tuple[ChannelView, ...]
-    mission_count: int | None
-    mission_fields: tuple[FieldView, ...]
     overridden: tuple[str, ...]
     serviceable: bool
     apply_note: str
@@ -668,11 +659,6 @@ def _field_view(field: ConfigField, settings, overridden: set[str]) -> FieldView
                      readonly=field.readonly,
                      overridden=field.key in overridden, choices=field.choices,
                      maximum=field.maximum, multiline=field.multiline)
-
-
-def _mission_fields(settings, overridden: set[str]) -> tuple[FieldView, ...]:
-    """The read-only mission-index rows (``listStartIndex`` / ``current``) for the mission block."""
-    return tuple(_field_view(field, settings, overridden) for field in MISSION_INDEX_FIELDS)
 
 
 def live_bot():
@@ -890,8 +876,6 @@ def server_config_view(server, *, servers_yaml_mtime=None, bot=None,
     serviceable = (status.raw or "").strip().lower() in WRITABLE_RAW
     coalitions_serviceable = (status.raw or "").strip().lower() in WRITABLE_COALITION_RAW
 
-    mission_list = _read_setting(settings, "missionList")
-    mission_count = len(mission_list) if isinstance(mission_list, (list, tuple)) else None
     revision = config_revision(server, servers_yaml_mtime=servers_yaml_mtime)
 
     # THE CHANNELS FACE: the guild's options and the central-admin rule, both from the SAME bot
@@ -907,8 +891,6 @@ def server_config_view(server, *, servers_yaml_mtime=None, bot=None,
         groups=tuple(groups),
         channels=_channels(locals_, groups=channel_groups, central=central,
                            channels_denied=channels_denied),
-        mission_count=mission_count,
-        mission_fields=_mission_fields(settings, overridden),
         overridden=tuple(sorted(overridden)),
         serviceable=serviceable,
         apply_note="" if serviceable else STOP_FIRST_SENTENCE,

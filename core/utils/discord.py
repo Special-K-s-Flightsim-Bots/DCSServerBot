@@ -1241,7 +1241,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     """
     def get_name(base_dir: str, path: str):
         try:
-            name = os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            name = os.path.relpath(utils.logical_mission_path(str(path)), base_dir)[:-4]
             if len(name) > 100:
                 raise ValueError("Mission name exceeds maximum length")
             return name

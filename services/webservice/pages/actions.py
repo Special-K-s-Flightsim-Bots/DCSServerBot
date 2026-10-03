@@ -73,6 +73,24 @@ __all__ = [
     "SERVER_COALITION_ACTIONS", "SERVER_COALITION_ACTION_KEY", "SERVER_COALITIONS_PATH",
     "SERVER_COALITIONS_CAPABILITY",
     "coalition_values", "coalition_values_from_form", "coalitions_write_available",
+    "mission_list",
+    "download_mission",
+    # the mission-list writes: their declarations, paths, fields and read helper
+    "MISSION_ACTIONS", "MISSIONS_ADD_CAPABILITY", "MISSIONS_DELETE_CAPABILITY",
+    "MISSIONS_LOAD_CAPABILITY", "MISSIONS_UPLOAD_CAPABILITY",
+    "MISSIONS_ADD_PATH", "MISSIONS_DELETE_PATH", "MISSIONS_LOAD_PATH", "MISSIONS_UPLOAD_PATH",
+    "MISSIONS_REORDER_CAPABILITY", "MISSIONS_REORDER_PATH", "MISSIONS_BULK_DELETE_PATH",
+    "MISSIONS_BULK_DELETE_STATES", "MISSION_DELETE_LOADING_REFUSAL",
+    "MISSIONS_ACTIVATE_CAPABILITY", "MISSIONS_ACTIVATE_PATH", "MISSIONS_ACTIVATE_STATES",
+    "MISSION_ACTIVE_LOADING_REFUSAL", "MISSIONS_ACTIVATE_SELECTION_REFUSAL",
+    "MISSION_DIRECTION_FIELD", "MISSION_LIST_OFFLINE_STATES", "MISSION_LIST_OFFLINE_ONLY",
+    "MISSION_FIELD", "MISSION_NAME_FIELD", "MISSION_PATH_FIELD", "MISSION_FILE_FIELD",
+    "MISSION_AUTOSTART_FIELD", "MISSION_LOAD_FIELD", "MISSION_DISK_FIELD",
+    "MISSIONS_UPLOAD_MAX_BYTES", "mission_index_required",
+    "MISSION_DIALOG_KEYS", "MISSION_LOAD_STATES", "MISSION_LOAD_SETS_START_STATES",
+    "dialog_options",
+    "addable_missions", "mission_write_available", "missions_write_available",
+    "mission_load_allowed", "mission_confirm_context",
     "REVERT_MAX_CHARS", "REVERT_TOO_LONG_SENTENCE",
     "awaiting_store", "reset_awaiting_changes", "remember_awaiting_change",
     "forget_awaiting_change", "awaiting_change", "awaiting_action",
@@ -150,6 +168,117 @@ SERVER_CHANNELS_PATH = "/actions/server/channels"
 SERVER_COALITIONS_CAPABILITY = "servers.config.coalitions"
 SERVER_COALITION_ACTION_KEY = "coalitions"
 SERVER_COALITIONS_PATH = "/actions/server/coalitions"
+
+#: THE MISSION-LIST WRITES (card M3) — four controls on the Missions tab that mirror
+#: ``plugins/mission/commands.py``'s ``/mission add|delete|load`` and ``plugins/mission/upload.py``.
+#: Each is ``WRITE_ROLES`` (``Admin`` + ``DCS Admin``) WITH a scope grant, so a MANAGER stays inside
+#: THEIR OWN servers (``resolve_scoped_server`` applies the scope; a foreign server is refused the
+#: console's 403 without disclosing the target). One declaration each, read by the tab control, the
+#: capability map and the route, exactly like the config faces above.
+MISSIONS_ADD_CAPABILITY = "missions.add"
+MISSIONS_DELETE_CAPABILITY = "missions.delete"
+MISSIONS_LOAD_CAPABILITY = "missions.load"
+MISSIONS_UPLOAD_CAPABILITY = "missions.upload"
+MISSIONS_ADD_PATH = "/actions/server/missions/add"
+MISSIONS_DELETE_PATH = "/actions/server/missions/delete"
+MISSIONS_LOAD_PATH = "/actions/server/missions/load"
+MISSIONS_UPLOAD_PATH = "/actions/server/missions/upload"
+#: The form fields the mission writes read: the LOGICAL target (an index or name) the row's Load /
+#: Remove controls post, the missions-dir-relative path the Add picker posts, the uploaded file, and
+#: the two booleans the Add / Upload controls carry.
+MISSION_FIELD = "mission"
+#: THE STALE-PAGE COMPANION: the row's LOGICAL mission name, posted BESIDE its 1-based index so the
+#: action can refuse a write whose list changed between render and POST. The value is
+#: ``"<index>=<logical name>"`` (one per row; the console's rows and dialogs post it).
+MISSION_NAME_FIELD = "mission_name"
+MISSION_PATH_FIELD = "path"
+MISSION_FILE_FIELD = "file"
+MISSION_AUTOSTART_FIELD = "autostart"
+MISSION_LOAD_FIELD = "load"
+MISSION_DISK_FIELD = "delete_from_disk"
+
+#: The size cap the console applies to an UPLOAD, as ONE named constant so the route, its early
+#: refusal and its streaming read cannot disagree. It MUST equal the action's own
+#: ``plugins.mission.actions.MAX_MISSION_UPLOAD_BYTES`` — the console keeps its own copy so the
+#: generic web surface never imports a plugin module — and ``test_webui_missions_dialog`` pins the
+#: two together so they cannot drift. 100 MiB: comfortably above a real ``.miz``.
+MISSIONS_UPLOAD_MAX_BYTES = 100 * 1024 * 1024
+
+#: THE M5 MISSION-LIST WRITES. The REORDER replaces the ORDER of ``missionList`` in ONE write through
+#: the bot's own ``Server.setMissionList`` — no DCS-side function (the card's ruling: the idle states'
+#: file write is the whole answer) — and is OFFLINE ONLY. BULK REMOVE is the row's own delete,
+#: repeated: it calls the bot's own per-mission ``deleteMission``, one per selected mission,
+#: DESCENDING, in every state but ``LOADING``. Both re-use ``missions.delete``, each has its own path,
+#: and each has its own state gate the tab reads and the action enforces.
+MISSIONS_REORDER_CAPABILITY = "missions.reorder"
+MISSIONS_REORDER_PATH = "/actions/server/missions/reorder"
+MISSIONS_BULK_DELETE_PATH = "/actions/server/missions/delete_bulk"
+#: THE ACTIVATE WRITE (M7): make a CONFIGURED mission the START mission — through the bot's own
+#: ``Server.setStartIndex``. Its own capability (``missions.activate``) and path; it works in every
+#: state EXCEPT ``LOADING`` (see ``MISSIONS_ACTIVATE_STATES``).
+MISSIONS_ACTIVATE_CAPABILITY = "missions.activate"
+MISSIONS_ACTIVATE_PATH = "/actions/server/missions/activate"
+#: The form field the reorder control posts (``up`` / ``down``).
+MISSION_DIRECTION_FIELD = "direction"
+#: The states a mission-list write is ACCEPTED in — the file-write states, i.e. the DCS process is
+#: DOWN. ``STOPPED`` is NOT one of them (DCS is up in ``{LOADING, STOPPED, PAUSED, RUNNING}`` and owns
+#: ``net.missionlist`` in memory): a write made then is reverted (`plugins/mission/actions.py`). This
+#: gate is the OFFLINE-ONLY move's (``mission_reorder``); bulk remove uses ``MISSIONS_BULK_DELETE_STATES``.
+MISSION_LIST_OFFLINE_STATES: tuple[str, ...] = ("UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN")
+
+#: The sentence the OFFLINE-ONLY move refuses with — the reason the tab shows where it omits its
+#: control. Owned by ``plugins.mission.actions.MISSION_LIST_OFFLINE_ONLY``; the console keeps its OWN
+#: copy so the generic web surface never imports a plugin module (a test pins them equal).
+MISSION_LIST_OFFLINE_ONLY = "Missions can only be changed while the server is not running."
+
+#: BULK REMOVE'S STATE GATE (M8): every state EXCEPT ``LOADING``. The bot's ``deleteMission`` routes
+#: to DCS in ``{STOPPED, PAUSED, RUNNING}`` and edits the mission file otherwise; in ``LOADING`` the
+#: process is up (DCS owns ``net.missionlist``) but the method would edit the file, so the removal is
+#: reverted — the action refuses it and the tab omits the control there. The other five states stick.
+MISSIONS_BULK_DELETE_STATES: tuple[str, ...] = (
+    "UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN", "STOPPED", "PAUSED", "RUNNING")
+
+#: The sentence the bulk remove refuses a ``LOADING`` POST with — owned by
+#: ``plugins.mission.actions.MISSION_DELETE_LOADING_REFUSAL``; the console keeps its OWN copy so the
+#: generic web surface never imports a plugin module (a test pins the two equal).
+MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
+
+#: THE ACTIVATE WRITE'S STATE GATE (M7): every state EXCEPT ``LOADING``. The bot's ``setStartIndex``
+#: routes to DCS in ``{STOPPED, PAUSED, RUNNING}`` and writes the file otherwise; in ``LOADING`` the
+#: process is up (DCS owns ``net.missionlist``) but the method would write the file, so the change is
+#: reverted — the action refuses it and the tab omits the control there. The other five states stick.
+MISSIONS_ACTIVATE_STATES: tuple[str, ...] = (
+    "UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN", "STOPPED", "PAUSED", "RUNNING")
+
+#: The sentence the activate write refuses a ``LOADING`` POST with — owned by
+#: ``plugins.mission.actions.MISSION_ACTIVE_LOADING_REFUSAL``; the console keeps its OWN copy so the
+#: generic web surface never imports a plugin module (a test pins the two equal).
+MISSION_ACTIVE_LOADING_REFUSAL = "The start mission cannot be changed while the server is loading."
+
+#: The sentence the bar's ``Set as start`` refuses a selection that is not EXACTLY ONE mission with —
+#: the tick IS its target (M11), so NONE names nothing and SEVERAL names no single mission. Owned by
+#: the console (no plugin copy: the plugin's action takes ONE mission and never sees a selection), and
+#: stated where the count already reads, so the client's own reason and this answer are one rule.
+MISSIONS_ACTIVATE_SELECTION_REFUSAL = (
+    "Select exactly one mission to set as the start mission.")
+
+
+
+def mission_index_required(value: Any) -> str:
+    """The sentence a NON-POSITIVE numeric mission target gets on EVERY console surface.
+
+    The console's mission indexes are 1-BASED (the number its own tab shows and its row links post),
+    so ``0`` — and anything below it — names nothing. Said plainly, in ONE place, so the download
+    route's 404 and the load route's notice read the same.
+    """
+    return f"The mission index is 1-based; '{readmodels.text(value)}' is not a mission index."
+
+
+def _upload_cap_message() -> str:
+    """The console's over-cap refusal — the SAME sentence the action answers with, so an operator
+    cannot tell which surface refused (the two caps are pinned equal by a test)."""
+    return (f"The mission file is larger than the "
+            f"{MISSIONS_UPLOAD_MAX_BYTES // (1024 * 1024)} MiB limit and was not uploaded.")
 
 MESSAGE_FIELD_MAX = 1024
 
@@ -273,6 +402,13 @@ class WriteAction:
     # which is what makes these two controls reach their dialog even when they are not destructive
     # (see :attr:`dialog`).
     option: NodeOption | None = None
+    #: THE OTHER OPTIONS a control's DIALOG draws, when ONE checkbox is not enough — the Missions
+    #: tab's ADD flow, whose dialog owns both the load-at-next-start and the load-now choices. Same
+    #: shape as ``option`` (a :class:`NodeOption`) and drawn by the SAME template (:func:`option_inputs`
+    #: reads ``option`` then ``options``); ``option`` stays the single-option spelling the server and
+    #: node rows use, and a control may use either. A mission route parses its own option fields
+    #: (``_mission_add_handler``), so ``_handler``'s single-option parse is untouched by this.
+    options: tuple[NodeOption, ...] = ()
     #: WHICH observable this action MOVES, and therefore which signal ends the pulse it starts.
     # The default — the row's status/state — is what every power action and the
     #: mission pair change; ``AWAIT_OBSERVABLE_MAINTENANCE`` is the flag pair's own, because setting or
@@ -322,7 +458,7 @@ class WriteAction:
         dialog route's registration and the capability map (``capabilities``) are three readings of
         it, so a control cannot post directly while its option is rendered on a page nobody reaches.
         """
-        return bool(self.confirm or self.option is not None)
+        return bool(self.confirm or self.option is not None or self.options)
 
 
 #: The SERVER row's controls. The three process/DCS-level writes
@@ -494,6 +630,140 @@ SERVER_COALITION_ACTIONS: tuple[WriteAction, ...] = (
                 tip="Save coalition passwords — the bot sends them to DCS and keeps them in its database",
                 aria="Save the coalition passwords of {server}"),
 )
+
+
+#: THE MISSION-LIST WRITES (card M3) — four declarations of their own, NOT ``SERVER_ACTIONS`` rows:
+#: their controls live on the Missions TAB (a list, an add form and an upload form), not on the
+#: server row strip. Each is still ONE :class:`WriteAction`, so the route table (``add_routes``), the
+#: capability map (``capabilities``) and the tab control are three readings of ONE declaration.
+#: ``load``'s ``statuses`` IS the gate ``load_mission`` applies (RUNNING / PAUSED / STOPPED); the tab
+#: omits the control where the action would refuse. ``add`` / ``delete`` / ``upload`` work in every
+#: state (``addMission`` / ``deleteMission`` route through DCS or edit the file directly), so their
+#: ``statuses`` is empty — as does the M8 BULK REMOVE, except in ``LOADING``
+#: (``MISSIONS_BULK_DELETE_STATES``).
+MISSION_ACTIONS: tuple[WriteAction, ...] = (
+    # ADD is reached through its DIALOG (``MISSION_DIALOG_KEYS``): the picker and the load choices
+    # both live there, so choosing a mission and confirming happen in ONE dialog — Frank's
+    # "decisive" rule. It carries NO confirm token: adding to the rotation is not destructive
+    # (nothing is copied, nothing is deleted), so its dialog is the OPTIONS form, like Startup's.
+    WriteAction(key="mission_add", capability=MISSIONS_ADD_CAPABILITY, qualname="add_mission",
+                path=MISSIONS_ADD_PATH, label="Add to the rotation", statuses=(),
+                options=(
+                    NodeOption(
+                        field=MISSION_AUTOSTART_FIELD,
+                        label="Load it when the server next starts",
+                        default=False,
+                        help="Arms the rotation so this mission is the next one the server loads."),
+                    NodeOption(
+                        field=MISSION_LOAD_FIELD,
+                        label="Load it now",
+                        default=False,
+                        help="Loads it right away — only honoured while the server is running, "
+                             "paused or stopped."),
+                ),
+                tip="Add — put a mission that is ALREADY on this server into its rotation list",
+                aria="Add a mission to {server}",
+                detail="This mission is already on the server: adding it changes the ROTATION LIST "
+                       "only. No file is copied and nothing is deleted — that is what Upload does.",
+                go="Add to the rotation",
+                go_title="Add the mission to {server}'s rotation list"),
+    # REMOVE is destructive, so it CONFIRMS through the same dialog component and, carrying an
+    # option, also collects the "delete the real file?" choice there — the two questions Discord's
+    # ``/mission delete`` asks, in ONE dialog. The one-shot token is what makes the dialog a control
+    # rather than a screen (see ``_mission_confirm_handler`` / ``_mission_delete_handler``).
+    WriteAction(key="mission_delete", capability=MISSIONS_DELETE_CAPABILITY,
+                qualname="delete_mission", path=MISSIONS_DELETE_PATH, label="Remove", statuses=(),
+                danger=True, confirm=True,
+                option=NodeOption(
+                    field=MISSION_DISK_FIELD,
+                    label="Also delete the mission file from disk",
+                    default=False,
+                    help="Removes the primary file, its .dcssb copy and the .orig. This cannot be "
+                         "undone."),
+                tip="Remove — take the mission out of the rotation list; optionally delete it from "
+                    "disk too",
+                aria="Remove a mission from {server}",
+                warning="<b>The mission is removed from the rotation list and stops being loaded.</b> "
+                        "The box below is off by default: with it ticked the mission file itself — "
+                        "the primary, its .dcssb copy and the .orig — is deleted from the server, and "
+                        "that cannot be undone.",
+                detail="Removing it from the list changes the rotation only; the file stays on the "
+                       "server unless you tick the box. Discord's /mission delete asks the same two "
+                       "questions.",
+                go="Remove mission",
+                go_title="Remove the mission from {server}'s rotation list"),
+    WriteAction(key="mission_load", capability=MISSIONS_LOAD_CAPABILITY, qualname="load_mission",
+                path=MISSIONS_LOAD_PATH, label="Load",
+                statuses=("RUNNING", "PAUSED", "STOPPED"),
+                tip="Load — start this mission now on {server}",
+                aria="Load a mission on {server}"),
+    WriteAction(key="mission_upload", capability=MISSIONS_UPLOAD_CAPABILITY,
+                qualname="upload_mission", path=MISSIONS_UPLOAD_PATH, label="Upload mission",
+                statuses=(),
+                tip="Upload — send a .miz FILE from your own computer into {server}'s missions "
+                    "directory and add it",
+                aria="Upload a mission to {server}"),
+    # BULK REMOVE (M5; the gate reworked by M8): several missions out of the rotation, one row's
+    # delete repeated. It RE-USES ``missions.delete`` (it is still delete) and goes through its DIALOG
+    # — the console's ONE dialog component, which here IS the selection (a checkbox per configured
+    # mission, the running one omitted with the reason stated in the warning) plus the same "delete
+    # the real file?" box and the one-shot confirm token. Its ``statuses`` is every state EXCEPT
+    # ``LOADING`` (``MISSIONS_BULK_DELETE_STATES``): the bot's ``deleteMission`` sticks in the
+    # process-up trio (through DCS) and the file-write trio (by the file), and only ``LOADING``
+    # reverts it.
+    WriteAction(key="mission_delete_bulk", capability=MISSIONS_DELETE_CAPABILITY,
+                qualname="delete_missions", path=MISSIONS_BULK_DELETE_PATH,
+                label="Remove missions", statuses=MISSIONS_BULK_DELETE_STATES,
+                danger=True, confirm=True,
+                option=NodeOption(
+                    field=MISSION_DISK_FIELD,
+                    label="Also delete the mission files from disk",
+                    default=False,
+                    help="Removes the primary file, its .dcssb copy and the .orig of EVERY selected "
+                         "mission. This cannot be undone. Left OFF, the mission only leaves the "
+                         "rotation — and while the server's mission auto-scan is on, a mission file "
+                         "left on disk is re-added to the list, so the removal is not permanent."),
+                tip="Remove — take SEVERAL missions out of the rotation list at once; optionally "
+                    "delete their files from disk too",
+                aria="Remove missions from {server}",
+                warning="<b>The selected missions are removed from the rotation list and stop being "
+                        "loaded.</b> The box below is off by default: with it ticked the mission "
+                        "files themselves are deleted from the server, and that cannot be undone.",
+                detail="The chosen missions leave the rotation list; their files stay on the server "
+                       "unless you tick the box.",
+                go="Remove missions",
+                go_title="Remove the selected missions from {server}'s rotation list"),
+    # MOVE UP / DOWN (M5): reorder ONE mission in the rotation list. Two small buttons per row open
+    # no dialog — they post directly — and the offline-only gate is its ``statuses``.
+    WriteAction(key="mission_reorder", capability=MISSIONS_REORDER_CAPABILITY,
+                qualname="reorder_mission", path=MISSIONS_REORDER_PATH, label="Move",
+                statuses=MISSION_LIST_OFFLINE_STATES,
+                tip="Move — reorder a mission in {server}'s rotation list (only while the server is "
+                    "not running)",
+                aria="Move a mission in {server}'s rotation list"),
+    # ACTIVATE (M7): make ONE configured mission the START mission — through the bot's own
+    # ``setStartIndex``. Offered in every state EXCEPT ``LOADING`` (``MISSIONS_ACTIVATE_STATES``); the
+    # action refuses that one state, where the write would be silently reverted. It posts directly —
+    # not destructive, no options — like the move pair. ITS LABEL IS THE OPERATOR'S WORD (M9):
+    # ``Set as start``, matching the ``START`` marker on the row it names; it sets the rotation
+    # pointer and does NOT load the mission now (that is ``Load``, a different control and a
+    # different write).
+    WriteAction(key="mission_activate", capability=MISSIONS_ACTIVATE_CAPABILITY,
+                qualname="set_active_mission", path=MISSIONS_ACTIVATE_PATH, label="Set as start",
+                statuses=MISSIONS_ACTIVATE_STATES,
+                tip="Set as start — make this mission the one {server} loads when it starts (the "
+                    "rotation pointer); it does not load it now",
+                aria="Set the start mission on {server}"),
+)
+
+#: The mission controls reached through their DIALOG (``confirm.html``): the ADD flow, whose picker
+#: and load choices live on the dialog, the single REMOVE (its tab control is gone, but the route
+#: remains), and the M5 bulk REMOVE — whose dialog shows the LIST'S selection READ-ONLY. All post
+#: through ``<path>/confirm``; the capability map declares that path (``capabilities``) and
+#: ``add_routes`` registers it. ``mission_delete`` and ``mission_delete_bulk`` also declare ``confirm``,
+#: so their own routes demand the token.
+MISSION_DIALOG_KEYS: frozenset[str] = frozenset(
+    {"mission_add", "mission_delete", "mission_delete_bulk"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -884,6 +1154,10 @@ def declare() -> None:
     # transports, which do not reach a console page.
     for action in SERVER_COALITION_ACTIONS:
         permissions.declare_capability(action.capability, NODE_ROLES, scope_grants=True)
+    # THE MISSION-LIST WRITES: ``WRITE_ROLES`` WITH a scope grant — the console's server-write rule,
+    # so a manager adds / removes / loads / uploads missions on THEIR OWN servers and nobody else's.
+    for action in MISSION_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
 
 
 declare()
@@ -916,6 +1190,12 @@ def capabilities() -> dict[str, str]:
     capabilities_.update({action.path: action.capability for action in SERVER_CONFIG_ACTIONS})
     capabilities_.update({action.path: action.capability for action in SERVER_CHANNEL_ACTIONS})
     capabilities_.update({action.path: action.capability for action in SERVER_COALITION_ACTIONS})
+    # THE MISSION-LIST WRITES: each posts its own form/body directly; the ADD and REMOVE controls
+    # additionally contribute their DIALOG path (``MISSION_DIALOG_KEYS``), so opening one is gated by
+    # the SAME capability as performing it — a dialog is not a lesser right than the write.
+    capabilities_.update({action.path: action.capability for action in MISSION_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in MISSION_ACTIONS if action.key in MISSION_DIALOG_KEYS})
     return capabilities_
 
 
@@ -2011,6 +2291,9 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         #: the action declares one (Shutdown/Startup's maintenance box), otherwise none — the
         #: destructive trio need no input, which is why this row exists at all.
         "inputs": option_inputs(action),
+        #: no BODY fields: the server dialog lives entirely in the footer form (M9's bulk-remove
+        #: dialog is the one that adds them).
+        "body_inputs": (),
         #: the template's own chrome. A DESTRUCTIVE write confirms (red button, "cannot be undone");
         #: an action that only CARRIES AN OPTION (Startup) renders the plain form its sibling
         #: ``online`` does on the node row — driven by the declaration, never by an action's name.
@@ -2108,6 +2391,7 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "target": label,
         "hidden": (("server", server_name), ("ucid", ucid), (ORIGIN_FIELD, origin)),
         "inputs": tuple(inputs),
+        "body_inputs": (),
         "tag": "confirm",
         "irreversible": True,
         "danger": bool(action.danger),
@@ -2131,31 +2415,54 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
     }
 
 
-def option_inputs(action: WriteAction | NodeAction) -> tuple[dict, ...]:
-    """The dialog fields ONE action's own OPTION is drawn as — or none when it has no option.
+def dialog_options(action: WriteAction | NodeAction) -> tuple[NodeOption, ...]:
+    """EVERY checkbox ONE control's dialog draws, in order — ``option`` then ``options``.
 
-    Shared by the SERVER dialog (``confirm_context``: Shutdown/Startup's maintenance box) and
-    the NODE dialog (``node_confirm_context``: ``offline``'s box), because the option is ONE
-    shape (``NodeOption``) read by ONE template (``confirm.html``).
+    The server row and the node row declare a single ``option``; the Missions tab's ADD flow declares
+    its ``options`` (the load pair). One accessor, so :func:`option_inputs` and the mission dialog
+    context cannot disagree about what a declaration carries.
+    """
+    found: list[NodeOption] = []
+    option = getattr(action, "option", None)
+    if option is not None:
+        found.append(option)
+    found.extend(getattr(action, "options", ()) or ())
+    return tuple(found)
+
+
+def _option_fields(options) -> tuple[dict, ...]:
+    """The dialog fields a list of :class:`NodeOption` is drawn as — the OFF companion then the box.
 
     TWO records for one checkbox, and the ORDER is the substance: the hidden companion carrying the
     OFF value comes FIRST and the checkbox second. A checkbox sends no field of its own when it is
-    cleared, so without the companion "off" is indistinguishable from "the form did not say" — and
-    this FastAPI resolves a repeated field to the LAST value it sees, so the pair must be
-    ``off`` then ``on`` (the other order makes a ticked box save "off"). The checkbox's ``checked``
-    attribute is the DECLARATION's default (on for both Shutdown/Startup and the node's ``offline``),
-    which is how the browser shows the operator which way the default points.
+    cleared, so without the companion the OFF value is indistinguishable from the form not stating
+    the field — and this FastAPI resolves a repeated field to the LAST value it sees, so the pair must
+    be OFF then ON (the other order makes a ticked box save OFF). The checkbox's ``checked``
+    attribute is the DECLARATION's default, which is how the browser shows the operator which way the
+    default points. Shared by :func:`option_inputs` and the mission dialog context.
     """
-    option = action.option
-    if option is None:
-        return ()
-    return (
-        {"type": "hidden", "name": option.field, "value": option.off, "id": "", "label": "",
-         "max": 0, "required": False, "checked": False, "help": "", "placeholder": ""},
-        {"type": "checkbox", "name": option.field, "value": option.on,
-         "id": f"{option.field}-dialog", "label": option.label, "max": 0, "required": False,
-         "checked": option.default, "help": option.help, "placeholder": ""},
-    )
+    fields: list[dict] = []
+    for option in options:
+        fields.append({"type": "hidden", "name": option.field, "value": option.off, "id": "",
+                       "label": "", "max": 0, "required": False, "checked": False, "help": "",
+                       "placeholder": ""})
+        fields.append({"type": "checkbox", "name": option.field, "value": option.on,
+                       "id": f"{option.field}-dialog", "label": option.label, "max": 0,
+                       "required": False, "checked": option.default, "help": option.help,
+                       "placeholder": ""})
+    return tuple(fields)
+
+
+def option_inputs(action: WriteAction | NodeAction) -> tuple[dict, ...]:
+    """The dialog fields ONE action's own OPTION(s) are drawn as — or none when it has no option.
+
+    Shared by the SERVER dialog (``confirm_context``: Shutdown/Startup's maintenance box), the
+    NODE dialog (``node_confirm_context``: ``offline``'s box) and the MISSION dialogs, because the
+    option is ONE shape (``NodeOption``) read by ONE template (``confirm.html``). A declaration may
+    carry a single ``option`` or several ``options`` (:func:`dialog_options`), and the order is the
+    declaration's.
+    """
+    return _option_fields(dialog_options(action))
 
 
 def _checked_text(when) -> str:
@@ -2227,6 +2534,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         # the action's own option, when it has one; otherwise the dialog asks for nothing, which is
         # why the mockup draws the lifecycle trio as plain confirmations
         "inputs": option_inputs(action),
+        "body_inputs": (),
         "confirm_field": CONFIRM_FIELD,
         "confirm_token": token,
         # the dialog's own chrome, driven by the DECLARATION rather than by an action's name: a
@@ -2382,6 +2690,29 @@ def add_routes(router: APIRouter) -> APIRouter:
         router.add_api_route(action.path, _coalition_handler(action), methods=["POST"],
                              dependencies=[Depends(session.csrf_protect)],
                              name=f"action-{action.key}")
+    # THE MISSION-LIST WRITES: one POST each. The upload posts a MULTIPART body (the file plus its
+    # load options); the other three post their own small form. The ADD and REMOVE controls ALSO
+    # contribute their DIALOG route (``MISSION_DIALOG_KEYS``), which RENDERS ``confirm.html`` — the
+    # row/openers post THERE, and the delete route refuses a POST that skipped it (see
+    # ``_mission_confirm_handler`` / ``_mission_delete_handler``).
+    _mission_handlers = {
+        "mission_add": _mission_add_handler,
+        "mission_delete": _mission_delete_handler,
+        "mission_delete_bulk": _mission_bulk_delete_handler,
+        "mission_reorder": _mission_reorder_handler,
+        "mission_activate": _mission_activate_handler,
+        "mission_load": _mission_load_handler,
+        "mission_upload": _mission_upload_handler,
+    }
+    for action in MISSION_ACTIONS:
+        router.add_api_route(action.path, _mission_handlers[action.key](action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        if action.key in MISSION_DIALOG_KEYS:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, _mission_confirm_handler(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-{action.key}-confirm")
     return router
 
 
@@ -2896,6 +3227,748 @@ async def coalition_values(request: Request, server_name: str, *, ctx: ActionCon
     return data if isinstance(data, dict) else None
 
 
+async def mission_list(request: Request, server_name: str, *, ctx: ActionContext | None = None):
+    """The mission list of *server_name*, through the ``get_mission_list`` READ action — or ``None``.
+
+    The console reads the list with an ACTION, never by touching a mission file, a ``.dcssb`` copy or
+    ``missionList``: the action is the ONE resolver of the newest copy and the ONE reader of the
+    rotation state, so the tab, the download route and every other transport cannot disagree about
+    which mission is "current". It goes through ``read_action`` (the UNGUARDED twin), so a render is
+    never refused by the in-flight guard of a power action running on the same server.
+
+    Returns the action's own RESULT (an ``ActionResult`` / ``MissionListResult``), whose ``success``,
+    ``message`` and ``data`` the caller reads: ``data`` carries ``missions`` / ``listStartIndex`` /
+    ``current`` / ``next`` on success, and a refused result carries the action's own sentence (the
+    server could not be reached, the missions directory is missing) for an EXPLAINED empty state.
+    ``None`` only for an identity the request cannot resolve (the gate refuses that case anyway).
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("get_mission_list", ctx, server_name=server_name)
+
+
+async def download_mission(request: Request, server_name: str, mission, *,
+                           ctx: ActionContext | None = None):
+    """The bytes of ONE mission of *server_name*, through the ``download_mission`` READ action.
+
+    ``mission`` is an INDEX (1-based) or a NAME — NEVER a path: the action resolves the newest copy
+    and validates the resolved path against ``missions_dir`` itself, so the console hands over a
+    named mission and nothing that a request could turn into an arbitrary file read. A READ: it goes
+    through ``read_action`` (unguarded, unaudited) and returns the action's own result — ``content``
+    (bytes) and ``filename`` (the LOGICAL ``.miz`` name) on success, a typed refusal otherwise.
+    ``None`` only for an identity the request cannot resolve.
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("download_mission", ctx, server_name=server_name, mission=mission)
+
+
+# ------------------------------------------------------------------------ the mission-list writes
+# The FOUR controls of the Missions tab: add (with the file picker), remove, load and upload. Same
+# shape as the config faces above — identity, form, scoped resolution, action, one-shot notice,
+# redirect back to the SERVER'S OWN missions tab — with the ONE difference that this tab posts to
+# four different actions, each with its own capability, so the tab can OMIT a control its viewer may
+# not use (the console's rule: omit, never draw disabled).
+
+
+async def addable_missions(request: Request, server_name: str, *, ctx: ActionContext | None = None):
+    """The ADD picker's list — through the ``get_addable_missions`` READ action, or ``None``.
+
+    The console reads the pickable files with an ACTION, so it never walks ``missions_dir`` itself and
+    never re-implements the exclude rule (already-installed, ``.dcssb``, ``ignore_dirs``): the action
+    is the ONE owner of that rule, shared with ``/mission add``'s autocomplete. Returns the action's
+    result; a refused result carries the action's own sentence for an EXPLAINED empty picker.
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("get_addable_missions", ctx, server_name=server_name)
+
+
+def mission_write_available(kind: str) -> bool:
+    """Whether the mission action *kind* ('add' / 'delete' / 'load' / 'upload') is registered HERE.
+
+    The ``action_available`` rule: an installation whose ``mission`` plugin is not loaded ships no
+    mission write, so the tab does not offer a control whose only possible answer is the action's own
+    \"not available in this installation\" refusal.
+    """
+    action = next((x for x in MISSION_ACTIONS if x.key == f"mission_{kind}"), None)
+    return action is not None and action_available(action.qualname)
+
+
+def missions_write_available() -> bool:
+    """Whether ANY mission write is registered — the tab draws the write cards only then."""
+    return any(action_available(x.qualname) for x in MISSION_ACTIONS)
+
+
+def _mission_back_path(name: str) -> str:
+    """The Missions tab of *name* — the ONE encoder, so a rename-safe redirect and the tab's own URL agree."""
+    return server_url(name, tab="missions")
+
+
+def _mission_expected_names(values) -> dict[int, str]:
+    """The ``{index: logical name}`` map a mission form posts beside its selection — the STALE-PAGE
+    cross-check the action runs.
+
+    Each value is ``"<1-based index>=<logical name>"`` (see :data:`MISSION_NAME_FIELD`); a value that
+    does not parse, or names no mission, is dropped — it cannot identify a row. An empty map means the
+    request carried no names (an older page, or a crafted POST), and the action then runs no check.
+    """
+    expected: dict[int, str] = {}
+    for value in values:
+        index_text, sep, name = readmodels.text(value).partition("=")
+        if sep and name and index_text.lstrip("-").isdigit():
+            expected[int(index_text)] = name
+    return expected
+
+
+def _mission_expected_name(value) -> str:
+    """The ONE logical name a row form posts (``"<index>=<name>"``) — ``""`` when none is carried."""
+    index_text, sep, name = readmodels.text(value).partition("=")
+    return name if sep else readmodels.text(value)
+
+
+async def _resolve_mission_write(request: Request, form, action: WriteAction):
+    """Shared prologue of the four mission writes: identity, scoped target, canonical name.
+
+    Returns ``(ctx, canonical)`` on success, or a ``RedirectResponse`` when the target is authorized
+    but unknown (a one-shot notice is stored first) — so every mission write refuses an out-of-scope
+    target with the console's OWN 403 (never disclosing whether the name exists, which RAISES) and an
+    unknown target with a notice + redirect, exactly like the config faces.
+    """
+    identity = _identity(request)
+    if identity is None:
+        _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+        raise HTTPException(status_code=403,
+                            detail="Not authorized (no signed-in identity).")
+    name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+    ctx = _context(request, identity)
+    resolution = await ctx.resolve_scoped_server(name)
+    if resolution.status == ServerResolution.NOT_PERMITTED:
+        _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+        raise dashboard_page.out_of_scope_refusal()
+    if not resolution.is_found:
+        result = await audit_action(ctx, ActionResult(success=False, message=resolution.message))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_servers_path(), status_code=303)
+    canonical = readmodels.text(readmodels.safe(lambda: getattr(resolution.server, "name", ""))) or name
+    return ctx, canonical
+
+
+def _mission_add_handler(action: WriteAction):
+    """The route for ``missions.add`` — the picker's path, its two load options, one POST."""
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical,
+            path=readmodels.text(form.get(MISSION_PATH_FIELD)),
+            autostart=_as_bool(_last_form_value(form, MISSION_AUTOSTART_FIELD)),
+            load=_as_bool(_last_form_value(form, MISSION_LOAD_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_delete_handler(action: WriteAction):
+    """The route for ``missions.delete`` — the running-mission refusal is the ACTION's own sentence.
+
+    DESTRUCTIVE, so it refuses a POST that did not come through its dialog: the control that opens it
+    (the API/legacy path — the Missions tab's per-row trashcan was removed in M9) posts to
+    ``<path>/confirm``, that dialog's form carries the one-shot token minted for THIS (server, mission),
+    and a caller who skips the dialog has no token — a confirmation curl can bypass is decoration. The
+    token is spent by the first POST.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        target = readmodels.text(form.get(MISSION_FIELD))
+        if action.confirm and not consume_confirm_token(
+                request, action.path, _mission_target(canonical, target),
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            _refusal_notice(request, action,
+                            "Not authorized (this action must be confirmed through its dialog).")
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized (this action must be confirmed through its dialog).")
+        mission = int(target) if target.isdigit() else target
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
+            expected_name=_mission_expected_name(form.get(MISSION_NAME_FIELD)),
+            delete_from_disk=_as_bool(_last_form_value(form, MISSION_DISK_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_bulk_delete_handler(action: WriteAction):
+    """The route for ``delete_missions`` (M5) — the SELECTION rides repeated ``mission`` fields.
+
+    The dialog is the selection (a checkbox per configured mission, ``name="mission"``, each value
+    the 1-based index), so the confirm POST can carry several. DESTRUCTIVE, so it refuses a POST that
+    did not come through its dialog: the token minted for THIS (server, bulk) target must be spent
+    here — a confirmation curl can bypass is decoration. A selection that names no index is handed to
+    the ACTION as an empty list, which answers its own no-op sentence (never an invented one here).
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        if not consume_confirm_token(request, action.path, _mission_target(canonical, "bulk"),
+                                     readmodels.text(form.get(CONFIRM_FIELD))):
+            _refusal_notice(request, action,
+                            "Not authorized (this action must be confirmed through its dialog).")
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized (this action must be confirmed through its dialog).")
+        selected: list[int] = []
+        for value in form.getlist(MISSION_FIELD):
+            text = readmodels.text(value)
+            if text.lstrip("-").isdigit():
+                selected.append(int(text))
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, missions=selected,
+            expected_names=_mission_expected_names(form.getlist(MISSION_NAME_FIELD)),
+            delete_from_disk=_as_bool(_last_form_value(form, MISSION_DISK_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_reorder_handler(action: WriteAction):
+    """The route for ``reorder_mission`` (M5) — one row's up/down button, posted directly.
+
+    The 1-based ``missionList`` index rides the body beside the direction (``up`` / ``down``), both
+    under their own field names, so a control can never be pointed at another mission by editing a
+    URL. The action owns the bounds (an up on the first row is a no-op) and the offline-only gate.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        target = readmodels.text(form.get(MISSION_FIELD))
+        mission = int(target) if target.isdigit() else target
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
+            direction=readmodels.text(form.get(MISSION_DIRECTION_FIELD)),
+            expected_name=_mission_expected_name(form.get(MISSION_NAME_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_activate_handler(action: WriteAction):
+    """The route for ``set_active_mission`` (M7/M11) — the bar's ``Set as start``, posted directly.
+
+    M11 MOVED this control from the mission row to the selection bar (Frank's ruling: tick the mission,
+    press the bar), so its target is the TICK — the same selection form the bulk remove uses, sent here
+    by a ``formaction``. The route therefore reads the REPEATED ``mission`` field and serves ONLY a
+    selection of EXACTLY ONE: none names nothing and several names no single mission, so BOTH are
+    refused HERE, in the console's own sentence (:data:`MISSIONS_ACTIVATE_SELECTION_REFUSAL`) — the
+    answer a no-JavaScript submit and a crafted POST both meet, so the path can never depend on
+    ``static/mission-select.js``.
+
+    The 1-based ``missionList`` index and, for the STALE-PAGE cross-check, the chosen row's LOGICAL name
+    ride the body. The bar posts the ``<index>=<logical name>`` map one entry per row, so the name for
+    the CHOSEN index is read off that map (``_mission_expected_names``) — never a single last value,
+    which would be the wrong row. The action owns the resolve, the ``LOADING`` refusal and the
+    ``setStartIndex`` call.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        chosen = [readmodels.text(value) for value in form.getlist(MISSION_FIELD)
+                  if readmodels.text(value)]
+        if len(chosen) != 1:
+            # NONE or SEVERAL: the tick names no single mission. The console's OWN sentence, stored as
+            # the one-shot notice so the honest reason is read on the Missions tab they land back on.
+            result = await audit_action(ctx, ActionResult(
+                success=False, message=MISSIONS_ACTIVATE_SELECTION_REFUSAL))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        target = chosen[0]
+        mission = int(target) if target.isdigit() else target
+        expected_name = ""
+        if target.isdigit():
+            expected_name = _mission_expected_names(
+                form.getlist(MISSION_NAME_FIELD)).get(int(target), "")
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
+            expected_name=expected_name)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_load_handler(action: WriteAction):
+    """The route for ``missions.load`` — ``load_mission``'s own int parameter is 0-BASED, while the
+    tab SHOWS the 1-based ``missionList`` index, so a numeric target is converted here (a name is
+    passed through and resolved by the action). No other translation: the action owns the load.
+
+    A NON-POSITIVE numeric target is refused HERE, in the 1-based sentence
+    (:func:`mission_index_required`) — converting ``"0"`` to ``-1`` would hand the action an index
+    the operator never typed and answer "Mission index -1 out of range", which is not a message
+    about what they asked for.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        target = readmodels.text(form.get(MISSION_FIELD))
+        if target.isdigit() and int(target) < 1:
+            result = await audit_action(ctx, ActionResult(
+                success=False, message=mission_index_required(target)))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        mission = (int(target) - 1) if target.isdigit() else target
+        result = await call_action(action.qualname, ctx, audit_result=True,
+                                   server_name=canonical, mission=mission,
+                                   expected_name=_mission_expected_name(
+                                       form.get(MISSION_NAME_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+#: The multipart envelope a one-file upload carries around the file itself: the boundary lines, the
+#: part headers and the small text fields. Bounded far above the real thing (a few hundred bytes) and
+#: far below any real ``.miz``, so the declared-body check can never refuse a file that FITS.
+_MULTIPART_ENVELOPE_BYTES = 64 * 1024
+
+#: The chunk the upload is read in, so the cap is enforced AS the bytes arrive.
+_UPLOAD_CHUNK = 64 * 1024
+
+
+async def _read_upload_capped(upload: Any, limit: int) -> bytes | None:
+    """Read an ``UploadFile`` in chunks, returning ``None`` the moment it crosses *limit*.
+
+    The accumulated buffer never exceeds ``limit + one chunk``, so an oversized upload cannot make
+    the console hold it in memory first — the read STOPS at the failure instead of completing and
+    being measured afterwards.
+    """
+    buffer = bytearray()
+    while True:
+        piece = await upload.read(_UPLOAD_CHUNK)
+        if not piece:
+            return bytes(buffer)
+        buffer.extend(piece)
+        if len(buffer) > limit:
+            return None
+
+
+def _mission_upload_handler(action: WriteAction):
+    """The route for ``missions.upload`` — a MULTIPART form (the file + its two load options).
+
+    The console hands the file to the ``upload_mission`` ACTION as BYTES (the ``web`` transport may
+    never name a path), so the action's traversal gate, size cap and ONE writer all apply unchanged.
+    The upload's two load options (``autostart`` = load at next start, ``load`` = load now) ride the
+    same POST and are handed to the action, which owns the load handling.
+
+    THE CAP IS REFUSED AS THE SIZE CROSSES IT, never after the whole file has been buffered:
+
+    1. the request's DECLARED ``Content-Length`` is checked BEFORE the body is parsed — a body that
+       cannot fit the cap (plus the multipart envelope) is refused with a 413 without the console
+       ever reading it;
+    2. the parsed part's own size (``UploadFile.size``, the bytes Starlette counted for the part) is
+       checked before the file is read at all — an oversized file is refused, never ``read()``;
+    3. the bytes are then read in CHUNKS with a running total, so a body that lied about its length
+       (or arrived chunked, with no ``Content-Length``) is refused the moment the total crosses the
+       cap instead of being accumulated whole first.
+
+    Every cap refusal is the ACTION's own sentence (:func:`_upload_cap_message`), so an operator
+    cannot tell which of the two surfaces refused.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        declared_body = request.headers.get("content-length")
+        if declared_body and declared_body.isdigit() \
+                and int(declared_body) > MISSIONS_UPLOAD_MAX_BYTES + _MULTIPART_ENVELOPE_BYTES:
+            # The BODY alone cannot fit the cap: refuse BEFORE ``request.form()`` buffers it. No
+            # server name is known yet (it is a field IN the body), so this is the one mission
+            # refusal that cannot be a notice on the tab.
+            raise HTTPException(status_code=413, detail=_upload_cap_message())
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical = resolved
+        upload = form.get(MISSION_FILE_FIELD)
+        is_file = upload is not None and not isinstance(upload, str)
+        declared_size = getattr(upload, "size", None) if is_file else None
+        data: bytes | None = None
+        over_cap = False
+        if is_file:
+            if isinstance(declared_size, int) and declared_size > MISSIONS_UPLOAD_MAX_BYTES:
+                # REFUSE BY WHAT IS DECLARED: an oversized part is never read into memory.
+                over_cap = True
+            else:
+                data = await _read_upload_capped(upload, MISSIONS_UPLOAD_MAX_BYTES)
+                over_cap = data is None
+        if over_cap:
+            result = await audit_action(ctx, ActionResult(
+                success=False, message=_upload_cap_message()))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        if not is_file:
+            # NO file part at all is the console's own "required" sentence; an EMPTY file is handed
+            # to the action, which owns the empty-content refusal (one sentence, one owner).
+            result = await audit_action(ctx, ActionResult(
+                success=False, message="A mission file (.miz) is required to upload."))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        filename = readmodels.text(getattr(upload, "filename", "") or "")
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, name=filename,
+            source=bytes(data or b""),
+            autostart=_as_bool(_last_form_value(form, MISSION_AUTOSTART_FIELD)),
+            load=_as_bool(_last_form_value(form, MISSION_LOAD_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+# -------------------------------------------- the mission DIALOGS (add / remove), one component
+# The two mission controls reached through ``confirm.html`` (``MISSION_DIALOG_KEYS``). BOTH use the
+# console's ONE dialog component and the SAME prologue as the mission writes: identity, scoped
+# resolution, the action's own refusals. The ADD dialog carries the file picker AND the load options
+# (choosing and confirming in one dialog — Frank's "decisive" rule); the REMOVE dialog carries the
+# "also delete the file?" checkbox and, being destructive, a one-shot confirm token.
+
+#: The states ``load_mission`` accepts — the ONLY states in which the ADD dialog's "load it now" box
+#: is offered, the SAME gate the tab's per-row Load control uses.
+MISSION_LOAD_STATES: tuple[str, ...] = ("RUNNING", "PAUSED", "STOPPED")
+
+#: The state in which the bot's ``loadMission`` ALSO moves the rotation pointer — its ``STOPPED``
+#: branch sets ``listStartIndex``/``current`` to the loaded mission and STARTS the server
+#: (``core/data/impl/serverimpl.py:1384-1388``). In ``RUNNING``/``PAUSED`` it merely sends the load
+#: (``startMission``) and leaves the start index alone. Read here so the tab can word its per-row
+#: ``Load`` control honestly IN THE STATE THE ROW IS RENDERED IN: at ``STOPPED`` a load becomes the
+#: start mission; while the server is up it does not.
+MISSION_LOAD_SETS_START_STATES: tuple[str, ...] = ("STOPPED",)
+
+
+def _mission_target(server_name: str, mission) -> str:
+    """The confirm store's key for a mission write: the server AND the mission, as one string.
+
+    A server's key is its name; a mission's must carry the mission too, or two pending removals on one
+    server (two rows, two dialogs) would share a single token — and spending one would refuse the
+    other.
+    """
+    return f"{server_name}|{readmodels.text(mission)}"
+
+
+def mission_load_allowed(request: Request, server: Any) -> bool:
+    """Whether the ADD dialog may offer the "load it now" box for *server*.
+
+    The SAME predicate ``_missions_write_context`` runs for the tab's Load control: the capability,
+    the action being registered here, and the state ``load_mission`` accepts. Kept beside the dialog
+    so the box and the control cannot disagree about when a load may be asked for.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    state = state_of(getattr(server, "status", None))
+    return (permissions.allows(MISSIONS_LOAD_CAPABILITY, roles, manager=manager)
+            and mission_write_available("load")
+            and state in MISSION_LOAD_STATES)
+
+
+async def _mission_picker(request: Request, server_name: str, ctx: ActionContext) -> list[dict]:
+    """The ADD dialog's picker options — the UNCONFIGURED files, read through the action (never the
+    request), each as ``{"value": path, "label": path}``."""
+    found = await addable_missions(request, server_name, ctx=ctx)
+    options: list[dict] = []
+    if found is None or not bool(getattr(found, "success", False)):
+        return options
+    data = getattr(found, "data", None)
+    for entry in (data.get("missions") or [] if isinstance(data, dict) else []):
+        if not isinstance(entry, dict):
+            continue
+        path = readmodels.text(entry.get("path"))
+        if path:
+            options.append({"value": path, "label": path})
+    return options
+
+
+async def _mission_label_for(request: Request, server_name: str, target: Any,
+                             ctx: ActionContext) -> str:
+    """The logical name of the mission *target* (a 1-based index or a name) names — or ``\"\"``.
+
+    Read through the ``get_mission_list`` ACTION, so the dialog's copy never trusts a name the browser
+    sent: the mission named in the warning is the server's own.
+    """
+    result = await mission_list(request, server_name, ctx=ctx)
+    if result is None or not bool(getattr(result, "success", False)):
+        return ""
+    data = getattr(result, "data", None)
+    entries = data.get("missions") if isinstance(data, dict) else None
+    wanted = readmodels.text(target).strip().casefold()
+    for entry in (entries or []):
+        if not isinstance(entry, dict):
+            continue
+        name = readmodels.text(entry.get("name"))
+        index = readmodels.text(entry.get("index"))
+        if index == wanted or name.casefold() == wanted \
+                or os.path.basename(name).casefold() == wanted:
+            return name
+    return ""
+
+
+def _mission_selected_indexes(values) -> list[int]:
+    """The 1-based mission indexes a selection POST carried, in order, de-duplicated.
+
+    The tab's selection is a repeated ``mission`` field (one per ticked row); the dialog opener reads
+    the SAME field to show what was chosen. A value that is not a positive integer names nothing and
+    is dropped — the action owns the range check, and an empty selection is an honest no-op.
+    """
+    selected: list[int] = []
+    for value in values:
+        text = readmodels.text(value)
+        if text.lstrip("-").isdigit():
+            index = int(text)
+            if index >= 1 and index not in selected:
+                selected.append(index)
+    return selected
+
+
+async def _mission_selection(request: Request, server_name: str, indexes: list[int],
+                             ctx: ActionContext) -> tuple[list[str], str]:
+    """The CHOSEN missions as ``(names, running_name)`` — resolved through the read action.
+
+    ``names`` are the LOGICAL names the server's own list puts at each chosen 1-based index, in the
+    selection's order (never a name the browser sent), so the dialog's read-only list is the server's
+    truth and not a posting's. An index the list does not hold is shown as its ``#index`` so the
+    dialog never silently drops a choice. ``running_name`` is the running (loaded) mission's name
+    when it is among the chosen ones, else ``""`` — the dialog states that it cannot be removed.
+    ``([], "")`` when the list cannot be read (the dialog then carries only the box + token).
+    """
+    result = await mission_list(request, server_name, ctx=ctx)
+    if result is None or not bool(getattr(result, "success", False)):
+        return [], ""
+    data = getattr(result, "data", None)
+    entries = data.get("missions") if isinstance(data, dict) else None
+    by_index = {int(entry["index"]): entry for entry in (entries or [])
+                if isinstance(entry, dict) and entry.get("index") is not None}
+    names: list[str] = []
+    running = ""
+    for index in indexes:
+        entry = by_index.get(index)
+        if entry is None:
+            names.append(f"#{index}")
+            continue
+        name = readmodels.text(entry.get("name"))
+        names.append(name)
+        if entry.get("current"):
+            running = name
+    return names, running
+
+
+async def mission_confirm_context(request: Request, action: WriteAction, server: Any,
+                                  server_name: str, form, ctx: ActionContext) -> dict:
+    """Everything a MISSION dialog's page reads — the fourth sibling of :func:`confirm_context`.
+
+    Same discipline, and the differences are the whole point of these two dialogs:
+
+    * the ADD dialog (:attr:`mission_add`) renders the PICKER (the ``get_addable_missions`` READ action,
+      never the request) and the load pair (``action.options``) — so choosing a mission and confirming
+      happen in ONE dialog, with the load/autostart choice owned by it. The picker and the load pair sit
+      in the BODY, beside what they modify (M11): they are form-associated to the footer's form, so the
+      footer keeps exactly one cancel and one primary — the SAME shape M9 gave the removal dialog (a
+      field drawn in the footer's form ahead of the button pushed the primary out of line). It mints NO
+      token (adding is not destructive) and wears the OPTIONS chrome, like Startup's dialog;
+    * the REMOVE dialog (:attr:`mission_delete`) names the mission (read through the ``get_mission_list``
+      action, never a posted name) and carries the "also delete the file?" checkbox
+      (``action.option``). It is DESTRUCTIVE, so it mints the one-shot token its own route refuses a
+      POST without, and wears the confirmation chrome.
+
+    ``back`` is the server's Missions tab (``_mission_back_path``), so the dialog's Cancel and its Esc
+    return there — the mission writes always redirect to that tab, so this is the one place to go back
+    to.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = html.escape(str(server_name))
+    back = _mission_back_path(server_name)
+    inputs: list[dict] = []
+    # THE DIALOG BODY'S OWN FIELDS (M9): the fields rendered in ``.bd`` rather than the footer form —
+    # the read-only selection ``list`` and the "delete the files from disk?" box that belongs beside
+    # it. They are form-associated to the footer's form (``form="dlg-form"``), so the body carries the
+    # choice and the footer still carries exactly one primary and one cancel. Empty for every other
+    # dialog, whose markup is therefore unchanged.
+    body_inputs: list[dict] = []
+    #: the button's own words: the action's, except for the bulk dialog, whose label carries the COUNT
+    #: so the label and the read-only list can never disagree.
+    go = action.go
+    hidden: list[tuple[str, str]] = [("server", server_name)]
+    if action.key == "mission_add":
+        picker = await _mission_picker(request, server_name, ctx)
+        # THE PICKER AND THE LOAD PAIR LIVE IN THE BODY (M11): drawn in the dialog's `.bd` and
+        # form-associated to the footer's `dlg-form` (the template's `field_input(field, 'dlg-form')`),
+        # so the footer carries exactly one cancel and one primary — the options are NOT posted ahead of
+        # the primary button, which is what pushed the primary out of the footer row's line.
+        body_inputs.append({"type": "select", "name": MISSION_PATH_FIELD, "id": "path-dialog",
+                            "label": "Mission file already on this server", "options": picker,
+                            "required": True, "max": 0, "checked": False, "value": "",
+                            "help": "Only files NOT already in the rotation are offered."})
+        options = [option for option in action.options
+                   if option.field != MISSION_LOAD_FIELD or mission_load_allowed(request, server)]
+        body_inputs.extend(_option_fields(options))
+        mission_label = ""
+        heading = f"Add a mission to {label}?"
+        target = label
+        running_note = ""
+        token_target = _mission_target(server_name, form.get(MISSION_FIELD))
+    elif action.key == "mission_delete_bulk":
+        # THE DIALOG IS A CONFIRMATION, NOT THE SELECTION (M9): the selection is made in the LIST
+        # (a checkbox per row) and rides the POST as repeated ``mission`` fields. The dialog shows the
+        # CHOSEN missions READ-ONLY (the new ``list`` input shape, the names the server's own list
+        # resolves, never a posting) and the "delete the files from disk?" box beside it — the ONE
+        # decision this dialog asks. The selection travels on as hidden fields, because the read-only
+        # list is presentation and the write reads the fields.
+        selected = _mission_selected_indexes(form.getlist(MISSION_FIELD))
+        names, running = await _mission_selection(request, server_name, selected, ctx)
+        body_inputs.append({"type": "list", "name": "", "value": "", "id": "", "label": "",
+                            "max": 0, "required": False, "checked": False, "help": "",
+                            "placeholder": "", "lines": tuple(names)})
+        if action.option is not None:
+            body_inputs.extend(_option_fields([action.option]))
+        for index in selected:
+            hidden.append((MISSION_FIELD, str(index)))
+        # THE STALE-PAGE MAP: forward the ``<index>=<logical name>`` pair the TAB posted for every
+        # row, so the bulk route can refuse a selection whose list changed between render and POST.
+        for value in form.getlist(MISSION_NAME_FIELD):
+            hidden.append((MISSION_NAME_FIELD, readmodels.text(value)))
+        mission_label = ""
+        count = len(selected)
+        if count == 1 and names:
+            heading = f"Remove {html.escape(names[0])} from the rotation?"
+            go = "Remove mission"
+        else:
+            heading = f"Remove {count} missions from {label}?"
+            go = f"Remove {count} missions" if count else "Remove missions"
+        target = label
+        running_note = (f" <b>The running mission ({html.escape(running)}) cannot be removed.</b>"
+                        if running else "")
+        token_target = _mission_target(server_name, "bulk")
+    else:
+        mission = form.get(MISSION_FIELD)
+        hidden.append((MISSION_FIELD, readmodels.text(mission)))
+        # THE STALE-PAGE CROSS-CHECK for the single REMOVE: the row control posts the mission's LOGICAL
+        # name beside its index on the TAB, and it must travel THROUGH this dialog (the row form posts
+        # HERE, and this dialog's form posts the write) so the delete route can refuse a page whose
+        # list changed between the tab render and the confirm POST — the SAME guard the bulk dialog
+        # and the reorder/load rows carry.
+        hidden.append((MISSION_NAME_FIELD, readmodels.text(form.get(MISSION_NAME_FIELD))))
+        mission_label = html.escape(await _mission_label_for(request, server_name, mission, ctx))
+        if action.option is not None:
+            inputs.extend(_option_fields([action.option]))
+        heading = f"Remove {mission_label} from the rotation?"
+        target = mission_label or readmodels.text(mission)
+        running_note = ""
+        token_target = _mission_target(server_name, form.get(MISSION_FIELD))
+    escape_values = {"server": label, "mission": mission_label}
+    token = mint_confirm_token(request, action.path, token_target) if action.confirm else ""
+    dialog = {
+        "heading": heading,
+        "warning": action.warning.format(**escape_values) + running_note,
+        "detail": action.detail.format(**escape_values),
+        "go": go,
+        "go_title": action.go_title.format(**escape_values),
+        "path": action.path,
+        "server": server_name,
+        "target": target,
+        "hidden": tuple(hidden),
+        "inputs": tuple(inputs),
+        "body_inputs": tuple(body_inputs),
+        "tag": "confirm" if action.confirm else "options",
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — confirm",
+        "page_title": heading,
+        "crumb": f"{dashboard_page.CRUMB_GROUP} / {action.label}",
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                               current=_servers_path(),
+                                               manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": back,
+        "dialog": dialog,
+    }
+
+
+def _mission_confirm_handler(action: WriteAction):
+    """The route that RENDERS a MISSION action's dialog (``confirm.html``). It changes nothing.
+
+    The twin of :func:`_confirm_handler` for the two mission controls that go through their dialog.
+    The target is resolved HERE through the same scoped seam the action uses, with the same refusals —
+    a name outside the caller's scope is the console's 403, the SAME answer as a name that does not
+    exist, and a name that genuinely does not exist is an honest 404.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403,
+                                detail="Not authorized (no signed-in identity).")
+        form = await request.form()
+        name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            raise HTTPException(status_code=404, detail=f"No server named '{name}'.")
+        environment = getattr(request.app.state, "webui_templates", None)
+        if environment is None:  # pragma: no cover - installed by the shell
+            raise HTTPException(status_code=503,
+                                detail="The admin web UI templates are not installed.")
+        canonical = readmodels.text(readmodels.safe(
+            lambda: getattr(resolution.server, "name", ""))) or name
+        dialog = await mission_confirm_context(request, action, resolution.server, canonical, form, ctx)
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
 def coalition_values_from_form(current, form) -> dict:
     """The CHANGED coalition passwords a submitted form carries — and ONLY those.
 
@@ -3125,7 +4198,11 @@ def _confirm_handler(action: WriteAction):
         # unknown page onward — but the route re-checks, because this field is attacker-modifiable.
         origin = origin_path(request, form.get(ORIGIN_FIELD), _servers_path())
         dialog = confirm_context(request, action, name, players_on(resolution.server), token, origin)
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog))
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+                            headers={"Cache-Control": "no-store"})
 
     return handle
 
@@ -3357,7 +4434,11 @@ def _node_confirm_handler(action: NodeAction):
         # it still carries the origin — the person stays where they were either way.
         origin = origin_path(request, form.get(ORIGIN_FIELD), _nodes_path())
         dialog = node_confirm_context(request, action, name, resolution.node, token, origin)
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog))
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+                            headers={"Cache-Control": "no-store"})
 
     return handle
 
@@ -3475,7 +4556,11 @@ def _player_confirm_handler(action: PlayerAction):
         origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
         dialog = player_confirm_context(request, action, resolution.server, player, name, ucid,
                                         token, origin)
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog))
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+                            headers={"Cache-Control": "no-store"})
 
     return handle
 

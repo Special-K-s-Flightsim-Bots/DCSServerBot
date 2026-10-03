@@ -1,4 +1,3 @@
-import aiofiles
 import asyncio
 import ipaddress
 import jwt
@@ -9,6 +8,7 @@ import re
 
 from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
                   PluginInstallationError, Server, async_cache, const)
+from core.actions import ActionContext, call_action
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
 from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
@@ -970,38 +970,41 @@ class RestAPI(Plugin):
         filename: str = Form(..., description="Filename for the mission file (required)"),
         load_after: bool = Form(..., description="Load mission after upload (default: False)")
     ) -> MissionUploadResponse:
-        """Upload a .miz mission file to the specified server. Optionally rename and load after upload."""
+        """Upload a .miz mission file to the specified server. Optionally load after upload.
+
+        The WRITE goes through the ``upload_mission`` ACTION — the ONE implementation the console
+        will share — so this endpoint stops having its own: the posted name is validated IN the
+        action (a traversal or a non-``.miz`` name is refused before anything is written) and every
+        byte goes through the bot's own ``Server.uploadMission``. ``force=True`` preserves this
+        endpoint's long-standing behaviour of replacing an existing mission.
+        """
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
-        # Determine filename: use provided filename or fallback to upload filename
-        use_filename = filename
-        if not use_filename or not use_filename.lower().endswith('.miz'):
-            raise HTTPException(status_code=400, detail="Only .miz files are allowed.")
-        try:
+        use_filename = filename or (file.filename or "")
+        contents = await file.read()
+        result = await call_action("upload_mission", ActionContext.from_plugin(self),
+                                   server_name=resolved_server_name, name=use_filename,
+                                   source=contents, force=True)
+        if not result.success:
+            # The action's typed refusal (a traversal / non-.miz name, a write error, a mission in
+            # use) is the client's answer — never a 500 for a bad request.
+            raise HTTPException(status_code=400, detail=result.message)
+        msg = result.message
+        if load_after:
             base_dir = await server.get_missions_dir()
-            dest_path = os.path.join(base_dir, use_filename)
-            # Save the uploaded file
-            contents = await file.read()
-            async with aiofiles.open(dest_path, 'wb') as f:
-                await f.write(contents)
-            
-            # Add mission to the list
-            await server.addMission(dest_path)
-            
-            msg = f"Mission '{use_filename}' uploaded to server '{resolved_server_name}'."
-            if load_after:
-                await server.loadMission(dest_path, modify_mission=False)
-                msg += f" Mission loaded."
-            return MissionUploadResponse.model_validate({
-                "status": "success",
-                "message": msg
-            })
-        except Exception as ex:
-            self.log.exception(ex)
-            raise HTTPException(status_code=500, detail=f"Failed to upload mission: {str(ex)}")
+            # Load what was ACTUALLY written: the action's validated ``filename`` (it always sets one
+            # on success), never the raw form leaf — if sanitisation altered the name, the raw leaf
+            # would name a file that is not there and ``loadMission`` would target nothing.
+            written = getattr(result, "filename", "") or use_filename
+            await server.loadMission(os.path.join(base_dir, written), modify_mission=False)
+            msg += " Mission loaded."
+        return MissionUploadResponse.model_validate({
+            "status": "success",
+            "message": msg
+        })
 
     ## convertCoordinates Function
     ## ----------------------------------------------
@@ -1479,6 +1482,10 @@ class RestAPI(Plugin):
             "z": airbase_data['position']['z']
         }, timeout=60)
 
+        runway_list = airbase_data.get('runwayList') or []
+        wind_data = atisData.get('wind', {})
+        wind_dir = (wind_data.get('dir', 0) + 180) % 360
+
         # Return only the ATIS info
         ret = {
             "temp": atisData['temp'],
@@ -1486,10 +1493,10 @@ class RestAPI(Plugin):
             "qnh": atisData['qnh'],
             "turbulence": int(atisData.get('turbulence', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
             "wind": {
-                "speed": int(atisData.get('wind', {}).get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
-                "dir": atisData.get('wind', {}).get('dir', 0) + 180 % 360,
+                "speed": int(wind_data.get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                "dir": wind_dir,
             },
-            "active_runways": utils.get_active_runways(airbase_data['runwayList'], atisData['wind'])
+            "active_runways": utils.get_active_runways(runway_list, wind_data) if runway_list else ['n/a']
         }
         if atisData.get('clouds', {}).get('preset'):
             ret['preset'] = atisData['clouds']['preset']

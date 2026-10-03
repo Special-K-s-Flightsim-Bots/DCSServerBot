@@ -32,8 +32,10 @@ pages. There is ONE declaration per surface — `SERVER_ACTIONS`, `PLAYER_ACTION
 data and the confirm dialog are all readings of it, so a control cannot exist without a declared
 capability and a declared action. The **Configuration tab** of a server's own page carries **two more
 writes**, declared the same way in the same file: the **DCS config write** (`SERVER_CONFIG_ACTIONS`)
-and the **channels write** (`SERVER_CHANNEL_ACTIONS`). The table below is the WHOLE write surface —
-the three tables' rows and the tab's two.
+and the **channels write** (`SERVER_CHANNEL_ACTIONS`) — plus the **coalition write**
+(`SERVER_COALITION_ACTIONS`, described with the config tab's two below). The same page's **Missions
+tab** carries the **mission-list writes** (`MISSION_ACTIONS`, described below). The table below is the
+WHOLE write surface — the three tables' rows and the two tabs' writes.
 
 | Row    | Control              | Capability                  | Action (`__qualname__`) | Confirms |
 |--------|----------------------|-----------------------------|-------------------------|----------|
@@ -59,6 +61,13 @@ the three tables' rows and the tab's two.
 | config (tab)   | Save          | `servers.config.dcs`        | `set_server_config`     | no       |
 | channels (tab) | Save channels | `servers.config.channels`   | `set_server_channels`   | no       |
 | coalitions (tab) | Save coalition passwords | `servers.config.coalitions` | `set_coalition_password` | no |
+| mission (tab)  | Add to the rotation  | `missions.add`              | `add_mission`           | no       |
+| mission (tab)  | Remove               | `missions.delete`           | `delete_mission`        | **yes**  |
+| mission (tab)  | Remove missions      | `missions.delete`           | `delete_missions`       | **yes**  |
+| mission (tab)  | Load                 | `missions.load`             | `load_mission`          | no       |
+| mission (tab)  | Upload mission       | `missions.upload`           | `upload_mission`        | no       |
+| mission (tab)  | Move up / Move down  | `missions.reorder`          | `reorder_mission`       | no       |
+| mission (tab)  | Make start           | `missions.activate`         | `set_active_mission`    | no       |
 
 **Two server controls open a DIALOG without confirming**: *Shutdown* and *Startup* each
 carry a `maintenance` **option** — a checkbox with its `off` companion (the `NodeOption` shape the
@@ -106,6 +115,38 @@ own method tells DCS live):
   read while a power action runs). Unlike the DCS/channels faces, both actions **refuse** the REST/MCP
   transports (`_coalition_authorised`): a coalition password has no REST consumer, and an API key must
   not become a fleet-wide cleartext reader.
+
+**The Missions tab's writes.** A server's own page carries a **Missions tab** whose writes are declared
+in the same file and the same way — `MISSION_ACTIONS` (`pages/actions.py`) — but, unlike the row
+strips, they are a tab's controls, not `SERVER_ACTIONS` rows. Each is one `POST` to its own route with
+the target and the CSRF token in the body, and none is in the node row's `Admin`-only set: the mission
+writes follow the server rows' `scope_grants` rule, so a **manager** reaches them on their own servers.
+
+* **add**, `POST /actions/server/missions/add` (`missions.add`, `add_mission`) — puts a mission that is
+  already on the server into its rotation list; reached through its options dialog (the mission picker
+  and the *load it now* / *load it next start* choices), and it confirms nothing, because adding is not
+  destructive. Accepted in **every** state.
+* **remove**, `POST /actions/server/missions/delete` (`missions.delete`, `delete_mission`) — takes ONE
+  mission out of the rotation list, optionally deleting its file from disk; confirms through its dialog.
+  Accepted in **every** state.
+* **bulk remove**, `POST /actions/server/missions/delete_bulk` (`missions.delete`, `delete_missions`)
+  — the row's remove repeated over every selected mission in ONE write; its dialog carries the
+  per-mission checkboxes that ARE its selection. It **refuses exactly `LOADING`** — every other state
+  sticks — because in `LOADING` the process is up but the bot's `deleteMission` would edit the file and
+  the change is reverted.
+* **upload**, `POST /actions/server/missions/upload` (`missions.upload`, `upload_mission`) — sends a
+  `.miz` file from the operator's own computer into the server's missions directory and adds it.
+  Accepted in **every** state.
+* **load**, `POST /actions/server/missions/load` (`missions.load`, `load_mission`) — starts the chosen
+  mission now; offered only in `RUNNING` / `PAUSED` / `STOPPED`.
+* **make start**, `POST /actions/server/missions/activate` (`missions.activate`, `set_active_mission`)
+  — makes a configured mission the START mission through the bot's own `setStartIndex` (never a
+  hand-written settings write). It **refuses exactly `LOADING`** — every other state sticks — the same
+  narrower gate as bulk removal, and for the same reason.
+* **the move pair** (Move up / Move down), `POST /actions/server/missions/reorder`
+  (`missions.reorder`, `reorder_mission`) — reorders ONE mission in the rotation list. It is
+  **process-down only** — `UNREGISTERED` / `SHUTDOWN` / `SHUTTING_DOWN` — because a reorder made while
+  DCS is up is reverted.
 
 **Two things that look like one.** The server row's *Maintenance* / *End maintenance* is the
 MAINTENANCE FLAG (`servers.maintenance`, a persisted switch that keeps a server out of service and is
@@ -175,16 +216,19 @@ rule is intact: rendering a page asks no node for anything.
 * **What it does NOT do:** it does not tail, stream, merge or live-update an agent's log. The console's
   log PANEL stays master-only; a node's log is here only ever ONE complete file somebody asked for.
 
-**A control submits in the background — the strip AND the dialog** (cards W4h, W4m). Every write is
-submitted with `fetch` by the console's ONE interceptor
+**A control submits in the background — the strip AND the dialog** (cards W4h, W4m, M4-fix2). Every
+write is submitted with `fetch` by the console's ONE interceptor
 (`services/webservice/static/submit.js`, loaded by `base.html` on every page) and the page is handed
-over to a fresh render at once, so a plain form POST no longer holds the browser while the action
-runs and the row can show that something is running (cards W4g/W4k/W4l). A control that opens a
-**dialog** (a confirmation, or Startup's options form) is itself a plain form — its answer
-IS the dialog page — but the dialog's OWN action form takes the background path too, and since card
-W4m it hands the page back **the instant it is pressed**, closing the modal rather than waiting for a
-shutdown to finish. A refusal is no longer shown in a line of the dialog's own (that line is gone):
-it rides the one-shot notice like every other write's outcome.
+over to a fresh render ONCE THE WRITE HAS ANSWERED, so a plain form POST no longer holds the browser
+while the action runs and the row can show that something is running (cards W4g/W4k/W4l). The wait
+itself is visible: the pressed control wears the console's `busy` idiom until the answer lands, and a
+second press while the write is pending is ignored (one request per press, nothing retried). A control
+that opens a **dialog** (a confirmation, or Startup's options form) is itself a plain form — its answer
+IS the dialog page — but the dialog's OWN action form takes the background path too, and it hands the
+page back ONCE THE WRITE HAS ANSWERED. M4-fix2 corrected the earlier at-once behaviour: firing the POST
+and leaving alongside it raced the render, so a DELETE that took a moment came back with the removed row
+still listed (Frank's report). A refusal is no longer shown in a line of the dialog's own (that line is
+gone): it rides the one-shot notice like every other write's outcome.
 
 That shows as TWO signals, with two scopes:
 
@@ -212,11 +256,11 @@ That shows as TWO signals, with two scopes:
   would otherwise render NOTHING (there is no control gated on `LOADING`). That is what gives the
   pulse a glyph to run on through the boot.
   IT IS PROCESS-SIDE AND KEYED BY TARGET, held by `pages/actions` exactly like the seam's
-  in-flight set — NOT in the session, whose cookie the route writes only on its reply: `submit.js`
-  navigates the moment it fires the POST, so the render that is meant to show the pulse usually
-  happened BEFORE that `Set-Cookie` landed, and the signal trailed the render (nothing at all, or a
-  late pulse). It is read ONLY for a row the caller is already rendering (never listed, never
-  counted), so it can say nothing about a server the caller cannot see.
+  in-flight set — NOT in the session, whose cookie the route writes only on its reply. (M4-fix2 made
+  `submit.js` navigate only ONCE THE WRITE HAS ANSWERED, so the landing render now happens after that
+  `Set-Cookie`; the expectation stays process-side regardless, because it must also survive a manual
+  reload and be seen by a second viewer.) It is read ONLY for a row the caller is already rendering
+  (never listed, never counted), so it can say nothing about a server the caller cannot see.
 * **the row marker, on the row** — the action seam's in-flight set says an action is running on this
   target right now (`core.actions.in_flight_targets`), but it keys the TARGET and cannot say WHICH
   one, so it is rendered as a class on the row's strip container (`busy` + `data-busy`) and **never

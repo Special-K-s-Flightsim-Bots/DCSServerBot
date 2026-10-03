@@ -184,7 +184,9 @@ def add_list_route(router: APIRouter, page: ListPage) -> APIRouter:
         if environment is None:  # pragma: no cover - installed by the shell
             raise HTTPException(status_code=503,
                                 detail="The admin web UI templates are not installed.")
+        # no-store: a write returns to a list page, and the browser must not serve the pre-write
+        # page from its cache when it does (the same reason `live.py` sets it for its poll).
         return HTMLResponse(environment.get_template(LIST_TEMPLATE).render(
-            **page_context(request, page)))
+            **page_context(request, page)), headers={"Cache-Control": "no-store"})
 
     return router

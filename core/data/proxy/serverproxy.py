@@ -371,6 +371,19 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
+    async def setMissionList(self, missions: list[str]) -> list[str]:
+        timeout = 60 if not self.node.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setMissionList",
+            "server_name": self.name,
+            "params": {
+                "missions": missions
+            }
+        }, timeout=timeout, node=self.node.name)
+
+    @override
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
         timeout = 180 if not self.node.slow_system else 300

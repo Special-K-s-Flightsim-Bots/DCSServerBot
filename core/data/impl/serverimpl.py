@@ -144,7 +144,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if not self._is_valid_mission_file(path):
             return
         missions = self.server.settings['missionList']
-        if '.dcssb' not in path:
+        if utils.logical_mission_path(str(path)) == path:
             secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
             if secondary in missions:
                 path = secondary
@@ -267,7 +267,7 @@ class ServerImpl(Server):
         missions = self.settings['missionList']
         i: int = 0
         for file in directory.rglob('*.miz'):
-            if '.dcssb' in str(file):
+            if utils.logical_mission_path(str(file)) != os.path.normpath(str(file)):
                 continue
             secondary = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
             if str(file) not in missions and secondary not in missions:
@@ -693,17 +693,15 @@ class ServerImpl(Server):
         except IndexError:
             start_mission = None
         for mission in self.settings['missionList']:
-            if '.dcssb' in mission:
-                _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
-            else:
-                _mission = os.path.normpath(mission)
+            _mission = utils.logical_mission_path(mission)
+            is_copy = _mission != os.path.normpath(mission)
             # check if the orig file has been updated
             orig = utils.get_orig_file(_mission, create_file=False)
             if orig and os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
-                if '.dcssb' in mission and os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
+                if is_copy and os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
                     shutil.copy2(_mission, mission)
                 missions.append(mission)
             else:
@@ -1217,10 +1215,14 @@ class ServerImpl(Server):
     @override
     async def addMission(self, path: str, *, idx: int = -1, autostart: bool = False) -> list[str]:
         path = os.path.normpath(path)
-        if '.dcssb' not in path:
-            mission = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        # the OTHER spelling of this mission — its primary and its ``.dcssb`` copy are ONE mission. The
+        # marker is a path COMPONENT (``logical_mission_path``), never a substring, so a directory whose
+        # NAME merely contains ``.dcssb`` (``foo.dcssbbar``) is not mistaken for a copy.
+        primary = utils.logical_mission_path(path)
+        if primary != path:
+            mission = primary
         else:
-            mission = os.path.join(os.path.dirname(path).replace('.dcssb', ''), os.path.basename(path))
+            mission = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
 
         missions = await self.getMissionList()
         # we have this mission in the list already
@@ -1264,6 +1266,75 @@ class ServerImpl(Server):
             missions = self.settings['missionList']
             missions.pop(mission_id - 1)
             self.settings['missionList'] = missions
+        return self.settings['missionList']
+
+    @override
+    async def setMissionList(self, missions: list[str]) -> list[str]:
+        """Replace ``self.settings['missionList']`` with *missions* in ONE write — the M5 primitive.
+
+        The ONE writer of the mission ORDER. It is **offline only**: while the DCS process is up
+        (``{LOADING, STOPPED, PAUSED, RUNNING}``) it holds ``net.missionlist`` — the list AND the
+        index — in memory and re-syncs the file from its own copy on every load and after every
+        add/delete reply (``_load_mission_list`` / ``:1245`` / ``:1262``), so a file write made then
+        is SILENTLY REVERTED. The file is authoritative only in
+        ``{UNREGISTERED, SHUTDOWN, SHUTTING_DOWN}``; anywhere else this REFUSES (the method is the
+        last line, not the first — callers gate the control too).
+
+        It validates before it writes, so nobody can put a wrong list in by calling it:
+
+        * every entry must ALREADY be in the current list — a subset, so no invented path, no
+          absolute path from a client and no traversal can enter the list this way;
+        * no duplicates;
+        * the currently loaded mission must survive — a list that drops it is refused with the ONE
+          sentence the other surfaces use ("You can't delete the running mission."). The bot's own
+          ``deleteMission`` guard compares a DB row id with a list index and never fires, so this
+          check (by PATH, never by slot) is the working one.
+
+        Then it recomputes the pointer BY PATH — ``listStartIndex`` must end up naming the same
+        MISSION, not the same slot. ``_get_current_mission_file`` is the current path; the new list
+        is searched for it (its ``.dcssb`` copy marker stripped, so a primary-spelled entry and the
+        ``.dcssb`` file DCS reports as current are recognised as one mission), falling back to 1 (or
+        0 for an empty list). Both ``listStartIndex`` and ``current`` are set.
+        """
+        if self.status in [Status.LOADING, Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            raise RuntimeError("The mission list can only be changed while the server is not "
+                               "running.")
+
+        # ONE normaliser for every mission-path comparison (``core.utils.logical_mission_path``): a
+        # path's ``.orig`` suffix and its ``.dcssb`` copy COMPONENT dropped, never a substring of a
+        # longer directory name. A bare ``.replace('.dcssb', '')`` let a ``foo.dcssbbar`` directory
+        # collide with its ``foobar`` twin, so a list that DROPS the running mission was accepted and
+        # the pointer landed on the wrong mission.
+        shorten = utils.logical_mission_path
+
+        current = [os.path.normpath(x) for x in self.settings.get('missionList', [])]
+        allowed = set(current) | {shorten(x) for x in current}
+        norm_new = [os.path.normpath(x) for x in missions]
+        for path in norm_new:
+            if path not in allowed and shorten(path) not in allowed:
+                raise ValueError(f"Mission '{path}' is not in the current mission list.")
+        if len(set(norm_new)) != len(norm_new):
+            raise ValueError("The mission list must not contain duplicates.")
+
+        current_mission = self._get_current_mission_file()
+        if current_mission is not None \
+                and shorten(current_mission) not in {shorten(x) for x in norm_new}:
+            raise AttributeError("You can't delete the running mission.")
+
+        self.settings['missionList'] = norm_new
+        if not norm_new:
+            idx = 0
+        elif current_mission is None:
+            idx = 1
+        else:
+            target = os.path.normpath(current_mission)
+            if target in norm_new:
+                idx = norm_new.index(target) + 1
+            else:
+                logical = shorten(current_mission)
+                idx = next((position for position, entry in enumerate(norm_new, start=1)
+                            if shorten(entry) == logical), 1)
+        self.settings['listStartIndex'] = self.settings['current'] = idx
         return self.settings['missionList']
 
     @override
@@ -1501,13 +1572,6 @@ class ServerImpl(Server):
 
     @override
     async def getAllMissionFiles(self) -> list[tuple[str, str]]:
-        def shorten_filename(file: str) -> str:
-            if file.endswith('.orig'):
-                return file[:-5]
-            if '.dcssb' in file:
-                return os.path.join(os.path.dirname(file).replace('.dcssb', ''), os.path.basename(file))
-            return file
-
         result = []
         base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir, pattern="*.miz",
                                                                 ignore=['.dcssb', 'Scripts', 'Saves'], traverse=True)
@@ -1523,7 +1587,10 @@ class ServerImpl(Server):
             if os.path.exists(secondary) and os.path.getmtime(secondary) > os.path.getmtime(file):
                 file = secondary
 
-            result.append((shorten_filename(file), file))
+            # the LOGICAL name of the winning copy, by the ONE shared normaliser (``.orig`` suffix and
+            # ``.dcssb`` COMPONENT dropped — never a substring, so ``foo.dcssbbar``/``foobar`` never
+            # collide). A local copy here is exactly the drift this replaces.
+            result.append((utils.logical_mission_path(file), file))
 
         return result
 

@@ -42,7 +42,7 @@ from .auth import routes as auth_routes
 from .registry import Registrar
 
 __all__ = ["SHELL_ASSET_PATH", "SHELL_STATIC_DIR", "REFUSED_STATUSES", "create_app", "install_shell",
-           "frontend_enabled", "refusal_response"]
+           "frontend_enabled", "refusal_response", "refusal_page", "retryable_page"]
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +52,10 @@ SHELL_STATIC_DIR = Path(__file__).parent / "static"
 
 #: the statuses the access gate refuses with. Registered by STATUS through one factory, so a second
 #: status cannot grow its own bespoke answer (and the API face stays byte-identical for every one).
-REFUSED_STATUSES: tuple[int, ...] = (403,)
+#: TWO statuses, two faces: 403 is the definitive refusal (an HTML page for a browser, JSON
+#: otherwise); 503 is the RETRYABLE refusal — the identity could not be verified YET — whose page
+#: face retries itself. Both go through :func:`refusal_response`, which branches on the status.
+REFUSED_STATUSES: tuple[int, ...] = (403, permissions.RETRYABLE_STATUS)
 
 _STATE_ATTR = "webui_registrar"
 
@@ -270,19 +273,32 @@ def _refusal_handler(status_code: int):
 def refusal_response(request, exc, *, status_code: int | None = None):
     """The answer to a refusal: a login door, an HTML page, or the JSON it has always been.
 
-    * a non-browser caller (no ``text/html``, or an API path) gets ``{"detail": ...}`` — the same
-      body and status FastAPI's default handler produced, untouched;
+    * a non-browser caller (no ``text/html``, or an API path) gets ``{\"detail\": ...}`` — the same
+      body, status and ``Retry-After`` header FastAPI's default handler produced, untouched;
+    * a browser on a page path facing the RETRYABLE refusal (``RETRYABLE_STATUS``: the identity
+      could not be verified *yet*) gets :func:`retryable_page` — a page that retries itself. It is
+      NEVER sent to the login door: the session is intact, only the verification is late;
     * an anonymous browser on a page path gets a redirect to the login door, carrying the path so
       the visitor lands where they were going (never the query string — it is attacker-controlled);
     * a signed-in browser gets a page carrying the REAL status code.
 
-    Nothing from the request reaches the page: no path, no query, no ``detail`` (the handler is
-    reachable from every route, so copy naming one of them is wrong on the next).
+    Nothing from the request reaches the 403 page: no path, no query, no ``detail`` (the handler is
+    reachable from every route, so copy naming one of them is wrong on the next). The retryable page
+    is the one exception, and it takes no request data either: it re-requests
+    ``location.pathname`` in the browser, never a server-interpolated path.
     """
     status = status_code or getattr(exc, "status_code", 403)
     if not permissions.wants_error_page(request):
         return JSONResponse({"detail": getattr(exc, "detail", None)}, status_code=status,
                             headers=getattr(exc, "headers", None))
+    if status == permissions.RETRYABLE_STATUS:
+        # The visitor could not be verified *right now* — the bot has just started and is
+        # rebuilding its member view. The generic refusal page would wrongly say "access denied"
+        # and the anonymous path would bounce them to the login door the message says is not
+        # needed, so this is its own face: "you are still signed in, this will retry".
+        retry_after = _retry_after_seconds(exc)
+        return HTMLResponse(retryable_page(status, retry_after=retry_after), status_code=status,
+                            headers={"Retry-After": str(retry_after)})
     # a 403 is raised by the gate or by a dependency, both of which run BEFORE the handler — so a
     # refused write really did save nothing, and saying so is the one thing its author needs to read
     wrote = request.method not in ("GET", "HEAD", "OPTIONS")
@@ -356,5 +372,112 @@ def refusal_page(status_code: int, *, wrote: bool = False) -> str:
         f"<p class=\"refusal-status\">HTTP {status_code}</p>\n"
         "<p><a href=\"/\">Return to the dashboard</a></p>\n"
         "</main>\n</body>\n</html>\n"
+    )
+
+
+# ---------------------------------------------------------------------------------------------
+# the RETRYABLE refusal's page face: signed in, not yet verifiable, and it retries itself
+# ---------------------------------------------------------------------------------------------
+#
+# The gate answers an identity it cannot verify *yet* with ``RETRYABLE_STATUS`` + ``Retry-After``
+# (``permissions.mark_identity_unverifiable``). Every non-browser caller keeps the JSON body it has
+# always had; a browser needs a page that says what is actually happening — the bot has just
+# started and is verifying identities — and re-requests the path on its own, so a restart becomes a
+# short pause instead of a manual reload.
+
+#: How long the page keeps retrying before it stops and offers a manual retry (seconds). Bounded on
+#: purpose: an auto-retrying page that never gives up and never explains itself is the failure mode
+#: this bound exists to avoid.
+RETRYABLE_PAGE_BUDGET_S = 60
+#: The most automatic re-requests the page makes, however small ``Retry-After`` is — the second,
+#: independent bound, so a tiny ``Retry-After`` cannot spin the page hundreds of times.
+RETRYABLE_PAGE_MAX_ATTEMPTS = 10
+
+
+def _retry_after_seconds(exc, *, default: int = 5) -> int:
+    """The ``Retry-After`` the refusal carries, as a positive int of seconds.
+
+    The gate always sets it; a missing or malformed header falls back to *default* rather than
+    dropping the pause to zero (which would hammer) or raising on the error path.
+    """
+    headers = getattr(exc, "headers", None) or {}
+    try:
+        value = int(str(headers.get("Retry-After")))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+def retryable_page(status_code: int, *, retry_after: int) -> str:
+    """The HTML a browser gets while its identity cannot be verified YET.
+
+    A standalone document like :func:`refusal_page` — an error page must not depend on the shell —
+    carrying its own retry: it re-requests EXACTLY what the visitor asked for — the path AND its query
+    string (``location.pathname + location.search`` in the browser, never server-interpolated request
+    data) after *retry_after* seconds, bounded by
+    :data:`RETRYABLE_PAGE_MAX_ATTEMPTS` and :data:`RETRYABLE_PAGE_BUDGET_S`, then stops and offers a
+    manual retry. It is NEVER a redirect to the login door: the visitor is signed in and the session
+    is intact; only the verification is late. No data is served, here or on the retry — fail closed
+    is unchanged.
+    """
+    retry_ms = retry_after * 1000
+    budget_ms = RETRYABLE_PAGE_BUDGET_S * 1000
+    return (
+        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        f"<title>{status_code} - verifying your identity</title>\n"
+        f"<link rel=\"stylesheet\" href=\"{SHELL_ASSET_PATH}/shell.css\">\n"
+        f"{_REFUSAL_STYLE}\n"
+        "</head>\n<body>\n<main class=\"refusal\">\n"
+        "<h1>The console is starting up</h1>\n"
+        "<p>You are still signed in &mdash; no new sign-in is needed. The console has just started "
+        "and is verifying your identity; this page will retry by itself.</p>\n"
+        "<p class=\"refusal-status\" id=\"retryable-status\">Retrying automatically&hellip;</p>\n"
+        "<p><a id=\"retryable-retry\" href=\"\" hidden>Retry now</a></p>\n"
+        "</main>\n"
+        "<script>\n"
+        "(function () {\n"
+        f"  var RETRY_MS = {retry_ms};\n"
+        f"  var BUDGET_MS = {budget_ms};\n"
+        f"  var MAX_ATTEMPTS = {RETRYABLE_PAGE_MAX_ATTEMPTS};\n"
+        "  var path = window.location.pathname + window.location.search;\n"
+        "  var statusEl = document.getElementById(\"retryable-status\");\n"
+        "  var retryLink = document.getElementById(\"retryable-retry\");\n"
+        "  var attempts = 0;\n"
+        "  var startedAt = Date.now();\n"
+        "  var done = false;\n"
+        "  var timer = null;\n"
+        "  function setStatus(text) { if (statusEl) { statusEl.textContent = text; } }\n"
+        "  function stop(text) {\n"
+        "    done = true;\n"
+        "    if (timer) { clearInterval(timer); timer = null; }\n"
+        "    setStatus(text);\n"
+        "    if (retryLink) { retryLink.removeAttribute(\"hidden\"); }\n"
+        "  }\n"
+        "  function attempt() {\n"
+        "    if (done) { return; }\n"
+        "    attempts += 1;\n"
+        "    if (attempts > MAX_ATTEMPTS || Date.now() - startedAt > BUDGET_MS) {\n"
+        "      stop(\"Still not ready. Retry by hand when you are ready.\");\n"
+        "      return;\n"
+        "    }\n"
+        "    fetch(path, { headers: { \"accept\": \"text/html\" }, credentials: \"same-origin\" })\n"
+        "      .then(function (response) {\n"
+        "        if (response.ok) { window.location.reload(); return; }\n"
+        "        if (response.status === 503) {\n"
+        "          var asked = parseInt(response.headers.get(\"retry-after\"), 10);\n"
+        "          if (!isNaN(asked) && asked > 0 && asked * 1000 > RETRY_MS) {\n"
+        "            RETRY_MS = asked * 1000;\n"
+        "          }\n"
+        "          return;\n"
+        "        }\n"
+        "        stop(\"The answer changed. Reload to continue.\");\n"
+        "      })\n"
+        "      .catch(function () { /* a network hiccup: the timer tries again */ });\n"
+        "  }\n"
+        "  if (retryLink) { retryLink.setAttribute(\"href\", path); }\n"
+        "  timer = setInterval(attempt, RETRY_MS);\n"
+        "})();\n"
+        "</script>\n</body>\n</html>\n"
     )
 

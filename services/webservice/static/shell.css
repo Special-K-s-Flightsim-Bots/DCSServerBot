@@ -512,9 +512,9 @@ td.acts .act-strip > form > .act-btn.danger:hover,
   0%, 100% { opacity: 1; }
   50% { opacity: .35; }
 }
-.act-btn.busy, .mi.busy { animation: act-busy 1.1s ease-in-out infinite; }
+.act-btn.busy, .mi.busy, .btn.busy { animation: act-busy 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .act-btn.busy, .mi.busy { animation: none; }
+  .act-btn.busy, .mi.busy, .btn.busy { animation: none; }
 }
 
 /* THE ROW-LEVEL MARKER. The action seam's in-flight set keys the TARGET, not the
@@ -593,6 +593,11 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg-field input { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
   background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
 .dlg-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A SELECT IS A FIELD TOO — the Missions tab's ADD dialog chooses the mission file with one, so it
+ * wears the same box the text fields do. */
+.dlg-field select { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.dlg-field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .dlg-field .hint { font-size: 11px; color: var(--text-3); }
 /* A CHECKBOX IS NOT A TEXT FIELD. The node row's maintenance pair carries the command's own option
  * — `/node offline`'s shutdown, `/node online`'s startup — as a checkbox, and the rule above dresses
@@ -677,6 +682,41 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
  * shape */
 .cfg-widget label.tag { display: inline-flex; align-items: center; gap: 7px; }
 
+/* THE ROW'S OWN ACTION BUTTON. `.cfg-widget` normally holds the Configuration tab's fields, and on
+ * the Missions tab it holds the ADD and UPLOAD cards' submit buttons — a button left to the engine's
+ * default is the grey standard control Frank called out. It wears the SAME chip the tab's Save wears
+ * (stated once below for `.cfg-form .notice > button`).
+ *
+ * IT MUST NOT REACH THE OTHER TWO BUTTONS THAT LIVE IN THIS COLUMN: the password eye (`.cfg-reveal`,
+ * a 28px square) and the row strip's ICON buttons (`.act-btn`, 28px houses for a 16px glyph). This
+ * selector out-specifies both, so each is excluded, or the chip's padding would deform them. */
+.cfg-widget button:not(.act-btn):not(.cfg-reveal),
+.cfg-widget .file-pick { padding: 8px 14px; font: inherit;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.cfg-widget button:not(.act-btn):not(.cfg-reveal):hover,
+.cfg-widget .file-pick:hover { border-color: var(--accent); }
+.cfg-widget button:not(.act-btn):not(.cfg-reveal):focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+.cfg-widget button:not(.act-btn):not(.cfg-reveal):disabled { color: var(--text-3);
+  border-color: var(--line); cursor: not-allowed; }
+/* THE UPLOAD'S FILE CONTROL — THE CONSOLE'S OWN, NOT THE BROWSER'S (Frank's report). A raw
+ * `<input type="file">` is drawn by the BROWSER, its button and its LANGUAGE included ("Datei
+ * auswählen" on a German browser), and browser chrome must never be what the operator reads. So the
+ * REAL input is CLIPPED out of sight while STAYING in the DOM, focusable and announced — never
+ * `display:none`, never `aria-hidden`, either of which would drop it from the tab order and from a
+ * screen reader. The `<label for=...>` is the visible control and wears the tab's OWN chip (the rule
+ * immediately above, shared with the ADD/UPLOAD submit buttons); the focus ring is drawn on that label
+ * when the clipped input has it (so a keyboard user can see where they are); and `.file-name` is where
+ * `/static/filepick.js` writes the chosen file's name. */
+.file-pick-control { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto;
+  min-width: 0; justify-content: flex-end; }
+.file-input-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.file-input-sr:focus-visible + .file-pick { outline: 2px solid var(--accent); outline-offset: 2px; }
+.file-name { font-size: 12.5px; color: var(--text-2); min-width: 0; max-width: 24rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* THE MULTI-LINE FIELD (the one declaration that asks for it: `description`, whose own ceiling is
  * 2000 characters). Its row hands the control the wider column, the box stands seven lines of the
  * page's own text tall, and `resize` is deliberately NOT stated anywhere: the browser's own handle is
@@ -731,6 +771,52 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   .cfg-row, .cfg-row:has(textarea) { grid-template-columns: minmax(0, 1fr); }
   .cfg-widget { justify-content: flex-start; }
 }
+
+/* ================================================================ the Missions tab (M9)
+ * THREE SMALL RULES IN THE SHELL'S OWN IDIOM, and no new colour: the card-header SELECTION BAR
+ * (`.sel-bar`), the START row's MARKER treatment (`.row-active`, re-using the amber the `.nav a.on`
+ * gradient and the `.tabs .tab.on` inset edge are drawn from), and the dialog's READ-ONLY selection
+ * list (`.dlg-list`). The fourth is the ROW's own selection box: the shell tints a checkbox only
+ * inside `.cfg-widget` and `.dlg-field.opt`, and this box lives in `.cfg-meta` (prepended to the fact
+ * it selects, so a keyboard and a narrow screen reach it before the name) — so it is tinted here.
+ */
+
+/* THE SELECTION BAR: the list IS the selection, so its count and its one action sit in the card
+ * header. It wraps (count on one line, the button on the next) rather than overflow a phone. */
+.sel-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; }
+.sel-bar .sel-all { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.sel-bar .sel-all input { width: 15px; height: 15px; padding: 0; margin: 0;
+  accent-color: var(--accent); }
+.sel-bar .cnt { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sel-bar .sel-clear { color: var(--link); }
+/* the bar's ONE action wears the shell's chip, like every other `.cfg-widget` button — it simply is
+ * not in a `.cfg-widget`, so the chip is stated here. */
+.sel-bar button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.sel-bar button:hover { border-color: var(--accent); }
+.sel-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sel-bar button:disabled { color: var(--text-3); border-color: var(--line); cursor: not-allowed; }
+
+/* THE START ROW'S MARKER: the shell's own "this is the live one" idiom — the `.nav a.on` amber wash
+ * and the `.tabs .tab.on` inset edge, turned on the row's left. No new colour, and the rest of the
+ * row keeps the list's default weight so the marker alone carries the prominence. */
+.row-active { background: linear-gradient(90deg, rgba(232,163,61,.16), rgba(232,163,61,.03));
+  box-shadow: inset 3px 0 0 var(--accent); }
+
+/* THE ROW'S SELECTION BOX: the platform checkbox, tinted with the accent (the `.cfg-widget` rule's
+ * own ruling), sitting at the start of the fact it selects. A DISABLED one is the running mission's —
+ * it cannot be removed, and the row states why; it is drawn, not omitted, on purpose. */
+.cfg-meta input[type="checkbox"] { width: 15px; height: 15px; padding: 0; margin: 0 7px 0 0;
+  accent-color: var(--accent); vertical-align: -2px; }
+.cfg-meta input[type="checkbox"]:disabled { cursor: not-allowed; }
+
+/* THE DIALOG'S READ-ONLY SELECTION LIST: the missions a bulk removal will act on, one name per line,
+ * unnumbered and without boxes — the selection was made in the list. It scrolls rather than growing
+ * the dialog, exactly as the dialog's own `.bd` is bounded. */
+.dlg-list { list-style: none; margin: 0 0 12px; padding: 0; max-height: 40vh; overflow: auto;
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text-2); }
+.dlg-list li { padding: 2px 0; }
 
 /* ---------------------------------------------------------------- the tab strip */
 

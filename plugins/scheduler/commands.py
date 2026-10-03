@@ -414,12 +414,12 @@ class Scheduler(Plugin[SchedulerListener]):
         if not os.path.isabs(filename):
             filename = os.path.join(await server.get_missions_dir(), filename)
         for idx, mission in enumerate(await server.getMissionList()):
-            if '.dcssb' in mission:
+            # the mission's two spellings, decided by the ONE normaliser (``.dcssb`` is a COMPONENT,
+            # never a substring): the primary is the logical path, the copy is its ``.dcssb`` sibling.
+            primary = utils.logical_mission_path(mission)
+            if primary != os.path.normpath(mission):
                 secondary = mission
-                primary = os.path.join(os.path.dirname(mission).replace('.dcssb', ''),
-                                       os.path.basename(mission))
             else:
-                primary = mission
                 secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
             if os.path.normpath(filename).lower() in [
                 os.path.normpath(primary).lower(),

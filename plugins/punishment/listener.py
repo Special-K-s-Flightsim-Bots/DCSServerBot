@@ -577,7 +577,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         admin = self.bot.get_admin_channel(server)
         if admin:
             asyncio.create_task(admin.send(
-                "```" + _("Player {} (ucid={}) disconnected and reconnected {} seconds after being shot at.").format(
+                "```" + _("Player {} (ucid={}) disconnected and reconnected {:.2f} seconds after being shot at.").format(
                     player.name, player.ucid, delta_time) + "```"))
 
     @event(name="onPlayerStart")

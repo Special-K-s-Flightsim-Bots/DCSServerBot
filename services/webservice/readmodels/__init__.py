@@ -40,7 +40,7 @@ from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE
 from .nodes import nodes
 from .overview import overview
 from .players import players_online
-from .serverconfig import (EDITABLE_FIELDS, READONLY_FIELDS, MISSION_INDEX_FIELDS, ConfigField,
+from .serverconfig import (EDITABLE_FIELDS, READONLY_FIELDS, ConfigField,
                            ConfigGroup, FieldView, ServerConfigView, server_config_view,
                            bound_text, editable_keys, readonly_keys, STOP_FIRST_SENTENCE,
                            CHANNEL_KEYS, CHANNEL_ADMIN_KEY, CHANNEL_UNSET, CHANNEL_UNSET_VALUE,
@@ -75,7 +75,7 @@ __all__ = [
     # a server's read model AND the ONE encoder of its page URL (the row link and the redirect back)
     "server_url", "SERVERS_HREF_PREFIX",
     # the DCS configuration read model (the Configuration tab): its declaration and its view
-    "EDITABLE_FIELDS", "READONLY_FIELDS", "MISSION_INDEX_FIELDS", "ConfigField", "ConfigGroup",
+    "EDITABLE_FIELDS", "READONLY_FIELDS", "ConfigField", "ConfigGroup",
     "FieldView", "ServerConfigView", "server_config_view", "bound_text", "editable_keys",
     "readonly_keys", "STOP_FIRST_SENTENCE",
     # the channels face: the per-server rows, the guild's options and the central rule

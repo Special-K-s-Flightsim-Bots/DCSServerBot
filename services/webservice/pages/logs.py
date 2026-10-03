@@ -84,7 +84,9 @@ def add_routes(router: APIRouter) -> APIRouter:
             pills=dashboard_page.status_pills(state),
             live=dashboard_page.live_controls(request),
         )
-        return HTMLResponse(html)
+        # no-store: the Logs page is a console page like the rest — a navigation back to it must
+        # re-render rather than come out of the browser's cache.
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     return router
 

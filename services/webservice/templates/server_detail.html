@@ -313,17 +313,280 @@
 {% include "_table.html" %}
 
 {% elif tab == 'missions' %}
-{# ---------------------------------------------------------------- the Missions tab (pointer) #}
+{# ---------------------------------------------------------------- the Missions tab #}
+{#- THE LIST is the CONFIGURED ``missionList`` — one row per configured entry, in the order the bot
+    indexes into, read through the mission plugin's own `get_mission_list` ACTION, never off
+    `server.settings` or a mission file. Each row shows the logical name (the newest physical copy —
+    primary / `.dcssb` / `.orig` — resolved by the action) and the missions-dir-relative path. The
+    ``#N`` index is NO LONGER rendered (it is a position, and the console posts it; the operator never
+    types it), and neither is the primary/secondary copy tag. A configured entry whose file is GONE
+    stays in the list, tagged `missing` — never silently dropped.
+
+    THE TWO FACTS the rows carry, in two marks (M9): the START mission (the row ``listStartIndex``
+    names — what the server loads when it starts) wears the amber ``START`` tag and the row treatment
+    (`.row-active`); the RUNNING mission wears the console's own live dot. They are DIFFERENT facts and
+    at most one row carries each.
+
+    THE CONTROLS mirror `/mission add|delete|load` plus the M7 activate (never an invented
+    behaviour): the LIST IS THE SELECTION — a box per row (the running one drawn DISABLED with the
+    reason on its row) belongs to the ONE selection form, and the card header's bar carries TWO
+    actions on that one selection — ``Set as start`` (meaningful with exactly ONE ticked: the rotation
+    pointer) and ``Remove selected…`` (the bulk removal into the console's one dialog
+    ``confirm.html``, where the read-only selection and its "also delete the real files?" box are
+    shown and the removal confirmed). Per row: a DOWNLOAD (a GET link, no CSRF), a MOVE pair (offline
+    only) and ``Load`` (load it now, only where `load_mission` accepts the state). ``Load`` stays on
+    the row — it acts on the row it names — while ``Set as start`` is the bar's, because the tick is
+    its target. Then an ADD card whose button opens the SAME dialog component with the file picker
+    (`get_addable_missions`) and the load/autostart pair ON its BODY, so choosing and confirming are
+    one step; and an UPLOAD card — a `.miz` from the operator's own computer — whose label says
+    exactly that, because an add copies nothing and an upload brings a file in. Every write goes
+    through the mission plugin's own ACTION — this page never writes a mission file, a `.dcssb` copy
+    or `missionList`.
+
+    A control the viewer may not use is OMITTED, never drawn disabled — with ONE deliberate exception,
+    the running row's box, which is drawn disabled because its ABSENCE is what made the old numbering
+    read as a gap, and its stated reason is what earns the exception. When the read cannot answer
+    (server unreachable, missions dir missing) the card shows the ACTION's own sentence. -#}
+{% if missions_write_available %}
+<div class="card">
+  <div class="hd"><h3>Missions</h3><div class="spacer"></div><span class="tag">rotation list</span>
+    {#- THE SELECTION BAR (M9; M11 adds the bar's SECOND action): the list IS the selection, so its
+        count and its actions live in the card header — the whole "Remove several missions" card is
+        gone. The bar is drawn only while the viewer may remove missions AND the installation runs the
+        action AND the STATE accepts a removal (every state but ``LOADING``, the bot's own per-mission
+        gate) — otherwise no boxes and no bar at all (omit, never disable), with the action's OWN
+        sentence where a capable viewer is in ``LOADING``. The count and the count-bearing label are the
+        console's own client enhancement (``/static/mission-select.js``). BOTH BUTTONS SHIP **ENABLED**
+        (M9-fix / M11): with JavaScript off they must still submit the selection, so the
+        server-rendered controls can never depend on the script — the script ADDS the behaviour (it
+        disables a button whose selection it cannot serve and rewrites the removal label) only once it
+        has taken over, and each ACTION refuses an invalid selection itself, with an honest sentence.
+        The count ships server-rendered AND counts SELECTABLE rows only (``missions_selectable``), so
+        the number does not change meaning the moment the script loads.
+
+        THE TWO ACTIONS ON ONE SELECTION (Frank's ruling). ``Remove selected…`` acts on the ticked rows
+        (the bulk remove, one or more). ``Set as start`` acts on the ticked row TOO, and is meaningful
+        with EXACTLY ONE ticked — it is the per-row control that moved into the bar, so the removal
+        path and the start path read the SAME selection. It is drawn only while the viewer may activate
+        (``missions_activate_allowed``: the activate capability AND every state but ``LOADING`` — the
+        SAME per-state gate the per-row control carried, read off the action's OWN declaration, so
+        there is no second copy of the rule). ``Load`` STAYS a per-row control: it is a different write
+        (load now, not the rotation pointer) and it belongs on the row it acts on. The asymmetry is on
+        record, not an accident. -#}
+    {% if missions_available and missions and missions_select_allowed %}
+    <div class="sel-bar" data-sel-bar>
+      <label class="sel-all"><input type="checkbox" data-sel-all> All</label>
+      <span class="cnt" data-sel-count>0 of {{ missions_selectable }} selected</span>
+      <a class="sel-clear" href="{{ missions_tab_url }}">Clear</a>
+      {#- ``formaction`` sends the SAME selection form (server, CSRF, the ticked rows and the per-row
+          stale-page map) to the ACTIVATE route instead of the removal dialog — one selection, two
+          actions, no second form to keep in step. -#}
+      {% if missions_activate_allowed %}<button type="submit" form="missions-form" formaction="{{ missions_activate_path }}" data-sel-start data-sel-why="{{ missions_activate_why }}" title="Set the ONE ticked mission as the mission {{ missions_server }} loads when it starts — the rotation pointer, not a load now; tick exactly one">Set as start</button>{% endif %}
+      <button type="submit" form="missions-form" data-sel-go>Remove selected…</button>
+    </div>
+    {% elif missions_available and missions and missions_select_blocked and (missions_delete_bulk_capable or missions_activate_capable) %}
+    {#- THE STATE THAT OMITS THE BAR, spoken in EACH action's OWN sentence (never a second copy of the
+        rule): the removal's when the viewer may remove, and ``Set as start``'s when the viewer may
+        activate. Either way the control is OMITTED, never drawn dead. -#}
+    <span class="sub">{% if missions_delete_bulk_capable %}{{ missions_delete_bulk_reason }}{% endif %}{% if missions_delete_bulk_capable and missions_activate_capable %} {% endif %}{% if missions_activate_capable %}{{ missions_activate_reason }}{% endif %}</span>
+    {% endif %}
+  </div>
+  <div class="bd">
+    {% include "_notice.html" %}
+    {% if not missions_available %}
+    <p class="empty">{{ missions_message }}</p>
+    {% elif missions %}
+    {#- THE SELECTION FORM: the row boxes belong to it through ``form="missions-form"`` (the row's own
+        controls are their OWN small forms, so nothing nests); the per-row stale-page map rides it as
+        one hidden field per row, and it posts to the ONE dialog that asks the confirmation. -#}
+    {% if missions_select_allowed %}
+    <form id="missions-form" class="sel-form" method="post" action="{{ missions_delete_bulk_dialog }}">
+      <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% for m in missions %}<input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">{% endfor %}
+    </form>
+    {% endif %}
+    {% if missions_reorder_capable and not missions_offline %}
+    <div class="sub">{{ missions_offline_reason }}</div>
+    {% endif %}
+    <div class="sub">Read through the mission plugin's own action — this page never opens a mission file.</div>
+    <div class="cfg-form">
+      {% for m in missions %}
+      <div class="cfg-row{% if m.active %} row-active{% endif %}">
+        <div class="cfg-meta">
+          {#- ONE ROW, ONE FACT, ONE BOX (M9): the box is SELECTION only — it is first in the row, on
+              the line of the fact it selects, and belongs to the ONE selection form above
+              (``form="missions-form"``). The RUNNING mission's box is the single deliberate
+              exception to omit-never-disable: it is drawn DISABLED, with the row's own line saying
+              why, because a box's absence is what made the old numbering read as a gap. The START
+              marker (amber ``.tag.a``) names the mission the server loads when it starts; the live
+              ``.dot.run`` beside the name names the mission it is running NOW — two different facts.
+              No ``#N`` and no primary/secondary copy tag: the ``.miz`` path names the file. -#}
+          <div>{% if missions_select_allowed %}<input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box{% if m.current %} disabled{% endif %}> {% endif %}<b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">START</span>{% endif %}{% if not m.resolved %} <span class="tag">missing</span>{% endif %}</div>
+          <div class="sub mono">{{ m.path }}</div>
+          {% if missions_select_allowed and m.current %}<div class="sub">The running mission cannot be removed — load another mission first.</div>{% endif %}
+        </div>
+        <div class="cfg-widget">
+          {#- THE MOVE PAIR (M5): reorder this row in the rotation list. Offered only while the DCS
+              process is DOWN (a write made while it is up is reverted); the FIRST row's up and the
+              LAST row's down are ABSENT rather than drawn dead, because a move off the end is a
+              no-op. Each posts the 1-based index and the direction in the BODY (never a URL). -#}
+          {% if missions_reorder_allowed %}
+          {% if not loop.first %}
+          <form method="post" action="{{ missions_reorder_path }}">
+            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+            <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
+            <input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">
+            <input type="hidden" name="{{ missions_direction_field }}" value="up">
+            <button class="act-btn" type="submit" title="Move {{ m.name }} up in the rotation list" aria-label="Move mission {{ m.name }} up">{{ icons.act('move_up') }}</button>
+          </form>
+          {% endif %}
+          {% if not loop.last %}
+          <form method="post" action="{{ missions_reorder_path }}">
+            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+            <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
+            <input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">
+            <input type="hidden" name="{{ missions_direction_field }}" value="down">
+            <button class="act-btn" type="submit" title="Move {{ m.name }} down in the rotation list" aria-label="Move mission {{ m.name }} down">{{ icons.act('move_down') }}</button>
+          </form>
+          {% endif %}
+          {% endif %}
+          <a class="act-btn" href="{{ m.download }}" title="Download {{ m.name }} — the mission file this server currently uses" aria-label="Download mission {{ m.name }}">{{ icons.act('download') }}</a>
+          {#- THE ONE ROW WRITE (M11): ``Load`` is the ONLY per-row write left. ``Set as start`` — the
+              rotation pointer (``set_active_mission``) — MOVED to the selection bar, where it acts on
+              the ticked row (Frank's ruling: tick the mission, press the bar). It is a DIFFERENT write
+              from ``Load``: ``Set as start`` sets what the server loads when it STARTS and does NOT
+              load anything now, while ``Load`` loads the mission NOW (``load_mission``) and — while
+              the server is RUNNING/PAUSED — does NOT change the start index, while at STOPPED it DOES
+              (the bot's ``loadMission`` sets ``listStartIndex`` and starts the server). ``Load`` stays
+              on the row because it acts on the row it names. It posts the row's 1-based index and its
+              logical name in the BODY. THE LOAD TITLE IS STATE-DEPENDENT (M9-fix): it says what THIS
+              control does IN THE STATE THE ROW IS RENDERED IN (``missions_load_sets_start``), so the
+              difference is stated where the operator reads it. -#}
+          {% if missions_load_allowed %}
+          <form method="post" action="{{ missions_load_path }}">
+            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+            <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
+            <input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">
+            <button type="submit" title="{% if missions_load_sets_start %}Load {{ m.name }} now on {{ missions_server }} — this also becomes the start mission and starts the server{% else %}Load {{ m.name }} now on {{ missions_server }} — the start mission is unchanged; use Set as start for that{% endif %}">Load</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">This server has no missions configured in its mission list.</p>
+    {% endif %}
+  </div>
+</div>
+
+{#- ADD — a mission ALREADY on the server. The picker and the load/autostart choice live in the
+    DIALOG the button opens (choosing a mission and confirming happens in ONE dialog — never a picker
+    followed by a button followed by a question). Nothing about this card copies a file: that is
+    Upload, below, and the two labels say so. -#}
+{% if missions_add_allowed %}
+<div class="card">
+  <div class="hd"><h3>Add to the rotation</h3><div class="spacer"></div><span class="tag">list only</span></div>
+  <div class="bd">
+    <div class="cfg-form">
+      <div class="cfg-row cfg-add">
+        <div class="cfg-meta">
+          <div><b>A mission already on this server</b></div>
+          <div class="sub">Pick a file from this server's missions directory and add it to the rotation list. Adding it changes the LIST only — no file is copied and nothing is deleted. To bring a mission from your own computer, use <b>Upload a mission file</b> below.</div>
+        </div>
+        <div class="cfg-widget">
+          {% if missions_can_add %}
+          <form method="post" action="{{ missions_add_path }}{{ missions_confirm_suffix }}">
+            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+            <button type="submit" title="Choose a mission file already on this server and add it to the rotation">Add a mission…</button>
+          </form>
+          {% else %}
+          <span class="sub">No unconfigured mission file was found in the missions directory.</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{#- UPLOAD — a file coming from the OPERATOR's own computer into the server's missions directory.
+    The label carries it (Frank's point): nothing here looks like an add, and nothing about an add
+    looks like this. -#}
+{% if missions_upload_allowed %}
+<div class="card">
+  <div class="hd"><h3>Upload a mission file</h3><div class="spacer"></div><span class="tag">from your computer</span></div>
+  <div class="bd">
+    <form class="cfg-form" method="post" action="{{ missions_upload_path }}" enctype="multipart/form-data">
+      <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      <div class="cfg-row cfg-upload">
+        <div class="cfg-meta">
+          <div><b>Send a .miz from your own computer</b></div>
+          <div class="sub">The file is copied into the server's missions directory and added to the rotation. Use <b>Add to the rotation</b> above for a mission that is already on the server.</div>
+        </div>
+        <div class="cfg-widget">
+          {#- THE CONSOLE'S OWN FILE CONTROL (Frank's report). A raw `<input type="file">` makes the
+              browser draw ITS OWN button, in ITS OWN language ("Datei auswählen" on a German
+              browser) — browser chrome must never be what the operator reads; the console is English.
+              So the REAL input stays in the DOM and in the tab order, visually hidden by CLIPPING
+              (never `display:none`, never `aria-hidden`: either would take it away from a keyboard
+              and a screen reader, and the card forbids both); the `<label for=...>` is the control
+              the operator sees and presses, wearing the tab's own button chip; and
+              `/static/filepick.js` writes the chosen file's name into the span beside it, so what
+              they picked is visible — and changes if they pick again — before they submit. -#}
+          <span class="file-pick-control" data-file-pick>
+            <input type="file" id="upload-file" name="file" accept=".miz" required
+                   class="file-input-sr" aria-label="Mission file to upload from your computer">
+            <label class="file-pick" for="upload-file">Choose a .miz file…</label>
+            <span class="file-name" data-file-name aria-live="polite"></span>
+          </span>
+          <label class="tag"><input type="checkbox" name="autostart" value="1"> load at next start</label>
+          {% if missions_load_allowed %}<label class="tag"><input type="checkbox" name="load" value="1"> load now</label>{% endif %}
+          <button type="submit">Upload mission</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% else %}
 <div class="card">
   <div class="hd"><h3>Missions</h3><div class="spacer"></div><span class="tag">read-only</span></div>
   <div class="bd">
-    <div class="sub">The mission list and the two keys that index it (<span class="mono">listStartIndex</span>,
-      <span class="mono">current</span>) belong to a dedicated missions feature that is not built yet. They
-      are settings of a FEATURE, not of the server, so nothing on the Configuration tab shows or edits
-      them.</div>
-    <div class="sub">Current mission: <b>{{ server.mission_name or '—' }}</b> · elapsed {{ server.mission_label }}.</div>
+    {% if not missions_available %}
+    <p class="empty">{{ missions_message }}</p>
+    {% elif missions %}
+    <div class="sub">Read through the mission plugin's own action — this page never opens a mission file.</div>
+    {% if missions_reorder_capable and not missions_offline %}
+    <div class="sub">{{ missions_offline_reason }}</div>
+    {% endif %}
+    <div class="cfg-form">
+      {% for m in missions %}
+      {#- The READ-ONLY list carries the SAME two facts as the write list — the START marker and the
+          live dot — and nothing that writes: no box, no move pair, no Set as start, no Load. The
+          download is the one control a read-only viewer keeps. -#}
+      <div class="cfg-row{% if m.active %} row-active{% endif %}">
+        <div class="cfg-meta">
+          <div><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">START</span>{% endif %}{% if not m.resolved %} <span class="tag">missing</span>{% endif %}</div>
+          <div class="sub mono">{{ m.path }}</div>
+        </div>
+        <div class="cfg-widget"><a class="act-btn" href="{{ m.download }}" title="Download {{ m.name }} — the mission file this server currently uses" aria-label="Download mission {{ m.name }}">{{ icons.act('download') }}</a></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">This server has no missions configured in its mission list.</p>
+    {% endif %}
   </div>
 </div>
+{% endif %}
 
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab #}
@@ -351,11 +614,16 @@
 
 {% endblock %}
 
-{#  THE PAGE'S ONE ENHANCEMENT: the UNPROTECTED password's eye. A page that ships no enhancement with
-    JavaScript off must LOSE nothing, and it does not — the field is a plain masked password input that
-    submits exactly like every other control (empty = clear, left as it is = keep). The script only lets
-    the reader LOOK at what the field holds, and it removes the `hidden` attribute it shipped with.
-    Registered HERE, on the page that renders the field, rather than in base.html: a page with no
-    unprotected password on it has no reason to load it.  #}
-{% block scripts %}<script src="/static/reveal.js" defer></script>{% endblock %}
+{#  THE PAGE'S ENHANCEMENTS. The UNPROTECTED password's eye (``reveal.js``): a page that ships no
+    enhancement with JavaScript off must LOSE nothing — the field is a plain masked password input
+    that submits exactly like every other control (empty = clear, left as it is = keep), and the script
+    only lets the reader LOOK at what it holds. The UPLOAD's file-name echo (``filepick.js``) and the
+    Missions tab's SELECTION BAR (``mission-select.js``, which keeps the count and the count-bearing
+    button label in step with the ticked boxes) are enhancements in the SAME sense: with JavaScript
+    off the boxes still submit the selection and the dialog still asks the confirmation. Registered
+    HERE, on the page that renders them, rather than in base.html: a page with none of them has no
+    reason to load any.  #}
+{% block scripts %}<script src="/static/reveal.js" defer></script>
+<script src="/static/filepick.js" defer></script>
+<script src="/static/mission-select.js" defer></script>{% endblock %}
 

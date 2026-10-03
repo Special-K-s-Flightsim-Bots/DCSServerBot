@@ -36,14 +36,14 @@ _ = get_translation('core')
 class Server(DataObject, ABC):
     port: Port
     bus: ServiceBus = field(compare=False)
-    _instance: Instance = field(compare=False, default=None)
+    _instance: Instance | None = field(compare=False, default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
     _options: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     _settings: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     current_mission: Mission | None = field(default=None, compare=False)
-    _mission_id: int = field(default=None, compare=False)
+    _mission_id: int | None = field(default=None, compare=False)
     players: dict[str, Player] = field(default_factory=dict, compare=False)
     players_by_id: dict[int, Player] = field(default_factory=dict, compare=False)
     _maintenance: bool = field(compare=False, default=False)
@@ -56,7 +56,7 @@ class Server(DataObject, ABC):
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
-    restart_time: datetime = field(compare=False, default=None)
+    restart_time: datetime | None = field(compare=False, default=None)
     idle_since: datetime | None = field(compare=False, default=None)
     resources: dict = field(repr=False, default_factory=dict)
 
@@ -98,7 +98,7 @@ class Server(DataObject, ABC):
         return {}
 
     @property
-    def instance(self) -> Instance:
+    def instance(self) -> Instance | None:
         return self._instance
 
     @instance.setter
@@ -326,7 +326,7 @@ class Server(DataObject, ABC):
             finally:
                 self.listeners.pop(token, None)
 
-    async def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
+    async def sendChatMessage(self, coalition: Coalition, message: str, sender: str | None = None):
         if coalition == Coalition.ALL:
             for msg in message.split('\n'):
                 await self.send_to_dcs({
@@ -338,7 +338,7 @@ class Server(DataObject, ABC):
             raise NotImplementedError()
 
     async def sendPopupMessage(self, recipient: Coalition | str, message: str, timeout: int | None = -1,
-                               sender: str = None):
+                               sender: str | None = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
         await self.send_to_dcs({
@@ -430,7 +430,11 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def getAllMissionFiles(self) -> list[str]:
+    async def setMissionList(self, missions: list[str]) -> list[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def getAllMissionFiles(self) -> list[tuple[str, str]]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -439,7 +443,7 @@ class Server(DataObject, ABC):
 
     @abstractmethod
     async def uploadMission(
-            self, filename: str, url: str, *, missions_dir: str = None, force: bool = False
+            self, filename: str, url: str, *, missions_dir: str | None = None, force: bool = False
     ) -> UploadStatus:
         raise NotImplementedError()
 
@@ -535,7 +539,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @async_cache
-    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+    async def list_extensions(self, *, only_installable: bool = False, active: bool | None = None) -> list[str]:
         raise NotImplementedError()
 
     @abstractmethod

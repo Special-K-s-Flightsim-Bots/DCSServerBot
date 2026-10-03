@@ -59,6 +59,43 @@ class MissionListResult(ActionResult):
 
 
 @dataclass
+class MissionUploadResult(ActionResult):
+    """Result for a mission UPLOAD (the ``upload_mission`` action).
+
+    Carries the bot's own typed outcome through untouched (``upload_status`` is the
+    :class:`core.data.node.UploadStatus` NAME — ``OK`` / ``FILE_EXISTS`` / ``FILE_IN_USE`` /
+    ``READ_ERROR`` / ``WRITE_ERROR``), so a transport reports what the ONE writer reported instead
+    of inventing its own success rule.
+
+    * ``mission_name`` — the logical name (``.orig`` / ``.dcssb`` stripped), what a caller shows.
+    * ``filename`` — the validated destination filename inside ``missions_dir`` (a leaf), so a caller
+      that wants to load it right after does not rebuild the path itself.
+    """
+    server_name: str = ""
+    mission_name: str = ""
+    filename: str = ""
+    upload_status: str = ""
+
+
+@dataclass
+class MissionDownloadResult(ActionResult):
+    """Result for a mission DOWNLOAD (the ``download_mission`` action).
+
+    The BYTES ride this result (``content``) together with the LOGICAL filename to stream
+    (``filename``, ``.orig`` / ``.dcssb`` stripped) — the resolution and the path validation both
+    happen inside the action, so every caller streams the same bytes under the same name and none
+    of them re-resolves the newest copy.
+
+    ``content`` is a FIELD and not part of ``data``, so :meth:`ActionResult.to_dict` stays
+    JSON-serialisable for a transport that only wants the outcome.
+    """
+    server_name: str = ""
+    mission_name: str = ""
+    filename: str = ""
+    content: bytes = b""
+
+
+@dataclass
 class ServerInfoResult(ActionResult):
     """Result for server info queries."""
     server_name: str = ""

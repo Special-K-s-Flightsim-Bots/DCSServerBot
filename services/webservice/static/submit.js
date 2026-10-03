@@ -16,20 +16,17 @@
  * The request is byte-for-byte the form's own — the SAME body (every hidden field, the CSRF field,
  * the target and the origin), the SAME method and the SAME destination — sent with `fetch` instead
  * of the page's own navigation. `redirect: "manual"` keeps fetch from following the 303 itself (the
- * outcome belongs to the page the person is on, not to a promise), and `keepalive: true` lets the
- * request OUTLIVE the navigation below: uvicorn does not cancel an abandoned handler (measured, see
- * `~/.hermes/cache/scratch/probe-disconnect.py`), and a request whose client has gone away still
- * runs — which is what makes handing the page over to a fresh render safe.
+ * outcome belongs to the page the person is on, not to a promise).
  *
- * NO CONTROL WAITS FOR THE ANSWER (the maintainer's third report). W4e/W4h gave the DIALOG a
- * different path from the strip on purpose — the dialog stayed put and showed a refusal in its own
- * notice line — and that is exactly the behaviour he rejected twice ("the modals ... still do not
- * vanish, the moment I press the button that triggers the action"). A shutdown is the one write
- * where holding the person on a frozen page is worst, and the wait bought nothing the page's own
- * route-level mechanism does not already deliver: on press, BOTH controls now fire the POST and
- * leave for their destination at once. The dialog carries `data-back` (the page it was opened from)
- * and a strip control returns to the page it is on; the fresh render lands on the row while the
- * action is still in flight, which is the whole point of the pulse.
+ * THE PAGE COMES BACK ONCE THE WRITE HAS ANSWERED (the maintainer's delete-button report). W4e/W4g
+ * fired the POST and left for the destination AT ONCE, on the assumption that the fresh render the
+ * navigation landed on would read the state the action was changing. It does not: the fresh page is
+ * rendered from the pre-write state whenever the write has not committed yet, so a DELETE that takes
+ * a moment still listed the removed row until a manual refresh. So the navigation now happens ONCE
+ * THE ANSWER HAS ARRIVED — `redirect: "manual"` resolves when the server's answer (the 303, or a
+ * refusal) is on the wire, i.e. AFTER the route has run the action and committed it. `keepalive`
+ * stays on the request, though it is no longer what holds the write open (the wait does): it still
+ * lets a write the person abandons by closing the tab finish server-side.
  *
  * A REFUSAL IS NOT LOST, and it is no longer the dialog's job to show one. Every refusal is decided
  * by a ROUTE (or refused by the console's access gate) and reaches the person through the console's
@@ -37,11 +34,17 @@
  * (`pages/actions._remember_notice` / `pages/live.py`'s `notice` target) — the SAME mechanism the
  * strip's outcome has always used. The routes that refused without leaving a notice (no identity, a
  * spent/absent confirm token, an out-of-scope target) now store one before refusing, so
- * a refusal made in the background is seen rather than swallowed.
+ * a refusal made in the background is seen rather than swallowed. A refusal ANSWERS, so it navigates
+ * exactly like an accepted write: the outcome is the page they land on.
  *
  * IT NEVER DISABLES THE PRESSED CONTROL (item 3, W4g's rule): the server says what is
  * running, and the action seam's guard refusing a second press — with its own typed refusal — is
  * already the answer to a double click. A disabled button would be a second, silent refusal path.
+ * WHAT IT DOES INSTEAD is wear the console's own BUSY IDIOM while the wait is on: the `busy` class
+ * the stylesheet animates (so the wait is visible) and the `aria-busy` a screen reader reads, on the
+ * control that was pressed. And a SECOND press while one is pending is IGNORED — a confirm token is
+ * SPENT by the first POST, so a second could only be refused; swallowing it is not a second, silent
+ * refusal path (nothing runs), it is one press, one request.
  */
 (function () {
   "use strict";
@@ -51,6 +54,10 @@
      posts to its dialog's path and the answer IS the dialog — must stay a plain form, or the dialog
      would never be shown. */
   var ASYNC = "form[data-async]";
+
+  /* The forms whose write is currently in flight — one request per press. A WeakSet so nothing
+     leaks and no DOM attribute is invented to remember it. */
+  var pending = new WeakSet();
 
   function payload(form, submitter) {
     /* The EXACT body the browser would send. `new FormData(form)` carries every hidden field; a
@@ -74,16 +81,37 @@
     return stated ? stated : window.location.pathname + window.location.search;
   }
 
+  /* THE WAIT IS VISIBLE: the control the person pressed wears the console's BUSY IDIOM (the `busy`
+     class the stylesheet already animates + the `aria-busy` a screen reader reads) while the write is
+     in flight. It is added HERE, on the real control, and removed when the answer lands (just before
+     the navigation) so the fresh page is never painted with a stale pulse. A form submitted with
+     Enter has no submitter: nothing to mark, and the write still runs and navigates. */
+  function busy(control) {
+    if (!control || !control.classList) { return; }
+    control.classList.add("busy");
+    control.setAttribute("aria-busy", "true");
+  }
+
+  function settled(control) {
+    if (!control || !control.classList) { return; }
+    control.classList.remove("busy");
+    control.removeAttribute("aria-busy");
+  }
+
   document.addEventListener("submit", function (event) {
     var form = event.target;
     if (!form || !form.matches || !form.matches(ASYNC)) { return; }
     event.preventDefault();
+    /* ONE press, ONE request: a second press while this form's write is still pending is ignored
+       (nothing runs, so it is not a second refusal path). */
+    if (pending.has(form)) { return; }
+    pending.add(form);
 
     var to = destination(form);
-    /* ONE request per press, and nothing retried: a confirm token is SPENT by the POST, so a retry
-       would only be refused a second time. The request keeps running (uvicorn does not cancel an
-       abandoned handler; the probe above) and `keepalive` keeps the browser sending it, while the
-       page below is handed over to the fresh render of the state the action is changing. */
+    var control = event.submitter;
+    busy(control);
+    /* The SAME body, method and destination the browser would have sent — with `redirect: "manual"`
+       so fetch does not follow the 303 itself. */
     var reply = fetch(form.action, {
       method: "POST",
       body: payload(form, event.submitter),
@@ -92,11 +120,16 @@
       keepalive: true,
       headers: { "Accept": "application/json" }
     });
-    /* The answer is not awaited: the refusal it may carry reaches the person through the
-       one-shot notice on the page they land on, and the accepted write's effect reaches them through
-       the row's own server-rendered signal. We only silence an unhandled rejection — a network
-       failure is a rare, honest no-op, and nothing here can be retried. */
-    reply.catch(function () {});
-    window.location.assign(to);
+    /* THE NAVIGATION HAPPENS ONCE THE WRITE HAS ANSWERED — not alongside it. This is what makes the
+       delete button refresh its list: the answer (303 or refusal) is only sent after the route has
+       run and committed the action, so the page this lands on is rendered from the state the action
+       CHANGED. Both outcomes navigate: an accepted write lands on the fresh render, a refusal lands
+       on the page whose one-shot notice explains it, and a NETWORK failure is an honest no-op (the
+       write was attempted once and never retried). */
+    function leave() {
+      settled(control);
+      window.location.assign(to);
+    }
+    reply.then(leave, leave);
   });
 })();

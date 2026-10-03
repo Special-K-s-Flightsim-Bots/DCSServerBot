@@ -115,7 +115,7 @@ async def nosav_autocomplete(interaction: discord.Interaction, current: str) -> 
     """
     def get_name(base_dir: str, path: str):
         try:
-            return os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            return os.path.relpath(utils.logical_mission_path(str(path)), base_dir)[:-4]
         except ValueError:
             return os.path.basename(path)[:-4]
 
@@ -592,9 +592,9 @@ class Mission(Plugin[MissionEventListener]):
                                            ephemeral=ephemeral):
                     try:
                         await server.node.remove_file(filename)
-                        if '.dcssb' in filename:
+                        primary = utils.logical_mission_path(str(filename))
+                        if primary != os.path.normpath(str(filename)):
                             secondary = filename
-                            primary = filename.replace(os.path.sep + '.dcssb', '')
                             await server.node.remove_file(primary)
                         else:
                             secondary = os.path.join(os.path.dirname(filename), '.dcssb', os.path.basename(filename))
@@ -906,9 +906,9 @@ class Mission(Plugin[MissionEventListener]):
                                             ephemeral=True)
             return
 
-        if '.dcssb' in filename:
-            new_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
-                                    os.path.basename(filename))
+        primary = utils.logical_mission_path(str(filename))
+        if primary != os.path.normpath(str(filename)):
+            new_file = primary
             orig_file = filename + '.orig'
         else:
             new_file = filename

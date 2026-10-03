@@ -616,7 +616,11 @@ def add_routes(router: APIRouter) -> APIRouter:
             pills=status_pills(state),
             live=live_controls(request),
         )
-        return HTMLResponse(html)
+        # THE PAGE MUST RE-RENDER ON EVERY NAVIGATION back to it: a write now lands here only once
+        # its own route has answered, and the browser must not answer that navigation out of its
+        # cache with the pre-write page. `live.py` sets this for its poll; every console page sets it
+        # for itself.
+        return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     return router
 
@@ -656,6 +660,27 @@ def request_source(request: Request):
     return readmodels.scoped_source(source, permissions.scope_for(request))
 
 
+def server_named(request: Request, name: str):
+    """The server *name* names in the caller's SCOPED view — or ``None``, NEVER raising.
+
+    The non-raising twin of :func:`scoped_server`: the SAME scoped source
+    (:func:`request_source`) and the SAME exact, tolerant name comparison, so a caller that must
+    ask ONLY "is this a server the caller can see" (and then fall back to its own answer when it
+    is not) reads the one resolution rather than a second copy of it. :func:`scoped_server` is
+    built on THIS function, so the two can never disagree about which names are servers or about
+    the scope: a name the caller cannot see resolves to ``None`` here exactly as it would refuse
+    there.
+    """
+    wanted = readmodels.text(name)
+    source = request_source(request)
+    for server in getattr(source, "servers", ()) or ():
+        # tolerant read: a half-initialised server must not 500 a name lookup
+        name_of = readmodels.safe(lambda: getattr(server, "name", None))
+        if readmodels.text(name_of) == wanted:
+            return server
+    return None
+
+
 def scoped_server(request: Request, name: str):
     """The server *name* names, resolved through the SCOPED source — or the console's 403 refusal.
 
@@ -673,13 +698,10 @@ def scoped_server(request: Request, name: str):
       genuinely does not exist: the route's own 404 is the honest answer and is what the action layer
       calls "not found".
     """
+    server = server_named(request, name)
+    if server is not None:
+        return server
     wanted = readmodels.text(name)
-    source = request_source(request)
-    for server in getattr(source, "servers", ()) or ():
-        # tolerant read: a half-initialised server must not 500 a name lookup
-        name_of = readmodels.safe(lambda: getattr(server, "name", None))
-        if readmodels.text(name_of) == wanted:
-            return server
     if permissions.scope_for(request).unrestricted:
         raise HTTPException(status_code=404, detail=f"No server named '{wanted}'.")
     raise out_of_scope_refusal()

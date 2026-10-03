@@ -75,6 +75,18 @@
   the open eye, `conceal` the same eye struck through. One button wears both and swaps between them
   (`aria-pressed`; see `.cfg-reveal` in shell.css), so the shape states the state as plainly as the
   colour does.
+
+  THE `trash` GLYPH IS DELETED (M9). It had exactly ONE reader — the Missions tab's per-row Remove —
+  and M9 removed that control (a mission is removed by ticking its row and pressing the card's one
+  action). A drawing is kept by having a CONTROL, never by being available: with no reader left it is
+  gone, exactly as the old Startup ring was DELETED when its own control changed. `ban` is untouched
+  (it belongs to the player row), and the set now carries no delete glyph because no surface deletes.
+
+  `move_up` / `move_down` (M5) are the Missions tab's per-row REORDER pair: one plain arrow each,
+  pointing the way the mission moves. Deliberately NOT `upgrade` (an arrow rising out of a tray:
+  update-and-restart, a NODE row word) nor `online` / `offline` (a box with a mirrored arrow): those
+  carry the node rows' meanings, and the invariant above forbids a second copy of a drawing in one
+  state — this pair belongs to the mission rows alone.
 -#}
 {% set GLYPHS = {
   'startup': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
@@ -97,6 +109,8 @@
   'end_maintenance': '<circle cx="12" cy="12" r="8.4"/><path d="M8.2 12.3 11 15.1l5-5.6"/>',
   'more': '<circle cx="12" cy="5.2" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.9" fill="currentColor" stroke="none"/>',
   'download': '<path d="M12 3.8v10.6"/><path d="M7.8 10.2 12 14.4l4.2-4.2"/><path d="M4.8 16.6v1.8a1.4 1.4 0 0 0 1.4 1.4h11.6a1.4 1.4 0 0 0 1.4-1.4v-1.8"/>',
+  'move_up': '<path d="M12 19.4V4.6"/><path d="M6.4 10.2 12 4.6l5.6 5.6"/>',
+  'move_down': '<path d="M12 4.6v14.8"/><path d="M6.4 13.8 12 19.4l5.6-5.6"/>',
   'warn': '<path d="M12 3.6 22 20.4H2Z"/><path d="M12 9.8v4.4"/><circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none"/>',
   'reveal': '<path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/><circle cx="12" cy="12" r="3.1"/>',
   'conceal': '<path d="M2.4 12S6.2 5.6 12 5.6c1.5 0 2.9.4 4.1 1"/><path d="M20.2 8.7c.9 1.2 1.4 2.2 1.4 2.2S19 17.3 13.2 18.2"/><path d="M6.1 7.3C3.7 9.1 2.4 12 2.4 12"/>'

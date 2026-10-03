@@ -10,7 +10,10 @@
     * the session's CSRF field,
     * the target in the BODY (never in a URL),
     * the command's own OPTION, when the action declares one (`dialog.inputs`: a checkbox plus the
-      hidden companion that says "off" — a cleared box sends no field of its own),
+      hidden companion that says "off" — a cleared box sends no field of its own). IT SITS IN THE BODY
+      WHERE IT MODIFIES SOMETHING: M11 moved the ADD dialog's picker/load pair out of the footer form
+      into `dialog.body_inputs` (form-associated to `dlg-form`), so the footer is exactly one cancel
+      and one primary — a field drawn in the footer ahead of the button is what misaligned the primary;
     * and, for a DESTRUCTIVE action, the ONE-SHOT CONFIRM TOKEN minted when this dialog was rendered
       (`pages/actions`). That action's route refuses a POST that did not come through here, so the
       confirmation is a control and not a screen: `curl` cannot skip it
@@ -38,17 +41,65 @@
   too. The form here carries the two attributes that script reads: `data-async` (this is a background
   write) and `data-back` (the page it returns to).
 
-  IT LEAVES THE MOMENT IT IS PRESSED (the maintainer's third report). W4e's dialog WAITED for the
-  answer and filled a refusal line of its own; that is the behaviour he rejected twice — the modal
-  "still does not vanish the moment I press the button". There is no wait and no refusal line here
-  any more: on press the form fires its POST in the background and hands the page back at once, and a
-  refusal reaches the person through the console's OWN route-level mechanism — the one-shot notice,
-  rendered where they land and on the live path (`pages/live.py`'s `notice` target), which is the
-  same mechanism every other write already uses. Nothing is retried: a confirm token is spent by the
-  POST, so a re-send would only be refused a second time.
+  IT LEAVES ONCE THE WRITE HAS ANSWERED (the maintainer's third report, corrected by M4-fix2). W4e's
+  dialog WAITED for the answer and filled a refusal line of its own; that is the behaviour he rejected
+  twice — the modal "still does not vanish the moment I press the button". The refusal line is indeed
+  gone, but the submit NO LONGER hands the page back the instant it is pressed: the console's ONE
+  interceptor (`static/submit.js`) sends the POST with `redirect: "manual"` and navigates to
+  `data-back` ONLY when the server's answer (the 303, or a refusal) is on the wire — i.e. AFTER the
+  route has run the action. Firing and leaving at once landed on a page rendered from the PRE-WRITE
+  state for any write that had not committed yet (the delete-button report). So the modal closes when
+  the write answers, not when it is clicked, and a refusal reaches the person through the console's OWN
+  route-level mechanism — the one-shot notice, rendered where they land and on the live path
+  (`pages/live.py`'s `notice` target), the same mechanism every other write already uses. Nothing is
+  retried: a confirm token is spent by the POST, so a re-send would only be refused a second time.
 -#}
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
+{#- THE ONE FIELD RENDERER, shared by the footer form and the dialog BODY. A field is a plain record
+    built by ``pages/actions``; nothing user-supplied reaches these names. FIVE SHAPES, and the order
+    is the caller's: a HIDDEN field is rendered bare (it is the OFF companion of the checkbox that
+    follows it — never wrap it in a <p>, or the "off" value would carry a label nobody wants), a
+    CHECKBOX gets its label BESIDE it (a box above its own legend reads as a fieldset), a SELECT is a
+    labelled picker (the Missions tab's ADD dialog chooses the mission file here), a LIST is the
+    READ-ONLY selection the bulk-remove dialog shows (one name per line, no boxes — the selection was
+    made in the list), and everything else keeps the stacked field the kick and ban reason use.
+
+    ``form_id`` associates a field rendered OUTSIDE the posting form (the body's selection list and
+    its box) with it: an input carrying ``form="dlg-form"`` belongs to that form wherever it sits, so
+    the body carries the choice and the footer still carries exactly one primary and one cancel. -#}
+{% macro field_input(field, form_id) -%}
+{% if field.type == 'hidden' %}
+<input type="hidden" name="{{ field.name }}" value="{{ field.value }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+{% elif field.type == 'checkbox' %}
+<p class="dlg-field opt">
+  <input type="checkbox" id="{{ field.id }}" name="{{ field.name }}" value="{{ field.value }}"
+         {%- if field.checked %} checked{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
+  <span class="opt-txt"><label for="{{ field.id }}">{{ field.label }}</label>
+    {% if field.help %}<span class="hint">{{ field.help }}</span>{% endif %}</span>
+</p>
+{% elif field.type == 'select' %}
+<p class="dlg-field">
+  <label for="{{ field.id }}">{{ field.label }}</label>
+  <select id="{{ field.id }}" name="{{ field.name }}"{% if field.required %} required{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
+    {% for option in field.options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
+  </select>
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ field.help }}</span>{% endif %}
+</p>
+{% elif field.type == 'list' %}
+<ul class="dlg-list" aria-label="{{ field.label or 'Selected missions' }}">{% for item in field.lines %}<li>{{ item }}</li>{% endfor %}</ul>
+{% else %}
+<p class="dlg-field">
+  <label for="{{ field.id }}">{{ field.label }}</label>
+  <input type="{{ field.type }}" id="{{ field.id }}" name="{{ field.name }}"
+         {%- if field.max %} maxlength="{{ field.max }}"{% endif %}
+         {%- if field.required %} required{% endif %}
+         {%- if field.value %} value="{{ field.value }}"{% endif %}
+         {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}>
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ field.help }}</span>{% endif %}
+</p>
+{% endif %}
+{%- endmacro %}
 {% block title %}{{ page_title }} — DCSServerBot{% endblock %}
 {% block content %}
 
@@ -65,43 +116,31 @@
       <p class="dlg-what">{{ dialog.detail|safe }}</p>
       <p class="dlg-what">Target: <span class="target">{{ dialog.target }}</span> — the action and your
         name are written to the bot log{% if dialog.irreversible %}, and it cannot be undone from here{% endif %}.</p>
+      {#- THE BODY'S OWN FIELDS (M9): the read-only selection list and the "delete the files from
+          disk?" box that belongs BESIDE it — the one decision a bulk-remove dialog still asks. They are
+          form-associated to the footer's form (``form="dlg-form"``), so the choice rides the same POST
+          the button fires and the footer stays exactly one primary and one cancel. Behaviour-driven:
+          a dialog that supplies no ``body_inputs`` (every other dialog) renders nothing here. -#}
+      {% if dialog.body_inputs is defined %}{% for field in dialog.body_inputs %}{{ field_input(field, 'dlg-form') }}{% endfor %}{% endif %}
     </div>
     <div class="ft">
-      <form method="get" action="{{ back }}">
-        <button class="btn" type="submit" autofocus title="Cancel — go back without doing anything (Esc)">Cancel</button>
-      </form>
+      {#- CANCEL IS A REAL LINK, NOT A FORM (M12). It was a GET form whose action carried the back path;
+          a GET form REPLACES that action's query with its own serialised data, and this form has no
+          successful control — so ``?tab=missions`` was wiped and every shared footer landed on the
+          target's Overview. An anchor goes to ``back`` verbatim, tab and all. It keeps the button look
+          (the console's ``btn`` styling styles an anchor too), ``autofocus`` so a keyboard still lands
+          on it, and Enter still dismisses because a focused link activates. -#}
+      <a class="btn" href="{{ back }}" autofocus title="Cancel — go back without doing anything (Esc)">Cancel</a>
       <span class="spacer"></span>
-      <form class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}">
-        {% for field in dialog.inputs %}
-        {#- THREE INPUT SHAPES, and the order is the caller's: a HIDDEN field is rendered bare (it is
-            the OFF companion of the checkbox that follows it — never wrap it in a <p>, or the "off"
-            value would carry a label nobody wants), a CHECKBOX gets its label BESIDE it (a box above
-            its own legend reads as a fieldset), and everything else keeps the stacked field the kick
-            and ban reason use. -#}
-        {% if field.type == 'hidden' %}
-        <input type="hidden" name="{{ field.name }}" value="{{ field.value }}">
-        {% elif field.type == 'checkbox' %}
-        <p class="dlg-field opt">
-          <input type="checkbox" id="{{ field.id }}" name="{{ field.name }}" value="{{ field.value }}"
-                 {%- if field.checked %} checked{% endif %}>
-          <span class="opt-txt"><label for="{{ field.id }}">{{ field.label }}</label>
-            {% if field.help %}<span class="hint">{{ field.help }}</span>{% endif %}</span>
-        </p>
-        {% else %}
-        <p class="dlg-field">
-          <label for="{{ field.id }}">{{ field.label }}</label>
-          <input type="{{ field.type }}" id="{{ field.id }}" name="{{ field.name }}"
-                 {%- if field.max %} maxlength="{{ field.max }}"{% endif %}
-                 {%- if field.required %} required{% endif %}
-                 {%- if field.value %} value="{{ field.value }}"{% endif %}
-                 {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}>
-          {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ field.help }}</span>{% endif %}
-        </p>
-        {% endif %}
-        {% endfor %}
+      <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}">
+        {% for field in dialog.inputs %}{{ field_input(field, none) }}{% endfor %}
         {#- THE WHOLE TARGET travels in the BODY (design §3.1): an action can never be pointed at
             another server or another player by editing a URL. A player dialog carries the ucid as
-            well, which is why the hidden fields are a list rather than one hard-coded input. -#}
+            well, which is why the hidden fields are a list rather than one hard-coded input.
+
+            THE FORM'S OWN ID (``dlg-form``): the BODY's fields (M9's selection list and its box) are
+            form-associated to it through ``form="dlg-form"``, so a control drawn above the footer still
+            rides this POST. -#}
         <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
         {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
         {% if dialog.confirm_token %}<input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">{% endif %}
