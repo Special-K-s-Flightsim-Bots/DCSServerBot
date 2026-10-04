@@ -25,13 +25,11 @@ class Trackfile(Extension):
         return True
 
     @override
-    async def startup(self, *, quiet: bool = False) -> bool:
-        if self.config.get('enabled', True):
-            cfg = Autoexec(cast(InstanceImpl, self.server.instance))
-            if cfg.disable_write_track:
-                self.log.warning(
-                    f"Server {self.server.name} has disable_write_track set and will not write any track file!")
-        return await super().startup()
+    async def prepare(self) -> bool:
+        cfg = Autoexec(cast(InstanceImpl, self.server.instance))
+        if cfg.disable_write_track:
+            cfg.disable_write_track = False
+        return await super().prepare()
 
     async def upload_trackfile(self):
         path = Path(self.server.instance.home) /  'Tracks' / 'Multiplayer'
@@ -68,3 +66,17 @@ class Trackfile(Extension):
         if self.config.get('enabled', True):
             self.loop.create_task(self.upload_trackfile())
         return super().shutdown()
+
+    @override
+    async def enable(self) -> bool:
+        cfg = Autoexec(cast(InstanceImpl, self.server.instance))
+        if cfg.disable_write_track:
+            cfg.disable_write_track = False
+        return await super().enable()
+
+    @override
+    async def disable(self) -> bool:
+        cfg = Autoexec(cast(InstanceImpl, self.server.instance))
+        if not cfg.disable_write_track:
+            cfg.disable_write_track = True
+        return await super().disable()
