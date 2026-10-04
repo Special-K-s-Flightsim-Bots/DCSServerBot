@@ -31,7 +31,7 @@ yaml = YAML()
 _ = get_translation(__name__.split('.')[1])
 
 SKYEYE_GITHUB_URL = "https://github.com/dharmab/skyeye/releases/latest"
-SKYEYE_DOWNLOAD_URL = "https://github.com/dharmab/skyeye/releases/download/{}/skyeye-windows-amd64.zip"
+SKYEYE_DOWNLOAD_URL = "https://github.com/dharmab/skyeye/releases/download/v{}/skyeye-windows-amd64.zip"
 WHISPER_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}"
 
 LOGLEVEL = {
