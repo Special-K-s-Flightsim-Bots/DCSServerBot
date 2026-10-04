@@ -98,7 +98,7 @@ a { color: var(--link); text-decoration: none; }
 }
 .brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px;
   border-bottom: 1px solid var(--line); }
-.brand img.brand-logo { height: 40px; width: auto; display: block; flex: 0 0 auto; }
+.brand img.brand-logo { height: 60px; width: auto; display: block; flex: 0 0 auto; }
 /* The brand mark is THE PROJECT'S OWN LOGO (services/webservice/static/logo.png), served from a
  * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
  * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
