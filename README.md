@@ -389,12 +389,20 @@ NODENAME:                       # this will usually be your hostname
     no_master: false            # Cluster only: this node should never be a master node (default: false)
     heartbeat: 30               # Cluster only: time for the heartbeat between the master and agent nodes to run (default: 30)
     cloud_drive: true           # Cluster only: set this to false if you do not have the bot installed on a cloud drive (default and recommended: true) 
-  auto_affinity:                # Optional / Experimental: auto-affinity settings
-    enabled: true               # Enabled auto-affinity **for the whole node** (default = false)
-    excluded_cores: [0, 1]      # Optional: exclude cores from auto-affinity.
-    min_cores: 1                # Min number of cores to be used for the bot itself (default: 1)
-    max_cores: 2                # Max number of cores to be used for the bot itself (default: 2)
-    quality: 1                  # Quality of the requested CPU cores (0 = low, 1 = medium, 2 = high, default: 1)
+  auto_affinity:                # Optional / Experimental: auto-affinity settings (see below)
+    enabled: true               # Enable auto-affinity for this node (default: false)
+    excluded_cores: [0, 1]      # Optional: exclude logical CPUs from auto-affinity
+    min_cores: 1                # Minimum number of logical CPUs to assign (default: 1)
+    max_cores: 2                # Maximum number of logical CPUs to assign (default: min_cores)
+    quality: 1                  # Requested core quality (0 = low, 1 = normal, 2 = high, 3 = reserved/highest)
+    # Optional oversubscription / core reuse
+    reuse_cores: true           # Allow bounded core reuse if minimums cannot be satisfied exclusively (default: true)
+    max_core_sharing: 2         # Maximum number of managed processes allowed to share one logical CPU (default: 2)
+    # Optional load-based balancing thresholds
+    growth_load_threshold: 70.0 # Grow a process only if its load per assigned core is above this value (default: 70.0)
+    steal_load_threshold: 85.0  # Allow stealing from idle processes after this load per assigned core (default: 85.0)
+    idle_load_threshold: 20.0   # A process below this load per assigned core may be considered idle (default: 20.0)
+    steal_streak: 3             # Number of consecutive high-load checks before stealing is allowed (default: 3)
   DCS:
     installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World Server'  # This is your DCS installation. Usually autodetected by the bot.
     autoupdate: true            # enable auto-update for your DCS servers. Default is false.
@@ -453,6 +461,10 @@ NODENAME:                       # this will usually be your hostname
 #    instance2:                 # you can have an unlimited number of instance configurations, but each instance has to have a physical representation on your disk.
 #      ...
 ```
+
+> [!TIP]
+> To read more about the auto_affinity system look [here](AUTO_AFFINITY.md)
+
 > [!TIP]
 > Remember to put apostrophes around any path, as the colon might mangle your YAML!
 

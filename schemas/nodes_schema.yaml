@@ -36,9 +36,15 @@ mapping:
         mapping:
           enabled: {type: bool, nullable: false}
           excluded_cores: {type: any, nullable: false, func: text_or_list}
-          min_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
-          max_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
-          quality: {type: int, nullable: false, range: {min: 0, max: 3}}
+          min_cores: {type: int, nullable: false, default: 1, range: {min: 1}}
+          max_cores: {type: int, nullable: true, range: {min: 1}}
+          quality: {type: int, nullable: false, default: 1, range: {min: 0}}
+          reuse_cores: {type: bool, nullable: false, default: true}
+          max_core_sharing: {type: int, nullable: false, default: 2, range: {min: 1, max: 8}}
+          growth_load_threshold: {type: float, nullable: false, default: 70.0, range: {min: 0.0}}
+          steal_load_threshold: {type: float, nullable: false, default: 85.0, range: {min: 0.0}}
+          idle_load_threshold: {type: float, nullable: false, default: 20.0, range: {min: 0.0}}
+          steal_streak: {type: int, nullable: false, default: 3, range: {min: 1}}
       database:
         type: map
         nullable: false

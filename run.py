@@ -175,7 +175,13 @@ class Main:
         me = psutil.Process(os.getpid())
         ProcessManager(
             auto_affinity=self.node.locals.get('auto_affinity', {}).get('enabled', False),
-            excluded_cores=self.node.locals.get('auto_affinity', {}).get('excluded_cores', [])
+            excluded_cores=self.node.locals.get('auto_affinity', {}).get('excluded_cores', []),
+            reuse_cores=self.node.locals.get('auto_affinity', {}).get('reuse_cores', True),
+            max_core_sharing=self.node.locals.get('auto_affinity', {}).get("max_core_sharing", 2),
+            growth_load_threshold=self.node.locals.get('auto_affinity', {}).get("growth_load_threshold", 70.0),
+            steal_load_threshold=self.node.locals.get('auto_affinity', {}).get("steal_load_threshold", 85.0),
+            idle_load_threshold=self.node.locals.get('auto_affinity', {}).get("idle_load_threshold", 20.0),
+            steal_streak=self.node.locals.get('auto_affinity', {}).get("steal_streak", 3)
         ).assign_process(
             me,
             min_cores=self.node.locals.get('auto_affinity', {}).get('min_cores', 1),
