@@ -1,0 +1,11 @@
+{#-
+  The DCS log lines — the fragment the Log tab's follow/page-back responses carry and the page itself
+  includes. ONE source line for the loop, with nothing between the tags: `.log` is `white-space: pre`,
+  so any newline the template leaves between two entries renders as a visible blank line. The opening
+  comment tag trims the whitespace after it, and the file carries NO trailing newline, so an EMPTY
+  window renders the empty string — never a lone blank line.
+
+  Each line is a `LogLine` (readmodels.model): `time`, `level`, `css` (the level's stylesheet class)
+  and `text`. Autoescape handles the log content — it is operator-supplied text, never markup.
+-#}
+{% for line in lines %}<div class="ln"><span class="t">{{ line.time }}</span> <span class="{{ line.css }}">{{ line.level }}</span> {{ line.text }}</div>{% endfor %}

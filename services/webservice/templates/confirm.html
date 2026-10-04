@@ -41,18 +41,18 @@
   too. The form here carries the two attributes that script reads: `data-async` (this is a background
   write) and `data-back` (the page it returns to).
 
-  IT LEAVES ONCE THE WRITE HAS ANSWERED (the maintainer's third report, corrected by M4-fix2). W4e's
-  dialog WAITED for the answer and filled a refusal line of its own; that is the behaviour he rejected
-  twice — the modal "still does not vanish the moment I press the button". The refusal line is indeed
-  gone, but the submit NO LONGER hands the page back the instant it is pressed: the console's ONE
-  interceptor (`static/submit.js`) sends the POST with `redirect: "manual"` and navigates to
-  `data-back` ONLY when the server's answer (the 303, or a refusal) is on the wire — i.e. AFTER the
-  route has run the action. Firing and leaving at once landed on a page rendered from the PRE-WRITE
-  state for any write that had not committed yet (the delete-button report). So the modal closes when
-  the write answers, not when it is clicked, and a refusal reaches the person through the console's OWN
-  route-level mechanism — the one-shot notice, rendered where they land and on the live path
-  (`pages/live.py`'s `notice` target), the same mechanism every other write already uses. Nothing is
-  retried: a confirm token is spent by the POST, so a re-send would only be refused a second time.
+  IT CLOSES THE MOMENT THE PRIMARY BUTTON IS PRESSED. The console's ONE interceptor
+  (`static/submit.js`) sends the POST with `redirect: "manual"` and, because this form STATES where it
+  returns to (its `data-back`), navigates to that page AT ONCE — on the press — with the write still
+  running in the background (`keepalive`). The modal is gone the instant the button is clicked. The
+  maintainer rejected twice a modal that stayed while the server worked ("still does not vanish the
+  moment I press the button"); M4-fix2's wait-for-the-answer brought that back, and this is the fix:
+  a form that states a `data-back` IS a dialog being dismissed, so it leaves immediately, while a form
+  that does NOT (the row strip's direct controls, the configuration forms) still waits for the answer
+  so its fresh render reads the post-write state. The outcome is NOT lost to the early close: a refusal
+  reaches the person through the console's OWN one-shot notice, rendered where they land and on the
+  live path (`pages/live.py`'s `notice` target), the same mechanism every other write already uses.
+  Nothing is retried: a confirm token is spent by the POST, so a re-send would only be refused again.
 -#}
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}

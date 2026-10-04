@@ -29,6 +29,7 @@ from core.extension import InstallableExtension
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
 from core.data.node import UploadStatus
+from core.data.resource_window import ResourceWindows
 from core.extension import Extension, InstallException
 from core.mizfile import MizFile
 from core.process import ProcessManager
@@ -59,7 +60,7 @@ DEFAULT_EXTENSIONS = {
     "Cloud": {}
 }
 
-__all__ = ["ServerImpl", "RenameError", "PortConflictError"]
+__all__ = ["ServerImpl", "RenameError", "PortConflictError", "ResourceInUseError"]
 
 
 class PortConflictError(Exception):
@@ -70,6 +71,16 @@ class PortConflictError(Exception):
     the case this exists for: DCS either fails to bind or, being UDP, binds anyway and loses the
     traffic, and the user sees a server that never comes up rather than a conflict. Raised by
     :meth:`ServerImpl.startup`.
+    """
+
+
+class ResourceInUseError(Exception):
+    """Startup refused because the DCS installation this server runs on is being taken down by another cluster.
+
+    The case this exists for: several clusters share one installation on a hoster's machine, and an update stops every
+    server on it. A start that slips in mid-update corrupts the installation — and the cluster being updated is not the
+    one that would notice. Carries what the operator needs: which resource, who holds it, and what the window may stop.
+    Raised before the process touches the installation. Raised by :meth:`ServerImpl.startup`.
     """
 
 
@@ -901,6 +912,35 @@ class ServerImpl(Server):
         except sqlite3.OperationalError:
             pass
 
+    async def _assert_resource_available(self) -> None:
+        """Refuse to launch while a maintenance window holds the installation this server runs on.
+
+        At the top of :meth:`startup`, so every path inherits it — cron, the scheduler, voting, the tournament plugin,
+        the mission actions and the maintenance manager's own power-on. Spread across the call sites, the one that gets
+        missed is the restore.
+
+        Two deliberate non-refusals. A window whose holder has gone silent does **not** refuse: that is the same
+        predicate the restore rule uses, and a taker that died must not keep every other cluster dark. An identity that
+        cannot be derived does not refuse either — this is a guard, not the correctness guarantee (the shutdown request
+        plus ack-and-wait is), and a broken identity must never be what stops servers from starting.
+        """
+        installation = self.node.installation
+        if not installation:
+            return
+        try:
+            identity = utils.ResourceIdentity.of(installation, 'dcs_installation')
+        except ValueError as ex:
+            self.log.warning(f"Could not identify the installation {installation} as a resource: {ex}")
+            return
+        window = await ResourceWindows(self.node).state(identity.id)  # type: ignore[arg-type]  # Node declares no
+        # cpool; both implementations (NodeImpl, NodeProxy) carry it, and the gate only needs the cluster pool.
+        if window and window.holder_live:
+            raise ResourceInUseError(
+                f"The DCS installation {identity.path} is taken by node '{window.holder_node}' "
+                f"(guild {window.holder_guild}) for a {window.action}. Startup refused: while that window is open "
+                f"every {window.scope} on this installation stays down, or the {window.action} corrupts it."
+            )
+
     def _assert_ports_free(self) -> None:
         """Refuse to launch while a port this instance needs is already taken on this machine.
 
@@ -933,6 +973,7 @@ class ServerImpl(Server):
 
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+        await self._assert_resource_available()
         self._assert_ports_free()
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):

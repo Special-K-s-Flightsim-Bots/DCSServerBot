@@ -24,13 +24,87 @@
 -#}
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
+{#- THE LOG FAMILY'S ONE CARD (L2/L3). The Log tab and the optional Events tab render the SAME
+    presentation — the tailed window, "Load older", and the artifacts PICKER — so it is ONE macro, not
+    two copies that could drift. `which` is the file selector the shared window route reads; the level
+    rides on the card as `data-level` and the follow/page-back script appends it.
+
+    THE EMPTY STATE IS THE SAME BODY (L3, Frank's report). `#dcs-log-body` is ALWAYS rendered — even
+    while the file does not exist yet — so the follower starts and polls from that state; the honest
+    sentence lives BESIDE it in `#dcs-log-note`, which the script hides the moment real lines arrive
+    (and shows again if the log disappears). The old markup shipped NO body in the empty state, so the
+    follower bailed out at once and the "no log file yet" sentence could never become the log without a
+    toolbar reload.
+
+    THE LEVEL ROW IS OMITTED ON THE EVENTS TAB (`log_levels` empty there, L3): every debug entry is
+    DEBUG, so a filter there is noise.
+
+    THE DOWNLOAD IS A PICKER, NOT A LIST (L3): one `<select>` of the server's artifacts plus a single
+    Download control, mirroring the bot's own `/download`. Each option carries the name, the size and
+    the modification time. The listing is still enumerated server-side and the route still matches the
+    choice BY IDENTITY against a fresh enumeration — the form only chooses; the route is unchanged. -#}
+{% macro log_card(title, which) %}
+<div class="card log-card" id="dcs-log-card"
+     data-window-url="{{ log_window_url }}" data-offset="{{ log_offset }}"
+     data-before="{{ log_before }}" data-identity="{{ log_identity }}"
+     data-level="{{ log_level }}"{% if log_which %} data-which="{{ log_which }}"{% endif %}
+     data-follow-seconds="{{ log_follow_seconds }}">
+  <div class="hd">
+    <h3>{{ title }}</h3>
+    <div class="spacer"></div>
+    {% if log_levels %}<span class="log-level" id="dcs-log-level">{% for item in log_levels %}<a href="{{ item.href }}" class="tag{{ ' a' if item.active else '' }}"{% if item.active %} aria-current="true"{% endif %}>{{ item.label }}</a>{% endfor %}</span>{% endif %}
+    <span class="tag">{{ log_path }}</span>
+    <span class="live-status" id="dcs-log-status">{% if log_available %}following while this tab is open{% else %}not available{% endif %}</span>
+  </div>
+  <div class="log" id="dcs-log-body">{% with lines = log_lines %}{% include "_dcs_log_lines.html" %}{% endwith %}</div>
+  <div class="bd" id="dcs-log-note"{% if log_lines %} hidden{% endif %}><p class="empty" id="dcs-log-note-text">{{ log_message }}</p></div>
+  <div class="ft">
+    <button type="button" id="dcs-log-older" class="btn"{% if not log_available or log_at_start %} disabled{% endif %}>{% if log_at_start %}Start of log{% else %}Load older{% endif %}</button>
+    <span class="spacer"></span>
+    <span>Node <b>{{ log_node }}</b>.</span>
+  </div>
+</div>
+
+{#- THE DOWNLOAD PICKER. ONE `<select>` of the artifacts the tab offers (name, size, modification
+    time — newest first) and ONE Download control, mirroring the bot's own `/download`. A GET form, so
+    the download stays a READ and the route's contract is untouched. -#}
+<div class="card">
+  <div class="hd"><h3>Log files</h3><div class="spacer"></div><span class="tag">download</span></div>
+  <div class="bd">
+    {% if log_artifacts_note %}
+    <p class="empty">{{ log_artifacts_note }}</p>
+    {% elif log_artifacts %}
+    <form class="cfg-form log-picker" method="get" action="{{ log_download_base }}">
+      {% if log_which %}<input type="hidden" name="which" value="{{ log_which }}">{% endif %}
+      <div class="cfg-row">
+        <div class="cfg-meta"><div><b>Log file</b></div><div class="sub">Choose a file to download.</div></div>
+        <div class="cfg-widget">
+          <select id="dcs-log-file" name="artifact" aria-label="Log file to download">
+            {% for a in log_artifacts %}
+            <option value="{{ a.id }}">{{ a.name }} — {{ a.size_text }} · {{ a.mtime }} UTC</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn">Download</button>
+        </div>
+      </div>
+    </form>
+    {% else %}
+    <p class="empty">No log files are in this server's log directory yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
 {% block title %}{{ page_title }} — DCSServerBot{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <h1>{{ page_title }}</h1>
   {% if server is defined and server %}
-  <div class="sub">node {{ server.node_name }}{% if server.instance_name %} · instance {{ server.instance_name }}{% endif %}{% if server.port %} · port :{{ server.port }}{% endif %} · <span class="tag"><span class="dot {{ server.status.dot }}" aria-hidden="true"></span> {{ server.status.word }}</span>{% if server.maintenance %} <span class="tag">maintenance</span>{% endif %}</div>
+  {#- THE STATUS IS A LIVE REGION (L5). The mark is wrapped so the status's own poll can replace its
+      content, and the page head carries the poll's URL and cadence (the way the log card carries its
+      window URL and follow seconds). The status is kept current on EVERY tab: this head is outside the
+      tab branches, and `/static/server-status.js` is loaded on every tab. -#}
+  <div class="sub" data-server-status-url="{{ server_status_url }}" data-server-status-seconds="{{ server_status_seconds }}">node {{ server.node_name }}{% if server.instance_name %} · instance {{ server.instance_name }}{% endif %}{% if server.port %} · port :{{ server.port }}{% endif %} · <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span>{% if server.maintenance %} <span class="tag">maintenance</span>{% endif %}</div>
   {% endif %}
 </div>
 
@@ -589,20 +663,22 @@
 {% endif %}
 
 {% elif tab == 'log' %}
-{# ---------------------------------------------------------------- the Log tab #}
-<div class="card">
-  <div class="hd"><h3>Log</h3><div class="spacer"></div><span class="tag">cluster-wide</span></div>
-  <div class="bd">
-    <div class="sub">The bot log is cluster-wide, not per server. <a href="/logs">Open the Logs page</a> for the
-      tail and its level filter.</div>
-  </div>
-</div>
+{# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
+{#  THE SERVER'S OWN LOG (L1/L2): the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
+    renders this tab and the Events tab so the two cannot drift.  #}
+{{ log_card('Server log', 'log') }}
+
+{% elif tab == 'events' %}
+{# ---------------------------------------------------------------- the Events tab: the debug plugin's events.log #}
+{#  THE DEBUG PLUGIN'S events.log (L2): offered ONLY while the debug plugin is active for this server.
+    Same presentation as the Log tab; its downloads cover only events.log / events.log.old.  #}
+{{ log_card('Events', 'events') }}
 
 {% else %}
 {# ---------------------------------------------------------------- the Overview tab #}
 <div class="card">
   <div class="hd"><h3>Overview</h3><div class="spacer"></div>
-    <span class="tag"><span class="dot {{ server.status.dot }}" aria-hidden="true"></span> {{ server.status.word }}</span></div>
+    <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span></div>
   <div class="bd">
     <div class="sub">node {{ server.node_name }}{% if server.instance_name %} · instance {{ server.instance_name }}{% endif %}{% if server.port %} · port :{{ server.port }}{% endif %}{% if server.remote %} · remote{% endif %}</div>
     <div class="sub">Current mission: <b>{{ server.mission_name or '—' }}</b> · elapsed {{ server.mission_label }}</div>
@@ -625,5 +701,12 @@
     reason to load any.  #}
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>
-<script src="/static/mission-select.js" defer></script>{% endblock %}
+<script src="/static/mission-select.js" defer></script>
+{#  THE SERVER LOG's follow + page-back (L1): a progressive enhancement. With JavaScript off the tail
+    the page rendered is all there is — the page is not live and "Load older" does nothing.  #}
+<script src="/static/server-log.js" defer></script>
+{#  THE SERVER'S STATUS's own poll (L5): a progressive enhancement. It keeps the status "at the top"
+    (and the Overview card's copy) current on its OWN interval, on every tab — separate from the log
+    follower on purpose, so one fact has one updater and the two can never drift.  #}
+<script src="/static/server-status.js" defer></script>{% endblock %}
 

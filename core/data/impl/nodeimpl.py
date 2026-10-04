@@ -30,6 +30,7 @@ from contextlib import closing
 from core import utils, Status, Port, PortType
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
+from core.data.resources import ResourceRegistry
 from core.translations import get_translation
 from datetime import datetime
 from discord.ext import tasks
@@ -77,6 +78,32 @@ LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 RESTART = -1
 SHUTDOWN = -2
 UPDATE = -3
+
+#: THE NODE READ PATH'S OWN CEILING (L1-fix). ``read_file_window`` moves a BOUNDED window and nothing
+#: else; this is the hard upper bound on ``length`` — the most bytes ONE window read will ever move,
+#: whatever a caller asks. It lives on the PRIMITIVE, not on the one caller (the console passes 64
+#: KiB), so a future caller cannot turn the windowed read back into a whole-file transfer: a length
+#: above this is CLAMPED to it. 1 MiB is 16x the console's window — room for a larger viewer — and
+#: still small enough that the read can never pull a multi-megabyte log into one response.
+NODE_READ_WINDOW_MAX_BYTES = 1024 * 1024
+
+
+def file_identity(st: os.stat_result) -> int | float:
+    """A file's IDENTITY: a value that does NOT change when the file is APPENDED to but DOES change
+    when it is REPLACED — the signal a follower needs to tell a growing log from a ROTATED one (L1-fix).
+
+    ``st_ctime`` is the natural choice ON WINDOWS, where it IS the creation time. On POSIX it is the
+    inode-change time, which the kernel updates on EVERY WRITE — using it there would reset the view
+    on every appended line, so on POSIX this reports the file's INODE (``st_ino``) instead: stable
+    across an append, and different for a replacement file written by a rotation. ``st_birthtime``
+    (the true creation time, on macOS/BSD) is preferred where the platform provides it.
+    """
+    created = getattr(st, "st_birthtime", None)
+    if created:
+        return created
+    if os.name == "nt":
+        return st.st_ctime
+    return st.st_ino
 
 # Internationalisation
 _ = get_translation('core')
@@ -181,6 +208,7 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
         await self.init_instances()
+        await self.register_resources()
 
     async def __aenter__(self):
         if sys.platform == 'win32':
@@ -559,6 +587,27 @@ class NodeImpl(Node):
             # save the new config
             with open(config_file, mode='w', encoding='utf-8') as outfile:
                 yaml.dump(config, outfile)
+
+    async def register_resources(self):
+        """Declare this node's DCS installation in the federation registry.
+
+        Automatic, never opt-in: whoever installs a second bot on one PC has no idea they just made two clusters
+        share one installation, so the dependency cannot depend on anybody enabling it. Harmless without a federation
+        — a single cluster simply registers its own resource — and it is the row that lets a *second* cluster see the
+        sharing at all.
+        """
+        if not self.installation:
+            return
+        try:
+            identity = utils.ResourceIdentity.of(self.installation, 'dcs_installation')
+            servers = sorted(set(utils.findDCSInstances().values()))
+            await ResourceRegistry(self).register(
+                identity, dependents=[('server', name) for name in servers])
+            self.log.info(f'- Resource {identity.path} registered ({len(servers)} server(s) depend on it).')
+        except Exception as ex:
+            # Deliberately not fatal: this reports and coordinates, it is not a precondition for running servers. An
+            # ERROR line is the honest signal — a node that cannot register will not learn it must step down either.
+            self.log.error(f'- Could not register the DCS installation as a federation resource: {ex}')
 
     async def update_db(self):
         rc = 0
@@ -1533,6 +1582,62 @@ class NodeImpl(Node):
                 return (await cursor.fetchone())[0]
 
     @override
+    async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
+                               behind: int | None = None) -> tuple[bytes, int, int | float] | tuple[int, int, int | float]:
+        """A WINDOW of a file, its size and its identity — never the whole file (L1; see :meth:`Node.read_file_window`).
+
+        A read-only sibling of :meth:`read_file`. On the MASTER this node reads the window off its own
+        disk with a ``seek`` and NOTHING crosses the wire; on an AGENT it writes ONLY the window into
+        the same one-shot ``files`` drop-box row :meth:`read_file` uses and returns ``(row id, size,
+        identity)`` so the master-side proxy can read-and-delete it — the transport is unchanged, only
+        what travels in it is smaller. The proxy turns the id back into the bytes, so a console caller
+        sees ``(bytes, size, identity)`` in either case.
+
+        Exactly one of *offset* / *behind* names the window (``ValueError`` otherwise). ``length`` is
+        CLAMPED to :data:`NODE_READ_WINDOW_MAX_BYTES` — the PRIMITIVE's own ceiling — so the window can
+        never grow into a whole-file transfer whatever a caller asks. The size is the file's size AT
+        READ TIME (the reader sees a truncation/rotation when ``size < offset``) and the identity is
+        :func:`file_identity` (a value stable across an APPEND but changed by a REPLACEMENT, so a
+        rotated log is detected even when the new file is already bigger than the old offset).
+        """
+        if (offset is None) == (behind is None):
+            raise ValueError("read_file_window needs exactly one of 'offset' or 'behind'.")
+        if length <= 0:
+            raise ValueError("read_file_window needs a positive 'length'.")
+        if offset is not None and offset < 0:
+            raise ValueError("read_file_window needs a non-negative 'offset'.")
+        # THE PRIMITIVE'S OWN CEILING: a window can never exceed it, whatever the caller asks.
+        length = min(int(length), NODE_READ_WINDOW_MAX_BYTES)
+        start_hint = int(offset) if offset is not None else 0
+        behind_hint = int(behind) if behind is not None else None
+
+        def _read_window() -> tuple[bytes, int, int | float]:
+            st = os.stat(path)
+            size = st.st_size
+            if behind_hint is not None:
+                end = max(0, min(behind_hint, size))
+                start = max(0, end - length)
+            else:
+                start = min(start_hint, size)
+                end = min(size, start + length)
+            with open(path, 'rb') as file:
+                file.seek(start)
+                data = file.read(max(0, end - start))
+            return data, size, file_identity(st)
+
+        path = os.path.expandvars(path)
+        data, size, identity = await asyncio.to_thread(_read_window)
+        if self.node.master:
+            return data, size, identity
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                INSERT INTO files (guild_id, name, data) 
+                VALUES (%s, %s, %s)
+                RETURNING id
+            """, (self.guild_id, path, psycopg.Binary(data)))
+            return (await cursor.fetchone())[0], size, identity
+
+    @override
     async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
         if os.path.exists(target) and not overwrite:
             return UploadStatus.FILE_EXISTS
@@ -1597,6 +1702,29 @@ class NodeImpl(Node):
 
         ret = [f.as_posix() for f in sorted(filtered_files(), key=sort_key, reverse=sort_key != str)]
         return directory.as_posix(), ret
+
+    @override
+    async def list_files(self, path: str, *, pattern: str | list[str] = '*'
+                         ) -> list[tuple[str, int, float]]:
+        """The FILES matching *pattern*, each as ``(path, size, mtime)``, NEWEST FIRST (L2).
+
+        The local half of :meth:`Node.list_files`: a ``glob`` over the expanded directory, each match
+        ``stat``-ed for its size and modification time, sorted by ``mtime`` DESCENDING. A directory
+        that does not exist simply globs to nothing, so a missing log directory is an EMPTY list, not
+        an error — the honest "there are no files to list" answer.
+        """
+        directory = Path(os.path.expandvars(path))
+        if isinstance(pattern, str):
+            pattern = [pattern]
+
+        found: dict[str, tuple[str, int, float]] = {}
+        for pat in pattern:
+            for file in directory.glob(pat):
+                if file.is_dir():
+                    continue
+                st = file.stat()
+                found[file.as_posix()] = (file.as_posix(), int(st.st_size), float(st.st_mtime))
+        return sorted(found.values(), key=lambda entry: entry[2], reverse=True)
 
     @override
     async def create_directory(self, path: str):

@@ -109,9 +109,9 @@
      — the confirmation dialog's destructive form AND the row strip's direct controls — is handled
      by this one script, which is loaded on EVERY page (the dialog extends this template too). It is
      not gated by `live`: the strip is on the standalone pages as well, and there is no page-local
-     copy to fall back to (the dialog's inline block was the first one). Its own header states why
-     one copy, and the one difference between the dialog and the strip — a page that stays vs a page
-     that hands over to a fresh render. #}
+     copy to fall back to (the dialog's inline block was the first one). Its own header states why one
+     copy and how the two differ: the DIALOG (a form stating its `data-back`) closes on the press,
+     while a form that stays on its page waits for the write's answer. #}
   <script src="/static/submit.js" defer></script>
   {# The live-update script: a progressive enhancement and nothing more. The page is fully rendered
      (log entries, server rows) before it loads, so with JavaScript off nothing is missing — the

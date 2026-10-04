@@ -1,10 +1,12 @@
 """The per-server page and its **Configuration** tab — and (M2) the **Missions** tab and download.
 
 A server gets its own page: Overview / Players / Missions / Log plus a Configuration tab. The module
-adds two routes — ``GET /servers/{name:path}`` (the ``:path`` converter carries a name containing
-``/``) and ``GET /servers/{name:path}/missions/download`` (the Missions tab's one read control,
-registered FIRST so the page's greedy converter cannot swallow it) — and reuses the shell, the
-sidebar, the table component and the read models rather than inventing a second page framework.
+adds four routes — ``GET /servers/{name:path}`` (the ``:path`` converter carries a name containing
+``/``), ``GET /servers/{name:path}/status`` (the status poll, L5), ``GET
+/servers/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
+routes (``.../log/window`` and ``.../log/download``) — registered FIRST so the page's greedy converter
+cannot swallow them, and reuses the shell, the sidebar, the table component and the read models rather
+than inventing a second page framework.
 
 The name is resolved through :func:`services.webservice.pages.dashboard.scoped_server`, so the hoster
 scope and the not-found refusal come for free. The page keeps the gate ``/servers`` has
@@ -26,15 +28,17 @@ through the mission plugin's READ actions (``pages/actions.mission_list`` / ``do
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import unicodedata
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
 from .. import permissions, readmodels, session
+from ..readmodels import dcslog as dcs_log
 from ..readmodels import serverconfig as server_config
 from ..readmodels.access import attr
 from ..readmodels.players import player_views
@@ -48,6 +52,8 @@ from ..scope import CLUSTER_ROLES
 from core.server_config import CHANNELS_ITEM, MANAGER_DENIED
 from . import actions as actions_page
 from . import dashboard as dashboard_page
+from . import logs as logs_page
+from . import nodes as nodes_page
 from . import servers as servers_page
 
 __all__ = [
@@ -55,10 +61,15 @@ __all__ = [
     "CONFIG_CAPABILITY", "CONFIG_ROLES", "CONFIG_TAB",
     "MISSIONS_TAB", "MISSIONS_CAPABILITY", "MISSIONS_ROLES",
     "MISSIONS_DOWNLOAD_PATH", "MISSIONS_DOWNLOAD_MAX_BYTES", "MISSIONS_DOWNLOAD_MEDIA_TYPE",
+    "LOG_TAB", "LOG_READ_CAPABILITY", "LOG_WINDOW_PATH", "log_window_path",
+    "EVENTS_TAB", "LOG_DOWNLOAD_PATH", "LOG_DOWNLOAD_MAX_BYTES", "log_download_path",
+    "SERVER_STATUS_PATH", "SERVER_STATUS_SECONDS", "server_status_path",
+    "log_artifacts", "debug_plugin_active",
     "TAB_ORDER", "OPTIONAL_TAB_ORDER", "TAB_LABELS", "DEFAULT_TAB", "CONFIG_TEMPLATE",
     "PAGE_TITLE_SUFFIX", "capabilities", "nav_items", "add_routes",
     "normalise_tab", "tabs_for", "tab_views", "config_request_refused", "tab_request_refused",
     "mission_download_path", "mission_rows", "add_mission_download_route",
+    "add_server_status_route",
 ]
 
 log = logging.getLogger(__name__)
@@ -107,15 +118,67 @@ PAGE_TITLE_SUFFIX = " — DCSServerBot"
 #: the tab that carries the DCS configuration
 CONFIG_TAB = "configuration"
 
-#: every tab, in render order. Overview/Players/Missions/Log are offered to any viewer of the page;
-#: ``missions`` only to a viewer holding ``missions.view``; ``configuration`` only to a viewer holding
+#: THE LOG TAB — the server's OWN DCS log (``{instance.home}/Logs/dcs.log``), tailed (L1). Its
+#: capability is the CLUSTER LOG PANEL's own ``logs.view`` (``Admin`` only, no scope grant): the log
+#: carries UCIDs and IPs, so who may read this tab is exactly who may read ``/logs`` — no new
+#: capability is invented, and the tab's link, the ``?tab=log`` refusal and the window route all read
+#: THIS one predicate.
+LOG_TAB = "log"
+LOG_READ_CAPABILITY = logs_page.LOGS_CAPABILITY
+
+#: THE EVENTS TAB — the debug plugin's ``events.log``, offered ONLY while the ``debug`` plugin is
+#: active for the server (see :func:`debug_plugin_active`). It reads the same way the log tab does
+#: (tail, page back, level filter) and its downloads cover ONLY ``events.log`` / ``events.log.old``.
+EVENTS_TAB = "events"
+
+#: the ONE sentence a request for the Events tab's data gets while the debug plugin is off — used by
+#: BOTH the page's tab refusal and the window/download routes, so the console says it one way.
+EVENTS_REFUSED_SENTENCE = ("The Events tab is only offered while the debug plugin is active "
+                           "for this server.")
+
+#: THE LOG-WINDOW route — a literal TEMPLATE path with the server's own ``{name:path}`` prefix (so a
+#: name containing ``/`` still resolves, exactly as the page route does) plus one fixed suffix. It
+#: answers GET with JSON: a window of the server's log, at ``?offset=`` (follow) or ``?behind=``
+#: (page back), filtered by ``?level=`` and (for the Events tab) selected by ``?which=events``. It is
+#: registered BEFORE the page route so the suffix is not swallowed by the greedy ``{name:path}`` of
+#: ``GET /servers/{name}``.
+LOG_WINDOW_PATH = "/servers/{name:path}/log/window"
+
+#: THE LOG-DOWNLOAD route — one artifact's own READ control. The artifact is named by an IDENTITY
+#: from the tab's own listing (a file NAME, never a path) and RE-RESOLVED against a fresh enumeration
+#: in the route, so nothing a request states is ever joined to a directory. Registered BEFORE the page
+#: route for the same greedy-converter reason as the window route.
+LOG_DOWNLOAD_PATH = "/servers/{name:path}/log/download"
+
+#: THE STATUS route — the server page's own status poll (L5). A GET answering the CURRENT status as
+#: the markup the page itself renders (the partial ``_server_status.html``), so the mark "at the top"
+#: of the page and the Overview card's copy of it keep up with the server WITHOUT a reload. The page
+#: is NOT wired to the console's live path (that is the dashboard's SSE stream, whose fragments are
+#: dashboard-shaped); the status therefore has its OWN poll — ONE updater for ONE fact. Registered
+#: BEFORE the page route so the greedy ``{name:path}`` of ``GET /servers/{name}`` cannot swallow it.
+SERVER_STATUS_PATH = "/servers/{name:path}/status"
+
+#: how often the status poll asks (seconds) — carried to the page as ``data-server-status-seconds``.
+#: The status is a single small mark, so it does not need the log follower's tighter cadence.
+SERVER_STATUS_SECONDS = 10
+
+#: HOW MUCH OF A LOG THIS CONSOLE HANDS OVER IN ONE RESPONSE — the SAME cap the node-log download
+#: already declares (``pages/nodes.LOG_DOWNLOAD_MAX_BYTES``, 10 MiB), named through it rather than
+#: re-spelled, so "the console's download cap" has ONE number. A log above it is REFUSED with its own
+#: sentence (naming the size, the limit and the path) — never a silent truncation, never a big blob
+#: through the database.
+LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
+
+#: every tab, in render order. Overview/Players are offered to any viewer of the page; ``missions``
+#: only to a viewer holding ``missions.view``; ``log`` only to a viewer holding ``logs.view`` (the
+#: cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a viewer holding
 #: ``servers.config``.
-TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, "log", CONFIG_TAB)
-OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, "log")
+TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
+OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, LOG_TAB, EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
-    "overview": "Overview", "players": "Players", MISSIONS_TAB: "Missions", "log": "Log",
-    CONFIG_TAB: "Configuration",
+    "overview": "Overview", "players": "Players", MISSIONS_TAB: "Missions", LOG_TAB: "Log",
+    EVENTS_TAB: "Events", CONFIG_TAB: "Configuration",
 }
 
 DEFAULT_TAB = "overview"
@@ -141,6 +204,11 @@ MISSIONS_DOWNLOAD_MEDIA_TYPE = "application/octet-stream"
 #: must not shape a header, even a name the action already validated).
 _UNSAFE_FILENAME = re.compile(r"[^A-Za-z0-9._-]+")
 
+#: the shape of a file-identity token this route could itself have emitted (:func:`identity_token`):
+#: a decimal integer or float, of ANY length — a POSIX inode above 2**53 is accepted and compared as
+#: the exact string it was, never parsed into a float that would lose its low bits.
+_IDENTITY_TOKEN = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\Z")
+
 
 def _clean_word(value, limit: int = 40) -> str:
     """*value* as a control-free, trimmed, capped word — the same cleaning the dashboard applies."""
@@ -157,25 +225,39 @@ def normalise_tab(value) -> str:
     return key if key in TAB_ORDER else DEFAULT_TAB
 
 
-def tabs_for(roles, *, manager: bool = False, config_manager: bool = False) -> tuple[str, ...]:
+def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
+             debug_plugin: bool = False) -> tuple[str, ...]:
     """The tabs a viewer holding *roles* (and, for a manager, the SCOPE) may be offered — and RENDER.
 
     ONE answer for the strip and for the tab in force: ``missions`` is offered exactly when
-    ``missions.view`` allows it, and ``configuration`` exactly when ``servers.config`` allows it —
-    the SAME predicates the route's refusal reads, so a link and the refusal cannot disagree.
+    ``missions.view`` allows it, ``log`` exactly when ``logs.view`` (the cluster log panel's own,
+    ``Admin`` only) allows it, ``events`` exactly when ``logs.view`` allows it AND the ``debug``
+    plugin is active for the server (``debug_plugin``), and ``configuration`` exactly when
+    ``servers.config`` allows it — the SAME predicates the route's refusal reads, so a link and the
+    refusal cannot disagree.
 
     TWO manager facts, because the two gated tabs declare DIFFERENT scope rules: ``missions.view``
     carries the server page's own scope grant and admits any manager of a server (``manager``, the
     general fact from ``permissions.manages_console``), while ``servers.config`` admits only a
     restricted-scope viewer WITHOUT a cluster role (``config_manager`` — a server's config carries
     secrets, so a cluster role is never a "manager ONLY"). Keeping them separate is what stops one
-    tab's rule from widening the other's.
+    tab's rule from widening the other's. ``logs.view`` carries NO scope grant, so the log and events
+    tabs are offered on the ROLE alone.
     """
     tabs: list[str] = []
     for key in OPTIONAL_TAB_ORDER:
         if key == MISSIONS_TAB:
             if permissions.allows(MISSIONS_CAPABILITY, roles or (), manager=manager):
                 tabs.append(key)
+            continue
+        if key in (LOG_TAB, EVENTS_TAB):
+            # both log-family tabs need the log panel's own capability; ``events`` ADDITIONALLY needs
+            # the debug plugin active — a tab that could never serve is never drawn (Frank's ruling).
+            if not permissions.allows(LOG_READ_CAPABILITY, roles or ()):
+                continue
+            if key == EVENTS_TAB and not debug_plugin:
+                continue
+            tabs.append(key)
             continue
         tabs.append(key)
     if permissions.allows(CONFIG_CAPABILITY, roles or (), manager=config_manager):
@@ -198,15 +280,28 @@ def config_request_refused() -> HTTPException:
 def tab_request_refused(tab: str) -> HTTPException:
     """The refusal a request for a GATED tab this viewer may not open gets — naming that tab's rule.
 
-    ONLY a gated tab (``missions`` / ``configuration``) can reach here: every other tab is offered to
-    any viewer of the page. The requirement text is the refused tab's OWN capability, so the sentence
-    a person reads names the right rule — a crafted ``?tab=missions`` answers the missions
-    requirement, never the configuration's.
+    ONLY a gated tab (``missions`` / ``log`` / ``configuration``) can reach here: every other tab is
+    offered to any viewer of the page. The requirement text is the refused tab's OWN capability, so
+    the sentence a person reads names the right rule — a crafted ``?tab=log`` answers the log
+    requirement (``logs.view``, Admin-only), never the missions' or the configuration's.
     """
-    capability = CONFIG_CAPABILITY if tab == CONFIG_TAB else MISSIONS_CAPABILITY
+    capability = {CONFIG_TAB: CONFIG_CAPABILITY, MISSIONS_TAB: MISSIONS_CAPABILITY,
+                  LOG_TAB: LOG_READ_CAPABILITY, EVENTS_TAB: LOG_READ_CAPABILITY}.get(
+        tab, MISSIONS_CAPABILITY)
     requirement = permissions.requirement_text(capability)
     return HTTPException(status_code=403,
                          detail=f"Not authorized (needs one of: {requirement}).")
+
+
+def events_request_refused() -> HTTPException:
+    """The refusal a request for the Events tab gets while the ``debug`` plugin is not active (403).
+
+    The viewer may hold ``logs.view`` — this is NOT an authorization failure — but the tab's file is
+    written by the debug plugin's DCS-side ``log.set_output('events', …)``, so with the plugin off
+    there is nothing to serve and the tab is not offered at all. Refused rather than served: a dead
+    tab is exactly what the card forbids.
+    """
+    return HTTPException(status_code=403, detail=EVENTS_REFUSED_SENTENCE)
 
 
 def config_manager(request: Request) -> bool:
@@ -259,11 +354,23 @@ def capabilities() -> dict[str, str]:
     sees the missions of their own servers. It also gates the mission-download route, declared here
     for ``MISSIONS_DOWNLOAD_PATH`` — the ONE predicate the tab link, the tab request and the
     download route all read.
+
+    THE LOG TAB is gated by the CLUSTER LOG PANEL's own ``logs.view`` (declared by ``pages/logs``,
+    ``Admin`` only, no scope grant) — reused here rather than re-spelled, and declared for
+    ``LOG_WINDOW_PATH`` (the tab's own window route), so the tab link, the ``?tab=log`` refusal and
+    the window route read ONE predicate. No new capability is invented.
     """
     permissions.declare_capability(CONFIG_CAPABILITY, CONFIG_ROLES, scope_grants=True)
     permissions.declare_capability(MISSIONS_CAPABILITY, MISSIONS_ROLES, scope_grants=True)
+    logs_page.declare()
     return {SERVER_DETAIL_PATH: SERVER_DETAIL_CAPABILITY,
-            MISSIONS_DOWNLOAD_PATH: MISSIONS_CAPABILITY}
+            MISSIONS_DOWNLOAD_PATH: MISSIONS_CAPABILITY,
+            LOG_WINDOW_PATH: LOG_READ_CAPABILITY,
+            LOG_DOWNLOAD_PATH: LOG_READ_CAPABILITY,
+            # THE STATUS POLL is a READ of the server page's own data (the status the page head and
+            # the Overview card render), so it carries the PAGE's capability and its scope — the same
+            # predicate the page route is gated with, never a new one.
+            SERVER_STATUS_PATH: SERVER_DETAIL_CAPABILITY}
 
 
 def nav_items():
@@ -410,6 +517,659 @@ def _safe_filename(name: str) -> str:
     return cleaned or "mission.miz"
 
 
+# ---------------------------------------------------------------------------------- the Log tab (L1)
+# The server's OWN DCS log, read as a BOUNDED WINDOW (never the whole file) and followed only while
+# the tab is open. The bytes come from the node read path's WINDOWED sibling
+# (``Node.read_file_window`` — a local ``seek`` on the master, the same one-shot drop-box row to an
+# agent); everything below turns a window into COMPLETE lines and the cursors the browser follows.
+# The pure half (path resolution, line format, window splitting) lives in
+# ``readmodels/dcslog.py``; the RPC lives here because a read model must not await.
+
+def log_window_path(server_name: str) -> str:
+    """The URL of *server_name*'s log-window endpoint — the name as ONE percent-encoded segment."""
+    return f"/servers/{quote(readmodels.text(server_name), safe='')}/log/window"
+
+
+def server_status_path(server_name: str) -> str:
+    """The URL of *server_name*'s status endpoint — the name as ONE percent-encoded segment (L5)."""
+    return f"/servers/{quote(readmodels.text(server_name), safe='')}/status"
+
+
+class _LogUnavailable(Exception):
+    """A log the console cannot read, carrying the ONE honest sentence to render.
+
+    ``pending`` says the file simply IS NOT THERE YET (a server that is still starting writes no
+    ``dcs.log`` until it boots). That is a NORMAL state, not a failure: the tab must keep polling at
+    the normal cadence so the log appears on its own, and only a GENUINE failure (a node that is
+    unreachable, a permission error, a timeout, a bad answer) drives the follower's backoff.
+    """
+
+    def __init__(self, sentence: str, *, pending: bool = False):
+        super().__init__(sentence)
+        self.sentence = sentence
+        self.pending = pending
+
+
+def _node_offline_sentence(node_name: str) -> str:
+    """The sentence for a node the cluster cannot reach — the same answer for offline and unknown."""
+    return (f"Node '{node_name}' is offline or unknown, so its log cannot be read from this console.")
+
+
+def _reachable_log_node(request: Request, server):
+    """The node *server* runs on, resolved through the SCOPED source — or ``None`` when unreachable.
+
+    Reads the SAME scoped source the rows render from, so a node the caller cannot see is not
+    resolvable here either, and treats an entry that is ``None`` as OFFLINE — exactly as the Nodes
+    page does. A server whose node name is simply absent from the mapping falls back to the server's
+    own node object (there is no reason to refuse a log the server itself could hand over).
+    """
+    name = readmodels.text(attr(attr(server, "node", None), "name", None))
+    entries = getattr(dashboard_page.request_source(request), "nodes", None)
+    if isinstance(entries, dict) and name:
+        if name in entries:
+            return entries.get(name)
+        wanted = name.casefold()
+        for key, entry in entries.items():
+            if readmodels.text(key).casefold() == wanted:
+                return entry
+        return attr(server, "node", None)
+    return attr(server, "node", None)
+
+
+async def _read_window(node, path: str, node_name: str, *, offset=None,
+                       behind=None) -> tuple[bytes, int, int | float]:
+    """One window read through the node: ``(bytes, size, identity)``; every failure is ITS OWN sentence."""
+    try:
+        raw, size, identity = await node.read_file_window(path, length=dcs_log.WINDOW_BYTES,
+                                                          offset=offset, behind=behind)
+    except FileNotFoundError:
+        # THE FILE IS NOT THERE YET (a server that is still starting writes no ``dcs.log``): a NORMAL
+        # state, not a failure — marked ``pending`` so the follower keeps polling at the normal
+        # cadence instead of backing off, and the log appears on its own.
+        raise _LogUnavailable(dcs_log.MISSING_SENTENCE.format(path=path, node=node_name),
+                              pending=True)
+    except PermissionError:
+        raise _LogUnavailable(f"Node '{node_name}' cannot read this server's log file "
+                              f"(permission denied).")
+    except (TimeoutError, asyncio.TimeoutError):
+        raise _LogUnavailable(f"Node '{node_name}' did not answer in time, so the log was not read.")
+    except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
+        log.warning("Server log window: node '%s' raised %s", node_name, type(ex).__name__,
+                    exc_info=True)
+        raise _LogUnavailable(f"Node '{node_name}' could not hand over the log "
+                              f"({type(ex).__name__}).")
+    if (not isinstance(raw, (bytes, bytearray)) or not isinstance(size, int)
+            or not isinstance(identity, (int, float))):
+        raise _LogUnavailable(f"Node '{node_name}' answered with a failure code instead of the log.")
+    return bytes(raw), size, identity
+
+
+def _end_of(lines, fallback: int) -> int:
+    """The absolute offset just PAST the last complete line, or *fallback* when there is none."""
+    if not lines:
+        return fallback
+    offset, body = lines[-1]
+    return offset + len(body) + 1
+
+
+def identity_token(value) -> str:
+    """A file identity as the LOSSLESS STRING token that crosses JSON (L2-fix).
+
+    The identity is compared EQUAL or NOT-EQUAL and never as a magnitude, so a POSIX inode above
+    ``2**53`` — real on network/64-bit-inode filesystems — must not go out as a JSON NUMBER: a
+    JavaScript ``JSON.parse`` turns that into a double and loses the low bits, so a value that never
+    changed would come back CHANGED and announce a rotation that never happened. The value the node
+    read returns is therefore stringified at this ONE boundary (the node read is Python-to-Python and
+    exact); the browser treats the result as an opaque token and echoes it back unchanged, and the
+    route compares tokens as STRINGS, so the round trip cannot move the value on any node.
+    """
+    return "" if value is None else str(value)
+
+
+def _empty_message(allowed) -> str:
+    """The honest sentence for a page that came back with no line: the level filter's own when a
+    filter is in force, otherwise the file's own "empty" message."""
+    from ..readmodels.model import LOG_EMPTY_MESSAGE, LOG_LEVEL_EMPTY_MESSAGE
+    return LOG_LEVEL_EMPTY_MESSAGE if allowed else LOG_EMPTY_MESSAGE
+
+
+async def _collect_back(node, path: str, node_name: str, *, behind, allowed,
+                        want: int) -> dict:
+    """Walk BACK through windows until *want* matching lines are collected OR the start is reached.
+
+    A FILTERED PAGE MUST NEVER LIE BY BEING EMPTY (Frank's report): if the window ending at *behind*
+    holds no line at the chosen level, the walk continues into OLDER windows until the page is filled
+    or the beginning of the file is reached, and it REPORTS which of the two happened (``at_start``).
+    Never "take the last N rows, then filter", which returns almost nothing on a DEBUG-heavy tail.
+
+    THE WALK CARRIES THE FILE'S IDENTITY (L2-fix). The FIRST read's identity is remembered, and any
+    later read whose identity DIFFERS — or whose ``size`` fell below the cursor — means a ROTATION (or
+    a truncation) landed MID-WALK: the walk STOPS right there, the lines gathered so far (the OLD
+    file's alone) are the page, and ``rotated`` says so. Two files are NEVER spliced into one page —
+    the same rule the follow path's identity check enforces, applied to the page-back walk.
+
+    Returns a state dict: the rows OLDEST FIRST, the follow ``offset`` (taken from the first — the EOF
+    — read, for the tail), the older cursor ``before`` (0 when the start was reached, so the button
+    can say so), ``at_start``, ``rotated``, the partial flag, the size and the identity token.
+    """
+    collected: list[tuple[int, "dcs_log.LogLine"]] = []
+    cursor = behind
+    at_start = False
+    rotated = False
+    offset = 0
+    partial = False
+    size = 0
+    identity: str | None = None      # the token of the file the walk STARTED on
+    first = True
+    while True:
+        raw, size, current = await _read_window(node, path, node_name, behind=cursor)
+        token = identity_token(current)
+        if first:
+            identity = token
+        elif token != identity or size < cursor:
+            # A ROTATION/TRUNCATION LANDED DURING THE WALK: end the page HERE. The lines gathered so
+            # far are the PREVIOUS file's only; this read's bytes belong to the replacement and are
+            # discarded, so no page can ever contain lines from two files.
+            rotated = True
+            break
+        window_start = max(0, min(cursor, size) - len(raw))
+        lines, partial = dcs_log.split_complete(raw, start=window_start,
+                                                drop_leading=window_start > 0)
+        if first:
+            # the follow cursor only means anything for the EOF (tail) read; a page-back ignores it
+            offset = _end_of(lines, window_start)
+            first = False
+        for off, body in reversed(lines):            # newest first WITHIN the window
+            row = dcs_log.parse_line(body)
+            if dcs_log.keeps(row, allowed):
+                collected.append((off, row))
+                if len(collected) >= want:
+                    break
+        if len(collected) >= want:
+            break
+        if window_start <= 0:                        # the start of the file: nothing older exists
+            at_start = True
+            break
+        cursor = window_start
+    collected.reverse()                              # oldest first, as the panel renders them
+    rows = [row for _, row in collected]
+    # a rotated walk has no older cursor to offer: continuing from it would read the REPLACEMENT file
+    before = 0 if (at_start or rotated or not collected) else collected[0][0]
+    return {"lines": rows, "offset": offset, "before": before, "at_start": at_start,
+            "rotated": rotated, "partial": partial, "size": size, "identity": identity}
+
+
+def _follow_state(raw: bytes, offset: int, size: int, identity: int | float, allowed) -> dict:
+    """FOLLOW: the complete lines appended since *offset* AT LEVEL, plus the next offset.
+
+    Forward only — a follower never walks BACK; a new line at another level is simply not shown here
+    (it is not a lie: the level filter is the reader's own choice)."""
+    lines, partial = dcs_log.split_complete(raw, start=offset, drop_leading=False)
+    rows = [dcs_log.parse_line(body) for _, body in lines]
+    rows = [row for row in rows if dcs_log.keeps(row, allowed)]
+    return {"lines": rows, "offset": _end_of(lines, offset),
+            "before": lines[0][0] if lines else offset,
+            "partial": partial, "size": size, "identity": identity}
+
+
+def _lines_html(environment, lines) -> str:
+    """The lines rendered by the SAME partial the page includes — no markup lives in Python."""
+    return environment.get_template("_dcs_log_lines.html").render(lines=lines)
+
+
+def _available_payload(environment, state: dict, *, reset: bool = False,
+                       message: str = "") -> dict:
+    """A successful window answer: the rendered lines plus the cursors and identity the browser needs.
+
+    ``identity`` is the file's identity AT THIS READ (see :func:`core.data.impl.nodeimpl.file_identity`)
+    — the value the browser echoes back as ``?identity=`` so the next follow can be told a ROTATION
+    (changed identity) from an APPEND (unchanged identity), even when the new file is already bigger.
+    It is carried as the LOSSLESS STRING token (:func:`identity_token`), never a JSON number, so an
+    inode above ``2**53`` survives the browser's ``JSON.parse`` unchanged. ``at_start`` (a filtered
+    back/tail page) says the beginning of the file was reached, so the button can say so rather than
+    offer a page that would come back empty. ``message`` carries the honest sentence a filtered page
+    with no matching line renders — never a blank panel.
+    """
+    payload = {"available": True, "message": message,
+               "lines": _lines_html(environment, state["lines"]),
+               "size": state.get("size", 0),
+               "identity": identity_token(state.get("identity")),
+               "partial": bool(state.get("partial", False))}
+    if "offset" in state:
+        payload["offset"] = state["offset"]
+    if "before" in state:
+        payload["before"] = state["before"]
+    if "at_start" in state:
+        payload["at_start"] = bool(state["at_start"])
+    if reset:
+        payload["reset"] = True
+    return payload
+
+
+def _unavailable_payload(sentence: str, *, pending: bool = False) -> dict:
+    """The honest empty answer: ONE sentence in the console's voice — never a blank panel.
+
+    ``pending`` marks the NORMAL "no log file yet" state (the server is still starting): the follower
+    keeps its normal cadence on such an answer, where a genuine failure (an unreachable node, a
+    timeout) drives the backoff. The flag is carried in the body so the client can tell the two apart.
+    """
+    payload = {"available": False, "message": sentence, "lines": "", "size": 0}
+    if pending:
+        payload["pending"] = True
+    return payload
+
+
+def _byte(value) -> int | None:
+    """*value* as a non-negative whole number, or ``None`` — the route's one input validator."""
+    try:
+        number = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return number if number >= 0 else None
+
+
+def _identity(value) -> str | None:
+    """The client's HELD file-identity token (*value*) as a STRING, or ``None`` — the one validator.
+
+    The browser echoes the identity it holds back as ``?identity=``; the value is compared EQUAL or
+    NOT-EQUAL against the node's own token, as STRINGS, so an inode above ``2**53`` is not mangled by
+    a float round trip. A value that could not have come from a prior read (not a decimal token) is
+    treated as ABSENT, so a forged string is ignored and only the node's own identity decides.
+    """
+    if value is None:
+        return None
+    token = str(value).strip()
+    if not _IDENTITY_TOKEN.match(token):
+        return None
+    return token
+
+
+def debug_plugin_active(node) -> bool:
+    """Whether the ``debug`` plugin is active on *node* — the console's OWN plugin-awareness.
+
+    The SAME accessor the shell uses to discover a plugin's actions (``PluginManager(node).plugins``,
+    which falls back to the node's configured plugin list): ONE spelling of "which plugins are
+    loaded", never a second switch. A node that cannot answer is treated as having no debug plugin,
+    so the Events tab is simply not offered (never a dead tab).
+    """
+    try:
+        from core.plugin_manager import PluginManager
+        names = list(PluginManager(node).plugins)
+    except Exception:  # noqa: BLE001 - a node that cannot answer offers no plugin
+        names = list(getattr(node, "plugins", None) or ())
+    return "debug" in {readmodels.text(name).lower() for name in names}
+
+
+def log_download_path(server_name: str) -> str:
+    """The URL of *server_name*'s log-artifact download BASE — the name as ONE percent-encoded segment."""
+    return f"/servers/{quote(readmodels.text(server_name), safe='')}/log/download"
+
+
+def _human_size(size) -> str:
+    """A byte count as a compact human string (``1.2 MiB``) — for the artifact listing."""
+    try:
+        value = float(size)
+    except (TypeError, ValueError):
+        return ""
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if value < 1024 or unit == "TiB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} TiB"  # pragma: no cover - unreachable, the loop returns at TiB
+
+
+def _human_time(mtime) -> str:
+    """A Unix epoch second as ``YYYY-MM-DD HH:MM`` (UTC) — for the artifact listing."""
+    try:
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(float(mtime), tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+    except (TypeError, ValueError, OSError, OverflowError):
+        return ""
+
+
+async def log_artifacts(node, directory: str, node_name: str, patterns) -> tuple[list[dict], str]:
+    """The server's log artifacts as listing ROWS — enumerated SERVER-SIDE, newest first (L2).
+
+    Returns ``(rows, sentence)``: each row carries the artifact's IDENTITY (its file name — never a
+    path), its size (raw bytes and a human string) and its modification time; the sentence is the
+    honest failure a listing that could not be read renders, else ``""``. The directory is enumerated
+    on the node, so nothing a request states ever becomes a path — the download route re-resolves the
+    row's identity against a FRESH enumeration of the same set.
+    """
+    try:
+        entries = await node.list_files(directory, pattern=list(patterns))
+    except FileNotFoundError:
+        return [], (f"No log directory yet for this server "
+                    f"(looked for '{directory}' on node '{node_name}').")
+    except PermissionError:
+        return [], f"Node '{node_name}' cannot list this server's log directory (permission denied)."
+    except (TimeoutError, asyncio.TimeoutError):
+        return [], f"Node '{node_name}' did not answer in time, so the log files were not listed."
+    except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
+        log.warning("Log artifacts: node '%s' raised %s", node_name, type(ex).__name__,
+                    exc_info=True)
+        return [], f"Node '{node_name}' could not list the log files ({type(ex).__name__})."
+    rows: list[dict] = []
+    for path, size, mtime in entries:
+        name = dcs_log.artifact_id(path)
+        rows.append({"id": name, "name": name, "path": readmodels.text(path),
+                     "size": int(size), "size_text": _human_size(size),
+                     "mtime": _human_time(mtime)})
+    return rows, ""
+
+
+def add_log_window_route(router: APIRouter) -> APIRouter:
+    """Add THE log-window route (``GET``) — the Log / Events tab's follow / page-back endpoint.
+
+    A GET that answers JSON: a WINDOW of the server's own log at ``?offset=`` (continue from a
+    position — FOLLOW) or ``?behind=`` (read the window ending there — PAGE BACK), FILTERED by
+    ``?level=`` (the SAME vocabulary the bot-log panel offers) and, for the Events tab, selected by
+    ``?which=events``. A GET and only a GET: it changes nothing, so there is no CSRF dependency, and a
+    POST is refused as a method the route does not answer. The gate is the cluster log panel's own
+    ``logs.view`` (declared for :data:`LOG_WINDOW_PATH`), so the route is exactly as reachable as the
+    tab.
+
+    THE FILTER NEVER LIES BY BEING EMPTY: a back/tail page WALKS BACK through older windows until a
+    full page is collected OR the start of the file is reached (:func:`_collect_back`), and reports
+    which happened (``at_start``). A page that holds no matching line carries its own sentence.
+
+    THE FAILURES ARE EACH THEIR OWN SENTENCE, carried in the JSON body (the tab has a panel to render
+    them into): an unreachable node, no log file yet, a node that cannot read it, a node that does not
+    answer, a node that answers a failure code, and the Events tab while its plugin is off.
+
+    A NEW LOG means the view is RESET (``reset: true``) and the fresh file's tail is returned — two
+    files are never spliced together silently. It is detected TWO ways (L1-fix): the offset no longer
+    fits the file (``size < offset``, a truncation), OR the file's IDENTITY changed since the reader
+    last looked (``?identity=``, a replacement) — the second catches a rotation whose replacement file
+    is ALREADY BIGGER than the old offset, which a size check alone cannot see.
+    """
+    @router.get(LOG_WINDOW_PATH, name="server-log-window")
+    async def server_log_window(request: Request, name: str, offset: str | None = None,
+                                behind: str | None = None, identity: str | None = None,
+                                level: str | None = None, which: str = "") -> Response:
+        environment = getattr(request.app.state, "webui_templates", None)
+        if environment is None:  # pragma: no cover - installed by the shell
+            raise HTTPException(status_code=503,
+                                detail="The admin web UI templates are not installed.")
+        if not offset and not behind:
+            # A server whose OWN name ends in ``/log/window`` shares this shape; with nothing stated
+            # this path may BE that server's page — render it rather than a 400 nobody meant.
+            colliding = f"{readmodels.text(name)}/log/window"
+            if dashboard_page.server_named(request, colliding) is not None:
+                return await _render_server_detail(request, colliding)
+            return JSONResponse({"available": False, "lines": "", "size": 0,
+                                 "message": "An offset or a behind position is required."},
+                                status_code=400)
+        server = dashboard_page.scoped_server(request, name)
+        server_name = readmodels.text(attr(server, "name", None)) or name
+        node_name = readmodels.text(attr(attr(server, "node", None), "name", None))
+        events = readmodels.text(which) == dcs_log.EVENTS_WHICH
+        node = _reachable_log_node(request, server)
+        if events and not debug_plugin_active(node if node is not None else attr(server, "node", None)):
+            return JSONResponse(_unavailable_payload(EVENTS_REFUSED_SENTENCE), status_code=403)
+        path = dcs_log.events_log_path(server) if events else dcs_log.dcs_log_path(server)
+        # THE EVENTS TAB HAS NO LEVEL FILTER (Frank's ruling): every entry the debug plugin writes is
+        # DEBUG, so a filter there could only ever hide the tab's whole content. The shared vocabulary
+        # is untouched — this tab simply keeps everything, whatever ``?level=`` the request carried.
+        allowed = (dcs_log.LEVEL_FILTERS["all"] if events
+                   else dcs_log.LEVEL_FILTERS[dashboard_page.log_level(request)])
+        if node is None:
+            return JSONResponse(_unavailable_payload(_node_offline_sentence(node_name)))
+        try:
+            if offset is not None:
+                start = _byte(offset)
+                if start is None:
+                    return JSONResponse({"available": False, "lines": "", "size": 0,
+                                         "message": "The offset must be a non-negative whole "
+                                                    "number."}, status_code=400)
+                held = _identity(identity)
+                raw, size, current = await _read_window(node, path, node_name, offset=start)
+                if size < start or (held is not None and identity_token(current) != held):
+                    # A NEW LOG: the offset no longer fits the file (a truncation) OR the file's
+                    # IDENTITY changed (a replacement — even one already bigger than the offset). Read
+                    # the fresh file's tail and reset the view; never splice two files together.
+                    state = await _collect_back(node, path, node_name, behind=dcs_log.BEHIND_END,
+                                                allowed=allowed, want=dcs_log.TAIL_LINES)
+                    message = "" if state["lines"] else _empty_message(allowed)
+                    return JSONResponse(_available_payload(environment, state, reset=True,
+                                                           message=message))
+                return JSONResponse(_available_payload(
+                    environment, _follow_state(raw, start, size, current, allowed)))
+            end = _byte(behind)
+            if end is None:
+                return JSONResponse({"available": False, "lines": "", "size": 0,
+                                     "message": "The behind position must be a non-negative whole "
+                                                "number."}, status_code=400)
+            state = await _collect_back(node, path, node_name, behind=end, allowed=allowed,
+                                        want=dcs_log.TAIL_LINES)
+            if state["rotated"]:
+                # A ROTATION LANDED DURING THE WALK: the page the walk gathered is the PREVIOUS
+                # file's alone, and the browser resets the view and says the log restarted — two files
+                # are never spliced into one page.
+                return JSONResponse(_available_payload(environment, state, reset=True,
+                                                       message=dcs_log.ROTATED_SENTENCE))
+            message = "" if state["lines"] else _empty_message(allowed)
+            return JSONResponse(_available_payload(environment, state, message=message))
+        except _LogUnavailable as ex:
+            return JSONResponse(_unavailable_payload(ex.sentence, pending=ex.pending))
+
+    return router
+
+
+async def _log_tab_context(request: Request, server, server_name: str, *,
+                           which: str = "") -> dict:
+    """A log tab's data: the config-driven path, the initial TAIL AT LEVEL, the cursors, the artifacts.
+
+    A render-time read of a BOUNDED window (the last :data:`~..readmodels.dcslog.TAIL_LINES` complete
+    lines AT THE CHOSEN LEVEL — the walk back fills the page rather than returning an empty one), like
+    the Missions tab's render-time read, PLUS the server's log artifacts (enumerated server-side) for
+    the download list. Any failure renders its OWN sentence — never a blank panel.
+    ``log_window_url`` is the base URL the follow / page-back requests append ``?offset=`` /
+    ``?behind=`` to; ``log_which`` selects the Events file on that shared route.
+    """
+    node_name = readmodels.text(attr(attr(server, "node", None), "name", None))
+    events = readmodels.text(which) == dcs_log.EVENTS_WHICH
+    path = dcs_log.events_log_path(server) if events else dcs_log.dcs_log_path(server)
+    directory = dcs_log.dcs_log_dir(server)
+    patterns = dcs_log.EVENTS_ARTIFACT_PATTERNS if events else dcs_log.DCS_ARTIFACT_PATTERNS
+    chosen = dashboard_page.log_level(request)
+    if events:
+        # THE EVENTS TAB HAS NO FILTER (Frank's ruling): every entry is DEBUG, so the tab offers no
+        # level links and keeps everything. The shared vocabulary is untouched — the Log tab still
+        # offers it, and ``log_level`` is empty here so the follower sends no ``?level=``.
+        allowed = dcs_log.LEVEL_FILTERS["all"]
+        levels: list[dict] = []
+    else:
+        allowed = dcs_log.LEVEL_FILTERS[chosen]
+        levels = [{"key": key, "label": label,
+                   "href": f"{server_url(server_name, tab=LOG_TAB)}&level={key}",
+                   "active": key == chosen}
+                  for key, label in dcs_log.LEVEL_CHOICES]
+    base = {
+        "log_window_url": log_window_path(server_name),
+        "log_follow_seconds": dcs_log.FOLLOW_SECONDS,
+        "log_path": path,
+        "log_node": node_name,
+        "log_which": dcs_log.EVENTS_WHICH if events else "",
+        "log_level": "" if events else chosen,
+        "log_levels": levels,
+        "log_download_base": log_download_path(server_name),
+        "log_lines": (), "log_offset": 0, "log_before": 0, "log_size": 0, "log_identity": "",
+        "log_at_start": False, "log_artifacts": (), "log_artifacts_note": "",
+    }
+    node = _reachable_log_node(request, server)
+    if node is None:
+        return base | {"log_available": False, "log_message": _node_offline_sentence(node_name)}
+    artifacts, artifact_note = await log_artifacts(node, directory, node_name, patterns)
+    base = base | {"log_artifacts": artifacts, "log_artifacts_note": artifact_note}
+    try:
+        state = await _collect_back(node, path, node_name, behind=dcs_log.BEHIND_END,
+                                    allowed=allowed, want=dcs_log.TAIL_LINES)
+    except _LogUnavailable as ex:
+        return base | {"log_available": False, "log_message": ex.sentence}
+    message = "" if state["lines"] else _empty_message(allowed)
+    return base | {"log_available": True, "log_message": message,
+                   "log_lines": state["lines"], "log_offset": state["offset"],
+                   "log_before": state["before"], "log_size": state["size"],
+                   "log_identity": state["identity"], "log_at_start": state["at_start"]}
+
+
+def _log_refuse(status_code: int, sentence: str) -> PlainTextResponse:
+    """The honest refusal a log download answers with: ONE sentence in plain text, never an empty file.
+
+    A ``PlainTextResponse`` and NOT an ``HTTPException`` (whose rendered page would talk about
+    AUTHORIZATION, false for a log that is simply not there): a download has no page to render its
+    failure into, so the sentence IS the answer.
+    """
+    log.info("Log download answered %d: %s", status_code, sentence)
+    return PlainTextResponse(sentence + "\n", status_code=status_code)
+
+
+def add_log_download_route(router: APIRouter) -> APIRouter:
+    """Add THE log-download route (``GET``) — one artifact's own READ control on the Log / Events tab.
+
+    A GET and only a GET: nothing changes, so there is no CSRF dependency. The gate is the cluster log
+    panel's own ``logs.view`` (declared for :data:`LOG_DOWNLOAD_PATH`), so the route is exactly as
+    reachable as the tab.
+
+    THE PATH NEVER COMES FROM THE REQUEST. The caller names an artifact by the IDENTITY the tab's own
+    listing produced (its file NAME); the route RE-ENUMERATES the server's log directory on the node
+    and matches that name against the FRESH listing — the full path it then reads is the enumeration's
+    own, never a join of request data onto a directory. A crafted id that names nothing in the fresh
+    listing is refused, so it can never resolve to a path outside the log directory. The set enumerated
+    is the DCS artifacts, PLUS the Events pair only while the debug plugin is active — so ``events.log``
+    is served only when it may be, and the Events tab's downloads stay limited to its two files.
+
+    THE FAILURES ARE EACH THEIR OWN SENTENCE, never a zero-byte download: no artifact stated, a node
+    the cluster cannot reach, no such file (the listing does not carry it), a node that cannot read it,
+    a node that does not answer, a node that answers a failure code, and a log above
+    :data:`LOG_DOWNLOAD_MAX_BYTES` — the size, the limit AND the path on the server, so it can be
+    fetched from the host. The size is checked BEFORE the bytes are read, so an oversized log is never
+    moved through the database.
+    """
+    @router.get(LOG_DOWNLOAD_PATH, name="server-log-download")
+    async def server_log_download(request: Request, name: str, artifact: str = "",
+                                  which: str = "") -> Response:
+        requested = readmodels.text(name)
+        wanted = readmodels.text(artifact)
+        if not wanted:
+            # A server whose OWN name ends in ``/log/download`` shares this shape; with no artifact
+            # stated this path may BE that server's page — render it rather than a 400 nobody meant.
+            colliding = f"{requested}/log/download"
+            if dashboard_page.server_named(request, colliding) is not None:
+                return await _render_server_detail(request, colliding)
+            return _log_refuse(400, "An artifact id is required to download a log file.")
+        server = dashboard_page.scoped_server(request, name)
+        node_name = readmodels.text(attr(attr(server, "node", None), "name", None))
+        events = readmodels.text(which) == dcs_log.EVENTS_WHICH
+        node = _reachable_log_node(request, server)
+        if events and not debug_plugin_active(node if node is not None else attr(server, "node", None)):
+            return _log_refuse(403, EVENTS_REFUSED_SENTENCE)
+        if node is None:
+            return _log_refuse(404, _node_offline_sentence(node_name))
+        directory = dcs_log.dcs_log_dir(server)
+        # THE EVENTS TAB'S DOWNLOADS ARE ITS TWO FILES (Frank's limit): ``which=events`` enumerates
+        # ONLY the events pair, so a crafted id for another log is simply not in the listing. The log
+        # tab enumerates only the DCS set.
+        patterns = (list(dcs_log.EVENTS_ARTIFACT_PATTERNS) if events
+                    else list(dcs_log.DCS_ARTIFACT_PATTERNS))
+        try:
+            entries = await node.list_files(directory, pattern=patterns)
+        except FileNotFoundError:
+            return _log_refuse(404, f"No log directory on node '{node_name}' yet "
+                                    f"(looked for '{directory}').")
+        except PermissionError:
+            return _log_refuse(403, f"Node '{node_name}' cannot list this server's log directory "
+                                    f"(permission denied).")
+        except (TimeoutError, asyncio.TimeoutError):
+            return _log_refuse(504, f"Node '{node_name}' did not answer in time, so the log files "
+                                    f"were not listed.")
+        except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
+            log.warning("Log download: node '%s' raised %s listing", node_name, type(ex).__name__,
+                        exc_info=True)
+            return _log_refuse(502, f"Node '{node_name}' could not list the log files "
+                                    f"({type(ex).__name__}).")
+        chosen = None
+        for path, size, mtime in entries:
+            if dcs_log.artifact_id(path) == wanted:
+                chosen = (path, int(size))
+                break
+        if chosen is None:
+            return _log_refuse(404, f"No log file named '{wanted}' is in this server's log "
+                                    f"directory on node '{node_name}'.")
+        path, size = chosen
+        if size > LOG_DOWNLOAD_MAX_BYTES:
+            return _log_refuse(413, f"'{wanted}' is {size} bytes, above the "
+                                    f"{LOG_DOWNLOAD_MAX_BYTES}-byte limit this console hands over in "
+                                    f"one download. Fetch it from the host: {path}")
+        try:
+            data = await node.read_file(path)
+        except FileNotFoundError:
+            return _log_refuse(404, f"'{wanted}' was gone before it could be read (looked for "
+                                    f"'{path}').")
+        except PermissionError:
+            return _log_refuse(403, f"Node '{node_name}' could not read '{wanted}' "
+                                    f"(permission denied).")
+        except (TimeoutError, asyncio.TimeoutError):
+            return _log_refuse(504, f"Node '{node_name}' did not answer in time, so '{wanted}' was "
+                                    f"not read.")
+        except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
+            log.warning("Log download: node '%s' raised %s reading '%s'", node_name,
+                        type(ex).__name__, path, exc_info=True)
+            return _log_refuse(502, f"Node '{node_name}' could not hand over '{wanted}' "
+                                    f"({type(ex).__name__}).")
+        if not isinstance(data, (bytes, bytearray)):
+            # ``read_file`` is ``bytes | int`` and an ``int`` is a FAILURE CODE, never content.
+            return _log_refuse(502, f"Node '{node_name}' answered with a failure code instead of "
+                                    f"'{wanted}'.")
+        payload = bytes(data)
+        if len(payload) > LOG_DOWNLOAD_MAX_BYTES:
+            return _log_refuse(413, f"'{wanted}' is {len(payload)} bytes, above the "
+                                    f"{LOG_DOWNLOAD_MAX_BYTES}-byte limit this console hands over in "
+                                    f"one download. Fetch it from the host: {path}")
+        return Response(content=payload, media_type=dcs_log.artifact_media_type(wanted),
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="{_safe_filename(wanted)}"'})
+
+    return router
+
+
+def add_server_status_route(router: APIRouter) -> APIRouter:
+    """Add THE status route (``GET``) — the server page's own status poll (L5).
+
+    A GET answering JSON with the CURRENT status as the markup the page itself renders (the partial
+    ``_server_status.html``): the dot and the word, from the SAME read model the initial render used
+    (``readmodels.servers.server_view``). The gate is the server page's own capability
+    (``servers.view``, declared for :data:`SERVER_STATUS_PATH`) applied through the SCOPED name
+    resolution, so this poll is exactly as reachable as the page it refreshes — a caller who may not
+    open the page cannot poll its status either.
+
+    A SERVER WHOSE NAME ITSELF ENDS IN ``/status`` cannot be swallowed by this route: its own page URL
+    carries the SAME shape as a status URL for a shorter server, so the LONGER name
+    (``<name>/status``) is checked first through the SAME scoped lookup — when that names a server the
+    caller can see, ITS PAGE is rendered, and the status route must never make a server's page
+    unreachable. The failure shapes are the page's own: an unknown name is the console's 404, and an
+    out-of-scope one the console's 403 (both from ``scoped_server``).
+    """
+    @router.get(SERVER_STATUS_PATH, name="server-status")
+    async def server_status(request: Request, name: str) -> Response:
+        environment = getattr(request.app.state, "webui_templates", None)
+        if environment is None:  # pragma: no cover - installed by the shell
+            raise HTTPException(status_code=503,
+                                detail="The admin web UI templates are not installed.")
+        requested = readmodels.text(name)
+        colliding = f"{requested}/status"
+        if dashboard_page.server_named(request, colliding) is not None:
+            return await _render_server_detail(request, colliding)
+        server = dashboard_page.scoped_server(request, requested)
+        view = server_view(server)
+        html = environment.get_template("_server_status.html").render(status=view.status)
+        # no-store: a polled status must always be the CURRENT one, never a cached mark.
+        return JSONResponse({"status": html}, headers={"Cache-Control": "no-store"})
+
+    return router
+
+
 async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     """Render a server's page for *name* — the ONE body the page route and the download route share.
 
@@ -433,11 +1193,19 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     # THE CONFIG TAB'S OWN MANAGER FACT: a manager of the config tab is a restricted-scope viewer
     # WITHOUT a cluster role — the same rule the write action applies.
     config_viewer = config_manager(request)
-    allowed_tabs = tabs_for(roles, manager=manager, config_manager=config_viewer)
+    # THE DEBUG PLUGIN FACT: read the SAME way the shell discovers a plugin's actions — from the
+    # server's own node — so the Events tab is offered exactly when it can serve (never a dead tab).
+    events_offered = debug_plugin_active(_reachable_log_node(request, server)
+                                         or attr(server, "node", None))
+    allowed_tabs = tabs_for(roles, manager=manager, config_manager=config_viewer,
+                            debug_plugin=events_offered)
     tab = normalise_tab(request.query_params.get("tab"))
     if tab not in allowed_tabs:
         # the tab exists but this viewer may not open it: REFUSE the request, naming ITS OWN
-        # requirement — never serve it hidden.
+        # requirement — never serve it hidden. The Events tab is its own case: a viewer who HOLDS
+        # ``logs.view`` is refused because the plugin is off, not for lack of a capability.
+        if tab == EVENTS_TAB and permissions.allows(LOG_READ_CAPABILITY, roles):
+            raise events_request_refused()
         raise tab_request_refused(tab)
 
     context = {
@@ -446,6 +1214,10 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
         "crumb": f"{CRUMB_GROUP} / {servers_page.SERVERS_TITLE} / {server_name}",
         "server_name": server_name,
         "server": server_view(server),
+        # THE STATUS POLL (L5): the URL and the cadence the page head carries so the mark "at the top"
+        # (and the Overview card's copy) keep current without a reload.
+        "server_status_url": server_status_path(server_name),
+        "server_status_seconds": SERVER_STATUS_SECONDS,
         "tab": tab,
         "tabs": tab_views(server_name, tab, allowed_tabs),
         "config_allowed": permissions.allows(CONFIG_CAPABILITY, roles, manager=config_viewer),
@@ -464,16 +1236,20 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
 
 
 def add_routes(router: APIRouter) -> APIRouter:
-    """Add the mission-download route and the per-server route to the shell's own router.
+    """Add the mission-download route, the log-window route, the log-download route and the page.
 
-    The DOWNLOAD route is registered FIRST, deliberately: its path is ``/servers/{name:path}/missions/
-    download`` and the page route's ``{name:path}`` is greedy (``.*``), so on this router's
-    match-in-order resolution the download must be seen before the page or a real server name ending
-    in ``/missions/download`` — and the download URL itself — would be swallowed by the page route.
-    The reverse collision (a server's OWN page under that shape) is the download route's to resolve:
-    see :func:`add_mission_download_route`.
+    The THREE non-page routes are registered FIRST, deliberately: their paths are
+    ``/servers/{name:path}/missions/download``, ``/servers/{name:path}/log/window`` and
+    ``/servers/{name:path}/log/download``, and the page route's ``{name:path}`` is greedy (``.*``), so
+    on this router's match-in-order resolution they must be seen before the page or a real server name
+    ending in one of those suffixes — and the routes' own URLs — would be swallowed by the page route.
+    The reverse collision (a server's OWN page under any of those shapes) is each route's own to
+    resolve.
     """
     add_mission_download_route(router)
+    add_log_window_route(router)
+    add_log_download_route(router)
+    add_server_status_route(router)
 
     @router.get(SERVER_DETAIL_PATH, response_class=HTMLResponse, name="page-server-detail")
     async def server_detail(request: Request, name: str):
@@ -567,7 +1343,15 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "missions_selectable": sum(1 for row in rows if not row["current"]),
         })
         return context
-    # overview / log: nothing beyond the shared server row the heading already reads
+    if tab == LOG_TAB:
+        # THE SERVER'S OWN DCS LOG (L1): the config-driven path and the initial TAIL, read as a
+        # BOUNDED window. Failures render their own sentence, never a blank panel.
+        return await _log_tab_context(request, server, server_name)
+    if tab == EVENTS_TAB:
+        # THE DEBUG PLUGIN'S events.log (L2): the same presentation as the log tab, selected by
+        # ``which=events`` on the shared window route; downloads limited to its two files.
+        return await _log_tab_context(request, server, server_name, which=dcs_log.EVENTS_WHICH)
+    # overview: nothing beyond the shared server row the heading already reads
     return {}
 
 

@@ -222,6 +222,39 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
+                               behind: int | None = None) -> tuple[bytes, int, int | float] | tuple[int, int, int | float]:
+        """A WINDOW of a file — never the whole file — plus its size and IDENTITY at read time (L1).
+
+        A read-only, WINDOWED sibling of :meth:`read_file`, for files too large to move whole (a
+        running server's ``dcs.log``). Exactly one of ``offset`` / ``behind`` names the window:
+
+        * ``offset`` — the bytes AT ``offset``, up to ``length`` of them; the way a FOLLOWER
+          continues from where it last stopped;
+        * ``behind`` — the bytes ENDING just before ``behind``, up to ``length`` of them; the way a
+          reader PAGES BACK through a file it cannot move whole.
+
+        It returns ``(window, size, identity)``:
+
+        * ``size`` — the file's size AT READ TIME: the reader needs it to notice a truncated/rotated
+          file (``size < offset`` means a NEW log) and to page correctly;
+        * ``identity`` — a value that does NOT change when the file is APPENDED to but DOES change
+          when it is REPLACED (``st_ctime`` where that is a creation time, e.g. Windows; the inode on
+          POSIX, where ``st_ctime`` is an inode-change time). It is what lets a follower see a
+          rotation even when the replacement file is ALREADY BIGGER than the offset it holds.
+
+        An ``offset`` at or past the end yields an EMPTY window; a window longer than the file yields
+        the file; ``length`` is CLAMPED to the primitive's own ceiling (``NODE_READ_WINDOW_MAX_BYTES``
+        in ``nodeimpl``), so the window can never become a whole-file transfer. A missing file raises
+        ``FileNotFoundError`` and an unreadable one ``PermissionError`` — the same failures the
+        whole-file read already has, and no new ones.
+
+        The whole-file :meth:`read_file`, its callers and the mission transfer path are UNTOUCHED: a
+        caller that does not ask for a window gets exactly today's behaviour.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
         raise NotImplementedError()
 
@@ -230,6 +263,23 @@ class Node(ABC):
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def list_files(self, path: str, *, pattern: str | list[str] = '*'
+                         ) -> list[tuple[str, int, float]]:
+        """The FILES matching *pattern* in *path*, each as ``(path, size, mtime)``, NEWEST FIRST (L2).
+
+        A read-only sibling of :meth:`list_directory`, adding the two facts a download list needs and
+        ``list_directory`` does not carry: each file's SIZE in bytes and its MODIFICATION TIME (a Unix
+        epoch second). The result is ordered by ``mtime`` DESCENDING — the newest file first — so an
+        operator choosing between several logs sees which one is which without a second call.
+
+        The paths are ABSOLUTE, resolved on the node that answers (exactly as :meth:`list_directory`
+        does), so a caller never builds a path from request data: it enumerates, and selects an entry
+        by the identity the enumeration itself produced. A directory that does not exist yields the
+        empty list (there are simply no files), never an error.
+        """
         raise NotImplementedError()
 
     @abstractmethod

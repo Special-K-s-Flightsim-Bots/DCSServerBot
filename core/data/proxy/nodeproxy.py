@@ -251,6 +251,46 @@ class NodeProxy(Node):
         return file
 
     @override
+    async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
+                               behind: int | None = None) -> tuple[bytes, int, int | float]:
+        """A WINDOW of a REMOTE node's file plus its size and identity (L1; see :meth:`Node.read_file_window`).
+
+        The same one-shot ``files`` drop-box transport :meth:`read_file` uses: the agent writes ONLY
+        the window into the row and answers with ``(row id, size, identity)``; this side reads the row,
+        deletes it and returns ``(bytes, size, identity)`` — so the caller never sees the transport. The
+        failures (an offline/unknown node, a missing file, permission denied, no answer in time) are the
+        read path's own and are raised, not swallowed.
+
+        The window's ``length`` ceiling lives on the agent (``NODE_READ_WINDOW_MAX_BYTES``, enforced by
+        ``NodeImpl.read_file_window``), so an over-long request is clamped there and the window that
+        travels back is bounded whatever this side sends.
+        """
+        timeout = 60 if not self.slow_system else 120
+        result = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "read_file_window",
+            "params": {
+                "path": path,
+                "length": length,
+                "offset": offset,
+                "behind": behind
+            }
+        }, timeout=timeout, node=self.name)
+        if (not isinstance(result, (tuple, list)) or len(result) != 3
+                or not isinstance(result[0], int)):
+            # an agent that answered a failure code (an int) or anything else is not content
+            raise ValueError(f"Node '{self.name}' answered read_file_window with {result!r}.")
+        row_id, size, identity = result
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (row_id,),
+                                        binary=True)
+            row = await cursor.fetchone()
+            await conn.execute("DELETE FROM files WHERE id = %s", (row_id,))
+        data = row[0] if row and row[0] is not None else b""
+        return bytes(data), int(size), identity
+
+    @override
     async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
         timeout = 60 if not self.slow_system else 120
         if not target.startswith('http'):
@@ -294,6 +334,37 @@ class NodeProxy(Node):
                 "traverse": traverse
             }
         }, node=self.name, timeout=timeout)
+
+    @override
+    async def list_files(self, path: str, *, pattern: str | list[str] = '*'
+                         ) -> list[tuple[str, int, float]]:
+        """The FILES matching *pattern* on a REMOTE node, each as ``(path, size, mtime)``, NEWEST FIRST.
+
+        The remote half of :meth:`Node.list_files` (L2): the same RPC the rest of this proxy uses,
+        answered by the agent's own :meth:`NodeImpl.list_files`. The reply is normalised to a list of
+        ``(path, size, mtime)`` triples, so a caller sees the same shape whether the node is local or
+        remote. NOT cached: a download list must reflect a just-rotated log, so the route re-enumerates
+        fresh each time it resolves an artifact.
+        """
+        timeout = 60 if not self.slow_system else 120
+        result = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "list_files",
+            "params": {
+                "path": path,
+                "pattern": pattern
+            }
+        }, node=self.name, timeout=timeout)
+        if not isinstance(result, (list, tuple)):
+            raise ValueError(f"Node '{self.name}' answered list_files with {result!r}.")
+        entries: list[tuple[str, int, float]] = []
+        for entry in result:
+            if not isinstance(entry, (list, tuple)) or len(entry) != 3:
+                continue
+            name, size, mtime = entry
+            entries.append((str(name), int(size), float(mtime)))
+        return entries
 
     @override
     async def create_directory(self, path: str):

@@ -7,5 +7,6 @@ from core.utils.mizedit import *
 from core.utils.network import *
 from core.utils.os import *
 from core.utils.performance import *
+from core.utils.resources import *
 from core.utils.squadrons import *
 from core.utils.validators import *

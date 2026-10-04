@@ -144,6 +144,8 @@ def migrate(node: Node, old_version: str, new_version: str) -> int:
         return migrate_3_16(node)
     elif old_version == 'v3.17' and new_version == 'v3.18':
         return migrate_3_18(node)
+    elif old_version == 'v3.18' and new_version == 'v3.19':
+        return migrate_3_19(node)
     return 0
 
 def migrate_3_11(node: Node) -> int:
@@ -283,6 +285,94 @@ def migrate_3_18(node: Node) -> int:
     c_pool_url, _ = node.get_database_urls()
     with Connection.connect(c_pool_url, autocommit=True) as conn:
         conn.execute("ALTER TABLE nodes ADD COLUMN IF NOT EXISTS ready BOOLEAN NOT NULL DEFAULT TRUE")
+    return -1
+
+
+def migrate_3_19(node: Node) -> int:
+    """The federation tables: the resources several clusters can share on one machine, and the window that takes one
+    of them down.
+
+    A frozen copy of what ``cluster.sql`` adds, deliberately not read from that file — a migration has to apply what
+    it did at the time, and reading the file would let a later edit to it change the past. Everything here is
+    ``IF NOT EXISTS`` or guarded, so running it on a cluster database that already has the tables changes nothing.
+    """
+    if not node.master:
+        return -1
+
+    c_pool_url, _ = node.get_database_urls()
+    with Connection.connect(c_pool_url, autocommit=True) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS resources (
+                id          TEXT PRIMARY KEY,
+                type        TEXT NOT NULL,
+                scope       TEXT NOT NULL,
+                owner_guild BIGINT,
+                path        TEXT NOT NULL,
+                created     TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS resource_members (
+                resource_id TEXT NOT NULL,
+                guild_id    BIGINT NOT NULL,
+                node        TEXT NOT NULL,
+                servers_up  INT NOT NULL DEFAULT 0,
+                changed     TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+                PRIMARY KEY (resource_id, guild_id, node)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS resource_dependents (
+                resource_id TEXT NOT NULL,
+                guild_id    BIGINT NOT NULL,
+                node        TEXT NOT NULL,
+                kind        TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                state       TEXT NOT NULL DEFAULT 'in_service',
+                PRIMARY KEY (resource_id, guild_id, node, kind, name)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS resource_window (
+                resource_id  TEXT PRIMARY KEY,
+                holder_guild BIGINT NOT NULL,
+                holder_node  TEXT NOT NULL,
+                action       TEXT NOT NULL,
+                scope        TEXT NOT NULL,
+                started      TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS resource_ack (
+                resource_id TEXT NOT NULL,
+                guild_id    BIGINT NOT NULL,
+                node        TEXT NOT NULL,
+                acked       TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+                PRIMARY KEY (resource_id, guild_id, node)
+            )
+        """)
+        conn.execute("""
+            CREATE OR REPLACE FUNCTION federation_window_notify() RETURNS trigger AS $$
+            BEGIN
+                PERFORM pg_notify('federation_window', NEW.resource_id);
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql
+        """)
+        conn.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_trigger
+                    WHERE tgname = 'resource_window_trigger' AND tgrelid = 'resource_window'::regclass
+                ) THEN
+                    CREATE TRIGGER resource_window_trigger
+                    AFTER INSERT OR UPDATE ON resource_window
+                    FOR EACH ROW EXECUTE PROCEDURE federation_window_notify();
+                END IF;
+            END;
+            $$
+        """)
     return -1
 
 

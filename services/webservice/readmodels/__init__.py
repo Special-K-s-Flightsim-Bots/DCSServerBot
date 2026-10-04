@@ -11,6 +11,9 @@ Layout, one module per read model:
 ``servers.py``          one row per server: status, port, mission, player counts
 ``players.py``          the players online right now
 ``logtail.py``          the bot's log file, tailed
+``dcslog.py``           a SERVER's own ``dcs.log``: the config-driven path, the line format, the
+                        byte-window arithmetic (the windowed read itself lives in the page, which
+                        may RPC a node)
 ``overview.py``         one call that builds everything the page renders
 ``views.py``            the validated view layer: ``?sort=``/``?dir=``/``?q=`` (sorting + search)
 ======================  ======================================================================

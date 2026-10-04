@@ -1,0 +1,13 @@
+{#-
+  THE SERVER'S STATUS AS ONE MARK — the coloured dot and the word.
+
+  ONE MARKUP, THREE READERS (L5): the page head (the status "at the top", rendered on EVERY tab of the
+  server page), the Overview card's own copy of the same fact, and the status route's poll
+  (``pages/server_detail.server_status``). The poll swaps the CONTENT of every ``[data-server-status]``
+  element, so a refreshed status and the status the page first rendered can never be two different
+  things — one source (``readmodels.servers.server_view``) and one markup.
+
+  The reader passes ``status`` (a ``StatusView``): the dot class and the word, never a raw status and
+  never a string typed into a template.
+-#}
+<span class="dot {{ status.dot }}" aria-hidden="true"></span> {{ status.word }}

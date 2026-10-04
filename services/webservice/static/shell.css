@@ -98,12 +98,14 @@ a { color: var(--link); text-decoration: none; }
 }
 .brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px;
   border-bottom: 1px solid var(--line); }
-.brand img.brand-logo { height: 30px; width: auto; display: block; flex: 0 0 auto; }
+.brand img.brand-logo { height: 40px; width: auto; display: block; flex: 0 0 auto; }
 /* The brand mark is THE PROJECT'S OWN LOGO (services/webservice/static/logo.png), served from a
  * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
  * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
- * every viewport (a fixed width would stretch it), and 30px is under the 34px square it replaced,
- * so this row can only get shorter. The height is stated ONCE, here; the element's own width and
+ * every viewport (a fixed width would stretch it). At 40px the mark draws ~60px wide at the file's
+ * 3:2 aspect, from a 256px-wide derivative -- still ~4x the drawn width, so it stays sharp on a 2x
+ * display. 40px is a third taller than the 30px it grew from, so the brand row is now taller than
+ * before; that is expected. The height is stated ONCE, here; the element's own width and
  * height attributes are only a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
  *
  * TO REGENERATE the derivatives (never logo.png itself — it is the canonical master, byte-for-byte
@@ -883,8 +885,28 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
 /* ---------------------------------------------------------------- the log card */
 .log-card > .ft { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 9px 14px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 11.5px; }
+/* THE LOG CARD'S OWN FOOTER CONTROL — the server Log / Events tab's "Load older" (Frank's report:
+ * it rendered as the engine's grey default because `.btn` is styled only INSIDE `.dlg`). It wears the
+ * SAME chip the shell's other controls wear, stated here because a `.log-card > .ft` is not a
+ * `.cfg-widget`; the disabled state keeps the chip's dim shape and the not-allowed cursor. */
+.log-card > .ft button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.log-card > .ft button:hover { border-color: var(--accent); }
+.log-card > .ft button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.log-card > .ft button:disabled { color: var(--text-3); border-color: var(--line);
+  cursor: not-allowed; }
 .logpos { display: inline-flex; gap: 4px; }
 .col-log > .log-card { margin: 0; }
+
+/* THE LOG CARD'S DOWNLOAD PICKER (L3) — the server Log / Events tab's one `<select>` plus its one
+ * Download control, in place of the old per-file link list. The chip mirrors the footer control
+ * above; the select already wears the `.cfg-widget` control styling (it lives in a `.cfg-widget`). */
+.log-picker button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.log-picker button:hover { border-color: var(--accent); }
+.log-picker button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ================================================================ one scrollbar, both axes
  *
