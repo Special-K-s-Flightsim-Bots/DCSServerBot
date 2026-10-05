@@ -351,7 +351,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 if events_channel:
                     coalition = self.COALITION[data['initiator']['coalition']]
                     message = self.EVENT_TEXTS[coalition]['refueling'].format(
-                        player.display_name, comment['lbs'], tanker
+                        player.name, comment['lbs'], tanker
                     )
                     asyncio.create_task(events_channel.send(message))
 
