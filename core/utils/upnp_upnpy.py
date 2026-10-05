@@ -33,7 +33,12 @@ class _UPnpyBackend:
             return False
 
         for device in devices:
-            if "InternetGatewayDevice" not in (device.device_type or ""):
+            try:
+                device_type = device.device_type or ""
+            except Exception:
+                device_type = ""
+            
+            if "InternetGatewayDevice" not in device_type:
                 continue
             try:
                 services = device.get_services()
