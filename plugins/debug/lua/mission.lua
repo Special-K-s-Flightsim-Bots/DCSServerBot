@@ -1,6 +1,6 @@
-local base	= _G
-dcsbot 		= base.dcsbot
-local JSON 	= loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+local base	    = _G
+local dcsbot    = base.dcsbot
+local JSON 	    = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
 
 
 local event_by_id = {}

@@ -1,6 +1,7 @@
 import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import discord
 import glob
@@ -123,6 +124,26 @@ DEFAULT_PLUGINS = [
     "cloud"
 ]
 
+_sync_pools: list[ConnectionPool] = []
+
+
+def _close_sync_pools() -> None:
+    """Close a still-open sync pool while joining its worker threads is still legal.
+
+    ``ConnectionPool.__del__`` joins its workers, which raises ``PythonFinalizationError`` once the
+    interpreter is finalizing. ``close_db()`` covers a normal shutdown; this covers a shutdown
+    interrupted before it. ``close()`` is idempotent, so after a clean shutdown this does nothing.
+    """
+    for pool in _sync_pools:
+        if not pool.closed:
+            try:
+                pool.close()
+            except Exception:
+                pass
+
+
+atexit.register(_close_sync_pools)
+
 
 class NodeImpl(Node):
 
@@ -135,6 +156,7 @@ class NodeImpl(Node):
         self.is_shutdown = asyncio.Event()
         self.rc = 0
         self.dcs_branch = None
+        self._dcs_cfg_mtime: float | None = None
         self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
         self.update_pending = False
@@ -495,6 +517,7 @@ class NodeImpl(Node):
                                        'keepalives_count': 3}
                                    )
         self.pool.open()
+        _sync_pools.append(self.pool)
 
         self.apool = AsyncConnectionPool(
             conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
@@ -872,21 +895,34 @@ class NodeImpl(Node):
 
     @override
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
-        if not self.dcs_branch or not self.dcs_version:
-            try:
-                async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
-                    data = json.loads(await cfg.read())
-                self.dcs_branch = data.get('branch', 'release')
-                self.dcs_version = data['version']
-                if 'DEDICATED_SERVER' in await self.get_installed_modules():
-                    self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
-                                   "Use /dcs update to update to the release branch.")
-                if "openbeta" in self.dcs_branch:
-                    self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
-                                     "Use /dcs update if you want to switch to the release branch.")
-            except FileNotFoundError:
-                self.log.critical(f"No DCS installation found at {self.installation}")
-                exit(SHUTDOWN)
+        cfg = os.path.join(self.installation, 'autoupdate.cfg')
+        try:
+            mtime = os.path.getmtime(cfg)
+        except FileNotFoundError:
+            self.log.critical(f"No DCS installation found at {self.installation}")
+            exit(SHUTDOWN)
+
+        if not self.dcs_branch or not self.dcs_version or mtime != self._dcs_cfg_mtime:
+            old_version = self.dcs_version
+            async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
+                data = json.loads(await cfg.read())
+            self.dcs_branch = data.get('branch', 'release')
+            self.dcs_version = data['version']
+            self._dcs_cfg_mtime = mtime
+            if 'DEDICATED_SERVER' in await self.get_installed_modules():
+                self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
+                               "Use /dcs update to update to the release branch.")
+            if "openbeta" in self.dcs_branch:
+                self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
+                                 "Use /dcs update if you want to switch to the release branch.")
+            if old_version and old_version != self.dcs_version and not self.master:
+                from services.servicebus import ServiceBus
+
+                await ServiceRegistry.get(ServiceBus).send_to_node({
+                    "command": "rpc", "service": "ServiceBus",
+                    "method": "set_remote_node_version",
+                    "params": {"node": self.name, "dcs_version": self.dcs_version}
+                })
         return self.dcs_branch, self.dcs_version
 
     async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:

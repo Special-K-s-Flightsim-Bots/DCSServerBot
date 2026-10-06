@@ -69,7 +69,7 @@ class PluginManager:
         if self.node.master:
             await self._load_plugins_master()
         else:
-            await self._load_plugins_agent()
+            self.log.info("- PluginManager: Agent node — event listeners are not loaded.")
         self._discover_actions()
         await self._load_webui_pages()
 

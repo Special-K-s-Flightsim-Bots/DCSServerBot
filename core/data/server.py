@@ -45,6 +45,7 @@ class Server(DataObject, ABC):
     current_mission: Mission | None = field(default=None, compare=False)
     _mission_id: int | None = field(default=None, compare=False)
     players: dict[str, Player] = field(default_factory=dict, compare=False)
+    num_players: int | None = field(default=None, compare=False)
     players_by_id: dict[int, Player] = field(default_factory=dict, compare=False)
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
@@ -356,6 +357,26 @@ class Server(DataObject, ABC):
             "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
             "id": recipient.value if isinstance(recipient, Coalition) else recipient,
             "sound": sound
+        })
+
+    async def setMarker(self, recipient: Coalition | str, lat: str, lon: str, text: str, readonly: bool = False,
+                        message: str | None = None) -> int:
+        ret = await self.send_to_dcs_sync({
+            "command": "setMarker",
+            "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
+            "id": recipient.value if isinstance(recipient, Coalition) else recipient,
+            "lat": lat,
+            "lon": lon,
+            "text": text,
+            "readonly": readonly,
+            "message": message
+        })
+        return ret['id']
+
+    async def removeMarker(self, marker_id: int):
+        await self.send_to_dcs_sync({
+            "command": "removeMarker",
+            "id": marker_id
         })
 
     async def lock(self, message: str | None = None):

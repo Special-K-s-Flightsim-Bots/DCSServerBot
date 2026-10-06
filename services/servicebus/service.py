@@ -671,6 +671,12 @@ class ServiceBus(Service):
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
 
+    async def set_remote_node_version(self, node: str, dcs_version: str) -> None:
+        remote = self.node.all_nodes.get(node)
+        if remote:
+            remote.dcs_version = dcs_version
+            self.log.info(f"- DCS version of node {node} updated to {dcs_version}.")
+
     async def send_to_node(self, data: dict, *, node: Node | str | None = None):
         if isinstance(node, Node):
             node = node.name
@@ -1190,6 +1196,20 @@ class ServiceBus(Service):
 
                                     except Exception as e:
                                         self.log.error(f"Catastrophic error in wait: {e!r}")
+
+                                # players of an agent-hosted server exist on the master only
+                                # (its ServerProxy holds them), so push the count to the owner
+                                if server.is_remote:
+                                    num_players = len(server.get_active_players())
+                                    if num_players != server.num_players:
+                                        server.num_players = num_players
+                                        asyncio.create_task(self.send_to_node({
+                                            "command": "rpc",
+                                            "object": "Server",
+                                            "server_name": server.name,
+                                            "params": {"num_players": num_players}
+                                        }, node=server.node.name))
+
                             else:
                                 await self.send_to_node(data)
 

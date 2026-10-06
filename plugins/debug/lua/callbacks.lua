@@ -44,7 +44,7 @@ end
 
 debug.mt = {
     __index = function(t, key)
-        if rawget(t,"killed") ~= nil or key == 'onSimulationFrame' or key == 'RPC' then
+        if rawget(t,"killed") ~= nil or key == 'onSimulationFrame' or key == 'onTriggerMessage' or key == 'RPC' then
             return
         end
         if key == 'onMissionLoadEnd' then
