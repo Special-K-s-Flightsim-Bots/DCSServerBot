@@ -290,8 +290,9 @@ class NodeImpl(Node):
 
     @override
     @property
-    def installation(self) -> str:
-        return os.path.expandvars(self.locals['DCS']['installation'])
+    def installation(self) -> str | None:
+        inst = self.locals.get('DCS', {}).get('installation')
+        return os.path.expandvars(inst) if inst else None
 
     @property
     def listen_address(self) -> str:

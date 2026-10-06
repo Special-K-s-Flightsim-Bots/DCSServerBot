@@ -98,7 +98,7 @@ class Node(ABC):
 
     @property
     @abstractmethod
-    def installation(self) -> str:
+    def installation(self) -> str | None:
         raise NotImplementedError()
 
     @property

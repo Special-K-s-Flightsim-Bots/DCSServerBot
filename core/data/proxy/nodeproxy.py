@@ -68,7 +68,7 @@ class NodeProxy(Node):
 
     @override
     @property
-    def installation(self) -> str:
+    def installation(self) -> str | None:
         raise NotImplementedError()
 
     @override
