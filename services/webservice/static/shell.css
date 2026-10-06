@@ -189,6 +189,26 @@ a { color: var(--link); text-decoration: none; }
   display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 99px;
   font-size: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2);
 }
+/* THE LANGUAGE CONTROL (services.webservice.i18n, templates/_language.html): one flat row of plain
+ * links, sized like the pills beside it so it sits on the top bar without becoming a second chrome.
+ * The ACTIVE language is the only one that is not dimmed, and it carries a faint panel of its own —
+ * a colour plus a weight, never colour alone, so the current language is legible to a colourblind
+ * reader and to a text-only one. It is present on every shell page and on the login page. */
+.lang { display: inline-flex; align-items: center; gap: 2px; }
+.lang-opt {
+  font-size: 12px; line-height: 1; padding: 5px 6px; border-radius: 7px; text-decoration: none;
+  color: var(--text-3); border: 1px solid transparent; display: inline-flex; align-items: center;
+}
+.lang-opt:hover { color: var(--text-2); border-color: var(--line-2); }
+.lang-opt.on { color: var(--text); font-weight: 600; background: var(--panel);
+  border-color: var(--line-2); }
+/* The option is a FLAG, not a name (see templates/_language.html): a small SVG box, the flag filling
+ * it and the neutral globe (square) centred inside it. A faint ring keeps a pale flag legible on the
+ * dark bar; the active one gets the accent ring instead, so "current" is not colour-alone on the
+ * flag itself. Emoji are never used — Windows would draw the two regional-indicator letters. */
+.lang-opt img.flag { display: block; width: 20px; height: 15px; object-fit: contain;
+  border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+.lang-opt.on img.flag { box-shadow: 0 0 0 1px var(--accent); }
 .envbar { font-size: 11.5px; color: var(--text-3); border-left: 2px solid var(--line-2);
   padding: 4px 0 4px 10px; }
 .envbar.live { color: var(--text-2); border-left-color: var(--accent); }

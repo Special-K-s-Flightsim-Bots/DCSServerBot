@@ -56,6 +56,28 @@
 -#}
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
+{#- THE DIALOG'S SENTENCES ARE RECORDS. A per-request sentence (whose figures and names are only
+    known at render) is a record ``{"msgid": <an ``i18n._``-marked literal>, "params": {...}}`` built
+    by ``pages/actions``. EVERY record — all six places this page used to interpolate — is rendered
+    through the environment's ONE guarded global ``say`` (``templating.SENTENCE_GLOBAL``): it
+    translates the msgid with the environment's own translations, interpolates it with the same brace
+    placeholders the declaration carries, and — if the translated ``msgstr`` carries a placeholder the
+    params do not supply (a stray ``{extra}``, a positional ``{0}``) — FALLS BACK to the untranslated
+    English sentence instead of raising into a 500. One bad catalog line degrades to English, never
+    breaks the dialog. The translation cannot happen in the page module: the console's Python ``_`` is
+    an extraction marker that returns the string unchanged, and the language is a property of the
+    REQUEST, resolved where the page renders.
+
+    ``say`` renders ONE record whose msgid may embed the ACTION'S own label (the console's default
+    ``"{label} {target}?"`` title, whose record carries a top-level ``label`` key): that label is
+    itself a translatable msgid, so the guard translates it too rather than leaving the English word
+    inside a translated sentence. A record with no ``label`` key is a whole sentence the declaration
+    already owns (a node power operation's heading, a mission dialog's). The warning, the detail and
+    the notes are rendered inline with ``|safe`` (their markup is the declaration's and their values
+    are pre-escaped), so they need no macro. -#}
+{% macro say_title(rec) -%}
+{{- say(rec) }}
+{%- endmacro %}
 {#- THE ONE FIELD RENDERER, shared by the footer form and the dialog BODY. A field is a plain record
     built by ``pages/actions``; nothing user-supplied reaches these names. FIVE SHAPES, and the order
     is the caller's: a HIDDEN field is rendered bare (it is the OFF companion of the checkbox that
@@ -75,47 +97,56 @@
 <p class="dlg-field opt">
   <input type="checkbox" id="{{ field.id }}" name="{{ field.name }}" value="{{ field.value }}"
          {%- if field.checked %} checked{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
-  <span class="opt-txt"><label for="{{ field.id }}">{{ field.label }}</label>
-    {% if field.help %}<span class="hint">{{ field.help }}</span>{% endif %}</span>
+  <span class="opt-txt"><label for="{{ field.id }}">{{ _(field.label) }}</label>
+    {% if field.help %}<span class="hint">{{ _(field.help) }}</span>{% endif %}</span>
 </p>
 {% elif field.type == 'select' %}
 <p class="dlg-field">
-  <label for="{{ field.id }}">{{ field.label }}</label>
+  <label for="{{ field.id }}">{{ _(field.label) }}</label>
   <select id="{{ field.id }}" name="{{ field.name }}"{% if field.required %} required{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
     {% for option in field.options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
   </select>
-  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ field.help }}</span>{% endif %}
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
 {% elif field.type == 'list' %}
-<ul class="dlg-list" aria-label="{{ field.label or 'Selected missions' }}">{% for item in field.lines %}<li>{{ item }}</li>{% endfor %}</ul>
+<ul class="dlg-list" aria-label="{{ _(field.label) or _('Selected missions') }}">{% for item in field.lines %}<li>{{ item }}</li>{% endfor %}</ul>
 {% else %}
 <p class="dlg-field">
-  <label for="{{ field.id }}">{{ field.label }}</label>
+  <label for="{{ field.id }}">{{ _(field.label) }}</label>
   <input type="{{ field.type }}" id="{{ field.id }}" name="{{ field.name }}"
          {%- if field.max %} maxlength="{{ field.max }}"{% endif %}
          {%- if field.required %} required{% endif %}
          {%- if field.value %} value="{{ field.value }}"{% endif %}
          {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}>
-  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ field.help }}</span>{% endif %}
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
 {% endif %}
 {%- endmacro %}
-{% block title %}{{ page_title }} — DCSServerBot{% endblock %}
+{% block title %}{{ say_title(page_title) }} — DCSServerBot{% endblock %}
 {% block content %}
+{% set go_text = say(dialog.go) %}
 
 <div class="page-head">
-  <h1>{{ page_title }}</h1>
-  <div class="sub">Confirming: {{ dialog.go }}.</div>
+  <h1>{{ say_title(page_title) }}</h1>
+  <div class="sub">{% trans go=go_text %}Confirming: {{ go }}.{% endtrans %}</div>
 </div>
 
 <div class="dlg-back">
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
-    <div class="hd">{% if dialog.danger %}{{ icons.act('warn') }}{% endif %}<h3 id="dlg-title">{{ dialog.heading }}</h3>{% if dialog.tag %}<span class="tag">{{ dialog.tag }}</span>{% endif %}</div>
+    <div class="hd">{% if dialog.danger %}{{ icons.act('warn') }}{% endif %}<h3 id="dlg-title">{{ say_title(dialog.heading) }}</h3>{% if dialog.tag %}<span class="tag">{{ _(dialog.tag) }}</span>{% endif %}</div>
     <div class="bd">
-      {% if dialog.warning %}<div class="dlg-warn">{{ icons.act('warn') }}<span>{{ dialog.warning|safe }}</span></div>{% endif %}
-      <p class="dlg-what">{{ dialog.detail|safe }}</p>
-      <p class="dlg-what">Target: <span class="target">{{ dialog.target }}</span> — the action and your
-        name are written to the bot log{% if dialog.irreversible %}, and it cannot be undone from here{% endif %}.</p>
+      {% if dialog.warning %}<div class="dlg-warn">{{ icons.act('warn') }}<span>{{ say(dialog.warning)|safe }}{% if dialog.warning_note %} {{ say(dialog.warning_note)|safe }}{% endif %}</span></div>{% endif %}
+      <p class="dlg-what">{{ say(dialog.detail)|safe }}{% for note in dialog.detail_notes %} {{ say(note)|safe }}{% endfor %}</p>
+      {#- THE TARGET: a per-language sentence for the "(node)" suffix, or the RESOLVED name VERBATIM.
+          A record is translated; a plain string is a server/player/mission NAME (operator data) and is
+          emitted as-is — never passed through ``_``, which would look a name up as a msgid and a
+          server called "Restart" would be translated. -#}
+      {% set tgt = say(dialog.target) if dialog.target is mapping else dialog.target %}
+      {% if dialog.irreversible %}
+      <p class="dlg-what">{% trans target=tgt %}Target: <span class="target">{{ target }}</span> — the action and your name are written to the bot log, and it cannot be undone from here.{% endtrans %}</p>
+      {% else %}
+      <p class="dlg-what">{% trans target=tgt %}Target: <span class="target">{{ target }}</span> — the action and your name are written to the bot log.{% endtrans %}</p>
+      {% endif %}
       {#- THE BODY'S OWN FIELDS (M9): the read-only selection list and the "delete the files from
           disk?" box that belongs BESIDE it — the one decision a bulk-remove dialog still asks. They are
           form-associated to the footer's form (``form="dlg-form"``), so the choice rides the same POST
@@ -130,7 +161,7 @@
           target's Overview. An anchor goes to ``back`` verbatim, tab and all. It keeps the button look
           (the console's ``btn`` styling styles an anchor too), ``autofocus`` so a keyboard still lands
           on it, and Enter still dismisses because a focused link activates. -#}
-      <a class="btn" href="{{ back }}" autofocus title="Cancel — go back without doing anything (Esc)">Cancel</a>
+      <a class="btn" href="{{ back }}" autofocus title="{% trans %}Cancel — go back without doing anything (Esc){% endtrans %}">{% trans %}Cancel{% endtrans %}</a>
       <span class="spacer"></span>
       <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}">
         {% for field in dialog.inputs %}{{ field_input(field, none) }}{% endfor %}
@@ -144,7 +175,7 @@
         <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
         {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
         {% if dialog.confirm_token %}<input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">{% endif %}
-        <button class="btn{{ ' danger' if dialog.danger else '' }}" type="submit" title="{{ dialog.go_title }}">{{ dialog.go }}</button>
+        <button class="btn{{ ' danger' if dialog.danger else '' }}" type="submit" title="{{ say(dialog.go_title) }}">{{ go_text }}</button>
       </form>
     </div>
   </div>

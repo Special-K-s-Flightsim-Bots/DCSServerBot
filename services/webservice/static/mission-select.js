@@ -31,6 +31,13 @@
 (function () {
   "use strict";
 
+  /* THE STRINGS ARE SERVED, NOT WRITTEN HERE (``/i18n/messages.js``, included by ``base.html``
+     before this script). ``window.dcssbMsg`` looks a key up and swaps a ``{name}`` value in; this
+     file carries no user-visible string and no translation logic. */
+  function t(key, params) {
+    return window.dcssbMsg ? window.dcssbMsg(key, params) : key;
+  }
+
   function start() {
     var bar = document.querySelector("[data-sel-bar]");
     if (!bar) { return; }
@@ -60,7 +67,7 @@
     function refresh() {
       var n = ticked();
       if (count) {
-        var words = n + " of " + total + " selected";
+        var words = t("mission.count", {n: n, total: total});
         /* THE START REASON (M11): `Set as start` acts on the tick and is meaningful with EXACTLY ONE
            mission, so with none or several the count — the one place the selection is described —
            also says why. The wording is the SERVER's own sentence (`data-sel-why` on the button,
@@ -77,9 +84,9 @@
       }
       if (go) {
         go.disabled = n === 0;
-        if (n === 0) { go.textContent = "Remove selected…"; }
-        else if (n === 1) { go.textContent = "Remove 1 mission…"; }
-        else { go.textContent = "Remove " + n + " missions…"; }
+        if (n === 0) { go.textContent = t("mission.remove_selected"); }
+        else if (n === 1) { go.textContent = t("mission.remove_one"); }
+        else { go.textContent = t("mission.remove_many", {n: n}); }
       }
       if (all) {
         all.checked = total > 0 && n === total;

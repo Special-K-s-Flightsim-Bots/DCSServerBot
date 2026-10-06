@@ -18,7 +18,7 @@
   request: app.frontend runs the dependency chain, a StaticFiles mount would not).
 -#}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,21 +44,26 @@
           itself is CSS's job (shell.css, one rule) — never the attributes.  #}
       <img class="brand-logo" src="/static/logo-256.png" alt="DCSServerBot logo"
            width="45" height="30">
-      <div><b>DCSServerBot</b><small>Admin Console</small></div>
+      <div><b>DCSServerBot</b><small>{% trans %}Admin Console{% endtrans %}</small></div>
     </div>
     <nav class="nav">
       {% for group in (nav_groups if nav_groups is defined else []) %}
-      <div class="grp">{{ group.label }}</div>
+      <div class="grp">{{ _(group.label) }}</div>
       {% for item in group.links %}
-      <a class="{{ 'on' if item.active else '' }}" href="{{ item.url }}"><span class="ic">▣</span>{{ item.label }}</a>
+      <a class="{{ 'on' if item.active else '' }}" href="{{ item.url }}"><span class="ic">▣</span>{{ _(item.label) }}</a>
       {% endfor %}
       {% endfor %}
     </nav>
   </aside>
   <div class="main">
     <header class="shell-bar top">
-      <div class="crumb">{% if crumb is defined and crumb %}{{ crumb }}{% endif %}</div>
+      {#  THE BREADCRUMB IS PARTS, NOT A COMPOSED STRING: each chrome word is the page's own wrapped
+          label (reused, never a duplicate msgid) rendered through the request's `_`, and an optional
+          target NAME (a server, a node, a mission) is printed VERBATIM — operator data is never
+          looked up. See `pages.dashboard.crumb`.  #}
+      <div class="crumb">{% if crumb is defined and crumb %}{% for text, chrome in crumb %}{% if chrome %}{{ _(text) }}{% else %}{{ text }}{% endif %}{% if not loop.last %} / {% endif %}{% endfor %}{% endif %}</div>
       <div class="spacer"></div>
+      {% include "_language.html" %}
       <span id="status-pills">{% include "_pills.html" %}</span>
       {% if user is defined and user %}
       {#  The user chip: the display name the backend resolved (NEVER the subject — for the Discord
@@ -91,7 +96,7 @@
         <div class="who-name"><b>{{ user.name }}</b><small>{{ user.subtitle }}</small></div>
         <form class="signout" method="post" action="{{ user.sign_out.path }}">
           <input type="hidden" name="{{ user.sign_out.csrf_field }}" value="{{ user.sign_out.csrf_token }}">
-          <button type="submit">Sign out</button>
+          <button type="submit">{% trans %}Sign out{% endtrans %}</button>
         </form>
       </div>
       {% endif %}
@@ -100,11 +105,22 @@
     </header>
     <main class="wrap">
       {% if env is defined and env %}
-      <div class="envbar {{ 'live' if env.live else '' }}">{{ env.text }}{% if not env.live and env.reason %} — {{ env.reason }}{% endif %}</div>
+      {#-  THE ENVIRONMENT MARKER IS PARTS, NOT A COMPOSED STRING: each chrome word is an
+          `i18n._`-marked literal rendered through the request's `_`, and a NODE NAME is operator
+          data printed VERBATIM (the same shape as the breadcrumb above). The reason is a plain
+          sentence (`i18n._`-marked in `readmodels.model`), rendered the same way the banner's
+          calm line is.  #}
+      <div class="envbar {{ 'live' if env.live else '' }}">{% for text, chrome in env.parts %}{% if chrome %}{{ _(text) }}{% else %}{{ text }}{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}{% if not env.live and env.reason %} — {{ _(env.reason) }}{% endif %}</div>
       {% endif %}
       {% block content %}{% endblock %}
     </main>
   </div>
+  {# The SERVED MESSAGE MAP: the console's JavaScript strings, in THIS request's language, rendered
+     by the server (``/i18n/messages.js``, gated like every route). It is included BEFORE every
+     script that reads it — a deferred script runs in document order — so ``window.DCSSB_MESSAGES``
+     and ``window.dcssbMsg`` exist by the time the row strip, the dialog and the log follower run.
+     The JS itself carries no user-visible string and no translation logic. #}
+  <script src="/i18n/messages.js" defer></script>
   {# The ONE submit interceptor: every write form the console submits in the background
      — the confirmation dialog's destructive form AND the row strip's direct controls — is handled
      by this one script, which is loaded on EVERY page (the dialog extends this template too). It is

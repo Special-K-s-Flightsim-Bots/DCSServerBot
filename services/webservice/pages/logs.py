@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from .. import permissions, readmodels
+from .. import i18n, permissions, readmodels
 from ..registry import NavItem
 from . import dashboard as dashboard_page
 
@@ -27,9 +27,10 @@ LOGS_CAPABILITY = "logs.view"
 LOGS_ROLES: tuple[str, ...] = ("Admin",)
 
 LOGS_TEMPLATE = "logs.html"
-LOGS_TITLE = "Logs"
-LOGS_LEAD = "The bot log, full width, with the same level filter and placement as the dashboard."
-NAV_LABEL = "Logs"
+LOGS_TITLE = i18n._("Logs")
+LOGS_LEAD = i18n._("The bot log, full width, with the same level filter and placement as the "
+                   "dashboard.")
+NAV_LABEL = i18n._("Logs")
 NAV_GROUP = dashboard_page.NAV_GROUP
 CRUMB_GROUP = dashboard_page.CRUMB_GROUP
 
@@ -60,20 +61,17 @@ def add_routes(router: APIRouter) -> APIRouter:
 
     @router.get(LOGS_PATH, response_class=HTMLResponse)
     async def logs(request: Request):
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         registrar = getattr(request.app.state, "webui_registrar", None)
         state = readmodels.overview(dashboard_page.request_source(request),
                                     level=dashboard_page.log_level(request))
         roles = permissions.role_names_for(request)
         view = dashboard_page.view_state_for(request, state)
-        html = environment.get_template(LOGS_TEMPLATE).render(
+        html = i18n.render(
+            request, LOGS_TEMPLATE,
             title=LOGS_TITLE,
             page_title=LOGS_TITLE,
             lead=LOGS_LEAD,
-            crumb=f"{CRUMB_GROUP} / {LOGS_TITLE}",
+            crumb=dashboard_page.crumb(CRUMB_GROUP, LOGS_TITLE),
             state=state,
             view=view,
             empty=dashboard_page.empty_messages(state),

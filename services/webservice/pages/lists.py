@@ -35,10 +35,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from .. import permissions, readmodels, scope
+from .. import i18n, permissions, readmodels, scope
 from ..registry import NavItem
 from . import dashboard as dashboard_page
 
@@ -134,7 +134,6 @@ def page_context(request: Request, page: ListPage) -> dict:
     built from the same request the page renders from. The other three pages pass neither, so
     ``_table.html`` renders no actions column for them at all.
     """
-    environment = getattr(request.app.state, "webui_templates", None)
     registrar = getattr(request.app.state, "webui_registrar", None)
     state = readmodels.overview(dashboard_page.request_source(request),
                                 level=dashboard_page.log_level(request))
@@ -143,7 +142,7 @@ def page_context(request: Request, page: ListPage) -> dict:
         "title": page.title,
         "page_title": page.title,
         "lead": page.lead,
-        "crumb": f"{CRUMB_GROUP} / {page.title}",
+        "crumb": dashboard_page.crumb(CRUMB_GROUP, page.title),
         "table": view.tables[page.table],
         "view": view,
         "empty": dashboard_page.empty_messages(state),
@@ -180,13 +179,9 @@ def add_list_route(router: APIRouter, page: ListPage) -> APIRouter:
 
     @router.get(page.path, response_class=HTMLResponse, name=f"page-{page.table}")
     async def _list_page(request: Request):
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         # no-store: a write returns to a list page, and the browser must not serve the pre-write
         # page from its cache when it does (the same reason `live.py` sets it for its poll).
-        return HTMLResponse(environment.get_template(LIST_TEMPLATE).render(
-            **page_context(request, page)), headers={"Cache-Control": "no-store"})
+        return HTMLResponse(i18n.render(request, LIST_TEMPLATE, **page_context(request, page)),
+                            headers={"Cache-Control": "no-store"})
 
     return router

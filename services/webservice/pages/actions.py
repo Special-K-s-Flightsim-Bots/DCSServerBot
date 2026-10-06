@@ -29,7 +29,7 @@ from core.data.const import Status
 # makes the node route's PREDICTION follow the operation rather than a second rule.
 from core.data.maintenance import ServerMaintenanceManager, power_record
 
-from .. import permissions, readmodels, session
+from .. import i18n, permissions, readmodels, session
 # THE CONFIG FIELD DECLARATION, the same one the page renders from, so the form and this submit path
 # cannot disagree (``readmodels`` stays free of ``core``).
 from ..readmodels import serverconfig as server_config
@@ -323,8 +323,16 @@ CONFIRM_MAX_PENDING = 8
 ROW_STRIP = "strip"
 ROW_MENU = "menu"
 
-MENU_NOTE = ("Start and Stop live only here: they act on fewer states than Startup and Shutdown, so "
-             "they do not earn a place in the strip.")
+MENU_NOTE = i18n._("Start and Stop live only here: they act on fewer states than Startup and "
+                   "Shutdown, so they do not earn a place in the strip.")
+
+#: THE BUSY SENTENCE a pending control's own glyph carries (see :func:`_control`). It is a
+#: per-request record like every other composed sentence: the control's own ``label`` and the
+#: resolved target's ``name`` are substituted at render, so the sentence is translated FIRST and the
+#: operator data interpolated after. ``{label}`` is the action's own translatable label (the
+#: template's ``say`` translates it too — see ``templating.SENTENCE_GLOBAL``).
+_BUSY_TITLE = i18n._("{label} — an action on {name} is running; this can take a moment")
+_BUSY_ARIA = i18n._("{label} — an action on {name} is running")
 
 
 @dataclass(frozen=True, slots=True)
@@ -477,85 +485,89 @@ SERVER_ACTIONS: tuple[WriteAction, ...] = (
     # is why this non-destructive control opens a form instead of posting directly: the checkbox is
     # a form field with nowhere else to live.
     WriteAction(key="startup", capability="servers.startup", qualname="startup_server",
-                path="/actions/server/startup", label="Startup", statuses=("SHUTDOWN",),
+                path="/actions/server/startup", label=i18n._("Startup"), statuses=("SHUTDOWN",),
                 settled=("RUNNING", "PAUSED"),
                 option=NodeOption(
                     field="maintenance",
-                    label="End maintenance so the server is scheduled again",
+                    label=i18n._("End maintenance so the server is scheduled again"),
                     default=True,
-                    help="On by default, exactly like Discord's /server startup. An unflagged "
-                         "server simply stays unflagged."),
-                tip="Startup — bring this server up from SHUTDOWN",
-                aria="Startup server {server}",
-                detail="It comes back up and rejoins the rotation: with the box below ticked (the "
-                       "default) any maintenance is ended, so the scheduler may start it again. A "
-                       "server that was not in maintenance simply stays that way. This is the "
-                       "DCS-level bring-up, not the process-level Start in the row's menu.",
-                go="Start up server",
-                go_title="Start up {server} — ends maintenance so the scheduler may start it"),
+                    help=i18n._("On by default, exactly like Discord's /server startup. An unflagged "
+                                "server simply stays unflagged.")),
+                tip=i18n._("Startup — bring this server up from SHUTDOWN"),
+                aria=i18n._("Startup server {server}"),
+                detail=i18n._("It comes back up and rejoins the rotation: with the box below ticked "
+                              "(the default) any maintenance is ended, so the scheduler may start it "
+                              "again. A server that was not in maintenance simply stays that way. "
+                              "This is the DCS-level bring-up, not the process-level Start in the "
+                              "row's menu."),
+                go=i18n._("Start up server"),
+                go_title=i18n._("Start up {server} — ends maintenance so the scheduler may start it")),
     WriteAction(key="start", capability="servers.start", qualname="start_server",
-                path="/actions/server/start", label="Start", statuses=("STOPPED",),
+                path="/actions/server/start", label=i18n._("Start"), statuses=("STOPPED",),
                 settled=("RUNNING", "PAUSED"),
                 row=ROW_MENU,
-                tip="Start — start a STOPPED server",
-                aria="Start server {server}",
-                hint="start a STOPPED server — Startup is the usual one"),
+                tip=i18n._("Start — start a STOPPED server"),
+                aria=i18n._("Start server {server}"),
+                hint=i18n._("start a STOPPED server — Startup is the usual one")),
     WriteAction(key="pause", capability=PAUSE_CAPABILITY, qualname="pause_mission",
-                path=PAUSE_PATH, label="Pause", statuses=("RUNNING",),
+                path=PAUSE_PATH, label=i18n._("Pause"), statuses=("RUNNING",),
                 settled=("PAUSED",),
-                tip="Pause — freeze the mission; players stay connected",
-                aria="Pause the mission on {server}"),
+                tip=i18n._("Pause — freeze the mission; players stay connected"),
+                aria=i18n._("Pause the mission on {server}")),
     WriteAction(key="unpause", capability=UNPAUSE_CAPABILITY, qualname="unpause_mission",
-                path=UNPAUSE_PATH, label="Unpause", statuses=("PAUSED",),
+                path=UNPAUSE_PATH, label=i18n._("Unpause"), statuses=("PAUSED",),
                 settled=("RUNNING",),
-                tip="Unpause — resume the frozen mission",
-                aria="Unpause the mission on {server}"),
+                tip=i18n._("Unpause — resume the frozen mission"),
+                aria=i18n._("Unpause the mission on {server}")),
     WriteAction(key="restart", capability="servers.restart", qualname="restart_server",
-                path="/actions/server/restart", label="Restart", statuses=("RUNNING", "PAUSED"),
+                path="/actions/server/restart", label=i18n._("Restart"),
+                statuses=("RUNNING", "PAUSED"),
                 settled=("RUNNING", "PAUSED"),
                 danger=True, confirm=True,
-                tip="Restart — players currently flying lose their sortie",
-                aria="Restart server {server}",
-                warning="<b>Players currently flying lose their sortie.</b> The mission restarts "
-                        "from the beginning — mid-mission progress is gone.",
-                detail="A restart stops the mission, reloads it from the start and the players "
-                       "reconnect to a fresh round. It cannot be undone from here.",
-                go="Restart server",
-                go_title="Restart {server} — players flying lose their sortie"),
+                tip=i18n._("Restart — players currently flying lose their sortie"),
+                aria=i18n._("Restart server {server}"),
+                warning=i18n._("<b>Players currently flying lose their sortie.</b> The mission "
+                               "restarts from the beginning — mid-mission progress is gone."),
+                detail=i18n._("A restart stops the mission, reloads it from the start and the "
+                              "players reconnect to a fresh round. It cannot be undone from here."),
+                go=i18n._("Restart server"),
+                go_title=i18n._("Restart {server} — players flying lose their sortie")),
     WriteAction(key="shutdown", capability="servers.shutdown", qualname="shutdown_server",
-                path="/actions/server/shutdown", label="Shutdown", statuses=("RUNNING", "PAUSED"),
+                path="/actions/server/shutdown", label=i18n._("Shutdown"),
+                statuses=("RUNNING", "PAUSED"),
                 settled=("SHUTDOWN", "STOPPED"),
                 danger=True, confirm=True,
                 option=NodeOption(
                     field="maintenance",
-                    label="Set maintenance so the scheduler does not restart it",
+                    label=i18n._("Set maintenance so the scheduler does not restart it"),
                     default=True,
-                    help="On by default, exactly like Discord's /server shutdown: without it a "
-                         "scheduled start brings the server straight back."),
-                tip="Shutdown — stop the DCS server; everyone on it is disconnected",
-                aria="Shutdown server {server}",
-                warning="<b>{players} players are disconnected</b> and nobody can join until "
-                        "somebody starts the server up again. The box below is ticked by default "
-                        "and puts the server into maintenance — it stays out of service, so the "
-                        "scheduler does not bring it back up. Clear it only to shut the server down "
-                        "without keeping it down.",
-                detail="It stays SHUTDOWN on every page until a Startup brings it back — this is "
-                       "the graceful stop, not the process-level Stop in the row's menu.",
-                go="Shut down",
-                go_title="Shut down {server} — {players} players are disconnected"),
+                    help=i18n._("On by default, exactly like Discord's /server shutdown: without it "
+                                "a scheduled start brings the server straight back.")),
+                tip=i18n._("Shutdown — stop the DCS server; everyone on it is disconnected"),
+                aria=i18n._("Shutdown server {server}"),
+                warning=i18n._("<b>{players} players are disconnected</b> and nobody can join until "
+                               "somebody starts the server up again. The box below is ticked by "
+                               "default and puts the server into maintenance — it stays out of "
+                               "service, so the scheduler does not bring it back up. Clear it only "
+                               "to shut the server down without keeping it down."),
+                detail=i18n._("It stays SHUTDOWN on every page until a Startup brings it back — "
+                              "this is the graceful stop, not the process-level Stop in the row's "
+                              "menu."),
+                go=i18n._("Shut down"),
+                go_title=i18n._("Shut down {server} — {players} players are disconnected")),
     WriteAction(key="stop", capability="servers.stop", qualname="stop_server",
-                path="/actions/server/stop", label="Stop", statuses=("RUNNING", "PAUSED"),
+                path="/actions/server/stop", label=i18n._("Stop"), statuses=("RUNNING", "PAUSED"),
                 settled=("SHUTDOWN", "STOPPED"),
                 row=ROW_MENU, danger=True, confirm=True,
-                tip="Stop — stop the server process; players are disconnected",
-                aria="Stop server {server}",
-                hint="stop the server process — players are disconnected",
-                warning="<b>{players} players are disconnected.</b> Stop ends the server process, "
-                        "and nobody can join until a Start brings it back.",
-                detail="This is the process-level pair (Stop/Start), not the DCS-level pair "
-                       "(Shutdown/Startup).",
-                go="Stop server process",
-                go_title="Stop {server} — {players} players are disconnected"),
+                tip=i18n._("Stop — stop the server process; players are disconnected"),
+                aria=i18n._("Stop server {server}"),
+                hint=i18n._("stop the server process — players are disconnected"),
+                warning=i18n._("<b>{players} players are disconnected.</b> Stop ends the server "
+                               "process, and nobody can join until a Start brings it back."),
+                detail=i18n._("This is the process-level pair (Stop/Start), not the DCS-level pair "
+                              "(Shutdown/Startup)."),
+                go=i18n._("Stop server process"),
+                go_title=i18n._("Stop {server} — {players} players are disconnected")),
     # ── the MAINTENANCE flag pair ──────────────────────────
     # ONE HOME PER CONCEPT: the per-server flag, set and cleared here and NOWHERE ELSE on
     # the node row — the node row's pair is power and no longer carries a flag. The two halves are
@@ -570,18 +582,18 @@ SERVER_ACTIONS: tuple[WriteAction, ...] = (
     # state change when the row next to it (Shutdown) already confirms the irreversible ones.
     WriteAction(key="maintenance", capability=SERVER_MAINTENANCE_CAPABILITY,
                 qualname="set_maintenance", path="/actions/server/maintenance",
-                label="Maintenance", statuses=(), when_maintenance=False,
+                label=i18n._("Maintenance"), statuses=(), when_maintenance=False,
                 observable=AWAIT_OBSERVABLE_MAINTENANCE,
-                tip="Maintenance — keep this server out of service; the scheduler will not start it",
-                aria="Put server {server} into maintenance",
-                hint="keep the server out of service — it is not stopped by this"),
+                tip=i18n._("Maintenance — keep this server out of service; the scheduler will not start it"),
+                aria=i18n._("Put server {server} into maintenance"),
+                hint=i18n._("keep the server out of service — it is not stopped by this")),
     WriteAction(key="end_maintenance", capability=SERVER_CLEAR_MAINTENANCE_CAPABILITY,
                 qualname="clear_maintenance", path="/actions/server/end-maintenance",
-                label="End maintenance", statuses=(), when_maintenance=True,
+                label=i18n._("End maintenance"), statuses=(), when_maintenance=True,
                 observable=AWAIT_OBSERVABLE_MAINTENANCE,
-                tip="End maintenance — let the scheduler start this server again",
-                aria="Take server {server} out of maintenance",
-                hint="the server may be started again — nothing is started by this"),
+                tip=i18n._("End maintenance — let the scheduler start this server again"),
+                aria=i18n._("Take server {server} out of maintenance"),
+                hint=i18n._("the server may be started again — nothing is started by this")),
 )
 
 
@@ -647,58 +659,60 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
     # "decisive" rule. It carries NO confirm token: adding to the rotation is not destructive
     # (nothing is copied, nothing is deleted), so its dialog is the OPTIONS form, like Startup's.
     WriteAction(key="mission_add", capability=MISSIONS_ADD_CAPABILITY, qualname="add_mission",
-                path=MISSIONS_ADD_PATH, label="Add to the rotation", statuses=(),
+                path=MISSIONS_ADD_PATH, label=i18n._("Add to the rotation"), statuses=(),
                 options=(
                     NodeOption(
                         field=MISSION_AUTOSTART_FIELD,
-                        label="Load it when the server next starts",
+                        label=i18n._("Load it when the server next starts"),
                         default=False,
-                        help="Arms the rotation so this mission is the next one the server loads."),
+                        help=i18n._("Arms the rotation so this mission is the next one the server "
+                                    "loads.")),
                     NodeOption(
                         field=MISSION_LOAD_FIELD,
-                        label="Load it now",
+                        label=i18n._("Load it now"),
                         default=False,
-                        help="Loads it right away — only honoured while the server is running, "
-                             "paused or stopped."),
+                        help=i18n._("Loads it right away — only honoured while the server is "
+                                    "running, paused or stopped.")),
                 ),
                 tip="Add — put a mission that is ALREADY on this server into its rotation list",
                 aria="Add a mission to {server}",
-                detail="This mission is already on the server: adding it changes the ROTATION LIST "
-                       "only. No file is copied and nothing is deleted — that is what Upload does.",
-                go="Add to the rotation",
-                go_title="Add the mission to {server}'s rotation list"),
+                detail=i18n._("This mission is already on the server: adding it changes the ROTATION "
+                              "LIST only. No file is copied and nothing is deleted — that is what "
+                              "Upload does."),
+                go=i18n._("Add to the rotation"),
+                go_title=i18n._("Add the mission to {server}'s rotation list")),
     # REMOVE is destructive, so it CONFIRMS through the same dialog component and, carrying an
     # option, also collects the "delete the real file?" choice there — the two questions Discord's
     # ``/mission delete`` asks, in ONE dialog. The one-shot token is what makes the dialog a control
     # rather than a screen (see ``_mission_confirm_handler`` / ``_mission_delete_handler``).
     WriteAction(key="mission_delete", capability=MISSIONS_DELETE_CAPABILITY,
-                qualname="delete_mission", path=MISSIONS_DELETE_PATH, label="Remove", statuses=(),
-                danger=True, confirm=True,
+                qualname="delete_mission", path=MISSIONS_DELETE_PATH, label=i18n._("Remove"),
+                statuses=(), danger=True, confirm=True,
                 option=NodeOption(
                     field=MISSION_DISK_FIELD,
-                    label="Also delete the mission file from disk",
+                    label=i18n._("Also delete the mission file from disk"),
                     default=False,
-                    help="Removes the primary file, its .dcssb copy and the .orig. This cannot be "
-                         "undone."),
+                    help=i18n._("Removes the primary file, its .dcssb copy and the .orig. This "
+                                "cannot be undone.")),
                 tip="Remove — take the mission out of the rotation list; optionally delete it from "
                     "disk too",
                 aria="Remove a mission from {server}",
-                warning="<b>The mission is removed from the rotation list and stops being loaded.</b> "
-                        "The box below is off by default: with it ticked the mission file itself — "
-                        "the primary, its .dcssb copy and the .orig — is deleted from the server, and "
-                        "that cannot be undone.",
-                detail="Removing it from the list changes the rotation only; the file stays on the "
-                       "server unless you tick the box. Discord's /mission delete asks the same two "
-                       "questions.",
-                go="Remove mission",
-                go_title="Remove the mission from {server}'s rotation list"),
+                warning=i18n._("<b>The mission is removed from the rotation list and stops being "
+                               "loaded.</b> The box below is off by default: with it ticked the "
+                               "mission file itself — the primary, its .dcssb copy and the .orig — "
+                               "is deleted from the server, and that cannot be undone."),
+                detail=i18n._("Removing it from the list changes the rotation only; the file stays "
+                              "on the server unless you tick the box. Discord's /mission delete "
+                              "asks the same two questions."),
+                go=i18n._("Remove mission"),
+                go_title=i18n._("Remove the mission from {server}'s rotation list")),
     WriteAction(key="mission_load", capability=MISSIONS_LOAD_CAPABILITY, qualname="load_mission",
-                path=MISSIONS_LOAD_PATH, label="Load",
+                path=MISSIONS_LOAD_PATH, label=i18n._("Load"),
                 statuses=("RUNNING", "PAUSED", "STOPPED"),
                 tip="Load — start this mission now on {server}",
                 aria="Load a mission on {server}"),
     WriteAction(key="mission_upload", capability=MISSIONS_UPLOAD_CAPABILITY,
-                qualname="upload_mission", path=MISSIONS_UPLOAD_PATH, label="Upload mission",
+                qualname="upload_mission", path=MISSIONS_UPLOAD_PATH, label=i18n._("Upload mission"),
                 statuses=(),
                 tip="Upload — send a .miz FILE from your own computer into {server}'s missions "
                     "directory and add it",
@@ -713,30 +727,32 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
     # reverts it.
     WriteAction(key="mission_delete_bulk", capability=MISSIONS_DELETE_CAPABILITY,
                 qualname="delete_missions", path=MISSIONS_BULK_DELETE_PATH,
-                label="Remove missions", statuses=MISSIONS_BULK_DELETE_STATES,
+                label=i18n._("Remove missions"), statuses=MISSIONS_BULK_DELETE_STATES,
                 danger=True, confirm=True,
                 option=NodeOption(
                     field=MISSION_DISK_FIELD,
-                    label="Also delete the mission files from disk",
+                    label=i18n._("Also delete the mission files from disk"),
                     default=False,
-                    help="Removes the primary file, its .dcssb copy and the .orig of EVERY selected "
-                         "mission. This cannot be undone. Left OFF, the mission only leaves the "
-                         "rotation — and while the server's mission auto-scan is on, a mission file "
-                         "left on disk is re-added to the list, so the removal is not permanent."),
+                    help=i18n._("Removes the primary file, its .dcssb copy and the .orig of EVERY "
+                                "selected mission. This cannot be undone. Left OFF, the mission only "
+                                "leaves the rotation — and while the server's mission auto-scan is "
+                                "on, a mission file left on disk is re-added to the list, so the "
+                                "removal is not permanent.")),
                 tip="Remove — take SEVERAL missions out of the rotation list at once; optionally "
                     "delete their files from disk too",
                 aria="Remove missions from {server}",
-                warning="<b>The selected missions are removed from the rotation list and stop being "
-                        "loaded.</b> The box below is off by default: with it ticked the mission "
-                        "files themselves are deleted from the server, and that cannot be undone.",
-                detail="The chosen missions leave the rotation list; their files stay on the server "
-                       "unless you tick the box.",
-                go="Remove missions",
-                go_title="Remove the selected missions from {server}'s rotation list"),
+                warning=i18n._("<b>The selected missions are removed from the rotation list and stop "
+                               "being loaded.</b> The box below is off by default: with it ticked "
+                               "the mission files themselves are deleted from the server, and that "
+                               "cannot be undone."),
+                detail=i18n._("The chosen missions leave the rotation list; their files stay on the "
+                              "server unless you tick the box."),
+                go=i18n._("Remove missions"),
+                go_title=i18n._("Remove the selected missions from {server}'s rotation list")),
     # MOVE UP / DOWN (M5): reorder ONE mission in the rotation list. Two small buttons per row open
     # no dialog — they post directly — and the offline-only gate is its ``statuses``.
     WriteAction(key="mission_reorder", capability=MISSIONS_REORDER_CAPABILITY,
-                qualname="reorder_mission", path=MISSIONS_REORDER_PATH, label="Move",
+                qualname="reorder_mission", path=MISSIONS_REORDER_PATH, label=i18n._("Move"),
                 statuses=MISSION_LIST_OFFLINE_STATES,
                 tip="Move — reorder a mission in {server}'s rotation list (only while the server is "
                     "not running)",
@@ -749,7 +765,8 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
     # pointer and does NOT load the mission now (that is ``Load``, a different control and a
     # different write).
     WriteAction(key="mission_activate", capability=MISSIONS_ACTIVATE_CAPABILITY,
-                qualname="set_active_mission", path=MISSIONS_ACTIVATE_PATH, label="Set as start",
+                qualname="set_active_mission", path=MISSIONS_ACTIVATE_PATH,
+                label=i18n._("Set as start"),
                 statuses=MISSIONS_ACTIVATE_STATES,
                 tip="Set as start — make this mission the one {server} loads when it starts (the "
                     "rotation pointer); it does not load it now",
@@ -850,57 +867,59 @@ class PlayerAction:
 #: what actually happens. ``{player}`` and ``{server}`` are formatted from the RESOLVED object.
 PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
     PlayerAction(key="kick", capability="players.kick", qualname="kick_player",
-                 path="/actions/player/kick", label="Kick", icon="kick",
+                 path="/actions/player/kick", label=i18n._("Kick"), icon="kick",
                  danger=True, confirm=True, audit_refusals=True,
-                 field="reason", field_label="Reason", field_max=200,
-                 field_help="Shown to the player in game.",
+                 field="reason", field_label=i18n._("Reason"), field_max=200,
+                 field_help=i18n._("Shown to the player in game."),
                  params=(("reason", "reason"),),
-                 tip="Kick — disconnected now; they may rejoin immediately",
-                 aria="Kick {player} from {server}",
-                 hint="disconnected now — a kick is not a ban",
-                 warning="<b>{player} is disconnected from {server} now.</b> They can rejoin "
-                         "immediately — a kick is not a ban and leaves no block behind.",
-                 detail="A kick ends their session; it blocks nothing and expires with it. Nothing "
-                        "is written to the ban list, so they may be back in the air in a minute.",
-                 go="Kick player",
-                 go_title="Kick {player} from {server} — they may rejoin immediately"),
+                 tip=i18n._("Kick — disconnected now; they may rejoin immediately"),
+                 aria=i18n._("Kick {player} from {server}"),
+                 hint=i18n._("disconnected now — a kick is not a ban"),
+                 warning=i18n._("<b>{player} is disconnected from {server} now.</b> They can rejoin "
+                                "immediately — a kick is not a ban and leaves no block behind."),
+                 detail=i18n._("A kick ends their session; it blocks nothing and expires with it. "
+                               "Nothing is written to the ban list, so they may be back in the air "
+                               "in a minute."),
+                 go=i18n._("Kick player"),
+                 go_title=i18n._("Kick {player} from {server} — they may rejoin immediately")),
     PlayerAction(key="ban", capability="players.ban", qualname="ban_player",
-                 path="/actions/player/ban", label="Ban", icon="ban",
+                 path="/actions/player/ban", label=i18n._("Ban"), icon="ban",
                  danger=True, confirm=True, audit_refusals=True,
-                 field="reason", field_label="Reason", field_max=80,
-                 field_help="Kept on the ban list.",
+                 field="reason", field_label=i18n._("Reason"), field_max=80,
+                 field_help=i18n._("Kept on the ban list."),
                  params=(("reason", "reason"), ("days", "days")), sender=True,
-                 tip="Ban — removed and blocked from rejoining",
-                 aria="Ban {player} from {server}",
-                 hint="removed and blocked from rejoining",
-                 warning="<b>{player} is removed from {server} and cannot rejoin it</b> for as long "
-                         "as the ban stands. Empty duration means it never expires on its own.",
-                 detail="The ban is written to the ban list every installation syncs, so it holds "
-                        "wherever they connect from — not only on this server.",
-                 go="Ban player",
-                 go_title="Ban {player} — empty duration is permanent"),
+                 tip=i18n._("Ban — removed and blocked from rejoining"),
+                 aria=i18n._("Ban {player} from {server}"),
+                 hint=i18n._("removed and blocked from rejoining"),
+                 warning=i18n._("<b>{player} is removed from {server} and cannot rejoin it</b> for "
+                                "as long as the ban stands. Empty duration means it never expires "
+                                "on its own."),
+                 detail=i18n._("The ban is written to the ban list every installation syncs, so it "
+                               "holds wherever they connect from — not only on this server."),
+                 go=i18n._("Ban player"),
+                 go_title=i18n._("Ban {player} — empty duration is permanent")),
     PlayerAction(key="message", capability=MESSAGE_CAPABILITY, qualname="message_player",
-                 path=MESSAGE_PATH, label="Message",
-                 field="message", field_label="Message", field_max=MESSAGE_FIELD_MAX,
+                 path=MESSAGE_PATH, label=i18n._("Message"),
+                 field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
                  params=(("message", "message"), ("mode", "mode")), sender=True,
                  buttons=(
                      PlayerButton(mode="chat", icon="chat",
-                                  tip="Chat — a chat line in game, visible to everyone",
-                                  aria="Send a chat line to {player} on {server}"),
+                                  tip=i18n._("Chat — a chat line in game, visible to everyone"),
+                                  aria=i18n._("Send a chat line to {player} on {server}")),
                      PlayerButton(mode="popup", icon="popup",
-                                  tip="Popup — a private message in game",
-                                  aria="Send a popup to {player} on {server}"),
+                                  tip=i18n._("Popup — a private message in game"),
+                                  aria=i18n._("Send a popup to {player} on {server}")),
                  )),
     PlayerAction(key="mute", capability="players.mute", qualname="mute_player",
-                 path="/actions/player/mute", label="Mute", icon="mute", when_muted=False,
-                 tip="Mute — they can no longer send chat",
-                 aria="Mute {player} on {server}",
-                 hint="they can no longer send chat"),
+                 path="/actions/player/mute", label=i18n._("Mute"), icon="mute", when_muted=False,
+                 tip=i18n._("Mute — they can no longer send chat"),
+                 aria=i18n._("Mute {player} on {server}"),
+                 hint=i18n._("they can no longer send chat")),
     PlayerAction(key="unmute", capability="players.mute", qualname="unmute_player",
-                 path="/actions/player/unmute", label="Unmute", icon="unmute", when_muted=True,
-                 tip="Unmute — restore their chat",
-                 aria="Unmute {player} on {server}",
-                 hint="restore their chat"),
+                 path="/actions/player/unmute", label=i18n._("Unmute"), icon="unmute", when_muted=True,
+                 tip=i18n._("Unmute — restore their chat"),
+                 aria=i18n._("Unmute {player} on {server}"),
+                 hint=i18n._("restore their chat")),
 )
 
 
@@ -995,52 +1014,53 @@ class NodeAction:
 #: ``services/webservice/upgrade.py``.
 NODE_ACTIONS: tuple[NodeAction, ...] = (
     NodeAction(key="restart", capability=NODE_RESTART_CAPABILITY, qualname="restart_node",
-               path="/actions/node/restart", label="Restart",
-               tip="Restart node — every server on {node} goes down while the node restarts",
-               aria="Restart node {node}",
-               hint="every server on the node goes down",
-               warning="<b>Every server on {node} goes down with it</b> — {servers} server(s) and "
-                       "{players} player(s) are on it right now.",
-               detail="A node restart ends the bot process on that machine; the launcher there "
-                      "brings the node back, and its servers do not: they stay down until somebody "
-                      "starts them again.",
-               master_note="<b>This console runs inside that node</b> — restarting it ends the "
-                           "process serving this page, and this window has to be reloaded once the "
-                           "node is back.",
-               go="Restart node",
-               go_title="Restart {node} — every server on it goes down"),
+               path="/actions/node/restart", label=i18n._("Restart"),
+               tip=i18n._("Restart node — every server on {node} goes down while the node restarts"),
+               aria=i18n._("Restart node {node}"),
+               hint=i18n._("every server on the node goes down"),
+               warning=i18n._("<b>Every server on {node} goes down with it</b> — {servers} server(s) "
+                              "and {players} player(s) are on it right now."),
+               detail=i18n._("A node restart ends the bot process on that machine; the launcher "
+                             "there brings the node back, and its servers do not: they stay down "
+                             "until somebody starts them again."),
+               master_note=i18n._("<b>This console runs inside that node</b> — restarting it ends "
+                                  "the process serving this page, and this window has to be reloaded "
+                                  "once the node is back."),
+               go=i18n._("Restart node"),
+               go_title=i18n._("Restart {node} — every server on it goes down")),
     NodeAction(key="shutdown", capability=NODE_SHUTDOWN_CAPABILITY, qualname="shutdown_node",
-               path="/actions/node/shutdown", label="Shut down",
-               tip="Shut down node — every server on {node} goes down and nothing brings it back",
-               aria="Shut down node {node}",
-               hint="every server on the node goes down, for good",
-               warning="<b>{servers} server(s) on {node} go down and {players} player(s) are "
-                       "disconnected, and nothing brings the node back.</b>",
-               detail="A node shutdown ends the bot process on that machine for good: somebody has "
-                      "to start the node THERE, at the machine. A node that is down cannot be "
-                      "started from this browser, and its servers stay down with it.",
-               master_note="<b>This console runs inside that node</b> — shutting it down ends the "
-                           "process serving this page, and nothing brings it back until somebody "
-                           "starts the node on that machine.",
-               go="Shut down node",
-               go_title="Shut down {node} — every server on it goes down"),
+               path="/actions/node/shutdown", label=i18n._("Shut down"),
+               tip=i18n._("Shut down node — every server on {node} goes down and nothing brings it back"),
+               aria=i18n._("Shut down node {node}"),
+               hint=i18n._("every server on the node goes down, for good"),
+               warning=i18n._("<b>{servers} server(s) on {node} go down and {players} player(s) are "
+                              "disconnected, and nothing brings the node back.</b>"),
+               detail=i18n._("A node shutdown ends the bot process on that machine for good: "
+                             "somebody has to start the node THERE, at the machine. A node that is "
+                             "down cannot be started from this browser, and its servers stay down "
+                             "with it."),
+               master_note=i18n._("<b>This console runs inside that node</b> — shutting it down "
+                                  "ends the process serving this page, and nothing brings it back "
+                                  "until somebody starts the node on that machine."),
+               go=i18n._("Shut down node"),
+               go_title=i18n._("Shut down {node} — every server on it goes down")),
     NodeAction(key="upgrade", capability=NODE_UPGRADE_CAPABILITY, qualname="upgrade_node",
-               path="/actions/node/upgrade", label="Upgrade", check=True,
-               tip="Upgrade node — update DCSServerBot on {node} and restart it; every server on "
-                   "it goes down",
-               aria="Upgrade node {node}",
-               hint="update and restart, every server goes down",
-               warning="<b>Every server on {node} goes down with it</b> — {servers} server(s) and "
-                       "{players} player(s) are on it right now.",
-               detail="The node is updated and restarted. The console offers Upgrade ONLY while "
-                      "the node itself reports an update pending — it asks every node in the "
-                      "background, never while rendering a page, and this control is gone again "
-                      "once there is nothing to upgrade.",
-               master_note="<b>This console runs inside that node</b> — upgrading it ends the "
-                           "process serving this page, and this window has to be reloaded once the "
-                           "node is back.",
-               go="Upgrade node",
-               go_title="Upgrade {node} — every server on it goes down"),
+               path="/actions/node/upgrade", label=i18n._("Upgrade"), check=True,
+               tip=i18n._("Upgrade node — update DCSServerBot on {node} and restart it; every server on "
+                   "it goes down"),
+               aria=i18n._("Upgrade node {node}"),
+               hint=i18n._("update and restart, every server goes down"),
+               warning=i18n._("<b>Every server on {node} goes down with it</b> — {servers} server(s) "
+                              "and {players} player(s) are on it right now."),
+               detail=i18n._("The node is updated and restarted. The console offers Upgrade ONLY "
+                             "while the node itself reports an update pending — it asks every node "
+                             "in the background, never while rendering a page, and this control is "
+                             "gone again once there is nothing to upgrade."),
+               master_note=i18n._("<b>This console runs inside that node</b> — upgrading it ends "
+                                  "the process serving this page, and this window has to be reloaded "
+                                  "once the node is back."),
+               go=i18n._("Upgrade node"),
+               go_title=i18n._("Upgrade {node} — every server on it goes down")),
     # ── the POWER pair ───────────────────────────────────
     # NOT a flag control any more. "offline" means THE SERVERS, never the node's own process (that is
     # *Shut down*, above): these two change the SERVERS the node carries and touch no service, so
@@ -1055,54 +1075,57 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
     # operation set and starts only the servers it stopped. A flag set by hand is never touched in
     # either direction, which is why the flag's own controls live on the SERVER row.
     NodeAction(key="offline", capability=NODE_OFFLINE_CAPABILITY, qualname="take_node_offline",
-               path="/actions/node/offline", label="Take servers offline",
+               path="/actions/node/offline", label=i18n._("Take servers offline"),
                states=(NODE_POWER_OFF,),
-               option=NodeOption(field="maintenance", label="Also mark them as maintenance",
+               option=NodeOption(field="maintenance",
+                                 label=i18n._("Also mark them as maintenance"),
                                  default=True,
-                                 help="On by default: without it a scheduled start can bring the "
-                                      "servers back while the node is \"offline\"."),
-               heading="Take the servers on {node} offline?",
-               tip="Take servers offline — every server on {node} that is up is marked as "
+                                 help=i18n._("On by default: without it a scheduled start can bring "
+                                             "the servers back while the node is \"offline\".")),
+               heading=i18n._("Take the servers on {node} offline?"),
+               tip=i18n._("Take servers offline — every server on {node} that is up is marked as "
                    "maintenance and stopped; its players are disconnected, while the node's "
-                   "services stay up",
-               aria="Take the servers on {node} out of service",
-               hint="marks the node's servers as maintenance and stops them",
-               warning="<b>{servers} server(s) on {node} go down and {players} player(s) are "
-                       "disconnected.</b> The box below is ticked by default and marks those servers "
-                       "as maintenance — leave it ticked unless you mean to let a scheduled start "
-                       "bring them back while the node is \"offline\".",
-               detail="Only the SERVERS on the node change. The node itself keeps running, so its "
-                      "services — including this console — stay up, and bringing the node back is a "
-                      "job this browser CAN do. With the box ticked the servers are flagged as "
-                      "maintenance before they stop, so they stay out of service until somebody "
-                      "ends that; clear the box and no flag is written at all — the servers stop "
-                      "and nothing keeps the scheduler from starting them again.",
-               go="Take servers offline",
-               go_title="Take {node} offline — {servers} server(s) go down, {players} player(s) "
-                        "are disconnected"),
+                   "services stay up"),
+               aria=i18n._("Take the servers on {node} out of service"),
+               hint=i18n._("marks the node's servers as maintenance and stops them"),
+               warning=i18n._("<b>{servers} server(s) on {node} go down and {players} player(s) are "
+                              "disconnected.</b> The box below is ticked by default and marks those "
+                              "servers as maintenance — leave it ticked unless you mean to let a "
+                              "scheduled start bring them back while the node is \"offline\"."),
+               detail=i18n._("Only the SERVERS on the node change. The node itself keeps running, "
+                             "so its services — including this console — stay up, and bringing the "
+                             "node back is a job this browser CAN do. With the box ticked the "
+                             "servers are flagged as maintenance before they stop, so they stay out "
+                             "of service until somebody ends that; clear the box and no flag is "
+                             "written at all — the servers stop and nothing keeps the scheduler "
+                             "from starting them again."),
+               go=i18n._("Take servers offline"),
+               go_title=i18n._("Take {node} offline — {servers} server(s) go down, {players} "
+                               "player(s) are disconnected")),
     # NO OPTION: bringing the servers back IS the operation. Clearing the
     # flags this node's power-off set and starting the servers it stopped is not a choice to offer —
     # it is what "online" means. There used to be a ``startup`` checkbox here, and it is exactly what
     # turned a flag toggle into a power operation; it is gone.
     NodeAction(key="online", capability=NODE_ONLINE_CAPABILITY, qualname="bring_node_online",
-               path="/actions/node/online", label="Bring servers online",
+               path="/actions/node/online", label=i18n._("Bring servers online"),
                states=(NODE_POWER_ON,), confirm=False, danger=False,
-               heading="Bring the servers on {node} back online?",
-               tip="Bring servers online — clear the maintenance flags this node's power-off set "
-                   "and start the servers it stopped; a flag set by hand is left alone",
-               aria="Bring the servers on {node} back into service",
-               hint="ends the maintenance this node's power-off set, and starts what it stopped",
+               heading=i18n._("Bring the servers on {node} back online?"),
+               tip=i18n._("Bring servers online — clear the maintenance flags this node's power-off set "
+                   "and start the servers it stopped; a flag set by hand is left alone"),
+               aria=i18n._("Bring the servers on {node} back into service"),
+               hint=i18n._("ends the maintenance this node's power-off set, and starts what it stopped"),
                warning="",
-               detail="This reverts EXACTLY the last power-off on this node: it clears only the "
-                      "maintenance flags that operation set and starts only the servers it stopped. "
-                      "A flag somebody set by hand is never cleared, and a server that is still in "
-                      "maintenance is never started. If the bot has restarted since the power-off "
-                      "the record is gone, and this then starts every server that is down and not "
-                      "in maintenance, clearing no flag at all — the message says which of the two "
-                      "happened. The node's services were never touched.",
-               go="Bring servers online",
-               go_title="Bring {node} online — the flags its power-off set are cleared, what it "
-                        "stopped is started"),
+               detail=i18n._("This reverts EXACTLY the last power-off on this node: it clears only "
+                             "the maintenance flags that operation set and starts only the servers "
+                             "it stopped. A flag somebody set by hand is never cleared, and a "
+                             "server that is still in maintenance is never started. If the bot has "
+                             "restarted since the power-off the record is gone, and this then "
+                             "starts every server that is down and not in maintenance, clearing no "
+                             "flag at all — the message says which of the two happened. The node's "
+                             "services were never touched."),
+               go=i18n._("Bring servers online"),
+               go_title=i18n._("Bring {node} online — the flags its power-off set are cleared, "
+                               "what it stopped is started")),
 )
 
 
@@ -1672,7 +1695,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
         controls[name] = {"strip": strip, "menu": menu, "wide": bool(strip) and bool(menu),
                           "menu_id": f"act-menu-{index}", "server": name,
                           "in_flight": in_flight,
-                          "aria": f"More controls for {name}",
+                          "aria": _sentence(i18n._("More controls for {server}"), server=name),
                           "menu_note": MENU_NOTE}
     return controls
 
@@ -1734,11 +1757,12 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     what it is ABOUT is the control the person pressed. That is the honest reading of a signal whose
     only authority knows the target: it never claims a sibling performed an operation it did not.
     """
-    title = action.tip.format(server=name)
-    aria = action.aria.format(server=name)
     if busy:
-        title = f"{action.label} — an action on {name} is running; this can take a moment"
-        aria = f"{action.label} — an action on {name} is running"
+        title = {"msgid": _BUSY_TITLE, "params": {"name": name}, "label": action.label}
+        aria = {"msgid": _BUSY_ARIA, "params": {"name": name}, "label": action.label}
+    else:
+        title = _sentence(action.tip, server=name)
+        aria = _sentence(action.aria, server=name)
     return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
             "label": action.label, "icon": action.key, "title": title,
             "aria": aria, "hint": action.hint,
@@ -1951,7 +1975,8 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
         controls[key] = {
             "strip": tuple(_node_control(action, key, token, origin) for action in offered),
             "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
-            "node": key, "aria": f"Controls for node {key}", "menu_note": "",
+            "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
+            "menu_note": "",
             # the row-level statement ``_table.html`` renders beside the strip (`no update check yet`)
             "note": note,
             # the row's ONE READ control (``pages/nodes.log_download_control``): a LINK, rendered
@@ -2035,8 +2060,8 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str) -> dic
     own route demands the one-shot token (offline does; online, which only clears a state, does not).
     """
     return {"path": action.path + CONFIRM_SUFFIX,
-            "label": action.label, "icon": action.key, "title": action.tip.format(node=name),
-            "aria": action.aria.format(node=name), "hint": action.hint,
+            "label": action.label, "icon": action.key, "title": _sentence(action.tip, node=name),
+            "aria": _sentence(action.aria, node=name), "hint": action.hint,
             "danger": action.danger, "node": name,
             "direct": False,
             "hidden": (("node", name), (ORIGIN_FIELD, origin)), "buttons": (),
@@ -2146,7 +2171,8 @@ def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict
             controls[(server_name, ucid)] = {
                 "strip": offered, "menu": (), "wide": False,
                 "menu_id": f"act-menu-p{index}", "server": server_name, "ucid": ucid,
-                "aria": f"Controls for {name} on {server_name}"}
+                "aria": _sentence(i18n._("Controls for {player} on {server}"),
+                                  player=name, server=server_name)}
     return controls
 
 
@@ -2166,14 +2192,14 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
     return {
         "path": action.path + CONFIRM_SUFFIX if action.confirm else action.path,
         "label": action.label, "icon": action.icon,
-        "title": action.tip.format(**values), "aria": action.aria.format(**values),
+        "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "hint": action.hint, "danger": action.danger,
         "server": server_name, "ucid": ucid,
         "direct": not action.confirm,
         "hidden": (("server", server_name), ("ucid", ucid), (ORIGIN_FIELD, origin)),
         "buttons": tuple({"mode": button.mode, "icon": button.icon,
-                          "title": button.tip.format(**values),
-                          "aria": button.aria.format(**values)}
+                          "title": _sentence(button.tip, **values),
+                          "aria": _sentence(button.aria, **values)}
                          for button in action.buttons),
         "field": action.field, "field_label": action.field_label, "field_max": action.field_max,
         "field_help": action.field_help, "field_id": f"{action.field}-{ucid}" if action.field else "",
@@ -2254,6 +2280,36 @@ def players_on(server: Any) -> int:
         return 0
 
 
+def _sentence(msgid: str, **params) -> dict:
+    """A per-request sentence the DIALOG template renders in the request's language.
+
+    ``msgid`` is an ``i18n._``-marked literal (so Babel extracts it); ``params`` are its interpolation
+    values — already HTML-escaped where they carry config data, exactly as the previous inline
+    ``.format`` did. The template renders ``_(msgid).format(**params)`` through the per-language Jinja
+    environment (``templates/confirm.html``'s ``say`` macro). The translation cannot happen HERE: the
+    console's Python ``_`` is an extraction marker that returns the string unchanged, and the language
+    is a property of the REQUEST, resolved where the page renders.
+
+    A parameterless sentence may be passed as the plain marked STRING instead (``action.go``): the
+    macro accepts both shapes. This record is for a sentence whose figures or target names are only
+    known at render (a warning's player count, a mission dialog's count).
+    """
+    return {"msgid": msgid, "params": params}
+
+
+def _default_title(action_label: str, target: str) -> dict:
+    """The console's OWN dialog title pattern, ``"<Action> <target>?"`` — the sentence the console
+    composes when the declaration names no ``heading``.
+
+    It is a record with a top-level ``label``: the action's own label is itself a translatable msgid,
+    so the template translates it too (a nested ``_()``) rather than emitting the English word inside
+    a translated sentence. ``target`` is the RESOLVED object's name — the server, the player on it, or
+    the node — carried verbatim (server/player/node names are operator data and are never translated).
+    """
+    return {"msgid": i18n._("{label} {target}?"), "params": {"target": target},
+            "label": action_label}
+
+
 def confirm_context(request: Request, action: WriteAction, name: str, players: int,
                     token: str, origin: str) -> dict:
     """Everything the confirm dialog's page reads, in one value.
@@ -2274,11 +2330,17 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
                                 level=dashboard_page.log_level(request))
     values = {"server": html.escape(str(name)), "players": str(int(players))}
     dialog = {
-        "heading": f"{action.label} {name}?",
-        "warning": action.warning.format(**values),
-        "detail": action.detail.format(**values),
-        "go": action.go,
-        "go_title": action.go_title.format(**values),
+        "heading": _default_title(action.label, name),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        #: no extra warning sentence: the running-mission note is a MISSION dialog's own
+        #: (``mission_confirm_context``), declared here so the template reads ONE shape everywhere.
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        #: no trailing detail sentences: the MASTER node's note and the upgrade control's
+        #: "last update check" line are a NODE dialog's own (``node_confirm_context``).
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
         "path": action.path,
         "server": name,
         #: the CONSEQUENCE's target, as the dialog's own sentence names it (``pages/actions``): the
@@ -2297,7 +2359,7 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         #: the template's own chrome. A DESTRUCTIVE write confirms (red button, "cannot be undone");
         #: an action that only CARRIES AN OPTION (Startup) renders the plain form its sibling
         #: ``online`` does on the node row — driven by the declaration, never by an action's name.
-        "tag": "confirm" if action.confirm else "options",
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
         "irreversible": bool(action.confirm),
         "danger": bool(action.danger),
         "confirm_field": CONFIRM_FIELD,
@@ -2307,8 +2369,8 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
     }
     return {
         "title": f"{action.label} — confirm",
-        "page_title": f"{action.label} {name}?",
-        "crumb": f"{dashboard_page.CRUMB_GROUP} / {action.label}",
+        "page_title": _default_title(action.label, name),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
         "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
                                                current=origin,
                                                manager=permissions.manages_console(request)),
@@ -2376,23 +2438,25 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         # not the browser — is the validator, and a number input that silently refuses a value would
         # hide the action's own typed refusal behind a browser tooltip.
         inputs.append({"name": "days", "id": "days-dialog", "type": "text",
-                       "label": "Days (optional)", "max": 5, "required": False, "value": "",
-                       "help": "Empty = permanent — the ban does not expire on its own. 7 means "
-                               "seven days from now.",
+                       "label": i18n._("Days (optional)"), "max": 5, "required": False, "value": "",
+                       "help": i18n._("Empty = permanent — the ban does not expire on its own. 7 "
+                                      "means seven days from now."),
                        "placeholder": ""})
     dialog = {
-        "heading": f"{action.label} {label}?",
-        "warning": action.warning.format(**values),
-        "detail": action.detail.format(**values),
-        "go": action.go,
-        "go_title": action.go_title.format(**values),
+        "heading": _default_title(action.label, label),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
         "path": action.path,
         "server": server_name,
         "target": label,
         "hidden": (("server", server_name), ("ucid", ucid), (ORIGIN_FIELD, origin)),
         "inputs": tuple(inputs),
         "body_inputs": (),
-        "tag": "confirm",
+        "tag": i18n._("confirm"),
         "irreversible": True,
         "danger": bool(action.danger),
         "confirm_field": CONFIRM_FIELD,
@@ -2402,8 +2466,8 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
     }
     return {
         "title": f"{action.label} — confirm",
-        "page_title": f"{action.label} {label}?",
-        "crumb": f"{dashboard_page.CRUMB_GROUP} / {action.label}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
         "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
                                                current=origin,
                                                manager=permissions.manages_console(request)),
@@ -2510,26 +2574,33 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
     servers, players = node_load(source, name)
     label = html.escape(str(name))
     values = {"node": label, "servers": str(int(servers)), "players": str(int(players))}
-    detail = action.detail.format(**values)
+    #: THE TWO EXTRA SENTENCES a node dialog may carry after its detail: the MASTER node's note
+    #: (the console runs inside that node) and, for a check-gated control, when the update check was
+    #: last run. Each is a marked literal rendered as its own ``_sentence`` — never concatenated into
+    #: the detail's msgid, which would make the whole sentence unextractable.
+    detail_notes: list[dict] = []
     if bool(readmodels.safe(lambda: getattr(node, "master", False), False)) and action.master_note:
-        detail = f"{detail} {action.master_note.format(**values)}"
+        detail_notes.append(_sentence(action.master_note, **values))
     if getattr(action, "check", False):
         when = upgrade_signal.checked_at(name)
         if when is not None:
             # WHEN THE CACHED VALUE WAS PRODUCED: a stale answer must read as stale
             # rather than authoritative-looking. The value is the poller's own timestamp, never a
             # field the browser sent, and it is present only for a check-gated control.
-            detail = f"{detail} Last update check: {_checked_text(when)}."
+            detail_notes.append(_sentence(i18n._("Last update check: {when}."),
+                                          when=_checked_text(when)))
     dialog = {
-        "heading": (action.heading.format(**values) if action.heading
-                    else f"{action.label} {label}?"),
-        "warning": action.warning.format(**values),
-        "detail": detail,
-        "go": action.go,
-        "go_title": action.go_title.format(**values),
+        "heading": (_sentence(action.heading, **values) if action.heading
+                    else _default_title(action.label, label)),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": tuple(detail_notes),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
         "path": action.path,
         "server": label,
-        "target": f"{label} (node)",
+        "target": _sentence(i18n._("{label} (node)"), label=label),
         "hidden": (("node", name), (ORIGIN_FIELD, origin)),
         # the action's own option, when it has one; otherwise the dialog asks for nothing, which is
         # why the mockup draws the lifecycle trio as plain confirmations
@@ -2540,7 +2611,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         # the dialog's own chrome, driven by the DECLARATION rather than by an action's name: a
         # destructive operation wears a red button and says it cannot be undone; a form that only
         # clears a state says neither.
-        "tag": "confirm" if action.confirm else "options",
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
         "irreversible": bool(action.confirm),
         "danger": bool(action.danger),
         "csrf_field": session.CSRF_FIELD,
@@ -2548,8 +2619,8 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
     }
     return {
         "title": f"{action.label} — confirm",
-        "page_title": f"{action.label} {label}?",
-        "crumb": f"{dashboard_page.CRUMB_GROUP} / {action.label}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
         "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
                                                current=origin,
                                                manager=permissions.manages_console(request)),
@@ -3827,7 +3898,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
     body_inputs: list[dict] = []
     #: the button's own words: the action's, except for the bulk dialog, whose label carries the COUNT
     #: so the label and the read-only list can never disagree.
-    go = action.go
+    go = _sentence(action.go)
     hidden: list[tuple[str, str]] = [("server", server_name)]
     if action.key == "mission_add":
         picker = await _mission_picker(request, server_name, ctx)
@@ -3836,16 +3907,16 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         # so the footer carries exactly one cancel and one primary — the options are NOT posted ahead of
         # the primary button, which is what pushed the primary out of the footer row's line.
         body_inputs.append({"type": "select", "name": MISSION_PATH_FIELD, "id": "path-dialog",
-                            "label": "Mission file already on this server", "options": picker,
+                            "label": i18n._("Mission file already on this server"), "options": picker,
                             "required": True, "max": 0, "checked": False, "value": "",
-                            "help": "Only files NOT already in the rotation are offered."})
+                            "help": i18n._("Only files NOT already in the rotation are offered.")})
         options = [option for option in action.options
                    if option.field != MISSION_LOAD_FIELD or mission_load_allowed(request, server)]
         body_inputs.extend(_option_fields(options))
         mission_label = ""
-        heading = f"Add a mission to {label}?"
+        heading = _sentence(i18n._("Add a mission to {server}?"), server=label)
         target = label
-        running_note = ""
+        running_note = None
         token_target = _mission_target(server_name, form.get(MISSION_FIELD))
     elif action.key == "mission_delete_bulk":
         # THE DIALOG IS A CONFIRMATION, NOT THE SELECTION (M9): the selection is made in the LIST
@@ -3870,14 +3941,18 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         mission_label = ""
         count = len(selected)
         if count == 1 and names:
-            heading = f"Remove {html.escape(names[0])} from the rotation?"
-            go = "Remove mission"
+            heading = _sentence(i18n._("Remove {mission} from the rotation?"),
+                                mission=html.escape(names[0]))
+            go = _sentence(i18n._("Remove mission"))
         else:
-            heading = f"Remove {count} missions from {label}?"
-            go = f"Remove {count} missions" if count else "Remove missions"
+            heading = _sentence(i18n._("Remove {count} missions from {server}?"),
+                                count=count, server=label)
+            go = (_sentence(i18n._("Remove {count} missions"), count=count) if count
+                  else _sentence(i18n._("Remove missions")))
         target = label
-        running_note = (f" <b>The running mission ({html.escape(running)}) cannot be removed.</b>"
-                        if running else "")
+        running_note = (_sentence(i18n._("<b>The running mission ({mission}) cannot be removed.</b>"),
+                                  mission=html.escape(running))
+                        if running else None)
         token_target = _mission_target(server_name, "bulk")
     else:
         mission = form.get(MISSION_FIELD)
@@ -3891,25 +3966,27 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         mission_label = html.escape(await _mission_label_for(request, server_name, mission, ctx))
         if action.option is not None:
             inputs.extend(_option_fields([action.option]))
-        heading = f"Remove {mission_label} from the rotation?"
+        heading = _sentence(i18n._("Remove {mission} from the rotation?"), mission=mission_label)
         target = mission_label or readmodels.text(mission)
-        running_note = ""
+        running_note = None
         token_target = _mission_target(server_name, form.get(MISSION_FIELD))
     escape_values = {"server": label, "mission": mission_label}
     token = mint_confirm_token(request, action.path, token_target) if action.confirm else ""
     dialog = {
         "heading": heading,
-        "warning": action.warning.format(**escape_values) + running_note,
-        "detail": action.detail.format(**escape_values),
+        "warning": _sentence(action.warning, **escape_values) if action.warning else None,
+        "warning_note": running_note,
+        "detail": _sentence(action.detail, **escape_values),
+        "detail_notes": (),
         "go": go,
-        "go_title": action.go_title.format(**escape_values),
+        "go_title": _sentence(action.go_title, **escape_values),
         "path": action.path,
         "server": server_name,
         "target": target,
         "hidden": tuple(hidden),
         "inputs": tuple(inputs),
         "body_inputs": tuple(body_inputs),
-        "tag": "confirm" if action.confirm else "options",
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
         "irreversible": bool(action.confirm),
         "danger": bool(action.danger),
         "confirm_field": CONFIRM_FIELD,
@@ -3920,7 +3997,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
     return {
         "title": f"{action.label} — confirm",
         "page_title": heading,
-        "crumb": f"{dashboard_page.CRUMB_GROUP} / {action.label}",
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
         "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
                                                current=_servers_path(),
                                                manager=permissions.manages_console(request)),
@@ -3953,17 +4030,13 @@ def _mission_confirm_handler(action: WriteAction):
             raise dashboard_page.out_of_scope_refusal()
         if not resolution.is_found:
             raise HTTPException(status_code=404, detail=f"No server named '{name}'.")
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         canonical = readmodels.text(readmodels.safe(
             lambda: getattr(resolution.server, "name", ""))) or name
         dialog = await mission_confirm_context(request, action, resolution.server, canonical, form, ctx)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 
     return handle
@@ -4187,10 +4260,6 @@ def _confirm_handler(action: WriteAction):
             raise dashboard_page.out_of_scope_refusal()
         if not resolution.is_found:
             raise HTTPException(status_code=404, detail=f"No server named '{name}'.")
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         token = mint_confirm_token(request, action.path, name) if action.confirm else ""
         # the page the row was rendered on travels THROUGH the dialog: the row
         # posts here with the origin hidden field, and the dialog's own form re-emits it so the
@@ -4201,7 +4270,7 @@ def _confirm_handler(action: WriteAction):
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 
     return handle
@@ -4423,10 +4492,6 @@ def _node_confirm_handler(action: NodeAction):
             raise dashboard_page.out_of_scope_refusal()
         if not resolution.is_found:
             raise HTTPException(status_code=404, detail=resolution.message)
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         token = mint_confirm_token(request, action.path, name) if action.confirm else ""
         # the page the row was rendered on travels THROUGH the dialog: the row
         # posts here with the origin hidden field, and this dialog re-emits it so the route can 303
@@ -4437,7 +4502,7 @@ def _node_confirm_handler(action: NodeAction):
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 
     return handle
@@ -4548,10 +4613,6 @@ def _player_confirm_handler(action: PlayerAction):
         if player is None:
             raise HTTPException(status_code=404,
                                 detail=f"No active player '{ucid}' on server '{name}'.")
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         token = mint_confirm_token(request, action.path, _player_target(name, ucid))
         origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
         dialog = player_confirm_context(request, action, resolution.server, player, name, ucid,
@@ -4559,7 +4620,7 @@ def _player_confirm_handler(action: PlayerAction):
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
-        return HTMLResponse(environment.get_template(CONFIRM_TEMPLATE).render(**dialog),
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 
     return handle

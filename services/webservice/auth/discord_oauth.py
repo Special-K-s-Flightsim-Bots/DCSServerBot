@@ -140,7 +140,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from . import (AuthBackend, Identity, clear_session_identity, safe_avatar_url,
                session_identity_ref, set_session_identity)
-from .. import permissions
+from .. import i18n, permissions
 from ..scope import Scope, member_scope_tokens
 
 __all__ = [
@@ -258,8 +258,9 @@ GENERIC_MESSAGE = ("Sign-in with Discord could not be completed. Please try agai
 DISABLED_MESSAGE = "Sign-in with Discord is not enabled on this console."
 CANCELLED_MESSAGE = "Sign-in with Discord was cancelled."
 
-#: the label and look of the login page's second door (read by templates/login.html)
-CONTROL_LABEL = "Sign in with Discord"
+#: the label and look of the login page's second door (read by templates/login.html). Wrapped for
+#: translation (identity marker: the runtime value stays this English label).
+CONTROL_LABEL = i18n._("Sign in with Discord")
 
 #: the repo's pickle secret store, relative to the config dir (``config/.secret/<key>.pkl``)
 SECRET_STORE_DIR = ".secret"

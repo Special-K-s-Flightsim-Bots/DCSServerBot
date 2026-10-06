@@ -7,10 +7,15 @@
   never colour-only; when the list is empty the banner renders the calm line instead of an empty
   box (silence is the healthy state).
 
+  Each sentence is translated at RENDER time: the calm line is a `i18n._`-marked literal rendered
+  through the environment's `_`, and an alert is a `_translated` record whose `msgid` + `params`
+  become the sentence in the reader's language (its `text` is the English rendering, kept for the
+  tests and never drawn).
+
   It is part of the STATE panel (not a swap target of its own), so a live refresh updates it with
   the rest of the state. No write control, no link: it reports, it does not act.
 -#}
 <div class="banner {{ 'calm' if console.banner.ok else 'alert' }}" role="status">
-{% if console.banner.ok %}<span class="banner-calm"><span class="dot run" aria-hidden="true"></span>{{ console.banner.calm }}</span>
-{% else %}<ul class="banner-list">{% for item in console.banner.alerts %}<li class="banner-item"><span class="dot {{ item.dot }}" aria-hidden="true"></span>{{ item.text }}</li>{% endfor %}</ul>
+{% if console.banner.ok %}<span class="banner-calm"><span class="dot run" aria-hidden="true"></span>{{ _(console.banner.calm) }}</span>
+{% else %}<ul class="banner-list">{% for item in console.banner.alerts %}<li class="banner-item"><span class="dot {{ item.dot }}" aria-hidden="true"></span>{{ _(item.msgid) % item.params }}</li>{% endfor %}</ul>
 {% endif %}</div>

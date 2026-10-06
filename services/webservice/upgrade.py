@@ -43,6 +43,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from . import i18n
+
 log = logging.getLogger(__name__)
 
 __all__ = ["SAMPLE_SECONDS", "SWEEP_SECONDS", "NOTE_NO_CHECK", "Check", "UpgradeChecks", "CHECKS",
@@ -59,8 +61,9 @@ SAMPLE_SECONDS = 30
 SWEEP_SECONDS = 6 * 60 * 60
 
 #: the honest statement a row carries while the cached value is UNKNOWN (never checked, or the last
-#: check failed). The card's own words.
-NOTE_NO_CHECK = "no update check yet"
+#: check failed). The card's own words. Marked for translation with the console's ``_`` marker (an
+#: identity at runtime); the template renders it, so the row's note follows the page's language.
+NOTE_NO_CHECK = i18n._("no update check yet")
 
 
 @dataclass(frozen=True, slots=True)

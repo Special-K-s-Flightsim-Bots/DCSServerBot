@@ -556,10 +556,15 @@ def _authorised(ctx: Any) -> str | None:
 
     * ``service`` (MCP) — REFUSED with :data:`SERVICE_REFUSAL`: the transport authenticates nobody yet,
       so this action will not accept a caller it cannot attribute;
-    * ``plugin`` — ALLOWED, for the day an authenticated REST caller reaches this action: such a caller
-      (``from_plugin``, actor ``API``) is admitted without the Admin role because its own scheme has
-      authenticated it. Forward-looking — ``from_plugin`` has no production caller yet, so nothing live
-      takes this branch today;
+    * ``plugin`` — ALLOWED: the authenticated REST surface reaches actions through ``from_plugin``
+      (actor ``API``) and is admitted without the Admin role because its own scheme has authenticated
+      it. It is NOT a manager — the constructor stamps the transport and the actor and carries NO
+      scope, so ``manages_only`` is always ``False`` on this transport and the manager deny-list never
+      applies to it (it cannot even be brought to bear: a plugin context is structurally incapable of
+      being manager-shaped). The ONE live ``from_plugin`` caller — the REST mission upload
+      (``plugins/restapi/commands.py::mission_upload``) — reaches ``upload_mission``, a mission-FILE
+      write that touches no config key and no channels item, so it cannot reach a write
+      ``MANAGER_DENIED`` guards either. See ``plugins/restapi/README.md`` (§ Write actions);
     * a MANAGER (:func:`_manages_only`) — ALLOWED, but only for the settings the manager deny-list
       permits (``core.server_config``): the config write and the channels write apply the deny-list
       themselves, so a denied key is refused with a typed sentence rather than a hidden form;

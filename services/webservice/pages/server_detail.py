@@ -37,7 +37,11 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from .. import permissions, readmodels, session
+from .. import i18n, permissions, readmodels, session
+# THE ONE guarded sentence renderer (``say``) the write dialogs use: the log-window JSON messages are
+# rendered for the REQUEST's language here, server-side, so the JavaScript carries no translation
+# logic (``templating.SENTENCE_GLOBAL``).
+from ..templating import SENTENCE_GLOBAL
 from ..readmodels import dcslog as dcs_log
 from ..readmodels import serverconfig as server_config
 from ..readmodels.access import attr
@@ -132,9 +136,10 @@ LOG_READ_CAPABILITY = logs_page.LOGS_CAPABILITY
 EVENTS_TAB = "events"
 
 #: the ONE sentence a request for the Events tab's data gets while the debug plugin is off — used by
-#: BOTH the page's tab refusal and the window/download routes, so the console says it one way.
-EVENTS_REFUSED_SENTENCE = ("The Events tab is only offered while the debug plugin is active "
-                           "for this server.")
+#: BOTH the page's tab refusal and the window/download routes, so the console says it one way. Marked
+#: so the extractor sees it; the window route renders it for the request's language (see ``_rendered``).
+EVENTS_REFUSED_SENTENCE = i18n._("The Events tab is only offered while the debug plugin is active "
+                                 "for this server.")
 
 #: THE LOG-WINDOW route — a literal TEMPLATE path with the server's own ``{name:path}`` prefix (so a
 #: name containing ``/`` still resolves, exactly as the page route does) plus one fixed suffix. It
@@ -177,8 +182,8 @@ TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, LOG_TAB, EVEN
 OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, LOG_TAB, EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
-    "overview": "Overview", "players": "Players", MISSIONS_TAB: "Missions", LOG_TAB: "Log",
-    EVENTS_TAB: "Events", CONFIG_TAB: "Configuration",
+    "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
+    LOG_TAB: i18n._("Log"), EVENTS_TAB: i18n._("Events"), CONFIG_TAB: i18n._("Configuration"),
 }
 
 DEFAULT_TAB = "overview"
@@ -538,21 +543,56 @@ def server_status_path(server_name: str) -> str:
 class _LogUnavailable(Exception):
     """A log the console cannot read, carrying the ONE honest sentence to render.
 
+    ``msgid`` is the ``i18n._``-marked English TEMPLATE and ``params`` its operator data (a node name,
+    a path, an error type) — carried APART so the sentence can be translated first and the data
+    interpolated after (the log-window route renders it for the request's language through ``say``;
+    the JavaScript only shows the result). ``sentence`` is the English rendering, for the callers that
+    need a plain string (the tab's own initial render, a download refusal).
+
     ``pending`` says the file simply IS NOT THERE YET (a server that is still starting writes no
     ``dcs.log`` until it boots). That is a NORMAL state, not a failure: the tab must keep polling at
     the normal cadence so the log appears on its own, and only a GENUINE failure (a node that is
     unreachable, a permission error, a timeout, a bad answer) drives the follower's backoff.
     """
 
-    def __init__(self, sentence: str, *, pending: bool = False):
-        super().__init__(sentence)
-        self.sentence = sentence
+    def __init__(self, msgid: str, *, params=None, pending: bool = False):
+        self.msgid = msgid
+        self.params = dict(params or {})
         self.pending = pending
+        try:
+            self.sentence = msgid.format(**self.params)
+        except (KeyError, IndexError, ValueError):  # pragma: no cover - msgid is source, not data
+            self.sentence = msgid
+        super().__init__(self.sentence)
+
+
+#: the sentence for a node the cluster cannot reach — the same answer for offline and unknown. A
+#: TRANSLATABLE TEMPLATE: the sentence is translated first, the node name interpolated after, so the
+#: operator's own node name stays verbatim.
+NODE_OFFLINE_SENTENCE = i18n._("Node '{node}' is offline or unknown, so its log cannot be read "
+                               "from this console.")
+
+#: the read failures — each its own TRANSLATABLE TEMPLATE, ``{node}``/``{error}`` filled in after the
+#: sentence is translated (see :class:`_LogUnavailable`).
+NODE_PERMISSION_SENTENCE = i18n._("Node '{node}' cannot read this server's log file "
+                                  "(permission denied).")
+NODE_TIMEOUT_SENTENCE = i18n._("Node '{node}' did not answer in time, so the log was not read.")
+NODE_HANDOVER_SENTENCE = i18n._("Node '{node}' could not hand over the log ({error}).")
+NODE_FAILURE_SENTENCE = i18n._("Node '{node}' answered with a failure code instead of the log.")
+
+#: the artifacts-listing failures (the download list beside the log) — TRANSLATABLE TEMPLATES too.
+ARTIFACTS_NO_DIR_SENTENCE = i18n._("No log directory yet for this server (looked for '{directory}' "
+                                   "on node '{node}').")
+ARTIFACTS_PERMISSION_SENTENCE = i18n._("Node '{node}' cannot list this server's log directory "
+                                       "(permission denied).")
+ARTIFACTS_TIMEOUT_SENTENCE = i18n._("Node '{node}' did not answer in time, so the log files were "
+                                    "not listed.")
+ARTIFACTS_FAILURE_SENTENCE = i18n._("Node '{node}' could not list the log files ({error}).")
 
 
 def _node_offline_sentence(node_name: str) -> str:
     """The sentence for a node the cluster cannot reach — the same answer for offline and unknown."""
-    return (f"Node '{node_name}' is offline or unknown, so its log cannot be read from this console.")
+    return NODE_OFFLINE_SENTENCE.format(node=node_name)
 
 
 def _reachable_log_node(request: Request, server):
@@ -586,21 +626,20 @@ async def _read_window(node, path: str, node_name: str, *, offset=None,
         # THE FILE IS NOT THERE YET (a server that is still starting writes no ``dcs.log``): a NORMAL
         # state, not a failure — marked ``pending`` so the follower keeps polling at the normal
         # cadence instead of backing off, and the log appears on its own.
-        raise _LogUnavailable(dcs_log.MISSING_SENTENCE.format(path=path, node=node_name),
-                              pending=True)
+        raise _LogUnavailable(dcs_log.MISSING_SENTENCE,
+                              params={"path": path, "node": node_name}, pending=True)
     except PermissionError:
-        raise _LogUnavailable(f"Node '{node_name}' cannot read this server's log file "
-                              f"(permission denied).")
+        raise _LogUnavailable(NODE_PERMISSION_SENTENCE, params={"node": node_name})
     except (TimeoutError, asyncio.TimeoutError):
-        raise _LogUnavailable(f"Node '{node_name}' did not answer in time, so the log was not read.")
+        raise _LogUnavailable(NODE_TIMEOUT_SENTENCE, params={"node": node_name})
     except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
         log.warning("Server log window: node '%s' raised %s", node_name, type(ex).__name__,
                     exc_info=True)
-        raise _LogUnavailable(f"Node '{node_name}' could not hand over the log "
-                              f"({type(ex).__name__}).")
+        raise _LogUnavailable(NODE_HANDOVER_SENTENCE,
+                              params={"node": node_name, "error": type(ex).__name__})
     if (not isinstance(raw, (bytes, bytearray)) or not isinstance(size, int)
             or not isinstance(identity, (int, float))):
-        raise _LogUnavailable(f"Node '{node_name}' answered with a failure code instead of the log.")
+        raise _LogUnavailable(NODE_FAILURE_SENTENCE, params={"node": node_name})
     return bytes(raw), size, identity
 
 
@@ -759,6 +798,22 @@ def _unavailable_payload(sentence: str, *, pending: bool = False) -> dict:
     return payload
 
 
+def _rendered(environment, msgid: str, **params) -> str:
+    """One log-window message, rendered for THIS request's language — server-side.
+
+    The log follower shows whatever ``message`` the JSON body carries, in the DOM, VERBATIM: it holds
+    no translation logic and no per-string mechanism of its own (I18N.md, "the console's JavaScript: a
+    served message map"). So the sentence is rendered on the SERVER, through the SAME guarded ``say``
+    global the write dialogs render their sentence records through (``templating.SENTENCE_GLOBAL``) —
+    the ONE place a translation meets its placeholders — on the request's per-language environment. An
+    ``i18n._``-marked English TEMPLATE becomes the request's own language here, and the operator data
+    in ``params`` (a node name, a path, an error type) is interpolated AFTER the translation, so it
+    stays verbatim. A complete sentence with no data passes no ``params``. The JavaScript carries none
+    of this — it only swaps the finished sentence into the DOM.
+    """
+    return environment.globals[SENTENCE_GLOBAL]({"msgid": msgid, "params": params})
+
+
 def _byte(value) -> int | None:
     """*value* as a non-negative whole number, or ``None`` — the route's one input validator."""
     try:
@@ -827,35 +882,38 @@ def _human_time(mtime) -> str:
         return ""
 
 
-async def log_artifacts(node, directory: str, node_name: str, patterns) -> tuple[list[dict], str]:
+async def log_artifacts(node, directory: str, node_name: str, patterns) -> tuple[list[dict], dict | None]:
     """The server's log artifacts as listing ROWS — enumerated SERVER-SIDE, newest first (L2).
 
-    Returns ``(rows, sentence)``: each row carries the artifact's IDENTITY (its file name — never a
-    path), its size (raw bytes and a human string) and its modification time; the sentence is the
-    honest failure a listing that could not be read renders, else ``""``. The directory is enumerated
-    on the node, so nothing a request states ever becomes a path — the download route re-resolves the
-    row's identity against a FRESH enumeration of the same set.
+    Returns ``(rows, record)``: each row carries the artifact's IDENTITY (its file name — never a
+    path), its size (raw bytes and a human string) and its modification time; ``record`` is the honest
+    failure sentence's ``{"msgid", "params"}`` (an ``i18n._``-marked template plus its operator data)
+    a listing that could not be read renders, else ``None``. A RECORD rather than a composed string so
+    the sentence is translated first and the node name / directory interpolated after, staying verbatim.
+    The directory is enumerated on the node, so nothing a request states ever becomes a path — the
+    download route re-resolves the row's identity against a FRESH enumeration of the same set.
     """
     try:
         entries = await node.list_files(directory, pattern=list(patterns))
     except FileNotFoundError:
-        return [], (f"No log directory yet for this server "
-                    f"(looked for '{directory}' on node '{node_name}').")
+        return [], {"msgid": ARTIFACTS_NO_DIR_SENTENCE,
+                    "params": {"directory": directory, "node": node_name}}
     except PermissionError:
-        return [], f"Node '{node_name}' cannot list this server's log directory (permission denied)."
+        return [], {"msgid": ARTIFACTS_PERMISSION_SENTENCE, "params": {"node": node_name}}
     except (TimeoutError, asyncio.TimeoutError):
-        return [], f"Node '{node_name}' did not answer in time, so the log files were not listed."
+        return [], {"msgid": ARTIFACTS_TIMEOUT_SENTENCE, "params": {"node": node_name}}
     except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
         log.warning("Log artifacts: node '%s' raised %s", node_name, type(ex).__name__,
                     exc_info=True)
-        return [], f"Node '{node_name}' could not list the log files ({type(ex).__name__})."
+        return [], {"msgid": ARTIFACTS_FAILURE_SENTENCE,
+                    "params": {"node": node_name, "error": type(ex).__name__}}
     rows: list[dict] = []
     for path, size, mtime in entries:
         name = dcs_log.artifact_id(path)
         rows.append({"id": name, "name": name, "path": readmodels.text(path),
                      "size": int(size), "size_text": _human_size(size),
                      "mtime": _human_time(mtime)})
-    return rows, ""
+    return rows, None
 
 
 def add_log_window_route(router: APIRouter) -> APIRouter:
@@ -887,10 +945,7 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
     async def server_log_window(request: Request, name: str, offset: str | None = None,
                                 behind: str | None = None, identity: str | None = None,
                                 level: str | None = None, which: str = "") -> Response:
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
+        environment = i18n.environment_for(request)
         if not offset and not behind:
             # A server whose OWN name ends in ``/log/window`` shares this shape; with nothing stated
             # this path may BE that server's page — render it rather than a 400 nobody meant.
@@ -898,7 +953,8 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
             if dashboard_page.server_named(request, colliding) is not None:
                 return await _render_server_detail(request, colliding)
             return JSONResponse({"available": False, "lines": "", "size": 0,
-                                 "message": "An offset or a behind position is required."},
+                                 "message": _rendered(environment, i18n._(
+                                     "An offset or a behind position is required."))},
                                 status_code=400)
         server = dashboard_page.scoped_server(request, name)
         server_name = readmodels.text(attr(server, "name", None)) or name
@@ -906,7 +962,8 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
         events = readmodels.text(which) == dcs_log.EVENTS_WHICH
         node = _reachable_log_node(request, server)
         if events and not debug_plugin_active(node if node is not None else attr(server, "node", None)):
-            return JSONResponse(_unavailable_payload(EVENTS_REFUSED_SENTENCE), status_code=403)
+            return JSONResponse(_unavailable_payload(_rendered(environment, EVENTS_REFUSED_SENTENCE)),
+                                status_code=403)
         path = dcs_log.events_log_path(server) if events else dcs_log.dcs_log_path(server)
         # THE EVENTS TAB HAS NO LEVEL FILTER (Frank's ruling): every entry the debug plugin writes is
         # DEBUG, so a filter there could only ever hide the tab's whole content. The shared vocabulary
@@ -914,14 +971,16 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
         allowed = (dcs_log.LEVEL_FILTERS["all"] if events
                    else dcs_log.LEVEL_FILTERS[dashboard_page.log_level(request)])
         if node is None:
-            return JSONResponse(_unavailable_payload(_node_offline_sentence(node_name)))
+            return JSONResponse(_unavailable_payload(
+                _rendered(environment, NODE_OFFLINE_SENTENCE, node=node_name)))
         try:
             if offset is not None:
                 start = _byte(offset)
                 if start is None:
                     return JSONResponse({"available": False, "lines": "", "size": 0,
-                                         "message": "The offset must be a non-negative whole "
-                                                    "number."}, status_code=400)
+                                         "message": _rendered(environment, i18n._(
+                                             "The offset must be a non-negative whole number."))},
+                                        status_code=400)
                 held = _identity(identity)
                 raw, size, current = await _read_window(node, path, node_name, offset=start)
                 if size < start or (held is not None and identity_token(current) != held):
@@ -930,7 +989,7 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
                     # the fresh file's tail and reset the view; never splice two files together.
                     state = await _collect_back(node, path, node_name, behind=dcs_log.BEHIND_END,
                                                 allowed=allowed, want=dcs_log.TAIL_LINES)
-                    message = "" if state["lines"] else _empty_message(allowed)
+                    message = "" if state["lines"] else _rendered(environment, _empty_message(allowed))
                     return JSONResponse(_available_payload(environment, state, reset=True,
                                                            message=message))
                 return JSONResponse(_available_payload(
@@ -938,8 +997,9 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
             end = _byte(behind)
             if end is None:
                 return JSONResponse({"available": False, "lines": "", "size": 0,
-                                     "message": "The behind position must be a non-negative whole "
-                                                "number."}, status_code=400)
+                                     "message": _rendered(environment, i18n._(
+                                         "The behind position must be a non-negative whole number."))},
+                                    status_code=400)
             state = await _collect_back(node, path, node_name, behind=end, allowed=allowed,
                                         want=dcs_log.TAIL_LINES)
             if state["rotated"]:
@@ -947,11 +1007,13 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
                 # file's alone, and the browser resets the view and says the log restarted — two files
                 # are never spliced into one page.
                 return JSONResponse(_available_payload(environment, state, reset=True,
-                                                       message=dcs_log.ROTATED_SENTENCE))
-            message = "" if state["lines"] else _empty_message(allowed)
+                                                       message=_rendered(environment,
+                                                                         dcs_log.ROTATED_SENTENCE)))
+            message = "" if state["lines"] else _rendered(environment, _empty_message(allowed))
             return JSONResponse(_available_payload(environment, state, message=message))
         except _LogUnavailable as ex:
-            return JSONResponse(_unavailable_payload(ex.sentence, pending=ex.pending))
+            return JSONResponse(_unavailable_payload(_rendered(environment, ex.msgid, **ex.params),
+                                                     pending=ex.pending))
 
     return router
 
@@ -998,16 +1060,22 @@ async def _log_tab_context(request: Request, server, server_name: str, *,
         "log_at_start": False, "log_artifacts": (), "log_artifacts_note": "",
     }
     node = _reachable_log_node(request, server)
+    # The tab's INITIAL note is the SAME sentence class the window route serves; it is rendered for
+    # the request's language HERE too, so the first paint and every follow agree on the language.
+    environment = i18n.environment_for(request)
     if node is None:
-        return base | {"log_available": False, "log_message": _node_offline_sentence(node_name)}
-    artifacts, artifact_note = await log_artifacts(node, directory, node_name, patterns)
-    base = base | {"log_artifacts": artifacts, "log_artifacts_note": artifact_note}
+        return base | {"log_available": False,
+                       "log_message": _rendered(environment, NODE_OFFLINE_SENTENCE, node=node_name)}
+    artifacts, artifact = await log_artifacts(node, directory, node_name, patterns)
+    note = _rendered(environment, artifact["msgid"], **artifact["params"]) if artifact else ""
+    base = base | {"log_artifacts": artifacts, "log_artifacts_note": note}
     try:
         state = await _collect_back(node, path, node_name, behind=dcs_log.BEHIND_END,
                                     allowed=allowed, want=dcs_log.TAIL_LINES)
     except _LogUnavailable as ex:
-        return base | {"log_available": False, "log_message": ex.sentence}
-    message = "" if state["lines"] else _empty_message(allowed)
+        return base | {"log_available": False,
+                       "log_message": _rendered(environment, ex.msgid, **ex.params)}
+    message = "" if state["lines"] else _rendered(environment, _empty_message(allowed))
     return base | {"log_available": True, "log_message": message,
                    "log_lines": state["lines"], "log_offset": state["offset"],
                    "log_before": state["before"], "log_size": state["size"],
@@ -1153,17 +1221,13 @@ def add_server_status_route(router: APIRouter) -> APIRouter:
     """
     @router.get(SERVER_STATUS_PATH, name="server-status")
     async def server_status(request: Request, name: str) -> Response:
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         requested = readmodels.text(name)
         colliding = f"{requested}/status"
         if dashboard_page.server_named(request, colliding) is not None:
             return await _render_server_detail(request, colliding)
         server = dashboard_page.scoped_server(request, requested)
         view = server_view(server)
-        html = environment.get_template("_server_status.html").render(status=view.status)
+        html = i18n.render_fragment(request, "_server_status.html", status=view.status)
         # no-store: a polled status must always be the CURRENT one, never a cached mark.
         return JSONResponse({"status": html}, headers={"Cache-Control": "no-store"})
 
@@ -1178,10 +1242,6 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     The name is resolved through :func:`dashboard.scoped_server`, so the scope and the refusal are
     identical however this was reached.
     """
-    environment = getattr(request.app.state, "webui_templates", None)
-    if environment is None:  # pragma: no cover - installed by the shell
-        raise HTTPException(status_code=503,
-                            detail="The admin web UI templates are not installed.")
     registrar = getattr(request.app.state, "webui_registrar", None)
     # THE ONE place a name becomes a server for a console READ — scoped, refusal-safe
     server = dashboard_page.scoped_server(request, name)
@@ -1211,7 +1271,8 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     context = {
         "title": server_name,
         "page_title": server_name,
-        "crumb": f"{CRUMB_GROUP} / {servers_page.SERVERS_TITLE} / {server_name}",
+        "crumb": dashboard_page.crumb(CRUMB_GROUP, servers_page.SERVERS_TITLE,
+                                     target=server_name),
         "server_name": server_name,
         "server": server_view(server),
         # THE STATUS POLL (L5): the URL and the cadence the page head carries so the mark "at the top"
@@ -1225,13 +1286,14 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
                                                 current=servers_page.SERVERS_PATH,
                                                 manager=manager),
         "user": dashboard_page.identity_summary(request),
-        "pills": [f"server {server_name}"],
+        "pills": [{"msgid": i18n._("server %(name)s"), "params": {"name": server_name},
+                   "text": f"server {server_name}"}],
     }
     context.update(await _tab_context(request, server, server_name, tab))
     # no-store: this is the page a mission write returns to, and its list must be re-rendered from
     # the post-write state — never served from the browser's cache (Frank's stale-mission-list
     # report). The download route shares this body for its name-collision case, so both get it.
-    return HTMLResponse(environment.get_template(CONFIG_TEMPLATE).render(**context),
+    return HTMLResponse(i18n.render(request, CONFIG_TEMPLATE, **context),
                         headers={"Cache-Control": "no-store"})
 
 
@@ -1317,7 +1379,7 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "search_clear": players_tab,
             "search_hidden": {"tab": "players"},
             "empty": {"players": readmodels.NO_PLAYERS_MESSAGE,
-                      "players_matched": "No players match this search."},
+                      "players_matched": i18n._("No players match this search.")},
         }
     if tab == MISSIONS_TAB:
         # THE MISSIONS LIST — read through the READ action, never off ``server.settings``. A refused
@@ -1329,7 +1391,7 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             message = (readmodels.text(getattr(result, "message", ""))
                        if result is not None else "")
             context.update({"missions_available": False,
-                            "missions_message": message or "The mission list could not be read."})
+                            "missions_message": message or i18n._("The mission list could not be read.")})
             return context
         data = getattr(result, "data", None)
         data = data if isinstance(data, dict) else {}

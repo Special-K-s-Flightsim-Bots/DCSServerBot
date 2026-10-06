@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from .. import i18n
 from . import lists as lists_page
 
 __all__ = ["INSTANCES_PATH", "INSTANCES_CAPABILITY", "INSTANCES_ROLES", "INSTANCES_TABLE",
@@ -25,9 +26,9 @@ INSTANCES_PATH = "/instances"
 INSTANCES_CAPABILITY = "instances.view"
 INSTANCES_ROLES: tuple[str, ...] = lists_page.CLUSTER_ROLES
 INSTANCES_TABLE = "instances"
-INSTANCES_TITLE = "Instances"
-INSTANCES_LEAD = ("Every instance the nodes carry, with its DCS and WebGUI ports. Read-only.")
-NAV_LABEL = "Instances"
+INSTANCES_TITLE = i18n._("Instances")
+INSTANCES_LEAD = i18n._("Every instance the nodes carry, with its DCS and WebGUI ports. Read-only.")
+NAV_LABEL = i18n._("Instances")
 
 PAGE = lists_page.ListPage(table=INSTANCES_TABLE, path=INSTANCES_PATH,
                            capability=INSTANCES_CAPABILITY, roles=INSTANCES_ROLES,

@@ -1,0 +1,2173 @@
+# DRAFT CHINESE CATALOG.
+# MACHINE-ASSISTED AND NOT REVIEWED BY A NATIVE SPEAKER.
+# CONVENTION: this project's Chinese is INFORMAL — the reader is addressed
+# as "你" (never the formal "您").
+# LANGUAGE CODE: cn — the same code the bot itself uses (its catalogs and
+# main.yaml), not zh; the catalog lives at locale/cn/LC_MESSAGES/webui.po.
+# It covers the whole console (the login page, the shell, the dashboard,
+# the list pages, the per-server page and its tabs, the write dialogs, the
+# log card / Logs page, the row buttons and the console's JavaScript).
+# Left in English on purpose (brand names / technical tokens):
+#   DCS, DCSServerBot, Discord, servers.yaml, serverSettings.lua, bot.yaml,
+#   Server.update_channels, managed_by, .dcssb, .orig, .miz, WebGUI, UCID,
+#   /status, /password, /server startup, /server shutdown, /mission delete,
+#   INFO+ and ERROR (log-level tokens), offset, behind.
+# Replace it with a real translator's work before relying on it.
+
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-06 15:02+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: cn\n"
+"Language-Team: cn <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: services/webservice/i18n.py:461
+#, python-brace-format
+msgid "Live updates: {status}"
+msgstr "实时更新：{status}"
+
+#: services/webservice/i18n.py:462
+#: services/webservice/templates/server_detail.html:218
+msgid "on"
+msgstr "开"
+
+#: services/webservice/i18n.py:463
+msgid "connecting…"
+msgstr "正在连接…"
+
+#: services/webservice/i18n.py:464
+msgid "polling every 10 seconds"
+msgstr "每 10 秒轮询一次"
+
+#: services/webservice/i18n.py:465
+#, python-brace-format
+msgid "the bot is not ready yet — retrying in {seconds}s"
+msgstr "机器人尚未就绪 — {seconds} 秒后重试"
+
+#: services/webservice/i18n.py:466
+msgid "not permitted — sign in again"
+msgstr "无权限 — 请重新登录"
+
+#: services/webservice/i18n.py:467
+msgid "Sign in again"
+msgstr "重新登录"
+
+#: services/webservice/i18n.py:469
+#: services/webservice/templates/server_detail.html:62
+msgid "Load older"
+msgstr "加载更早内容"
+
+#: services/webservice/i18n.py:470
+#: services/webservice/templates/server_detail.html:57
+msgid "not available"
+msgstr "不可用"
+
+#: services/webservice/i18n.py:471
+msgid "The log file is not there yet."
+msgstr "日志文件尚不存在。"
+
+#: services/webservice/i18n.py:472
+msgid "waiting for the log file to appear"
+msgstr "正在等待日志文件出现"
+
+#: services/webservice/i18n.py:473
+msgid "retrying…"
+msgstr "正在重试…"
+
+#: services/webservice/i18n.py:474
+msgid "— the log was rotated; showing the new file —"
+msgstr "— 日志已轮转；正在显示新文件 —"
+
+#: services/webservice/i18n.py:475
+msgid "— the log was rotated while loading older lines —"
+msgstr "— 加载更早的行时日志已轮转 —"
+
+#: services/webservice/i18n.py:476
+msgid "the log was rotated"
+msgstr "日志已轮转"
+
+#: services/webservice/i18n.py:477
+msgid "Log restarted"
+msgstr "日志已重启"
+
+#: services/webservice/i18n.py:478
+#: services/webservice/templates/server_detail.html:62
+msgid "Start of log"
+msgstr "日志开头"
+
+#: services/webservice/i18n.py:479
+#: services/webservice/templates/server_detail.html:57
+msgid "following while this tab is open"
+msgstr "在此标签页打开期间持续跟随"
+
+#: services/webservice/i18n.py:480
+msgid "paused — this tab is hidden"
+msgstr "已暂停 — 此标签页处于隐藏状态"
+
+#: services/webservice/i18n.py:482
+#, python-brace-format
+msgid "{n} of {total} selected"
+msgstr "已选择 {n}/{total}"
+
+#: services/webservice/i18n.py:483
+#: services/webservice/templates/server_detail.html:444
+msgid "Remove selected…"
+msgstr "移除所选…"
+
+#: services/webservice/i18n.py:484
+msgid "Remove 1 mission…"
+msgstr "移除 1 个任务…"
+
+#: services/webservice/i18n.py:485
+#, python-brace-format
+msgid "Remove {n} missions…"
+msgstr "移除 {n} 个任务…"
+
+#: services/webservice/i18n.py:487
+#: services/webservice/templates/server_detail.html:203
+#: services/webservice/templates/server_detail.html:350
+msgid "Show password"
+msgstr "显示密码"
+
+#: services/webservice/i18n.py:488
+msgid "Hide password"
+msgstr "隐藏密码"
+
+#: services/webservice/i18n.py:489
+msgid "Nothing to show — type a password first, then this reveals what you typed."
+msgstr "没有可显示的内容 — 请先输入密码，此处会显示你输入的内容。"
+
+#: services/webservice/upgrade.py:66
+msgid "no update check yet"
+msgstr "尚未检查更新"
+
+#: services/webservice/auth/discord_oauth.py:263
+msgid "Sign in with Discord"
+msgstr "使用 Discord 登录"
+
+#: services/webservice/auth/routes.py:57
+msgid "Sign-in failed. Check your username and password and try again."
+msgstr "登录失败。请检查你的用户名和密码后重试。"
+
+#: services/webservice/auth/routes.py:113
+msgid "Discord and local sign-in enabled"
+msgstr "已启用 Discord 和本地登录"
+
+#: services/webservice/auth/routes.py:115
+msgid "Discord sign-in enabled"
+msgstr "已启用 Discord 登录"
+
+#: services/webservice/auth/routes.py:117
+msgid "Local sign-in enabled"
+msgstr "已启用本地登录"
+
+#: services/webservice/auth/routes.py:118
+msgid "No sign-in method enabled"
+msgstr "未启用任何登录方式"
+
+#: services/webservice/pages/actions.py:326
+msgid "Start and Stop live only here: they act on fewer states than Startup and Shutdown, so they do not earn a place in the strip."
+msgstr "“开始”和“停止”仅在此处提供：它们作用的状态比“启动”和“关机”更少，因此不值得在工具栏中占一席之地。"
+
+#: services/webservice/pages/actions.py:334
+#, python-brace-format
+msgid "{label} — an action on {name} is running; this can take a moment"
+msgstr "{label} — 正在对 {name} 执行操作；可能需要一点时间"
+
+#: services/webservice/pages/actions.py:335
+#, python-brace-format
+msgid "{label} — an action on {name} is running"
+msgstr "{label} — 正在对 {name} 执行操作"
+
+#: services/webservice/pages/actions.py:488
+msgid "Startup"
+msgstr "启动"
+
+#: services/webservice/pages/actions.py:492
+msgid "End maintenance so the server is scheduled again"
+msgstr "结束维护，使服务器重新纳入调度"
+
+#: services/webservice/pages/actions.py:494
+msgid "On by default, exactly like Discord's /server startup. An unflagged server simply stays unflagged."
+msgstr "默认开启，与 Discord 的 /server startup 完全一致。未被标记的服务器就保持未标记。"
+
+#: services/webservice/pages/actions.py:496
+msgid "Startup — bring this server up from SHUTDOWN"
+msgstr "启动 — 让此服务器从“已关闭”状态启动"
+
+#: services/webservice/pages/actions.py:497
+#, python-brace-format
+msgid "Startup server {server}"
+msgstr "启动服务器 {server}"
+
+#: services/webservice/pages/actions.py:498
+msgid "It comes back up and rejoins the rotation: with the box below ticked (the default) any maintenance is ended, so the scheduler may start it again. A server that was not in maintenance simply stays that way. This is the DCS-level bring-up, not the process-level Start in the row's menu."
+msgstr "它会重新启动并加入轮换：勾选下方复选框（默认）会结束任何维护，从而让调度器可以再次启动它。本来就不在维护中的服务器则保持不变。这是 DCS 层面的启动，而不是该行菜单里进程层面的“开始”。"
+
+#: services/webservice/pages/actions.py:503
+msgid "Start up server"
+msgstr "启动服务器"
+
+#: services/webservice/pages/actions.py:504
+#, python-brace-format
+msgid "Start up {server} — ends maintenance so the scheduler may start it"
+msgstr "启动 {server} — 结束维护，让调度器可以启动它"
+
+#: services/webservice/pages/actions.py:506
+msgid "Start"
+msgstr "开始"
+
+#: services/webservice/pages/actions.py:509
+msgid "Start — start a STOPPED server"
+msgstr "开始 — 让一台“已停止”的服务器运行"
+
+#: services/webservice/pages/actions.py:510
+#, python-brace-format
+msgid "Start server {server}"
+msgstr "让服务器 {server} 运行"
+
+#: services/webservice/pages/actions.py:511
+msgid "start a STOPPED server — Startup is the usual one"
+msgstr "让一台“已停止”的服务器运行 — 通常用的是“启动”"
+
+#: services/webservice/pages/actions.py:513
+msgid "Pause"
+msgstr "暂停"
+
+#: services/webservice/pages/actions.py:515
+msgid "Pause — freeze the mission; players stay connected"
+msgstr "暂停 — 冻结任务；玩家保持连接"
+
+#: services/webservice/pages/actions.py:516
+#, python-brace-format
+msgid "Pause the mission on {server}"
+msgstr "暂停 {server} 上的任务"
+
+#: services/webservice/pages/actions.py:518
+msgid "Unpause"
+msgstr "继续"
+
+#: services/webservice/pages/actions.py:520
+msgid "Unpause — resume the frozen mission"
+msgstr "继续 — 恢复已冻结的任务"
+
+#: services/webservice/pages/actions.py:521
+#, python-brace-format
+msgid "Unpause the mission on {server}"
+msgstr "继续 {server} 上的任务"
+
+#: services/webservice/pages/actions.py:523
+#: services/webservice/pages/actions.py:1017
+msgid "Restart"
+msgstr "重启"
+
+#: services/webservice/pages/actions.py:527
+msgid "Restart — players currently flying lose their sortie"
+msgstr "重启 — 正在飞行的玩家会失去本轮出击"
+
+#: services/webservice/pages/actions.py:528
+#, python-brace-format
+msgid "Restart server {server}"
+msgstr "重启服务器 {server}"
+
+#: services/webservice/pages/actions.py:529
+msgid "<b>Players currently flying lose their sortie.</b> The mission restarts from the beginning — mid-mission progress is gone."
+msgstr "<b>正在飞行的玩家会失去本轮出击。</b>任务将从头重新开始 — 任务进行中的进度会丢失。"
+
+#: services/webservice/pages/actions.py:531
+msgid "A restart stops the mission, reloads it from the start and the players reconnect to a fresh round. It cannot be undone from here."
+msgstr "重启会停止任务，从头重新载入，玩家将重新连接到新的一轮。此操作无法在此撤销。"
+
+#: services/webservice/pages/actions.py:533
+msgid "Restart server"
+msgstr "重启服务器"
+
+#: services/webservice/pages/actions.py:534
+#, python-brace-format
+msgid "Restart {server} — players flying lose their sortie"
+msgstr "重启 {server} — 飞行中的玩家会失去本轮出击"
+
+#: services/webservice/pages/actions.py:536
+msgid "Shutdown"
+msgstr "关机"
+
+#: services/webservice/pages/actions.py:542
+msgid "Set maintenance so the scheduler does not restart it"
+msgstr "设为维护状态，以免调度器重启它"
+
+#: services/webservice/pages/actions.py:544
+msgid "On by default, exactly like Discord's /server shutdown: without it a scheduled start brings the server straight back."
+msgstr "默认开启，与 Discord 的 /server shutdown 完全一致：若不勾选，计划启动会立刻把服务器重新拉起。"
+
+#: services/webservice/pages/actions.py:546
+msgid "Shutdown — stop the DCS server; everyone on it is disconnected"
+msgstr "关机 — 停止 DCS 服务器；上面的所有人都会被断开连接"
+
+#: services/webservice/pages/actions.py:547
+#, python-brace-format
+msgid "Shutdown server {server}"
+msgstr "关闭服务器 {server}"
+
+#: services/webservice/pages/actions.py:548
+#, python-brace-format
+msgid "<b>{players} players are disconnected</b> and nobody can join until somebody starts the server up again. The box below is ticked by default and puts the server into maintenance — it stays out of service, so the scheduler does not bring it back up. Clear it only to shut the server down without keeping it down."
+msgstr "<b>{players} 名玩家将被断开</b>，在有人重新启动服务器之前无人能加入。下方复选框默认勾选，会把服务器置为维护状态 — 它保持停止服务，因此调度器不会把它重新拉起。只有在你希望关闭服务器但不想让它保持关闭时才取消勾选。"
+
+#: services/webservice/pages/actions.py:553
+msgid "It stays SHUTDOWN on every page until a Startup brings it back — this is the graceful stop, not the process-level Stop in the row's menu."
+msgstr "它会在所有页面上保持“已关闭”，直到有一次“启动”把它带回来 — 这是优雅停止，而不是该行菜单里进程层面的“停止”。"
+
+#: services/webservice/pages/actions.py:556
+#: services/webservice/pages/actions.py:1032
+msgid "Shut down"
+msgstr "关机"
+
+#: services/webservice/pages/actions.py:557
+#, python-brace-format
+msgid "Shut down {server} — {players} players are disconnected"
+msgstr "关闭 {server} — {players} 名玩家将被断开"
+
+#: services/webservice/pages/actions.py:559
+msgid "Stop"
+msgstr "停止"
+
+#: services/webservice/pages/actions.py:562
+msgid "Stop — stop the server process; players are disconnected"
+msgstr "停止 — 停止服务器进程；玩家会被断开"
+
+#: services/webservice/pages/actions.py:563
+#, python-brace-format
+msgid "Stop server {server}"
+msgstr "停止服务器 {server}"
+
+#: services/webservice/pages/actions.py:564
+msgid "stop the server process — players are disconnected"
+msgstr "停止服务器进程 — 玩家会被断开"
+
+#: services/webservice/pages/actions.py:565
+#, python-brace-format
+msgid "<b>{players} players are disconnected.</b> Stop ends the server process, and nobody can join until a Start brings it back."
+msgstr "<b>{players} 名玩家将被断开。</b>“停止”会结束服务器进程，在有一次“开始”把它带回来之前无人能加入。"
+
+#: services/webservice/pages/actions.py:567
+msgid "This is the process-level pair (Stop/Start), not the DCS-level pair (Shutdown/Startup)."
+msgstr "这是进程层面的一对（停止/开始），而不是 DCS 层面的一对（关机/启动）。"
+
+#: services/webservice/pages/actions.py:569
+msgid "Stop server process"
+msgstr "停止服务器进程"
+
+#: services/webservice/pages/actions.py:570
+#, python-brace-format
+msgid "Stop {server} — {players} players are disconnected"
+msgstr "停止 {server} — {players} 名玩家将被断开"
+
+#: services/webservice/pages/actions.py:585
+msgid "Maintenance"
+msgstr "维护"
+
+#: services/webservice/pages/actions.py:587
+msgid "Maintenance — keep this server out of service; the scheduler will not start it"
+msgstr "维护 — 让此服务器保持停止服务；调度器不会启动它"
+
+#: services/webservice/pages/actions.py:588
+#, python-brace-format
+msgid "Put server {server} into maintenance"
+msgstr "将服务器 {server} 置于维护状态"
+
+#: services/webservice/pages/actions.py:589
+msgid "keep the server out of service — it is not stopped by this"
+msgstr "让服务器保持停止服务 — 此操作不会停止它"
+
+#: services/webservice/pages/actions.py:592
+msgid "End maintenance"
+msgstr "结束维护"
+
+#: services/webservice/pages/actions.py:594
+msgid "End maintenance — let the scheduler start this server again"
+msgstr "结束维护 — 让调度器可以再次启动此服务器"
+
+#: services/webservice/pages/actions.py:595
+#, python-brace-format
+msgid "Take server {server} out of maintenance"
+msgstr "将服务器 {server} 移出维护状态"
+
+#: services/webservice/pages/actions.py:596
+msgid "the server may be started again — nothing is started by this"
+msgstr "服务器可以再次启动了 — 此操作不会启动任何东西"
+
+#: services/webservice/pages/actions.py:662
+#: services/webservice/pages/actions.py:682
+#: services/webservice/templates/server_detail.html:552
+msgid "Add to the rotation"
+msgstr "加入轮换"
+
+#: services/webservice/pages/actions.py:666
+msgid "Load it when the server next starts"
+msgstr "在服务器下次启动时载入它"
+
+#: services/webservice/pages/actions.py:668
+msgid "Arms the rotation so this mission is the next one the server loads."
+msgstr "设定轮换，使此任务成为服务器下一个载入的任务。"
+
+#: services/webservice/pages/actions.py:672
+msgid "Load it now"
+msgstr "立即载入"
+
+#: services/webservice/pages/actions.py:674
+msgid "Loads it right away — only honoured while the server is running, paused or stopped."
+msgstr "立即载入 — 仅在服务器处于运行、暂停或停止状态时生效。"
+
+#: services/webservice/pages/actions.py:679
+msgid "This mission is already on the server: adding it changes the ROTATION LIST only. No file is copied and nothing is deleted — that is what Upload does."
+msgstr "此任务已在服务器上：加入它只会改变轮换列表。不会复制任何文件，也不会删除任何东西 — 那是“上传”做的事。"
+
+#: services/webservice/pages/actions.py:683
+#, python-brace-format
+msgid "Add the mission to {server}'s rotation list"
+msgstr "将任务加入 {server} 的轮换列表"
+
+#: services/webservice/pages/actions.py:689
+msgid "Remove"
+msgstr "移除"
+
+#: services/webservice/pages/actions.py:693
+msgid "Also delete the mission file from disk"
+msgstr "同时从磁盘删除任务文件"
+
+#: services/webservice/pages/actions.py:695
+msgid "Removes the primary file, its .dcssb copy and the .orig. This cannot be undone."
+msgstr "删除主文件、其 .dcssb 副本和 .orig。此操作无法撤销。"
+
+#: services/webservice/pages/actions.py:700
+msgid "<b>The mission is removed from the rotation list and stops being loaded.</b> The box below is off by default: with it ticked the mission file itself — the primary, its .dcssb copy and the .orig — is deleted from the server, and that cannot be undone."
+msgstr "<b>该任务将从轮换列表中移除，不再被载入。</b>下方复选框默认关闭：勾选后，任务文件本身 — 主文件、其 .dcssb 副本和 .orig — 会从服务器上删除，且无法撤销。"
+
+#: services/webservice/pages/actions.py:704
+msgid "Removing it from the list changes the rotation only; the file stays on the server unless you tick the box. Discord's /mission delete asks the same two questions."
+msgstr "将其从列表中移除只会改变轮换；除非你勾选该复选框，文件会保留在服务器上。Discord 的 /mission delete 会问同样的两个问题。"
+
+#: services/webservice/pages/actions.py:707
+#: services/webservice/pages/actions.py:3946
+msgid "Remove mission"
+msgstr "移除任务"
+
+#: services/webservice/pages/actions.py:708
+#, python-brace-format
+msgid "Remove the mission from {server}'s rotation list"
+msgstr "从 {server} 的轮换列表中移除该任务"
+
+#: services/webservice/pages/actions.py:710
+#: services/webservice/templates/server_detail.html:533
+msgid "Load"
+msgstr "载入"
+
+#: services/webservice/pages/actions.py:715
+#: services/webservice/templates/server_detail.html:610
+msgid "Upload mission"
+msgstr "上传任务"
+
+#: services/webservice/pages/actions.py:730
+#: services/webservice/pages/actions.py:750
+#: services/webservice/pages/actions.py:3951
+msgid "Remove missions"
+msgstr "移除任务"
+
+#: services/webservice/pages/actions.py:734
+msgid "Also delete the mission files from disk"
+msgstr "同时从磁盘删除任务文件"
+
+#: services/webservice/pages/actions.py:736
+msgid "Removes the primary file, its .dcssb copy and the .orig of EVERY selected mission. This cannot be undone. Left OFF, the mission only leaves the rotation — and while the server's mission auto-scan is on, a mission file left on disk is re-added to the list, so the removal is not permanent."
+msgstr "删除每一个所选任务的主文件、其 .dcssb 副本和 .orig。此操作无法撤销。若保持关闭，任务只会离开轮换 — 而当服务器的任务自动扫描开启时，留在磁盘上的任务文件会被重新加入列表，因此移除并非永久性的。"
+
+#: services/webservice/pages/actions.py:744
+msgid "<b>The selected missions are removed from the rotation list and stop being loaded.</b> The box below is off by default: with it ticked the mission files themselves are deleted from the server, and that cannot be undone."
+msgstr "<b>所选任务将从轮换列表中移除，不再被载入。</b>下方复选框默认关闭：勾选后，任务文件本身会从服务器上删除，且无法撤销。"
+
+#: services/webservice/pages/actions.py:748
+msgid "The chosen missions leave the rotation list; their files stay on the server unless you tick the box."
+msgstr "所选任务会离开轮换列表；除非你勾选该复选框，它们的文件会保留在服务器上。"
+
+#: services/webservice/pages/actions.py:751
+#, python-brace-format
+msgid "Remove the selected missions from {server}'s rotation list"
+msgstr "从 {server} 的轮换列表中移除所选任务"
+
+#: services/webservice/pages/actions.py:755
+msgid "Move"
+msgstr "移动"
+
+#: services/webservice/pages/actions.py:769
+#: services/webservice/templates/server_detail.html:443
+msgid "Set as start"
+msgstr "设为起始任务"
+
+#: services/webservice/pages/actions.py:870
+msgid "Kick"
+msgstr "踢出"
+
+#: services/webservice/pages/actions.py:872
+#: services/webservice/pages/actions.py:888
+msgid "Reason"
+msgstr "原因"
+
+#: services/webservice/pages/actions.py:873
+msgid "Shown to the player in game."
+msgstr "在游戏内显示给该玩家。"
+
+#: services/webservice/pages/actions.py:875
+msgid "Kick — disconnected now; they may rejoin immediately"
+msgstr "踢出 — 立即断开连接；他们可以马上重新加入"
+
+#: services/webservice/pages/actions.py:876
+#, python-brace-format
+msgid "Kick {player} from {server}"
+msgstr "将 {player} 从 {server} 踢出"
+
+#: services/webservice/pages/actions.py:877
+msgid "disconnected now — a kick is not a ban"
+msgstr "立即断开连接 — 踢出不是封禁"
+
+#: services/webservice/pages/actions.py:878
+#, python-brace-format
+msgid "<b>{player} is disconnected from {server} now.</b> They can rejoin immediately — a kick is not a ban and leaves no block behind."
+msgstr "<b>{player} 现在已被从 {server} 断开。</b>他们可以马上重新加入 — 踢出不是封禁，不会留下任何封禁记录。"
+
+#: services/webservice/pages/actions.py:880
+msgid "A kick ends their session; it blocks nothing and expires with it. Nothing is written to the ban list, so they may be back in the air in a minute."
+msgstr "踢出会结束他们的会话；它不封禁任何东西，并随会话一同失效。不会写入封禁列表，所以他们可能一分钟后又能起飞。"
+
+#: services/webservice/pages/actions.py:883
+msgid "Kick player"
+msgstr "踢出玩家"
+
+#: services/webservice/pages/actions.py:884
+#, python-brace-format
+msgid "Kick {player} from {server} — they may rejoin immediately"
+msgstr "将 {player} 从 {server} 踢出 — 他们可以马上重新加入"
+
+#: services/webservice/pages/actions.py:886
+msgid "Ban"
+msgstr "封禁"
+
+#: services/webservice/pages/actions.py:889
+msgid "Kept on the ban list."
+msgstr "保留在封禁列表中。"
+
+#: services/webservice/pages/actions.py:891
+msgid "Ban — removed and blocked from rejoining"
+msgstr "封禁 — 移除并阻止其重新加入"
+
+#: services/webservice/pages/actions.py:892
+#, python-brace-format
+msgid "Ban {player} from {server}"
+msgstr "封禁 {player}，禁止其加入 {server}"
+
+#: services/webservice/pages/actions.py:893
+msgid "removed and blocked from rejoining"
+msgstr "移除并阻止其重新加入"
+
+#: services/webservice/pages/actions.py:894
+#, python-brace-format
+msgid "<b>{player} is removed from {server} and cannot rejoin it</b> for as long as the ban stands. Empty duration means it never expires on its own."
+msgstr "<b>{player} 将被移出 {server} 且无法重新加入</b>，只要封禁仍然有效。时长留空表示它永远不会自行过期。"
+
+#: services/webservice/pages/actions.py:897
+msgid "The ban is written to the ban list every installation syncs, so it holds wherever they connect from — not only on this server."
+msgstr "该封禁会写入每个安装都会同步的封禁列表，因此无论他们从何处连接都有效 — 不仅限于此服务器。"
+
+#: services/webservice/pages/actions.py:899
+msgid "Ban player"
+msgstr "封禁玩家"
+
+#: services/webservice/pages/actions.py:900
+#, python-brace-format
+msgid "Ban {player} — empty duration is permanent"
+msgstr "封禁 {player} — 时长留空即为永久"
+
+#: services/webservice/pages/actions.py:902
+#: services/webservice/pages/actions.py:903
+msgid "Message"
+msgstr "消息"
+
+#: services/webservice/pages/actions.py:907
+msgid "Chat — a chat line in game, visible to everyone"
+msgstr "聊天 — 游戏内的一条聊天消息，所有人都能看到"
+
+#: services/webservice/pages/actions.py:908
+#, python-brace-format
+msgid "Send a chat line to {player} on {server}"
+msgstr "向 {server} 上的 {player} 发送一条聊天消息"
+
+#: services/webservice/pages/actions.py:910
+msgid "Popup — a private message in game"
+msgstr "弹窗 — 游戏内的一条私密消息"
+
+#: services/webservice/pages/actions.py:911
+#, python-brace-format
+msgid "Send a popup to {player} on {server}"
+msgstr "向 {server} 上的 {player} 发送一条弹窗"
+
+#: services/webservice/pages/actions.py:914
+msgid "Mute"
+msgstr "禁言"
+
+#: services/webservice/pages/actions.py:915
+msgid "Mute — they can no longer send chat"
+msgstr "禁言 — 他们不能再发送聊天消息"
+
+#: services/webservice/pages/actions.py:916
+#, python-brace-format
+msgid "Mute {player} on {server}"
+msgstr "在 {server} 上禁言 {player}"
+
+#: services/webservice/pages/actions.py:917
+msgid "they can no longer send chat"
+msgstr "他们不能再发送聊天消息"
+
+#: services/webservice/pages/actions.py:919
+msgid "Unmute"
+msgstr "解除禁言"
+
+#: services/webservice/pages/actions.py:920
+msgid "Unmute — restore their chat"
+msgstr "解除禁言 — 恢复他们的聊天"
+
+#: services/webservice/pages/actions.py:921
+#, python-brace-format
+msgid "Unmute {player} on {server}"
+msgstr "在 {server} 上解除 {player} 的禁言"
+
+#: services/webservice/pages/actions.py:922
+msgid "restore their chat"
+msgstr "恢复他们的聊天"
+
+#: services/webservice/pages/actions.py:1018
+#, python-brace-format
+msgid "Restart node — every server on {node} goes down while the node restarts"
+msgstr "重启节点 — 节点重启期间 {node} 上的每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1019
+#, python-brace-format
+msgid "Restart node {node}"
+msgstr "重启节点 {node}"
+
+#: services/webservice/pages/actions.py:1020
+msgid "every server on the node goes down"
+msgstr "节点上的每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1021
+#: services/webservice/pages/actions.py:1053
+#, python-brace-format
+msgid "<b>Every server on {node} goes down with it</b> — {servers} server(s) and {players} player(s) are on it right now."
+msgstr "<b>{node} 上的每台服务器都会随之下线</b> — 目前上面有 {servers} 台服务器和 {players} 名玩家。"
+
+#: services/webservice/pages/actions.py:1023
+msgid "A node restart ends the bot process on that machine; the launcher there brings the node back, and its servers do not: they stay down until somebody starts them again."
+msgstr "重启节点会结束该机器上的机器人进程；那里的启动器会把节点带回来，但它的服务器不会：它们保持下线，直到有人重新启动它们。"
+
+#: services/webservice/pages/actions.py:1026
+msgid "<b>This console runs inside that node</b> — restarting it ends the process serving this page, and this window has to be reloaded once the node is back."
+msgstr "<b>此控制台运行在该节点内</b> — 重启它会结束服务此页面的进程，节点恢复后需要重新加载此窗口。"
+
+#: services/webservice/pages/actions.py:1029
+msgid "Restart node"
+msgstr "重启节点"
+
+#: services/webservice/pages/actions.py:1030
+#, python-brace-format
+msgid "Restart {node} — every server on it goes down"
+msgstr "重启 {node} — 其上的每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1033
+#, python-brace-format
+msgid "Shut down node — every server on {node} goes down and nothing brings it back"
+msgstr "关闭节点 — {node} 上的每台服务器都会下线，且没有任何东西能把它带回来"
+
+#: services/webservice/pages/actions.py:1034
+#, python-brace-format
+msgid "Shut down node {node}"
+msgstr "关闭节点 {node}"
+
+#: services/webservice/pages/actions.py:1035
+msgid "every server on the node goes down, for good"
+msgstr "节点上的每台服务器都会永久下线"
+
+#: services/webservice/pages/actions.py:1036
+#, python-brace-format
+msgid "<b>{servers} server(s) on {node} go down and {players} player(s) are disconnected, and nothing brings the node back.</b>"
+msgstr "<b>{node} 上的 {servers} 台服务器将下线，{players} 名玩家将被断开，且没有任何东西能把节点带回来。</b>"
+
+#: services/webservice/pages/actions.py:1038
+msgid "A node shutdown ends the bot process on that machine for good: somebody has to start the node THERE, at the machine. A node that is down cannot be started from this browser, and its servers stay down with it."
+msgstr "关闭节点会永久结束该机器上的机器人进程：必须有人在那台机器那里启动节点。已下线的节点无法从此浏览器启动，它的服务器也会随之保持下线。"
+
+#: services/webservice/pages/actions.py:1042
+msgid "<b>This console runs inside that node</b> — shutting it down ends the process serving this page, and nothing brings it back until somebody starts the node on that machine."
+msgstr "<b>此控制台运行在该节点内</b> — 关闭它会结束服务此页面的进程，在有人在那台机器上启动节点之前，没有任何东西能把它带回来。"
+
+#: services/webservice/pages/actions.py:1045
+msgid "Shut down node"
+msgstr "关闭节点"
+
+#: services/webservice/pages/actions.py:1046
+#, python-brace-format
+msgid "Shut down {node} — every server on it goes down"
+msgstr "关闭 {node} — 其上的每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1048
+msgid "Upgrade"
+msgstr "升级"
+
+#: services/webservice/pages/actions.py:1049
+#, python-brace-format
+msgid "Upgrade node — update DCSServerBot on {node} and restart it; every server on it goes down"
+msgstr "升级节点 — 更新 {node} 上的 DCSServerBot 并重启它；其上的每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1051
+#, python-brace-format
+msgid "Upgrade node {node}"
+msgstr "升级节点 {node}"
+
+#: services/webservice/pages/actions.py:1052
+msgid "update and restart, every server goes down"
+msgstr "更新并重启，每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1055
+msgid "The node is updated and restarted. The console offers Upgrade ONLY while the node itself reports an update pending — it asks every node in the background, never while rendering a page, and this control is gone again once there is nothing to upgrade."
+msgstr "节点会被更新并重启。只有当节点自身报告有更新待处理时，控制台才会提供“升级” — 它在后台询问每个节点，从不在渲染页面时询问，一旦没有可升级的内容，此控件又会消失。"
+
+#: services/webservice/pages/actions.py:1059
+msgid "<b>This console runs inside that node</b> — upgrading it ends the process serving this page, and this window has to be reloaded once the node is back."
+msgstr "<b>此控制台运行在该节点内</b> — 升级它会结束服务此页面的进程，节点恢复后需要重新加载此窗口。"
+
+#: services/webservice/pages/actions.py:1062
+msgid "Upgrade node"
+msgstr "升级节点"
+
+#: services/webservice/pages/actions.py:1063
+#, python-brace-format
+msgid "Upgrade {node} — every server on it goes down"
+msgstr "升级 {node} — 其上的每台服务器都会下线"
+
+#: services/webservice/pages/actions.py:1078
+#: services/webservice/pages/actions.py:1102
+msgid "Take servers offline"
+msgstr "让服务器下线"
+
+#: services/webservice/pages/actions.py:1081
+msgid "Also mark them as maintenance"
+msgstr "同时将它们标记为维护"
+
+#: services/webservice/pages/actions.py:1083
+msgid "On by default: without it a scheduled start can bring the servers back while the node is \"offline\"."
+msgstr "默认开启：不勾选的话，计划启动可能会在节点“离线”期间把服务器重新拉起。"
+
+#: services/webservice/pages/actions.py:1085
+#, python-brace-format
+msgid "Take the servers on {node} offline?"
+msgstr "让 {node} 上的服务器下线？"
+
+#: services/webservice/pages/actions.py:1086
+#, python-brace-format
+msgid "Take servers offline — every server on {node} that is up is marked as maintenance and stopped; its players are disconnected, while the node's services stay up"
+msgstr "让服务器下线 — {node} 上每一台正在运行的服务器都会被标记为维护并停止；其玩家会被断开，而节点的服务保持不变"
+
+#: services/webservice/pages/actions.py:1089
+#, python-brace-format
+msgid "Take the servers on {node} out of service"
+msgstr "让 {node} 上的服务器停止服务"
+
+#: services/webservice/pages/actions.py:1090
+msgid "marks the node's servers as maintenance and stops them"
+msgstr "将节点的服务器标记为维护并停止它们"
+
+#: services/webservice/pages/actions.py:1091
+#, python-brace-format
+msgid "<b>{servers} server(s) on {node} go down and {players} player(s) are disconnected.</b> The box below is ticked by default and marks those servers as maintenance — leave it ticked unless you mean to let a scheduled start bring them back while the node is \"offline\"."
+msgstr "<b>{node} 上的 {servers} 台服务器将下线，{players} 名玩家将被断开。</b>下方复选框默认勾选，会把这些服务器标记为维护 — 除非你想让计划启动在节点“离线”期间把它们带回来，否则请保持勾选。"
+
+#: services/webservice/pages/actions.py:1095
+msgid "Only the SERVERS on the node change. The node itself keeps running, so its services — including this console — stay up, and bringing the node back is a job this browser CAN do. With the box ticked the servers are flagged as maintenance before they stop, so they stay out of service until somebody ends that; clear the box and no flag is written at all — the servers stop and nothing keeps the scheduler from starting them again."
+msgstr "改变的只有该节点上的服务器。节点本身继续运行，因此它的服务 — 包括此控制台 — 保持在线，把节点带回来是此浏览器可以完成的工作。勾选复选框后，服务器在停止前会被标记为维护，因此它们会保持停止服务，直到有人结束该状态；取消勾选则不写入任何标记 — 服务器会停止，且没有任何东西阻止调度器再次启动它们。"
+
+#: services/webservice/pages/actions.py:1103
+#, python-brace-format
+msgid "Take {node} offline — {servers} server(s) go down, {players} player(s) are disconnected"
+msgstr "让 {node} 下线 — {servers} 台服务器将下线，{players} 名玩家将被断开"
+
+#: services/webservice/pages/actions.py:1110
+#: services/webservice/pages/actions.py:1126
+msgid "Bring servers online"
+msgstr "让服务器上线"
+
+#: services/webservice/pages/actions.py:1112
+#, python-brace-format
+msgid "Bring the servers on {node} back online?"
+msgstr "让 {node} 上的服务器重新上线？"
+
+#: services/webservice/pages/actions.py:1113
+msgid "Bring servers online — clear the maintenance flags this node's power-off set and start the servers it stopped; a flag set by hand is left alone"
+msgstr "让服务器上线 — 清除该节点下线时设置的维护标记，并启动它停止的服务器；手动设置的标记则保持不动"
+
+#: services/webservice/pages/actions.py:1115
+#, python-brace-format
+msgid "Bring the servers on {node} back into service"
+msgstr "让 {node} 上的服务器恢复服务"
+
+#: services/webservice/pages/actions.py:1116
+msgid "ends the maintenance this node's power-off set, and starts what it stopped"
+msgstr "结束该节点下线时设置的维护，并启动它停止的服务器"
+
+#: services/webservice/pages/actions.py:1118
+msgid "This reverts EXACTLY the last power-off on this node: it clears only the maintenance flags that operation set and starts only the servers it stopped. A flag somebody set by hand is never cleared, and a server that is still in maintenance is never started. If the bot has restarted since the power-off the record is gone, and this then starts every server that is down and not in maintenance, clearing no flag at all — the message says which of the two happened. The node's services were never touched."
+msgstr "此操作会精确地撤销该节点上一次的下线：它只清除该操作设置的维护标记，并且只启动它停止的服务器。有人手动设置的标记绝不会被清除，仍处于维护的服务器绝不会被启动。如果自那次下线以来机器人已经重启，记录就没了，此时它会启动每一台处于下线且不在维护的服务器，且不清除任何标记 — 消息会说明发生的是这两种情况中的哪一种。节点的服务从未被触碰。"
+
+#: services/webservice/pages/actions.py:1127
+#, python-brace-format
+msgid "Bring {node} online — the flags its power-off set are cleared, what it stopped is started"
+msgstr "让 {node} 上线 — 清除其下线时设置的标记，启动它停止的服务器"
+
+#: services/webservice/pages/actions.py:1698
+#, python-brace-format
+msgid "More controls for {server}"
+msgstr "{server} 的更多控件"
+
+#: services/webservice/pages/actions.py:1978
+#, python-brace-format
+msgid "Controls for node {node}"
+msgstr "节点 {node} 的控件"
+
+#: services/webservice/pages/actions.py:2174
+#, python-brace-format
+msgid "Controls for {player} on {server}"
+msgstr "{server} 上 {player} 的控件"
+
+#: services/webservice/pages/actions.py:2309
+#, python-brace-format
+msgid "{label} {target}?"
+msgstr "{label} {target}？"
+
+#: services/webservice/pages/actions.py:2362
+#: services/webservice/pages/actions.py:2459
+#: services/webservice/pages/actions.py:2614
+#: services/webservice/pages/actions.py:3989
+msgid "confirm"
+msgstr "确认"
+
+#: services/webservice/pages/actions.py:2362
+#: services/webservice/pages/actions.py:2614
+#: services/webservice/pages/actions.py:3989
+msgid "options"
+msgstr "选项"
+
+#: services/webservice/pages/actions.py:2441
+msgid "Days (optional)"
+msgstr "天数（可选）"
+
+#: services/webservice/pages/actions.py:2442
+msgid "Empty = permanent — the ban does not expire on its own. 7 means seven days from now."
+msgstr "留空 = 永久 — 封禁不会自行过期。7 表示从此刻起七天。"
+
+#: services/webservice/pages/actions.py:2590
+#, python-brace-format
+msgid "Last update check: {when}."
+msgstr "上次更新检查：{when}。"
+
+#: services/webservice/pages/actions.py:2603
+#, python-brace-format
+msgid "{label} (node)"
+msgstr "{label}（节点）"
+
+#: services/webservice/pages/actions.py:3910
+msgid "Mission file already on this server"
+msgstr "此服务器上已有的任务文件"
+
+#: services/webservice/pages/actions.py:3912
+msgid "Only files NOT already in the rotation are offered."
+msgstr "只提供尚未在轮换中的文件。"
+
+#: services/webservice/pages/actions.py:3917
+#, python-brace-format
+msgid "Add a mission to {server}?"
+msgstr "向 {server} 添加一个任务？"
+
+#: services/webservice/pages/actions.py:3944
+#: services/webservice/pages/actions.py:3969
+#, python-brace-format
+msgid "Remove {mission} from the rotation?"
+msgstr "从轮换中移除 {mission}？"
+
+#: services/webservice/pages/actions.py:3948
+#, python-brace-format
+msgid "Remove {count} missions from {server}?"
+msgstr "从 {server} 移除 {count} 个任务？"
+
+#: services/webservice/pages/actions.py:3950
+#, python-brace-format
+msgid "Remove {count} missions"
+msgstr "移除 {count} 个任务"
+
+#: services/webservice/pages/actions.py:3953
+#, python-brace-format
+msgid "<b>The running mission ({mission}) cannot be removed.</b>"
+msgstr "<b>正在运行的任务（{mission}）无法移除。</b>"
+
+#: services/webservice/pages/dashboard.py:79
+#: services/webservice/pages/dashboard.py:82
+msgid "Dashboard"
+msgstr "仪表盘"
+
+#: services/webservice/pages/dashboard.py:80
+msgid "Live state of every node, instance and server in the cluster. A server row you may operate carries its own controls."
+msgstr "集群中每个节点、实例和服务器的实时状态。你可以操作的服务器行会带有自己的控件。"
+
+#: services/webservice/pages/dashboard.py:83
+msgid "Operations"
+msgstr "运维"
+
+#: services/webservice/pages/dashboard.py:86
+#: services/webservice/templates/_state.html:23
+msgid "Cluster"
+msgstr "集群"
+
+#: services/webservice/pages/dashboard.py:169
+msgid "Nothing needs you — every node is heartbeating and no server is down."
+msgstr "一切正常 — 每个节点都在发送心跳，没有服务器下线。"
+
+#: services/webservice/pages/dashboard.py:176
+#: services/webservice/pages/server_detail.py:1382
+msgid "No players match this search."
+msgstr "没有玩家匹配此搜索。"
+
+#: services/webservice/pages/dashboard.py:333
+#, python-format
+msgid "%(count)d node(s) not heartbeating: %(names)s"
+msgstr "%(count)d 个节点未发送心跳：%(names)s"
+
+#: services/webservice/pages/dashboard.py:338
+#, python-format
+msgid "%(count)d server(s) down: %(names)s"
+msgstr "%(count)d 台服务器下线：%(names)s"
+
+#: services/webservice/pages/dashboard.py:343
+#, python-format
+msgid "%(count)d server(s) paused: %(names)s"
+msgstr "%(count)d 台服务器已暂停：%(names)s"
+
+#: services/webservice/pages/dashboard.py:348
+#, python-format
+msgid "%(count)d ERROR line(s) in the visible log"
+msgstr "可见日志中有 %(count)d 行 ERROR"
+
+#: services/webservice/pages/dashboard.py:482
+#, python-brace-format
+msgid "bottom when ≤ {rows} rows, right when more"
+msgstr "行数 ≤ {rows} 时在底部，否则在右侧"
+
+#: services/webservice/pages/dashboard.py:963
+msgid "no node"
+msgstr "无节点"
+
+#: services/webservice/pages/dashboard.py:964
+#: services/webservice/templates/_table.html:71
+msgid "master"
+msgstr "主节点"
+
+#: services/webservice/pages/dashboard.py:964
+msgid "agent"
+msgstr "代理节点"
+
+#: services/webservice/pages/dashboard.py:965
+msgid "live state"
+msgstr "实时状态"
+
+#: services/webservice/pages/dashboard.py:965
+msgid "no live state"
+msgstr "无实时状态"
+
+#: services/webservice/pages/dashboard.py:977
+#, python-format
+msgid "%(online)d/%(total)d nodes online"
+msgstr "%(online)d/%(total)d 个节点在线"
+
+#: services/webservice/pages/dashboard.py:979
+#, python-format
+msgid "%(running)d/%(total)d servers up"
+msgstr "%(running)d/%(total)d 台服务器运行中"
+
+#: services/webservice/pages/dashboard.py:981
+#, python-format
+msgid "%(count)d players online"
+msgstr "%(count)d 名玩家在线"
+
+#: services/webservice/pages/instances.py:29
+#: services/webservice/pages/instances.py:31
+#: services/webservice/readmodels/views.py:109
+#: services/webservice/readmodels/views.py:118
+msgid "Instances"
+msgstr "实例"
+
+#: services/webservice/pages/instances.py:30
+msgid "Every instance the nodes carry, with its DCS and WebGUI ports. Read-only."
+msgstr "各节点承载的每个实例，及其 DCS 和 WebGUI 端口。只读。"
+
+#: services/webservice/pages/logs.py:30 services/webservice/pages/logs.py:33
+msgid "Logs"
+msgstr "日志"
+
+#: services/webservice/pages/logs.py:31
+msgid "The bot log, full width, with the same level filter and placement as the dashboard."
+msgstr "机器人日志，全宽显示，使用与仪表盘相同的级别过滤和位置。"
+
+#: services/webservice/pages/nodes.py:103
+#: services/webservice/pages/nodes.py:107
+#: services/webservice/readmodels/views.py:118
+msgid "Nodes"
+msgstr "节点"
+
+#: services/webservice/pages/nodes.py:104
+msgid "Every node in the cluster, with the instances and servers it carries. Acting on a node takes every server on it down with it, so check the servers before you act."
+msgstr "集群中的每个节点，及其承载的实例和服务器。对节点执行操作会使其上的每台服务器一同下线，因此操作前请先检查服务器。"
+
+#: services/webservice/pages/nodes.py:166
+msgid "Download log"
+msgstr "下载日志"
+
+#: services/webservice/pages/nodes.py:169
+#, python-brace-format
+msgid "Download log — hand over {node}'s own bot log file as a download"
+msgstr "下载日志 — 将 {node} 自身的机器人日志文件作为下载交付"
+
+#: services/webservice/pages/nodes.py:171
+#, python-brace-format
+msgid "Download the bot log of node {node}"
+msgstr "下载节点 {node} 的机器人日志"
+
+#: services/webservice/pages/players.py:31
+#: services/webservice/pages/players.py:34
+#: services/webservice/pages/server_detail.py:185
+#: services/webservice/readmodels/views.py:108
+#: services/webservice/readmodels/views.py:110
+#: services/webservice/readmodels/views.py:118
+msgid "Players"
+msgstr "玩家"
+
+#: services/webservice/pages/players.py:32
+msgid "Everyone online right now, across every server. Search by name or UCID. A row you may act on offers Message: an in-game popup or a chat line."
+msgstr "当前所有服务器上在线的每一个人。可按名称或 UCID 搜索。你可以操作的行会提供“消息”：游戏内弹窗或聊天消息。"
+
+#: services/webservice/pages/server_detail.py:141
+msgid "The Events tab is only offered while the debug plugin is active for this server."
+msgstr "只有当此服务器的调试插件处于活动状态时，才会提供“事件”标签页。"
+
+#: services/webservice/pages/server_detail.py:185
+#: services/webservice/templates/server_detail.html:665
+msgid "Overview"
+msgstr "概览"
+
+#: services/webservice/pages/server_detail.py:185
+#: services/webservice/templates/server_detail.html:411
+#: services/webservice/templates/server_detail.html:620
+msgid "Missions"
+msgstr "任务"
+
+#: services/webservice/pages/server_detail.py:186
+msgid "Log"
+msgstr "日志"
+
+#: services/webservice/pages/server_detail.py:186
+#: services/webservice/templates/server_detail.html:660
+msgid "Events"
+msgstr "事件"
+
+#: services/webservice/pages/server_detail.py:186
+msgid "Configuration"
+msgstr "配置"
+
+#: services/webservice/pages/server_detail.py:572
+#, python-brace-format
+msgid "Node '{node}' is offline or unknown, so its log cannot be read from this console."
+msgstr "节点 '{node}' 离线或未知，因此无法从此控制台读取其日志。"
+
+#: services/webservice/pages/server_detail.py:577
+#, python-brace-format
+msgid "Node '{node}' cannot read this server's log file (permission denied)."
+msgstr "节点 '{node}' 无法读取此服务器的日志文件（权限不足）。"
+
+#: services/webservice/pages/server_detail.py:579
+#, python-brace-format
+msgid "Node '{node}' did not answer in time, so the log was not read."
+msgstr "节点 '{node}' 未及时响应，因此未读取日志。"
+
+#: services/webservice/pages/server_detail.py:580
+#, python-brace-format
+msgid "Node '{node}' could not hand over the log ({error})."
+msgstr "节点 '{node}' 无法交出日志（{error}）。"
+
+#: services/webservice/pages/server_detail.py:581
+#, python-brace-format
+msgid "Node '{node}' answered with a failure code instead of the log."
+msgstr "节点 '{node}' 以一个失败代码回应，而不是日志。"
+
+#: services/webservice/pages/server_detail.py:584
+#, python-brace-format
+msgid "No log directory yet for this server (looked for '{directory}' on node '{node}')."
+msgstr "此服务器尚无日志目录（已在节点 '{node}' 上查找 '{directory}'）。"
+
+#: services/webservice/pages/server_detail.py:586
+#, python-brace-format
+msgid "Node '{node}' cannot list this server's log directory (permission denied)."
+msgstr "节点 '{node}' 无法列出此服务器的日志目录（权限不足）。"
+
+#: services/webservice/pages/server_detail.py:588
+#, python-brace-format
+msgid "Node '{node}' did not answer in time, so the log files were not listed."
+msgstr "节点 '{node}' 未及时响应，因此未列出日志文件。"
+
+#: services/webservice/pages/server_detail.py:590
+#, python-brace-format
+msgid "Node '{node}' could not list the log files ({error})."
+msgstr "节点 '{node}' 无法列出日志文件（{error}）。"
+
+#: services/webservice/pages/server_detail.py:957
+msgid "An offset or a behind position is required."
+msgstr "需要提供 offset 或 behind 位置。"
+
+#: services/webservice/pages/server_detail.py:982
+msgid "The offset must be a non-negative whole number."
+msgstr "offset 必须是非负整数。"
+
+#: services/webservice/pages/server_detail.py:1001
+msgid "The behind position must be a non-negative whole number."
+msgstr "behind 位置必须是非负整数。"
+
+#: services/webservice/pages/server_detail.py:1289
+#, python-format
+msgid "server %(name)s"
+msgstr "服务器 %(name)s"
+
+#: services/webservice/pages/server_detail.py:1394
+msgid "The mission list could not be read."
+msgstr "无法读取任务列表。"
+
+#: services/webservice/pages/servers.py:29
+#: services/webservice/pages/servers.py:32
+#: services/webservice/readmodels/views.py:110
+#: services/webservice/readmodels/views.py:118
+msgid "Servers"
+msgstr "服务器"
+
+#: services/webservice/pages/servers.py:30
+msgid "Every server on every node, in full. A row you may operate carries its controls on the row; acting on one affects that server alone."
+msgstr "每个节点上的每台服务器，完整呈现。你可以操作的行会把控件带在行上；对其中一台执行操作只影响该服务器。"
+
+#: services/webservice/readmodels/dcslog.py:64
+#, python-brace-format
+msgid "No log file yet for this server (looked for '{path}' on node '{node}')."
+msgstr "此服务器尚无日志文件（已在节点 '{node}' 上查找 '{path}'）。"
+
+#: services/webservice/readmodels/dcslog.py:69
+msgid "The log restarted while loading older lines — the lines shown are from the previous file."
+msgstr "加载更早的行时日志已重启 — 显示的行来自上一个文件。"
+
+#: services/webservice/readmodels/logtail.py:72
+msgid "INFO+"
+msgstr "INFO+"
+
+#: services/webservice/readmodels/logtail.py:72
+msgid "WARNING+"
+msgstr "警告+"
+
+#: services/webservice/readmodels/logtail.py:72
+msgid "ALL"
+msgstr "全部"
+
+#: services/webservice/readmodels/model.py:50
+msgid "RUNNING"
+msgstr "运行中"
+
+#: services/webservice/readmodels/model.py:51
+msgid "PAUSED"
+msgstr "已暂停"
+
+#: services/webservice/readmodels/model.py:52
+msgid "STOPPED"
+msgstr "已停止"
+
+#: services/webservice/readmodels/model.py:53
+#: services/webservice/readmodels/model.py:54
+#: services/webservice/readmodels/model.py:55
+msgid "SHUTDOWN"
+msgstr "已关闭"
+
+#: services/webservice/readmodels/model.py:56
+msgid "LOADING"
+msgstr "加载中"
+
+#: services/webservice/readmodels/model.py:60
+msgid "UNKNOWN"
+msgstr "未知"
+
+#: services/webservice/readmodels/model.py:69
+msgid "Live state is not available yet. The bot is still starting up."
+msgstr "实时状态尚不可用。机器人仍在启动中。"
+
+#: services/webservice/readmodels/model.py:70
+msgid "No servers are registered on this cluster."
+msgstr "此集群上没有注册任何服务器。"
+
+#: services/webservice/readmodels/model.py:76
+msgid "This view shows only the servers your roles manage, and none of them are here. An administrator can add your role to a server's managed_by if you should be seeing one."
+msgstr "此视图只显示你的角色所管理的服务器，而这里一台都没有。如果你本应看到某台服务器，管理员可以把你的角色加入该服务器的 managed_by。"
+
+#: services/webservice/readmodels/model.py:79
+msgid "No players are online right now."
+msgstr "目前没有玩家在线。"
+
+#: services/webservice/readmodels/model.py:80
+msgid "No nodes are registered."
+msgstr "没有注册任何节点。"
+
+#: services/webservice/readmodels/model.py:81
+msgid "No instances are configured."
+msgstr "没有配置任何实例。"
+
+#: services/webservice/readmodels/model.py:82
+msgid "No instances on this node."
+msgstr "此节点上没有实例。"
+
+#: services/webservice/readmodels/model.py:83
+msgid "The bot log file is not available yet."
+msgstr "机器人日志文件尚不可用。"
+
+#: services/webservice/readmodels/model.py:84
+msgid "The bot log file is empty."
+msgstr "机器人日志文件为空。"
+
+#: services/webservice/readmodels/model.py:86
+msgid "No log lines match the selected level."
+msgstr "没有日志行匹配所选级别。"
+
+#: services/webservice/readmodels/serverconfig.py:98
+msgid "Identity & access"
+msgstr "身份与访问"
+
+#: services/webservice/readmodels/serverconfig.py:99
+msgid "Server behaviour"
+msgstr "服务器行为"
+
+#: services/webservice/readmodels/serverconfig.py:100
+msgid "Requirements"
+msgstr "要求"
+
+#: services/webservice/readmodels/serverconfig.py:101
+msgid "Restrictions"
+msgstr "限制"
+
+#: services/webservice/readmodels/serverconfig.py:102
+msgid "Anti-cheat"
+msgstr "反作弊"
+
+#: services/webservice/readmodels/serverconfig.py:103
+#: services/webservice/templates/server_detail.html:275
+msgid "Discord channels"
+msgstr "Discord 频道"
+
+#: services/webservice/readmodels/serverconfig.py:104
+msgid "Mission list — owned by a feature of its own"
+msgstr "任务列表 — 由专属功能拥有"
+
+#: services/webservice/readmodels/serverconfig.py:105
+#: services/webservice/templates/server_detail.html:329
+msgid "Coalition passwords"
+msgstr "阵营密码"
+
+#: services/webservice/readmodels/serverconfig.py:141
+msgid "A channel change is applied immediately: the bot rewrites servers.yaml and starts using the new channel at once, with no restart."
+msgstr "频道更改会立即生效：机器人会改写 servers.yaml 并立刻开始使用新频道，无需重启。"
+
+#: services/webservice/readmodels/serverconfig.py:220
+msgid "Server name"
+msgstr "服务器名称"
+
+#: services/webservice/readmodels/serverconfig.py:221
+msgid "Renamed by the bot, not by the file: a rename moves the server (its instance folder and its servers.yaml entry) and rewrites the channel names and messages that carry the old name."
+msgstr "由机器人而非文件来重命名：重命名会移动服务器（其实例文件夹及其 servers.yaml 条目），并改写带有旧名称的频道名称和消息。"
+
+#: services/webservice/readmodels/serverconfig.py:224
+msgid "Description"
+msgstr "描述"
+
+#: services/webservice/readmodels/serverconfig.py:225
+msgid "A brief description, shown in /status and in the server list. The Discord editor allows up to 2000 characters."
+msgstr "一段简短描述，显示在 /status 和服务器列表中。Discord 编辑器最多允许 2000 个字符。"
+
+#: services/webservice/readmodels/serverconfig.py:227
+msgid "Server port"
+msgstr "服务器端口"
+
+#: services/webservice/readmodels/serverconfig.py:228
+msgid "The UDP port DCS listens on. The Discord editor takes a 5-digit value here. A port another server on this node already uses is refused, naming it."
+msgstr "DCS 监听的 UDP 端口。Discord 编辑器在此处接受 5 位数值。若该端口已被此节点上的另一台服务器使用，则会被拒绝，并指出该服务器。"
+
+#: services/webservice/readmodels/serverconfig.py:231
+#: services/webservice/templates/login.html:130
+msgid "Password"
+msgstr "密码"
+
+#: services/webservice/readmodels/serverconfig.py:232
+msgid "The DCS password a client needs to join. The field shows the stored password: leave it as it is to keep it, empty it to remove it, type in it to set a new one."
+msgstr "客户端加入所需的 DCS 密码。该字段显示已存储的密码：保持不变即可保留，清空即可移除，输入即可设置新密码。"
+
+#: services/webservice/readmodels/serverconfig.py:235
+msgid "Maximum number of players"
+msgstr "最大玩家数"
+
+#: services/webservice/readmodels/serverconfig.py:236
+msgid "The slot count DCS advertises. The Discord editor takes up to three digits here, which is where the 999 ceiling comes from."
+msgstr "DCS 公布的席位数。Discord 编辑器在此处最多接受三位数字，这就是 999 上限的由来。"
+
+#: services/webservice/readmodels/serverconfig.py:238
+msgid "Public server"
+msgstr "公开服务器"
+
+#: services/webservice/readmodels/serverconfig.py:239
+msgid "Lists the server in the public DCS server browser."
+msgstr "将服务器列入公开的 DCS 服务器浏览器。"
+
+#: services/webservice/readmodels/serverconfig.py:240
+msgid "Resume mode"
+msgstr "恢复模式"
+
+#: services/webservice/readmodels/serverconfig.py:241
+msgid "What DCS does when the last client leaves and when a mission loads."
+msgstr "当最后一个客户端离开以及载入任务时，DCS 的行为。"
+
+#: services/webservice/readmodels/serverconfig.py:243
+msgid "Maximum allowed ping"
+msgstr "允许的最大延迟"
+
+#: services/webservice/readmodels/serverconfig.py:244
+msgid "Values above 300 tend to cause lags / desyncs (the editor's own words). 0 turns the check off."
+msgstr "高于 300 的数值往往会导致卡顿/失步（编辑器自己的说法）。0 表示关闭该检查。"
+
+#: services/webservice/readmodels/serverconfig.py:246
+msgid "Server can screenshot"
+msgstr "服务器可以截图"
+
+#: services/webservice/readmodels/serverconfig.py:247
+msgid "Lets the server take screenshots (used by plugins that ask a client for a picture)."
+msgstr "允许服务器截图（供那些向客户端索取图片的插件使用）。"
+
+#: services/webservice/readmodels/serverconfig.py:249
+msgid "Allow trial-only clients"
+msgstr "允许仅有试用版的客户端"
+
+#: services/webservice/readmodels/serverconfig.py:250
+msgid "Clients that own no module may still join."
+msgstr "不拥有任何模组的客户端仍可加入。"
+
+#: services/webservice/readmodels/serverconfig.py:251
+msgid "Require pure clients"
+msgstr "要求纯净客户端"
+
+#: services/webservice/readmodels/serverconfig.py:252
+msgid "A client with any modification is refused at join."
+msgstr "加入时拒绝任何经过修改的客户端。"
+
+#: services/webservice/readmodels/serverconfig.py:253
+msgid "Require pure scripts"
+msgstr "要求纯净脚本"
+
+#: services/webservice/readmodels/serverconfig.py:254
+msgid "Modified mission scripts are refused."
+msgstr "拒绝经过修改的任务脚本。"
+
+#: services/webservice/readmodels/serverconfig.py:255
+msgid "Require pure models"
+msgstr "要求纯净模型"
+
+#: services/webservice/readmodels/serverconfig.py:256
+msgid "Modified 3D models are refused."
+msgstr "拒绝经过修改的 3D 模型。"
+
+#: services/webservice/readmodels/serverconfig.py:257
+msgid "Require pure textures"
+msgstr "要求纯净贴图"
+
+#: services/webservice/readmodels/serverconfig.py:258
+msgid "Modified textures are refused."
+msgstr "拒绝经过修改的贴图。"
+
+#: services/webservice/readmodels/serverconfig.py:259
+msgid "Allow change tail number"
+msgstr "允许更改机身编号"
+
+#: services/webservice/readmodels/serverconfig.py:260
+msgid "Players may repaint their tail number in the cockpit."
+msgstr "玩家可以在座舱内重新涂装他们的机身编号。"
+
+#: services/webservice/readmodels/serverconfig.py:261
+msgid "Allow dynamic radio"
+msgstr "允许动态无线电"
+
+#: services/webservice/readmodels/serverconfig.py:262
+msgid "Players may tune any radio channel, not only the mission's presets."
+msgstr "玩家可以调到任意无线电频道，而不仅是任务的预设频道。"
+
+#: services/webservice/readmodels/serverconfig.py:264
+msgid "Allow change skin"
+msgstr "允许更改涂装"
+
+#: services/webservice/readmodels/serverconfig.py:265
+msgid "Players may pick another livery for their aircraft."
+msgstr "玩家可以为自己的飞机挑选另一套涂装。"
+
+#: services/webservice/readmodels/serverconfig.py:266
+msgid "Allow object export"
+msgstr "允许对象导出"
+
+#: services/webservice/readmodels/serverconfig.py:267
+msgid "DCS's export switch for third-party tooling that reads the mission state."
+msgstr "DCS 的导出开关，供读取任务状态的第三方工具使用。"
+
+#: services/webservice/readmodels/serverconfig.py:269
+msgid "Allow sensor export"
+msgstr "允许传感器导出"
+
+#: services/webservice/readmodels/serverconfig.py:270
+msgid "DCS's export switch for sensor data."
+msgstr "DCS 的传感器数据导出开关。"
+
+#: services/webservice/readmodels/serverconfig.py:271
+msgid "Allow ownship export"
+msgstr "允许本机导出"
+
+#: services/webservice/readmodels/serverconfig.py:272
+msgid "DCS's export switch for the player's own aircraft."
+msgstr "DCS 的玩家本机导出开关。"
+
+#: services/webservice/readmodels/serverconfig.py:273
+msgid "Allow players pool"
+msgstr "允许玩家池"
+
+#: services/webservice/readmodels/serverconfig.py:274
+msgid "Players nobody slots are held in a pool instead of leaving."
+msgstr "没有分配到席位的玩家会被保留在池中，而不是离开。"
+
+#: services/webservice/readmodels/serverconfig.py:275
+msgid "Disable all events"
+msgstr "禁用所有事件"
+
+#: services/webservice/readmodels/serverconfig.py:276
+msgid "Turns DCS's own mission events off. The bot's event-driven plugins see nothing while it is on."
+msgstr "关闭 DCS 自身的任务事件。启用期间，机器人的事件驱动插件什么也看不到。"
+
+#: services/webservice/readmodels/serverconfig.py:319
+msgid "Blue coalition password"
+msgstr "蓝方阵营密码"
+
+#: services/webservice/readmodels/serverconfig.py:320
+msgid "The password a client picks to join the blue side. The bot stores it and asks DCS to apply it."
+msgstr "客户端加入蓝方时选择的密码。机器人会存储它并要求 DCS 应用它。"
+
+#: services/webservice/readmodels/serverconfig.py:321
+msgid "Red coalition password"
+msgstr "红方阵营密码"
+
+#: services/webservice/readmodels/serverconfig.py:322
+msgid "The password a client picks to join the red side. The bot stores it and asks DCS to apply it."
+msgstr "客户端加入红方时选择的密码。机器人会存储它并要求 DCS 应用它。"
+
+#: services/webservice/readmodels/serverconfig.py:345
+msgid "A password is set outside DCSServerBot — the bot knows only its hash. Type a new one to replace it."
+msgstr "密码是在 DCSServerBot 之外设置的 — 机器人只知道它的哈希值。输入新密码即可替换它。"
+
+#: services/webservice/readmodels/serverconfig.py:350
+msgid "The bot knows this password but DCS currently carries no hash for it — saving here sets it in DCS too."
+msgstr "机器人知道此密码，但 DCS 目前没有它的哈希值 — 在此处保存也会在 DCS 中设置它。"
+
+#: services/webservice/readmodels/serverconfig.py:797
+msgid "Admin channel"
+msgstr "管理频道"
+
+#: services/webservice/readmodels/serverconfig.py:798
+msgid "The channel where admin commands for this server are accepted."
+msgstr "接受此服务器管理命令的频道。"
+
+#: services/webservice/readmodels/serverconfig.py:799
+msgid "Status channel"
+msgstr "状态频道"
+
+#: services/webservice/readmodels/serverconfig.py:800
+msgid "Where the bot posts joins, leaves and mission changes."
+msgstr "机器人发布加入、离开和任务变更的地方。"
+
+#: services/webservice/readmodels/serverconfig.py:801
+msgid "Chat channel"
+msgstr "聊天频道"
+
+#: services/webservice/readmodels/serverconfig.py:801
+msgid "Relays in-game chat. Not set means the bot relays nowhere."
+msgstr "转发游戏内聊天。未设置表示机器人不转发到任何地方。"
+
+#: services/webservice/readmodels/views.py:86
+msgid "ascending"
+msgstr "升序"
+
+#: services/webservice/readmodels/views.py:86
+msgid "descending"
+msgstr "降序"
+
+#: services/webservice/readmodels/views.py:106
+#: services/webservice/readmodels/views.py:111
+#: services/webservice/readmodels/views.py:113
+#: services/webservice/templates/server_detail.html:111
+msgid "Server"
+msgstr "服务器"
+
+#: services/webservice/readmodels/views.py:106
+#: services/webservice/readmodels/views.py:109
+#: services/webservice/readmodels/views.py:111
+#: services/webservice/templates/server_detail.html:64
+msgid "Node"
+msgstr "节点"
+
+#: services/webservice/readmodels/views.py:106
+msgid "Status"
+msgstr "状态"
+
+#: services/webservice/readmodels/views.py:107
+msgid "Mission"
+msgstr "任务"
+
+#: services/webservice/readmodels/views.py:107
+msgid "Elapsed"
+msgstr "已运行"
+
+#: services/webservice/readmodels/views.py:111
+msgid "Instance"
+msgstr "实例"
+
+#: services/webservice/readmodels/views.py:112
+msgid "DCS port"
+msgstr "DCS 端口"
+
+#: services/webservice/readmodels/views.py:112
+msgid "WebGUI port"
+msgstr "WebGUI 端口"
+
+#: services/webservice/readmodels/views.py:113
+msgid "Player"
+msgstr "玩家"
+
+#: services/webservice/readmodels/views.py:113
+msgid "UCID"
+msgstr "UCID"
+
+#: services/webservice/readmodels/views.py:114
+msgid "Slot"
+msgstr "席位"
+
+#: services/webservice/templates/_language.html:24
+msgid "Language"
+msgstr "语言"
+
+#: services/webservice/templates/_log_card.html:16
+msgid "Recent log"
+msgstr "最近的日志"
+
+#: services/webservice/templates/_log_card.html:19
+msgid "Follow: newest"
+msgstr "跟随：最新"
+
+#: services/webservice/templates/_log_card.html:24
+#, python-format
+msgid "Shown: %(level)s and up"
+msgstr "显示：%(level)s 及以上"
+
+#: services/webservice/templates/_log_card.html:24
+#, python-format
+msgid "log position <b>%(position)s</b> — longest list %(rows)s row(s), rule \"%(rule)s\""
+msgstr "日志位置 <b>%(position)s</b> — 最长列表 %(rows)s 行，规则 \"%(rule)s\""
+
+#: services/webservice/templates/_notice.html:23
+msgid "The audit entry for this action could not be recorded — see the bot log."
+msgstr "无法记录此操作的审计条目 — 请查看机器人日志。"
+
+#: services/webservice/templates/_strip.html:92
+msgid "More controls"
+msgstr "更多控件"
+
+#: services/webservice/templates/_table.html:43
+#, python-format
+msgid "Sorted by %(label)s, %(direction)s"
+msgstr "按 %(label)s 排序，%(direction)s"
+
+#: services/webservice/templates/_table.html:44
+msgid "actions"
+msgstr "操作"
+
+#: services/webservice/templates/_table.html:44
+#: services/webservice/templates/server_detail.html:620
+msgid "read-only"
+msgstr "只读"
+
+#: services/webservice/templates/_table.html:48
+msgid "Search players"
+msgstr "搜索玩家"
+
+#: services/webservice/templates/_table.html:49
+msgid "name or UCID, e.g. Viper-1 or 4b1f9c22"
+msgstr "名称或 UCID，例如 Viper-1 或 4b1f9c22"
+
+#: services/webservice/templates/_table.html:51
+msgid "Search"
+msgstr "搜索"
+
+#: services/webservice/templates/_table.html:52
+#: services/webservice/templates/server_detail.html:439
+msgid "Clear"
+msgstr "清除"
+
+#: services/webservice/templates/_table.html:54
+#, python-format
+msgid "Filter: name or UCID contains %(query)s · %(filtered)s of %(total)s players"
+msgstr "过滤：名称或 UCID 包含 %(query)s · %(total)s 名玩家中有 %(filtered)s 名"
+
+#: services/webservice/templates/_table.html:54
+msgid "clear"
+msgstr "清除"
+
+#: services/webservice/templates/_table.html:54
+#, python-format
+msgid "%(count)s player(s) online"
+msgstr "%(count)s 名玩家在线"
+
+#: services/webservice/templates/_table.html:62
+#, python-format
+msgid "Sorted by %(label)s, %(here)s — click to sort %(next)s"
+msgstr "按 %(label)s 排序，%(here)s — 点击按 %(next)s 排序"
+
+#: services/webservice/templates/_table.html:62
+#, python-format
+msgid "Sort by %(label)s, %(next)s"
+msgstr "按 %(label)s 排序，%(next)s"
+
+#: services/webservice/templates/_table.html:63
+msgid "Actions"
+msgstr "操作"
+
+#: services/webservice/templates/_table.html:68
+#: services/webservice/templates/server_detail.html:107
+#: services/webservice/templates/server_detail.html:668
+msgid "node"
+msgstr "节点"
+
+#: services/webservice/templates/_table.html:68
+#: services/webservice/templates/server_detail.html:107
+#: services/webservice/templates/server_detail.html:668
+msgid "instance"
+msgstr "实例"
+
+#: services/webservice/templates/_table.html:68
+#: services/webservice/templates/server_detail.html:107
+#: services/webservice/templates/server_detail.html:670
+msgid "maintenance"
+msgstr "维护"
+
+#: services/webservice/templates/_table.html:68
+#, python-format
+msgid "%(count)s player(s)"
+msgstr "%(count)s 名玩家"
+
+#: services/webservice/templates/_table.html:71
+msgid "online"
+msgstr "在线"
+
+#: services/webservice/templates/_table.html:71
+msgid "offline"
+msgstr "离线"
+
+#: services/webservice/templates/base.html:47
+#: services/webservice/templates/login.html:40
+msgid "Admin Console"
+msgstr "管理控制台"
+
+#: services/webservice/templates/base.html:99
+msgid "Sign out"
+msgstr "退出登录"
+
+#: services/webservice/templates/confirm.html:112
+msgid "Selected missions"
+msgstr "已选任务"
+
+#: services/webservice/templates/confirm.html:131
+#, python-format
+msgid "Confirming: %(go)s."
+msgstr "确认：%(go)s。"
+
+#: services/webservice/templates/confirm.html:146
+#, python-format
+msgid "Target: <span class=\"target\">%(target)s</span> — the action and your name are written to the bot log, and it cannot be undone from here."
+msgstr "目标：<span class=\"target\">%(target)s</span> — 该操作和你的名字会写入机器人日志，且无法在此撤销。"
+
+#: services/webservice/templates/confirm.html:148
+#, python-format
+msgid "Target: <span class=\"target\">%(target)s</span> — the action and your name are written to the bot log."
+msgstr "目标：<span class=\"target\">%(target)s</span> — 该操作和你的名字会写入机器人日志。"
+
+#: services/webservice/templates/confirm.html:164
+msgid "Cancel — go back without doing anything (Esc)"
+msgstr "取消 — 什么都不做直接返回（Esc）"
+
+#: services/webservice/templates/confirm.html:164
+msgid "Cancel"
+msgstr "取消"
+
+#: services/webservice/templates/dashboard.html:36
+#: services/webservice/templates/logs.html:18
+msgid "Live updates: unavailable"
+msgstr "实时更新：不可用"
+
+#: services/webservice/templates/login.html:27
+#: services/webservice/templates/login.html:60
+#: services/webservice/templates/login.html:133
+msgid "Sign in"
+msgstr "登录"
+
+#: services/webservice/templates/login.html:72
+msgid "No sign-in method is configured"
+msgstr "未配置任何登录方式"
+
+#: services/webservice/templates/login.html:74
+msgid "A username and password sign-in or Discord sign-in must be enabled before anyone can use this console. An operator can turn one on in"
+msgstr "在任何人能使用此控制台之前，必须先启用用户名密码登录或 Discord 登录。运维人员可以在以下位置开启其一："
+
+#: services/webservice/templates/login.html:76
+msgid "for a local account, or"
+msgstr "用于本地账户，或在"
+
+#: services/webservice/templates/login.html:77
+msgid "for Discord."
+msgstr "用于 Discord。"
+
+#: services/webservice/templates/login.html:83
+msgid "Signing out of Discord does not sign you out here, and vice versa — this console has its own session."
+msgstr "退出 Discord 不会让你在这里退出登录，反之亦然 — 此控制台有自己的会话。"
+
+#: services/webservice/templates/login.html:85
+msgid "This console has its own session. Your roles on the Discord server decide what you can see here."
+msgstr "此控制台有自己的会话。你在 Discord 服务器上的角色决定你能在这里看到什么。"
+
+#: services/webservice/templates/login.html:87
+msgid "Sign in with the account configured for this console."
+msgstr "使用为此控制台配置的账户登录。"
+
+#: services/webservice/templates/login.html:95
+msgid "recommended"
+msgstr "推荐"
+
+#: services/webservice/templates/login.html:107
+msgid "Your roles on this server decide what you see here. Nothing else is configured for you."
+msgstr "你在此服务器上的角色决定你能在这里看到什么。没有为你配置其他任何东西。"
+
+#: services/webservice/templates/login.html:109
+msgid "Goes to"
+msgstr "指向"
+
+#: services/webservice/templates/login.html:110
+msgid "Scopes"
+msgstr "权限范围"
+
+#: services/webservice/templates/login.html:111
+msgid "Bot token in the browser"
+msgstr "浏览器中的机器人令牌"
+
+#: services/webservice/templates/login.html:111
+msgid "no"
+msgstr "否"
+
+#: services/webservice/templates/login.html:120
+msgid "Local account"
+msgstr "本地账户"
+
+#: services/webservice/templates/login.html:121
+msgid "fallback"
+msgstr "备用"
+
+#: services/webservice/templates/login.html:127
+msgid "Username"
+msgstr "用户名"
+
+#: services/webservice/templates/login.html:136
+msgid "For installs without a Discord bot, and for the day the OAuth app or the role config is the thing that broke."
+msgstr "用于没有 Discord 机器人的安装，以及 OAuth 应用或角色配置出问题的那一天。"
+
+#: services/webservice/templates/login.html:146
+msgid "DCSServerBot Admin · not sure which to use? Discord — it is how accounts are made here."
+msgstr "DCSServerBot 管理 · 不确定用哪个？Discord — 这里的账户就是这样创建的。"
+
+#: services/webservice/templates/server_detail.html:72
+msgid "Log files"
+msgstr "日志文件"
+
+#: services/webservice/templates/server_detail.html:72
+msgid "download"
+msgstr "下载"
+
+#: services/webservice/templates/server_detail.html:80
+msgid "Log file"
+msgstr "日志文件"
+
+#: services/webservice/templates/server_detail.html:80
+msgid "Choose a file to download."
+msgstr "选择要下载的文件。"
+
+#: services/webservice/templates/server_detail.html:82
+msgid "Log file to download"
+msgstr "要下载的日志文件"
+
+#: services/webservice/templates/server_detail.html:87
+msgid "Download"
+msgstr "下载"
+
+#: services/webservice/templates/server_detail.html:92
+msgid "No log files are in this server's log directory yet."
+msgstr "此服务器的日志目录中尚无日志文件。"
+
+#: services/webservice/templates/server_detail.html:107
+#: services/webservice/templates/server_detail.html:668
+msgid "port"
+msgstr "端口"
+
+#: services/webservice/templates/server_detail.html:127
+msgid "0 — always run"
+msgstr "0 — 始终运行"
+
+#: services/webservice/templates/server_detail.html:127
+msgid "1 — always pause"
+msgstr "1 — 始终暂停"
+
+#: services/webservice/templates/server_detail.html:128
+msgid "2 — pause without clients"
+msgstr "2 — 无客户端时暂停"
+
+#: services/webservice/templates/server_detail.html:130
+msgid "Configuration — the DCS face"
+msgstr "配置 — DCS 界面"
+
+#: services/webservice/templates/server_detail.html:133
+msgid "Read from the master's in-process snapshot: no file is opened and no node is asked on this render."
+msgstr "从主节点进程内的快照读取：本次渲染不打开任何文件，也不询问任何节点。"
+
+#: services/webservice/templates/server_detail.html:133
+#, python-format
+msgid "Pinned by <b>servers.yaml</b>: %(names)s. A change updates both places."
+msgstr "由 <b>servers.yaml</b> 固定：%(names)s。更改会同时更新两处。"
+
+#: services/webservice/templates/server_detail.html:141
+msgid "Every write is a write: Revert re-submits the previous values through the same action — audited, validated and locked like any change."
+msgstr "每次写入都是写入：“还原”会通过同一操作重新提交先前的值 — 与任何更改一样经过审计、验证和加锁。"
+
+#: services/webservice/templates/server_detail.html:142
+msgid "Revert"
+msgstr "还原"
+
+#: services/webservice/templates/server_detail.html:151
+msgid "Read-only."
+msgstr "只读。"
+
+#: services/webservice/templates/server_detail.html:151
+msgid "The write action is not available in this installation (the <span class=\"mono\">scheduler</span> plugin is not loaded), so there is no Save here."
+msgstr "此安装中不提供写入操作（未加载 <span class=\"mono\">scheduler</span> 插件），因此这里没有“保存”。"
+
+#: services/webservice/templates/server_detail.html:161
+msgid "editable"
+msgstr "可编辑"
+
+#: services/webservice/templates/server_detail.html:167
+msgid "also pinned in servers.yaml — a change updates both"
+msgstr "也固定在 servers.yaml 中 — 更改会同时更新两处"
+
+#: services/webservice/templates/server_detail.html:182
+msgid "Leave it to keep the password, empty it to remove it, type in it to set a new one. Its value is never shown here."
+msgstr "保持不变即可保留密码，清空即可移除，输入即可设置新密码。其值绝不在此处显示。"
+
+#: services/webservice/templates/server_detail.html:218
+msgid "off"
+msgstr "关"
+
+#: services/webservice/templates/server_detail.html:231
+msgid "— unchanged —"
+msgstr "— 未更改 —"
+
+#: services/webservice/templates/server_detail.html:245
+msgid "Save writes the file — the change applies when the server next starts."
+msgstr "“保存”会写入文件 — 更改在服务器下次启动时生效。"
+
+#: services/webservice/templates/server_detail.html:245
+msgid "DCS reads <span class=\"mono\">serverSettings.lua</span> at boot, so nothing is applied live here. Only the fields you change are submitted."
+msgstr "DCS 在启动时读取 <span class=\"mono\">serverSettings.lua</span>，因此这里不会实时应用任何内容。只会提交你更改的字段。"
+
+#: services/webservice/templates/server_detail.html:251
+#: services/webservice/templates/server_detail.html:360
+msgid "The write action is not available in this installation."
+msgstr "此安装中不提供写入操作。"
+
+#: services/webservice/templates/server_detail.html:251
+msgid "Save"
+msgstr "保存"
+
+#: services/webservice/templates/server_detail.html:276
+msgid "bot face — servers.yaml"
+msgstr "机器人界面 — servers.yaml"
+
+#: services/webservice/templates/server_detail.html:278
+msgid "The one part of this page that does not live in <span class=\"mono\">serverSettings.lua</span>: these are the <span class=\"mono\">servers.yaml</span> face, written through the bot's own <span class=\"mono\">Server.update_channels</span>. Pick a channel per row; only the rows you change are submitted."
+msgstr "此页面中唯一不存放在 <span class=\"mono\">serverSettings.lua</span> 里的部分：这些是 <span class=\"mono\">servers.yaml</span> 界面，通过机器人自己的 <span class=\"mono\">Server.update_channels</span> 写入。每行选择一个频道；只会提交你更改的行。"
+
+#: services/webservice/templates/server_detail.html:285
+msgid "required"
+msgstr "必填"
+
+#: services/webservice/templates/server_detail.html:285
+msgid "optional"
+msgstr "可选"
+
+#: services/webservice/templates/server_detail.html:298
+msgid "(not in this guild)"
+msgstr "（不在此服务器组中）"
+
+#: services/webservice/templates/server_detail.html:299
+msgid "— not set —"
+msgstr "— 未设置 —"
+
+#: services/webservice/templates/server_detail.html:305
+msgid "Channel changes apply immediately."
+msgstr "频道更改会立即生效。"
+
+#: services/webservice/templates/server_detail.html:305
+msgid "Read from the master's in-process Discord connection: no node is asked and no Discord API call is made on this render."
+msgstr "从主节点进程内的 Discord 连接读取：本次渲染不询问任何节点，也不发起任何 Discord API 调用。"
+
+#: services/webservice/templates/server_detail.html:305
+msgid "The guild's channel list could not be read right now (the bot is not connected to a guild) — only \"not set\" can be chosen."
+msgstr "目前无法读取服务器组的频道列表（机器人未连接到服务器组）— 只能选择“未设置”。"
+
+#: services/webservice/templates/server_detail.html:305
+msgid "A central admin channel is defined in <span class=\"mono\">bot.yaml</span>, so the per-server admin channel is not shown or edited here."
+msgstr "<span class=\"mono\">bot.yaml</span> 中定义了集中式管理频道，因此这里不显示也不编辑每个服务器的管理频道。"
+
+#: services/webservice/templates/server_detail.html:306
+msgid "The channels action is not available in this installation."
+msgstr "此安装中不提供频道操作。"
+
+#: services/webservice/templates/server_detail.html:306
+msgid "Save channels"
+msgstr "保存频道"
+
+#: services/webservice/templates/server_detail.html:330
+msgid "bot database — set live, no restart"
+msgstr "机器人数据库 — 实时设置，无需重启"
+
+#: services/webservice/templates/server_detail.html:332
+msgid "The blue and red join passwords. The bot keeps the cleartext in its own database and asks DCS to apply it — a change while the server is running or paused is picked up at its next restart, exactly like <span class=\"mono\">/password</span>. This page never writes <span class=\"mono\">serverSettings.lua</span> itself."
+msgstr "蓝方和红方的加入密码。机器人把明文保存在自己的数据库中，并要求 DCS 应用它 — 当服务器处于运行或暂停状态时进行的更改会在其下次重启时生效，与 <span class=\"mono\">/password</span> 完全一致。此页面从不自行写入 <span class=\"mono\">serverSettings.lua</span>。"
+
+#: services/webservice/templates/server_detail.html:340
+msgid "DCS carries a hash for this coalition"
+msgstr "DCS 为此阵营保存了哈希值"
+
+#: services/webservice/templates/server_detail.html:340
+msgid "DCS carries no hash for this coalition"
+msgstr "DCS 未为此阵营保存哈希值"
+
+#: services/webservice/templates/server_detail.html:359
+msgid "Emptying a field removes its password."
+msgstr "清空字段会移除其密码。"
+
+#: services/webservice/templates/server_detail.html:359
+msgid "A field that is already empty does nothing — so a password shown as empty here (the bot knows only its hash) can be replaced but not removed from this page."
+msgstr "本来就为空的字段不会有任何作用 — 因此在此处显示为空的密码（机器人只知道其哈希值）可以替换，但无法从此页面移除。"
+
+#: services/webservice/templates/server_detail.html:360
+msgid "Save coalition passwords"
+msgstr "保存阵营密码"
+
+#: services/webservice/templates/server_detail.html:411
+msgid "rotation list"
+msgstr "轮换列表"
+
+#: services/webservice/templates/server_detail.html:437
+msgid "All"
+msgstr "全部"
+
+#: services/webservice/templates/server_detail.html:438
+#, python-format
+msgid "0 of %(count)s selected"
+msgstr "已选择 0/%(count)s"
+
+#: services/webservice/templates/server_detail.html:443
+#, python-format
+msgid "Set the ONE ticked mission as the mission %(server)s loads when it starts — the rotation pointer, not a load now; tick exactly one"
+msgstr "将唯一被勾选的任务设为 %(server)s 启动时载入的任务 — 这是轮换指针，而不是现在载入；请只勾选一个"
+
+#: services/webservice/templates/server_detail.html:471
+#: services/webservice/templates/server_detail.html:625
+msgid "Read through the mission plugin's own action — this page never opens a mission file."
+msgstr "通过任务插件自己的操作读取 — 此页面从不打开任务文件。"
+
+#: services/webservice/templates/server_detail.html:484
+#: services/webservice/templates/server_detail.html:636
+msgid "START"
+msgstr "启动"
+
+#: services/webservice/templates/server_detail.html:484
+#: services/webservice/templates/server_detail.html:636
+msgid "missing"
+msgstr "缺失"
+
+#: services/webservice/templates/server_detail.html:486
+msgid "The running mission cannot be removed — load another mission first."
+msgstr "正在运行的任务无法移除 — 请先载入另一个任务。"
+
+#: services/webservice/templates/server_detail.html:501
+#, python-format
+msgid "Move %(name)s up in the rotation list"
+msgstr "在轮换列表中将 %(name)s 上移"
+
+#: services/webservice/templates/server_detail.html:501
+#, python-format
+msgid "Move mission %(name)s up"
+msgstr "将任务 %(name)s 上移"
+
+#: services/webservice/templates/server_detail.html:511
+#, python-format
+msgid "Move %(name)s down in the rotation list"
+msgstr "在轮换列表中将 %(name)s 下移"
+
+#: services/webservice/templates/server_detail.html:511
+#, python-format
+msgid "Move mission %(name)s down"
+msgstr "将任务 %(name)s 下移"
+
+#: services/webservice/templates/server_detail.html:515
+#: services/webservice/templates/server_detail.html:639
+#, python-format
+msgid "Download %(name)s — the mission file this server currently uses"
+msgstr "下载 %(name)s — 此服务器当前使用的任务文件"
+
+#: services/webservice/templates/server_detail.html:515
+#: services/webservice/templates/server_detail.html:639
+#, python-format
+msgid "Download mission %(name)s"
+msgstr "下载任务 %(name)s"
+
+#: services/webservice/templates/server_detail.html:533
+#, python-format
+msgid "Load %(name)s now on %(server)s — this also becomes the start mission and starts the server"
+msgstr "立即在 %(server)s 上载入 %(name)s — 这也会使其成为起始任务并启动服务器"
+
+#: services/webservice/templates/server_detail.html:533
+#, python-format
+msgid "Load %(name)s now on %(server)s — the start mission is unchanged; use Set as start for that"
+msgstr "立即在 %(server)s 上载入 %(name)s — 起始任务保持不变；若要更改请用“设为起始任务”"
+
+#: services/webservice/templates/server_detail.html:541
+#: services/webservice/templates/server_detail.html:644
+msgid "This server has no missions configured in its mission list."
+msgstr "此服务器的任务列表中没有配置任何任务。"
+
+#: services/webservice/templates/server_detail.html:552
+msgid "list only"
+msgstr "仅列表"
+
+#: services/webservice/templates/server_detail.html:557
+msgid "A mission already on this server"
+msgstr "此服务器上已有的任务"
+
+#: services/webservice/templates/server_detail.html:558
+msgid "Pick a file from this server's missions directory and add it to the rotation list. Adding it changes the LIST only — no file is copied and nothing is deleted. To bring a mission from your own computer, use <b>Upload a mission file</b> below."
+msgstr "从此服务器的任务目录中选择一个文件并将其加入轮换列表。加入它只会改变列表 — 不复制文件，也不删除任何东西。若要从你自己的电脑带来一个任务，请使用下方的<b>上传任务文件</b>。"
+
+#: services/webservice/templates/server_detail.html:565
+msgid "Choose a mission file already on this server and add it to the rotation"
+msgstr "选择此服务器上已有的任务文件并将其加入轮换"
+
+#: services/webservice/templates/server_detail.html:565
+msgid "Add a mission…"
+msgstr "添加任务…"
+
+#: services/webservice/templates/server_detail.html:568
+msgid "No unconfigured mission file was found in the missions directory."
+msgstr "在任务目录中未找到未配置的任务文件。"
+
+#: services/webservice/templates/server_detail.html:582
+msgid "Upload a mission file"
+msgstr "上传任务文件"
+
+#: services/webservice/templates/server_detail.html:582
+msgid "from your computer"
+msgstr "从你的电脑"
+
+#: services/webservice/templates/server_detail.html:589
+msgid "Send a .miz from your own computer"
+msgstr "从你自己的电脑发送一个 .miz"
+
+#: services/webservice/templates/server_detail.html:590
+msgid "The file is copied into the server's missions directory and added to the rotation. Use <b>Add to the rotation</b> above for a mission that is already on the server."
+msgstr "该文件会被复制到服务器的任务目录并加入轮换。对于已在服务器上的任务，请使用上方的<b>加入轮换</b>。"
+
+#: services/webservice/templates/server_detail.html:604
+msgid "Mission file to upload from your computer"
+msgstr "要从你的电脑上传的任务文件"
+
+#: services/webservice/templates/server_detail.html:605
+msgid "Choose a .miz file…"
+msgstr "选择 .miz 文件…"
+
+#: services/webservice/templates/server_detail.html:608
+msgid "load at next start"
+msgstr "下次启动时载入"
+
+#: services/webservice/templates/server_detail.html:609
+msgid "load now"
+msgstr "立即载入"
+
+#: services/webservice/templates/server_detail.html:654
+msgid "Server log"
+msgstr "服务器日志"
+
+#: services/webservice/templates/server_detail.html:668
+msgid "remote"
+msgstr "远程"
+
+#: services/webservice/templates/server_detail.html:669
+msgid "Current mission:"
+msgstr "当前任务："
+
+#: services/webservice/templates/server_detail.html:669
+msgid "elapsed"
+msgstr "已运行"
+
+#: services/webservice/templates/server_detail.html:670
+#, python-format
+msgid "Players: %(count)s player(s)"
+msgstr "玩家：%(count)s 名"
+
+#: services/webservice/templates/server_detail.html:670
+#, python-format
+msgid "%(count)s active"
+msgstr "%(count)s 个活动"
+

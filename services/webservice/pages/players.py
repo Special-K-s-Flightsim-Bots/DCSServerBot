@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from .. import i18n
 from . import lists as lists_page
 
 __all__ = ["PLAYERS_PATH", "PLAYERS_CAPABILITY", "PLAYERS_ROLES", "PLAYERS_TABLE", "PLAYERS_TITLE",
@@ -27,10 +28,10 @@ PLAYERS_CAPABILITY = "players.view"
 #: a member who may read the console may read the player list (the dashboard's own role model)
 PLAYERS_ROLES: tuple[str, ...] = lists_page.READ_ONLY_ROLES
 PLAYERS_TABLE = "players"
-PLAYERS_TITLE = "Players"
-PLAYERS_LEAD = ("Everyone online right now, across every server. Search by name or UCID. "
-                "A row you may act on offers Message: an in-game popup or a chat line.")
-NAV_LABEL = "Players"
+PLAYERS_TITLE = i18n._("Players")
+PLAYERS_LEAD = i18n._("Everyone online right now, across every server. Search by name or UCID. "
+                      "A row you may act on offers Message: an in-game popup or a chat line.")
+NAV_LABEL = i18n._("Players")
 
 PAGE = lists_page.ListPage(table=PLAYERS_TABLE, path=PLAYERS_PATH, capability=PLAYERS_CAPABILITY,
                            roles=PLAYERS_ROLES, title=PLAYERS_TITLE, lead=PLAYERS_LEAD,

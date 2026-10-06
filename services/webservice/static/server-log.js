@@ -44,6 +44,13 @@
 (function () {
   "use strict";
 
+  /* THE STRINGS ARE SERVED, NOT WRITTEN HERE (``/i18n/messages.js``, included by ``base.html``
+     before this script). ``window.dcssbMsg`` looks a key up and swaps a value in; this file carries
+     no user-visible string and no translation logic. */
+  function t(key, params) {
+    return window.dcssbMsg ? window.dcssbMsg(key, params) : key;
+  }
+
   var card = document.getElementById("dcs-log-card");
   if (!card) { return; }
 
@@ -148,7 +155,7 @@
   }
 
   function showUnavailable(payload) {
-    setStatus(payload && payload.message ? payload.message : "not available");
+    setStatus(payload && payload.message ? payload.message : t("log.not_available"));
   }
 
   /* A NORMAL "no log file yet" answer (L3): keep the body clear and show the honest sentence, but do
@@ -156,8 +163,8 @@
      DISAPPEARED leaves no stale tail behind. */
   function applyPending(payload) {
     clearBody();
-    showNote(payload && payload.message ? payload.message : "The log file is not there yet.");
-    setStatus("waiting for the log file to appear");
+    showNote(payload && payload.message ? payload.message : t("log.no_file"));
+    setStatus(t("log.waiting"));
     backoff = BACKOFF_MS;
   }
 
@@ -168,7 +175,7 @@
     if (document.hidden) { return; }
     var message = payload && payload.message ? payload.message : "";
     var delay = Math.min(backoff, BACKOFF_MAX_MS);
-    setStatus((message ? message + " \u2014 " : "") + "retrying\u2026");
+    setStatus((message ? message + " \u2014 " : "") + t("log.retrying"));
     retryTimer = window.setTimeout(function () {
       retryTimer = null;
       if (document.hidden) { return; }
@@ -184,7 +191,7 @@
       clearBody();
       var note = document.createElement("div");
       note.className = "ln";
-      note.textContent = "\u2014 the log was rotated; showing the new file \u2014";
+      note.textContent = t("log.rotated_new");
       body.appendChild(note);
     }
     append(payload.lines);
@@ -200,9 +207,9 @@
     }
     if (olderBtn && olderBtn.disabled && typeof payload.before === "number" && payload.before > 0) {
       olderBtn.disabled = false;
-      olderBtn.textContent = "Load older";
+      olderBtn.textContent = t("log.load_older");
     }
-    setStatus(payload.message ? payload.message : "following while this tab is open");
+    setStatus(payload.message ? payload.message : t("log.following"));
   }
 
   function followOnce() {
@@ -232,7 +239,7 @@
     if (timer) { return; }
     backoff = BACKOFF_MS;
     if (retryTimer) { window.clearTimeout(retryTimer); retryTimer = null; }
-    setStatus("following while this tab is open");
+    setStatus(t("log.following"));
     followOnce();
     timer = window.setInterval(followOnce, RETRY_MS);
   }
@@ -240,7 +247,7 @@
   function stop() {
     if (timer) { window.clearInterval(timer); timer = null; }
     if (retryTimer) { window.clearTimeout(retryTimer); retryTimer = null; }
-    setStatus("paused \u2014 this tab is hidden");
+    setStatus(t("log.paused"));
   }
 
   function loadOlder() {
@@ -257,7 +264,7 @@
           clearBody();
           var note = document.createElement("div");
           note.className = "ln";
-          note.textContent = "\u2014 the log was rotated while loading older lines \u2014";
+          note.textContent = t("log.rotated_while");
           body.appendChild(note);
           body.insertAdjacentHTML("beforeend", payload.lines);
           if (payload.lines) { hideNote(); }
@@ -265,8 +272,8 @@
             identity = String(payload.identity);
           }
           before = 0;
-          if (olderBtn) { olderBtn.disabled = true; olderBtn.textContent = "Log restarted"; }
-          setStatus(payload.message ? payload.message : "the log was rotated");
+          if (olderBtn) { olderBtn.disabled = true; olderBtn.textContent = t("log.restarted"); }
+          setStatus(payload.message ? payload.message : t("log.rotated"));
           return;
         }
         prepend(payload.lines);
@@ -276,7 +283,7 @@
         /* THE FILTER NEVER LIES: ``at_start`` says the walk reached the beginning of the file (there is
            no older matching line), so the button says so rather than offer a page that would be empty. */
         if (payload.at_start || !payload.lines || !moved || before <= 0) {
-          if (olderBtn) { olderBtn.disabled = true; olderBtn.textContent = "Start of log"; }
+          if (olderBtn) { olderBtn.disabled = true; olderBtn.textContent = t("log.start_of_log"); }
         } else if (olderBtn) {
           olderBtn.disabled = false;
         }

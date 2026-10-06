@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from .. import i18n
 from . import lists as lists_page
 
 __all__ = ["SERVERS_PATH", "SERVERS_CAPABILITY", "SERVERS_ROLES", "SERVERS_TABLE", "SERVERS_TITLE",
@@ -25,13 +26,10 @@ SERVERS_CAPABILITY = "servers.view"
 #: a member who may read the console may read the fleet (the dashboard's own role model)
 SERVERS_ROLES: tuple[str, ...] = lists_page.READ_ONLY_ROLES
 SERVERS_TABLE = "servers"
-SERVERS_TITLE = "Servers"
-SERVERS_LEAD = ("Every server on every node, in full. A row you may operate carries its controls on "
-                "the row: Pause/Unpause for the mission, Restart/Shutdown for the server, and "
-                "Maintenance/End maintenance for the flag that keeps the scheduler from starting it "
-                "— Start/Stop live in the row's menu. The flag has this one home and is set or "
-                "cleared one server at a time; it is not a power control.")
-NAV_LABEL = "Servers"
+SERVERS_TITLE = i18n._("Servers")
+SERVERS_LEAD = i18n._("Every server on every node, in full. A row you may operate carries its "
+                      "controls on the row; acting on one affects that server alone.")
+NAV_LABEL = i18n._("Servers")
 
 PAGE = lists_page.ListPage(table=SERVERS_TABLE, path=SERVERS_PATH, capability=SERVERS_CAPABILITY,
                            roles=SERVERS_ROLES, title=SERVERS_TITLE, lead=SERVERS_LEAD,

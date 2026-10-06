@@ -36,7 +36,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from .. import permissions, session
+from .. import i18n, permissions, session
 from . import discord_oauth
 
 __all__ = ["LOGIN_PATH", "LOGOUT_PATH", "LOGIN_TEMPLATE", "FAILED_LOGIN_MESSAGE",
@@ -52,8 +52,9 @@ LOGOUT_PATH = "/auth/logout"
 #: the shell template that renders the form (read by the shell's ONE Jinja environment)
 LOGIN_TEMPLATE = "login.html"
 
-#: the one sentence a refused login shows. It names no mechanism and no reason.
-FAILED_LOGIN_MESSAGE = "Sign-in failed. Check your username and password and try again."
+#: the one sentence a refused login shows. It names no mechanism and no reason. Wrapped for
+#: translation (the marker is an identity, so the runtime value is still this English sentence).
+FAILED_LOGIN_MESSAGE = i18n._("Sign-in failed. Check your username and password and try again.")
 
 #: what a direct POST to the password door is refused with when no username/password backend is
 #: enabled. A REFUSAL, not a login attempt: the door is off, so the request never reaches a
@@ -109,12 +110,12 @@ class LoginDoors:
         booleans the layout is derived from.
         """
         if self.both:
-            return "Discord and local sign-in enabled"
+            return i18n._("Discord and local sign-in enabled")
         if self.discord:
-            return "Discord sign-in enabled"
+            return i18n._("Discord sign-in enabled")
         if self.password:
-            return "Local sign-in enabled"
-        return "No sign-in method enabled"
+            return i18n._("Local sign-in enabled")
+        return i18n._("No sign-in method enabled")
 
 
 def doors_for_manager(manager) -> LoginDoors:
@@ -323,9 +324,6 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
 
     ``error`` is a GENERIC sentence; the reason a sign-in was refused belongs in the log.
     """
-    environment = getattr(request.app.state, "webui_templates", None)
-    if environment is None:  # pragma: no cover - installed by the shell
-        raise HTTPException(status_code=503, detail="The admin web UI templates are not installed.")
     # THE DOORS are what the page is built from, and they are read from the SAME backends the
     # server enforces against (see LoginDoors).
     doors = login_doors(request)
@@ -333,7 +331,10 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
     # a session cookie (and with the password door off there is no form at all). The token field
     # still exists in the template, so StrictUndefined stays satisfied.
     token = session.get_csrf_token(request) if doors.password else ""
-    html = environment.get_template(LOGIN_TEMPLATE).render(
+    # Rendered in the visitor's OWN language (the login page is where a choice is first wanted) and,
+    # being a full document with its own chrome, it carries the shell's language control too.
+    html = i18n.render(
+        request, LOGIN_TEMPLATE,
         login_path=LOGIN_PATH, csrf_field=session.CSRF_FIELD, csrf_token=token,
         next_url=next_url, error=error, doors=doors,
         discord_url=discord_link(request, next_url) if doors.discord else None,

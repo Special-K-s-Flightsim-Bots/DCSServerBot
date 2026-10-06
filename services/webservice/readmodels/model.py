@@ -32,20 +32,32 @@ __all__ = [
     "LOG_EMPTY_MESSAGE", "LOG_LEVEL_EMPTY_MESSAGE", "SCOPED_EMPTY_MESSAGE",
 ]
 
+
+def _(message: str) -> str:
+    """Mark a string as translatable for the extractor; return it UNCHANGED.
+
+    See :func:`services.webservice.i18n._` — Babel reads the literal out of this module while the
+    runtime call is an identity, so the record stays pure; the translation happens where the string
+    is RENDERED (``{{ _(row.status.word) }}`` in the per-language template environment).
+    """
+    return message
+
+
 #: raw ``Status`` value (lower-cased) -> (word, dot class). The dot classes are the shell
-#: stylesheet's: run / pause / stop / dead.
+#: stylesheet's: run / pause / stop / dead. The word is marked translatable here (the row renders it
+#: through the per-language environment), while the raw key stays the source vocabulary.
 STATUS_WORDS: dict[str, tuple[str, str]] = {
-    "running": ("RUNNING", "run"),
-    "paused": ("PAUSED", "pause"),
-    "stopped": ("STOPPED", "stop"),
-    "shutdown": ("SHUTDOWN", "dead"),
-    "shutting down": ("SHUTDOWN", "dead"),
-    "unregistered": ("SHUTDOWN", "dead"),
-    "loading": ("LOADING", "pause"),
+    "running": (_("RUNNING"), "run"),
+    "paused": (_("PAUSED"), "pause"),
+    "stopped": (_("STOPPED"), "stop"),
+    "shutdown": (_("SHUTDOWN"), "dead"),
+    "shutting down": (_("SHUTDOWN"), "dead"),
+    "unregistered": (_("SHUTDOWN"), "dead"),
+    "loading": (_("LOADING"), "pause"),
 }
 
 #: what an unmapped status renders as (see the module docstring)
-DEFAULT_STATUS: tuple[str, str] = ("UNKNOWN", "stop")
+DEFAULT_STATUS: tuple[str, str] = (_("UNKNOWN"), "stop")
 
 #: the transient states, listed so a reader can see which ones folded and which did not
 RAW_LABELS: tuple[str, ...] = tuple(STATUS_WORDS)
@@ -54,24 +66,24 @@ RAW_LABELS: tuple[str, ...] = tuple(STATUS_WORDS)
 # One sentence per empty state, defined HERE (next to the records, not in a template) so a test
 # can assert the copy the page renders and a translation would have one owner.
 
-NO_LIVE_REASON = "Live state is not available yet. The bot is still starting up."
-NO_SERVERS_MESSAGE = "No servers are registered on this cluster."
+NO_LIVE_REASON = _("Live state is not available yet. The bot is still starting up.")
+NO_SERVERS_MESSAGE = _("No servers are registered on this cluster.")
 #: the SCOPE-specific empty state (spec §10.6). A hoster whose ``managed_by`` matches no server, or
 #: whose scope could not be resolved, gets THIS instead of the two sentences above: "no servers are
 #: registered on this cluster" would be false (and would disclose cluster-wide state), and "live
 #: state is not available yet" would read as a broken console. It is section-neutral on purpose —
 #: every table is empty for the same reason, and it names the one action that fixes it.
-SCOPED_EMPTY_MESSAGE = ("This view shows only the servers your roles manage, and none of them are "
-                        "here. An administrator can add your role to a server's managed_by if you "
-                        "should be seeing one.")
-NO_PLAYERS_MESSAGE = "No players are online right now."
-NO_NODES_MESSAGE = "No nodes are registered."
-NO_INSTANCES_MESSAGE = "No instances are configured."
-NO_NODE_INSTANCES_MESSAGE = "No instances on this node."
-LOG_MISSING_MESSAGE = "The bot log file is not available yet."
-LOG_EMPTY_MESSAGE = "The bot log file is empty."
+SCOPED_EMPTY_MESSAGE = _("This view shows only the servers your roles manage, and none of them are "
+                         "here. An administrator can add your role to a server's managed_by if you "
+                         "should be seeing one.")
+NO_PLAYERS_MESSAGE = _("No players are online right now.")
+NO_NODES_MESSAGE = _("No nodes are registered.")
+NO_INSTANCES_MESSAGE = _("No instances are configured.")
+NO_NODE_INSTANCES_MESSAGE = _("No instances on this node.")
+LOG_MISSING_MESSAGE = _("The bot log file is not available yet.")
+LOG_EMPTY_MESSAGE = _("The bot log file is empty.")
 #: the file has lines, but none at the level the panel is filtered to — never an empty frame
-LOG_LEVEL_EMPTY_MESSAGE = "No log lines match the selected level."
+LOG_LEVEL_EMPTY_MESSAGE = _("No log lines match the selected level.")
 
 
 # --------------------------------------------------------------------------------- status

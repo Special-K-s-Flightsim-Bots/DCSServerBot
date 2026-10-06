@@ -44,10 +44,10 @@ from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from .. import permissions, readmodels
+from .. import i18n, permissions, readmodels
 from . import dashboard as dashboard_page
 
 __all__ = [
@@ -345,11 +345,7 @@ def page_context(request: Request) -> dict | None:
 
 
 def _environment(request: Request):
-    environment = getattr(getattr(request.app, "state", None), "webui_templates", None)
-    if environment is None:  # pragma: no cover - installed by the shell
-        raise HTTPException(status_code=503,
-                            detail="The admin web UI templates are not installed.")
-    return environment
+    return i18n.environment_for(request)
 
 
 def log_allowed(request: Request) -> bool:

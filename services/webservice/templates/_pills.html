@@ -5,7 +5,12 @@
   page and by the live stream's `state` event (services/webservice/pages/live.py). Duplicating it
   would let the top bar and the KPI cards disagree about the same counts.
 
+  A pill is a `_translated` record from `pages.dashboard.status_pills` (a marked `msgid`, its
+  `params` and the English `text`): the words around the counts are rendered in the request's
+  language through the environment's own `_`, while the figures stay the read models'. A plain
+  string is still accepted (the server page passes one), so the shape is backwards-compatible.
+
   The loop is on ONE source line so the pills carry no whitespace between them: the container is
   an inline-flex box whose gap owns the spacing.
 -#}
-{% for pill in (pills if pills is defined else []) %}<span class="pill">{{ pill }}</span>{% endfor %}
+{% for pill in (pills if pills is defined else []) %}<span class="pill">{% if pill is mapping %}{{ _(pill.msgid) % pill.params }}{% else %}{{ pill }}{% endif %}</span>{% endfor %}

@@ -10,4 +10,4 @@
   The reader passes ``status`` (a ``StatusView``): the dot class and the word, never a raw status and
   never a string typed into a template.
 -#}
-<span class="dot {{ status.dot }}" aria-hidden="true"></span> {{ status.word }}
+<span class="dot {{ status.dot }}" aria-hidden="true"></span> {{ _(status.word) }}

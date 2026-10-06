@@ -23,6 +23,18 @@ from pathlib import Path
 
 from .model import LOG_EMPTY_MESSAGE, LOG_LEVEL_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, LogLine, LogTail
 
+
+def _(message: str) -> str:
+    """Mark a string as translatable for the extractor; return it UNCHANGED.
+
+    See :func:`services.webservice.i18n._` and :mod:`.model`: Babel reads the literal out of this
+    module while the runtime call is an identity, so the log panel's read model stays pure and has
+    no language of its own. The translation happens where the label is RENDERED (the per-language
+    template environment's own ``_``), never here.
+    """
+    return message
+
+
 __all__ = ["DEFAULT_LINES", "MAX_TAIL_BYTES", "LEVEL_CSS", "LEVEL_FILTERS", "LEVEL_LABELS",
            "LEVEL_CHOICES", "DEFAULT_LEVEL", "normalise_level", "tail", "parse_line", "log_tail"]
 
@@ -57,7 +69,7 @@ LEVEL_FILTERS: dict[str, frozenset[str]] = {
 }
 
 #: the label the panel shows for each filter key
-LEVEL_LABELS: dict[str, str] = {"info": "INFO+", "warning": "WARNING+", "all": "ALL"}
+LEVEL_LABELS: dict[str, str] = {"info": _("INFO+"), "warning": _("WARNING+"), "all": _("ALL")}
 
 #: the choices in the order the panel shows them (the default first)
 LEVEL_CHOICES: tuple[tuple[str, str], ...] = tuple((key, LEVEL_LABELS[key]) for key in LEVEL_FILTERS)

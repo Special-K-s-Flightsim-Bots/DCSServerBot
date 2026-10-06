@@ -20,11 +20,11 @@
   NO JAVASCRIPT, and no affordance that only works with it: the door is a link, the form is a form.
 -#}
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign in — DCSServerBot</title>
+  <title>{% trans %}Sign in{% endtrans %} — DCSServerBot</title>
   {#  The favicon, the same cacheable static request as every console page's. This document does not
       extend `base.html` (its own chrome — see the header comment), so the head links are repeated
       here rather than inherited.  #}
@@ -37,13 +37,14 @@
         legible; a second, 30px copy in this bar would be the same artwork twice on one screen.
         Letting the hero carry the mark is also what keeps the bar the console's 58px height.  #}
     <div class="brand">
-      <div><b>DCSServerBot</b><small>Admin Console</small></div>
+      <div><b>DCSServerBot</b><small>{% trans %}Admin Console{% endtrans %}</small></div>
     </div>
     <div class="spacer"></div>
+    {% include "_language.html" %}
     {#  The pill states something TRUE of this configuration — it is derived from the same value the
         layout is, so it cannot claim a door that is not there.  #}
     <span class="pill"><span class="dot{{ ' run' if not doors.none else '' }}"
-                             aria-hidden="true"></span>{{ doors.status_text }}</span>
+                             aria-hidden="true"></span>{{ _(doors.status_text) }}</span>
   </header>
 
   <main class="login-wrap">
@@ -56,37 +57,34 @@
       <img class="login-logo" src="/static/logo-512.png" alt="DCSServerBot logo"
            width="220" height="147">
     </div>
-    <h1>Sign in</h1>
+    <h1>{% trans %}Sign in{% endtrans %}</h1>
 
     {#  THE error line. It is rendered OUTSIDE the door cards on purpose: a refused or cancelled
         sign-in must say so in every configuration, including the ones with no password door (a
         message inside the local card would simply not render there).  #}
-    {% if error %}<p class="login-error" role="alert">{{ error }}</p>{% endif %}
+    {% if error %}<p class="login-error" role="alert">{{ _(error) }}</p>{% endif %}
 
     {% if doors.none %}
     {#  No door at all: an explicit page (never a blank page, never an empty form). The console keeps
         serving its API traffic — this is a legitimate mid-configuration state, logged CRITICALLY at
         startup.  #}
     <section class="card login-unavailable" role="alert">
-      <div class="hd"><h2 class="ct">No sign-in method is configured</h2></div>
+      <div class="hd"><h2 class="ct">{% trans %}No sign-in method is configured{% endtrans %}</h2></div>
       <div class="bd">
-        <p>A username and password sign-in or Discord sign-in must be enabled before anyone can use
-           this console. An operator can turn one on in
+        <p>{% trans %}A username and password sign-in or Discord sign-in must be enabled before anyone can use this console. An operator can turn one on in{% endtrans %}
            <span class="mono">config/services/webservice.yaml</span>:
-           <span class="mono">auth.local.enabled</span> for a local account, or
-           <span class="mono">auth.discord.enabled</span> for Discord.</p>
+           <span class="mono">auth.local.enabled</span> {% trans %}for a local account, or{% endtrans %}
+           <span class="mono">auth.discord.enabled</span> {% trans %}for Discord.{% endtrans %}</p>
       </div>
     </section>
     {% else %}
 
     {% if doors.both %}
-    <p class="sub">Signing out of Discord does not sign you out here, and vice versa — this console
-      has its own session.</p>
+    <p class="sub">{% trans %}Signing out of Discord does not sign you out here, and vice versa — this console has its own session.{% endtrans %}</p>
     {% elif doors.discord %}
-    <p class="sub">This console has its own session. Your roles on the Discord server decide what
-      you can see here.</p>
+    <p class="sub">{% trans %}This console has its own session. Your roles on the Discord server decide what you can see here.{% endtrans %}</p>
     {% else %}
-    <p class="sub">Sign in with the account configured for this console.</p>
+    <p class="sub">{% trans %}Sign in with the account configured for this console.{% endtrans %}</p>
     {% endif %}
 
     <div class="login-grid{{ ' solo' if doors.count == 1 else '' }}">
@@ -94,7 +92,7 @@
       <section class="card lead" aria-labelledby="door-discord">
         <div class="hd">
           <h2 class="ct" id="door-discord">Discord</h2>
-          {% if doors.both %}<span class="tag a">recommended</span>{% endif %}
+          {% if doors.both %}<span class="tag a">{% trans %}recommended{% endtrans %}</span>{% endif %}
         </div>
         <div class="bd">
           <a class="login-door" href="{{ discord_url }}">
@@ -104,14 +102,13 @@
               <circle cx="9" cy="11.5" r="1.1" fill="currentColor" stroke="none"/>
               <circle cx="15" cy="11.5" r="1.1" fill="currentColor" stroke="none"/>
             </svg>
-            {{ discord_label }}
+            {{ _(discord_label) }}
           </a>
-          <p class="login-why">Your roles on this server decide what you see here. Nothing else is
-            configured for you.</p>
+          <p class="login-why">{% trans %}Your roles on this server decide what you see here. Nothing else is configured for you.{% endtrans %}</p>
           <ul class="login-meta">
-            <li><span>Goes to</span><span class="v">discord.com</span></li>
-            <li><span>Scopes</span><span class="v">{{ discord_scope }}</span></li>
-            <li><span>Bot token in the browser</span><span class="v">no</span></li>
+            <li><span>{% trans %}Goes to{% endtrans %}</span><span class="v">discord.com</span></li>
+            <li><span>{% trans %}Scopes{% endtrans %}</span><span class="v">{{ discord_scope }}</span></li>
+            <li><span>{% trans %}Bot token in the browser{% endtrans %}</span><span class="v">{% trans %}no{% endtrans %}</span></li>
           </ul>
         </div>
       </section>
@@ -120,24 +117,23 @@
       {% if doors.password %}
       <section class="card" aria-labelledby="door-local">
         <div class="hd">
-          <h2 class="ct" id="door-local">Local account</h2>
-          {% if doors.both %}<span class="tag">fallback</span>{% endif %}
+          <h2 class="ct" id="door-local">{% trans %}Local account{% endtrans %}</h2>
+          {% if doors.both %}<span class="tag">{% trans %}fallback{% endtrans %}</span>{% endif %}
         </div>
         <div class="bd">
           <form class="login-form" method="post" action="{{ login_path }}">
             <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
             <input type="hidden" name="next" value="{{ next_url }}">
-            <label for="username">Username</label>
+            <label for="username">{% trans %}Username{% endtrans %}</label>
             <input id="username" name="username" type="text" autocomplete="username"
                    autocapitalize="none" spellcheck="false" required{{ ' autofocus' if not doors.discord else '' }}>
-            <label for="password">Password</label>
+            <label for="password">{% trans %}Password{% endtrans %}</label>
             <input id="password" name="password" type="password" autocomplete="current-password"
                    required>
-            <button class="login-btn" type="submit">Sign in</button>
+            <button class="login-btn" type="submit">{% trans %}Sign in{% endtrans %}</button>
           </form>
           {% if doors.discord %}
-          <p class="login-note">For installs without a Discord bot, and for the day the OAuth app or
-            the role config is the thing that broke.</p>
+          <p class="login-note">{% trans %}For installs without a Discord bot, and for the day the OAuth app or the role config is the thing that broke.{% endtrans %}</p>
           {% endif %}
         </div>
       </section>
@@ -147,8 +143,7 @@
   </main>
 
   {% if doors.both %}
-  <footer class="login-foot">DCSServerBot Admin · not sure which to use? Discord — it is how
-    accounts are made here.</footer>
+  <footer class="login-foot">{% trans %}DCSServerBot Admin · not sure which to use? Discord — it is how accounts are made here.{% endtrans %}</footer>
   {% endif %}
 </body>
 </html>

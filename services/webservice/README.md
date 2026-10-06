@@ -1,462 +1,207 @@
-# Service WebService
-This service provides a simple web service. It is WIP, and it will be enhanced in the future.
-Currently, you can use it with the [RestAPI plugin](/plugins/restapi/README.md).
+# Web service
+
+The `webservice` service runs an HTTP server inside the bot on the master node. It carries two
+things on one port:
+
+* the **REST API** used by the [RestAPI plugin](../../plugins/restapi/README.md) — served always;
+* the **staff admin console** — an HTML UI with pages, login and session — served only when you
+  switch it on (see below).
+
+It runs on the **master node only**, and starts after the service bus
+(`services/webservice/service.py:24`).
+
+---
+
+## Turning it on
+
+1. **Create the configuration file** `config/services/webservice.yaml` with a `DEFAULT:` block.
+   The service is switched on **by the file**: the loader reads
+   `config/services/<service>.yaml`, and a missing file means no configuration and no service
+   (`core/services/base.py:177`, `services/webservice/service.py:29-56`). Start from the sample:
+   `samples/services/webservice.yaml`.
+
+2. **Set `frontend: true`** if you want the web console. Without it — the default — the service
+   serves the REST API only: no pages, no login, no session cookie
+   (`schemas/webservice_schema.yaml:17`, `services/webservice/shell.py:75`).
+
+3. **Configure a login** (`auth:`) and a session secret (`session:`) if you use the console.
+   Without an `auth:` block every console page answers 403 (deny by default).
+
+With the bot's `validation: strict`, a bad value in this file stops the service at load and names
+the problem; with `validation: lazy` (the default) it is logged
+(`core/services/base.py:181-186`).
+
+---
 
 ## Configuration
-The webservice can be configured in its config/services/webservice.yaml file:
-```yaml
-# config/services/webservice.yaml
-DEFAULT:
-  listen: 0.0.0.0   # the interface to bind the internal webserver to
-  port: 9876        # the port the webservice is listening on
-  debug: false      # Enable /openapi.json, /docs and /redoc endpoints to test the API (default: false)
-```
 
-## Admin web UI (staff console)
+All keys live under `DEFAULT:` in `config/services/webservice.yaml`. Nothing here is derived from a
+request, so the same file behaves the same behind a reverse proxy as it does on localhost.
 
-The service also serves the staff admin console (`/`). The page shows nodes, instances,
-servers, players and the bot's log tail — and it updates on its own: the log tail and the
-servers/KPI figures are pushed to the browser as HTML fragments over Server-Sent Events, so a
-reader does not have to refresh the page. This is a progressive enhancement: with JavaScript
-disabled the page still renders in full, it just is not live. If the stream cannot be used (for
-example a reverse proxy that strips `text/event-stream`), the page falls back to polling the
-fragments every 10 seconds.
+| Key | Default | What it does | Source |
+|-----|---------|--------------|--------|
+| `listen` | `0.0.0.0` | Interface the HTTP server binds to. | `service.py:46` |
+| `port` | `9876` | TCP port. Must be 1024–65535 and unique per node. | `schemas/webservice_schema.yaml:10`, `core/utils/validators.py:170` |
+| `debug` | `false` | Serves `/openapi.json`, `/docs` and `/redoc` for API testing (loopback and private networks only — see the warning below). | `service.py:92`, `service.py:115-125` |
+| `log_level` | `info` | Default level filter of the console's log panel: `info`, `warning` or `all`. The same choice is available per page as `?level=`. | `schemas/webservice_schema.yaml:22` |
+| `frontend` | `false` | Install the web console. `false` = REST API only. | `schemas/webservice_schema.yaml:17`, `shell.py:75` |
+| `dashboard.live` | `true` | Serve the live update stream (Server-Sent Events) on the dashboard. | `schemas/webservice_schema.yaml:33` |
+| `dashboard.refresh_seconds` | `2` | How often changed fragments are re-rendered and pushed, in seconds (1–60). | `schemas/webservice_schema.yaml:36` |
+| `dashboard.stream_clients` | `16` | Most concurrent live streams (1–256). | `schemas/webservice_schema.yaml:39` |
+| `session.secret` | *(unset → random per start)* | Signs the session cookie. Unset means every restart signs everyone out. | `schemas/webservice_schema.yaml:49`, `session.py:221` |
+| `session.cookie_name` | `dcssb_session` | Session cookie name. | `schemas/webservice_schema.yaml:50`, `session.py:48` |
+| `session.max_age` | `86400` | Session lifetime in seconds. | `schemas/webservice_schema.yaml:53` |
+| `session.https_only` | *(unset → derived from `listen`)* | The `Secure` flag on the session cookie. Unset: `false` on a loopback-only bind, `true` on anything else. | `schemas/webservice_schema.yaml:59`, `session.py:140-169` |
+| `session.same_site` | `lax` | Cookie `SameSite`: `lax`, `strict` or `none`. Keep `lax` — `strict` makes every OAuth login fail. | `schemas/webservice_schema.yaml:63`, `session.py:201-212` |
+| `auth.public_base_url` | *(none)* | The public origin (scheme + host) the console is reachable at. Redirect URIs are built from this, never from a request. | `schemas/webservice_schema.yaml:73` |
+| `auth.local.enabled` | `false` | Enable username/password login. | `schemas/webservice_schema.yaml:80` |
+| `auth.local.users[].username` | *(required)* | The account name. | `schemas/webservice_schema.yaml:87` |
+| `auth.local.users[].password_hash` | *(required)* | A PBKDF2 hash — never a plaintext password. | `schemas/webservice_schema.yaml:90` |
+| `auth.local.users[].roles` | *(required)* | Role **names** of the bot's role model (`Admin`, `DCS Admin`, …). An unknown name is refused at startup. | `schemas/webservice_schema.yaml:93-97` |
+| `auth.local.users[].scope` | *(unset = unrestricted)* | The `managed_by` values this account may see and act on (the web-only equivalent of a Discord manager's scope). | `schemas/webservice_schema.yaml:106-110` |
+| `auth.discord.enabled` | `false` | Enable Discord OAuth login. | `schemas/webservice_schema.yaml:122` |
+| `auth.discord.client_id` | *(none)* | The Discord application's client id. | `schemas/webservice_schema.yaml:123` |
+| `auth.discord.client_secret` | *(none)* | Inline client secret. | `schemas/webservice_schema.yaml:126` |
+| `auth.discord.client_secret_key` | *(none)* | Name of a key in the bot's secret store. When set it **wins over** `client_secret`. | `schemas/webservice_schema.yaml:130` |
+| `auth.discord.member_ttl` | `60` | Seconds a member resolution may be cached when the bot runs without the Server Members Intent (clamped 1–3600). | `schemas/webservice_schema.yaml:136` |
+| `auth.breakglass.enabled` | `false` | Enable the single emergency Admin credential, for the day the identity provider is what broke. | `schemas/webservice_schema.yaml:143` |
+| `auth.breakglass.username` | *(none)* | The emergency account name. | `schemas/webservice_schema.yaml:144` |
+| `auth.breakglass.password_hash` | *(none)* | A PBKDF2 hash, same format as `auth.local`. | `schemas/webservice_schema.yaml:145` |
 
-### The write surface
+`Source` paths are relative to `services/webservice/`.
 
-Only three tables carry a write — **servers**, **players** and **nodes**; the last one (instances) is
-read-only. The controls appear in **two screens that render the same declaration**: the dashboard's
-**Servers** / **Players** / **Nodes** tabs, and the standalone **/servers** / **/players** / **/nodes**
-pages. There is ONE declaration per surface — `SERVER_ACTIONS`, `PLAYER_ACTIONS` and `NODE_ACTIONS` in
-`services/webservice/pages/actions.py` — and the route table, the capability map, the page's control
-data and the confirm dialog are all readings of it, so a control cannot exist without a declared
-capability and a declared action. The **Configuration tab** of a server's own page carries **two more
-writes**, declared the same way in the same file: the **DCS config write** (`SERVER_CONFIG_ACTIONS`)
-and the **channels write** (`SERVER_CHANNEL_ACTIONS`) — plus the **coalition write**
-(`SERVER_COALITION_ACTIONS`, described with the config tab's two below). The same page's **Missions
-tab** carries the **mission-list writes** (`MISSION_ACTIONS`, described below). The table below is the
-WHOLE write surface — the three tables' rows and the two tabs' writes.
-
-| Row    | Control              | Capability                  | Action (`__qualname__`) | Confirms |
-|--------|----------------------|-----------------------------|-------------------------|----------|
-| server | Startup              | `servers.startup`           | `startup_server`        | no       |
-| server | Start                | `servers.start`             | `start_server`          | no       |
-| server | Pause                | `missions.pause`            | `pause_mission`         | no       |
-| server | Unpause              | `missions.unpause`          | `unpause_mission`       | no       |
-| server | Restart              | `servers.restart`           | `restart_server`        | **yes**  |
-| server | Shutdown             | `servers.shutdown`          | `shutdown_server`       | **yes**  |
-| server | Stop                 | `servers.stop`              | `stop_server`           | **yes**  |
-| server | Maintenance          | `servers.maintenance`       | `set_maintenance`       | no       |
-| server | End maintenance      | `servers.clear_maintenance` | `clear_maintenance`     | no       |
-| player | Kick                 | `players.kick`              | `kick_player`           | **yes**  |
-| player | Ban                  | `players.ban`               | `ban_player`            | **yes**  |
-| player | Chat / Popup         | `players.message`           | `message_player`        | no       |
-| player | Mute                 | `players.mute`              | `mute_player`           | no       |
-| player | Unmute               | `players.mute`              | `unmute_player`         | no       |
-| node   | Restart              | `nodes.restart`             | `restart_node`          | **yes**  |
-| node   | Shut down            | `nodes.shutdown`            | `shutdown_node`         | **yes**  |
-| node   | Upgrade              | `nodes.upgrade`             | `upgrade_node`          | **yes**  |
-| node   | Take servers offline | `nodes.offline`             | `take_node_offline`     | **yes**  |
-| node   | Bring servers online | `nodes.online`              | `bring_node_online`     | no       |
-| config (tab)   | Save          | `servers.config.dcs`        | `set_server_config`     | no       |
-| channels (tab) | Save channels | `servers.config.channels`   | `set_server_channels`   | no       |
-| coalitions (tab) | Save coalition passwords | `servers.config.coalitions` | `set_coalition_password` | no |
-| mission (tab)  | Add to the rotation  | `missions.add`              | `add_mission`           | no       |
-| mission (tab)  | Remove               | `missions.delete`           | `delete_mission`        | **yes**  |
-| mission (tab)  | Remove missions      | `missions.delete`           | `delete_missions`       | **yes**  |
-| mission (tab)  | Load                 | `missions.load`             | `load_mission`          | no       |
-| mission (tab)  | Upload mission       | `missions.upload`           | `upload_mission`        | no       |
-| mission (tab)  | Move up / Move down  | `missions.reorder`          | `reorder_mission`       | no       |
-| mission (tab)  | Make start           | `missions.activate`         | `set_active_mission`    | no       |
-
-**Two server controls open a DIALOG without confirming**: *Shutdown* and *Startup* each
-carry a `maintenance` **option** — a checkbox with its `off` companion (the `NodeOption` shape the
-node row's *Take servers offline* uses), default ON — that mirrors Discord's `/server shutdown|startup`
-flag defaults: Shutdown **sets** the maintenance flag, Startup **clears** it. Because the checkbox is a
-form field with nowhere else to live, both post to their `<path>/confirm` dialog, where the box is
-chosen; *Startup* is the non-destructive half, so its dialog is an **options** form and mints **no**
-one-shot token. *Start* and *Stop* carry **no** option: the process-level pair touches no flag.
-
-The write roles are `Admin` and `DCS Admin`, and every **server** and **player** row capability above is
-declared `scope_grants`: a **manager** (an identity whose scope holds a server's `managed_by`) reaches
-them **on their own servers** and on nobody else's. A server with **no** `managed_by` is **not** a
-manager's: the scoped source leaves it out of every page, so no control is built for it, and a
-crafted POST naming it is refused exactly like a name that does not exist. The **node** row is one
-exception and stays so: its five are declared `Admin`-only and **without** a scope grant
-(`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of *servers* and taking a whole
-node — or every server on it — out of service must never widen out of it.
-
-The Configuration tab's three writes do **not** follow the server/player row rule, and their own
-roles/scope rules differ from each other (`NODE_ROLES` is `Admin` alone, `declare()` in
-`pages/actions.py`). All three are `POST` forms — the DCS Save to `/actions/server/config`, the
-channels Save to `/actions/server/channels`, the coalition Save to `/actions/server/coalitions` — with
-the target and the CSRF token in the body like every other write; none confirms and none has a dialog.
-The DCS Save is offered only on a server that is down (`SHUTDOWN`/`STOPPED`/`UNREGISTERED`), the
-channels Save in every state (a channel change applies immediately, no restart), and the coalition
-Save in every state but `LOADING`/`SHUTTING_DOWN`/`UNREGISTERED` (`RUNNING`/`PAUSED` here — the bot's
-own method tells DCS live):
-
-* the **DCS config write**, `servers.config.dcs`, is declared `Admin`-only **with** a scope grant: an
-  Admin changes everything, and a **manager** may change every setting of a *server in their scope*
-  **except** the keys the manager deny-list names (`core/server_config`) — today the server **port**
-  (`port`). The deny-list is enforced in the action, not only at the page: a manager's crafted POST of
-  a denied key is refused with a typed sentence and nothing is written. A `DCS Admin` is refused here:
-  `allows` is satisfied by the `Admin` role or by a managing scope, and a `DCS Admin`'s scope is
-  *unscoped*, so it is neither.
-* the **channels write**, `servers.config.channels`, is declared `Admin`-only **without** a scope grant:
-  a manager may not write the channels **at all**. The channels are also named in the same manager
-  deny-list (`CHANNELS_ITEM`, `core/server_config`), so the whole channels card is omitted from a
-  manager's view and the action re-checks a direct caller.
-* the **coalition write**, `servers.config.coalitions`, is declared `Admin`-only **with** a scope grant
-  (the DCS write's rule: a manager reaches the coalition passwords of a server in their scope). It
-  writes the blue/red join passwords through the bot's own `Server.setCoalitionPassword` — never the
-  hash, never the file. The cleartext is read back from the `servers` table by the READ action
-  `get_server_coalitions` (through `core.actions.read_action`, the *unguarded* twin — a render must
-  read while a power action runs). Unlike the DCS/channels faces, both actions **refuse** the REST/MCP
-  transports (`_coalition_authorised`): a coalition password has no REST consumer, and an API key must
-  not become a fleet-wide cleartext reader.
-
-**The Missions tab's writes.** A server's own page carries a **Missions tab** whose writes are declared
-in the same file and the same way — `MISSION_ACTIONS` (`pages/actions.py`) — but, unlike the row
-strips, they are a tab's controls, not `SERVER_ACTIONS` rows. Each is one `POST` to its own route with
-the target and the CSRF token in the body, and none is in the node row's `Admin`-only set: the mission
-writes follow the server rows' `scope_grants` rule, so a **manager** reaches them on their own servers.
-
-* **add**, `POST /actions/server/missions/add` (`missions.add`, `add_mission`) — puts a mission that is
-  already on the server into its rotation list; reached through its options dialog (the mission picker
-  and the *load it now* / *load it next start* choices), and it confirms nothing, because adding is not
-  destructive. Accepted in **every** state.
-* **remove**, `POST /actions/server/missions/delete` (`missions.delete`, `delete_mission`) — takes ONE
-  mission out of the rotation list, optionally deleting its file from disk; confirms through its dialog.
-  Accepted in **every** state.
-* **bulk remove**, `POST /actions/server/missions/delete_bulk` (`missions.delete`, `delete_missions`)
-  — the row's remove repeated over every selected mission in ONE write; its dialog carries the
-  per-mission checkboxes that ARE its selection. It **refuses exactly `LOADING`** — every other state
-  sticks — because in `LOADING` the process is up but the bot's `deleteMission` would edit the file and
-  the change is reverted.
-* **upload**, `POST /actions/server/missions/upload` (`missions.upload`, `upload_mission`) — sends a
-  `.miz` file from the operator's own computer into the server's missions directory and adds it.
-  Accepted in **every** state.
-* **load**, `POST /actions/server/missions/load` (`missions.load`, `load_mission`) — starts the chosen
-  mission now; offered only in `RUNNING` / `PAUSED` / `STOPPED`.
-* **make start**, `POST /actions/server/missions/activate` (`missions.activate`, `set_active_mission`)
-  — makes a configured mission the START mission through the bot's own `setStartIndex` (never a
-  hand-written settings write). It **refuses exactly `LOADING`** — every other state sticks — the same
-  narrower gate as bulk removal, and for the same reason.
-* **the move pair** (Move up / Move down), `POST /actions/server/missions/reorder`
-  (`missions.reorder`, `reorder_mission`) — reorders ONE mission in the rotation list. It is
-  **process-down only** — `UNREGISTERED` / `SHUTDOWN` / `SHUTTING_DOWN` — because a reorder made while
-  DCS is up is reverted.
-
-**Two things that look like one.** The server row's *Maintenance* / *End maintenance* is the
-MAINTENANCE FLAG (`servers.maintenance`, a persisted switch that keeps a server out of service and is
-the scheduler's to honour — the same operation as Discord's `/scheduler maintenance|clear`), and the
-node row's *Take servers offline* / *Bring servers online* is POWER: it stops the servers that are up
-and starts the ones it stopped. They are independent — a node can be powered off with every flag
-clear, and a server can be flagged while it is running — and the words never cross: "offline" means
-the SERVERS, never the node's own process, which is *Shut down* (`MAINTENANCE.md`).
-
-**How a control is decided.** A control is built only when *all* of these are true, each read from the
-one place that decides it:
-
-* **capability** — `permissions.allows` (`services/webservice/permissions.py:146`), the same predicate
-  the route's capability gate runs (`:693`), so "offered ⊆ authorised" holds by construction;
-* **scope** — the row comes from the *scoped* source every page renders from, so a server (or a
-  player's server) outside the caller's scope is not in the source at all and no control is built;
-* **action availability** — `action_available(qualname)`, so an installation whose `mission` plugin is
-  not loaded offers no button that could only answer a refusal (see
-  [`core/ACTIONS.md`](../../core/ACTIONS.md#8-deployment-and-the-two-silent-failures));
-* **the row's state** — `statuses` on a server control (Startup only on `SHUTDOWN`, Pause only on
-  `RUNNING`, …; **empty means every state**, which is what the maintenance flag pair declares, since a
-  flag is not a power state), `when_muted` on the mute pair and `when_maintenance` on the flag pair
-  (so exactly one half of each pair is drawn), and `states` on a node control — where the power pair's
-  gate is the node's OWN state (`node_power_states`: is it heartbeating and carrying servers? is a
-  power-off on record?), never the servers' statuses and never the maintenance flag it no longer
-  manipulates.
-
-**An unusable control is ABSENT, never rendered disabled.** When no row of a table offers a control,
-the Actions column is not rendered at all — no header, no empty cell — and the table's chip reads
-`read-only` instead of `actions` (`services/webservice/templates/_table.html:35`). A `read-only` chip
-therefore means *the console found no action to offer*, **not** "you are not allowed" — see the
-empty-registry trap in `core/ACTIONS.md`.
-
-**Every WRITE is a POST form** carrying the session's CSRF token and the **target in the body** —
-never a state-changing GET, and never a target in a URL, so an action cannot be pointed at another
-server or another player by editing a link (see the action layer's seam, `core/ACTIONS.md` §3). The
-one control that is not a write is the node row's *Download log* (below): a **GET** link with its
-target in the URL, because that is what a download is — and it is a READ, so there is nothing for a
-CSRF token to protect.
-
-### The node row's log download
-
-The node row carries ONE **read** control beside its write strip: *Download log*. It hands over THAT
-node's own bot log file — agent and master alike — as a file download, on demand. It is a route
-(`GET /nodes/{node}/log`, `pages/nodes.py`), never a render step, so the console's no-RPC-on-render
-rule is intact: rendering a page asks no node for anything.
-
-* **The gate is the log PANEL's own capability** — `logs.view` (`Admin` only, no scope grant),
-  named through `pages/logs` as `LOG_DOWNLOAD_CAPABILITY` rather than re-spelled. No new capability
-  exists; a caller who is not offered the control meets the SAME 403 the `/logs` panel answers with.
-* **The path is resolved ON THE NODE.** The console sends the RELATIVE `logs/dcssb-<node>.log` — the
-  very path `run.py:85` writes the node's own rotating log at — to `Node.read_file`, which resolves
-  it in the working directory of the node that answers (the master for its own row, the agent's own
-  process for an agent's row). A master-local absolute path would be wrong on any other machine
-  (this project runs on WSL and Windows), so none is ever built; `plugins/admin/commands.py:515`
-  reads a node-side file the same relative way.
-* **The payload is bounded.** A log AT OR BELOW `LOG_DOWNLOAD_MAX_BYTES` (10 MiB — `run.py`'s own
-  default `logrotate_size`) is served WHOLE; a log ABOVE it is **refused** with its own sentence and
-  served not at all — never a truncated file that downloads like a complete one. The bytes are read
-  before the check because `read_file` is a whole-file contract, so the limit bounds what the console
-  HANDS BACK, and the ruling is stated on the constant.
-* **Every failure is its own sentence**, in plain text (never a zero-byte download that looks like an
-  empty log): the node is offline or unknown (404), there is no log file yet (404), the node cannot
-  read its own file (403), it does not answer in time (504), it answers with a failure CODE instead
-  of bytes (502 — `read_file` is `bytes | int` and an `int` is never content), or the log is above
-  the limit (413).
-* **What it does NOT do:** it does not tail, stream, merge or live-update an agent's log. The console's
-  log PANEL stays master-only; a node's log is here only ever ONE complete file somebody asked for.
-
-**A control submits in the background — the strip AND the dialog** (cards W4h, W4m, M4-fix2). Every
-write is submitted with `fetch` by the console's ONE interceptor
-(`services/webservice/static/submit.js`, loaded by `base.html` on every page) and the page is handed
-over to a fresh render ONCE THE WRITE HAS ANSWERED, so a plain form POST no longer holds the browser
-while the action runs and the row can show that something is running (cards W4g/W4k/W4l). The wait
-itself is visible: the pressed control wears the console's `busy` idiom until the answer lands, and a
-second press while the write is pending is ignored (one request per press, nothing retried). A control
-that opens a **dialog** (a confirmation, or Startup's options form) is itself a plain form — its answer
-IS the dialog page — but the dialog's OWN action form takes the background path too, and it hands the
-page back ONCE THE WRITE HAS ANSWERED. M4-fix2 corrected the earlier at-once behaviour: firing the POST
-and leaving alongside it raced the render, so a DELETE that took a moment came back with the removed row
-still listed (Frank's report). A refusal is no longer shown in a line of the dialog's own (that line is
-gone): it rides the one-shot notice like every other write's outcome.
-
-That shows as TWO signals, with two scopes:
-
-* **the pulse, on the control you pressed** — a control is `busy` (`aria-busy` + the animating class)
-  while a write **through that control** has been issued and **the observable that action moves** has
-  not reached the state its action **settles** at. The expectation record names the
-  submitted action's key, the observable it watches and the action's `settled` states
-  (`pages/actions.remember_awaiting_change`), so pressing *Maintenance* pulses *Maintenance* and
-  leaves *Startup* alone, and vice versa. For every power action the observable is the row's status,
-  and the pulse ends only at the action's INTENDED end state — `RUNNING`/`PAUSED` for a
-  startup/start/restart, `SHUTDOWN`/`STOPPED` for a shutdown/stop — NOT at "the status moved". A real
-  DCS boot reads `LOADING` for most of the minute it takes (a state no control is gated on), and card
-  W4n exists because the old "any change" rule spent the pulse one or two seconds in, so it was gone
-  before anyone saw it; `LOADING` (and a shutdown's `SHUTTING_DOWN`) never ends it. A `restart` is
-  submitted IN a settled state (`RUNNING`), so the read also requires the row to have LEFT that state
-  first (the `departed` latch), which is what stops it re-arming. The flag pair watches the
-  `server.maintenance` flag instead (a flag is not a power state: pressing the flag pair moves no
-  status at all, and it lands before the response returns, so its expectation is spent on the next
-  render rather than pulsing to the ceiling). It is bounded to `AWAIT_CHANGE_SECONDS`, so a start that
-  never comes up cannot pulse forever; a failed or refused write drops the expectation at once, and a
-  spent expectation is dropped the moment it is read (so it can never re-arm).
-  A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW: while the row is transitional
-  (`LOADING`/`SHUTTING_DOWN`) and a start/restart is pending, `server_controls` renders that pending
-  control's own glyph — `busy` and `DISABLED`, a statement rather than an invitation — where the row
-  would otherwise render NOTHING (there is no control gated on `LOADING`). That is what gives the
-  pulse a glyph to run on through the boot.
-  IT IS PROCESS-SIDE AND KEYED BY TARGET, held by `pages/actions` exactly like the seam's
-  in-flight set — NOT in the session, whose cookie the route writes only on its reply. (M4-fix2 made
-  `submit.js` navigate only ONCE THE WRITE HAS ANSWERED, so the landing render now happens after that
-  `Set-Cookie`; the expectation stays process-side regardless, because it must also survive a manual
-  reload and be seen by a second viewer.) It is read ONLY for a row the caller is already rendering
-  (never listed, never counted), so it can say nothing about a server the caller cannot see.
-* **the row marker, on the row** — the action seam's in-flight set says an action is running on this
-  target right now (`core.actions.in_flight_targets`), but it keys the TARGET and cannot say WHICH
-  one, so it is rendered as a class on the row's strip container (`busy` + `data-busy`) and **never
-  on a glyph**. Stamping it on every control of the row is what made the wrong glyph blink; the fact
-  belongs to the row, where it is honest, and the marker carries no animation.
-
-The request is the form's own, unchanged; `keepalive` lets it outlive the navigation, and the action
-seam does not cancel an abandoned handler.
-
-The write's OUTCOME (a success, or a refusal) is carried back to the person by the **live path**:
-`services/webservice/pages/live.py` renders the one-shot notice as a fragment target (`notice`),
-delivered by the polling fallback on its next poll and by the stream's snapshot for an outcome that
-is already stored when the stream connects (a refused write is decided in milliseconds, so the fresh
-render's stream sees it) — so a refusal is seen without a reload. This holds for EVERY write, the
-dialog's included, and for the refusals the ROUTE itself makes (no signed-in identity, a spent/absent
-confirm token, an out-of-scope target — `pages/actions._refusal_notice`), which used to be
-a bare 403 nobody read. With JavaScript off every form is a plain POST, exactly as before.
-
-**The confirm rule.** `restart`, `shutdown`, `stop`, `kick` and `ban` do not POST their action: they
-POST to `<path>/confirm`, which renders the dialog (`services/webservice/templates/confirm.html`), and
-the dialog's form carries a **one-shot confirm token** minted for that target. The action's own route
-**refuses a POST that did not come through the dialog** (`services/webservice/pages/actions.py:709`):
-a confirmation a `curl` can skip is decoration, so the check is server-side. The dialog's wording
-names the **real consequence** in the user's terms — the players currently flying on a restart, the
-count on a shutdown — assembled from the **resolved** object, never from a field the browser sent.
-`WriteAction.dialog` is what decides "posts to a dialog": an action that **confirms** *or* **carries an
-option** does (W5d, so Startup's maintenance box reaches its options form); only `confirm` mints the
-token.
-
-**EVERY node control posts to its dialog's path**, and the token is what differs: the lifecycle trio
-and *Take servers offline* are confirm-required (`action.confirm`), so their own routes demand the
-one-shot token; *Bring servers online* has **no option and no token** — its dialog is a one-button
-form that runs the operation directly, because bringing the servers back *is* the operation. On the
-**server** row it is the same shape for *Shutdown* (confirms, and carries the flag box) and *Startup*
-(the box only, no token): the option's `field` is the ACTION's own parameter name, parsed from the body
-and handed to `call_action`, with the `off` companion saying "off" for a cleared box.
-
-The **maintenance flag pair** on the server row confirms nothing either: it is a reversible state
-change, so both halves submit directly and have no dialog at all (the same rule the mute pair
-follows).
-
-**A NODE power action pulses the SERVER rows it moves**. *Take servers offline* and *Bring
-servers online* start or stop their servers INSIDE the bot's action, so no per-server write is
-submitted from the browser and their rows would carry no expectation — the node row would behave and
-the server rows would not. After such a write is **accepted**, `pages/actions.node_moved_names` seeds
-the SAME expectation store on the servers the operation WILL move, describing each through the
-SERVER_ACTIONS record (`shutdown` for *offline*, `startup` for *online*), so their rows pulse on the
-servers page and the dashboard and END by the identical rules (settled state / failure / ceiling). The
-servers are enumerated from the caller's own **scoped** source, matched on the node's name, so an
-expectation is only ever seeded on a row the caller already sees (the non-disclosure rule, unchanged).
-The set is a **prediction**: *offline* names the in-service servers (not `SHUTDOWN`/`UNREGISTERED`;
-the engine's own `in_service` test), *online* names the servers the power-off RECORD stopped — read
-BEFORE the action runs, because the action clears the record as it reverts it — or, with no record,
-the servers that are down and unflagged; a server already in the settled state is not seeded, a
-refused or failed write seeds nothing, and a second node action replaces (never stacks) an entry.
-
-**The two server-side tokens that make a confirm real:**
-
-* the **one-shot confirm token** — minted per dialog render, keyed on the action path and the resolved
-  target, held in the session (bounded to 8 pending), compared in constant time and **spent on use**,
-  so a replayed dialog form is refused rather than re-running the action
-  (`mint_confirm_token` `:688`, `consume_confirm_token` `:709`);
-* the **CSRF token** — one token per session, rendered into every control's form as `_csrf_token`
-  (`services/webservice/session.py:51`) and re-checked by the route's `csrf_protect` dependency
-  (`:300`). It is accepted, not spent, and there is **no CSRF middleware**: a blanket "unsafe method
-  needs a token" check would refuse the RestAPI plugin's Bearer-token POSTs, which carry no cookie and
-  no CSRF token.
-
-The layer that a control ultimately reaches — the registry, `@action`, the `ActionContext`
-constructors, `resolve_scoped_server`, `call_action` and the audit — is documented in
-[`core/ACTIONS.md`](../../core/ACTIONS.md).
-
-```yaml
-# config/services/webservice.yaml
-DEFAULT:
-  # The log panel's default level filter: info (INFO and up, DEBUG hidden; the default) | warning | all.
-  # The panel offers the same choice in the URL (?level=all) so a refresh keeps it.
-  log_level: info
-  # Live updates of the read-only dashboard.
-  dashboard:
-    live: true          # Serve the live stream at all (default: true). Off = the page is not live.
-    refresh_seconds: 2  # how often the fragments are re-rendered and pushed, in seconds (default: 2).
-                        #   Nothing is sent when nothing changed, so this is a poll interval, not a traffic rate.
-    stream_clients: 16  # the most concurrent live streams (default: 16). Past the cap a client still gets
-                        #   its snapshot and the stream closes cleanly.
-  # Session cookie and login of the console: see the sample config (samples/services/webservice.yaml)
-  # for the full `session:` and `auth:` blocks.
-```
-
-## Login
-
-Two doors lead into the console, and both feed the SAME capability map, so who may see what has
-one declaration:
-
-* **Local username/password** (`auth.local`, see the sample) — the fallback, and the only door on a
-  headless (`no_discord: true`) install. Password hashes are generated with
-  `python -m services.webservice.auth.local --hash`.
-* **Discord OAuth** (`auth.discord`, below) — a signed-in Discord user's roles drive the console,
-  resolved through the **running bot's own role model** (`bot.yaml -> roles:` in its Discord
-  meaning: a role **name** -> the Discord roles that grant it). The console and the bot's commands
-  therefore cannot disagree about who is an Admin. A user who is not a member of the bot's guild is
-  refused (with the reason in the log); a member with no mapped role signs in with an empty role
-  set, and the ordinary deny-by-default rules apply.
-
-### Member resolution, and the Server Members Intent
-
-discord.py only caches guild members when the bot has the **Server Members Intent**. With
-`privileged_intents: false` in `config/services/bot.yaml` — what this repo itself recommends for
-guilds over 10.000 members — that cache is **empty for everyone**, the guild owner included, so the
-console resolves the member itself instead of concluding that nobody is a member:
-
-1. **Intents ON** (`privileged_intents: true`): the bot's **live member list** is used, exactly like
-   the rest of the bot. A role change is effective on the very next request, and no extra Discord
-   call happens.
-2. **Intents OFF**: the login asks Discord for that ONE member (`Guild.fetch_member`, a single-member
-   REST call — the *bulk* member list is what needs the intent), falling back to asking **as the
-   user** (`GET /users/@me/guilds/<id>/member`, which is why the flow requests the
-   `guilds.members.read` scope alongside `identify`). The per-request path then answers from a short
-   in-memory cache (`auth.discord.member_ttl`, default **60 s**, clamped to 1..3600) and refreshes it
-   in the background as soon as an entry is used after its TTL; a request never fails just because
-   the entry aged out. A subject with **no** entry is refused while the refresh runs, and a refresh
-   that **fails** drops the entry, so a stale answer is never kept alive by a failure.
-   **Trade-off, stated plainly:** with the intent ON a removed member or role is effective
-   immediately; with it OFF that takes effect within `member_ttl` plus one refresh — never at cookie
-   expiry, and never at all while Discord is unreachable.
-
-Each login logs **which path resolved the member** (`the bot member cache`, `the bot REST lookup` or
-`the user-side members.read lookup`), so an operator can see what their intents setting exercises. A
-lookup that fails never becomes a 500 and never becomes an open door: the login is refused and the
-failure is logged.
-
-> **Deliberate divergence from the bot's own behaviour.** The bot's player auto-matching *declines*
-> when there is no member list (`services/bot/dcsserverbot.py:643`). The console must not copy that —
-> refusing on an empty cache would lock the operator out of the admin UI — so this path degrades
-> (one REST lookup per login, at most one refresh per `member_ttl`) instead of refusing. The
-> corollary: **"is not a member of the bot's guild" is only ever logged when the bot can actually
-> see members.** Without the intent the refusal names the intent/cache problem and the way out.
-
-```yaml
-# config/services/webservice.yaml
-DEFAULT:
-  auth:
-    # The public origin this console is reachable at (scheme + host). Redirect URIs are built from
-    # this and NEVER from a request header, so a reverse proxy cannot move them.
-    public_base_url: http://localhost:9876
-    discord:
-      enabled: false                 # nothing is enabled unless this is `true`
-      client_id: 123456789012345678  # the Discord application's client id
-      # The client secret. `client_secret_key` NAMES a key in the bot's secret store
-      # (config/.secret/<key>.pkl) and WINS when it is set; `client_secret` is the inline fallback.
-      client_secret_key: discord_client_secret
-      # client_secret: "..."         # inline alternative, used only when no key is named
-      # member_ttl: 60               # per-request resolution cache, intents OFF only (1..3600)
-```
-
-**Register this EXACT redirect URI** in the Discord developer portal (your application →
-OAuth2 → Redirects):
+Generate a password hash (never store plaintext):
 
 ```
-<auth.public_base_url>/auth/discord/callback
+python -m services.webservice.auth.local --hash --username <name> --roles Admin
 ```
 
-so, with the value above: `http://localhost:9876/auth/discord/callback`. The required **scopes are
-`identify` and `guilds.members.read`**: `identify` learns *who* signed in, and `guilds.members.read`
-is used for the one user-side membership lookup described above (only when the bot cannot read the
-guild's members itself). The member's roles are still expanded through the bot's role map — that
-lookup returns role IDs, not a second role model.
-
-**Supplying the secret.** Preferred: put it in the bot's secret store and name the key from the
-config, so the secret never sits in a YAML file:
+Store the Discord client secret in the bot's secret store rather than inline:
 
 ```
 python -c "from core.utils.os import set_password; set_password('discord_client_secret', '<the secret>')"
 ```
 
-writes `config/.secret/discord_client_secret.pkl`, which is what `client_secret_key:
-discord_client_secret` reads. Precedence, in order: `enabled` gates everything; `client_id` is
-required when enabled; the secret comes from `client_secret_key` **when that key is set**,
-otherwise from the inline `client_secret`. Enabled with neither — or with a store key that does not
-exist — the service **refuses the backend at startup and logs why** rather than starting a login
-that cannot complete.
+then set `auth.discord.client_secret_key: discord_client_secret`.
 
-> [!NOTE]
-> `GET /auth/discord/callback?code=...` carries the one-time authorization code in its URL. Uvicorn
-> is started at `WARNING` (see `services/webservice/service.py`), so its access log — which would
-> print that line — is off. With `debug: true` it is on: enable debugging only while testing.
+---
 
+## How to reach the UI
 
-> [!NOTE]
-> To access the API documentation, you can enable debug and access the documentation with these links: 
-> http://localhost:9876/docs
-> http://localhost:9876/redoc
-> Please refer to the [OpenAPI specification](https://swagger.io/specification/) for more information.
+With `frontend: true`, the console is at the `listen`/`port` you set — for the default config,
+`http://localhost:9876/`. An anonymous visitor is redirected to the login page; a signed-in visitor
+without the needed role gets an "access denied" page.
 
-> [!WARNING]
-> Do NOT enable debug for normal operations, especially if you expose the port to the outside world.
+### Discord OAuth login
 
-> [!IMPORTANT]
-> It is advisable to use a reverse proxy like nginx or caddy and maybe SSL encryption to secure the webservice. 
+1. In the Discord developer portal (your application → **OAuth2 → Redirects**), register **exactly**:
+
+   ```
+   <auth.public_base_url>/auth/discord/callback
+   ```
+
+   With the default `public_base_url` that is `http://localhost:9876/auth/discord/callback`. The URI
+   is built from `auth.public_base_url` and never from a request header, so a proxy cannot move it.
+
+2. The console asks for the scopes **`identify`** (who signed in) and **`guilds.members.read`**
+   (one fallback membership lookup when the bot cannot read the guild's members — see the problems
+   section).
+
+3. Supply the client secret through `auth.discord.client_secret_key` (preferred) or
+   `auth.discord.client_secret`. Enabled with neither — or with a store key that does not exist — the
+   service refuses to install the login backend at startup and logs why, rather than starting a login
+   that cannot complete.
+
+A signed-in Discord user's **roles** come from the running bot's own role model (`bot.yaml →
+roles:`), so the console and the bot's commands can never disagree about who is an Admin.
+
+### Local username/password login
+
+Enable `auth.local`, list users and give each the role names it should hold. This is the only login
+door on a headless (`no_discord: true`) install.
+
+---
+
+## Who can see what
+
+Roles are the bot's role names from `bot.yaml` (`roles:`). The two-cluster-role pair is `Admin` and
+`DCS Admin` (`services/webservice/scope.py:90`).
+
+| Page or control | Who |
+|-----------------|-----|
+| Dashboard (`/`), Servers (`/servers`), Players (`/players`), Nodes (`/nodes`), Instances (`/instances`) | `Admin` and `DCS Admin` see everything; a **manager** sees only their own servers (and the nodes/instances that carry them) |
+| Logs page (`/logs`) and a node's *Download log* | `Admin` only |
+| A server's own page and its **Missions** tab | `Admin`, `DCS Admin`, and any **manager** of that server |
+| A server's **Configuration** tab — DCS config and coalition passwords | `Admin`, and a manager for the servers in their scope |
+| A server's **Configuration** tab — channels | `Admin` only (a manager may not write channels) |
+| Server **and** player controls (start/stop/restart, kick/ban/mute/message, mission add/remove/load/…) | `Admin`, `DCS Admin`, and managers on their own servers |
+| Node controls (restart, shut down, upgrade, take servers offline, bring servers online) | `Admin` only |
+
+**Managers and scope.** A *manager* is a signed-in identity whose scope holds a server's
+`managed_by` value. A manager sees and acts on **their own servers only** — a server that declares no
+`managed_by` is nobody's manager server: it is left out of every page for them, and a crafted request
+naming it is refused. For a local user the scope is declared in the config
+(`auth.local.users[].scope`); for a Discord user it comes from the roles that map to `managed_by`.
+Node controls are deliberately `Admin`-only and unscoped: a manager's scope is a set of *servers*, and
+taking a whole node out of service must never widen out of it.
+
+**What is not gated by this model:** the REST API. Its endpoints carry the [RestAPI
+plugin](../../plugins/restapi/README.md)'s own authentication (API key / JWT) and are configured in
+`config/plugins/restapi.yaml`, not here.
+
+---
+
+## TLS
+
+**This service does not terminate TLS.** Put a reverse proxy (nginx, caddy, …) in front of it and
+serve HTTPS there. Two consequences matter:
+
+* Set `session.https_only: true` once the console is reached over TLS, and leave `session.same_site`
+  at `lax`.
+* If you bind `listen` to anything other than loopback and do **not** set `https_only`, the cookie is
+  derived `Secure` (`session.py:140-169`). A browser does not return a `Secure` cookie over plain
+  HTTP, so the login will appear to succeed and the very next request will be refused. The service
+  logs exactly this warning at startup. The two ways out are the ones you actually have: bind to
+  `127.0.0.1`, or terminate TLS in front and set `session.https_only: true`.
+
+---
+
+## Problems people actually hit
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| "Login seems to work, then the next page is refused" | A `Secure` session cookie served over plain HTTP on a non-loopback bind. Bind to `127.0.0.1`, or terminate TLS and set `session.https_only: true`. (`session.py:140-169`) |
+| Discord login "fails the first time, works on retry", or every Discord login fails | `session.same_site` is not `lax`. `strict` drops the cookie on the OAuth callback. Set it back to `lax`. (`session.py:201-212`) |
+| Everyone is signed out after every restart | `session.secret` is unset, so a random key is used per start. Set it to make sessions survive a restart. (`session.py:221-224`) |
+| A user who lost a role keeps it for a while (or a signed-in page says "console is starting up") | With `privileged_intents: false`, member roles are re-resolved at most every `member_ttl` (default 60 s). After a restart, signed-in visitors get a page that retries itself for up to 60 s — no sign-in is needed, it resolves on its own. (`auth.discord.member_ttl`; `shell.py:419-490`) |
+| The console is not there at all | `frontend` is not `true`. The default serves the REST API only. (`shell.py:75`) |
+| The port is already in use | Ports must be 1024–65535 and unique per node; the service retries the bind a few times and then logs an error. (`core/utils/validators.py:170`, `service.py:175-188`) |
+
+### A warning about `debug`
+
+`debug: true` turns on the API documentation endpoints (`/docs`, `/redoc`, `/openapi.json`) and
+uvicorn's access log. Those endpoints are reachable only from loopback and private networks
+(`service.py:115-125`), but they still lay out your API, and the access log prints the OAuth
+callback URL. Enable `debug` only while testing a locally reachable install — do not expose the port
+to the internet with it on.
+
+---
+
+## Where the bot log lives
+
+The console's log panel, and the node row's *Download log*, read the bot's own rotating log at
+`logs/dcssb-<node>.log`, relative to the bot's working directory (`run.py:87`). Rotation size and
+count come from the bot's `main.yaml` logging block, not from this service.
+
+---
+
+## More
+
+* [`I18N.md`](I18N.md) — translating the console (adding a language, extracting and compiling
+  catalogs).
+* [`DEVELOPER.md`](DEVELOPER.md) — the design record: the write surface, the confirm tokens, the
+  background-submit path, member resolution, the retryable page. Operator-facing rules are not
+  defined there; it explains how the console is built.
+* [`core/ACTIONS.md`](../../core/ACTIONS.md) — the action layer the write controls reach.
+* [`plugins/restapi/README.md`](../../plugins/restapi/README.md) — the REST API served on the same
+  port.

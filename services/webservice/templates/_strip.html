@@ -64,15 +64,15 @@
 {%- macro control_fields(control) -%}
 <input type="hidden" name="{{ control.csrf_field }}" value="{{ control.csrf_token }}">
 {%- for name, value in control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor -%}
-{%- if control.field %}<label for="{{ control.field_id }}">{{ control.field_label }}</label><input type="text" id="{{ control.field_id }}" name="{{ control.field }}" maxlength="{{ control.field_max }}" required aria-label="{{ control.aria }}">{% endif -%}
+{%- if control.field %}<label for="{{ control.field_id }}">{{ _(control.field_label) }}</label><input type="text" id="{{ control.field_id }}" name="{{ control.field }}" maxlength="{{ control.field_max }}" required aria-label="{{ say(control.aria) }}">{% endif -%}
 {%- endmacro -%}
 {%- macro control_buttons(control) -%}
 {%- set busy = control.get('busy') -%}
 {%- set off = ' disabled' if control.get('disabled') else '' -%}
 {%- if control.buttons -%}
-{%- for button in control.buttons %}<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} name="mode" value="{{ button.mode }}" title="{{ button.title }}" aria-label="{{ button.aria }}">{{ icons.act(button.icon) }}</button>{% endfor -%}
+{%- for button in control.buttons %}<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} name="mode" value="{{ button.mode }}" title="{{ say(button.title) }}" aria-label="{{ say(button.aria) }}">{{ icons.act(button.icon) }}</button>{% endfor -%}
 {%- else -%}
-<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} title="{{ control.title }}" aria-label="{{ control.aria }}">{{ icons.act(control.icon) }}</button>
+<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ icons.act(control.icon) }}</button>
 {%- endif -%}
 {%- endmacro -%}
 {%- macro strip_form(control) -%}
@@ -80,7 +80,7 @@
 {%- endmacro -%}
 {%- macro menu_item(control) -%}
 {%- set busy = control.get('busy') -%}
-<form method="post" action="{{ control.path }}"{{ ' data-async' if control.get('direct') else '' }}>{{ control_fields(control) }}<button class="mi{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ ' disabled'|safe if control.get('disabled') else '' }} title="{{ control.title }}" aria-label="{{ control.aria }}">{{ icons.act(control.icon) }}<span><span class="lbl">{{ control.label }}</span><span class="hint">{{ control.hint }}</span></span></button></form>
+<form method="post" action="{{ control.path }}"{{ ' data-async' if control.get('direct') else '' }}>{{ control_fields(control) }}<button class="mi{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ ' disabled'|safe if control.get('disabled') else '' }} title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ icons.act(control.icon) }}<span><span class="lbl">{{ _(control.label) }}</span><span class="hint">{{ _(control.hint) }}</span></span></button></form>
 {%- endmacro -%}
 {% if strip.strip or strip.menu %}
 {%- set in_flight = strip.get('in_flight') -%}
@@ -89,10 +89,10 @@
   {% if strip.wide %}
   <span class="act-sep" aria-hidden="true"></span>
   <span class="act-wrap">
-    <button class="act-btn more" type="button" popovertarget="{{ strip.menu_id }}" aria-haspopup="menu" title="More controls" aria-label="{{ strip.aria }}" style="anchor-name: --{{ strip.menu_id }}">{{ icons.act('more') }}</button>
-    <div class="menu" id="{{ strip.menu_id }}" popover role="menu" aria-label="{{ strip.aria }}" style="position-anchor: --{{ strip.menu_id }}">
+    <button class="act-btn more" type="button" popovertarget="{{ strip.menu_id }}" aria-haspopup="menu" title="{% trans %}More controls{% endtrans %}" aria-label="{{ say(strip.aria) }}" style="anchor-name: --{{ strip.menu_id }}">{{ icons.act('more') }}</button>
+    <div class="menu" id="{{ strip.menu_id }}" popover role="menu" aria-label="{{ say(strip.aria) }}" style="position-anchor: --{{ strip.menu_id }}">
       {% for control in strip.menu %}{{ menu_item(control) }}{% endfor %}
-      {% if strip.menu_note %}<div class="mnote">{{ strip.menu_note }}</div>{% endif %}
+      {% if strip.menu_note %}<div class="mnote">{{ _(strip.menu_note) }}</div>{% endif %}
     </div>
   </span>
   {% endif %}

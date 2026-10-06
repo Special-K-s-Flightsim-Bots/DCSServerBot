@@ -48,6 +48,18 @@ __all__ = [
     "sort_rows", "search_players", "column_link", "table_view", "view_state", "view_params",
 ]
 
+
+def _(message: str) -> str:
+    """Mark a string as translatable for the extractor; return it UNCHANGED.
+
+    The console's extraction marker (see :func:`services.webservice.i18n._`): Babel reads the literal
+    out of this module, while at runtime this is an identity, so the read model stays pure and has no
+    language of its own. The translation happens where the string is RENDERED, by the per-language
+    Jinja environment's own ``_`` (``{{ _(column.label) }}`` in the templates). Defined here rather
+    than imported so this module keeps its zero-package-import purity.
+    """
+    return message
+
 #: how long the players search text may be. Long enough for a name or a UCID, short enough that a
 #: hostile query string cannot make the page or its links unreadable.
 MAX_QUERY_LENGTH = 64
@@ -68,8 +80,10 @@ TEXT = "text"
 NUM = "num"
 
 #: worst-case words for the number of characters a string-typed cell may contribute; the comparator
-#: only cares about the two kinds above.
-_DIRECTION_WORDS = {"asc": "ascending", "desc": "descending"}
+#: only cares about the two kinds above. Marked translatable: the template's "Sorted by …"/"Sort by …"
+#: tooltip composes them through the environment's ``_``, and the extraction marker here is what puts
+#: them in the catalog (a ``_(…)`` call inside a Jinja ``{% trans %}`` variable is not extracted).
+_DIRECTION_WORDS = {"asc": _("ascending"), "desc": _("descending")}
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,19 +103,19 @@ class Column:
 #: data"), and a sort key with no source would be a control that lies. ``master``/``online`` are
 #: equally not offered — they are state the row already shows as a dot and a tag.
 TABLE_COLUMNS: dict[str, tuple[Column, ...]] = {
-    "servers": (Column("name", "Server"), Column("node", "Node"), Column("status", "Status"),
-                Column("mission", "Mission"), Column("elapsed", "Elapsed", NUM),
-                Column("players", "Players", NUM)),
-    "nodes": (Column("name", "Node"), Column("instances", "Instances", NUM),
-              Column("servers", "Servers", NUM), Column("players", "Players", NUM)),
-    "instances": (Column("name", "Instance"), Column("node", "Node"), Column("server", "Server"),
-                  Column("dcs_port", "DCS port", NUM), Column("webgui_port", "WebGUI port", NUM)),
-    "players": (Column("name", "Player"), Column("ucid", "UCID"), Column("server", "Server"),
-                Column("slot", "Slot")),
+    "servers": (Column("name", _("Server")), Column("node", _("Node")), Column("status", _("Status")),
+                Column("mission", _("Mission")), Column("elapsed", _("Elapsed"), NUM),
+                Column("players", _("Players"), NUM)),
+    "nodes": (Column("name", _("Node")), Column("instances", _("Instances"), NUM),
+              Column("servers", _("Servers"), NUM), Column("players", _("Players"), NUM)),
+    "instances": (Column("name", _("Instance")), Column("node", _("Node")), Column("server", _("Server")),
+                  Column("dcs_port", _("DCS port"), NUM), Column("webgui_port", _("WebGUI port"), NUM)),
+    "players": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("server", _("Server")),
+                Column("slot", _("Slot"))),
 }
 
 TABLE_LABELS: dict[str, str] = {
-    "servers": "Servers", "nodes": "Nodes", "instances": "Instances", "players": "Players",
+    "servers": _("Servers"), "nodes": _("Nodes"), "instances": _("Instances"), "players": _("Players"),
 }
 
 #: every column key of every table. Used ONLY to decide whether a ``sort`` value is worth carrying

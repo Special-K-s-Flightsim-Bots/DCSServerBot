@@ -25,6 +25,13 @@
   var script = document.currentScript;
   if (!script) { return; }
 
+  /* THE STRINGS ARE SERVED, NOT WRITTEN HERE (``/i18n/messages.js``, included by ``base.html``
+     before this script). ``window.dcssbMsg`` looks a key up and swaps a value in; this file carries
+     no user-visible string and no translation logic. */
+  function t(key, params) {
+    return window.dcssbMsg ? window.dcssbMsg(key, params) : key;
+  }
+
   var streamUrl = script.getAttribute("data-stream");
   var fragmentsUrl = script.getAttribute("data-fragments");
   var statusEl = document.getElementById("live-status");
@@ -38,7 +45,7 @@
   var BACKOFF_MAX_MS = 60000;
 
   function setStatus(word) {
-    if (statusEl) { statusEl.textContent = "Live updates: " + word; }
+    if (statusEl) { statusEl.textContent = t("live.status", { status: word }); }
   }
 
   /* Only auto-scroll a reader who is already at the bottom: someone who scrolled up to read must
@@ -81,7 +88,7 @@
     link.id = "live-signin";
     link.className = "live-signin";
     link.href = "/auth/login?next=" + encodeURIComponent(window.location.pathname);
-    link.textContent = "Sign in again";
+    link.textContent = t("live.sign_in_again");
     statusEl.parentNode.insertBefore(link, statusEl.nextSibling);
   }
 
@@ -100,7 +107,7 @@
   function backOff() {
     if (poll) { clearInterval(poll); poll = null; }
     var delay = Math.min(backoff, BACKOFF_MAX_MS);
-    setStatus("the bot is not ready yet \u2014 retrying in " + Math.round(delay / 1000) + "s");
+    setStatus(t("live.not_ready", { seconds: Math.round(delay / 1000) }));
     setTimeout(function () {
       pollOnce();
       if (!poll) { poll = setInterval(pollOnce, RETRY_MS); }
@@ -112,7 +119,7 @@
     fetch(fragmentsUrl, { headers: { "accept": "application/json" }, credentials: "same-origin" })
       .then(function (response) {
         if (response.status === 401 || response.status === 403) {
-          stopPolling("not permitted \u2014 sign in again");
+          stopPolling(t("live.not_permitted"));
           return null;
         }
         if (response.status === 503) {
@@ -132,7 +139,7 @@
 
   function startPolling() {
     if (poll) { return; }
-    setStatus("polling every 10 seconds");
+    setStatus(t("live.polling"));
     pollOnce();
     poll = setInterval(pollOnce, RETRY_MS);
   }
@@ -140,12 +147,12 @@
   function connect() {
     if (!streamUrl) { return; }
     if (!window.EventSource) { startPolling(); return; }
-    setStatus("connecting\u2026");
+    setStatus(t("live.connecting"));
     source = new EventSource(streamUrl);
-    source.addEventListener("snapshot", function (event) { setStatus("on"); handle(event); });
+    source.addEventListener("snapshot", function (event) { setStatus(t("live.on")); handle(event); });
     source.addEventListener("log", handle);
     source.addEventListener("state", handle);
-    source.onopen = function () { setStatus("on"); };
+    source.onopen = function () { setStatus(t("live.on")); };
     source.onerror = function () {
       // EventSource would retry by itself; we close it and use the polling fallback instead, so a
       // proxy that strips the stream still keeps the page current.

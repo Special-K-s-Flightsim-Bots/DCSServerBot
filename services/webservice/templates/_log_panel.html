@@ -12,5 +12,5 @@
 {% if state.log.available and state.log.lines %}
 <div class="log" id="log-body">{% for line in state.log.lines %}<div class="ln"><span class="t">{{ line.time }}</span> <span class="{{ line.css }}">{{ line.level }}</span> {{ line.text }}</div>{% endfor %}</div>
 {% else %}
-<div class="bd"><p class="empty">{{ state.log.message }}</p></div>
+<div class="bd"><p class="empty">{{ _(state.log.message) }}</p></div>
 {% endif %}

@@ -35,7 +35,7 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from lupa.lua51 import LuaSyntaxError
-from packaging.version import parse
+from packaging.version import InvalidVersion, parse
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any, Coroutine
 from urllib.parse import urlparse
@@ -95,7 +95,9 @@ __all__ = [
     "to_valid_pyfunc_name",
     "pg_interval_to_seconds",
     "get_latest_postgres_version",
-    "get_latest_python_version"
+    "get_latest_python_version",
+    "is_major_version_change",
+    "upgrade_message"
 ]
 
 logger = logging.getLogger(__name__)
@@ -1639,3 +1641,38 @@ async def get_latest_python_version(node: Node, version: str | None = None) -> d
         return check
     except Exception:
         return None
+
+
+def _release(version: str, parts: int = 3) -> tuple[int, ...] | None:
+    """The first *parts* numbers of a version, zero-padded, or ``None`` when it cannot be read."""
+    try:
+        numbers = list(parse(version).release[:parts])
+    except (InvalidVersion, TypeError):
+        return None
+    return tuple(numbers + [0] * (parts - len(numbers)))
+
+
+def is_major_version_change(installed: str, latest: str) -> bool:
+    """Whether *latest* is a major step up from *installed* — one of the first three numbers moved.
+
+    A release that only moves the fourth number is a hotfix and may be applied unattended; a change in the third one
+    is a feature release, and the installer and migrations behind it belong to an operator. An unreadable version is
+    NOT major on purpose: a format this does not understand must never switch every future update off.
+    """
+    current, available = _release(installed), _release(latest)
+    if current is None or available is None:
+        return False
+    return current != available
+
+
+def upgrade_message(installed: str | None = None, latest: str | None = None) -> str:
+    """The ONE wording for "a DCSServerBot update is waiting for a human".
+
+    With both versions it says what is waiting and why it was not applied; without them it is the sentence the
+    path without autoupdate has always logged.
+    """
+    if installed and latest:
+        return (f"New update for DCSServerBot available: {installed} -> {latest}.\n"
+                f"This is a major version, so it is not applied automatically.\n"
+                f"Use /node upgrade or update.cmd to apply it.")
+    return "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it."

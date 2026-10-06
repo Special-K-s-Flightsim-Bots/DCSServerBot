@@ -20,6 +20,6 @@
 <div class="notice {{ 'ok' if notice.ok else 'bad' }}" role="status">
   <span class="dot {{ 'run' if notice.ok else 'dead' }}" aria-hidden="true"></span>
   <span class="notice-msg">{{ notice.message }}</span>
-  {% if notice.audit_warning %}<span class="notice-warn">The audit entry for this action could not be recorded — see the bot log.</span>{% endif %}
+  {% if notice.audit_warning %}<span class="notice-warn">{% trans %}The audit entry for this action could not be recorded — see the bot log.{% endtrans %}</span>{% endif %}
 </div>
 {% endif %}

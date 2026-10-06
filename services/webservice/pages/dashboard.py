@@ -40,7 +40,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from .. import permissions, readmodels, session
+from .. import i18n, permissions, readmodels, session
 from ..auth import routes as auth_routes
 from ..auth import safe_avatar_url
 from ..readmodels import logtail
@@ -76,15 +76,31 @@ DASHBOARD_CAPABILITY = "dashboard.view"
 DASHBOARD_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
 
 DASHBOARD_TEMPLATE = "dashboard.html"
-DASHBOARD_TITLE = "Dashboard"
-DASHBOARD_LEAD = ("Live state of every node, instance and server in the cluster. A server row you "
-                  "may operate carries its controls: Pause/Unpause for the mission, "
-                  "Restart/Shutdown for the server, Start/Stop in the row's menu.")
-NAV_LABEL = "Dashboard"
-NAV_GROUP = "Operations"
+DASHBOARD_TITLE = i18n._("Dashboard")
+DASHBOARD_LEAD = i18n._("Live state of every node, instance and server in the cluster. A server "
+                        "row you may operate carries its own controls.")
+NAV_LABEL = i18n._("Dashboard")
+NAV_GROUP = i18n._("Operations")
 
 #: rendered in the top bar's breadcrumb (chrome; the page name itself comes from DASHBOARD_TITLE)
-CRUMB_GROUP = "Cluster"
+CRUMB_GROUP = i18n._("Cluster")
+
+
+def crumb(*chrome: str, target: str | None = None) -> tuple[tuple[str, bool], ...]:
+    """The top bar's breadcrumb as PARTS: chrome words, then an optional verbatim TARGET name.
+
+    The breadcrumb was ONE composed string, which is why it stayed English: a composed string cannot
+    be looked up in a catalog, and wrapping the whole thing per page would duplicate each page's own
+    title as a second msgid (a duplicate is a translation that drifts). As PARTS, every chrome word
+    is the page's OWN wrapped label reused — ``CRUMB_GROUP`` and ``DASHBOARD_TITLE``/``page.title``/
+    an action's ``label`` — and ``base.html`` runs each chrome part through the request's ``_``, the
+    same mechanism the sidebar's labels use. A target NAME (a server, a node, a mission) is operator
+    data, not chrome: it is marked verbatim and printed as it is, never looked up.
+    """
+    parts = tuple((part, True) for part in chrome)
+    if target is not None:
+        return parts + ((target, False),)
+    return parts
 
 # ------------------------------------------------------------------------------- the console
 #
@@ -150,14 +166,14 @@ LOG_BOTTOM_MAX_ROWS = 8
 
 #: the banner's calm line — the positive statement that replaces four silent sections when nothing
 #: is wrong. Copy lives here (with an owner) and never in a template.
-CALM_MESSAGE = "Nothing needs you — every node is heartbeating and no server is down."
+CALM_MESSAGE = i18n._("Nothing needs you — every node is heartbeating and no server is down.")
 
 #: the status words that mean "a player cannot join" (everything but RUNNING and the deliberate
 #: PAUSED). ONE definition: the banner, the tab dot and the count all read this.
 NOT_RUNNING_WORDS: tuple[str, ...] = ("RUNNING", "PAUSED")
 
 #: the players tab's no-match line (a filtered search with zero hits is NOT "nobody is online")
-NO_PLAYERS_MATCHED_MESSAGE = "No players match this search."
+NO_PLAYERS_MATCHED_MESSAGE = i18n._("No players match this search.")
 
 #: The placement overrides the log header offers, in render order. The empty value is "auto".
 LOG_POSITION_LABELS: tuple[tuple[str, str], ...] = (
@@ -290,6 +306,18 @@ def _names(views) -> str:
     return ", ".join(view.name for view in views)
 
 
+def _translated(msgid: str, **params) -> dict:
+    """A sentence the template renders in the request's language.
+
+    ``msgid`` is a ``i18n._``-marked literal (so Babel extracts it); ``params`` are its interpolation
+    values. The template renders ``{{ _(msgid) % params }}`` through the per-language environment —
+    the sentence cannot be translated at build time because its figures are per-request. ``text`` is
+    the English rendering (msgid % params), kept for the readers that assert the sentence in words
+    (the layout tests) and never drawn: the template prefers ``msgid``.
+    """
+    return {"msgid": msgid, "params": params, "text": msgid % params}
+
+
 def attention(state: readmodels.Overview) -> dict:
     """What is wrong, in WORDS, derived from fields the read models already carry.
 
@@ -302,19 +330,23 @@ def attention(state: readmodels.Overview) -> dict:
     offline = _offline_nodes(state)
     if offline:
         items.append({"kind": "dead", "dot": "dead",
-                      "text": f"{len(offline)} node(s) not heartbeating: {_names(offline)}"})
+                      **_translated(i18n._("%(count)d node(s) not heartbeating: %(names)s"),
+                                    count=len(offline), names=_names(offline))})
     down = _broken_servers(state)
     if down:
         items.append({"kind": "dead", "dot": "dead",
-                      "text": f"{len(down)} server(s) down: {_names(down)}"})
+                      **_translated(i18n._("%(count)d server(s) down: %(names)s"),
+                                    count=len(down), names=_names(down))})
     paused = _paused_servers(state)
     if paused:
         items.append({"kind": "pause", "dot": "pause",
-                      "text": f"{len(paused)} server(s) paused: {_names(paused)}"})
+                      **_translated(i18n._("%(count)d server(s) paused: %(names)s"),
+                                    count=len(paused), names=_names(paused))})
     errors = sum(1 for line in state.log.lines if line.level == "ERROR")
     if errors:
         items.append({"kind": "log", "dot": "dead",
-                      "text": f"{errors} ERROR line(s) in the visible log"})
+                      **_translated(i18n._("%(count)d ERROR line(s) in the visible log"),
+                                    count=errors)})
     return {"alerts": items, "ok": not items, "calm": CALM_MESSAGE,
             "count": len(items)}
 
@@ -444,7 +476,11 @@ def log_view(state: readmodels.Overview, params, carry: dict | None = None,
         "stated": position or "",
         "rows": longest_list(state),
         "threshold": LOG_BOTTOM_MAX_ROWS,
-        "rule": f"bottom when \u2264 {LOG_BOTTOM_MAX_ROWS} rows, right when more",
+        # a SENTENCE RECORD, not a composed string: the threshold is a per-render figure, so the
+        # template translates the English template FIRST and interpolates AFTER, through the
+        # environment's guarded ``say`` (a bad catalog line degrades to English, never a 500).
+        "rule": {"msgid": i18n._("bottom when \u2264 {rows} rows, right when more"),
+                 "params": {"rows": LOG_BOTTOM_MAX_ROWS}},
         "levels": levels,
         "links": links,
     }
@@ -567,10 +603,6 @@ def add_routes(router: APIRouter) -> APIRouter:
 
     @router.get(DASHBOARD_PATH, response_class=HTMLResponse)
     async def dashboard(request: Request):
-        environment = getattr(request.app.state, "webui_templates", None)
-        if environment is None:  # pragma: no cover - installed by the shell
-            raise HTTPException(status_code=503,
-                                detail="The admin web UI templates are not installed.")
         registrar = getattr(request.app.state, "webui_registrar", None)
         roles = permissions.role_names_for(request)
         # the third kind of identity, resolved ONCE for the whole render (and memoized on the
@@ -596,11 +628,12 @@ def add_routes(router: APIRouter) -> APIRouter:
         # ``pages/actions`` imports THIS module.
         from . import actions as actions_page
         notice = actions_page.pop_notice(request)
-        html = environment.get_template(DASHBOARD_TEMPLATE).render(
+        html = i18n.render(
+            request, DASHBOARD_TEMPLATE,
             title=DASHBOARD_TITLE,
             page_title=DASHBOARD_TITLE,
             lead=DASHBOARD_LEAD,
-            crumb=f"{CRUMB_GROUP} / {DASHBOARD_TITLE}",
+            crumb=crumb(CRUMB_GROUP, DASHBOARD_TITLE),
             state=state,
             view=view,
             empty=empty_messages(state),
@@ -920,17 +953,30 @@ def environment_marker(state: readmodels.Overview) -> dict:
     It answers the two questions a console with more than one installation must answer at a
     glance: which node am I looking at, and is what I see live. Both come from the source's status
     record, so the marker cannot disagree with the figures under it.
+
+    It is PARTS, not one composed string (the same shape as :func:`crumb`): the chrome words
+    (``master``/``agent``, ``live state``/``no live state``, and ``no node`` when the source names
+    none) are ``i18n._``-marked and rendered through the request's ``_`` by ``base.html``, while a
+    node's own NAME is OPERATOR DATA printed verbatim — never looked up as a msgid.
     """
     status = state.status
-    parts = [status.node_name or "no node", "master" if status.master else "agent"]
-    parts.append("live state" if status.live else "no live state")
-    return {"text": " · ".join(parts), "live": status.live, "reason": status.reason}
+    node = (status.node_name, False) if status.node_name else (i18n._("no node"), True)
+    role = (i18n._("master") if status.master else i18n._("agent"), True)
+    live = (i18n._("live state") if status.live else i18n._("no live state"), True)
+    return {"parts": (node, role, live), "live": status.live, "reason": status.reason}
 
 
-def status_pills(state: readmodels.Overview) -> list[str]:
-    """The top bar's pills — every figure built here from the Overview, none typed in the template."""
+def status_pills(state: readmodels.Overview) -> list[dict]:
+    """The top bar's pills — every figure built here from the Overview, none typed in the template.
+
+    Each pill is a :func:`_translated` record (a marked ``msgid``, its ``params`` and the English
+    ``text``): the template renders the sentence through the per-language environment, so the words
+    around the counts follow the reader's language while the figures stay the read models'.
+    """
     return [
-        f"{state.online_node_count}/{state.node_count} nodes online",
-        f"{state.running_count}/{state.server_count} servers up",
-        f"{state.player_count} players online",
+        _translated(i18n._("%(online)d/%(total)d nodes online"),
+                    online=state.online_node_count, total=state.node_count),
+        _translated(i18n._("%(running)d/%(total)d servers up"),
+                    running=state.running_count, total=state.server_count),
+        _translated(i18n._("%(count)d players online"), count=state.player_count),
     ]

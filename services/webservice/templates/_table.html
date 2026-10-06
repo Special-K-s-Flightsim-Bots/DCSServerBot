@@ -11,6 +11,12 @@
   a ViewState (so the search counts and the echoed query come from the same record the rows do) and
   `empty` the read models' own copy. No direction logic, no count, no figure is derived here.
 
+  IT IS TRANSLATED AT RENDER. The strings the read models and pages own (a column label, a status
+  word, an empty-state sentence, the table label) are rendered through the environment's own `_`
+  (`{{ _(column.label) }}`), and the two sentences that carry figures — the "Sorted by …" tag and
+  the column tooltip — are composed here from the same translated atoms with Jinja's `{% trans %}`.
+  English stays the msgid, so a wrapped-but-untranslated string renders exactly as before.
+
   THE SEARCH IS A GET FORM (the players table only): it filters server-side on `?q=`, so it works
   with JavaScript off, is linkable and mutates nothing. `search_action`/`search_clear`/
   `search_hidden` are passed by the renderer, because the dashboard's search posts back to `/?tab=…`
@@ -32,19 +38,20 @@
 -#}
 {% import "_icons.html" as icons %}
 <div class="card">
-  <div class="hd"><h3>{{ table.label }}</h3><div class="spacer"></div>
-    <span class="tag">{{ table.sorted_label }}</span>
-    <span class="tag">{{ 'actions' if row_controls is defined and row_controls else 'read-only' }}</span></div>
+  <div class="hd"><h3>{{ _(table.label) }}</h3><div class="spacer"></div>
+    {%- set active_column = table.columns | selectattr('active') | first %}
+    <span class="tag">{% trans label=_(active_column.label), direction=_(('descending' if table.direction == 'desc' else 'ascending')) %}Sorted by {{ label }}, {{ direction }}{% endtrans %}</span>
+    <span class="tag">{% if row_controls is defined and row_controls %}{% trans %}actions{% endtrans %}{% else %}{% trans %}read-only{% endtrans %}{% endif %}</span></div>
 
   {% if table.name == 'players' %}
   <form class="search" method="get" action="{{ search_action }}" role="search">
-    <label for="q">Search players</label>
-    <input type="search" id="q" name="q" value="{{ view.search.query }}" placeholder="name or UCID, e.g. Viper-1 or 4b1f9c22">
+    <label for="q">{% trans %}Search players{% endtrans %}</label>
+    <input type="search" id="q" name="q" value="{{ view.search.query }}" placeholder="{% trans %}name or UCID, e.g. Viper-1 or 4b1f9c22{% endtrans %}">
     {% for key, value in search_hidden.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
-    <button type="submit">Search</button>
-    <a href="{{ search_clear }}">Clear</a>
+    <button type="submit">{% trans %}Search{% endtrans %}</button>
+    <a href="{{ search_clear }}">{% trans %}Clear{% endtrans %}</a>
   </form>
-  <p class="sub search-state">{% if view.search.active %}{{ view.search.label }} · <a href="{{ search_clear }}">clear</a>{% else %}{{ view.search.total }} player(s) online{% endif %}</p>
+  <p class="sub search-state">{% if view.search.active %}{% trans query=view.search.query, filtered=view.search.filtered, total=view.search.total %}Filter: name or UCID contains {{ query }} · {{ filtered }} of {{ total }} players{% endtrans %} · <a href="{{ search_clear }}">{% trans %}clear{% endtrans %}</a>{% else %}{% trans count=view.search.total %}{{ count }} player(s) online{% endtrans %}{% endif %}</p>
   {% endif %}
 
   {% if table.rows %}
@@ -52,16 +59,16 @@
     <table>
       <thead>
         <tr>
-          {% for column in table.columns %}<th scope="col" aria-sort="{{ column.aria_sort }}" class="{{ 'num' if column.kind == 'num' else 'txt' }}"><a class="sort" href="{{ column.link }}" title="{{ column.title }}">{{ column.label }} <span class="ar" aria-hidden="true">{{ column.arrow }}</span></a></th>{% endfor %}
-          {% if row_controls is defined and row_controls %}<th scope="col" class="acts">Actions</th>{% endif %}
+          {% for column in table.columns %}<th scope="col" aria-sort="{{ column.aria_sort }}" class="{{ 'num' if column.kind == 'num' else 'txt' }}"><a class="sort" href="{{ column.link }}" title="{% if column.active %}{% trans label=_(column.label), here=_(('descending' if table.direction == 'desc' else 'ascending')), next=_(('descending' if column.direction == 'desc' else 'ascending')) %}Sorted by {{ label }}, {{ here }} — click to sort {{ next }}{% endtrans %}{% else %}{% trans label=_(column.label), next=_(('descending' if column.direction == 'desc' else 'ascending')) %}Sort by {{ label }}, {{ next }}{% endtrans %}{% endif %}">{{ _(column.label) }} <span class="ar" aria-hidden="true">{{ column.arrow }}</span></a></th>{% endfor %}
+          {% if row_controls is defined and row_controls %}<th scope="col" class="acts">{% trans %}Actions{% endtrans %}</th>{% endif %}
         </tr>
       </thead>
       <tbody>
       {% if table.name == 'servers' %}
-        {% for row in table.rows %}<tr><td><b>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</b><div class="meta">node {{ row.node_name }}{% if row.instance_name %} · instance {{ row.instance_name }}{% endif %}{% if row.port %} ·:{{ row.port }}{% endif %}</div></td><td>{{ row.node_name }}</td><td><span class="dot {{ row.status.dot }}" title="{{ row.status.raw }}" aria-hidden="true"></span> <span class="tag">{{ row.status.word }}</span>{% if row.maintenance %} <span class="tag">maintenance</span>{% endif %}</td><td>{{ row.mission_name or '—' }}</td><td class="num">{{ row.mission_label }}</td><td class="num">{{ row.active_players }} player(s)</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ strip.get('note') }}</span>{% endif %}{% endif %}</td>{% endif %}</tr>
+        {% for row in table.rows %}<tr><td><b>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</b><div class="meta">{% trans %}node{% endtrans %} {{ row.node_name }}{% if row.instance_name %} · {% trans %}instance{% endtrans %} {{ row.instance_name }}{% endif %}{% if row.port %} ·:{{ row.port }}{% endif %}</div></td><td>{{ row.node_name }}</td><td><span class="dot {{ row.status.dot }}" title="{{ row.status.raw }}" aria-hidden="true"></span> <span class="tag">{{ _(row.status.word) }}</span>{% if row.maintenance %} <span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}</td><td>{{ row.mission_name or '—' }}</td><td class="num">{{ row.mission_label }}</td><td class="num">{% trans count=row.active_players %}{{ count }} player(s){% endtrans %}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ _(strip.get('note')) }}</span>{% endif %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
       {% elif table.name == 'nodes' %}
-        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b>{% if row.master %} <span class="tag">master</span>{% endif %} <span class="tag">{{ 'online' if row.online else 'offline' }}</span>{% if not row.instances %}<div class="meta">{{ empty.node_instances }}</div>{% endif %}</td><td class="num">{{ row.instances }}</td><td class="num">{{ row.servers }}</td><td class="num">{{ row.players }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ strip.get('note') }}</span>{% endif %}{% if strip.get('download') %}<a class="act-btn dl" href="{{ strip.download.path }}" title="{{ strip.download.title }}" aria-label="{{ strip.download.aria }}">{{ icons.act('download') }}</a>{% endif %}{% endif %}</td>{% endif %}</tr>
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b>{% if row.master %} <span class="tag">{% trans %}master{% endtrans %}</span>{% endif %} <span class="tag">{% if row.online %}{% trans %}online{% endtrans %}{% else %}{% trans %}offline{% endtrans %}{% endif %}</span>{% if not row.instances %}<div class="meta">{{ _(empty.node_instances) }}</div>{% endif %}</td><td class="num">{{ row.instances }}</td><td class="num">{{ row.servers }}</td><td class="num">{{ row.players }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ _(strip.get('note')) }}</span>{% endif %}{% if strip.get('download') %}<a class="act-btn dl" href="{{ strip.download.path }}" title="{{ say(strip.download.title) }}" aria-label="{{ say(strip.download.aria) }}">{{ icons.act('download') }}</a>{% endif %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
       {% elif table.name == 'instances' %}
         {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td>{{ row.node_name }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name or '—' }}{% endif %}</td><td class="num">{{ row.dcs_port or '—' }}</td><td class="num">{{ row.webgui_port or '—' }}</td></tr>
@@ -74,6 +81,6 @@
     </table>
   </div>
   {% else %}
-  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ empty.players_matched }}{% else %}{{ empty[table.name] }}{% endif %}</p></div>
+  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ _(empty.players_matched) }}{% else %}{{ _(empty[table.name]) }}{% endif %}</p></div>
   {% endif %}
 </div>

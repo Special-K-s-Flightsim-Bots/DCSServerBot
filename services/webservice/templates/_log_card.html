@@ -13,15 +13,15 @@
 -#}
 <div class="card log-card{{ ' expanded' if console.log.position == 'expanded' else '' }}">
   <div class="hd">
-    <h3>Recent log</h3>
+    <h3>{% trans %}Recent log{% endtrans %}</h3>
     <div class="spacer"></div>
     <span class="log-level" id="log-level">{% for item in console.log.levels %}<a href="{{ item.href }}" class="tag{{ ' a' if item.active else '' }}">{{ item.label }}</a>{% endfor %}</span>
-    <span class="tag">Follow: newest</span>
+    <span class="tag">{% trans %}Follow: newest{% endtrans %}</span>
     <span class="tag">{{ state.log.path }}</span>
   </div>
   <div id="log-panel">{% include "_log_panel.html" %}</div>
   <div class="ft">
-    <span>Shown: {{ state.log.level|upper }} and up{% if console.log.links %} · log position <b>{{ console.log.position }}</b> — longest list {{ console.log.rows }} row(s), rule "{{ console.log.rule }}"{% endif %}</span>
+    <span>{% trans level=state.log.level|upper %}Shown: {{ level }} and up{% endtrans %}{% if console.log.links %} · {% trans position=console.log.position, rows=console.log.rows, rule=say(console.log.rule) %}log position <b>{{ position }}</b> — longest list {{ rows }} row(s), rule "{{ rule }}"{% endtrans %}{% endif %}</span>
     {% if console.log.links %}<span class="spacer"></span><span class="logpos">{% for item in console.log.links %}<a href="{{ item.href }}" class="tag{{ ' a' if item.active else '' }}"{% if item.active %} aria-current="true"{% endif %}>{{ item.label }}</a>{% endfor %}</span>{% endif %}
   </div>
 </div>

@@ -26,10 +26,18 @@
 (function () {
   "use strict";
 
-  var SHOW = "Show password";
-  var HIDE = "Hide password";
+  /* THE STRINGS ARE SERVED, NOT WRITTEN HERE. ``window.dcssbMsg`` (the served map at
+     ``/i18n/messages.js``, which ``base.html`` includes before this script) looks a key up and swaps
+     a value in; this file carries no user-visible string and no translation logic. The ``t`` fallback
+     only guards a map that somehow did not load — it never renders a translated string. */
+  function t(key) {
+    return window.dcssbMsg ? window.dcssbMsg(key) : key;
+  }
+
+  var SHOW = t("reveal.show");
+  var HIDE = t("reveal.hide");
   /* What the inert state says, so a press that cannot act is announced as one that cannot act. */
-  var NOTHING_TO_SHOW = "Nothing to show — type a password first, then this reveals what you typed.";
+  var NOTHING_TO_SHOW = t("reveal.nothing");
 
   function wire(button) {
     var field = document.getElementById(button.getAttribute("data-reveal"));

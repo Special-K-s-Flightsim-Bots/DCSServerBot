@@ -37,7 +37,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import auth, contributors, permissions, session, templating
+from . import auth, contributors, i18n, permissions, session, templating
 from .auth import routes as auth_routes
 from .registry import Registrar
 
@@ -110,6 +110,11 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
     # stored anywhere, and reading the YAML again from a request handler would bypass the schema
     # and the service's own loading (tags, defaults, the lazy-write path).
     app.state.webui_config = dict(config or {})
+    # The install-wide default language, read once from the bot's own main.yaml (``language:``) and
+    # stored on the application: it is the LAST source in the precedence (stored choice ->
+    # Accept-Language -> this) and reading it per request would re-open the file on every render.
+    app.state.webui_default_language = i18n.default_language(
+        getattr(node, "config_dir", None) or "config")
     session.install_session_middleware(app, config)
     auth.install_auth(app, node, config)
     _install_refusal_handlers(app)
@@ -221,6 +226,8 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
 
     router = APIRouter()
     auth_routes.add_routes(router)
+    # the language switch: the shell's own (reserved-adjacent) path, PUBLIC, on the shell's router
+    i18n.add_routes(router)
     dashboard_page.add_routes(router)
     logs_page.add_routes(router)
     # the standalone list pages: the FULL inventory behind the dashboard's attention view. One
@@ -233,6 +240,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     players_page.add_routes(router)
     live_page.add_routes(router)
     capabilities = dict(auth_routes.capabilities())
+    capabilities.update(i18n.capabilities())
     capabilities.update(dashboard_page.capabilities())
     capabilities.update(logs_page.capabilities())
     capabilities.update(servers_page.capabilities())

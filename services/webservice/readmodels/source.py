@@ -17,7 +17,7 @@ models are pure" a checked property (acceptance 4) rather than a claim. Purity h
 are duck-typed and nothing is awaited, NOT that the package is core-free: it reaches ``core`` at
 import time through ``..scope`` (see the package docstring).
 
-The log file is the bot's own rotating log (``run.py:85``: ``logs/dcssb-<node>.log``, relative to
+The log file is the bot's own rotating log (``run.py:87``: ``logs/dcssb-<node>.log``, relative to
 the process' working directory, format ``%(asctime)s.%(msecs)03d %(levelname)s\\t%(message)s``).
 """
 from __future__ import annotations

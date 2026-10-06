@@ -13,9 +13,9 @@
 {% block content %}
 
 <div class="page-head">
-  <h1>{{ page_title }}</h1>
-  <div class="sub">{{ lead }}</div>
-  <span id="live-status" class="live-status">Live updates: unavailable</span>
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+  <span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span>
 </div>
 
 {# THE ONE-SHOT NOTICE of a write — a LIVE SWAP TARGET here too, and NOT because this page

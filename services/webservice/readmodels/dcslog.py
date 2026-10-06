@@ -51,14 +51,23 @@ FOLLOW_SECONDS = 3
 #: the node clamps it to the file's real size at read time.
 BEHIND_END = 2 ** 63 - 1
 
-#: the honest sentence for a server with no log file yet (the path is filled in by the caller)
-MISSING_SENTENCE = "No log file yet for this server (looked for '{path}' on node '{node}')."
+#: Mark a string as translatable for the extractor; return it UNCHANGED (see ``i18n._``). This module
+#: is a pure read model and imports nothing from the console, so it carries its OWN identity marker —
+#: the same shape ``readmodels/model.py`` uses. The translation happens where the sentence is RENDERED.
+def _(message: str) -> str:
+    return message
+
+
+#: the honest sentence for a server with no log file yet (``{path}``/``{node}`` filled in by the
+#: caller). A TRANSLATABLE TEMPLATE: the sentence is translated first, the operator data interpolated
+#: after (see the log-window route), so the node name and the path stay verbatim.
+MISSING_SENTENCE = _("No log file yet for this server (looked for '{path}' on node '{node}').")
 
 #: the honest sentence a PAGE-BACK answers when a rotation landed DURING the walk (L2-fix): the page
 #: the walk gathered is the PREVIOUS file's alone (never spliced with the replacement), and the view
 #: resets and says the log restarted.
-ROTATED_SENTENCE = ("The log restarted while loading older lines — the lines shown are from the "
-                    "previous file.")
+ROTATED_SENTENCE = _("The log restarted while loading older lines — the lines shown are from the "
+                     "previous file.")
 
 #: ``2026-10-04 12:00:00.123 INFO    APP: …`` — the DCS log's own line shape. The level word follows
 #: the timestamp and is separated by spaces, NOT a tab (unlike the bot log), so the bot-log

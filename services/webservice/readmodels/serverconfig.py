@@ -40,6 +40,17 @@ from dataclasses import dataclass, field
 from .access import attr, safe, text
 from .model import StatusView, status_view
 
+
+def _(message: str) -> str:
+    """Mark a string as translatable for the extractor; return it UNCHANGED.
+
+    See :func:`services.webservice.i18n._` and :mod:`.model`: Babel reads the literal out of this
+    module while the runtime call is an identity, so the read model stays pure and has no language
+    of its own. The label/help a row renders is translated where it is RENDERED, by the per-language
+    template environment's own ``_`` (``{{ _(f.label) }}``), never here.
+    """
+    return message
+
 __all__ = [
     "KIND_BOOL", "KIND_INT", "KIND_STR", "KIND_SEQ",
     "GROUP_ORDER", "GROUP_LABELS", "GROUP_IDENTITY", "GROUP_BEHAVIOUR", "GROUP_REQUIREMENTS",
@@ -84,14 +95,14 @@ GROUP_MISSION = "mission"
 GROUP_COALITIONS = "coalitions"
 
 GROUP_LABELS: dict[str, str] = {
-    GROUP_IDENTITY: "Identity & access",
-    GROUP_BEHAVIOUR: "Server behaviour",
-    GROUP_REQUIREMENTS: "Requirements",
-    GROUP_RESTRICTIONS: "Restrictions",
-    GROUP_ANTICHEAT: "Anti-cheat",
-    GROUP_CHANNELS: "Discord channels",
-    GROUP_MISSION: "Mission list — owned by a feature of its own",
-    GROUP_COALITIONS: "Coalition passwords",
+    GROUP_IDENTITY: _("Identity & access"),
+    GROUP_BEHAVIOUR: _("Server behaviour"),
+    GROUP_REQUIREMENTS: _("Requirements"),
+    GROUP_RESTRICTIONS: _("Restrictions"),
+    GROUP_ANTICHEAT: _("Anti-cheat"),
+    GROUP_CHANNELS: _("Discord channels"),
+    GROUP_MISSION: _("Mission list — owned by a feature of its own"),
+    GROUP_COALITIONS: _("Coalition passwords"),
 }
 
 #: the groups rendered as editable form groups, in order (channels and mission are their own shapes)
@@ -127,8 +138,8 @@ CHANNEL_UNSET_VALUE = "unset"
 #: the new channel is used AT ONCE — for a master-hosted and an agent-hosted server alike. NO restart
 #: is needed (the page says so rather than borrowing the DCS face's "applies when the server next
 #: starts").
-CHANNEL_APPLY_NOTE = ("A channel change is applied immediately: the bot rewrites servers.yaml and "
-                      "starts using the new channel at once, with no restart.")
+CHANNEL_APPLY_NOTE = _("A channel change is applied immediately: the bot rewrites servers.yaml and "
+                       "starts using the new channel at once, with no restart.")
 
 
 def channel_value_text(raw) -> str:
@@ -206,64 +217,64 @@ class ConfigField:
 #: digits, ``maxPlayers`` up to three digits (999), ``maxPing`` three digits, and ``resume_mode`` the
 #: modal's three Select options.
 EDITABLE_FIELDS: tuple[ConfigField, ...] = (
-    ConfigField("name", KIND_STR, "Server name",
-                "Renamed by the bot, not by the file: a rename moves the server (its instance "
-                "folder and its servers.yaml entry) and rewrites the channel names and messages "
-                "that carry the old name.", GROUP_IDENTITY, minimum=1),
-    ConfigField("description", KIND_STR, "Description",
-                "A brief description, shown in /status and in the server list. The Discord editor "
-                "allows up to 2000 characters.", GROUP_IDENTITY, maximum=2000, multiline=True),
-    ConfigField("port", KIND_INT, "Server port",
-                "The UDP port DCS listens on. The Discord editor takes a 5-digit value here. A port "
-                "another server on this node already uses is refused, naming it.", GROUP_IDENTITY,
+    ConfigField("name", KIND_STR, _("Server name"),
+                _("Renamed by the bot, not by the file: a rename moves the server (its instance "
+                  "folder and its servers.yaml entry) and rewrites the channel names and messages "
+                  "that carry the old name."), GROUP_IDENTITY, minimum=1),
+    ConfigField("description", KIND_STR, _("Description"),
+                _("A brief description, shown in /status and in the server list. The Discord editor "
+                  "allows up to 2000 characters."), GROUP_IDENTITY, maximum=2000, multiline=True),
+    ConfigField("port", KIND_INT, _("Server port"),
+                _("The UDP port DCS listens on. The Discord editor takes a 5-digit value here. A port "
+                  "another server on this node already uses is refused, naming it."), GROUP_IDENTITY,
                 minimum=1, maximum=65535),
-    ConfigField("password", KIND_STR, "Password",
-                "The DCS password a client needs to join. The field shows the stored password: "
-                "leave it as it is to keep it, empty it to remove it, type in it to set a new one.",
+    ConfigField("password", KIND_STR, _("Password"),
+                _("The DCS password a client needs to join. The field shows the stored password: "
+                  "leave it as it is to keep it, empty it to remove it, type in it to set a new one."),
                 GROUP_IDENTITY, maximum=80, protection=UNPROTECTED),
-    ConfigField("maxPlayers", KIND_INT, "Maximum number of players",
-                "The slot count DCS advertises. The Discord editor takes up to three digits here, "
-                "which is where the 999 ceiling comes from.", GROUP_BEHAVIOUR, minimum=1, maximum=999),
-    ConfigField("isPublic", KIND_BOOL, "Public server",
-                "Lists the server in the public DCS server browser.", GROUP_BEHAVIOUR),
-    ConfigField("advanced.resume_mode", KIND_INT, "Resume mode",
-                "What DCS does when the last client leaves and when a mission loads.", GROUP_BEHAVIOUR,
+    ConfigField("maxPlayers", KIND_INT, _("Maximum number of players"),
+                _("The slot count DCS advertises. The Discord editor takes up to three digits here, "
+                  "which is where the 999 ceiling comes from."), GROUP_BEHAVIOUR, minimum=1, maximum=999),
+    ConfigField("isPublic", KIND_BOOL, _("Public server"),
+                _("Lists the server in the public DCS server browser."), GROUP_BEHAVIOUR),
+    ConfigField("advanced.resume_mode", KIND_INT, _("Resume mode"),
+                _("What DCS does when the last client leaves and when a mission loads."), GROUP_BEHAVIOUR,
                 choices=(0, 1, 2)),
-    ConfigField("advanced.maxPing", KIND_INT, "Maximum allowed ping",
-                "Values above 300 tend to cause lags / desyncs (the editor's own words). 0 turns the "
-                "check off.", GROUP_BEHAVIOUR, minimum=0, maximum=999),
-    ConfigField("advanced.server_can_screenshot", KIND_BOOL, "Server can screenshot",
-                "Lets the server take screenshots (used by plugins that ask a client for a picture).",
+    ConfigField("advanced.maxPing", KIND_INT, _("Maximum allowed ping"),
+                _("Values above 300 tend to cause lags / desyncs (the editor's own words). 0 turns the "
+                  "check off."), GROUP_BEHAVIOUR, minimum=0, maximum=999),
+    ConfigField("advanced.server_can_screenshot", KIND_BOOL, _("Server can screenshot"),
+                _("Lets the server take screenshots (used by plugins that ask a client for a picture)."),
                 GROUP_BEHAVIOUR),
-    ConfigField("advanced.allow_trial_only_clients", KIND_BOOL, "Allow trial-only clients",
-                "Clients that own no module may still join.", GROUP_BEHAVIOUR),
-    ConfigField("require_pure_clients", KIND_BOOL, "Require pure clients",
-                "A client with any modification is refused at join.", GROUP_REQUIREMENTS),
-    ConfigField("require_pure_scripts", KIND_BOOL, "Require pure scripts",
-                "Modified mission scripts are refused.", GROUP_REQUIREMENTS),
-    ConfigField("require_pure_models", KIND_BOOL, "Require pure models",
-                "Modified 3D models are refused.", GROUP_REQUIREMENTS),
-    ConfigField("require_pure_textures", KIND_BOOL, "Require pure textures",
-                "Modified textures are refused.", GROUP_REQUIREMENTS),
-    ConfigField("advanced.allow_change_tailno", KIND_BOOL, "Allow change tail number",
-                "Players may repaint their tail number in the cockpit.", GROUP_RESTRICTIONS),
-    ConfigField("advanced.allow_dynamic_radio", KIND_BOOL, "Allow dynamic radio",
-                "Players may tune any radio channel, not only the mission's presets.",
+    ConfigField("advanced.allow_trial_only_clients", KIND_BOOL, _("Allow trial-only clients"),
+                _("Clients that own no module may still join."), GROUP_BEHAVIOUR),
+    ConfigField("require_pure_clients", KIND_BOOL, _("Require pure clients"),
+                _("A client with any modification is refused at join."), GROUP_REQUIREMENTS),
+    ConfigField("require_pure_scripts", KIND_BOOL, _("Require pure scripts"),
+                _("Modified mission scripts are refused."), GROUP_REQUIREMENTS),
+    ConfigField("require_pure_models", KIND_BOOL, _("Require pure models"),
+                _("Modified 3D models are refused."), GROUP_REQUIREMENTS),
+    ConfigField("require_pure_textures", KIND_BOOL, _("Require pure textures"),
+                _("Modified textures are refused."), GROUP_REQUIREMENTS),
+    ConfigField("advanced.allow_change_tailno", KIND_BOOL, _("Allow change tail number"),
+                _("Players may repaint their tail number in the cockpit."), GROUP_RESTRICTIONS),
+    ConfigField("advanced.allow_dynamic_radio", KIND_BOOL, _("Allow dynamic radio"),
+                _("Players may tune any radio channel, not only the mission's presets."),
                 GROUP_RESTRICTIONS),
-    ConfigField("advanced.allow_change_skin", KIND_BOOL, "Allow change skin",
-                "Players may pick another livery for their aircraft.", GROUP_RESTRICTIONS),
-    ConfigField("advanced.allow_object_export", KIND_BOOL, "Allow object export",
-                "DCS's export switch for third-party tooling that reads the mission state.",
+    ConfigField("advanced.allow_change_skin", KIND_BOOL, _("Allow change skin"),
+                _("Players may pick another livery for their aircraft."), GROUP_RESTRICTIONS),
+    ConfigField("advanced.allow_object_export", KIND_BOOL, _("Allow object export"),
+                _("DCS's export switch for third-party tooling that reads the mission state."),
                 GROUP_ANTICHEAT),
-    ConfigField("advanced.allow_sensor_export", KIND_BOOL, "Allow sensor export",
-                "DCS's export switch for sensor data.", GROUP_ANTICHEAT),
-    ConfigField("advanced.allow_ownship_export", KIND_BOOL, "Allow ownship export",
-                "DCS's export switch for the player's own aircraft.", GROUP_ANTICHEAT),
-    ConfigField("advanced.allow_players_pool", KIND_BOOL, "Allow players pool",
-                "Players nobody slots are held in a pool instead of leaving.", GROUP_ANTICHEAT),
-    ConfigField("advanced.disable_events", KIND_BOOL, "Disable all events",
-                "Turns DCS's own mission events off. The bot's event-driven plugins see nothing "
-                "while it is on.", GROUP_ANTICHEAT),
+    ConfigField("advanced.allow_sensor_export", KIND_BOOL, _("Allow sensor export"),
+                _("DCS's export switch for sensor data."), GROUP_ANTICHEAT),
+    ConfigField("advanced.allow_ownship_export", KIND_BOOL, _("Allow ownship export"),
+                _("DCS's export switch for the player's own aircraft."), GROUP_ANTICHEAT),
+    ConfigField("advanced.allow_players_pool", KIND_BOOL, _("Allow players pool"),
+                _("Players nobody slots are held in a pool instead of leaving."), GROUP_ANTICHEAT),
+    ConfigField("advanced.disable_events", KIND_BOOL, _("Disable all events"),
+                _("Turns DCS's own mission events off. The bot's event-driven plugins see nothing "
+                  "while it is on."), GROUP_ANTICHEAT),
 )
 
 #: The declared editable fields keyed by their dotted key — the write route's own lookup, built from
@@ -305,10 +316,10 @@ COALITION_TOKENS: tuple[str, ...] = ("blue", "red")
 #: ``(token, label, help)`` for each coalition, so the field table and the token map below are built
 #: from ONE declaration and cannot drift apart.
 _COALITION_SPECS: tuple[tuple[str, str, str], ...] = (
-    ("blue", "Blue coalition password",
-     "The password a client picks to join the blue side. The bot stores it and asks DCS to apply it."),
-    ("red", "Red coalition password",
-     "The password a client picks to join the red side. The bot stores it and asks DCS to apply it."),
+    ("blue", _("Blue coalition password"),
+     _("The password a client picks to join the blue side. The bot stores it and asks DCS to apply it.")),
+    ("red", _("Red coalition password"),
+     _("The password a client picks to join the red side. The bot stores it and asks DCS to apply it.")),
 )
 
 #: The declared coalition fields — their own table, disjoint from :data:`EDITABLE_FIELDS` and
@@ -331,13 +342,13 @@ COALITION_APPLY_NOTE = ("A coalition password can be changed while the server is
 
 #: Shown when a HASH is set in ``serverSettings.lua`` but the bot holds NO plaintext — the password was
 #: set directly in DCS. An empty field alone would read as \"no password\" and be a lie.
-COALITION_UNKNOWN_NOTE = ("A password is set outside DCSServerBot — the bot knows only its hash. Type "
-                          "a new one to replace it.")
+COALITION_UNKNOWN_NOTE = _("A password is set outside DCSServerBot — the bot knows only its hash. Type "
+                           "a new one to replace it.")
 
 #: Shown when the bot HOLDS a plaintext but DCS currently carries no hash for that coalition (e.g. after
 #: a file reset). Cheap honesty: the operator learns the two sides disagree.
-COALITION_DB_ONLY_NOTE = ("The bot knows this password but DCS currently carries no hash for it — "
-                          "saving here sets it in DCS too.")
+COALITION_DB_ONLY_NOTE = _("The bot knows this password but DCS currently carries no hash for it — "
+                           "saving here sets it in DCS too.")
 
 #: The refusal a state that cannot take the change gets. Sent as the action's own sentence too, so the
 #: console and a direct caller give the same answer.
@@ -783,11 +794,11 @@ def _channels(locals_, *, groups: tuple[ChannelGroup, ...] = (),
     channels = (locals_ or {}).get("channels")
     channels = channels if isinstance(channels, dict) else {}
     specs = (
-        ("admin", "Admin channel",
-         "The channel where admin commands for this server are accepted.", True),
-        ("status", "Status channel",
-         "Where the bot posts joins, leaves and mission changes.", True),
-        ("chat", "Chat channel", "Relays in-game chat. Not set means the bot relays nowhere.", False),
+        ("admin", _("Admin channel"),
+         _("The channel where admin commands for this server are accepted."), True),
+        ("status", _("Status channel"),
+         _("Where the bot posts joins, leaves and mission changes."), True),
+        ("chat", _("Chat channel"), _("Relays in-game chat. Not set means the bot relays nowhere."), False),
     )
     offered_values = _channel_options_index(groups)
     out: list[ChannelView] = []
