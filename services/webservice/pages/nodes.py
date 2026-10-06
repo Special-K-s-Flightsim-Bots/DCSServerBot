@@ -84,7 +84,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, Response
 
-from .. import permissions, readmodels
+from .. import i18n, permissions, readmodels
 from . import dashboard as dashboard_page
 from . import lists as lists_page
 from . import logs as logs_page
@@ -100,25 +100,11 @@ NODES_PATH = "/nodes"
 NODES_CAPABILITY = "nodes.view"
 NODES_ROLES: tuple[str, ...] = lists_page.CLUSTER_ROLES
 NODES_TABLE = "nodes"
-NODES_TITLE = "Nodes"
-NODES_LEAD = ("Every node in the cluster, with the instances and servers it carries. An Admin's "
-              "row for a node that is heartbeating offers Restart, Shut down and Upgrade — each "
-              "takes every server on that node down with it, though Upgrade is offered only while "
-              "the node itself reports an update pending — and the power pair: Take servers "
-              "offline stops the servers that are up and, unless the box is cleared, marks them as "
-              "maintenance; Bring servers online reverts exactly that — it clears the maintenance "
-              "flags its own power-off set and starts the servers it stopped, while a flag somebody "
-              "set by hand is left alone. Neither touches the node's services — this console keeps "
-              "running, and the servers are brought back from this very page. Those two are offered "
-              "on the NODE's own state, not on what its servers happen to be doing: a node that is "
-              "heartbeating and has no power-off on record is in service and offers Take servers "
-              "offline — whether or not anything is running — and a node whose power-off is on "
-              "record offers Bring servers online. A server's own maintenance flag has "
-              "its own control on the Servers page — one server to a row. An OFFLINE node offers no "
-              "control: it cannot be reached at all, and starting it is a job for the machine "
-              "itself, never for this browser. A node's ONLINE/OFFLINE tag is the heartbeat's "
-              "verdict, so it can read ONLINE while its servers are stopped or under maintenance.")
-NAV_LABEL = "Nodes"
+NODES_TITLE = i18n._("Nodes")
+NODES_LEAD = i18n._("Every node in the cluster, with the instances and servers it carries. Acting "
+                    "on a node takes every server on it down with it, so check the servers before "
+                    "you act.")
+NAV_LABEL = i18n._("Nodes")
 
 PAGE = lists_page.ListPage(table=NODES_TABLE, path=NODES_PATH, capability=NODES_CAPABILITY,
                            roles=NODES_ROLES, title=NODES_TITLE, lead=NODES_LEAD,
@@ -177,9 +163,12 @@ def log_download_control(node_name: str, roles, manager: bool = False) -> dict |
     name = readmodels.text(node_name)
     return {
         "path": log_download_path(name),
-        "label": "Download log",
-        "title": f"Download log — hand over {name}'s own bot log file as a download",
-        "aria": f"Download the bot log of node {name}",
+        "label": i18n._("Download log"),
+        # a per-request SENTENCE: the node's name is operator data, so it is interpolated AFTER the
+        # translation, at render (the template's guarded ``say`` global) — never baked into the msgid.
+        "title": {"msgid": i18n._("Download log — hand over {node}'s own bot log file as a download"),
+                  "params": {"node": name}},
+        "aria": {"msgid": i18n._("Download the bot log of node {node}"), "params": {"node": name}},
     }
 
 
