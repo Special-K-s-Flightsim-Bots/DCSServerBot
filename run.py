@@ -165,12 +165,18 @@ class Main:
         if autoupdate:
             cloud_drive = self.node.locals.get('cluster', {}).get('cloud_drive', True)
             if (cloud_drive and self.node.master) or not cloud_drive:
-                await self.node.upgrade()
-                if self.node.is_shutdown.is_set():
-                    return
+                # A major step (one of the first three version numbers moved) is never applied unattended: the
+                # installer and the migrations behind it belong to an operator, who runs /node upgrade or
+                # update.cmd. What is waiting is announced from BotService once Discord is connected.
+                if await self.node.upgrade_is_major():
+                    # the pair was just set by that call; the checker cannot know it
+                    self.log.warning(utils.upgrade_message(*self.node.major_upgrade))  # type: ignore[arg-type]
+                else:
+                    await self.node.upgrade()
+                    if self.node.is_shutdown.is_set():
+                        return
         elif self.node.master and await self.node.upgrade_pending():
-            self.log.warning(
-                "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it.")
+            self.log.warning(utils.upgrade_message())
 
         me = psutil.Process(os.getpid())
         ProcessManager(

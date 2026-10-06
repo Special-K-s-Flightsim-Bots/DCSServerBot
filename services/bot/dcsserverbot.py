@@ -73,6 +73,19 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
             )
             exit(-2)
 
+    async def _announce_major_upgrade(self) -> None:
+        """Tell the audit channel about an update the launcher deliberately did not apply.
+
+        Scheduled, never awaited: ``setup_hook`` runs before the Discord connection is ready and ``audit()`` needs
+        the guild cache. The launcher has already logged the same sentence to the bot log.
+        """
+        try:
+            await self.wait_until_ready()
+            # the pair is what the launcher recorded; the checker cannot know it is set when this runs
+            await self.audit(message=utils.upgrade_message(*self.node.major_upgrade))  # type: ignore[arg-type]
+        except Exception as ex:
+            self.log.warning(f"Could not announce the pending major upgrade: {ex}")
+
     async def close(self):
         try:
             if self.audit_poll.is_running():
@@ -134,6 +147,10 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
 
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
+        # An update the launcher held back (a major version step, see run.py) is announced from here: the launcher
+        # has no Discord connection, and this is where one exists and the audit channel is known.
+        if self.node.major_upgrade:
+            asyncio.create_task(self._announce_major_upgrade())
         # we need to keep the order for our default plugins...
         for plugin in self.plugins:
             await self.load_plugin(plugin.lower())

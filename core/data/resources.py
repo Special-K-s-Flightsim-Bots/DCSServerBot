@@ -158,3 +158,34 @@ class ResourceRegistry:
                 SET servers_up = %s, changed = (now() AT TIME ZONE 'utc')
                 WHERE resource_id = %s AND guild_id = %s AND node = %s
             """, (servers_up, resource_id, self.node.guild_id, self.node.name))
+
+    async def dependents(self, resource_id: str, *, kinds: Iterable[str] = ('server',),
+                         states: Iterable[str] = ('in_service', 'stepped_down')) -> list[tuple[str, str, str]]:
+        """This node's own dependents of *resource_id* as ``(kind, name, state)``.
+
+        Always scoped to this node: a node acts on what is its own, and nothing else.
+        """
+        async with self._pool().connection() as conn:
+            cursor = await conn.execute("""
+                SELECT kind, name, state FROM resource_dependents
+                WHERE resource_id = %s AND guild_id = %s AND node = %s
+                  AND kind = ANY(%s) AND state = ANY(%s)
+                ORDER BY kind, name
+            """, (resource_id, self.node.guild_id, self.node.name, list(kinds), list(states)))
+            return [(row[0], row[1], row[2]) async for row in cursor]
+
+    async def set_dependents_state(self, resource_id: str, state: str, names: Iterable[str]) -> None:
+        """Mark this node's dependents of *resource_id* as *state*.
+
+        This is the durable half of a step-down, and it has to be durable: a window is most likely to be open while
+        this node is *rebooting* (that is when an installation is updated), so an in-memory record of what it powered
+        off would be gone exactly when the restore needs it.
+        """
+        names = list(names)
+        if not names:
+            return
+        async with self._pool().connection() as conn:
+            await conn.execute("""
+                UPDATE resource_dependents SET state = %s
+                WHERE resource_id = %s AND guild_id = %s AND node = %s AND name = ANY(%s)
+            """, (state, resource_id, self.node.guild_id, self.node.name, names))

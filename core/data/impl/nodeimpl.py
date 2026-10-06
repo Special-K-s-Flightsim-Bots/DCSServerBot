@@ -30,7 +30,8 @@ from contextlib import closing
 from core import utils, Status, Port, PortType
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
-from core.data.resources import ResourceRegistry
+from core.data.resources import ResourceRegistry, scope_of
+from core.data.resource_window import ResourceWindowProtocol, WINDOW_WAIT
 from core.translations import get_translation
 from datetime import datetime
 from discord.ext import tasks
@@ -137,9 +138,15 @@ class NodeImpl(Node):
         self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
         self.update_pending = False
+        #: the ``(installed, latest)`` version pair of a pending MAJOR upgrade. Recorded while the LAUNCHER decides
+        #: (see run.py), because the bot is what tells an operator about it (see BotService.setup_hook).
+        self.major_upgrade: tuple[str, str] | None = None
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.db_version = None
+        #: the resources this node uses, as ``{resource_id: scope}`` — filled by register_resources() and followed by
+        #: the federation loop, which is why it is a field and not a local
+        self.resources: dict[str, str] = {}
         self.pool: ConnectionPool | None = None
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
@@ -209,6 +216,7 @@ class NodeImpl(Node):
                 self.log.exception(ex)
         await self.init_instances()
         await self.register_resources()
+        utils.safe_start(self.federation_loop)
 
     async def __aenter__(self):
         if sys.platform == 'win32':
@@ -239,6 +247,7 @@ class NodeImpl(Node):
 
     async def __aexit__(self, _type, _value, _traceback):
         await utils.safe_cancel(self.heartbeat_loop)
+        await utils.safe_cancel(self.federation_loop)
         await self.close_db()
 
     @override
@@ -603,6 +612,7 @@ class NodeImpl(Node):
             servers = sorted(set(utils.findDCSInstances().values()))
             await ResourceRegistry(self).register(
                 identity, dependents=[('server', name) for name in servers])
+            self.resources[identity.id] = scope_of(identity.resource_type)
             self.log.info(f'- Resource {identity.path} registered ({len(servers)} server(s) depend on it).')
         except Exception as ex:
             # Deliberately not fatal: this reports and coordinates, it is not a precondition for running servers. An
@@ -732,6 +742,81 @@ class NodeImpl(Node):
             self.log.error(f"Corrupt response from GitHub: {repr(result)}")
         return False
 
+    async def _latest_version(self) -> str | None:
+        """The version number of the revision this install would move to, or ``None`` when it cannot be read.
+
+        Two install kinds, two sources, and they are **not** interchangeable:
+
+        * a checkout updates from its **branch**, so the number is the branch tip's own ``version.py`` — a branch
+          carries no release tags, so the tag would answer a different question entirely;
+        * an install that came from a release (no checkout) updates to the newest **release**, and that tag is
+          exactly the number it would move to.
+
+        ``None`` means "could not be read", never "no update": the caller then keeps the previous behaviour and lets
+        the update through — the safe direction, because a guess here could hold an update back for a version the
+        install would never receive.
+        """
+        try:
+            import git  # type: ignore[import-not-found]
+        except ImportError:
+            return await self._latest_version_release()
+        try:
+            repo = git.Repo('.')
+        except git.InvalidGitRepositoryError:
+            # no checkout at all: the install came from a release, and that tag is what it would move to
+            return await self._latest_version_release()
+        try:
+            with closing(repo) as repo:
+                branch = repo.active_branch.name
+                repo.remotes.origin.fetch()
+                blob = repo.git.show(f'origin/{branch}:version.py')
+            match = re.search(r'^__version__\s*=\s*[\'"]([^\'"]+)', blob, re.MULTILINE)
+            return match.group(1) if match else None
+        except Exception as ex:
+            # A checkout updates from its branch, so the release tag is NOT the version it would move to: this
+            # stays unknown rather than guessed.
+            self.log.debug(f"Could not read the version of the remote branch: {ex}")
+            return None
+
+    async def _latest_version_release(self) -> str | None:
+        """The newest release tag GitHub reports, read the way ``_upgrade_pending_non_git`` reads it.
+
+        Deliberately its own request instead of a refactor of that check: that one answers a yes/no and this one
+        needs the number, and editing a working update path for six duplicated lines is the worse trade.
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                    response.raise_for_status()
+                    result = await response.json()
+                    return re.sub('^v', '', result[0]["tag_name"])
+        except Exception as ex:
+            self.log.debug(f"Could not read the latest release tag: {ex}")
+            return None
+
+    async def upgrade_versions(self) -> tuple[str, str] | None:
+        """``(installed, latest)`` when an upgrade is pending AND both numbers could be read, else ``None``.
+
+        ``upgrade_pending()`` stays the one definition of "a newer revision exists" — this is only for the rules
+        that need the numbers. ``None`` means "no reason to hold the update back", never "there is no update".
+        """
+        if not await self.upgrade_pending():
+            return None
+        latest = await self._latest_version()
+        return (__version__, latest) if latest else None
+
+    async def upgrade_is_major(self) -> bool:
+        """Whether an update is waiting AND it moves one of the first three version numbers.
+
+        The pair is recorded on the node when it is: the launcher decides this before the bot exists, and the bot is
+        what has to tell an operator (see ``BotService.setup_hook``).
+        """
+        versions = await self.upgrade_versions()
+        if not versions or not utils.is_major_version_change(*versions):
+            return False
+        self.major_upgrade = versions
+        return True
+
     @override
     async def upgrade_pending(self) -> bool:
         self.log.debug('- Checking for updates...')
@@ -804,9 +889,9 @@ class NodeImpl(Node):
                 exit(SHUTDOWN)
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: str = None, version: str = None) -> int:
+    async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:
 
-        async def do_update(branch: str, version: str = None) -> int:
+        async def do_update(branch: str, version: str | None = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
@@ -1770,6 +1855,50 @@ class NodeImpl(Node):
             self.log.warning("DCS update check failed, possible server outage at ED.")
         return None
 
+    def resource_of_installation(self) -> str | None:
+        """The resource id of this node's own DCS installation, or ``None`` when it has none registered.
+
+        One installation per node in this slice, so there is at most one id to find; a node that could not identify
+        its installation updates exactly as it did before the federation existed.
+        """
+        return next(iter(self.resources), None)
+
+    async def federated_update(self, resource_id: str, *, branch: str | None = None, version: str | None = None,
+                               warn_times: list[int] | None = None) -> int:
+        """Update the installation under a window, so every cluster sharing it stands down first.
+
+        The advisory lock decides who runs the update: a node that does not get it has powered off nothing and simply
+        returns — which is also the answer to two nodes seeing the update in the same second, since exactly one wins.
+
+        This node's own servers are stopped through the SAME call a follower uses, and recorded the same way. One
+        implementation of "stand down", not two — and as a side effect the maintenance context inside ``update()``
+        then finds nothing in service and restarts nothing, so the single-cluster path and this one compose instead of
+        fighting over who brings the servers back.
+        """
+        protocol = ResourceWindowProtocol(self)
+        scope = self.resources[resource_id]
+        if not await protocol.windows.take(resource_id, 'update', scope):
+            self.log.info(f"- Another cluster is updating {resource_id} right now, standing by.")
+            return 0
+        try:
+            await protocol.step_down(resource_id, scope, warn_times or [300, 120, 60])
+            residue = await protocol.wait_for_clear(resource_id, WINDOW_WAIT)
+            if residue:
+                # Refuse and NAME it. The installer must not run under a live server, and the operator has to know
+                # whose it is — "the update did not happen" without a reason is the failure this whole slice exists
+                # to prevent.
+                still_up = [f"{node} ({servers_up})" for _guild, node, servers_up, live
+                            in await protocol.registry.members(resource_id) if live and servers_up]
+                self.log.error(f"- Not updating {resource_id}: {residue} server(s) are still up "
+                               f"[{', '.join(still_up)}]. Stop them and the next run will proceed.")
+                return 0
+            return await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+        finally:
+            # Released in this order on purpose: the window goes first, so followers can come back while this node
+            # restores its own — and both happen even when the update raised.
+            await protocol.windows.release(resource_id)
+            await protocol.restore(resource_id)
+
     @override
     async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
@@ -1777,7 +1906,12 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         self.log.info('A new version of DCS World is available. Auto-updating ...')
-        rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+        resource_id = self.resource_of_installation()
+        if resource_id:
+            rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
+        else:
+            # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
+            rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         if rc == 0:
             bus = ServiceRegistry.get(ServiceBus)
             await bus.send_to_node({
@@ -1836,6 +1970,34 @@ class NodeImpl(Node):
                 }
             })
         return rc
+
+    async def follow_resources(self) -> dict[str, str]:
+        """One follower cycle over every resource this node uses, as ``{resource_id: what it did}``.
+
+        Per resource, never one read for all of them: a resource this node cannot read must not stop it from following
+        the others, and a node that shares two installations has to keep both straight.
+        """
+        actions: dict[str, str] = {}
+        for resource_id, scope in self.resources.items():
+            try:
+                actions[resource_id] = await ResourceWindowProtocol(self).follow(resource_id, scope)
+            except Exception as ex:
+                # One broken resource is not a reason to stop following the others, and the failure has to be visible:
+                # a node that silently stops following will not step down for the next window either.
+                self.log.exception(ex)
+                actions[resource_id] = 'failed'
+        return actions
+
+    @tasks.loop(seconds=5.0)
+    async def federation_loop(self):
+        """Follow the shared resources: step this node's servers down for a window on one, or bring them back.
+
+        A **poll**, not a LISTEN. The window row is the durable half of a window, and the case that matters most is a
+        node that was *down* when the window opened — a notification can never reach it, and it is exactly the node
+        that has to step down on its way back. So the poll is the mechanism that is always right, and a listener could
+        later only make it quicker.
+        """
+        await self.follow_resources()
 
     def can_update(self):
         update_window = self.locals.get('DCS', {}).get('update_window')
