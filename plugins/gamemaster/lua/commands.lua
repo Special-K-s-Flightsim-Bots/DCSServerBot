@@ -60,3 +60,29 @@ function dcsbot.resetUserCoalition(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: resetUserCoalition()')
     net.resetJoinCooldownEndForPlayer(json.id)
 end
+
+function dcsbot.setMarker(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: setMarker()')
+
+    -- serialize each argument individually
+    -- function dcsbot.setMarker(to, id, lat, lon, text, readonly, message)
+    local code = string.format(
+        [[dcsbot.setMarker(%s, %s, %s, %s, %s, %s, %s)]],
+        utils.basicSerialize(json.to),
+        utils.basicSerialize(json.id),
+        utils.basicSerialize(json.lat),
+        utils.basicSerialize(json.lon),
+        utils.basicSerialize(json.text),
+        tostring(json.readonly),
+        utils.basicSerialize(json.message)
+    )
+
+    -- now serialize the whole call that will be executed in the mission env
+    net.dostring_in('mission',
+        'a_do_script(' .. utils.basicSerialize(code) .. ')')
+end
+
+function dcsbot.removeMarker(json)
+    log.write('DCSServerBot', log.DEBUG, 'Mission: removeMarker()')
+    net.dostring_in('mission', 'a_do_script("trigger.action.removeMark(' .. json.id .. ')")')
+end

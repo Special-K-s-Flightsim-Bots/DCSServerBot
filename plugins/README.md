@@ -688,15 +688,18 @@ If your custom plugin requires Python packages outside the standard bot dependen
    aiohttp>=3.9.0
    numpy>=1.26.0
    ```
-2. Install into the bot's virtual environment:
+2. The environment is per node and managed by uv, so the file is picked up automatically the next time
+   that node's environment is created or updated — there is nothing to run by hand. To install it into
+   an existing node's environment right away:
    - **Windows Command Prompt**:
      ```cmd
-     %USERPROFILE%\.dcssb\Scripts\pip install -r requirements.local
+     uv pip install --python "%USERPROFILE%\.dcssb-<node>\Scripts\python.exe" -r requirements.local
      ```
-   - **PowerShell**:
-     ```powershell
-     & "$env:USERPROFILE\.dcssb\Scripts\pip.exe" install -r requirements.local
+   - **Linux**:
+     ```bash
+     uv pip install --python "$HOME/.dcssb-<node>/bin/python" -r requirements.local
      ```
+   Replace `<node>` with the node name the bot runs as (the default is the machine name).
 
 ---
 

@@ -20,30 +20,62 @@ VERSION_TRAILER_FILE = "version.sha"
 
 def install_requirements() -> subprocess.CompletedProcess:
     """
-    Use pip-sync to synchronize the virtual environment with requirements.txt.
-    This ensures exact package versions are installed and removes packages not in requirements.txt.
+    Synchronize the virtual environment with requirements.txt using uv.
+
+    ``uv pip sync`` installs exactly the pinned versions and removes everything else, the same
+    contract the previous pip-sync call had. uv links packages out of a shared cache instead of
+    copying them, so several bots on one machine do not each keep a full copy of the
+    dependencies - provided the cache and the environment share a filesystem.
     """
+    if not shutil.which('uv'):
+        print("uv was not found in your PATH - DCSServerBot needs it to install its dependencies.")
+        print("Install it from https://docs.astral.sh/uv/ and run the update again.")
+        return subprocess.CompletedProcess(args=['uv'], returncode=-1)
 
-    # First, ensure pip is updated
-    subprocess.run([
-        sys.executable,
-        '-m', 'pip', 'install', '-U', 'pip'
-    ])
-    # Then install / update pip-tools
-    subprocess.run([
-        sys.executable,
-        '-m', 'pip', 'install', '-U', 'pip-tools'
-    ])
-
-    # Then run pip-sync to synchronize the environment with requirements.txt
-    cmd = [
-        sys.executable,
-        '-m', 'piptools', 'sync', 'requirements.txt'
-#        '-m', 'pip', 'install', '-r', 'requirements.txt'
-    ]
+    cmd = ['uv', 'pip', 'sync', '--python', sys.executable, 'requirements.txt']
     if os.path.exists('requirements.local'):
         cmd.append('requirements.local')
     return subprocess.run(cmd)
+
+
+#: Exit code for the launcher that started us: "a fresh launcher is already running, so do not
+#: restart anything - just stop". The launchers treat it as a clean exit.
+ALREADY_RESTARTED = -5
+
+
+def relaunch_launcher() -> bool:
+    """
+    Start the bot again, in a new process, after an update.
+
+    The launcher that started this script is a batch or shell file that the update has just
+    rewritten on disk, and a running script cannot reliably read its own remaining lines once that
+    has happened - cmd.exe reads batch files by byte offset, and a shell keeps reading the file it
+    already has open. This process is loaded and cannot be corrupted that way, so it performs the
+    hand-over itself, and the launcher is told to stop instead of continuing.
+    """
+    launcher = 'run.cmd' if sys.platform == 'win32' else './run.sh'
+    if not os.path.exists(launcher):
+        print(f"  => {launcher} was not found - start DCSServerBot yourself.")
+        return False
+
+    args = [arg for arg in sys.argv[1:] if arg not in ('-r', '--no-restart', '-i', '--install')]
+    if sys.platform == 'win32':
+        # A new console, so the fresh launcher owns its window and does not die with this one.
+        cmd = [os.environ.get('COMSPEC', 'cmd.exe'), '/c', launcher, *args]
+        try:
+            subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
+        except OSError as ex:
+            print(f"  => Could not start {launcher} ({ex}) - start DCSServerBot yourself.")
+            return False
+    else:
+        # Own session, so it survives this process and the terminal it was started from.
+        try:
+            subprocess.Popen([launcher, *args], start_new_session=True)
+        except OSError as ex:
+            print(f"  => Could not start {launcher} ({ex}) - start DCSServerBot yourself.")
+            return False
+    print("  => DCSServerBot is starting again.")
+    return True
 
 
 def do_update_git() -> int | None:
@@ -247,7 +279,7 @@ if __name__ == '__main__':
             if rc.returncode:
                 print("Unable to install or update 'requirements.txt'. Please try installing it manually.")
                 print("To do so, open 'cmd.exe' in the DCSServerBot installation directory, and type:")
-                print('"%USERPROFILE%\\.dcssb\\Script\\pip" install --prefer-binary -r requirements.txt')
+                print(f'uv pip sync --python "{sys.executable}" requirements.txt')
                 exit(-2)
         else:
             rc = do_update_git()
@@ -256,4 +288,8 @@ if __name__ == '__main__':
     if args.no_restart:
         exit(-2)
     else:
-        exit(-1)
+        # Hand over to a fresh launcher rather than returning to the one that started us: that
+        # launcher has just been rewritten on disk by this update and can no longer read its own
+        # remaining lines. relaunch_launcher does it here, where the code is already loaded.
+        relaunch_launcher()
+        exit(ALREADY_RESTARTED)

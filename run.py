@@ -36,16 +36,18 @@ try:
     from ruamel.yaml import YAML
     yaml = YAML()
 except ModuleNotFoundError as ex:
+    import shutil
     import subprocess
 
     print(f"Module {ex.name} is not installed, fixing ...")
-    cmd = [
-        sys.executable,
-        '-m', 'piptools', 'sync', 'requirements.txt'
-    ]
-    if os.path.exists("requirements.local"):
-        cmd.append('requirements.local')
-    subprocess.run(cmd)
+    if shutil.which('uv'):
+        cmd = ['uv', 'pip', 'sync', '--python', sys.executable, 'requirements.txt']
+        if os.path.exists("requirements.local"):
+            cmd.append("requirements.local")
+        subprocess.run(cmd)
+    else:
+        print("uv was not found in your PATH - install it from https://docs.astral.sh/uv/ to "
+              "repair the environment.")
     exit(-1)
 
 LOGLEVEL = {

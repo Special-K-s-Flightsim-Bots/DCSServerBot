@@ -1,11 +1,32 @@
 #!/bin/bash
 
+# Resolve the node name first: the environment is per node, so every launcher must agree on it.
+ARGS=("$@")
+node_name=$(hostname)
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -n)
+            node_name="$2"
+            shift
+            ;;
+    esac
+    shift
+done
+
+# Path to the virtual environment
+VENV="$HOME/.dcssb-$node_name"
+
+# Prefer the environment's own interpreter, so no Python has to sit on PATH.
+PYTHON="$VENV/bin/python"
+[ -x "$PYTHON" ] || PYTHON=python
+
 # Check if Python can run successfully and get the version
-python_version=$(python -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')" 2>/dev/null)
+python_version=$("$PYTHON" -c "import sys; print(f'{sys.version_info[0]}.{sys.version_info[1]}')" 2>/dev/null)
 
 # If Python is not installed or fails to run
 if [ -z "$python_version" ]; then
-    echo "Python is not installed, not callable, or not in your PATH."
+    echo "No Python was found - neither in this node's environment nor on your PATH."
     echo "Please ensure Python is installed and available."
     echo "Press any key to continue..."
     read -n 1
@@ -22,17 +43,33 @@ if [ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1
     exit 1
 fi
 
-# Path to the virtual environment
-VENV="$HOME/.dcssb"
+# Resolve uv for this session, installing it for this user if it is missing (see get_uv.sh).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/get_uv.sh"
+
+# Keep the package cache on the same filesystem as the environment, so uv can link packages into
+# it instead of copying them. Set UV_CACHE_DIR yourself to place the cache elsewhere.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/.uv-cache}"
 
 # Check if the virtual environment exists
 if [ ! -d "$VENV" ]; then
+    if [ -z "$UVEXE" ]; then
+        echo "uv is required to create this node's environment and is not available."
+        echo "Install it from https://docs.astral.sh/uv/ and try again."
+        exit 1
+    fi
+    # requirements.local is an optional extra requirements file (see plugins/README.md).
+    REQ=(requirements.txt)
+    if [ -f requirements.local ]; then
+        REQ+=(requirements.local)
+    fi
+
     echo "Creating the Python Virtual Environment. This may take some time..."
-    python -m venv "$VENV"
-    "$VENV/bin/python" -m pip install --upgrade pip
-    "$VENV/bin/pip" install pip-tools
-    "$VENV/bin/pip-sync" requirements.txt
+    "$UVEXE" venv "$VENV"
+    "$UVEXE" pip sync --python "$VENV/bin/python" "${REQ[@]}"
 fi
 
+# The environment exists now, so run with its own interpreter.
+PYTHON="$VENV/bin/python"
+
 # Run the `mizedit.py` script with all passed arguments
-"$VENV/bin/python" mizedit.py "$@"
+"$PYTHON" mizedit.py "${ARGS[@]}"
