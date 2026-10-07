@@ -941,7 +941,12 @@ class ServerImpl(Server):
                 f"every {window.scope} on this installation stays down, or the {window.action} corrupts it."
             )
 
-    def _assert_ports_free(self) -> None:
+    #: A port held by this instance's own, still-exiting DCS process is waited for rather than refused: a
+    #: launch that failed can be retried while the previous attempt's DCS.exe is still winding down.
+    PORT_RELEASE_WAIT = 30.0
+    PORT_RELEASE_POLL = 1.0
+
+    async def _assert_ports_free(self) -> None:
         """Refuse to launch while a port this instance needs is already taken on this machine.
 
         A conflict is otherwise silent or late: DCS fails to bind, or - being UDP - binds and loses
@@ -952,29 +957,62 @@ class ServerImpl(Server):
         Each port is probed on the address its component binds: DCS uses every interface by default,
         while the WebGUI and the DCS-to-bot port are reached on ``dcs_host``. Probing the wrong one
         reports a free port for a bind that is about to fail.
+
+        A port held while **this instance's own DCS process is still alive** is not a conflict and must
+        not be reported as one: a launch that failed - a crash, or a slow start that timed out - can be
+        retried while the previous attempt's DCS.exe is still holding exactly this port, and blaming
+        "another DCS server or a second bot cluster" there is both wrong and alarming. Such a process is
+        waited for; only a port that is still held afterwards is refused, and by then the holder is
+        somebody else's.
         """
         instance = self.instance
         if not instance:
             return
         dcs_bind = self.settings.get('bind_address') or '0.0.0.0'
         local = instance.dcs_host
-        for name, host, port, udp in [
+        ports = [
             ("DCS port", dcs_bind, instance.dcs_port.port, False),
             ("DCS port", dcs_bind, instance.dcs_port.port, True),
             ("WebGUI port", local, instance.webgui_port.port, False),
             ("bot port", local, instance.bot_port.port, True),
-        ]:
-            if not utils.is_port_free(host, port, udp=udp):
+        ]
+
+        def taken():
+            for name, host, port, udp in ports:
+                if not utils.is_port_free(host, port, udp=udp):
+                    return name, host, port
+            return None
+
+        conflict = taken()
+        own_process = await self.is_running() if conflict else False
+        if conflict and own_process:
+            self.log.info(f"  => This instance's own DCS process is still up while {conflict[2]} is held; "
+                          f"waiting up to {int(self.PORT_RELEASE_WAIT)}s for it to exit ...")
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + self.PORT_RELEASE_WAIT
+            while conflict and loop.time() < deadline:
+                await asyncio.sleep(self.PORT_RELEASE_POLL)
+                conflict = taken()
+        if conflict:
+            name, host, port = conflict
+            if own_process:
+                # Ours, and it did not let go: say exactly that, because the operator's next move is
+                # to look at a DCS process, not to go hunting for another cluster's nodes.yaml.
                 raise PortConflictError(
-                    f"{name} {port} is already in use on {host}. Another DCS server, or a second bot "
-                    f"cluster on this machine, is most likely holding it. Startup refused - give this "
-                    f"instance a different port in nodes.yaml."
+                    f"{name} {port} is still held by this instance's own DCS process, which has not "
+                    f"exited {int(self.PORT_RELEASE_WAIT)}s after this launch was attempted. Let it "
+                    f"finish exiting, or stop it, and start the server again."
                 )
+            raise PortConflictError(
+                f"{name} {port} is already in use on {host}. Another DCS server, or a second bot "
+                f"cluster on this machine, is most likely holding it. Startup refused - give this "
+                f"instance a different port in nodes.yaml."
+            )
 
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
         await self._assert_resource_available()
-        self._assert_ports_free()
+        await self._assert_ports_free()
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
