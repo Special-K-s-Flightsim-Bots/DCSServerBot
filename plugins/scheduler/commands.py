@@ -254,6 +254,14 @@ class Scheduler(Plugin[SchedulerListener]):
     async def launch_dcs(self, server: Server, member: discord.Member | None = None, *,
                          modify_mission: bool | None = True, use_orig: bool | None = True,
                          ignore_exception: bool | None = False):
+        if server.status in (Status.LOADING, Status.RUNNING, Status.PAUSED):
+            # A launch is SCHEDULED - the state loop staggers them by ``startup_delay`` - and the decision to
+            # schedule it was made while the status was still down. By the time it runs, something else has
+            # already started the server: an operator's /node online, a federation restore, another cluster's
+            # action. Starting again would put a second DCS on the same port, so the re-check belongs HERE, at
+            # execution: a scheduled decision is only as good as the moment it was made.
+            self.log.debug(f'  => Not starting "{server.name}": it is already {server.status.value}.')
+            return
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
             await server.startup(modify_mission=modify_mission, use_orig=use_orig)

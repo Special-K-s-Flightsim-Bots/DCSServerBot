@@ -1102,30 +1102,33 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
                go=i18n._("Take servers offline"),
                go_title=i18n._("Take {node} offline — {servers} server(s) go down, {players} "
                                "player(s) are disconnected")),
-    # NO OPTION: bringing the servers back IS the operation. Clearing the
-    # flags this node's power-off set and starting the servers it stopped is not a choice to offer —
-    # it is what "online" means. There used to be a ``startup`` checkbox here, and it is exactly what
-    # turned a flag toggle into a power operation; it is gone.
+    # NO OPTION: ending the maintenance IS the operation. Clearing the flags this node's power-off set
+    # is not a choice to offer — it is what "online" means — and the START is not this action's to
+    # take: the scheduler owns every start, so the two never race over the same server. There used to
+    # be a ``startup`` checkbox here, and it is exactly what turned a flag toggle into a power
+    # operation; it is gone.
     NodeAction(key="online", capability=NODE_ONLINE_CAPABILITY, qualname="bring_node_online",
                path="/actions/node/online", label=i18n._("Bring servers online"),
                states=(NODE_POWER_ON,), confirm=False, danger=False,
                heading=i18n._("Bring the servers on {node} back online?"),
-               tip=i18n._("Bring servers online — clear the maintenance flags this node's power-off set "
-                   "and start the servers it stopped; a flag set by hand is left alone"),
+               tip=i18n._("Bring servers online — clear the maintenance flags this node's power-off "
+                   "set; the scheduler then starts the servers it stopped. A flag set by hand is "
+                   "left alone"),
                aria=i18n._("Bring the servers on {node} back into service"),
-               hint=i18n._("ends the maintenance this node's power-off set, and starts what it stopped"),
+               hint=i18n._("ends the maintenance this node's power-off set — the scheduler starts "
+                           "what it stopped"),
                warning="",
                detail=i18n._("This reverts EXACTLY the last power-off on this node: it clears only "
-                             "the maintenance flags that operation set and starts only the servers "
-                             "it stopped. A flag somebody set by hand is never cleared, and a "
-                             "server that is still in maintenance is never started. If the bot has "
-                             "restarted since the power-off the record is gone, and this then "
-                             "starts every server that is down and not in maintenance, clearing no "
-                             "flag at all — the message says which of the two happened. The node's "
-                             "services were never touched."),
+                             "the maintenance flags that operation set, and the servers it stopped "
+                             "are left for the scheduler to start. A flag somebody set by hand is "
+                             "never cleared, and a server that is still in maintenance is not "
+                             "started. If the bot has restarted since the power-off the record is "
+                             "gone, and this then releases every server that is down and not in "
+                             "maintenance, clearing no flag at all — the message says which of the "
+                             "two happened. The node's services were never touched."),
                go=i18n._("Bring servers online"),
-               go_title=i18n._("Bring {node} online — the flags its power-off set are cleared, "
-                               "what it stopped is started")),
+               go_title=i18n._("Bring {node} online — the flags its power-off set are cleared, and "
+                               "the scheduler starts what it stopped")),
 )
 
 

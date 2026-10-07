@@ -54,7 +54,7 @@ from core.data.maintenance import (PowerOffOutcome, ServerMaintenanceManager, cl
 
 log = logging.getLogger(__name__)
 
-__all__ = ["NODE_OPERATIONS", "NODE_MAINTENANCE_OPERATIONS", "STARTUP_DELAY_SECONDS",
+__all__ = ["NODE_OPERATIONS", "NODE_MAINTENANCE_OPERATIONS",
            "restart_node", "shutdown_node", "upgrade_node", "take_node_offline",
            "bring_node_online"]
 
@@ -70,13 +70,6 @@ NODE_OPERATIONS: tuple[str, ...] = ("restart", "shutdown", "upgrade")
 #: the POWER pair's own names, in the words the Discord arms use (``/node offline`` /
 #: ``/node online``). Kept next to :data:`NODE_OPERATIONS` so the two families are one list each.
 NODE_MAINTENANCE_OPERATIONS: tuple[str, ...] = ("offline", "online")
-
-#: How long a staggered server start waits between two servers. ``online`` ALWAYS starts the servers
-#: it stopped, and spaces them by this so a whole node does not load DCS at once (the same rule
-#: ``/node online`` follows). The Discord arm reads ``scheduler.startup_delay`` from the PLUGIN's
-#: config (default 10, ``plugins/admin/commands.py``); an ACTION cannot read a plugin's config, so the
-#: same default is declared here as the number the console uses. One number, one place.
-STARTUP_DELAY_SECONDS = 10
 
 
 _VERBS: dict[str, tuple[str, str]] = {
@@ -347,20 +340,22 @@ def _offline_message(node_name: str, servers: list, outcome: PowerOffOutcome, *,
 async def _power_on(ctx: Any, node_name: str, *, clear_all: bool = False) -> NodeControlResult:
     """Bring the SERVERS of ONE node back into service — ``online``'s one implementation.
 
-    With a power-off RECORD (the ordinary case) it reverts EXACTLY that record: it clears the flags
-    the operation set, starts the servers it stopped (skipping any already up or still carrying a flag
-    the record does not own), and reports what it could not resolve. It clears NO flag it did not set
-    and starts NO server it did not stop.
+    It CLEARS the maintenance flags and nothing else: the START is the scheduler's job, and this
+    operation does not take it. With a power-off RECORD (the ordinary case) it reverts EXACTLY that
+    record — it clears the flags the operation set and leaves the servers it stopped for the scheduler
+    to pick up (naming how many are already up, and how many still carry a flag the record does not
+    own). It clears NO flag it did not set.
 
     With NO record (this process started since the ``offline`` — a bot restart, a failover, a crash)
-    it falls back to the RULE: start every server of the node that is down AND not in maintenance,
+    it falls back to the RULE: release every server of the node that is down AND not in maintenance,
     clear NO flag, and say in the message that the record is gone, since when. The degradation is
     visible and never clears a flag nobody asked it to clear.
 
     *clear_all* is the FORCED clear: every maintenance flag on the node goes — hand-set ones included
-    — and every server that is down is started. It is the ONLY path that clears a flag this process
-    has no record of, which is what a restart between the halves leaves behind, and it is opt-in for
-    that reason: the caller has said out loud that the flags on this node are not to be trusted.
+    — and every server that is down is released for the scheduler. It is the ONLY path that clears a
+    flag this process has no record of, which is what a restart between the halves leaves behind, and
+    it is opt-in for that reason: the caller has said out loud that the flags on this node are not to
+    be trusted.
     """
     node = ctx.resolve_node(node_name)
     if node is None:
@@ -369,37 +364,46 @@ async def _power_on(ctx: Any, node_name: str, *, clear_all: bool = False) -> Nod
     canonical = str(getattr(node, "name", "") or node_name)
     servers = _node_servers(ctx, canonical)
     manager = ServerMaintenanceManager(node)
+
+    def released(servers_to_start: list) -> list:
+        """The servers the scheduler will actually pick up: down, and carrying no flag."""
+        return [server for server in servers_to_start
+                if not getattr(server, "maintenance", False) and not manager.in_service(server)]
+
     if clear_all:
-        outcome = await manager.power_on(servers, clear=servers, start=servers, skip_running=True,
-                                        skip_flagged=False, stagger=STARTUP_DELAY_SECONDS)
+        outcome = await manager.power_on(servers, clear=servers, start=())
         clear_power_record(canonical)
+        will_start = released(servers)
         parts = [f"{len(outcome.cleared)} maintenance flag(s) cleared (forced)",
-                 f"{len(outcome.started)} server(s) starting"]
-        if outcome.skipped:
-            parts.append(f"{len(outcome.skipped)} left alone (already running)")
+                 f"{len(will_start)} server(s) left for the scheduler to start"]
+        if len(will_start) < len(servers):
+            parts.append(f"{len(servers) - len(will_start)} left alone (already running)")
         message = f"Node '{canonical}': " + ", ".join(parts) + "."
         return await _audited(ctx, NodeControlResult(success=True, message=message,
                                                      node_name=canonical))
     record = power_record(canonical)
     if record is None:
-        outcome = await manager.power_on(servers, clear=(), start=servers, skip_running=True,
-                                         skip_flagged=True, stagger=STARTUP_DELAY_SECONDS)
+        outcome = await manager.power_on(servers, clear=(), start=())
         started_at = process_started_at().strftime("%H:%M")
         message = (f"Node '{canonical}': no power-off is recorded for this node since the bot "
                    f"started at {started_at}; {len(outcome.cleared)} maintenance flag(s) cleared; "
-                   f"{len(outcome.started)} server(s) that were down and not in maintenance started.")
+                   f"{len(released(servers))} server(s) that were down and not in maintenance are "
+                   f"left for the scheduler to start.")
     else:
         to_clear, missing_clear = _resolve_recorded(servers, record.flagged)
         to_start, missing_start = _resolve_recorded(servers, record.stopped)
-        outcome = await manager.power_on(servers, clear=to_clear, start=to_start, skip_running=True,
-                                         skip_flagged=True, stagger=STARTUP_DELAY_SECONDS)
+        outcome = await manager.power_on(servers, clear=to_clear, start=())
         clear_power_record(canonical)
         missing = list(dict.fromkeys(missing_clear + missing_start))
+        already_up = [server for server in to_start if manager.in_service(server)]
+        still_flagged = [server for server in to_start if getattr(server, "maintenance", False)]
+        left_alone = [server for server in to_start
+                      if server in already_up or server in still_flagged]
+        released_to_scheduler = [server for server in to_start if server not in left_alone]
         parts = [f"{len(outcome.cleared)} maintenance flag(s) cleared",
-                 f"{len(outcome.started)} server(s) starting"]
-        if outcome.skipped:
-            parts.append(f"{len(outcome.skipped)} left alone (already running or still in "
-                         f"maintenance)")
+                 f"{len(released_to_scheduler)} server(s) left for the scheduler to start"]
+        if left_alone:
+            parts.append(f"{len(left_alone)} left alone (already running or still in maintenance)")
         if missing:
             parts.append(f"{len(missing)} recorded server(s) no longer exist on this node")
         message = f"Node '{canonical}': " + ", ".join(parts) + "."
@@ -429,17 +433,18 @@ async def bring_node_online(ctx: Any, node_name: str, clear_all: bool = False) -
     """Bring the SERVERS of ONE node back into service — the same operation ``/node online`` performs.
 
     It reverts exactly the record the matching :func:`take_node_offline` left: it clears ONLY the
-    maintenance flags that operation set (a flag set by hand is never cleared) and starts ONLY the
-    servers that operation stopped (a server that is already up is skipped, a server still in
-    maintenance is not started).
+    maintenance flags that operation set (a flag set by hand is never cleared) and leaves the servers
+    that operation stopped for the SCHEDULER to start — a server that is already up is reported, a
+    server still in maintenance is not released. The start is the scheduler's job; this operation does
+    not take it, so the two never race over the same server.
 
-    With no record (the bot restarted in between) it starts every server of the node that is down
+    With no record (the bot restarted in between) it releases every server of the node that is down
     and NOT in maintenance, clears NO flag, and the message says exactly that.
 
     *clear_all* — ``/node online <node> maintenance:false``, and the console's equivalent — is the
     FORCED clear for the case the record cannot cover: every maintenance flag on the node is cleared,
-    hand-set ones included, and every server that is down is started. It is the only way to clear the
-    flags an ``offline`` left before a restart wiped the record, and it is opt-in because those flags
-    are then taken on trust. The node's services are untouched either way.
+    hand-set ones included, and every server that is down is released for the scheduler. It is the
+    only way to clear the flags an ``offline`` left before a restart wiped the record, and it is
+    opt-in because those flags are then taken on trust. The node's services are untouched either way.
     """
     return await _power_on(ctx, node_name, clear_all=bool(clear_all))

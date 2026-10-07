@@ -993,10 +993,12 @@ class Admin(Plugin[AdminEventListener]):
             question = _("Are you sure you want to proceed?")
             if not node:
                 message = _("This will clear the maintenance flag on **every** server on **all** "
-                            "nodes — including flags set by hand — and start every server that is down.")
+                            "nodes — including flags set by hand — and the scheduler will start "
+                            "every server that is down.")
             else:
                 message = _("This will clear the maintenance flag on **every** server on node `{}` — "
-                            "including flags set by hand — and start every server that is down.").format(node.name)
+                            "including flags set by hand — and the scheduler will start every server "
+                            "that is down.").format(node.name)
             embed = discord.Embed(color=discord.Color.red())
             embed.description = message
             embed.set_thumbnail(
@@ -1026,11 +1028,18 @@ class Admin(Plugin[AdminEventListener]):
                                             (_("your cluster") if cluster else _("node {}").format(node.name)),
                                             ephemeral=ephemeral)
             return
-        if node and not node.master and not await utils.yn_question(
-                interaction, _("You are trying to upgrade an agent node in a cluster. Are you really sure?"),
-                ephemeral=ephemeral):
-            await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
-            return
+        # ONE question per upgrade, and never none: whoever asks first, asks. An agent-node upgrade asks its
+        # own (it is the surprising one), the major path asks its own (the offline step and the upgrade are
+        # one operation), and anything else leaves the question to run_on_nodes. Passing ``confirm=False``
+        # unconditionally — as this did — is what silently removed the confirmation from a plain upgrade.
+        asked = False
+        if node and not node.master:
+            asked = True
+            if not await utils.yn_question(
+                    interaction, _("You are trying to upgrade an agent node in a cluster. Are you really sure?"),
+                    ephemeral=ephemeral):
+                await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+                return
         # A MAJOR upgrade moves the bot's version, and a DCS server only talks to a bot whose hook
         # version it carries — so DCS has to be down on every node that updates, or the servers come
         # back speaking the old hook. ONE question covers both halves (taking them offline, then the
@@ -1048,19 +1057,20 @@ class Admin(Plugin[AdminEventListener]):
             running = sum(1 for server in self.bot.servers.values()
                           if (targets is None or server.node.name == targets.name)
                           and ServerMaintenanceManager.in_service(server))
-            if running and not await utils.yn_question(
-                    interaction,
-                    _("This is a MAJOR upgrade and {} server(s) are in service. They will be taken "
-                      "offline first — DCS has to be down while the bot updates, or the servers come "
-                      "back on the old hook version — and stay in maintenance until you bring them back "
-                      "with `/node online <node> maintenance:false`. Proceed?").format(running),
-                    ephemeral=ephemeral):
-                await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
-                return
             if running:
+                asked = True
+                if not await utils.yn_question(
+                        interaction,
+                        _("This is a MAJOR upgrade and {} server(s) are in service. They will be taken "
+                          "offline first — DCS has to be down while the bot updates, or the servers come "
+                          "back on the old hook version — and stay in maintenance until you bring them back "
+                          "with `/node online <node> maintenance:false`. Proceed?").format(running),
+                        ephemeral=ephemeral):
+                    await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+                    return
                 await self._power_nodes(interaction, "take_node_offline", targets, ephemeral=ephemeral,
                                         maintenance=True)
-        await self.run_on_nodes(interaction, "upgrade", targets, ephemeral=ephemeral, confirm=False)
+        await self.run_on_nodes(interaction, "upgrade", targets, ephemeral=ephemeral, confirm=not asked)
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
