@@ -318,7 +318,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
         elif data['eventName'] == 'S_EVENT_REFUELING':
             player = server.get_player(name=data['initiator'].get('name'))
-            if player:
+            if player and data.get('target'):
                 tanker = data['target']['unit_type']
                 async with self.apool.connection() as conn:
                     await conn.execute("""
@@ -331,7 +331,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
 
         elif data['eventName'] == 'S_EVENT_REFUELING_STOP':
             player = server.get_player(name=data['initiator'].get('name'))
-            if player:
+            if player and data.get('target'):
                 tanker = data['target']['unit_type']
                 comment = json.loads(data.get('comment', {"lbs": 0, "secs": 0.0}))
                 async with self.apool.connection() as conn:
