@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-06 15:02+0200\n"
+"POT-Creation-Date: 2026-10-07 16:52+0200\n"
 "PO-Revision-Date: 2026-10-06 10:40+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -22,119 +22,119 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: services/webservice/i18n.py:461
+#: services/webservice/i18n.py:462
 #, python-brace-format
 msgid "Live updates: {status}"
 msgstr "Actualizaciones en vivo: {status}"
 
-#: services/webservice/i18n.py:462
+#: services/webservice/i18n.py:463
 #: services/webservice/templates/server_detail.html:218
 msgid "on"
 msgstr "activado"
 
-#: services/webservice/i18n.py:463
+#: services/webservice/i18n.py:464
 msgid "connecting…"
 msgstr "conectando…"
 
-#: services/webservice/i18n.py:464
+#: services/webservice/i18n.py:465
 msgid "polling every 10 seconds"
 msgstr "consultando cada 10 segundos"
 
-#: services/webservice/i18n.py:465
+#: services/webservice/i18n.py:466
 #, python-brace-format
 msgid "the bot is not ready yet — retrying in {seconds}s"
 msgstr "el bot aún no está listo — reintentando en {seconds} s"
 
-#: services/webservice/i18n.py:466
+#: services/webservice/i18n.py:467
 msgid "not permitted — sign in again"
 msgstr "no autorizado — inicia sesión de nuevo"
 
-#: services/webservice/i18n.py:467
+#: services/webservice/i18n.py:468
 msgid "Sign in again"
 msgstr "Iniciar sesión de nuevo"
 
-#: services/webservice/i18n.py:469
+#: services/webservice/i18n.py:470
 #: services/webservice/templates/server_detail.html:62
 msgid "Load older"
 msgstr "Cargar anteriores"
 
-#: services/webservice/i18n.py:470
+#: services/webservice/i18n.py:471
 #: services/webservice/templates/server_detail.html:57
 msgid "not available"
 msgstr "no disponible"
 
-#: services/webservice/i18n.py:471
+#: services/webservice/i18n.py:472
 msgid "The log file is not there yet."
 msgstr "El archivo de registro aún no está."
 
-#: services/webservice/i18n.py:472
+#: services/webservice/i18n.py:473
 msgid "waiting for the log file to appear"
 msgstr "esperando a que aparezca el archivo de registro"
 
-#: services/webservice/i18n.py:473
+#: services/webservice/i18n.py:474
 msgid "retrying…"
 msgstr "reintentando…"
 
-#: services/webservice/i18n.py:474
+#: services/webservice/i18n.py:475
 msgid "— the log was rotated; showing the new file —"
 msgstr "— el registro se rotó; se muestra el archivo nuevo —"
 
-#: services/webservice/i18n.py:475
+#: services/webservice/i18n.py:476
 msgid "— the log was rotated while loading older lines —"
 msgstr "— el registro se rotó mientras se cargaban líneas anteriores —"
 
-#: services/webservice/i18n.py:476
+#: services/webservice/i18n.py:477
 msgid "the log was rotated"
 msgstr "el registro se rotó"
 
-#: services/webservice/i18n.py:477
+#: services/webservice/i18n.py:478
 msgid "Log restarted"
 msgstr "Registro reiniciado"
 
-#: services/webservice/i18n.py:478
+#: services/webservice/i18n.py:479
 #: services/webservice/templates/server_detail.html:62
 msgid "Start of log"
 msgstr "Inicio del registro"
 
-#: services/webservice/i18n.py:479
+#: services/webservice/i18n.py:480
 #: services/webservice/templates/server_detail.html:57
 msgid "following while this tab is open"
 msgstr "sigue mientras esta pestaña esté abierta"
 
-#: services/webservice/i18n.py:480
+#: services/webservice/i18n.py:481
 msgid "paused — this tab is hidden"
 msgstr "en pausa — esta pestaña está oculta"
 
-#: services/webservice/i18n.py:482
+#: services/webservice/i18n.py:483
 #, python-brace-format
 msgid "{n} of {total} selected"
 msgstr "{n} de {total} seleccionadas"
 
-#: services/webservice/i18n.py:483
+#: services/webservice/i18n.py:484
 #: services/webservice/templates/server_detail.html:444
 msgid "Remove selected…"
 msgstr "Quitar seleccionadas…"
 
-#: services/webservice/i18n.py:484
+#: services/webservice/i18n.py:485
 msgid "Remove 1 mission…"
 msgstr "Quitar 1 misión…"
 
-#: services/webservice/i18n.py:485
+#: services/webservice/i18n.py:486
 #, python-brace-format
 msgid "Remove {n} missions…"
 msgstr "Quitar {n} misiones…"
 
-#: services/webservice/i18n.py:487
+#: services/webservice/i18n.py:488
 #: services/webservice/templates/server_detail.html:203
 #: services/webservice/templates/server_detail.html:350
 msgid "Show password"
 msgstr "Mostrar contraseña"
 
-#: services/webservice/i18n.py:488
+#: services/webservice/i18n.py:489
 msgid "Hide password"
 msgstr "Ocultar contraseña"
 
-#: services/webservice/i18n.py:489
+#: services/webservice/i18n.py:490
 msgid "Nothing to show — type a password first, then this reveals what you typed."
 msgstr ""
 "No hay nada que mostrar — escribe primero una contraseña y esto revelará "
@@ -548,7 +548,7 @@ msgstr ""
 "las mismas dos preguntas."
 
 #: services/webservice/pages/actions.py:707
-#: services/webservice/pages/actions.py:3946
+#: services/webservice/pages/actions.py:3949
 msgid "Remove mission"
 msgstr "Quitar misión"
 
@@ -569,7 +569,7 @@ msgstr "Subir misión"
 
 #: services/webservice/pages/actions.py:730
 #: services/webservice/pages/actions.py:750
-#: services/webservice/pages/actions.py:3951
+#: services/webservice/pages/actions.py:3954
 msgid "Remove missions"
 msgstr "Quitar misiones"
 
@@ -1030,45 +1030,52 @@ msgstr ""
 "Poner {node} fuera de línea — se caen {servers} servidor(es), se "
 "desconectan {players} jugador(es)"
 
-#: services/webservice/pages/actions.py:1110
-#: services/webservice/pages/actions.py:1126
+#: services/webservice/pages/actions.py:1111
+#: services/webservice/pages/actions.py:1129
 msgid "Bring servers online"
 msgstr "Poner servidores en línea"
 
-#: services/webservice/pages/actions.py:1112
+#: services/webservice/pages/actions.py:1113
 #, python-brace-format
 msgid "Bring the servers on {node} back online?"
 msgstr "¿Volver a poner en línea los servidores de {node}?"
 
-#: services/webservice/pages/actions.py:1113
+#: services/webservice/pages/actions.py:1114
+#, fuzzy
 msgid ""
 "Bring servers online — clear the maintenance flags this node's power-off "
-"set and start the servers it stopped; a flag set by hand is left alone"
+"set; the scheduler then starts the servers it stopped. A flag set by hand"
+" is left alone"
 msgstr ""
 "Poner servidores en línea — borra las marcas de mantenimiento que dejó el"
 " apagado de este nodo e inicia los servidores que detuvo; una marca "
 "puesta a mano no se toca"
 
-#: services/webservice/pages/actions.py:1115
+#: services/webservice/pages/actions.py:1117
 #, python-brace-format
 msgid "Bring the servers on {node} back into service"
 msgstr "Volver a poner en servicio los servidores de {node}"
 
-#: services/webservice/pages/actions.py:1116
-msgid "ends the maintenance this node's power-off set, and starts what it stopped"
+#: services/webservice/pages/actions.py:1118
+#, fuzzy
+msgid ""
+"ends the maintenance this node's power-off set — the scheduler starts "
+"what it stopped"
 msgstr ""
 "finaliza el mantenimiento que dejó el apagado de este nodo e inicia lo "
 "que detuvo"
 
-#: services/webservice/pages/actions.py:1118
+#: services/webservice/pages/actions.py:1121
+#, fuzzy
 msgid ""
 "This reverts EXACTLY the last power-off on this node: it clears only the "
-"maintenance flags that operation set and starts only the servers it "
-"stopped. A flag somebody set by hand is never cleared, and a server that "
-"is still in maintenance is never started. If the bot has restarted since "
-"the power-off the record is gone, and this then starts every server that "
-"is down and not in maintenance, clearing no flag at all — the message "
-"says which of the two happened. The node's services were never touched."
+"maintenance flags that operation set, and the servers it stopped are left"
+" for the scheduler to start. A flag somebody set by hand is never "
+"cleared, and a server that is still in maintenance is not started. If the"
+" bot has restarted since the power-off the record is gone, and this then "
+"releases every server that is down and not in maintenance, clearing no "
+"flag at all — the message says which of the two happened. The node's "
+"services were never touched."
 msgstr ""
 "Esto revierte EXACTAMENTE el último apagado de este nodo: borra solo las "
 "marcas de mantenimiento que puso esa operación e inicia solo los "
@@ -1079,53 +1086,53 @@ msgstr ""
 "borrar ninguna marca — el mensaje dice cuál de las dos cosas ocurrió. Los"
 " servicios del nodo nunca se tocaron."
 
-#: services/webservice/pages/actions.py:1127
-#, python-brace-format
+#: services/webservice/pages/actions.py:1130
+#, fuzzy, python-brace-format
 msgid ""
-"Bring {node} online — the flags its power-off set are cleared, what it "
-"stopped is started"
+"Bring {node} online — the flags its power-off set are cleared, and the "
+"scheduler starts what it stopped"
 msgstr ""
 "Poner {node} en línea — se borran las marcas que dejó su apagado y se "
 "inicia lo que detuvo"
 
-#: services/webservice/pages/actions.py:1698
+#: services/webservice/pages/actions.py:1701
 #, python-brace-format
 msgid "More controls for {server}"
 msgstr "Más controles para {server}"
 
-#: services/webservice/pages/actions.py:1978
+#: services/webservice/pages/actions.py:1981
 #, python-brace-format
 msgid "Controls for node {node}"
 msgstr "Controles para el nodo {node}"
 
-#: services/webservice/pages/actions.py:2174
+#: services/webservice/pages/actions.py:2177
 #, python-brace-format
 msgid "Controls for {player} on {server}"
 msgstr "Controles para {player} en {server}"
 
-#: services/webservice/pages/actions.py:2309
+#: services/webservice/pages/actions.py:2312
 #, python-brace-format
 msgid "{label} {target}?"
 msgstr "{label} {target}?"
 
-#: services/webservice/pages/actions.py:2362
-#: services/webservice/pages/actions.py:2459
-#: services/webservice/pages/actions.py:2614
-#: services/webservice/pages/actions.py:3989
+#: services/webservice/pages/actions.py:2365
+#: services/webservice/pages/actions.py:2462
+#: services/webservice/pages/actions.py:2617
+#: services/webservice/pages/actions.py:3992
 msgid "confirm"
 msgstr "confirmar"
 
-#: services/webservice/pages/actions.py:2362
-#: services/webservice/pages/actions.py:2614
-#: services/webservice/pages/actions.py:3989
+#: services/webservice/pages/actions.py:2365
+#: services/webservice/pages/actions.py:2617
+#: services/webservice/pages/actions.py:3992
 msgid "options"
 msgstr "opciones"
 
-#: services/webservice/pages/actions.py:2441
+#: services/webservice/pages/actions.py:2444
 msgid "Days (optional)"
 msgstr "Días (opcional)"
 
-#: services/webservice/pages/actions.py:2442
+#: services/webservice/pages/actions.py:2445
 msgid ""
 "Empty = permanent — the ban does not expire on its own. 7 means seven "
 "days from now."
@@ -1133,46 +1140,46 @@ msgstr ""
 "Vacío = permanente — el baneo no expira por sí solo. 7 significa siete "
 "días a partir de ahora."
 
-#: services/webservice/pages/actions.py:2590
+#: services/webservice/pages/actions.py:2593
 #, python-brace-format
 msgid "Last update check: {when}."
 msgstr "Última comprobación de actualizaciones: {when}."
 
-#: services/webservice/pages/actions.py:2603
+#: services/webservice/pages/actions.py:2606
 #, python-brace-format
 msgid "{label} (node)"
 msgstr "{label} (nodo)"
 
-#: services/webservice/pages/actions.py:3910
+#: services/webservice/pages/actions.py:3913
 msgid "Mission file already on this server"
 msgstr "Archivo de misión que ya está en este servidor"
 
-#: services/webservice/pages/actions.py:3912
+#: services/webservice/pages/actions.py:3915
 msgid "Only files NOT already in the rotation are offered."
 msgstr "Solo se ofrecen archivos que NO están ya en la rotación."
 
-#: services/webservice/pages/actions.py:3917
+#: services/webservice/pages/actions.py:3920
 #, python-brace-format
 msgid "Add a mission to {server}?"
 msgstr "¿Añadir una misión a {server}?"
 
-#: services/webservice/pages/actions.py:3944
-#: services/webservice/pages/actions.py:3969
+#: services/webservice/pages/actions.py:3947
+#: services/webservice/pages/actions.py:3972
 #, python-brace-format
 msgid "Remove {mission} from the rotation?"
 msgstr "¿Quitar {mission} de la rotación?"
 
-#: services/webservice/pages/actions.py:3948
+#: services/webservice/pages/actions.py:3951
 #, python-brace-format
 msgid "Remove {count} missions from {server}?"
 msgstr "¿Quitar {count} misiones de {server}?"
 
-#: services/webservice/pages/actions.py:3950
+#: services/webservice/pages/actions.py:3953
 #, python-brace-format
 msgid "Remove {count} missions"
 msgstr "Quitar {count} misiones"
 
-#: services/webservice/pages/actions.py:3953
+#: services/webservice/pages/actions.py:3956
 #, python-brace-format
 msgid "<b>The running mission ({mission}) cannot be removed.</b>"
 msgstr "<b>No se puede quitar la misión en curso ({mission}).</b>"
@@ -1206,7 +1213,7 @@ msgstr ""
 "servidor está caído."
 
 #: services/webservice/pages/dashboard.py:176
-#: services/webservice/pages/server_detail.py:1380
+#: services/webservice/pages/server_detail.py:1382
 msgid "No players match this search."
 msgstr "Ningún jugador coincide con esta búsqueda."
 
@@ -1352,7 +1359,9 @@ msgstr ""
 msgid ""
 "The Events tab is only offered while the debug plugin is active for this "
 "server."
-msgstr "La pestaña 'Eventos' solo se ofrece mientras el plugin debug está activo para este servidor."
+msgstr ""
+"La pestaña 'Eventos' solo se ofrece mientras el plugin debug está activo "
+"para este servidor."
 
 #: services/webservice/pages/server_detail.py:185
 #: services/webservice/templates/server_detail.html:665
@@ -1383,12 +1392,16 @@ msgstr "Configuración"
 msgid ""
 "Node '{node}' is offline or unknown, so its log cannot be read from this "
 "console."
-msgstr "El nodo '{node}' está desconectado o es desconocido, así que su registro no puede leerse desde esta consola."
+msgstr ""
+"El nodo '{node}' está desconectado o es desconocido, así que su registro "
+"no puede leerse desde esta consola."
 
 #: services/webservice/pages/server_detail.py:577
 #, python-brace-format
 msgid "Node '{node}' cannot read this server's log file (permission denied)."
-msgstr "El nodo '{node}' no puede leer el archivo de registro de este servidor (permiso denegado)."
+msgstr ""
+"El nodo '{node}' no puede leer el archivo de registro de este servidor "
+"(permiso denegado)."
 
 #: services/webservice/pages/server_detail.py:579
 #, python-brace-format
@@ -1410,41 +1423,47 @@ msgstr "El nodo '{node}' respondió con un código de error en lugar del registr
 msgid ""
 "No log directory yet for this server (looked for '{directory}' on node "
 "'{node}')."
-msgstr "Aún no hay directorio de registros para este servidor (se buscó '{directory}' en el nodo '{node}')."
+msgstr ""
+"Aún no hay directorio de registros para este servidor (se buscó "
+"'{directory}' en el nodo '{node}')."
 
 #: services/webservice/pages/server_detail.py:586
 #, python-brace-format
 msgid "Node '{node}' cannot list this server's log directory (permission denied)."
-msgstr "El nodo '{node}' no puede listar el directorio de registros de este servidor (permiso denegado)."
+msgstr ""
+"El nodo '{node}' no puede listar el directorio de registros de este "
+"servidor (permiso denegado)."
 
 #: services/webservice/pages/server_detail.py:588
 #, python-brace-format
 msgid "Node '{node}' did not answer in time, so the log files were not listed."
-msgstr "El nodo '{node}' no respondió a tiempo, así que no se listaron los archivos de registro."
+msgstr ""
+"El nodo '{node}' no respondió a tiempo, así que no se listaron los "
+"archivos de registro."
 
 #: services/webservice/pages/server_detail.py:590
 #, python-brace-format
 msgid "Node '{node}' could not list the log files ({error})."
 msgstr "El nodo '{node}' no pudo listar los archivos de registro ({error})."
 
-#: services/webservice/pages/server_detail.py:955
+#: services/webservice/pages/server_detail.py:957
 msgid "An offset or a behind position is required."
 msgstr "Se requiere un offset o una posición behind."
 
-#: services/webservice/pages/server_detail.py:980
+#: services/webservice/pages/server_detail.py:982
 msgid "The offset must be a non-negative whole number."
 msgstr "El offset debe ser un número entero no negativo."
 
-#: services/webservice/pages/server_detail.py:999
+#: services/webservice/pages/server_detail.py:1001
 msgid "The behind position must be a non-negative whole number."
 msgstr "La posición behind debe ser un número entero no negativo."
 
-#: services/webservice/pages/server_detail.py:1287
+#: services/webservice/pages/server_detail.py:1289
 #, python-format
 msgid "server %(name)s"
 msgstr "servidor %(name)s"
 
-#: services/webservice/pages/server_detail.py:1392
+#: services/webservice/pages/server_detail.py:1394
 msgid "The mission list could not be read."
 msgstr "No se pudo leer la lista de misiones."
 
@@ -1467,13 +1486,17 @@ msgstr ""
 #: services/webservice/readmodels/dcslog.py:64
 #, python-brace-format
 msgid "No log file yet for this server (looked for '{path}' on node '{node}')."
-msgstr "Aún no hay archivo de registro para este servidor (se buscó '{path}' en el nodo '{node}')."
+msgstr ""
+"Aún no hay archivo de registro para este servidor (se buscó '{path}' en "
+"el nodo '{node}')."
 
 #: services/webservice/readmodels/dcslog.py:69
 msgid ""
 "The log restarted while loading older lines — the lines shown are from "
 "the previous file."
-msgstr "El registro se reinició mientras se cargaban líneas anteriores — las líneas mostradas son del archivo anterior."
+msgstr ""
+"El registro se reinició mientras se cargaban líneas anteriores — las "
+"líneas mostradas son del archivo anterior."
 
 #: services/webservice/readmodels/logtail.py:72
 msgid "INFO+"
