@@ -44,7 +44,7 @@ from psycopg import sql
 from psycopg.errors import ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Awaitable, Callable, Any, cast
+from typing import Awaitable, Callable, Any, NamedTuple, cast
 from typing_extensions import override
 from urllib.parse import urlparse, quote, unquote
 from version import __version__
@@ -145,6 +145,84 @@ def _close_sync_pools() -> None:
 atexit.register(_close_sync_pools)
 
 
+class _GitState(NamedTuple):
+    """What a checkout's git state says, read WITHOUT asking which branch it is on.
+
+    Every field survives a DETACHED HEAD — the state a release tag gives — where ``repo.active_branch``
+    raises and ``origin.refs[<name>]`` has nothing to find, because ``origin.refs`` holds REMOTE
+    BRANCHES ONLY and a tag never appears there. ``detached`` is what callers branch on; ``pinned``
+    names the tag HEAD sits exactly on, which is how a pinned installation describes itself.
+
+    ``target`` is the commit an update would move to: the tracking branch's commit for a normal
+    checkout, the default branch's otherwise, and ``None`` when nothing could be resolved — never
+    guessed.
+    """
+
+    detached: bool
+    current: str
+    pinned: str | None
+    branch: str | None
+    tracking: str | None
+    default_branch: str | None
+    target: str | None
+
+
+def _default_branch(repo: Any) -> str | None:
+    """The repository's own default branch, from ``refs/remotes/origin/HEAD``, or ``None``."""
+    try:
+        return repo.git.symbolic_ref('refs/remotes/origin/HEAD').split('/')[-1]
+    except Exception:
+        return None
+
+
+def _tracking_of(branch: Any) -> Any:
+    """*branch*'s tracking reference, or ``None`` — a branch with no upstream is not an error."""
+    try:
+        return branch.tracking_branch()
+    except Exception:
+        return None
+
+
+def _read_git_state(repo: Any) -> _GitState:
+    """Read *repo*'s state in a way that cannot raise on a detached HEAD; git's own errors still raise."""
+    current = repo.head.commit.hexsha
+    default_branch = _default_branch(repo)
+    if repo.head.is_detached:
+        try:
+            pinned = repo.git.describe('--tags', '--exact-match')
+        except Exception:
+            pinned = None       # detached, but between tags: not a pinned RELEASE
+        return _GitState(True, current, pinned, None, None, default_branch, None)
+    branch = repo.active_branch.name
+    tracking = _tracking_of(repo.active_branch)
+    target = None
+    if tracking is not None:
+        target = tracking.commit.hexsha
+    elif default_branch:
+        for ref in repo.remotes.origin.refs:
+            if ref.name == f'origin/{default_branch}':
+                target = ref.commit.hexsha
+                break
+    return _GitState(False, current, None, branch,
+                     tracking.name if tracking is not None else None, default_branch, target)
+
+
+def _unpin_argv(repo: Any, state: _GitState) -> list[str] | None:
+    """The ``git`` arguments that leave a detached HEAD for the default branch, or ``None``.
+
+    A clone made WITH ``--branch <tag>`` has no local branch at all, so getting back onto the update
+    stream means creating one that tracks origin's default; a clone that kept its branch only needs a
+    checkout. Both forms were exercised against real tagged clones (one of each shape) before this was
+    written; the caller runs these arguments through git itself.
+    """
+    if not state.detached or not state.default_branch:
+        return None
+    default = state.default_branch
+    if default in [branch.name for branch in repo.branches]:
+        return ['checkout', default]
+    return ['checkout', '-b', default, '--track', f'origin/{default}']
+
+
 class NodeImpl(Node):
 
     def __init__(self, name: str, config_dir: str = 'config', restarted: bool = False):
@@ -194,7 +272,13 @@ class NodeImpl(Node):
 
             try:
                 with closing(git.Repo('.')) as repo:
-                    if repo.active_branch.name == 'development':
+                    state = _read_git_state(repo)
+                    if state.detached:
+                        # A pinned checkout is a decision, not a defect — and it has no branch name to
+                        # ask for, which is what used to raise here and stop the bot during startup.
+                        suffix = f' ({state.pinned})' if state.pinned else ''
+                        self.log.info(f'- Pinned version detected{suffix}.')
+                    elif state.branch == 'development':
                         self.log.info(f'- Development version detected.')
             except git.InvalidGitRepositoryError:
                 if os.path.isdir('.git'):
@@ -720,11 +804,17 @@ class NodeImpl(Node):
 
         try:
             with closing(git.Repo('.')) as repo:
-                current_hash = repo.head.commit.hexsha
+                if _read_git_state(repo).detached:
+                    # PINNED (a release tag is checked out): there is no branch to follow, so git
+                    # alone cannot answer this — but a newer RELEASE may still exist, and the operator
+                    # has to be able to see it, because ``/node upgrade`` is what offers to move back
+                    # onto the update stream. The version check needs no git at all, so it answers
+                    # this case too.
+                    return await self._upgrade_pending_non_git()
                 origin = repo.remotes.origin
                 origin.fetch()
-                new_hash = origin.refs[repo.active_branch.name].object.hexsha
-                if new_hash != current_hash:
+                state = _read_git_state(repo)     # the fetch moved the remote refs, not HEAD
+                if state.target and state.target != state.current:
                     return True
         except git.InvalidGitRepositoryError:
             return await self._upgrade_pending_non_git()

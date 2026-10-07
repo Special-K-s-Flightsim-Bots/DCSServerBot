@@ -83,6 +83,13 @@ def do_update_git() -> int | None:
 
     try:
         with closing(git.Repo('.')) as repo:
+            if repo.head.is_detached:
+                # PINNED at a release tag. The launcher NEVER unpins on its own: a pinned install is
+                # the operator's decision, and only ``/node upgrade``'s confirmation undoes it. Say so
+                # and leave the checkout exactly as it is. (``repo.active_branch`` raises here, which
+                # is what used to abort an upgrade run on a pinned install.)
+                print('- This installation is pinned to a release tag: skipping the automatic update.')
+                return 0
             current_hash = repo.head.commit.hexsha
             origin = repo.remotes.origin
             origin.fetch()
