@@ -864,17 +864,14 @@ class Scheduler(Plugin[SchedulerListener]):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
-        # wait for all servers to be registered
-        while True:
-            if all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
-                break
+        self.loop.create_task(self._reset_maintenance_once())
+
+    async def _reset_maintenance_once(self):
+        while not all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
             await asyncio.sleep(1)
-        # reset maintenance flag
         for server_name, server in self.bot.servers.items():
             config = self.get_config(server)
-            if server.maintenance:
-                if not config.get('startup', {}).get('clear_maintenance'):
-                    continue
+            if server.maintenance and config.get('startup', {}).get('clear_maintenance'):
                 server.maintenance = False
                 self.log.warning(f"Maintenance mode auto-cleared on server {server.name}.")
 
