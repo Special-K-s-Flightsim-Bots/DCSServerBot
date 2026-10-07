@@ -107,6 +107,22 @@ class ResourceRegistry:
                     VALUES (%s, %s, %s, %s, %s)
                     ON CONFLICT (resource_id, guild_id, node, kind, name) DO NOTHING
                 """, (identity.id, self.node.guild_id, self.node.name, kind, name))
+            # Prune the rows this node no longer runs. The set changes legitimately - a server removed from
+            # nodes.yaml - and a leftover row names a server this node does not have, which another cluster
+            # reads as "it will step that down". Deleting by name leaves the surviving rows untouched, so the
+            # state of one that is stepped down while a window is open survives a restart - which is what lets
+            # a node remember to bring its servers back.
+            keep = {tuple(dependent) for dependent in dependents}
+            cursor = await conn.execute("""
+                SELECT kind, name FROM resource_dependents
+                WHERE resource_id = %s AND guild_id = %s AND node = %s
+            """, (identity.id, self.node.guild_id, self.node.name))
+            async for kind, name in cursor:
+                if (kind, name) not in keep:
+                    await conn.execute("""
+                        DELETE FROM resource_dependents
+                        WHERE resource_id = %s AND guild_id = %s AND node = %s AND kind = %s AND name = %s
+                    """, (identity.id, self.node.guild_id, self.node.name, kind, name))
 
     async def members(self, resource_id: str) -> list[tuple[int, str, int, bool]]:
         """Every member of *resource_id* as ``(guild_id, node, servers_up, live)``.

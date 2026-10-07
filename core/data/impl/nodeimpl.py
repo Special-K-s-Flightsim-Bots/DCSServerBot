@@ -633,7 +633,7 @@ class NodeImpl(Node):
             return
         try:
             identity = utils.ResourceIdentity.of(self.installation, 'dcs_installation')
-            servers = sorted(set(utils.findDCSInstances().values()))
+            servers = sorted(self.instances)
             await ResourceRegistry(self).register(
                 identity, dependents=[('server', name) for name in servers])
             self.resources[identity.id] = scope_of(identity.resource_type)
