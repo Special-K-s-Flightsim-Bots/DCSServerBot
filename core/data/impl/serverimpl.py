@@ -1027,12 +1027,15 @@ class ServerImpl(Server):
 
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
-        if self.status in (Status.LOADING, Status.RUNNING, Status.PAUSED):
-            # A duplicate start request. This is not an error and it is not rare: the boot sequence, the
-            # scheduler's state loop, a node coming back online and an operator's own /server startup can all
-            # ask for the same server within seconds, and the second ask finds it already up or coming up. The
-            # honest answer is to do nothing and say so - letting it through would put a second DCS process on
-            # the same port, and reporting it as a failure fills the log with errors for a server that is fine.
+        # A duplicate start request is one where OUR OWN DCS PROCESS IS ALREADY ALIVE, never one where the
+        # status merely reads as up: the scheduler's state loop marks a server LOADING and THEN schedules the
+        # launch that starts it, so a bare ``status == LOADING`` test makes the scheduler skip its own launch
+        # and leaves the server loading forever.
+        if self.status in (Status.LOADING, Status.RUNNING, Status.PAUSED) and await self.is_running():
+            # The process is up, so this is a duplicate - and that is neither an error nor rare: the boot
+            # sequence, the state loop, a node coming back online and an operator's own /server startup can all
+            # ask for the same server within seconds. Letting it through would put a second DCS on the same
+            # port; reporting it as a failure fills the log with errors for a server that is fine.
             self.log.info(f"  => Server \"{self.name}\" is already {self.status.value} - ignoring this start "
                           f"request.")
             return
