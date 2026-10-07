@@ -1348,10 +1348,15 @@ class NodeImpl(Node):
                 self.log.debug("Upgrade: master => still upgrading")
                 return False
             else:
-                # the master is dead, so reset update pending
-                self.log.error("Master died during an upgrade. Taking over ...")
-                await conn.execute("UPDATE cluster SET update_pending = FALSE WHERE guild_id = %s", (self.guild_id,))
-                # take over
+                # A master dying mid-upgrade is the NORMAL case — it is restarting so its launcher can run
+                # update.py. KEEP the upgrade intent: that flag is what tells every node to update, and clearing it
+                # here silently abandons the upgrade for the whole cluster (the taker then writes its own, older
+                # version into cluster.version, so nothing differs and nothing heals). The next master's own
+                # heartbeat runs the master branch above — re-announcing it to every active node and only then
+                # clearing the flag — one cycle later, so nothing can stay stuck.
+                self.log.error("Master died during an upgrade. Taking over and keeping the upgrade intent, "
+                               "so the next master re-announces it ...")
+                # take over — update_pending deliberately left TRUE
                 return await try_become_master()
 
         async def get_master() -> tuple[str | None, str | None, str, bool]:
