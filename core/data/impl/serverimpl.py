@@ -60,7 +60,17 @@ DEFAULT_EXTENSIONS = {
     "Cloud": {}
 }
 
-__all__ = ["ServerImpl", "RenameError", "PortConflictError", "ResourceInUseError"]
+__all__ = ["ServerImpl", "RenameError", "PortConflictError", "ResourceInUseError", "ServerAlreadyRunningError"]
+
+
+class ServerAlreadyRunningError(Exception):
+    """Startup refused because this instance's own DCS process is already up, or still starting.
+
+    Distinct from :class:`PortConflictError` on purpose: nothing is contested and nobody else holds
+    anything - the port is this instance's own, held by the process that is serving it. The operator's
+    next move is to look at the server, not at another cluster's nodes.yaml, so the message says which
+    status the instance was in. Raised by :meth:`ServerImpl.startup` (``_assert_ports_free``).
+    """
 
 
 class PortConflictError(Exception):
@@ -941,11 +951,9 @@ class ServerImpl(Server):
                 f"every {window.scope} on this installation stays down, or the {window.action} corrupts it."
             )
 
-    #: A port held by this instance's own, still-exiting DCS process is waited for rather than refused: a
-    #: launch that failed can be retried while the previous attempt's DCS.exe is still winding down.
-    PORT_RELEASE_WAIT = 30.0
-    PORT_RELEASE_POLL = 1.0
-
+    #: A port held by this instance's own DCS process is never waited for: a start request must not contain
+    #: a shutdown wait, and a process that is alive but unaccounted for is either dying (the next attempt
+    #: succeeds) or orphaned (the operator has to act). Both are reported immediately, by name.
     async def _assert_ports_free(self) -> None:
         """Refuse to launch while a port this instance needs is already taken on this machine.
 
@@ -959,11 +967,12 @@ class ServerImpl(Server):
         reports a free port for a bind that is about to fail.
 
         A port held while **this instance's own DCS process is still alive** is not a conflict and must
-        not be reported as one: a launch that failed - a crash, or a slow start that timed out - can be
-        retried while the previous attempt's DCS.exe is still holding exactly this port, and blaming
-        "another DCS server or a second bot cluster" there is both wrong and alarming. Such a process is
-        waited for; only a port that is still held afterwards is refused, and by then the holder is
-        somebody else's.
+        not be reported as one: blaming "another DCS server or a second bot cluster" there is both wrong
+        and alarming. Nor is it a reason to wait — a start request must not contain a shutdown wait. It
+        is refused at once, and the message says which of the two situations it is: a status that is not
+        down (the request is a duplicate start, and the port is ours by design) or a status that *is*
+        down while a process of ours is alive (a crash that has not exited, or a DCS left behind by an
+        earlier bot session).
         """
         instance = self.instance
         if not instance:
@@ -986,23 +995,30 @@ class ServerImpl(Server):
         conflict = taken()
         own_process = await self.is_running() if conflict else False
         if conflict and own_process:
-            self.log.info(f"  => This instance's own DCS process is still up while {conflict[2]} is held; "
-                          f"waiting up to {int(self.PORT_RELEASE_WAIT)}s for it to exit ...")
-            loop = asyncio.get_running_loop()
-            deadline = loop.time() + self.PORT_RELEASE_WAIT
-            while conflict and loop.time() < deadline:
-                await asyncio.sleep(self.PORT_RELEASE_POLL)
-                conflict = taken()
+            # OUR process holds it, so this is not a port conflict and there is nothing to wait for. Two
+            # readings, both reported immediately:
+            #
+            # * the instance is not down, so its own process is the holder BY DESIGN - the request is a
+            #   duplicate start, and waiting for a running server to exit is wrong twice over;
+            # * the instance IS down while a process of it is alive - the bot's state and reality disagree
+            #   (a crash that has not exited, or a DCS left by an earlier bot session), and the operator
+            #   needs to know that, not a 30-second stall followed by a message about a port.
+            name, _host, port = conflict
+            if self.status not in (Status.SHUTDOWN, Status.UNREGISTERED):
+                hint = (" Use /server start to start it, or /server restart to replace it."
+                        if self.status == Status.STOPPED else
+                        " Use /server restart if you meant to replace it.")
+                raise ServerAlreadyRunningError(
+                    f"Server \"{instance.name}\" is already {self.status.value}: its own DCS process "
+                    f"holds port {port}.{hint}"
+                )
+            raise ServerAlreadyRunningError(
+                f"A DCS process of this instance is already running while the bot has the server as "
+                f"'{self.status.value}' - left behind by an earlier launch or an earlier bot session. It "
+                f"holds port {port}. Stop that process, or let it exit, and start the server again."
+            )
         if conflict:
             name, host, port = conflict
-            if own_process:
-                # Ours, and it did not let go: say exactly that, because the operator's next move is
-                # to look at a DCS process, not to go hunting for another cluster's nodes.yaml.
-                raise PortConflictError(
-                    f"{name} {port} is still held by this instance's own DCS process, which has not "
-                    f"exited {int(self.PORT_RELEASE_WAIT)}s after this launch was attempted. Let it "
-                    f"finish exiting, or stop it, and start the server again."
-                )
             raise PortConflictError(
                 f"{name} {port} is already in use on {host}. Another DCS server, or a second bot "
                 f"cluster on this machine, is most likely holding it. Startup refused - give this "

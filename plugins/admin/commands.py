@@ -910,11 +910,26 @@ class Admin(Plugin[AdminEventListener]):
         ``/node offline`` and ``/node online`` are THIN wrappers over the SAME action functions the
         console calls (``plugins/admin/actions.py``), so one word has one implementation on every
         transport. The ACTION writes the audit entry itself — one per attempt — so nothing here does.
+
+        The targets run CONCURRENTLY. Each action touches only its own node, and each node's action is
+        its popup chain — minutes. One after another makes the operator wait for the SUM of the nodes
+        when the real cost is the SLOWEST one. The seam allows it: ``call_action``'s in-flight guard is
+        keyed per target, so ``node:DE`` and ``node:US`` may run together while a second call against
+        the SAME node is still refused. A node that fails is reported and does not hold up the others,
+        which the serial loop could not promise — its exception ended the fan-out.
         """
         ctx = ActionContext.from_interaction(interaction)
-        for name in await self._power_targets(node):
-            result = await call_action(qualname, ctx, node_name=name, **params)
-            await interaction.followup.send(result.message, ephemeral=ephemeral)
+
+        async def run(name: str) -> None:
+            try:
+                result = await call_action(qualname, ctx, node_name=name, **params)
+                message = result.message
+            except Exception as ex:          # one action's bug must not hide the other nodes' outcome
+                self.log.exception(ex)
+                message = _("Node {}: the action failed - {}").format(name, ex)
+            await interaction.followup.send(message, ephemeral=ephemeral)
+
+        await asyncio.gather(*(run(name) for name in await self._power_targets(node)))
 
     @node_group.command(description=_('Takes all servers on a node out of service'))
     @app_commands.guild_only()
@@ -926,19 +941,29 @@ class Admin(Plugin[AdminEventListener]):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
-        if maintenance:
-            question = _("Are you sure you want to proceed?")
-            if not node:
-                message = _("This will shutdown **all** servers on **all** nodes and set them to maintenance.")
-            else:
-                message = _("This will shutdown **all** servers on node `{}` and set them to maintenance.").format(node.name)
-            embed = discord.Embed(color=discord.Color.red())
-            embed.description = message
-            embed.set_thumbnail(
-                url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
-            if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
-                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
-                return
+        # The question is about the OPERATION, not about the flag. Taking servers down is destructive with
+        # or without maintenance, so asking only when the flag is set left `maintenance:false` — the run
+        # that stops servers without marking them — with no confirmation at all. The console's design says
+        # the same thing from the other side ("offline confirms, online does not"), so this is the Discord
+        # arm agreeing with it rather than a second opinion.
+        question = _("Are you sure you want to proceed?")
+        if not node:
+            message = (_("This will shutdown **all** servers on **all** nodes and set them to maintenance.")
+                       if maintenance else
+                       _("This will shutdown **all** servers on **all** nodes, leaving their maintenance "
+                         "flags untouched."))
+        else:
+            message = (_("This will shutdown **all** servers on node `{}` and set them to maintenance.").format(node.name)
+                       if maintenance else
+                       _("This will shutdown **all** servers on node `{}`, leaving their maintenance flags "
+                         "untouched.").format(node.name))
+        embed = discord.Embed(color=discord.Color.red())
+        embed.description = message
+        embed.set_thumbnail(
+            url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+        if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+            return
 
         await self._power_nodes(interaction, "take_node_offline", node, ephemeral=ephemeral,
                                 maintenance=bool(maintenance))
