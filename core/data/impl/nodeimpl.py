@@ -829,6 +829,7 @@ class NodeImpl(Node):
         latest = await self._latest_version()
         return (__version__, latest) if latest else None
 
+    @override
     async def upgrade_is_major(self) -> bool:
         """Whether an update is waiting AND it moves one of the first three version numbers.
 

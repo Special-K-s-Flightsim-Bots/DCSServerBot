@@ -176,6 +176,10 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def upgrade_is_major(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
     async def upgrade(self):
         raise NotImplementedError()
 

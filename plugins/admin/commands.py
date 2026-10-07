@@ -10,6 +10,7 @@ from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Inst
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
     InstallException, InstallableExtension, ConfigView, ServerUploadHandler
 from core.actions import ActionContext, call_action
+from core.data.maintenance import ServerMaintenanceManager
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -829,7 +830,7 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Node | None = None,
-                           ephemeral: bool | None = True):
+                           ephemeral: bool | None = True, confirm: bool = True):
         if not node:
             question = _("Are you sure you want to proceed?")
             message = _("This will {} **all** nodes.").format(_(method))
@@ -840,7 +841,10 @@ class Admin(Plugin[AdminEventListener]):
         embed.description = message
         embed.set_thumbnail(
             url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
-        if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+        # ``confirm=False``: the caller asked its own question and it covered this step too — the
+        # upgrade's major-version guard asks ONCE for the offline step and the upgrade together.
+        if confirm and not await utils.yn_question(interaction, question=question, embed=embed,
+                                                   ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         if method != 'upgrade' or node:
@@ -942,11 +946,42 @@ class Admin(Plugin[AdminEventListener]):
     @node_group.command(description=_('Brings all servers on a node back online'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
+    @app_commands.describe(maintenance=_('Clear the maintenance flag on every server on the node, even '
+                                         'flags set by hand (forced clear). Omit to clear only the flags '
+                                         'the last offline set'))
     async def online(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer] | None):
+                     node: app_commands.Transform[Node, utils.NodeTransformer] | None,
+                     maintenance: bool | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
-        await self._power_nodes(interaction, "bring_node_online", node, ephemeral=ephemeral)
+
+        if maintenance:
+            # "Bring them back but leave them in maintenance" is not an operation, and silently
+            # ignoring the argument would read as if it did something.
+            await interaction.followup.send(
+                _("`maintenance:true` is not an option of `/node online`: omit it to clear only the "
+                  "flags the last `offline` set, or use `maintenance:false` to clear every flag on "
+                  "the node."), ephemeral=ephemeral)
+            return
+
+        if maintenance is False:
+            question = _("Are you sure you want to proceed?")
+            if not node:
+                message = _("This will clear the maintenance flag on **every** server on **all** "
+                            "nodes — including flags set by hand — and start every server that is down.")
+            else:
+                message = _("This will clear the maintenance flag on **every** server on node `{}` — "
+                            "including flags set by hand — and start every server that is down.").format(node.name)
+            embed = discord.Embed(color=discord.Color.red())
+            embed.description = message
+            embed.set_thumbnail(
+                url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+            if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+                await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+                return
+
+        await self._power_nodes(interaction, "bring_node_online", node, ephemeral=ephemeral,
+                                clear_all=maintenance is False)
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
@@ -971,7 +1006,36 @@ class Admin(Plugin[AdminEventListener]):
                 ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
             return
-        await self.run_on_nodes(interaction, "upgrade", node if not cluster else None, ephemeral=ephemeral)
+        # A MAJOR upgrade moves the bot's version, and a DCS server only talks to a bot whose hook
+        # version it carries — so DCS has to be down on every node that updates, or the servers come
+        # back speaking the old hook. ONE question covers both halves (taking them offline, then the
+        # upgrade): asking again inside run_on_nodes would be two questions for one operation. The
+        # action refuses a major upgrade with servers in service as well, and that is the backstop if
+        # the version check cannot be read here.
+        targets = None if cluster else node
+        checker = self.node if targets is None else targets
+        try:
+            is_major = bool(await checker.upgrade_is_major())
+        except Exception as ex:
+            self.log.warning("Could not check %s for a major upgrade: %s", checker.name, ex)
+            is_major = False
+        if is_major:
+            running = sum(1 for server in self.bot.servers.values()
+                          if (targets is None or server.node.name == targets.name)
+                          and ServerMaintenanceManager.in_service(server))
+            if running and not await utils.yn_question(
+                    interaction,
+                    _("This is a MAJOR upgrade and {} server(s) are in service. They will be taken "
+                      "offline first — DCS has to be down while the bot updates, or the servers come "
+                      "back on the old hook version — and stay in maintenance until you bring them back "
+                      "with `/node online <node> maintenance:false`. Proceed?").format(running),
+                    ephemeral=ephemeral):
+                await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+                return
+            if running:
+                await self._power_nodes(interaction, "take_node_offline", targets, ephemeral=ephemeral,
+                                        maintenance=True)
+        await self.run_on_nodes(interaction, "upgrade", targets, ephemeral=ephemeral, confirm=False)
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()

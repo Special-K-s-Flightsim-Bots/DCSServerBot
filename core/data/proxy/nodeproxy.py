@@ -116,6 +116,15 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
 
     @override
+    async def upgrade_is_major(self) -> bool:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "upgrade_is_major"
+        }, node=self.name, timeout=timeout)
+
+    @override
     async def upgrade(self):
         await self.bus.send_to_node({
             "command": "rpc",

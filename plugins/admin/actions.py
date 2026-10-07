@@ -135,6 +135,34 @@ async def _lifecycle(ctx: Any, node_name: str, method: str) -> NodeControlResult
                     success=False,
                     message=f"There is no upgrade available for node '{node_name}'.",
                     node_name=node_name))
+        # A MAJOR upgrade moves the bot's version, and a DCS server only talks to a bot whose hook
+        # version it carries: DCS has to be down on that node while it updates, or the servers come
+        # back speaking the old hook. Refused HERE, where every transport lands, so the console cannot
+        # skip it; ``/node upgrade`` asks its own question and takes the node offline first, which is
+        # why it calls this action with nothing left in service. A node object that cannot answer —
+        # an agent older than this check, caught mid-upgrade — skips the guard rather than blocking
+        # every upgrade in the cluster.
+        major: Any = getattr(node, "upgrade_is_major", None)
+        if callable(major):
+            try:
+                is_major = bool(await major())
+            except Exception as ex:
+                log.exception("upgrade_node: the major-version check failed for node '%s'", node_name)
+                return await _audited(ctx, NodeControlResult(
+                    success=False,
+                    message=f"Could not check node '{node_name}' for an upgrade: {ex}",
+                    node_name=node_name))
+            if is_major:
+                canonical = str(getattr(node, "name", "") or node_name)
+                running = [server for server in _node_servers(ctx, canonical)
+                           if ServerMaintenanceManager.in_service(server)]
+                if running:
+                    return await _audited(ctx, NodeControlResult(
+                        success=False,
+                        message=(f"Node '{canonical}': {len(running)} server(s) are in service and "
+                                 f"this is a major upgrade — DCS has to be down while the bot "
+                                 f"updates. Take the node offline first."),
+                        node_name=canonical))
 
     try:
         await call()
@@ -193,8 +221,13 @@ async def upgrade_node(ctx: Any, node_name: str) -> NodeControlResult:
     ``NodeImpl.upgrade()`` checks for an update itself, sets the cluster's ``update_pending`` flag,
     launches ``update.py`` and shuts the node down with ``rc=UPDATE`` — but a node with NOTHING to
     upgrade logs "No update found" and returns, reporting no success. So this action runs the SAME
-    ``upgrade_pending()`` check ``/node upgrade`` runs (``plugins/admin/commands.py``:984) and refuses
+    ``upgrade_pending()`` check ``/node upgrade`` runs (``plugins/admin/commands.py``:965) and refuses
     with the same sentence when it is false, rather than reporting an upgrade that never happened.
+
+    A MAJOR upgrade is refused while any of the node's servers is in service: a DCS server only talks
+    to a bot whose hook version it carries, so DCS has to be down while the bot updates. ``/node
+    upgrade`` asks its own question and takes the node offline first; the console gets the refusal,
+    which is what tells an operator to do the same.
 
     The console still OFFERS Upgrade unconditionally: that check is an async git/HTTP call on the node
     (an RPC for a remote one), and a page render must not issue one (``readmodels/nodes``).
@@ -311,7 +344,7 @@ def _offline_message(node_name: str, servers: list, outcome: PowerOffOutcome, *,
     return message
 
 
-async def _power_on(ctx: Any, node_name: str) -> NodeControlResult:
+async def _power_on(ctx: Any, node_name: str, *, clear_all: bool = False) -> NodeControlResult:
     """Bring the SERVERS of ONE node back into service — ``online``'s one implementation.
 
     With a power-off RECORD (the ordinary case) it reverts EXACTLY that record: it clears the flags
@@ -323,6 +356,11 @@ async def _power_on(ctx: Any, node_name: str) -> NodeControlResult:
     it falls back to the RULE: start every server of the node that is down AND not in maintenance,
     clear NO flag, and say in the message that the record is gone, since when. The degradation is
     visible and never clears a flag nobody asked it to clear.
+
+    *clear_all* is the FORCED clear: every maintenance flag on the node goes — hand-set ones included
+    — and every server that is down is started. It is the ONLY path that clears a flag this process
+    has no record of, which is what a restart between the halves leaves behind, and it is opt-in for
+    that reason: the caller has said out loud that the flags on this node are not to be trusted.
     """
     node = ctx.resolve_node(node_name)
     if node is None:
@@ -331,6 +369,17 @@ async def _power_on(ctx: Any, node_name: str) -> NodeControlResult:
     canonical = str(getattr(node, "name", "") or node_name)
     servers = _node_servers(ctx, canonical)
     manager = ServerMaintenanceManager(node)
+    if clear_all:
+        outcome = await manager.power_on(servers, clear=servers, start=servers, skip_running=True,
+                                        skip_flagged=False, stagger=STARTUP_DELAY_SECONDS)
+        clear_power_record(canonical)
+        parts = [f"{len(outcome.cleared)} maintenance flag(s) cleared (forced)",
+                 f"{len(outcome.started)} server(s) starting"]
+        if outcome.skipped:
+            parts.append(f"{len(outcome.skipped)} left alone (already running)")
+        message = f"Node '{canonical}': " + ", ".join(parts) + "."
+        return await _audited(ctx, NodeControlResult(success=True, message=message,
+                                                     node_name=canonical))
     record = power_record(canonical)
     if record is None:
         outcome = await manager.power_on(servers, clear=(), start=servers, skip_running=True,
@@ -376,16 +425,21 @@ async def take_node_offline(ctx: Any, node_name: str, maintenance: bool = True) 
 
 
 @action
-async def bring_node_online(ctx: Any, node_name: str) -> NodeControlResult:
+async def bring_node_online(ctx: Any, node_name: str, clear_all: bool = False) -> NodeControlResult:
     """Bring the SERVERS of ONE node back into service — the same operation ``/node online`` performs.
 
     It reverts exactly the record the matching :func:`take_node_offline` left: it clears ONLY the
     maintenance flags that operation set (a flag set by hand is never cleared) and starts ONLY the
     servers that operation stopped (a server that is already up is skipped, a server still in
-    maintenance is not started). There is no option — bringing the servers back IS the operation.
+    maintenance is not started).
 
     With no record (the bot restarted in between) it starts every server of the node that is down
-    and NOT in maintenance, clears NO flag, and the message says exactly that. The node's services
-    are untouched.
+    and NOT in maintenance, clears NO flag, and the message says exactly that.
+
+    *clear_all* — ``/node online <node> maintenance:false``, and the console's equivalent — is the
+    FORCED clear for the case the record cannot cover: every maintenance flag on the node is cleared,
+    hand-set ones included, and every server that is down is started. It is the only way to clear the
+    flags an ``offline`` left before a restart wiped the record, and it is opt-in because those flags
+    are then taken on trust. The node's services are untouched either way.
     """
-    return await _power_on(ctx, node_name)
+    return await _power_on(ctx, node_name, clear_all=bool(clear_all))
