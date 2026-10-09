@@ -1,4 +1,5 @@
 import discord
+import hashlib
 import os
 
 from core import Plugin, get_translation, Group, Server, utils, Status
@@ -10,35 +11,62 @@ from services.bot import DCSServerBot
 
 _ = get_translation(__name__.split('.')[1])
 
+# Discord limits autocomplete choice names and string values to 100 characters
+MAX_CHOICE_LENGTH = 100
+# prefix for choice values that reference a file by hash, because its path is too long
+FILE_HASH_PREFIX = '#'
+
+
+def shorten_middle(text: str, max_len: int = MAX_CHOICE_LENGTH) -> str:
+    if len(text) <= max_len:
+        return text
+    head = (max_len - 1) // 2
+    tail = max_len - 1 - head
+    return f"{text[:head]}…{text[-tail:]}"
+
+
+def file_hash(file: str) -> str:
+    return FILE_HASH_PREFIX + hashlib.sha1(file.encode('utf-8')).hexdigest()
+
+
+def file_to_value(file: str) -> str:
+    return file if len(file) <= MAX_CHOICE_LENGTH else file_hash(file)
+
+
+async def get_tacview_files(interaction: discord.Interaction, server: Server) -> list[str]:
+    """Returns the .acmi files the user can see, relative to the tacviewExportPath."""
+    config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |
+              server.instance.locals.get('extensions', {}).get('Tacview', {}))
+    path = config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
+    # single file per player
+    if config.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
+        ucid = await interaction.client.get_ucid_by_member(interaction.user)
+        if not ucid:
+            return []
+        async with interaction.client.apool.connection() as conn:
+            cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (ucid, ))
+            row = await cursor.fetchone()
+        if not row:
+            return []
+        path, files = await server.node.list_directory(
+            os.path.join(path, utils.slugify(row[0])), pattern='*.acmi', is_dir=False
+        )
+        # make the files relative to the export path, not the player directory
+        path = os.path.dirname(path)
+    else:
+        path, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False, traverse=True)
+    return [os.path.relpath(x, path) for x in files]
+
 
 async def list_tacview_files(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
     try:
         server: Server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
-        config = (server.node.locals.get('extensions', {}).get('Tacview', {}) |
-                  server.instance.locals.get('extensions', {}).get('Tacview', {}))
-        path = config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
-        # single file per player
-        if config.get('tacviewMultiplayerFlightsAsHost', 2) == 3:
-            ucid = await interaction.client.get_ucid_by_member(interaction.user)
-            if ucid:
-                async with interaction.client.apool.connection() as conn:
-                    cursor = await conn.execute("SELECT name FROM players WHERE ucid = %s", (ucid, ))
-                    row = await cursor.fetchone()
-                    if row:
-                        name = utils.slugify(row[0])
-                path, files = await server.node.list_directory(
-                    os.path.join(path, name), pattern='*.acmi', is_dir=False
-                )
-            else:
-                files = []
-        else:
-            path, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False, traverse=True)
-
+        files = await get_tacview_files(interaction, server)
         # file per session
         choices = [
-            app_commands.Choice[str](name=os.path.relpath(x, path), value=os.path.relpath(x, path))
+            app_commands.Choice[str](name=shorten_middle(x), value=file_to_value(x))
             for x in files
             if not current or current.casefold() in x.casefold()
         ]
@@ -69,6 +97,12 @@ class Tacview(Plugin):
                       server.instance.locals.get('extensions', {}).get('Tacview', {}))
         path = ext_config.get('tacviewExportPath', TACVIEW_DEFAULT_DIR)
         config = self.get_config(server)
+        # paths too long for a Discord choice value are passed as a hash, resolve them back to the file
+        if file.startswith(FILE_HASH_PREFIX):
+            file = next((x for x in await get_tacview_files(interaction, server) if file_hash(x) == file), None)
+            if not file:
+                await interaction.followup.send(_("Tacview file not found."), ephemeral=True)
+                return
         file_data = await self.node.read_file(os.path.join(path, file))
         try:
             if config.get('upload', {}).get('channel'):
