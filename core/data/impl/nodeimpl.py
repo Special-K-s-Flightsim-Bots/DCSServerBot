@@ -174,14 +174,12 @@ def _default_branch(repo: Any) -> str | None:
     except Exception:
         return None
 
-
 def _tracking_of(branch: Any) -> Any:
     """*branch*'s tracking reference, or ``None`` — a branch with no upstream is not an error."""
     try:
         return branch.tracking_branch()
     except Exception:
         return None
-
 
 def _read_git_state(repo: Any) -> _GitState:
     """Read *repo*'s state in a way that cannot raise on a detached HEAD; git's own errors still raise."""
@@ -198,14 +196,12 @@ def _read_git_state(repo: Any) -> _GitState:
     target = None
     if tracking is not None:
         target = tracking.commit.hexsha
-    elif default_branch:
-        for ref in repo.remotes.origin.refs:
-            if ref.name == f'origin/{default_branch}':
-                target = ref.commit.hexsha
-                break
+    else:
+        names = [f'origin/{branch}'] + ([f'origin/{default_branch}'] if default_branch else [])
+        by_name = {ref.name: ref.commit.hexsha for ref in repo.remotes.origin.refs}
+        target = next((by_name[n] for n in names if n in by_name), None)
     return _GitState(False, current, None, branch,
                      tracking.name if tracking is not None else None, default_branch, target)
-
 
 def _unpin_argv(repo: Any, state: _GitState) -> list[str] | None:
     """The ``git`` arguments that leave a detached HEAD for the default branch, or ``None``.
