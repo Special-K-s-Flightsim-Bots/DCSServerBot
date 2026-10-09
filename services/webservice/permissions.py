@@ -586,9 +586,14 @@ def _walk_routes(app) -> list:
     """Every APIRoute of the application, recursing into include wrappers and frontend routes.
 
     ``include_router`` appends a single ``_IncludedRouter`` wrapper to ``app.routes`` and keeps
-    the router's own ``APIRoute``s inside it, so both containers have to be opened here."""
+    the router's own ``APIRoute``s inside it, so both containers have to be opened here. A router
+    may also hold LOW-PRIORITY routes (``_low_priority_routes`` — how the console registers its
+    pages, so a route another component registered on the same path wins), and those are yielded
+    too, or a walk would silently miss every console page.
+    """
     found: list = []
     containers = list(getattr(getattr(app, "router", app), "routes", []) or [])
+    containers.extend(list(getattr(getattr(app, "router", app), "_low_priority_routes", []) or []))
     seen: set[int] = set()
     while containers:
         route = containers.pop(0)
@@ -598,6 +603,7 @@ def _walk_routes(app) -> list:
         inner = getattr(route, "original_router", None)
         if inner is not None:
             containers.extend(getattr(inner, "routes", []) or [])
+            containers.extend(getattr(inner, "_low_priority_routes", []) or [])
             continue
         inner = getattr(route, "routes", None)          # e.g. the frontend route group
         if inner is not None and not hasattr(route, "endpoint"):

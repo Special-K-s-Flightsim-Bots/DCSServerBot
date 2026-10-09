@@ -29,6 +29,18 @@ loudly:
 The registrar is also the enumeration source of truth for tests: ``app.routes`` is blind to
 included routers and ``app.router._frontend_routes`` is blind to both, so a ratchet that walks
 either can pass having examined nothing.
+
+The console's pages are LOW-PRIORITY routes
+-------------------------------------------
+Every page the registrar registers is added as a **low-priority** route (the mechanism
+``app.frontend`` already uses on the pinned FastAPI). A route another component registered on the
+SAME path — the restapi plugin's API ``/servers`` — therefore WINS it: the console can never shadow
+the REST API, and the old endpoints keep answering exactly as they did before the console existed.
+The console's page is still reached when nothing else claims its path, and it keeps its own
+capability gate either way. This is also why the gate resolves a capability by **route identity**
+(:meth:`Registrar.owns_route`) and never by path: the console page ``/servers`` and the plugin's
+API ``/servers`` are the same path but different routes (see
+:func:`services.webservice.permissions.capability_gate`).
 """
 from __future__ import annotations
 
@@ -83,6 +95,10 @@ class Registration:
     templates: Path | None = None
     #: route objects appended to ``app.routes`` by this owner's include (the wrapper)
     included: list[Any] = field(default_factory=list)
+    #: the owner's own ``APIRoute`` objects. The console registers them as LOW-PRIORITY routes
+    #: (see :meth:`Registrar.register_pages`), so they no longer live in ``router.routes`` —
+    #: this is the registrar's copy, used for bookkeeping and route-identity lookups.
+    routes: list[Any] = field(default_factory=list)
 
 
 def _is_prefix(path: str) -> bool:
@@ -113,6 +129,12 @@ class Registrar:
         self._template_dirs: dict[str, Path] = {}
         self._asset_routes: list[Any] = []
         self._asset_owner: str | None = None
+        #: ids of every route object the console owns (each registration's ``APIRoute``s plus the
+        #: asset routes). The gate resolves a capability by ROUTE IDENTITY, so it must be able to
+        #: ask "is this route one of ours" — a path cannot answer that (the console page ``/servers``
+        #: and the restapi plugin's API ``/servers`` share the path; see
+        #: :func:`services.webservice.permissions.capability_gate`).
+        self._owned_route_ids: set[int] = set()
 
     # ---------------------------------------------------------------------------------- assets
 
@@ -141,6 +163,7 @@ class Registrar:
         group = getattr(self.app.router, "_frontend_routes", None)
         self._asset_routes = list(getattr(group, "routes", []) or [])
         self._asset_owner = owner
+        self._owned_route_ids.update(id(route) for route in self._asset_routes)
         log.debug("Registrar: '%s' owns the asset path '%s' (%d route(s)).",
                   owner, path, len(self._asset_routes))
 
@@ -184,6 +207,35 @@ class Registrar:
                     f"owner '{owner}' registered templates that do not exist: {template_dir}")
 
         before = list(self.app.routes)
+        routes = list(getattr(router, "routes", []) or [])
+        # THE CONSOLE REGISTERS ITS OWN PAGES AS LOW-PRIORITY ROUTES. A route another component
+        # registered on the SAME path (the restapi plugin's ``/servers``) therefore WINS it, so the
+        # console can never shadow the REST API — the old endpoints keep answering exactly as they
+        # did before the console existed. The console's page is still reached when nothing else
+        # claims its path, and it keeps its own capability gate either way. ``_low_priority_routes``
+        # is the mechanism ``app.frontend`` already uses on the pinned FastAPI (0.141.1); if a
+        # future version drops it we fall back to a normal include and SAY SO, rather than silently
+        # shadowing another component's route.
+        #
+        # KNOWN EDGE, PINNED (fail-closed): low priority only applies when NO normal route matches
+        # the request at all. If another component claims the SAME path with a method the console
+        # page does NOT accept (a POST-only route on the console's GET /servers), its NORMAL route is
+        # a PARTIAL match (path yes, method no) and the pinned FastAPI router serves that partial
+        # BEFORE this fallback - so a request using the console page's OWN method answers 405 Method
+        # Not Allowed and the page is not reached. The direction is DENY (nothing is served, no gate
+        # is bypassed into content) and it is deterministic across restarts; no shipping component
+        # collides this way (the restapi plugin's /servers is GET, which wins the path cleanly). It
+        # is pinned by
+        # ``tests/test_webui_rest_api_isolation.py::test_a_plugin_route_with_a_method_the_console_page_lacks_flips_the_path_to_405``.
+        low_priority = getattr(router, "_low_priority_routes", None)
+        if low_priority is None:
+            log.warning("Registrar: '%s' registered %d page route(s) as NORMAL routes - this "
+                        "FastAPI does not expose low-priority routes, so a page sharing a path "
+                        "with another component's route (e.g. the REST API's /servers) would "
+                        "shadow it.", owner, len(routes))
+        else:
+            setattr(router, "_low_priority_routes", list(low_priority) + routes)
+            router.routes = []
         self.app.include_router(router)
         # exactly the object(s) OUR include appended — see the module docstring for why this is
         # a snapshot/diff and not `for route in router.routes: app.routes.remove(route)`
@@ -191,12 +243,13 @@ class Registrar:
 
         registration = Registration(owner=owner, router=router, nav=nav_items,
                                     capabilities=declared, templates=template_dir,
-                                    included=included)
+                                    included=included, routes=routes)
         self._registrations[owner] = registration
+        self._owned_route_ids.update(id(route) for route in routes)
         if template_dir is not None:
             self._template_dirs[owner] = template_dir
         log.info("Registrar: '%s' registered %d route(s), %d capability declaration(s)%s.",
-                 owner, len(getattr(router, "routes", []) or []), len(declared),
+                 owner, len(routes), len(declared),
                  f", templates '{template_dir}'" if template_dir else "")
         return registration
 
@@ -208,12 +261,16 @@ class Registrar:
             return False
         removed = 0
         for route in registration.included:
-            try:
-                self.app.router.routes.remove(route)
-                removed += 1
-            except ValueError:
-                # already gone (e.g. the app was rebuilt) — nothing to remove, not an error
-                pass
+            # remove BY IDENTITY: ``_IncludedRouter`` is a dataclass, so ``list.remove`` matches by
+            # EQUALITY and can delete a different owner's wrapper that compares equal. The point of
+            # the snapshot/diff in ``register_pages`` is identity, so the removal is identity too.
+            for index, existing in enumerate(self.app.router.routes):
+                if existing is route:
+                    del self.app.router.routes[index]
+                    removed += 1
+                    break
+        for route in registration.routes:
+            self._owned_route_ids.discard(id(route))
         for path in list(self._capabilities):
             if self._capabilities[path][0] == owner:
                 del self._capabilities[path]
@@ -223,7 +280,7 @@ class Registrar:
         self._template_dirs.pop(owner, None)
         self.clear_template_cache()
         log.info("Registrar: '%s' unregistered (%d route object(s) removed, %d route(s) no longer "
-                 "answering).", owner, removed, len(getattr(registration.router, "routes", []) or []))
+                 "answering).", owner, removed, len(registration.routes))
         return True
 
     def clear_template_cache(self) -> None:
@@ -260,17 +317,43 @@ class Registrar:
 
     # --------------------------------------------------------------------------------- lookup
 
+    def owns_route(self, route) -> bool:
+        """Whether *route* is a route THIS registrar registered (a page or an asset).
+
+        THE route-identity test the gate uses. A route object the console did not register —
+        ``plugins/restapi``'s own ``APIRoute``s, the WebService's debug endpoints, anything another
+        component added straight to the app — is NOT the console's, whatever its path: the console
+        page ``/servers`` and the restapi plugin's API ``/servers`` are the same PATH but different
+        ROUTES, and only ownership can tell them apart.
+        """
+        if route is None:
+            return False
+        return id(route) in self._owned_route_ids
+
     def capability_for(self, route=None, path: str | None = None) -> str | None:
         """The capability declared for a matched route / requested path, or ``None``.
 
-        Both candidates are looked up because the gate has to work for two shapes: an ``APIRoute``
-        (``route.path`` is the full path) and an asset served by ``app.frontend`` (where the route
-        object is ``None`` and only the requested path identifies what is being served)."""
+        Two shapes reach the gate:
+
+        * an ``APIRoute`` the console registered (``route`` is set). It resolves BY ROUTE IDENTITY:
+          only a route this registrar owns may take a capability, and it is looked up by the route's
+          OWN path — never by the requested path, because the paths genuinely collide with other
+          components' routes (the console page ``/servers`` vs the restapi plugin's API ``/servers``).
+          A route the console does not own answers ``None`` here, so the gate falls through to the
+          route's own guard (:func:`services.webservice.permissions.is_self_guarded`) and the old
+          endpoints keep their own auth.
+        * an asset served by ``app.frontend`` (``route`` is ``None``), where only the requested path
+          identifies what is being served. Here — and only here — the requested path resolves the
+          declaration.
+        """
         candidates = []
-        route_path = getattr(route, "path", None)
-        if route_path:
-            candidates.append(route_path)
-        if path and path not in candidates:
+        if route is not None:
+            if not self.owns_route(route):
+                return None
+            route_path = getattr(route, "path", None)
+            if route_path:
+                candidates.append(route_path)
+        elif path:
             candidates.append(path)
         for candidate in candidates:
             exact = self._capabilities.get(candidate)
@@ -313,10 +396,11 @@ class Registrar:
     def routes(self) -> list[Any]:
         """Every route this registrar owns: each registered router's routes plus the asset routes
         it installed. THE enumeration the tests and the startup log read — ``app.routes`` is not
-        (it hides included routers and frontend routes)."""
+        (it hides included routers and frontend routes), and ``router.routes`` is not either (the
+        console registers its pages as low-priority routes, so they live on the registration)."""
         out: list[Any] = []
         for registration in self._registrations.values():
-            out.extend(list(getattr(registration.router, "routes", []) or []))
+            out.extend(list(registration.routes or []))
         out.extend(self._asset_routes)
         return out
 
