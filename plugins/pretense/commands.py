@@ -135,7 +135,8 @@ class Pretense(Plugin):
             # this is quite a hack honestly, but it works
             message.author = member
 
-        if not utils.check_roles(self.bot.roles['DCS Admin'], message.author):
+        patterns = [r'^player_stats(_v2\.0)?\.json$', r'^pretense.*\.json$']
+        if not ServerUploadHandler.is_valid(message, patterns=patterns, roles=self.bot.roles['DCS Admin']):
             return
 
         server = await ServerUploadHandler.get_server(message)
