@@ -2,7 +2,7 @@
 #    uv pip compile --no-annotate --no-strip-markers requirements.in --output-file=requirements.txt
 aiofiles==25.1.0
 aiohappyeyeballs==2.7.1
-aiohttp==3.14.3
+aiohttp==3.14.5
 aiosignal==1.4.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
@@ -26,7 +26,7 @@ discord-py==2.7.1
 docopt==0.6.2
 et-xmlfile==2.0.0
 eyed3==0.9.9
-fastapi==0.142.2
+fastapi==0.143.0
 filetype==1.2.0
 fonttools==4.66.1
 frozenlist==1.8.0
@@ -50,7 +50,7 @@ mdurl==0.1.2
 mgrs==1.5.4
 minidump==0.0.24 ; sys_platform == 'win32'
 miniupnpc==2.3.3 ; python_full_version < '3.14'
-multidict==6.9.1
+multidict==7.1.0
 numpy==2.3.5
 openpyxl==3.1.5
 opentelemetry-api==1.45.1
@@ -63,9 +63,9 @@ psutil==7.2.2
 psycopg==3.3.6
 psycopg-binary==3.3.6 ; implementation_name != 'pypy'
 psycopg-pool==3.3.3
-pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
-pydantic==2.13.5
-pydantic-core==2.46.5
+pycparser==3.11 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+pydantic==2.14.1
+pydantic-core==2.50.1
 pygments==2.21.0
 pyjwt==2.15.1
 pykwalify==1.8.0
@@ -81,7 +81,7 @@ requests==2.34.2
 rich==15.0.0
 rpds-py==2026.9.1
 ruamel-yaml==0.19.1
-scapy==2.7.0
+scapy==2.8.0
 seaborn==0.13.2
 six==1.17.0
 smmap==5.0.3
@@ -93,7 +93,7 @@ trueskill==0.4.5
 typing-extensions==4.16.0
 typing-inspection==0.4.4
 tzdata==2026.5
-tzfpy==2.1.0
+tzfpy==2.1.1
 upnpy==1.1.8 ; python_version >= "3.14"
 urllib3==2.8.0
 uvicorn==0.54.0
