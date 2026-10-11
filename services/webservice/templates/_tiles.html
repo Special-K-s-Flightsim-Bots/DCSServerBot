@@ -1,0 +1,179 @@
+{#-
+  THE TILE LANGUAGE — the ONE place the console's card markup lives.
+
+  A "tile" is a card: a kind RAIL (a 3px colour bar, shell.css `.st-tile.<kind>::before`), a kind
+  GLYPH + WORD, the item's NAME, an optional SCOPE line, a body, and a footer of controls. Three
+  surfaces draw it and they must not drift apart, so all three import from HERE:
+
+  * the SETTINGS landing (``settings_tiles.html``) — one tile per plugin, one per service;
+  * the NODE page (``node_page.html``) — one tile per extension bound to the node or to one of its
+    instances.
+
+  ``tile_card`` is the WHOLE card (shell + head + name + description + optional body/warning + foot):
+  the SETTINGS landing's plugin tile, its service tile and the NODE page's extension tile are all
+  produced by THIS ONE macro, so an extension tile is the SAME component as a plugin tile — not a
+  lookalike. ``switch_control`` is the ONE on/off control (a slider that moves BOTH ways): the plugin
+  switch, the service switch and the extension switch are the very same control markup, fed a
+  different ``switch`` row model. A future divergence therefore fails a test.
+
+  EVERY composed word is wrapped (``_(…)``); an item's NAME and its description are OPERATOR DATA and
+  are printed VERBATIM. The kind glyphs are inline SVG — no external request, no icon font — so a tile
+  renders identically with the network off.
+
+  ``cog`` reads ``cog_label`` from the RENDER CONTEXT (the pages pass it), the same way the macro did
+  before it moved here; an importer must therefore use ``with context``.
+-#}
+
+{% macro cog(url, title) -%}
+<a class="st-cog" href="{{ url }}" title="{{ title }}"><svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M19.1 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg>{{ _(cog_label) }}</a>
+{%- endmacro %}
+
+{#-  THE TRASHCAN — the ONE REMOVE affordance a tile's foot can carry. It is a plain LINK to the
+     item's EXISTING acknowledged removal path (never a second write path: the same warning step the
+     switch-off already uses, which mints the acknowledgement the confirm form posts back). ``title``
+     is a msgid (translated at render) and doubles as the accessible name, so the icon-only control is
+     never unlabelled.  -#}
+{% macro trash(url, title) -%}
+<a class="st-trash" href="{{ url }}" title="{{ _(title) }}" aria-label="{{ _(title) }}"><svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.6 6.6h14.8"/><path d="M9.6 6.6V4.9a1.9 1.9 0 0 1 1.9-1.9h1a1.9 1.9 0 0 1 1.9 1.9v1.7"/><path d="M6.6 6.6 7.5 18.9a1.9 1.9 0 0 0 1.9 1.8h5.2a1.9 1.9 0 0 0 1.9-1.8l.9-12.3"/></svg></a>
+{%- endmacro %}
+
+{% macro glyph_plugin() -%}
+<svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="4.6"/><path d="M14.6 7.6 9.4 16.4"/></svg>
+{%- endmacro %}
+
+{% macro glyph_service() -%}
+<svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.1 19.9 7.7v8.6L12 20.9 4.1 16.3V7.7Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+{%- endmacro %}
+
+{% macro glyph_extension() -%}
+<svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.2 2.8v5.4"/><path d="M14.8 2.8v5.4"/><path d="M6.2 8.2h11.6v3.4a5.8 5.8 0 0 1-11.6 0Z"/><path d="M12 17.4v3.8"/></svg>
+{%- endmacro %}
+
+{#-  THE KIND GLYPH — one glyph per kind, so a caller names its kind ONCE.  -#}
+{% macro glyph(kind) -%}
+{%- if kind == 'service' -%}{{ glyph_service() }}{%- elif kind == 'ext' -%}{{ glyph_extension() }}{%- else -%}{{ glyph_plugin() }}{%- endif -%}
+{%- endmacro %}
+
+{#-  THE CARD SHELL. ``kind`` picks the rail colour (``plugin`` / ``service`` / ``ext``); ``off`` dims
+     the card; ``extra`` carries any further state classes. The body is the caller's block.  -#}
+{% macro tile(kind, off=false, extra='') -%}
+<article class="st-tile {{ kind }}{{ ' off' if off }}{{ (' ' ~ extra) if extra }}">{{ caller() }}</article>
+{%- endmacro %}
+
+{#-  THE CARD HEAD: the kind GLYPH + WORD on the left, an optional (already-HTML) SCOPE line on the
+     right. ``kind_word`` is a msgid (the caller's own kind label), translated at render.  -#}
+{% macro tile_head(kind_word, glyph, scope='') -%}
+<div class="st-top"><span class="st-kind">{{ glyph }}{{ _(kind_word) }}</span>{% if scope %}<span class="st-scope">{{ scope | safe }}</span>{% endif %}</div>
+{%- endmacro %}
+
+{#-  THE ON/OFF CONTROL — the ONE switch, for every kind. It reads a ``switch`` row model and renders
+     exactly one of three shapes; the SAME markup the plugin/service tiles have always had:
+
+     * ``form``  — a POST: ``fields`` are hidden inputs (name/value pairs, order preserved), then
+       ``list_values`` as repeated ``f.<list_field>`` inputs (a plugin's whole ``opt_plugins`` /
+       ``plugins`` list, sentinel included). The button's ``on`` class is the track state;
+     * ``link``  — the turn-OFF WARNING step (a GET, nothing written): the switch moves to the
+       confirm page named by ``href``;
+     * ``static``— a kind the mechanism cannot move here (a not-installed plugin, an unconfigured
+       service): the track is drawn dim and inert.
+
+     A ``cancel_url``/``cancel_label`` (a default plugin's "Keep it on", an extension's "Keep it")
+     is drawn by the caller right after the control, never inside it.
+
+     ``labeled`` defaults to TRUE (a tile foot's own switch, which names its state). An ADD row
+     passes ``labeled=False``: its control is the SAME form, but the STATE WORD is dropped (an add
+     choice is off by definition, so "Load off"/"Not configured" is noise) — the control keeps its
+     ``title`` as the visible tooltip AND gains an ``aria-label`` so an icon-only control is still
+     named for a screen reader. One control, one write path.  -#}
+{% macro switch_control(sw, labeled=True) -%}
+{%- if sw -%}
+{%- if sw.type == 'form' -%}
+<form class="st-swform" method="post" action="{{ sw.action }}">
+  {% for name, value in sw.fields %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  {% for value in sw.list_values | default([]) %}<input type="hidden" name="{{ sw.list_field }}" value="{{ value }}">{% endfor %}
+  <button type="submit" class="st-sw{{ ' on' if sw.on }}" title="{{ _(sw.title) }}"{% if not labeled %} aria-label="{{ _(sw.title) }}"{% endif %}><span class="bx" aria-hidden="true"><i></i></span>{% if labeled %}{{ _(sw.label) }}{% endif %}</button>
+</form>
+{%- elif sw.type == 'link' -%}
+<a class="st-sw{{ ' on' if sw.on }}" href="{{ sw.href }}" title="{{ _(sw.title) }}"{% if not labeled %} aria-label="{{ _(sw.title) }}"{% endif %}><span class="bx" aria-hidden="true"><i></i></span>{% if labeled %}{{ _(sw.label) }}{% endif %}</a>
+{%- else -%}
+<span class="st-sw off-fixed"><span class="bx" aria-hidden="true"><i></i></span>{{ _(sw.label) }}</span>
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{#-  THE CARD FOOT — the switch, its optional cancel link, and the cogwheel that OPENS the item's own
+     configuration (a destination, never an inline form). ONE foot for every kind.  -#}
+{% macro tile_foot(sw, cog_url='', cog_title='', trash_url='', trash_title='') -%}
+<div class="st-foot">
+  {{ switch_control(sw) }}
+  {% if sw and sw.get('cancel_url') %}<a class="st-cancel" href="{{ sw.cancel_url }}">{{ _(sw.cancel_label) }}</a>{% endif %}
+  <span class="st-sp"></span>
+  {% if trash_url %}{{ trash(trash_url, trash_title) }}{% endif %}
+  {% if cog_url %}{{ cog(cog_url, cog_title) }}{% endif %}
+</div>
+{%- endmacro %}
+
+{#-  THE WHOLE CARD — the SAME component for a plugin, a service and an extension. Everything an item
+     differs by is an ARGUMENT: its kind, its kind word, its name and description (operator data,
+     printed verbatim), its ``switch`` row model, its cogwheel target, an already-HTML ``scope`` line,
+     extra state classes, the dim ``off`` flag, an optional ``warn`` msgid (with an optional already-
+     HTML ``warn_body`` beneath it) and an optional already-HTML ``body`` (a service's source path and
+     note).  -#}
+{% macro tile_card(kind, kind_word, name, description, sw, cog_url='', cog_title='', scope='', extra='', off=false, warn='', warn_body='', body='', trash_url='', trash_title='') -%}
+{% call tile(kind, off=off, extra=extra) %}
+  {{ tile_head(kind_word, glyph(kind), scope) }}
+  <h3 class="st-name">{{ name }}</h3>
+  {% if description %}<p class="st-desc clamp2">{{ description }}</p>{% endif %}
+  {% if body %}{{ body }}{% endif %}
+  {% if warn %}<div class="st-warn" role="status">{{ _(warn) }}{% if warn_body %}{{ warn_body }}{% endif %}</div>{% endif %}
+  {{ tile_foot(sw, cog_url, cog_title or name, trash_url, trash_title) }}
+{% endcall %}
+{%- endmacro %}
+
+{#-  THE "+ ADD" TILE — the SAME card shell, head and grid as every other tile, but its body is a
+     COLLAPSED ``<details>``: the summary is the "+ Add" door, and opening it lists the items that CAN
+     be added. The expansion is a COMPACT, SCROLLABLE LIST, never a wall of tiles: ONE row per item
+     carrying the item's NAME — with its own short description as a TOOLTIP on that name (the native
+     ``title`` bubble for the mouse, plus a visually-hidden copy referenced by ``aria-describedby`` so
+     the description is reachable WITHOUT a mouse; never a bare title attribute) — and the EXISTING
+     add control (the very same ``switch_control`` form the item's own tile would use, drawn with
+     ``labeled=False`` so the redundant state word — "Load off" / "Not configured", an add choice is
+     off by definition — is dropped and only the icon remains, still named by title + aria-label). The
+     description is NEVER a clipped line in the row: it lives in the tooltip only, so the row shows a
+     full name and a full tooltip, never an ellipsis. The rows carry NO tile shell (no card border, no
+     kind glyph block, no large padding), just a hairline between rows. The tile itself is NOT a form:
+     it is a way INTO the existing action, so no new write path and no second component exist.
+     ``options`` is a list of ``{name, description, switch}`` where ``switch`` is the add row-model.
+     The list's max height is a CSS concern (``shell.css`` ``.st-add-list``).
+
+     THE TILE IS ALWAYS DRAWN (Frank, card t_60149fa2). When ``options`` is EMPTY — every item of the
+     scope is already configured — the tile renders in an explicit, NON-INTERACTIVE "all configured"
+     state: no ``<details>``, no add control, and ``all_configured`` (a msgid) shown as VISIBLE text,
+     never only a tooltip. A control that vanishes silently is worse than one that says why.  -#}
+{% macro add_tile(kind, kind_word, options, all_configured='') -%}
+{% call tile(kind, extra='add') %}
+  {{ tile_head(kind_word, glyph(kind)) }}
+  {% if options %}
+  <details class="st-add">
+    {#-  THE SAME "+ ADD" CONTROL as the editor's (see `_config_fields.html`): ONE label, ONE plus —
+         the leading decorative glyph is GONE, the plus lives in the translated label.  -#}
+    <summary class="st-add-head">{% trans %}+ Add{% endtrans %}</summary>
+    <ul class="st-add-list">
+      {% for option in options %}
+      {% set tip_id = 'st-add-tip-' ~ kind ~ '-' ~ loop.index %}
+      <li class="st-add-item">
+        <div class="st-add-name"{% if option.description %} tabindex="0" title="{{ option.description }}" aria-describedby="{{ tip_id }}"{% endif %}>{{ option.name }}</div>
+        <span class="st-add-sr" id="{{ tip_id }}">{{ option.description }}</span>
+        {{ switch_control(option.switch, labeled=False) }}
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% else %}
+  <div class="st-add st-add-all" aria-disabled="true">
+    <span class="st-add-head" aria-disabled="true">{% trans %}+ Add{% endtrans %}</span>
+    <p class="st-add-none" role="status">{{ _(all_configured) }}</p>
+  </div>
+  {% endif %}
+{% endcall %}
+{%- endmacro %}

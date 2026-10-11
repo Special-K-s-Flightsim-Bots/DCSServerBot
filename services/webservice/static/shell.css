@@ -65,6 +65,51 @@
   --sbar: 12px;
   --sbar-thumb: #33445c;
   --sbar-track: #0a0e13;
+
+  /* -------------------------------------------------------------------------------------------------
+   * THE NAMED LITERALS — every colour the rules below used to type out, declared ONCE.
+   *
+   * This is the token source for the "unreadable colours" defect: 41 rules hardcoded 65 colour
+   * literals, so a second palette could not be DECLARED, only re-typed rule by rule. Each name here
+   * carries the SHIPPED literal as its DARK value, so dark mode is unchanged to the pixel (the
+   * block at the end of this file — html[data-theme="light"] — is precisely the list that changes).
+   * The editor's SYNTAX colours were already tokens (--link/--run/--accent/--text-3/--pause/--text/
+   * --danger); its WASHES (--sel-wash…, below) were not, which is why half of the editor followed a
+   * theme change and half did not. They are tokens now too.
+   *
+   * geometry/type tokens stay above; these are colours only.
+   * ----------------------------------------------------------------------------------------------- */
+  --nav-active: rgba(232, 163, 61, .16);        /* .nav a.on / .row-active gradient start */
+  --nav-active-2: rgba(232, 163, 61, .03);      /* … and end */
+  --bar-hd: #121924; --bar-hd2: #0f151d;        /* .shell-bar/.top gradient */
+  --flag-ring: rgba(255, 255, 255, .18);        /* .lang-opt img.flag hairline ring */
+  --run-halo: rgba(63, 185, 80, .15);           /* .dot.run / .dot.pause / .dot.dead halos */
+  --pause-halo: rgba(232, 163, 61, .15);
+  --dead-halo: rgba(248, 81, 73, .15);
+  --hd: #18202b; --hd2: #151c26;                /* .card > .hd, .dlg > .hd gradient */
+  --warn-line: #5a4319; --warn-text: #f0c689; --warn-bg: #241c0d;    /* .tag.a, .cfg-badge.warn */
+  --inc-line: #274a55; --inc-text: #9fd4e0; --inc-bg: #12242a;       /* .cfg-badge.inc */
+  --cycle-line: #5a2a2a; --cycle-text: #f0a3a3; --cycle-bg: #2a1414; /* .cfg-badge.cycle */
+  --th: #131a24;                                /* th header cell */
+  --row-hover: #161e29;                         /* tbody tr:hover */
+  --well: #0a0e13;                              /* .log sunken ground (and .st-yaml) */
+  --log-info: #63d0ff;                          /* .log .i */
+  --ok-line: #21402a; --ok-wash: rgba(63, 185, 80, .06);    /* .banner.calm, .notice.ok */
+  --bad-line: #5a2a28; --bad-wash: rgba(248, 81, 73, .06);  /* .banner.alert, .notice.bad */
+  --danger-text: #ffb3ae; --danger-strong: #ffd7d3;           /* danger glyphs, .dlg-warn b */
+  --danger-wash: rgba(248, 81, 73, .08);        /* .login-error, .dlg-warn */
+  --danger-hover: rgba(248, 81, 73, .10);       /* .act-btn.danger:hover */
+  --danger-btn-text: #2a0b08; --danger-btn-line: #ff6a60; --danger-btn-top: #ff6a60;  /* .dlg .btn.danger */
+  --sel-wash: rgba(88, 166, 255, .20);          /* the editor's WASHES (syntax colours were tokens) */
+  --sel-wash2: rgba(88, 166, 255, .28);
+  --line-wash: rgba(255, 255, 255, .03);
+  --block-wash: rgba(232, 163, 61, .10);
+  --err-wash: rgba(248, 81, 73, .22);
+  --tab-active: rgba(232, 163, 61, .10);        /* .cfg-tab.on */
+  --elev: rgba(0, 0, 0, .6); --elev-sm: rgba(0, 0, 0, .55);  /* .dlg / .menu drop shadows */
+  --login-line: #a9711f; --login-text: #1a1204; --login-hover: #c98f34; --login-lead: #3a3320;
+  --login-ring: rgba(232, 163, 61, .12);        /* .login-grid .card.lead inset ring */
+  --sw-off: #26313f; --sw-on: #2c4a30; --sw-on-line: #3d6b44;  /* .st-sw tile track */
 }
 
 * { box-sizing: border-box; }
@@ -88,6 +133,15 @@ body.shell {
 }
 
 a { color: var(--link); text-decoration: none; }
+
+/* THE `<select>` POPUP LIST — the one part color-scheme above only TINTS. `color-scheme: dark`
+ * asks the engine to paint the popup dark, but Windows draws the option list with its OWN colours
+ * (a white sheet and light-grey text) unless the stylesheet states them, which is the unreadable
+ * popup Frank reported. Naming `option`'s background and colour here takes the list back from the
+ * platform, and `:checked` / `:hover` mark the row under the pointer and the chosen one — all from
+ * the shell's OWN tokens, so the popup follows the palette like every other control. */
+option { background: var(--panel-2); color: var(--text); }
+option:checked, option:hover { background: var(--accent); color: var(--ground); }
 
 /* ---------------------------------------------------------------- sidebar */
 .side {
@@ -133,7 +187,7 @@ a { color: var(--link); text-decoration: none; }
   border-radius: var(--radius-s); color: var(--text-2); }
 .nav a .ic { width: 18px; text-align: center; opacity: .9; }
 .nav a:hover { background: var(--panel); color: var(--text); }
-.nav a.on { background: linear-gradient(90deg, rgba(232,163,61,.16), rgba(232,163,61,.03));
+.nav a.on { background: linear-gradient(90deg, var(--nav-active), var(--nav-active-2));
   color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
 
 /* The user chip — IN THE TOP BAR (top right, beside the status pills), never in the sidebar
@@ -180,7 +234,7 @@ a { color: var(--link); text-decoration: none; }
    * that COULD shrink, and on a long page it did — 58px down to 37px, measured — squeezing the
    * breadcrumb and the user chip to fit a bar that is supposed to be a fixed 58px. */
   flex: 0 0 auto;
-  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #121924, #0f151d);
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, var(--bar-hd), var(--bar-hd2));
 }
 .crumb { color: var(--text-3); font-size: 12.5px; }
 .crumb b { color: var(--text); font-weight: 600; }
@@ -207,7 +261,7 @@ a { color: var(--link); text-decoration: none; }
  * dark bar; the active one gets the accent ring instead, so "current" is not colour-alone on the
  * flag itself. Emoji are never used — Windows would draw the two regional-indicator letters. */
 .lang-opt img.flag { display: block; width: 20px; height: 15px; object-fit: contain;
-  border-radius: 2px; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+  border-radius: 2px; box-shadow: 0 0 0 1px var(--flag-ring); }
 .lang-opt.on img.flag { box-shadow: 0 0 0 1px var(--accent); }
 .envbar { font-size: 11.5px; color: var(--text-3); border-left: 2px solid var(--line-2);
   padding: 4px 0 4px 10px; }
@@ -216,9 +270,9 @@ a { color: var(--link); text-decoration: none; }
 /* ---------------------------------------------------------------- status dots */
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stop); flex: 0 0 auto;
   display: inline-block; }
-.dot.run { background: var(--run); box-shadow: 0 0 0 3px rgba(63,185,80,.15); }
-.dot.pause { background: var(--pause); box-shadow: 0 0 0 3px rgba(232,163,61,.15); }
-.dot.dead { background: var(--dead); box-shadow: 0 0 0 3px rgba(248,81,73,.15); }
+.dot.run { background: var(--run); box-shadow: 0 0 0 3px var(--run-halo); }
+.dot.pause { background: var(--pause); box-shadow: 0 0 0 3px var(--pause-halo); }
+.dot.dead { background: var(--dead); box-shadow: 0 0 0 3px var(--dead-halo); }
 .dot.stop { background: var(--stop); }
 
 /* ---------------------------------------------------------------- content */
@@ -254,7 +308,7 @@ h2 { font-size: 13px; margin: 0; letter-spacing: .06em; text-transform: uppercas
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   overflow: hidden; }
 .card > .hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #18202b, #151c26); }
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, var(--hd), var(--hd2)); }
 .card > .hd h3 { margin: 0; font-size: 14px; font-weight: 600; }
 .card > .bd { padding: 14px; }
 .card .meta { color: var(--text-3); font-size: 11.5px; }
@@ -278,18 +332,18 @@ h2 { font-size: 13px; margin: 0; letter-spacing: .06em; text-transform: uppercas
 
 .tag { font-size: 10.5px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line-2);
   color: var(--text-2); background: var(--panel-2); }
-.tag.a { border-color: #5a4319; color: #f0c689; background: #241c0d; }
+.tag.a { border-color: var(--warn-line); color: var(--warn-text); background: var(--warn-bg); }
 
 table { width: 100%; border-collapse: collapse; }
 th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3);
-  text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); background: #131a24; }
+  text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--th); }
 td { padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px;
   vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
-tbody tr:hover { background: #161e29; }
+tbody tr:hover { background: var(--row-hover); }
 .mono { font-family: var(--font-mono); color: var(--text-2); }
 
-.log { font-family: var(--font-mono); font-size: 11.5px; background: #0a0e13;
+.log { font-family: var(--font-mono); font-size: 11.5px; background: var(--well);
   border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px;
   max-height: 320px; overflow: auto; color: var(--text-2);
   /* NO WRAP: one log line stays one line. A wrapped line makes a log unreadable at a glance —
@@ -297,7 +351,7 @@ tbody tr:hover { background: #161e29; }
    * scrollbar, which is exactly why both axes must be ONE widget (see the scrollbar rules below). */
   white-space: pre; }
 .log div { padding: 1px 0; }
-.log .i { color: #63d0ff; }
+.log .i { color: var(--log-info); }
 .log .w { color: var(--pause); }
 .log .e { color: var(--dead); }
 .log .d { color: var(--text-3); }
@@ -351,15 +405,15 @@ body.login-page {
 .login-grid { display: grid; gap: 16px; margin-top: 22px;
   grid-template-columns: 1.15fr .85fr; align-items: start; }
 .login-grid.solo { grid-template-columns: minmax(0, 460px); justify-content: center; }
-.login-grid .card.lead { border-color: #3a3320; box-shadow: inset 0 0 0 1px rgba(232, 163, 61, .12); }
+.login-grid .card.lead { border-color: var(--login-lead); box-shadow: inset 0 0 0 1px var(--login-ring); }
 .login-grid .card > .hd .ct { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: 0;
   text-transform: none; color: var(--text); }
 .login-grid .card > .hd .tag { margin-left: auto; }
 
 .login-door { display: flex; align-items: center; gap: 10px; justify-content: center; padding: 13px;
-  border-radius: var(--radius-s); border: 1px solid #a9711f; font-weight: 600; font-size: 14px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: #1a1204; }
-.login-door:hover { border-color: #c98f34; }
+  border-radius: var(--radius-s); border: 1px solid var(--login-line); font-weight: 600; font-size: 14px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: var(--login-text); }
+.login-door:hover { border-color: var(--login-hover); }
 .login-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .login-why { color: var(--text-2); font-size: 12.5px; margin: 12px 0 0; }
@@ -384,8 +438,8 @@ body.login-page {
 
 /* The refused-login sentence, at the top of the card it belongs to. It is the ONE place a reason a
  * login failed is rendered, and it is a generic sentence — see FAILED_LOGIN_MESSAGE. */
-.login-error { padding: 9px 11px; font-size: 12.5px; color: #ffb3ae; background: rgba(248, 81, 73, .08);
-  border: 1px solid #5a2a28; border-left: 3px solid var(--danger);
+.login-error { padding: 9px 11px; font-size: 12.5px; color: var(--danger-text); background: var(--danger-wash);
+  border: 1px solid var(--bad-line); border-left: 3px solid var(--danger);
   border-radius: 0 var(--radius-s) var(--radius-s) 0; margin: 0 0 12px; }
 
 .login-unavailable .bd p { margin: 0; font-size: 13px; color: var(--text-2); }
@@ -416,8 +470,8 @@ body.login-page {
 .banner { display: flex; align-items: center; min-height: 38px; padding: 9px 12px;
   border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--panel);
   font-size: 12.5px; }
-.banner.calm { color: var(--text-2); border-color: #21402a; background: rgba(63, 185, 80, .06); }
-.banner.alert { color: var(--text); border-color: #5a2a28; background: rgba(248, 81, 73, .06); }
+.banner.calm { color: var(--text-2); border-color: var(--ok-line); background: var(--ok-wash); }
+.banner.alert { color: var(--text); border-color: var(--bad-line); background: var(--bad-wash); }
 .banner-calm, .banner-item { display: inline-flex; align-items: center; gap: 8px; }
 .banner-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap;
   gap: 8px 20px; }
@@ -430,8 +484,8 @@ body.login-page {
 .notice { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 9px 12px;
   border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--panel);
   font-size: 12.5px; }
-.notice.ok { color: var(--text-2); border-color: #21402a; background: rgba(63, 185, 80, .06); }
-.notice.bad { color: var(--text); border-color: #5a2a28; background: rgba(248, 81, 73, .06); }
+.notice.ok { color: var(--text-2); border-color: var(--ok-line); background: var(--ok-wash); }
+.notice.bad { color: var(--text); border-color: var(--bad-line); background: var(--bad-wash); }
 .notice-warn { color: var(--pause); font-size: 11.5px; }
 
 /* ---------------------------------------------------------------- the write controls on a row */
@@ -499,6 +553,13 @@ td.acts .act-btn.dl { padding: 0; margin-left: 6px; background: transparent;
   border-color: transparent; }
 td.acts .act-btn.dl:hover { background: var(--panel-2); border-color: var(--line-2); }
 td.acts .act-btn.dl:focus-visible { background: var(--panel-2); border-color: var(--accent); }
+/* THE SETTINGS COGWHEEL — the row's link INTO its own settings (a server's Configuration tab, a
+ * node's nodes.yaml page). Like the log download it is a plain LINK beside the strip, not a POST
+ * form: quiet at rest, chrome back on hover and keyboard focus. */
+td.acts .act-btn.cfg { padding: 0; margin-left: 6px; background: transparent;
+  border-color: transparent; color: var(--text-2); }
+td.acts .act-btn.cfg:hover { background: var(--panel-2); border-color: var(--line-2); }
+td.acts .act-btn.cfg:focus-visible { background: var(--panel-2); border-color: var(--accent); }
 
 .act-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px;
   height: 28px; padding: 0; cursor: pointer; font: inherit; color: var(--text-2);
@@ -511,7 +572,7 @@ td.acts .act-btn.dl:focus-visible { background: var(--panel-2); border-color: va
  * consequence, in the user's terms. The selector matches the quiet-at-rest rule on specificity — a
  * bare `.act-btn.danger:hover` would lose its tint to it. */
 td.acts .act-strip > form > .act-btn.danger:hover,
-.act-btn.danger:hover { color: #ffb3ae; border-color: #5a2a28; background: rgba(248, 81, 73, .10); }
+.act-btn.danger:hover { color: var(--danger-text); border-color: var(--bad-line); background: var(--danger-hover); }
 .act-btn.more { color: var(--text-3); }
 .act-wrap:has(.menu:popover-open) .act-btn.more { color: var(--text); background: var(--panel-2);
   border-color: var(--line-2); }
@@ -554,7 +615,7 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .act-wrap { position: relative; display: inline-flex; }
 .menu { min-width: 232px; max-width: min(340px, calc(100vw - 28px)); margin: 0; padding: 5px;
   inset: auto; text-align: left; background: var(--panel); border: 1px solid var(--line-2);
-  border-radius: var(--radius); box-shadow: 0 14px 30px rgba(0, 0, 0, .55);
+  border-radius: var(--radius); box-shadow: 0 14px 30px var(--elev-sm);
   /* `white-space: normal` on purpose: the menu lives inside `td.acts`, and shell.css sets
    * `td.acts { white-space: nowrap }` — inherited, that one rule renders every hint and the note as
    * a single clipped line. */
@@ -570,16 +631,16 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .menu .mi .lbl { font-weight: 600; }
 .menu .mi .hint { display: block; font-weight: 400; font-size: 11.5px; color: var(--text-3);
   margin-top: 1px; }
-.menu .mi.danger .lbl { color: #ffb3ae; }
+.menu .mi.danger .lbl { color: var(--danger-text); }
 .menu .mnote { padding: 6px 8px 4px; font-size: 11px; color: var(--text-3);
   border-top: 1px solid var(--line); margin-top: 4px; }
 
 /* ---------------------------------------------------------------- the confirm dialog */
 .dlg-back { display: grid; place-items: start center; padding: 20px 0 0; }
 .dlg { width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line-2);
-  border-radius: var(--radius); box-shadow: 0 24px 60px rgba(0, 0, 0, .6); overflow: hidden; }
+  border-radius: var(--radius); box-shadow: 0 24px 60px var(--elev); overflow: hidden; }
 .dlg > .hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #18202b, #151c26); }
+  border-bottom: 1px solid var(--line); background: linear-gradient(180deg, var(--hd), var(--hd2)); }
 .dlg > .hd h3 { margin: 0; font-size: 14px; font-weight: 600; }
 .dlg > .hd svg { width: 16px; height: 16px; color: var(--accent); flex: 0 0 auto; }
 .dlg > .bd { padding: 14px; }
@@ -587,11 +648,11 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg > .bd p:last-child { margin-bottom: 0; }
 .dlg-what { font-size: 12.5px; color: var(--text-2); }
 .dlg-warn { display: flex; gap: 9px; align-items: flex-start; padding: 9px 11px; margin: 0 0 12px;
-  font-size: 12.5px; color: #ffb3ae; background: rgba(248, 81, 73, .08);
-  border: 1px solid #5a2a28; border-left: 3px solid var(--danger);
+  font-size: 12.5px; color: var(--danger-text); background: var(--danger-wash);
+  border: 1px solid var(--bad-line); border-left: 3px solid var(--danger);
   border-radius: 0 var(--radius-s) var(--radius-s) 0; }
 .dlg-warn svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; }
-.dlg-warn b { color: #ffd7d3; }
+.dlg-warn b { color: var(--danger-strong); }
 .dlg > .ft { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
   border-top: 1px solid var(--line); background: var(--ground-2); }
 .dlg > .ft .spacer { flex: 1; }
@@ -600,8 +661,8 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   background: var(--panel-2); }
 .dlg .btn:hover { border-color: var(--accent); }
 .dlg .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.dlg .btn.danger { color: #2a0b08; border-color: #ff6a60;
-  background: linear-gradient(180deg, #ff6a60, var(--danger)); }
+.dlg .btn.danger { color: var(--danger-btn-text); border-color: var(--danger-btn-line);
+  background: linear-gradient(180deg, var(--danger-btn-top), var(--danger)); }
 .dlg .target { font-family: var(--font-mono); color: var(--text-2); }
 /* THE DIALOG'S FIELDS. Kick and ban need a REASON (the ban a duration too), so the dialog's
  * own form carries them — beside the warning that explains the consequence, and directly above the
@@ -653,74 +714,52 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
  * and the dialog's fields already do.
  */
 .cfg-form { display: flex; flex-direction: column; gap: 14px; }
-.cfg-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
-  gap: 8px 18px; align-items: start; padding: 12px 0; border-top: 1px solid var(--line); }
-.cfg-row:first-child { border-top: 0; padding-top: 0; }
-.cfg-meta { min-width: 0; }
-.cfg-meta b { font-size: 13px; }
-.cfg-widget { display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-  flex-wrap: wrap; min-width: 0; }
+/* THE ROW IS THE SHARED `.st-row` (settings-scope.css): the fact in `.st-lab`, the control in a
+ * fixed `.st-w` column — the SAME row every schema-driven editor draws, so the Configuration tab
+ * cannot drift from the node/settings pages. This sheet no longer owns a `.cfg-row` FIELD row; the
+ * `.cfg-row`/`.cfg-rowbox` flex rule further down is the schema editor's own LIST row. One owner for
+ * the alignment. The controls they carry are `.cfg-input` (the schema editor's own control class). */
+.cfg-form .st-w { min-width: 0; }
 
-/* THE CONTROLS, written out BY TYPE rather than as `:is(input, select, textarea)`: a CHECKBOX IS NOT
- * A TEXT BOX (the ruling the dialog's own `.dlg-field.opt` already carries), and one blanket rule
- * would dress every box on this form with padding and a background it must not wear. What is listed
- * is what the tab really renders: text, number, password, the one select and the one textarea. */
-.cfg-widget input[type="text"],
-.cfg-widget input[type="number"],
-.cfg-widget input[type="password"],
-.cfg-widget select,
-.cfg-widget textarea { font: inherit; font-size: 12.5px; color: var(--text);
-  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s);
-  padding: 7px 9px; }
-.cfg-widget input[type="text"],
-.cfg-widget input[type="password"] { flex: 1 1 12rem; min-width: 0; max-width: 24rem; }
-.cfg-widget input[type="number"] { width: 8rem; flex: 0 0 auto; }
-.cfg-widget select { flex: 1 1 10rem; min-width: 0; max-width: 24rem; }
-.cfg-widget input[type="text"]:hover,
-.cfg-widget input[type="number"]:hover,
-.cfg-widget input[type="password"]:hover,
-.cfg-widget select:hover,
-.cfg-widget textarea:hover { border-color: var(--line-hover); }
-.cfg-widget input[type="text"]:focus-visible,
-.cfg-widget input[type="number"]:focus-visible,
-.cfg-widget input[type="password"]:focus-visible,
-.cfg-widget select:focus-visible,
-.cfg-widget textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-/* the placeholder is ADVICE, never a value: it is the third text tone, not the first */
-.cfg-widget input::placeholder, .cfg-widget textarea::placeholder { color: var(--text-3); }
-/* A DISABLED CONTROL STILL BELONGS TO THE THEME. Every field on this tab draws disabled whenever the
- * server cannot take a change (DCS reads its settings at boot), so this is not an edge case here — it
- * is the state an operator sees most often on a running cluster. `--text-3` keeps it legible and
- * plainly quieter than a live control, and the cursor says so before the click. */
-.cfg-widget input:disabled, .cfg-widget select:disabled, .cfg-widget textarea:disabled {
-  color: var(--text-3); background: var(--panel-2); border-color: var(--line); cursor: not-allowed; }
-/* THE CHECKBOX KEEPS THE PLATFORM'S OWN CONTROL, tinted with the accent — the dialog's ruling. What
- * makes the rest of the box dark is `color-scheme: dark`, declared once with the palette; an accent
- * colour is the only thing left to state. */
-.cfg-widget input[type="checkbox"] { width: 15px; height: 15px; padding: 0; margin: 0;
-  flex: 0 0 auto; accent-color: var(--accent); }
-.cfg-widget > .tag { flex: 0 0 auto; }
-/* the `on` / `off` word beside a boolean's box is read, not pressed: it is a label wearing the tag's
- * shape */
-.cfg-widget label.tag { display: inline-flex; align-items: center; gap: 7px; }
+/* THE DESCRIPTION ROW IS WIDER (Frank's second point: "The 'Description' field can also be wider as
+ * people should add a bunch of text in there"). The multi-line row asks for a WIDER control column
+ * than the shared 286px default, so the textarea an operator types a paragraph into is genuinely
+ * larger — while keeping the SAME RIGHT EDGE as every other row: the control column is still the
+ * row's LAST grid track, so its right edge is the row's (and the block's) right edge. It CONSUMES the
+ * spare label width rather than overflowing, and the label column keeps a FLOOR (`minmax(220px,
+ * 1fr)`) so it can never collapse to 0px on a tight row. `minmax(0, 620px)` lets the wider column
+ * shrink (down to that floor) instead of forcing a horizontal scroll, and the narrow-screen stacking
+ * rule below re-states this class, because this rule out-specifies the bare `.st-row` stack. */
+.cfg-form .st-row.cfg-wide { grid-template-columns: minmax(220px, 1fr) minmax(0, 620px); }
 
-/* THE ROW'S OWN ACTION BUTTON. `.cfg-widget` normally holds the Configuration tab's fields, and on
- * the Missions tab it holds the ADD and UPLOAD cards' submit buttons — a button left to the engine's
- * default is the grey standard control Frank called out. It wears the SAME chip the tab's Save wears
- * (stated once below for `.cfg-form .notice > button`).
+/* THE CONTROLS ARE `.cfg-input` — the SAME control class the schema editor draws (its own block
+ * further down this sheet). The shared row (`.st-row`) puts each control in the fixed `.st-w` column,
+ * and `.cfg-input` alone owns the look of text, number, password, select and textarea alike, so the
+ * Configuration tab's controls and the node/settings pages' controls come from ONE place. Nothing is
+ * restated here by type: a second, type-scoped copy is exactly the drift the one-control-class rule
+ * exists to prevent. (A CHECKBOX stays the platform's own control — the dialog's `.dlg-field.opt`
+ * ruling — and the Missions list's selection box is tinted below, on its own class.) */
+
+/* THE ROW'S OWN ACTION BUTTON. `.st-w` normally holds the Configuration tab's fields (and the
+ * node/settings editors' controls), and on the Missions tab it holds the ADD and UPLOAD cards' submit
+ * buttons — a button left to the engine's default is the grey standard control Frank called out. It
+ * wears the SAME chip the tab's Save wears (stated once below for `.cfg-form .notice > button`).
+ *
+ * SCOPED TO `.cfg-form` so the schema editors' own controls are untouched — only the console's own
+ * forms carry that class.
  *
  * IT MUST NOT REACH THE OTHER TWO BUTTONS THAT LIVE IN THIS COLUMN: the password eye (`.cfg-reveal`,
  * a 28px square) and the row strip's ICON buttons (`.act-btn`, 28px houses for a 16px glyph). This
  * selector out-specifies both, so each is excluded, or the chip's padding would deform them. */
-.cfg-widget button:not(.act-btn):not(.cfg-reveal),
-.cfg-widget .file-pick { padding: 8px 14px; font: inherit;
+.cfg-form .st-w button:not(.act-btn):not(.cfg-reveal),
+.cfg-form .st-w .file-pick { padding: 8px 14px; font: inherit;
   font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--text);
   background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.cfg-widget button:not(.act-btn):not(.cfg-reveal):hover,
-.cfg-widget .file-pick:hover { border-color: var(--accent); }
-.cfg-widget button:not(.act-btn):not(.cfg-reveal):focus-visible { outline: 2px solid var(--accent);
+.cfg-form .st-w button:not(.act-btn):not(.cfg-reveal):hover,
+.cfg-form .st-w .file-pick:hover { border-color: var(--accent); }
+.cfg-form .st-w button:not(.act-btn):not(.cfg-reveal):focus-visible { outline: 2px solid var(--accent);
   outline-offset: 2px; }
-.cfg-widget button:not(.act-btn):not(.cfg-reveal):disabled { color: var(--text-3);
+.cfg-form .st-w button:not(.act-btn):not(.cfg-reveal):disabled { color: var(--text-3);
   border-color: var(--line); cursor: not-allowed; }
 /* THE UPLOAD'S FILE CONTROL — THE CONSOLE'S OWN, NOT THE BROWSER'S (Frank's report). A raw
  * `<input type="file">` is drawn by the BROWSER, its button and its LANGUAGE included ("Datei
@@ -740,11 +779,11 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* THE MULTI-LINE FIELD (the one declaration that asks for it: `description`, whose own ceiling is
- * 2000 characters). Its row hands the control the wider column, the box stands seven lines of the
- * page's own text tall, and `resize` is deliberately NOT stated anywhere: the browser's own handle is
- * the one the reader is meant to use, and it stays. */
-.cfg-row:has(textarea) { grid-template-columns: minmax(0, 1fr) minmax(0, 34rem); }
-.cfg-widget textarea { width: 100%; min-height: 11rem; line-height: 1.5; }
+ * 2000 characters) is the SAME shared row as every other field — its control is the shared
+ * `.cfg-input` textarea in the SAME `.st-w` column — but it carries the `cfg-wide` marker (applied
+ * only by the Configuration tab's description row, see above) so its control column is WIDER while its
+ * right edge stays the row's. `resize` is deliberately NOT stated anywhere: the browser's own handle
+ * is the one the reader is meant to use, and it stays. */
 
 /* THE REVEAL CONTROL: one button per secret field, in the shell's chip shape at 28px — the
  * geometry the row strip's glyph buttons wear. It ships `hidden` and `/static/reveal.js` unhides it,
@@ -790,17 +829,18 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 /* ONE COLUMN WHEN THE ROW HAS NOWHERE TO GO: the fact above its control, once the control column
  * would leave the help text too narrow to read. */
 @media (max-width: 760px) {
-  .cfg-row, .cfg-row:has(textarea) { grid-template-columns: minmax(0, 1fr); }
-  .cfg-widget { justify-content: flex-start; }
+  .cfg-form .st-row,
+  .cfg-form .st-row.cfg-wide { grid-template-columns: minmax(0, 1fr); }
+  .cfg-form .st-w { justify-content: flex-start; }
 }
 
 /* ================================================================ the Missions tab (M9)
  * THREE SMALL RULES IN THE SHELL'S OWN IDIOM, and no new colour: the card-header SELECTION BAR
  * (`.sel-bar`), the START row's MARKER treatment (`.row-active`, re-using the amber the `.nav a.on`
  * gradient and the `.tabs .tab.on` inset edge are drawn from), and the dialog's READ-ONLY selection
- * list (`.dlg-list`). The fourth is the ROW's own selection box: the shell tints a checkbox only
- * inside `.cfg-widget` and `.dlg-field.opt`, and this box lives in `.cfg-meta` (prepended to the fact
- * it selects, so a keyboard and a narrow screen reach it before the name) — so it is tinted here.
+ * list (`.dlg-list`). The fourth is the ROW's own selection box: it lives in the shared row's
+ * `.st-lab` (prepended to the fact it selects, so a keyboard and a narrow screen reach it before the
+ * name), and the platform tints it only under this sheet's own rule — so it is tinted there.
  */
 
 /* THE SELECTION BAR: the list IS the selection, so its count and its one action sit in the card
@@ -823,15 +863,15 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 /* THE START ROW'S MARKER: the shell's own "this is the live one" idiom — the `.nav a.on` amber wash
  * and the `.tabs .tab.on` inset edge, turned on the row's left. No new colour, and the rest of the
  * row keeps the list's default weight so the marker alone carries the prominence. */
-.row-active { background: linear-gradient(90deg, rgba(232,163,61,.16), rgba(232,163,61,.03));
+.row-active { background: linear-gradient(90deg, var(--nav-active), var(--nav-active-2));
   box-shadow: inset 3px 0 0 var(--accent); }
 
-/* THE ROW'S SELECTION BOX: the platform checkbox, tinted with the accent (the `.cfg-widget` rule's
- * own ruling), sitting at the start of the fact it selects. A DISABLED one is the running mission's —
- * it cannot be removed, and the row states why; it is drawn, not omitted, on purpose. */
-.cfg-meta input[type="checkbox"] { width: 15px; height: 15px; padding: 0; margin: 0 7px 0 0;
+/* THE ROW'S SELECTION BOX: the platform checkbox, tinted with the accent, sitting at the start of
+ * the fact it selects (the shared row's `.st-lab`). A DISABLED one is the running mission's — it
+ * cannot be removed, and the row states why; it is drawn, not omitted, on purpose. */
+.cfg-form .st-lab input[type="checkbox"] { width: 15px; height: 15px; padding: 0; margin: 0 7px 0 0;
   accent-color: var(--accent); vertical-align: -2px; }
-.cfg-meta input[type="checkbox"]:disabled { cursor: not-allowed; }
+.cfg-form .st-lab input[type="checkbox"]:disabled { cursor: not-allowed; }
 
 /* THE DIALOG'S READ-ONLY SELECTION LIST: the missions a bulk removal will act on, one name per line,
  * unnumbered and without boxes — the selection was made in the list. It scrolls rather than growing
@@ -850,7 +890,7 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .tabs .tab.on { color: var(--text); background: var(--panel); box-shadow: inset 0 2px 0 var(--accent); }
 .badge { font-family: var(--font-mono); font-size: 11px; padding: 1px 7px; border-radius: 99px;
   border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text-2); }
-.badge.bad { border-color: #5a2a28; color: #ffb3ae; }
+.badge.bad { border-color: var(--bad-line); color: var(--danger-text); }
 .pdot { width: 7px; height: 7px; border-radius: 50%; background: var(--dead); flex: 0 0 auto; }
 
 /* ---------------------------------------------------------------- the layout: log bottom / right */
@@ -955,3 +995,442 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
   border: 2px solid var(--sbar-track); border-radius: 6px; background-clip: padding-box; }
 :is(.log, .sbar)::-webkit-scrollbar-corner { background: var(--sbar-track); }
 :is(.log, .sbar)::-webkit-scrollbar-button { width: 0; height: 0; display: none; }
+/* ===========================================================================
+   THE SCHEMA-DRIVEN CONFIG PAGE (the Settings page): the generated form, its
+   controls, and the YAML panel (read-only, or the Expert Mode editor).
+   Namespaced .cfg-* so nothing here can collide with the shell's layout.
+
+   EVERY VALUE READS THE SHELL'S OWN TOKENS — `--ground-2`, `--panel-2`,
+   `--line`/`--line-2`, `--text`/`--text-2`/`--text-3`, `--accent`,
+   `--font-mono`, `--radius`/`--radius-s`. This section used to name a second
+   palette of its own (`--tx`, `--tx-2`, `--tx-3`, `--bg-2`, `--amber`,
+   `--mono`) that was declared NOWHERE, so every one of those declarations was
+   dropped and the page rendered with the engine's defaults beside the rest of
+   the console. It now wears the Server/Configuration tab's own grammar: the
+   same card, the same field chips, the same focus ring.
+   =========================================================================== */
+.cfg-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  gap: 14px; align-items: start; }
+@media (max-width: 60rem) { .cfg-layout { grid-template-columns: minmax(0, 1fr); } }
+.cfg-head { display: flex; align-items: flex-start; gap: .75rem; margin-bottom: .75rem; }
+.cfg-head h2.cfg-file { margin: 0; font-size: 1.05rem; }
+.cfg-head .cfg-sub { color: var(--text-3); font-size: .82rem; max-width: 46rem; margin-top: .25rem; }
+.cfg-head-actions { margin-left: auto; display: flex; align-items: center; gap: .5rem; }
+/* THE PAGE'S ONE FILLED CONTROL — the same accent chip the Configuration tab's Save wears. */
+.cfg-save { background: var(--accent); color: var(--ground); border: 1px solid var(--accent-2);
+  border-radius: var(--radius-s); padding: .4rem .9rem; font: inherit; font-size: .82rem;
+  font-weight: 600; cursor: pointer; }
+.cfg-save:hover { background: var(--accent-2); border-color: var(--accent); }
+.cfg-save:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cfg-sec { border: 1px solid var(--line); border-radius: var(--radius); margin: 0 0 .75rem;
+  padding: .25rem 0 .75rem; background: var(--panel); }
+/* THE NESTED GROUP READS AS ONE BLOCK: a group's legend and its body share ONE left edge, the same
+ * gutter every scalar field's `.cfg-key` starts in, so nested groups stack without drifting. The
+ * fieldset therefore carries NO horizontal padding — any inset would push a nested group's body off
+ * that shared gutter and its marker off its own values (the staircase Frank reported). */
+.cfg-sec > legend { padding: 0; }
+.cfg-body { display: flex; flex-direction: column; gap: .2rem; }
+.cfg-field { display: grid; grid-template-columns: minmax(10rem, 18rem) minmax(0, 1fr);
+  gap: .75rem; align-items: start; padding: .35rem 0; border-top: 1px solid var(--line); }
+.cfg-field:first-child { border-top: 0; }
+.cfg-label { display: flex; flex-wrap: wrap; gap: .35rem; align-items: baseline; }
+.cfg-key { color: var(--text); font-size: .8rem; }
+.cfg-kind { color: var(--text-3); font-size: .72rem; }
+.cfg-badge { border: 1px solid var(--line-2); border-radius: 999px; padding: 0 .4rem;
+  font-size: .68rem; color: var(--text-3); background: var(--panel-2); }
+.cfg-badge.warn { border-color: var(--warn-line); color: var(--warn-text); background: var(--warn-bg); }
+.cfg-badge.inc { border-color: var(--inc-line); color: var(--inc-text); background: var(--inc-bg); }
+.cfg-badge.cycle { border-color: var(--cycle-line); color: var(--cycle-text); background: var(--cycle-bg); }
+.cfg-hint { grid-column: 1 / -1; color: var(--text-3); font-size: .76rem; margin: .1rem 0 .3rem; }
+.cfg-input { width: 100%; background: var(--ground-2); border: 1px solid var(--line-2);
+  color: var(--text); border-radius: var(--radius-s); padding: .3rem .5rem; font: inherit;
+  font-size: .82rem; }
+.cfg-input:hover { border-color: var(--line-hover); }
+.cfg-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A DISABLED CONTROL STILL BELONGS TO THE THEME. `.cfg-input` is drawn disabled all over the
+ * Configuration tab (every field while the server cannot take a change — DCS reads its settings at
+ * boot), so the state is stated HERE once, for every editor: `--text-3` keeps it legible and plainly
+ * quieter than a live control, and the cursor says so before the click. */
+.cfg-input:disabled { color: var(--text-3); background: var(--panel-2); border-color: var(--line);
+  cursor: not-allowed; }
+/* the placeholder is ADVICE, never a value: it is the third text tone, not the first */
+.cfg-input::placeholder { color: var(--text-3); }
+.cfg-input.mono, .cfg-key.mono, .cfg-subkey.mono, pre.yaml.mono, .cfg-file.mono {
+  font-family: var(--font-mono); }
+.cfg-row, .cfg-rowbox { display: flex; gap: .4rem; align-items: flex-end; margin-bottom: .35rem; }
+.cfg-rowbox { flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--radius-s);
+  padding: .4rem; background: var(--ground-2); }
+.cfg-sub { display: flex; flex-direction: column; gap: .15rem; min-width: 8rem; flex: 1 1 8rem; }
+.cfg-subkey { color: var(--text-3); font-size: .7rem; }
+.cfg-x { background: transparent; border: 1px solid var(--line-2); color: var(--text-2);
+  border-radius: var(--radius-s); cursor: pointer; padding: .25rem .45rem; }
+.cfg-x:hover { border-color: var(--accent); color: var(--text); }
+/* THE "+ ADD" CONTROL — ONE proper button for EVERY add affordance in the editor: the picker's opener
+ * (a <summary class="cfg-add">) and every row/entry/section add (a <button class="cfg-add">) carry THIS
+ * ONE class and are therefore indistinguishable — a control, not a bare dashed box. It reads as a
+ * control in both themes (tokens only): a hairline border, a raised fill, the accent on hover and a
+ * visible focus ring. The class is ALSO the wrapper the server_detail mission card reuses on a <div>,
+ * so the button look is scoped to the button/summary forms and that grid row keeps its own shape. */
+.cfg-add { background: transparent; border: 1px dashed var(--line-2); color: var(--text-2);
+  border-radius: var(--radius-s); cursor: pointer; padding: .3rem .6rem; font-size: .78rem; }
+button.cfg-add, summary.cfg-add { display: inline-flex; align-items: center; gap: .35rem;
+  background: var(--panel-2); border-style: solid; border-color: var(--line-2); color: var(--text);
+  font-family: inherit; font-weight: 600; line-height: 1.2; }
+button.cfg-add:hover, summary.cfg-add:hover { border-color: var(--accent); color: var(--accent); }
+button.cfg-add:focus-visible, summary.cfg-add:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+/* THE "+ ADD" PICKER (card t_046a8fbb): the door that REVEALS an optional, absent field or block. It
+ * is one collapsed <details>, so it is closed until asked; its list is compact (a name + the schema's
+ * kind word per row) and its rows are hairline-separated, never a wall of controls. A picked choice is
+ * ADDED to the page and its row is hidden, so it cannot be added twice.
+ *
+ * The opener is the SAME `cfg-add` control as every other add (see above) — NOT a box of its own, so
+ * there is no second dashed frame around it. When open, the choice list drops BELOW it as one panel. */
+.cfg-picker { margin-top: .4rem; }
+.cfg-picker > summary { list-style: none; }
+.cfg-picker > summary::-webkit-details-marker { display: none; }
+.cfg-picker[open] > summary { margin-bottom: .4rem; }
+.cfg-pbody { padding: .4rem .6rem .5rem; border: 1px solid var(--line);
+  border-radius: var(--radius-s); background: var(--ground-2); }
+.cfg-pgroup + .cfg-pgroup { margin-top: .4rem; }
+.cfg-pglabel { display: block; color: var(--text-3); font-size: .68rem; text-transform: uppercase;
+  letter-spacing: .04em; margin: .2rem 0; }
+.cfg-plist { list-style: none; margin: 0; padding: 0; }
+.cfg-pitem { display: flex; align-items: center; gap: .5rem; padding: .25rem 0;
+  border-top: 1px solid var(--line); }
+.cfg-pitem:first-child { border-top: 0; }
+.cfg-pitem[hidden] { display: none; }
+.cfg-pick { display: flex; align-items: baseline; gap: .5rem; flex: 1; background: transparent;
+  border: 0; color: var(--text); cursor: pointer; text-align: left; padding: .2rem .3rem; }
+.cfg-pick:hover { color: var(--accent); }
+.cfg-pkey { font-size: .8rem; }
+.cfg-pkind { color: var(--text-3); font-size: .72rem; }
+/* A control the picker ADDED. It is not in the file yet, so its own trashcan removes it INSTANTLY. */
+.cfg-added { position: relative; }
+.cfg-added-x { position: absolute; top: .3rem; right: 0; }
+/* THE TRASHCAN a shown, optional, already-set field or block carries. It never removes on the first
+ * press: the inline warning names what will be discarded and only confirming it posts the removal. */
+.cfg-rm { display: inline-flex; align-items: baseline; gap: .3rem; }
+.cfg-rmwarn { display: inline-flex; align-items: center; gap: .35rem; flex-wrap: wrap;
+  border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-text);
+  border-radius: var(--radius-s); padding: .15rem .4rem; font-size: .74rem; }
+.cfg-rmwarn[hidden] { display: none; }
+.cfg-rmmsg { color: var(--warn-text); }
+.cfg-choice { border: 1px solid var(--line); border-radius: var(--radius-s); padding: .4rem .6rem;
+  margin-top: .3rem; }
+/* THE PLUGIN BLOCK (main.yaml's ``opt_plugins``): one row per plugin on disk — a checkbox, the name,
+ * a default/optional (or "not installed") marker and the plugin's OWN one-line description. It sits
+ * on the same gutter as every generated control, so it reads as one more section of the same form. */
+.cfg-plugins > legend { display: flex; gap: .4rem; align-items: baseline; }
+.cfg-plugin-list { display: flex; flex-direction: column; gap: .1rem; }
+.cfg-plugin { display: grid; align-items: baseline; cursor: pointer;
+  grid-template-columns: auto minmax(7rem, 12rem) auto minmax(0, 1fr); gap: .5rem; padding: .22rem 0;
+  border-top: 1px solid var(--line); }
+.cfg-plugin:first-child { border-top: 0; }
+.cfg-plugin input { margin: 0; }
+.cfg-plugin-name { font-size: .8rem; }
+.cfg-plugin-desc { color: var(--text-3); font-size: .76rem; }
+@media (max-width: 760px) {
+  .cfg-plugin { grid-template-columns: auto minmax(0, 1fr); }
+  .cfg-plugin-desc { grid-column: 2; }
+}
+.cfg-yaml { position: sticky; top: .75rem; }
+.cfg-yaml-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .35rem;
+  flex-wrap: wrap; }
+.cfg-yaml-head h3 { margin: 0; font-size: .9rem; }
+pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: .6rem; font-size: .74rem; line-height: 1.45; max-height: 70vh; overflow: auto;
+  white-space: pre; }
+.cfg-tabs { display: flex; gap: .3rem; margin-bottom: .6rem; flex-wrap: wrap; }
+.cfg-tab { border: 1px solid var(--line-2); border-radius: var(--radius-s); padding: .2rem .6rem;
+  font-size: .76rem; color: var(--text-3); font-family: var(--font-mono); }
+.cfg-tab.on { border-color: var(--accent); color: var(--text); background: var(--tab-active); }
+.cfg-scope { border-top: 1px solid var(--line); padding-top: .4rem; margin-top: .4rem; }
+.cfg-scope.on { border-top: 0; padding-top: 0; margin-top: 0; }
+.cfg-scope-label { font-size: .82rem; color: var(--text-2); margin: .2rem 0 .4rem; }
+
+/* ---- the Expert Mode editor (settings-yaml.js): the toggle, the summary line, the CodeMirror host
+ * and its dark theme. The vendored CodeMirror stylesheet paints a LIGHT editor by default; these
+ * rules restate every colour from the shell's own tokens, so the editor is one surface with the rest
+ * of the console. The two mark classes are the validator's: the offending LINE (`.cm-yaml-error`) and
+ * the BLOCK it belongs to (`.cm-yaml-block`), both background washes behind the text. */
+.cfg-expert { display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+  font-size: .76rem; color: var(--text-2); cursor: pointer; user-select: none; }
+.cfg-expert input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); }
+.cfg-expert-hint { display: none; }
+.cfg-yaml[data-cfg-yaml] .cfg-expert-hint { display: block; }
+/* THE STATUS LINE RESERVES ITS SPACE PERMANENTLY (card t_c62b998b). It is a FIXED two-line block:
+ * a verdict arriving, changing or clearing fills it or leaves it empty, but its height never moves,
+ * so the editor below it never shifts a row under the operator's caret. A long message scrolls
+ * INSIDE the box rather than growing it. `height` (not `min-height`) is the point — a min-height
+ * only reserves the FLOOR and lets a wrapping message push the editor down. */
+.cfg-yaml-status { font-size: .76rem; margin: .35rem 0; color: var(--text-3);
+  height: 2.4em; line-height: 1.2em; overflow-y: auto; }
+.cfg-yaml-status[data-state="ok"] { color: var(--ok); }
+.cfg-yaml-status[data-state="bad"] { color: var(--danger); }
+.cfg-yaml-status[data-state="wait"] { color: var(--text-3); }
+.cfg-editor { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.cfg-editor[hidden] { display: none; }
+.cfg-editor .CodeMirror { height: 70vh; background: var(--ground-2); color: var(--text);
+  font-family: var(--font-mono); font-size: .76rem; line-height: 1.5; }
+.cfg-editor .CodeMirror-gutters { background: var(--panel-2); border-right: 1px solid var(--line); }
+.cfg-editor .CodeMirror-linenumber { color: var(--text-3); }
+.cfg-editor .CodeMirror-cursor { border-left: 1px solid var(--accent); }
+.cfg-editor .CodeMirror-selected { background: var(--sel-wash); }
+.cfg-editor .CodeMirror-focused .CodeMirror-selected { background: var(--sel-wash2); }
+.cfg-editor .CodeMirror-activeline-background { background: var(--line-wash); }
+.cfg-editor .cm-yaml-block { background: var(--block-wash); }
+.cfg-editor .cm-yaml-error { background: var(--err-wash); }
+/* the YAML tokens: keys in the link blue, strings in the run green, numbers amber, comments muted —
+ * a small, high-contrast set drawn only from the shell's palette.
+ *
+ * THE `.CodeMirror` STEP IS LOAD-BEARING (card t_c62b998b). The vendored stylesheet paints its tokens
+ * with `.cm-s-default .cm-*` (specificity 0,2,0) and — because settings.html pulls it in from the
+ * `head` block AFTER shell.css — it used to WIN the tie against `.cfg-editor .cm-*`, so the LIGHT
+ * theme's literals rendered despite these rules: the "dark blue" keys were CodeMirror's `#221199`
+ * (atom), 1.38:1 on the editor ground. Adding the wrapper class makes each rule 0,3,0 and the palette
+ * is what actually paints. */
+.cfg-editor .CodeMirror .cm-keyword, .cfg-editor .CodeMirror .cm-atom { color: var(--link); }
+.cfg-editor .CodeMirror .cm-string { color: var(--run); }
+.cfg-editor .CodeMirror .cm-number { color: var(--accent); }
+.cfg-editor .CodeMirror .cm-comment { color: var(--text-3); font-style: italic; }
+.cfg-editor .CodeMirror .cm-def, .cfg-editor .CodeMirror .cm-variable { color: var(--text); }
+.cfg-editor .CodeMirror .cm-meta { color: var(--pause); }
+.cfg-editor .CodeMirror .cm-error { color: var(--danger); }
+
+/* ================================================================================ SETTINGS TILES
+ * The Settings LANDING page: a grid of tiles in place of the old list of YAML filenames. Namespaced
+ * `st-*` so nothing here can collide with the shipped sheet. See `templates/settings_tiles.html`.
+ *
+ * The kind tokens. Three kinds, three colours — but the kind is ALSO carried by the glyph, the word
+ * and the scope line on every tile, never by colour alone. The washes are rgba() compositions of the
+ * SAME hues (a token cannot yet be alpha-shaped, so they are written out). */
+:root {
+  --kind-plugin: var(--accent);
+  --kind-service: var(--link);
+  --kind-ext: #7fd1c1;
+  --kind-plugin-wash: rgba(232, 163, 61, .10);
+  --kind-service-wash: rgba(88, 166, 255, .10);
+  --kind-ext-wash: rgba(127, 209, 193, .10);
+}
+.st-sect { display: flex; flex-direction: column; gap: 12px; }
+.st-sect-head { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.st-sect-head h2 { margin: 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); }
+.st-sect-head .st-legend { font-size: 11.5px; color: var(--text-3); margin-left: auto; }
+.st-sect-head .st-legend b { color: var(--text-2); font-weight: 600; }
+
+.st-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
+.st-tile { position: relative; display: flex; flex-direction: column; gap: 10px; padding:
+  13px 14px 12px 17px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); }
+.st-tile::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--k); }
+.st-tile.plugin  { --k: var(--kind-plugin);  --kw: var(--kind-plugin-wash); }
+.st-tile.service { --k: var(--kind-service); --kw: var(--kind-service-wash); }
+.st-tile.ext     { --k: var(--kind-ext);     --kw: var(--kind-ext-wash); }
+.st-tile.off { background: var(--panel-2); }
+.st-tile.off .st-name, .st-tile.off .st-desc { color: var(--text-3); }
+.st-tile.off::before { opacity: .35; }
+.st-tile.gone { border-style: dashed; background: transparent; }
+.st-tile.gone::before { background: var(--line-2); }
+
+.st-top { display: flex; align-items: center; gap: 8px; }
+.st-kind { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase; padding: 3px 8px 3px 6px;
+  border-radius: 99px; border: 1px solid var(--k); color: var(--k); background: var(--kw); }
+.st-kind svg { width: 13px; height: 13px; display: block; }
+.st-scope { margin-left: auto; font-size: 10.5px; color: var(--text-3); text-align: right; }
+.st-scope b { color: var(--text-2); font-weight: 600; }
+
+.st-name { font-size: 14px; font-weight: 600; font-family: var(--font-mono); color: var(--text);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+.st-desc { font-size: 12.5px; color: var(--text-2); margin: 0; }
+.st-desc.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; }
+.st-src { font-size: 10.5px; color: var(--text-3); font-family: var(--font-mono); }
+
+.st-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px;
+  border-top: 1px solid var(--line); }
+.st-foot .st-sp { margin-left: auto; }
+
+/* the ON/OFF control: a labelled switch, not a bare tick. `.st-sw` is a BUTTON (it submits) so it
+ * is reset to look like the label the mockup drew; `.off-fixed` is a read-only statement. */
+.st-swform { display: inline-flex; margin: 0; }
+.st-sw { all: unset; display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px;
+  color: var(--text-2); cursor: pointer; }
+.st-sw .bx { width: 34px; height: 18px; border-radius: 99px; background: var(--sw-off);
+  border: 1px solid var(--line-2); position: relative; flex: 0 0 auto; }
+.st-sw .bx i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--text-2); }
+.st-sw.on .bx { background: var(--sw-on); border-color: var(--sw-on-line); }
+.st-sw.on .bx i { left: auto; right: 2px; background: var(--run); }
+.st-sw.on { color: var(--text); }
+.st-sw:hover { color: var(--text); }
+.st-sw.off-fixed { cursor: default; color: var(--text-3); }
+.st-sw.off-fixed .bx { opacity: .55; }
+
+.st-cog { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; font: inherit;
+  font-size: 11.5px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); text-decoration: none; }
+.st-cog:hover { border-color: var(--accent); }
+.st-cog svg { width: 15px; height: 15px; display: block; }
+
+/* THE TRASHCAN — the icon-only REMOVE affordance in a tile's foot. It is a LINK (to the item's own
+ * acknowledged removal path), so it is reset to look like the cogwheel it sits beside. */
+.st-trash { display: inline-flex; align-items: center; justify-content: center; padding: 6px 9px;
+  color: var(--text-2); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); text-decoration: none; }
+.st-trash:hover { border-color: var(--warn-line); color: var(--warn-text); }
+.st-trash svg { width: 15px; height: 15px; display: block; }
+
+/* THE "+ ADD" TILE — the SAME card shell as every other tile, but its body is a collapsed <details>:
+ * the summary is the door, and opening it gives a COMPACT LIST — one ROW per addable item (the item's
+ * name, its short description on the SAME line, and the item's OWN existing add control). The rows
+ * carry NO tile shell (no card border, no background, no glyph block) — only a hairline between rows —
+ * so a long catalog reads as a scannable list, not a wall of tiles. The list is SCROLLABLE with a
+ * sensible max height: a very long catalog scrolls inside the tile instead of stretching the page. */
+.st-tile.add { --k: var(--line-2); --kw: transparent; border-style: dashed; }
+.st-tile.add::before { background: var(--line-2); }
+.st-add { margin-top: auto; }
+/* THE SAME "+ ADD" CONTROL as the editor's (see `.cfg-add`): a hairline border and a raised fill, the
+ * accent on hover — a proper button, not a bare dashed box. It keeps the tile's own compact metrics
+ * (12.5px, the tile's padding); only the ROWS below it (`.st-add-item`) keep their compact list shape,
+ * which is untouched. */
+.st-add-head { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+  color: var(--text); cursor: pointer; list-style: none; padding: 5px 12px;
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--panel-2); }
+.st-add-head::-webkit-details-marker { display: none; }
+.st-add-head:hover { color: var(--accent); border-color: var(--accent); }
+.st-add[open] > .st-add-head { margin-bottom: 8px; }
+.st-add-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
+  max-height: 260px; overflow-y: auto; }
+.st-add-item { display: flex; align-items: center; gap: 8px; padding: 4px 2px;
+  border-top: 1px solid var(--line); }
+.st-add-item:first-child { border-top: 0; }
+.st-add-name { flex: 0 0 auto; font-size: 12.5px; font-weight: 600; font-family: var(--font-mono);
+  color: var(--text); }
+/* The name whose item carries a description is a TOOLTIP trigger: a help cursor, a visible focus
+ * ring for keyboard users, and the native ``title`` bubble. The description is NOT a clipped line in
+ * the row — it lives in the tooltip only. */
+.st-add-name[title] { cursor: help; }
+.st-add-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+/* The accessible copy of the item's description: visually hidden but present in the DOM, so the
+ * ``aria-describedby`` on the name reaches it and a screen reader reads the tooltip's text — the
+ * description stays reachable WITHOUT a mouse (never a bare title attribute). */
+.st-add-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.st-add-item .st-swform { flex: 0 0 auto; margin-left: auto; }
+/* The "+ Add" tile's ALL-CONFIGURED state (Frank, card t_60149fa2): nothing left to add, so the
+ * door is drawn dim and inert and the reason is a VISIBLE line, never only a tooltip. */
+.st-add-all .st-add-head { cursor: default; opacity: .6; border-color: var(--line); }
+.st-add-all .st-add-head:hover { color: var(--text-2); border-color: var(--line); }
+.st-add-none { margin: 8px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--text-2); }
+
+.st-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; padding: 2px 8px;
+  border-radius: 99px; border: 1px solid var(--line-2); color: var(--text-2); background: var(--panel-2); }
+.st-chip.k { border-color: var(--k); color: var(--k); background: var(--kw); }
+.st-badge { font-family: var(--font-mono); font-size: 10px; padding: 1px 7px; border-radius: 99px;
+  border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text-3); }
+/* a DEFAULT plugin's marker, MORE PROMINENT than an optional one: the accent border + weight make it
+ * read as a distinguishing chip rather than the muted body-text badge the optional plugins wear. */
+.st-badge.default { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.st-note { font-size: 11.5px; color: var(--text-3); }
+
+/* THE INLINE WARNING a default plugin's tile shows BEFORE it is switched off (the switch LINKS to
+ * `?warn=<name>`, so the warning is rendered on the page — never a modal dismissed blind). The
+ * confirm button and the "keep it on" link sit beside it in the tile foot. */
+.st-warn { font-size: 11.5px; line-height: 1.45; color: var(--warn-text); background: var(--warn-bg);
+  border: 1px solid var(--warn-line); border-left: 3px solid var(--warn-line); padding: 7px 9px;
+  border-radius: var(--radius-s); }
+.st-cancel { font-size: 11.5px; color: var(--link); text-decoration: none; }
+.st-cancel:hover { text-decoration: underline; }
+/* the switch when it is a LINK (a default plugin's turn-off opens the warning instead of writing) */
+a.st-sw { text-decoration: none; }
+
+/* the install's own files: not a tile — a ROW, because there is no on/off for main.yaml. */
+.st-core { display: flex; flex-direction: column; }
+.st-core .r { display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+  border-top: 1px solid var(--line); }
+.st-core .r:first-child { border-top: 0; }
+.st-core .r .nm { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.st-core .r .ds { font-size: 11.5px; color: var(--text-3); margin-top: 2px; max-width: 92ch; }
+.st-core .r .rt { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ============================================================================ THE THEME SWITCH
+ * The control that flips `data-theme` on <html> — the smallest honest one (there was NO switch
+ * before; the attribute was hard-coded to "dark" in base.html and login.html). It is the SAME shape
+ * as the language control (templates/_language.html): plain GET links to `/theme`, which stores the
+ * choice in its own cookie and returns the visitor to the page they were on. No JavaScript, so the
+ * page still renders fully with the script off — the theme is a SERVER-resolved preference.
+ * Each option is an icon (sun / moon) whose accessible name is the mode's own word; the word is
+ * translated through the catalog exactly like every other chrome string.
+ */
+.theme { display: inline-flex; align-items: center; gap: 2px; }
+.theme-opt {
+  font-size: 12px; line-height: 1; padding: 5px 7px; border-radius: 7px; text-decoration: none;
+  color: var(--text-3); border: 1px solid transparent; display: inline-flex; align-items: center;
+}
+.theme-opt:hover { color: var(--text-2); border-color: var(--line-2); }
+.theme-opt.on { color: var(--text); background: var(--panel); border-color: var(--line-2); }
+.theme-opt svg { width: 15px; height: 15px; display: block; }
+
+/* ============================================================================ §LIGHT
+ *
+ * THE SECOND PALETTE. This is the whole of what a light theme changes: a single attribute on <html>
+ * (html[data-theme="light"]) matches at a higher specificity than :root, so every token re-declared
+ * here wins over its dark value and NOT ONE RULE BELOW NEEDS A COPY. That is the point of the
+ * tokenisation above: the shipped rules read --ground, --text, --well … and now --well resolves to a
+ * light well here; nothing else moves.
+ *
+ * WHAT IS NOT IN THE DARK SHEET: no shipped selector is redefined for the default theme, so dark is
+ * byte-for-byte the render it always was. The values are the designer's §LIGHT set (mockups/
+ * dcssb-admin-ui/settings-tiles/README-SETTINGS-TILES.md), tuned to the amber "flight ops" identity
+ * and to the measured WCAG ratios in tests/test_webui_theme.py. They are a STARTING POINT Frank
+ * judges by eye, not a spec.
+ */
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces + text */
+  --ground: #f4f6f9; --ground-2: #ffffff; --panel: #ffffff; --panel-2: #eef1f6;
+  --line: #d8dee7; --line-2: #c2cbd8; --line-hover: #93a3b7;
+  --text: #141d28; --text-2: #41505f; --text-3: #5d6b7c;
+  --accent: #9a5a05; --accent-2: #7d4900;
+  --run: #1a7f37; --pause: #9a5a05; --stop: #5a6b7d; --dead: #c02626;
+  --link: #0b5fc4; --ok: #1a7f37; --danger: #c02626;
+  --sbar-thumb: #b4bfcd; --sbar-track: #e7ecf2;
+
+  /* the named literals */
+  --nav-active: rgba(154, 90, 5, .12); --nav-active-2: rgba(154, 90, 5, .03);
+  --bar-hd: #ffffff; --bar-hd2: #eff3f8;
+  --flag-ring: rgba(0, 0, 0, .18);
+  --run-halo: rgba(26, 127, 55, .15); --pause-halo: rgba(154, 90, 5, .15);
+  --dead-halo: rgba(192, 38, 38, .15);
+  --hd: #f7f9fb; --hd2: #eef2f7;
+  --warn-line: #e0c48a; --warn-text: #7a4d00; --warn-bg: #fdf4e3;
+  --inc-line: #a9d3dd; --inc-text: #0d6070; --inc-bg: #e9f6f9;
+  --cycle-line: #e0a9a9; --cycle-text: #9a2020; --cycle-bg: #fdeaea;
+  --th: #eef2f7; --row-hover: #f3f6fa; --well: #f7f9fb; --log-info: #0b5fc4;
+  --ok-line: #a8d6b4; --ok-wash: rgba(26, 127, 55, .07);
+  --bad-line: #e3aeae; --bad-wash: rgba(192, 38, 38, .06);
+  --danger-text: #b02020; --danger-strong: #7a0f0f;
+  --danger-wash: rgba(192, 38, 38, .08); --danger-hover: rgba(192, 38, 38, .12);
+  --danger-btn-text: #ffffff; --danger-btn-line: #a01f1f; --danger-btn-top: #d0342f;
+  --sel-wash: rgba(11, 95, 196, .18); --sel-wash2: rgba(11, 95, 196, .26);
+  --line-wash: rgba(0, 0, 0, .035);
+  --block-wash: rgba(154, 90, 5, .12); --err-wash: rgba(192, 38, 38, .18);
+  --tab-active: rgba(154, 90, 5, .10);
+  --elev: rgba(24, 32, 43, .18); --elev-sm: rgba(24, 32, 43, .16);
+  --login-line: #a9711f; --login-text: #ffffff; --login-hover: #8a5a10; --login-lead: #e3d7b4;
+  --login-ring: rgba(154, 90, 5, .14);
+  --sw-off: #d4dbe5; --sw-on: #bfe3c6; --sw-on-line: #7bbf8a;
+
+  /* the settings-tile kind signatures (declared in the tile block above) also flip */
+  --kind-plugin: var(--accent); --kind-service: var(--link); --kind-ext: #0d7f74;
+  --kind-plugin-wash: rgba(154, 90, 5, .09);
+  --kind-service-wash: rgba(11, 95, 196, .08);
+  --kind-ext-wash: rgba(13, 127, 116, .10);
+}
+
+

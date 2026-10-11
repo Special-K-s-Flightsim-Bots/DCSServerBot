@@ -13,7 +13,7 @@ stated, its source is named.
 
 Only three tables carry a write — **servers**, **players** and **nodes**; the last one (instances) is
 read-only. The controls appear in **two screens that render the same declaration**: the dashboard's
-**Servers** / **Players** / **Nodes** tabs, and the standalone **/servers** / **/players** / **/nodes**
+**Servers** / **Players** / **Nodes** tabs, and the standalone **/fleet** / **/players** / **/nodes**
 pages. There is ONE declaration per surface — `SERVER_ACTIONS`, `PLAYER_ACTIONS` and `NODE_ACTIONS` in
 `services/webservice/pages/actions.py` — and the route table, the capability map, the page's control
 data and the confirm dialog are all readings of it, so a control cannot exist without a declared
@@ -207,6 +207,44 @@ rule is intact: rendering a page asks no node for anything.
 
 ---
 
+## The node log viewer
+
+The node row carries a SECOND **read** control beside *Download log*: *View log*. It tails THAT
+node's OWN bot log — agent and master alike — on the website, the way the per-server **Log** tab
+tails a server's `dcs.log`. Frank's request: *"a similar solution for the node logfiles as for the
+servers logfiles so that we can look at logfiles of remote nodes on the website."*
+
+* **The mechanism is already built.** `Node.read_file_window` (`core/data/impl/nodeimpl.py`) is a
+  windowed, bounded read that works against agents: on the master it `seek`s its own disk, on an
+  agent it writes ONLY the window into the one-shot `files` drop-box row and the master
+  reads-and-deletes it. **No protocol change, no new table or column, no new disk.** The viewer is
+  the machine's SECOND consumer (the server Log tab was the first).
+* **The routes** are `GET /nodes/{node}/log/view` (a page) and `GET /nodes/{node}/log/window`
+  (JSON: `?offset=` to follow, `?behind=` to page back), both in `pages/nodes.py`. The page renders
+  the SAME card the server Log tab renders — 40 lines / 64 KiB windows / 3 s follow / "Load older"
+  — and is driven by the SAME follower script (`static/server-log.js`): the card carries the same
+  `id="dcs-log-card"` and `data-*` attributes, so the two viewers share one implementation. The
+  only differences: the log is the node's own `logs/dcssb-<node>.log` (read through
+  `Node.read_file_window`), there is no level filter and no artifact picker.
+* **The gate is the log PANEL's own capability** — `logs.view` (`Admin` only, no scope grant) —
+  the SAME one the log download declares. No new capability exists; the two read controls are
+  offered to EXACTLY the same caller, and a crafted request meets the same 403.
+* **Every failure is its own sentence**, never an empty viewer: the node is offline/unknown; no log
+  file yet (the NORMAL `pending` state — the follower keeps its cadence and the sentence becomes the
+  log the moment the file appears); the log was rotated AWAY (the same `pending` answer, never a
+  stale tail); the node cannot read its own file; it does not answer in time; it answers a failure
+  CODE instead of bytes; and a rotation that lands mid-stream or mid-walk (the view RESETS and says
+  so — two files are never spliced). The offline/unknown sentence is the server Log tab's own; the
+  other five name the NODE's own log.
+* **The list page mirrors the Servers page.** The Nodes table's columns are **Node** (with a
+  `master` tag), **State** (a dot + ONLINE/OFFLINE word — a real, sortable, in-process fact), and
+  the **Instances** / **Servers** / **Players** counters. Two facts are deliberately NOT columns: a
+  per-node bot **VERSION** (the bot version is cluster-wide, so a per-row cell would imply a fact
+  the row does not have) and **Last seen** (it lives in the database, which the pure, in-process
+  read model does not read — a wrong figure is worse than none). See `_table.html`'s node row.
+
+---
+
 ## How a write is submitted (the background path)
 
 **A control submits in the background — the strip AND the dialog.** Every write is submitted with
@@ -374,7 +412,8 @@ started and is verifying identities, and re-requests the SAME path (plus its que
 bounded to `RETRYABLE_PAGE_MAX_ATTEMPTS` (10) and `RETRYABLE_PAGE_BUDGET_S` (60), then stops and offers
 a manual retry. It is never a redirect to the login door: the visitor is signed in, only the
 verification is late. This is what turns a bot restart into a short automatic pause instead of a
-manual reload. See `services/webservice/shell.py:419`.
+manual reload. Its copy (HTML and its own JS status lines) is composed in Python and translated at
+render through the request's per-language environment. See `services/webservice/shell.py:461`.
 
 ---
 
@@ -382,3 +421,60 @@ manual reload. See `services/webservice/shell.py:419`.
 
 Documented in [`core/ACTIONS.md`](../../core/ACTIONS.md): the registry, `@action`, the
 `ActionContext` constructors, `resolve_scoped_server`, `call_action`, the in-flight set and the audit.
+
+---
+
+## The schema-driven config page (Settings)
+
+`GET /settings` is not hand-written: it is GENERATED from a pykwalify schema
+(`services/webservice/configgen.py`), and its save goes through the ONE config-write primitive
+(`core/utils/configwrite.patch_config_file`, card S0). The first consumer is the install's
+`main.yaml` against `schemas/main_schema.yaml`; the page is the pattern every later config page copies.
+
+**The mapping** (schema construct -> control), exhaustive: `bool` -> switch; `int`/`float` (+ `range`)
+-> number; `str` -> text; `text` -> textarea; `url` -> text; `enum` -> select; `seq` of scalars ->
+row list; `seq` of maps -> row list of sub-forms; `map` -> fieldset; `include:` -> resolved
+transitively (the bot's OWN file set, `configgen.schema_files_for`) AND made visible: a partial
+declared in ANOTHER file (`commands_schema` out of `schemas/commands_schema.yaml`, a plugin's ballot
+siblings, a node's `extensions/**`) renders as its own fieldset marked with that file, and an include
+cycle is stopped by the guard and shown as a sentence, never expanded;
+`regex;(.+)` key -> "Add entry" (free-text key + the rendered sub-form); `type: any` + `enum` of
+includes -> layout chooser (List/Single); `func:` -> the control is flagged **validate on save** (and
+an unresolved/`any` leaf is too — the schema is the last word on it);
+`default:` -> prefilled; `nullable: false`/`required: true` -> marked required.
+
+**What the schemas carry, and what they do not.** The schemas hold IDENTIFIERS, not prose — a field's
+label is its schema KEY, printed verbatim and left English in every language (translating a key would
+break the link between the page and the file it writes). The generator's own chrome words
+(`configgen.KIND_LABELS`, the default/required/validate-on-save markers, the restart banner) are
+`i18n._`-marked and filled in every catalog. **Do not translate a key.**
+
+**The save.** The form posts `f.<dotted path>` fields (a bool is a checkbox + a companion hidden
+field; a scalar list repeats its name). The route reads them back through the SAME generator tree
+(`configgen.apply_form`), mutates the round-trip document in place, and hands it to
+`patch_config_file` with the rendered revision (a stale form is refused) and `schemas` =
+`configgen.schema_files_for(<the file's schema>)` — for `main.yaml` that is `main_schema.yaml` alone,
+for a plugin config it is the plugin's own schema files PLUS `schemas/commands_schema.yaml`, so a save
+over an INCLUDED block is not refused for a missing partial. **An `include:` is a SCHEMA partial, not
+a value reference: the included block's VALUES live in the file being edited, so an edit inside it is
+written into the INCLUDING config file — never into the schema that describes it.** The page says so
+beside each included fieldset (the `included: <file>` badge and the sentence that a save writes here,
+never into `<file>`). Only a GENUINE change is written — an untouched field is skipped before the
+primitive's no-op rule, and a key the file does not carry yet is not created by merely showing it — so
+a save touches only the line the operator moved, comments and formatting intact. There is NO second
+write path: the page never opens or writes a file itself.
+
+**Honesty.** Configuration is read once at startup, so a save changes nothing in memory: the banner
+reads `configgen`/settings' `SAVED_RESTART` — *"Saved — this configuration applies on the next bot
+restart."* — and the page never pretends otherwise.
+
+**Capability.** `settings.view` and `settings.write`, both `("Admin",)` with NO manager scope grant
+(the install's own configuration is not a server a manager's scope could name). Declared through the
+console's own pipeline and gated by the registrar like every other route.
+
+**What the mapping cannot express** (rendered, but not fully two-way from the form): a sequence of
+maps is edited per-row by index (add/remove renumber through `static/configgen.js`); a regex entry's
+KEY is free text and a rename is not a typed operation; a `type: any` layout chooser renders BOTH
+shapes and the server picks the one whose fields were posted. Anything the generator cannot give a
+faithful widget falls back to an editable value flagged **validate on save**, and the schema
+validation on the write is the final word.

@@ -21,7 +21,7 @@ from .. import i18n
 from . import lists as lists_page
 
 __all__ = ["PLAYERS_PATH", "PLAYERS_CAPABILITY", "PLAYERS_ROLES", "PLAYERS_TABLE", "PLAYERS_TITLE",
-           "PLAYERS_LEAD", "NAV_LABEL", "PAGE", "capabilities", "nav_items", "add_routes"]
+           "PLAYERS_LEAD", "PAGE", "capabilities", "add_routes"]
 
 PLAYERS_PATH = "/players"
 PLAYERS_CAPABILITY = "players.view"
@@ -31,22 +31,18 @@ PLAYERS_TABLE = "players"
 PLAYERS_TITLE = i18n._("Players")
 PLAYERS_LEAD = i18n._("Everyone online right now, across every server. Search by name or UCID. "
                       "A row you may act on offers Message: an in-game popup or a chat line.")
-NAV_LABEL = i18n._("Players")
 
+#: NO NAV ENTRY: this page's content is the Dashboard's own Players tab, so it is not in the main
+#: menu (seen from the shell's `_core_router`, which registers this page's route but no nav item).
 PAGE = lists_page.ListPage(table=PLAYERS_TABLE, path=PLAYERS_PATH, capability=PLAYERS_CAPABILITY,
                            roles=PLAYERS_ROLES, title=PLAYERS_TITLE, lead=PLAYERS_LEAD,
-                           nav_label=NAV_LABEL, scope_grants=True, writes=True)
+                           scope_grants=True, writes=True)
 
 
 def capabilities() -> dict[str, str]:
     """The capability declaration for the paths this module registers."""
     PAGE.declare()
     return {PLAYERS_PATH: PLAYERS_CAPABILITY}
-
-
-def nav_items():
-    """The sidebar entry this page contributes — data, not markup."""
-    return (PAGE.nav_item(),)
 
 
 def add_routes(router: APIRouter) -> APIRouter:

@@ -384,6 +384,11 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
 
                 self.log.info('  => Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
+                # Commands imported before this bot existed still need their parameter
+                # trimming applied; this is the last moment it can be done before publishing.
+                for cmd in self.tree.walk_commands():
+                    if isinstance(cmd, Command):
+                        cmd.bind(self)
                 app_cmds = await self.tree.sync(guild=self.guilds[0])
                 app_ids: dict[str, int] = {}
                 for app_cmd in app_cmds:

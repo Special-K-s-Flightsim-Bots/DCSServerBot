@@ -294,8 +294,10 @@ REVERT_MAX_CHARS = 2800
 
 #: The sentence a notice carries when a Revert could not be offered because its payload cannot be
 #: carried whole — so the operator learns WHY there is no Revert rather than being shown a dead one.
-REVERT_TOO_LONG_SENTENCE = ("The previous values are too long to offer a one-shot Revert here. "
-                            "Re-open the page to edit them back by hand.")
+#: It is the CONSOLE's own wording (nothing composes it where a write runs and nothing shows it on
+#: Discord), `i18n._`-marked and rendered through ``_`` at the notice, so it follows the language.
+REVERT_TOO_LONG_SENTENCE = i18n._("The previous values are too long to offer a one-shot Revert here. "
+                                  "Re-open the page to edit them back by hand.")
 
 AWAIT_MAX_PENDING = 8
 AWAIT_CHANGE_SECONDS = 120
@@ -1583,13 +1585,32 @@ def node_moved_names(request: Request, node_name: str,
     return seeded
 
 
+def _server_settings_link(name: str) -> dict:
+    """One server row's SETTINGS link — a cogwheel into that server's Configuration tab.
+
+    A LINK, not a form: opening a server's settings changes nothing, so there is no CSRF token and no
+    POST. The URL is built by the ONE server-page encoder (``server_url`` with the config tab's own
+    key), so a name with a space or ``&`` opens the right tab, and the target is the EXISTING
+    Configuration tab — never a second editor.
+    """
+    from . import server_detail as server_detail_page
+
+    return {
+        "path": server_url(name, tab=server_detail_page.CONFIG_TAB),
+        "label": i18n._("Configuration"),
+        "title": _sentence(i18n._("Configuration — open {server}'s own settings"),
+                           server=name),
+        "aria": _sentence(i18n._("Open the configuration of server {server}"), server=name),
+    }
+
+
 def server_controls(request: Request, origin: str) -> dict[str, dict]:
     """The row STRIP each server row may render, keyed by server name — and nothing for a row whose
     controls may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on (its own path constant), and it travels
     into every control as a hidden field so the write can return there: the
-    Dashboard (``/``) and ``/servers`` render the SAME strip, so a Startup pressed on either must
+    Dashboard (``/``) and ``/fleet`` render the SAME strip, so a Startup pressed on either must
     keep the person on the page they were on. The route re-checks it against the registry — this
     value is a rendering aid, never the authority (see :func:`origin_path`).
 
@@ -1640,6 +1661,16 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
     token = session.get_csrf_token(request)
+    # THE SETTINGS COGWHEEL's gate: the CONFIGURATION TAB's own capability and its OWN manager fact
+    # (a restricted scope WITHOUT a cluster role), read from the page module that owns both, so the
+    # row's cogwheel and the tab it opens cannot disagree about who may open it. The cogwheel is
+    # offered on the standalone SERVERS page ONLY (``origin``): the dashboard's Servers tab keeps the
+    # layout it had, and the card scopes this to the page where servers are listed.
+    from . import server_detail as server_detail_page
+    from . import servers as servers_page
+    can_open_config = (origin == servers_page.SERVERS_PATH
+                       and permissions.allows(server_detail_page.CONFIG_CAPABILITY, roles,
+                                              manager=server_detail_page.config_manager(request)))
     # the seam's own in-flight set, read ONCE for the whole table. It is consulted only
     # for a server already in ``source`` — the caller's SCOPED view — so the pulse can never be a
     # second list of busy targets that discloses a row the caller cannot see; it is a property of a
@@ -1685,7 +1716,11 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
         # busy: the honest affordance is "this server is starting". It is DISABLED — not an
         # invitation — because a second start through the UI is meaningless while the first boots.
         stuck = _pending_row_control(pending, offered, name, token, origin, roles, manager)
-        if not offered and stuck is None:
+        # THE SETTINGS COGWHEEL — the row's link INTO this server's Configuration tab. It is a READ
+        # shortcut, gated on that tab's OWN capability (see ``can_open_config`` above): offered when
+        # the caller may open the tab, absent otherwise, and never a second editor.
+        settings = _server_settings_link(name) if can_open_config else None
+        if not offered and stuck is None and settings is None:
             continue
         strip = tuple(_control(action, name, token, origin, action.key == pending)
                       for action in offered if action.row == ROW_STRIP)
@@ -1699,7 +1734,9 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
                           "menu_id": f"act-menu-{index}", "server": name,
                           "in_flight": in_flight,
                           "aria": _sentence(i18n._("More controls for {server}"), server=name),
-                          "menu_note": MENU_NOTE}
+                          "menu_note": MENU_NOTE,
+                          # the row's SETTINGS link (a cogwheel into the Configuration tab), or None
+                          "settings": settings}
     return controls
 
 
@@ -1949,20 +1986,43 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
     # THE LOG DOWNLOAD's owner is the nodes PAGE module (it owns the route and the capability);
     # imported here, inside the function, beside the other page imports this module makes lazily.
     from . import nodes as nodes_page
+    # THE SETTINGS COGWHEEL's owner is the per-node settings page (it owns the route and the
+    # capability); imported lazily for the same reason.
+    from . import node_settings as node_settings_page
     controls: dict[str, dict] = {}
     for index, (name, node) in enumerate(
             (getattr(source, "nodes", None) or {}).items()):
         key = readmodels.text(name)
         if not key:
             continue
-        # THE ONE READ CONTROL on the row: *Download log*, offered on the LOG PANEL's own
-        # capability — the same predicate the route's gate runs. It needs a node the cluster can
-        # REACH (``read_file`` is a call), so an OFFLINE row is offered none, exactly like its
-        # write controls: the row already says the node is offline, and a control that could only
-        # answer "offline or unknown" is not offered.
-        download = nodes_page.log_download_control(key, roles, manager) if node is not None else None
+        # THE ROW'S OWN LINK — the node's NAME opens its node page (``/nodes/<node>``). Offered on
+        # BOTH the standalone NODES list AND the Dashboard's Nodes tab (Frank reaches nodes from
+        # there too), so it is NOT origin-gated. It is gated by the node page's OWN capability
+        # (``node_settings_control``'s gate, ``nodes.settings``, Admin-only) so the row is never
+        # offered a door the page refuses; ``None`` leaves the name as plain text.
+        settings_control = node_settings_page.node_settings_control(key, roles)
+        page = settings_control["path"] if settings_control else None
+        # THE SETTINGS COGWHEEL — the row's link INTO that node's own settings (nodes.yaml). The
+        # settings live in the MASTER's nodes.yaml, so it needs no reachable node: it is offered on
+        # EVERY row, OFFLINE ones included, gated on its own Admin-only capability and offered on the
+        # standalone NODES page ONLY (``origin``): the dashboard's Nodes tab keeps the layout it had.
+        settings = settings_control if origin == nodes_page.NODES_PATH else None
         if node is None:        # OFFLINE: the cluster knows it and cannot reach it
+            # The write controls and the two log READ controls need a reachable node (they are
+            # calls), so an OFFLINE row is offered none of them — but its SETTINGS and its NAME link
+            # do not: keep the row when it has either, and render just those.
+            if settings is None and page is None:
+                continue
+            controls[key] = _node_record(key, index, (), "", None, settings, page=page)
             continue
+        # THE TWO READ CONTROLS on the row: *View log* (follow the node's own bot log) and
+        # *Download log* (hand over the whole file), both offered on the LOG PANEL's own capability
+        # -- the same predicate the routes' gate runs. They need a node the cluster can REACH
+        # (``read_file`` / ``read_file_window`` are calls), so an OFFLINE row is offered neither,
+        # exactly like its write controls: the row already says the node is offline, and a control
+        # that could only answer "offline or unknown" is not offered.
+        view = nodes_page.log_view_control(key, roles, manager)
+        download = nodes_page.log_download_control(key, roles, manager)
         states = node_states(source, key)
         offered = tuple(action for action in NODE_ACTIONS
                         if (not action.states or (set(action.states) & states))
@@ -1970,23 +2030,45 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
         # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
         # control is NOT offered, and the row says why rather than leaving the person to guess.
         note = _upgrade_note(key, roles, manager)
-        # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, or
-        # the log download. The download needs no plugin, so an install whose ``admin`` actions are
-        # absent still hands over a node's log — it is a READ of a file the Node API owns.
-        if not offered and not note and download is None:
+        # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, the
+        # two log read controls, or the settings cogwheel. The reads need no plugin, so an install
+        # whose ``admin`` actions are absent still follows and hands over a node's log and settings.
+        if (not offered and not note and view is None and download is None and settings is None
+                and page is None):
             continue
-        controls[key] = {
-            "strip": tuple(_node_control(action, key, token, origin) for action in offered),
-            "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
-            "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
-            "menu_note": "",
-            # the row-level statement ``_table.html`` renders beside the strip (`no update check yet`)
-            "note": note,
-            # the row's ONE READ control (``pages/nodes.log_download_control``): a LINK, rendered
-            # by ``_table.html`` beside the strip, or ``None`` for a caller who may not use it.
-            "download": download,
-        }
+        controls[key] = _node_record(key, index, offered, note, download, settings,
+                                     view=view, token=token, origin=origin, page=page)
     return controls
+
+
+def _node_record(key: str, index: int, offered, note: str, download, settings,
+                 *, view=None, token: str = "", origin: str = "", page: str | None = None) -> dict:
+    """One NODE row's control record — the SAME shape whether the node is reachable or not.
+
+    ``offered`` are the lifecycle/power actions the reachable node may render (empty for an OFFLINE
+    one); ``note``/``view``/``download``/``settings`` are the row-level statement, the log VIEW, the
+    log DOWNLOAD and the settings cogwheel; ``page`` is the NODE PAGE URL (``/nodes/<node>``) the
+    row's NAME links to. Kept in ONE place so the offline and online branches cannot produce two
+    different record shapes that ``_table.html`` would then have to know apart.
+    """
+    return {
+        "strip": tuple(_node_control(action, key, token, origin) for action in offered),
+        "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
+        "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
+        "menu_note": "",
+        # the row-level statement ``_table.html`` renders beside the strip (`no update check yet`)
+        "note": note,
+        # the row's log VIEW control (``pages/nodes.log_view_control``): a LINK, rendered by
+        # ``_table.html`` beside the strip, or ``None`` for a caller who may not use it.
+        "view": view,
+        # the row's log DOWNLOAD control (``pages/nodes.log_download_control``): a LINK, or ``None``.
+        "download": download,
+        # the row's SETTINGS link (a cogwheel into this node's own settings), or ``None``.
+        "settings": settings,
+        # THE NODE PAGE URL the row's NAME links to (``/nodes/<node>``), or ``None``: same URL and
+        # same gate as the cogwheel, so the row name and its cogwheel can never point apart.
+        "page": page,
+    }
 
 
 def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager: bool) -> bool:
@@ -2638,7 +2720,8 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
 # ------------------------------------------------------------------------------- the notice
 
 def _remember_notice(request: Request, action: WriteAction | PlayerAction | NodeAction,
-                     result: ActionResult, *, revert: str = "", revert_omitted: str = "") -> None:
+                     result: ActionResult, *, revert: str = "", revert_omitted: str = "",
+                     refusal: bool = False) -> None:
     """Store the outcome of one write as a ONE-SHOT notice, for the page the redirect lands on.
 
     The typed result is read for its FIELDS (``success``, ``message``, ``data["audit"]``), never
@@ -2649,6 +2732,12 @@ def _remember_notice(request: Request, action: WriteAction | PlayerAction | Node
     lives in the signed cookie, so its size is the cookie's size. The clip is VISIBLE — ``bound_text``
     appends the truncation marker — so a refusal clipped for a crafted target does not read as a whole
     one.
+
+    ``refusal`` marks a message the CONSOLE itself composed (a route refusal, see
+    :func:`_refusal_notice`), as opposed to the ACTION's own message. It is the ONE fact that decides
+    whether the notice template may look the message up in a catalog (``{{ _(notice.message) }}``): the
+    console's refusal wording is chrome and is marked for translation, while an action's runtime message
+    is composed where the action runs and shown on Discord too, so it must render verbatim.
     """
     data = getattr(result, "data", None) or {}
     audit = readmodels.text(data.get("audit")) if isinstance(data, dict) else ""
@@ -2665,6 +2754,9 @@ def _remember_notice(request: Request, action: WriteAction | PlayerAction | Node
         # offered (a payload too large to carry) — never a silently inert button.
         "revert": revert,
         "revert_omitted": revert_omitted,
+        # whether the MESSAGE is the console's OWN refusal wording (translatable chrome) rather than
+        # the action's own message (composed where the action runs, shown on Discord, verbatim).
+        "refusal": bool(refusal),
     }
 
 
@@ -2687,7 +2779,15 @@ def pop_notice(request: Request) -> dict | None:
 #: claim the console's own 403 makes and names NOTHING about the target, so the notice cannot become
 #: a second, softer channel for the enumeration the bare refusal exists to prevent: a name that
 #: exists and a name that does not are answered identically, in the page and in the notice alike.
-REFUSAL_OUT_OF_SCOPE = "Not authorized (this target is outside your scope)."
+REFUSAL_OUT_OF_SCOPE = i18n._("Not authorized (this target is outside your scope).")
+
+#: The other two refusals a ROUTE makes before any action runs: no resolvable identity, and a write
+#: that did not come through its dialog (a spent or absent confirm token). Both are the console's OWN
+#: chrome, `i18n._`-marked so the extractor records them and the one-shot notice renders them in the
+#: request's language (see :func:`_refusal_notice`): unlike the ACTION's own message, nothing here is
+#: composed where a write runs or shown on Discord, so translating it leaks nothing.
+REFUSAL_NO_IDENTITY = i18n._("Not authorized (no signed-in identity).")
+REFUSAL_CONFIRM_REQUIRED = i18n._("Not authorized (this action must be confirmed through its dialog).")
 
 
 def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeAction,
@@ -2705,8 +2805,12 @@ def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeA
     for the API face and the refusal page for a browser are untouched — and the notice only ADDS a
     way for the refusal to be read once the background submit has handed the page over. It is the
     SAME store and the SAME partial as a success's notice, so a refusal can never read as one.
+
+    ``refusal=True`` is what tells the notice template that *message* is the CONSOLE's own wording
+    (a marked catalog entry) rather than the action's own message — see :func:`_remember_notice`. The
+    console's refusals are chrome and render in the request's language; an action's message never does.
     """
-    _remember_notice(request, action, ActionResult(success=False, message=message))
+    _remember_notice(request, action, ActionResult(success=False, message=message), refusal=True)
 
 
 # ------------------------------------------------------------------------------- the routes
@@ -3089,9 +3193,9 @@ def _config_handler(action: WriteAction):
     async def handle(request: Request) -> RedirectResponse:
         identity = _identity(request)
         if identity is None:
-            _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
         ctx = _context(request, identity)
@@ -3235,9 +3339,9 @@ def _channels_handler(action: WriteAction):
     async def handle(request: Request) -> RedirectResponse:
         identity = _identity(request)
         if identity is None:
-            _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
         ctx = _context(request, identity)
@@ -3420,9 +3524,9 @@ async def _resolve_mission_write(request: Request, form, action: WriteAction):
     """
     identity = _identity(request)
     if identity is None:
-        _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+        _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
         raise HTTPException(status_code=403,
-                            detail="Not authorized (no signed-in identity).")
+                            detail=REFUSAL_NO_IDENTITY)
     name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
     ctx = _context(request, identity)
     resolution = await ctx.resolve_scoped_server(name)
@@ -3475,11 +3579,10 @@ def _mission_delete_handler(action: WriteAction):
         if action.confirm and not consume_confirm_token(
                 request, action.path, _mission_target(canonical, target),
                 readmodels.text(form.get(CONFIRM_FIELD))):
-            _refusal_notice(request, action,
-                            "Not authorized (this action must be confirmed through its dialog).")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized (this action must be confirmed through its dialog).")
+                detail=REFUSAL_CONFIRM_REQUIRED)
         mission = int(target) if target.isdigit() else target
         result = await call_action(
             action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
@@ -3508,11 +3611,10 @@ def _mission_bulk_delete_handler(action: WriteAction):
         ctx, canonical = resolved
         if not consume_confirm_token(request, action.path, _mission_target(canonical, "bulk"),
                                      readmodels.text(form.get(CONFIRM_FIELD))):
-            _refusal_notice(request, action,
-                            "Not authorized (this action must be confirmed through its dialog).")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized (this action must be confirmed through its dialog).")
+                detail=REFUSAL_CONFIRM_REQUIRED)
         selected: list[int] = []
         for value in form.getlist(MISSION_FIELD):
             text = readmodels.text(value)
@@ -4024,7 +4126,7 @@ def _mission_confirm_handler(action: WriteAction):
         identity = _identity(request)
         if identity is None:
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
         ctx = _context(request, identity)
@@ -4097,9 +4199,9 @@ def _coalition_handler(action: WriteAction):
     async def handle(request: Request) -> RedirectResponse:
         identity = _identity(request)
         if identity is None:
-            _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
         ctx = _context(request, identity)
@@ -4133,9 +4235,9 @@ def _handler(action: WriteAction):
             # (a role resolver that cannot see one). Refuse rather than act as anybody. The refusal
             # is STORED for the page the person lands on: the write was submitted in the
             # background, so an exception alone would be seen by nobody.
-            _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get("server"))
         if action.confirm and not consume_confirm_token(request, action.path, name,
@@ -4148,11 +4250,10 @@ def _handler(action: WriteAction):
             # The token is spent by the first POST, so the second takes this branch — and since the
             # dialog closes on press, the person is looking at the page they came from rather than at
             # this answer. The one-shot notice is what makes the refusal visible (see :func:`_refusal_notice`).
-            _refusal_notice(request, action,
-                            "Not authorized (this action must be confirmed through its dialog).")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized (this action must be confirmed through its dialog).")
+                detail=REFUSAL_CONFIRM_REQUIRED)
         ctx = _context(request, identity)
         resolution = await ctx.resolve_scoped_server(name)
         if resolution.status == ServerResolution.NOT_PERMITTED:
@@ -4254,7 +4355,7 @@ def _confirm_handler(action: WriteAction):
         identity = _identity(request)
         if identity is None:
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get("server"))
         ctx = _context(request, identity)
@@ -4376,9 +4477,9 @@ def _node_handler(action: NodeAction):
     async def handle(request: Request) -> RedirectResponse:
         identity = _identity(request)
         if identity is None:
-            _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get("node"))
         if action.confirm and not consume_confirm_token(request, action.path, name,
@@ -4386,11 +4487,10 @@ def _node_handler(action: NodeAction):
             # Same refusal as the server and player twins: the row's control posts to the dialog, the
             # dialog's form carries the one-shot token minted for THIS node, and a caller who skips
             # the dialog has no token. A confirmation curl can bypass is decoration.
-            _refusal_notice(request, action,
-                            "Not authorized (this action must be confirmed through its dialog).")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized (this action must be confirmed through its dialog).")
+                detail=REFUSAL_CONFIRM_REQUIRED)
         ctx = _context(request, identity)
         params: dict[str, Any] = {"node_name": name}
         if action.option is not None:
@@ -4484,7 +4584,7 @@ def _node_confirm_handler(action: NodeAction):
         identity = _identity(request)
         if identity is None:
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get("node"))
         ctx = _context(request, identity)
@@ -4525,9 +4625,9 @@ def _player_handler(action: PlayerAction):
     async def handle(request: Request) -> RedirectResponse:
         identity = _identity(request)
         if identity is None:
-            _refusal_notice(request, action, "Not authorized (no signed-in identity).")
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get("server"))
         ucid = readmodels.text(form.get("ucid"))
@@ -4539,11 +4639,10 @@ def _player_handler(action: PlayerAction):
             # control posts to the dialog, the dialog's form carries the one-shot token minted for THIS
             # (server, ucid), and a caller who skips the dialog has no token. A confirmation curl can
             # bypass is decoration, so this refusal is the control.
-            _refusal_notice(request, action,
-                            "Not authorized (this action must be confirmed through its dialog).")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized (this action must be confirmed through its dialog).")
+                detail=REFUSAL_CONFIRM_REQUIRED)
         resolution = await ctx.resolve_scoped_server(name)
         if resolution.status == ServerResolution.NOT_PERMITTED:
             # The console's refusal for a named target outside the caller's scope — the SAME answer
@@ -4599,7 +4698,7 @@ def _player_confirm_handler(action: PlayerAction):
         identity = _identity(request)
         if identity is None:
             raise HTTPException(status_code=403,
-                                detail="Not authorized (no signed-in identity).")
+                                detail=REFUSAL_NO_IDENTITY)
         form = await request.form()
         name = readmodels.text(form.get("server"))
         ucid = readmodels.text(form.get("ucid"))
@@ -4701,7 +4800,7 @@ def origin_path(request: Request, posted: Any, section_default: str) -> str:
     ``_origin=//evil.example`` or ``_origin=https://evil.example`` is discarded and the section default
     is used instead.
 
-    A missing or unknown origin is not an error — it is the section default (``/servers`` for a server
+    A missing or unknown origin is not an error — it is the section default (``/fleet`` for a server
     write, ``/nodes`` for a node write, ``/players`` for a player write), which is what every write
     redirects to and stays the honest answer for a caller that never sent one.
     """

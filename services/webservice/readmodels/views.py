@@ -100,13 +100,19 @@ class Column:
 #:
 #: ``nodes`` deliberately has no ``heartbeat`` column: the mockups draw one, but ``NodeView``
 #: carries no heartbeat age (a read-model change, listed in the mockups' "would need new backend
-#: data"), and a sort key with no source would be a control that lies. ``master``/``online`` are
-#: equally not offered — they are state the row already shows as a dot and a tag.
+#: data"), and a sort key with no source would be a control that lies. ``state`` (the ONLINE/OFFLINE
+#: verdict) IS offered — it is a real, in-process fact (the heartbeat's ``node is not None``) that the
+#: row already shows as a dot and a tag, so a reader can sort the offline nodes to the top. The
+#: ``master``/``online`` booleans are not offered separately: ``master`` is a tag on the name and
+#: ``online`` is what ``state`` sorts by. A per-node bot VERSION is NOT a column (the bot version is
+#: cluster-wide), and LAST SEEN (a database column the pure read model does not read) is not one
+#: either — see ``templates/_table.html``'s node row.
 TABLE_COLUMNS: dict[str, tuple[Column, ...]] = {
     "servers": (Column("name", _("Server")), Column("node", _("Node")), Column("status", _("Status")),
                 Column("mission", _("Mission")), Column("elapsed", _("Elapsed"), NUM),
                 Column("players", _("Players"), NUM)),
-    "nodes": (Column("name", _("Node")), Column("instances", _("Instances"), NUM),
+    "nodes": (Column("name", _("Node")), Column("state", _("State")),
+              Column("instances", _("Instances"), NUM),
               Column("servers", _("Servers"), NUM), Column("players", _("Players"), NUM)),
     "instances": (Column("name", _("Instance")), Column("node", _("Node")), Column("server", _("Server")),
                   Column("dcs_port", _("DCS port"), NUM), Column("webgui_port", _("WebGUI port"), NUM)),
@@ -280,6 +286,9 @@ def _cell(table: str, key: str, row):
     elif table == "nodes":
         if key == "name":
             return row.name
+        if key == "state":
+            # the ONLINE/OFFLINE verdict as a sortable word (the heartbeat's ``node is not None``)
+            return "online" if row.online else "offline"
         if key == "instances":
             return row.instances
         if key == "servers":

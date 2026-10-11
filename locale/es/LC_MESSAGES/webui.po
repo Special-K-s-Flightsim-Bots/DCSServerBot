@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-07 16:52+0200\n"
+"POT-Creation-Date: 2026-10-11 23:33+0200\n"
 "PO-Revision-Date: 2026-10-06 10:40+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -22,123 +22,340 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-#: services/webservice/i18n.py:462
+#: services/webservice/catalog.py:77
+msgid "per node"
+msgstr ""
+
+#: services/webservice/catalog.py:78
+msgid "per instance"
+msgstr ""
+
+#: services/webservice/catalog.py:79
+msgid "node + instance"
+msgstr ""
+
+#: services/webservice/catalog.py:80
+msgid "always on"
+msgstr ""
+
+#: services/webservice/catalog.py:88
+msgid "master node"
+msgstr ""
+
+#: services/webservice/catalog.py:89
+msgid "agent node"
+msgstr ""
+
+#: services/webservice/catalog.py:90
+msgid "both nodes"
+msgstr ""
+
+#: services/webservice/catalog.py:98 services/webservice/pages/settings.py:139
+msgid "Plugin"
+msgstr "Plugin"
+
+#: services/webservice/catalog.py:99 services/webservice/pages/settings.py:138
+msgid "Service"
+msgstr ""
+
+#: services/webservice/catalog.py:100
+msgid "Extension"
+msgstr "Extensión"
+
+#: services/webservice/catalog.py:111
+#, python-format
+msgid "held off by the %(plugin)s plugin: add it to opt_plugins"
+msgstr ""
+
+#: services/webservice/configgen.py:135
+msgid "Switch"
+msgstr "Interruptor"
+
+#: services/webservice/configgen.py:136
+msgid "Number"
+msgstr "Número"
+
+#: services/webservice/configgen.py:137
+msgid "Text"
+msgstr "Texto"
+
+#: services/webservice/configgen.py:138
+msgid "Text (multi-line)"
+msgstr "Texto (varias líneas)"
+
+#: services/webservice/configgen.py:139
+msgid "Select"
+msgstr "Selección"
+
+#: services/webservice/configgen.py:140
+msgid "List of values"
+msgstr "Lista de valores"
+
+#: services/webservice/configgen.py:141
+msgid "List of entries"
+msgstr "Lista de entradas"
+
+#: services/webservice/configgen.py:142
+msgid "Group"
+msgstr "Grupo"
+
+#: services/webservice/configgen.py:143
+msgid "Custom entries"
+msgstr "Entradas personalizadas"
+
+#: services/webservice/configgen.py:144
+msgid "Value validated on save"
+msgstr "Valor validado al guardar"
+
+#: services/webservice/configgen.py:145
+msgid "List or single"
+msgstr "Lista o uno solo"
+
+#: services/webservice/configgen.py:151
+msgid "Sections"
+msgstr "Secciones"
+
+#: services/webservice/configgen.py:154
+#: services/webservice/templates/_config_fields.html:143
+#: services/webservice/templates/_scope_fields.html:32
+msgid "validate on save"
+msgstr "se valida al guardar"
+
+#: services/webservice/configgen.py:156
+#: services/webservice/plugin_registry.py:66
+msgid "default"
+msgstr "predeterminado"
+
+#: services/webservice/configgen.py:162
+#: services/webservice/templates/_config_fields.html:141
+#: services/webservice/templates/_scope_fields.html:30
+#: services/webservice/templates/server_detail.html:322
+msgid "required"
+msgstr "obligatorio"
+
+#: services/webservice/i18n.py:504
 #, python-brace-format
 msgid "Live updates: {status}"
 msgstr "Actualizaciones en vivo: {status}"
 
-#: services/webservice/i18n.py:463
-#: services/webservice/templates/server_detail.html:218
+#: services/webservice/i18n.py:505
+#: services/webservice/templates/server_detail.html:257
 msgid "on"
 msgstr "activado"
 
-#: services/webservice/i18n.py:464
+#: services/webservice/i18n.py:506
 msgid "connecting…"
 msgstr "conectando…"
 
-#: services/webservice/i18n.py:465
+#: services/webservice/i18n.py:507
 msgid "polling every 10 seconds"
 msgstr "consultando cada 10 segundos"
 
-#: services/webservice/i18n.py:466
+#: services/webservice/i18n.py:508
 #, python-brace-format
 msgid "the bot is not ready yet — retrying in {seconds}s"
 msgstr "el bot aún no está listo — reintentando en {seconds} s"
 
-#: services/webservice/i18n.py:467
+#: services/webservice/i18n.py:509
 msgid "not permitted — sign in again"
 msgstr "no autorizado — inicia sesión de nuevo"
 
-#: services/webservice/i18n.py:468
+#: services/webservice/i18n.py:510
 msgid "Sign in again"
 msgstr "Iniciar sesión de nuevo"
 
-#: services/webservice/i18n.py:470
-#: services/webservice/templates/server_detail.html:62
+#: services/webservice/i18n.py:512
+#: services/webservice/templates/node_log.html:39
+#: services/webservice/templates/server_detail.html:66
 msgid "Load older"
 msgstr "Cargar anteriores"
 
-#: services/webservice/i18n.py:471
-#: services/webservice/templates/server_detail.html:57
+#: services/webservice/i18n.py:513
+#: services/webservice/templates/node_log.html:34
+#: services/webservice/templates/server_detail.html:61
 msgid "not available"
 msgstr "no disponible"
 
-#: services/webservice/i18n.py:472
+#: services/webservice/i18n.py:514
 msgid "The log file is not there yet."
 msgstr "El archivo de registro aún no está."
 
-#: services/webservice/i18n.py:473
+#: services/webservice/i18n.py:515
 msgid "waiting for the log file to appear"
 msgstr "esperando a que aparezca el archivo de registro"
 
-#: services/webservice/i18n.py:474
+#: services/webservice/i18n.py:516
 msgid "retrying…"
 msgstr "reintentando…"
 
-#: services/webservice/i18n.py:475
+#: services/webservice/i18n.py:517
 msgid "— the log was rotated; showing the new file —"
 msgstr "— el registro se rotó; se muestra el archivo nuevo —"
 
-#: services/webservice/i18n.py:476
+#: services/webservice/i18n.py:518
 msgid "— the log was rotated while loading older lines —"
 msgstr "— el registro se rotó mientras se cargaban líneas anteriores —"
 
-#: services/webservice/i18n.py:477
+#: services/webservice/i18n.py:519
 msgid "the log was rotated"
 msgstr "el registro se rotó"
 
-#: services/webservice/i18n.py:478
+#: services/webservice/i18n.py:520
 msgid "Log restarted"
 msgstr "Registro reiniciado"
 
-#: services/webservice/i18n.py:479
-#: services/webservice/templates/server_detail.html:62
+#: services/webservice/i18n.py:521
+#: services/webservice/templates/node_log.html:39
+#: services/webservice/templates/server_detail.html:66
 msgid "Start of log"
 msgstr "Inicio del registro"
 
-#: services/webservice/i18n.py:480
-#: services/webservice/templates/server_detail.html:57
+#: services/webservice/i18n.py:522
+#: services/webservice/templates/node_log.html:34
+#: services/webservice/templates/server_detail.html:61
 msgid "following while this tab is open"
 msgstr "sigue mientras esta pestaña esté abierta"
 
-#: services/webservice/i18n.py:481
+#: services/webservice/i18n.py:523
 msgid "paused — this tab is hidden"
 msgstr "en pausa — esta pestaña está oculta"
 
-#: services/webservice/i18n.py:483
+#: services/webservice/i18n.py:525
 #, python-brace-format
 msgid "{n} of {total} selected"
 msgstr "{n} de {total} seleccionadas"
 
-#: services/webservice/i18n.py:484
-#: services/webservice/templates/server_detail.html:444
+#: services/webservice/i18n.py:526
+#: services/webservice/templates/server_detail.html:478
 msgid "Remove selected…"
 msgstr "Quitar seleccionadas…"
 
-#: services/webservice/i18n.py:485
+#: services/webservice/i18n.py:527
 msgid "Remove 1 mission…"
 msgstr "Quitar 1 misión…"
 
-#: services/webservice/i18n.py:486
+#: services/webservice/i18n.py:528
 #, python-brace-format
 msgid "Remove {n} missions…"
 msgstr "Quitar {n} misiones…"
 
-#: services/webservice/i18n.py:488
-#: services/webservice/templates/server_detail.html:203
-#: services/webservice/templates/server_detail.html:350
+#: services/webservice/i18n.py:530
+#: services/webservice/templates/server_detail.html:242
+#: services/webservice/templates/server_detail.html:385
 msgid "Show password"
 msgstr "Mostrar contraseña"
 
-#: services/webservice/i18n.py:489
+#: services/webservice/i18n.py:531
 msgid "Hide password"
 msgstr "Ocultar contraseña"
 
-#: services/webservice/i18n.py:490
+#: services/webservice/i18n.py:532
 msgid "Nothing to show — type a password first, then this reveals what you typed."
 msgstr ""
 "No hay nada que mostrar — escribe primero una contraseña y esto revelará "
 "lo que escribiste."
+
+#: services/webservice/i18n.py:537
+msgid "Checking…"
+msgstr ""
+
+#: services/webservice/i18n.py:538
+msgid "Valid."
+msgstr ""
+
+#: services/webservice/i18n.py:539
+msgid "editing"
+msgstr ""
+
+#: services/webservice/plugin_registry.py:67
+#: services/webservice/templates/server_detail.html:322
+msgid "optional"
+msgstr "opcional"
+
+#: services/webservice/plugin_registry.py:68
+msgid "not installed"
+msgstr "no instalado"
+
+#: services/webservice/plugin_registry.py:69
+msgid "optional plugins"
+msgstr "plugins opcionales"
+
+#: services/webservice/plugin_registry.py:71
+msgid ""
+"Tick the optional plugins to load. The ones marked \"default\" are part "
+"of the bot's default set and load even without an entry here. The raw "
+"list is still editable in Expert Mode."
+msgstr ""
+"Marca los plugins opcionales que quieres cargar. Los marcados como "
+"\"default\" forman parte del conjunto predeterminado del bot y se cargan "
+"aunque no haya una entrada aquí. La lista sin formato sigue siendo "
+"editable en el modo experto."
+
+#: services/webservice/shell.py:432
+msgid "Your request could not be completed, and nothing was saved."
+msgstr "Tu solicitud no se pudo completar y no se guardó nada."
+
+#: services/webservice/shell.py:434
+msgid "Your account does not have access to this page."
+msgstr "Tu cuenta no tiene acceso a esta página."
+
+#: services/webservice/shell.py:439
+msgid "access denied"
+msgstr "acceso denegado"
+
+#: services/webservice/shell.py:443
+msgid "Access denied"
+msgstr "Acceso denegado"
+
+#: services/webservice/shell.py:446
+msgid "Return to the dashboard"
+msgstr "Volver al panel"
+
+#: services/webservice/shell.py:506
+msgid ""
+"You are still signed in &mdash; no new sign-in is needed. The console has"
+" just started and is verifying your identity; this page will retry by "
+"itself."
+msgstr ""
+"Sigues conectado &mdash; no hace falta iniciar sesión de nuevo. La "
+"consola acaba de arrancar y está verificando tu identidad; esta página "
+"volverá a intentarlo por su cuenta."
+
+#: services/webservice/shell.py:508
+msgid "Still not ready. Retry by hand when you are ready."
+msgstr "Aún no está listo. Vuelve a intentarlo a mano cuando quieras."
+
+#: services/webservice/shell.py:509
+msgid "The answer changed. Reload to continue."
+msgstr "La respuesta ha cambiado. Recarga para continuar."
+
+#: services/webservice/shell.py:514
+msgid "verifying your identity"
+msgstr "verificando tu identidad"
+
+#: services/webservice/shell.py:518
+msgid "The console is starting up"
+msgstr "La consola está arrancando"
+
+#: services/webservice/shell.py:520
+msgid "Retrying automatically&hellip;"
+msgstr "Reintentando automáticamente&hellip;"
+
+#: services/webservice/shell.py:521
+msgid "Retry now"
+msgstr "Reintentar ahora"
+
+#: services/webservice/theme.py:57
+msgid "Dark"
+msgstr "Oscuro"
+
+#: services/webservice/theme.py:57
+msgid "Light"
+msgstr "Claro"
+
+#: services/webservice/theme.py:60
+msgid "Theme"
+msgstr "Tema"
 
 #: services/webservice/upgrade.py:66
 msgid "no update check yet"
@@ -170,7 +387,16 @@ msgstr "Inicio de sesión local habilitado"
 msgid "No sign-in method enabled"
 msgstr "No hay ningún método de inicio de sesión habilitado"
 
-#: services/webservice/pages/actions.py:326
+#: services/webservice/pages/actions.py:299
+msgid ""
+"The previous values are too long to offer a one-shot Revert here. Re-open"
+" the page to edit them back by hand."
+msgstr ""
+"Los valores anteriores son demasiado largos para ofrecer aquí una "
+"reversión puntual. Vuelve a abrir la página para editarlos de nuevo a "
+"mano."
+
+#: services/webservice/pages/actions.py:328
 msgid ""
 "Start and Stop live only here: they act on fewer states than Startup and "
 "Shutdown, so they do not earn a place in the strip."
@@ -178,27 +404,27 @@ msgstr ""
 "Detener e Iniciar solo aparecen aquí: actúan sobre menos estados que "
 "Arrancar y Apagar, así que no se ganan un sitio en la barra."
 
-#: services/webservice/pages/actions.py:334
+#: services/webservice/pages/actions.py:336
 #, python-brace-format
 msgid "{label} — an action on {name} is running; this can take a moment"
 msgstr ""
 "{label} — hay una acción en curso sobre {name}; esto puede tardar un "
 "momento"
 
-#: services/webservice/pages/actions.py:335
+#: services/webservice/pages/actions.py:337
 #, python-brace-format
 msgid "{label} — an action on {name} is running"
 msgstr "{label} — hay una acción en curso sobre {name}"
 
-#: services/webservice/pages/actions.py:488
+#: services/webservice/pages/actions.py:490
 msgid "Startup"
 msgstr "Arrancar"
 
-#: services/webservice/pages/actions.py:492
+#: services/webservice/pages/actions.py:494
 msgid "End maintenance so the server is scheduled again"
 msgstr "Finalizar el mantenimiento para que el servidor vuelva a programarse"
 
-#: services/webservice/pages/actions.py:494
+#: services/webservice/pages/actions.py:496
 msgid ""
 "On by default, exactly like Discord's /server startup. An unflagged "
 "server simply stays unflagged."
@@ -206,16 +432,16 @@ msgstr ""
 "Activado por defecto, igual que /server startup de Discord. Un servidor "
 "sin marca simplemente se queda sin marca."
 
-#: services/webservice/pages/actions.py:496
+#: services/webservice/pages/actions.py:498
 msgid "Startup — bring this server up from SHUTDOWN"
 msgstr "Arrancar — arranca este servidor desde APAGADO"
 
-#: services/webservice/pages/actions.py:497
+#: services/webservice/pages/actions.py:499
 #, python-brace-format
 msgid "Startup server {server}"
 msgstr "Arrancar el servidor {server}"
 
-#: services/webservice/pages/actions.py:498
+#: services/webservice/pages/actions.py:500
 msgid ""
 "It comes back up and rejoins the rotation: with the box below ticked (the"
 " default) any maintenance is ended, so the scheduler may start it again. "
@@ -228,75 +454,76 @@ msgstr ""
 "en mantenimiento simplemente sigue igual. Esto es el arranque a nivel de "
 "DCS, no el Iniciar a nivel de proceso del menú de la fila."
 
-#: services/webservice/pages/actions.py:503
+#: services/webservice/pages/actions.py:505
 msgid "Start up server"
 msgstr "Arrancar el servidor"
 
-#: services/webservice/pages/actions.py:504
+#: services/webservice/pages/actions.py:506
 #, python-brace-format
 msgid "Start up {server} — ends maintenance so the scheduler may start it"
 msgstr ""
 "Arrancar {server} — finaliza el mantenimiento para que el programador "
 "pueda iniciarlo"
 
-#: services/webservice/pages/actions.py:506
+#: services/webservice/pages/actions.py:508
 msgid "Start"
 msgstr "Iniciar"
 
-#: services/webservice/pages/actions.py:509
+#: services/webservice/pages/actions.py:511
 msgid "Start — start a STOPPED server"
 msgstr "Iniciar — inicia un servidor DETENIDO"
 
-#: services/webservice/pages/actions.py:510
+#: services/webservice/pages/actions.py:512
 #, python-brace-format
 msgid "Start server {server}"
 msgstr "Iniciar el servidor {server}"
 
-#: services/webservice/pages/actions.py:511
+#: services/webservice/pages/actions.py:513
 msgid "start a STOPPED server — Startup is the usual one"
 msgstr "inicia un servidor DETENIDO — lo habitual es Arrancar"
 
-#: services/webservice/pages/actions.py:513
+#: services/webservice/pages/actions.py:515
 msgid "Pause"
 msgstr "Pausar"
 
-#: services/webservice/pages/actions.py:515
+#: services/webservice/pages/actions.py:517
 msgid "Pause — freeze the mission; players stay connected"
 msgstr "Pausar — congela la misión; los jugadores siguen conectados"
 
-#: services/webservice/pages/actions.py:516
+#: services/webservice/pages/actions.py:518
 #, python-brace-format
 msgid "Pause the mission on {server}"
 msgstr "Pausar la misión en {server}"
 
-#: services/webservice/pages/actions.py:518
+#: services/webservice/pages/actions.py:520
 msgid "Unpause"
 msgstr "Reanudar"
 
-#: services/webservice/pages/actions.py:520
+#: services/webservice/pages/actions.py:522
 msgid "Unpause — resume the frozen mission"
 msgstr "Reanudar — reanuda la misión congelada"
 
-#: services/webservice/pages/actions.py:521
+#: services/webservice/pages/actions.py:523
 #, python-brace-format
 msgid "Unpause the mission on {server}"
 msgstr "Reanudar la misión en {server}"
 
-#: services/webservice/pages/actions.py:523
-#: services/webservice/pages/actions.py:1017
+#: services/webservice/pages/actions.py:525
+#: services/webservice/pages/actions.py:1019
+#: services/webservice/templates/server_detail.html:710
 msgid "Restart"
 msgstr "Reiniciar"
 
-#: services/webservice/pages/actions.py:527
+#: services/webservice/pages/actions.py:529
 msgid "Restart — players currently flying lose their sortie"
 msgstr "Reiniciar — los jugadores que están volando pierden su salida"
 
-#: services/webservice/pages/actions.py:528
+#: services/webservice/pages/actions.py:530
 #, python-brace-format
 msgid "Restart server {server}"
 msgstr "Reiniciar el servidor {server}"
 
-#: services/webservice/pages/actions.py:529
+#: services/webservice/pages/actions.py:531
 msgid ""
 "<b>Players currently flying lose their sortie.</b> The mission restarts "
 "from the beginning — mid-mission progress is gone."
@@ -304,7 +531,7 @@ msgstr ""
 "<b>Los jugadores que están volando pierden su salida.</b> La misión se "
 "reinicia desde el principio — el progreso a mitad de misión se pierde."
 
-#: services/webservice/pages/actions.py:531
+#: services/webservice/pages/actions.py:533
 msgid ""
 "A restart stops the mission, reloads it from the start and the players "
 "reconnect to a fresh round. It cannot be undone from here."
@@ -313,24 +540,24 @@ msgstr ""
 "los jugadores se reconectan a una partida nueva. No se puede deshacer "
 "desde aquí."
 
-#: services/webservice/pages/actions.py:533
+#: services/webservice/pages/actions.py:535
 msgid "Restart server"
 msgstr "Reiniciar servidor"
 
-#: services/webservice/pages/actions.py:534
+#: services/webservice/pages/actions.py:536
 #, python-brace-format
 msgid "Restart {server} — players flying lose their sortie"
 msgstr "Reiniciar {server} — los jugadores que vuelan pierden su salida"
 
-#: services/webservice/pages/actions.py:536
+#: services/webservice/pages/actions.py:538
 msgid "Shutdown"
 msgstr "Apagar"
 
-#: services/webservice/pages/actions.py:542
+#: services/webservice/pages/actions.py:544
 msgid "Set maintenance so the scheduler does not restart it"
 msgstr "Poner en mantenimiento para que el programador no lo reinicie"
 
-#: services/webservice/pages/actions.py:544
+#: services/webservice/pages/actions.py:546
 msgid ""
 "On by default, exactly like Discord's /server shutdown: without it a "
 "scheduled start brings the server straight back."
@@ -338,18 +565,18 @@ msgstr ""
 "Activado por defecto, igual que /server shutdown de Discord: sin él, un "
 "arranque programado devuelve el servidor de inmediato."
 
-#: services/webservice/pages/actions.py:546
+#: services/webservice/pages/actions.py:548
 msgid "Shutdown — stop the DCS server; everyone on it is disconnected"
 msgstr ""
 "Apagar — detiene el servidor de DCS; todos los que están en él se "
 "desconectan"
 
-#: services/webservice/pages/actions.py:547
+#: services/webservice/pages/actions.py:549
 #, python-brace-format
 msgid "Shutdown server {server}"
 msgstr "Apagar el servidor {server}"
 
-#: services/webservice/pages/actions.py:548
+#: services/webservice/pages/actions.py:550
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected</b> and nobody can join until "
@@ -364,7 +591,7 @@ msgstr ""
 "servicio, así que el programador no lo vuelve a arrancar. Desmárcala solo"
 " para apagar el servidor sin mantenerlo apagado."
 
-#: services/webservice/pages/actions.py:553
+#: services/webservice/pages/actions.py:555
 msgid ""
 "It stays SHUTDOWN on every page until a Startup brings it back — this is "
 "the graceful stop, not the process-level Stop in the row's menu."
@@ -373,34 +600,34 @@ msgstr ""
 "recupere — este es el paro ordenado, no el Detener a nivel de proceso del"
 " menú de la fila."
 
-#: services/webservice/pages/actions.py:556
-#: services/webservice/pages/actions.py:1032
+#: services/webservice/pages/actions.py:558
+#: services/webservice/pages/actions.py:1034
 msgid "Shut down"
 msgstr "Apagar"
 
-#: services/webservice/pages/actions.py:557
+#: services/webservice/pages/actions.py:559
 #, python-brace-format
 msgid "Shut down {server} — {players} players are disconnected"
 msgstr "Apagar {server} — se desconectan {players} jugadores"
 
-#: services/webservice/pages/actions.py:559
+#: services/webservice/pages/actions.py:561
 msgid "Stop"
 msgstr "Detener"
 
-#: services/webservice/pages/actions.py:562
+#: services/webservice/pages/actions.py:564
 msgid "Stop — stop the server process; players are disconnected"
 msgstr "Detener — detiene el proceso del servidor; los jugadores se desconectan"
 
-#: services/webservice/pages/actions.py:563
+#: services/webservice/pages/actions.py:565
 #, python-brace-format
 msgid "Stop server {server}"
 msgstr "Detener el servidor {server}"
 
-#: services/webservice/pages/actions.py:564
+#: services/webservice/pages/actions.py:566
 msgid "stop the server process — players are disconnected"
 msgstr "detiene el proceso del servidor — los jugadores se desconectan"
 
-#: services/webservice/pages/actions.py:565
+#: services/webservice/pages/actions.py:567
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected.</b> Stop ends the server process, "
@@ -409,7 +636,7 @@ msgstr ""
 "<b>Se desconectan {players} jugadores.</b> Detener termina el proceso del"
 " servidor, y nadie podrá entrar hasta que un Iniciar lo recupere."
 
-#: services/webservice/pages/actions.py:567
+#: services/webservice/pages/actions.py:569
 msgid ""
 "This is the process-level pair (Stop/Start), not the DCS-level pair "
 "(Shutdown/Startup)."
@@ -417,20 +644,20 @@ msgstr ""
 "Este es el par a nivel de proceso (Detener/Iniciar), no el par a nivel de"
 " DCS (Apagar/Arrancar)."
 
-#: services/webservice/pages/actions.py:569
+#: services/webservice/pages/actions.py:571
 msgid "Stop server process"
 msgstr "Detener el proceso del servidor"
 
-#: services/webservice/pages/actions.py:570
+#: services/webservice/pages/actions.py:572
 #, python-brace-format
 msgid "Stop {server} — {players} players are disconnected"
 msgstr "Detener {server} — se desconectan {players} jugadores"
 
-#: services/webservice/pages/actions.py:585
+#: services/webservice/pages/actions.py:587
 msgid "Maintenance"
 msgstr "Mantenimiento"
 
-#: services/webservice/pages/actions.py:587
+#: services/webservice/pages/actions.py:589
 msgid ""
 "Maintenance — keep this server out of service; the scheduler will not "
 "start it"
@@ -438,55 +665,55 @@ msgstr ""
 "Mantenimiento — mantiene este servidor fuera de servicio; el programador "
 "no lo iniciará"
 
-#: services/webservice/pages/actions.py:588
+#: services/webservice/pages/actions.py:590
 #, python-brace-format
 msgid "Put server {server} into maintenance"
 msgstr "Poner el servidor {server} en mantenimiento"
 
-#: services/webservice/pages/actions.py:589
+#: services/webservice/pages/actions.py:591
 msgid "keep the server out of service — it is not stopped by this"
 msgstr "mantiene el servidor fuera de servicio — esto no lo detiene"
 
-#: services/webservice/pages/actions.py:592
+#: services/webservice/pages/actions.py:594
 msgid "End maintenance"
 msgstr "Finalizar mantenimiento"
 
-#: services/webservice/pages/actions.py:594
+#: services/webservice/pages/actions.py:596
 msgid "End maintenance — let the scheduler start this server again"
 msgstr ""
 "Finalizar mantenimiento — deja que el programador vuelva a iniciar este "
 "servidor"
 
-#: services/webservice/pages/actions.py:595
+#: services/webservice/pages/actions.py:597
 #, python-brace-format
 msgid "Take server {server} out of maintenance"
 msgstr "Sacar el servidor {server} del mantenimiento"
 
-#: services/webservice/pages/actions.py:596
+#: services/webservice/pages/actions.py:598
 msgid "the server may be started again — nothing is started by this"
 msgstr "el servidor podrá arrancarse de nuevo — esto no arranca nada"
 
-#: services/webservice/pages/actions.py:662
-#: services/webservice/pages/actions.py:682
-#: services/webservice/templates/server_detail.html:552
+#: services/webservice/pages/actions.py:664
+#: services/webservice/pages/actions.py:684
+#: services/webservice/templates/server_detail.html:585
 msgid "Add to the rotation"
 msgstr "Añadir a la rotación"
 
-#: services/webservice/pages/actions.py:666
+#: services/webservice/pages/actions.py:668
 msgid "Load it when the server next starts"
 msgstr "Cargarla cuando el servidor arranque de nuevo"
 
-#: services/webservice/pages/actions.py:668
+#: services/webservice/pages/actions.py:670
 msgid "Arms the rotation so this mission is the next one the server loads."
 msgstr ""
 "Prepara la rotación para que esta misión sea la siguiente que cargue el "
 "servidor."
 
-#: services/webservice/pages/actions.py:672
+#: services/webservice/pages/actions.py:674
 msgid "Load it now"
 msgstr "Cargarla ahora"
 
-#: services/webservice/pages/actions.py:674
+#: services/webservice/pages/actions.py:676
 msgid ""
 "Loads it right away — only honoured while the server is running, paused "
 "or stopped."
@@ -494,7 +721,7 @@ msgstr ""
 "La carga de inmediato — solo se aplica mientras el servidor está en "
 "ejecución, en pausa o detenido."
 
-#: services/webservice/pages/actions.py:679
+#: services/webservice/pages/actions.py:681
 msgid ""
 "This mission is already on the server: adding it changes the ROTATION "
 "LIST only. No file is copied and nothing is deleted — that is what Upload"
@@ -504,20 +731,42 @@ msgstr ""
 "ROTACIÓN. No se copia ningún archivo ni se borra nada — eso es lo que "
 "hace Upload."
 
-#: services/webservice/pages/actions.py:683
+#: services/webservice/pages/actions.py:685
 #, python-brace-format
 msgid "Add the mission to {server}'s rotation list"
 msgstr "Añadir la misión a la lista de rotación de {server}"
 
-#: services/webservice/pages/actions.py:689
+#: services/webservice/pages/actions.py:691
+#: services/webservice/templates/_config_fields.html:63
+#: services/webservice/templates/_config_fields.html:67
+#: services/webservice/templates/_config_fields.html:101
+#: services/webservice/templates/_config_fields.html:155
+#: services/webservice/templates/_config_fields.html:161
+#: services/webservice/templates/_config_fields.html:177
+#: services/webservice/templates/_config_fields.html:188
+#: services/webservice/templates/_config_fields.html:207
+#: services/webservice/templates/_config_fields.html:223
+#: services/webservice/templates/_config_fields.html:263
+#: services/webservice/templates/_config_fields.html:278
+#: services/webservice/templates/_scope_fields.html:41
+#: services/webservice/templates/_scope_fields.html:45
+#: services/webservice/templates/_scope_fields.html:74
+#: services/webservice/templates/_scope_fields.html:100
+#: services/webservice/templates/_scope_fields.html:106
+#: services/webservice/templates/_scope_fields.html:123
+#: services/webservice/templates/_scope_fields.html:132
+#: services/webservice/templates/_scope_fields.html:154
+#: services/webservice/templates/_scope_fields.html:165
+#: services/webservice/templates/_scope_fields.html:220
+#: services/webservice/templates/_scope_fields.html:233
 msgid "Remove"
 msgstr "Quitar"
 
-#: services/webservice/pages/actions.py:693
+#: services/webservice/pages/actions.py:695
 msgid "Also delete the mission file from disk"
 msgstr "Eliminar también el archivo de la misión del disco"
 
-#: services/webservice/pages/actions.py:695
+#: services/webservice/pages/actions.py:697
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig. This cannot be "
 "undone."
@@ -525,7 +774,7 @@ msgstr ""
 "Elimina el archivo principal, su copia .dcssb y el .orig. Esto no se "
 "puede deshacer."
 
-#: services/webservice/pages/actions.py:700
+#: services/webservice/pages/actions.py:702
 msgid ""
 "<b>The mission is removed from the rotation list and stops being "
 "loaded.</b> The box below is off by default: with it ticked the mission "
@@ -537,7 +786,7 @@ msgstr ""
 "archivo de la misión — el principal, su copia .dcssb y el .orig — se "
 "elimina del servidor, y eso no se puede deshacer."
 
-#: services/webservice/pages/actions.py:704
+#: services/webservice/pages/actions.py:706
 msgid ""
 "Removing it from the list changes the rotation only; the file stays on "
 "the server unless you tick the box. Discord's /mission delete asks the "
@@ -547,37 +796,37 @@ msgstr ""
 "servidor a menos que marques la casilla. /mission delete de Discord hace "
 "las mismas dos preguntas."
 
-#: services/webservice/pages/actions.py:707
-#: services/webservice/pages/actions.py:3949
+#: services/webservice/pages/actions.py:709
+#: services/webservice/pages/actions.py:4051
 msgid "Remove mission"
 msgstr "Quitar misión"
 
-#: services/webservice/pages/actions.py:708
+#: services/webservice/pages/actions.py:710
 #, python-brace-format
 msgid "Remove the mission from {server}'s rotation list"
 msgstr "Quitar la misión de la lista de rotación de {server}"
 
-#: services/webservice/pages/actions.py:710
-#: services/webservice/templates/server_detail.html:533
+#: services/webservice/pages/actions.py:712
+#: services/webservice/templates/server_detail.html:566
 msgid "Load"
 msgstr "Cargar"
 
-#: services/webservice/pages/actions.py:715
-#: services/webservice/templates/server_detail.html:610
+#: services/webservice/pages/actions.py:717
+#: services/webservice/templates/server_detail.html:641
 msgid "Upload mission"
 msgstr "Subir misión"
 
-#: services/webservice/pages/actions.py:730
-#: services/webservice/pages/actions.py:750
-#: services/webservice/pages/actions.py:3954
+#: services/webservice/pages/actions.py:732
+#: services/webservice/pages/actions.py:752
+#: services/webservice/pages/actions.py:4056
 msgid "Remove missions"
 msgstr "Quitar misiones"
 
-#: services/webservice/pages/actions.py:734
+#: services/webservice/pages/actions.py:736
 msgid "Also delete the mission files from disk"
 msgstr "Eliminar también los archivos de las misiones del disco"
 
-#: services/webservice/pages/actions.py:736
+#: services/webservice/pages/actions.py:738
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig of EVERY selected"
 " mission. This cannot be undone. Left OFF, the mission only leaves the "
@@ -590,7 +839,7 @@ msgstr ""
 "del servidor esté activado, un archivo de misión que quede en el disco se"
 " vuelve a añadir a la lista, así que la eliminación no es permanente."
 
-#: services/webservice/pages/actions.py:744
+#: services/webservice/pages/actions.py:746
 msgid ""
 "<b>The selected missions are removed from the rotation list and stop "
 "being loaded.</b> The box below is off by default: with it ticked the "
@@ -602,7 +851,7 @@ msgstr ""
 "marcas, los propios archivos de misión se eliminan del servidor, y eso no"
 " se puede deshacer."
 
-#: services/webservice/pages/actions.py:748
+#: services/webservice/pages/actions.py:750
 msgid ""
 "The chosen missions leave the rotation list; their files stay on the "
 "server unless you tick the box."
@@ -610,47 +859,47 @@ msgstr ""
 "Las misiones elegidas salen de la lista de rotación; sus archivos se "
 "quedan en el servidor a menos que marques la casilla."
 
-#: services/webservice/pages/actions.py:751
+#: services/webservice/pages/actions.py:753
 #, python-brace-format
 msgid "Remove the selected missions from {server}'s rotation list"
 msgstr "Quitar las misiones seleccionadas de la lista de rotación de {server}"
 
-#: services/webservice/pages/actions.py:755
+#: services/webservice/pages/actions.py:757
 msgid "Move"
 msgstr "Mover"
 
-#: services/webservice/pages/actions.py:769
-#: services/webservice/templates/server_detail.html:443
+#: services/webservice/pages/actions.py:771
+#: services/webservice/templates/server_detail.html:477
 msgid "Set as start"
 msgstr "Establecer como inicio"
 
-#: services/webservice/pages/actions.py:870
+#: services/webservice/pages/actions.py:872
 msgid "Kick"
 msgstr "Expulsar"
 
-#: services/webservice/pages/actions.py:872
-#: services/webservice/pages/actions.py:888
+#: services/webservice/pages/actions.py:874
+#: services/webservice/pages/actions.py:890
 msgid "Reason"
 msgstr "Motivo"
 
-#: services/webservice/pages/actions.py:873
+#: services/webservice/pages/actions.py:875
 msgid "Shown to the player in game."
 msgstr "Se muestra al jugador en el juego."
 
-#: services/webservice/pages/actions.py:875
+#: services/webservice/pages/actions.py:877
 msgid "Kick — disconnected now; they may rejoin immediately"
 msgstr "Expulsar — se le desconecta ahora; puede volver a entrar de inmediato"
 
-#: services/webservice/pages/actions.py:876
+#: services/webservice/pages/actions.py:878
 #, python-brace-format
 msgid "Kick {player} from {server}"
 msgstr "Expulsar a {player} de {server}"
 
-#: services/webservice/pages/actions.py:877
+#: services/webservice/pages/actions.py:879
 msgid "disconnected now — a kick is not a ban"
 msgstr "se le desconecta ahora — una expulsión no es un baneo"
 
-#: services/webservice/pages/actions.py:878
+#: services/webservice/pages/actions.py:880
 #, python-brace-format
 msgid ""
 "<b>{player} is disconnected from {server} now.</b> They can rejoin "
@@ -660,7 +909,7 @@ msgstr ""
 "entrar de inmediato — una expulsión no es un baneo y no deja ningún "
 "bloqueo."
 
-#: services/webservice/pages/actions.py:880
+#: services/webservice/pages/actions.py:882
 msgid ""
 "A kick ends their session; it blocks nothing and expires with it. Nothing"
 " is written to the ban list, so they may be back in the air in a minute."
@@ -669,37 +918,37 @@ msgstr ""
 " escribe nada en la lista de baneos, así que puede volver a volar en un "
 "minuto."
 
-#: services/webservice/pages/actions.py:883
+#: services/webservice/pages/actions.py:885
 msgid "Kick player"
 msgstr "Expulsar jugador"
 
-#: services/webservice/pages/actions.py:884
+#: services/webservice/pages/actions.py:886
 #, python-brace-format
 msgid "Kick {player} from {server} — they may rejoin immediately"
 msgstr "Expulsar a {player} de {server} — puede volver a entrar de inmediato"
 
-#: services/webservice/pages/actions.py:886
+#: services/webservice/pages/actions.py:888
 msgid "Ban"
 msgstr "Banear"
 
-#: services/webservice/pages/actions.py:889
+#: services/webservice/pages/actions.py:891
 msgid "Kept on the ban list."
 msgstr "Se mantiene en la lista de baneos."
 
-#: services/webservice/pages/actions.py:891
+#: services/webservice/pages/actions.py:893
 msgid "Ban — removed and blocked from rejoining"
 msgstr "Banear — se le expulsa y se le bloquea para volver a entrar"
 
-#: services/webservice/pages/actions.py:892
+#: services/webservice/pages/actions.py:894
 #, python-brace-format
 msgid "Ban {player} from {server}"
 msgstr "Banear a {player} de {server}"
 
-#: services/webservice/pages/actions.py:893
+#: services/webservice/pages/actions.py:895
 msgid "removed and blocked from rejoining"
 msgstr "se le expulsa y se le bloquea para volver a entrar"
 
-#: services/webservice/pages/actions.py:894
+#: services/webservice/pages/actions.py:896
 #, python-brace-format
 msgid ""
 "<b>{player} is removed from {server} and cannot rejoin it</b> for as long"
@@ -709,7 +958,7 @@ msgstr ""
 "mientras el baneo siga vigente. Una duración vacía significa que nunca "
 "expira por sí solo."
 
-#: services/webservice/pages/actions.py:897
+#: services/webservice/pages/actions.py:899
 msgid ""
 "The ban is written to the ban list every installation syncs, so it holds "
 "wherever they connect from — not only on this server."
@@ -718,90 +967,90 @@ msgstr ""
 "instalaciones, así que se mantiene desde donde se conecte — no solo en "
 "este servidor."
 
-#: services/webservice/pages/actions.py:899
+#: services/webservice/pages/actions.py:901
 msgid "Ban player"
 msgstr "Banear jugador"
 
-#: services/webservice/pages/actions.py:900
+#: services/webservice/pages/actions.py:902
 #, python-brace-format
 msgid "Ban {player} — empty duration is permanent"
 msgstr "Banear a {player} — una duración vacía es permanente"
 
-#: services/webservice/pages/actions.py:902
-#: services/webservice/pages/actions.py:903
+#: services/webservice/pages/actions.py:904
+#: services/webservice/pages/actions.py:905
 msgid "Message"
 msgstr "Mensaje"
 
-#: services/webservice/pages/actions.py:907
+#: services/webservice/pages/actions.py:909
 msgid "Chat — a chat line in game, visible to everyone"
 msgstr "Chat — una línea de chat en el juego, visible para todos"
 
-#: services/webservice/pages/actions.py:908
+#: services/webservice/pages/actions.py:910
 #, python-brace-format
 msgid "Send a chat line to {player} on {server}"
 msgstr "Enviar una línea de chat a {player} en {server}"
 
-#: services/webservice/pages/actions.py:910
+#: services/webservice/pages/actions.py:912
 msgid "Popup — a private message in game"
 msgstr "Popup — un mensaje privado en el juego"
 
-#: services/webservice/pages/actions.py:911
+#: services/webservice/pages/actions.py:913
 #, python-brace-format
 msgid "Send a popup to {player} on {server}"
 msgstr "Enviar un popup a {player} en {server}"
 
-#: services/webservice/pages/actions.py:914
+#: services/webservice/pages/actions.py:916
 msgid "Mute"
 msgstr "Silenciar"
 
-#: services/webservice/pages/actions.py:915
+#: services/webservice/pages/actions.py:917
 msgid "Mute — they can no longer send chat"
 msgstr "Silenciar — ya no podrá enviar chat"
 
-#: services/webservice/pages/actions.py:916
+#: services/webservice/pages/actions.py:918
 #, python-brace-format
 msgid "Mute {player} on {server}"
 msgstr "Silenciar a {player} en {server}"
 
-#: services/webservice/pages/actions.py:917
+#: services/webservice/pages/actions.py:919
 msgid "they can no longer send chat"
 msgstr "ya no podrá enviar chat"
 
-#: services/webservice/pages/actions.py:919
+#: services/webservice/pages/actions.py:921
 msgid "Unmute"
 msgstr "Reactivar"
 
-#: services/webservice/pages/actions.py:920
+#: services/webservice/pages/actions.py:922
 msgid "Unmute — restore their chat"
 msgstr "Reactivar — restaura su chat"
 
-#: services/webservice/pages/actions.py:921
+#: services/webservice/pages/actions.py:923
 #, python-brace-format
 msgid "Unmute {player} on {server}"
 msgstr "Reactivar a {player} en {server}"
 
-#: services/webservice/pages/actions.py:922
+#: services/webservice/pages/actions.py:924
 msgid "restore their chat"
 msgstr "restaura su chat"
 
-#: services/webservice/pages/actions.py:1018
+#: services/webservice/pages/actions.py:1020
 #, python-brace-format
 msgid "Restart node — every server on {node} goes down while the node restarts"
 msgstr ""
 "Reiniciar nodo — todos los servidores de {node} se caen mientras el nodo "
 "se reinicia"
 
-#: services/webservice/pages/actions.py:1019
+#: services/webservice/pages/actions.py:1021
 #, python-brace-format
 msgid "Restart node {node}"
 msgstr "Reiniciar el nodo {node}"
 
-#: services/webservice/pages/actions.py:1020
+#: services/webservice/pages/actions.py:1022
 msgid "every server on the node goes down"
 msgstr "todos los servidores del nodo se caen"
 
-#: services/webservice/pages/actions.py:1021
-#: services/webservice/pages/actions.py:1053
+#: services/webservice/pages/actions.py:1023
+#: services/webservice/pages/actions.py:1055
 #, python-brace-format
 msgid ""
 "<b>Every server on {node} goes down with it</b> — {servers} server(s) and"
@@ -810,7 +1059,7 @@ msgstr ""
 "<b>Todos los servidores de {node} se caen con él</b> — ahora mismo hay "
 "{servers} servidor(es) y {players} jugador(es) en él."
 
-#: services/webservice/pages/actions.py:1023
+#: services/webservice/pages/actions.py:1025
 msgid ""
 "A node restart ends the bot process on that machine; the launcher there "
 "brings the node back, and its servers do not: they stay down until "
@@ -820,7 +1069,7 @@ msgstr ""
 "lanzador de allí recupera el nodo, pero sus servidores no: permanecen "
 "caídos hasta que alguien vuelva a iniciarlos."
 
-#: services/webservice/pages/actions.py:1026
+#: services/webservice/pages/actions.py:1028
 msgid ""
 "<b>This console runs inside that node</b> — restarting it ends the "
 "process serving this page, and this window has to be reloaded once the "
@@ -830,32 +1079,32 @@ msgstr ""
 "el proceso que sirve esta página, y habrá que recargar esta ventana "
 "cuando el nodo vuelva."
 
-#: services/webservice/pages/actions.py:1029
+#: services/webservice/pages/actions.py:1031
 msgid "Restart node"
 msgstr "Reiniciar nodo"
 
-#: services/webservice/pages/actions.py:1030
+#: services/webservice/pages/actions.py:1032
 #, python-brace-format
 msgid "Restart {node} — every server on it goes down"
 msgstr "Reiniciar {node} — todos sus servidores se caen"
 
-#: services/webservice/pages/actions.py:1033
+#: services/webservice/pages/actions.py:1035
 #, python-brace-format
 msgid ""
 "Shut down node — every server on {node} goes down and nothing brings it "
 "back"
 msgstr "Apagar nodo — todos los servidores de {node} se caen y nada lo recupera"
 
-#: services/webservice/pages/actions.py:1034
+#: services/webservice/pages/actions.py:1036
 #, python-brace-format
 msgid "Shut down node {node}"
 msgstr "Apagar el nodo {node}"
 
-#: services/webservice/pages/actions.py:1035
+#: services/webservice/pages/actions.py:1037
 msgid "every server on the node goes down, for good"
 msgstr "todos los servidores del nodo se caen, definitivamente"
 
-#: services/webservice/pages/actions.py:1036
+#: services/webservice/pages/actions.py:1038
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
@@ -864,7 +1113,7 @@ msgstr ""
 "<b>Se caen {servers} servidor(es) en {node} y se desconectan {players} "
 "jugador(es), y nada recupera el nodo.</b>"
 
-#: services/webservice/pages/actions.py:1038
+#: services/webservice/pages/actions.py:1040
 msgid ""
 "A node shutdown ends the bot process on that machine for good: somebody "
 "has to start the node THERE, at the machine. A node that is down cannot "
@@ -875,7 +1124,7 @@ msgstr ""
 "Un nodo caído no se puede iniciar desde este navegador, y sus servidores "
 "permanecen caídos con él."
 
-#: services/webservice/pages/actions.py:1042
+#: services/webservice/pages/actions.py:1044
 msgid ""
 "<b>This console runs inside that node</b> — shutting it down ends the "
 "process serving this page, and nothing brings it back until somebody "
@@ -885,20 +1134,20 @@ msgstr ""
 "proceso que sirve esta página, y nada lo recupera hasta que alguien "
 "inicie el nodo en esa máquina."
 
-#: services/webservice/pages/actions.py:1045
+#: services/webservice/pages/actions.py:1047
 msgid "Shut down node"
 msgstr "Apagar nodo"
 
-#: services/webservice/pages/actions.py:1046
+#: services/webservice/pages/actions.py:1048
 #, python-brace-format
 msgid "Shut down {node} — every server on it goes down"
 msgstr "Apagar {node} — todos sus servidores se caen"
 
-#: services/webservice/pages/actions.py:1048
+#: services/webservice/pages/actions.py:1050
 msgid "Upgrade"
 msgstr "Actualizar"
 
-#: services/webservice/pages/actions.py:1049
+#: services/webservice/pages/actions.py:1051
 #, python-brace-format
 msgid ""
 "Upgrade node — update DCSServerBot on {node} and restart it; every server"
@@ -907,16 +1156,16 @@ msgstr ""
 "Actualizar nodo — actualiza DCSServerBot en {node} y lo reinicia; todos "
 "sus servidores se caen"
 
-#: services/webservice/pages/actions.py:1051
+#: services/webservice/pages/actions.py:1053
 #, python-brace-format
 msgid "Upgrade node {node}"
 msgstr "Actualizar el nodo {node}"
 
-#: services/webservice/pages/actions.py:1052
+#: services/webservice/pages/actions.py:1054
 msgid "update and restart, every server goes down"
 msgstr "actualiza y reinicia, todos los servidores se caen"
 
-#: services/webservice/pages/actions.py:1055
+#: services/webservice/pages/actions.py:1057
 msgid ""
 "The node is updated and restarted. The console offers Upgrade ONLY while "
 "the node itself reports an update pending — it asks every node in the "
@@ -928,7 +1177,7 @@ msgstr ""
 " a cada nodo en segundo plano, nunca al renderizar una página, y este "
 "control desaparece de nuevo en cuanto no hay nada que actualizar."
 
-#: services/webservice/pages/actions.py:1059
+#: services/webservice/pages/actions.py:1061
 msgid ""
 "<b>This console runs inside that node</b> — upgrading it ends the process"
 " serving this page, and this window has to be reloaded once the node is "
@@ -938,25 +1187,25 @@ msgstr ""
 "el proceso que sirve esta página, y habrá que recargar esta ventana "
 "cuando el nodo vuelva."
 
-#: services/webservice/pages/actions.py:1062
+#: services/webservice/pages/actions.py:1064
 msgid "Upgrade node"
 msgstr "Actualizar nodo"
 
-#: services/webservice/pages/actions.py:1063
+#: services/webservice/pages/actions.py:1065
 #, python-brace-format
 msgid "Upgrade {node} — every server on it goes down"
 msgstr "Actualizar {node} — todos sus servidores se caen"
 
-#: services/webservice/pages/actions.py:1078
-#: services/webservice/pages/actions.py:1102
+#: services/webservice/pages/actions.py:1080
+#: services/webservice/pages/actions.py:1104
 msgid "Take servers offline"
 msgstr "Poner servidores fuera de línea"
 
-#: services/webservice/pages/actions.py:1081
+#: services/webservice/pages/actions.py:1083
 msgid "Also mark them as maintenance"
 msgstr "Marcarlos también como mantenimiento"
 
-#: services/webservice/pages/actions.py:1083
+#: services/webservice/pages/actions.py:1085
 msgid ""
 "On by default: without it a scheduled start can bring the servers back "
 "while the node is \"offline\"."
@@ -964,12 +1213,12 @@ msgstr ""
 "Activado por defecto: sin él, un arranque programado puede devolver los "
 "servidores mientras el nodo está «fuera de línea»."
 
-#: services/webservice/pages/actions.py:1085
+#: services/webservice/pages/actions.py:1087
 #, python-brace-format
 msgid "Take the servers on {node} offline?"
 msgstr "¿Poner fuera de línea los servidores de {node}?"
 
-#: services/webservice/pages/actions.py:1086
+#: services/webservice/pages/actions.py:1088
 #, python-brace-format
 msgid ""
 "Take servers offline — every server on {node} that is up is marked as "
@@ -980,16 +1229,16 @@ msgstr ""
 "están en marcha se marcan como mantenimiento y se detienen; sus jugadores"
 " se desconectan, mientras los servicios del nodo siguen activos"
 
-#: services/webservice/pages/actions.py:1089
+#: services/webservice/pages/actions.py:1091
 #, python-brace-format
 msgid "Take the servers on {node} out of service"
 msgstr "Poner los servidores de {node} fuera de servicio"
 
-#: services/webservice/pages/actions.py:1090
+#: services/webservice/pages/actions.py:1092
 msgid "marks the node's servers as maintenance and stops them"
 msgstr "marca los servidores del nodo como mantenimiento y los detiene"
 
-#: services/webservice/pages/actions.py:1091
+#: services/webservice/pages/actions.py:1093
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
@@ -1003,7 +1252,7 @@ msgstr ""
 "permitir que un arranque programado los recupere mientras el nodo está "
 "«fuera de línea»."
 
-#: services/webservice/pages/actions.py:1095
+#: services/webservice/pages/actions.py:1097
 msgid ""
 "Only the SERVERS on the node change. The node itself keeps running, so "
 "its services — including this console — stay up, and bringing the node "
@@ -1021,7 +1270,7 @@ msgstr ""
 "eso; si la desmarcas no se escribe ninguna marca — los servidores se "
 "detienen y nada impide que el programador vuelva a iniciarlos."
 
-#: services/webservice/pages/actions.py:1103
+#: services/webservice/pages/actions.py:1105
 #, python-brace-format
 msgid ""
 "Take {node} offline — {servers} server(s) go down, {players} player(s) "
@@ -1030,18 +1279,17 @@ msgstr ""
 "Poner {node} fuera de línea — se caen {servers} servidor(es), se "
 "desconectan {players} jugador(es)"
 
-#: services/webservice/pages/actions.py:1111
-#: services/webservice/pages/actions.py:1129
+#: services/webservice/pages/actions.py:1113
+#: services/webservice/pages/actions.py:1131
 msgid "Bring servers online"
 msgstr "Poner servidores en línea"
 
-#: services/webservice/pages/actions.py:1113
+#: services/webservice/pages/actions.py:1115
 #, python-brace-format
 msgid "Bring the servers on {node} back online?"
 msgstr "¿Volver a poner en línea los servidores de {node}?"
 
-#: services/webservice/pages/actions.py:1114
-#, fuzzy
+#: services/webservice/pages/actions.py:1116
 msgid ""
 "Bring servers online — clear the maintenance flags this node's power-off "
 "set; the scheduler then starts the servers it stopped. A flag set by hand"
@@ -1051,13 +1299,12 @@ msgstr ""
 " apagado de este nodo e inicia los servidores que detuvo; una marca "
 "puesta a mano no se toca"
 
-#: services/webservice/pages/actions.py:1117
+#: services/webservice/pages/actions.py:1119
 #, python-brace-format
 msgid "Bring the servers on {node} back into service"
 msgstr "Volver a poner en servicio los servidores de {node}"
 
-#: services/webservice/pages/actions.py:1118
-#, fuzzy
+#: services/webservice/pages/actions.py:1120
 msgid ""
 "ends the maintenance this node's power-off set — the scheduler starts "
 "what it stopped"
@@ -1065,8 +1312,7 @@ msgstr ""
 "finaliza el mantenimiento que dejó el apagado de este nodo e inicia lo "
 "que detuvo"
 
-#: services/webservice/pages/actions.py:1121
-#, fuzzy
+#: services/webservice/pages/actions.py:1123
 msgid ""
 "This reverts EXACTLY the last power-off on this node: it clears only the "
 "maintenance flags that operation set, and the servers it stopped are left"
@@ -1086,8 +1332,8 @@ msgstr ""
 "borrar ninguna marca — el mensaje dice cuál de las dos cosas ocurrió. Los"
 " servicios del nodo nunca se tocaron."
 
-#: services/webservice/pages/actions.py:1130
-#, fuzzy, python-brace-format
+#: services/webservice/pages/actions.py:1132
+#, python-brace-format
 msgid ""
 "Bring {node} online — the flags its power-off set are cleared, and the "
 "scheduler starts what it stopped"
@@ -1095,44 +1341,60 @@ msgstr ""
 "Poner {node} en línea — se borran las marcas que dejó su apagado y se "
 "inicia lo que detuvo"
 
-#: services/webservice/pages/actions.py:1701
+#: services/webservice/pages/actions.py:1600
+#: services/webservice/pages/server_detail.py:188
+#: services/webservice/templates/server_detail.html:151
+msgid "Configuration"
+msgstr "Configuración"
+
+#: services/webservice/pages/actions.py:1601
+#, python-brace-format
+msgid "Configuration — open {server}'s own settings"
+msgstr "Configuración — abrir los ajustes propios de {server}"
+
+#: services/webservice/pages/actions.py:1603
+#, python-brace-format
+msgid "Open the configuration of server {server}"
+msgstr "Abrir la configuración del servidor {server}"
+
+#: services/webservice/pages/actions.py:1736
 #, python-brace-format
 msgid "More controls for {server}"
 msgstr "Más controles para {server}"
 
-#: services/webservice/pages/actions.py:1981
+#: services/webservice/pages/actions.py:2057
 #, python-brace-format
 msgid "Controls for node {node}"
 msgstr "Controles para el nodo {node}"
 
-#: services/webservice/pages/actions.py:2177
+#: services/webservice/pages/actions.py:2259
 #, python-brace-format
 msgid "Controls for {player} on {server}"
 msgstr "Controles para {player} en {server}"
 
-#: services/webservice/pages/actions.py:2312
+#: services/webservice/pages/actions.py:2394
 #, python-brace-format
 msgid "{label} {target}?"
 msgstr "{label} {target}?"
 
-#: services/webservice/pages/actions.py:2365
-#: services/webservice/pages/actions.py:2462
-#: services/webservice/pages/actions.py:2617
-#: services/webservice/pages/actions.py:3992
+#: services/webservice/pages/actions.py:2447
+#: services/webservice/pages/actions.py:2544
+#: services/webservice/pages/actions.py:2699
+#: services/webservice/pages/actions.py:4094
 msgid "confirm"
 msgstr "confirmar"
 
-#: services/webservice/pages/actions.py:2365
-#: services/webservice/pages/actions.py:2617
-#: services/webservice/pages/actions.py:3992
+#: services/webservice/pages/actions.py:2447
+#: services/webservice/pages/actions.py:2699
+#: services/webservice/pages/actions.py:4094
 msgid "options"
 msgstr "opciones"
 
-#: services/webservice/pages/actions.py:2444
+#: services/webservice/pages/actions.py:2526
 msgid "Days (optional)"
 msgstr "Días (opcional)"
 
-#: services/webservice/pages/actions.py:2445
+#: services/webservice/pages/actions.py:2527
 msgid ""
 "Empty = permanent — the ban does not expire on its own. 7 means seven "
 "days from now."
@@ -1140,46 +1402,58 @@ msgstr ""
 "Vacío = permanente — el baneo no expira por sí solo. 7 significa siete "
 "días a partir de ahora."
 
-#: services/webservice/pages/actions.py:2593
+#: services/webservice/pages/actions.py:2675
 #, python-brace-format
 msgid "Last update check: {when}."
 msgstr "Última comprobación de actualizaciones: {when}."
 
-#: services/webservice/pages/actions.py:2606
+#: services/webservice/pages/actions.py:2688
 #, python-brace-format
 msgid "{label} (node)"
 msgstr "{label} (nodo)"
 
-#: services/webservice/pages/actions.py:3913
+#: services/webservice/pages/actions.py:2782
+msgid "Not authorized (this target is outside your scope)."
+msgstr "No autorizado (este objetivo está fuera de tu ámbito)."
+
+#: services/webservice/pages/actions.py:2789
+msgid "Not authorized (no signed-in identity)."
+msgstr "No autorizado (no hay una identidad con sesión iniciada)."
+
+#: services/webservice/pages/actions.py:2790
+msgid "Not authorized (this action must be confirmed through its dialog)."
+msgstr "No autorizado (esta acción debe confirmarse a través de su diálogo)."
+
+#: services/webservice/pages/actions.py:4015
 msgid "Mission file already on this server"
 msgstr "Archivo de misión que ya está en este servidor"
 
-#: services/webservice/pages/actions.py:3915
+#: services/webservice/pages/actions.py:4017
 msgid "Only files NOT already in the rotation are offered."
 msgstr "Solo se ofrecen archivos que NO están ya en la rotación."
 
-#: services/webservice/pages/actions.py:3920
+#: services/webservice/pages/actions.py:4022
 #, python-brace-format
 msgid "Add a mission to {server}?"
 msgstr "¿Añadir una misión a {server}?"
 
-#: services/webservice/pages/actions.py:3947
-#: services/webservice/pages/actions.py:3972
+#: services/webservice/pages/actions.py:4049
+#: services/webservice/pages/actions.py:4074
 #, python-brace-format
 msgid "Remove {mission} from the rotation?"
 msgstr "¿Quitar {mission} de la rotación?"
 
-#: services/webservice/pages/actions.py:3951
+#: services/webservice/pages/actions.py:4053
 #, python-brace-format
 msgid "Remove {count} missions from {server}?"
 msgstr "¿Quitar {count} misiones de {server}?"
 
-#: services/webservice/pages/actions.py:3953
+#: services/webservice/pages/actions.py:4055
 #, python-brace-format
 msgid "Remove {count} missions"
 msgstr "Quitar {count} misiones"
 
-#: services/webservice/pages/actions.py:3956
+#: services/webservice/pages/actions.py:4058
 #, python-brace-format
 msgid "<b>The running mission ({mission}) cannot be removed.</b>"
 msgstr "<b>No se puede quitar la misión en curso ({mission}).</b>"
@@ -1213,7 +1487,7 @@ msgstr ""
 "servidor está caído."
 
 #: services/webservice/pages/dashboard.py:176
-#: services/webservice/pages/server_detail.py:1382
+#: services/webservice/pages/server_detail.py:1464
 msgid "No players match this search."
 msgstr "Ningún jugador coincide con esta búsqueda."
 
@@ -1237,67 +1511,80 @@ msgstr "%(count)d servidor(es) en pausa: %(names)s"
 msgid "%(count)d ERROR line(s) in the visible log"
 msgstr "%(count)d línea(s) ERROR en el registro visible"
 
-#: services/webservice/pages/dashboard.py:482
+#: services/webservice/pages/dashboard.py:375
+#, python-brace-format
+msgid "{count} node(s) offline"
+msgstr "{count} nodos sin conexión"
+
+#: services/webservice/pages/dashboard.py:379
+#, python-brace-format
+msgid "{count} server(s) not running"
+msgstr "{count} servidores parados"
+
+#: services/webservice/pages/dashboard.py:491
 #, python-brace-format
 msgid "bottom when ≤ {rows} rows, right when more"
 msgstr "abajo con ≤ {rows} filas, a la derecha con más"
 
-#: services/webservice/pages/dashboard.py:963
+#: services/webservice/pages/dashboard.py:761
+msgid "Not authorized (this server is outside your scope)."
+msgstr "No autorizado (este servidor está fuera de tu ámbito)."
+
+#: services/webservice/pages/dashboard.py:973
 msgid "no node"
 msgstr "sin nodo"
 
-#: services/webservice/pages/dashboard.py:964
-#: services/webservice/templates/_table.html:71
+#: services/webservice/pages/dashboard.py:974
+#: services/webservice/templates/_table.html:77
 msgid "master"
 msgstr "maestro"
 
 # ---------------------------------------------------------- card I8: the last
 # four literals
-#: services/webservice/pages/dashboard.py:964
+#: services/webservice/pages/dashboard.py:974
 msgid "agent"
 msgstr "agente"
 
-#: services/webservice/pages/dashboard.py:965
+#: services/webservice/pages/dashboard.py:975
 msgid "live state"
 msgstr "estado en vivo"
 
-#: services/webservice/pages/dashboard.py:965
+#: services/webservice/pages/dashboard.py:975
 msgid "no live state"
 msgstr "sin estado en vivo"
 
-#: services/webservice/pages/dashboard.py:977
+#: services/webservice/pages/dashboard.py:987
 #, python-format
 msgid "%(online)d/%(total)d nodes online"
 msgstr "%(online)d/%(total)d nodos en línea"
 
-#: services/webservice/pages/dashboard.py:979
+#: services/webservice/pages/dashboard.py:989
 #, python-format
 msgid "%(running)d/%(total)d servers up"
 msgstr "%(running)d/%(total)d servidores en marcha"
 
-#: services/webservice/pages/dashboard.py:981
+#: services/webservice/pages/dashboard.py:991
 #, python-format
 msgid "%(count)d players online"
 msgstr "%(count)d jugadores en línea"
 
-#: services/webservice/pages/instances.py:29
-#: services/webservice/pages/instances.py:31
-#: services/webservice/readmodels/views.py:109
-#: services/webservice/readmodels/views.py:118
+#: services/webservice/pages/instances.py:28
+#: services/webservice/readmodels/views.py:115
+#: services/webservice/readmodels/views.py:124
 msgid "Instances"
 msgstr "Instancias"
 
-#: services/webservice/pages/instances.py:30
+#: services/webservice/pages/instances.py:29
 msgid "Every instance the nodes carry, with its DCS and WebGUI ports. Read-only."
 msgstr ""
 "Cada instancia que alojan los nodos, con sus puertos DCS y WebGUI. Solo "
 "lectura."
 
-#: services/webservice/pages/logs.py:30 services/webservice/pages/logs.py:33
+#: services/webservice/pages/logs.py:29
 msgid "Logs"
 msgstr "Registros"
 
-#: services/webservice/pages/logs.py:31
+#: services/webservice/pages/logs.py:30
 msgid ""
 "The bot log, full width, with the same level filter and placement as the "
 "dashboard."
@@ -1305,13 +1592,269 @@ msgstr ""
 "El registro del bot, a todo el ancho, con el mismo filtro de nivel y la "
 "misma ubicación que en el panel."
 
-#: services/webservice/pages/nodes.py:103
-#: services/webservice/pages/nodes.py:107
-#: services/webservice/readmodels/views.py:118
+#: services/webservice/pages/node_settings.py:101
+msgid "Node settings"
+msgstr "Ajustes del nodo"
+
+#: services/webservice/pages/node_settings.py:102
+msgid ""
+"This node's block of nodes.yaml — the machine's own settings. A save "
+"applies on the next bot restart."
+msgstr ""
+"El bloque de este nodo en nodes.yaml — los ajustes de la máquina. Un "
+"guardado se aplica en el próximo reinicio del bot."
+
+#: services/webservice/pages/node_settings.py:157
+#: services/webservice/pages/node_settings.py:285
+#: services/webservice/pages/settings.py:154
+#: services/webservice/pages/settings.py:158
+#: services/webservice/pages/settings.py:283
+msgid "Settings"
+msgstr "Ajustes"
+
+#: services/webservice/pages/node_settings.py:158
+#, python-brace-format
+msgid "Settings — open {node}'s own settings (nodes.yaml)"
+msgstr "Ajustes — abrir los ajustes propios de {node} (nodes.yaml)"
+
+#: services/webservice/pages/node_settings.py:160
+#, python-brace-format
+msgid "Open the settings of node {node}"
+msgstr "Abrir los ajustes del nodo {node}"
+
+#: services/webservice/pages/node_settings.py:286
+msgid "Extensions"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py:288
+msgid "extension"
+msgstr "Extensión"
+
+#: services/webservice/pages/node_settings.py:293
+msgid ""
+"<b>Node-wide</b> is this node's own block — its settings and the "
+"extensions every instance starts from. An instance tab beside it changes "
+"only that instance."
+msgstr ""
+"<b>Todo el nodo</b> es el bloque propio de este nodo — sus ajustes y las "
+"extensiones de las que parte cada instancia. Una pestaña de instancia al "
+"lado cambia solo esa instancia."
+
+#: services/webservice/pages/node_settings.py:296
+#, python-format
+msgid ""
+"This block changes only <b>%(scope)s</b>. It INHERITS everything it does "
+"not set from the node's own block — nothing is copied."
+msgstr ""
+"Este bloque cambia solo <b>%(scope)s</b>. HEREDA del bloque propio del "
+"nodo todo lo que no define — no se copia nada."
+
+#: services/webservice/pages/node_settings.py:314
+msgid ""
+"No change was saved: the form named a setting outside the tab you were "
+"editing, so saving it would have written into a scope you did not open. "
+"Reload the page, open that tab, and try again — nothing was written."
+msgstr ""
+"No se guardó nada: el formulario nombró un ajuste fuera de la pestaña que"
+" estabas editando, así que guardarlo habría escrito en un ámbito que no "
+"abriste. Vuelve a cargar la página, abre esa pestaña e inténtalo de nuevo"
+" — no se escribió nada."
+
+#: services/webservice/pages/node_settings.py:320
+msgid ""
+"No change was saved: this page did not name a tab of this node, so there "
+"is nothing to write. Reload the page and pick a tab — nothing was "
+"written."
+msgstr ""
+"No se guardó nada: esta página no nombró ninguna pestaña de este nodo, "
+"así que no hay nada que escribir. Vuelve a cargar la página y elige una "
+"pestaña — no se escribió nada."
+
+#: services/webservice/pages/node_settings.py:326
+msgid ""
+"No change was saved: this node has no block in nodes.yaml yet, so there "
+"is nothing to save. Add the node in Expert Mode first — nothing was "
+"written."
+msgstr ""
+"No se guardó nada: este nodo aún no tiene un bloque en nodes.yaml, así "
+"que no hay nada que guardar. Añade el nodo primero en el modo experto — "
+"no se escribió nada."
+
+#: services/webservice/pages/node_settings.py:333
+msgid ""
+"This extension is not configured for this scope yet. The form never "
+"creates it — add its block in Expert Mode, then it becomes editable here."
+msgstr ""
+"Esta extensión aún no está configurada para este ámbito. El formulario "
+"nunca la crea — añade su bloque en el modo experto, y entonces se podrá "
+"editar aquí."
+
+#: services/webservice/pages/node_settings.py:373
+#: services/webservice/pages/settings.py:347
+msgid "Configured"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py:374
+#: services/webservice/pages/settings.py:348
+msgid "Not configured"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py:375
+#: services/webservice/pages/settings.py:358
+msgid "Turn on"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py:376
+#: services/webservice/pages/settings.py:357
+msgid "Turn off"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py:377
+msgid "Keep it"
+msgstr "Mantenerlo"
+
+#: services/webservice/pages/node_settings.py:385
+msgid "Enabled"
+msgstr "Activado"
+
+#: services/webservice/pages/node_settings.py:386
+msgid "Disabled"
+msgstr "Desactivado"
+
+#: services/webservice/pages/node_settings.py:389
+#, python-format
+msgid ""
+"Turned off the default extension %(name)s for this scope — it will not "
+"load there."
+msgstr ""
+"Se desactivó la extensión predeterminada %(name)s en este ámbito — no se "
+"cargará ahí."
+
+#: services/webservice/pages/node_settings.py:391
+#, python-format
+msgid "Turned on the default extension %(name)s for this scope."
+msgstr "Se activó la extensión predeterminada %(name)s en este ámbito."
+
+#: services/webservice/pages/node_settings.py:395
+msgid ""
+"Turning this off REMOVES this extension's block from this scope. "
+"Everything it holds right now is discarded:"
+msgstr ""
+"Si lo desactivas, se ELIMINA el bloque de esta extensión de este ámbito. "
+"Todo lo que contiene ahora mismo se descarta:"
+
+#: services/webservice/pages/node_settings.py:400
+#, python-format
+msgid "Added the extension %(name)s to this scope as an empty block."
+msgstr "Se añadió la extensión %(name)s a este ámbito como un bloque vacío."
+
+#: services/webservice/pages/node_settings.py:401
+#, python-format
+msgid "Removed the extension %(name)s from this scope."
+msgstr "Se eliminó la extensión %(name)s de este ámbito."
+
+#: services/webservice/pages/node_settings.py:403
+#, python-format
+msgid ""
+"The extension %(name)s is already configured for this scope — nothing was"
+" added."
+msgstr ""
+"La extensión %(name)s ya está configurada para este ámbito — no se añadió"
+" nada."
+
+#: services/webservice/pages/node_settings.py:405
+#, python-format
+msgid ""
+"The extension %(name)s is not configured for this scope — nothing was "
+"removed."
+msgstr ""
+"La extensión %(name)s no está configurada para este ámbito — no se "
+"eliminó nada."
+
+#: services/webservice/pages/node_settings.py:411
+msgid ""
+"Every extension of this scope is configured already — there is nothing "
+"left to add."
+msgstr ""
+"Todas las extensiones de este ámbito ya están configuradas — no queda "
+"nada que añadir."
+
+#: services/webservice/pages/node_settings.py:415
+msgid ""
+"No change was saved: this page did not name an extension of the tab you "
+"were editing, so there is nothing to write. Reload the page and try again"
+" — nothing was written."
+msgstr ""
+"No se guardó ningún cambio: esta página no nombró una extensión de la "
+"pestaña que estabas editando, así que no hay nada que escribir. Recarga "
+"la página e inténtalo de nuevo — no se escribió nada."
+
+#: services/webservice/pages/node_settings.py:422
+msgid ""
+"Nothing was removed: this removal did not carry the acknowledgement the "
+"warning produces, so the extension's block was left exactly as it was. "
+"Open the extension's switch, read the warning that shows what will be "
+"discarded, and confirm from there."
+msgstr ""
+"No se eliminó nada: esta eliminación no incluía la confirmación que "
+"produce la advertencia, así que el bloque de la extensión quedó "
+"exactamente como estaba. Abre el interruptor de la extensión, lee la "
+"advertencia que muestra lo que se descartará y confirma desde ahí."
+
+#: services/webservice/pages/node_settings.py:527
+msgid ""
+"This extension is not configured for this node yet, so there is nothing "
+"to edit here. Turn it on from the node page first."
+msgstr ""
+"Esta extensión aún no está configurada para este nodo, así que no hay "
+"nada que editar aquí. Actívala primero en la página del nodo."
+
+#: services/webservice/pages/node_settings.py:532
+msgid ""
+"Each tab is this extension's block for one scope — the node's own block, "
+"then one per instance that configures it. Nothing is copied between them."
+msgstr ""
+"Cada pestaña es el bloque de esta extensión para un ámbito: el bloque "
+"propio del nodo y luego uno por cada instancia que la configura. No se "
+"copia nada entre ellos."
+
+#: services/webservice/pages/node_settings.py:1067
+msgid "No nodes.yaml on this install, so this node has no settings to show."
+msgstr ""
+"No hay nodes.yaml en esta instalación, así que este nodo no tiene ajustes"
+" que mostrar."
+
+#: services/webservice/pages/node_settings.py:1072
+#: services/webservice/pages/node_settings.py:1618
+msgid "This node has no block in nodes.yaml yet."
+msgstr "Este nodo aún no tiene un bloque en nodes.yaml."
+
+#: services/webservice/pages/node_settings.py:1407
+#: services/webservice/pages/node_settings.py:1555
+#: services/webservice/pages/node_settings.py:1797
+#: services/webservice/pages/settings.py:2016
+#: services/webservice/pages/settings.py:2146
+msgid ""
+"This page is stale — the file changed on disk since it was rendered. "
+"Reload and try again."
+msgstr ""
+"Esta página está desactualizada: el archivo cambió en disco desde que se "
+"renderizó. Recarga e inténtalo de nuevo."
+
+#: services/webservice/pages/node_settings.py:1612
+msgid "No nodes.yaml on this install, so this extension has nothing to show."
+msgstr ""
+"No hay nodes.yaml en esta instalación, así que esta extensión no tiene "
+"nada que mostrar."
+
+#: services/webservice/pages/nodes.py:123
+#: services/webservice/pages/nodes.py:127
+#: services/webservice/readmodels/views.py:124
+#: services/webservice/templates/node_page.html:30
 msgid "Nodes"
 msgstr "Nodos"
 
-#: services/webservice/pages/nodes.py:104
+#: services/webservice/pages/nodes.py:124
 msgid ""
 "Every node in the cluster, with the instances and servers it carries. "
 "Acting on a node takes every server on it down with it, so check the "
@@ -1321,28 +1864,87 @@ msgstr ""
 "sobre un nodo se lleva consigo todos sus servidores, así que revisa los "
 "servidores antes de actuar."
 
-#: services/webservice/pages/nodes.py:166
+#: services/webservice/pages/nodes.py:168
+msgid "View log"
+msgstr "Ver registro"
+
+#: services/webservice/pages/nodes.py:175
+#, python-brace-format
+msgid "No log file yet for node '{node}' (looked for '{path}')."
+msgstr ""
+"Aún no hay archivo de registro para el nodo '{node}' (se buscó en "
+"'{path}')."
+
+#: services/webservice/pages/nodes.py:176
+#, python-brace-format
+msgid "Node '{node}' could not read its own log file: permission denied."
+msgstr ""
+"El nodo '{node}' no pudo leer su propio archivo de registro: permiso "
+"denegado."
+
+#: services/webservice/pages/nodes.py:178
+#, python-brace-format
+msgid "Node '{node}' did not answer in time, so its log was not read."
+msgstr "El nodo '{node}' no respondió a tiempo, así que su registro no se leyó."
+
+#: services/webservice/pages/nodes.py:179
+#, python-brace-format
+msgid "Node '{node}' could not hand over its log ({error})."
+msgstr "El nodo '{node}' no pudo entregar su registro ({error})."
+
+#: services/webservice/pages/nodes.py:180
+#, python-brace-format
+msgid "Node '{node}' answered with a failure code instead of its log."
+msgstr "El nodo '{node}' respondió con un código de error en lugar de su registro."
+
+#: services/webservice/pages/nodes.py:213
 msgid "Download log"
 msgstr "Descargar registro"
 
-#: services/webservice/pages/nodes.py:169
+#: services/webservice/pages/nodes.py:216
 #, python-brace-format
 msgid "Download log — hand over {node}'s own bot log file as a download"
 msgstr ""
 "Descargar registro — entrega el propio archivo de registro del bot de "
 "{node} como descarga"
 
-#: services/webservice/pages/nodes.py:171
+#: services/webservice/pages/nodes.py:218
 #, python-brace-format
 msgid "Download the bot log of node {node}"
 msgstr "Descargar el registro del bot del nodo {node}"
 
+#: services/webservice/pages/nodes.py:252
+#, python-brace-format
+msgid "View log — follow {node}'s own bot log file while this page is open"
+msgstr ""
+"Ver registro — sigue el propio registro del bot de {node} mientras esta "
+"página esté abierta"
+
+#: services/webservice/pages/nodes.py:255
+#, python-brace-format
+msgid "View the bot log of node {node}"
+msgstr "Ver el registro del bot del nodo {node}"
+
+#: services/webservice/pages/nodes.py:582
+#: services/webservice/pages/server_detail.py:1039
+msgid "An offset or a behind position is required."
+msgstr "Se requiere un offset o una posición behind."
+
+#: services/webservice/pages/nodes.py:589
+#: services/webservice/pages/server_detail.py:1064
+msgid "The offset must be a non-negative whole number."
+msgstr "El offset debe ser un número entero no negativo."
+
+#: services/webservice/pages/nodes.py:596
+#: services/webservice/pages/server_detail.py:1083
+msgid "The behind position must be a non-negative whole number."
+msgstr "La posición behind debe ser un número entero no negativo."
+
 #: services/webservice/pages/players.py:31
-#: services/webservice/pages/players.py:34
-#: services/webservice/pages/server_detail.py:185
-#: services/webservice/readmodels/views.py:108
-#: services/webservice/readmodels/views.py:110
-#: services/webservice/readmodels/views.py:118
+#: services/webservice/pages/server_detail.py:187
+#: services/webservice/readmodels/views.py:113
+#: services/webservice/readmodels/views.py:116
+#: services/webservice/readmodels/views.py:124
 msgid "Players"
 msgstr "Jugadores"
 
@@ -1355,7 +1957,7 @@ msgstr ""
 "nombre o UCID. Una fila sobre la que puedes actuar ofrece Mensaje: un "
 "popup en el juego o una línea de chat."
 
-#: services/webservice/pages/server_detail.py:141
+#: services/webservice/pages/server_detail.py:143
 msgid ""
 "The Events tab is only offered while the debug plugin is active for this "
 "server."
@@ -1363,31 +1965,53 @@ msgstr ""
 "La pestaña 'Eventos' solo se ofrece mientras el plugin debug está activo "
 "para este servidor."
 
-#: services/webservice/pages/server_detail.py:185
-#: services/webservice/templates/server_detail.html:665
+#: services/webservice/pages/server_detail.py:187
+#: services/webservice/templates/server_detail.html:701
 msgid "Overview"
 msgstr "Resumen"
 
-#: services/webservice/pages/server_detail.py:185
-#: services/webservice/templates/server_detail.html:411
-#: services/webservice/templates/server_detail.html:620
+#: services/webservice/pages/server_detail.py:187
+#: services/webservice/templates/server_detail.html:445
+#: services/webservice/templates/server_detail.html:651
 msgid "Missions"
 msgstr "Misiones"
 
-#: services/webservice/pages/server_detail.py:186
+#: services/webservice/pages/server_detail.py:188
 msgid "Log"
 msgstr "Registro"
 
-#: services/webservice/pages/server_detail.py:186
-#: services/webservice/templates/server_detail.html:660
+#: services/webservice/pages/server_detail.py:188
+#: services/webservice/templates/server_detail.html:690
 msgid "Events"
 msgstr "Eventos"
 
-#: services/webservice/pages/server_detail.py:186
-msgid "Configuration"
-msgstr "Configuración"
+#: services/webservice/pages/server_detail.py:218
+#: services/webservice/templates/server_detail.html:708
+msgid "Map"
+msgstr "Mapa"
 
-#: services/webservice/pages/server_detail.py:572
+#: services/webservice/pages/server_detail.py:219
+#: services/webservice/templates/server_detail.html:713
+msgid "Temperature"
+msgstr "Temperatura"
+
+#: services/webservice/pages/server_detail.py:220
+#: services/webservice/pages/server_detail.py:221
+#: services/webservice/templates/server_detail.html:715
+msgid "Weather"
+msgstr "Clima"
+
+#: services/webservice/pages/server_detail.py:222
+#: services/webservice/templates/server_detail.html:714
+msgid "Wind"
+msgstr "Viento"
+
+#: services/webservice/pages/server_detail.py:223
+#: services/webservice/templates/server_detail.html:709
+msgid "Runtime"
+msgstr "Tiempo de actividad"
+
+#: services/webservice/pages/server_detail.py:647
 #, python-brace-format
 msgid ""
 "Node '{node}' is offline or unknown, so its log cannot be read from this "
@@ -1396,29 +2020,29 @@ msgstr ""
 "El nodo '{node}' está desconectado o es desconocido, así que su registro "
 "no puede leerse desde esta consola."
 
-#: services/webservice/pages/server_detail.py:577
+#: services/webservice/pages/server_detail.py:652
 #, python-brace-format
 msgid "Node '{node}' cannot read this server's log file (permission denied)."
 msgstr ""
 "El nodo '{node}' no puede leer el archivo de registro de este servidor "
 "(permiso denegado)."
 
-#: services/webservice/pages/server_detail.py:579
+#: services/webservice/pages/server_detail.py:654
 #, python-brace-format
 msgid "Node '{node}' did not answer in time, so the log was not read."
 msgstr "El nodo '{node}' no respondió a tiempo, así que el registro no se leyó."
 
-#: services/webservice/pages/server_detail.py:580
+#: services/webservice/pages/server_detail.py:655
 #, python-brace-format
 msgid "Node '{node}' could not hand over the log ({error})."
 msgstr "El nodo '{node}' no pudo entregar el registro ({error})."
 
-#: services/webservice/pages/server_detail.py:581
+#: services/webservice/pages/server_detail.py:656
 #, python-brace-format
 msgid "Node '{node}' answered with a failure code instead of the log."
 msgstr "El nodo '{node}' respondió con un código de error en lugar del registro."
 
-#: services/webservice/pages/server_detail.py:584
+#: services/webservice/pages/server_detail.py:659
 #, python-brace-format
 msgid ""
 "No log directory yet for this server (looked for '{directory}' on node "
@@ -1427,50 +2051,39 @@ msgstr ""
 "Aún no hay directorio de registros para este servidor (se buscó "
 "'{directory}' en el nodo '{node}')."
 
-#: services/webservice/pages/server_detail.py:586
+#: services/webservice/pages/server_detail.py:661
 #, python-brace-format
 msgid "Node '{node}' cannot list this server's log directory (permission denied)."
 msgstr ""
 "El nodo '{node}' no puede listar el directorio de registros de este "
 "servidor (permiso denegado)."
 
-#: services/webservice/pages/server_detail.py:588
+#: services/webservice/pages/server_detail.py:663
 #, python-brace-format
 msgid "Node '{node}' did not answer in time, so the log files were not listed."
 msgstr ""
 "El nodo '{node}' no respondió a tiempo, así que no se listaron los "
 "archivos de registro."
 
-#: services/webservice/pages/server_detail.py:590
+#: services/webservice/pages/server_detail.py:665
 #, python-brace-format
 msgid "Node '{node}' could not list the log files ({error})."
 msgstr "El nodo '{node}' no pudo listar los archivos de registro ({error})."
 
-#: services/webservice/pages/server_detail.py:957
-msgid "An offset or a behind position is required."
-msgstr "Se requiere un offset o una posición behind."
-
-#: services/webservice/pages/server_detail.py:982
-msgid "The offset must be a non-negative whole number."
-msgstr "El offset debe ser un número entero no negativo."
-
-#: services/webservice/pages/server_detail.py:1001
-msgid "The behind position must be a non-negative whole number."
-msgstr "La posición behind debe ser un número entero no negativo."
-
-#: services/webservice/pages/server_detail.py:1289
+#: services/webservice/pages/server_detail.py:1371
 #, python-format
 msgid "server %(name)s"
 msgstr "servidor %(name)s"
 
-#: services/webservice/pages/server_detail.py:1394
+#: services/webservice/pages/server_detail.py:1476
 msgid "The mission list could not be read."
 msgstr "No se pudo leer la lista de misiones."
 
 #: services/webservice/pages/servers.py:29
 #: services/webservice/pages/servers.py:32
-#: services/webservice/readmodels/views.py:110
-#: services/webservice/readmodels/views.py:118
+#: services/webservice/readmodels/views.py:116
+#: services/webservice/readmodels/views.py:124
+#: services/webservice/templates/server_detail.html:150
 msgid "Servers"
 msgstr "Servidores"
 
@@ -1482,6 +2095,340 @@ msgstr ""
 "Todos los servidores de todos los nodos, completos. Una fila que puedes "
 "operar lleva sus controles en la fila; actuar sobre una afecta solo a ese"
 " servidor."
+
+#: services/webservice/pages/settings.py:137
+#: services/webservice/templates/settings_tiles.html:48
+msgid "Main"
+msgstr ""
+
+#: services/webservice/pages/settings.py:142
+#: services/webservice/templates/_settings_files.html:13
+msgid "Configuration files"
+msgstr ""
+
+#: services/webservice/pages/settings.py:155
+msgid ""
+"The bot's own configuration, generated from its schema. The form and the "
+"YAML are one file: a save writes only what you changed, and a restart "
+"applies it."
+msgstr ""
+"La propia configuración del bot, generada a partir de su esquema. El "
+"formulario y el YAML son un mismo archivo: al guardar solo se escribe lo "
+"que cambiaste, y un reinicio lo aplica."
+
+#: services/webservice/pages/settings.py:176
+#, python-format
+msgid "Not valid YAML on line %(line)s, column %(column)s."
+msgstr ""
+
+#: services/webservice/pages/settings.py:177
+#, python-format
+msgid "Not valid against the schema — line %(line)s, in %(block)s."
+msgstr ""
+
+#: services/webservice/pages/settings.py:178
+#, python-format
+msgid "Not valid against the schema — in %(block)s."
+msgstr ""
+
+#: services/webservice/pages/settings.py:206
+msgid "Saved — this configuration applies on the next bot restart."
+msgstr "Guardado — esta configuración se aplica en el próximo reinicio del bot."
+
+#: services/webservice/pages/settings.py:211
+msgid "Saved — this change applies immediately."
+msgstr "Guardado — este cambio se aplica de inmediato."
+
+#: services/webservice/pages/settings.py:212
+msgid "Nothing changed — the file is untouched."
+msgstr "Nada cambió: el archivo queda intacto."
+
+#: services/webservice/pages/settings.py:213
+msgid "The change was refused, and nothing was written."
+msgstr "El cambio fue rechazado y no se escribió nada."
+
+#: services/webservice/pages/settings.py:220
+msgid ""
+"No change was saved: the form carried a field this page cannot place in "
+"the config, so saving it would have silently dropped it. Nothing was "
+"written — reload the page and try again."
+msgstr ""
+"No se guardó ningún cambio: el formulario incluía un campo que esta "
+"página no puede situar en la configuración, así que guardarlo lo habría "
+"descartado en silencio. No se escribió nada — recarga la página e "
+"inténtalo de nuevo."
+
+#: services/webservice/pages/settings.py:225
+msgid ""
+"No change was saved: a new entry's key already names an existing entry, "
+"so saving it would have overwritten that entry. Give the new entry a "
+"different key — nothing was written."
+msgstr ""
+"No se guardó ningún cambio: la clave de una entrada nueva ya nombra una "
+"entrada existente, así que guardarla habría sobrescrito esa entrada. Dale"
+" a la entrada nueva una clave distinta — no se escribió nada."
+
+#: services/webservice/pages/settings.py:233
+msgid ""
+"No change was saved: the document is empty, and an empty document is not "
+"a document — saving it would replace the file with nothing. Edit the file"
+" and try again; nothing was written."
+msgstr ""
+"No se guardó nada: el documento está vacío, y un documento vacío no es un"
+" documento — guardarlo reemplazaría el archivo por nada. Edita el archivo"
+" e inténtalo de nuevo; no se escribió nada."
+
+#: services/webservice/pages/settings.py:240
+msgid ""
+"No change was saved: the form named a node that is not the selected one, "
+"so saving it would have rewritten another node's block. Reload the page, "
+"pick that node if you meant to edit it, and try again — nothing was "
+"written."
+msgstr ""
+"No se guardó nada: el formulario nombró un nodo que no es el "
+"seleccionado, por lo que guardarlo habría reescrito el bloque de otro "
+"nodo. Recarga la página, elige ese nodo si querías editarlo y vuelve a "
+"intentarlo — no se escribió nada."
+
+#: services/webservice/pages/settings.py:247
+msgid ""
+"No change was saved: this page did not name a node this file carries, so "
+"there is no part of the file to write. Reload the page and pick a node — "
+"nothing was written."
+msgstr ""
+"No se guardó nada: esta página no nombró ningún nodo que contenga este "
+"archivo, así que no hay ninguna parte del archivo que escribir. Recarga "
+"la página y elige un nodo — no se escribió nada."
+
+#: services/webservice/pages/settings.py:253
+msgid ""
+"This editor did not name a node this file carries, so its part of the "
+"file cannot be checked. Reload the page and pick a node."
+msgstr ""
+"Este editor no nombró ningún nodo que contenga este archivo, por lo que "
+"su parte del archivo no se puede comprobar. Recarga la página y elige un "
+"nodo."
+
+#: services/webservice/pages/settings.py:261
+msgid ""
+"This file does not validate against its schema. The form is still "
+"generated from the schema, but the file on disk has an error — correct it"
+" before saving."
+msgstr ""
+
+#: services/webservice/pages/settings.py:266
+msgid ""
+"No schema ships for this file, so its form cannot be generated — it is "
+"shown read-only."
+msgstr ""
+
+#: services/webservice/pages/settings.py:284
+msgid "instance name"
+msgstr "nombre de instancia"
+
+#: services/webservice/pages/settings.py:288
+#: services/webservice/readmodels/views.py:111
+#: services/webservice/readmodels/views.py:114
+#: services/webservice/readmodels/views.py:117
+#: services/webservice/templates/node_log.html:23
+#: services/webservice/templates/node_log.html:41
+#: services/webservice/templates/node_page.html:35
+#: services/webservice/templates/server_detail.html:68
+#: services/webservice/templates/settings_scope.html:51
+msgid "Node"
+msgstr "Nodo"
+
+#: services/webservice/pages/settings.py:290
+msgid ""
+"Pick a node to configure. The tabs then show only its own block and its "
+"instances — never every node at once."
+msgstr ""
+"Elige un nodo para configurar. Las pestañas muestran solo su propio "
+"bloque y sus instancias — nunca todos los nodos a la vez."
+
+#: services/webservice/pages/settings.py:295
+msgid ""
+"Expert Mode edits only this node's part of the file — every other node is"
+" left untouched."
+msgstr ""
+"El modo experto edita solo la parte del archivo de este nodo — todos los "
+"demás nodos quedan intactos."
+
+#: services/webservice/pages/settings.py:298
+msgid ""
+"<b>DEFAULT</b> is the scope every instance starts from. A block under it "
+"changes only that node or instance — and because the scope is the TAB, no"
+" field carries a <code>default.</code> prefix."
+msgstr ""
+"<b>DEFAULT</b> es el ámbito del que parte cada instancia. Un bloque "
+"debajo solo cambia ese nodo o esa instancia — y como el ámbito es la "
+"pestaña, ningún campo lleva el prefijo <code>default.</code>."
+
+#: services/webservice/pages/settings.py:301
+#, python-format
+msgid ""
+"This block changes only <b>%(scope)s</b>. It INHERITS everything it does "
+"not set from DEFAULT — nothing is copied, so a field left unset keeps "
+"following the default block."
+msgstr ""
+"Este bloque solo cambia <b>%(scope)s</b>. HEREDA de DEFAULT todo lo que "
+"no define — no se copia nada, así que un campo sin definir sigue el "
+"bloque por defecto."
+
+#: services/webservice/pages/settings.py:308
+msgid ""
+"This configuration has no node or instance blocks — the whole file is one"
+" scope, so no field carries a <code>DEFAULT.</code> prefix."
+msgstr ""
+"Esta configuración no tiene bloques de nodo ni de instancia: todo el "
+"archivo es un solo ámbito, así que ningún campo lleva el prefijo "
+"<code>DEFAULT.</code>"
+
+#: services/webservice/pages/settings.py:311
+#, python-format
+msgid "Added the block %(scope)s."
+msgstr "Se añadió el bloque %(scope)s."
+
+#: services/webservice/pages/settings.py:312
+#, python-format
+msgid "The block %(scope)s already exists — nothing was added."
+msgstr "El bloque %(scope)s ya existe — no se añadió nada."
+
+#: services/webservice/pages/settings.py:313
+#, python-format
+msgid "No block was added: %(detail)s"
+msgstr "No se añadió ningún bloque: %(detail)s"
+
+#: services/webservice/pages/settings.py:314
+msgid "no name was given."
+msgstr "no se indicó ningún nombre."
+
+#: services/webservice/pages/settings.py:317
+msgid ""
+"Every plugin, service and extension of this install, each with its own "
+"configuration behind one cogwheel. A service change applies on the next "
+"bot restart."
+msgstr ""
+
+#: services/webservice/pages/settings.py:321
+msgid "Plugins"
+msgstr ""
+
+#: services/webservice/pages/settings.py:322
+msgid "Services"
+msgstr ""
+
+#: services/webservice/pages/settings.py:328
+#, python-format
+msgid ""
+"Load on the bot master node · the lists live in main.yaml › plugins and "
+"opt_plugins · %(on)s of %(total)s load today"
+msgstr ""
+
+#: services/webservice/pages/settings.py:331
+msgid ""
+"Node-wide background workers · one file each in config/services/ · "
+"changes apply on the next bot restart"
+msgstr ""
+
+#: services/webservice/pages/settings.py:338
+msgid "Every optional plugin is enabled already — there is nothing left to add."
+msgstr ""
+"Todos los plugins opcionales ya están habilitados — no queda nada que "
+"añadir."
+
+#: services/webservice/pages/settings.py:341
+msgid "runs on"
+msgstr ""
+
+#: services/webservice/pages/settings.py:345
+msgid "Load on"
+msgstr ""
+
+#: services/webservice/pages/settings.py:346
+msgid "Load off"
+msgstr ""
+
+#: services/webservice/pages/settings.py:349
+msgid "Config"
+msgstr ""
+
+#: services/webservice/pages/settings.py:353
+#, python-format
+msgid ""
+"Held off by the %(plugin)s plugin — it is not in opt_plugins. Add it "
+"there to enable this service; nothing is moved."
+msgstr ""
+
+#: services/webservice/pages/settings.py:356
+#, python-format
+msgid ""
+"No config/services/%(name)s.yaml — the service has nothing to read and "
+"does not run."
+msgstr ""
+
+#: services/webservice/pages/settings.py:359
+msgid "Saved — the service change applies on the next bot restart."
+msgstr ""
+
+#: services/webservice/pages/settings.py:370
+msgid ""
+"You are turning off a default plugin. This can affect the functionality "
+"of DCSServerBot."
+msgstr ""
+"Estás desactivando un plugin predeterminado. Esto puede afectar al "
+"funcionamiento de DCSServerBot."
+
+#: services/webservice/pages/settings.py:371
+msgid "Switch it off anyway"
+msgstr "Desactivar de todos modos"
+
+#: services/webservice/pages/settings.py:372
+msgid "Keep it on"
+msgstr "Mantenerlo activado"
+
+#: services/webservice/pages/settings.py:376
+#, python-format
+msgid ""
+"Service turned off — its config was moved to %(path)s. It applies on the "
+"next bot restart."
+msgstr ""
+
+#: services/webservice/pages/settings.py:378
+#, python-format
+msgid ""
+"Service turned on — its config was moved back to %(path)s. It applies on "
+"the next bot restart."
+msgstr ""
+
+#: services/webservice/pages/settings.py:379
+msgid "No change was made: this service has no config file to move."
+msgstr ""
+
+#: services/webservice/pages/settings.py:381
+msgid ""
+"Nothing was moved: this service is held off by its plugin dependency, not"
+" by a missing file. Add the plugin to opt_plugins instead."
+msgstr ""
+
+#: services/webservice/pages/settings.py:383
+msgid "No such service."
+msgstr ""
+
+#: services/webservice/pages/settings.py:794
+msgid "defaults"
+msgstr "valores por defecto"
+
+#: services/webservice/pages/settings.py:795
+msgid "override"
+msgstr "anulación"
+
+#: services/webservice/pages/settings.py:1648
+msgid ""
+"Nothing was removed: this removal did not carry the acknowledgement the "
+"page produces, so the setting was left exactly as it was. Reload the page"
+" and remove it again from there."
+msgstr ""
 
 #: services/webservice/readmodels/dcslog.py:64
 #, python-brace-format
@@ -1510,41 +2457,41 @@ msgstr "WARNING+"
 msgid "ALL"
 msgstr "TODOS"
 
-#: services/webservice/readmodels/model.py:50
+#: services/webservice/readmodels/model.py:51
 msgid "RUNNING"
 msgstr "EN EJECUCIÓN"
 
-#: services/webservice/readmodels/model.py:51
+#: services/webservice/readmodels/model.py:52
 msgid "PAUSED"
 msgstr "EN PAUSA"
 
-#: services/webservice/readmodels/model.py:52
+#: services/webservice/readmodels/model.py:53
 msgid "STOPPED"
 msgstr "DETENIDO"
 
-#: services/webservice/readmodels/model.py:53
 #: services/webservice/readmodels/model.py:54
 #: services/webservice/readmodels/model.py:55
+#: services/webservice/readmodels/model.py:56
 msgid "SHUTDOWN"
 msgstr "APAGADO"
 
-#: services/webservice/readmodels/model.py:56
+#: services/webservice/readmodels/model.py:57
 msgid "LOADING"
 msgstr "CARGANDO"
 
-#: services/webservice/readmodels/model.py:60
+#: services/webservice/readmodels/model.py:61
 msgid "UNKNOWN"
 msgstr "DESCONOCIDO"
 
-#: services/webservice/readmodels/model.py:69
+#: services/webservice/readmodels/model.py:70
 msgid "Live state is not available yet. The bot is still starting up."
 msgstr "El estado en vivo aún no está disponible. El bot todavía está iniciando."
 
-#: services/webservice/readmodels/model.py:70
+#: services/webservice/readmodels/model.py:71
 msgid "No servers are registered on this cluster."
 msgstr "No hay servidores registrados en este clúster."
 
-#: services/webservice/readmodels/model.py:76
+#: services/webservice/readmodels/model.py:77
 msgid ""
 "This view shows only the servers your roles manage, and none of them are "
 "here. An administrator can add your role to a server's managed_by if you "
@@ -1554,33 +2501,45 @@ msgstr ""
 " de ellos está aquí. Un administrador puede añadir tu rol al managed_by "
 "de un servidor si deberías ver alguno."
 
-#: services/webservice/readmodels/model.py:79
+#: services/webservice/readmodels/model.py:80
 msgid "No players are online right now."
 msgstr "Ahora mismo no hay jugadores en línea."
 
-#: services/webservice/readmodels/model.py:80
+#: services/webservice/readmodels/model.py:81
 msgid "No nodes are registered."
 msgstr "No hay nodos registrados."
 
-#: services/webservice/readmodels/model.py:81
+#: services/webservice/readmodels/model.py:82
 msgid "No instances are configured."
 msgstr "No hay instancias configuradas."
 
-#: services/webservice/readmodels/model.py:82
+#: services/webservice/readmodels/model.py:83
 msgid "No instances on this node."
 msgstr "No hay instancias en este nodo."
 
-#: services/webservice/readmodels/model.py:83
+#: services/webservice/readmodels/model.py:84
 msgid "The bot log file is not available yet."
 msgstr "El archivo de registro del bot aún no está disponible."
 
-#: services/webservice/readmodels/model.py:84
+#: services/webservice/readmodels/model.py:85
 msgid "The bot log file is empty."
 msgstr "El archivo de registro del bot está vacío."
 
-#: services/webservice/readmodels/model.py:86
+#: services/webservice/readmodels/model.py:87
 msgid "No log lines match the selected level."
 msgstr "Ninguna línea del registro coincide con el nivel seleccionado."
+
+#: services/webservice/readmodels/model.py:92
+msgid "No mission is loaded."
+msgstr "No hay ninguna misión cargada."
+
+#: services/webservice/readmodels/model.py:95
+msgid "No weather is reported."
+msgstr "No se reporta clima."
+
+#: services/webservice/readmodels/model.py:98
+msgid "This server is not running."
+msgstr "Este servidor no está en funcionamiento."
 
 #: services/webservice/readmodels/serverconfig.py:98
 msgid "Identity & access"
@@ -1603,7 +2562,7 @@ msgid "Anti-cheat"
 msgstr "Antitrampas"
 
 #: services/webservice/readmodels/serverconfig.py:103
-#: services/webservice/templates/server_detail.html:275
+#: services/webservice/templates/server_detail.html:313
 msgid "Discord channels"
 msgstr "Canales de Discord"
 
@@ -1612,7 +2571,7 @@ msgid "Mission list — owned by a feature of its own"
 msgstr "Lista de misiones — gestionada por una función propia"
 
 #: services/webservice/readmodels/serverconfig.py:105
-#: services/webservice/templates/server_detail.html:329
+#: services/webservice/templates/server_detail.html:366
 msgid "Coalition passwords"
 msgstr "Contraseñas de coalición"
 
@@ -1665,7 +2624,8 @@ msgstr ""
 " servidor de este nodo."
 
 #: services/webservice/readmodels/serverconfig.py:231
-#: services/webservice/templates/login.html:130
+#: services/webservice/templates/login.html:131
+#: services/webservice/templates/server_detail.html:703
 msgid "Password"
 msgstr "Contraseña"
 
@@ -1847,6 +2807,19 @@ msgstr ""
 "Desactiva los propios eventos de misión de DCS. Los plugins del bot "
 "basados en eventos no ven nada mientras está activado."
 
+#: services/webservice/readmodels/serverconfig.py:290
+msgid ""
+"The missions DCS cycles through, in order. Managed by the mission "
+"autoscan and validated at boot — a bad path is a boot failure — so this "
+"tab does not edit it."
+msgstr ""
+"Las misiones por las que DCS va rotando, en orden. Las gestiona el "
+"autoscaneo de misiones y se validan al arrancar — una ruta incorrecta "
+"provoca un fallo de arranque —, así que esta pestaña no las edita.Las "
+"misiones por las que DCS va rotando, en orden. Las gestiona el autoscaneo"
+" de misiones y se validan al arrancar — una ruta incorrecta provoca un "
+"fallo de arranque —, así que esta pestaña no las edita."
+
 #: services/webservice/readmodels/serverconfig.py:319
 msgid "Blue coalition password"
 msgstr "Contraseña de la coalición azul"
@@ -1871,6 +2844,18 @@ msgstr ""
 "La contraseña que elige un cliente para unirse al bando rojo. El bot la "
 "guarda y pide a DCS que la aplique."
 
+#: services/webservice/readmodels/serverconfig.py:340
+msgid ""
+"A coalition password can be changed while the server is running, paused "
+"or stopped: the bot sends it to DCS and keeps the cleartext in its "
+"database."
+msgstr ""
+"Puedes cambiar una contraseña de coalición mientras el servidor está en "
+"marcha, en pausa o detenido: el bot la envía a DCS y conserva el texto "
+"sin cifrar en su base de datos.Puedes cambiar una contraseña de coalición"
+" mientras el servidor está en marcha, en pausa o detenido: el bot la "
+"envía a DCS y conserva el texto sin cifrar en su base de datos."
+
 #: services/webservice/readmodels/serverconfig.py:345
 msgid ""
 "A password is set outside DCSServerBot — the bot knows only its hash. "
@@ -1886,6 +2871,26 @@ msgid ""
 msgstr ""
 "El bot conoce esta contraseña, pero DCS no tiene ahora mismo ningún hash "
 "para ella — guardar aquí también la establece en DCS."
+
+#: services/webservice/readmodels/serverconfig.py:355
+msgid ""
+"The coalition passwords can only be changed while the server is shutdown,"
+" stopped, running or paused. Wait for it to settle, then edit here."
+msgstr ""
+"Las contraseñas de coalición solo pueden cambiarse mientras el servidor "
+"está apagado, detenido, en marcha o en pausa. Espera a que se estabilice "
+"y luego edítalas aquí.Las contraseñas de coalición solo pueden cambiarse "
+"mientras el servidor está apagado, detenido, en marcha o en pausa. Espera"
+" a que se estabilice y luego edítalas aquí."
+
+#: services/webservice/readmodels/serverconfig.py:373
+msgid ""
+"The server must be stopped to change its configuration. Stop it on the "
+"Servers page, then edit here."
+msgstr ""
+"El servidor debe estar detenido para cambiar su configuración. Deténlo en"
+" la página Servers y edítala aquí.El servidor debe estar detenido para "
+"cambiar su configuración. Deténlo en la página Servers y edítala aquí."
 
 #: services/webservice/readmodels/serverconfig.py:797
 msgid "Admin channel"
@@ -1913,6 +2918,16 @@ msgstr ""
 "Reenvía el chat del juego. Sin definir significa que el bot no reenvía a "
 "ningún sitio."
 
+#: services/webservice/readmodels/servers.py:29
+#: services/webservice/templates/_table.html:52
+#: services/webservice/templates/server_detail.html:473
+msgid "Clear"
+msgstr "Limpiar"
+
+#: services/webservice/readmodels/servers.py:30
+msgid "Dynamic"
+msgstr "Dinámico"
+
 #: services/webservice/readmodels/views.py:86
 msgid "ascending"
 msgstr "ascendente"
@@ -1921,55 +2936,183 @@ msgstr "ascendente"
 msgid "descending"
 msgstr "descendente"
 
-#: services/webservice/readmodels/views.py:106
 #: services/webservice/readmodels/views.py:111
-#: services/webservice/readmodels/views.py:113
-#: services/webservice/templates/server_detail.html:111
+#: services/webservice/readmodels/views.py:117
+#: services/webservice/readmodels/views.py:119
+#: services/webservice/templates/server_detail.html:114
+#: services/webservice/templates/server_detail.html:155
 msgid "Server"
 msgstr "Servidor"
 
-#: services/webservice/readmodels/views.py:106
-#: services/webservice/readmodels/views.py:109
 #: services/webservice/readmodels/views.py:111
-#: services/webservice/templates/server_detail.html:64
-msgid "Node"
-msgstr "Nodo"
-
-#: services/webservice/readmodels/views.py:106
 msgid "Status"
 msgstr "Estado"
 
-#: services/webservice/readmodels/views.py:107
+#: services/webservice/readmodels/views.py:112
 msgid "Mission"
 msgstr "Misión"
 
-#: services/webservice/readmodels/views.py:107
+#: services/webservice/readmodels/views.py:112
 msgid "Elapsed"
 msgstr "Transcurrido"
 
-#: services/webservice/readmodels/views.py:111
+#: services/webservice/readmodels/views.py:114
+msgid "State"
+msgstr "Estado"
+
+#: services/webservice/readmodels/views.py:117
 msgid "Instance"
 msgstr "Instancia"
 
-#: services/webservice/readmodels/views.py:112
+#: services/webservice/readmodels/views.py:118
 msgid "DCS port"
 msgstr "Puerto DCS"
 
-#: services/webservice/readmodels/views.py:112
+#: services/webservice/readmodels/views.py:118
 msgid "WebGUI port"
 msgstr "Puerto WebGUI"
 
-#: services/webservice/readmodels/views.py:113
+#: services/webservice/readmodels/views.py:119
 msgid "Player"
 msgstr "Jugador"
 
-#: services/webservice/readmodels/views.py:113
+#: services/webservice/readmodels/views.py:119
 msgid "UCID"
 msgstr "UCID"
 
-#: services/webservice/readmodels/views.py:114
+#: services/webservice/readmodels/views.py:120
 msgid "Slot"
 msgstr "Slot"
+
+#: services/webservice/templates/_config_fields.html:64
+#: services/webservice/templates/_scope_fields.html:42
+msgid "Remove this setting from the file"
+msgstr ""
+
+#: services/webservice/templates/_config_fields.html:66
+#: services/webservice/templates/_scope_fields.html:44
+msgid "This removes the setting and its value from the file."
+msgstr ""
+
+#: services/webservice/templates/_config_fields.html:68
+#: services/webservice/templates/_scope_fields.html:46
+#: services/webservice/templates/confirm.html:164
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: services/webservice/templates/_config_fields.html:89
+#: services/webservice/templates/_config_fields.html:164
+#: services/webservice/templates/_config_fields.html:191
+#: services/webservice/templates/_scope_fields.html:62
+#: services/webservice/templates/_scope_fields.html:109
+#: services/webservice/templates/_scope_fields.html:135
+#: services/webservice/templates/_tiles.html:160
+#: services/webservice/templates/_tiles.html:174
+msgid "+ Add"
+msgstr "+ Añadir"
+
+#: services/webservice/templates/_config_fields.html:94
+#: services/webservice/templates/_scope_fields.html:67
+msgid "Fields"
+msgstr ""
+
+#: services/webservice/templates/_config_fields.html:94
+#: services/webservice/templates/_scope_fields.html:67
+msgid "Blocks"
+msgstr ""
+
+#: services/webservice/templates/_config_fields.html:126
+#: services/webservice/templates/_config_fields.html:144
+#: services/webservice/templates/_scope_fields.html:33
+#: services/webservice/templates/_scope_fields.html:180
+#, python-format
+msgid "included: %(file)s"
+msgstr "incluido desde: %(file)s"
+
+#: services/webservice/templates/_config_fields.html:129
+#: services/webservice/templates/_scope_fields.html:183
+#, python-format
+msgid ""
+"This block is described by %(file)s; its values live in this file, so a "
+"save writes them here — never into %(file)s."
+msgstr ""
+"Este bloque lo describe %(file)s; sus valores residen en este archivo, "
+"así que al guardar se escriben aquí — nunca en %(file)s."
+
+#: services/webservice/templates/_config_fields.html:142
+#: services/webservice/templates/_scope_fields.html:31
+#, python-format
+msgid "default: %(default)s"
+msgstr "predeterminado: %(default)s"
+
+#: services/webservice/templates/_config_fields.html:145
+#: services/webservice/templates/_scope_fields.html:34
+#, python-format
+msgid "include cycle: %(name)s is included again here, so it is not expanded"
+msgstr ""
+"ciclo de include: %(name)s se incluye de nuevo aquí, por lo que no se "
+"expande"
+
+#: services/webservice/templates/_config_fields.html:199
+#: services/webservice/templates/_scope_fields.html:213
+msgid ""
+"The schema names the sections this block may carry. Add the one this file"
+" should use."
+msgstr ""
+"El esquema nombra las secciones que puede contener este bloque. Añade la "
+"que deba usar este archivo."
+
+#: services/webservice/templates/_config_fields.html:237
+#: services/webservice/templates/_scope_fields.html:245
+msgid "Section"
+msgstr "Sección"
+
+#: services/webservice/templates/_config_fields.html:240
+#: services/webservice/templates/_scope_fields.html:248
+msgid "+ Add section"
+msgstr "+ Añadir sección"
+
+#: services/webservice/templates/_config_fields.html:245
+#: services/webservice/templates/_scope_fields.html:260
+msgid ""
+"A key the schema describes with a regex is not known ahead of time. Add "
+"an entry with its own key."
+msgstr ""
+"Una clave que el esquema describe con una expresión regular no se conoce "
+"de antemano. Añade una entrada con su propia clave."
+
+#: services/webservice/templates/_config_fields.html:253
+#: services/webservice/templates/_config_fields.html:269
+#: services/webservice/templates/_scope_fields.html:147
+#: services/webservice/templates/_scope_fields.html:159
+msgid "key"
+msgstr "clave"
+
+#: services/webservice/templates/_config_fields.html:255
+#: services/webservice/templates/_scope_fields.html:149
+msgid ""
+"An existing entry's key cannot be edited here — remove the entry and add "
+"a new one."
+msgstr ""
+"La clave de una entrada existente no se puede editar aquí — elimina la "
+"entrada y añade una nueva."
+
+#: services/webservice/templates/_config_fields.html:281
+#: services/webservice/templates/_scope_fields.html:168
+msgid "+ Add entry"
+msgstr "+ Añadir entrada"
+
+#: services/webservice/templates/_config_fields.html:284
+#: services/webservice/templates/_scope_fields.html:269
+msgid "Either layout is allowed. Edit the one that matches your file."
+msgstr ""
+"Se permite cualquiera de los dos diseños. Edita el que coincida con tu "
+"archivo."
+
+#: services/webservice/templates/_config_fields.html:287
+#: services/webservice/templates/_scope_fields.html:272
+msgid "matches this file"
+msgstr "coincide con este archivo"
 
 #: services/webservice/templates/_language.html:24
 msgid "Language"
@@ -2017,7 +3160,11 @@ msgid "actions"
 msgstr "acciones"
 
 #: services/webservice/templates/_table.html:44
-#: services/webservice/templates/server_detail.html:620
+#: services/webservice/templates/node_page.html:105
+#: services/webservice/templates/server_detail.html:289
+#: services/webservice/templates/server_detail.html:651
+#: services/webservice/templates/settings.html:112
+#: services/webservice/templates/settings_scope.html:108
 msgid "read-only"
 msgstr "solo lectura"
 
@@ -2032,11 +3179,6 @@ msgstr "nombre o UCID, p. ej. Viper-1 o 4b1f9c22"
 #: services/webservice/templates/_table.html:51
 msgid "Search"
 msgstr "Buscar"
-
-#: services/webservice/templates/_table.html:52
-#: services/webservice/templates/server_detail.html:439
-msgid "Clear"
-msgstr "Limpiar"
 
 #: services/webservice/templates/_table.html:54
 #, python-format
@@ -2071,33 +3213,34 @@ msgid "Actions"
 msgstr "Acciones"
 
 #: services/webservice/templates/_table.html:68
-#: services/webservice/templates/server_detail.html:107
-#: services/webservice/templates/server_detail.html:668
+#: services/webservice/templates/server_detail.html:110
+#: services/webservice/templates/server_detail.html:706
 msgid "node"
 msgstr "nodo"
 
 #: services/webservice/templates/_table.html:68
-#: services/webservice/templates/server_detail.html:107
-#: services/webservice/templates/server_detail.html:668
+#: services/webservice/templates/server_detail.html:110
+#: services/webservice/templates/server_detail.html:706
 msgid "instance"
 msgstr "instancia"
 
 #: services/webservice/templates/_table.html:68
-#: services/webservice/templates/server_detail.html:107
-#: services/webservice/templates/server_detail.html:670
+#: services/webservice/templates/server_detail.html:110
+#: services/webservice/templates/server_detail.html:704
 msgid "maintenance"
 msgstr "mantenimiento"
 
 #: services/webservice/templates/_table.html:68
+#: services/webservice/templates/server_detail.html:709
 #, python-format
 msgid "%(count)s player(s)"
 msgstr "%(count)s jugador(es)"
 
-#: services/webservice/templates/_table.html:71
+#: services/webservice/templates/_table.html:77
 msgid "online"
 msgstr "en línea"
 
-#: services/webservice/templates/_table.html:71
+#: services/webservice/templates/_table.html:77
 msgid "offline"
 msgstr "fuera de línea"
 
@@ -2106,7 +3249,7 @@ msgstr "fuera de línea"
 msgid "Admin Console"
 msgstr "Consola de administración"
 
-#: services/webservice/templates/base.html:99
+#: services/webservice/templates/base.html:100
 msgid "Sign out"
 msgstr "Cerrar sesión"
 
@@ -2142,26 +3285,22 @@ msgstr ""
 msgid "Cancel — go back without doing anything (Esc)"
 msgstr "Cancelar — vuelve atrás sin hacer nada (Esc)"
 
-#: services/webservice/templates/confirm.html:164
-msgid "Cancel"
-msgstr "Cancelar"
-
 #: services/webservice/templates/dashboard.html:36
 #: services/webservice/templates/logs.html:18
 msgid "Live updates: unavailable"
 msgstr "Actualizaciones en vivo: no disponibles"
 
 #: services/webservice/templates/login.html:27
-#: services/webservice/templates/login.html:60
-#: services/webservice/templates/login.html:133
+#: services/webservice/templates/login.html:61
+#: services/webservice/templates/login.html:134
 msgid "Sign in"
 msgstr "Iniciar sesión"
 
-#: services/webservice/templates/login.html:72
+#: services/webservice/templates/login.html:73
 msgid "No sign-in method is configured"
 msgstr "No hay ningún método de inicio de sesión configurado"
 
-#: services/webservice/templates/login.html:74
+#: services/webservice/templates/login.html:75
 msgid ""
 "A username and password sign-in or Discord sign-in must be enabled before"
 " anyone can use this console. An operator can turn one on in"
@@ -2170,15 +3309,15 @@ msgstr ""
 "Discord antes de que nadie pueda usar esta consola. Un operador puede "
 "activar uno en"
 
-#: services/webservice/templates/login.html:76
+#: services/webservice/templates/login.html:77
 msgid "for a local account, or"
 msgstr "para una cuenta local, o"
 
-#: services/webservice/templates/login.html:77
+#: services/webservice/templates/login.html:78
 msgid "for Discord."
 msgstr "para Discord."
 
-#: services/webservice/templates/login.html:83
+#: services/webservice/templates/login.html:84
 msgid ""
 "Signing out of Discord does not sign you out here, and vice versa — this "
 "console has its own session."
@@ -2186,7 +3325,7 @@ msgstr ""
 "Cerrar sesión en Discord no te desconecta aquí, y viceversa — esta "
 "consola tiene su propia sesión."
 
-#: services/webservice/templates/login.html:85
+#: services/webservice/templates/login.html:86
 msgid ""
 "This console has its own session. Your roles on the Discord server decide"
 " what you can see here."
@@ -2194,15 +3333,15 @@ msgstr ""
 "Esta consola tiene su propia sesión. Tus roles en el servidor de Discord "
 "deciden lo que puedes ver aquí."
 
-#: services/webservice/templates/login.html:87
+#: services/webservice/templates/login.html:88
 msgid "Sign in with the account configured for this console."
 msgstr "Inicia sesión con la cuenta configurada para esta consola."
 
-#: services/webservice/templates/login.html:95
+#: services/webservice/templates/login.html:96
 msgid "recommended"
 msgstr "recomendado"
 
-#: services/webservice/templates/login.html:107
+#: services/webservice/templates/login.html:108
 msgid ""
 "Your roles on this server decide what you see here. Nothing else is "
 "configured for you."
@@ -2210,35 +3349,35 @@ msgstr ""
 "Tus roles en este servidor deciden lo que ves aquí. No hay nada más "
 "configurado para ti."
 
-#: services/webservice/templates/login.html:109
+#: services/webservice/templates/login.html:110
 msgid "Goes to"
 msgstr "Va a"
 
-#: services/webservice/templates/login.html:110
+#: services/webservice/templates/login.html:111
 msgid "Scopes"
 msgstr "Ámbitos"
 
-#: services/webservice/templates/login.html:111
+#: services/webservice/templates/login.html:112
 msgid "Bot token in the browser"
 msgstr "Token del bot en el navegador"
 
-#: services/webservice/templates/login.html:111
+#: services/webservice/templates/login.html:112
 msgid "no"
 msgstr "no"
 
-#: services/webservice/templates/login.html:120
+#: services/webservice/templates/login.html:121
 msgid "Local account"
 msgstr "Cuenta local"
 
-#: services/webservice/templates/login.html:121
+#: services/webservice/templates/login.html:122
 msgid "fallback"
 msgstr "alternativa"
 
-#: services/webservice/templates/login.html:127
+#: services/webservice/templates/login.html:128
 msgid "Username"
 msgstr "Usuario"
 
-#: services/webservice/templates/login.html:136
+#: services/webservice/templates/login.html:137
 msgid ""
 "For installs without a Discord bot, and for the day the OAuth app or the "
 "role config is the thing that broke."
@@ -2246,7 +3385,7 @@ msgstr ""
 "Para instalaciones sin bot de Discord, y para el día en que la app de "
 "OAuth o la configuración de roles sea el problema."
 
-#: services/webservice/templates/login.html:146
+#: services/webservice/templates/login.html:147
 msgid ""
 "DCSServerBot Admin · not sure which to use? Discord — it is how accounts "
 "are made here."
@@ -2254,73 +3393,130 @@ msgstr ""
 "DCSServerBot Admin · ¿no sabes cuál usar? Discord — así se crean aquí las"
 " cuentas."
 
-#: services/webservice/templates/server_detail.html:72
+#: services/webservice/templates/node_log.html:23
+msgid "the node's own bot log, followed while this page is open"
+msgstr ""
+"el propio registro del bot del nodo, seguido mientras esta página esté "
+"abierta"
+
+#: services/webservice/templates/node_log.html:31
+msgid "Node log"
+msgstr "Registro del nodo"
+
+#: services/webservice/templates/node_page.html:51
+#: services/webservice/templates/settings.html:55
+#: services/webservice/templates/settings_scope.html:42
+msgid "schema"
+msgstr "esquema"
+
+#: services/webservice/templates/node_page.html:56
+#: services/webservice/templates/server_detail.html:190
+#: services/webservice/templates/settings.html:63
+#: services/webservice/templates/settings_scope.html:60
+msgid "Save"
+msgstr "Guardar"
+
+#: services/webservice/templates/node_page.html:84
+#: services/webservice/templates/settings_scope.html:87
+msgid "Configuration scopes"
+msgstr "Ámbitos de configuración"
+
+#: services/webservice/templates/node_page.html:88
+msgid "Node-wide"
+msgstr "Todo el nodo"
+
+#: services/webservice/templates/node_page.html:88
+#, python-format
+msgid "Instance %(name)s"
+msgstr "Instancia %(name)s"
+
+#: services/webservice/templates/node_page.html:95
+#: services/webservice/templates/settings_scope.html:98
+msgid ""
+"This file could not be read, so its fields cannot be shown. Fix it in "
+"Expert Mode."
+msgstr ""
+"No se pudo leer este archivo, por lo que no se pueden mostrar sus campos."
+" Corrígelo en el modo experto."
+
+#: services/webservice/templates/node_page.html:104
+#: services/webservice/templates/settings.html:111
+#: services/webservice/templates/settings_scope.html:107
+msgid "The file, as YAML"
+msgstr "El archivo como YAML"
+
+#: services/webservice/templates/node_page.html:107
+#: services/webservice/templates/settings.html:120
+#: services/webservice/templates/settings_scope.html:110
+msgid "Expert Mode"
+msgstr ""
+
+#: services/webservice/templates/node_page.html:111
+#: services/webservice/templates/settings.html:124
+#: services/webservice/templates/settings_scope.html:114
+msgid ""
+"Edit the file directly. Every change is checked against the bot's own "
+"schema, and a document that does not pass cannot be saved."
+msgstr ""
+
+#: services/webservice/templates/node_page.html:112
+#: services/webservice/templates/settings.html:128
+#: services/webservice/templates/settings_scope.html:115
+msgid ""
+"An Expert Mode save writes the document; the form's pending changes are "
+"not applied."
+msgstr ""
+"Un guardado en el modo experto escribe el documento; los cambios "
+"pendientes del formulario no se aplican."
+
+#: services/webservice/templates/server_detail.html:76
 msgid "Log files"
 msgstr "Archivos de registro"
 
-#: services/webservice/templates/server_detail.html:72
+#: services/webservice/templates/server_detail.html:76
 msgid "download"
 msgstr "descargar"
 
-#: services/webservice/templates/server_detail.html:80
+#: services/webservice/templates/server_detail.html:83
 msgid "Log file"
 msgstr "Archivo de registro"
 
-#: services/webservice/templates/server_detail.html:80
+#: services/webservice/templates/server_detail.html:83
 msgid "Choose a file to download."
 msgstr "Elige un archivo para descargar."
 
-#: services/webservice/templates/server_detail.html:82
+#: services/webservice/templates/server_detail.html:85
 msgid "Log file to download"
 msgstr "Archivo de registro para descargar"
 
-#: services/webservice/templates/server_detail.html:87
+#: services/webservice/templates/server_detail.html:90
 msgid "Download"
 msgstr "Descargar"
 
-#: services/webservice/templates/server_detail.html:92
+#: services/webservice/templates/server_detail.html:95
 msgid "No log files are in this server's log directory yet."
 msgstr ""
 "Aún no hay archivos de registro en el directorio de registros de este "
 "servidor."
 
-#: services/webservice/templates/server_detail.html:107
-#: services/webservice/templates/server_detail.html:668
+#: services/webservice/templates/server_detail.html:110
+#: services/webservice/templates/server_detail.html:706
 msgid "port"
 msgstr "puerto"
 
-#: services/webservice/templates/server_detail.html:127
+#: services/webservice/templates/server_detail.html:144
 msgid "0 — always run"
 msgstr "0 — siempre en marcha"
 
-#: services/webservice/templates/server_detail.html:127
+#: services/webservice/templates/server_detail.html:144
 msgid "1 — always pause"
 msgstr "1 — pausar siempre"
 
-#: services/webservice/templates/server_detail.html:128
+#: services/webservice/templates/server_detail.html:145
 msgid "2 — pause without clients"
 msgstr "2 — pausar sin clientes"
 
-#: services/webservice/templates/server_detail.html:130
-msgid "Configuration — the DCS face"
-msgstr "Configuración — la cara DCS"
-
-#: services/webservice/templates/server_detail.html:133
-msgid ""
-"Read from the master's in-process snapshot: no file is opened and no node"
-" is asked on this render."
-msgstr ""
-"Leído de la instantánea interna del maestro: en este renderizado no se "
-"abre ningún archivo ni se consulta a ningún nodo."
-
-#: services/webservice/templates/server_detail.html:133
-#, python-format
-msgid "Pinned by <b>servers.yaml</b>: %(names)s. A change updates both places."
-msgstr ""
-"Fijado por <b>servers.yaml</b>: %(names)s. Un cambio actualiza ambos "
-"sitios."
-
-#: services/webservice/templates/server_detail.html:141
+#: services/webservice/templates/server_detail.html:166
 msgid ""
 "Every write is a write: Revert re-submits the previous values through the"
 " same action — audited, validated and locked like any change."
@@ -2329,15 +3525,15 @@ msgstr ""
 "mediante la misma acción — auditada, validada y bloqueada como cualquier "
 "cambio."
 
-#: services/webservice/templates/server_detail.html:142
+#: services/webservice/templates/server_detail.html:167
 msgid "Revert"
 msgstr "Revertir"
 
-#: services/webservice/templates/server_detail.html:151
+#: services/webservice/templates/server_detail.html:176
 msgid "Read-only."
 msgstr "Solo lectura."
 
-#: services/webservice/templates/server_detail.html:151
+#: services/webservice/templates/server_detail.html:176
 msgid ""
 "The write action is not available in this installation (the <span "
 "class=\"mono\">scheduler</span> plugin is not loaded), so there is no "
@@ -2347,15 +3543,39 @@ msgstr ""
 "<span class=\"mono\">scheduler</span> no está cargado), así que aquí no "
 "hay Guardar."
 
-#: services/webservice/templates/server_detail.html:161
+#: services/webservice/templates/server_detail.html:181
+msgid "Configuration — the DCS face"
+msgstr "Configuración — la cara DCS"
+
+#: services/webservice/templates/server_detail.html:182
+msgid ""
+"Read from the master's in-process snapshot: no file is opened and no node"
+" is asked on this render."
+msgstr ""
+"Leído de la instantánea interna del maestro: en este renderizado no se "
+"abre ningún archivo ni se consulta a ningún nodo."
+
+#: services/webservice/templates/server_detail.html:182
+#, python-format
+msgid "Pinned by <b>servers.yaml</b>: %(names)s. A change updates both places."
+msgstr ""
+"Fijado por <b>servers.yaml</b>: %(names)s. Un cambio actualiza ambos "
+"sitios."
+
+#: services/webservice/templates/server_detail.html:190
+#: services/webservice/templates/server_detail.html:395
+msgid "The write action is not available in this installation."
+msgstr "La acción de escritura no está disponible en esta instalación."
+
+#: services/webservice/templates/server_detail.html:201
 msgid "editable"
 msgstr "editable"
 
-#: services/webservice/templates/server_detail.html:167
+#: services/webservice/templates/server_detail.html:206
 msgid "also pinned in servers.yaml — a change updates both"
 msgstr "también fijado en servers.yaml — un cambio actualiza ambos"
 
-#: services/webservice/templates/server_detail.html:182
+#: services/webservice/templates/server_detail.html:208
 msgid ""
 "Leave it to keep the password, empty it to remove it, type in it to set a"
 " new one. Its value is never shown here."
@@ -2363,21 +3583,21 @@ msgstr ""
 "Déjalo para conservar la contraseña, vacíalo para quitarla, escribe en él"
 " para poner una nueva. Su valor nunca se muestra aquí."
 
-#: services/webservice/templates/server_detail.html:218
+#: services/webservice/templates/server_detail.html:257
 msgid "off"
 msgstr "desactivado"
 
-#: services/webservice/templates/server_detail.html:231
+#: services/webservice/templates/server_detail.html:270
 msgid "— unchanged —"
 msgstr "— sin cambios —"
 
-#: services/webservice/templates/server_detail.html:245
+#: services/webservice/templates/server_detail.html:283
 msgid "Save writes the file — the change applies when the server next starts."
 msgstr ""
 "Guardar escribe el archivo — el cambio se aplica cuando el servidor "
 "arranque de nuevo."
 
-#: services/webservice/templates/server_detail.html:245
+#: services/webservice/templates/server_detail.html:283
 msgid ""
 "DCS reads <span class=\"mono\">serverSettings.lua</span> at boot, so "
 "nothing is applied live here. Only the fields you change are submitted."
@@ -2385,20 +3605,21 @@ msgstr ""
 "DCS lee <span class=\"mono\">serverSettings.lua</span> al arrancar, así "
 "que aquí nada se aplica en vivo. Solo se envían los campos que cambies."
 
-#: services/webservice/templates/server_detail.html:251
-#: services/webservice/templates/server_detail.html:360
-msgid "The write action is not available in this installation."
-msgstr "La acción de escritura no está disponible en esta instalación."
+#: services/webservice/templates/server_detail.html:290
+msgid ""
+"The console never opens or writes this file: it reads the settings from "
+"the bot's in-process snapshot and writes them through the bot's own "
+"action, so there is no Expert Mode text editor here."
+msgstr ""
+"Esta consola nunca abre ni escribe este archivo: lee los ajustes desde la"
+" instantánea en proceso del bot y los escribe mediante la propia acción "
+"del bot, por lo que aquí no hay un editor de texto en modo experto."
 
-#: services/webservice/templates/server_detail.html:251
-msgid "Save"
-msgstr "Guardar"
-
-#: services/webservice/templates/server_detail.html:276
+#: services/webservice/templates/server_detail.html:313
 msgid "bot face — servers.yaml"
 msgstr "cara del bot — servers.yaml"
 
-#: services/webservice/templates/server_detail.html:278
+#: services/webservice/templates/server_detail.html:315
 msgid ""
 "The one part of this page that does not live in <span "
 "class=\"mono\">serverSettings.lua</span>: these are the <span "
@@ -2412,27 +3633,19 @@ msgstr ""
 "class=\"mono\">Server.update_channels</span> del bot. Elige un canal por "
 "fila; solo se envían las filas que cambies."
 
-#: services/webservice/templates/server_detail.html:285
-msgid "required"
-msgstr "obligatorio"
-
-#: services/webservice/templates/server_detail.html:285
-msgid "optional"
-msgstr "opcional"
-
-#: services/webservice/templates/server_detail.html:298
+#: services/webservice/templates/server_detail.html:337
 msgid "(not in this guild)"
 msgstr "(no está en este servidor de Discord)"
 
-#: services/webservice/templates/server_detail.html:299
+#: services/webservice/templates/server_detail.html:338
 msgid "— not set —"
 msgstr "— sin definir —"
 
-#: services/webservice/templates/server_detail.html:305
+#: services/webservice/templates/server_detail.html:344
 msgid "Channel changes apply immediately."
 msgstr "Los cambios de canal se aplican de inmediato."
 
-#: services/webservice/templates/server_detail.html:305
+#: services/webservice/templates/server_detail.html:344
 msgid ""
 "Read from the master's in-process Discord connection: no node is asked "
 "and no Discord API call is made on this render."
@@ -2441,7 +3654,7 @@ msgstr ""
 "no se consulta a ningún nodo ni se hace ninguna llamada a la API de "
 "Discord."
 
-#: services/webservice/templates/server_detail.html:305
+#: services/webservice/templates/server_detail.html:344
 msgid ""
 "The guild's channel list could not be read right now (the bot is not "
 "connected to a guild) — only \"not set\" can be chosen."
@@ -2450,7 +3663,7 @@ msgstr ""
 "(el bot no está conectado a ninguno) — solo se puede elegir «sin "
 "definir»."
 
-#: services/webservice/templates/server_detail.html:305
+#: services/webservice/templates/server_detail.html:344
 msgid ""
 "A central admin channel is defined in <span "
 "class=\"mono\">bot.yaml</span>, so the per-server admin channel is not "
@@ -2460,19 +3673,19 @@ msgstr ""
 "class=\"mono\">bot.yaml</span>, así que el canal de administración por "
 "servidor no se muestra ni se edita aquí."
 
-#: services/webservice/templates/server_detail.html:306
+#: services/webservice/templates/server_detail.html:345
 msgid "The channels action is not available in this installation."
 msgstr "La acción de canales no está disponible en esta instalación."
 
-#: services/webservice/templates/server_detail.html:306
+#: services/webservice/templates/server_detail.html:345
 msgid "Save channels"
 msgstr "Guardar canales"
 
-#: services/webservice/templates/server_detail.html:330
+#: services/webservice/templates/server_detail.html:366
 msgid "bot database — set live, no restart"
 msgstr "base de datos del bot — se define en vivo, sin reiniciar"
 
-#: services/webservice/templates/server_detail.html:332
+#: services/webservice/templates/server_detail.html:368
 msgid ""
 "The blue and red join passwords. The bot keeps the cleartext in its own "
 "database and asks DCS to apply it — a change while the server is running "
@@ -2487,19 +3700,19 @@ msgstr ""
 " página nunca escribe <span class=\"mono\">serverSettings.lua</span> por "
 "sí misma."
 
-#: services/webservice/templates/server_detail.html:340
-msgid "DCS carries a hash for this coalition"
-msgstr "DCS tiene un hash para esta coalición"
+#: services/webservice/templates/server_detail.html:375
+msgid "hash set"
+msgstr "hash definido"
 
-#: services/webservice/templates/server_detail.html:340
-msgid "DCS carries no hash for this coalition"
-msgstr "DCS no tiene ningún hash para esta coalición"
+#: services/webservice/templates/server_detail.html:375
+msgid "no hash"
+msgstr "sin hash"
 
-#: services/webservice/templates/server_detail.html:359
+#: services/webservice/templates/server_detail.html:394
 msgid "Emptying a field removes its password."
 msgstr "Vaciar un campo elimina su contraseña."
 
-#: services/webservice/templates/server_detail.html:359
+#: services/webservice/templates/server_detail.html:394
 msgid ""
 "A field that is already empty does nothing — so a password shown as empty"
 " here (the bot knows only its hash) can be replaced but not removed from "
@@ -2509,24 +3722,24 @@ msgstr ""
 "muestra vacía aquí (el bot solo conoce su hash) se puede reemplazar pero "
 "no quitar desde esta página."
 
-#: services/webservice/templates/server_detail.html:360
+#: services/webservice/templates/server_detail.html:395
 msgid "Save coalition passwords"
 msgstr "Guardar contraseñas de coalición"
 
-#: services/webservice/templates/server_detail.html:411
+#: services/webservice/templates/server_detail.html:445
 msgid "rotation list"
 msgstr "lista de rotación"
 
-#: services/webservice/templates/server_detail.html:437
+#: services/webservice/templates/server_detail.html:471
 msgid "All"
 msgstr "Todas"
 
-#: services/webservice/templates/server_detail.html:438
+#: services/webservice/templates/server_detail.html:472
 #, python-format
 msgid "0 of %(count)s selected"
 msgstr "0 de %(count)s seleccionadas"
 
-#: services/webservice/templates/server_detail.html:443
+#: services/webservice/templates/server_detail.html:477
 #, python-format
 msgid ""
 "Set the ONE ticked mission as the mission %(server)s loads when it starts"
@@ -2536,8 +3749,8 @@ msgstr ""
 "arrancar — el puntero de rotación, no una carga inmediata; marca "
 "exactamente una"
 
-#: services/webservice/templates/server_detail.html:471
-#: services/webservice/templates/server_detail.html:625
+#: services/webservice/templates/server_detail.html:505
+#: services/webservice/templates/server_detail.html:656
 msgid ""
 "Read through the mission plugin's own action — this page never opens a "
 "mission file."
@@ -2545,55 +3758,55 @@ msgstr ""
 "Leído mediante la propia acción del plugin de misiones — esta página "
 "nunca abre un archivo de misión."
 
-#: services/webservice/templates/server_detail.html:484
-#: services/webservice/templates/server_detail.html:636
+#: services/webservice/templates/server_detail.html:517
+#: services/webservice/templates/server_detail.html:666
 msgid "START"
 msgstr "INICIO"
 
-#: services/webservice/templates/server_detail.html:484
-#: services/webservice/templates/server_detail.html:636
+#: services/webservice/templates/server_detail.html:517
+#: services/webservice/templates/server_detail.html:666
 msgid "missing"
 msgstr "falta"
 
-#: services/webservice/templates/server_detail.html:486
+#: services/webservice/templates/server_detail.html:519
 msgid "The running mission cannot be removed — load another mission first."
 msgstr "No se puede quitar la misión en curso — carga antes otra misión."
 
-#: services/webservice/templates/server_detail.html:501
+#: services/webservice/templates/server_detail.html:534
 #, python-format
 msgid "Move %(name)s up in the rotation list"
 msgstr "Subir %(name)s en la lista de rotación"
 
-#: services/webservice/templates/server_detail.html:501
+#: services/webservice/templates/server_detail.html:534
 #, python-format
 msgid "Move mission %(name)s up"
 msgstr "Subir la misión %(name)s"
 
-#: services/webservice/templates/server_detail.html:511
+#: services/webservice/templates/server_detail.html:544
 #, python-format
 msgid "Move %(name)s down in the rotation list"
 msgstr "Bajar %(name)s en la lista de rotación"
 
-#: services/webservice/templates/server_detail.html:511
+#: services/webservice/templates/server_detail.html:544
 #, python-format
 msgid "Move mission %(name)s down"
 msgstr "Bajar la misión %(name)s"
 
-#: services/webservice/templates/server_detail.html:515
-#: services/webservice/templates/server_detail.html:639
+#: services/webservice/templates/server_detail.html:548
+#: services/webservice/templates/server_detail.html:669
 #, python-format
 msgid "Download %(name)s — the mission file this server currently uses"
 msgstr ""
 "Descargar %(name)s — el archivo de misión que usa actualmente este "
 "servidor"
 
-#: services/webservice/templates/server_detail.html:515
-#: services/webservice/templates/server_detail.html:639
+#: services/webservice/templates/server_detail.html:548
+#: services/webservice/templates/server_detail.html:669
 #, python-format
 msgid "Download mission %(name)s"
 msgstr "Descargar la misión %(name)s"
 
-#: services/webservice/templates/server_detail.html:533
+#: services/webservice/templates/server_detail.html:566
 #, python-format
 msgid ""
 "Load %(name)s now on %(server)s — this also becomes the start mission and"
@@ -2602,7 +3815,7 @@ msgstr ""
 "Cargar %(name)s ahora en %(server)s — también pasa a ser la misión de "
 "inicio y arranca el servidor"
 
-#: services/webservice/templates/server_detail.html:533
+#: services/webservice/templates/server_detail.html:566
 #, python-format
 msgid ""
 "Load %(name)s now on %(server)s — the start mission is unchanged; use Set"
@@ -2611,20 +3824,20 @@ msgstr ""
 "Cargar %(name)s ahora en %(server)s — la misión de inicio no cambia; usa "
 "«Establecer como inicio» para eso"
 
-#: services/webservice/templates/server_detail.html:541
-#: services/webservice/templates/server_detail.html:644
+#: services/webservice/templates/server_detail.html:574
+#: services/webservice/templates/server_detail.html:674
 msgid "This server has no missions configured in its mission list."
 msgstr "Este servidor no tiene misiones configuradas en su lista de misiones."
 
-#: services/webservice/templates/server_detail.html:552
+#: services/webservice/templates/server_detail.html:585
 msgid "list only"
 msgstr "solo lista"
 
-#: services/webservice/templates/server_detail.html:557
+#: services/webservice/templates/server_detail.html:589
 msgid "A mission already on this server"
 msgstr "Una misión que ya está en este servidor"
 
-#: services/webservice/templates/server_detail.html:558
+#: services/webservice/templates/server_detail.html:590
 msgid ""
 "Pick a file from this server's missions directory and add it to the "
 "rotation list. Adding it changes the LIST only — no file is copied and "
@@ -2636,35 +3849,35 @@ msgstr ""
 "archivo ni se borra nada. Para traer una misión desde tu propio "
 "ordenador, usa <b>Subir un archivo de misión</b> abajo."
 
-#: services/webservice/templates/server_detail.html:565
+#: services/webservice/templates/server_detail.html:597
 msgid "Choose a mission file already on this server and add it to the rotation"
 msgstr ""
 "Elige un archivo de misión que ya esté en este servidor y añádelo a la "
 "rotación"
 
-#: services/webservice/templates/server_detail.html:565
+#: services/webservice/templates/server_detail.html:597
 msgid "Add a mission…"
 msgstr "Añadir una misión…"
 
-#: services/webservice/templates/server_detail.html:568
+#: services/webservice/templates/server_detail.html:600
 msgid "No unconfigured mission file was found in the missions directory."
 msgstr ""
 "No se encontró ningún archivo de misión sin configurar en el directorio "
 "de misiones."
 
-#: services/webservice/templates/server_detail.html:582
+#: services/webservice/templates/server_detail.html:614
 msgid "Upload a mission file"
 msgstr "Subir un archivo de misión"
 
-#: services/webservice/templates/server_detail.html:582
+#: services/webservice/templates/server_detail.html:614
 msgid "from your computer"
 msgstr "desde tu ordenador"
 
-#: services/webservice/templates/server_detail.html:589
+#: services/webservice/templates/server_detail.html:620
 msgid "Send a .miz from your own computer"
 msgstr "Envía un .miz desde tu propio ordenador"
 
-#: services/webservice/templates/server_detail.html:590
+#: services/webservice/templates/server_detail.html:621
 msgid ""
 "The file is copied into the server's missions directory and added to the "
 "rotation. Use <b>Add to the rotation</b> above for a mission that is "
@@ -2674,45 +3887,67 @@ msgstr ""
 "a la rotación. Usa <b>Añadir a la rotación</b> arriba para una misión que"
 " ya esté en el servidor."
 
-#: services/webservice/templates/server_detail.html:604
+#: services/webservice/templates/server_detail.html:635
 msgid "Mission file to upload from your computer"
 msgstr "Archivo de misión para subir desde tu ordenador"
 
-#: services/webservice/templates/server_detail.html:605
+#: services/webservice/templates/server_detail.html:636
 msgid "Choose a .miz file…"
 msgstr "Elige un archivo .miz…"
 
-#: services/webservice/templates/server_detail.html:608
+#: services/webservice/templates/server_detail.html:639
 msgid "load at next start"
 msgstr "cargar en el próximo arranque"
 
-#: services/webservice/templates/server_detail.html:609
+#: services/webservice/templates/server_detail.html:640
 msgid "load now"
 msgstr "cargar ahora"
 
-#: services/webservice/templates/server_detail.html:654
+#: services/webservice/templates/server_detail.html:684
 msgid "Server log"
 msgstr "Registro del servidor"
 
-#: services/webservice/templates/server_detail.html:668
+#: services/webservice/templates/server_detail.html:706
 msgid "remote"
 msgstr "remoto"
 
-#: services/webservice/templates/server_detail.html:669
+#: services/webservice/templates/server_detail.html:708
 msgid "Current mission:"
 msgstr "Misión actual:"
 
-#: services/webservice/templates/server_detail.html:669
-msgid "elapsed"
-msgstr "transcurrido"
-
-#: services/webservice/templates/server_detail.html:670
-#, python-format
-msgid "Players: %(count)s player(s)"
-msgstr "Jugadores: %(count)s jugador(es)"
-
-#: services/webservice/templates/server_detail.html:670
+#: services/webservice/templates/server_detail.html:709
 #, python-format
 msgid "%(count)s active"
 msgstr "%(count)s activos"
+
+#: services/webservice/templates/settings_scope.html:56
+msgid "+ Add block"
+msgstr "+ Añadir bloque"
+
+#: services/webservice/templates/settings_tiles.html:44
+msgid "This install"
+msgstr ""
+
+#: services/webservice/templates/settings_tiles.html:45
+msgid "admin only"
+msgstr ""
+
+#: services/webservice/templates/settings_tiles.html:49
+msgid "The bot's own configuration: guild, database, logging, the plugin list."
+msgstr ""
+
+#~ msgid ""
+#~ "Not installed: %(names)s — these entries"
+#~ " stay in the config until you "
+#~ "remove them."
+#~ msgstr ""
+#~ "No instalado: %(names)s — estas entradas"
+#~ " permanecen en la configuración hasta "
+#~ "que las elimines."
+
+#~ msgid "DCS carries a hash for this coalition"
+#~ msgstr "DCS tiene un hash para esta coalición"
+
+#~ msgid "DCS carries no hash for this coalition"
+#~ msgstr "DCS no tiene ningún hash para esta coalición"
 

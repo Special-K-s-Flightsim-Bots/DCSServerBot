@@ -21,7 +21,7 @@ from . import lists as lists_page
 __all__ = ["SERVERS_PATH", "SERVERS_CAPABILITY", "SERVERS_ROLES", "SERVERS_TABLE", "SERVERS_TITLE",
            "SERVERS_LEAD", "NAV_LABEL", "PAGE", "capabilities", "nav_items", "add_routes"]
 
-SERVERS_PATH = "/servers"
+SERVERS_PATH = "/fleet"
 SERVERS_CAPABILITY = "servers.view"
 #: a member who may read the console may read the fleet (the dashboard's own role model)
 SERVERS_ROLES: tuple[str, ...] = lists_page.READ_ONLY_ROLES

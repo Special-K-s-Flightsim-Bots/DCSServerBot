@@ -36,10 +36,11 @@ from .access import as_int, port_number, safe, text
 from .instances import instances
 from .logtail import DEFAULT_LINES, log_tail, tail
 from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE,
-                    NO_LIVE_REASON, NO_NODES_MESSAGE, NO_NODE_INSTANCES_MESSAGE,
-                    NO_PLAYERS_MESSAGE, NO_SERVERS_MESSAGE, SCOPED_EMPTY_MESSAGE,
-                    STATUS_WORDS, InstanceView, LogLine, LogTail, NodeView, Overview, PlayerView,
-                    ServerView, SourceStatus, StatusView, format_duration, status_view)
+                    NO_LIVE_REASON, NO_MISSION_MESSAGE, NO_NODES_MESSAGE, NO_NODE_INSTANCES_MESSAGE,
+                    NO_PLAYERS_MESSAGE, NO_SERVERS_MESSAGE, NO_WEATHER_MESSAGE, NOT_RUNNING_MESSAGE,
+                    SCOPED_EMPTY_MESSAGE, STATUS_WORDS, InstanceView, LogLine, LogTail, NodeView,
+                    Overview, PlayerView, ServerView, SourceStatus, StatusView, WeatherView,
+                    format_duration, status_view)
 from .nodes import nodes
 from .overview import overview
 from .players import players_online
@@ -63,11 +64,12 @@ from .views import (Column, ColumnView, PlayerSearch, TableView, ViewParams, Vie
 __all__ = [
     # records + vocabulary
     "SourceStatus", "StatusView", "NodeView", "InstanceView", "ServerView", "PlayerView",
-    "LogLine", "LogTail", "Overview", "STATUS_WORDS", "status_view", "format_duration",
+    "WeatherView", "LogLine", "LogTail", "Overview", "STATUS_WORDS", "status_view", "format_duration",
     # empty-state copy
     "NO_LIVE_REASON", "NO_SERVERS_MESSAGE", "NO_PLAYERS_MESSAGE", "NO_NODES_MESSAGE",
     "NO_INSTANCES_MESSAGE", "NO_NODE_INSTANCES_MESSAGE", "LOG_MISSING_MESSAGE",
     "LOG_EMPTY_MESSAGE", "SCOPED_EMPTY_MESSAGE",
+    "NO_MISSION_MESSAGE", "NO_WEATHER_MESSAGE", "NOT_RUNNING_MESSAGE",
     # sources (the scope wrap is the ONE place the hoster view is applied; console_source is the
     # ONE place the application's source seam is resolved)
     "Source", "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "resolve_source",

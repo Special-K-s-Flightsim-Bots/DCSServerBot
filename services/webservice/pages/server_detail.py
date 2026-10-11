@@ -1,15 +1,15 @@
 """The per-server page and its **Configuration** tab — and (M2) the **Missions** tab and download.
 
 A server gets its own page: Overview / Players / Missions / Log plus a Configuration tab. The module
-adds four routes — ``GET /servers/{name:path}`` (the ``:path`` converter carries a name containing
-``/``), ``GET /servers/{name:path}/status`` (the status poll, L5), ``GET
-/servers/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
+adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter carries a name containing
+``/``), ``GET /fleet/{name:path}/status`` (the status poll, L5), ``GET
+/fleet/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
 routes (``.../log/window`` and ``.../log/download``) — registered FIRST so the page's greedy converter
 cannot swallow them, and reuses the shell, the sidebar, the table component and the read models rather
 than inventing a second page framework.
 
 The name is resolved through :func:`services.webservice.pages.dashboard.scoped_server`, so the hoster
-scope and the not-found refusal come for free. The page keeps the gate ``/servers`` has
+scope and the not-found refusal come for free. The page keeps the gate ``/fleet`` has
 (``servers.view``); the Configuration tab is gated on its own capability ``servers.config``
 (``Admin`` only, NO scope grant — a server's config carries secrets), and the Missions tab and its
 download on ``missions.view`` (the server page's own read roles PLUS a scope grant, so a hoster sees
@@ -32,6 +32,7 @@ import asyncio
 import logging
 import re
 import unicodedata
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
@@ -69,6 +70,7 @@ __all__ = [
     "EVENTS_TAB", "LOG_DOWNLOAD_PATH", "LOG_DOWNLOAD_MAX_BYTES", "log_download_path",
     "SERVER_STATUS_PATH", "SERVER_STATUS_SECONDS", "server_status_path",
     "log_artifacts", "debug_plugin_active",
+    "EMBED_BUILDER_PATH", "EMBED_FIELD_COVERAGE", "EMBED_FIELDS_NOT_COVERED", "embed_field_selection",
     "TAB_ORDER", "OPTIONAL_TAB_ORDER", "TAB_LABELS", "DEFAULT_TAB", "CONFIG_TEMPLATE",
     "PAGE_TITLE_SUFFIX", "capabilities", "nav_items", "add_routes",
     "normalise_tab", "tabs_for", "tab_views", "config_request_refused", "tab_request_refused",
@@ -90,9 +92,9 @@ CRUMB_GROUP = servers_page.lists_page.CRUMB_GROUP
 #: arrives whole and :func:`dashboard.scoped_server` resolves it exactly as it does for any other
 #: name. NO second decode is applied on purpose: the server has already decoded the path, so a
 #: ``name`` holding a literal percent-escape (``%2F`` typed as characters, encoded ``%252F``) would
-#: be corrupted by one. The link SHAPE is unchanged — the path is still ``/servers/<encoded-name>``
+#: be corrupted by one. The link SHAPE is unchanged — the path is still ``/fleet/<encoded-name>``
 #: — so every bookmarked, logged or pinned URL keeps working.
-SERVER_DETAIL_PATH = "/servers/{name:path}"
+SERVER_DETAIL_PATH = "/fleet/{name:path}"
 
 #: The page keeps the same gate the Servers list page has (``servers.view``).
 SERVER_DETAIL_CAPABILITY = servers_page.SERVERS_CAPABILITY
@@ -146,22 +148,22 @@ EVENTS_REFUSED_SENTENCE = i18n._("The Events tab is only offered while the debug
 #: answers GET with JSON: a window of the server's log, at ``?offset=`` (follow) or ``?behind=``
 #: (page back), filtered by ``?level=`` and (for the Events tab) selected by ``?which=events``. It is
 #: registered BEFORE the page route so the suffix is not swallowed by the greedy ``{name:path}`` of
-#: ``GET /servers/{name}``.
-LOG_WINDOW_PATH = "/servers/{name:path}/log/window"
+#: ``GET /fleet/{name}``.
+LOG_WINDOW_PATH = "/fleet/{name:path}/log/window"
 
 #: THE LOG-DOWNLOAD route — one artifact's own READ control. The artifact is named by an IDENTITY
 #: from the tab's own listing (a file NAME, never a path) and RE-RESOLVED against a fresh enumeration
 #: in the route, so nothing a request states is ever joined to a directory. Registered BEFORE the page
 #: route for the same greedy-converter reason as the window route.
-LOG_DOWNLOAD_PATH = "/servers/{name:path}/log/download"
+LOG_DOWNLOAD_PATH = "/fleet/{name:path}/log/download"
 
 #: THE STATUS route — the server page's own status poll (L5). A GET answering the CURRENT status as
 #: the markup the page itself renders (the partial ``_server_status.html``), so the mark "at the top"
 #: of the page and the Overview card's copy of it keep up with the server WITHOUT a reload. The page
 #: is NOT wired to the console's live path (that is the dashboard's SSE stream, whose fragments are
 #: dashboard-shaped); the status therefore has its OWN poll — ONE updater for ONE fact. Registered
-#: BEFORE the page route so the greedy ``{name:path}`` of ``GET /servers/{name}`` cannot swallow it.
-SERVER_STATUS_PATH = "/servers/{name:path}/status"
+#: BEFORE the page route so the greedy ``{name:path}`` of ``GET /fleet/{name}`` cannot swallow it.
+SERVER_STATUS_PATH = "/fleet/{name:path}/status"
 
 #: how often the status poll asks (seconds) — carried to the page as ``data-server-status-seconds``.
 #: The status is a single small mark, so it does not need the log follower's tighter cadence.
@@ -188,12 +190,85 @@ TAB_LABELS: dict[str, str] = {
 
 DEFAULT_TAB = "overview"
 
+# ---------------------------------------------------------------------------------------------
+# THE OVERVIEW TAB'S EMBED PARITY (moved here from the removed standalone page). The tab mirrors the
+# bot's server-status embed (``plugins/mission/status.py``, element list
+# ``plugins/mission/reports/serverStatus.json``); this declaration is where the facts the tab shows
+# and the ones it deliberately omits are listed, and ``tests/test_webui_server_overview.py`` fails the
+# moment the embed grows a field the tab neither shows nor documents. The FIELD SELECTION is shared
+# rather than copied: the read model (``readmodels.servers.server_view``) produces the same weather
+# facts the embed's ``WeatherInfo`` element does, in the same units and rounding.
+# ---------------------------------------------------------------------------------------------
+
+#: The EMBED BUILDER whose field selection the tab mirrors — the bot's server-status report. Its
+#: element list is ``plugins/mission/reports/serverStatus.json``; the element classes that call
+#: ``add_field`` live beside it in ``status.py``. Read by :func:`embed_field_selection` and by the
+#: parity test, from ONE place.
+EMBED_BUILDER_PATH = Path(__file__).resolve().parents[3] / "plugins" / "mission" / "status.py"
+
+#: ``add_field(name=...)`` where the name is a LITERAL string (single- or double-quoted). Calls whose
+#: name is an expression (a variable, ``ext['name']``, ``utils.print_ruler(...)``) do not match and
+#: are counted separately — see :func:`embed_field_selection`.
+_ADD_FIELD = re.compile(r"add_field\(\s*name\s*=\s*(?P<name>'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\")")
+
+#: embed field label -> the tab fact (an i18n msgid) that CARRIES it. The value is what the Overview
+#: tab renders, so the parity test can assert the label reaches the page. Keyed by the embed's own
+#: field name, exactly as ``status.py`` writes it.
+EMBED_FIELD_COVERAGE: dict[str, str] = {
+    "Map": i18n._("Map"),
+    "Temperature": i18n._("Temperature"),
+    "Clouds": i18n._("Weather"),
+    "Weather": i18n._("Weather"),
+    "Visibility": i18n._("Wind"),
+    "Date / Time in Mission": i18n._("Runtime"),
+}
+
+#: embed field labels the tab deliberately does NOT show, each with the reason a reviewer can check.
+#: Every literal name in the builder must appear in ONE of the two maps — that is the drift guard.
+EMBED_FIELDS_NOT_COVERED: dict[str, str] = {
+    "Client Limits": (
+        "the IntegrityCheck element renders the server's client-integrity policy flags (pure "
+        "clients/scripts/models, trial clients) — a per-server policy list, not a runtime fact the "
+        "Overview tab carries"),
+    "_ _": "the Ruler/blank spacer fields every element appends — layout, not a fact",
+    "This server runs on the following schedule:": (
+        "the ScheduleInfo element — reads the scheduler plugin and a per-server schedule; not a "
+        "runtime fact the tab carries"),
+    "🇲|🇹|🇼|🇹|🇫|🇸|🇸": "the ScheduleInfo day grid (see above)",
+}
+
+
+def embed_field_selection(source: str | None = None) -> tuple[tuple[str, ...], int]:
+    """``(literal field labels, count of dynamically-named add_field calls)`` for the embed builder.
+
+    The labels are the ``add_field(name='…')`` string literals of ``plugins/mission/status.py``, in
+    source order and deduplicated. The count names the calls whose name is an EXPRESSION (the
+    extensions list and the schedule ruler build their names at runtime): their labels are not
+    visible to a static read, which is exactly one of the things the parity test states it does NOT
+    cover. Raises ``FileNotFoundError`` if the builder moved — a silent empty set would pass a
+    subset test for the wrong reason.
+    """
+    text = source if source is not None else EMBED_BUILDER_PATH.read_text(encoding="utf-8")
+    labels: list[str] = []
+    dynamic = 0
+    for match in _ADD_FIELD.finditer(text):
+        raw = match.group("name")
+        labels.append(raw[1:-1])
+    for call in re.finditer(r"add_field\(", text):
+        window = text[call.end():call.end() + 60]
+        if not re.match(r"\s*name\s*=\s*['\"]", window):
+            dynamic += 1
+    seen: dict[str, None] = {}
+    for label in labels:
+        seen.setdefault(label, None)
+    return tuple(seen), dynamic
+
 #: THE MISSION-DOWNLOAD route — a literal TEMPLATE path with the server's own ``{name:path}`` prefix
 #: (so a name containing ``/`` still resolves, exactly as the page route does) plus one fixed suffix.
 #: It answers GET, renders no chrome, and is registered BEFORE the page route so the suffix is not
-#: swallowed by the greedy ``{name:path}`` of ``GET /servers/{name}``. The MISSION is a QUERY
+#: swallowed by the greedy ``{name:path}`` of ``GET /fleet/{name}``. The MISSION is a QUERY
 #: parameter (an index or a name, never a path), so nothing a request states can become a directory.
-MISSIONS_DOWNLOAD_PATH = "/servers/{name:path}/missions/download"
+MISSIONS_DOWNLOAD_PATH = "/fleet/{name:path}/missions/download"
 
 #: HOW MUCH OF A MISSION THIS CONSOLE WILL HAND OVER IN ONE RESPONSE. The rule: a mission AT OR
 #: BELOW this size is served whole; one ABOVE it is REFUSED with its own sentence and served not at
@@ -395,7 +470,7 @@ def mission_download_path(server_name: str) -> str:
     into a directory component. A name carrying a ``/`` is encoded here (``%2F``) and decoded again by
     the route's ``{name:path}`` parameter, exactly as the page URL is.
     """
-    return f"/servers/{quote(readmodels.text(server_name), safe='')}/missions/download"
+    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/missions/download"
 
 
 def mission_rows(data: dict, server_name: str) -> list[dict]:
@@ -532,12 +607,12 @@ def _safe_filename(name: str) -> str:
 
 def log_window_path(server_name: str) -> str:
     """The URL of *server_name*'s log-window endpoint — the name as ONE percent-encoded segment."""
-    return f"/servers/{quote(readmodels.text(server_name), safe='')}/log/window"
+    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/window"
 
 
 def server_status_path(server_name: str) -> str:
     """The URL of *server_name*'s status endpoint — the name as ONE percent-encoded segment (L5)."""
-    return f"/servers/{quote(readmodels.text(server_name), safe='')}/status"
+    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/status"
 
 
 class _LogUnavailable(Exception):
@@ -673,8 +748,14 @@ def _empty_message(allowed) -> str:
 
 
 async def _collect_back(node, path: str, node_name: str, *, behind, allowed,
-                        want: int) -> dict:
+                        want: int, read=None) -> dict:
     """Walk BACK through windows until *want* matching lines are collected OR the start is reached.
+
+    *read* is the ONE window read the walk issues (``(node, path, node_name, offset=/behind=) ->
+    (bytes, size, identity)``); it defaults to this module's own :func:`_read_window` (the DCS log
+    tab), and a caller that reads a DIFFERENT file over the same mechanism — the node log viewer,
+    whose sentences name the node's own log — passes its own so the failure it raises is the one
+    that caller renders.
 
     A FILTERED PAGE MUST NEVER LIE BY BEING EMPTY (Frank's report): if the window ending at *behind*
     holds no line at the chosen level, the walk continues into OLDER windows until the page is filled
@@ -699,9 +780,10 @@ async def _collect_back(node, path: str, node_name: str, *, behind, allowed,
     partial = False
     size = 0
     identity: str | None = None      # the token of the file the walk STARTED on
+    read = read or _read_window
     first = True
     while True:
-        raw, size, current = await _read_window(node, path, node_name, behind=cursor)
+        raw, size, current = await read(node, path, node_name, behind=cursor)
         token = identity_token(current)
         if first:
             identity = token
@@ -857,7 +939,7 @@ def debug_plugin_active(node) -> bool:
 
 def log_download_path(server_name: str) -> str:
     """The URL of *server_name*'s log-artifact download BASE — the name as ONE percent-encoded segment."""
-    return f"/servers/{quote(readmodels.text(server_name), safe='')}/log/download"
+    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/download"
 
 
 def _human_size(size) -> str:
@@ -1301,8 +1383,8 @@ def add_routes(router: APIRouter) -> APIRouter:
     """Add the mission-download route, the log-window route, the log-download route and the page.
 
     The THREE non-page routes are registered FIRST, deliberately: their paths are
-    ``/servers/{name:path}/missions/download``, ``/servers/{name:path}/log/window`` and
-    ``/servers/{name:path}/log/download``, and the page route's ``{name:path}`` is greedy (``.*``), so
+    ``/fleet/{name:path}/missions/download``, ``/fleet/{name:path}/log/window`` and
+    ``/fleet/{name:path}/log/download``, and the page route's ``{name:path}`` is greedy (``.*``), so
     on this router's match-in-order resolution they must be seen before the page or a real server name
     ending in one of those suffixes — and the routes' own URLs — would be swallowed by the page route.
     The reverse collision (a server's OWN page under any of those shapes) is each route's own to
@@ -1413,8 +1495,11 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         # THE DEBUG PLUGIN'S events.log (L2): the same presentation as the log tab, selected by
         # ``which=events`` on the shared window route; downloads limited to its two files.
         return await _log_tab_context(request, server, server_name, which=dcs_log.EVENTS_WHICH)
-    # overview: nothing beyond the shared server row the heading already reads
-    return {}
+    # overview: the tab renders the server's own facts (status, mission, map, players, runtime,
+    # weather) off the shared ServerView the heading already reads; the only extra data is the
+    # honest empty-state copy the weather block and a not-running server use.
+    return {"empty": {"weather": readmodels.NO_WEATHER_MESSAGE,
+                      "not_running": readmodels.NOT_RUNNING_MESSAGE}}
 
 
 async def _missions_write_context(request: Request, server, server_name: str) -> dict:

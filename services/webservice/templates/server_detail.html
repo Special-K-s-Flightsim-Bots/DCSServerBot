@@ -24,6 +24,10 @@
 -#}
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
+{#-  THE SHARED BLOCK MACRO (see `_editor.html`): the SAME collapsible `<details
+    class="st-block">` the schema-driven editor draws, so the DCS groups below are the
+    SAME control a schema map renders — one editor look, whatever the file format.  -#}
+{% import "_editor.html" as editor %}
 {#- THE LOG FAMILY'S ONE CARD (L2/L3). The Log tab and the optional Events tab render the SAME
     presentation — the tailed window, "Load older", and the artifacts PICKER — so it is ONE macro, not
     two copies that could drift. `which` is the file selector the shared window route reads; the level
@@ -76,17 +80,16 @@
     {% elif log_artifacts %}
     <form class="cfg-form log-picker" method="get" action="{{ log_download_base }}">
       {% if log_which %}<input type="hidden" name="which" value="{{ log_which }}">{% endif %}
-      <div class="cfg-row">
-        <div class="cfg-meta"><div><b>{% trans %}Log file{% endtrans %}</b></div><div class="sub">{% trans %}Choose a file to download.{% endtrans %}</div></div>
-        <div class="cfg-widget">
-          <select id="dcs-log-file" name="artifact" aria-label="{% trans %}Log file to download{% endtrans %}">
+      {% set dl_lab %}<div class="nm">{% trans %}Log file{% endtrans %}</div><div class="hp">{% trans %}Choose a file to download.{% endtrans %}</div>{% endset %}
+      {% set dl_ctl %}
+          <select id="dcs-log-file" name="artifact" class="cfg-input" aria-label="{% trans %}Log file to download{% endtrans %}">
             {% for a in log_artifacts %}
             <option value="{{ a.id }}">{{ a.name }} — {{ a.size_text }} · {{ a.mtime }} UTC</option>
             {% endfor %}
           </select>
           <button type="submit" class="btn">{% trans %}Download{% endtrans %}</button>
-        </div>
-      </div>
+      {% endset %}
+      {{ editor.field_row('select', dl_lab, dl_ctl) }}
     </form>
     {% else %}
     <p class="empty">{% trans %}No log files are in this server's log directory yet.{% endtrans %}</p>
@@ -115,6 +118,20 @@
 
 {% if tab == 'configuration' %}
 {# ---------------------------------------------------------------- the Configuration tab #}
+{#-  THE SAME EDITOR AS EVERY OTHER CONFIG SURFACE. This page edits a LUA file (serverSettings.lua)
+    with no schema, so its fields come from the console's own DECLARATION (readmodels.serverconfig),
+    not from a pykwalify schema — the PARSER differs. The EDITOR does not: the layout (`st-head` /
+    `st-bar` / `st-layout` with the file's aside), the collapsible `<details class="st-block">` blocks
+    (the ONE macro in `_editor.html`, shared with the schema-driven view), the byte-honest Save and
+    the read-only file panel are the SAME as `settings_scope.html` / `node_page.html`. Frank's rule:
+    config files of different FORMATS may need different parsers, but they must not grow different
+    EDITORS.
+
+    WHAT THIS LUA FILE CANNOT DO, stated plainly rather than faked: it has no SCHEMA (so no schema
+    validator, no `+ Add` picker of optional fields — every declared field is always present), and the
+    console never opens or writes it (the bot's own action does), so there is NO Expert Mode text
+    editor here — one would be a second write path, which this console forbids. The aside is therefore
+    read-only, exactly the panel the yaml editor shows with JavaScript off.  -#}
 {% set cfg_enabled = config.serviceable and config_available %}
 {#- THE WORDS FOR A CHOICE FIELD'S OPTIONS. `advanced.resume_mode`'s options are bare numbers in the
     declaration (`choices=(0, 1, 2)`), and "1" is not "always pause". The SUBMITTED values stay the
@@ -126,48 +143,71 @@
     remove this map. -#}
 {% set CHOICE_LABELS = {'advanced.resume_mode': {0: _('0 — always run'), 1: _('1 — always pause'),
                                                  2: _('2 — pause without clients')}} %}
-<div class="card">
-  <div class="hd"><h3>{% trans %}Configuration — the DCS face{% endtrans %}</h3><div class="spacer"></div>
-    <span class="tag">Saved Games/&lt;instance&gt;/Config/serverSettings.lua</span></div>
-  <div class="bd">
-    <div class="sub">{% trans %}Read from the master's in-process snapshot: no file is opened and no node is asked on this render.{% endtrans %} {% if config.overridden %}{% trans names=config.overridden | join(', ') %}Pinned by <b>servers.yaml</b>: {{ names }}. A change updates both places.{% endtrans %}{% endif %}</div>
 
-    {% include "_notice.html" %}
-    {% if notice and notice.revert %}
-    <form class="revert" method="post" action="{{ config_action_path }}" data-async>
-      <input type="hidden" name="server" value="{{ server_name }}">
-      <input type="hidden" name="{{ config_revert_field }}" value="{{ notice.revert }}">
-      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
-      <span class="sub">{% trans %}Every write is a write: Revert re-submits the previous values through the same action — audited, validated and locked like any change.{% endtrans %}</span>
-      <button type="submit">{% trans %}Revert{% endtrans %}</button>
-    </form>
-    {% elif notice and notice.revert_omitted %}
-    <div class="notice"><div class="sub">{{ notice.revert_omitted }}</div></div>
-    {% endif %}
+<div class="st-head">
+  <div>
+    <div class="t1">
+      <a class="st-back" href="/fleet">&larr; {{ _('Servers') }}</a>
+      <span class="st-crumb">&rsaquo; {{ _('Configuration') }}</span>
+    </div>
+    <div class="t1" style="margin-top:6px">
+      <h1>{{ server_name }}</h1>
+      <span class="st-kind">{{ _('Server') }}</span>
+    </div>
+  </div>
+</div>
 
-    {% if not config.serviceable %}
-    <div class="notice"><div class="sub"><b>{{ _(config.status.word) }}</b> — {{ config.apply_note }}</div></div>
-    {% elif not config_available %}
-    <div class="notice"><div class="sub"><b>{% trans %}Read-only.{% endtrans %}</b> {% trans %}The write action is not available in this installation (the <span class="mono">scheduler</span> plugin is not loaded), so there is no Save here.{% endtrans %}</div></div>
-    {% endif %}
+{% include "_notice.html" %}
+{% if notice and notice.revert %}
+<form class="revert" method="post" action="{{ config_action_path }}" data-async>
+  <input type="hidden" name="server" value="{{ server_name }}">
+  <input type="hidden" name="{{ config_revert_field }}" value="{{ notice.revert }}">
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <span class="sub">{% trans %}Every write is a write: Revert re-submits the previous values through the same action — audited, validated and locked like any change.{% endtrans %}</span>
+  <button type="submit">{% trans %}Revert{% endtrans %}</button>
+</form>
+{% elif notice and notice.revert_omitted %}
+<div class="notice"><div class="sub">{{ _(notice.revert_omitted) }}</div></div>
+{% endif %}
 
+{% if not config.serviceable %}
+<div class="notice"><div class="sub"><b>{{ _(config.status.word) }}</b> — {{ _(config.apply_note) }}</div></div>
+{% elif not config_available %}
+<div class="notice"><div class="sub"><b>{% trans %}Read-only.{% endtrans %}</b> {% trans %}The write action is not available in this installation (the <span class="mono">scheduler</span> plugin is not loaded), so there is no Save here.{% endtrans %}</div></div>
+{% endif %}
+
+<div class="st-bar">
+  <div>
+    <div class="where"><b>{{ _('Configuration — the DCS face') }}</b> &middot; <span class="mono">Saved Games/&lt;instance&gt;/Config/serverSettings.lua</span></div>
+    <div class="s">{% trans %}Read from the master's in-process snapshot: no file is opened and no node is asked on this render.{% endtrans %} {% if config.overridden %}{% trans names=config.overridden | join(', ') %}Pinned by <b>servers.yaml</b>: {{ names }}. A change updates both places.{% endtrans %}{% endif %}</div>
+  </div>
+  <div class="acts">
+    {#-  THE TAB'S OWN Save — the ONE filled control on a page that carries three (`Save channels` and
+        `Save coalition passwords` are the plain secondary chips). It references the DCS form by id
+        (`form="cfg-form"`), exactly as the scoped editor's bar does. The class STARTS with `primary`
+        (the console's own marker) and carries the shell's `st-btn pri` fill; the `busy` pulse rides
+        the SAME element.  -#}
+    <button type="submit" form="cfg-form" class="primary st-btn pri{% if cfg_enabled and config_pulse %} busy{% endif %}"{% if not cfg_enabled %} disabled title="{{ _(config.apply_note) if not config.serviceable else _('The write action is not available in this installation.') }}"{% elif config_pulse %} aria-busy="true"{% endif %}>{% trans %}Save{% endtrans %}</button>
+  </div>
+</div>
+
+<div class="st-layout" style="margin-top:16px">
+  <div>
     <form class="cfg-form" method="post" action="{{ config_action_path }}" data-async id="cfg-form">
       <input type="hidden" name="server" value="{{ server_name }}">
       <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
 
       {% for group in config.groups %}
-      <div class="card">
-        <div class="hd"><h4>{{ _(group.label) }}</h4><div class="spacer"></div>
-          <span class="tag">{{ group.fields | length }} {% trans %}editable{% endtrans %}</span></div>
-        <div class="bd">
-          {% for f in group.fields %}
-          <div class="cfg-row">
-            <div class="cfg-meta">
-              <div><b>{{ _(f.label) }}</b> <span class="mono">{{ f.key }}</span></div>
-              <div class="sub">{{ f.bound }}{% if f.protection %} · {{ f.protection }}{% endif %}{% if f.overridden %} <span class="tag">{% trans %}also pinned in servers.yaml — a change updates both{% endtrans %}</span>{% endif %}</div>
-              <div class="sub">{{ _(f.help) }}</div>
-            </div>
-            <div class="cfg-widget">
+      {%- set gsummary %}<span class="k">{{ _(group.label) }}</span><span class="kd">{{ group.fields | length }} {{ _('editable') }}</span>{% endset %}
+      {% call editor.panel(gsummary, open=True) %}
+        {% for f in group.fields %}
+        {% set dcs_lab %}
+          <div class="nm">{{ _(f.label) }}</div>
+          <div class="kk"><span class="key mono">{{ f.key }}</span><span class="ty">{{ f.bound }}{% if f.protection %} · {{ f.protection }}{% endif %}</span>{% if f.overridden %} <span class="tag">{% trans %}also pinned in servers.yaml — a change updates both{% endtrans %}</span>{% endif %}</div>
+          <div class="hp">{{ _(f.help) }}</div>
+          {% if f.protection == 'protected' %}<div class="hp">{% trans %}Leave it to keep the password, empty it to remove it, type in it to set a new one. Its value is never shown here.{% endtrans %}</div>{% endif %}
+        {% endset %}
+        {% set dcs_ctl %}
               {% if f.protection == 'protected' %}
                 {#- A PROTECTED PASSWORD: the value is NEVER rendered. The field holds the fixed
                     placeholder (`serverconfig.PROTECTED_SENTINEL`) while a password is set, and nothing
@@ -177,9 +217,8 @@
                     NO eye here: the field holds no value to reveal. `autocomplete="new-password"`
                     stops the browser offering a saved credential into the console's own field. -#}
                 <input type="password" id="cfg-{{ f.key | replace('.', '-') }}" name="{{ f.key }}"
-                       value="{{ f.value if f.value is not none else '' }}"
+                       value="{{ f.value if f.value is not none else '' }}" class="cfg-input"
                        autocomplete="new-password"{% if not cfg_enabled %} disabled{% endif %}>
-                <div class="sub">{% trans %}Leave it to keep the password, empty it to remove it, type in it to set a new one. Its value is never shown here.{% endtrans %}</div>
               {% elif f.protection == 'unprotected' %}
                 {#- AN UNPROTECTED PASSWORD: A NORMAL MASKED FIELD HOLDING THE STORED VALUE, shown as it
                     is (this console's own Discord editor already shows it in the clear). Leave it to
@@ -188,7 +227,7 @@
                     `autocomplete="new-password"` stops the browser offering a saved credential into
                     the console's own field. -#}
                 <input type="password" id="cfg-{{ f.key | replace('.', '-') }}" name="{{ f.key }}"
-                       value="{{ f.value if f.value is not none else '' }}"
+                       value="{{ f.value if f.value is not none else '' }}" class="cfg-input"
                        autocomplete="new-password"{% if not cfg_enabled %} disabled{% endif %}>
                 {#- THE EYE. A real `button` (keyboard-reachable, Enter/Space both work, never a submit —
                     `type="button"`), carrying `aria-pressed` as the announced state and both glyphs, so
@@ -213,7 +252,7 @@
                     the action's declared maximum — it costs nothing and prevents the over-long value
                     instead of reporting it — and the browser's resize handle is deliberately left
                     alone (`resize` is not set anywhere), so the field the reader grows stays grown. -#}
-                <textarea name="{{ f.key }}" rows="7"{% if f.maximum %} maxlength="{{ f.maximum }}"{% endif %}{% if not cfg_enabled %} disabled{% endif %}>{{ f.value if f.value is not none else '' }}</textarea>
+                <textarea name="{{ f.key }}" rows="7" class="cfg-input mono"{% if f.maximum %} maxlength="{{ f.maximum }}"{% endif %}{% if not cfg_enabled %} disabled{% endif %}>{{ f.value if f.value is not none else '' }}</textarea>
               {% elif f.kind == 'bool' %}
                 <label class="tag"><input type="checkbox" name="{{ f.key }}" value="1"{% if f.value %} checked{% endif %}{% if not cfg_enabled %} disabled{% endif %}> {% if f.value %}{% trans %}on{% endtrans %}{% else %}{% trans %}off{% endtrans %}{% endif %}</label>
               {% elif f.choices %}
@@ -228,30 +267,30 @@
                     words of its own falls back to the value itself, so a later declaration with more
                     options cannot render a blank one. -#}
                 {% set choice_words = CHOICE_LABELS.get(f.key, {}) %}
-                <select name="{{ f.key }}"{% if not cfg_enabled %} disabled{% endif %}><option value=""{% if f.value not in f.choices %} selected{% endif %}>{% trans %}— unchanged —{% endtrans %}</option>{% for c in f.choices %}<option value="{{ c }}"{% if f.value == c %} selected{% endif %}>{{ choice_words.get(c, c) }}</option>{% endfor %}</select>
+                <select name="{{ f.key }}" class="cfg-input"{% if not cfg_enabled %} disabled{% endif %}><option value=""{% if f.value not in f.choices %} selected{% endif %}>{% trans %}— unchanged —{% endtrans %}</option>{% for c in f.choices %}<option value="{{ c }}"{% if f.value == c %} selected{% endif %}>{{ choice_words.get(c, c) }}</option>{% endfor %}</select>
               {% elif f.kind == 'int' %}
-                <input type="number" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}"{% if not cfg_enabled %} disabled{% endif %}>
+                <input type="number" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}" class="cfg-input mono"{% if not cfg_enabled %} disabled{% endif %}>
               {% else %}
-                <input type="text" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}"{% if not cfg_enabled %} disabled{% endif %}>
+                <input type="text" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}" class="cfg-input"{% if not cfg_enabled %} disabled{% endif %}>
               {% endif %}
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
+        {% endset %}
+        {{ editor.field_row(f.kind, dcs_lab, dcs_ctl, cls='cfg-wide' if f.multiline else '') }}
+        {% endfor %}
+      {% endcall %}
       {% endfor %}
 
       <div class="notice">
         <div class="sub"><b>{% trans %}Save writes the file — the change applies when the server next starts.{% endtrans %}</b> {% trans %}DCS reads <span class="mono">serverSettings.lua</span> at boot, so nothing is applied live here. Only the fields you change are submitted.{% endtrans %}</div>
-        {#- THE TAB'S OWN Save — marked `primary` so it is the ONE filled control on a page that carries
-            three (`Save channels` and `Save coalition passwords` are the other two, drawn as the plain
-            secondary chips they are). The class is dropped on nothing: even a disabled Save keeps it and
-            the stylesheet's `:not(:disabled)` scope leaves it the dim chip state. The `busy` pulse rides
-            the SAME element. -#}
-        <button type="submit" class="primary{% if cfg_enabled and config_pulse %} busy{% endif %}"{% if not cfg_enabled %} disabled title="{{ config.apply_note if not config.serviceable else _('The write action is not available in this installation.') }}"{% elif config_pulse %} aria-busy="true"{% endif %}>{% trans %}Save{% endtrans %}</button>
       </div>
     </form>
   </div>
+  <aside class="st-aside">
+    <div class="hd"><h3 class="mono">serverSettings.lua</h3><span class="sp"></span>
+      <span class="st-badge">{% trans %}read-only{% endtrans %}</span></div>
+    <div class="st-note">{% trans %}The console never opens or writes this file: it reads the settings from the bot's in-process snapshot and writes them through the bot's own action, so there is no Expert Mode text editor here.{% endtrans %}</div>
+    <pre class="st-yaml">{% for group in config.groups %}{% for f in group.fields %}{{ f.key }} = {{ f.value if f.value is not none else '' }}
+{% endfor %}{% endfor %}</pre>
+  </aside>
 </div>
 
 {% set channels_enabled = channels_available %}
@@ -259,7 +298,7 @@
     to its OWN action (`set_server_channels`): the channels are a different face of the same tab,
     written through the bot's own `Server.update_channels`, and applied IMMEDIATELY (no state gate, no
     restart). The DCS form above cannot carry it — nested forms are not a thing — so this form sits
-    after the DCS face's Save.
+    after the DCS face's Save. It is drawn as the SAME collapsible block the DCS groups use.
 
     THE WHOLE CARD IS ABSENT WHEN THE VIEWER MAY NOT WRITE THE CHANNELS: the read model builds no row
     at all and sets `config.channels_denied` (see `serverconfig._channels`), so a manager — who may not
@@ -271,26 +310,26 @@
     nothing to disable — in that configuration the setting is not per-server. The `config.central_admin`
     flag only words the note; it never suppresses a row the read model already decided against. -#}
 {% if not config.channels_denied %}
-<div class="card">
-  <div class="hd"><h4>{% trans %}Discord channels{% endtrans %}</h4><div class="spacer"></div>
-    <span class="tag">{% trans %}bot face — servers.yaml{% endtrans %}</span></div>
-  <div class="bd">
+{%- set chsummary %}<span class="k">{{ _('Discord channels') }}</span><span class="r"><span class="tag">{{ _('bot face — servers.yaml') }}</span></span>{% endset %}
+{% call editor.panel(chsummary) %}
     <div class="sub">{% trans %}The one part of this page that does not live in <span class="mono">serverSettings.lua</span>: these are the <span class="mono">servers.yaml</span> face, written through the bot's own <span class="mono">Server.update_channels</span>. Pick a channel per row; only the rows you change are submitted.{% endtrans %}</div>
     <form class="cfg-form" method="post" action="{{ channels_action_path }}" data-async id="channels-form">
       <input type="hidden" name="server" value="{{ server_name }}">
       <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
       {% for c in config.channels %}
-      <div class="cfg-row">
-        <div class="cfg-meta"><div><b>{{ _(c.label) }}</b> <span class="mono">{{ c.key }}</span></div>
-          <div class="sub">{% if c.required %}{% trans %}required{% endtrans %}{% else %}{% trans %}optional{% endtrans %}{% endif %}</div><div class="sub">{{ _(c.help) }}</div></div>
-        <div class="cfg-widget">
+      {% set ch_lab %}
+        <div class="nm">{{ _(c.label) }}</div>
+        <div class="kk"><span class="key mono">{{ c.key }}</span><span class="ty">{% if c.required %}{% trans %}required{% endtrans %}{% else %}{% trans %}optional{% endtrans %}{% endif %}</span></div>
+        <div class="hp">{{ _(c.help) }}</div>
+      {% endset %}
+      {% set ch_ctl %}
           {#- THE PICKER. Options are the guild's channels, grouped by category, plus an explicit
               "not set" whose VALUE is a distinct sentinel (`channel_unset_value`) — so clearing a set
               channel is an explicit change and never a blank field. A value that is set but not among
               the options (a deleted channel, or one from another guild) is rendered as its own
               selected option, so an untouched form still posts the truth (unchanged) instead of
               silently reading as "not set". -#}
-          <select name="{{ c.key }}"{% if not channels_enabled %} disabled{% endif %}>
+          <select name="{{ c.key }}" class="cfg-input"{% if not channels_enabled %} disabled{% endif %}>
             {% for g in c.options %}{% if g.label %}<optgroup label="{{ g.label }}">
               {% endif %}{% for o in g.options %}<option value="{{ o.value }}"{% if o.value == c.value %} selected{% endif %}>{{ o.label }}</option>
               {% endfor %}{% if g.label %}</optgroup>
@@ -298,16 +337,15 @@
             {% if c.value and not c.value_offered %}<option value="{{ c.value }}" selected>{{ c.value }} {% trans %}(not in this guild){% endtrans %}</option>
             {% endif %}<option value="{{ channel_unset_value }}"{% if not c.value %} selected{% endif %}>{% trans %}— not set —{% endtrans %}</option>
           </select>
-        </div>
-      </div>
+      {% endset %}
+      {{ editor.field_row('select', ch_lab, ch_ctl) }}
       {% endfor %}
       <div class="notice">
         <div class="sub"><b>{% trans %}Channel changes apply immediately.{% endtrans %}</b> {{ _(config.channel_apply_note) }} {% trans %}Read from the master's in-process Discord connection: no node is asked and no Discord API call is made on this render.{% endtrans %}{% if not config.channel_options_available %} {% trans %}The guild's channel list could not be read right now (the bot is not connected to a guild) — only "not set" can be chosen.{% endtrans %}{% endif %}{% if config.central_admin %} {% trans %}A central admin channel is defined in <span class="mono">bot.yaml</span>, so the per-server admin channel is not shown or edited here.{% endtrans %}{% endif %}</div>
         <button type="submit"{% if not channels_enabled %} disabled title="{{ _('The channels action is not available in this installation.') }}"{% elif channels_pulse %} class="busy" aria-busy="true"{% endif %}>{% trans %}Save channels{% endtrans %}</button>
       </div>
     </form>
-  </div>
-</div>
+{% endcall %}
 {% endif %}
 
 {#- THE COALITION PASSWORDS CARD — the THIRD face: the blue/red join passwords, whose CLEARTEXT lives
@@ -325,26 +363,23 @@
     knows only as a hash (its field renders empty) can be REPLACED but never wiped by a blank submit. -#}
 {% set coalitions_enabled = config.coalitions_serviceable and coalitions_available %}
 {% if config.coalitions %}
-<div class="card">
-  <div class="hd"><h3>{% trans %}Coalition passwords{% endtrans %}</h3><div class="spacer"></div>
-    <span class="tag">{% trans %}bot database — set live, no restart{% endtrans %}</span></div>
-  <div class="bd">
+{%- set cosummary %}<span class="k">{{ _('Coalition passwords') }}</span><span class="r"><span class="tag">{{ _('bot database — set live, no restart') }}</span></span>{% endset %}
+{% call editor.panel(cosummary) %}
     <div class="sub">{% trans %}The blue and red join passwords. The bot keeps the cleartext in its own database and asks DCS to apply it — a change while the server is running or paused is picked up at its next restart, exactly like <span class="mono">/password</span>. This page never writes <span class="mono">serverSettings.lua</span> itself.{% endtrans %}</div>
     <form class="cfg-form" method="post" action="{{ coalitions_action_path }}" data-async id="coalitions-form">
       <input type="hidden" name="server" value="{{ server_name }}">
       <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
       {% for c in config.coalitions %}
-      <div class="cfg-row">
-        <div class="cfg-meta">
-          <div><b>{{ _(c.label) }}</b> <span class="mono">{{ c.key }}</span></div>
-          <div class="sub">{% if c.hash_set %}{% trans %}DCS carries a hash for this coalition{% endtrans %}{% else %}{% trans %}DCS carries no hash for this coalition{% endtrans %}{% endif %}</div>
-          <div class="sub">{{ _(c.help) }}</div>
-          {% if c.note %}<div class="sub"><b>{{ _(c.note) }}</b></div>{% endif %}
-        </div>
-        <div class="cfg-widget">
+      {% set co_lab %}
+        <div class="nm">{{ _(c.label) }}</div>
+        <div class="kk"><span class="key mono">{{ c.key }}</span><span class="ty">{% if c.hash_set %}{% trans %}hash set{% endtrans %}{% else %}{% trans %}no hash{% endtrans %}{% endif %}</span></div>
+        <div class="hp">{{ _(c.help) }}</div>
+        {% if c.note %}<div class="hp"><b>{{ _(c.note) }}</b></div>{% endif %}
+      {% endset %}
+      {% set co_ctl %}
           {#- The real password, masked, with the eye — the same unprotected branch the DCS password
               uses. `autocomplete="new-password"` stops the browser offering a saved credential here. -#}
-          <input type="password" id="cfg-{{ c.key }}" name="{{ c.key }}"
+          <input type="password" id="cfg-{{ c.key }}" name="{{ c.key }}" class="cfg-input"
                  value="{{ c.value }}" autocomplete="new-password"{% if not coalitions_enabled %} disabled{% endif %}>
           <button type="button" class="cfg-reveal" data-reveal="cfg-{{ c.key }}"
                   aria-pressed="false" aria-label="{% trans %}Show password{% endtrans %}" title="{% trans %}Show password{% endtrans %}"
@@ -352,16 +387,15 @@
             <span class="g-show">{{ icons.act('reveal') }}</span>
             <span class="g-hide">{{ icons.act('conceal') }}</span>
           </button>
-        </div>
-      </div>
+      {% endset %}
+      {{ editor.field_row('password', co_lab, co_ctl) }}
       {% endfor %}
       <div class="notice">
-        <div class="sub"><b>{% trans %}Emptying a field removes its password.{% endtrans %}</b> {% trans %}A field that is already empty does nothing — so a password shown as empty here (the bot knows only its hash) can be replaced but not removed from this page.{% endtrans %} {% if not config.coalitions_serviceable %}<b>{{ _(config.status.word) }}</b> — {{ config.coalition_apply_note }}{% endif %}</div>
-        <button type="submit"{% if not coalitions_enabled %} disabled title="{{ config.coalition_apply_note if not config.coalitions_serviceable else _('The write action is not available in this installation.') }}"{% endif %}>{% trans %}Save coalition passwords{% endtrans %}</button>
+        <div class="sub"><b>{% trans %}Emptying a field removes its password.{% endtrans %}</b> {% trans %}A field that is already empty does nothing — so a password shown as empty here (the bot knows only its hash) can be replaced but not removed from this page.{% endtrans %} {% if not config.coalitions_serviceable %}<b>{{ _(config.status.word) }}</b> — {{ _(config.coalition_apply_note) }}{% endif %}</div>
+        <button type="submit"{% if not coalitions_enabled %} disabled title="{{ _(config.coalition_apply_note) if not config.coalitions_serviceable else _('The write action is not available in this installation.') }}"{% endif %}>{% trans %}Save coalition passwords{% endtrans %}</button>
       </div>
     </form>
-  </div>
-</div>
+{% endcall %}
 {% endif %}
 
 {% elif tab == 'players' %}
@@ -471,8 +505,7 @@
     <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
     <div class="cfg-form">
       {% for m in missions %}
-      <div class="cfg-row{% if m.active %} row-active{% endif %}">
-        <div class="cfg-meta">
+      {% set m_lab %}
           {#- ONE ROW, ONE FACT, ONE BOX (M9): the box is SELECTION only — it is first in the row, on
               the line of the fact it selects, and belongs to the ONE selection form above
               (``form="missions-form"``). The RUNNING mission's box is the single deliberate
@@ -481,11 +514,11 @@
               marker (amber ``.tag.a``) names the mission the server loads when it starts; the live
               ``.dot.run`` beside the name names the mission it is running NOW — two different facts.
               No ``#N`` and no primary/secondary copy tag: the ``.miz`` path names the file. -#}
-          <div>{% if missions_select_allowed %}<input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box{% if m.current %} disabled{% endif %}> {% endif %}<b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
-          <div class="sub mono">{{ m.path }}</div>
-          {% if missions_select_allowed and m.current %}<div class="sub">{% trans %}The running mission cannot be removed — load another mission first.{% endtrans %}</div>{% endif %}
-        </div>
-        <div class="cfg-widget">
+          <div class="nm">{% if missions_select_allowed %}<input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box{% if m.current %} disabled{% endif %}> {% endif %}<b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
+          <div class="hp mono">{{ m.path }}</div>
+          {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission cannot be removed — load another mission first.{% endtrans %}</div>{% endif %}
+      {% endset %}
+      {% set m_ctl %}
           {#- THE MOVE PAIR (M5): reorder this row in the rotation list. Offered only while the DCS
               process is DOWN (a write made while it is up is reverted); the FIRST row's up and the
               LAST row's down are ABSENT rather than drawn dead, because a move off the end is a
@@ -533,8 +566,8 @@
             <button type="submit" title="{% if missions_load_sets_start %}{% trans name=m.name, server=missions_server %}Load {{ name }} now on {{ server }} — this also becomes the start mission and starts the server{% endtrans %}{% else %}{% trans name=m.name, server=missions_server %}Load {{ name }} now on {{ server }} — the start mission is unchanged; use Set as start for that{% endtrans %}{% endif %}">{% trans %}Load{% endtrans %}</button>
           </form>
           {% endif %}
-        </div>
-      </div>
+      {% endset %}
+      {{ editor.field_row('', m_lab, m_ctl, cls='row-active' if m.active else '') }}
       {% endfor %}
     </div>
     {% else %}
@@ -552,12 +585,11 @@
   <div class="hd"><h3>{% trans %}Add to the rotation{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}list only{% endtrans %}</span></div>
   <div class="bd">
     <div class="cfg-form">
-      <div class="cfg-row cfg-add">
-        <div class="cfg-meta">
-          <div><b>{% trans %}A mission already on this server{% endtrans %}</b></div>
-          <div class="sub">{% trans %}Pick a file from this server's missions directory and add it to the rotation list. Adding it changes the LIST only — no file is copied and nothing is deleted. To bring a mission from your own computer, use <b>Upload a mission file</b> below.{% endtrans %}</div>
-        </div>
-        <div class="cfg-widget">
+      {% set add_lab %}
+          <div class="nm">{% trans %}A mission already on this server{% endtrans %}</div>
+          <div class="hp">{% trans %}Pick a file from this server's missions directory and add it to the rotation list. Adding it changes the LIST only — no file is copied and nothing is deleted. To bring a mission from your own computer, use <b>Upload a mission file</b> below.{% endtrans %}</div>
+      {% endset %}
+      {% set add_ctl %}
           {% if missions_can_add %}
           <form method="post" action="{{ missions_add_path }}{{ missions_confirm_suffix }}">
             <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
@@ -567,8 +599,8 @@
           {% else %}
           <span class="sub">{% trans %}No unconfigured mission file was found in the missions directory.{% endtrans %}</span>
           {% endif %}
-        </div>
-      </div>
+      {% endset %}
+      {{ editor.field_row('', add_lab, add_ctl, cls='cfg-add') }}
     </div>
   </div>
 </div>
@@ -584,12 +616,11 @@
     <form class="cfg-form" method="post" action="{{ missions_upload_path }}" enctype="multipart/form-data">
       <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
       <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
-      <div class="cfg-row cfg-upload">
-        <div class="cfg-meta">
-          <div><b>{% trans %}Send a .miz from your own computer{% endtrans %}</b></div>
-          <div class="sub">{% trans %}The file is copied into the server's missions directory and added to the rotation. Use <b>Add to the rotation</b> above for a mission that is already on the server.{% endtrans %}</div>
-        </div>
-        <div class="cfg-widget">
+      {% set up_lab %}
+          <div class="nm">{% trans %}Send a .miz from your own computer{% endtrans %}</div>
+          <div class="hp">{% trans %}The file is copied into the server's missions directory and added to the rotation. Use <b>Add to the rotation</b> above for a mission that is already on the server.{% endtrans %}</div>
+      {% endset %}
+      {% set up_ctl %}
           {#- THE CONSOLE'S OWN FILE CONTROL (Frank's report). A raw `<input type="file">` makes the
               browser draw ITS OWN button, in ITS OWN language ("Datei auswählen" on a German
               browser) — browser chrome must never be what the operator reads; the console is English.
@@ -608,8 +639,8 @@
           <label class="tag"><input type="checkbox" name="autostart" value="1"> {% trans %}load at next start{% endtrans %}</label>
           {% if missions_load_allowed %}<label class="tag"><input type="checkbox" name="load" value="1"> {% trans %}load now{% endtrans %}</label>{% endif %}
           <button type="submit">{% trans %}Upload mission{% endtrans %}</button>
-        </div>
-      </div>
+      {% endset %}
+      {{ editor.field_row('', up_lab, up_ctl, cls='cfg-upload') }}
     </form>
   </div>
 </div>
@@ -631,13 +662,12 @@
       {#- The READ-ONLY list carries the SAME two facts as the write list — the START marker and the
           live dot — and nothing that writes: no box, no move pair, no Set as start, no Load. The
           download is the one control a read-only viewer keeps. -#}
-      <div class="cfg-row{% if m.active %} row-active{% endif %}">
-        <div class="cfg-meta">
-          <div><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
-          <div class="sub mono">{{ m.path }}</div>
-        </div>
-        <div class="cfg-widget"><a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a></div>
-      </div>
+      {% set ro_lab %}
+          <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
+          <div class="hp mono">{{ m.path }}</div>
+      {% endset %}
+      {% set ro_ctl %}<a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>{% endset %}
+      {{ editor.field_row('', ro_lab, ro_ctl, cls='row-active' if m.active else '') }}
       {% endfor %}
     </div>
     {% else %}
@@ -661,13 +691,35 @@
 
 {% else %}
 {# ---------------------------------------------------------------- the Overview tab #}
+{#- THE SUBSTANCE OF THE REMOVED "Server overview" PAGE, in the place Frank was looking. It mirrors
+    the bot's server-status embed (see ``pages/server_detail.EMBED_FIELD_COVERAGE``): status, mission,
+    map, player count, runtime and the three weather facts — every value read off the SAME `server`
+    (``readmodels.servers.server_view``) the heading renders, so a shown fact cannot disagree with the
+    polled status. The one embed fact NOT rendered is the password VALUE: the lock indicator says a
+    password is set, the cleartext is never disclosed. -#}
 <div class="card">
   <div class="hd"><h3>{% trans %}Overview{% endtrans %}</h3><div class="spacer"></div>
-    <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span></div>
+    <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span>
+    {% if server.locked %}<span class="tag" title="{% trans %}Password{% endtrans %}" aria-label="{% trans %}Password{% endtrans %}">🔐</span>{% endif %}
+    {% if server.maintenance %}<span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}</div>
   <div class="bd">
-    <div class="sub">{% trans %}node{% endtrans %} {{ server.node_name }}{% if server.instance_name %} · {% trans %}instance{% endtrans %} {{ server.instance_name }}{% endif %}{% if server.port %} · {% trans %}port{% endtrans %} :{{ server.port }}{% endif %}{% if server.remote %} · {% trans %}remote{% endtrans %}{% endif %}</div>
-    <div class="sub">{% trans %}Current mission:{% endtrans %} <b>{{ server.mission_name or '—' }}</b> · {% trans %}elapsed{% endtrans %} {{ server.mission_label }}</div>
-    <div class="sub">{% trans count=server.players %}Players: {{ count }} player(s){% endtrans %} ({% trans count=server.active_players %}{{ count }} active{% endtrans %}){% if server.maintenance %} · <span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}</div>
+    <div class="sub">{% trans %}node{% endtrans %} {{ server.node_name }}{% if server.instance_name %} · {% trans %}instance{% endtrans %} {{ server.instance_name }}{% endif %}{% if server.public_ip %} · {{ server.public_ip }}{% if server.port %}:{{ server.port }}{% endif %}{% elif server.port %} · {% trans %}port{% endtrans %} :{{ server.port }}{% endif %}{% if server.remote %} · {% trans %}remote{% endtrans %}{% endif %}</div>
+    {% if server.running %}
+    <div class="sub">{% trans %}Current mission:{% endtrans %} <b>{{ server.mission_name or '—' }}</b>{% if server.map_name %} · {% trans %}Map{% endtrans %} {{ server.map_name }}{% endif %}</div>
+    <div class="sub">{% trans count=server.players %}{{ count }} player(s){% endtrans %}{% if server.max_players %} / {{ server.max_players }}{% endif %}{% if server.active_players %} ({% trans count=server.active_players %}{{ count }} active{% endtrans %}){% endif %} · {% trans %}Runtime{% endtrans %} {{ server.runtime }}</div>
+    {% if server.restart_in %}<div class="sub">{% trans %}Restart{% endtrans %}: {{ server.restart_in }}</div>{% endif %}
+    <div class="sub">
+      {% if server.weather and (server.weather.temperature or server.weather.wind or server.weather.preset) %}
+      {% if server.weather.temperature %}<span>{% trans %}Temperature{% endtrans %} {{ server.weather.temperature }}</span>{% endif %}
+      {% if server.weather.wind %}{% if server.weather.temperature %} · {% endif %}<span>{% trans %}Wind{% endtrans %} {{ server.weather.wind }}</span>{% endif %}
+      {% if server.weather.preset %}{% if server.weather.temperature or server.weather.wind %} · {% endif %}<span>{% trans %}Weather{% endtrans %} {{ _(server.weather.preset) }}</span>{% endif %}
+      {% else %}
+      <span class="empty">{{ _(empty.weather) }}</span>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="empty">{{ _(empty.not_running) }}</p>
+    {% endif %}
   </div>
 </div>
 
@@ -684,6 +736,8 @@
     off the boxes still submit the selection and the dialog still asks the confirmation. Registered
     HERE, on the page that renders them, rather than in base.html: a page with none of them has no
     reason to load any.  #}
+{% block head %}<link rel="stylesheet" href="/static/settings-scope.css">{% endblock %}
+
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>
 <script src="/static/mission-select.js" defer></script>

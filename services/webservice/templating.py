@@ -145,6 +145,17 @@ def build_environment(registrar=None, *, translations=None) -> Environment:
     # placeholders, degrading a bad catalog line to English rather than raising. It closes over the
     # SAME translations object the environment installed, so it is the environment's language.
     environment.globals[SENTENCE_GLOBAL] = _sentence_global(installed)
+    # The config generator's UNIQUE view key (``configgen.view_id``): a regex container shares its
+    # ``name`` with a sibling container in the same mapping, so the per-container view maps (rows,
+    # customs, elements, choices, sections) are keyed by this id and the control macros look it up
+    # with it. Imported LAZILY: ``i18n`` imports this module, so a top-level ``configgen`` import
+    # would close a cycle.
+    from . import configgen as _configgen
+    environment.globals["cfg_id"] = _configgen.view_id
+    # The field PATH encoder (``configgen.encode_path``): the "+ Add" picker's removal control posts a
+    # field's path ENCODED, exactly as a form field name is (a free-text key's ``.`` rides as ``%2E``),
+    # so the save resolves the same document path the page rendered it from.
+    environment.globals["cfg_path"] = _configgen.encode_path
     log.debug("Web UI templates: shell dir '%s', plugin namespaces %s",
               SHELL_TEMPLATES_DIR, sorted(registrar.template_dirs) if registrar else [])
     return environment

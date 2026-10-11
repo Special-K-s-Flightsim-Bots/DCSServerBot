@@ -1,0 +1,299 @@
+{#-
+  THE SCHEMA-DRIVEN CONFIG CONTROLS — the ONE renderer for a `configgen.Field` tree.
+
+  Extracted from `settings.html` so EVERY schema-generated page draws its controls here:
+  the Settings area (`settings.html`, `settings_scope.html`, `settings_tiles.html`) and the node page
+  (`node_page.html`).
+  ONE place where a `Field` of a given kind becomes a control, so a fix to a control cannot land
+  on one generated page and miss the other.
+
+  A field's LABEL is its schema KEY, printed VERBATIM (see `configgen`): the schemas carry
+  identifiers, not prose, so a key stays English in every language. Do not translate it. The kind
+  words (`f.kind_label`) and the `required` marker ARE chrome and are `_(…)`-wrapped.
+
+  `render_field` is RECURSIVE: a `map` renders a `<fieldset>` and walks its children; the row-list
+  kinds (`seq` / `regex`) render their sub-forms inline from `elements`/`customs`. It computes
+  nothing the caller did not pass — `values`, `rows`, `customs`, `elements` and `choices` are all
+  produced by `configgen` from the SAME tree this renders.
+
+  WHAT IS SHOWN, AND WHAT IS BEHIND THE `+ ADD` PICKER. `configgen.visibility` decides, for every
+  container, which of its children are SHOWN (a MANDATORY field, or one the file already carries) and
+  which are HIDDEN (optional AND absent) — the hidden ones are offered by the picker (`picks`), skipped
+  here by their `cfg_id` (`hidden`), and have their control shipped EMPTY inside the picker's
+  `<template>`, so `configgen.js` can add one to the page. A field that is optional AND set also carries
+  a TRASHCAN (`remove_control`) — the ONLY control that takes a value away, and only through the save's
+  own acknowledged removal (`configgen.js` posts `configgen.REMOVED_COMPANION` after showing the inline
+  warning). MANDATORY fields are never removable.
+
+  `render_field` is called with the same maps the caller got from `configgen`, plus the THREE the
+  visibility model adds: `hidden` (view ids to skip), `picks` (a container's picker choices, keyed by
+  the container's `name`; `''` is the form's own body) and `removable` (view ids carrying a trashcan).
+-#}
+
+{% macro control(f, input_name, current) %}
+  {%- if f.kind == 'bool' -%}
+    <input type="hidden" name="{{ input_name }}" value="0">
+    <input type="checkbox" name="{{ input_name }}" value="1" {{ 'checked' if current }}>
+  {%- elif f.kind == 'number' -%}
+    <input type="number" name="{{ input_name }}" value="{{ '' if current is none else current }}"
+           {% if f.minimum is not none %}min="{{ f.minimum }}"{% endif %}
+           {% if f.maximum is not none %}max="{{ f.maximum }}"{% endif %} class="cfg-input mono">
+  {%- elif f.kind == 'select' -%}
+    <select name="{{ input_name }}" class="cfg-input">
+      <option value=""></option>
+      {% for option in f.enum %}
+      <option value="{{ option }}" {{ 'selected' if current == option }}>{{ option }}</option>
+      {% endfor %}
+    </select>
+  {%- elif f.kind == 'multiline' or f.kind == 'func' -%}
+    <textarea name="{{ input_name }}" class="cfg-input mono" rows="3">{{ '' if current is none else current }}</textarea>
+  {%- else -%}
+    <input type="text" name="{{ input_name }}" value="{{ '' if current is none else current }}" class="cfg-input">
+  {%- endif -%}
+{% endmacro %}
+
+{#-  THE TRASHCAN — the ONE REMOVE affordance a shown, optional, already-set field or block carries.
+     It is NOT a second write path: the inline warning names what will be discarded, and confirming it
+     makes `configgen.js` hide this control's whole field element and post the field's ENCODED path in
+     `f.<configgen.REMOVED_COMPANION>`, which the save applies through the ONE primitive. The server
+     still refuses a removal that does not carry the acknowledgement the render minted (see the save
+     route), so a bare POST can never delete anything.  -#}
+{% macro remove_control(path) %}
+<span class="cfg-rm" data-cfg-setrm data-cfg-rpath="{{ path }}">
+  <button type="button" class="cfg-x" data-cfg-rm-start aria-label="{% trans %}Remove{% endtrans %}"
+          title="{% trans %}Remove this setting from the file{% endtrans %}">✕</button>
+  <span class="cfg-rmwarn" data-cfg-rmwarn hidden>
+    <span class="cfg-rmmsg">{% trans %}This removes the setting and its value from the file.{% endtrans %}</span>
+    <button type="button" class="cfg-x" data-cfg-rm-confirm>{% trans %}Remove{% endtrans %}</button>
+    <button type="button" class="cfg-add" data-cfg-rm-cancel>{% trans %}Cancel{% endtrans %}</button>
+  </span>
+</span>
+{% endmacro %}
+
+{#-  THE `+ ADD` PICKER — a container's OPTIONAL, ABSENT fields and blocks, FIELDS grouped before
+     BLOCKS. One button per choice (`opt.key` printed verbatim, `opt.kind` the schema's kind word as
+     the one-line description); its `<template data-cfg-opt>` ships the SAME control this page would
+     render were the field set — EMPTY — so `configgen.js` adds exactly that control to the page, at the
+     field's own document path. Picking one hides the choice (it cannot be added twice) and adds the
+     control; the added control carries its own `data-cfg-remove-added` trashcan (nothing is in the file
+     yet, so removing it is instant and needs no acknowledgement).  -#}
+{% macro picker(options, values, rows, customs, elements, choices, depth, sections, hidden, picks, removable) %}
+{% if options %}
+{% set fields = options | rejectattr('block') | list %}
+{% set blocks = options | selectattr('block') | list %}
+<details class="cfg-picker" data-cfg-picker>
+  {#-  THE OPENER IS THE SAME "+ ADD" CONTROL as every other add: ONE ``cfg-add`` class, ONE label,
+       ONE plus. It is a ``<summary>`` only so the list toggles with JavaScript OFF (native disclosure,
+       keyboard reachable); styling makes it indistinguishable from the ``<button class="cfg-add">``
+       variants. The leading decorative glyph is GONE — the plus lives in the translated label.  -#}
+  <summary class="cfg-add">{% trans %}+ Add{% endtrans %}</summary>
+  <div class="cfg-pbody">
+    {% for group in [fields, blocks] %}
+    {% if group %}
+    <div class="cfg-pgroup">
+      <span class="cfg-pglabel">{% if loop.first %}{% trans %}Fields{% endtrans %}{% else %}{% trans %}Blocks{% endtrans %}{% endif %}</span>
+      <ul class="cfg-plist">
+        {% for opt in group %}
+        <li class="cfg-pitem" data-cfg-pitem>
+          <button type="button" class="cfg-pick" data-cfg-pick>
+            <span class="cfg-pkey mono">{{ opt.key }}</span><span class="cfg-pkind">{{ _(opt.kind) }}</span>
+          </button>
+          <template data-cfg-opt><div class="cfg-added" data-cfg-added>{{ render_field(opt.field, values, rows, customs, elements, choices, depth, sections, hidden, picks, removable) }}<button type="button" class="cfg-x cfg-added-x" data-cfg-remove-added aria-label="{% trans %}Remove{% endtrans %}">✕</button></div></template>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+{% endmacro %}
+
+{% macro render_field(f, values, rows, customs, elements, choices, depth=0, sections={}, hidden=frozenset(), picks={}, removable=frozenset()) %}
+  {% set name = f.name %}
+  {% set vid = cfg_id(f) %}
+  {% set value = values.get(name) %}
+  {# A field's form-name base. A regex container's ``path`` is its PARENT map's path, so for a
+     TOP-LEVEL ``regex;(.+)`` (path ``()``) ``name`` is empty and ``'f.' ~ name ~ '.' ~ key`` would
+     emit ``f..key`` — a leading empty token the save path cannot place. The base drops the trailing
+     dot in that one case, so the entry's key becomes the first token as it should be. #}
+  {% set fbase = ('f.' ~ name) if name else 'f' %}
+  {% if f.kind == 'map' %}
+    <fieldset class="cfg-sec" data-cfg-field {% if f.include_source %}data-cfg-include="{{ f.include_source }}"{% endif %}>
+      <legend><span class="cfg-key mono">{{ name }}</span>
+        <span class="cfg-kind">{{ _(f.kind_label) }}</span>
+        {% if f.include_source %}<span class="cfg-badge inc">{% trans file=f.include_source %}included: {{ file }}{% endtrans %}</span>{% endif %}
+        {% if vid in removable %}{{ remove_control(cfg_path(f.path)) }}{% endif %}</legend>
+      {% if f.include_source %}
+      <div class="cfg-hint inc">{% trans file=f.include_source %}This block is described by {{ file }}; its values live in this file, so a save writes them here — never into {{ file }}.{% endtrans %}</div>
+      {% endif %}
+      <div class="cfg-body">
+        {% for child in f.children %}{% if cfg_id(child) not in hidden %}{{ render_field(child, values, rows, customs, elements, choices, depth + 1, sections, hidden, picks, removable) }}{% endif %}{% endfor %}
+        {{ picker(picks.get(name, []), values, rows, customs, elements, choices, depth + 1, sections, hidden, picks, removable) }}
+      </div>
+    </fieldset>
+  {% else %}
+    <div class="cfg-field" data-cfg-field data-cfg-kind="{{ f.kind }}">
+      <div class="cfg-label">
+        <span class="cfg-key mono">{{ name }}</span>
+        <span class="cfg-kind">{{ _(f.kind_label) }}</span>
+        {% if f.required %}<span class="cfg-badge">{{ _('required') }}</span>{% endif %}
+        {% if f.has_default %}<span class="cfg-badge">{% trans default=f.default %}default: {{ default }}{% endtrans %}</span>{% endif %}
+        {% if f.validate_on_save %}<span class="cfg-badge warn">{{ _('validate on save') }}</span>{% endif %}
+        {% if f.include_source %}<span class="cfg-badge inc">{% trans file=f.include_source %}included: {{ file }}{% endtrans %}</span>{% endif %}
+        {% if f.include_cycle %}<span class="cfg-badge cycle">{% trans name=f.include_cycle %}include cycle: {{ name }} is included again here, so it is not expanded{% endtrans %}</span>{% endif %}
+        {% if f.regex %}<span class="cfg-badge mono">{{ f.regex }}</span>{% endif %}
+        {% if vid in removable %}{{ remove_control(cfg_path(f.path)) }}{% endif %}
+      </div>
+      <div class="cfg-control">
+        {% if f.kind == 'list' %}
+          <div data-cfg-list="{{ name }}">
+            {% for item in (value or []) %}
+            <div class="cfg-row" data-cfg-row>
+              <input type="text" name="f.{{ name }}" value="{{ item }}" class="cfg-input">
+              <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+            </div>
+            {% endfor %}
+            <template data-cfg-template>
+              <div class="cfg-row" data-cfg-row>
+                <input type="text" name="f.{{ name }}" value="" class="cfg-input">
+                <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+              </div>
+            </template>
+            <button type="button" class="cfg-add" data-cfg-add>{% trans %}+ Add{% endtrans %}</button>
+          </div>
+        {% elif f.kind == 'seq' %}
+          <div data-cfg-seq="{{ name }}">
+            <input type="hidden" name="f.{{ name }}.__n" value="{{ (rows.get(name, []) | length) }}" data-cfg-count>
+            {% for row in rows.get(name, []) %}
+            <div class="cfg-rowbox" data-cfg-row data-index="{{ row.index }}">
+              {% for leaf, rel in elements.get(name, []) %}
+              <label class="cfg-sub">
+                <span class="cfg-subkey mono">{{ leaf.key }}</span>
+                {{ control(leaf, 'f.' ~ name ~ '.' ~ row.index ~ '.' ~ rel, row['values'].get(rel)) }}
+              </label>
+              {% endfor %}
+              <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+            </div>
+            {% endfor %}
+            <template data-cfg-template>
+              <div class="cfg-rowbox" data-cfg-row data-index="0">
+                {% for leaf, rel in elements.get(name, []) %}
+                <label class="cfg-sub">
+                  <span class="cfg-subkey mono">{{ leaf.key }}</span>
+                  {{ control(leaf, 'f.' ~ name ~ '.0.' ~ rel, none) }}
+                </label>
+                {% endfor %}
+                <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+              </div>
+            </template>
+            <button type="button" class="cfg-add" data-cfg-add>{% trans %}+ Add{% endtrans %}</button>
+          </div>
+        {% elif f.kind == 'regex' and f.alternatives %}
+          {#- A FIXED-ALTERNATIVE container: the schema names the sections it may carry, so each is a
+              normal typed block (the SAME markup a literal-named ``map`` produces) and the ``+``
+              offers exactly the schema's own names that the file does not carry yet. The save path is
+              the regex container's own (the ``__entries``/``__key`` companions), so add/remove are
+              exact and everything else in the file is untouched. -#}
+          <div class="cfg-hint">{% trans %}The schema names the sections this block may carry. Add the one this file should use.{% endtrans %}</div>
+          <div data-cfg-regex="{{ name }}" data-cfg-sections>
+            <input type="hidden" name="{{ fbase }}.__entries" value="{{ customs.get(vid, []) | map(attribute='enc_key') | join('\n') }}">
+            {% for entry in customs.get(vid, []) %}
+            <fieldset class="cfg-sec" data-cfg-row data-cfg-section="{{ entry.key }}">
+              <legend>
+                <span class="cfg-key mono">{{ entry.key }}</span>
+                <span class="cfg-kind">{{ _(f.kind_label) }}</span>
+                <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+              </legend>
+              <input type="hidden" name="{{ fbase }}.{{ entry.enc_key }}.__key" value="{{ entry.key }}">
+              <div class="cfg-body">
+                {% for leaf, rel in elements.get(vid, []) %}
+                <label class="cfg-sub"><span class="cfg-subkey mono">{{ leaf.key }}</span>
+                  {{ control(leaf, fbase ~ '.' ~ entry.enc_key ~ '.' ~ rel, entry['values'].get(rel)) }}</label>
+                {% endfor %}
+              </div>
+            </fieldset>
+            {% endfor %}
+            <template data-cfg-template>
+              <fieldset class="cfg-sec" data-cfg-row data-cfg-section="">
+                <legend>
+                  <span class="cfg-key mono" data-cfg-sectionname></span>
+                  <span class="cfg-kind">{{ _(f.kind_label) }}</span>
+                  <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+                </legend>
+                <input type="hidden" name="{{ fbase }}.__key" value="" data-cfg-regexkey data-cfg-sectionkey>
+                <div class="cfg-body">
+                  {% for leaf, rel in elements.get(vid, []) %}
+                  <label class="cfg-sub"><span class="cfg-subkey mono">{{ leaf.key }}</span>
+                    {{ control(leaf, fbase ~ '.__KEY__.' ~ rel, none) }}</label>
+                  {% endfor %}
+                </div>
+              </fieldset>
+            </template>
+            {% set missing = sections.get(vid, {}).get('missing', []) %}
+            {% if missing %}
+            <div class="cfg-addbar">
+              <select class="cfg-input" data-cfg-sectionpick aria-label="{% trans %}Section{% endtrans %}">
+                {% for option in missing %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
+              </select>
+              <button type="button" class="cfg-add" data-cfg-add data-cfg-regexadd>{% trans %}+ Add section{% endtrans %}</button>
+            </div>
+            {% endif %}
+          </div>
+        {% elif f.kind == 'regex' %}
+          <div class="cfg-hint">{% trans %}A key the schema describes with a regex is not known ahead of time. Add an entry with its own key.{% endtrans %}</div>
+          <div data-cfg-regex="{{ name }}">
+            {#- The entries this container RENDERED, so the save can tell a REMOVED entry (rendered,
+                no longer posted) from one that was never there. Encoded keys, newline joined. -#}
+            <input type="hidden" name="{{ fbase }}.__entries" value="{{ customs.get(vid, []) | map(attribute='enc_key') | join('\n') }}">
+            {% for entry in customs.get(vid, []) %}
+            <div class="cfg-rowbox" data-cfg-row>
+              <label class="cfg-sub">
+                <span class="cfg-subkey mono">{% trans %}key{% endtrans %}</span>
+                <input type="text" name="{{ fbase }}.{{ entry.enc_key }}.__key" value="{{ entry.key }}" class="cfg-input mono" readonly
+                       title="{% trans %}An existing entry's key cannot be edited here — remove the entry and add a new one.{% endtrans %}">
+              </label>
+              {% for leaf, rel in elements.get(vid, []) %}
+              <label class="cfg-sub">
+                <span class="cfg-subkey mono">{{ leaf.key }}</span>
+                {{ control(leaf, fbase ~ '.' ~ entry.enc_key ~ '.' ~ rel, entry['values'].get(rel)) }}
+              </label>
+              {% endfor %}
+              <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+            </div>
+            {% endfor %}
+            <template data-cfg-template>
+              <div class="cfg-rowbox" data-cfg-row>
+                <label class="cfg-sub">
+                  <span class="cfg-subkey mono">{% trans %}key{% endtrans %}</span>
+                  <input type="text" name="{{ fbase }}.__key" value="" class="cfg-input mono" data-cfg-regexkey>
+                </label>
+                {% for leaf, rel in elements.get(vid, []) %}
+                <label class="cfg-sub">
+                  <span class="cfg-subkey mono">{{ leaf.key }}</span>
+                  {{ control(leaf, fbase ~ '.__KEY__.' ~ rel, none) }}
+                </label>
+                {% endfor %}
+                <button type="button" class="cfg-x" data-cfg-remove aria-label="{% trans %}Remove{% endtrans %}">✕</button>
+              </div>
+            </template>
+            <button type="button" class="cfg-add" data-cfg-add data-cfg-regexadd>{% trans %}+ Add entry{% endtrans %}</button>
+          </div>
+        {% elif f.kind == 'choice' %}
+          <div class="cfg-hint">{% trans %}Either layout is allowed. Edit the one that matches your file.{% endtrans %}</div>
+          {% for option in choices.get(name, []) %}
+          <details class="cfg-choice" {{ 'open' if option.matches }}>
+            <summary class="mono">{{ option.key }}{% if option.matches %} <span class="cfg-badge">{% trans %}matches this file{% endtrans %}</span>{% endif %}</summary>
+            {% for leaf, rel in option.leaves %}
+              {{ control(leaf, fbase ~ '.' ~ rel, option['values'].get(rel)) }}
+            {% endfor %}
+          </details>
+          {% endfor %}
+        {% else %}
+          {{ control(f, fbase, value) }}
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}

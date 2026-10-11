@@ -287,8 +287,8 @@ EDITABLE_BY_KEY: dict[str, ConfigField] = {field.key: field for field in EDITABL
 #: ``get_mission_list`` action, never off ``server.settings``), and the hashes stay secret.
 READONLY_FIELDS: tuple[ConfigField, ...] = (
     ConfigField("missionList", KIND_SEQ, "Mission list",
-                "The missions DCS cycles through, in order. Managed by the mission autoscan and "
-                "validated at boot — a bad path is a boot failure — so this tab does not edit it.",
+                _("The missions DCS cycles through, in order. Managed by the mission autoscan and "
+                  "validated at boot — a bad path is a boot failure — so this tab does not edit it."),
                 GROUP_MISSION, readonly=True),
     ConfigField("advanced.bluePasswordHash", KIND_STR, "Blue coalition password (hash)",
                 "", GROUP_MISSION, protection=PROTECTED, readonly=True),
@@ -337,8 +337,8 @@ COALITION_OF_KEY: dict[str, str] = {
 #: The honest apply note for the coalition face. The bot's own ``setCoalitionPassword`` sends the
 #: change to DCS while the server is up and writes the hash into ``serverSettings.lua`` while it is
 #: down; either way the cleartext lands in the ``servers`` table. NO restart is needed by this page.
-COALITION_APPLY_NOTE = ("A coalition password can be changed while the server is running, paused or "
-                        "stopped: the bot sends it to DCS and keeps the cleartext in its database.")
+COALITION_APPLY_NOTE = _("A coalition password can be changed while the server is running, paused or "
+                         "stopped: the bot sends it to DCS and keeps the cleartext in its database.")
 
 #: Shown when a HASH is set in ``serverSettings.lua`` but the bot holds NO plaintext — the password was
 #: set directly in DCS. An empty field alone would read as \"no password\" and be a lie.
@@ -352,9 +352,9 @@ COALITION_DB_ONLY_NOTE = _("The bot knows this password but DCS currently carrie
 
 #: The refusal a state that cannot take the change gets. Sent as the action's own sentence too, so the
 #: console and a direct caller give the same answer.
-COALITION_REFUSED_SENTENCE = ("The coalition passwords can only be changed while the server is "
-                              "shutdown, stopped, running or paused. Wait for it to settle, then edit "
-                              "here.")
+COALITION_REFUSED_SENTENCE = _("The coalition passwords can only be changed while the server is "
+                               "shutdown, stopped, running or paused. Wait for it to settle, then edit "
+                               "here.")
 
 #: The RAW statuses the coalition write is allowed in. Lower-cased, so this module needs no ``core``
 #: import (the action's own ``WRITABLE_COALITION_STATES`` is the authority). ``LOADING`` /
@@ -370,8 +370,8 @@ WRITABLE_RAW: frozenset[str] = frozenset({"shutdown", "stopped", "unregistered"}
 
 #: The stop-first explanation, verbatim from the action so the console and Discord give the same
 #: answer. This page only explains; the write refusal itself is the action's.
-STOP_FIRST_SENTENCE = ("The server must be stopped to change its configuration. "
-                       "Stop it on the Servers page, then edit here.")
+STOP_FIRST_SENTENCE = _("The server must be stopped to change its configuration. "
+                        "Stop it on the Servers page, then edit here.")
 
 SET_SENTINEL = "set"
 UNSET_SENTINEL = "not set"

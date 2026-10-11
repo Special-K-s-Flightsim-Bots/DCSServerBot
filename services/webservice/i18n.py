@@ -76,6 +76,7 @@ __all__ = [
     "catalog_languages", "selectable_languages", "display_name",
     "normalise_language", "default_language", "resolve_language", "translations_for",
     "environment_for_language", "environment_for", "language_control", "render", "render_fragment",
+    "translator_for", "translate",
     "messages_for", "messages_for_language", "messages_script", "messages_script_for",
     "messages_capability",
     "languages_from_main_yaml", "capabilities", "add_routes", "_",
@@ -392,12 +393,53 @@ def render(request, name: str, **context) -> str:
     ``language`` (respecting it), otherwise the control is built from the request.
     """
     context.setdefault("language", language_control(request))
+    # the theme switch rides the same choke point: every page that renders the shell goes through
+    # here, so `<html data-theme>` follows the visitor's cookie without each page knowing how. The
+    # import is LAZY — ``theme`` imports this module for its ``_`` markers and its path helpers, so
+    # a top-level import back would be a cycle. Both modules are loaded by the time a request runs.
+    from . import theme as theme_module
+    context.setdefault("theme", theme_module.theme_control(request))
     return environment_for(request).get_template(name).render(**context)
 
 
 def render_fragment(request, name: str, **context) -> str:
     """Render a fragment (no shell chrome) in the request's language — same environment, no control."""
     return environment_for(request).get_template(name).render(**context)
+
+
+def translator_for(request):
+    """The request's own ``gettext`` callable — the per-language environment's, or the identity.
+
+    This is the same object :func:`render` uses: a template's ``_`` is a context-bound alias, useless
+    outside a render, but the environment's ``gettext`` global IS the raw translations callable. A
+    caller composing a string in PYTHON (a JSON body, a notice) renders it through THIS, so it follows
+    the request's language exactly as a template does. It falls back to the identity marker
+    (:func:`_`, i.e. English) when no environment is installed, so composing a string can never raise.
+    """
+    try:
+        environment = environment_for(request)
+        return environment.globals.get("gettext") or _
+    except Exception:  # noqa: BLE001 - an English message is always a safe answer
+        return _
+
+
+def translate(request, message: str, **params) -> str:
+    """*message* in the request's language, its ``%(name)s`` holes filled from *params*.
+
+    The translation is tried first and the holes interpolated after, so a value the server already
+    knew (a line number, a block name) never goes through the catalog. A malformed catalog entry — one
+    that drops a hole the caller supplies — degrades to the UNTRANSLATED English sentence rather than
+    raising, the same guard the sentence records' ``say`` applies (``templating.SENTENCE_GLOBAL``).
+    """
+    gettext = translator_for(request)
+    translated = gettext(message)
+    try:
+        return translated % params if params else translated
+    except (KeyError, TypeError, ValueError, IndexError):
+        try:
+            return message % params if params else message
+        except (KeyError, TypeError, ValueError, IndexError):
+            return message
 
 
 # ------------------------------------------------------------------- the language control
@@ -488,6 +530,13 @@ JS_MESSAGES: dict[str, str] = {
     "reveal.show": _("Show password"),
     "reveal.hide": _("Hide password"),
     "reveal.nothing": _("Nothing to show — type a password first, then this reveals what you typed."),
+    # the Settings page's Expert Mode editor (static/settings-yaml.js): the summary line beside the
+    # editor. The FIRST ERROR's sentence is rendered by the SERVER (it names a line and a block), so
+    # only these two states are composed in the browser; the badge reads "read-only" (a msgid the
+    # template already carries) until Expert Mode turns it to "editing".
+    "yaml.checking": _("Checking…"),
+    "yaml.ok": _("Valid."),
+    "yaml.editing": _("editing"),
 }
 
 #: the ONE substitution helper the served script installs. It LOOKS A KEY UP and replaces ``{name}``

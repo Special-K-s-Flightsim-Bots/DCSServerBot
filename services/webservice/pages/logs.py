@@ -6,12 +6,11 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from .. import i18n, permissions, readmodels
-from ..registry import NavItem
 from . import dashboard as dashboard_page
 
 __all__ = [
     "LOGS_PATH", "LOGS_CAPABILITY", "LOGS_ROLES", "LOGS_TEMPLATE", "LOGS_TITLE", "LOGS_LEAD",
-    "NAV_LABEL", "NAV_GROUP", "capabilities", "nav_items", "add_routes", "console_for",
+    "NAV_GROUP", "capabilities", "add_routes", "console_for",
 ]
 
 log = logging.getLogger(__name__)
@@ -30,7 +29,6 @@ LOGS_TEMPLATE = "logs.html"
 LOGS_TITLE = i18n._("Logs")
 LOGS_LEAD = i18n._("The bot log, full width, with the same level filter and placement as the "
                    "dashboard.")
-NAV_LABEL = i18n._("Logs")
 NAV_GROUP = dashboard_page.NAV_GROUP
 CRUMB_GROUP = dashboard_page.CRUMB_GROUP
 
@@ -49,11 +47,6 @@ def capabilities() -> dict[str, str]:
     """The capability declaration for the paths this module registers."""
     declare()
     return {LOGS_PATH: LOGS_CAPABILITY}
-
-
-def nav_items() -> tuple[NavItem, ...]:
-    """The sidebar entry this page contributes — data, not markup."""
-    return (NavItem(label=NAV_LABEL, url=LOGS_PATH, capability=LOGS_CAPABILITY),)
 
 
 def add_routes(router: APIRouter) -> APIRouter:

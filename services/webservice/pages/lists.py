@@ -90,7 +90,9 @@ class ListPage:
     roles: tuple[str, ...]
     title: str
     lead: str
-    nav_label: str
+    #: The sidebar label this page advertises — EMPTY for a page that is NOT a menu entry (its
+    #: content is on the Dashboard, so it contributes no nav item). See :meth:`nav_item`.
+    nav_label: str = ""
     scope_grants: bool = False
     #: whether this page's rows carry WRITE controls (``pages/actions``). Off by default — the
     #: stricter answer — so a page added to the console must say here that it renders controls, and

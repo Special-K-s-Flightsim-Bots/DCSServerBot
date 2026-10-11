@@ -25,11 +25,12 @@ from dataclasses import dataclass
 __all__ = [
     "STATUS_WORDS", "DEFAULT_STATUS", "RAW_LABELS",
     "raw_status", "status_view", "StatusView",
-    "SourceStatus", "NodeView", "InstanceView", "ServerView", "PlayerView",
+    "SourceStatus", "NodeView", "InstanceView", "ServerView", "PlayerView", "WeatherView",
     "LogLine", "LogTail", "Overview",
     "NO_LIVE_REASON", "NO_SERVERS_MESSAGE", "NO_PLAYERS_MESSAGE", "NO_NODES_MESSAGE",
     "NO_INSTANCES_MESSAGE", "NO_NODE_INSTANCES_MESSAGE", "LOG_MISSING_MESSAGE",
     "LOG_EMPTY_MESSAGE", "LOG_LEVEL_EMPTY_MESSAGE", "SCOPED_EMPTY_MESSAGE",
+    "NO_MISSION_MESSAGE", "NO_WEATHER_MESSAGE", "NOT_RUNNING_MESSAGE",
 ]
 
 
@@ -84,6 +85,17 @@ LOG_MISSING_MESSAGE = _("The bot log file is not available yet.")
 LOG_EMPTY_MESSAGE = _("The bot log file is empty.")
 #: the file has lines, but none at the level the panel is filtered to — never an empty frame
 LOG_LEVEL_EMPTY_MESSAGE = _("No log lines match the selected level.")
+
+# --- the SERVER OVERVIEW page's honest empty states (one sentence per state, as above). They say
+# what is MISSING on a server card, never a blank cell a reader could mistake for a broken render.
+#: no mission is loaded on the server (a STOPPED/SHUTDOWN server, or one between missions)
+NO_MISSION_MESSAGE = _("No mission is loaded.")
+#: the server is up but the bot reports no weather for it (a mission without a weather block, or a
+#: server that has not reported one yet) — the weather half of a card, never its whole
+NO_WEATHER_MESSAGE = _("No weather is reported.")
+#: the card's one-line substitute for the whole mission/weather/runtime block when the server is not
+#: up: those facts do not exist for a server that is not running, and zeroes would read as figures
+NOT_RUNNING_MESSAGE = _("This server is not running.")
 
 
 # --------------------------------------------------------------------------------- status
@@ -148,10 +160,29 @@ class InstanceView:
     server_name: str | None
     dcs_port: int | None
     webgui_port: int | None
-    #: the link to the bound server's own page (``/servers/<encoded-name>``), built by
+    #: the link to the bound server's own page (``/fleet/<encoded-name>``), built by
     #: :func:`~.servers.server_url`. Empty when the instance is bound to no server — the name then
     #: renders as plain text.
     link: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class WeatherView:
+    """One server's weather, in the same three facts the bot's status embed shows.
+
+    THE FIELD SELECTION MIRRORS ``plugins/mission/reports/serverStatus.json``'s ``WeatherInfo``
+    element (see ``readmodels.serveroverview`` and its parity test): a PRESET, a TEMPERATURE and a
+    WIND, each already formatted for display — the read model owns the unit conversion and the
+    rounding exactly as the embed's element does, so a page and the embed cannot round differently.
+    Every field is an empty string when the bot did not report it; the card renders the empty state
+    (:data:`NO_WEATHER_MESSAGE`) rather than a zero.
+    """
+    #: the cloud/weather preset ("Clear", "Dynamic", or a preset's own name), or ``''``
+    preset: str = ""
+    #: the mission's season temperature, e.g. ``"18.2 °C"``, or ``''``
+    temperature: str = ""
+    #: the surface wind, e.g. ``"180° / 5 kts"``, or ``''``
+    wind: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,9 +203,49 @@ class ServerView:
     #: power state, and the two are independent (``MAINTENANCE.md`` §1). Defaulted, so a producer
     #: that predates the field still builds a row.
     maintenance: bool = False
-    #: the link to the server's own page (``/servers/<encoded-name>``), built by
+    #: the link to the server's own page (``/fleet/<encoded-name>``), built by
     #: :func:`~.servers.server_url` — the affordance that opens the row. Empty renders plain text.
     link: str = ""
+    #: the name the operator reads (``Server.display_name``, the DCS-side name), falling back to
+    #: :attr:`name`. Read by the SERVER OVERVIEW page's card title; the tables keep using
+    #: :attr:`name` (the identity every route and link keys on). Defaulted for the same reason as
+    #: ``maintenance``.
+    display_name: str = ""
+    #: the slot ceiling (``settings.maxPlayers``), or ``None`` when the source does not carry it.
+    #: The overview card renders the player count as ``used / max`` like the embed's author line.
+    max_players: int | None = None
+    #: the current map (``Mission.map``), or ``None``. An embed field the overview card mirrors.
+    map_name: str | None = None
+    #: the formatted mission clock the card shows as its runtime/uptime — the SAME
+    #: ``Mission.mission_time`` :attr:`mission_label` formats, exposed as its own field so the card
+    #: reads the embed's "Runtime" fact rather than re-deriving it. Defaulted to ``''``.
+    runtime: str = ""
+    #: the server's weather as the bot reports it, or ``None`` when the mission carries none. The
+    #: overview card's weather block; ``None`` renders :data:`NO_WEATHER_MESSAGE`.
+    weather: WeatherView | None = None
+    #: the node's publicly reachable IP (``node.public_ip``), or ``''``. The overview card renders it
+    #: together with :attr:`port` as ``ip:port``, mirroring the embed's per-server block
+    #: (``plugins/mission/status.ServerInfo`` / ``All``). Defaulted for the same reason as the other
+    #: late fields, and empty for a source that carries no ``public_ip``.
+    public_ip: str = ""
+    #: whether a PASSWORD is required to join (``settings.password`` non-empty). The overview card
+    #: renders a LOCK INDICATOR only — never the password VALUE (the web page has no
+    #: ``show_passwords`` gate to honour, so it errs on the side of never disclosing the cleartext),
+    #: which is why this is a boolean and not the string. ``False`` renders no indicator.
+    locked: bool = False
+    #: the formatted time until the scheduled restart (``utils.format_time``, the same formatter the
+    #: embed's per-server block uses), or ``''`` when no restart is scheduled or the server is in
+    #: maintenance. The overview card shows it while the server is running. Defaulted to ``''``.
+    restart_in: str = ""
+
+    @property
+    def running(self) -> bool:
+        """Whether a player can join: RUNNING or the deliberate PAUSED. The ONE statement of the
+        fact, read by the overview card and by :attr:`Overview.running_count` so the count and the
+        cards cannot disagree. LOADING is NOT up (a server still loading is not joinable); SHUTDOWN,
+        STOPPED and UNREGISTERED are not either.
+        """
+        return self.status.word in ("RUNNING", "PAUSED")
 
     @property
     def mission_label(self) -> str:
@@ -189,7 +260,7 @@ class PlayerView:
     server_name: str
     slot: str
     active: bool
-    #: the link to the own page of the server the player is on (``/servers/<encoded-name>``), built
+    #: the link to the own page of the server the player is on (``/fleet/<encoded-name>``), built
     #: by :func:`~.servers.server_url`. Empty renders the name as plain text.
     link: str = ""
 
@@ -239,7 +310,7 @@ class Overview:
 
     @property
     def running_count(self) -> int:
-        return sum(1 for server in self.servers if server.status.word in ("RUNNING", "PAUSED"))
+        return sum(1 for server in self.servers if server.running)
 
     @property
     def paused_count(self) -> int:

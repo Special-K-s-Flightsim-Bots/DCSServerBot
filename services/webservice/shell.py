@@ -31,13 +31,14 @@ shell initialisation happens here, in ``start()``, and never in a ``@app.on_even
 """
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import auth, contributors, i18n, permissions, session, templating
+from . import auth, contributors, i18n, permissions, session, templating, theme
 from .auth import routes as auth_routes
 from .registry import Registrar
 
@@ -115,6 +116,12 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
     # Accept-Language -> this) and reading it per request would re-open the file on every render.
     app.state.webui_default_language = i18n.default_language(
         getattr(node, "config_dir", None) or "config")
+    # The install's config directory, where a CONFIG page reads and writes the bot's own
+    # configuration files. Stored once here (like the default language above) so a page never
+    # re-derives it from a request — a page that guessed would be able to read a different tree
+    # than the running bot. An install with no node (a standalone/tests shell) falls back to the
+    # project's own ``config`` directory.
+    app.state.webui_config_dir = getattr(node, "config_dir", None) or "config"
     session.install_session_middleware(app, config)
     auth.install_auth(app, node, config)
     _install_refusal_handlers(app)
@@ -220,14 +227,18 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     from .pages import live as live_page
     from .pages import logs as logs_page
     from .pages import nodes as nodes_page
+    from .pages import node_settings as node_settings_page
     from .pages import players as players_page
     from .pages import server_detail as server_detail_page
     from .pages import servers as servers_page
+    from .pages import settings as settings_page
 
     router = APIRouter()
     auth_routes.add_routes(router)
     # the language switch: the shell's own (reserved-adjacent) path, PUBLIC, on the shell's router
     i18n.add_routes(router)
+    # the theme switch: likewise PUBLIC (a display cookie, grants nothing), so it works before sign-in
+    theme.add_routes(router)
     dashboard_page.add_routes(router)
     logs_page.add_routes(router)
     # the standalone list pages: the FULL inventory behind the dashboard's attention view. One
@@ -236,22 +247,35 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     # the PER-SERVER page and its Configuration tab: one route, no nav item (reached from a row).
     server_detail_page.add_routes(router)
     nodes_page.add_routes(router)
+    # THE PER-NODE SETTINGS PAGE: one route, no nav item (reached from a Node row's cogwheel).
+    node_settings_page.add_routes(router)
     instances_page.add_routes(router)
     players_page.add_routes(router)
     live_page.add_routes(router)
+    # THE SETTINGS PAGE: the schema-driven config page (card S1), Admin-only.
+    settings_page.add_routes(router)
     capabilities = dict(auth_routes.capabilities())
     capabilities.update(i18n.capabilities())
+    capabilities.update(theme.capabilities())
     capabilities.update(dashboard_page.capabilities())
     capabilities.update(logs_page.capabilities())
     capabilities.update(servers_page.capabilities())
     capabilities.update(server_detail_page.capabilities())
     capabilities.update(nodes_page.capabilities())
+    capabilities.update(node_settings_page.capabilities())
     capabilities.update(instances_page.capabilities())
     capabilities.update(players_page.capabilities())
     capabilities.update(live_page.capabilities())
-    return router, capabilities, (dashboard_page.nav_items() + logs_page.nav_items()
+    capabilities.update(settings_page.capabilities())
+    # THE MAIN MENU IS FOUR ITEMS: Dashboard, Servers, Nodes, Settings. Logs, Instances and
+    # Players are still PAGES — their routes are registered above and stay reachable/linkable —
+    # but they contribute NO nav entry: each one's content is already on the Dashboard (the
+    # Servers/Nodes/Instances/Players tabs and the log panel with its expanded mode). A page whose
+    # module declares no nav item is simply not a menu entry; it is reached the way the Dashboard
+    # presents it. See pages/instances.py, pages/players.py and pages/logs.py.
+    return router, capabilities, (dashboard_page.nav_items()
                                   + servers_page.nav_items() + nodes_page.nav_items()
-                                  + instances_page.nav_items() + players_page.nav_items())
+                                  + settings_page.nav_items())
 
 
 # ---------------------------------------------------------------------------------------------
@@ -299,25 +323,58 @@ def refusal_response(request, exc, *, status_code: int | None = None):
     if not permissions.wants_error_page(request):
         return JSONResponse({"detail": getattr(exc, "detail", None)}, status_code=status,
                             headers=getattr(exc, "headers", None))
+    # the standalone pages are composed in Python, so their copy is translated AT RENDER through the
+    # request's own per-language environment (see :func:`_page_language_and_translator`).
+    language, translate = _page_language_and_translator(request)
     if status == permissions.RETRYABLE_STATUS:
         # The visitor could not be verified *right now* — the bot has just started and is
         # rebuilding its member view. The generic refusal page would wrongly say "access denied"
         # and the anonymous path would bounce them to the login door the message says is not
         # needed, so this is its own face: "you are still signed in, this will retry".
         retry_after = _retry_after_seconds(exc)
-        return HTMLResponse(retryable_page(status, retry_after=retry_after), status_code=status,
+        return HTMLResponse(retryable_page(status, retry_after=retry_after, language=language,
+                                           translate=translate),
+                            status_code=status,
                             headers={"Retry-After": str(retry_after)})
     # a 403 is raised by the gate or by a dependency, both of which run BEFORE the handler — so a
     # refused write really did save nothing, and saying so is the one thing its author needs to read
     wrote = request.method not in ("GET", "HEAD", "OPTIONS")
     if _is_signed_in(request):
-        return HTMLResponse(refusal_page(status, wrote=wrote), status_code=status)
+        return HTMLResponse(refusal_page(status, wrote=wrote, language=language, translate=translate),
+                            status_code=status)
     redirect = _login_redirect(request)
     if redirect is None:
         # no identity layer is installed, so there is no login door to send anyone to: a page is
         # the only honest answer (a redirect would land on a 404)
-        return HTMLResponse(refusal_page(status, wrote=wrote), status_code=status)
+        return HTMLResponse(refusal_page(status, wrote=wrote, language=language, translate=translate),
+                            status_code=status)
     return redirect
+
+
+def _page_language_and_translator(request) -> tuple[str, "object"]:
+    """The standalone refusal pages' ``(language, translator)`` for THIS request.
+
+    ``refusal_page`` / ``retryable_page`` are whole documents composed in Python (no template, so no
+    Jinja render step) — but their copy is still the reader's, so it is translated AT RENDER, through
+    the request's own per-language environment, exactly as a template is: the environment's installed
+    translations object (``i18n.environment_for``), never a module-level ``set_language``. The
+    ``i18n._`` marker is only an extraction marker and stays the safe fallback (an identity, i.e.
+    English) so composing an error page can never itself raise — not even when the shell's templates
+    are not installed.
+    """
+    try:
+        environment = i18n.environment_for(request)
+        # the environment's own translations object: its ``gettext`` global IS the raw
+        # ``translations.gettext`` (Jinja's ``_`` is a context-bound alias, useless outside a render)
+        translate = environment.globals.get("gettext") or i18n._
+    except Exception:  # noqa: BLE001 - an error page must render even if i18n is unavailable
+        log.debug("Web UI refusal: no per-language environment; the page copy stays English.")
+        translate = i18n._
+    try:
+        language = i18n.resolve_language(request)
+    except Exception:  # noqa: BLE001 - the language is cosmetic; never fail the error path for it
+        language = i18n.BASE_LANGUAGE
+    return language, translate
 
 
 def _is_signed_in(request) -> bool:
@@ -359,26 +416,34 @@ _REFUSAL_STYLE = """<style>
 </style>"""
 
 
-def refusal_page(status_code: int, *, wrote: bool = False) -> str:
+def refusal_page(status_code: int, *, wrote: bool = False,
+                 language: str = i18n.BASE_LANGUAGE, translate=None) -> str:
     """The HTML a browser is refused with. Takes no request data — see :func:`refusal_response`.
 
     ``wrote`` swaps the sentence a person reads after SUBMITTING something: "was my work saved?" is
     the only question they have, and a refusal raised before the handler means the answer is no.
+
+    The copy is composed in Python, so it is translated AT RENDER: ``translate`` is the request's own
+    ``_`` (the per-language environment's, see :func:`_page_language_and_translator`) and ``language``
+    is its code, carried into the ``lang`` attribute. Both default to the source language (English),
+    so the standalone document is byte-for-byte what it was when no request context exists.
     """
-    message = ("Your request could not be completed, and nothing was saved."
+    _ = translate or i18n._
+    message = (_("Your request could not be completed, and nothing was saved.")
                if wrote else
-               "Your account does not have access to this page.")
+               _("Your account does not have access to this page."))
     return (
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        f"<title>{status_code} - access denied</title>\n"
-        f"<link rel=\"stylesheet\" href=\"{SHELL_ASSET_PATH}/shell.css\">\n"
+        "<!doctype html>\n"
+        f'<html lang="{language}">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>{status_code} - {_('access denied')}</title>\n"
+        f'<link rel="stylesheet" href="{SHELL_ASSET_PATH}/shell.css">\n'
         f"{_REFUSAL_STYLE}\n"
-        "</head>\n<body>\n<main class=\"refusal\">\n"
-        "<h1>Access denied</h1>\n"
+        '</head>\n<body>\n<main class="refusal">\n'
+        f"<h1>{_('Access denied')}</h1>\n"
         f"<p>{message}</p>\n"
-        f"<p class=\"refusal-status\">HTTP {status_code}</p>\n"
-        "<p><a href=\"/\">Return to the dashboard</a></p>\n"
+        f'<p class="refusal-status">HTTP {status_code}</p>\n'
+        f'<p><a href="/">{_("Return to the dashboard")}</a></p>\n'
         "</main>\n</body>\n</html>\n"
     )
 
@@ -416,7 +481,8 @@ def _retry_after_seconds(exc, *, default: int = 5) -> int:
     return value if value > 0 else default
 
 
-def retryable_page(status_code: int, *, retry_after: int) -> str:
+def retryable_page(status_code: int, *, retry_after: int,
+                   language: str = i18n.BASE_LANGUAGE, translate=None) -> str:
     """The HTML a browser gets while its identity cannot be verified YET.
 
     A standalone document like :func:`refusal_page` — an error page must not depend on the shell —
@@ -427,21 +493,32 @@ def retryable_page(status_code: int, *, retry_after: int) -> str:
     manual retry. It is NEVER a redirect to the login door: the visitor is signed in and the session
     is intact; only the verification is late. No data is served, here or on the retry — fail closed
     is unchanged.
+
+    Like :func:`refusal_page`, the copy is composed in Python and translated AT RENDER through
+    ``translate`` (the request's own ``_``) with ``language`` for the ``lang`` attribute; both default
+    to the source language, so a caller with no request context gets the English document unchanged.
+    The two JS status lines are the page's own copy too, so they are translated as well — emitted
+    through :func:`json.dumps` so a translation can never break the script literal.
     """
+    _ = translate or i18n._
     retry_ms = retry_after * 1000
     budget_ms = RETRYABLE_PAGE_BUDGET_S * 1000
+    still_signed_in = _("You are still signed in &mdash; no new sign-in is needed. The console has "
+                        "just started and is verifying your identity; this page will retry by itself.")
+    stopped = json.dumps(_("Still not ready. Retry by hand when you are ready."), ensure_ascii=False)
+    changed = json.dumps(_("The answer changed. Reload to continue."), ensure_ascii=False)
     return (
-        "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        f"<title>{status_code} - verifying your identity</title>\n"
-        f"<link rel=\"stylesheet\" href=\"{SHELL_ASSET_PATH}/shell.css\">\n"
+        "<!doctype html>\n"
+        f'<html lang="{language}">\n<head>\n<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>{status_code} - {_('verifying your identity')}</title>\n"
+        f'<link rel="stylesheet" href="{SHELL_ASSET_PATH}/shell.css">\n'
         f"{_REFUSAL_STYLE}\n"
-        "</head>\n<body>\n<main class=\"refusal\">\n"
-        "<h1>The console is starting up</h1>\n"
-        "<p>You are still signed in &mdash; no new sign-in is needed. The console has just started "
-        "and is verifying your identity; this page will retry by itself.</p>\n"
-        "<p class=\"refusal-status\" id=\"retryable-status\">Retrying automatically&hellip;</p>\n"
-        "<p><a id=\"retryable-retry\" href=\"\" hidden>Retry now</a></p>\n"
+        '</head>\n<body>\n<main class="refusal">\n'
+        f"<h1>{_('The console is starting up')}</h1>\n"
+        f"<p>{still_signed_in}</p>\n"
+        f'<p class="refusal-status" id="retryable-status">{_("Retrying automatically&hellip;")}</p>\n'
+        f'<p><a id="retryable-retry" href="" hidden>{_("Retry now")}</a></p>\n'
         "</main>\n"
         "<script>\n"
         "(function () {\n"
@@ -466,7 +543,7 @@ def retryable_page(status_code: int, *, retry_after: int) -> str:
         "    if (done) { return; }\n"
         "    attempts += 1;\n"
         "    if (attempts > MAX_ATTEMPTS || Date.now() - startedAt > BUDGET_MS) {\n"
-        "      stop(\"Still not ready. Retry by hand when you are ready.\");\n"
+        f"      stop({stopped});\n"
         "      return;\n"
         "    }\n"
         "    fetch(path, { headers: { \"accept\": \"text/html\" }, credentials: \"same-origin\" })\n"
@@ -479,7 +556,7 @@ def retryable_page(status_code: int, *, retry_after: int) -> str:
         "          }\n"
         "          return;\n"
         "        }\n"
-        "        stop(\"The answer changed. Reload to continue.\");\n"
+        f"        stop({changed});\n"
         "      })\n"
         "      .catch(function () { /* a network hiccup: the timer tries again */ });\n"
         "  }\n"

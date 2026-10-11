@@ -18,7 +18,7 @@
   request: app.frontend runs the dependency chain, a StaticFiles mount would not).
 -#}
 <!DOCTYPE html>
-<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="dark">
+<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="{{ theme.current if theme is defined and theme else 'dark' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -64,6 +64,7 @@
       <div class="crumb">{% if crumb is defined and crumb %}{% for text, chrome in crumb %}{% if chrome %}{{ _(text) }}{% else %}{{ text }}{% endif %}{% if not loop.last %} / {% endif %}{% endfor %}{% endif %}</div>
       <div class="spacer"></div>
       {% include "_language.html" %}
+      {% include "_theme.html" %}
       <span id="status-pills">{% include "_pills.html" %}</span>
       {% if user is defined and user %}
       {#  The user chip: the display name the backend resolved (NEVER the subject — for the Discord

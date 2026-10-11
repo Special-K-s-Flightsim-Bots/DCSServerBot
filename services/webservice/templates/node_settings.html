@@ -1,0 +1,91 @@
+{#-
+  ONE NODE's settings — that node's block of `config/nodes.yaml`, generated from the NODE schema.
+
+  It is the SAME renderer as the Settings area (`_config_fields.html`), fed a tree that is the node
+  schema's per-node block scoped to THIS node, so a control here and a control there cannot drift.
+  The form posts to `save_path`; the save goes through the ONE write primitive (`configwrite`,
+  path-patch + validate + atomic + `.bak`), so an untouched save is byte-identical.
+
+  The right panel shows the node's block re-serialised as YAML — a DUMP of the parse, READ-ONLY
+  (there is no Expert Mode here; that escape hatch belongs to the global files).
+
+  A field's LABEL is its schema KEY, printed VERBATIM (see `configgen`) — do not translate it.
+-#}
+{% extends "base.html" %}
+{% from "_config_fields.html" import render_field %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+{% if node_options | length > 1 %}
+<nav class="st-nodes" aria-label="{{ _(node_label) }}">
+  <span class="lbl">{{ _(node_label) }}</span>
+  {% for option in node_options %}
+  <a class="n {{ 'on' if option.active }}" href="{{ option.url }}" {% if option.active %}aria-current="page"{% endif %}>{{ option.name }}</a>
+  {% endfor %}
+</nav>
+<p class="st-node-lead">{{ _(node_lead) }}</p>
+{% endif %}
+
+{% include "_notice.html" %}
+
+<div class="cfg-layout">
+  <form class="cfg-form" method="post" action="{{ save_path }}" data-async>
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+
+    <div class="cfg-head">
+      <div>
+        <h2 class="cfg-file mono">{{ file_name }}</h2>
+        <div class="cfg-sub">{{ _(lead) }}</div>
+      </div>
+      <div class="cfg-head-actions">
+        <span class="cfg-badge mono">{% trans %}schema{% endtrans %}: {{ schema_name }}</span>
+        {% if not readonly %}
+        <button type="submit" class="cfg-save">{% trans %}Save{% endtrans %}</button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if parse_error %}
+    <div class="notice bad" role="status">
+      <span class="dot dead" aria-hidden="true"></span>
+      <span class="notice-msg">{{ parse_error }}</span>
+    </div>
+    {% endif %}
+    {% if schema_error %}
+    <div class="notice bad" role="status">
+      <span class="dot dead" aria-hidden="true"></span>
+      <span class="notice-msg">{{ _(schema_invalid_banner) }} {{ schema_error }}</span>
+    </div>
+    {% endif %}
+
+    <div class="cfg-controls">
+      {% for scope in scopes %}
+      <section class="cfg-scope {{ 'on' if loop.first }}">
+        {% for child in scope.fields %}{{ render_field(child, values, rows, customs, elements, choices, 1) }}{% endfor %}
+      </section>
+      {% endfor %}
+    </div>
+  </form>
+
+  <aside class="cfg-yaml">
+    <div class="cfg-yaml-head">
+      <h3>{% trans %}The file, as YAML{% endtrans %}</h3>
+      <span class="cfg-badge">{% trans %}read-only{% endtrans %}</span>
+    </div>
+    <pre class="yaml mono">{{ yaml }}</pre>
+  </aside>
+</div>
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/settings-scope.css">
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/configgen.js" defer></script>
+{% endblock %}

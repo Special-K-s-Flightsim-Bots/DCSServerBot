@@ -1,0 +1,80 @@
+{#-
+  The SERVER OVERVIEW page — one CARD per server, the spirit of the bot's server-status embed.
+
+  Every value is read from the handler's context: `cluster` (the node names, the server count and how
+  many are up — a dict built by `pages/overview.cluster_view`), `cards` (the per-server records
+  `pages/overview.cards` built from the SAME `readmodels.servers.server_view` the tables render) and
+  `empty` (the read models' own empty-state sentences). No figure is typed here and no status word is
+  invented: the dot classes and the words come off the read model's own vocabulary.
+
+  THE EMBED PARITY (the card's requirement): the facts a card shows are the embed's own fields — Map,
+  Temperature, Weather (the cloud preset), Wind and Runtime — declared in
+  `pages/overview.EMBED_FIELD_COVERAGE` and pinned by `tests/test_webui_server_overview.py`, which
+  fails if the embed grows a field this page neither shows nor documents. The card DELIBERATELY omits
+  the embed's Client Limits / schedule / ruler fields (see `EMBED_FIELDS_NOT_COVERED`). The embed's
+  DYNAMICALLY-NAMED per-server block (its `IP/Port`, `Restart` countdown and password-lock glyph) is
+  ALSO shown here: `s.public_ip` + `s.port`, the `s.restart_in` countdown and the `s.locked` lock
+  indicator. The one thing NOT shown is the password VALUE itself — the lock indicator says a
+  password is set, the cleartext is never rendered.
+
+  NO JAVASCRIPT: the page is complete when it arrives. The only form in the chrome is the shell's
+  Sign out control; nothing here mutates anything.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+<div class="card">
+  <div class="hd">
+    <h3>{% trans %}Cluster{% endtrans %}</h3><div class="spacer"></div>
+    {% for node in cluster.nodes %}<span class="tag">{{ node.name }}{% if not node.online %} · {% trans %}offline{% endtrans %}{% endif %}</span>{% endfor %}
+  </div>
+  <div class="bd">
+    <div class="sub">{% if cluster.has_nodes %}{% trans count=cluster.server_count %}{{ count }} server(s) on this cluster{% endtrans %} · {% trans up=cluster.up_count %}{{ up }} up{% endtrans %}{% else %}{{ _(empty.nodes) }}{% endif %}</div>
+  </div>
+</div>
+
+{% if cards %}
+<div class="grid g-3">
+  {% for card in cards %}{% set s = card.view %}
+  <div class="card">
+    <div class="hd">
+      <span class="dot {{ s.status.dot }}" aria-hidden="true"></span>
+      {% if s.link %}<a class="srv-name" href="{{ s.link }}"><b>{{ s.display_name }}</b></a>{% else %}<b>{{ s.display_name }}</b>{% endif %}
+      <div class="spacer"></div>
+      <span class="tag" title="{{ s.status.raw }}">{{ _(s.status.word) }}</span>
+      {% if s.locked %}<span class="tag" title="{% trans %}Password{% endtrans %}" aria-label="{% trans %}Password{% endtrans %}">🔐</span>{% endif %}
+      {% if s.maintenance %}<span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}
+    </div>
+    <div class="bd">
+      <div class="sub">{% trans %}node{% endtrans %} {{ s.node_name }}{% if s.instance_name %} · {% trans %}instance{% endtrans %} {{ s.instance_name }}{% endif %}{% if s.public_ip %} · {{ s.public_ip }}{% if s.port %}:{{ s.port }}{% endif %}{% elif s.port %} · :{{ s.port }}{% endif %}{% if s.remote %} · {% trans %}remote{% endtrans %}{% endif %}</div>
+      {% if card.running %}
+      <div class="sub">{% trans %}Current mission:{% endtrans %} <b>{{ s.mission_name or '—' }}</b>{% if s.map_name %} · {% trans %}Map{% endtrans %} {{ s.map_name }}{% endif %}</div>
+      <div class="sub">{% trans count=s.players %}{{ count }} player(s){% endtrans %}{% if s.max_players %} / {{ s.max_players }}{% endif %}{% if s.active_players %} ({% trans count=s.active_players %}{{ count }} active{% endtrans %}){% endif %} · {% trans %}Runtime{% endtrans %} {{ s.runtime }}</div>
+      {% if s.restart_in %}<div class="sub">{% trans %}Restart{% endtrans %}: {{ s.restart_in }}</div>{% endif %}
+      <div class="sub">
+        {% if card.has_weather %}
+        {% if s.weather.temperature %}<span>{% trans %}Temperature{% endtrans %} {{ s.weather.temperature }}</span>{% endif %}
+        {% if s.weather.wind %}{% if s.weather.temperature %} · {% endif %}<span>{% trans %}Wind{% endtrans %} {{ s.weather.wind }}</span>{% endif %}
+        {% if s.weather.preset %}{% if s.weather.temperature or s.weather.wind %} · {% endif %}<span>{% trans %}Weather{% endtrans %} {{ _(s.weather.preset) }}</span>{% endif %}
+        {% else %}
+        <span class="empty">{{ _(empty.weather) }}</span>
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(empty.not_running) }}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card"><div class="bd"><p class="empty">{{ _(empty.servers) }}</p></div></div>
+{% endif %}
+
+{% endblock %}

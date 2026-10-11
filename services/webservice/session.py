@@ -40,7 +40,8 @@ from fastapi import HTTPException, Request
 from starlette.middleware.sessions import SessionMiddleware
 
 __all__ = ["SESSION_COOKIE", "CSRF_FIELD", "CSRF_HEADER", "DEFAULT_LISTEN", "session_settings",
-           "install_session_middleware", "get_csrf_token", "validate_csrf_token", "csrf_protect"]
+           "install_session_middleware", "get_csrf_token", "validate_csrf_token", "csrf_protect",
+           "csrf_protect_with"]
 
 log = logging.getLogger(__name__)
 
@@ -283,13 +284,19 @@ def validate_csrf_token(request: Request, token: str | None) -> bool:
     return any(secrets.compare_digest(token, known) for known in _session_tokens(request))
 
 
-async def read_csrf_token(request: Request) -> str | None:
-    """The token a write carries, from the header first and the form body second."""
+async def read_csrf_token(request: Request, *, max_fields: int | float | None = None) -> str | None:
+    """The token a write carries, from the header first and the form body second.
+
+    ``max_fields`` (when given) raises the field-count ceiling of the body parse for a route whose
+    form is legitimately large — a schema-generated configuration page can exceed Starlette's default
+    of 1000 (see :func:`csrf_protect_with`). Every other caller keeps the default.
+    """
     token = request.headers.get(CSRF_HEADER)
     if token:
         return token
     try:
-        form = await request.form()
+        form = await (request.form() if max_fields is None
+                      else request.form(max_fields=max_fields))
     except Exception:
         log.debug("CSRF: request body could not be parsed as a form", exc_info=True)
         return None
@@ -301,3 +308,23 @@ async def csrf_protect(request: Request) -> None:
     """Dependency for mutation routes: refuses a write that carries no valid session token."""
     if not validate_csrf_token(request, await read_csrf_token(request)):
         raise HTTPException(status_code=403, detail="CSRF token missing or invalid.")
+
+
+def csrf_protect_with(max_fields: int | float | None = None):
+    """A ``csrf_protect``-equivalent dependency that parses the body up to *max_fields* fields.
+
+    Starlette's form parser refuses a body with more fields than its ``max_fields`` (default 1000) — a
+    DoS guard. A schema-generated configuration page can legitimately exceed that: ``presets*.yaml``'s
+    DSL schema walks to hundreds of fields PER ENTRY, so a whole file is thousands. A route that renders
+    such a form declares this dependency with a higher ceiling and parses its own form the same way, so
+    the CSRF check and the handler agree. It is the SAME predicate as :func:`csrf_protect` — only the
+    parse bound differs — so the two can never drift.
+    """
+    async def _dependency(request: Request) -> None:
+        if not validate_csrf_token(request, await read_csrf_token(request, max_fields=max_fields)):
+            raise HTTPException(status_code=403, detail="CSRF token missing or invalid.")
+    # a marker so the console's CSRF pin (``tests/test_webui_auth_routes``) can SEE that a route
+    # declaring this dependency runs the SAME check as ``csrf_protect`` — its purpose is that no write
+    # route is unguarded, not that every route spells the dependency the same way.
+    setattr(_dependency, "dcssb_csrf_dependency", True)  # a marker on the closure (see the comment)
+    return _dependency

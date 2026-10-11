@@ -129,7 +129,7 @@ Roles are the bot's role names from `bot.yaml` (`roles:`). The two-cluster-role 
 
 | Page or control | Who |
 |-----------------|-----|
-| Dashboard (`/`), Servers (`/servers`), Players (`/players`), Nodes (`/nodes`), Instances (`/instances`) | `Admin` and `DCS Admin` see everything; a **manager** sees only their own servers (and the nodes/instances that carry them) |
+| Dashboard (`/`), Servers (`/fleet`), Players (`/players`), Nodes (`/nodes`), Instances (`/instances`) | `Admin` and `DCS Admin` see everything; a **manager** sees only their own servers (and the nodes/instances that carry them) |
 | Logs page (`/logs`) and a node's *Download log* | `Admin` only |
 | A server's own page and its **Missions** tab | `Admin`, `DCS Admin`, and any **manager** of that server |
 | A server's **Configuration** tab — DCS config and coalition passwords | `Admin`, and a manager for the servers in their scope |

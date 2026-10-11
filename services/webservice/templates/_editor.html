@@ -1,0 +1,53 @@
+{#-
+  THE SHARED EDITOR SHELL — the ONE collapsible-block affordance every config editor draws.
+
+  A config editor's block is a native `<details class="st-block">` (so the collapse works with
+  JavaScript OFF), with a chevron, a summary line and a body. It was EXTRACTED from
+  `_scope_fields.html`'s `map` branch so the SCHEMA-driven editor (a plugin / service / extension /
+  node file) and the DECLARATION-driven editor (the per-server Configuration tab, whose DCS file
+  `serverSettings.lua` has no schema) draw the SAME block, from the SAME markup — one editor look,
+  whatever the file's FORMAT.
+
+  THIS IS THE ARCHITECTURAL RULE MADE CODE (Frank's): config files of different formats (yaml, lua)
+  may need different PARSERS, but they must not grow different EDITORS. The parser differs; the block
+  does not.
+
+  `panel(summary, open, field)` is used with `{% call %}`: the caller supplies the body, the
+  `summary` argument is the pre-rendered summary line. `field=True` adds the `data-cfg-field` hook
+  the schema-driven visibility model reads (the Configuration tab does not load that model, so it
+  leaves it off).
+-#}
+
+{% macro chev() -%}
+<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.4 5.4 16 12l-6.6 6.6"/></svg>
+{%- endmacro %}
+
+{#-
+  A FIELD ROW — the ONE setting-row shell every config editor draws (Frank's alignment rule).
+
+  A schema-driven editor and the DECLARATION-driven Configuration tab render a setting in the SAME
+  `<div class="st-row">`: the fact (its label, key, kind and hint) in `.st-lab` on the left, the
+  control that owns it in `.st-w` on the right, in a fixed two-column grid. That grid — not the kind
+  of control — is what lines every input, select and checkbox up across blocks, so a text row and a
+  checkbox row in the same block share one control column. It was extracted from `_scope_fields.html`
+  (the scoped cogwheel editor) so the Configuration tab reuses it instead of reproducing the classes
+  by hand: one place to fix the alignment, for every surface.
+
+  `lab` and `ctl` are PRE-RENDERED markup: a label's inner content (its `.nm`/`.kk`/`.hp`) legitimately
+  differs per surface (a schema KEY is not a DCS label), and the control's KIND is format-specific —
+  only the row is shared. `kind` becomes `data-cfg-kind` (the same hook the schema editor's row
+  carries); `cls` appends extra classes (e.g. the Missions list's `row-active`).
+-#}
+{% macro field_row(kind, lab, ctl, cls='') -%}
+<div class="st-row{% if cls %} {{ cls }}{% endif %}" data-cfg-field{% if kind %} data-cfg-kind="{{ kind }}"{% endif %}>
+  <div class="st-lab">{{ lab }}</div>
+  <div class="st-w">{{ ctl }}</div>
+</div>
+{%- endmacro %}
+
+{% macro panel(summary, open=False, field=False, cls='st-block') -%}
+<details class="{{ cls }}"{% if field %} data-cfg-field{% endif %}{% if open %} open{% endif %}>
+  <summary>{{ chev() }}{{ summary }}</summary>
+  <div class="bd">{{ caller() }}</div>
+</details>
+{%- endmacro %}

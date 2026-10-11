@@ -1,0 +1,144 @@
+/* settings-scope.css — THE COGWHEEL VIEW's sheet, ported from the designer's mockup.
+ *
+ * Source: /home/frank/mockups/dcssb-admin-ui/settings-tiles/settings-tiles.css (§ tokens, §3 the
+ * cogwheel view, §LIGHT). The tile grid's own rules already live in shell.css (slice 1); this file
+ * adds what the TABBED config view needs and nothing else, so the console's shipped sheet is not
+ * duplicated. The palette is the shipped one — the tokens below name the shipped literals (their
+ * dark value IS the literal), and §LIGHT re-states the shipped rules that carry a literal, scoped to
+ * `html[data-theme="light"]` so the dark rendering is untouched.
+ */
+
+/* EVERY TOKEN THIS VIEW READS IS DECLARED IN shell.css now (slice 3): the palette and the named
+ * literals have ONE owner, the shipped sheet, and the light values live in its html[data-theme=
+ * "light"] block. This file carries the cogwheel view's RULES and no palette of its own — a second
+ * declaration here is exactly the drift the one-token-source rule exists to prevent. The kind
+ * signatures (--kind-*) are declared in shell.css's settings-tile block above.
+ */
+
+/* ================================================================ the cogwheel view */
+.st-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.st-head .t1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.st-head h1 { font-family: var(--font-mono); }
+.st-head .rt { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.st-back { font-size: 12px; color: var(--text-3); }
+.st-back a { color: var(--link); }
+.st-crumb { font-size: 12.5px; color: var(--text-3); }
+.st-lead { color: var(--text-2); font-size: 12.5px; max-width: 110ch; }
+
+.st-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.st-bar .where { font-size: 12.5px; }
+.st-bar .where b { font-family: var(--font-mono); }
+.st-bar .s { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+.st-bar .acts { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; font: inherit;
+  font-size: 12.5px; cursor: pointer; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.st-btn:hover { border-color: var(--accent); }
+.st-btn.pri { background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  border-color: var(--login-line); color: var(--login-text); font-weight: 600; }
+.st-btn.sm { padding: 4px 9px; font-size: 11.5px; }
+.st-btn svg { width: 15px; height: 15px; display: block; }
+
+.st-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 18px; align-items: start; }
+@media (max-width: 1150px) { .st-layout { grid-template-columns: 1fr; } }
+
+/* THE TAB STRIP. One tab per SCOPE: DEFAULT, then one per node/instance block. Rendered as links
+ * (server-side, `?tab=<n>`), so the strip works with JavaScript off. */
+.st-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end;
+  border-bottom: 1px solid var(--line); padding-bottom: 0; }
+.st-tabs .t { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border: 1px solid var(--line); border-bottom: none; border-radius: var(--radius-s) var(--radius-s) 0 0;
+  color: var(--text-2); background: var(--ground-2); font-size: 12.5px; }
+.st-tabs .t:hover { color: var(--text); }
+.st-tabs .t.on { color: var(--text); background: var(--panel); box-shadow: inset 0 2px 0 var(--accent); }
+.st-tabs .t .n { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.st-tabs .t.on .n { color: var(--text-2); }
+.st-tabs .t.def { font-weight: 600; }
+.st-tabs .t.add { border-style: dashed; color: var(--text-3); }
+.st-tabs .t.add svg { width: 14px; height: 14px; display: block; }
+.st-tabs .t.over { border-top-style: dashed; border-left-style: dashed; border-right-style: dashed; }
+.st-tabs .sp { margin-left: auto; }
+.st-tabs .st-overflow { align-self: center; font-size: 11.5px; color: var(--text-3); padding: 6px 4px; }
+
+/* THE NODE SELECTOR, ABOVE the tabs. One chip per node; the active node is marked. Links (server-side
+ * `?node=<n>`), so it works with JavaScript off — same technique as the tab strip below it. */
+.st-nodes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px; }
+.st-nodes .lbl { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-3); margin-right: 2px; }
+.st-nodes .n { display: inline-flex; align-items: center; padding: 5px 11px; font-size: 12px;
+  font-family: var(--font-mono); color: var(--text-2); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: 999px; }
+.st-nodes .n:hover { color: var(--text); border-color: var(--accent); }
+.st-nodes .n.on { color: var(--login-text); background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  border-color: var(--login-line); font-weight: 600; }
+.st-node-lead { font-size: 11.5px; color: var(--text-3); margin: 0 0 12px; max-width: 100ch; }
+.st-aside .st-slice { color: var(--text-2); }
+.st-panel { border: 1px solid var(--line); border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--panel); padding: 14px; }
+.st-panel > .note { font-size: 11.5px; color: var(--text-3); margin: 0 0 12px; max-width: 100ch; }
+.st-panel > .note b { color: var(--text-2); }
+
+/* THE NODE PAGE'S EXTENSION CARDS. The Settings page's tile language lives in shell.css
+ * (`.st-grid` / `.st-tile` / `.st-top` / `.st-kind` / `.st-name`); a node's extension cards use that
+ * SAME `.st-grid` (multi-column cards, the Settings landing's own grid — NOT a stack of full-width
+ * rows), so the two surfaces read the same at a glance. A node's extension card ALSO carries that
+ * scope's FORM, so INSIDE a card the field rows stack (label above widget) instead of sharing the
+ * wide two-column row the full-width panel uses — the form fits the card's own column. */
+.st-tile .st-row { grid-template-columns: minmax(0, 1fr); }
+.st-tile .st-w { justify-content: flex-start; }
+/* the inline warning a card shows before its block is removed, with the discarded block's YAML under
+ * the sentence (operator data, printed verbatim). */
+.st-warn-yaml { margin: 6px 0 0; padding: 7px 9px; font-family: var(--font-mono); font-size: 11px;
+  line-height: 1.5; color: var(--text-2); background: var(--well); border: 1px solid var(--warn-line);
+  border-radius: var(--radius-s); overflow: auto; white-space: pre; }
+
+/* A COLLAPSIBLE BLOCK. Native <details>, so the collapse works with JavaScript OFF. */
+.st-block { border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--ground-2);
+  margin-bottom: 12px; }
+.st-block[open] > summary { border-bottom: 1px solid var(--line); }
+.st-block > summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; cursor: pointer;
+  list-style: none; border-radius: var(--radius-s) var(--radius-s) 0 0; }
+.st-block > summary::-webkit-details-marker { display: none; }
+.st-block > summary:hover { background: var(--panel-2); }
+.st-block > summary .chev { width: 14px; height: 14px; color: var(--text-3); flex: 0 0 auto; }
+.st-block[open] > summary .chev { transform: rotate(90deg); }
+.st-block > summary .k { font-family: var(--font-mono); font-size: 12.5px; color: var(--text); }
+.st-block > summary .kd { font-size: 11px; color: var(--text-3); }
+.st-block > summary .r { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.st-block > .bd { padding: 0 13px; }
+.st-block .hint { font-size: 11.5px; color: var(--text-3); padding: 11px 0 0; max-width: 100ch; }
+.st-block .hint.b { color: var(--text-2); }
+.st-block.nest { background: transparent; border-color: var(--line-2); margin-left: 0; }
+
+/* A FIELD ROW: label + key + type + help on the left, the widget in a fixed column on the right.
+ * The KEY printed here is the field's key RELATIVE to the tab (no "default." prefix). */
+.st-row { display: grid; grid-template-columns: minmax(0, 1fr) 286px; gap: 16px; align-items: start;
+  padding: 12px 0; border-top: 1px solid var(--line); }
+.st-row:first-child { border-top: 0; }
+.st-block[open] > .bd > .st-row:first-child { border-top: 0; }
+.st-lab .nm { font-size: 13px; font-weight: 600; }
+.st-lab .kk { display: flex; align-items: center; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+.st-lab .kk .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.st-lab .ty { font-size: 10px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line-2);
+  color: var(--text-3); background: var(--ground-2); font-family: var(--font-mono); }
+.st-lab .hp { color: var(--text-3); font-size: 11.5px; margin-top: 4px; max-width: 62ch; }
+.st-w { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.st-in, .st-sel { width: 100%; padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.st-in.mono { font-family: var(--font-mono); }
+.st-ro { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-2); }
+.st-note { font-size: 11.5px; color: var(--text-3); }
+.st-flag { font-size: 10.5px; padding: 1px 7px; border-radius: 99px; border: 1px dashed var(--line-2);
+  color: var(--text-3); }
+
+/* the aside: the file as YAML, read-only, with the Expert Mode toggle. */
+.st-aside { position: sticky; top: .75rem; display: flex; flex-direction: column; gap: 8px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 12px; }
+.st-aside .hd { display: flex; align-items: center; gap: 8px; }
+.st-aside .hd h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.st-aside .hd .sp { margin-left: auto; }
+.st-expert { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-2); }
+.st-yaml { font-family: var(--font-mono); font-size: 11px; line-height: 1.55; background: var(--well);
+  border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px; color: var(--text-2);
+  max-height: 460px; overflow: auto; white-space: pre; }

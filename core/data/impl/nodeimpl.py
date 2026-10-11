@@ -193,7 +193,6 @@ def _read_git_state(repo: Any) -> _GitState:
         return _GitState(True, current, pinned, None, None, default_branch, None)
     branch = repo.active_branch.name
     tracking = _tracking_of(repo.active_branch)
-    target = None
     if tracking is not None:
         target = tracking.commit.hexsha
     else:
@@ -1399,6 +1398,7 @@ class NodeImpl(Node):
                 self._heartbeat_conn = await psycopg.AsyncConnection.connect(
                     self.cpool.conninfo,
                     autocommit=True,
+                    application_name=f"DCSSB:{self.name}",
                     connect_timeout=10,
                     keepalives=1,
                     keepalives_idle=30,
@@ -1611,7 +1611,18 @@ class NodeImpl(Node):
                         if not holds_lock:
                             # Try to grab the lock on the sticky connection
                             cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
-                            if not (await cursor.fetchone())[0]:
+                            got = (await cursor.fetchone())[0]
+                            if not got and not await self.get_active_nodes():
+                                self.log.warning("Master lock held with no live node — reclaiming it ...")
+                                await lock_conn.execute("""
+                                    SELECT pg_terminate_backend(pid)
+                                    FROM pg_locks
+                                    WHERE locktype = 'advisory' AND classid = 0 AND objid = %s
+                                      AND pid <> pg_backend_pid()
+                                """, (lock_key, ))
+                                cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
+                                got = (await cursor.fetchone())[0]
+                            if not got:
                                 self.log.info("  => Another node still holds the master lock, waiting ...")
                                 return False
 

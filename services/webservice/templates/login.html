@@ -20,7 +20,7 @@
   NO JAVASCRIPT, and no affordance that only works with it: the door is a link, the form is a form.
 -#}
 <!DOCTYPE html>
-<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="dark">
+<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="{{ theme.current if theme is defined and theme else 'dark' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,6 +41,7 @@
     </div>
     <div class="spacer"></div>
     {% include "_language.html" %}
+    {% include "_theme.html" %}
     {#  The pill states something TRUE of this configuration — it is derived from the same value the
         layout is, so it cannot claim a door that is not there.  #}
     <span class="pill"><span class="dot{{ ' run' if not doors.none else '' }}"

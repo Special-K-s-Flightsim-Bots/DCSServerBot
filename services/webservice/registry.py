@@ -34,12 +34,15 @@ The console's pages are LOW-PRIORITY routes
 -------------------------------------------
 Every page the registrar registers is added as a **low-priority** route (the mechanism
 ``app.frontend`` already uses on the pinned FastAPI). A route another component registered on the
-SAME path — the restapi plugin's API ``/servers`` — therefore WINS it: the console can never shadow
-the REST API, and the old endpoints keep answering exactly as they did before the console existed.
-The console's page is still reached when nothing else claims its path, and it keeps its own
-capability gate either way. This is also why the gate resolves a capability by **route identity**
-(:meth:`Registrar.owns_route`) and never by path: the console page ``/servers`` and the plugin's
-API ``/servers`` are the same path but different routes (see
+SAME path therefore WINS it: the console can never shadow a peer's route, and the old endpoints
+keep answering exactly as they did before the console existed. The console's page is still reached
+when nothing else claims its path, and it keeps its own capability gate either way.
+
+The REST API owns ``/servers`` (``plugins/restapi``), so the console's own Servers page lives at
+``/fleet`` instead — deliberately off the path the API claims, so no console route shares a path
+with it at all. The low-priority mechanism stays the guarantee for ANY future shared path. This is
+also why the gate resolves a capability by **route identity** (:meth:`Registrar.owns_route`) and
+never by path: two components' routes can share a path, and only ownership can tell them apart (see
 :func:`services.webservice.permissions.capability_gate`).
 """
 from __future__ import annotations
@@ -131,9 +134,8 @@ class Registrar:
         self._asset_owner: str | None = None
         #: ids of every route object the console owns (each registration's ``APIRoute``s plus the
         #: asset routes). The gate resolves a capability by ROUTE IDENTITY, so it must be able to
-        #: ask "is this route one of ours" — a path cannot answer that (the console page ``/servers``
-        #: and the restapi plugin's API ``/servers`` share the path; see
-        #: :func:`services.webservice.permissions.capability_gate`).
+        #: ask "is this route one of ours" — a path cannot answer that (two components' routes can
+        #: share a path; see :func:`services.webservice.permissions.capability_gate`).
         self._owned_route_ids: set[int] = set()
 
     # ---------------------------------------------------------------------------------- assets
@@ -209,23 +211,22 @@ class Registrar:
         before = list(self.app.routes)
         routes = list(getattr(router, "routes", []) or [])
         # THE CONSOLE REGISTERS ITS OWN PAGES AS LOW-PRIORITY ROUTES. A route another component
-        # registered on the SAME path (the restapi plugin's ``/servers``) therefore WINS it, so the
-        # console can never shadow the REST API — the old endpoints keep answering exactly as they
-        # did before the console existed. The console's page is still reached when nothing else
-        # claims its path, and it keeps its own capability gate either way. ``_low_priority_routes``
-        # is the mechanism ``app.frontend`` already uses on the pinned FastAPI (0.141.1); if a
-        # future version drops it we fall back to a normal include and SAY SO, rather than silently
-        # shadowing another component's route.
+        # registered on the SAME path therefore WINS it, so the console can never shadow a peer's
+        # route — the old endpoints keep answering exactly as they did before the console existed.
+        # The console's page is still reached when nothing else claims its path, and it keeps its own
+        # capability gate either way. ``_low_priority_routes`` is the mechanism ``app.frontend``
+        # already uses on the pinned FastAPI (0.141.1); if a future version drops it we fall back to
+        # a normal include and SAY SO, rather than silently shadowing another component's route.
         #
         # KNOWN EDGE, PINNED (fail-closed): low priority only applies when NO normal route matches
         # the request at all. If another component claims the SAME path with a method the console
-        # page does NOT accept (a POST-only route on the console's GET /servers), its NORMAL route is
+        # page does NOT accept (a POST-only route on the console's own GET page), its NORMAL route is
         # a PARTIAL match (path yes, method no) and the pinned FastAPI router serves that partial
         # BEFORE this fallback - so a request using the console page's OWN method answers 405 Method
         # Not Allowed and the page is not reached. The direction is DENY (nothing is served, no gate
         # is bypassed into content) and it is deterministic across restarts; no shipping component
-        # collides this way (the restapi plugin's /servers is GET, which wins the path cleanly). It
-        # is pinned by
+        # collides this way (the console's Servers page lives at ``/fleet``, off the REST API's
+        # ``/servers``). It is pinned by
         # ``tests/test_webui_rest_api_isolation.py::test_a_plugin_route_with_a_method_the_console_page_lacks_flips_the_path_to_405``.
         low_priority = getattr(router, "_low_priority_routes", None)
         if low_priority is None:
@@ -322,9 +323,9 @@ class Registrar:
 
         THE route-identity test the gate uses. A route object the console did not register —
         ``plugins/restapi``'s own ``APIRoute``s, the WebService's debug endpoints, anything another
-        component added straight to the app — is NOT the console's, whatever its path: the console
-        page ``/servers`` and the restapi plugin's API ``/servers`` are the same PATH but different
-        ROUTES, and only ownership can tell them apart.
+        component added straight to the app — is NOT the console's, whatever its path: two
+        components' routes can share a PATH while being different ROUTES, and only ownership can
+        tell them apart.
         """
         if route is None:
             return False
@@ -337,11 +338,11 @@ class Registrar:
 
         * an ``APIRoute`` the console registered (``route`` is set). It resolves BY ROUTE IDENTITY:
           only a route this registrar owns may take a capability, and it is looked up by the route's
-          OWN path — never by the requested path, because the paths genuinely collide with other
-          components' routes (the console page ``/servers`` vs the restapi plugin's API ``/servers``).
-          A route the console does not own answers ``None`` here, so the gate falls through to the
-          route's own guard (:func:`services.webservice.permissions.is_self_guarded`) and the old
-          endpoints keep their own auth.
+          OWN path — never by the requested path, because a path can be shared with another
+          component's route. A route the console does not own answers ``None`` here, so the gate
+          falls through to the route's own guard
+          (:func:`services.webservice.permissions.is_self_guarded`) and the old endpoints keep their
+          own auth.
         * an asset served by ``app.frontend`` (``route`` is ``None``), where only the requested path
           identifies what is being served. Here — and only here — the requested path resolves the
           declaration.

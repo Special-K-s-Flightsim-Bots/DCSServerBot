@@ -132,7 +132,21 @@ class Command(app_commands.Command[GroupT, P, T]):
         super().__init__(name=name, description=description, callback=callback, nsfw=nsfw, parent=parent,
                          guild_ids=guild_ids, auto_locale_strings=auto_locale_strings, extras=extras)
         self.mention = ""
-        bot = ServiceRegistry.get(BotService).bot
+        self._bound = False
+        # The trimming below needs a live bot. A plugin's commands module is imported
+        # (and its @command decorators run) both at bot start and, with no bot involved,
+        # whenever someone merely imports it — tests, tooling, a REPL. Only bind when a
+        # bot is actually there; DCSServerBot._bind_commands() finishes the job for
+        # anything built before it was.
+        service = ServiceRegistry.get(BotService)
+        if service is not None:
+            self.bind(service.bot)
+
+    def bind(self, bot) -> None:
+        """Apply the cluster-dependent parameter trimming. Idempotent."""
+        if self._bound:
+            return
+        self._bound = True
         # remove node parameter from slash commands if only one node is there
         nodes = len(bot.node.all_nodes)
         if 'node' in self._params and nodes == 1:

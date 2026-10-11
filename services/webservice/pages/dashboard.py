@@ -351,8 +351,8 @@ def attention(state: readmodels.Overview) -> dict:
             "count": len(items)}
 
 
-def _tab_problem(state: readmodels.Overview, key: str) -> str:
-    """The sentence behind a tab's problem dot — empty when that tab holds nothing wrong.
+def _tab_problem(state: readmodels.Overview, key: str):
+    """The sentence behind a tab's problem dot — EMPTY when that tab holds nothing wrong.
 
     ONE classification, shared with :func:`attention`: the classes are the banner's own (a node not
     heartbeating on the Nodes tab, a server not running on the Servers tab), so a tab with a dot
@@ -362,13 +362,22 @@ def _tab_problem(state: readmodels.Overview, key: str) -> str:
 
     The Players tab has no class: a player count is never a problem, and the ERROR lines class has no
     tab to live on (the log is not a tab).
+
+    The sentence is a RECORD (``{"msgid": …, "params": …}``), never a finished English string: the
+    tooltip is CHROME rendered on the page, so its figure (the count) is interpolated at RENDER time
+    through the template's guarded ``say`` (``templating.SENTENCE_GLOBAL``) in the request's
+    language — the same one mechanism the dialog sentences use. The English rendering is unchanged
+    (the msgid IS the source string), and an empty string still means "no problem".
     """
     if key == "nodes":
         offline = _offline_nodes(state)
-        return f"{len(offline)} node(s) offline" if offline else ""
-    if key == "servers":
+        if offline:
+            return {"msgid": i18n._("{count} node(s) offline"), "params": {"count": len(offline)}}
+    elif key == "servers":
         broken = _broken_servers(state)
-        return f"{len(broken)} server(s) not running" if broken else ""
+        if broken:
+            return {"msgid": i18n._("{count} server(s) not running"),
+                    "params": {"count": len(broken)}}
     return ""
 
 
@@ -549,7 +558,7 @@ def row_controls_for(request: Request | None, tab: str) -> dict:
     for the tab it is about to render and hands the answer to ``_table.html`` as ``row_controls``,
     while the live stream asks the SAME function on every tick (``pages/live.render_for``) so a
     refreshed table cannot lose the column the initial page drew. The map itself belongs to
-    ``pages/actions.controls_for`` — read by the /servers and /players pages too, so both screens
+    ``pages/actions.controls_for`` — read by the /fleet and /players pages too, so both screens
     offer one set of controls. The import is inside the function because ``pages/actions`` reaches
     THIS module for the page's own paths, and a module-level import would be a cycle.
 
@@ -748,7 +757,8 @@ def out_of_scope_refusal() -> HTTPException:
     ``permissions.wants_error_page`` in the shell's ONE handler factory. The wording discloses
     nothing about the target: it is the same refusal for a server that exists and one that does not.
     """
-    return HTTPException(status_code=403, detail="Not authorized (this server is outside your scope).")
+    return HTTPException(status_code=403,
+                         detail=i18n._("Not authorized (this server is outside your scope)."))
 
 
 def log_level(request: Request) -> str:
