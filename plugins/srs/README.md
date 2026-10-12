@@ -31,6 +31,7 @@ DEFAULT:
       'Carrier': 125000AM
       'FARP': 125500AM
       '*': 124000AM
+  atc_frequency_range: [118000, 137000]  # Optional: only when atc_frequencies is not set for the airbase type, keep the airbase frequencies in this range (kHz), here VHF AM; all of them if none is
 ```
 
 > [!NOTE]
