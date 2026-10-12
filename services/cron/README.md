@@ -90,9 +90,9 @@ Shuts the whole PC down.
 # config/services/cron.yaml
 DEFAULT:
   actions:
-    - cron: '0 4 * * 1'                 # shut the PC down once a week on Monday
+    - cron: '0 4 * * 1'                 # Shut the PC down once a week on Monday.
       action:
-        type: halt                      # reboot the PC each monday night at 03:00
+        type: halt                      # Shut down the PC each monday night at 03:00. Does NOT reboot!
         params:
           maintenance: false            # Optional: reset any maintenance flag to false
 ```
