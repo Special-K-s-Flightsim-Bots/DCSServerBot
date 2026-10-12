@@ -49,7 +49,7 @@ The following commands are available through the API. For detailed parameter def
 | /highscore | GET | [server_name: string], [period: string], [limit: int] | Get highscore statistics for players |
 | /instance/mission/load | POST | server_name: string, mission_name: string | Load a mission on a given server. |
 | /instance/mission/pause | POST | server_name: string | Pause the mission on a given server. |
-| /instance/mission/restart | POST | server_name: string | Restart the mission on a given server. |
+| /instance/mission/restart | POST | server_name: string, [run_extensions: bool], [use_orig: bool], [when_empty: bool] | Restart the mission on a given server. Defaults: run_extensions=false, use_orig=true, when_empty=false. With when_empty=true and players connected, the restart waits until the server is empty (needs the Scheduler plugin) and the response status is "pending"; 409 if an action is already pending. |
 | /instance/mission/unpause | POST | server_name: string | Unpause the mission on a given server. |
 | /instance/missions | GET | server_name: string | Return all missions for a given server. |
 | /instance/restart | POST | server_name: string | Restart a server. |

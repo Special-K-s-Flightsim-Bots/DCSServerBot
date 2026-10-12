@@ -681,8 +681,17 @@ class RestAPI(Plugin):
     # Restart the mission on the provided server.
     # Endpoint:   /instance/mission/restart
     # Method:     [POST]
-    # Params:     - server_name   [required]
-    async def instance_mission_restart(self, server_name: str = Query(...)):
+    # Params:     - server_name     [required]
+    #             - run_extensions  [optional, default: False]
+    #             - use_orig        [optional, default: True]
+    #             - when_empty      [optional, default: False]
+    async def instance_mission_restart(
+        self,
+        server_name: str = Query(...),
+        run_extensions: bool = Query(False, description="Run the extensions (MizEdit, RealWeather, ...) on the mission"),
+        use_orig: bool = Query(True, description="Start from the original mission (.orig)"),
+        when_empty: bool = Query(False, description="If players are connected, restart once the server is empty")
+    ):
         """Restart the mission on the provided server."""
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
@@ -691,8 +700,27 @@ class RestAPI(Plugin):
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
 
+        if when_empty and server.is_populated():
+            # /mission restart asks before replacing a pending action, we cannot
+            if server.restart_pending or server.on_empty:
+                raise HTTPException(status_code=409,
+                                    detail=f"An action is already pending on server '{resolved_server_name}'.")
+            # same as "later" in /mission restart, run by the Scheduler on onServerEmpty
+            server.on_empty = {
+                "method": "restart",
+                "run_extensions": run_extensions,
+                "use_orig": use_orig
+            }
+            server.restart_pending = True
+            return {
+                "status": "pending",
+                "message": f"Mission on server '{resolved_server_name}' will restart when the server is empty."
+            }
+
         try:
-            await server.restart(modify_mission=False)
+            if run_extensions and not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
+                await server.stop()
+            await server.restart(modify_mission=run_extensions, use_orig=use_orig)
             return {
                 "status": "success",
                 "message": f"Mission on server '{resolved_server_name}' restarted."
