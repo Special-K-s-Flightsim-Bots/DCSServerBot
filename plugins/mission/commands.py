@@ -2516,9 +2516,7 @@ class Mission(Plugin[MissionEventListener]):
                                 "server": server.name,
                                 "data": {
                                     "eventName": "afk",
-                                    "initiator": {
-                                        "name": player.name
-                                    }
+                                    "initiator": player.name
                                 }
                             }
                         })

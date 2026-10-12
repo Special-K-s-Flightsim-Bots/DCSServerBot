@@ -271,9 +271,7 @@ class SRSEventListener(EventListener["SRS"]):
                             "server": server.name if server else None,
                             "data": {
                                 "eventName": "no_atc_usage",
-                                "initiator": {
-                                    "name": player.name
-                                }
+                                "initiator": player.name
                             }
                         }
                     })
