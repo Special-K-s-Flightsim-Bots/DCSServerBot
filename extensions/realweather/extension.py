@@ -140,7 +140,7 @@ class RealWeather(InstallableExtension):
             self.log.debug(f"{self.name}: no ICAO provided, skipping ...")
             return False
         self.locals = utils.deep_merge(cfg, override or {})
-        await self.write_config()
+        # config.toml is written by run_realweather, under the lock
         return True
 
     async def write_config(self):
@@ -205,6 +205,10 @@ class RealWeather(InstallableExtension):
 
             async with type(self)._lock:
                 try:
+                    # write config.toml under the lock: servers that share a missions directory share this file,
+                    # and another server writing its own config before this run would make it process the wrong
+                    # mission (and leave this one's output empty)
+                    await self.write_config()
                     await asyncio.to_thread(run_subprocess)
                 finally:
                     cleanup(clean_logfile=False)
