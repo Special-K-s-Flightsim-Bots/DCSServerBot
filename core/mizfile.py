@@ -72,7 +72,7 @@ class MizFile:
                         for line in file:
                             match = re.search(pattern, line)
                             if match:
-                                THEATRES[terrain_id] = {float(match.group(1)), float(match.group(2))}
+                                THEATRES[terrain_id] = (float(match.group(1)), float(match.group(2)))
                                 break
                         else:
                             self.log.warning(f"No towns found in: {towns_file}")
