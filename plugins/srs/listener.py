@@ -179,6 +179,25 @@ class SRSEventListener(EventListener["SRS"]):
             "coalition": player.side.value
         }
 
+    @staticmethod
+    def _normalize_frequency(freq: tuple | list) -> tuple[int, int]:
+        # SRS radios are (freq, modulation) tuples, or lists once they went through the bus from an agent node; the
+        # airbase frequencies come from DCS as lists, and SRS may send the frequency as a float: compare (int, int)
+        return int(round(float(freq[0]))), int(freq[1])
+
+    @staticmethod
+    def _parse_frequency(freq: str | int | tuple | list) -> tuple[int, int]:
+        # atc_frequencies in kHz: "252000AM", "30000FM", or no modulation (AM above 108 MHz)
+        if isinstance(freq, (tuple, list)):
+            return SRSEventListener._normalize_frequency(freq)
+        freq = str(freq)
+        if freq.endswith('AM'):
+            return int(freq[:-2]) * 1000, 0
+        elif freq.endswith('FM'):
+            return int(freq[:-2]) * 1000, 1
+        else:
+            return int(freq) * 1000, 0 if int(freq) > 108000 else 1
+
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
@@ -216,17 +235,15 @@ class SRSEventListener(EventListener["SRS"]):
                 atc_freqs = [atc_freqs]
 
             if not atc_freqs:
-                atc_freqs = airbase['frequencyList']
+                atc_freqs = [self._normalize_frequency(x) for x in airbase['frequencyList']]
+                # the airbase frequencies cover all bands (VHF, UHF, HF, FM): keep those in the configured range,
+                # unless none is
+                freq_range = config.get('atc_frequency_range')
+                if freq_range:
+                    low, high = freq_range[0] * 1000, freq_range[1] * 1000
+                    atc_freqs = [x for x in atc_freqs if low <= x[0] <= high] or atc_freqs
             else:
-                for idx, freq in enumerate(atc_freqs):
-                    if not isinstance(freq, str):
-                        continue
-                    if freq.endswith('AM'):
-                        atc_freqs[idx] = (int(freq[:-2]) * 1000, 0)
-                    elif freq.endswith('FM'):
-                        atc_freqs[idx] = (int(freq[:-2]) * 1000, 1)
-                    else:
-                        atc_freqs[idx] = (int(freq) * 1000, 0 if int(freq) > 108000 else 1)
+                atc_freqs = [self._parse_frequency(x) for x in atc_freqs]
 
             if data['eventName'] == 'S_EVENT_BIRTH':
                 await player.sendPopupMessage(_("Please contact ATC on {}").format(
@@ -241,7 +258,7 @@ class SRSEventListener(EventListener["SRS"]):
                     )
                     if not data:
                         continue
-                    if any(x in atc_freqs for x in data['radios']):
+                    if any(self._normalize_frequency(x) in atc_freqs for x in data['radios']):
                         on_atc_freq = True
                         break
                 if not on_atc_freq:
@@ -254,9 +271,7 @@ class SRSEventListener(EventListener["SRS"]):
                             "server": server.name if server else None,
                             "data": {
                                 "eventName": "no_atc_usage",
-                                "initiator": {
-                                    "name": player.name
-                                }
+                                "initiator": player.name
                             }
                         }
                     })

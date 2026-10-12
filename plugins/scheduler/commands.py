@@ -497,9 +497,11 @@ class Scheduler(Plugin[SchedulerListener]):
             )
             if rc is False:
                 self.log.error(f"Mission {new_mission} not loaded on server {server.name}")
+                server.restart_pending = False
                 return
             elif rc is None:
                 self.log.debug(f"Mission {new_mission} already loaded on server {server.name}")
+                server.restart_pending = False
                 return
 
     async def run_action(self, server: Server, rconf: dict):
@@ -527,6 +529,7 @@ class Scheduler(Plugin[SchedulerListener]):
         except TimeoutError:
             self.log.warning(f"{self.__cog_name__}: Timeout getting mission list from server {server.name}, "
                              f"skipping {method} action")
+            server.restart_pending = False
             return
 
         # select the new mission id
@@ -546,6 +549,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 if not new_mission:
                     self.log.error(f"{self.__cog_name__}: "
                                    f"Mission {rconf['mission_file']} cannot be loaded on server {server.name}!")
+                    server.restart_pending = False
                     return
         else:
             new_mission = int(await server.getStartIndex())
@@ -554,9 +558,10 @@ class Scheduler(Plugin[SchedulerListener]):
                 if new_mission > len(mission_list):
                     new_mission = 1
 
-                # set the new start index if the server is shut down
-                if server.status == Status.SHUTDOWN:
-                    await server.setStartIndex(new_mission)
+        # a server that is not running starts on listStartIndex, so point it to the selected mission
+        # (check_state sets LOADING before it runs the startup action)
+        if server.status in [Status.SHUTDOWN, Status.LOADING]:
+            await server.setStartIndex(new_mission)
 
         # do we change the running mission?
         if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
@@ -578,6 +583,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 user=rconf.get('user'),
                 mission=new_mission
             )
+            server.restart_pending = False
             return
 
         # change password if configured

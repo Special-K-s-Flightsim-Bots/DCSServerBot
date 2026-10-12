@@ -26,6 +26,12 @@ schema;element_schema:
             regex;(Airbase|Carrier|FARP|\*):
               type: any
               func: str_or_list
+    atc_frequency_range:
+      type: seq
+      nullable: false
+      range: {min: 2, max: 2}
+      sequence:
+        - type: int
 
 type: map
 func: check_main_structure
