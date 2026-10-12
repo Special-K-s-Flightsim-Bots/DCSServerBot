@@ -549,9 +549,10 @@ class Scheduler(Plugin[SchedulerListener]):
                 if new_mission > len(mission_list):
                     new_mission = 1
 
-                # set the new start index if the server is shut down
-                if server.status == Status.SHUTDOWN:
-                    await server.setStartIndex(new_mission)
+        # a server that is not running starts on listStartIndex, so point it to the selected mission
+        # (check_state sets LOADING before it runs the startup action)
+        if server.status in [Status.SHUTDOWN, Status.LOADING]:
+            await server.setStartIndex(new_mission)
 
         # do we change the running mission?
         if server.status in [Status.RUNNING, Status.PAUSED] and server.current_mission:
