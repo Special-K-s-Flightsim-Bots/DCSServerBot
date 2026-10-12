@@ -27,7 +27,7 @@ yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 DKS_URL = "https://www.digitalkneeboardsimulator.com/api/register/dcssb?otp={otp}&connection_string={callback_url}"
-DKS_JWKS_URL = "https://digitalkneeboardsimulator.com/api/pubkey"
+DKS_JWKS_URL = "https://www.digitalkneeboardsimulator.com/api/pubkey"
 
 
 class DKS(Plugin):
@@ -176,13 +176,14 @@ class DKS(Plugin):
     @utils.app_has_role('Admin')
     async def register(self, interaction: discord.Interaction):
         restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
-        if restapi.get_config().get('auth', {}).get('jwt') and not await utils.yn_question(
+        if restapi.get_config().get('auth', {}).get('jwt'):
+            if not await utils.yn_question(
                 interaction,
                 message=_("You have a JWT key configured for your RestAPI service already."),
                 question=_("Do you want to overwrite it?")
             ):
-            await interaction.followup.send(_("Aborted"), ephemeral=True)
-            return
+                await interaction.followup.send(_("Aborted"), ephemeral=True)
+                return
         else:
             await interaction.response.defer(ephemeral=True)
 
