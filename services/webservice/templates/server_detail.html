@@ -351,8 +351,8 @@
 {#- THE COALITION PASSWORDS CARD — the THIRD face: the blue/red join passwords, whose CLEARTEXT lives
     in the bot's database (``servers.blue_password`` / ``red_password``) and whose write goes through
     the bot's own ``Server.setCoalitionPassword``. Its own ``<form>``, its own route
-    (``set_coalition_password``) and its own capability. The values are rendered IN THE CLEAR (the operator's
-    call — the field holds the real password, with the same eye the DCS password carries), except that
+    (``set_coalition_password``) and its own capability. The values are rendered IN THE CLEAR — the field holds the real password, with the same eye the DCS password
+    carries — except that
     the CLEARTEXT comes from the read ACTION: when that read could not be taken, ``config.coalitions``
     is EMPTY and this whole card is absent (never two rows that would read as \"no password\"). The
     hash is never rendered anywhere.

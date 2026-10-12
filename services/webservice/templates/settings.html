@@ -122,7 +122,7 @@
     </div>
     {% if not no_schema %}
     <div class="cfg-hint cfg-expert-hint">{% trans %}Edit the file directly. Every change is checked against the bot's own schema, and a document that does not pass cannot be saved.{% endtrans %}</div>
-    {#-  BUG-FIX (card t_a3e3f91d): an Expert Mode save writes the DOCUMENT and does NOT apply the
+    {#- BUG-FIX: an Expert Mode save writes the DOCUMENT and does NOT apply the
         form's pending field changes, so a save that quietly dropped them would be a silent loss.
         Stated in words, right where the editor is.  -#}
     <div class="cfg-hint cfg-expert-hint">{% trans %}An Expert Mode save writes the document; the form's pending changes are not applied.{% endtrans %}</div>

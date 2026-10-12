@@ -1373,8 +1373,8 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     }
     context.update(await _tab_context(request, server, server_name, tab))
     # no-store: this is the page a mission write returns to, and its list must be re-rendered from
-    # the post-write state — never served from the browser's cache (the operator's stale-mission-list
-    # report). The download route shares this body for its name-collision case, so both get it.
+    # the post-write state — never served from the browser's cache, so a stale mission list can never
+    # come back. The download route shares this body for its name-collision case, so both get it.
     return HTMLResponse(i18n.render(request, CONFIG_TEMPLATE, **context),
                         headers={"Cache-Control": "no-store"})
 

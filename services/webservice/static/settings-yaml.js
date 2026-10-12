@@ -103,7 +103,7 @@
         setStatus((found && found.message) || "", "bad");
       }
       mark(found);
-      /* THE CARET IS NEVER MOVED BY A CHECK (card t_c62b998b). A verdict arrives while the operator
+      /* THE CARET IS NEVER MOVED BY A CHECK. A verdict arrives while the operator
        * is still typing — that is the whole point of the debounce — so calling `editor.setCursor()`
        * here (the old behaviour, to "jump to the error") hijacked the caret mid-word: the rest of the
        * line then landed at the offending column and the YAML was corrupted by the act of fixing it.

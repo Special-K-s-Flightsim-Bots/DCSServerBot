@@ -3656,9 +3656,9 @@ def _mission_reorder_handler(action: WriteAction):
 
 
 def _mission_activate_handler(action: WriteAction):
-    """The route for ``set_active_mission`` (M7/M11) — the bar's ``Set as start``, posted directly.
+    """The route for ``set_active_mission`` — the bar's ``Set as start``, posted directly.
 
-    M11 MOVED this control from the mission row to the selection bar (The rule: tick the mission,
+    The control MOVED from the mission row to the selection bar (tick the mission,
     press the bar), so its target is the TICK — the same selection form the bulk remove uses, sent here
     by a ``formaction``. The route therefore reads the REPEATED ``mission`` field and serves ONLY a
     selection of EXACTLY ONE: none names nothing and several names no single mission, so BOTH are

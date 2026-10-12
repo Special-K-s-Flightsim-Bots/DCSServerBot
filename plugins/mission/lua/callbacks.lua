@@ -337,7 +337,7 @@ function mission.onPlayerTryChangeSlot(id, side, slot)
 		if mission.num_change_slots[id] > tonumber(slot_spamming.slot_changes or 5) then
             mission.num_change_slots[id] = -1
 			net.kick(id, slot_spamming.message)
-            name = net.get_player_info(id, 'name')
+            local name = net.get_player_info(id, 'name')
             local msg = {
                 command = 'sendMessage',
                 message = 'Player ' .. name .. ' (ucid=' .. ucid .. ') kicked for slot spamming!'
