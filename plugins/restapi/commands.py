@@ -701,6 +701,10 @@ class RestAPI(Plugin):
             raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
 
         if when_empty and server.is_populated():
+            # /mission restart asks before replacing a pending action, we cannot
+            if server.restart_pending or server.on_empty:
+                raise HTTPException(status_code=409,
+                                    detail=f"An action is already pending on server '{resolved_server_name}'.")
             # same as "later" in /mission restart, run by the Scheduler on onServerEmpty
             server.on_empty = {
                 "method": "restart",
