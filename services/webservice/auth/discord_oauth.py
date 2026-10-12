@@ -860,11 +860,11 @@ def parse_discord_config(discord_config, *, config_dir: str | Path,
     pickle store without importing the bot's ``core``.
     """
     if not isinstance(discord_config, dict):
-        log.info("Admin web UI auth: auth.discord is not configured - no Discord login.")
+        log.debug("Admin web UI auth: auth.discord is not configured - no Discord login.")
         return None
     if discord_config.get("enabled", False) is not True:
-        log.info("Admin web UI auth: the Discord backend is disabled (auth.discord.enabled is "
-                 "not true).")
+        log.debug("Admin web UI auth: the Discord backend is disabled (auth.discord.enabled is "
+                  "not true).")
         return None
 
     client_id = str(discord_config.get("client_id") or "").strip()
@@ -1230,10 +1230,10 @@ def discord_backend(discord_config, *, config_dir: str | Path, public_base_url=N
                                     public_base_url=public_base_url, secret_reader=secret_reader)
     if settings is None:
         return None
-    log.info("Admin web UI auth: the Discord backend is enabled (client id %s, redirect URI %s, "
-             "client secret from %s).", settings.client_id, f"{settings.public_base_url}"
-             f"{CALLBACK_PATH}",
-             "auth.discord.client_secret" if not _uses_store(discord_config) else "the secret store")
+    log.info("Admin web UI auth: the Discord backend is enabled.")
+    log.debug("Admin web UI auth: Discord client id %s, redirect URI %s, client secret from %s.",
+              settings.client_id, f"{settings.public_base_url}{CALLBACK_PATH}",
+              "auth.discord.client_secret" if not _uses_store(discord_config) else "the secret store")
     return DiscordOAuthBackend(settings)
 
 

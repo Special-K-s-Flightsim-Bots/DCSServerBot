@@ -435,7 +435,7 @@ def local_backend(local_config: Any, *, config_dir: str | Path) -> LocalAuthBack
     account and the form refuses me".
     """
     if not isinstance(local_config, dict):
-        log.info("Admin web UI auth: auth.local is not configured - no local login.")
+        log.debug("Admin web UI auth: auth.local is not configured - no local login.")
         return None
     if local_config.get("enabled", False) is not True:
         if local_config.get("users"):

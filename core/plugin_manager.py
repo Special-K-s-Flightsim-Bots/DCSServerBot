@@ -103,9 +103,11 @@ class PluginManager:
             self.log.exception("PluginManager: action discovery failed for plugin(s) %s.",
                                plugin_names)
             return
+        #: the counts are what an operator needs on every start; the 38-name list is one DEBUG line
+        #: away, so a normal boot does not wrap the log with it.
         self.log.info("PluginManager: action registry populated from %d plugin(s) - %d action(s) "
-                      "available in this process: %s.", len(plugin_names), len(registry),
-                      ", ".join(sorted(registry)) or "-")
+                      "available in this process.", len(plugin_names), len(registry))
+        self.log.debug("PluginManager: actions available: %s.", ", ".join(sorted(registry)) or "-")
 
     async def _load_plugins_master(self) -> None:
         """On the master, plugins are loaded by BotService.setup_hook().

@@ -200,9 +200,12 @@ def _discover_actions(node=None) -> None:
     except Exception:
         log.exception("Admin web shell: action discovery failed for plugin(s) %s.", plugin_names)
         return
-    log.info("Admin web shell: action registry populated from %d plugin(s) - %d action(s) "
-             "available in this process: %s.", len(plugin_names), len(registry),
-             ", ".join(sorted(registry)) or "-")
+    #: the COUNTS are the bot's own INFO line (``core.plugin_manager``); the shell repeats the fact
+    #: with the whole name list only when a debugger asks for it, so a start does not print the same
+    #: 38-name block twice.
+    log.debug("Admin web shell: action registry populated from %d plugin(s) - %d action(s) "
+              "available in this process: %s.", len(plugin_names), len(registry),
+              ", ".join(sorted(registry)) or "-")
 
 
 def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:

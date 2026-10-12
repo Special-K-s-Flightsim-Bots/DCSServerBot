@@ -89,8 +89,8 @@ def breakglass_backend(breakglass_config: Any) -> BreakglassAuthBackend | None:
     exactly the wrong moment.
     """
     if not isinstance(breakglass_config, dict) or breakglass_config.get("enabled", False) is not True:
-        log.info("Admin web UI auth: the break-glass credential is disabled "
-                 "(auth.breakglass.enabled is not true).")
+        log.debug("Admin web UI auth: the break-glass credential is disabled "
+                  "(auth.breakglass.enabled is not true).")
         return None
 
     username = str(breakglass_config.get("username") or "").strip()
