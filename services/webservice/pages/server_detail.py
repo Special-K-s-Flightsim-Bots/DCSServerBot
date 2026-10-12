@@ -332,7 +332,7 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
             continue
         if key in (LOG_TAB, EVENTS_TAB):
             # both log-family tabs need the log panel's own capability; ``events`` ADDITIONALLY needs
-            # the debug plugin active — a tab that could never serve is never drawn (Frank's ruling).
+            # the debug plugin active — a tab that could never serve is never drawn.
             if not permissions.allows(LOG_READ_CAPABILITY, roles or ()):
                 continue
             if key == EVENTS_TAB and not debug_plugin:
@@ -757,7 +757,7 @@ async def _collect_back(node, path: str, node_name: str, *, behind, allowed,
     whose sentences name the node's own log — passes its own so the failure it raises is the one
     that caller renders.
 
-    A FILTERED PAGE MUST NEVER LIE BY BEING EMPTY (Frank's report): if the window ending at *behind*
+    A FILTERED PAGE MUST NEVER LIE BY BEING EMPTY: if the window ending at *behind*
     holds no line at the chosen level, the walk continues into OLDER windows until the page is filled
     or the beginning of the file is reached, and it REPORTS which of the two happened (``at_start``).
     Never "take the last N rows, then filter", which returns almost nothing on a DEBUG-heavy tail.
@@ -1047,7 +1047,7 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
             return JSONResponse(_unavailable_payload(_rendered(environment, EVENTS_REFUSED_SENTENCE)),
                                 status_code=403)
         path = dcs_log.events_log_path(server) if events else dcs_log.dcs_log_path(server)
-        # THE EVENTS TAB HAS NO LEVEL FILTER (Frank's ruling): every entry the debug plugin writes is
+        # THE EVENTS TAB HAS NO LEVEL FILTER: every entry the debug plugin writes is
         # DEBUG, so a filter there could only ever hide the tab's whole content. The shared vocabulary
         # is untouched — this tab simply keeps everything, whatever ``?level=`` the request carried.
         allowed = (dcs_log.LEVEL_FILTERS["all"] if events
@@ -1118,7 +1118,7 @@ async def _log_tab_context(request: Request, server, server_name: str, *,
     patterns = dcs_log.EVENTS_ARTIFACT_PATTERNS if events else dcs_log.DCS_ARTIFACT_PATTERNS
     chosen = dashboard_page.log_level(request)
     if events:
-        # THE EVENTS TAB HAS NO FILTER (Frank's ruling): every entry is DEBUG, so the tab offers no
+        # THE EVENTS TAB HAS NO FILTER: every entry is DEBUG, so the tab offers no
         # level links and keeps everything. The shared vocabulary is untouched — the Log tab still
         # offers it, and ``log_level`` is empty here so the follower sends no ``?level=``.
         allowed = dcs_log.LEVEL_FILTERS["all"]
@@ -1218,7 +1218,7 @@ def add_log_download_route(router: APIRouter) -> APIRouter:
         if node is None:
             return _log_refuse(404, _node_offline_sentence(node_name))
         directory = dcs_log.dcs_log_dir(server)
-        # THE EVENTS TAB'S DOWNLOADS ARE ITS TWO FILES (Frank's limit): ``which=events`` enumerates
+        # THE EVENTS TAB'S DOWNLOADS ARE ITS TWO FILES: ``which=events`` enumerates
         # ONLY the events pair, so a crafted id for another log is simply not in the listing. The log
         # tab enumerates only the DCS set.
         patterns = (list(dcs_log.EVENTS_ARTIFACT_PATTERNS) if events
@@ -1373,7 +1373,7 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     }
     context.update(await _tab_context(request, server, server_name, tab))
     # no-store: this is the page a mission write returns to, and its list must be re-rendered from
-    # the post-write state — never served from the browser's cache (Frank's stale-mission-list
+    # the post-write state — never served from the browser's cache (the operator's stale-mission-list
     # report). The download route shares this body for its name-collision case, so both get it.
     return HTMLResponse(i18n.render(request, CONFIG_TEMPLATE, **context),
                         headers={"Cache-Control": "no-store"})

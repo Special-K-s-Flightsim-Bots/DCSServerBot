@@ -33,7 +33,7 @@
     two copies that could drift. `which` is the file selector the shared window route reads; the level
     rides on the card as `data-level` and the follow/page-back script appends it.
 
-    THE EMPTY STATE IS THE SAME BODY (L3, Frank's report). `#dcs-log-body` is ALWAYS rendered — even
+    THE EMPTY STATE IS THE SAME BODY. `#dcs-log-body` is ALWAYS rendered — even
     while the file does not exist yet — so the follower starts and polls from that state; the honest
     sentence lives BESIDE it in `#dcs-log-note`, which the script hides the moment real lines arrive
     (and shows again if the log disappears). The old markup shipped NO body in the empty state, so the
@@ -123,7 +123,7 @@
     not from a pykwalify schema — the PARSER differs. The EDITOR does not: the layout (`st-head` /
     `st-bar` / `st-layout` with the file's aside), the collapsible `<details class="st-block">` blocks
     (the ONE macro in `_editor.html`, shared with the schema-driven view), the byte-honest Save and
-    the read-only file panel are the SAME as `settings_scope.html` / `node_page.html`. Frank's rule:
+    the read-only file panel are the SAME as `settings_scope.html` / `node_page.html`. The rule:
     config files of different FORMATS may need different parsers, but they must not grow different
     EDITORS.
 
@@ -351,7 +351,7 @@
 {#- THE COALITION PASSWORDS CARD — the THIRD face: the blue/red join passwords, whose CLEARTEXT lives
     in the bot's database (``servers.blue_password`` / ``red_password``) and whose write goes through
     the bot's own ``Server.setCoalitionPassword``. Its own ``<form>``, its own route
-    (``set_coalition_password``) and its own capability. The values are rendered IN THE CLEAR (Frank's
+    (``set_coalition_password``) and its own capability. The values are rendered IN THE CLEAR (the operator's
     call — the field holds the real password, with the same eye the DCS password carries), except that
     the CLEARTEXT comes from the read ACTION: when that read could not be taken, ``config.coalitions``
     is EMPTY and this whole card is absent (never two rows that would read as \"no password\"). The
@@ -457,7 +457,7 @@
         The count ships server-rendered AND counts SELECTABLE rows only (``missions_selectable``), so
         the number does not change meaning the moment the script loads.
 
-        THE TWO ACTIONS ON ONE SELECTION (Frank's ruling). ``Remove selected…`` acts on the ticked rows
+        THE TWO ACTIONS ON ONE SELECTION. ``Remove selected…`` acts on the ticked rows
         (the bulk remove, one or more). ``Set as start`` acts on the ticked row TOO, and is meaningful
         with EXACTLY ONE ticked — it is the per-row control that moved into the bar, so the removal
         path and the start path read the SAME selection. It is drawn only while the viewer may activate
@@ -548,7 +548,7 @@
           <a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>
           {#- THE ONE ROW WRITE (M11): ``Load`` is the ONLY per-row write left. ``Set as start`` — the
               rotation pointer (``set_active_mission``) — MOVED to the selection bar, where it acts on
-              the ticked row (Frank's ruling: tick the mission, press the bar). It is a DIFFERENT write
+              the ticked row. It is a DIFFERENT write
               from ``Load``: ``Set as start`` sets what the server loads when it STARTS and does NOT
               load anything now, while ``Load`` loads the mission NOW (``load_mission``) and — while
               the server is RUNNING/PAUSED — does NOT change the start index, while at STOPPED it DOES
@@ -607,7 +607,7 @@
 {% endif %}
 
 {#- UPLOAD — a file coming from the OPERATOR's own computer into the server's missions directory.
-    The label carries it (Frank's point): nothing here looks like an add, and nothing about an add
+    The label carries it: nothing here looks like an add, and nothing about an add
     looks like this. -#}
 {% if missions_upload_allowed %}
 <div class="card">
@@ -621,7 +621,7 @@
           <div class="hp">{% trans %}The file is copied into the server's missions directory and added to the rotation. Use <b>Add to the rotation</b> above for a mission that is already on the server.{% endtrans %}</div>
       {% endset %}
       {% set up_ctl %}
-          {#- THE CONSOLE'S OWN FILE CONTROL (Frank's report). A raw `<input type="file">` makes the
+          {#- THE CONSOLE'S OWN FILE CONTROL. A raw `<input type="file">` makes the
               browser draw ITS OWN button, in ITS OWN language ("Datei auswählen" on a German
               browser) — browser chrome must never be what the operator reads; the console is English.
               So the REAL input stays in the DOM and in the tab order, visually hidden by CLIPPING
@@ -691,7 +691,7 @@
 
 {% else %}
 {# ---------------------------------------------------------------- the Overview tab #}
-{#- THE SUBSTANCE OF THE REMOVED "Server overview" PAGE, in the place Frank was looking. It mirrors
+{#- THE SUBSTANCE OF THE REMOVED "Server overview" PAGE, in the place the operator was looking. It mirrors
     the bot's server-status embed (see ``pages/server_detail.EMBED_FIELD_COVERAGE``): status, mission,
     map, player count, runtime and the three weather facts — every value read off the SAME `server`
     (``readmodels.servers.server_view``) the heading renders, so a shown fact cannot disagree with the

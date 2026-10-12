@@ -66,7 +66,7 @@
                  cog_url=row.cog_url, scope=plugin_scope, extra=plugin_state,
                  off=(not row.enabled), warn=(plugin_default_warning if row.confirm else '')) }}
     {% endfor %}
-    {#-  THE "+ ADD" TILE IS ALWAYS DRAWN (Frank, card t_60149fa2): when every optional plugin is
+    {#- THE "+ ADD" TILE IS ALWAYS DRAWN (Frank, card t_60149fa2): when every optional plugin is
         enabled already it renders in its explicit "all configured" state, never vanishing.  -#}
     {{ add_tile('plugin', kind_labels.plugin, plugin_options, plugin_add_all_configured) }}
   </div>

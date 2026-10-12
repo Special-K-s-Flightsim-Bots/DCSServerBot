@@ -10,7 +10,7 @@ TWO PAGES LIVE HERE, AND ONLY ONE RENDERS.
   own block shown as TABS — "Node-wide" (the node's own settings AND its node-scoped extensions),
   then one "Instance <name>" tab per INSTANCE the node declares (that instance's settings AND its
   instance-scoped extensions) — with the Expert Mode editor over that node's slice of the file. This
-  is what replaced the old per-node settings page (Frank's design, see the SPEC card t_54e38134).
+  is what replaced the old per-node settings page.
 * THE OLD PER-NODE SETTINGS PAGE (``/nodes/<node>/settings``, :data:`NODE_SETTINGS_PATH`) no longer
   renders: both its GET and its POST answer a ``307`` redirect to the node page, so a bookmark still
   lands somewhere useful and a stale form's POST re-posts to the node page's own save. Nothing links
@@ -263,7 +263,7 @@ def _notice(request: Request, message: str, *, ok: bool) -> None:
 
 
 # ------------------------------------------------------------------ the NODE page (/nodes/<node>)
-# THE NODE PAGE — Frank's design: a node's own block of ``nodes.yaml`` shown as TABS. The first tab is
+# THE NODE PAGE — The design: a node's own block of ``nodes.yaml`` shown as TABS. The first tab is
 # "Node-wide" (the node's own settings AND its node-scoped extensions); then one "Instance <name>" tab
 # per INSTANCE the node's block declares (that instance's settings AND its instance-scoped extensions).
 # Every tab is
@@ -405,7 +405,7 @@ NODE_PAGE_EXTENSION_REMOVE_ABSENT = i18n._(
     "The extension %(name)s is not configured for this scope — nothing was removed.")
 #: the sentence the ONE "+ Add" tile shows when the selected scope already configures EVERY extension
 #: its schema offers. The tile is STILL drawn — a control that vanishes silently is worse than one
-#: that says why (Frank, card t_60149fa2) — in an explicit, NON-INTERACTIVE "all configured" state
+#: that says why — in an explicit, NON-INTERACTIVE "all configured" state
 #: with this reason as VISIBLE text, never only a tooltip.
 NODE_PAGE_EXTENSION_ALL_CONFIGURED = i18n._(
     "Every extension of this scope is configured already — there is nothing left to add.")
@@ -714,7 +714,7 @@ def _rebase_prefix(field: configgen.Field, old: tuple, new: tuple) -> configgen.
 def _node_wide_extensions(element: configgen.Field, node_name: str) -> configgen.Field | None:
     """The NODE-WIDE ``extensions`` container — the node schema's names PLUS the instance schema's.
 
-    Frank's decision (card t_60149fa2): the node-wide scope must also OFFER the instance-scoped
+    the operator's decision: the node-wide scope must also OFFER the instance-scoped
     extension names (``LogAnalyser`` and friends), so an operator can set them once for every instance
     of the node instead of instance by instance. The runtime honours such a block: ``load_extension``
     (``core/data/impl/serverimpl.py:786-793``) resolves an extension's config as the node-level block
@@ -898,7 +898,7 @@ def _scope_extension_names(doc_key: str, instance: str | None) -> frozenset:
     """
     element = node_tree(doc_key).children[0]
     if instance is None:
-        # THE NODE-WIDE ALLOW-LIST IS THE UNION (card t_60149fa2): a switch may name an
+        # THE NODE-WIDE ALLOW-LIST IS THE UNION: a switch may name an
         # instance-scoped extension on the node-wide tab, exactly the set the tab OFFERS.
         container = _node_wide_extensions(element, doc_key)
     else:
@@ -1093,7 +1093,7 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
         scope_base = (key or node_name,)
         settings_fields = [child for child in element.children
                            if child.key not in ("extensions", "instances")]
-        # THE NODE-WIDE CARD SET IS THE UNION (card t_60149fa2): the node schema's names PLUS the
+        # THE NODE-WIDE CARD SET IS THE UNION: the node schema's names PLUS the
         # instance schema's, so an instance-scoped extension (LogAnalyser) can be set once for every
         # instance of the node. An INSTANCE tab keeps its own instance-only set (below).
         ext_container = _node_wide_extensions(element, key or node_name)
@@ -1265,8 +1265,8 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
         "remove_companion": vis["remove_companion"],
         "extensions": extensions,
         # THE "+ ADD" TILE'S OPTIONS — the scope's schema extensions it does NOT configure yet, each
-        # with the SAME add control its former OFF card carried. The tile is ALWAYS drawn (Frank,
-        # card t_60149fa2): when the list is empty the template renders it in an explicit "all
+        # with the SAME add control its former OFF card carried. The tile is ALWAYS drawn (the operator,
+        #): when the list is empty the template renders it in an explicit "all
         # configured" state, with ``all_configured`` as VISIBLE text (never only a tooltip).
         "extension_add": {"options": extension_options,
                           "all_configured": NODE_PAGE_EXTENSION_ALL_CONFIGURED},
@@ -1852,7 +1852,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         return RedirectResponse(node_page_url(_canonical(request, node)), status_code=307)
 
     # ------------------------------------------------------------------ the NODE page (/nodes/<node>)
-    # Frank's design: the FIRST tab is DEFAULT (the node's own settings and its node-scoped
+    # The design: the FIRST tab is DEFAULT (the node's own settings and its node-scoped
     # extensions), then one tab per instance the node's block declares (that instance's settings and
     # its instance-scoped extensions). It is the node's ONE settings surface now — the old
     # per-node settings page above was retired to a redirect.

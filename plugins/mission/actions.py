@@ -1444,7 +1444,7 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
     First slice: a LEAF file in the ROOT of ``missions_dir`` only — no subdirectories. A WRITE, so it
     writes its own audit entry.
 
-    ``autostart`` and ``load`` are the two LOAD options the console offers (Frank's card M3) — the
+    ``autostart`` and ``load`` are the two LOAD options the console offers — the
     SAME two the bot's own methods already express, never a new mechanism:
 
     * ``autostart=True`` arms the rotation so the uploaded mission is the ``listStartIndex`` — the
@@ -1764,7 +1764,7 @@ async def get_addable_missions(ctx: Any, server_name: str) -> MissionListResult:
     The rule is ``plugins/mission/commands.py::mizfile_autocomplete``'s, stated once here so the two
     cannot drift: list ``missions_dir`` with ``pattern=['*.miz','*.sav']``, ``traverse=True``, ignoring
     ``.dcssb`` AND ``server.locals['ignore_dirs']``, then keep only files NOT already installed —
-    checked through ``utils.get_cached_mission_list(server)`` (the API Frank means) against BOTH the
+    checked through ``utils.get_cached_mission_list(server)`` against BOTH the
     plain path and its ``.dcssb/<basename>`` spelling. Each entry's ``path`` is the
     missions-dir-relative path (exactly the value ``/mission add`` autocompletes), which is what a
     console form posts back. A READ: it is NOT audited.
@@ -2009,7 +2009,7 @@ async def _delete_mission_files(server: Any, filename: str) -> None:
 # ``Server.setMissionList`` — the ONE writer of the order (added for M5), which validates the
 # replacement and recomputes the rotation pointer by PATH. While the DCS process is up
 # (``{LOADING, STOPPED, PAUSED, RUNNING}``) it holds ``net.missionlist`` in memory and re-syncs the
-# file from its own copy, so a file write made then is SILENTLY REVERTED — and Frank's ruling is that
+# file from its own copy, so a file write made then is SILENTLY REVERTED — and The rule is that
 # a reorder is not done live, so the move is offered only in the file-write states
 # (``{UNREGISTERED, SHUTDOWN, SHUTTING_DOWN}``) and REFUSES a POST outside them; ``setMissionList``
 # refuses too, as the last line. The client posts an INTENT (a selection, or a direction) and the

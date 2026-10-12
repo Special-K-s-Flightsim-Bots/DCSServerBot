@@ -1,6 +1,6 @@
-/* settings-scope.css — THE COGWHEEL VIEW's sheet, ported from the designer's mockup.
+/* settings-scope.css — THE COGWHEEL VIEW's sheet, ported from the admin-UI mockup.
  *
- * Source: /home/frank/mockups/dcssb-admin-ui/settings-tiles/settings-tiles.css (§ tokens, §3 the
+ * Source: the admin-UI mockup's settings-tiles stylesheet (§ tokens, §3 the
  * cogwheel view, §LIGHT). The tile grid's own rules already live in shell.css (slice 1); this file
  * adds what the TABBED config view needs and nothing else, so the console's shipped sheet is not
  * duplicated. The palette is the shipped one — the tokens below name the shipped literals (their

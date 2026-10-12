@@ -132,7 +132,7 @@
                  warn=(extension_remove_warning if ext.confirm else ''), warn_body=ext_warn_body,
                  trash_url=ext.trash_url, trash_title=ext.trash_title) }}
     {% endfor %}
-    {#-  THE "+ ADD" TILE IS ALWAYS DRAWN (Frank, card t_60149fa2): when nothing is left to add it
+    {#- THE "+ ADD" TILE IS ALWAYS DRAWN: when nothing is left to add it
         renders in its explicit "all configured" state rather than vanishing silently.  -#}
     {{ add_tile('ext', extension_kind_label, extension_add.options, extension_add.all_configured) }}
   </div>

@@ -1,6 +1,6 @@
 /* THE MISSIONS TAB'S SELECTION BAR: the live count and the count-bearing button label.
  *
- * WHY THIS EXISTS. The list IS the selection (card M9): every mission row carries a checkbox that
+ * WHY THIS EXISTS. The list IS the selection: every mission row carries a checkbox that
  * belongs to ONE form (`form="missions-form"`), and the card header carries the bar — a select-all
  * box, the count, a Clear link and TWO actions on the one selection (M11: `Set as start` and
  * `Remove selected…`). What markup alone cannot do is keep the count and the buttons' own state in

@@ -305,7 +305,7 @@ READONLY_FIELDS: tuple[ConfigField, ...] = (
 # DCS file and would write a plaintext key into it — and they render their own card and form.
 #
 # THE PROTECTION IS DECLARED per the one attribute (:attr:`ConfigField.protection`): both are
-# :data:`UNPROTECTED` — Frank's call, the password is the value the operator may read back, not a
+# :data:`UNPROTECTED` — The decision, the password is the value the operator may read back, not a
 # secret the console hides. The keys are deliberately NOT ``advanced.*``: they are not
 # ``serverSettings`` keys, and an ``advanced.`` prefix would invite a reader to look in the wrong place.
 
@@ -565,7 +565,7 @@ class ChannelView:
 class CoalitionView:
     """One coalition password ROW — the plaintext the bot knows, and the states it must be honest about.
 
-    ``value`` is the cleartext the bot stored (``""`` when it knows none), shown per Frank's call —
+    ``value`` is the cleartext the bot stored (``""`` when it knows none), shown per The decision —
     not hidden, unlike a PROTECTED field. ``hash_set`` says whether ``serverSettings.lua`` carries a
     hash for this coalition, read IN-PROCESS off the settings snapshot (no RPC). ``note`` is the honest
     sentence for the two states where ``value`` alone would read wrong: a hash set while the bot knows

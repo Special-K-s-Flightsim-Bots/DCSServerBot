@@ -120,7 +120,7 @@ SETTINGS_FORM_MAX_FIELDS = 20000
 #: :func:`discover_files` and the per-kind helpers below. A sibling card adds a kind here, not a
 #: second mechanism.
 #:
-#: EXTENSIONS ARE NOT A KIND HERE ANY MORE (Frank's call, 2026-10-09). An extension's configuration
+#: EXTENSIONS ARE NOT A KIND HERE ANY MORE. An extension's configuration
 #: lives INSIDE ``nodes.yaml``, and the NODE PAGE (``/nodes/<node>``) now edits it — its DEFAULT tab
 #: carries the node's own extensions and each instance tab that instance's own extensions. That made
 #: the old EXTENSIONS rail + per-extension cogwheel (``/settings/extension/<name>``) a genuine
@@ -332,8 +332,8 @@ SERVICES_LEGEND = i18n._(
     "changes apply on the next bot restart")
 
 #: the sentence the plugin "+ Add" tile shows when EVERY optional plugin is already enabled. The tile
-#: is STILL drawn (a control that vanishes silently is worse than one that says why, Frank, card
-#: t_60149fa2) in an explicit, NON-INTERACTIVE state with this reason as VISIBLE text.
+#: is STILL drawn (a control that vanishes silently is worse than one that says why, the operator, card
+#: the change) in an explicit, NON-INTERACTIVE state with this reason as VISIBLE text.
 PLUGIN_ADD_ALL_CONFIGURED = i18n._(
     "Every optional plugin is enabled already — there is nothing left to add.")
 
@@ -362,7 +362,7 @@ SERVICE_OFF_APPLIES = i18n._("Saved — the service change applies on the next b
 PLUGIN_NOT_INSTALLED = plugin_registry.MISSING_BADGE
 
 #: THE INLINE WARNING a DEFAULT plugin's tile shows BEFORE it is switched off, and the two controls
-#: beside it. Frank's words (or equally clear): a default plugin loads regardless of what
+#: beside it. In other words (or equally clear): a default plugin loads regardless of what
 #: ``opt_plugins`` says, so turning one off genuinely can change how the bot works — the warning is
 #: rendered ON the page (the switch LINKS here, the write happens only on the confirm button), never
 #: a modal dismissed blind. The warning is shown for DEFAULT plugins only.
@@ -530,12 +530,12 @@ def discover_files(config: Path) -> list[GlobalFile]:
                                     schema_files=tuple(configgen.schema_files_for(primary)
                                                        if primary else ())))
 
-    # EXTENSIONS ARE NO LONGER A GLOBAL-FILE KIND (Frank's call, 2026-10-09): an extension's config
+    # EXTENSIONS ARE NO LONGER A GLOBAL-FILE KIND: an extension's config
     # lives inside ``nodes.yaml`` and is edited from the NODE PAGE (``/nodes/<node>``), whose DEFAULT
     # and instance tabs each carry that scope's own extensions. The entries are gone from this list —
     # so no ``/settings/extension/<name>`` page is offered or resolvable.
     #
-    # PRESETS ARE PARKED (Frank's call): a DIFFERENT approach for presets is to be discussed, so for
+    # PRESETS ARE PARKED: a DIFFERENT approach for presets is to be discussed, so for
     # now the presets kind is REMOVED from the entries list — no preset file is listed or opened.
     # The discovery code is left in place, commented, so re-enabling the kind is a one-line change.
     # ``_preset_schema_files`` and :data:`KIND_PRESET` stay defined for the same reason.
@@ -725,7 +725,7 @@ def _page_context(request: Request, entry: GlobalFile, current_url: str) -> dict
     # managed by the plugin TILES on the Settings landing (each tile's switch posts the same list).
     # So the ordinary form (``_page_context``) is reached only by a file whose kind ships NO schema,
     # which has no ``opt_plugins`` field at all — the block is unreachable here and was removed with it.
-    # THE SHOW/HIDE MODEL (card t_046a8fbb): what the form shows, what the "+ Add" picker offers and
+    # THE SHOW/HIDE MODEL: what the form shows, what the "+ Add" picker offers and
     # what can be removed. The model is built PER SCOPE, over the scope's own field list (the body's
     # picker key is ``''`` within a scope), because ``settings.html`` renders each scope's fields — the
     # tree's ROOT is not the body when the schema carries a ``DEFAULT`` block. The removal
@@ -806,7 +806,7 @@ def is_scoped(entry: GlobalFile) -> bool:
 
     ONE view (:data:`SETTINGS_SCOPE_TEMPLATE`) and never a per-KIND one: ``DEFAULT`` first, then one
     tab per node/instance block the file carries. So EVERY ``main.yaml``/plugin/service file whose
-    kind ships a schema gets the tabbed renderer — the difference Frank reported (a service showing
+    kind ships a schema gets the tabbed renderer — the difference the operator reported (a service showing
     the older, single-form view) came from selecting the renderer by the SCHEMA's SHAPE instead of by
     the file's KIND, so a service whose schema declares no override container (a flat
     ``backup``/``bot`` schema, or ``webservice``/``dashboard`` with a bare ``DEFAULT`` block) fell
@@ -1331,7 +1331,7 @@ def load_landing(request: Request) -> dict:
             "switch": _service_switch(state, info.name, csrf),
         })
 
-    # THE EXTENSIONS RAIL IS GONE (Frank's call, 2026-10-09): extensions are configured from the NODE
+    # THE EXTENSIONS RAIL IS GONE: extensions are configured from the NODE
     # PAGE (``/nodes/<node>``), one scope per tab, so no extension tile is built here any more.
     return {
         "plugin_block": plugin_block,

@@ -8,7 +8,7 @@
   `serverSettings.lua` has no schema) draw the SAME block, from the SAME markup — one editor look,
   whatever the file's FORMAT.
 
-  THIS IS THE ARCHITECTURAL RULE MADE CODE (Frank's): config files of different formats (yaml, lua)
+  THIS IS THE ARCHITECTURAL RULE MADE CODE: config files of different formats (yaml, lua)
   may need different PARSERS, but they must not grow different EDITORS. The parser differs; the block
   does not.
 
@@ -23,7 +23,7 @@
 {%- endmacro %}
 
 {#-
-  A FIELD ROW — the ONE setting-row shell every config editor draws (Frank's alignment rule).
+  A FIELD ROW — the ONE setting-row shell every config editor draws.
 
   A schema-driven editor and the DECLARATION-driven Configuration tab render a setting in the SAME
   `<div class="st-row">`: the fact (its label, key, kind and hint) in `.st-lab` on the left, the

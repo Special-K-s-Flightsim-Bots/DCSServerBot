@@ -24,7 +24,7 @@
  *    the dialog states happens AT ONCE, on the press, and the write keeps running in the background
  *    (`keepalive` lets an in-flight request outlive the document, so abandoning the page does not
  *    abandon the write). The modal is gone the instant the person pressed the button — the behaviour the
- *    earlier design had and the one Frank asks for. Its outcome is NOT swallowed by the early close:
+ *    earlier design had and the one the operator asks for. Its outcome is NOT swallowed by the early close:
  *    every refusal is decided by a ROUTE and reaches the person through the console's own ONE-SHOT
  *    NOTICE, rendered where they land and on the LIVE path (`pages/actions._remember_notice` /
  *    `pages/live.py`'s `notice` target) — the same mechanism every other write already uses. (A NETWORK

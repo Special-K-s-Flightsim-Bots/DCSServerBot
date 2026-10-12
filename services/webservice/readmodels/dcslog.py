@@ -121,7 +121,7 @@ def dcs_log_path(server) -> str:
 DCS_ARTIFACT_PATTERNS: tuple[str, ...] = ("dcs*.log*", "dcs*.zip")
 
 #: the Events tab's artifacts — ONLY the live ``events.log`` and its predecessor ``events.log.old``
-#: (Frank's limit): no crash zips, no other logs there.
+#: no crash zips, no other logs there.
 EVENTS_ARTIFACT_PATTERNS: tuple[str, ...] = ("events.log", "events.log.old")
 
 EVENTS_LOG_NAME = "events.log"

@@ -169,7 +169,7 @@ SERVER_COALITIONS_CAPABILITY = "servers.config.coalitions"
 SERVER_COALITION_ACTION_KEY = "coalitions"
 SERVER_COALITIONS_PATH = "/actions/server/coalitions"
 
-#: THE MISSION-LIST WRITES (card M3) — four controls on the Missions tab that mirror
+#: THE MISSION-LIST WRITES — four controls on the Missions tab that mirror
 #: ``plugins/mission/commands.py``'s ``/mission add|delete|load`` and ``plugins/mission/upload.py``.
 #: Each is ``WRITE_ROLES`` (``Admin`` + ``DCS Admin``) WITH a scope grant, so a MANAGER stays inside
 #: THEIR OWN servers (``resolve_scoped_server`` applies the scope; a foreign server is refused the
@@ -646,7 +646,7 @@ SERVER_COALITION_ACTIONS: tuple[WriteAction, ...] = (
 )
 
 
-#: THE MISSION-LIST WRITES (card M3) — four declarations of their own, NOT ``SERVER_ACTIONS`` rows:
+#: THE MISSION-LIST WRITES — four declarations of their own, NOT ``SERVER_ACTIONS`` rows:
 #: their controls live on the Missions TAB (a list, an add form and an upload form), not on the
 #: server row strip. Each is still ONE :class:`WriteAction`, so the route table (``add_routes``), the
 #: capability map (``capabilities``) and the tab control are three readings of ONE declaration.
@@ -657,7 +657,7 @@ SERVER_COALITION_ACTIONS: tuple[WriteAction, ...] = (
 #: (``MISSIONS_BULK_DELETE_STATES``).
 MISSION_ACTIONS: tuple[WriteAction, ...] = (
     # ADD is reached through its DIALOG (``MISSION_DIALOG_KEYS``): the picker and the load choices
-    # both live there, so choosing a mission and confirming happen in ONE dialog — Frank's
+    # both live there, so choosing a mission and confirming happen in ONE dialog — the operator's
     # "decisive" rule. It carries NO confirm token: adding to the rotation is not destructive
     # (nothing is copied, nothing is deleted), so its dialog is the OPTIONS form, like Startup's.
     WriteAction(key="mission_add", capability=MISSIONS_ADD_CAPABILITY, qualname="add_mission",
@@ -1996,7 +1996,7 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
         if not key:
             continue
         # THE ROW'S OWN LINK — the node's NAME opens its node page (``/nodes/<node>``). Offered on
-        # BOTH the standalone NODES list AND the Dashboard's Nodes tab (Frank reaches nodes from
+        # BOTH the standalone NODES list AND the Dashboard's Nodes tab (the operator reaches nodes from
         # there too), so it is NOT origin-gated. It is gated by the node page's OWN capability
         # (``node_settings_control``'s gate, ``nodes.settings``, Admin-only) so the row is never
         # offered a door the page refuses; ``None`` leaves the name as plain text.
@@ -3658,7 +3658,7 @@ def _mission_reorder_handler(action: WriteAction):
 def _mission_activate_handler(action: WriteAction):
     """The route for ``set_active_mission`` (M7/M11) — the bar's ``Set as start``, posted directly.
 
-    M11 MOVED this control from the mission row to the selection bar (Frank's ruling: tick the mission,
+    M11 MOVED this control from the mission row to the selection bar (The rule: tick the mission,
     press the bar), so its target is the TICK — the same selection form the bulk remove uses, sent here
     by a ``formaction``. The route therefore reads the REPEATED ``mission`` field and serves ONLY a
     selection of EXACTLY ONE: none names nothing and several names no single mission, so BOTH are
@@ -3835,9 +3835,9 @@ def _mission_upload_handler(action: WriteAction):
 # -------------------------------------------- the mission DIALOGS (add / remove), one component
 # The two mission controls reached through ``confirm.html`` (``MISSION_DIALOG_KEYS``). BOTH use the
 # console's ONE dialog component and the SAME prologue as the mission writes: identity, scoped
-# resolution, the action's own refusals. The ADD dialog carries the file picker AND the load options
-# (choosing and confirming in one dialog — Frank's "decisive" rule); the REMOVE dialog carries the
-# "also delete the file?" checkbox and, being destructive, a one-shot confirm token.
+# resolution, the action's own refusals. The ADD dialog carries the file picker AND the load options;
+# the REMOVE dialog carries the "also delete the file?" checkbox and, being destructive, a one-shot
+# confirm token.
 
 #: The states ``load_mission`` accepts — the ONLY states in which the ADD dialog's "load it now" box
 #: is offered, the SAME gate the tab's per-row Load control uses.
@@ -4158,7 +4158,7 @@ def coalition_values_from_form(current, form) -> dict:
     * a row the form does not STATE is untouched;
     * an EMPTIED field that shipped HOLDING a cleartext is the explicit clear (``None``) — the same
       way the DCS server password is removed;
-    * an EMPTIED field that shipped EMPTY does NOTHING (blank is a no-op — Frank's standing rule), so
+    * an EMPTIED field that shipped EMPTY does NOTHING, so
       a password the bot knows only as a hash (its field renders empty) cannot be wiped by a blank;
     * a value equal to the cleartext the page showed is unchanged;
     * anything else is the new password, submitted verbatim.

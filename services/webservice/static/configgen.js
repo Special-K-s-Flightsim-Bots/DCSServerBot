@@ -29,7 +29,7 @@
  * matches the PREVIOUS (already escaped) key and joins in the escaped one, so a second keystroke
  * renames from the current name, not from a stale key that would leave a half-renamed row.
  *
- * THE `+ ADD` PICKER (card t_046a8fbb). The editor shows only what matters — a schema's MANDATORY
+ * THE `+ ADD` PICKER. The editor shows only what matters — a schema's MANDATORY
  * fields and the ones the file already carries — so every OPTIONAL, ABSENT field or block is offered
  * by a `+ Add` picker instead of being rendered. Picking a choice CLONES the empty control the
  * container's `<template data-cfg-opt>` ships, inserts it just above the picker, and hides the used

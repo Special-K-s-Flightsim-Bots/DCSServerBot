@@ -157,7 +157,7 @@ DEFAULT_LABEL = i18n._("default")
 #: The marker beside a field the schema makes required (``required: true``) — the operator MUST
 #: supply it. A field carrying only ``nullable: false`` is NOT required and carries NO label at all:
 #: ``nullable: false`` still REFUSES an empty value (the schema enforces it), but that rule is not
-#: worth a badge — the marker was removed as noise (Frank's call), so the two facts are never
+#: worth a badge — the marker was removed as noise, so the two facts are never
 #: conflated and no field is mislabelled "required" for it.
 REQUIRED_LABEL = i18n._("required")
 
@@ -857,7 +857,7 @@ def section_state(field: Field, entries) -> dict:
 #
 # THE EDITOR SHOWS ONLY WHAT MATTERS. A schema with a lot of OPTIONALITY used to render every field,
 # set or not, so a big schema produced a wall of controls and the few values that actually matter were
-# lost in it. The rule (Frank's): show a field when it is MANDATORY or the file ALREADY CARRIES it;
+# lost in it. The rule: show a field when it is MANDATORY or the file ALREADY CARRIES it;
 # hide every OPTIONAL, ABSENT field behind a "+ Add" picker, and let the operator add it (and remove it
 # again). Two words carry the whole rule:
 #

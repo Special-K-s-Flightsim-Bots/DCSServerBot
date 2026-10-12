@@ -4,7 +4,7 @@
  * A PROGRESSIVE ENHANCEMENT. The initial page already contains the status the server rendered, so
  * with JavaScript off nothing is missing — the page simply does not refresh the status on its own.
  *
- * THE DEFECT IT FIXES (Frank's report). On a server page the status moved only when the page was
+ * THE DEFECT IT FIXES. On a server page the status moved only when the page was
  * RELOADED (a tab switch), so an operator who started a server and stayed on the DCS Log tab watched
  * it sit on LOADING forever. The page head's status was a server render and nothing refreshed it:
  * the server page is NOT wired to the console's live path (the dashboard's SSE stream), and on the

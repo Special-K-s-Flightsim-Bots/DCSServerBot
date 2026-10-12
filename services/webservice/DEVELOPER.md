@@ -211,7 +211,7 @@ rule is intact: rendering a page asks no node for anything.
 
 The node row carries a SECOND **read** control beside *Download log*: *View log*. It tails THAT
 node's OWN bot log — agent and master alike — on the website, the way the per-server **Log** tab
-tails a server's `dcs.log`. Frank's request: *"a similar solution for the node logfiles as for the
+tails a server's `dcs.log`. The request: *"a similar solution for the node logfiles as for the
 servers logfiles so that we can look at logfiles of remote nodes on the website."*
 
 * **The mechanism is already built.** `Node.read_file_window` (`core/data/impl/nodeimpl.py`) is a

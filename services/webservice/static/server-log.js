@@ -3,7 +3,7 @@
  * A PROGRESSIVE ENHANCEMENT. The initial page already contains the tail the server rendered, so with
  * JavaScript off nothing is missing — the page is simply not live and "Load older" does nothing.
  *
- * FOLLOW ONLY WHILE THE TAB IS OPEN (Frank's ruling): the loop runs while the document is VISIBLE and
+ * FOLLOW ONLY WHILE THE TAB IS OPEN: the loop runs while the document is VISIBLE and
  * stops the moment it is hidden or the page is left — there is no background tailing and no server
  * work once nobody is looking.
  *
@@ -21,7 +21,7 @@
  * below it (a truncation); the view is cleared and the fresh file's tail shown, with a line saying so
  * — two files are never spliced.
  *
- * THE EMPTY STATE CAN BECOME THE LOG (L3, Frank's report). The card ALWAYS ships `#dcs-log-body`
+ * THE EMPTY STATE CAN BECOME THE LOG. The card ALWAYS ships `#dcs-log-body`
  * (even while the file does not exist yet) and the honest sentence lives BESIDE it in
  * `#dcs-log-note`. This script therefore never bails out on the empty state: it keeps following, and
  * the moment real lines arrive it hides the note and renders into the body. If the log DISAPPEARS or

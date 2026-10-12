@@ -4,7 +4,7 @@ WHY THIS EXISTS
 ---------------
 ``main.yaml``'s ``opt_plugins`` is a plain list of strings, so the Settings page used to render it as
 a bare row-list: names only, no hint of what a name DOES or whether it is a plugin the bot already
-loads by default. Frank asked for a dedicated block that gives an operator that context without a
+loads by default. the operator asked for a dedicated block that gives an operator that context without a
 hand-written table to keep in sync:
 
 * the plugins are DISCOVERED from the tree (the same folders the bot's loader imports,

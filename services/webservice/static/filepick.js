@@ -1,7 +1,7 @@
 /* THE MISSIONS TAB'S FILE CONTROL: the console's own button, and the chosen file's name.
  *
  * WHY THIS EXISTS. A raw `<input type="file">` is drawn by the BROWSER: its button wears the
- * browser's own chrome and the browser's own LANGUAGE ("Datei auswählen" on Frank's German browser),
+ * browser's own chrome and the browser's own LANGUAGE,
  * which is exactly what he objected to. The console is English, so browser chrome must never be what
  * the operator reads. The markup therefore keeps the REAL input in the DOM — focusable and announced —
  * but CLIPPED out of sight (never `display:none`, never `aria-hidden`: either would take it away from
