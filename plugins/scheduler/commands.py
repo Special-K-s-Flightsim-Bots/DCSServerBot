@@ -484,11 +484,15 @@ class Scheduler(Plugin[SchedulerListener]):
                 use_orig=use_orig,
                 no_reload=no_reload
             )
+            # no mission load was started, so no onMissionLoadEnd will clear restart_pending: clear it here,
+            # or the scheduler would ignore every further action of this server
             if rc is False:
                 self.log.error(f"Mission {new_mission} not loaded on server {server.name}")
+                server.restart_pending = False
                 return
             elif rc is None:
                 self.log.debug(f"Mission {new_mission} already loaded on server {server.name}")
+                server.restart_pending = False
                 return
 
     async def run_action(self, server: Server, rconf: dict):
@@ -516,6 +520,7 @@ class Scheduler(Plugin[SchedulerListener]):
         except TimeoutError:
             self.log.warning(f"{self.__cog_name__}: Timeout getting mission list from server {server.name}, "
                              f"skipping {method} action")
+            server.restart_pending = False
             return
 
         # select the new mission id
@@ -535,6 +540,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 if not new_mission:
                     self.log.error(f"{self.__cog_name__}: "
                                    f"Mission {rconf['mission_file']} cannot be loaded on server {server.name}!")
+                    server.restart_pending = False
                     return
         else:
             new_mission = int(await server.getStartIndex())
@@ -567,6 +573,7 @@ class Scheduler(Plugin[SchedulerListener]):
                 user=rconf.get('user'),
                 mission=new_mission
             )
+            server.restart_pending = False
             return
 
         # change password if configured
