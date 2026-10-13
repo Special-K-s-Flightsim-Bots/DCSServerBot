@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-13 00:46+0200\n"
+"POT-Creation-Date: 2026-10-13 14:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -20,7 +20,7 @@ msgstr ""
 "Generated-By: Babel 2.17.0\n"
 
 #. punishment_schema:schema;element_schema.exemptions.discord.[0]
-#: plugins/punishment/schemas/punishment_schema.yaml:228
+#: plugins/punishment/schemas/punishment_schema.yaml:230
 msgid "A Discord role name."
 msgstr "Ein Discord-Rollenname."
 
@@ -30,7 +30,7 @@ msgid "A MizEdit setting name."
 msgstr "Ein Name einer MizEdit-Einstellung."
 
 #. punishment_schema:schema;element_schema.exemptions.ucid.[0]
-#: plugins/punishment/schemas/punishment_schema.yaml:217
+#: plugins/punishment/schemas/punishment_schema.yaml:219
 msgid "A player UCID."
 msgstr "Eine Spieler-UCID."
 
@@ -93,7 +93,7 @@ msgid "Accounts that may sign in with a username and password."
 msgstr "Konten, die sich mit Benutzername und Passwort anmelden dürfen."
 
 #. punishment_schema:schema;element_schema.punishments.[0].action
-#: plugins/punishment/schemas/punishment_schema.yaml:136
+#: plugins/punishment/schemas/punishment_schema.yaml:138
 msgid "Action taken when the point level is reached."
 msgstr "Aktion, die beim Erreichen der Punktzahl ausgeführt wird."
 
@@ -103,22 +103,22 @@ msgid "Action to perform, e.g. restart, rotate or load."
 msgstr "Auszuführende Aktion, z. B. restart, rotate oder load."
 
 #. cron_schema:schema;element_schema.actions.[0].action
-#: services/cron/schemas/cron_schema.yaml:63
+#: services/cron/schemas/cron_schema.yaml:65
 msgid "Action to perform, one of the supported types."
 msgstr "Auszuführende Aktion, eine der unterstützten Typen."
 
 #. punishment_schema:schema;element_schema.penalties.[0].action
-#: plugins/punishment/schemas/punishment_schema.yaml:93
+#: plugins/punishment/schemas/punishment_schema.yaml:95
 msgid "Action to run immediately for this event (optional)."
 msgstr "Aktion, die für dieses Ereignis sofort ausgeführt wird (optional)."
 
 #. punishment_schema:schema;element_schema.punishments
-#: plugins/punishment/schemas/punishment_schema.yaml:114
+#: plugins/punishment/schemas/punishment_schema.yaml:116
 msgid "Actions triggered when a player reaches a point level."
 msgstr "Aktionen, die ausgelöst werden, wenn ein Spieler eine Punktzahl erreicht."
 
 #. discord_schema:schema;element_schema.reaction.bot_trap
-#: plugins/discord/schemas/discord_schema.yaml:121
+#: plugins/discord/schemas/discord_schema.yaml:122
 msgid "Add a trap that kicks bots reacting to the message."
 msgstr "Eine Falle hinzufügen, die auf die Nachricht reagierende Bots kickt."
 
@@ -206,7 +206,7 @@ msgid "Allow export of sensor data to external tools."
 msgstr "Export von Sensordaten an externe Tools erlauben."
 
 #. tournament_schema:schema;element_schema.allow_exports
-#: plugins/tournament/schemas/tournament_schema.yaml:43
+#: plugins/tournament/schemas/tournament_schema.yaml:45
 msgid "Allow mission exports during tournament matches."
 msgstr "Missionsexporte während Turnier-Matches zulassen."
 
@@ -252,17 +252,17 @@ msgid "Allow the eval() function in mission scripts. Default is false."
 msgstr "Die Funktion eval() in Missionsskripten zulassen. Standard ist false."
 
 #. mission_schema:schema;element_schema.uploads.enabled
-#: plugins/mission/schemas/mission_schema.yaml:56
+#: plugins/mission/schemas/mission_schema.yaml:58
 msgid "Allow uploading .miz files to the server."
 msgstr "Das Hochladen von .miz-Dateien auf den Server zulassen."
 
 #. userstats_schema:schema;element_schema.squadrons.self_join
-#: plugins/userstats/schemas/userstats_schema.yaml:85
+#: plugins/userstats/schemas/userstats_schema.yaml:87
 msgid "Allow users to join and leave squadrons on their own."
 msgstr "Benutzern erlauben, Staffeln eigenständig zu betreten und zu verlassen."
 
 #. slotblocking_schema:schema;element_schema.balancing.threshold
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:183
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:185
 msgid "Allowed deviation from the ratio before slots are blocked."
 msgstr "Erlaubte Abweichung vom Verhältnis, bevor Slots blockiert werden."
 
@@ -282,17 +282,17 @@ msgid "Also block restricted commands for the bot owner."
 msgstr "Eingeschränkte Befehle auch für den Bot-Eigentümer blockieren."
 
 #. creditsystem_schema:schema;element_schema.squadron_credits
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:63
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:65
 msgid "Also credit the player's squadron with earned points."
 msgstr "Erworbene Punkte auch dem Geschwader des Spielers gutschreiben."
 
 #. missionstats_schema:schema;element_schema.persist_ai_statistics
-#: plugins/missionstats/schemas/missionstats_schema.yaml:37
+#: plugins/missionstats/schemas/missionstats_schema.yaml:39
 msgid "Also persist statistics for AI units."
 msgstr "Statistiken auch für KI-Einheiten speichern."
 
 #. cleanup_schema:schema;element_schema.regex;(.+).recursive
-#: services/cleanup/schemas/cleanup_schema.yaml:33
+#: services/cleanup/schemas/cleanup_schema.yaml:35
 msgid "Also search subdirectories below the directory."
 msgstr "Auch Unterverzeichnisse unterhalb des Verzeichnisses durchsuchen."
 
@@ -368,9 +368,104 @@ msgid "Announcement title; {} is replaced by the version."
 msgstr "Titel der Ankündigung; {} wird durch die Version ersetzt."
 
 #. firewall_schema:schema;element_schema.ddos_detection.consecutive_ticks
-#: services/firewall/schemas/firewall_schema.yaml:61
+#: services/firewall/schemas/firewall_schema.yaml:63
 msgid "Anomalous ticks in a row needed to confirm DDoS start."
 msgstr "Aufeinanderfolgende anomale Ticks, die einen DDoS-Start bestätigen."
+
+#. admin_schema:schema;element_schema
+#. cleanup_schema:schema;element_schema
+#. competitive_schema:schema;element_schema
+#. creditsystem_schema:schema;element_schema
+#. cron_schema:schema;element_schema
+#. discord_schema:schema;element_schema
+#. firewall_schema:schema;element_schema
+#. flightplan_schema:schema;element_schema
+#. funkman_schema:schema;element_schema
+#. greenieboard_schema:schema;element_schema
+#. logbook_schema:schema;element_schema
+#. logistics_schema:schema;element_schema
+#. lotatc_schema:schema;element_schema
+#. mission_schema:schema;element_schema
+#. missionstats_schema:schema;element_schema
+#. modmanager_schema:schema;element_schema
+#. monitoring_schema:schema;element_schema
+#. motd_schema:schema;element_schema
+#. music_schema:schema;element_schema
+#. pretense_schema:schema;element_schema
+#. punishment_schema:schema;element_schema
+#. scheduler_schema:schema;element_schema
+#. slotblocking_schema:schema;element_schema
+#. srs_schema:schema;element_schema
+#. tacview_schema:schema;element_schema
+#. tournament_schema:schema;element_schema
+#. ups_schema:schema;element_schema
+#. userstats_schema:schema;element_schema
+#. voting_schema:schema;element_schema
+#: plugins/admin/schemas/admin_schema.yaml:91 plugins/competitive/schemas/competitive_schema.yaml:14
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:37
+#: plugins/discord/schemas/discord_schema.yaml:4 plugins/flightplan/schemas/flightplan_schema.yaml:45
+#: plugins/funkman/schemas/funkman_schema.yaml:75
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:172
+#: plugins/logbook/schemas/logbook_schema.yaml:5 plugins/logistics/schemas/logistics_schema.yaml:5
+#: plugins/lotatc/schemas/lotatc_schema.yaml:14 plugins/mission/schemas/mission_schema.yaml:13
+#: plugins/missionstats/schemas/missionstats_schema.yaml:14 plugins/motd/schemas/motd_schema.yaml:209
+#: plugins/pretense/schemas/pretense_schema.yaml:14
+#: plugins/punishment/schemas/punishment_schema.yaml:14
+#: plugins/scheduler/schemas/scheduler_schema.yaml:195
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:14 plugins/srs/schemas/srs_schema.yaml:14
+#: plugins/tacview/schemas/tacview_schema.yaml:14 plugins/tournament/schemas/tournament_schema.yaml:14
+#: plugins/userstats/schemas/userstats_schema.yaml:61 plugins/voting/schemas/voting_schema.yaml:14
+#: services/cleanup/schemas/cleanup_schema.yaml:14 services/cron/schemas/cron_schema.yaml:14
+#: services/firewall/schemas/firewall_schema.yaml:14
+#: services/modmanager/schemas/modmanager_schema.yaml:70
+#: services/monitoring/schemas/monitoring_schema.yaml:14 services/music/schemas/music_schema.yaml:14
+#: services/ups/schemas/ups_schema.yaml:14
+msgid "Applies to every instance."
+msgstr "Gilt für alle Instanzen."
+
+#. admin_schema:schema;instance_schema
+#. cleanup_schema:schema;instance_schema
+#. competitive_schema:schema;instance_schema
+#. creditsystem_schema:schema;instance_schema
+#. cron_schema:schema;instance_schema
+#. firewall_schema:schema;instance_schema
+#. funkman_schema:schema;instance_schema
+#. greenieboard_schema:schema;instance_schema
+#. lotatc_schema:schema;instance_schema
+#. mission_schema:schema;instance_schema
+#. missionstats_schema:schema;instance_schema
+#. modmanager_schema:schema;instance_schema
+#. monitoring_schema:schema;instance_schema
+#. motd_schema:schema;instance_schema
+#. music_schema:schema;instance_schema
+#. pretense_schema:schema;instance_schema
+#. punishment_schema:schema;instance_schema
+#. scheduler_schema:schema;instance_schema
+#. slotblocking_schema:schema;instance_schema
+#. srs_schema:schema;instance_schema
+#. tacview_schema:schema;instance_schema
+#. tournament_schema:schema;instance_schema
+#. ups_schema:schema;instance_schema
+#. userstats_schema:schema;instance_schema
+#. voting_schema:schema;instance_schema
+#: plugins/admin/schemas/admin_schema.yaml:73 plugins/competitive/schemas/competitive_schema.yaml:5
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:28
+#: plugins/funkman/schemas/funkman_schema.yaml:5
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:163
+#: plugins/lotatc/schemas/lotatc_schema.yaml:5 plugins/mission/schemas/mission_schema.yaml:5
+#: plugins/missionstats/schemas/missionstats_schema.yaml:5 plugins/motd/schemas/motd_schema.yaml:200
+#: plugins/pretense/schemas/pretense_schema.yaml:5 plugins/punishment/schemas/punishment_schema.yaml:5
+#: plugins/scheduler/schemas/scheduler_schema.yaml:186
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:5 plugins/srs/schemas/srs_schema.yaml:5
+#: plugins/tacview/schemas/tacview_schema.yaml:5 plugins/tournament/schemas/tournament_schema.yaml:5
+#: plugins/userstats/schemas/userstats_schema.yaml:52 plugins/voting/schemas/voting_schema.yaml:5
+#: services/cleanup/schemas/cleanup_schema.yaml:5 services/cron/schemas/cron_schema.yaml:5
+#: services/firewall/schemas/firewall_schema.yaml:5
+#: services/modmanager/schemas/modmanager_schema.yaml:61
+#: services/monitoring/schemas/monitoring_schema.yaml:5 services/music/schemas/music_schema.yaml:5
+#: services/ups/schemas/ups_schema.yaml:5
+msgid "Applies to one instance only."
+msgstr "Gilt nur für eine Instanz."
 
 #. scheduler_schema:schema;action_map.run_extensions
 #: plugins/scheduler/schemas/scheduler_schema.yaml:106
@@ -388,7 +483,7 @@ msgid "Apply the action only when the mission ends."
 msgstr "Die Aktion nur anwenden, wenn die Mission endet."
 
 #. logistics_schema:schema;element_schema.tasks.auto_approve
-#: plugins/logistics/schemas/logistics_schema.yaml:106
+#: plugins/logistics/schemas/logistics_schema.yaml:107
 msgid "Approve Discord-created tasks without admin review."
 msgstr "Von Discord erstellte Aufgaben ohne Admin-Prüfung genehmigen."
 
@@ -451,22 +546,22 @@ msgid "Auto-add uploaded missions to the mission list."
 msgstr "Hochgeladene Missionen automatisch zur Missionsliste hinzufügen."
 
 #. tournament_schema:schema;element_schema.auto_join
-#: plugins/tournament/schemas/tournament_schema.yaml:48
+#: plugins/tournament/schemas/tournament_schema.yaml:50
 msgid "Auto-assign pilots to their squadron when they join a server."
 msgstr "Piloten beim Beitritt zu einem Server automatisch ihrer Staffel zuweisen."
 
 #. firewall_schema:schema;element_schema.ddos_detection.max_conns_per_ip
-#: services/firewall/schemas/firewall_schema.yaml:110
+#: services/firewall/schemas/firewall_schema.yaml:112
 msgid "Auto-block an IP with more TCP connections; 0 disables it."
 msgstr "Eine IP mit mehr TCP-Verbindungen automatisch blockieren; 0 deaktiviert dies."
 
 #. logistics_schema:schema;element_schema.tasks.stale_days
-#: plugins/logistics/schemas/logistics_schema.yaml:116
+#: plugins/logistics/schemas/logistics_schema.yaml:117
 msgid "Auto-cancel pending or approved tasks after these days."
 msgstr "Ausstehende oder genehmigte Aufgaben nach diesen Tagen automatisch abbrechen."
 
 #. flightplan_schema:schema;element_schema.auto_cancel_stale
-#: plugins/flightplan/schemas/flightplan_schema.yaml:89
+#: plugins/flightplan/schemas/flightplan_schema.yaml:90
 msgid "Auto-cancel stale flight plans on mission start."
 msgstr "Veraltete Flugpläne beim Missionsstart automatisch abbrechen."
 
@@ -486,12 +581,12 @@ msgid "Auto-forward the node's ports via UPnP."
 msgstr "Die Ports des Knotens automatisch per UPnP weiterleiten."
 
 #. tournament_schema:schema;element_schema.coalition_passwords
-#: plugins/tournament/schemas/tournament_schema.yaml:38
+#: plugins/tournament/schemas/tournament_schema.yaml:40
 msgid "Auto-generate passwords for the blue and red coalitions."
 msgstr "Passwörter für die blaue und rote Koalition automatisch generieren."
 
 #. logbook_schema:schema;element_schema.auto_qualifications
-#: plugins/logbook/schemas/logbook_schema.yaml:14
+#: plugins/logbook/schemas/logbook_schema.yaml:15
 msgid "Auto-grant qualifications once their requirements are met."
 msgstr "Qualifikationen automatisch vergeben, sobald ihre Anforderungen erfüllt sind."
 
@@ -506,7 +601,7 @@ msgid "Auto-restart the server when it is unlisted from ED."
 msgstr "Den Server automatisch neu starten, wenn er bei ED nicht mehr gelistet ist."
 
 #. tournament_schema:schema;element_schema.autostart_matches
-#: plugins/tournament/schemas/tournament_schema.yaml:27
+#: plugins/tournament/schemas/tournament_schema.yaml:29
 msgid "Auto-start matches with DM reminders before they begin."
 msgstr "Matches automatisch starten, mit DM-Erinnerungen vor Beginn."
 
@@ -556,7 +651,7 @@ msgid "Automatic kick of players who sit idle (AFK)."
 msgstr "Automatisches Kicken von Spielern, die untätig sind (AFK)."
 
 #. discord_schema:schema;element_schema.on_join
-#: plugins/discord/schemas/discord_schema.yaml:34
+#: plugins/discord/schemas/discord_schema.yaml:35
 msgid "Automatic welcome for members joining the server."
 msgstr "Automatische Begrüßung für Mitglieder, die dem Server beitreten."
 
@@ -630,8 +725,8 @@ msgstr "Backup der eigenen Konfiguration und Berichte des Bots."
 
 #. punishment_schema:schema;element_schema.penalties.[0].days
 #. punishment_schema:schema;element_schema.punishments.[0].days
-#: plugins/punishment/schemas/punishment_schema.yaml:98
-#: plugins/punishment/schemas/punishment_schema.yaml:141
+#: plugins/punishment/schemas/punishment_schema.yaml:100
+#: plugins/punishment/schemas/punishment_schema.yaml:143
 msgid "Ban duration in days when the action is ban."
 msgstr "Bandauer in Tagen, wenn die Aktion ban ist."
 
@@ -651,7 +746,7 @@ msgid "Ban players on Discord when banned on a DCS server."
 msgstr "Spieler auf Discord bannen, wenn sie auf einem DCS-Server gebannt werden."
 
 #. mission_schema:schema;element_schema.messages
-#: plugins/mission/schemas/mission_schema.yaml:16
+#: plugins/mission/schemas/mission_schema.yaml:18
 msgid "Ban reason texts shown to punished players."
 msgstr "Bann-Grundtexte, die bestraften Spielern angezeigt werden."
 
@@ -671,22 +766,22 @@ msgid "Base altitude of the cloud layer in metres."
 msgstr "Basis-Höhe der Wolkenschicht in Metern."
 
 #. firewall_schema:schema;element_schema.ddos_detection.min_samples
-#: services/firewall/schemas/firewall_schema.yaml:49
+#: services/firewall/schemas/firewall_schema.yaml:51
 msgid "Baseline samples to collect before detection begins."
 msgstr "Baseline-Stichproben, die vor Beginn der Erkennung gesammelt werden."
 
 #. ups_schema:schema;element_schema.thresholds.shutdown
-#: services/ups/schemas/ups_schema.yaml:64
+#: services/ups/schemas/ups_schema.yaml:66
 msgid "Battery level (%) that shuts down the DCS servers."
 msgstr "Akkustand (%), bei dem die DCS-Server heruntergefahren werden."
 
 #. ups_schema:schema;element_schema.thresholds.halt
-#: services/ups/schemas/ups_schema.yaml:70
+#: services/ups/schemas/ups_schema.yaml:72
 msgid "Battery level (%) that shuts down the whole PC."
 msgstr "Akkustand (%), bei dem der ganze PC heruntergefahren wird."
 
 #. ups_schema:schema;element_schema.thresholds.warn
-#: services/ups/schemas/ups_schema.yaml:58
+#: services/ups/schemas/ups_schema.yaml:60
 msgid "Battery level (%) that warns the players."
 msgstr "Akkustand (%), bei dem die Spieler gewarnt werden."
 
@@ -701,7 +796,7 @@ msgid "Block commands that can affect server integrity."
 msgstr "Befehle blockieren, die die Serverintegrität beeinträchtigen können."
 
 #. firewall_schema:schema;element_schema.ddos_detection.node_block
-#: services/firewall/schemas/firewall_schema.yaml:104
+#: services/firewall/schemas/firewall_schema.yaml:106
 msgid "Block every running server on a node-wide bandwidth attack."
 msgstr "Bei einem knotenweiten Bandbreitenangriff jeden laufenden Server blockieren."
 
@@ -711,12 +806,12 @@ msgid "Block players whose names contain profanity."
 msgstr "Spieler blockieren, deren Namen vulgäre Sprache enthält."
 
 #. srs_schema:schema;element_schema.enforce_srs
-#: plugins/srs/schemas/srs_schema.yaml:23
+#: plugins/srs/schemas/srs_schema.yaml:25
 msgid "Block slots until the player has SRS activated."
 msgstr "Slots blockieren, bis der Spieler SRS aktiviert hat."
 
 #. discord_schema:schema;element_schema.reaction.message
-#: plugins/discord/schemas/discord_schema.yaml:116
+#: plugins/discord/schemas/discord_schema.yaml:117
 msgid "Body text of the reaction message."
 msgstr "Textkörper der Reaktionsnachricht."
 
@@ -759,7 +854,7 @@ msgid "CPU affinity applied to the Olympus Node.js process."
 msgstr "CPU-Affinität für den Olympus-Node.js-Prozess."
 
 #. punishment_schema:schema;element_schema.csar_timeout
-#: plugins/punishment/schemas/punishment_schema.yaml:35
+#: plugins/punishment/schemas/punishment_schema.yaml:37
 msgid "CSAR timeout in seconds for landing away from an airfield."
 msgstr "CSAR-Timeout in Sekunden für eine Landung abseits eines Flugplatzes."
 
@@ -780,12 +875,12 @@ msgid "Campaigns announced in-game on this server."
 msgstr "Kampagnen, die im Spiel auf diesem Server angekündigt werden."
 
 #. flightplan_schema:schema;element_schema.stale_hours
-#: plugins/flightplan/schemas/flightplan_schema.yaml:84
+#: plugins/flightplan/schemas/flightplan_schema.yaml:85
 msgid "Cancel flight plans older than this many hours."
 msgstr "Flugpläne abbrechen, die älter als diese Anzahl Stunden sind."
 
 #. tournament_schema:schema;element_schema.channels.category
-#: plugins/tournament/schemas/tournament_schema.yaml:250
+#: plugins/tournament/schemas/tournament_schema.yaml:252
 msgid "Category under which all match channels are created."
 msgstr "Kategorie, unter der alle Match-Kanäle erstellt werden."
 
@@ -825,7 +920,7 @@ msgid "Channel for the in-game chat replication."
 msgstr "Kanal für die Replikation des In-Game-Chats."
 
 #. discord_schema:schema;element_schema.roles.regex;(.+).regex;(on_add|on_remove|on_leave).channel
-#: plugins/discord/schemas/discord_schema.yaml:87
+#: plugins/discord/schemas/discord_schema.yaml:88
 msgid "Channel for the message; -1 sends it as a DM."
 msgstr "Kanal für die Nachricht; -1 sendet sie als DM."
 
@@ -840,17 +935,17 @@ msgid "Channel for the server status and player embeds."
 msgstr "Kanal für Serverstatus und Spieler-Embeds."
 
 #. discord_schema:schema;element_schema.on_join.channel
-#: plugins/discord/schemas/discord_schema.yaml:54
+#: plugins/discord/schemas/discord_schema.yaml:55
 msgid "Channel for the welcome; -1 sends it as a DM."
 msgstr "Kanal für die Begrüßung; -1 sendet sie als DM."
 
 #. tournament_schema:schema;element_schema.channels.streamer
-#: plugins/tournament/schemas/tournament_schema.yaml:245
+#: plugins/tournament/schemas/tournament_schema.yaml:247
 msgid "Channel receiving the full live match feed for streamers."
 msgstr "Kanal, der den vollständigen Live-Match-Feed für Streamer erhält."
 
 #. discord_schema:schema;element_schema.reaction.channel
-#: plugins/discord/schemas/discord_schema.yaml:104
+#: plugins/discord/schemas/discord_schema.yaml:105
 msgid "Channel that holds the reaction message."
 msgstr "Kanal, der die Reaktionsnachricht enthält."
 
@@ -860,24 +955,24 @@ msgid "Channel that receives the bot's audit events."
 msgstr "Kanal, der die Audit-Ereignisse des Bots empfängt."
 
 #. missionstats_schema:schema;element_schema.mission_end.channel
-#: plugins/missionstats/schemas/missionstats_schema.yaml:65
+#: plugins/missionstats/schemas/missionstats_schema.yaml:67
 msgid "Channel that receives the mission end embed."
 msgstr "Kanal, der das Embed zum Missionsende empfängt."
 
 #. punishment_schema:schema;element_schema.channel
-#: plugins/punishment/schemas/punishment_schema.yaml:46
+#: plugins/punishment/schemas/punishment_schema.yaml:48
 msgid "Channel that reports who was punished for what (-1 disables)."
 msgstr "Kanal, der meldet, wer wofür bestraft wurde (-1 deaktiviert)."
 
 #. missionstats_schema:schema;element_schema.channel
-#: plugins/missionstats/schemas/missionstats_schema.yaml:27
+#: plugins/missionstats/schemas/missionstats_schema.yaml:29
 msgid "Channel that shows the mission statistics embed."
 msgstr "Kanal, der das Missionsstatistik-Embed anzeigt."
 
 #. greenieboard_schema:schema;default_schema.squadrons.[0].channel
 #. greenieboard_schema:schema;element_schema.squadrons.[0].channel
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:68
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:225
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:227
 msgid "Channel the squadron board is posted to."
 msgstr "Kanal, in dem das Geschwader-Board gepostet wird."
 
@@ -887,12 +982,12 @@ msgid "Channel where admin commands for this server are run."
 msgstr "Kanal, in dem Admin-Befehle für diesen Server ausgeführt werden."
 
 #. tournament_schema:schema;element_schema.channels.info
-#: plugins/tournament/schemas/tournament_schema.yaml:235
+#: plugins/tournament/schemas/tournament_schema.yaml:237
 msgid "Channel where match information is posted."
 msgstr "Kanal, in dem Match-Informationen gepostet werden."
 
 #. tournament_schema:schema;element_schema.channels.results
-#: plugins/tournament/schemas/tournament_schema.yaml:255
+#: plugins/tournament/schemas/tournament_schema.yaml:257
 msgid "Channel where match results are posted."
 msgstr "Kanal, in dem Match-Ergebnisse gepostet werden."
 
@@ -907,17 +1002,17 @@ msgid "Chat command or game event triggered by this menu entry."
 msgstr "Chat-Befehl oder Spielereignis, das dieser Menüeintrag auslöst."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).chat
-#: services/music/schemas/music_schema.yaml:116
+#: services/music/schemas/music_schema.yaml:118
 msgid "Chat message for this radio, overrides the global one."
 msgstr "Chatnachricht für dieses Funkgerät, überschreibt die globale."
 
 #. tournament_schema:schema;element_schema.events.regex;(.+).message
-#: plugins/tournament/schemas/tournament_schema.yaml:101
+#: plugins/tournament/schemas/tournament_schema.yaml:103
 msgid "Chat message sent when this event fires."
 msgstr "Chatnachricht, die beim Auslösen dieses Ereignisses gesendet wird."
 
 #. voting_schema:schema;element_schema.welcome_message
-#: plugins/voting/schemas/voting_schema.yaml:99
+#: plugins/voting/schemas/voting_schema.yaml:101
 msgid "Chat message shown to players joining the server."
 msgstr "Chatnachricht, die Spielern beim Beitritt zum Server angezeigt wird."
 
@@ -927,7 +1022,7 @@ msgid "Chat message shown when a player joins the server."
 msgstr "Chatnachricht, die angezeigt wird, wenn ein Spieler dem Server beitritt."
 
 #. music_schema:schema;element_schema.chat
-#: services/music/schemas/music_schema.yaml:31
+#: services/music/schemas/music_schema.yaml:33
 #, python-brace-format
 msgid "Chat message when a song starts; holds {song} and {frequency}."
 msgstr "Chatnachricht, wenn ein Song startet; enthält {song} und {frequency}."
@@ -1045,14 +1140,14 @@ msgid "Coalition that receives the nudge."
 msgstr "Koalition, die den Hinweis erhält."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).coalition
-#: services/music/schemas/music_schema.yaml:93
+#: services/music/schemas/music_schema.yaml:95
 msgid "Coalition this radio is played for."
 msgstr "Koalition, für die dieses Funkgerät abgespielt wird."
 
 #. greenieboard_schema:schema;default_schema.theme
 #. greenieboard_schema:schema;element_schema.theme
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:21
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:188
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:190
 msgid "Color theme used to render the board image."
 msgstr "Farbthema, das zum Rendern des Board-Bilds verwendet wird."
 
@@ -1067,27 +1162,27 @@ msgid "Command name shown to users."
 msgstr "Befehlsname, der Benutzern angezeigt wird."
 
 #. scheduler_schema:schema;element_schema.onSimulationStart
-#: plugins/scheduler/schemas/scheduler_schema.yaml:282
+#: plugins/scheduler/schemas/scheduler_schema.yaml:284
 msgid "Command run when a mission starts."
 msgstr "Befehl, der beim Start einer Mission ausgeführt wird."
 
 #. scheduler_schema:schema;element_schema.onShutdown
-#: plugins/scheduler/schemas/scheduler_schema.yaml:303
+#: plugins/scheduler/schemas/scheduler_schema.yaml:305
 msgid "Command run when the DCS server is shut down."
 msgstr "Befehl, der beim Herunterfahren des DCS-Servers ausgeführt wird."
 
 #. scheduler_schema:schema;element_schema.onMissionEnd
-#: plugins/scheduler/schemas/scheduler_schema.yaml:296
+#: plugins/scheduler/schemas/scheduler_schema.yaml:298
 msgid "Command run when the mission ends with a win."
 msgstr "Befehl, der ausgeführt wird, wenn die Mission mit einem Sieg endet."
 
 #. scheduler_schema:schema;element_schema.onSimulationStop
-#: plugins/scheduler/schemas/scheduler_schema.yaml:289
+#: plugins/scheduler/schemas/scheduler_schema.yaml:291
 msgid "Command run when the server stops."
 msgstr "Befehl, der beim Stoppen des Servers ausgeführt wird."
 
 #. scheduler_schema:schema;command_schema.command
-#: plugins/scheduler/schemas/scheduler_schema.yaml:314
+#: plugins/scheduler/schemas/scheduler_schema.yaml:316
 msgid "Command string starting with load, lua, call or run."
 msgstr "Befehlszeichenfolge, beginnend mit load, lua, call oder run."
 
@@ -1099,7 +1194,7 @@ msgid "Compress rotated log files."
 msgstr "Rotierte Protokolldateien komprimieren."
 
 #. competitive_schema:schema;element_schema.win_on
-#: plugins/competitive/schemas/competitive_schema.yaml:34
+#: plugins/competitive/schemas/competitive_schema.yaml:36
 msgid "Condition that ends and wins a match."
 msgstr "Bedingung, die ein Match beendet und gewinnt."
 
@@ -1184,7 +1279,7 @@ msgid "Cores excluded from auto-affinity (list or range string)."
 msgstr "Kerne, die von der Auto-Affinität ausgeschlossen sind (Liste oder Bereich)."
 
 #. scheduler_schema:schema;element_schema.warn.countdown.message
-#: plugins/scheduler/schemas/scheduler_schema.yaml:248
+#: plugins/scheduler/schemas/scheduler_schema.yaml:250
 msgid "Countdown text; supports the same placeholders."
 msgstr "Countdown-Text; unterstützt dieselben Platzhalter."
 
@@ -1194,32 +1289,32 @@ msgid "Create an \"afk\" punishment instead of kicking."
 msgstr "Eine \"afk\"-Strafe statt eines Kicks verhängen."
 
 #. discord_schema:schema;element_schema.ping_everyone.report
-#: plugins/discord/schemas/discord_schema.yaml:18
+#: plugins/discord/schemas/discord_schema.yaml:19
 msgid "Create an audit report for each unauthorized ping."
 msgstr "Für jeden unerlaubten Ping einen Audit-Bericht erstellen."
 
 #. voting_schema:schema;element_schema.credits
-#: plugins/voting/schemas/voting_schema.yaml:104
+#: plugins/voting/schemas/voting_schema.yaml:106
 msgid "Credit points a player pays to start a voting."
 msgstr "Guthabenpunkte, die ein Spieler für den Start einer Abstimmung zahlt."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].costs
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:113
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:115
 msgid "Credit points charged for losing this unit."
 msgstr "Credit-Punkte, die für den Verlust dieser Einheit berechnet werden."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).costs
-#: plugins/tournament/schemas/tournament_schema.yaml:184
+#: plugins/tournament/schemas/tournament_schema.yaml:186
 msgid "Credit points charged to the squadron for this choice."
 msgstr "Credit-Punkte, die der Staffel für diese Auswahl berechnet werden."
 
 #. creditsystem_schema:schema;element_schema.initial_points
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:42
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:44
 msgid "Credit points every player starts a campaign with."
 msgstr "Startguthaben, mit dem jeder Spieler eine Kampagne beginnt."
 
 #. creditsystem_schema:schema;element_schema.squadron.initial_points
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:77
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:79
 msgid "Credit points every squadron starts a campaign with."
 msgstr "Startguthaben, mit dem jedes Geschwader eine Kampagne beginnt."
 
@@ -1229,27 +1324,27 @@ msgid "Credit points granted to members of this role at start."
 msgstr "Startguthaben, das Mitgliedern dieser Rolle gewährt wird."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].points
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:108
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:110
 msgid "Credit points needed to enter this slot."
 msgstr "Credit-Punkte, die zum Betreten dieses Slots erforderlich sind."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].credits
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:191
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:193
 msgid "Credit points threshold for this achievement."
 msgstr "Guthaben-Schwelle für diese Auszeichnung."
 
 #. punishment_schema:schema;element_schema.penalties.[0].penalty
-#: plugins/punishment/schemas/punishment_schema.yaml:103
+#: plugins/punishment/schemas/punishment_schema.yaml:105
 msgid "Credits taken away when the action is credits."
 msgstr "Credits, die abgezogen werden, wenn die Aktion credits ist."
 
 #. tournament_schema:schema;element_schema.presets.tickets.regex;(.+).credits
-#: plugins/tournament/schemas/tournament_schema.yaml:220
+#: plugins/tournament/schemas/tournament_schema.yaml:222
 msgid "Credits the squadron gets for selling this ticket."
 msgstr "Credits, die die Staffel für den Verkauf dieses Tickets erhält."
 
 #. cron_schema:schema;element_schema.actions.[0].cron
-#: services/cron/schemas/cron_schema.yaml:39
+#: services/cron/schemas/cron_schema.yaml:41
 msgid "Cron expression deciding when the action runs."
 msgstr "Cron-Ausdruck, der festlegt, wann die Aktion läuft."
 
@@ -1271,7 +1366,7 @@ msgid "Custom weather provider settings."
 msgstr "Einstellungen des benutzerdefinierten Wetteranbieters."
 
 #. tournament_schema:schema;element_schema.presets
-#: plugins/tournament/schemas/tournament_schema.yaml:171
+#: plugins/tournament/schemas/tournament_schema.yaml:173
 msgid "Customizations squadrons can buy, keyed by preset name."
 msgstr "Anpassungen, die Staffeln kaufen können, benannt nach Voreinstellungsname."
 
@@ -1346,7 +1441,7 @@ msgid "Days a player is banned for by the vote."
 msgstr "Tage, für die ein Spieler durch die Abstimmung gebannt wird."
 
 #. punishment_schema:schema;element_schema.decay.[0].days
-#: plugins/punishment/schemas/punishment_schema.yaml:190
+#: plugins/punishment/schemas/punishment_schema.yaml:192
 msgid "Days after which this decay weight applies."
 msgstr "Tage, nach denen diese Verfallsgewichtung gilt."
 
@@ -1361,7 +1456,7 @@ msgid "Default Azure voice used for text-to-speech."
 msgstr "Standard-Azure-Stimme für Text-to-Speech."
 
 #. flightplan_schema:schema;element_schema.marker_timeout
-#: plugins/flightplan/schemas/flightplan_schema.yaml:94
+#: plugins/flightplan/schemas/flightplan_schema.yaml:95
 msgid "Default F10 marker display time in seconds."
 msgstr "Standard-Anzeigedauer für F10-Markierungen in Sekunden."
 
@@ -1401,12 +1496,12 @@ msgid "Default level filter of the console's log panel."
 msgstr "Standard-Level-Filter des Log-Bereichs der Konsole."
 
 #. mission_schema:schema;element_schema.messages.ban_evasion
-#: plugins/mission/schemas/mission_schema.yaml:31
+#: plugins/mission/schemas/mission_schema.yaml:33
 msgid "Default reason for evading a ban with a second account."
 msgstr "Standardgrund für das Umgehen eines Banns mit einem zweiten Konto."
 
 #. mission_schema:schema;element_schema.messages.ban_username
-#: plugins/mission/schemas/mission_schema.yaml:25
+#: plugins/mission/schemas/mission_schema.yaml:27
 msgid "Default reason when banning an inappropriate username."
 msgstr "Standardgrund beim Bannen eines unangemessenen Benutzernamens."
 
@@ -1431,7 +1526,7 @@ msgid "Default voice used by the selected provider."
 msgstr "Standardstimme des ausgewählten Anbieters."
 
 #. slotblocking_schema:schema;element_schema.VIP
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:17
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:19
 msgid "Defines a VIP group with reserved slots and named members."
 msgstr "Definiert eine VIP-Gruppe mit reservierten Slots und benannten Mitgliedern."
 
@@ -1443,7 +1538,7 @@ msgid "Delay in seconds before telemetry is played back."
 msgstr "Verzögerung in Sekunden, bevor die Telemetrie wiedergegeben wird."
 
 #. userstats_schema:schema;element_schema.wipe_stats_on_leave
-#: plugins/userstats/schemas/userstats_schema.yaml:69
+#: plugins/userstats/schemas/userstats_schema.yaml:71
 msgid "Delete a user's statistics when they leave the Discord server."
 msgstr "Die Statistiken eines Benutzers löschen, wenn er den Discord-Server verlässt."
 
@@ -1454,12 +1549,12 @@ msgstr "Backup-Ordner löschen, die älter als diese Anzahl Tage sind, oder nie.
 
 #. funkman_schema:schema;default_schema.message_autodelete
 #. funkman_schema:schema;element_schema.message_autodelete
-#: plugins/funkman/schemas/funkman_schema.yaml:67 plugins/funkman/schemas/funkman_schema.yaml:113
+#: plugins/funkman/schemas/funkman_schema.yaml:68 plugins/funkman/schemas/funkman_schema.yaml:115
 msgid "Delete range or trap sheets after this many seconds."
 msgstr "Range- oder Trap-Blätter nach so vielen Sekunden löschen."
 
 #. logistics_schema:schema;element_schema.delivery.proximity_threshold
-#: plugins/logistics/schemas/logistics_schema.yaml:63
+#: plugins/logistics/schemas/logistics_schema.yaml:64
 msgid "Delivery detection radius in meters."
 msgstr "Erkennungsradius für die Lieferung in Metern."
 
@@ -1494,7 +1589,7 @@ msgid "Description shown next to the server in the multiplayer list."
 msgstr "Beschreibung, die neben dem Server in der Mehrspielerliste angezeigt wird."
 
 #. firewall_schema:schema;element_schema.ddos_detection
-#: services/firewall/schemas/firewall_schema.yaml:22
+#: services/firewall/schemas/firewall_schema.yaml:24
 msgid "Detect and optionally block DDoS attacks on your servers."
 msgstr "DDoS-Angriffe auf den Servern erkennen und optional blockieren."
 
@@ -1525,7 +1620,7 @@ msgid "Directory holding the generated FunkMan images."
 msgstr "Verzeichnis mit den generierten FunkMan-Bildern."
 
 #. funkman_schema:schema;default_schema.IMAGEPATH
-#: plugins/funkman/schemas/funkman_schema.yaml:42
+#: plugins/funkman/schemas/funkman_schema.yaml:43
 msgid "Directory holding the generated range and trap images."
 msgstr "Verzeichnis mit den generierten Range- und Trap-Bildern."
 
@@ -1565,7 +1660,7 @@ msgid "Directory that holds the Supertonic voice style files."
 msgstr "Verzeichnis, das die Stimmstildateien von Supertonic enthält."
 
 #. music_schema:schema;element_schema.music_dir
-#: services/music/schemas/music_schema.yaml:19
+#: services/music/schemas/music_schema.yaml:21
 msgid "Directory that holds your music files."
 msgstr "Verzeichnis, das die eigenen Musikdateien enthält."
 
@@ -1605,7 +1700,7 @@ msgid "Directory where the bot scans for missions."
 msgstr "Verzeichnis, in dem der Bot nach Missionen sucht."
 
 #. cleanup_schema:schema;element_schema.regex;(.+).directory
-#: services/cleanup/schemas/cleanup_schema.yaml:22
+#: services/cleanup/schemas/cleanup_schema.yaml:24
 msgid "Directory whose old files are deleted."
 msgstr "Verzeichnis, dessen alte Dateien gelöscht werden."
 
@@ -1657,12 +1752,12 @@ msgid "Discord bot token used for voice output."
 msgstr "Discord-Bot-Token für die Sprachausgabe."
 
 #. cleanup_schema:schema;element_schema.regex;(.+).channel
-#: services/cleanup/schemas/cleanup_schema.yaml:45
+#: services/cleanup/schemas/cleanup_schema.yaml:47
 msgid "Discord channel ID (or list) whose old messages are purged."
 msgstr "Discord-Kanal-ID (oder Liste), deren alte Nachrichten bereinigt werden."
 
 #. tacview_schema:schema;element_schema.upload.channel
-#: plugins/tacview/schemas/tacview_schema.yaml:25
+#: plugins/tacview/schemas/tacview_schema.yaml:27
 msgid "Discord channel ID for uploads; -1 sends the file via DM."
 msgstr "Discord-Kanal-ID für Uploads; -1 sendet die Datei per DM."
 
@@ -1678,24 +1773,24 @@ msgstr "Discord-Kanal-ID, die die Update-Ankündigung erhält."
 
 #. funkman_schema:schema;default_schema.CHANNELID_AIRBOSS
 #. funkman_schema:schema;element_schema.CHANNELID_AIRBOSS
-#: plugins/funkman/schemas/funkman_schema.yaml:34 plugins/funkman/schemas/funkman_schema.yaml:88
+#: plugins/funkman/schemas/funkman_schema.yaml:35 plugins/funkman/schemas/funkman_schema.yaml:90
 msgid "Discord channel for LSO trap sheets."
 msgstr "Discord-Kanal für LSO-Trap-Blätter."
 
 #. logistics_schema:schema;element_schema.status_channel
-#: plugins/logistics/schemas/logistics_schema.yaml:14
+#: plugins/logistics/schemas/logistics_schema.yaml:15
 msgid "Discord channel for logistics status updates."
 msgstr "Discord-Kanal für Statusaktualisierungen der Logistik."
 
 #. funkman_schema:schema;default_schema.CHANNELID_RANGE
 #. funkman_schema:schema;element_schema.CHANNELID_RANGE
-#: plugins/funkman/schemas/funkman_schema.yaml:29 plugins/funkman/schemas/funkman_schema.yaml:83
+#: plugins/funkman/schemas/funkman_schema.yaml:30 plugins/funkman/schemas/funkman_schema.yaml:85
 msgid "Discord channel for strafing and bombing range sheets."
 msgstr "Discord-Kanal für Strafing- und Bombing-Range-Blätter."
 
 #. funkman_schema:schema;default_schema.CHANNELID_MAIN
 #. funkman_schema:schema;element_schema.CHANNELID_MAIN
-#: plugins/funkman/schemas/funkman_schema.yaml:24 plugins/funkman/schemas/funkman_schema.yaml:78
+#: plugins/funkman/schemas/funkman_schema.yaml:25 plugins/funkman/schemas/funkman_schema.yaml:80
 msgid "Discord channel for the main FunkMan output."
 msgstr "Discord-Kanal für die Hauptausgabe von FunkMan."
 
@@ -1725,30 +1820,30 @@ msgid "Discord channel id the update announcement is posted to."
 msgstr "Discord-Kanal-ID, in der die Update-Ankündigung gepostet wird."
 
 #. mission_schema:schema;element_schema.uploads.channel
-#: plugins/mission/schemas/mission_schema.yaml:61
+#: plugins/mission/schemas/mission_schema.yaml:63
 msgid "Discord channel that accepts mission uploads."
 msgstr "Discord-Kanal, der Missions-Uploads annimmt."
 
 #. greenieboard_schema:schema;default_schema.persistent_channel
 #. greenieboard_schema:schema;element_schema.persistent_channel
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:36
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:203
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:205
 msgid "Discord channel that hosts the persistent board."
 msgstr "Discord-Kanal, der das dauerhafte Board beherbergt."
 
 #. flightplan_schema:schema;element_schema.status_channel
-#: plugins/flightplan/schemas/flightplan_schema.yaml:54
+#: plugins/flightplan/schemas/flightplan_schema.yaml:55
 msgid "Discord channel that shows flight plan updates."
 msgstr "Discord-Kanal, der Flugplan-Aktualisierungen anzeigt."
 
 #. funkman_schema:schema;default_schema.bomb_channel
 #. funkman_schema:schema;element_schema.bomb_channel
-#: plugins/funkman/schemas/funkman_schema.yaml:62 plugins/funkman/schemas/funkman_schema.yaml:108
+#: plugins/funkman/schemas/funkman_schema.yaml:63 plugins/funkman/schemas/funkman_schema.yaml:110
 msgid "Discord channel that shows the bombing board."
 msgstr "Discord-Kanal, der das Bombing-Board anzeigt."
 
 #. creditsystem_schema:schema;element_schema.leaderboard.channel
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:240
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:242
 msgid "Discord channel that shows the leaderboard."
 msgstr "Discord-Kanal, der die Rangliste anzeigt."
 
@@ -1759,12 +1854,12 @@ msgstr "Discord-Kanal, der den dauerhaften Highscore anzeigt."
 
 #. funkman_schema:schema;default_schema.strafe_channel
 #. funkman_schema:schema;element_schema.strafe_channel
-#: plugins/funkman/schemas/funkman_schema.yaml:52 plugins/funkman/schemas/funkman_schema.yaml:98
+#: plugins/funkman/schemas/funkman_schema.yaml:53 plugins/funkman/schemas/funkman_schema.yaml:100
 msgid "Discord channel that shows the strafing board."
 msgstr "Discord-Kanal, der das Strafing-Board anzeigt."
 
 #. pretense_schema:schema;element_schema.channel
-#: plugins/pretense/schemas/pretense_schema.yaml:30
+#: plugins/pretense/schemas/pretense_schema.yaml:32
 msgid "Discord channel where the Pretense stats are posted."
 msgstr "Discord-Kanal, in dem die Pretense-Statistiken gepostet werden."
 
@@ -1774,7 +1869,7 @@ msgid "Discord channels this server uses for its features."
 msgstr "Discord-Kanäle, die dieser Server für seine Funktionen nutzt."
 
 #. tournament_schema:schema;element_schema.channels
-#: plugins/tournament/schemas/tournament_schema.yaml:225
+#: plugins/tournament/schemas/tournament_schema.yaml:227
 msgid "Discord channels used by the tournament."
 msgstr "Vom Turnier verwendete Discord-Kanäle."
 
@@ -1784,7 +1879,7 @@ msgid "Discord guild/server ID where the bot is installed."
 msgstr "Discord-Gilden-/Server-ID, auf der der Bot installiert ist."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].role
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:207
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:209
 msgid "Discord role granted when the achievement is reached."
 msgstr "Discord-Rolle, die beim Erreichen der Auszeichnung vergeben wird."
 
@@ -1835,12 +1930,12 @@ msgid "Discord role to ping for the usage alarm."
 msgstr "Discord-Rolle, die beim Auslastungsalarm gepingt wird."
 
 #. logistics_schema:schema;element_schema.ping_role
-#: plugins/logistics/schemas/logistics_schema.yaml:19
+#: plugins/logistics/schemas/logistics_schema.yaml:20
 msgid "Discord role to ping on new logistics posts."
 msgstr "Discord-Rolle, die bei neuen Logistik-Beiträgen gepingt wird."
 
 #. flightplan_schema:schema;element_schema.ping_role
-#: plugins/flightplan/schemas/flightplan_schema.yaml:59
+#: plugins/flightplan/schemas/flightplan_schema.yaml:60
 msgid "Discord role to ping when a flight plan is posted."
 msgstr "Discord-Rolle, die gepingt wird, wenn ein Flugplan gepostet wird."
 
@@ -1859,7 +1954,7 @@ msgid "Discord roles allowed to manage this server."
 msgstr "Discord-Rollen, die diesen Server verwalten dürfen."
 
 #. logistics_schema:schema;element_schema.permissions
-#: plugins/logistics/schemas/logistics_schema.yaml:126
+#: plugins/logistics/schemas/logistics_schema.yaml:127
 msgid "Discord roles allowed to perform each task action."
 msgstr "Discord-Rollen, die jede Aufgabenaktion ausführen dürfen."
 
@@ -1875,12 +1970,12 @@ msgid "Discord roles allowed to use this server."
 msgstr "Discord-Rollen, die diesen Server nutzen dürfen."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].discord
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:164
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:166
 msgid "Discord roles eligible for this bounty."
 msgstr "Discord-Rollen, die für dieses Kopfgeld berechtigt sind."
 
 #. lotatc_schema:schema;element_schema.exemptions.discord
-#: plugins/lotatc/schemas/lotatc_schema.yaml:42
+#: plugins/lotatc/schemas/lotatc_schema.yaml:44
 msgid "Discord roles exempt from the GCI kick."
 msgstr "Discord-Rollen, die vom GCI-Kick ausgenommen sind."
 
@@ -1890,7 +1985,7 @@ msgid "Discord roles granted automatically on certain events."
 msgstr "Discord-Rollen, die bei bestimmten Ereignissen automatisch vergeben werden."
 
 #. creditsystem_schema:schema;element_schema.achievements
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:178
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:180
 msgid "Discord roles granted once credit or playtime goals are met."
 msgstr "Discord-Rollen, die vergeben werden, sobald Guthaben- oder Spielzeitziele erreicht sind."
 
@@ -1925,17 +2020,17 @@ msgid "Discord roles required to see and use this menu entry."
 msgstr "Discord-Rollen, die nötig sind, um diesen Menüeintrag zu sehen und zu nutzen."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].discord
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:97
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:99
 msgid "Discord roles that are allowed to use this slot."
 msgstr "Discord-Rollen, die diesen Slot verwenden dürfen."
 
 #. slotblocking_schema:schema;element_schema.VIP.discord
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:37
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:39
 msgid "Discord roles that grant VIP status."
 msgstr "Discord-Rollen, die den VIP-Status verleihen."
 
 #. punishment_schema:schema;element_schema.exemptions.discord
-#: plugins/punishment/schemas/punishment_schema.yaml:222
+#: plugins/punishment/schemas/punishment_schema.yaml:224
 msgid "Discord roles whose members are exempt from punishments."
 msgstr "Discord-Rollen, deren Mitglieder von Bestrafungen ausgenommen sind."
 
@@ -1960,24 +2055,24 @@ msgid "Discord webhook token for those alerts."
 msgstr "Discord-Webhook-Token für diese Alarme."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].badge.name
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:221
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:223
 msgid "Display name of the badge."
 msgstr "Anzeigename des Abzeichens."
 
 #. slotblocking_schema:schema;element_schema.balancing.activation_threshold
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:188
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:190
 msgid "Do not balance while fewer than this many players are online."
 msgstr "Nicht ausgleichen, solange weniger als diese Anzahl Spieler online ist."
 
 #. logistics_schema:schema;element_schema.markers.enabled
-#: plugins/logistics/schemas/logistics_schema.yaml:86
+#: plugins/logistics/schemas/logistics_schema.yaml:87
 msgid "Draw F10 map markers for logistics tasks."
 msgstr "F10-Kartenmarkierungen für Logistikaufgaben zeichnen."
 
 #. greenieboard_schema:schema;default_schema.landings_rtl
 #. greenieboard_schema:schema;element_schema.landings_rtl
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:26
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:193
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:195
 msgid "Draw landings right to left instead of left to right."
 msgstr "Landungen von rechts nach links statt von links nach rechts zeichnen."
 
@@ -2042,12 +2137,12 @@ msgid "Emit takeoff events to the bot."
 msgstr "Start-Ereignisse an den Bot senden."
 
 #. discord_schema:schema;element_schema.reaction.roles
-#: plugins/discord/schemas/discord_schema.yaml:126
+#: plugins/discord/schemas/discord_schema.yaml:127
 msgid "Emoji-to-role mappings for the reaction message."
 msgstr "Zuordnungen von Emoji zu Rolle für die Reaktionsnachricht."
 
 #. firewall_schema:schema;element_schema.ddos_detection.enabled
-#: services/firewall/schemas/firewall_schema.yaml:31
+#: services/firewall/schemas/firewall_schema.yaml:33
 msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "DDoS-Erkennung aktivieren (erfordert NPCAP unter Windows)."
 
@@ -2090,12 +2185,12 @@ msgid "Enable fog in the mission."
 msgstr "Nebel in der Mission aktivieren."
 
 #. missionstats_schema:schema;element_schema.enabled
-#: plugins/missionstats/schemas/missionstats_schema.yaml:17
+#: plugins/missionstats/schemas/missionstats_schema.yaml:19
 msgid "Enable mission statistics gathering for this server."
 msgstr "Das Sammeln von Missionsstatistiken für diesen Server aktivieren."
 
 #. punishment_schema:schema;element_schema.enabled
-#: plugins/punishment/schemas/punishment_schema.yaml:17
+#: plugins/punishment/schemas/punishment_schema.yaml:19
 msgid "Enable or disable the punishment system on this server."
 msgstr "Das Bestrafungssystem auf diesem Server aktivieren oder deaktivieren."
 
@@ -2120,7 +2215,7 @@ msgid "Enable random accidental failures in the mission."
 msgstr "Zufällige versehentliche Ausfälle in der Mission aktivieren."
 
 #. userstats_schema:schema;element_schema.enabled
-#: plugins/userstats/schemas/userstats_schema.yaml:64
+#: plugins/userstats/schemas/userstats_schema.yaml:66
 msgid "Enable statistics gathering on this server instance."
 msgstr "Das Sammeln von Statistiken auf dieser Serverinstanz aktivieren."
 
@@ -2130,7 +2225,7 @@ msgid "Enable the DCS gRPC link (deprecated)."
 msgstr "Die DCS-gRPC-Verbindung aktivieren (veraltet)."
 
 #. greenieboard_schema:schema;element_schema.FunkMan.enabled
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:264
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:266
 msgid "Enable the FunkMan integration for this server."
 msgstr "Die FunkMan-Integration für diesen Server aktivieren."
 
@@ -2187,7 +2282,7 @@ msgid "Enable the built-in DCS voice chat server."
 msgstr "Den integrierten DCS-Sprachchat-Server aktivieren."
 
 #. competitive_schema:schema;element_schema.enabled
-#: plugins/competitive/schemas/competitive_schema.yaml:17
+#: plugins/competitive/schemas/competitive_schema.yaml:19
 msgid "Enable the competitive plugin for this server."
 msgstr "Das Competitive-Plugin für diesen Server aktivieren."
 
@@ -2197,17 +2292,17 @@ msgid "Enable the emergency Admin credential."
 msgstr "Notfall-Admin-Zugangsdaten aktivieren."
 
 #. flightplan_schema:schema;element_schema.enabled
-#: plugins/flightplan/schemas/flightplan_schema.yaml:49
+#: plugins/flightplan/schemas/flightplan_schema.yaml:50
 msgid "Enable the flight plan plugin for this server."
 msgstr "Das Flugplan-Plugin für diesen Server aktivieren."
 
 #. logbook_schema:schema;element_schema.enabled
-#: plugins/logbook/schemas/logbook_schema.yaml:9
+#: plugins/logbook/schemas/logbook_schema.yaml:10
 msgid "Enable the logbook plugin for this server."
 msgstr "Das Logbuch-Plugin für diesen Server aktivieren."
 
 #. logistics_schema:schema;element_schema.enabled
-#: plugins/logistics/schemas/logistics_schema.yaml:9
+#: plugins/logistics/schemas/logistics_schema.yaml:10
 msgid "Enable the logistics plugin for this server."
 msgstr "Das Logistik-Plugin für diesen Server aktivieren."
 
@@ -2217,7 +2312,7 @@ msgid "Enable the smart ban system (IPv4 reuse detection)."
 msgstr "Das intelligente Bannsystem aktivieren (IPv4-Wiederverwendungserkennung)."
 
 #. tournament_schema:schema;element_schema.enabled
-#: plugins/tournament/schemas/tournament_schema.yaml:17
+#: plugins/tournament/schemas/tournament_schema.yaml:19
 msgid "Enable the tournament features on this server instance."
 msgstr "Die Turnierfunktionen auf dieser Serverinstanz aktivieren."
 
@@ -2242,12 +2337,12 @@ msgid "Enables or disables dashboard support."
 msgstr "Aktiviert oder deaktiviert die Dashboard-Unterstützung."
 
 #. competitive_schema:schema;element_schema.end_mission
-#: plugins/competitive/schemas/competitive_schema.yaml:50
+#: plugins/competitive/schemas/competitive_schema.yaml:52
 msgid "End the mission when a match is over."
 msgstr "Die Mission beenden, wenn ein Match vorbei ist."
 
 #. srs_schema:schema;element_schema.enforce_atc
-#: plugins/srs/schemas/srs_schema.yaml:33
+#: plugins/srs/schemas/srs_schema.yaml:35
 msgid "Enforce ATC frequencies and raise no_atc_usage events."
 msgstr "ATC-Frequenzen erzwingen und no_atc_usage-Ereignisse auslösen."
 
@@ -2262,12 +2357,12 @@ msgid "Error detections that should be disabled."
 msgstr "Fehlererkennungen, die deaktiviert werden sollen."
 
 #. punishment_schema:schema;element_schema.penalties.[0].event
-#: plugins/punishment/schemas/punishment_schema.yaml:66
+#: plugins/punishment/schemas/punishment_schema.yaml:68
 msgid "Event that assigns these penalty points."
 msgstr "Ereignis, das diese Strafpunkte vergibt."
 
 #. mission_schema:schema;element_schema.event_filter
-#: plugins/mission/schemas/mission_schema.yaml:36
+#: plugins/mission/schemas/mission_schema.yaml:38
 msgid "Events not reported to the Discord event feed."
 msgstr "Ereignisse, die nicht an den Discord-Ereignis-Feed gemeldet werden."
 
@@ -2312,12 +2407,12 @@ msgid "External AWACS password for the red coalition."
 msgstr "Externes AWACS-Passwort für die rote Koalition."
 
 #. logistics_schema:schema;element_schema.markers
-#: plugins/logistics/schemas/logistics_schema.yaml:78
+#: plugins/logistics/schemas/logistics_schema.yaml:79
 msgid "F10 map marker display options."
 msgstr "Anzeigeoptionen für F10-Kartenmarkierungen."
 
 #. monitoring_schema:schema;element_schema.thresholds.FPS.min
-#: services/monitoring/schemas/monitoring_schema.yaml:77
+#: services/monitoring/schemas/monitoring_schema.yaml:79
 msgid "FPS floor that triggers the warning."
 msgstr "FPS-Untergrenze, die die Warnung auslöst."
 
@@ -2342,7 +2437,7 @@ msgid "Fallback destination match distance in meters."
 msgstr "Fallback-Übereinstimmungsdistanz für das Ziel in Metern."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0]
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:115
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:117
 msgid "Fallback points for kills matching no other rule."
 msgstr "Fallback-Punkte für Abschüsse, die zu keiner anderen Regel passen."
 
@@ -2357,7 +2452,7 @@ msgid "File path or a source/target mapping to copy."
 msgstr "Dateipfad oder eine Quelle/Ziel-Zuordnung zum Kopieren."
 
 #. cleanup_schema:schema;element_schema.regex;(.+).pattern
-#: services/cleanup/schemas/cleanup_schema.yaml:28
+#: services/cleanup/schemas/cleanup_schema.yaml:30
 msgid "File pattern (or list) to match, like *.* or *.trk."
 msgstr "Dateimuster (oder Liste) zum Abgleichen, z. B. *.* oder *.trk."
 
@@ -2376,14 +2471,14 @@ msgstr "Datei, aus der die benutzerdefinierten Wetterdaten gelesen werden."
 #. greenieboard_schema:schema;default_schema.Moose.AIRBOSS.grades
 #. greenieboard_schema:schema;element_schema.Moose.AIRBOSS.grades
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:128
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:246
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:248
 msgid "Filename pattern for the LSO grade CSV files."
 msgstr "Dateinamensmuster für die LSO-Bewertungs-CSV-Dateien."
 
 #. greenieboard_schema:schema;default_schema.Moose.AIRBOSS.trapsheets
 #. greenieboard_schema:schema;element_schema.Moose.AIRBOSS.trapsheets
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:134
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:252
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:254
 msgid "Filename pattern for the trapsheet CSV files."
 msgstr "Dateinamensmuster für die Trapsheet-CSV-Dateien."
 
@@ -2418,12 +2513,12 @@ msgid "Fixed set of values the user can pick from."
 msgstr "Feste Werteliste, aus der der Benutzer wählen kann."
 
 #. punishment_schema:schema;element_schema.flightHoursWeight.[0].time
-#: plugins/punishment/schemas/punishment_schema.yaml:166
+#: plugins/punishment/schemas/punishment_schema.yaml:168
 msgid "Flight hours from which this weight applies."
 msgstr "Flugstunden, ab denen diese Gewichtung gilt."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].playtime
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:197
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:199
 msgid "Flight time in hours required for this achievement."
 msgstr "Für diese Auszeichnung erforderliche Flugzeit in Stunden."
 
@@ -2485,7 +2580,7 @@ msgstr "Ordner unter Missions, in dem die Persistenzdaten gespeichert werden."
 #. greenieboard_schema:schema;default_schema.Moose.AIRBOSS.basedir
 #. greenieboard_schema:schema;element_schema.Moose.AIRBOSS.basedir
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:122
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:240
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:242
 msgid "Folder where Moose AIRBOSS writes its trapsheets."
 msgstr "Ordner, in den Moose AIRBOSS seine Trapsheets schreibt."
 
@@ -2500,7 +2595,7 @@ msgid "For load, do not reload an already running mission."
 msgstr "Bei load eine bereits laufende Mission nicht erneut laden."
 
 #. punishment_schema:schema;element_schema.decay.[0].weight
-#: plugins/punishment/schemas/punishment_schema.yaml:195
+#: plugins/punishment/schemas/punishment_schema.yaml:197
 msgid "Fraction of the points kept after those days."
 msgstr "Anteil der Punkte, der nach diesen Tagen erhalten bleibt."
 
@@ -2512,17 +2607,17 @@ msgid "Frame interval Tacview records at (1 = every frame)."
 msgstr "Frame-Intervall, in dem Tacview aufzeichnet (1 = jeder Frame)."
 
 #. monitoring_schema:schema;element_schema.thresholds.Drive.alert
-#: services/monitoring/schemas/monitoring_schema.yaml:52
+#: services/monitoring/schemas/monitoring_schema.yaml:54
 msgid "Free-space percentage that raises a full alert."
 msgstr "Prozentsatz freien Speicherplatzes, der einen Vollalarm auslöst."
 
 #. monitoring_schema:schema;element_schema.thresholds.Drive.warn
-#: services/monitoring/schemas/monitoring_schema.yaml:46
+#: services/monitoring/schemas/monitoring_schema.yaml:48
 msgid "Free-space percentage that raises a warning."
 msgstr "Prozentsatz freien Speicherplatzes, der einen Warnhinweis auslöst."
 
 #. monitoring_schema:schema;element_schema.thresholds.Drive
-#: services/monitoring/schemas/monitoring_schema.yaml:37
+#: services/monitoring/schemas/monitoring_schema.yaml:39
 msgid "Free-space warnings for the DCS and system drives."
 msgstr "Warnungen zum freien Speicherplatz für die DCS- und Systemlaufwerke."
 
@@ -2537,12 +2632,12 @@ msgid "FunkMan integration for rendering grade graphics."
 msgstr "FunkMan-Integration zum Rendern von Bewertungsgrafiken."
 
 #. greenieboard_schema:schema;element_schema.FunkMan
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:257
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:259
 msgid "FunkMan integration toggle for this server."
 msgstr "FunkMan-Integrationsschalter für diesen Server."
 
 #. tournament_schema:schema;element_schema.channels.admin
-#: plugins/tournament/schemas/tournament_schema.yaml:240
+#: plugins/tournament/schemas/tournament_schema.yaml:242
 msgid "GameMaster admin channel; falls back to the central one."
 msgstr "GameMaster-Admin-Kanal; fällt auf den zentralen zurück."
 
@@ -2612,7 +2707,7 @@ msgid "Google Cloud text-to-speech provider settings."
 msgstr "Einstellungen für den Google-Cloud-Text-to-Speech-Anbieter."
 
 #. competitive_schema:schema;element_schema.credit_on_leave
-#: plugins/competitive/schemas/competitive_schema.yaml:67
+#: plugins/competitive/schemas/competitive_schema.yaml:69
 msgid "Grant squadron credits when a player leaves a match."
 msgstr "Staffelpunkte vergeben, wenn ein Spieler ein Match verlässt."
 
@@ -2632,7 +2727,7 @@ msgid "Ground turbulence intensity."
 msgstr "Intensität der Bodenturbulenz."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].group_name
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:91
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:93
 msgid "Group name or Lua pattern that this restriction matches."
 msgstr "Gruppenname oder Lua-Muster, auf das diese Einschränkung zutrifft."
 
@@ -2662,7 +2757,7 @@ msgid "Handling of players known from other servers."
 msgstr "Umgang mit Spielern, die von anderen Servern bekannt sind."
 
 #. discord_schema:schema;element_schema.ping_everyone
-#: plugins/discord/schemas/discord_schema.yaml:8
+#: plugins/discord/schemas/discord_schema.yaml:9
 msgid "Handling of unauthorized @everyone or @here pings."
 msgstr "Umgang mit unerlaubten @everyone- oder @here-Pings."
 
@@ -2734,7 +2829,7 @@ msgid "Hostname shown in the status embed instead of the public IP."
 msgstr "Hostname, der im Status-Embed statt der öffentlichen IP angezeigt wird."
 
 #. logistics_schema:schema;element_schema.tasks.timeout_hours
-#: plugins/logistics/schemas/logistics_schema.yaml:111
+#: plugins/logistics/schemas/logistics_schema.yaml:112
 msgid "Hours before an unclaimed task expires."
 msgstr "Stunden, bevor eine nicht übernommene Aufgabe abläuft."
 
@@ -2744,7 +2839,7 @@ msgid "Hours to cache downloaded OpenAIP navigation data."
 msgstr "Stunden, für die heruntergeladene OpenAIP-Navigationsdaten zwischengespeichert werden."
 
 #. punishment_schema:schema;element_schema.decay
-#: plugins/punishment/schemas/punishment_schema.yaml:176
+#: plugins/punishment/schemas/punishment_schema.yaml:178
 msgid "How penalty points fade away over time."
 msgstr "Wie Strafpunkte mit der Zeit verfallen."
 
@@ -2789,7 +2884,7 @@ msgid "ICAO stations to pick weather from; exclusive with icao."
 msgstr "ICAO-Stationen, aus denen Wetter gewählt wird; alternativ zu icao."
 
 #. ups_schema:schema;element_schema.host
-#: services/ups/schemas/ups_schema.yaml:24
+#: services/ups/schemas/ups_schema.yaml:26
 msgid "IP address of the host that runs the NUT server."
 msgstr "IP-Adresse des Hosts, der den NUT-Server ausführt."
 
@@ -2809,7 +2904,7 @@ msgid "IP and port this instance listens to; needed if not single process."
 msgstr "IP und Port, auf denen diese Instanz lauscht; nötig, wenn nicht Single Process."
 
 #. firewall_schema:schema;element_schema.ddos_detection.whitelist
-#: services/firewall/schemas/firewall_schema.yaml:95
+#: services/firewall/schemas/firewall_schema.yaml:97
 msgid "IPs always allowed through during firewall blocks."
 msgstr "IPs, die bei Firewall-Blockierungen immer durchgelassen werden."
 
@@ -2824,7 +2919,7 @@ msgid "In-game chat log written to disk for abuse checks."
 msgstr "In-Game-Chatprotokoll, das für Missbrauchsprüfungen auf die Festplatte geschrieben wird."
 
 #. missionstats_schema:schema;element_schema.event_filter
-#: plugins/missionstats/schemas/missionstats_schema.yaml:42
+#: plugins/missionstats/schemas/missionstats_schema.yaml:44
 msgid "In-game events excluded from statistics gathering."
 msgstr "In-Game-Ereignisse, die vom Sammeln der Statistiken ausgeschlossen sind."
 
@@ -2855,7 +2950,7 @@ msgid "Install the admin web console; false serves the API only."
 msgstr "Admin-Web-Konsole installieren; false liefert nur die API."
 
 #. firewall_schema:schema;element_schema.ddos_detection.udp_sniff_iface
-#: services/firewall/schemas/firewall_schema.yaml:90
+#: services/firewall/schemas/firewall_schema.yaml:92
 msgid "Interface for UDP sniffing; null auto-detects one."
 msgstr "Schnittstelle für UDP-Sniffing; null erkennt automatisch eine."
 
@@ -2891,24 +2986,24 @@ msgid "Keep SRS running when the DCS server shuts down."
 msgstr "SRS weiterlaufen lassen, wenn der DCS-Server heruntergefahren wird."
 
 #. userstats_schema:schema;element_schema.squadrons.persist_list
-#: plugins/userstats/schemas/userstats_schema.yaml:90
+#: plugins/userstats/schemas/userstats_schema.yaml:92
 msgid "Keep a live member list in the squadron channel."
 msgstr "Eine Live-Mitgliederliste im Staffelkanal führen."
 
 #. greenieboard_schema:schema;default_schema.persistent_board
 #. greenieboard_schema:schema;element_schema.persistent_board
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:31
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:198
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:200
 msgid "Keep a persistent board posted in the channel."
 msgstr "Ein dauerhaftes Board im Kanal gepostet lassen."
 
 #. missionstats_schema:schema;element_schema.mission_end.persistent
-#: plugins/missionstats/schemas/missionstats_schema.yaml:60
+#: plugins/missionstats/schemas/missionstats_schema.yaml:62
 msgid "Keep the mission end embed permanently posted."
 msgstr "Das Embed zum Missionsende dauerhaft gepostet lassen."
 
 #. slotblocking_schema:schema;element_schema.balancing
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:166
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:168
 msgid "Keeps the number of blue and red players balanced."
 msgstr "Hält die Anzahl blauer und roter Spieler im Gleichgewicht."
 
@@ -2918,7 +3013,7 @@ msgid "Key that signs the session cookie; unset picks a random one."
 msgstr "Schlüssel, der das Session-Cookie signiert; wenn nicht gesetzt, wird ein zufälliger gewählt."
 
 #. discord_schema:schema;element_schema.ping_everyone.kick
-#: plugins/discord/schemas/discord_schema.yaml:29
+#: plugins/discord/schemas/discord_schema.yaml:30
 msgid "Kick members that mention everyone in a message."
 msgstr "Mitglieder kicken, die in einer Nachricht alle erwähnen."
 
@@ -2928,17 +3023,17 @@ msgid "Kick players banned on too many other servers."
 msgstr "Spieler kicken, die auf zu vielen anderen Servern gebannt sind."
 
 #. competitive_schema:schema;element_schema.kick_on_death
-#: plugins/competitive/schemas/competitive_schema.yaml:39
+#: plugins/competitive/schemas/competitive_schema.yaml:41
 msgid "Kick players from the server once they die in a match."
 msgstr "Spieler vom Server kicken, sobald sie in einem Match sterben."
 
 #. lotatc_schema:schema;element_schema.kick_gci
-#: plugins/lotatc/schemas/lotatc_schema.yaml:17
+#: plugins/lotatc/schemas/lotatc_schema.yaml:19
 msgid "Kick players from their slot while they are on GCI duty."
 msgstr "Spieler aus ihrem Slot kicken, während sie GCI-Dienst haben."
 
 #. creditsystem_schema:schema;element_schema.messages.message_kill
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:96
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:98
 #, python-brace-format
 msgid "Kill message; may hold {points} and {victim}."
 msgstr "Abschussmeldung; kann {points} und {victim} enthalten."
@@ -2969,12 +3064,12 @@ msgid "Let players switch between unlocked coalitions."
 msgstr "Spielern erlauben, zwischen freigeschalteten Koalitionen zu wechseln."
 
 #. tournament_schema:schema;element_schema.use_signup_form
-#: plugins/tournament/schemas/tournament_schema.yaml:22
+#: plugins/tournament/schemas/tournament_schema.yaml:24
 msgid "Let squadrons write an application form during signup."
 msgstr "Staffeln erlauben, bei der Anmeldung ein Bewerbungsformular auszufüllen."
 
 #. firewall_schema:schema;element_schema.manage_rules
-#: services/firewall/schemas/firewall_schema.yaml:17
+#: services/firewall/schemas/firewall_schema.yaml:19
 msgid "Let the bot create and manage your Windows firewall rules."
 msgstr "Den Bot Windows-Firewall-Regeln erstellen und verwalten lassen."
 
@@ -3070,7 +3165,7 @@ msgid "Lua file inside the .miz that this modification targets."
 msgstr "Lua-Datei in der .miz, die diese Modifikation anspricht."
 
 #. slotblocking_schema:schema;element_schema.names.pattern
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:207
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:209
 msgid "Lua patterns that a player name must match to join."
 msgstr "Lua-Muster, die ein Spielername erfüllen muss, um beizutreten."
 
@@ -3099,7 +3194,7 @@ msgid "Maps the bot's internal roles to Discord roles."
 msgstr "Ordnet die internen Rollen des Bots Discord-Rollen zu."
 
 #. scheduler_schema:schema;element_schema.schedule
-#: plugins/scheduler/schemas/scheduler_schema.yaml:253
+#: plugins/scheduler/schemas/scheduler_schema.yaml:255
 msgid "Maps time ranges to 7-character day patterns."
 msgstr "Ordnet Zeitbereichen 7-stellige Tagesmuster zu."
 
@@ -3141,7 +3236,7 @@ msgid "Maximum cloud density (0-10)."
 msgstr "Maximale Wolkendichte (0-10)."
 
 #. logistics_schema:schema;element_schema.tasks.max_per_player
-#: plugins/logistics/schemas/logistics_schema.yaml:121
+#: plugins/logistics/schemas/logistics_schema.yaml:122
 msgid "Maximum concurrent tasks a single player may hold."
 msgstr "Maximale Anzahl gleichzeitiger Aufgaben, die ein einzelner Spieler halten darf."
 
@@ -3156,12 +3251,12 @@ msgid "Maximum cores reserved for the bot itself."
 msgstr "Maximale Kerne, die für den Bot selbst reserviert sind."
 
 #. creditsystem_schema:schema;element_schema.max_points
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:48
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:50
 msgid "Maximum credit points a player can accumulate."
 msgstr "Maximales Guthaben, das ein Spieler ansammeln kann."
 
 #. creditsystem_schema:schema;element_schema.squadron.max_points
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:83
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:85
 msgid "Maximum credit points a squadron can hold."
 msgstr "Maximales Guthaben, das ein Geschwader halten kann."
 
@@ -3231,7 +3326,7 @@ msgid "Maximum number of Supertonic synthesizers run in parallel."
 msgstr "Maximale Anzahl parallel laufender Supertonic-Synthesizer."
 
 #. slotblocking_schema:schema;element_schema.maximum.blue
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:149
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:151
 msgid "Maximum number of blue players, derived from red if unset."
 msgstr "Maximale Anzahl blauer Spieler, bei Nichtsetzung von Rot abgeleitet."
 
@@ -3252,17 +3347,17 @@ msgid "Maximum number of players allowed on the server."
 msgstr "Maximale Anzahl an Spielern auf dem Server."
 
 #. slotblocking_schema:schema;element_schema.maximum
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:139
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:141
 msgid "Maximum number of players allowed per coalition side."
 msgstr "Maximale Anzahl Spieler, die pro Koalitionsseite erlaubt sind."
 
 #. creditsystem_schema:schema;element_schema.leaderboard.limit
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:245
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:247
 msgid "Maximum number of players shown on the leaderboard."
 msgstr "Maximale Anzahl Spieler, die in der Rangliste angezeigt werden."
 
 #. slotblocking_schema:schema;element_schema.maximum.red
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:155
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:157
 msgid "Maximum number of red players, derived from blue if unset."
 msgstr "Maximale Anzahl roter Spieler, bei Nichtsetzung von Blau abgeleitet."
 
@@ -3272,7 +3367,7 @@ msgid "Maximum number of retry attempts for database operations."
 msgstr "Maximale Anzahl an Wiederholungsversuchen für Datenbankoperationen."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).max
-#: plugins/tournament/schemas/tournament_schema.yaml:190
+#: plugins/tournament/schemas/tournament_schema.yaml:192
 msgid "Maximum number of times this choice can be picked."
 msgstr "Maximale Anzahl, wie oft diese Auswahl getroffen werden kann."
 
@@ -3297,37 +3392,37 @@ msgid "Maximum wind speed in meters per second."
 msgstr "Maximale Windgeschwindigkeit in Metern pro Sekunde."
 
 #. monitoring_schema:schema;element_schema.thresholds.FPS.mentioning
-#: services/monitoring/schemas/monitoring_schema.yaml:94
+#: services/monitoring/schemas/monitoring_schema.yaml:96
 msgid "Mention the admin role in the FPS warning."
 msgstr "Die Admin-Rolle in der FPS-Warnung erwähnen."
 
 #. monitoring_schema:schema;element_schema.thresholds.RAM.mentioning
-#: services/monitoring/schemas/monitoring_schema.yaml:125
+#: services/monitoring/schemas/monitoring_schema.yaml:127
 msgid "Mention the admin role in the RAM warning."
 msgstr "Die Admin-Rolle in der RAM-Warnung erwähnen."
 
 #. monitoring_schema:schema;element_schema.thresholds.Drive.mentioning
-#: services/monitoring/schemas/monitoring_schema.yaml:63
+#: services/monitoring/schemas/monitoring_schema.yaml:65
 msgid "Mention the admin role in the drive warning."
 msgstr "Die Admin-Rolle in der Laufwerkswarnung erwähnen."
 
 #. monitoring_schema:schema;element_schema.thresholds.Drive.message
-#: services/monitoring/schemas/monitoring_schema.yaml:58
+#: services/monitoring/schemas/monitoring_schema.yaml:60
 msgid "Message sent when a drive drops below a threshold."
 msgstr "Nachricht, die gesendet wird, wenn ein Laufwerk einen Schwellenwert unterschreitet."
 
 #. monitoring_schema:schema;element_schema.thresholds.FPS.message
-#: services/monitoring/schemas/monitoring_schema.yaml:89
+#: services/monitoring/schemas/monitoring_schema.yaml:91
 msgid "Message sent when server FPS stays too low."
 msgstr "Nachricht, die gesendet wird, wenn die Server-FPS zu niedrig bleiben."
 
 #. monitoring_schema:schema;element_schema.thresholds.RAM.message
-#: services/monitoring/schemas/monitoring_schema.yaml:120
+#: services/monitoring/schemas/monitoring_schema.yaml:122
 msgid "Message sent when server RAM usage stays too high."
 msgstr "Nachricht, die gesendet wird, wenn die Server-RAM-Nutzung zu hoch bleibt."
 
 #. discord_schema:schema;element_schema.roles.regex;(.+).regex;(on_add|on_remove|on_leave).message
-#: plugins/discord/schemas/discord_schema.yaml:77
+#: plugins/discord/schemas/discord_schema.yaml:78
 msgid "Message sent when the role change happens."
 msgstr "Nachricht, die beim Rollenwechsel gesendet wird."
 
@@ -3353,17 +3448,17 @@ msgid "Message shown to players kicked for slot spamming."
 msgstr "Nachricht für Spieler, die wegen Slot-Spammings gekickt wurden."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].message
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:103
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:105
 msgid "Message shown to players that cannot use this slot."
 msgstr "Nachricht, die Spielern angezeigt wird, die diesen Slot nicht nutzen können."
 
 #. srs_schema:schema;element_schema.message_no_srs
-#: plugins/srs/schemas/srs_schema.yaml:18
+#: plugins/srs/schemas/srs_schema.yaml:20
 msgid "Message shown to players that do not use SRS."
 msgstr "Nachricht, die Spielern angezeigt wird, die SRS nicht nutzen."
 
 #. slotblocking_schema:schema;element_schema.maximum.message
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:161
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:163
 msgid "Message shown when a coalition has reached its maximum."
 msgstr "Nachricht, die angezeigt wird, wenn eine Koalition ihr Maximum erreicht hat."
 
@@ -3373,12 +3468,12 @@ msgid "Message shown when a player enters a plane or helicopter."
 msgstr "Nachricht, die angezeigt wird, wenn ein Spieler in ein Flugzeug oder einen Hubschrauber einsteigt."
 
 #. slotblocking_schema:schema;element_schema.balancing.message
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:194
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:196
 msgid "Message shown when a player must switch sides to balance."
 msgstr "Nachricht, die angezeigt wird, wenn ein Spieler zum Ausgleich die Seite wechseln muss."
 
 #. slotblocking_schema:schema;element_schema.names.message
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:213
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:215
 msgid "Message shown when a player name does not match."
 msgstr "Nachricht, die angezeigt wird, wenn ein Spielername nicht übereinstimmt."
 
@@ -3393,7 +3488,7 @@ msgid "Message shown when a server is locked to specific users."
 msgstr "Nachricht, die angezeigt wird, wenn ein Server für bestimmte Benutzer gesperrt ist."
 
 #. slotblocking_schema:schema;element_schema.VIP.message_server_full
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:55
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:57
 msgid "Message shown when the server is considered full."
 msgstr "Nachricht, die angezeigt wird, wenn der Server als voll gilt."
 
@@ -3409,24 +3504,24 @@ msgid "Message text; supports {server} and {player} placeholders."
 msgstr "Nachrichtentext; unterstützt {server}- und {player}-Platzhalter."
 
 #. slotblocking_schema:schema;element_schema.messages.credits_taken
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:227
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:229
 #, python-brace-format
 msgid "Message when credits are charged; holds {deposit}, {old_points}, {new_points}."
 msgstr "Nachricht, wenn Credits abgebucht werden; enthält {deposit}, {old_points}, {new_points}."
 
 #. slotblocking_schema:schema;element_schema.messages.payback
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:233
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:235
 #, python-brace-format
 msgid "Message when credits are refunded; holds {deposit}, {old_points}, {new_points}."
 msgstr "Nachricht, wenn Credits erstattet werden; enthält {deposit}, {old_points}, {new_points}."
 
 #. slotblocking_schema:schema;element_schema.messages
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:218
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:220
 msgid "Messages shown for credit-based restrictions."
 msgstr "Nachrichten, die für creditbasierte Einschränkungen angezeigt werden."
 
 #. tournament_schema:schema;element_schema.match_generation
-#: plugins/tournament/schemas/tournament_schema.yaml:33
+#: plugins/tournament/schemas/tournament_schema.yaml:35
 msgid "Method used to pair squadrons when generating matches."
 msgstr "Methode zur Paarung der Staffeln bei der Match-Erstellung."
 
@@ -3436,7 +3531,7 @@ msgid "Microsoft Azure text-to-speech provider settings."
 msgstr "Einstellungen für den Microsoft-Azure-Text-to-Speech-Anbieter."
 
 #. cleanup_schema:schema;element_schema.regex;(.+).delete_after
-#: services/cleanup/schemas/cleanup_schema.yaml:39
+#: services/cleanup/schemas/cleanup_schema.yaml:41
 msgid "Minimum age in days before a file is deleted."
 msgstr "Mindestalter in Tagen, bevor eine Datei gelöscht wird."
 
@@ -3486,7 +3581,7 @@ msgid "Minimum gust speed in meters per second."
 msgstr "Minimale Böengeschwindigkeit in Metern pro Sekunde."
 
 #. firewall_schema:schema;element_schema.ddos_detection.min_abs_recv_mbps
-#: services/firewall/schemas/firewall_schema.yaml:55
+#: services/firewall/schemas/firewall_schema.yaml:57
 msgid "Minimum inbound MB/s before a node attack is considered."
 msgstr "Minimale eingehende MB/s, bevor ein Knotenangriff in Betracht gezogen wird."
 
@@ -3496,12 +3591,12 @@ msgid "Minimum log level written by the bot."
 msgstr "Minimales Log-Level, das der Bot schreibt."
 
 #. firewall_schema:schema;element_schema.ddos_detection.alert_cooldown_minutes
-#: services/firewall/schemas/firewall_schema.yaml:73
+#: services/firewall/schemas/firewall_schema.yaml:75
 msgid "Minimum minutes between repeated attack alerts."
 msgstr "Minimale Minuten zwischen wiederholten Angriffswarnungen."
 
 #. voting_schema:schema;element_schema.mission_time
-#: plugins/voting/schemas/voting_schema.yaml:62
+#: plugins/voting/schemas/voting_schema.yaml:64
 msgid "Minimum mission runtime in minutes before a voting."
 msgstr "Minimale Missionslaufzeit in Minuten vor einer Abstimmung."
 
@@ -3549,12 +3644,12 @@ msgid "Minimum wind speed in meters per second."
 msgstr "Minimale Windgeschwindigkeit in Metern pro Sekunde."
 
 #. monitoring_schema:schema;element_schema.thresholds.FPS.period
-#: services/monitoring/schemas/monitoring_schema.yaml:83
+#: services/monitoring/schemas/monitoring_schema.yaml:85
 msgid "Minutes FPS must stay low before warning."
 msgstr "Minuten, die die FPS niedrig bleiben müssen, bevor gewarnt wird."
 
 #. monitoring_schema:schema;element_schema.thresholds.RAM.period
-#: services/monitoring/schemas/monitoring_schema.yaml:114
+#: services/monitoring/schemas/monitoring_schema.yaml:116
 msgid "Minutes RAM must stay high before warning."
 msgstr "Minuten, die der RAM hoch bleiben muss, bevor gewarnt wird."
 
@@ -3579,7 +3674,7 @@ msgid "Minutes between updates; only used if use_single_process is false."
 msgstr "Minuten zwischen Aktualisierungen; nur verwendet, wenn use_single_process false ist."
 
 #. firewall_schema:schema;element_schema.ddos_detection.baseline_lookback_minutes
-#: services/firewall/schemas/firewall_schema.yaml:79
+#: services/firewall/schemas/firewall_schema.yaml:81
 msgid "Minutes of history used to seed baselines on startup."
 msgstr "Minuten an Verlauf, die beim Start zum Initialisieren der Baselines verwendet werden."
 
@@ -3589,7 +3684,7 @@ msgid "Minutes of real server runtime before a restart."
 msgstr "Minuten realer Serverlaufzeit vor einem Neustart."
 
 #. discord_schema:schema;element_schema.ping_everyone.timeout
-#: plugins/discord/schemas/discord_schema.yaml:24
+#: plugins/discord/schemas/discord_schema.yaml:25
 msgid "Minutes the member is timed out for mentioning everyone."
 msgstr "Minuten, für die das Mitglied wegen Erwähnung aller stummgeschaltet wird."
 
@@ -3629,7 +3724,7 @@ msgid "Mission file name, must be in serverSettings.lua."
 msgstr "Name der Missionsdatei, muss in serverSettings.lua stehen."
 
 #. mission_schema:schema;element_schema.uploads
-#: plugins/mission/schemas/mission_schema.yaml:46
+#: plugins/mission/schemas/mission_schema.yaml:48
 msgid "Mission file upload handling."
 msgstr "Handhabung des Hochladens von Missionsdateien."
 
@@ -3669,7 +3764,7 @@ msgid "Mission start time settings."
 msgstr "Einstellungen für die Missionsstartzeit."
 
 #. tournament_schema:schema;element_schema.mission
-#: plugins/tournament/schemas/tournament_schema.yaml:82
+#: plugins/tournament/schemas/tournament_schema.yaml:84
 msgid "Mission(s) to load; a random one is picked from a list."
 msgstr "Zu ladende Mission(en); eine wird zufällig aus einer Liste gewählt."
 
@@ -3701,7 +3796,7 @@ msgstr "Module, die zum Spielen der Mission erforderlich sind ([] löscht sie)."
 #. greenieboard_schema:schema;default_schema.Moose.AIRBOSS
 #. greenieboard_schema:schema;element_schema.Moose.AIRBOSS
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:112
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:230
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:232
 msgid "Moose AIRBOSS integration for trapsheets and grades."
 msgstr "Moose-AIRBOSS-Integration für Trapsheets und Bewertungen."
 
@@ -3711,12 +3806,12 @@ msgid "Most concurrent live streams the console serves."
 msgstr "Maximale Anzahl gleichzeitiger Live-Streams, die die Konsole bedient."
 
 #. srs_schema:schema;element_schema.move_to_spec
-#: plugins/srs/schemas/srs_schema.yaml:28
+#: plugins/srs/schemas/srs_schema.yaml:30
 msgid "Move players back to spectators when they leave SRS."
 msgstr "Spieler zurück zu Zuschauern verschieben, wenn sie SRS verlassen."
 
 #. creditsystem_schema:schema;element_schema.multiplier
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:53
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:55
 msgid "Multiplier applied to credits earned on proper landings."
 msgstr "Multiplikator für Guthaben aus korrekten Landungen."
 
@@ -3732,14 +3827,14 @@ msgid "Music frequencies available to all SRS clients."
 msgstr "Musikfrequenzen, die allen SRS-Clients zur Verfügung stehen."
 
 #. monitoring_schema:schema;element_schema.time_server
-#: services/monitoring/schemas/monitoring_schema.yaml:23
+#: services/monitoring/schemas/monitoring_schema.yaml:25
 msgid "NTP server used for the automated time sync."
 msgstr "NTP-Server für die automatische Zeitsynchronisierung."
 
 #. greenieboard_schema:schema;default_schema.squadrons.[0].name
 #. greenieboard_schema:schema;element_schema.squadrons.[0].name
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:63
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:220
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:222
 msgid "Name of a squadron to display a board for."
 msgstr "Name eines Geschwaders, für das ein Board angezeigt werden soll."
 
@@ -3792,7 +3887,7 @@ msgid "Name of the Tacview extension in status embeds."
 msgstr "Name der Tacview-Erweiterung in Status-Embeds."
 
 #. ups_schema:schema;element_schema.device
-#: services/ups/schemas/ups_schema.yaml:18
+#: services/ups/schemas/ups_schema.yaml:20
 msgid "Name of the UPS device on the NUT server."
 msgstr "Name des UPS-Geräts auf dem NUT-Server."
 
@@ -3807,7 +3902,7 @@ msgid "Name of the session cookie."
 msgstr "Name des Session-Cookies."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).display_name
-#: services/music/schemas/music_schema.yaml:104
+#: services/music/schemas/music_schema.yaml:106
 msgid "Name of this radio as displayed in SRS."
 msgstr "Name dieses Funkgeräts, wie in SRS angezeigt."
 
@@ -3838,12 +3933,12 @@ msgid "New mission password to set, usually with cron."
 msgstr "Neues Missionspasswort, das gesetzt wird, meist per Cron."
 
 #. firewall_schema:schema;element_schema.ddos_detection.recovery_ticks
-#: services/firewall/schemas/firewall_schema.yaml:67
+#: services/firewall/schemas/firewall_schema.yaml:69
 msgid "Normal ticks in a row needed to confirm DDoS end."
 msgstr "Aufeinanderfolgende normale Ticks, die ein DDoS-Ende bestätigen."
 
 #. slotblocking_schema:schema;element_schema.VIP.audit
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:31
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:33
 msgid "Notify the VIP group when one of its members joins a server."
 msgstr "Die VIP-Gruppe benachrichtigen, wenn eines ihrer Mitglieder einem Server beitritt."
 
@@ -3875,12 +3970,12 @@ msgid "Number of chat log files kept on disk."
 msgstr "Anzahl der auf der Festplatte behaltenen Chatprotokoll-Dateien."
 
 #. punishment_schema:schema;element_schema.punishments.[0].penalty
-#: plugins/punishment/schemas/punishment_schema.yaml:146
+#: plugins/punishment/schemas/punishment_schema.yaml:148
 msgid "Number of credits to take when the action is credits."
 msgstr "Anzahl der Credits, die abgezogen werden, wenn die Aktion credits ist."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].crew
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:118
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:120
 msgid "Number of crew members required for this slot."
 msgstr "Anzahl der für diesen Slot erforderlichen Besatzungsmitglieder."
 
@@ -3892,14 +3987,14 @@ msgstr "Anzahl der Diffusionsschritte pro Synthese; mehr ist langsamer."
 #. greenieboard_schema:schema;default_schema.num_landings
 #. greenieboard_schema:schema;element_schema.num_landings
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:9
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:176
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:178
 msgid "Number of most recent landings shown per player."
 msgstr "Anzahl der zuletzt angezeigten Landungen pro Spieler."
 
 #. greenieboard_schema:schema;default_schema.num_rows
 #. greenieboard_schema:schema;element_schema.num_rows
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:15
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:182
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:184
 msgid "Number of players shown on the greenieboard."
 msgstr "Anzahl der Spieler, die auf dem Greenieboard angezeigt werden."
 
@@ -3917,12 +4012,12 @@ msgid "Number of rotated log files to keep."
 msgstr "Anzahl der aufzubewahrenden rotierten Protokolldateien."
 
 #. slotblocking_schema:schema;element_schema.VIP.slots
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:49
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:51
 msgid "Number of slots kept free for VIP members only."
 msgstr "Anzahl der Slots, die nur für VIP-Mitglieder freigehalten werden."
 
 #. tournament_schema:schema;element_schema.presets.tickets.regex;(.+).num
-#: plugins/tournament/schemas/tournament_schema.yaml:214
+#: plugins/tournament/schemas/tournament_schema.yaml:216
 msgid "Number of tickets the squadron starts with."
 msgstr "Anzahl der Tickets, mit denen die Staffel startet."
 
@@ -3992,17 +4087,17 @@ msgid "One entry per SkyEye instance, e.g. per coalition."
 msgstr "Ein Eintrag pro SkyEye-Instanz, z. B. pro Koalition."
 
 #. music_schema:schema;element_schema.radios
-#: services/music/schemas/music_schema.yaml:46
+#: services/music/schemas/music_schema.yaml:48
 msgid "One entry per radio, keyed by the radio's name."
 msgstr "Ein Eintrag pro Funkgerät, benannt nach dem Namen des Funkgeräts."
 
 #. motd_schema:schema;element_schema.nudge
-#: plugins/motd/schemas/motd_schema.yaml:217
+#: plugins/motd/schemas/motd_schema.yaml:219
 msgid "One nudge block, or a list of them for different delays."
 msgstr "Ein Hinweisblock oder eine Liste davon für verschiedene Verzögerungen."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0]
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:69
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:71
 msgid "One restriction entry."
 msgstr "Ein Einschränkungseintrag."
 
@@ -4022,17 +4117,17 @@ msgid "Only allow this parameter in NSFW channels."
 msgstr "Diesen Parameter nur in NSFW-Kanälen erlauben."
 
 #. competitive_schema:schema;element_schema.silent
-#: plugins/competitive/schemas/competitive_schema.yaml:22
+#: plugins/competitive/schemas/competitive_schema.yaml:24
 msgid "Only calculate TrueSkill ratings without announcing them."
 msgstr "TrueSkill-Wertungen nur berechnen, ohne sie anzukündigen."
 
 #. cron_schema:schema;element_schema.actions.[0].mission_time
-#: services/cron/schemas/cron_schema.yaml:45
+#: services/cron/schemas/cron_schema.yaml:47
 msgid "Only fire once the mission ran this many minutes."
 msgstr "Erst auslösen, wenn die Mission so viele Minuten lief."
 
 #. creditsystem_schema:schema;element_schema.points_on_rtb
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:58
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:60
 msgid "Only grant credit points once the pilot is back at base."
 msgstr "Guthaben erst gewähren, wenn der Pilot zurück auf der Basis ist."
 
@@ -4094,7 +4189,7 @@ msgid "Optional URL prefix prepended to every endpoint."
 msgstr "Optionales URL-Präfix, das jedem Endpunkt vorangestellt wird."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].badge
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:212
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:214
 msgid "Optional badge image awarded alongside the role."
 msgstr "Optionales Abzeichenbild, das zusammen mit der Rolle vergeben wird."
 
@@ -4110,7 +4205,7 @@ msgid "Optional default filters used to match servers, missions, or tags."
 msgstr "Optionale Standardfilter zum Abgleich von Servern, Missionen oder Tags."
 
 #. missionstats_schema:schema;element_schema.mission_end
-#: plugins/missionstats/schemas/missionstats_schema.yaml:51
+#: plugins/missionstats/schemas/missionstats_schema.yaml:53
 msgid "Optional final statistics embed shown at mission end."
 msgstr "Optionales Embed mit Endstatistiken, das am Missionsende angezeigt wird."
 
@@ -4182,7 +4277,7 @@ msgid "Parameter type offered in Discord."
 msgstr "Parametertyp, der in Discord angeboten wird."
 
 #. cron_schema:schema;element_schema.actions.[0].action.params
-#: services/cron/schemas/cron_schema.yaml:68
+#: services/cron/schemas/cron_schema.yaml:70
 msgid "Parameters handed to the selected action."
 msgstr "Parameter, die an die ausgewählte Aktion übergeben werden."
 
@@ -4242,7 +4337,7 @@ msgid "Password players must enter to join the server."
 msgstr "Passwort, das Spieler zum Beitritt zum Server eingeben müssen."
 
 #. ups_schema:schema;element_schema.password
-#: services/ups/schemas/ups_schema.yaml:43
+#: services/ups/schemas/ups_schema.yaml:45
 msgid "Password to log in to the NUT server (optional)."
 msgstr "Passwort zur Anmeldung am NUT-Server (optional)."
 
@@ -4278,7 +4373,7 @@ msgid "Path to the Olympus frontend installation."
 msgstr "Pfad zur Olympus-Frontend-Installation."
 
 #. pretense_schema:schema;element_schema.json_file_path
-#: plugins/pretense/schemas/pretense_schema.yaml:25
+#: plugins/pretense/schemas/pretense_schema.yaml:27
 msgid "Path to the Pretense player_stats JSON file."
 msgstr "Pfad zur JSON-Datei player_stats von Pretense."
 
@@ -4304,7 +4399,7 @@ msgstr "Pfad zum Saved-Games-Verzeichnis der Instanz."
 
 #. funkman_schema:schema;default_schema.install
 #. greenieboard_schema:schema;default_schema.FunkMan.install
-#: plugins/funkman/schemas/funkman_schema.yaml:19
+#: plugins/funkman/schemas/funkman_schema.yaml:20
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:149
 msgid "Path to your FunkMan installation directory."
 msgstr "Pfad zum Installationsverzeichnis von FunkMan."
@@ -4335,7 +4430,7 @@ msgid "Pause played after each spoken sentence."
 msgstr "Pause, die nach jedem gesprochenen Satz abgespielt wird."
 
 #. music_schema:schema;element_schema.pause_without_players
-#: services/music/schemas/music_schema.yaml:36
+#: services/music/schemas/music_schema.yaml:38
 msgid "Pause the music while no player is online."
 msgstr "Die Musik pausieren, solange kein Spieler online ist."
 
@@ -4350,22 +4445,22 @@ msgid "Pause the server while no clients are connected."
 msgstr "Server pausieren, solange keine Clients verbunden sind."
 
 #. punishment_schema:schema;element_schema.penalties
-#: plugins/punishment/schemas/punishment_schema.yaml:51
+#: plugins/punishment/schemas/punishment_schema.yaml:53
 msgid "Penalty points given per event type."
 msgstr "Strafpunkte, die pro Ereignistyp vergeben werden."
 
 #. punishment_schema:schema;element_schema.punishments.[0].points
-#: plugins/punishment/schemas/punishment_schema.yaml:130
+#: plugins/punishment/schemas/punishment_schema.yaml:132
 msgid "Penalty points that trigger this punishment."
 msgstr "Strafpunkte, die diese Bestrafung auslösen."
 
 #. srs_schema:schema;element_schema.atc_frequencies
-#: plugins/srs/schemas/srs_schema.yaml:38
+#: plugins/srs/schemas/srs_schema.yaml:40
 msgid "Per-coalition ATC frequencies used when enforce_atc is on."
 msgstr "ATC-Frequenzen pro Koalition, die bei aktivem enforce_atc genutzt werden."
 
 #. tournament_schema:schema;element_schema.events
-#: plugins/tournament/schemas/tournament_schema.yaml:87
+#: plugins/tournament/schemas/tournament_schema.yaml:89
 msgid "Per-event chat messages and sounds sent during a match."
 msgstr "Chatnachrichten und Sounds pro Ereignis, die während eines Matches gesendet werden."
 
@@ -4380,7 +4475,7 @@ msgid "Per-provider engine settings and credentials."
 msgstr "Engine-Einstellungen und Anmeldedaten je Anbieter."
 
 #. discord_schema:schema;element_schema.roles
-#: plugins/discord/schemas/discord_schema.yaml:59
+#: plugins/discord/schemas/discord_schema.yaml:60
 msgid "Per-role messages sent when a member gets or loses a role."
 msgstr "Nachrichten je Rolle, die gesendet werden, wenn ein Mitglied eine Rolle erhält oder verliert."
 
@@ -4397,7 +4492,7 @@ msgstr "Überschreibungen pro Server für die In-Game-Nachrichten des Bots."
 #. greenieboard_schema:schema;default_schema.squadrons
 #. greenieboard_schema:schema;element_schema.squadrons
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:51
-#: plugins/greenieboard/schemas/greenieboard_schema.yaml:208
+#: plugins/greenieboard/schemas/greenieboard_schema.yaml:210
 msgid "Per-squadron boards with their own display channel."
 msgstr "Boards pro Geschwader mit je eigenem Anzeigekanal."
 
@@ -4407,12 +4502,12 @@ msgid "Per-terrain option overrides, keyed by the DCS map name."
 msgstr "Optionsüberschreibungen pro Gelände, mit dem DCS-Kartennamen als Schlüssel."
 
 #. missionstats_schema:schema;element_schema.persistence
-#: plugins/missionstats/schemas/missionstats_schema.yaml:32
+#: plugins/missionstats/schemas/missionstats_schema.yaml:34
 msgid "Persist mission statistics to the database."
 msgstr "Missionsstatistiken in der Datenbank speichern."
 
 #. creditsystem_schema:schema;element_schema.leaderboard
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:231
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:233
 msgid "Persistent credits leaderboard shown in a channel."
 msgstr "Dauerhafte Guthaben-Rangliste, die in einem Kanal angezeigt wird."
 
@@ -4442,12 +4537,12 @@ msgid "Piper local neural text-to-speech engine settings."
 msgstr "Einstellungen der lokalen neuronalen Piper-Text-to-Speech-Engine."
 
 #. tournament_schema:schema;element_schema.sudden_death
-#: plugins/tournament/schemas/tournament_schema.yaml:71
+#: plugins/tournament/schemas/tournament_schema.yaml:73
 msgid "Play one decisive round if the configured rounds end undecided."
 msgstr "Eine Entscheidungsrunde spielen, wenn die konfigurierten Runden unentschieden enden."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).mode
-#: services/music/schemas/music_schema.yaml:73
+#: services/music/schemas/music_schema.yaml:75
 msgid "Playback mode, 1 repeats the list, 2 shuffles it."
 msgstr "Wiedergabemodus, 1 wiederholt die Liste, 2 mischt sie."
 
@@ -4457,7 +4552,7 @@ msgid "Playback speed of the SkyEye voice."
 msgstr "Wiedergabegeschwindigkeit der SkyEye-Stimme."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).volume
-#: services/music/schemas/music_schema.yaml:98
+#: services/music/schemas/music_schema.yaml:100
 msgid "Playback volume between 0.0 and 1.0."
 msgstr "Wiedergabelautstärke zwischen 0.0 und 1.0."
 
@@ -4467,22 +4562,22 @@ msgid "Player UCID exempt from AFK kicks."
 msgstr "Spieler-UCID, die von AFK-Kicks ausgenommen ist."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].ucid
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:154
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:156
 msgid "Player UCIDs eligible for this bounty."
 msgstr "Spieler-UCIDs, die für dieses Kopfgeld berechtigt sind."
 
 #. lotatc_schema:schema;element_schema.exemptions.ucid
-#: plugins/lotatc/schemas/lotatc_schema.yaml:32
+#: plugins/lotatc/schemas/lotatc_schema.yaml:34
 msgid "Player UCIDs exempt from the GCI kick."
 msgstr "Spieler-UCIDs, die vom GCI-Kick ausgenommen sind."
 
 #. lotatc_schema:schema;element_schema.exemptions
-#: plugins/lotatc/schemas/lotatc_schema.yaml:22
+#: plugins/lotatc/schemas/lotatc_schema.yaml:24
 msgid "Players exempt from the GCI kick rule."
 msgstr "Spieler, die von der GCI-Kick-Regel ausgenommen sind."
 
 #. punishment_schema:schema;element_schema.exemptions
-#: plugins/punishment/schemas/punishment_schema.yaml:200
+#: plugins/punishment/schemas/punishment_schema.yaml:202
 msgid "Players that must never be punished."
 msgstr "Spieler, die niemals bestraft werden dürfen."
 
@@ -4492,27 +4587,27 @@ msgid "Plugin name."
 msgstr "Plugin-Name."
 
 #. competitive_schema:schema;element_schema.join_on
-#: plugins/competitive/schemas/competitive_schema.yaml:28
+#: plugins/competitive/schemas/competitive_schema.yaml:30
 msgid "Point at which a player joins a match."
 msgstr "Zeitpunkt, an dem ein Spieler einem Match beitritt."
 
 #. punishment_schema:schema;element_schema.flightHoursWeight
-#: plugins/punishment/schemas/punishment_schema.yaml:151
+#: plugins/punishment/schemas/punishment_schema.yaml:153
 msgid "Point multiplier based on the player's total flight hours."
 msgstr "Punktemultiplikator basierend auf den gesamten Flugstunden des Spielers."
 
 #. punishment_schema:schema;element_schema.flightHoursWeight.[0].weight
-#: plugins/punishment/schemas/punishment_schema.yaml:171
+#: plugins/punishment/schemas/punishment_schema.yaml:173
 msgid "Point multiplier for players with that flight time."
 msgstr "Punktemultiplikator für Spieler mit dieser Flugzeit."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:101
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:103
 msgid "Points awarded per kill; the first matching rule wins."
 msgstr "Punkte pro Abschuss; die erste passende Regel gewinnt."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].points
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:173
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:175
 msgid "Points awarded when this rule matches a kill."
 msgstr "Punkte, die vergeben werden, wenn diese Regel auf einen Abschuss passt."
 
@@ -4522,17 +4617,17 @@ msgid "Points granted to players not matching any listed role."
 msgstr "Punkte für Spieler, die zu keiner aufgeführten Rolle passen."
 
 #. punishment_schema:schema;element_schema.penalties.[0]
-#: plugins/punishment/schemas/punishment_schema.yaml:71
+#: plugins/punishment/schemas/punishment_schema.yaml:73
 msgid "Points used for events without a human/AI split."
 msgstr "Punkte für Ereignisse ohne Aufteilung Mensch/KI."
 
 #. punishment_schema:schema;element_schema.penalties.[0].human
-#: plugins/punishment/schemas/punishment_schema.yaml:76
+#: plugins/punishment/schemas/punishment_schema.yaml:78
 msgid "Points when the victim is a human player."
 msgstr "Punkte, wenn das Opfer ein menschlicher Spieler ist."
 
 #. punishment_schema:schema;element_schema.penalties.[0].AI
-#: plugins/punishment/schemas/punishment_schema.yaml:81
+#: plugins/punishment/schemas/punishment_schema.yaml:83
 msgid "Points when the victim is an AI unit."
 msgstr "Punkte, wenn das Opfer eine KI-Einheit ist."
 
@@ -4542,7 +4637,7 @@ msgid "Polly speech engine to use, standard or neural."
 msgstr "Zu verwendende Polly-Sprach-Engine, standard oder neural."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).popup
-#: services/music/schemas/music_schema.yaml:110
+#: services/music/schemas/music_schema.yaml:112
 msgid "Popup for this radio, overrides the global one."
 msgstr "Popup für dieses Funkgerät, überschreibt das globale."
 
@@ -4553,7 +4648,7 @@ msgid "Popup shown to users before a restart, {} is the countdown."
 msgstr "Popup, das Benutzern vor einem Neustart angezeigt wird; {} ist der Countdown."
 
 #. music_schema:schema;element_schema.popup
-#: services/music/schemas/music_schema.yaml:25
+#: services/music/schemas/music_schema.yaml:27
 #, python-brace-format
 msgid "Popup when a song starts; holds {song}, {frequency}, {modulation}."
 msgstr "Popup, wenn ein Song startet; enthält {song}, {frequency}, {modulation}."
@@ -4579,7 +4674,7 @@ msgid "Port of the DCS WebGUI for this instance."
 msgstr "Port des DCS-WebGUI für diese Instanz."
 
 #. ups_schema:schema;element_schema.port
-#: services/ups/schemas/ups_schema.yaml:31
+#: services/ups/schemas/ups_schema.yaml:33
 msgid "Port of the NUT server."
 msgstr "Port des NUT-Servers."
 
@@ -4624,32 +4719,32 @@ msgid "Post the mission highscore when the mission ends."
 msgstr "Den Missions-Highscore posten, wenn die Mission endet."
 
 #. flightplan_schema:schema;element_schema.publish_on_file
-#: plugins/flightplan/schemas/flightplan_schema.yaml:64
+#: plugins/flightplan/schemas/flightplan_schema.yaml:65
 msgid "Post to Discord when a flight plan is filed."
 msgstr "In Discord posten, wenn ein Flugplan eingereicht wird."
 
 #. logistics_schema:schema;element_schema.publish_on_abandon
-#: plugins/logistics/schemas/logistics_schema.yaml:39
+#: plugins/logistics/schemas/logistics_schema.yaml:40
 msgid "Post to Discord when a task is abandoned."
 msgstr "In Discord posten, wenn eine Aufgabe aufgegeben wird."
 
 #. logistics_schema:schema;element_schema.publish_on_assign
-#: plugins/logistics/schemas/logistics_schema.yaml:29
+#: plugins/logistics/schemas/logistics_schema.yaml:30
 msgid "Post to Discord when a task is assigned to a pilot."
 msgstr "In Discord posten, wenn eine Aufgabe einem Piloten zugewiesen wird."
 
 #. logistics_schema:schema;element_schema.publish_on_cancel
-#: plugins/logistics/schemas/logistics_schema.yaml:44
+#: plugins/logistics/schemas/logistics_schema.yaml:45
 msgid "Post to Discord when a task is cancelled."
 msgstr "In Discord posten, wenn eine Aufgabe abgebrochen wird."
 
 #. logistics_schema:schema;element_schema.publish_on_complete
-#: plugins/logistics/schemas/logistics_schema.yaml:34
+#: plugins/logistics/schemas/logistics_schema.yaml:35
 msgid "Post to Discord when a task is completed."
 msgstr "In Discord posten, wenn eine Aufgabe abgeschlossen wird."
 
 #. logistics_schema:schema;element_schema.publish_on_create
-#: plugins/logistics/schemas/logistics_schema.yaml:24
+#: plugins/logistics/schemas/logistics_schema.yaml:25
 msgid "Post to Discord when a task is created."
 msgstr "In Discord posten, wenn eine Aufgabe erstellt wird."
 
@@ -4676,7 +4771,7 @@ msgid "Precipitation amount for the cloud layer."
 msgstr "Niederschlagsmenge für die Wolkenschicht."
 
 #. tournament_schema:schema;element_schema.presets.file
-#: plugins/tournament/schemas/tournament_schema.yaml:125
+#: plugins/tournament/schemas/tournament_schema.yaml:127
 msgid "Preset file that defines all tournament presets."
 msgstr "Voreinstellungsdatei, die alle Turnier-Voreinstellungen definiert."
 
@@ -4698,29 +4793,29 @@ msgstr "Preset-Name, definiert in der eigenen presets.yaml."
 #. tournament_schema:schema;element_schema.presets.even.[0]
 #. tournament_schema:schema;element_schema.presets.initial.[0]
 #. tournament_schema:schema;element_schema.presets.uneven.[0]
-#: plugins/tournament/schemas/tournament_schema.yaml:140
-#: plugins/tournament/schemas/tournament_schema.yaml:153
-#: plugins/tournament/schemas/tournament_schema.yaml:166
+#: plugins/tournament/schemas/tournament_schema.yaml:142
+#: plugins/tournament/schemas/tournament_schema.yaml:155
+#: plugins/tournament/schemas/tournament_schema.yaml:168
 msgid "Preset name."
 msgstr "Voreinstellungsname."
 
 #. tournament_schema:schema;element_schema.presets
-#: plugins/tournament/schemas/tournament_schema.yaml:112
+#: plugins/tournament/schemas/tournament_schema.yaml:114
 msgid "Presets and tickets available to squadrons during a match."
 msgstr "Voreinstellungen und Tickets, die Staffeln während eines Matches zur Verfügung stehen."
 
 #. tournament_schema:schema;element_schema.presets.even
-#: plugins/tournament/schemas/tournament_schema.yaml:145
+#: plugins/tournament/schemas/tournament_schema.yaml:147
 msgid "Presets applied on every even round."
 msgstr "Voreinstellungen, die in jeder geraden Runde angewendet werden."
 
 #. tournament_schema:schema;element_schema.presets.uneven
-#: plugins/tournament/schemas/tournament_schema.yaml:158
+#: plugins/tournament/schemas/tournament_schema.yaml:160
 msgid "Presets applied on every uneven round."
 msgstr "Voreinstellungen, die in jeder ungeraden Runde angewendet werden."
 
 #. tournament_schema:schema;element_schema.presets.initial
-#: plugins/tournament/schemas/tournament_schema.yaml:130
+#: plugins/tournament/schemas/tournament_schema.yaml:132
 msgid "Presets applied to every round's mission."
 msgstr "Voreinstellungen, die auf die Mission jeder Runde angewendet werden."
 
@@ -4786,17 +4881,17 @@ msgid "Python function called for complex modifications."
 msgstr "Python-Funktion, die für komplexe Änderungen aufgerufen wird."
 
 #. monitoring_schema:schema;element_schema.thresholds.RAM.max
-#: services/monitoring/schemas/monitoring_schema.yaml:108
+#: services/monitoring/schemas/monitoring_schema.yaml:110
 msgid "RAM ceiling in GB that triggers the warning."
 msgstr "RAM-Obergrenze in GB, die die Warnung auslöst."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).modulation
-#: services/music/schemas/music_schema.yaml:86
+#: services/music/schemas/music_schema.yaml:88
 msgid "Radio modulation."
 msgstr "Funkmodulation."
 
 #. music_schema:schema;element_schema.radios.regex;(.+)
-#: services/music/schemas/music_schema.yaml:66
+#: services/music/schemas/music_schema.yaml:68
 msgid "Radio type. Only SRSRadio is supported."
 msgstr "Funkgerätetyp. Nur SRSRadio wird unterstützt."
 
@@ -4806,12 +4901,12 @@ msgid "Radius in nautical miles that always counts as a threat."
 msgstr "Radius in Seemeilen, der immer als Bedrohung zählt."
 
 #. firewall_schema:schema;element_schema.ddos_detection.action
-#: services/firewall/schemas/firewall_schema.yaml:37
+#: services/firewall/schemas/firewall_schema.yaml:39
 msgid "React to a confirmed attack with an alert or a block."
 msgstr "Auf einen bestätigten Angriff mit einer Warnung oder einer Blockierung reagieren."
 
 #. discord_schema:schema;element_schema.reaction
-#: plugins/discord/schemas/discord_schema.yaml:92
+#: plugins/discord/schemas/discord_schema.yaml:93
 msgid "Reaction-role message that hands out roles."
 msgstr "Reaktionsrollen-Nachricht, die Rollen vergibt."
 
@@ -4859,12 +4954,12 @@ msgid "Recording mode for single player flights."
 msgstr "Aufzeichnungsmodus für Einzelspielerflüge."
 
 #. slotblocking_schema:schema;element_schema.payback
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:134
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:136
 msgid "Refund the credit costs of a unit when it lands properly."
 msgstr "Die Credit-Kosten einer Einheit erstatten, wenn sie ordnungsgemäß landet."
 
 #. tournament_schema:schema;element_schema.remove_on_death
-#: plugins/tournament/schemas/tournament_schema.yaml:66
+#: plugins/tournament/schemas/tournament_schema.yaml:68
 msgid "Regex of lost units removed before the next round of a match."
 msgstr "Regex verlorener Einheiten, die vor der nächsten Match-Runde entfernt werden."
 
@@ -4899,7 +4994,7 @@ msgid "Reject clients whose DCS installation is not pure."
 msgstr "Clients ablehnen, deren DCS-Installation nicht rein ist."
 
 #. ups_schema:schema;element_schema.thresholds
-#: services/ups/schemas/ups_schema.yaml:48
+#: services/ups/schemas/ups_schema.yaml:50
 msgid "Remaining battery percentage that triggers each action."
 msgstr "Verbleibender Akkuprozentsatz, der jede Aktion auslöst."
 
@@ -4942,7 +5037,7 @@ msgid "Requested core quality (0 = efficiency, 1 = performance)."
 msgstr "Angeforderte Kernqualität (0 = Effizienz, 1 = Leistung)."
 
 #. logistics_schema:schema;element_schema.delivery.require_landing
-#: plugins/logistics/schemas/logistics_schema.yaml:68
+#: plugins/logistics/schemas/logistics_schema.yaml:69
 msgid "Require a landing event to auto-complete a task."
 msgstr "Ein Landeereignis erfordern, um eine Aufgabe automatisch abzuschließen."
 
@@ -4952,7 +5047,7 @@ msgid "Require acknowledgement of the rules on join."
 msgstr "Bestätigung der Regeln beim Beitritt verlangen."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].combined
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:202
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:204
 msgid "Require both credits and playtime instead of either."
 msgstr "Sowohl Guthaben als auch Spielzeit verlangen statt eines von beiden."
 
@@ -4967,12 +5062,12 @@ msgid "Required plugins loaded by the bot."
 msgstr "Vom Bot geladene Pflicht-Plugins."
 
 #. slotblocking_schema:schema;element_schema.names
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:199
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:201
 msgid "Requires a squadron tag in the player name to join."
 msgstr "Erfordert einen Staffel-Tag im Spielernamen zum Beitritt."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].VIP
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:123
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:125
 msgid "Reserve this slot for VIP members only."
 msgstr "Diesen Slot nur für VIP-Mitglieder reservieren."
 
@@ -4982,17 +5077,17 @@ msgid "Restart the mission list from the top after the last mission."
 msgstr "Die Missionsliste nach der letzten Mission wieder von vorn beginnen."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].unit_type
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:137
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:139
 msgid "Restrict the rule to a specific DCS unit type."
 msgstr "Die Regel auf einen bestimmten DCS-Einheitentyp beschränken."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].group_name
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:149
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:151
 msgid "Restrict the rule to a specific group name."
 msgstr "Die Regel auf einen bestimmten Gruppennamen beschränken."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].unit_name
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:143
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:145
 msgid "Restrict the rule to a specific unit name."
 msgstr "Die Regel auf einen bestimmten Einheitennamen beschränken."
 
@@ -5017,7 +5112,7 @@ msgid "Role given to a member when they join the Discord."
 msgstr "Rolle, die einem Mitglied beim Beitritt zum Discord vergeben wird."
 
 #. discord_schema:schema;element_schema.reaction.roles.regex;(.+).role
-#: plugins/discord/schemas/discord_schema.yaml:140
+#: plugins/discord/schemas/discord_schema.yaml:141
 msgid "Role given when the emoji is clicked."
 msgstr "Rolle, die beim Klick auf das Emoji vergeben wird."
 
@@ -5032,12 +5127,12 @@ msgid "Role granted to players online on this server."
 msgstr "Rolle, die online befindlichen Spielern auf diesem Server gewährt wird."
 
 #. discord_schema:schema;element_schema.roles.regex;(.+).regex;(on_add|on_remove|on_leave).mention
-#: plugins/discord/schemas/discord_schema.yaml:82
+#: plugins/discord/schemas/discord_schema.yaml:83
 msgid "Role mentioned in the role-change message."
 msgstr "Rolle, die in der Rollenwechsel-Nachricht erwähnt wird."
 
 #. discord_schema:schema;element_schema.on_join.mention
-#: plugins/discord/schemas/discord_schema.yaml:49
+#: plugins/discord/schemas/discord_schema.yaml:50
 msgid "Role mentioned in the welcome message."
 msgstr "Rolle, die in der Begrüßungsnachricht erwähnt wird."
 
@@ -5058,27 +5153,27 @@ msgid "Role or user to mention."
 msgstr "Rolle oder Benutzer, die/der erwähnt wird."
 
 #. logistics_schema:schema;element_schema.permissions.approve
-#: plugins/logistics/schemas/logistics_schema.yaml:143
+#: plugins/logistics/schemas/logistics_schema.yaml:144
 msgid "Roles allowed to approve pending tasks."
 msgstr "Rollen, die ausstehende Aufgaben genehmigen dürfen."
 
 #. logistics_schema:schema;element_schema.permissions.assign
-#: plugins/logistics/schemas/logistics_schema.yaml:150
+#: plugins/logistics/schemas/logistics_schema.yaml:151
 msgid "Roles allowed to assign tasks to pilots."
 msgstr "Rollen, die Aufgaben Piloten zuweisen dürfen."
 
 #. logistics_schema:schema;element_schema.permissions.cancel
-#: plugins/logistics/schemas/logistics_schema.yaml:157
+#: plugins/logistics/schemas/logistics_schema.yaml:158
 msgid "Roles allowed to cancel tasks."
 msgstr "Rollen, die Aufgaben abbrechen dürfen."
 
 #. voting_schema:schema;element_schema.creator
-#: plugins/voting/schemas/voting_schema.yaml:48
+#: plugins/voting/schemas/voting_schema.yaml:50
 msgid "Roles allowed to create a voting (all players by default)."
 msgstr "Rollen, die eine Abstimmung starten dürfen (standardmäßig alle Spieler)."
 
 #. logistics_schema:schema;element_schema.permissions.create
-#: plugins/logistics/schemas/logistics_schema.yaml:136
+#: plugins/logistics/schemas/logistics_schema.yaml:137
 msgid "Roles allowed to create logistics tasks."
 msgstr "Rollen, die Logistikaufgaben erstellen dürfen."
 
@@ -5098,12 +5193,12 @@ msgid "Roles allowed to upload configuration files."
 msgstr "Rollen, die Konfigurationsdateien hochladen dürfen."
 
 #. mission_schema:schema;element_schema.uploads.discord
-#: plugins/mission/schemas/mission_schema.yaml:65
+#: plugins/mission/schemas/mission_schema.yaml:67
 msgid "Roles allowed to upload missions."
 msgstr "Rollen, die Missionen hochladen dürfen."
 
 #. voting_schema:schema;element_schema.voter
-#: plugins/voting/schemas/voting_schema.yaml:55
+#: plugins/voting/schemas/voting_schema.yaml:57
 msgid "Roles allowed to vote (all players by default)."
 msgstr "Rollen, die abstimmen dürfen (standardmäßig alle Spieler)."
 
@@ -5128,7 +5223,7 @@ msgid "Route cloud traffic through the configured node proxy."
 msgstr "Cloud-Verkehr über den konfigurierten Knoten-Proxy leiten."
 
 #. voting_schema:schema;element_schema.voting_rule
-#: plugins/voting/schemas/voting_schema.yaml:93
+#: plugins/voting/schemas/voting_schema.yaml:95
 msgid "Rule that decides whether a voting passes."
 msgstr "Regel, die entscheidet, ob eine Abstimmung durchgeht."
 
@@ -5138,7 +5233,7 @@ msgid "Rules text displayed to new players (needs MissionStats)."
 msgstr "Regeltext für neue Spieler (benötigt MissionStats)."
 
 #. logistics_schema:schema;element_schema.delivery
-#: plugins/logistics/schemas/logistics_schema.yaml:54
+#: plugins/logistics/schemas/logistics_schema.yaml:55
 msgid "Rules used to detect automatic task delivery."
 msgstr "Regeln, mit denen die automatische Aufgabenlieferung erkannt wird."
 
@@ -5173,7 +5268,7 @@ msgid "SRS audio settings for the Olympus web client (Olympus 2.0)."
 msgstr "SRS-Audio-Einstellungen für den Olympus-Web-Client (Olympus 2.0)."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).frequency
-#: services/music/schemas/music_schema.yaml:79
+#: services/music/schemas/music_schema.yaml:81
 msgid "SRS channel the music is played on."
 msgstr "SRS-Kanal, auf dem die Musik abgespielt wird."
 
@@ -5193,7 +5288,7 @@ msgid "SRS server address, set automatically (deprecated)."
 msgstr "SRS-Serveradresse, automatisch gesetzt (veraltet)."
 
 #. tournament_schema:schema;element_schema.balance_multiplier
-#: plugins/tournament/schemas/tournament_schema.yaml:76
+#: plugins/tournament/schemas/tournament_schema.yaml:78
 msgid "Scale credit rewards by the TrueSkill rating difference."
 msgstr "Credit-Belohnungen an der TrueSkill-Wertungsdifferenz skalieren."
 
@@ -5203,7 +5298,7 @@ msgid "Scan for new missions and auto-add them to the list."
 msgstr "Nach neuen Missionen suchen und sie automatisch zur Liste hinzufügen."
 
 #. cron_schema:schema;element_schema.actions
-#: services/cron/schemas/cron_schema.yaml:23
+#: services/cron/schemas/cron_schema.yaml:25
 msgid "Scheduled actions and the cron times they run at."
 msgstr "Geplante Aktionen und die Cron-Zeiten, zu denen sie laufen."
 
@@ -5227,17 +5322,17 @@ msgid "Seconds a popup message stays visible."
 msgstr "Sekunden, die eine Popup-Nachricht sichtbar bleibt."
 
 #. punishment_schema:schema;element_schema.forgive
-#: plugins/punishment/schemas/punishment_schema.yaml:109
+#: plugins/punishment/schemas/punishment_schema.yaml:111
 msgid "Seconds a victim can forgive the last action in-game."
 msgstr "Sekunden, in denen ein Opfer die letzte Aktion im Spiel vergeben kann."
 
 #. punishment_schema:schema;element_schema.reslot_window
-#: plugins/punishment/schemas/punishment_schema.yaml:23
+#: plugins/punishment/schemas/punishment_schema.yaml:25
 msgid "Seconds after being shot at that a reslot counts as a kill steal."
 msgstr "Sekunden nach Beschuss, in denen ein Reslot als Killsteal zählt."
 
 #. competitive_schema:schema;element_schema.kick_time
-#: plugins/competitive/schemas/competitive_schema.yaml:45
+#: plugins/competitive/schemas/competitive_schema.yaml:47
 msgid "Seconds after death before a player is kicked."
 msgstr "Sekunden nach dem Tod, bevor ein Spieler gekickt wird."
 
@@ -5257,7 +5352,7 @@ msgid "Seconds before an unreachable node is removed from the cluster."
 msgstr "Sekunden, bevor ein nicht erreichbarer Knoten aus dem Cluster entfernt wird."
 
 #. logistics_schema:schema;element_schema.marker_timeout
-#: plugins/logistics/schemas/logistics_schema.yaml:49
+#: plugins/logistics/schemas/logistics_schema.yaml:50
 msgid "Seconds before temporary F10 markers disappear."
 msgstr "Sekunden, bevor temporäre F10-Markierungen verschwinden."
 
@@ -5272,12 +5367,12 @@ msgid "Seconds before the restart to show the warning."
 msgstr "Sekunden vor dem Neustart, in denen die Warnung angezeigt wird."
 
 #. scheduler_schema:schema;element_schema.warn.countdown.time
-#: plugins/scheduler/schemas/scheduler_schema.yaml:243
+#: plugins/scheduler/schemas/scheduler_schema.yaml:245
 msgid "Seconds before the restart to start the countdown."
 msgstr "Sekunden vor dem Neustart, in denen der Countdown beginnt."
 
 #. logistics_schema:schema;element_schema.delivery.check_interval
-#: plugins/logistics/schemas/logistics_schema.yaml:73
+#: plugins/logistics/schemas/logistics_schema.yaml:74
 msgid "Seconds between delivery proximity checks."
 msgstr "Sekunden zwischen den Näherungsprüfungen der Lieferung."
 
@@ -5297,7 +5392,7 @@ msgid "Seconds between repeats of this nudge message."
 msgstr "Sekunden zwischen Wiederholungen dieser Hinweisnachricht."
 
 #. scheduler_schema:schema;element_schema.startup_delay
-#: plugins/scheduler/schemas/scheduler_schema.yaml:205
+#: plugins/scheduler/schemas/scheduler_schema.yaml:207
 msgid "Seconds between starting each DCS instance."
 msgstr "Sekunden zwischen dem Start jeder DCS-Instanz."
 
@@ -5307,42 +5402,42 @@ msgid "Seconds between two reads of the Discord audit log."
 msgstr "Sekunden zwischen zwei Lesevorgängen des Discord-Audit-Logs."
 
 #. pretense_schema:schema;element_schema.update_interval
-#: plugins/pretense/schemas/pretense_schema.yaml:18
+#: plugins/pretense/schemas/pretense_schema.yaml:20
 msgid "Seconds between updates of the Pretense status embed."
 msgstr "Sekunden zwischen Aktualisierungen des Pretense-Status-Embeds."
 
 #. voting_schema:schema;element_schema.reminder.[0]
-#: plugins/voting/schemas/voting_schema.yaml:82
+#: plugins/voting/schemas/voting_schema.yaml:84
 msgid "Seconds left before the voting closes."
 msgstr "Verbleibende Sekunden, bevor die Abstimmung schließt."
 
 #. tournament_schema:schema;element_schema.delayed_start
-#: plugins/tournament/schemas/tournament_schema.yaml:54
+#: plugins/tournament/schemas/tournament_schema.yaml:56
 msgid "Seconds pilots get to prepare their planes before the start."
 msgstr "Sekunden, die Piloten haben, um ihre Flugzeuge vor dem Start vorzubereiten."
 
 #. competitive_schema:schema;element_schema.delayed_start
-#: plugins/competitive/schemas/competitive_schema.yaml:56
+#: plugins/competitive/schemas/competitive_schema.yaml:58
 msgid "Seconds players get to join before a match starts."
 msgstr "Sekunden, die Spieler vor einem Matchstart zum Beitreten haben."
 
 #. voting_schema:schema;element_schema.reminder
-#: plugins/voting/schemas/voting_schema.yaml:73
+#: plugins/voting/schemas/voting_schema.yaml:75
 msgid "Seconds remaining when voters are reminded to vote."
 msgstr "Verbleibende Sekunden, wenn Wähler zum Abstimmen erinnert werden."
 
 #. tournament_schema:schema;element_schema.time_to_choose
-#: plugins/tournament/schemas/tournament_schema.yaml:60
+#: plugins/tournament/schemas/tournament_schema.yaml:62
 msgid "Seconds squadrons have to pick customizations for the next round."
 msgstr "Sekunden, die Staffeln haben, um Anpassungen für die nächste Runde zu wählen."
 
 #. punishment_schema:schema;element_schema.survival_window
-#: plugins/punishment/schemas/punishment_schema.yaml:29
+#: plugins/punishment/schemas/punishment_schema.yaml:31
 msgid "Seconds survived after being shot at that grant no kill."
 msgstr "Sekunden, die nach Beschuss überlebt werden und keinen Kill ergeben."
 
 #. voting_schema:schema;element_schema.time
-#: plugins/voting/schemas/voting_schema.yaml:68
+#: plugins/voting/schemas/voting_schema.yaml:70
 msgid "Seconds the voting stays open for players."
 msgstr "Sekunden, die die Abstimmung für Spieler offen bleibt."
 
@@ -5352,7 +5447,7 @@ msgid "Seconds to lock a server after a mission restart."
 msgstr "Sekunden, um einen Server nach einem Missionsneustart zu sperren."
 
 #. firewall_schema:schema;element_schema.ddos_detection.udp_sniff_duration
-#: services/firewall/schemas/firewall_schema.yaml:85
+#: services/firewall/schemas/firewall_schema.yaml:87
 msgid "Seconds to sniff UDP for non-player source IPs."
 msgstr "Sekunden, in denen UDP nach Nicht-Spieler-Quell-IPs durchsucht wird."
 
@@ -5362,12 +5457,12 @@ msgid "Seconds to wait before displaying the message."
 msgstr "Sekunden, die vor dem Anzeigen der Nachricht gewartet wird."
 
 #. scheduler_schema:schema;command_schema.sleep
-#: plugins/scheduler/schemas/scheduler_schema.yaml:319
+#: plugins/scheduler/schemas/scheduler_schema.yaml:321
 msgid "Seconds to wait before running the command."
 msgstr "Sekunden, die vor dem Ausführen des Befehls gewartet wird."
 
 #. punishment_schema:schema;element_schema.repair_timeout
-#: plugins/punishment/schemas/punishment_schema.yaml:41
+#: plugins/punishment/schemas/punishment_schema.yaml:43
 msgid "Seconds to wait for repair after ejecting without being hit."
 msgstr "Sekunden, die nach dem Aussteigen ohne Treffer auf Reparatur gewartet wird."
 
@@ -5377,7 +5472,7 @@ msgid "Seconds without a heartbeat before a node is considered dead."
 msgstr "Sekunden ohne Heartbeat, bevor ein Knoten als tot gilt."
 
 #. competitive_schema:schema;element_schema.win_on_noshow
-#: plugins/competitive/schemas/competitive_schema.yaml:62
+#: plugins/competitive/schemas/competitive_schema.yaml:64
 msgid "Seconds without an opposing player that wins the match."
 msgstr "Sekunden ohne gegnerischen Spieler, die das Match gewinnen."
 
@@ -5483,7 +5578,7 @@ msgid "Several execute or event steps run in order."
 msgstr "Mehrere Ausführungs- oder Ereignisschritte, die nacheinander ausgeführt werden."
 
 #. voting_schema:schema;element_schema.voting_threshold
-#: plugins/voting/schemas/voting_schema.yaml:87
+#: plugins/voting/schemas/voting_schema.yaml:89
 msgid "Share of players that must vote for a result to count."
 msgstr "Anteil der Spieler, die abstimmen müssen, damit ein Ergebnis zählt."
 
@@ -5519,13 +5614,13 @@ msgstr "ATIS-Informationen im Beitritts-Popup anzeigen."
 
 #. funkman_schema:schema;default_schema.bomb_board
 #. funkman_schema:schema;element_schema.bomb_board
-#: plugins/funkman/schemas/funkman_schema.yaml:57 plugins/funkman/schemas/funkman_schema.yaml:103
+#: plugins/funkman/schemas/funkman_schema.yaml:58 plugins/funkman/schemas/funkman_schema.yaml:105
 msgid "Show a persistent bombing range board in a channel."
 msgstr "Ein dauerhaftes Bombing-Range-Board in einem Kanal anzeigen."
 
 #. funkman_schema:schema;default_schema.strafe_board
 #. funkman_schema:schema;element_schema.strafe_board
-#: plugins/funkman/schemas/funkman_schema.yaml:47 plugins/funkman/schemas/funkman_schema.yaml:93
+#: plugins/funkman/schemas/funkman_schema.yaml:48 plugins/funkman/schemas/funkman_schema.yaml:95
 msgid "Show a persistent strafing range board in a channel."
 msgstr "Ein dauerhaftes Strafing-Range-Board in einem Kanal anzeigen."
 
@@ -5580,7 +5675,7 @@ msgid "Show the Tacview passwords in the status embed."
 msgstr "Die Tacview-Passwörter im Status-Embed anzeigen."
 
 #. missionstats_schema:schema;element_schema.display
-#: plugins/missionstats/schemas/missionstats_schema.yaml:22
+#: plugins/missionstats/schemas/missionstats_schema.yaml:24
 msgid "Show the mission statistics embed in a status channel."
 msgstr "Das Missionsstatistik-Embed in einem Status-Kanal anzeigen."
 
@@ -5590,7 +5685,7 @@ msgid "Show the server password in the status embed."
 msgstr "Das Serverpasswort im Status-Embed anzeigen."
 
 #. logistics_schema:schema;element_schema.markers.show_deadline
-#: plugins/logistics/schemas/logistics_schema.yaml:91
+#: plugins/logistics/schemas/logistics_schema.yaml:92
 msgid "Show the task deadline on marker labels."
 msgstr "Die Aufgabendeadline auf Markierungsbeschriftungen anzeigen."
 
@@ -5610,12 +5705,12 @@ msgid "Shut the server down instead of a soft restart."
 msgstr "Den Server herunterfahren statt eines sanften Neustarts."
 
 #. punishment_schema:schema;element_schema.exemptions.side
-#: plugins/punishment/schemas/punishment_schema.yaml:234
+#: plugins/punishment/schemas/punishment_schema.yaml:236
 msgid "Side that is exempt from punishments."
 msgstr "Seite, die von Bestrafungen ausgenommen ist."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].side
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:129
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:131
 msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "Seite, für die diese Einschränkung gilt: 0 beide, 1 rot, 2 blau."
 
@@ -5655,12 +5750,12 @@ msgid "SkyEye version, needed when it runs remotely."
 msgstr "SkyEye-Version, erforderlich beim Remote-Betrieb."
 
 #. slotblocking_schema:schema;element_schema.restricted
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:60
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:62
 msgid "Slots restricted by Discord role, UCID, or credit points."
 msgstr "Slots, die durch Discord-Rolle, UCID oder Credit-Punkte eingeschränkt sind."
 
 #. tournament_schema:schema;element_schema.events.regex;(.+).sound
-#: plugins/tournament/schemas/tournament_schema.yaml:107
+#: plugins/tournament/schemas/tournament_schema.yaml:109
 msgid "Sound file played when this event fires."
 msgstr "Sounddatei, die beim Auslösen dieses Ereignisses abgespielt wird."
 
@@ -5676,7 +5771,7 @@ msgstr "Sounddatei, die mit der Nachricht abgespielt wird, in der Mission gelade
 #. scheduler_schema:schema;element_schema.warn.sound
 #. scheduler_schema:schema;warn_message.sound
 #: plugins/scheduler/schemas/scheduler_schema.yaml:169
-#: plugins/scheduler/schemas/scheduler_schema.yaml:225
+#: plugins/scheduler/schemas/scheduler_schema.yaml:227
 msgid "Sound played with the warning, loaded in the mission."
 msgstr "Klang, der mit der Warnung abgespielt wird, in der Mission geladen."
 
@@ -5691,7 +5786,7 @@ msgid "Speech recognizer used by SkyEye."
 msgstr "Spracherkenner, der von SkyEye verwendet wird."
 
 #. userstats_schema:schema;element_schema.squadrons
-#: plugins/userstats/schemas/userstats_schema.yaml:74
+#: plugins/userstats/schemas/userstats_schema.yaml:76
 msgid "Squadron grouping settings used for group statistics."
 msgstr "Staffelgruppierungseinstellungen für Gruppenstatistiken."
 
@@ -5724,7 +5819,7 @@ msgid "Start the SRS server together with the DCS server."
 msgstr "Den SRS-Server zusammen mit dem DCS-Server starten."
 
 #. creditsystem_schema:schema;element_schema.squadron
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:68
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:70
 msgid "Starting balance and cap for squadron credits."
 msgstr "Startguthaben und Obergrenze für Geschwader-Guthaben."
 
@@ -5755,7 +5850,7 @@ msgid "Supertonic neural text-to-speech engine settings."
 msgstr "Einstellungen der neuronalen Supertonic-Text-to-Speech-Engine."
 
 #. monitoring_schema:schema;element_schema.time_sync
-#: services/monitoring/schemas/monitoring_schema.yaml:17
+#: services/monitoring/schemas/monitoring_schema.yaml:19
 msgid "Sync the PC clock with a time server twice a day."
 msgstr "Die PC-Uhr zweimal täglich mit einem Zeitserver synchronisieren."
 
@@ -5812,12 +5907,12 @@ msgid "Target directory inside the mission."
 msgstr "Zielverzeichnis innerhalb der Mission."
 
 #. slotblocking_schema:schema;element_schema.balancing.blue_vs_red
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:177
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:179
 msgid "Target ratio of blue to red players, e.g. 0.5 for even teams."
 msgstr "Zielverhältnis von blauen zu roten Spielern, z. B. 0,5 für ausgeglichene Teams."
 
 #. logistics_schema:schema;element_schema.tasks
-#: plugins/logistics/schemas/logistics_schema.yaml:96
+#: plugins/logistics/schemas/logistics_schema.yaml:97
 msgid "Task approval, expiry, and per-player limits."
 msgstr "Aufgabengenehmigung, Ablauf und Limits pro Spieler."
 
@@ -5859,22 +5954,22 @@ msgid "Text shown in the announcement footer."
 msgstr "Text, der in der Fußzeile der Ankündigung angezeigt wird."
 
 #. discord_schema:schema;element_schema.reaction.roles.regex;(.+).message
-#: plugins/discord/schemas/discord_schema.yaml:146
+#: plugins/discord/schemas/discord_schema.yaml:147
 msgid "Text shown next to this emoji reaction."
 msgstr "Text, der neben dieser Emoji-Reaktion angezeigt wird."
 
 #. punishment_schema:schema;element_schema.penalties.[0].reason
-#: plugins/punishment/schemas/punishment_schema.yaml:87
+#: plugins/punishment/schemas/punishment_schema.yaml:89
 msgid "Text shown to the punished player as the reason."
 msgstr "Text, der dem bestraften Spieler als Grund angezeigt wird."
 
 #. creditsystem_schema:schema;element_schema.messages
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:88
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:90
 msgid "Text templates for credit-related in-game messages."
 msgstr "Textvorlagen für guthabenbezogene In-Game-Nachrichten."
 
 #. cron_schema:schema;element_schema.actions.[0].action
-#: services/cron/schemas/cron_schema.yaml:50
+#: services/cron/schemas/cron_schema.yaml:52
 msgid "The action to run and its parameters."
 msgstr "Die auszuführende Aktion und ihre Parameter."
 
@@ -5884,12 +5979,12 @@ msgid "The database, servers and bot backup jobs."
 msgstr "Die Backup-Jobs für Datenbank, Server und Bot."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
-#: plugins/tournament/schemas/tournament_schema.yaml:196
+#: plugins/tournament/schemas/tournament_schema.yaml:198
 msgid "Ticket name consumed by this choice."
 msgstr "Ticketname, der durch diese Auswahl verbraucht wird."
 
 #. tournament_schema:schema;element_schema.presets.tickets
-#: plugins/tournament/schemas/tournament_schema.yaml:201
+#: plugins/tournament/schemas/tournament_schema.yaml:203
 msgid "Ticket types squadrons receive, keyed by ticket name."
 msgstr "Tickettypen, die Staffeln erhalten, benannt nach Ticketname."
 
@@ -5917,12 +6012,12 @@ msgid "Times of day when the action runs."
 msgstr "Tageszeiten, zu denen die Aktion läuft."
 
 #. cron_schema:schema;element_schema.timezone
-#: services/cron/schemas/cron_schema.yaml:18
+#: services/cron/schemas/cron_schema.yaml:20
 msgid "Timezone the cron schedule is evaluated in."
 msgstr "Zeitzone, in der der Cron-Zeitplan ausgewertet wird."
 
 #. scheduler_schema:schema;element_schema.timezone
-#: plugins/scheduler/schemas/scheduler_schema.yaml:199
+#: plugins/scheduler/schemas/scheduler_schema.yaml:201
 msgid "Timezone used for all schedule times (default is local)."
 msgstr "Zeitzone für alle Zeitplanzeiten (Standard ist lokal)."
 
@@ -5937,7 +6032,7 @@ msgid "Timezone used when evaluating time-range keys in settings."
 msgstr "Zeitzone, die beim Auswerten von Zeitbereichsschlüsseln in den Einstellungen verwendet wird."
 
 #. discord_schema:schema;element_schema.reaction.title
-#: plugins/discord/schemas/discord_schema.yaml:110
+#: plugins/discord/schemas/discord_schema.yaml:111
 msgid "Title of the reaction message embed."
 msgstr "Titel des Embeds der Reaktionsnachricht."
 
@@ -5947,7 +6042,7 @@ msgid "Title of the update announcement embed."
 msgstr "Titel des Update-Ankündigungs-Embeds."
 
 #. missionstats_schema:schema;element_schema.mission_end.title
-#: plugins/missionstats/schemas/missionstats_schema.yaml:71
+#: plugins/missionstats/schemas/missionstats_schema.yaml:73
 msgid "Title used on the mission end embed."
 msgstr "Titel, der im Embed zum Missionsende verwendet wird."
 
@@ -5967,12 +6062,12 @@ msgid "UCIDs exempt from AFK kicks."
 msgstr "UCIDs, die von AFK-Kicks ausgenommen sind."
 
 #. slotblocking_schema:schema;element_schema.VIP.ucid
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:43
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:45
 msgid "UCIDs of the players that are granted VIP status."
 msgstr "UCIDs der Spieler, denen der VIP-Status gewährt wird."
 
 #. punishment_schema:schema;element_schema.exemptions.ucid
-#: plugins/punishment/schemas/punishment_schema.yaml:209
+#: plugins/punishment/schemas/punishment_schema.yaml:211
 msgid "UCIDs that are exempt from punishments."
 msgstr "UCIDs, die von Bestrafungen ausgenommen sind."
 
@@ -5997,7 +6092,7 @@ msgid "URL of the LibreTranslate server."
 msgstr "URL des LibreTranslate-Servers."
 
 #. creditsystem_schema:schema;element_schema.achievements.[0].badge.img
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:226
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:228
 msgid "URL of the badge image."
 msgstr "URL des Abzeichenbilds."
 
@@ -6032,17 +6127,17 @@ msgid "Unique TCP port the Olympus web client connects to."
 msgstr "Eindeutiger TCP-Port, mit dem sich der Olympus-Web-Client verbindet."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0].category
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:125
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:127
 msgid "Unit category a kill must match to award these points."
 msgstr "Einheitenkategorie, die ein Abschuss erfüllen muss, um diese Punkte zu vergeben."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].unit_name
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:85
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:87
 msgid "Unit name or Lua pattern that this restriction matches."
 msgstr "Einheitenname oder Lua-Muster, auf das diese Einschränkung zutrifft."
 
 #. slotblocking_schema:schema;element_schema.restricted.[0].unit_type
-#: plugins/slotblocking/schemas/slotblocking_schema.yaml:79
+#: plugins/slotblocking/schemas/slotblocking_schema.yaml:81
 msgid "Unit type this restriction applies to, e.g. observer."
 msgstr "Einheitentyp, für den diese Einschränkung gilt, z. B. observer."
 
@@ -6062,17 +6157,17 @@ msgid "Update DCS-SRS automatically on new releases."
 msgstr "DCS-SRS bei neuen Versionen automatisch aktualisieren."
 
 #. flightplan_schema:schema;element_schema.publish_on_activate
-#: plugins/flightplan/schemas/flightplan_schema.yaml:69
+#: plugins/flightplan/schemas/flightplan_schema.yaml:70
 msgid "Update Discord when a flight plan is activated."
 msgstr "Discord aktualisieren, wenn ein Flugplan aktiviert wird."
 
 #. flightplan_schema:schema;element_schema.publish_on_cancel
-#: plugins/flightplan/schemas/flightplan_schema.yaml:79
+#: plugins/flightplan/schemas/flightplan_schema.yaml:80
 msgid "Update Discord when a flight plan is cancelled."
 msgstr "Discord aktualisieren, wenn ein Flugplan abgebrochen wird."
 
 #. flightplan_schema:schema;element_schema.publish_on_complete
-#: plugins/flightplan/schemas/flightplan_schema.yaml:74
+#: plugins/flightplan/schemas/flightplan_schema.yaml:75
 msgid "Update Discord when a flight plan is completed."
 msgstr "Discord aktualisieren, wenn ein Flugplan abgeschlossen wird."
 
@@ -6161,12 +6256,12 @@ msgid "Use the original mission file as the reference."
 msgstr "Die ursprüngliche Missionsdatei als Referenz verwenden."
 
 #. cleanup_schema:schema;element_schema.regex;(.+).ignore
-#: services/cleanup/schemas/cleanup_schema.yaml:51
+#: services/cleanup/schemas/cleanup_schema.yaml:53
 msgid "User or message IDs kept when purging those channels."
 msgstr "Benutzer- oder Nachrichten-IDs, die beim Bereinigen dieser Kanäle behalten werden."
 
 #. ups_schema:schema;element_schema.username
-#: services/ups/schemas/ups_schema.yaml:37
+#: services/ups/schemas/ups_schema.yaml:39
 msgid "User to log in to the NUT server (optional)."
 msgstr "Benutzer zur Anmeldung am NUT-Server (optional)."
 
@@ -6243,7 +6338,7 @@ msgid "Voice channel players must join when force_voice is on."
 msgstr "Sprachkanal, dem Spieler beitreten müssen, wenn force_voice aktiv ist."
 
 #. voting_schema:schema;element_schema.options
-#: plugins/voting/schemas/voting_schema.yaml:18
+#: plugins/voting/schemas/voting_schema.yaml:20
 msgid "Voting options that players can choose from."
 msgstr "Abstimmungsoptionen, aus denen Spieler wählen können."
 
@@ -6253,12 +6348,12 @@ msgid "Wait for the event result before continuing."
 msgstr "Auf das Ereignisergebnis warten, bevor fortgefahren wird."
 
 #. monitoring_schema:schema;element_schema.thresholds
-#: services/monitoring/schemas/monitoring_schema.yaml:28
+#: services/monitoring/schemas/monitoring_schema.yaml:30
 msgid "Warn and alert limits for the drive, FPS and RAM checks."
 msgstr "Warn- und Alarmgrenzen für die Laufwerk-, FPS- und RAM-Prüfungen."
 
 #. scheduler_schema:schema;element_schema.warn.times
-#: plugins/scheduler/schemas/scheduler_schema.yaml:232
+#: plugins/scheduler/schemas/scheduler_schema.yaml:234
 msgid "Warn times as a list of seconds or a keyed map."
 msgstr "Warnzeiten als Liste von Sekunden oder als Map mit Schlüsseln."
 
@@ -6268,12 +6363,12 @@ msgid "Warn when a known troublemaker joins the server."
 msgstr "Warnen, wenn ein bekannter Störenfried dem Server beitritt."
 
 #. monitoring_schema:schema;element_schema.thresholds.FPS
-#: services/monitoring/schemas/monitoring_schema.yaml:68
+#: services/monitoring/schemas/monitoring_schema.yaml:70
 msgid "Warn when the server FPS stays too low."
 msgstr "Warnen, wenn die Server-FPS zu niedrig bleiben."
 
 #. monitoring_schema:schema;element_schema.thresholds.RAM
-#: services/monitoring/schemas/monitoring_schema.yaml:99
+#: services/monitoring/schemas/monitoring_schema.yaml:101
 msgid "Warn when the server RAM usage stays too high."
 msgstr "Warnen, wenn die Server-RAM-Nutzung zu hoch bleibt."
 
@@ -6293,7 +6388,7 @@ msgid "Warning for players with an inappropriate name."
 msgstr "Warnung für Spieler mit unangemessenem Namen."
 
 #. scheduler_schema:schema;element_schema.warn
-#: plugins/scheduler/schemas/scheduler_schema.yaml:210
+#: plugins/scheduler/schemas/scheduler_schema.yaml:212
 msgid "Warning messages shown before a restart or shutdown."
 msgstr "Warnmeldungen, die vor einem Neustart oder Herunterfahren angezeigt werden."
 
@@ -6303,7 +6398,7 @@ msgid "Warning text shown to players."
 msgstr "Warnungstext, der den Spielern angezeigt wird."
 
 #. scheduler_schema:schema;element_schema.warn.message
-#: plugins/scheduler/schemas/scheduler_schema.yaml:220
+#: plugins/scheduler/schemas/scheduler_schema.yaml:222
 #, python-brace-format
 msgid "Warning text; {item}, {what} and {when} are substituted."
 msgstr "Warnungstext; {item}, {what} und {when} werden ersetzt."
@@ -6361,12 +6456,12 @@ msgid "Welcome DM sent to a new member; holds {name} and {guild}."
 msgstr "Willkommens-DM an ein neues Mitglied; enthält {name} und {guild}."
 
 #. discord_schema:schema;element_schema.on_join.message
-#: plugins/discord/schemas/discord_schema.yaml:44
+#: plugins/discord/schemas/discord_schema.yaml:45
 msgid "Welcome message sent to the new member."
 msgstr "Begrüßungsnachricht, die an das neue Mitglied gesendet wird."
 
 #. scheduler_schema:schema;element_schema.action
-#: plugins/scheduler/schemas/scheduler_schema.yaml:270
+#: plugins/scheduler/schemas/scheduler_schema.yaml:272
 msgid "What should happen during the server runtime."
 msgstr "Was während der Serverlaufzeit geschehen soll."
 
@@ -6391,7 +6486,7 @@ msgid "When the server backup runs."
 msgstr "Wann das Server-Backup läuft."
 
 #. tacview_schema:schema;element_schema.upload
-#: plugins/tacview/schemas/tacview_schema.yaml:17
+#: plugins/tacview/schemas/tacview_schema.yaml:19
 msgid "Where downloaded Tacview files are uploaded to."
 msgstr "Wohin heruntergeladene Tacview-Dateien hochgeladen werden."
 
@@ -6486,7 +6581,7 @@ msgid "Whether the required-mods extension is enabled."
 msgstr "Ob die Required-Mods-Erweiterung aktiviert ist."
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0]
-#: plugins/creditsystem/schemas/creditsystem_schema.yaml:131
+#: plugins/creditsystem/schemas/creditsystem_schema.yaml:133
 msgid "Whether the victim must be an AI unit or a human player."
 msgstr "Ob das Opfer eine KI-Einheit oder ein menschlicher Spieler sein muss."
 
@@ -6581,7 +6676,7 @@ msgid "Write a randomize.lua into the mission's Saves directory."
 msgstr "Eine randomize.lua in das Saves-Verzeichnis der Mission schreiben."
 
 #. music_schema:schema;element_schema.debug
-#: services/music/schemas/music_schema.yaml:41
+#: services/music/schemas/music_schema.yaml:43
 msgid "Write the DCS-SR-ExternalAudio output to the bot log."
 msgstr "Die Ausgabe von DCS-SR-ExternalAudio in das Bot-Log schreiben."
 
@@ -6596,7 +6691,7 @@ msgid "Your custom Discord commands, keyed by command name."
 msgstr "Eigene Discord-Befehle, nach Befehlsname geschlüsselt."
 
 #. firewall_schema:schema;element_schema.ddos_detection.threshold_sigma
-#: services/firewall/schemas/firewall_schema.yaml:43
+#: services/firewall/schemas/firewall_schema.yaml:45
 msgid "Z-score above which traffic counts as anomalous."
 msgstr "Z-Score, ab dem Verkehr als anomal gilt."
 
