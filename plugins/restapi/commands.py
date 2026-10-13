@@ -11,7 +11,8 @@ from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, S
 from core.actions import ActionContext, call_action
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
-from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
+from fastapi import (FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response,
+                     BackgroundTasks)
 from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
 from pathlib import Path
 from starlette.requests import Request
@@ -70,6 +71,8 @@ from .models import (
     ServerStartResponse,
     ServerStopResponse,
     ServerRestartResponse,
+    ServerShutdownResponse,
+    NodeRestartResponse,
     MissionUploadResponse,
     GroupWaypointsResponse,
     MissionGroupResponse,
@@ -676,6 +679,24 @@ class RestAPI(Plugin):
             summary = "Restart a server instance.",
             tags = ["Instance Control"]
         )
+        add_secured_api_route(
+            "/instance/shutdown", self.instance_shutdown,
+            methods = ["POST"],
+            response_model = ServerShutdownResponse,
+            description = "Shut a server down (terminates the DCS process).",
+            summary = "Shut down a server instance.",
+            tags = ["Instance Control"]
+        )
+
+        # Node routes
+        add_secured_api_route(
+            "/node/restart", self.node_restart,
+            methods = ["POST"],
+            response_model = NodeRestartResponse,
+            description = "Restart a node, or all nodes. The bot reloads its configuration.",
+            summary = "Restart a node.",
+            tags = ["Node Control"]
+        )
 
         ## Mission routes
         add_secured_api_route(
@@ -808,7 +829,118 @@ class RestAPI(Plugin):
         except Exception as ex:
             self.log.exception(ex)
             raise HTTPException(status_code=500, detail=f"Failed to restart server: {str(ex)}")
-    
+
+    # Shut down a server (DCS process) based on the provided name.
+    # Endpoint:   /instance/shutdown
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    #             - force         [optional, default: False]
+    #             - maintenance   [optional, default: True]
+    #             - when_empty    [optional, default: False]
+    async def instance_shutdown(
+        self,
+        server_name: str = Query(...),
+        force: bool = Query(False, description="Kill the DCS process instead of a graceful shutdown"),
+        maintenance: bool = Query(True, description="Set the maintenance flag, so the Scheduler does not start the "
+                                                    "server again"),
+        when_empty: bool = Query(False, description="If players are connected, shut down once the server is empty")
+    ):
+        """Shut a server down, like /server shutdown."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status == Status.SHUTDOWN:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is already shut down.")
+
+        # /server shutdown asks to force a shutdown in these states, we cannot
+        if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN] and not force:
+            raise HTTPException(status_code=409,
+                                detail=f"Server '{resolved_server_name}' is in {server.status.name} state, "
+                                       f"use force to shut it down.")
+
+        if when_empty and not force and server.is_populated():
+            # /server shutdown asks before replacing a pending action, we cannot
+            if server.restart_pending or server.on_empty:
+                raise HTTPException(status_code=409,
+                                    detail=f"An action is already pending on server '{resolved_server_name}'.")
+            # same as "later" in /server shutdown, run by the Scheduler on onServerEmpty
+            server.on_empty = {
+                "method": "shutdown",
+                "maintenance": maintenance
+            }
+            server.restart_pending = True
+            return {
+                "status": "pending",
+                "message": f"Server '{resolved_server_name}' will shut down when it is empty."
+            }
+
+        if maintenance:
+            server.maintenance = True
+        if server.on_empty:
+            server.on_empty.clear()
+
+        try:
+            if force:
+                await server.shutdown(force=True)
+            else:
+                # same as the Scheduler's teardown_dcs
+                await self.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+                await asyncio.sleep(1)
+                await server.shutdown()
+            if not maintenance and server.maintenance:
+                server.maintenance = False
+            await self.bot.audit("shut down DCS server through the RestAPI", server=server)
+            return {
+                "status": "success",
+                "message": f"Server '{resolved_server_name}' shut down."
+            }
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while shutting down server.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to shut down server: {str(ex)}")
+
+    # Restart a node, or all nodes, like /node restart.
+    # Endpoint:   /node/restart
+    # Method:     [POST]
+    # Params:     - node_name     [optional, default: all nodes]
+    async def node_restart(
+        self,
+        background_tasks: BackgroundTasks,
+        node_name: str | None = Query(None, description="Node to restart (default: all nodes)")
+    ):
+        """Restart a node, or all nodes, like /node restart. The response is sent before the restart."""
+        if node_name and node_name not in self.node.all_nodes:
+            raise HTTPException(status_code=404, detail=f"Node '{node_name}' not found.")
+
+        try:
+            restarted = []
+            for n in await self.node.get_active_nodes():
+                if not node_name or n == node_name:
+                    await self.bus.send_to_node({
+                        "command": "rpc",
+                        "object": "Node",
+                        "method": "restart"
+                    }, node=n)
+                    restarted.append(n)
+            if not node_name or node_name == self.node.name:
+                # the RestAPI runs in this process: answer first, restart afterward
+                background_tasks.add_task(self.node.restart)
+                restarted.append(self.node.name)
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to restart node: {str(ex)}")
+
+        if not restarted:
+            raise HTTPException(status_code=409, detail=f"Node '{node_name}' is not active.")
+        await self.bot.audit(f"restarted node(s) {', '.join(restarted)} through the RestAPI")
+        return {
+            "status": "success",
+            "message": f"Node(s) {', '.join(restarted)} restarting.",
+            "nodes": restarted
+        }
+
 
     # Return a listing of available missions
     # Endpoint:   /instance/missions
