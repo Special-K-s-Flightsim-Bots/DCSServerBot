@@ -840,7 +840,8 @@ class RestAPI(Plugin):
     async def instance_shutdown(
         self,
         server_name: str = Query(...),
-        force: bool = Query(False, description="Kill the DCS process instead of a graceful shutdown"),
+        force: bool = Query(False, description="Kill the DCS process instead of a graceful shutdown "
+                                             "(a shutdown deferred by when_empty is always graceful)"),
         maintenance: bool = Query(True, description="Set the maintenance flag, so the Scheduler does not start the "
                                                     "server again"),
         when_empty: bool = Query(False, description="If players are connected, shut down once the server is empty")
@@ -859,7 +860,8 @@ class RestAPI(Plugin):
                                 detail=f"Server '{resolved_server_name}' is in {server.status.name} state, "
                                        f"use force to shut it down.")
 
-        if when_empty and not force and server.is_populated():
+        # force never cuts a session either: the deferred shutdown is a graceful one
+        if when_empty and server.is_populated():
             # /server shutdown asks before replacing a pending action, we cannot
             if server.restart_pending or server.on_empty:
                 raise HTTPException(status_code=409,

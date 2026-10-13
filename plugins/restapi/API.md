@@ -1979,7 +1979,7 @@ Errors: 404 if the server is unknown; 409 if it is already shut down, if it is i
 | Name | Type | In | Required | Default | Description |
 |------|------|----|----------|---------|-------------|
 | `server_name` | `string` | query | **Yes** | - | Server Name |
-| `force` | `boolean` | query | No | `false` | Kill the DCS process instead of a graceful shutdown |
+| `force` | `boolean` | query | No | `false` | Kill the DCS process instead of a graceful shutdown (a shutdown deferred by `when_empty` is always graceful) |
 | `maintenance` | `boolean` | query | No | `true` | Set the maintenance flag, so the Scheduler does not start the server again |
 | `when_empty` | `boolean` | query | No | `false` | If players are connected, shut down once the server is empty |
 
