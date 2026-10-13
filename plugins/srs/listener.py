@@ -208,6 +208,9 @@ class SRSEventListener(EventListener["SRS"]):
             player = server.get_player(name=data.get('initiator', {}).get('name'))
             if not player or player.sub_slot > 0:
                 return
+            # aircraft with preset-only radios (warbirds) may have no channel on the ATC frequency
+            if player.unit_type in config.get('atc_exempt_unit_types', []):
+                return
 
             place: str | None = data.get('place', {}).get('name')
             if not place:
