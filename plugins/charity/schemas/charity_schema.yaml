@@ -3,17 +3,44 @@ mapping:
   DEFAULT:
     type: map
     nullable: false
+    desc: Section applied to all of your DCS servers.
+    example: |
+      bot_status: true
+      gofundme:
+        - campaign: campaign-1
+          channel: 123456789012345678
+          interval: 5
     mapping:
-      bot_status: {type: bool, nullable: false}
+      bot_status:
+        type: bool
+        nullable: false
+        desc: Show campaign totals in the bot status.
+        example: "true"
       gofundme:
         type: seq
         nullable: false
+        desc: GoFundMe campaigns to track for donations.
+        example: |
+          - campaign: campaign-1
+            channel: 123456789012345678
+            interval: 5
         sequence:
           - type: map
             mapping:
-              campaign: {type: str, required: true}
-              channel: {type: any, required: true}
-              interval: {type: int}
+              campaign:
+                type: str
+                required: true
+                desc: URL or slug of the GoFundMe campaign.
+                example: "campaign-1"
+              channel:
+                type: any
+                required: true
+                desc: Discord channel ID or name for the reports.
+                example: "123456789012345678"
+              interval:
+                type: int
+                desc: Minutes between checks for new donations.
+                example: "5"
   commands:
     include: 'commands_schema'
   "regex;(.+)":
@@ -21,5 +48,8 @@ mapping:
     mapping:
       campaigns:
         type: seq
+        desc: Campaigns announced in-game on this server.
+        example: |
+          - support-matt-wagners-cancer-fight
         sequence:
           - type: str

@@ -5,14 +5,27 @@ schema;initiator:
     - type: map
       nullable: false
       mapping:
-        default: {type: int, nullable: false}
-        discord: {type: text, nullable: false}
-        points: {type: int, nullable: false}
+        default:
+          type: int
+          nullable: false
+          desc: Points granted to players not matching any listed role.
+          example: "10"
+        discord:
+          type: text
+          nullable: false
+          desc: Discord role name this starting balance applies to.
+          example: "Donator"
+        points:
+          type: int
+          nullable: false
+          desc: Credit points granted to members of this role at start.
+          example: "15"
 
 schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -21,43 +34,128 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    initial_points: {type: any, nullable: false, func: int_or_list, enum: ['initiator']}
-    max_points: {type: int, range: {min: 1}, nullable: false}
-    multiplier: {type: float, nullable: false}
-    points_on_rtb: {type: bool, nullable: false}
-    squadron_credits: {type: bool, nullable: false}
+    initial_points:
+      type: any
+      nullable: false
+      func: int_or_list
+      enum: ['initiator']
+      desc: Credit points every player starts a campaign with.
+      example: "10"
+    max_points:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Maximum credit points a player can accumulate.
+      example: "100"
+    multiplier:
+      type: float
+      nullable: false
+      desc: Multiplier applied to credits earned on proper landings.
+      example: "1.0"
+    points_on_rtb:
+      type: bool
+      nullable: false
+      desc: Only grant credit points once the pilot is back at base.
+      example: "false"
+    squadron_credits:
+      type: bool
+      nullable: false
+      desc: Also credit the player's squadron with earned points.
+      example: "true"
     squadron:
       type: map
       nullable: false
+      desc: Starting balance and cap for squadron credits.
+      example: |
+        initial_points: 100
+        max_points: 1000
       mapping:
-        initial_points: {type: int, nullable: false, range: {min: 0}}
-        max_points: {type: int, nullable: false, range: {min: 0}}
+        initial_points:
+          type: int
+          nullable: false
+          range: {min: 0}
+          desc: Credit points every squadron starts a campaign with.
+          example: "100"
+        max_points:
+          type: int
+          nullable: false
+          range: {min: 0}
+          desc: Maximum credit points a squadron can hold.
+          example: "1000"
     messages:
       type: map
       nullable: false
+      desc: Text templates for credit-related in-game messages.
+      example: |
+        message_kill: You received {points} credit points for killing {victim}.
       mapping:
-        message_kill: {type: str, nullable: false, range: {min: 1}}
+        message_kill:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Kill message; may hold {points} and {victim}.
+          example: "You received {points} credit points for killing {victim}."
     points_per_kill:
       type: seq
       nullable: false
+      desc: Points awarded per kill; the first matching rule wins.
+      example: |
+        - category: Ships
+          points: 2
+        - category: Air Defence
+          points: 3
       sequence:
         - type: map
           nullable: false
           mapping:
-            default: {type: int, range: {min: 0}, nullable: false}
-            category: {type: str, enum: [
-              'Planes', 'Helicopters', 'Ships', 'Fortifications', 'LTAvehicles', 'WWII structures', 'Animal',
-              'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Infantry', 'Locomotive', 'Carriage', 'MissilesSS',
-              'User'
-            ], nullable: false}
-            type: {type: str, enum: ['AI', 'Player'], nullable: false}
-            unit_type: {type: str, nullable: false, range: {min: 1}}
-            unit_name: {type: str, nullable: false, range: {min: 1}}
-            group_name: {type: str, nullable: false, range: {min: 1}}
+            default:
+              type: int
+              range: {min: 0}
+              nullable: false
+              desc: Fallback points for kills matching no other rule.
+              example: "1"
+            category:
+              type: str
+              enum: [
+                'Planes', 'Helicopters', 'Ships', 'Fortifications', 'LTAvehicles', 'WWII structures', 'Animal',
+                'Unarmed', 'Air Defence', 'Artillery', 'Armor', 'Infantry', 'Locomotive', 'Carriage', 'MissilesSS',
+                'User'
+              ]
+              nullable: false
+              desc: Unit category a kill must match to award these points.
+              example: "Ships"
+            type:
+              type: str
+              enum: ['AI', 'Player']
+              nullable: false
+              desc: Whether the victim must be an AI unit or a human player.
+              example: "Player"
+            unit_type:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Restrict the rule to a specific DCS unit type.
+              example: "F-14B"
+            unit_name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Restrict the rule to a specific unit name.
+              example: "Red Bear 1"
+            group_name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Restrict the rule to a specific group name.
+              example: "Enemy CAP"
             ucid:
               type: seq
               nullable: false
+              desc: Player UCIDs eligible for this bounty.
+              example: |
+                - 1122334455667788
               sequence:
                 - type: str
                   nullable: false
@@ -65,33 +163,89 @@ schema;element_schema:
             discord:
               type: seq
               nullable: false
+              desc: Discord roles eligible for this bounty.
+              example: |
+                - Cannon Fodder
               sequence:
                 - type: text
                   nullable: false
-            points: {type: int, nullable: false}
+            points:
+              type: int
+              nullable: false
+              desc: Points awarded when this rule matches a kill.
+              example: "5"
     achievements:
       type: seq
       nullable: false
+      desc: Discord roles granted once credit or playtime goals are met.
+      example: |
+        - credits: 50
+          playtime: 25
+          role: Veteran
       sequence:
         - type: map
           nullable: false
           mapping:
-            credits: {type: int, range: {min: 0}, nullable: false}
-            playtime: {type: int, range: {min: 0}, nullable: false}
-            combined: {type: bool, nullable: false}
-            role: {type: text, nullable: false}
+            credits:
+              type: int
+              range: {min: 0}
+              nullable: false
+              desc: Credit points threshold for this achievement.
+              example: "50"
+            playtime:
+              type: int
+              range: {min: 0}
+              nullable: false
+              desc: Flight time in hours required for this achievement.
+              example: "25"
+            combined:
+              type: bool
+              nullable: false
+              desc: Require both credits and playtime instead of either.
+              example: "false"
+            role:
+              type: text
+              nullable: false
+              desc: Discord role granted when the achievement is reached.
+              example: "Veteran"
             badge:
               type: map
               nullable: true
+              desc: Optional badge image awarded alongside the role.
+              example: |
+                name: Rookie
+                img: https://example.com/rookie_badge.png
               mapping:
-                name: {type: str, nullable: false, range: {min: 1}}
-                img: {type: url, nullable: false}
+                name:
+                  type: str
+                  nullable: false
+                  range: {min: 1}
+                  desc: Display name of the badge.
+                  example: "Rookie"
+                img:
+                  type: url
+                  nullable: false
+                  desc: URL of the badge image.
+                  example: "https://example.com/rookie_badge.png"
     leaderboard:
       type: map
       nullable: false
+      desc: Persistent credits leaderboard shown in a channel.
+      example: |
+        channel: 112233445566778899
+        limit: 10
       mapping:
-        channel: {type: int, nullable: false, required: true}
-        limit: {type: int, nullable: false}
+        channel:
+          type: int
+          nullable: false
+          required: true
+          desc: Discord channel that shows the leaderboard.
+          example: "112233445566778899"
+        limit:
+          type: int
+          nullable: false
+          desc: Maximum number of players shown on the leaderboard.
+          example: "10"
 
 type: map
 func: check_main_structure

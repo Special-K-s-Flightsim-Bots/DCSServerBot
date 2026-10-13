@@ -4,123 +4,495 @@ mapping:
     type: map
     nullable: false
     mapping:
-      listen_address: {type: str, nullable: false, range: {min: 1}}
-      listen_port: {type: int, nullable: false, func: unique_port}
+      listen_address:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Interface on which the bot accepts node connections.
+        example: "127.0.0.1"
+      listen_port:
+        type: int
+        nullable: false
+        func: unique_port
+        desc: Port the bot listens on for node-to-node connections.
+        example: "10042"
       proxy:
         type: map
         nullable: false
+        desc: Optional node-wide proxy used to reach external web services.
+        example: |
+          url: 'https://myfancyproxy:8080'
+          username: admin
+          password: '***'
         mapping:
-          url: {type: url, nullable: false}
-          username: {type: str, nullable: false, range: {min: 1}}
-          password: {type: str, nullable: false}
-      public_ip: {type: str, nullable: false, range: {min: 1}}
-      use_upnp: {type: bool, nullable: false}
-      autoupdate: {type: bool, nullable: false}
-      slow_system: {type: bool, nullable: false}
-      nodestats: {type: bool, nullable: false}
-      restrict_commands: {type: bool, nullable: false}
-      restrict_owner: {type: bool, nullable: false}
+          url:
+            type: url
+            nullable: false
+            desc: URL of the proxy server.
+            example: "https://myfancyproxy:8080"
+          username:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Username used to authenticate against the proxy.
+            example: "admin"
+          password:
+            type: str
+            nullable: false
+            desc: Password used to authenticate against the proxy.
+            example: "***"
+      public_ip:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Public IP of this node; set it only with a static IP.
+        example: "88.77.66.55"
+      use_upnp:
+        type: bool
+        nullable: false
+        desc: Auto-forward the node's ports via UPnP.
+        example: "true"
+      autoupdate:
+        type: bool
+        nullable: false
+        desc: Automatically update the bot itself on this node.
+        example: "false"
+      slow_system:
+        type: bool
+        nullable: false
+        desc: Set on slower hosts to reduce CPU-heavy background work.
+        example: "false"
+      nodestats:
+        type: bool
+        nullable: false
+        desc: Report node statistics such as pool and event queue sizes.
+        example: "true"
+      restrict_commands:
+        type: bool
+        nullable: false
+        desc: Block commands that can affect server integrity.
+        example: "true"
+      restrict_owner:
+        type: bool
+        nullable: false
+        desc: Also block restricted commands for the bot owner.
+        example: "false"
       cluster:
         type: map
         nullable: false
+        desc: Cluster settings; only needed in multi-node installations.
+        example: |
+          preferred_master: true
+          heartbeat: 30
         mapping:
-          preferred_master: {type: bool, nullable: false}
-          no_master: {type: bool, nullable: false}
-          heartbeat: {type: int, range: {min: 10}, nullable: false}
-          heartbeat_timeout: {type: int, range: {min: 5}, nullable: false}
-          unregister_grace: {type: int, range: {min: 10}, nullable: false}
-          cloud_drive: {type: bool, nullable: false}
+          preferred_master:
+            type: bool
+            nullable: false
+            desc: Mark this node as the preferred cluster master.
+            example: "true"
+          no_master:
+            type: bool
+            nullable: false
+            desc: Prevent this node from ever becoming the master.
+            example: "false"
+          heartbeat:
+            type: int
+            range: {min: 10}
+            nullable: false
+            desc: Seconds between master and agent heartbeats.
+            example: "30"
+          heartbeat_timeout:
+            type: int
+            range: {min: 5}
+            nullable: false
+            desc: Seconds without a heartbeat before a node is considered dead.
+            example: "20"
+          unregister_grace:
+            type: int
+            range: {min: 10}
+            nullable: false
+            desc: Seconds before an unreachable node is removed from the cluster.
+            example: "60"
+          cloud_drive:
+            type: bool
+            nullable: false
+            desc: Set if DCS is installed on a cloud drive or NAS.
+            example: "true"
       auto_affinity:
         type: map
         nullable: false
+        desc: Automatic CPU affinity assignment for DCS servers.
+        example: |
+          enabled: true
+          excluded_cores: 0-1, 16
+          min_cores: 1
+          max_cores: 2
+          quality: 1
         mapping:
-          enabled: {type: bool, nullable: false}
-          excluded_cores: {type: any, nullable: false, func: text_or_list}
-          min_cores: {type: int, nullable: false, default: 1, range: {min: 1}}
-          max_cores: {type: int, nullable: true, range: {min: 1}}
-          quality: {type: int, nullable: false, default: 1, range: {min: 0}}
-          reuse_cores: {type: bool, nullable: false, default: true}
-          max_core_sharing: {type: int, nullable: false, default: 2, range: {min: 1, max: 8}}
-          growth_load_threshold: {type: float, nullable: false, default: 70.0, range: {min: 0.0}}
-          steal_load_threshold: {type: float, nullable: false, default: 85.0, range: {min: 0.0}}
-          idle_load_threshold: {type: float, nullable: false, default: 20.0, range: {min: 0.0}}
-          steal_streak: {type: int, nullable: false, default: 3, range: {min: 1}}
+          enabled:
+            type: bool
+            nullable: false
+            desc: Enable automatic CPU affinity for this node.
+            example: "true"
+          excluded_cores:
+            type: any
+            nullable: false
+            func: text_or_list
+            desc: Cores excluded from auto-affinity (list or range string).
+            example: "0-1, 16"
+          min_cores:
+            type: int
+            nullable: false
+            default: 1
+            range: {min: 1}
+            desc: Minimum cores reserved for the bot itself.
+            example: "1"
+          max_cores:
+            type: int
+            nullable: true
+            range: {min: 1}
+            desc: Maximum cores reserved for the bot itself.
+            example: "2"
+          quality:
+            type: int
+            nullable: false
+            default: 1
+            range: {min: 0}
+            desc: Requested core quality (0 = efficiency, 1 = performance).
+            example: "1"
+          reuse_cores:
+            type: bool
+            nullable: false
+            default: true
+            desc: Allow bounded core reuse when minimums cannot be met.
+            example: "true"
+          max_core_sharing:
+            type: int
+            nullable: false
+            default: 2
+            range: {min: 1, max: 8}
+            desc: Max managed processes allowed to share one logical CPU.
+            example: "2"
+          growth_load_threshold:
+            type: float
+            nullable: false
+            default: 70.0
+            range: {min: 0.0}
+            desc: Grow a process only above this load per assigned core.
+            example: "70.0"
+          steal_load_threshold:
+            type: float
+            nullable: false
+            default: 85.0
+            range: {min: 0.0}
+            desc: Allow stealing cores from idle processes above this load.
+            example: "85.0"
+          idle_load_threshold:
+            type: float
+            nullable: false
+            default: 20.0
+            range: {min: 0.0}
+            desc: Processes below this load per core may be treated as idle.
+            example: "20.0"
+          steal_streak:
+            type: int
+            nullable: false
+            default: 3
+            range: {min: 1}
+            desc: Consecutive high-load checks needed before stealing cores.
+            example: "3"
       database:
         type: map
         nullable: false
+        desc: Database connection settings for this node.
+        example: |
+          url: postgresql://dcssb:***@localhost:5432/dcssb
+          pool_min: 2
+          pool_max: 10
+          max_reties: 3
+          max_idle: 300
         mapping:
-          url: {type: str, required: true, nullable: false, range: {min: 1}}
-          pool_min: {type: int, range: {min: 2}, nullable: false}
-          pool_max: {type: int, range: {min: 5}, nullable: false}
-          max_reties: {type: int, range: {min: 1}, nullable: false}
-          max_idle: {type: int, range: {min: 0}, nullable: false}
+          url:
+            type: str
+            required: true
+            nullable: false
+            range: {min: 1}
+            desc: PostgreSQL connection URL used by this node.
+            example: "postgresql://dcssb:***@localhost:5432/dcssb"
+          pool_min:
+            type: int
+            range: {min: 2}
+            nullable: false
+            desc: Minimum database connections kept in the pool.
+            example: "2"
+          pool_max:
+            type: int
+            range: {min: 5}
+            nullable: false
+            desc: Maximum database connections allowed in the pool.
+            example: "10"
+          max_reties:
+            type: int
+            range: {min: 1}
+            nullable: false
+            desc: Retries to connect to the database on startup.
+            example: "3"
+          max_idle:
+            type: int
+            range: {min: 0}
+            nullable: false
+            desc: Maximum idle time of a pooled database connection.
+            example: "300"
       DCS:
         type: map
         nullable: false
+        desc: DCS installation and update settings for this node.
+        example: |
+          installation: '%ProgramFiles%\\Eagle Dynamics\\DCS World'
+          autoupdate: true
+          minimized: true
         mapping:
-          installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
-          autoupdate: {type: bool, nullable: false}
+          installation:
+            type: str
+            required: true
+            nullable: false
+            range: {min: 1}
+            func: dir_exists
+            desc: Path to the DCS World installation on this node.
+            example: '%ProgramFiles%\\Eagle Dynamics\\DCS World'
+          autoupdate:
+            type: bool
+            nullable: false
+            desc: Auto-update DCS on this node when a new version is available.
+            example: "true"
           announce:
             type: map
             nullable: false
+            desc: Discord announcement posted after a DCS update.
+            example: |
+              channel: 11223344556677
+              title: DCS has been updated to version {}!
+              description: 'The following servers have been updated:'
+              footer: Please make sure you update your DCS client to join!
+              mention:
+                - DCS Admin
             mapping:
-              channel: { type: int, required: true, nullable: false }
-              title: { type: str, nullable: false, range: { min: 1 } }
-              description: { type: str, nullable: false, range: { min: 1 } }
-              footer: { type: str, nullable: false, range: { min: 1 } }
+              channel:
+                type: int
+                required: true
+                nullable: false
+                desc: Discord channel ID that receives the update announcement.
+                example: "11223344556677"
+              title:
+                type: str
+                nullable: false
+                range: { min: 1 }
+                desc: Announcement embed title.
+                example: "DCS has been updated to version {}!"
+              description:
+                type: str
+                nullable: false
+                range: { min: 1 }
+                desc: Announcement embed description.
+                example: "The following servers have been updated:"
+              footer:
+                type: str
+                nullable: false
+                range: { min: 1 }
+                desc: Announcement embed footer text.
+                example: "Please make sure you update your DCS client to join!"
               mention:
                 type: seq
                 nullable: false
+                desc: Roles or users to mention in the announcement.
+                example: |
+                  - Admin
+                  - DCS Admin
                 sequence:
-                  - { type: text, nullable: false }
+                  - type: text
+                    nullable: false
+                    desc: Role or user name to mention.
+                    example: "DCS Admin"
           update_window:
             type: map
             nullable: false
+            desc: Time windows in which DCS updates are allowed.
+            example: |
+              timezone: Europe/Berlin
+              00-18: YYYYYYY
+              18-20: YYYYYYN
+              20-24: YYYYYYY
             mapping:
-              timezone: { type: str, nullable: false, range: { min: 1 } }
+              timezone:
+                type: str
+                nullable: false
+                range: { min: 1 }
+                desc: Timezone used to interpret the update windows.
+                example: "Europe/Berlin"
               regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): { type: str, pattern: '^[YNP]{7}$', nullable: false }
-          desanitize: {type: bool, nullable: false}
-          minimized: {type: bool, nullable: false}
-          user: {type: str, nullable: false, range: {min: 1}}
-          password: {type: str, nullable: false, range: {min: 1}}
+          desanitize:
+            type: bool
+            nullable: false
+            desc: Desanitize MissionScripting.lua after each update.
+            example: "true"
+          minimized:
+            type: bool
+            nullable: false
+            desc: Start DCS servers minimized.
+            example: "true"
+          user:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: DCS account username, only needed in special setups.
+            example: "myDCSuser"
+          password:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: DCS account password, stored as a secret by the bot.
+            example: "***"
           allow_unsafe_api:
             type: seq
             nullable: false
+            desc: Unsafe DCS API features allowed for scripts.
+            example: |
+              - scripting
+              - gui
             sequence:
-              - {type: str, nullable: false, unique: true, enum: ['scripting', 'gui', 'userhooks']}
+              - type: str
+                nullable: false
+                unique: true
+                enum: ['scripting', 'gui', 'userhooks']
+                desc: Allowed unsafe API feature.
+                example: "scripting"
           allow_dostring_in:
             type: seq
             nullable: false
+            desc: DCS environments in which loadstring is allowed.
+            example: |
+              - server
+              - mission
             sequence:
-              - {type: str, nullable: false, unique: true, enum: ['server', 'scripting', 'config', 'mission', 'gui', 'export']}
+              - type: str
+                nullable: false
+                unique: true
+                enum: ['server', 'scripting', 'config', 'mission', 'gui', 'export']
+                desc: Environment that may use loadstring.
+                example: "server"
       extensions:
         include: 'node_extensions_schema'
       instances:
         type: map
         func: is_node
         nullable: false
+        desc: DCS instances running on this node.
+        example: |
+          DCS.openbeta:
+            home: '%USERPROFILE%\\Saved Games\\DCS.openbeta'
+            bot_port: 6666
+            webgui_port: 8088
+            dcs_port: 10308
         mapping:
           regex;(.+):   # Any string as an instance name
             type: map
             nullable: false
             mapping:
-              bot_port: {type: int, nullable: false, func: unique_port, required: true}
-              webgui_port: {type: int, nullable: false, func: unique_port, required: true}
-              dcs_port: {type: int, nullable: false, func: unique_port, required: true}
-              home: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-              missions_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-              mission_rewrite: {type: bool, nullable: false}
-              autoscan: {type: bool, nullable: false}
-              server_user: {type: str, nullable: false, range: {min: 1}}
-              max_hung_minutes: {type: int, range: {min: 0}, nullable: false}
-              affinity: {type: any, nullable: false, func: str_or_list}
+              bot_port:
+                type: int
+                nullable: false
+                func: unique_port
+                required: true
+                desc: Port the bot uses to communicate with this instance.
+                example: "6666"
+              webgui_port:
+                type: int
+                nullable: false
+                func: unique_port
+                required: true
+                desc: Port of the DCS WebGUI for this instance.
+                example: "8088"
+              dcs_port:
+                type: int
+                nullable: false
+                func: unique_port
+                required: true
+                desc: DCS port of this instance.
+                example: "10308"
+              home:
+                type: str
+                nullable: false
+                range: {min: 1}
+                func: dir_exists
+                desc: Path to the instance's Saved Games directory.
+                example: '%USERPROFILE%\\Saved Games\\DCS.openbeta'
+              missions_dir:
+                type: str
+                nullable: false
+                range: {min: 1}
+                func: dir_exists
+                desc: Directory where the bot scans for missions.
+                example: '%USERPROFILE%\\Documents\\Missions'
+              mission_rewrite:
+                type: bool
+                nullable: false
+                desc: Let the bot rewrite missions on the fly without a restart.
+                example: "true"
+              autoscan:
+                type: bool
+                nullable: false
+                desc: Auto-add new mission files found in the missions folder.
+                example: "true"
+              server_user:
+                type: str
+                nullable: false
+                range: {min: 1}
+                desc: Username shown as the sender of server-side messages.
+                example: "Admin"
+              max_hung_minutes:
+                type: int
+                range: {min: 0}
+                nullable: false
+                desc: Kill the server after this many minutes of unresponsiveness.
+                example: "3"
+              affinity:
+                type: any
+                nullable: false
+                func: str_or_list
+                desc: Deprecated CPU affinity for DCS_Server.exe; use auto_affinity.
+                example: "2,3"
               auto_affinity:
                 type: map
                 nullable: false
+                desc: Per-instance CPU affinity overrides.
+                example: |
+                  min_cores: 2
+                  max_cores: 4
+                  quality: 3
                 mapping:
-                  min_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
-                  max_cores: {type: int, nullable: false, range: {min: 1, max: 128}}
-                  quality: {type: int, nullable: false, range: {min: 1, max: 3}}
-              priority: {type: str, enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime'], nullable: false}
+                  min_cores:
+                    type: int
+                    nullable: false
+                    range: {min: 1, max: 128}
+                    desc: Minimum cores for this instance.
+                    example: "2"
+                  max_cores:
+                    type: int
+                    nullable: false
+                    range: {min: 1, max: 128}
+                    desc: Maximum cores for this instance.
+                    example: "4"
+                  quality:
+                    type: int
+                    nullable: false
+                    range: {min: 1, max: 3}
+                    desc: Core quality for this instance (higher is better).
+                    example: "3"
+              priority:
+                type: str
+                enum: ['below_normal', 'normal', 'above_normal', 'high', 'realtime']
+                nullable: false
+                desc: OS process priority for DCS_Server.exe.
+                example: "normal"
               extensions:
                 include: 'instance_extensions_schema'

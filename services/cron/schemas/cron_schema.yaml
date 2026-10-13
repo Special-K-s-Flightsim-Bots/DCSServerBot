@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,27 +11,66 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    timezone: {type: str, nullable: false, range: {min: 1}}
+    timezone:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Timezone the cron schedule is evaluated in.
+      example: "UTC"
     actions:
       type: seq
       nullable: false
+      desc: Scheduled actions and the cron times they run at.
+      example: |
+        - cron: '0 * * * *'
+          action:
+            type: report
+            params:
+              file: mysample.json
+              channel: 1122334455667788
       sequence:
         - type: map
           nullable: false
           mapping:
-            cron: {type: str, nullable: false, pattern: '^\s*(?:\S+\s+){4,6}\S+\s*$'}
-            mission_time: {type: int, range: {min: 0}, nullable: false}
+            cron:
+              type: str
+              nullable: false
+              pattern: '^\s*(?:\S+\s+){4,6}\S+\s*$'
+              desc: Cron expression deciding when the action runs.
+              example: "0 * * * *"
+            mission_time:
+              type: int
+              range: {min: 0}
+              nullable: false
+              desc: Only fire once the mission ran this many minutes.
+              example: "60"
             action:
               type: map
               nullable: false
+              desc: The action to run and its parameters.
+              example: |
+                type: report
+                params:
+                  file: mysample.json
+                  channel: 1122334455667788
               mapping:
-                type: {type: str, nullable: false, enum: [
-                  'report', 'restart', 'halt', 'cmd', 'popup', 'broadcast', 'purge_channel', 'dcs_update', 'dcs_repair', 'node_shutdown'
-                ]}
+                type:
+                  type: str
+                  nullable: false
+                  enum: [
+                    'report', 'restart', 'halt', 'cmd', 'popup', 'broadcast', 'purge_channel', 'dcs_update', 'dcs_repair', 'node_shutdown'
+                  ]
+                  desc: Action to perform, one of the supported types.
+                  example: "report"
                 params:
                   type: any # TODO: add separate schemas
                   nullable: false
+                  desc: Parameters handed to the selected action.
+                  example: |
+                    file: mysample.json
+                    channel: 1122334455667788
 
 type: map
 func: check_main_structure

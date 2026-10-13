@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,80 +11,251 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: false}
-    use_signup_form: {type: bool, nullable: false}
-    autostart_matches: {type: bool, nullable: false}
-    match_generation: {type: str, nullable: false, enum: ['standard', 'trueskill']}
-    coalition_passwords: {type: bool, nullable: false}
-    allow_exports: {type: bool, nullable: false}
-    auto_join: {type: bool, nullable: false}
-    delayed_start: {type: int, nullable: false, range: {min: 0}}
-    time_to_choose: {type: int, nullable: false, range: {min: 300, max: 900}}
-    remove_on_death: {type: str, nullable: false, range: {min: 1}}
-    sudden_death: {type: bool, nullable: false}
-    balance_multiplier: {type: bool, nullable: false}
-    mission: {type: any, nullable: false, func: text_or_list}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the tournament features on this server instance.
+      example: "true"
+    use_signup_form:
+      type: bool
+      nullable: false
+      desc: Let squadrons write an application form during signup.
+      example: "false"
+    autostart_matches:
+      type: bool
+      nullable: false
+      desc: Auto-start matches with DM reminders before they begin.
+      example: "false"
+    match_generation:
+      type: str
+      nullable: false
+      enum: ['standard', 'trueskill']
+      desc: Method used to pair squadrons when generating matches.
+      example: "trueskill"
+    coalition_passwords:
+      type: bool
+      nullable: false
+      desc: Auto-generate passwords for the blue and red coalitions.
+      example: "true"
+    allow_exports:
+      type: bool
+      nullable: false
+      desc: Allow mission exports during tournament matches.
+      example: "false"
+    auto_join:
+      type: bool
+      nullable: false
+      desc: Auto-assign pilots to their squadron when they join a server.
+      example: "true"
+    delayed_start:
+      type: int
+      nullable: false
+      range: {min: 0}
+      desc: Seconds pilots get to prepare their planes before the start.
+      example: "300"
+    time_to_choose:
+      type: int
+      nullable: false
+      range: {min: 300, max: 900}
+      desc: Seconds squadrons have to pick customizations for the next round.
+      example: "600"
+    remove_on_death:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Regex of lost units removed before the next round of a match.
+      example: ".*"
+    sudden_death:
+      type: bool
+      nullable: false
+      desc: Play one decisive round if the configured rounds end undecided.
+      example: "false"
+    balance_multiplier:
+      type: bool
+      nullable: false
+      desc: Scale credit rewards by the TrueSkill rating difference.
+      example: "true"
+    mission:
+      type: any
+      nullable: false
+      func: text_or_list
+      desc: Mission(s) to load; a random one is picked from a list.
+      example: "Tournament.miz"
     events:
       type: map
       nullable: false
+      desc: Per-event chat messages and sounds sent during a match.
+      example: |
+        go:
+          message: GO GO GO! The fight is now on!
+          sound: siren.ogg
       mapping:
         regex;(.+):
           type: map
           nullable: false
           mapping:
-            message: {type: str, nullable: false, range: {min: 1}}
-            sound: {type: str, nullable: false, range: {min: 1}}
+            message:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Chat message sent when this event fires.
+              example: "GO GO GO! The fight is now on!"
+            sound:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Sound file played when this event fires.
+              example: "siren.ogg"
     presets:
       type: map
       nullable: false
+      desc: Presets and tickets available to squadrons during a match.
+      example: |
+        file: presets_tournament.yaml
+        initial:
+          - default
+          - sanitize
+        choices:
+          'AIM-120': {costs: 2}
       mapping:
-        file: {type: str, nullable: false, range: {min: 1}}
+        file:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Preset file that defines all tournament presets.
+          example: "presets_tournament.yaml"
         initial:
           type: seq
           nullable: false
+          desc: Presets applied to every round's mission.
+          example: |
+            - default
+            - sanitize
+            - random_weather
           sequence:
-            - {type: str, nullable: false, range: {min: 1}, unique: true}
+            - type: str
+              nullable: false
+              range: {min: 1}
+              unique: true
+              desc: Preset name.
+              example: "default"
         even:
           type: seq
           nullable: false
+          desc: Presets applied on every even round.
+          example: |
+            - switch_sides
           sequence:
-            - {type: str, nullable: false, range: {min: 1}, unique: true}
+            - type: str
+              nullable: false
+              range: {min: 1}
+              unique: true
+              desc: Preset name.
+              example: "switch_sides"
         uneven:
           type: seq
           nullable: false
+          desc: Presets applied on every uneven round.
+          example: |
+            - switch_sides
           sequence:
-            - {type: str, nullable: false, range: {min: 1}, unique: true}
+            - type: str
+              nullable: false
+              range: {min: 1}
+              unique: true
+              desc: Preset name.
+              example: "switch_sides"
         choices:
           type: map
           nullable: false
+          desc: Customizations squadrons can buy, keyed by preset name.
+          example: |
+            'AIM-120': {costs: 2}
+            'AWACS': {costs: 0, max: 1, ticket: AWACS}
           mapping:
             regex;(.+):
               type: map
               nullable: false
               mapping:
-                costs: {type: int, nullable: false, range: {min: 0}}
-                max: {type: int, nullable: false, range: {min: 1}}
-                ticket: {type: str, nullable: false, range: {min: 1}}
+                costs:
+                  type: int
+                  nullable: false
+                  range: {min: 0}
+                  desc: Credit points charged to the squadron for this choice.
+                  example: "2"
+                max:
+                  type: int
+                  nullable: false
+                  range: {min: 1}
+                  desc: Maximum number of times this choice can be picked.
+                  example: "1"
+                ticket:
+                  type: str
+                  nullable: false
+                  range: {min: 1}
+                  desc: Ticket name consumed by this choice.
+                  example: "AWACS"
         tickets:
           type: map
           nullable: false
+          desc: Ticket types squadrons receive, keyed by ticket name.
+          example: |
+            AWACS: {num: 1, credits: 500}
           mapping:
             regex;(.+):
               type: map
               nullable: false
               mapping:
-                num: {required: true, type: int, nullable: false, range: {min: 0}}
-                credits: {type: int, nullable: false, range: {min: 0}}
+                num:
+                  required: true
+                  type: int
+                  nullable: false
+                  range: {min: 0}
+                  desc: Number of tickets the squadron starts with.
+                  example: "1"
+                credits:
+                  type: int
+                  nullable: false
+                  range: {min: 0}
+                  desc: Credits the squadron gets for selling this ticket.
+                  example: "500"
     channels:
       type: map
       nullable: false
+      desc: Discord channels used by the tournament.
+      example: |
+        info: 112233445566778899
+        streamer: 91827364519283745
+        category: 119922883377446655
+        admin: 998877665544332211
       mapping:
-        info: {type: int, nullable: false}
-        admin: {type: int, nullable: false}
-        streamer: {type: int, nullable: false}
-        category: {type: int, nullable: false}
-        results: {type: int, nullable: false}
+        info:
+          type: int
+          nullable: false
+          desc: Channel where match information is posted.
+          example: "112233445566778899"
+        admin:
+          type: int
+          nullable: false
+          desc: GameMaster admin channel; falls back to the central one.
+          example: "998877665544332211"
+        streamer:
+          type: int
+          nullable: false
+          desc: Channel receiving the full live match feed for streamers.
+          example: "91827364519283745"
+        category:
+          type: int
+          nullable: false
+          desc: Category under which all match channels are created.
+          example: "119922883377446655"
+        results:
+          type: int
+          nullable: false
+          desc: Channel where match results are posted.
+          example: "112233445566778899"
 
 type: map
 func: check_main_structure

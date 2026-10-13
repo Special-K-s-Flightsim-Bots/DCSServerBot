@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,75 +11,230 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: false}
-    reslot_window: {type: int, nullable: false, range: {min: 1, max: 60}}
-    survival_window: {type: int, nullable: false, range: {min: 1}}
-    csar_timeout: {type: int, nullable: false, range: {min: 1}}
-    repair_timeout: {type: int, nullable: false, range: {min: 1}}
-    channel: {type: int, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable or disable the punishment system on this server.
+      example: "true"
+    reslot_window:
+      type: int
+      nullable: false
+      range: {min: 1, max: 60}
+      desc: Seconds after being shot at that a reslot counts as a kill steal.
+      example: "60"
+    survival_window:
+      type: int
+      nullable: false
+      range: {min: 1}
+      desc: Seconds survived after being shot at that grant no kill.
+      example: "300"
+    csar_timeout:
+      type: int
+      nullable: false
+      range: {min: 1}
+      desc: CSAR timeout in seconds for landing away from an airfield.
+      example: "180"
+    repair_timeout:
+      type: int
+      nullable: false
+      range: {min: 1}
+      desc: Seconds to wait for repair after ejecting without being hit.
+      example: "180"
+    channel:
+      type: int
+      nullable: false
+      desc: Channel that reports who was punished for what (-1 disables).
+      example: "1122334455667788"
     penalties:
       type: seq
       nullable: false
+      desc: Penalty points given per event type.
+      example: |
+        - event: kill
+          human: 30
+          AI: 18
+          reason: Killing a team member
       sequence:
         - type: map
           nullable: false
           mapping:
-            event: {type: str, required: true, nullable: false, range: {min: 1}}
-            default: {type: int, nullable: false}
-            human: {type: int, nullable: false}
-            AI: {type: int, nullable: false}
-            reason: {type: str, nullable: false, range: {min: 1}}
-            action: {type: str, nullable: false, range: {min: 1}}
-            days: {type: int, nullable: false}     # ban only
-            penalty: {type: int, nullable: false}  # credits only
-    forgive: {type: int, range: {min: 30}, nullable: false}  # it does not make sense to specify a forgive value lower than 30s
+            event:
+              type: str
+              required: true
+              nullable: false
+              range: {min: 1}
+              desc: Event that assigns these penalty points.
+              example: "kill"
+            default:
+              type: int
+              nullable: false
+              desc: Points used for events without a human/AI split.
+              example: "30"
+            human:
+              type: int
+              nullable: false
+              desc: Points when the victim is a human player.
+              example: "30"
+            AI:
+              type: int
+              nullable: false
+              desc: Points when the victim is an AI unit.
+              example: "18"
+            reason:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Text shown to the punished player as the reason.
+              example: "Killing a team member"
+            action:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Action to run immediately for this event (optional).
+              example: "move_to_spec"
+            days:
+              type: int
+              nullable: false     # ban only
+              desc: Ban duration in days when the action is ban.
+              example: "3"
+            penalty:
+              type: int
+              nullable: false  # credits only
+              desc: Credits taken away when the action is credits.
+              example: "12"
+    forgive:
+      type: int
+      range: {min: 30}
+      nullable: false  # it does not make sense to specify a forgive value lower than 30s
+      desc: Seconds a victim can forgive the last action in-game.
+      example: "30"
     punishments:
       type: seq
       nullable: false
+      desc: Actions triggered when a player reaches a point level.
+      example: |
+        - points: 100
+          action: ban
+          days: 3
+        - points: 40
+          action: move_to_spec
       sequence:
         - type: map
           nullable: false
           mapping:
-            points: {type: int, range: {min: 1}, required: true, nullable: false}
-            action: {type: str, nullable: false, range: {min: 1}}
-            days: {type: int, nullable: false}     # ban only
-            penalty: {type: int, nullable: false}  # credits only
+            points:
+              type: int
+              range: {min: 1}
+              required: true
+              nullable: false
+              desc: Penalty points that trigger this punishment.
+              example: "100"
+            action:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Action taken when the point level is reached.
+              example: "ban"
+            days:
+              type: int
+              nullable: false     # ban only
+              desc: Ban duration in days when the action is ban.
+              example: "3"
+            penalty:
+              type: int
+              nullable: false  # credits only
+              desc: Number of credits to take when the action is credits.
+              example: "12"
     flightHoursWeight:
       type: seq
       nullable: false
+      desc: Point multiplier based on the player's total flight hours.
+      example: |
+        - time: 0
+          weight: 1.4
+        - time: 10
+          weight: 0.7
       sequence:
         - type: map
           nullable: false
           mapping:
-            time: {type: int, range: {min: 0}, required: true, nullable: false}
-            weight: {type: float, nullable: false}
+            time:
+              type: int
+              range: {min: 0}
+              required: true
+              nullable: false
+              desc: Flight hours from which this weight applies.
+              example: "3"
+            weight:
+              type: float
+              nullable: false
+              desc: Point multiplier for players with that flight time.
+              example: "0.7"
     decay:
       type: seq
       nullable: false
+      desc: How penalty points fade away over time.
+      example: |
+        - days: 0
+          weight: 1
+        - days: 30
+          weight: 0.25
       sequence:
         - type: map
           mapping:
-            days: {type: int, range: {min: 0}, required: true, nullable: false}
-            weight: {type: float, nullable: false}
+            days:
+              type: int
+              range: {min: 0}
+              required: true
+              nullable: false
+              desc: Days after which this decay weight applies.
+              example: "3"
+            weight:
+              type: float
+              nullable: false
+              desc: Fraction of the points kept after those days.
+              example: "0.75"
     exemptions:
       type: map
       nullable: false
+      desc: Players that must never be punished.
+      example: |
+        ucid:
+          - aabbccddee
+        side: red
       mapping:
         ucid:
           type: seq
           nullable: false
+          desc: UCIDs that are exempt from punishments.
+          example: |
+            - aabbccddee
+            - eeggffjjjs
           sequence:
             - type: str
               nullable: false
               unique: true
+              desc: A player UCID.
+              example: "aabbccddee"
         discord:
           type: seq
           nullable: false
+          desc: Discord roles whose members are exempt from punishments.
+          example: |
+            - Moderators
           sequence:
             - type: text
               nullable: false
-        side: {type: str, nullable: false, enum: ['red', 'blue']}
+              desc: A Discord role name.
+              example: "Moderators"
+        side:
+          type: str
+          nullable: false
+          enum: ['red', 'blue']
+          desc: Side that is exempt from punishments.
+          example: "red"
 
 type: map
 func: check_main_structure

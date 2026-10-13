@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,29 +11,112 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    music_dir: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-    popup: {type: str, nullable: false, range: {min: 1}}
-    chat: {type: str, nullable: false, range: {min: 1}}
-    pause_without_players: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
+    music_dir:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory that holds your music files.
+      example: "G:\\Music"
+    popup:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Popup when a song starts; holds {song}, {frequency}, {modulation}.
+      example: "Now playing {song} on {frequency}{modulation}"
+    chat:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Chat message when a song starts; holds {song} and {frequency}.
+      example: "Now playing {song} on {frequency}{modulation}"
+    pause_without_players:
+      type: bool
+      nullable: false
+      desc: Pause the music while no player is online.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Write the DCS-SR-ExternalAudio output to the bot log.
+      example: "false"
     radios:
       type: map
       nullable: false
+      desc: One entry per radio, keyed by the radio's name.
+      example: |
+        Radio 1:
+          type: SRSRadio
+          mode: 1
+          frequency: '30.0'
+          modulation: FM
+          coalition: 1
+          volume: '0.5'
+          display_name: Jungle Beats
       mapping:
         regex;(.+):
           type: map
           nullable: false
           mapping:
-            type: {type: str, enum: ['SRSRadio'], required: true, nullable: false}
-            mode: {type: int, enum: [1, 2], required: true, nullable: false}
-            frequency: {type: text, required: true, nullable: false}
-            modulation: {type: str, enum: ['AM', 'FM'], required: true, nullable: false}
-            coalition: {type: int, enum: [1, 2], required: true, nullable: false}
-            volume: {type: text, nullable: false}
-            display_name: {type: str, nullable: false, range: {min: 1}}
-            popup: {type: str, nullable: false, range: {min: 1}}
-            chat: {type: str, nullable: false, range: {min: 1}}
+            type:
+              type: str
+              enum: ['SRSRadio']
+              required: true
+              nullable: false
+              desc: Radio type. Only SRSRadio is supported.
+              example: "SRSRadio"
+            mode:
+              type: int
+              enum: [1, 2]
+              required: true
+              nullable: false
+              desc: Playback mode, 1 repeats the list, 2 shuffles it.
+              example: "1"
+            frequency:
+              type: text
+              required: true
+              nullable: false
+              desc: SRS channel the music is played on.
+              example: "30.0"
+            modulation:
+              type: str
+              enum: ['AM', 'FM']
+              required: true
+              nullable: false
+              desc: Radio modulation.
+              example: "FM"
+            coalition:
+              type: int
+              enum: [1, 2]
+              required: true
+              nullable: false
+              desc: Coalition this radio is played for.
+              example: "1"
+            volume:
+              type: text
+              nullable: false
+              desc: Playback volume between 0.0 and 1.0.
+              example: "0.5"
+            display_name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Name of this radio as displayed in SRS.
+              example: "Jungle Beats"
+            popup:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Popup for this radio, overrides the global one.
+              example: "Now playing {song}"
+            chat:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Chat message for this radio, overrides the global one.
+              example: "Now playing {song}"
 
 type: map
 func: check_main_structure

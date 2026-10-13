@@ -2,13 +2,29 @@ schema;auth:
   type: map
   nullable: false
   mapping:
-    api_key: {type: text, nullable: false}
+    api_key:
+      type: text
+      nullable: false
+      desc: API key that clients must send in the X-API-Key header.
+      example: "CHANGE_ME"
     jwt:
       type: map
       nullable: false
+      desc: JWT settings used to verify bearer tokens.
+      example: |
+        key: some-shared-token-key
+        jwks_url: https://digitalkneeboardsimulator.com/api/pubkey
       mapping:
-        key: {type: text, nullable: false}
-        jwks_url: {type: url, nullable: false}
+        key:
+          type: text
+          nullable: false
+          desc: Shared key a valid JWT must carry to be accepted.
+          example: "some-shared-token-key"
+        jwks_url:
+          type: url
+          nullable: false
+          desc: URL of the JWKS used to verify JWT signatures.
+          example: "https://digitalkneeboardsimulator.com/api/pubkey"
 
 schema;security:
   type: map
@@ -17,15 +33,44 @@ schema;security:
     trusted:
       type: seq
       nullable: false
+      desc: Source networks that are treated as trusted.
+      example: |
+        - 10.0.0.0/8
+        - 192.168.0.0/16
       sequence:
-        - {type: str, nullable: false, unique: true, range: {min: 1}}
+        - type: str
+          nullable: false
+          unique: true
+          range: {min: 1}
+          desc: A trusted network in CIDR notation.
+          example: "10.0.0.0/8"
     default:
       type: map
       nullable: false
+      desc: Fallback auth rule for endpoints without their own.
+      example: |
+        local: none
+        trusted: api_key
+        remote: jwt
       mapping:
-        local: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
-        trusted: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
-        remote: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+        local:
+          type: str
+          nullable: false
+          enum: ['none', 'api_key', 'jwt', 'disabled']
+          desc: Auth required for loopback (local) requests.
+          example: "none"
+        trusted:
+          type: str
+          nullable: false
+          enum: ['none', 'api_key', 'jwt', 'disabled']
+          desc: Auth required for requests from trusted networks.
+          example: "api_key"
+        remote:
+          type: str
+          nullable: false
+          enum: ['none', 'api_key', 'jwt', 'disabled']
+          desc: Auth required for requests from the internet.
+          example: "jwt"
 
 schema;endpoint:
   type: map
@@ -36,14 +81,39 @@ schema;endpoint:
       nullable: false
       allowempty: true
       mapping:
-        enabled: { type: bool, nullable: false, default: true }
+        enabled:
+          type: bool
+          nullable: false
+          default: true
+          desc: Enable or disable this API endpoint.
+          example: "true"
         security:
           type: map
           nullable: false
+          desc: Per-scope auth rules for this endpoint.
+          example: |
+            local: none
+            trusted: api_key
+            remote: jwt
           mapping:
-            local: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
-            trusted: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
-            remote: {type: str, nullable: false, enum: ['none', 'api_key', 'jwt', 'disabled']}
+            local:
+              type: str
+              nullable: false
+              enum: ['none', 'api_key', 'jwt', 'disabled']
+              desc: Auth required for loopback (local) requests.
+              example: "none"
+            trusted:
+              type: str
+              nullable: false
+              enum: ['none', 'api_key', 'jwt', 'disabled']
+              desc: Auth required for requests from trusted networks.
+              example: "api_key"
+            remote:
+              type: str
+              nullable: false
+              enum: ['none', 'api_key', 'jwt', 'disabled']
+              desc: Auth required for requests from the internet.
+              example: "jwt"
 
 type: map
 nullable: false
@@ -51,8 +121,19 @@ mapping:
   DEFAULT:
     type: map
     nullable: false
+    desc: Default RestAPI settings applied to all servers.
+    example: |
+      prefix: /stats
+      auth:
+        api_key: CHANGE_ME
+      security:
+        remote: jwt
     mapping:
-      prefix: {type: str, nullable: false}
+      prefix:
+        type: str
+        nullable: false
+        desc: Optional URL prefix prepended to every endpoint.
+        example: "/stats"
       auth:
         include: 'auth'
       security:

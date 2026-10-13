@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,17 +11,63 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: false}
-    silent: {type: bool, nullable: false}
-    join_on: {type: str, nullable: false, enum: ['birth', 'takeoff']}
-    win_on: {type: str, nullable: false, enum: ['survival', 'landing', 'rtb']}
-    kick_on_death: {type: bool, nullable: false}
-    kick_time: {type: int, nullable: false, range: {min: 0}}
-    end_mission: {type: bool, nullable: false}
-    delayed_start: {type: int, nullable: false, range: {min: 0}}
-    win_on_noshow: {type: int, nullable: false, range: {min: 60}}
-    credit_on_leave: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the competitive plugin for this server.
+      example: "true"
+    silent:
+      type: bool
+      nullable: false
+      desc: Only calculate TrueSkill ratings without announcing them.
+      example: "false"
+    join_on:
+      type: str
+      nullable: false
+      enum: ['birth', 'takeoff']
+      desc: Point at which a player joins a match.
+      example: "birth"
+    win_on:
+      type: str
+      nullable: false
+      enum: ['survival', 'landing', 'rtb']
+      desc: Condition that ends and wins a match.
+      example: "survival"
+    kick_on_death:
+      type: bool
+      nullable: false
+      desc: Kick players from the server once they die in a match.
+      example: "false"
+    kick_time:
+      type: int
+      nullable: false
+      range: {min: 0}
+      desc: Seconds after death before a player is kicked.
+      example: "30"
+    end_mission:
+      type: bool
+      nullable: false
+      desc: End the mission when a match is over.
+      example: "false"
+    delayed_start:
+      type: int
+      nullable: false
+      range: {min: 0}
+      desc: Seconds players get to join before a match starts.
+      example: "300"
+    win_on_noshow:
+      type: int
+      nullable: false
+      range: {min: 60}
+      desc: Seconds without an opposing player that wins the match.
+      example: "300"
+    credit_on_leave:
+      type: bool
+      nullable: false
+      desc: Grant squadron credits when a player leaves a match.
+      example: "true"
 
 type: map
 func: check_main_structure

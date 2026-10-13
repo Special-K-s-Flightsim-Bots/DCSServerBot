@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,15 +11,29 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    kick_gci: {type: bool, nullable: false}
+    kick_gci:
+      type: bool
+      nullable: false
+      desc: Kick players from their slot while they are on GCI duty.
+      example: "true"
     exemptions:
       type: map
       nullable: false
+      desc: Players exempt from the GCI kick rule.
+      example: |
+        ucid:
+          - '11223344556677'
+        discord:
+          - DCS Admin
       mapping:
         ucid:
           type: seq
           nullable: false
+          desc: Player UCIDs exempt from the GCI kick.
+          example: |
+            - '11223344556677'
           sequence:
             - type: str
               nullable: false
@@ -26,6 +41,9 @@ schema;element_schema:
         discord:
           type: seq
           nullable: false
+          desc: Discord roles exempt from the GCI kick.
+          example: |
+            - DCS Admin
           sequence:
             - type: text
               nullable: false

@@ -4,11 +4,25 @@ mapping:
   DEFAULT:
     type: map
     nullable: false
+    desc: Section applied to all of your DCS servers.
+    example: |
+      autoexport: true
+      tablefilter:
+        - missions
+        - statistics
     mapping:
-      autoexport: {type: bool, nullable: false}
+      autoexport:
+        type: bool
+        nullable: false
+        desc: Export the selected tables automatically every hour.
+        example: "true"
       tablefilter:
         type: seq
         nullable: false
+        desc: Tables that are not exported on autoexport.
+        example: |
+          - missions
+          - statistics
         sequence:
           - type: str
             nullable: false

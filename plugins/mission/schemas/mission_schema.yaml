@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -9,26 +10,63 @@ schema;instance_schema:
 schema;element_schema:
   type: map
   nullable: false
+  desc: Applies to every instance.
   mapping:
     messages:
       type: map
       nullable: false
+      desc: Ban reason texts shown to punished players.
+      example: |
+        ban_username: Inappropriate username.
+        ban_evasion: Trying to evade a ban with a 2nd account.
       mapping:
-        ban_username: {type: str, nullable: false, range: {min: 1}}
-        ban_evasion: {type: str, nullable: false, range: {min: 1}}
+        ban_username:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Default reason when banning an inappropriate username.
+          example: "Inappropriate username."
+        ban_evasion:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Default reason for evading a ban with a second account.
+          example: "Trying to evade a ban with a 2nd account."
     event_filter:
       type: seq
       nullable: false
+      desc: Events not reported to the Discord event feed.
+      example: |
+        - connect
+        - disconnect
+        - change_slot
       sequence:
         - {type: str, unique: true, nullable: false, enum: ['connect', 'disconnect', 'change_slot', 'friendly_fire', 'self_kill', 'kill', 'takeoff', 'landing', 'crash', 'eject', 'pilot_death', 'shot', 'hit']}
     uploads:
       type: map
       nullable: false
+      desc: Mission file upload handling.
+      example: |
+        enabled: true
+        channel: 112233445566778899
+        discord:
+          - DCS Admin
       mapping:
-        enabled: {type: bool, nullable: false}
-        channel: {type: int, nullable: false}
+        enabled:
+          type: bool
+          nullable: false
+          desc: Allow uploading .miz files to the server.
+          example: "true"
+        channel:
+          type: int
+          nullable: false
+          desc: Discord channel that accepts mission uploads.
+          example: "112233445566778899"
         discord:
           type: seq
+          desc: Roles allowed to upload missions.
+          example: |
+            - DCS Admin
           sequence:
             - type: text
               nullable: false

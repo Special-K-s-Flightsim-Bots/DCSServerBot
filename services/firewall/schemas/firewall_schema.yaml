@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,30 +11,106 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    manage_rules: {type: bool, nullable: false}
+    manage_rules:
+      type: bool
+      nullable: false
+      desc: Let the bot create and manage your Windows firewall rules.
+      example: "true"
     ddos_detection:
       type: map
       nullable: false
+      desc: Detect and optionally block DDoS attacks on your servers.
+      example: |
+        enabled: true
+        threshold_sigma: 3.0
+        action: alert
       mapping:
-        enabled: {type: bool, nullable: false}
-        action: {type: str, nullable: false, enum: ['alert', 'block']}
-        threshold_sigma: {type: float, nullable: false, range: {min: 1.0, max: 10.0}}
-        min_samples: {type: int, nullable: false, range: {min: 3, max: 1000}}
-        min_abs_recv_mbps: {type: int, nullable: false, range: {min: 1, max: 10000}}
-        consecutive_ticks: {type: int, nullable: false, range: {min: 1, max: 60}}
-        recovery_ticks: {type: int, nullable: false, range: {min: 1, max: 120}}
-        alert_cooldown_minutes: {type: int, nullable: false, range: {min: 1, max: 1440}}
-        baseline_lookback_minutes: {type: int, nullable: false, range: {min: 5, max: 10080}}
-        udp_sniff_duration: {type: int, nullable: false, range: {min: 1, max: 60}}
-        udp_sniff_iface: {type: str, nullable: true}
+        enabled:
+          type: bool
+          nullable: false
+          desc: Enable DDoS detection (needs NPCAP on Windows).
+          example: "true"
+        action:
+          type: str
+          nullable: false
+          enum: ['alert', 'block']
+          desc: React to a confirmed attack with an alert or a block.
+          example: "alert"
+        threshold_sigma:
+          type: float
+          nullable: false
+          range: {min: 1.0, max: 10.0}
+          desc: Z-score above which traffic counts as anomalous.
+          example: "3.0"
+        min_samples:
+          type: int
+          nullable: false
+          range: {min: 3, max: 1000}
+          desc: Baseline samples to collect before detection begins.
+          example: "30"
+        min_abs_recv_mbps:
+          type: int
+          nullable: false
+          range: {min: 1, max: 10000}
+          desc: Minimum inbound MB/s before a node attack is considered.
+          example: "10"
+        consecutive_ticks:
+          type: int
+          nullable: false
+          range: {min: 1, max: 60}
+          desc: Anomalous ticks in a row needed to confirm DDoS start.
+          example: "3"
+        recovery_ticks:
+          type: int
+          nullable: false
+          range: {min: 1, max: 120}
+          desc: Normal ticks in a row needed to confirm DDoS end.
+          example: "5"
+        alert_cooldown_minutes:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1440}
+          desc: Minimum minutes between repeated attack alerts.
+          example: "15"
+        baseline_lookback_minutes:
+          type: int
+          nullable: false
+          range: {min: 5, max: 10080}
+          desc: Minutes of history used to seed baselines on startup.
+          example: "30"
+        udp_sniff_duration:
+          type: int
+          nullable: false
+          range: {min: 1, max: 60}
+          desc: Seconds to sniff UDP for non-player source IPs.
+          example: "10"
+        udp_sniff_iface:
+          type: str
+          nullable: true
+          desc: Interface for UDP sniffing; null auto-detects one.
+          example: "Ethernet"
         whitelist:
           type: seq
           nullable: false
+          desc: IPs always allowed through during firewall blocks.
+          example: |
+            - 203.0.113.7
+            - 198.51.100.4
           sequence:
             - {type: str, nullable: false}
-        node_block: {type: bool, nullable: false}
-        max_conns_per_ip: {type: int, nullable: false, range: {min: 0, max: 100}}
+        node_block:
+          type: bool
+          nullable: false
+          desc: Block every running server on a node-wide bandwidth attack.
+          example: "true"
+        max_conns_per_ip:
+          type: int
+          nullable: false
+          range: {min: 0, max: 100}
+          desc: Auto-block an IP with more TCP connections; 0 disables it.
+          example: "2"
 
 type: map
 func: check_main_structure

@@ -2,4 +2,8 @@ schema;modmanager_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the required-mods extension is enabled.
+      example: "true"

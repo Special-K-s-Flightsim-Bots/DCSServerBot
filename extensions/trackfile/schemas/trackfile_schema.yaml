@@ -2,5 +2,15 @@ schema;trackfile_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    target: {type: str, required: true, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the extension uploads the trackfile.
+      example: "true"
+    target:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: Discord channel id or directory the trackfiles are uploaded to.
+      example: "<id:112233445566778899>"

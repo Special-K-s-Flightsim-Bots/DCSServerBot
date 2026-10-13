@@ -2,36 +2,141 @@ schema;node_lardoon_schema:
   type: map
   nullable: false
   mapping:
-    name: { type: str, nullable: false, range: { min: 1 } }
-    use_single_process: {type: bool, nullable: false}
-    master_only: {type: bool, nullable: false}
-    cmd: {type: str, pattern: '.+\.exe$', required: true, nullable: false, range: {min: 1}}
-    minutes: {type: int, nullable: false}
-    bind: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', nullable: false}
-    url: {type: url, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: { min: 1 }
+      desc: Extension name shown in the server status embed.
+      example: "Lardoon"
+    use_single_process:
+      type: bool
+      nullable: false
+      desc: Start one Lardoon process instead of one per instance.
+      example: "true"
+    master_only:
+      type: bool
+      nullable: false
+      desc: Run a single Lardoon instance on the master node when clustered.
+      example: "false"
+    cmd:
+      type: str
+      pattern: '.+\.exe$'
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: Path to the Lardoon executable.
+      example: "%USERPROFILE%\\Documents\\GitHub\\lardoon\\lardoon.exe"
+    minutes:
+      type: int
+      nullable: false
+      desc: Minutes between updates of the Lardoon database.
+      example: "5"
+    bind:
+      type: str
+      pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}'
+      nullable: false
+      desc: IP and port the Lardoon server is listening to.
+      example: "0.0.0.0:3113"
+    url:
+      type: url
+      nullable: false
+      desc: Alternate hostname shown in the server status embed.
+      example: "https://myfancyhost.com"
     auto_affinity:
       type: map
       nullable: false
+      desc: Optional core affinity settings for the Lardoon process.
+      example: |
+        min_cores: 1
+        max_cores: 1
+        quality: 1
       mapping:
-        min_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
-        max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-        quality: {type: int, nullable: false, range: {min: 0, max: 1}}
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1}
+          desc: Minimum number of CPU cores to use.
+          example: "1"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 2}
+          desc: Maximum number of CPU cores to use.
+          example: "1"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 1}
+          desc: Core quality; 0 = low (E-cores), 1 = normal, 2 = high.
+          example: "1"
 
 schema;instance_lardoon_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: { type: str, nullable: false, range: { min: 1 } }
-    debug: {type: bool, nullable: false}
-    minutes: {type: int, nullable: false}
-    bind: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', nullable: false}
-    url: {type: url, nullable: false}
-    tacviewExportPath: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the Lardoon extension is enabled.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: { min: 1 }
+      desc: Extension name shown in the server status embed.
+      example: "Lardoon"
+    debug:
+      type: bool
+      nullable: false
+      desc: Show the Lardoon console output in the DCSSB console.
+      example: "false"
+    minutes:
+      type: int
+      nullable: false
+      desc: Minutes between updates; only used if use_single_process is false.
+      example: "5"
+    bind:
+      type: str
+      pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}'
+      nullable: false
+      desc: IP and port this instance listens to; needed if not single process.
+      example: "0.0.0.0:3113"
+    url:
+      type: url
+      nullable: false
+      desc: Alternate hostname shown in the embed; needed if not single process.
+      example: "https://myfancyhost.com"
+    tacviewExportPath:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Alternative directory holding the Tacview files.
+      example: "G:\\My Drive\\Tacview Files"
     auto_affinity:
       type: map
       nullable: false
+      desc: Optional core affinity settings for the Lardoon process.
+      example: |
+        min_cores: 1
+        max_cores: 1
+        quality: 1
       mapping:
-        min_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
-        max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-        quality: {type: int, nullable: false, range: {min: 0, max: 1}}
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1}
+          desc: Minimum number of CPU cores to use.
+          example: "1"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 2}
+          desc: Maximum number of CPU cores to use.
+          example: "1"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 1}
+          desc: Core quality; 0 = low (E-cores), 1 = normal, 2 = high.
+          example: "1"

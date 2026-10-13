@@ -26,16 +26,41 @@ schema;mizedit_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
-    presets: {type: any, nullable: false, func: str_or_list}
-    timezone: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the MizEdit extension is enabled on this instance.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Log the preset modifications applied to each mission.
+      example: "false"
+    presets:
+      type: any
+      nullable: false
+      func: str_or_list
+      desc: Preset file(s) that hold the mission modification presets.
+      example: |
+        - config/presets.yaml
+        - config/presets_weather.yaml
+    timezone:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Timezone used when evaluating time-range keys in settings.
+      example: "UTC"
     settings:
       type: any
       include: 'settings'
     terrains:
       type: map
       nullable: false
+      desc: Map-specific preset selections keyed by terrain name.
+      example: |
+        Caucasus:
+          settings:
+            - Winter, Morning, Slight Breeze, Halo
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq|GermanyCW):
           type: map
@@ -43,4 +68,9 @@ schema;mizedit_schema:
           mapping:
             settings:
               include: 'settings'
-    filter: {type: str, nullable: false, range: {min: 1}}
+    filter:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Glob filter limiting MizEdit to matching mission names.
+      example: "MyFancy*"

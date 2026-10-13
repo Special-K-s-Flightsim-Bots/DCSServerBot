@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,17 +11,47 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
     regex;(.+):
       type: map
       nullable: false
       mapping:
-        directory: {type: str, nullable: false, range: {min: 1}}
-        pattern: {type: any, nullable: false, func: str_or_list}
-        recursive: {type: bool, nullable: false}
-        delete_after: {type: int, range: {min: 1}, nullable: false}
-        channel: {type: any, nullable: false, func: int_or_list}
-        ignore: {type: any, func: int_or_list, nullable: false}
+        directory:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Directory whose old files are deleted.
+          example: "{instance.home}/Logs"
+        pattern:
+          type: any
+          nullable: false
+          func: str_or_list
+          desc: File pattern (or list) to match, like *.* or *.trk.
+          example: "*.*"
+        recursive:
+          type: bool
+          nullable: false
+          desc: Also search subdirectories below the directory.
+          example: "true"
+        delete_after:
+          type: int
+          range: {min: 1}
+          nullable: false
+          desc: Minimum age in days before a file is deleted.
+          example: "30"
+        channel:
+          type: any
+          nullable: false
+          func: int_or_list
+          desc: Discord channel ID (or list) whose old messages are purged.
+          example: "112233445566778899"
+        ignore:
+          type: any
+          func: int_or_list
+          nullable: false
+          desc: User or message IDs kept when purging those channels.
+          example: "11992288337744"
 
 type: map
 func: check_main_structure

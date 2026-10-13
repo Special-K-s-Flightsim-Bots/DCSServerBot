@@ -5,8 +5,14 @@ schema;preset_schema:
     choices:
       type: seq
       nullable: true
+      desc: Presets players can choose from in a voting.
+      example: |
+        - Summer
+        - Winter
       sequence:
         - type: str
           nullable: false
           unique: true
           range: {min: 1}
+          desc: Preset name defined in your presets.yaml.
+          example: "Summer"

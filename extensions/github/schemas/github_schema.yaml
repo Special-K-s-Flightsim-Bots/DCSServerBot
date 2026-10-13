@@ -2,7 +2,28 @@ schema;github_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    repo: {type: url, required: true, nullable: false}
-    target: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
-    filter: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the GitHub clone and update extension is enabled.
+      example: "true"
+    repo:
+      type: url
+      required: true
+      nullable: false
+      desc: URL of the Git repository to clone or update.
+      example: "https://github.com/mrSkortch/MissionScriptingTools.git"
+    target:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory on the server the repository is cloned into.
+      example: "{server.instance.home}\\Missions\\Scripts"
+    filter:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Optional glob pattern of files to sparse-checkout from the repo.
+      example: "*.lua"

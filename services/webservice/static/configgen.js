@@ -123,6 +123,60 @@
     renameRegexRow(row, key);
   });
 
+  /* A REMOVED SECTION'S NAME COMES BACK TO THE PICKER. The `+` takes the chosen name OUT of the picker
+   * so the same section cannot be added twice; removing that section must therefore put the name BACK —
+   * otherwise it cannot be re-added until the page is reloaded, and when it was the last option the
+   * whole add bar stays hidden, so the section is unreachable. It is re-inserted in the SCHEMA's own
+   * order (the container carries the full list in `data-cfg-all`), not appended out of turn. */
+  function restoreSectionName(container, name) {
+    if (!name) { return; }
+    var pick = container.querySelector("[data-cfg-sectionpick]");
+    if (!pick) { return; }
+    // the bar owns the picker in the shipped markup; a page that nests it elsewhere still works
+    var bar = pick.closest(".cfg-addbar");
+    var offer = function () { if (bar) { bar.hidden = false; } };
+    for (var index = 0; index < pick.options.length; index += 1) {
+      if (pick.options[index].value === name) { offer(); return; }   // still offered
+    }
+    var order = String(pick.getAttribute("data-cfg-all") || "").split(",")
+      .map(function (part) { return part.trim(); })
+      .filter(function (part) { return part !== ""; });
+    var wanted = order.indexOf(name);
+    var before = null;
+    for (var position = 0; position < pick.options.length; position += 1) {
+      var other = order.indexOf(pick.options[position].value);
+      if (wanted >= 0 && other > wanted) { before = pick.options[position]; break; }
+    }
+    var option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    pick.insertBefore(option, before);
+    offer();
+  }
+
+  /* CHOOSING WHICH BLOCK an ``any_of`` field carries. Exactly ONE block is enabled at a time; the others
+   * are DISABLED (a disabled fieldset is not submitted) as well as hidden, so the save can only ever post
+   * the block the operator is editing — switching is a choice of WHICH block, never a merge of two. */
+  document.addEventListener("change", function (event) {
+    var pick = event.target;
+    if (!pick || !pick.closest) { return; }
+    // a named-key ``any_of`` field (``choicepick``) or ONE ENTRY of an ``any_of`` container
+    // (``entrypick``): both pick the block, so both toggle the blocks of their own row or field.
+    var entryPick = pick.closest("[data-cfg-entrypick]");
+    var wrap = entryPick ? entryPick.closest("[data-cfg-row]") : null;
+    if (!wrap) {
+      if (!pick.closest("[data-cfg-choicepick]")) { return; }
+      wrap = pick.closest("[data-cfg-choice]");
+    }
+    if (!wrap) { return; }
+    var chosen = String(pick.value || "");
+    wrap.querySelectorAll("[data-cfg-choiceopt]").forEach(function (box) {
+      var active = box.getAttribute("data-cfg-choiceopt") === chosen;
+      box.disabled = !active;
+      box.hidden = !active;
+    });
+  });
+
   document.addEventListener("click", function (event) {
     var target = event.target;
     if (!target || !target.closest) { return; }
@@ -212,6 +266,49 @@
       return;
     }
 
+    /* TURNING A SCALAR INTO THE LIST the schema also allows. Nothing is written here: the scalar's own
+     * control is REMOVED (a hidden input still posts, so the old value would otherwise arrive as an
+     * extra row), one row per value is cloned from the container's template — a CSV scalar splits on
+     * its commas — and the shape marker flips to `list`, which is what the save reads to decide that
+     * this field is now a list. Removing rows afterwards leaves the one empty row a list always keeps;
+     * it never turns back into a scalar, because the operator chose the list and the marker says so. */
+    var toList = target.closest("[data-cfg-tolist]");
+    if (toList) {
+      event.preventDefault();
+      var wrap = toList.closest("[data-cfg-orlist]");
+      var valueBox = wrap && wrap.querySelector("[data-cfg-orvalue]");
+      var rows = wrap && wrap.querySelector("[data-cfg-orrows]");
+      var marker = wrap && wrap.querySelector("[data-cfg-form]");
+      if (!wrap || !valueBox || !rows) { return; }
+      // the value control, skipping a hidden companion (a bool's hidden "0" is not the value): only the
+      // plain selectors the page's own harness understands are used, never a `:not(...)`.
+      var candidates = valueBox.querySelectorAll("input, textarea, select");
+      var source = null;
+      for (var index = 0; index < candidates.length; index += 1) {
+        if (candidates[index].type !== "hidden") { source = candidates[index]; break; }
+      }
+      var text = source ? String(source.value || "") : "";
+      var parts = wrap.hasAttribute("data-cfg-csv")
+        ? text.split(",").map(function (part) { return part.trim(); })
+              .filter(function (part) { return part !== ""; })
+        : [text];
+      var template = rows.querySelector("template[data-cfg-template]");
+      var addButton = rows.querySelector("[data-cfg-add]");
+      if (!template || !template.content.firstElementChild) { return; }
+      parts.forEach(function (part) {
+        var row = template.content.firstElementChild.cloneNode(true);
+        var field = row.querySelector("input, textarea, select");
+        if (field) { field.value = part; }
+        rows.insertBefore(row, addButton || null);
+      });
+      valueBox.remove();
+      rows.hidden = false;
+      if (marker) { marker.value = "list"; }
+      var focusTarget = rows.querySelector("[data-cfg-row] input, [data-cfg-row] textarea, [data-cfg-row] select");
+      if (focusTarget) { focusTarget.focus(); }
+      return;
+    }
+
     var add = target.closest("[data-cfg-add]");
     if (add) {
       event.preventDefault();
@@ -232,6 +329,9 @@
         if (sectionName) { sectionName.textContent = name; }
         var sectionKey = seed.querySelector("[data-cfg-sectionkey]");
         if (sectionKey) { sectionKey.value = name; }
+        // The row CARRIES its name, so removing it later knows which option to offer again (a row
+        // rendered from the file has it from the server; a cloned one would otherwise have "").
+        seed.setAttribute("data-cfg-section", name);
         renameRegexRow(seed, name);
         var bar = container.querySelector(".cfg-addbar");
         container.insertBefore(seed, bar || null);
@@ -248,6 +348,21 @@
       var seed = rowSeed(container);
       if (!seed) { return; }
       clearRow(seed);
+      /* AN ``any_of`` ENTRY: the block comes from the ADD BAR's own picker, so the new row is created as
+       * that block — its fieldset enabled, the others disabled — which is why the picker sits beside the
+       * button. Stamped AFTER the clear, which resets every select in the row. */
+      var bar = container.querySelector(".cfg-addbar");
+      var barPick = bar ? bar.querySelector("[data-cfg-entrypick]") : null;
+      if (barPick) {
+        var chosenBlock = String(barPick.value || "");
+        seed.querySelectorAll("[data-cfg-choiceopt]").forEach(function (box) {
+          var active = box.getAttribute("data-cfg-choiceopt") === chosenBlock;
+          box.disabled = !active;
+          box.hidden = !active;
+        });
+        var rowPick = seed.querySelector("[data-cfg-entrypick]");
+        if (rowPick) { rowPick.value = chosenBlock; }
+      }
       var prefix = container.getAttribute("data-cfg-list") || container.getAttribute("data-cfg-seq");
       if (container.hasAttribute("data-cfg-seq") && prefix) {
         seed.setAttribute("data-index", container.querySelectorAll("[data-cfg-row]").length);
@@ -280,6 +395,11 @@
       box.remove();
       var seqPrefix = owner.getAttribute("data-cfg-seq");
       if (seqPrefix) { renumber(owner, seqPrefix); }
+      /* A FIXED-ALTERNATIVE SECTION: the name goes straight back into the picker, so it can be added
+       * again without a reload (see `restoreSectionName`). */
+      if (owner.hasAttribute("data-cfg-sections")) {
+        restoreSectionName(owner, box.getAttribute("data-cfg-section") || "");
+      }
     }
   });
 })();

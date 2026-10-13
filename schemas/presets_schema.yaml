@@ -2,19 +2,34 @@ schema;preset_seq:
   type: seq
   nullable: false
   sequence:
-    - {type: str, nullable: false, range: {min: 1}}
+    - type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of another preset to combine into this one.
+      example: "Morning"
 
 schema;files_seq:
   type: seq
   sequence:
-    - {type: str, nullable: false}
+    - type: str
+      nullable: false
+      desc: Path of a file or directory copied into the mission.
+      example: "sounds/alarm.ogg"
 
 schema;files_map:
   type: map
   nullable: false
   mapping:
-    source: {type: str, nullable: false}
-    target: {type: str, nullable: false}
+    source:
+      type: str
+      nullable: false
+      desc: File or directory copied into the mission.
+      example: "sounds/alarm.ogg"
+    target:
+      type: str
+      nullable: false
+      desc: Target directory inside the mission.
+      example: "l10n/EN"
 
 schema;modify_schema:
   type: any
@@ -26,34 +41,93 @@ schema;modify_map:
   type: map
   nullable: false
   mapping:
-    debug: { type: bool, nullable: false }
-    file: {type: str, nullable: false, enum: [mission, options, warehouses]}
+    debug:
+      type: bool
+      nullable: false
+      desc: Enable verbose logging for this modification.
+      example: "true"
+    file:
+      type: str
+      nullable: false
+      enum: [mission, options, warehouses]
+      desc: Lua file inside the .miz that this modification targets.
+      example: "mission"
     variables:
       type: map
       nullable: false
+      desc: Variables defined or extracted for use in expressions.
+      example: |
+        theatre: theatre
+        speed: 40
       mapping:
-        regex;(.+): {type: text, nullable: false}
-    if: {type: str, nullable: false}
-    for-each: {type: str, nullable: false}
-    where: {type: any, nullable: false, func: str_or_list}
-    select: {type: str, nullable: false}
+        regex;(.+):
+          type: text
+          nullable: false
+    if:
+      type: str
+      nullable: false
+      desc: Condition that must be true for the modification to run.
+      example: "${start_time} > 20000 and '{theatre}' == 'Caucasus'"
+    for-each:
+      type: str
+      nullable: false
+      desc: Path to the elements to iterate over (the reference).
+      example: "coalition/blue/country/*/ship/group/*"
+    where:
+      type: any
+      nullable: false
+      func: str_or_list
+      desc: Filter on the reference element without drilling deeper.
+      example: "units/$'{type}' in ['CVN_71','CVN_72']"
+    select:
+      type: str
+      nullable: false
+      desc: Sub-path from the reference to the element to change.
+      example: "route/points/*/task/params"
     replace:
       type: map
       nullable: false
+      desc: Values to overwrite on the matched element.
+      example: |
+        frequency: 371000000
+        modeChannel: X
       mapping:
-        regex;(.+): {type: any, nullable: false}
-    delete: {type: str, nullable: false}
+        regex;(.+):
+          type: any
+          nullable: false
+    delete:
+      type: str
+      nullable: false
+      desc: Expression selecting elements to remove.
+      example: "$'{type}' == 'FA-18C_hornet'"
     insert:
       type: map
       nullable: false
+      desc: New keys and values to add to the matched element.
+      example: |
+        Radio:
+          - channels:
+              - 243
       mapping:
-        regex;(.+): {type: any, nullable: false}
+        regex;(.+):
+          type: any
+          nullable: false
     merge:
       type: map
       nullable: false
+      desc: Lua tables to merge into the matched element.
+      example: |
+        source: coalition/neutral
+        target: coalition/blue
       mapping:
-        regex;(.+): {type: any, nullable: false}
-    run: {type: str, nullable: false}
+        regex;(.+):
+          type: any
+          nullable: false
+    run:
+      type: str
+      nullable: false
+      desc: Python function called for complex modifications.
+      example: "core.utils.mizedit.relocate_carrier"
 
 schema;modify_seq:
   type: seq
@@ -64,11 +138,31 @@ schema;cloud_map:
   type: map
   nullable: false
   mapping:
-    preset: { type: str, nullable: false }
-    base: { type: int, nullable: false }
-    thickness: { type: int, nullable: false }
-    density: { type: int, nullable: false }
-    iprecptns: { type: int, nullable: false }
+    preset:
+      type: str
+      nullable: false
+      desc: Cloud preset name from DCS clouds.lua.
+      example: "Preset1"
+    base:
+      type: int
+      nullable: false
+      desc: Base altitude of the cloud layer in metres.
+      example: "2000"
+    thickness:
+      type: int
+      nullable: false
+      desc: Cloud layer thickness in metres.
+      example: "200"
+    density:
+      type: int
+      nullable: false
+      desc: Cloud density from 0 (clear) to 10 (overcast).
+      example: "5"
+    iprecptns:
+      type: int
+      nullable: false
+      desc: Precipitation amount for the cloud layer.
+      example: "0"
 
 schema;preset_map:
   type: map
@@ -77,6 +171,8 @@ schema;preset_map:
     hidden:
       type: bool
       nullable: false
+      desc: Hide this preset from the mission editor's menu.
+      example: "false"
     terrain:
       type: str
       nullable: false
@@ -84,9 +180,15 @@ schema;preset_map:
         'Caucasus', 'Syria', 'PersianGulf', 'SinaiMap', 'TheChannel', 'Nevada', 'Normandy', 'MarianaIslands',
         'Falklands', 'Kola', 'Afghanistan', 'Iraq', 'GermanyCW'
       ]
+      desc: Single terrain this preset applies to.
+      example: "Caucasus"
     terrains:
       type: seq
       nullable: false
+      desc: Terrain names this preset applies to.
+      example: |
+        - Caucasus
+        - Syria
       sequence:
         - type: str
           nullable: false
@@ -94,104 +196,229 @@ schema;preset_map:
             'Caucasus', 'Syria', 'PersianGulf', 'SinaiMap', 'TheChannel', 'Nevada', 'Normandy', 'MarianaIslands',
             'Falklands', 'Kola', 'Afghanistan', 'Iraq', 'GermanyCW'
           ]
+          desc: Terrain name this preset applies to.
+          example: "Syria"
     date:
       type: str
       nullable: false
       # 'YYYY-MM-DD' or 'today' / 'yesterday' / 'tomorrow'
+      desc: Mission date.
+      example: "2016-04-21"
     start_time:
       type: text
       nullable: false
       # seconds since midnight, 'HH:MM', or named moment ('noon', 'morning', 'dusk', etc.)
       # named moments support offsets: 'morning +02:00'
+      desc: Mission start time as seconds, 'HH:MM', or a named moment.
+      example: "08:00"
     temperature:
       type: float
       nullable: false
+      desc: Ambient air temperature in degrees Celsius.
+      example: "23"
     atmosphere_type:
       type: int
       nullable: false
+      desc: DCS atmosphere preset index (0 standard, 1 tropical).
+      example: "0"
     wind:
       type: map
       nullable: false
+      desc: Wind speed and direction at several altitudes.
+      example: |
+        atGround:
+          speed: 1
+          dir: 20
+        at2000:
+          speed: 5
+          dir: 130
       mapping:
         atGround:
           type: map
+          desc: Wind parameters at ground level.
+          example: |
+            speed: 1
+            dir: 20
           mapping:
-            speed: {type: float}
-            dir: {type: int}
+            speed:
+              type: float
+              desc: Wind speed at ground level in m/s.
+              example: "1"
+            dir:
+              type: int
+              desc: Wind direction at ground level in degrees.
+              example: "20"
         at2000:
           type: map
+          desc: Wind parameters at 2000 metres.
+          example: |
+            speed: 5
+            dir: 130
           mapping:
-            speed: {type: float}
-            dir: {type: int}
+            speed:
+              type: float
+              desc: Wind speed at 2000 metres in m/s.
+              example: "5"
+            dir:
+              type: int
+              desc: Wind direction at 2000 metres in degrees.
+              example: "130"
         at8000:
           type: map
+          desc: Wind parameters at 8000 metres.
+          example: |
+            speed: 10
+            dir: 105
           mapping:
-            speed: {type: float}
-            dir: {type: int}
+            speed:
+              type: float
+              desc: Wind speed at 8000 metres in m/s.
+              example: "10"
+            dir:
+              type: int
+              desc: Wind direction at 8000 metres in degrees.
+              example: "105"
     groundTurbulence:
       type: float
       nullable: false
+      desc: Ground turbulence intensity.
+      example: "0.5"
     enable_dust:
       type: bool
       nullable: false
+      desc: Enable dust haze in the mission.
+      example: "false"
     dust_density:
       type: int
       nullable: false
+      desc: Dust haze density from 0 (none) to 10 (thick).
+      example: "3"
     qnh:
       type: float
       nullable: false
+      desc: Barometric pressure (QNH) in mmHg.
+      example: "760"
     clouds:
       type: any
       nullable: false
       func: str_or_map
       enum: [cloud_map]
+      desc: Cloud preset name or a detailed cloud layer map.
+      example: |
+        preset: RainyPreset1
     enable_fog:
       type: bool
       nullable: false
+      desc: Enable fog in the mission.
+      example: "true"
     fog:
       type: map
       nullable: false
+      desc: Fog configuration, either automatic or time-keyed.
+      example: |
+        mode: manual
+        300:
+          thickness: 200
+          visibility: 2000
       mapping:
         mode:
           type: str
           enum: [auto, manual]
-        thickness: {type: int, nullable: false}
-        visibility: {type: int, nullable: false}
+          desc: Fog mode, DCS-driven auto or explicit manual.
+          example: "manual"
+        thickness:
+          type: int
+          nullable: false
+          desc: Fog thickness.
+          example: "100"
+        visibility:
+          type: int
+          nullable: false
+          desc: Fog visibility in metres.
+          example: "1000"
         regex;(\d+):   # Any number (seconds)
           type: map
           mapping:
-            thickness: {type: int, nullable: false}
-            visibility: {type: int, nullable: false}
+            thickness:
+              type: int
+              nullable: false
+              desc: Fog thickness at this time offset.
+              example: "200"
+            visibility:
+              type: int
+              nullable: false
+              desc: Fog visibility at this time offset in metres.
+              example: "2000"
     halo:
       type: map
       nullable: false
+      desc: Sun and moon halo effect settings.
+      example: |
+        preset: Halo1
       mapping:
-        preset: {type: str, nullable: false}
+        preset:
+          type: str
+          nullable: false
+          desc: Halo preset name.
+          example: "Halo1"
     requiredModules:
       type: seq
       nullable: false
+      desc: Modules required to play the mission ([] clears them).
+      example: |
+        - F/A-18C
       sequence:
-        - {type: str, nullable: false}
+        - type: str
+          nullable: false
+          desc: Module name required to play the mission.
+          example: "F/A-18C"
     failures:
       type: any
       nullable: false
+      desc: Failures to remove from the mission ([] clears them).
+      example: "[]"
     accidental_failures:
       type: bool
       nullable: false
+      desc: Enable random accidental failures in the mission.
+      example: "false"
     forcedOptions:
       type: any
       nullable: false
+      desc: Mission options to enforce on all players.
+      example: |
+        fuel: false
+        miniHUD: false
+        labels: 3
     miscellaneous:
       type: any
       nullable: false
+      desc: Miscellaneous options.lua settings to apply.
+      example: |
+        f10_awacs: false
+        F2_view_effects: 1
     difficulty:
       type: any
       nullable: false
+      desc: Difficulty options.lua settings to apply.
+      example: |
+        externalViews: false
+        optionsView: optview_myaircraft
     files:
       type: seq
       nullable: false
+      desc: Files and directories copied into the mission.
+      example: |
+        - sounds/alarm.ogg
+        - source: kneeboards
+          target: KNEEBOARDS
       sequence:
-        - {type: any, nullable: false, func: str_or_map, enum: [files_map]}
+        - type: any
+          nullable: false
+          func: str_or_map
+          enum: [files_map]
+          desc: File path or a source/target mapping to copy.
+          example: "sounds/alarm.ogg"
     modify:
       include: modify_schema
     RealWeather:

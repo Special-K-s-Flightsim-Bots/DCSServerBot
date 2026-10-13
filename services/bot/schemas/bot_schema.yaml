@@ -1,56 +1,183 @@
 type: map
 nullable: false
 mapping:
-  no_discord: {type: bool, nullable: false}
-  token: {type: str, nullable: false, range: {min: 1}}
-  owner: {type: int, nullable: false}
-  privileged_intents: {type: bool, nullable: false}
+  no_discord:
+    type: bool
+    nullable: false
+    desc: Run the bot without any Discord integration.
+    example: "true"
+  token:
+    type: str
+    nullable: false
+    range: {min: 1}
+    desc: Discord bot token from the developer portal.
+    example: "***"
+  owner:
+    type: int
+    nullable: false
+    desc: Discord user ID of the bot's owner.
+    example: "1122334455667788"
+  privileged_intents:
+    type: bool
+    nullable: false
+    desc: Use Discord's members and message content intents.
+    example: "true"
   audit_log:
     type: map
     nullable: false
+    desc: Audit log polling used when privileged intents are off.
+    example: |
+      poll_interval: 30
     mapping:
-      poll_interval: {type: int, nullable: false, range: {min: 15}}
-  automatch: {type: bool, nullable: false}
-  autoban: {type: bool, nullable: false}
+      poll_interval:
+        type: int
+        nullable: false
+        range: {min: 15}
+        desc: Seconds between two reads of the Discord audit log.
+        example: "30"
+  automatch:
+    type: bool
+    nullable: false
+    desc: Auto-match Discord users to DCS player names.
+    example: "true"
+  autoban:
+    type: bool
+    nullable: false
+    desc: Ban players on Discord when banned on a DCS server.
+    example: "false"
   autorole:
     type: map
     nullable: false
+    desc: Discord roles granted automatically on certain events.
+    example: |
+      on_join: Member
+      linked: DCS
+      online: Online
     mapping:
-      on_join: {type: text, nullable: false}
-      linked: {type: text, nullable: false}
-      online: {type: text, nullable: false}
-  no_dcs_autoban: {type: bool, nullable: false}
-  message_ban: {type: str, nullable: false, range: {min: 1}}
-  message_autodelete: {type: int, range: {min: 1}, nullable: false}
+      on_join:
+        type: text
+        nullable: false
+        desc: Role given to a member when they join the Discord.
+        example: "Member"
+      linked:
+        type: text
+        nullable: false
+        desc: Role given once a member linked their DCS account.
+        example: "DCS"
+      online:
+        type: text
+        nullable: false
+        desc: Role given while a member is online on a server.
+        example: "Online"
+  no_dcs_autoban:
+    type: bool
+    nullable: false
+    desc: Skip the DCS ban when a player is banned on Discord.
+    example: "false"
+  message_ban:
+    type: str
+    nullable: false
+    range: {min: 1}
+    desc: Reason shown to Discord-banned players joining a server.
+    example: "User has been banned on Discord."
+  message_autodelete:
+    type: int
+    range: {min: 1}
+    nullable: false
+    desc: Seconds before the bot's public messages are deleted.
+    example: "300"
   channels:
     type: map
     nullable: false
+    desc: Central Discord channels used by the bot.
+    example: |
+      admin: 1122334455667788
+      audit: 88776655443322
     mapping:
-      audit: {type: int, nullable: false}
-      admin: {type: int, nullable: false}
-  greeting_dm: {type: str, nullable: false, range: {min: 1}}
+      audit:
+        type: int
+        nullable: false
+        desc: Channel that receives the bot's audit events.
+        example: "88776655443322"
+      admin:
+        type: int
+        nullable: false
+        desc: Central admin channel for alerts and reports.
+        example: "1122334455667788"
+  greeting_dm:
+    type: str
+    nullable: false
+    range: {min: 1}
+    desc: Welcome DM sent to a new member; holds {name} and {guild}.
+    example: "{name}, welcome to {guild}!"
   reports:
     type: map
     nullable: false
+    desc: Settings for the reports the bot generates.
+    example: |
+      num_workers: 4
+      cjk_font: KR
     mapping:
-      num_workers: {type: int, range: {min: 4}, nullable: false}
-      cjk_font: {type: str, enum: ['TC', 'JP', 'KR'], nullable: false}
-  discord_status: {type: str, nullable: false}
+      num_workers:
+        type: int
+        range: {min: 4}
+        nullable: false
+        desc: Worker threads used to render generated reports.
+        example: "4"
+      cjk_font:
+        type: str
+        enum: ['TC', 'JP', 'KR']
+        nullable: false
+        desc: CJK font used when reports contain Asian characters.
+        example: "KR"
+  discord_status:
+    type: str
+    nullable: false
+    desc: Text shown as the bot's Discord activity status.
+    example: "Managing DCS servers ..."
   proxy:
     type: map
     nullable: false
+    desc: Optional proxy used to reach Discord.
+    example: |
+      url: 'https://myfancyproxy:8080'
+      username: admin
+      password: '***'
     mapping:
-      url: {type: url, nullable: false}
-      username: {type: str, nullable: false, range: {min: 1}}
-      password: {type: str, nullable: false}
+      url:
+        type: url
+        nullable: false
+        desc: Proxy URL used for the Discord connection.
+        example: "https://myfancyproxy:8080"
+      username:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Username for the proxy, if it needs authentication.
+        example: "admin"
+      password:
+        type: str
+        nullable: false
+        desc: Password for the proxy; moved to the secret store.
+        example: "***"
   roles:
     type: map
     nullable: false
+    desc: Maps the bot's internal roles to Discord roles.
+    example: |
+      Admin:
+      - Admin
+      DCS Admin:
+      - Moderator
+      - Staff
     mapping:
       Admin:
         type: seq
         nullable: false
         required: true
+        desc: Discord roles granting full bot administration.
+        example: |
+          - Admin
         sequence:
           - type: text
             nullable: false
@@ -58,6 +185,9 @@ mapping:
       Alert:
         type: seq
         nullable: false
+        desc: Roles pinged on server crashes and low performance.
+        example: |
+          - DCS Admin
         sequence:
           - type: text
             nullable: false
@@ -66,6 +196,10 @@ mapping:
         type: seq
         nullable: false
         required: true
+        desc: Discord roles granting server administration.
+        example: |
+          - Moderator
+          - Staff
         sequence:
           - type: text
             nullable: false
@@ -73,6 +207,9 @@ mapping:
       GameMaster:
         type: seq
         nullable: false
+        desc: Discord roles granting in-game game master powers.
+        example: |
+          - Staff
         sequence:
           - type: text
             nullable: false
@@ -80,6 +217,9 @@ mapping:
       DCS:
         type: seq
         nullable: false
+        desc: Discord roles mapped to the bot's DCS role.
+        example: |
+          - '@everyone'
         sequence:
           - type: text
             nullable: false

@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,61 +11,229 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
     VIP:
       type: map
       nullable: false
+      desc: Defines a VIP group with reserved slots and named members.
+      example: |
+        audit: true
+        discord:
+          - Admin
+          - DCS Admin
+        ucid:
+          - aabbccddeeffgghh
+        slots: 2
+        message_server_full: The server is full, please try again later!
       mapping:
-        audit: {type: bool, nullable: false}
-        discord: {type: any, nullable: false, func: text_or_list}
-        ucid: {type: any, nullable: false, func: str_or_list}
-        slots: {type: int, range: {min: 1}, nullable: false}
-        message_server_full: {type: str, nullable: false, range: {min: 1}}
+        audit:
+          type: bool
+          nullable: false
+          desc: Notify the VIP group when one of its members joins a server.
+          example: "true"
+        discord:
+          type: any
+          nullable: false
+          func: text_or_list
+          desc: Discord roles that grant VIP status.
+          example: "Donators"
+        ucid:
+          type: any
+          nullable: false
+          func: str_or_list
+          desc: UCIDs of the players that are granted VIP status.
+          example: "aabbccddeeffgghh"
+        slots:
+          type: int
+          range: {min: 1}
+          nullable: false
+          desc: Number of slots kept free for VIP members only.
+          example: "2"
+        message_server_full:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message shown when the server is considered full.
+          example: "The server is full, please try again later!"
     restricted:
       type: seq
       nullable: false
+      desc: Slots restricted by Discord role, UCID, or credit points.
+      example: |
+        - unit_type: observer
+          side: 2
+          discord: '@everyone'
+          message: This slot is reserved for members of https://invite.link!
       sequence:
         - type: map
           nullable: false
+          desc: One restriction entry.
+          example: |
+            unit_type: artillery_commander
+            discord: Donators
+            message: This slot is reserved for Donators!
           mapping:
-            unit_type: {type: str, nullable: false, range: {min: 1}}
-            unit_name: {type: str, nullable: false, range: {min: 1}}
-            group_name: {type: str, nullable: false, range: {min: 1}}
-            discord: {type: any, nullable: false, func: text_or_list}
-            message: {type: str, nullable: false, range: {min: 1}}
-            points: {type: int, nullable: false}
-            costs: {type: int, nullable: false}
-            crew: {type: int, nullable: false}
-            VIP: {type: bool, nullable: false}
-            side: {type: int, nullable: false, enum: [0, 1, 2]}
-    payback: {type: bool, nullable: false}
+            unit_type:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Unit type this restriction applies to, e.g. observer.
+              example: "observer"
+            unit_name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Unit name or Lua pattern that this restriction matches.
+              example: "Hawg"
+            group_name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Group name or Lua pattern that this restriction matches.
+              example: "Rookie"
+            discord:
+              type: any
+              nullable: false
+              func: text_or_list
+              desc: Discord roles that are allowed to use this slot.
+              example: "Donators"
+            message:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Message shown to players that cannot use this slot.
+              example: "This slot is reserved for Donators!"
+            points:
+              type: int
+              nullable: false
+              desc: Credit points needed to enter this slot.
+              example: "10"
+            costs:
+              type: int
+              nullable: false
+              desc: Credit points charged for losing this unit.
+              example: "10"
+            crew:
+              type: int
+              nullable: false
+              desc: Number of crew members required for this slot.
+              example: "2"
+            VIP:
+              type: bool
+              nullable: false
+              desc: Reserve this slot for VIP members only.
+              example: "true"
+            side:
+              type: int
+              nullable: false
+              enum: [0, 1, 2]
+              desc: Side this restriction applies to, 0 both, 1 red, 2 blue.
+              example: "2"
+    payback:
+      type: bool
+      nullable: false
+      desc: Refund the credit costs of a unit when it lands properly.
+      example: "true"
     maximum:
       type: map
       nullable: false
+      desc: Maximum number of players allowed per coalition side.
+      example: |
+        blue: 60
+        red: 40
+        message: This coalition is full, please try the other.
       mapping:
-        blue: {type: int, nullable: false, range: {min: 0}}
-        red: {type: int, nullable: false, range: {min: 0}}
-        message: {type: str, nullable: false, range: {min: 1}}
+        blue:
+          type: int
+          nullable: false
+          range: {min: 0}
+          desc: Maximum number of blue players, derived from red if unset.
+          example: "60"
+        red:
+          type: int
+          nullable: false
+          range: {min: 0}
+          desc: Maximum number of red players, derived from blue if unset.
+          example: "40"
+        message:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message shown when a coalition has reached its maximum.
+          example: "This coalition is full, please try the other."
     balancing:
       type: map
       nullable: false
+      desc: Keeps the number of blue and red players balanced.
+      example: |
+        blue_vs_red: 0.5
+        threshold: 0.1
+        activation_threshold: 10
+        message: You need to take a slot of the opposite coalition to keep the balance!
       mapping:
-        blue_vs_red: {type: float, nullable: false, required: true}
-        threshold: {type: float, nullable: false, required: true}
-        activation_threshold: {type: int, nullable: false}
-        message: {type: str, nullable: false, range: {min: 1}}
+        blue_vs_red:
+          type: float
+          nullable: false
+          required: true
+          desc: Target ratio of blue to red players, e.g. 0.5 for even teams.
+          example: "0.5"
+        threshold:
+          type: float
+          nullable: false
+          required: true
+          desc: Allowed deviation from the ratio before slots are blocked.
+          example: "0.1"
+        activation_threshold:
+          type: int
+          nullable: false
+          desc: Do not balance while fewer than this many players are online.
+          example: "10"
+        message:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message shown when a player must switch sides to balance.
+          example: "You need to take a slot of the opposite coalition to keep the balance!"
     names:
       type: map
       nullable: false
+      desc: Requires a squadron tag in the player name to join.
+      example: |
+        pattern: ['%[SK%]', '%[VFW%]']
+        message: You need a squadron tag in your name to join this server.
       mapping:
-        pattern: {type: any, func: str_or_list}
-        message: {type: str, nullable: false, range: {min: 1}}
+        pattern:
+          type: any
+          func: str_or_list
+          desc: Lua patterns that a player name must match to join.
+          example: "%[SK%]"
+        message:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message shown when a player name does not match.
+          example: "You need a squadron tag in your name to join this server."
     messages:
       type: map
       nullable: false
+      desc: Messages shown for credit-based restrictions.
+      example: |
+        credits_taken: '{deposit} credits taken for using a reserved module.'
+        payback: 'You have been given {deposit} credits back.'
       mapping:
-        credits_taken: {type: str, nullable: false, range: {min: 1}}
-        payback: {type: str, nullable: false, range: {min: 1}}
+        credits_taken:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message when credits are charged; holds {deposit}, {old_points}, {new_points}.
+          example: "{deposit} credits taken for using a reserved module."
+        payback:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message when credits are refunded; holds {deposit}, {old_points}, {new_points}.
+          example: "You have been given {deposit} credits back."
 
 type: map
 func: check_main_structure

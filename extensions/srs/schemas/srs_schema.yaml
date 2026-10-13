@@ -2,78 +2,341 @@ schema;node_srs_schema:
   type: map
   nullable: false
   mapping:
-    name: {type: str, nullable: false, range: {min: 1}}
-    installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-    autoupdate: {type: bool, nullable: false}
-    use_upnp: {type: bool, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the SRS extension in status embeds.
+      example: "SRS"
+    installation:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory where DCS-SRS is installed.
+      example: "%ProgramFiles%\\DCS-SimpleRadio-Standalone"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Update DCS-SRS automatically on new releases.
+      example: "true"
+    use_upnp:
+      type: bool
+      nullable: false
+      desc: Use UPnP to forward the SRS ports automatically.
+      example: "true"
     auto_affinity:
       type: map
       nullable: false
+      desc: Core affinity assigned to the SRS process.
+      example: |
+        min_cores: 1
+        max_cores: 1
+        quality: 0
       mapping:
-        min_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
-        max_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
-        quality: {type: int, nullable: false, range: {min: 0, max: 1}}
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1}
+          desc: Minimum number of CPU cores to assign.
+          example: "1"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1}
+          desc: Maximum number of CPU cores to assign.
+          example: "1"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 1}
+          desc: Core quality to prefer (0=low, 1=normal).
+          example: "0"
     announce:
       type: map
       nullable: false
+      desc: Discord announcement posted after every SRS update.
+      example: |
+        channel: 1122334455667788
+        title: DCS-SRS has been updated to version {}!
+        mention:
+          - DCS
       mapping:
-        channel: { type: int, required: true, nullable: false }
-        title: { type: str, nullable: false, range: { min: 1 } }
-        description: { type: str, nullable: false, range: { min: 1 } }
-        footer: { type: str, nullable: false, range: { min: 1 } }
+        channel:
+          type: int
+          required: true
+          nullable: false
+          desc: Discord channel id the announcement is posted to.
+          example: "1122334455667788"
+        title:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Announcement title; {} is replaced by the version.
+          example: "DCS-SRS has been updated to version {}!"
+        description:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Announcement body text.
+          example: "The following servers have been updated:"
+        footer:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Text shown in the announcement footer.
+          example: "Please make sure you update your DCS-SRS client also!"
         mention:
           type: seq
           nullable: false
+          desc: Roles or users mentioned in the announcement.
+          example: |
+            - DCS
+            - Admin
           sequence:
-            - { type: text, nullable: false }
-    beta: {type: bool, nullable: false}
-    autostart: {type: bool, nullable: false}
-    host: {type: str, nullable: false, range: {min: 1}}
-    minimized: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
-    gui_server: {type: bool, nullable: false}
-    awacs: {type: bool, nullable: false}
-    blue_password: {type: str, nullable: false, range: {min: 1}}
-    red_password: {type: str, nullable: false, range: {min: 1}}
-    no_shutdown: {type: bool, nullable: false}
-    srs_nudge_message: {type: str, nullable: false, range: {min: 1}}
-    autoconnect: {type: bool, nullable: false}
-    show_passwords: {type: bool, nullable: false}
-    always_on: {type: bool, nullable: false}
-    radio_effect_override: {type: bool, nullable: false}
-    global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
-    instructor_mode: {type: bool, nullable: false}
+            - type: text
+              nullable: false
+              desc: Role or user to mention.
+              example: "DCS"
+    beta:
+      type: bool
+      nullable: false
+      desc: Allow beta versions of DCS-SRS to be installed.
+      example: "true"
+    autostart:
+      type: bool
+      nullable: false
+      desc: Start the SRS server together with the DCS server.
+      example: "true"
+    host:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Hostname or IP written into the SRS autoconnect script.
+      example: "127.0.0.1"
+    minimized:
+      type: bool
+      nullable: false
+      desc: Start the SRS GUI server minimized.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Replicate the SRS console output into the bot log.
+      example: "false"
+    gui_server:
+      type: bool
+      nullable: false
+      desc: Use the SRS GUI server instead of the command line one.
+      example: "true"
+    awacs:
+      type: bool
+      nullable: false
+      desc: Enable the SRS external AWACS mode.
+      example: "true"
+    blue_password:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: External AWACS password for the blue coalition.
+      example: "blue"
+    red_password:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: External AWACS password for the red coalition.
+      example: "red"
+    no_shutdown:
+      type: bool
+      nullable: false
+      desc: Keep SRS running when the DCS server shuts down.
+      example: "false"
+    srs_nudge_message:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Nudge message asking players to connect to SRS.
+      example: "Please connect to SRS!"
+    autoconnect:
+      type: bool
+      nullable: false
+      desc: Install the SRS autoconnect script for the players.
+      example: "true"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the AWACS passwords in the status embed.
+      example: "false"
+    always_on:
+      type: bool
+      nullable: false
+      desc: Start SRS as soon as possible, independently of DCS.
+      example: "true"
+    radio_effect_override:
+      type: bool
+      nullable: false
+      desc: Disable SRS radio effects such as line of sight.
+      example: "false"
+    global_lobby_frequencies:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Music frequencies available to all SRS clients.
+      example: "248.22,30.0,127.0"
+    instructor_mode:
+      type: bool
+      nullable: false
+      desc: Enable the SRS instructor mode.
+      example: "true"
 
 schema;instance_srs_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    config: {type: str, required: false, nullable: false}
-    host: {type: str, nullable: false, range: {min: 1}}
-    port: {type: int, nullable: false, func: unique_port}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the SRS extension for this instance.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the SRS extension in status embeds.
+      example: "SRS"
+    config:
+      type: str
+      required: false
+      nullable: false
+      desc: Path to the SRS server.cfg used by this instance.
+      example: "{instance.home}\\Config\\SRS.cfg"
+    host:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Hostname or IP written into the SRS autoconnect script.
+      example: "127.0.0.1"
+    port:
+      type: int
+      nullable: false
+      func: unique_port
+      desc: Port the SRS server listens on.
+      example: "5002"
     auto_affinity:
       type: map
       nullable: false
+      desc: Core affinity assigned to the SRS process.
+      example: |
+        min_cores: 1
+        max_cores: 1
+        quality: 0
       mapping:
-        min_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
-        max_cores: {type: int, nullable: false, range: {min: 1, max: 1}}
-        quality: {type: int, nullable: false, range: {min: 0, max: 1}}
-    gui_server: {type: bool, nullable: false}
-    minimized: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
-    awacs: {type: bool, nullable: false}
-    blue_password: {type: str, nullable: false, range: {min: 1}}
-    red_password: {type: str, nullable: false, range: {min: 1}}
-    autostart: {type: bool, nullable: false}
-    no_shutdown: {type: bool, nullable: false}
-    srs_nudge_message: {type: str, nullable: false, range: {min: 1}}
-    autoconnect: {type: bool, nullable: false}
-    show_passwords: {type: bool, nullable: false}
-    always_on: {type: bool, nullable: false}
-    radio_effect_override: {type: bool, nullable: false}
-    global_lobby_frequencies: {type: str, nullable: false, range: {min: 1}}
-    lotatc_export_port: {type: int, nullable: false, func: unique_port} # default 10712
-    http_server_enabled: {type: bool, nullable: false}
-    http_server_port: {type: int, nullable: false, func: unique_port} # default 8080
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1}
+          desc: Minimum number of CPU cores to assign.
+          example: "1"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 1}
+          desc: Maximum number of CPU cores to assign.
+          example: "1"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 1}
+          desc: Core quality to prefer (0=low, 1=normal).
+          example: "0"
+    gui_server:
+      type: bool
+      nullable: false
+      desc: Use the SRS GUI server instead of the command line one.
+      example: "true"
+    minimized:
+      type: bool
+      nullable: false
+      desc: Start the SRS GUI server minimized.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Replicate the SRS console output into the bot log.
+      example: "false"
+    awacs:
+      type: bool
+      nullable: false
+      desc: Enable the SRS external AWACS mode.
+      example: "true"
+    blue_password:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: External AWACS password for the blue coalition.
+      example: "blue"
+    red_password:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: External AWACS password for the red coalition.
+      example: "red"
+    autostart:
+      type: bool
+      nullable: false
+      desc: Start the SRS server together with the DCS server.
+      example: "true"
+    no_shutdown:
+      type: bool
+      nullable: false
+      desc: Keep SRS running when the DCS server shuts down.
+      example: "false"
+    srs_nudge_message:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Nudge message asking players to connect to SRS.
+      example: "Please connect to SRS!"
+    autoconnect:
+      type: bool
+      nullable: false
+      desc: Install the SRS autoconnect script for the players.
+      example: "true"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the AWACS passwords in the status embed.
+      example: "false"
+    always_on:
+      type: bool
+      nullable: false
+      desc: Start SRS as soon as possible, independently of DCS.
+      example: "true"
+    radio_effect_override:
+      type: bool
+      nullable: false
+      desc: Disable SRS radio effects such as line of sight.
+      example: "false"
+    global_lobby_frequencies:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Music frequencies available to all SRS clients.
+      example: "248.22,30.0,127.0"
+    lotatc_export_port:
+      type: int
+      nullable: false
+      func: unique_port  # default 10712
+      desc: Port SRS exports LotAtc data on.
+      example: "10712"
+    http_server_enabled:
+      type: bool
+      nullable: false
+      desc: Enable the SRS HTTP server (SRS 2.3+).
+      example: "true"
+    http_server_port:
+      type: int
+      nullable: false
+      func: unique_port  # default 8080
+      desc: Port the SRS HTTP server listens on.
+      example: "8080"

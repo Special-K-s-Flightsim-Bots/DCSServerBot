@@ -16,7 +16,15 @@ class DebugListener(EventListener["Debug"]):
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         if self.debug:
-            message = json.dumps(data)
+            initiator = server.get_player(name=data.get('initiator', {}).get('name'))
+            target = server.get_player(name=data.get('target', {}).get('name'))
+            weapon = data.get('weapon', {}).get('name') or 'n/a'
+            message = "{eventName}: {initiator} | {target} | {weapon}".format(
+                eventName=data['eventName'],
+                initiator=initiator.name if initiator else 'n/a',
+                target=target.name if target else 'n/a',
+                weapon=weapon
+            )
             asyncio.create_task(server.sendPopupMessage(recipient=Coalition.ALL, message=message))
 
     @event(name="onGameEvent")

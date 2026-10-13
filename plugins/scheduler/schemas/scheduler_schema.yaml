@@ -2,40 +2,142 @@ schema;action_map:
   type: map
   nullable: false
   mapping:
-    clear_maintenance: {type: bool, nullable: false}
-    local_times: {type: any, func: deprecated, enum: ['Use "times" instead.']}
-    utc_times: {type: any, func: deprecated, enum: ['Use "times" with timezone UTC instead.']}
+    clear_maintenance:
+      type: bool
+      nullable: false
+      desc: Clear any maintenance flag when the server starts.
+      example: "true"
+    local_times:
+      type: any
+      func: deprecated
+      enum: ['Use "times" instead.']
+      desc: Deprecated; use the times setting instead.
+      example: "04:00"
+    utc_times:
+      type: any
+      func: deprecated
+      enum: ['Use "times" with timezone UTC instead.']
+      desc: Deprecated; use the times setting with timezone UTC.
+      example: "04:00"
     times:
       type: seq
       nullable: false
+      desc: Times of day when the action runs.
+      example: |
+        - 04:00
+        - 08:00
       sequence:
         - type: str
           pattern: '^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])'
           unique: true
-    cron: {type: str, nullable: false, pattern: '^\s*(?:\S+\s+){4,6}\S+\s*$'}
-    mission_time: { type: int, range: { min: 1 }, nullable: false }
-    max_mission_time: { type: int, range: { min: 1 }, nullable: false }
-    real_time: { type: int, range: { min: 1 }, nullable: false }
-    idle_time: { type: int, range: { min: 1 }, nullable: false }
-    method: { type: str, enum: ['restart', 'rotate', 'shutdown', 'stop', 'load'], nullable: false }
-    mission_id: { type: any, nullable: false, func: int_or_list }
-    mission_file: { type: any, nullable: false, func: str_or_list }
-    populated: { type: bool, nullable: false }
-    mission_end: { type: bool, nullable: false }
-    coalition_win: { type: bool, nullable: false }
-    shutdown: { type: bool, nullable: false }
-    run_extensions: { type: bool, nullable: false }
-    no_reload: {type: bool, nullable: false}
-    use_orig: {type: bool, nullable: false}
-    presets: {type: any, nullable: false, func: str_or_list}
-    password: {type: str}
+          desc: A time of day in HH:MM format.
+          example: "04:00"
+    cron:
+      type: str
+      nullable: false
+      pattern: '^\s*(?:\S+\s+){4,6}\S+\s*$'
+      desc: Cron expression that defines when the action runs.
+      example: "0 0,8 * * *"
+    mission_time:
+      type: int
+      range: { min: 1 }
+      nullable: false
+      desc: Mission minutes before the mission is restarted.
+      example: "480"
+    max_mission_time:
+      type: int
+      range: { min: 1 }
+      nullable: false
+      desc: Mission minutes after which the mission restarts anyway.
+      example: "480"
+    real_time:
+      type: int
+      range: { min: 1 }
+      nullable: false
+      desc: Minutes of real server runtime before a restart.
+      example: "240"
+    idle_time:
+      type: int
+      range: { min: 1 }
+      nullable: false
+      desc: Minutes without players before the action is applied.
+      example: "30"
+    method:
+      type: str
+      enum: ['restart', 'rotate', 'shutdown', 'stop', 'load']
+      nullable: false
+      desc: Action to perform, e.g. restart, rotate or load.
+      example: "restart"
+    mission_id:
+      type: any
+      nullable: false
+      func: int_or_list
+      desc: Mission id(s) to load; a list is picked from at random.
+      example: "3"
+    mission_file:
+      type: any
+      nullable: false
+      func: str_or_list
+      desc: Mission file name(s) to load; a list is picked from.
+      example: "Caucasus_v2.miz"
+    populated:
+      type: bool
+      nullable: false
+      desc: When false, apply only if no player is on the server.
+      example: "false"
+    mission_end:
+      type: bool
+      nullable: false
+      desc: Apply the action only when the mission ends.
+      example: "true"
+    coalition_win:
+      type: bool
+      nullable: false
+      desc: Apply the action only when a coalition won the mission.
+      example: "true"
+    shutdown:
+      type: bool
+      nullable: false
+      desc: Shut the DCS server down before restarting or rotating.
+      example: "true"
+    run_extensions:
+      type: bool
+      nullable: false
+      desc: Apply extensions before the restart or rotation.
+      example: "true"
+    no_reload:
+      type: bool
+      nullable: false
+      desc: For load, do not reload an already running mission.
+      example: "true"
+    use_orig:
+      type: bool
+      nullable: false
+      desc: Use the original mission file as the reference.
+      example: "false"
+    presets:
+      type: any
+      nullable: false
+      func: str_or_list
+      desc: Preset file(s) applied to the mission before startup.
+      example: |
+        - config/presets.yaml
+    password:
+      type: str
+      desc: New mission password to set, usually with cron.
+      example: "Secret"
     settings:
       type: seq
       nullable: false
+      desc: MizEdit settings applied to the mission.
+      example: |
+        - NoMods
       sequence:
         - type: any
           nullable: false
           func: str_or_list
+          desc: A MizEdit setting name.
+          example: "NoMods"
 
 schema;action_seq:
   type: seq
@@ -46,25 +148,42 @@ schema;warn_map:
   type: map
   nullable: false
   mapping:
-    regex;(^\d+$): {type: any, nullable: false, enum: ['warn_message'], func: str_or_map}
+    regex;(^\d+$):
+      type: any
+      nullable: false
+      enum: ['warn_message']
+      func: str_or_map
 
 schema;warn_message:
   type: map
   nullable: false
   mapping:
-    message: {type: str, nullable: false}
-    sound: {type: str, nullable: false}
+    message:
+      type: str
+      nullable: false
+      desc: Warning text shown to players.
+      example: "The server will restart in 10 minutes!"
+    sound:
+      type: str
+      nullable: false
+      desc: Sound played with the warning, loaded in the mission.
+      example: "alarm.ogg"
 
 schema;warn_seq:
   type: seq
   nullable: false
   sequence:
-    - {type: int, unique: true, nullable: false}
+    - type: int
+      unique: true
+      nullable: false
+      desc: Seconds before the restart to show the warning.
+      example: "600"
 
 schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -73,30 +192,75 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    timezone: {type: str, nullable: false, range: {min: 1}}
-    startup_delay: {type: int, range: {min: 0}, nullable: false}
+    timezone:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Timezone used for all schedule times (default is local).
+      example: "Europe/Berlin"
+    startup_delay:
+      type: int
+      range: {min: 0}
+      nullable: false
+      desc: Seconds between starting each DCS instance.
+      example: "10"
     warn:
       type: map
       nullable: false
+      desc: Warning messages shown before a restart or shutdown.
+      example: |
+        message: '!!! {item} will {what} in {when} !!!'
+        times:
+          - 600
+          - 60
       mapping:
-        message: {type: str, nullable: false}
-        sound: {type: str, nullable: false}
+        message:
+          type: str
+          nullable: false
+          desc: Warning text; {item}, {what} and {when} are substituted.
+          example: "!!! {item} will {what} in {when} !!!"
+        sound:
+          type: str
+          nullable: false
+          desc: Sound played with the warning, loaded in the mission.
+          example: "alarm.ogg"
         times:
           type: any
           nullable: false
           func: seq_or_map
           enum: ['warn_seq', 'warn_map']
+          desc: Warn times as a list of seconds or a keyed map.
+          example: |
+            600: The server will restart in 10 minutes!
+            60: The server restarts in 1 minute!
         countdown:
           type: map
           mapping:
-            time: {type: int, range: {min: 0}, nullable: false}
-            message: {type: str, nullable: false}
+            time:
+              type: int
+              range: {min: 0}
+              nullable: false
+              desc: Seconds before the restart to start the countdown.
+              example: "10"
+            message:
+              type: str
+              nullable: false
+              desc: Countdown text; supports the same placeholders.
+              example: "!!! {item} will {what} in {when} !!!"
     schedule:
       type: map
       nullable: false
+      desc: Maps time ranges to 7-character day patterns.
+      example: |
+        00-12: YYYYYYY
+        12-24: NNNNNNN
       mapping:
-        regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$): {type: str, pattern: '^[YNP]{7}$', nullable: false}
+        regex;(^(0?[0-9]|1[0-9]|2[0-4])(:[0-5][0-9])?-(0?[0-9]|1[0-9]|2[0-4])(:?[0-5][0-9])?$):
+          type: str
+          pattern: '^[YNP]{7}$'
+          nullable: false
 
     startup:
       include: 'action_map'
@@ -105,17 +269,57 @@ schema;element_schema:
       nullable: false
       func: seq_or_map
       enum: ['action_seq', 'action_map']
-    onSimulationStart: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
-    onSimulationStop: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
-    onMissionEnd: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
-    onShutdown: { type: any, nullable: false, enum: ['command_schema'], func: str_or_map }
+      desc: What should happen during the server runtime.
+      example: |
+        - times:
+            - 04:00
+            - 08:00
+          method: restart
+          shutdown: true
+    onSimulationStart:
+      type: any
+      nullable: false
+      enum: ['command_schema']
+      func: str_or_map
+      desc: Command run when a mission starts.
+      example: "load:Scripts/net/start.lua"
+    onSimulationStop:
+      type: any
+      nullable: false
+      enum: ['command_schema']
+      func: str_or_map
+      desc: Command run when the server stops.
+      example: "load:Scripts/net/stop.lua"
+    onMissionEnd:
+      type: any
+      nullable: false
+      enum: ['command_schema']
+      func: str_or_map
+      desc: Command run when the mission ends with a win.
+      example: "load:Scripts/net/end.lua"
+    onShutdown:
+      type: any
+      nullable: false
+      enum: ['command_schema']
+      func: str_or_map
+      desc: Command run when the DCS server is shut down.
+      example: "run:shutdown /r"
 
 schema;command_schema:
   type: map
   nullable: false
   mapping:
-    command: {type: str, nullable: false, pattern: '^(load|lua|call|run):.+$'}
-    sleep: {type: int, nullable: false}
+    command:
+      type: str
+      nullable: false
+      pattern: '^(load|lua|call|run):.+$'
+      desc: Command string starting with load, lua, call or run.
+      example: "load:Scripts/net/start.lua"
+    sleep:
+      type: int
+      nullable: false
+      desc: Seconds to wait before running the command.
+      example: "10"
 
 type: map
 func: check_main_structure

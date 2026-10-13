@@ -39,7 +39,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import catalog, configgen, i18n, permissions, plugin_registry, readmodels, scopes, session
+from .. import (catalog, configgen, i18n, permissions, plugin_registry, readmodels, scopes, session,
+                validation)
 from ..registry import NavItem
 from . import actions as actions_page
 from . import dashboard as dashboard_page
@@ -713,8 +714,9 @@ def _page_context(request: Request, entry: GlobalFile, current_url: str) -> dict
     # files, so a file reported clean here is one a save will accept.
     if document is not None and entry.schema_files:
         try:
-            configwrite.validate_against_schema(configwrite.read_config_text(path),
-                                                list(entry.schema_files), path=path)
+            # the notice's check, MEMOISED: an unchanged file is not re-validated per render (see
+            # services/webservice/validation.py — a save still validates freshly)
+            validation.validate_cached(path, list(entry.schema_files))
         except configwrite.ConfigValidationError as ex:
             schema_error = _clean_detail(ex.errors) or str(ex)
         except configwrite.ConfigWriteError:
@@ -1022,8 +1024,9 @@ def scoped_context(request: Request, entry: GlobalFile, current_url: str,
             yaml_text = ""
     if document is not None and entry.schema_files:
         try:
-            configwrite.validate_against_schema(configwrite.read_config_text(path),
-                                                list(entry.schema_files), path=path)
+            # the notice's check, MEMOISED: an unchanged file is not re-validated per render (see
+            # services/webservice/validation.py — a save still validates freshly)
+            validation.validate_cached(path, list(entry.schema_files))
         except configwrite.ConfigValidationError as ex:
             schema_error = _clean_detail(ex.errors) or str(ex)
         except configwrite.ConfigWriteError:

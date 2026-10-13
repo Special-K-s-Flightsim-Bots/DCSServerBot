@@ -113,7 +113,16 @@ class PluginTemplatesLoader(BaseLoader):
         return loader.get_source(environment, rest)
 
 
-def build_environment(registrar=None, *, translations=None) -> Environment:
+def _identity_text(text: str) -> str:
+    """The ``schema_text`` global of an environment with no bound language: the schema's own text.
+
+    English IS the schema prose (its descriptions are written in it), so an unbound environment is
+    correct rather than degraded — the same "the msgid is the answer" rule ``_`` follows.
+    """
+    return text or ""
+
+
+def build_environment(registrar=None, *, translations=None, language=None) -> Environment:
     """Build an environment. ``registrar`` supplies the plugin template namespaces.
 
     ``translations`` is the gettext object installed on the environment's i18n extension. Left
@@ -121,6 +130,10 @@ def build_environment(registrar=None, *, translations=None) -> Environment:
     string is a no-op — the English-is-the-msgid property the whole migration rests on. A caller
     that passes a language's :func:`gettext.translation` gets THAT language for every render on
     this environment, and nothing outside it: the object is per-environment and never global.
+
+    ``language`` binds the environment's ``schema_text`` global to that language's SCHEMA catalog.
+    Left unset the global is the identity, which is English — the same no-op rule, applied to the
+    descriptions that live in the schemas instead of the templates.
     """
     loaders: list[BaseLoader] = [FileSystemLoader(str(SHELL_TEMPLATES_DIR))]
     if registrar is not None:
@@ -141,6 +154,15 @@ def build_environment(registrar=None, *, translations=None) -> Environment:
     installed = translations or gettext.NullTranslations()
     environment.install_gettext_translations(  # type: ignore[attr-defined]
         installed, newstyle=False)
+    # The SCHEMA-prose global. A description lives in the schema, so a template cannot wrap it in
+    # ``_(…)`` — the msgid is DATA. ``schema_text`` looks each one up in the SCHEMA catalog of THIS
+    # environment's language, so no render can serve another language's prose, and a language without
+    # a catalog (or without that entry) answers with the schema's own English text.
+    if language is None:
+        environment.globals["schema_text"] = _identity_text
+    else:
+        from . import i18n as i18n_module   # lazy: i18n imports this module for its markers
+        environment.globals["schema_text"] = i18n_module.schema_text_for(language).gettext
     # The dialog sentence GUARD (``confirm.html``'s ``say``): ONE place a translation meets its
     # placeholders, degrading a bad catalog line to English rather than raising. It closes over the
     # SAME translations object the environment installed, so it is the environment's language.
@@ -156,6 +178,10 @@ def build_environment(registrar=None, *, translations=None) -> Environment:
     # field's path ENCODED, exactly as a form field name is (a free-text key's ``.`` rides as ``%2E``),
     # so the save resolves the same document path the page rendered it from.
     environment.globals["cfg_path"] = _configgen.encode_path
+    # The BLOCKS an ``any_of`` ENTRY may carry (``configgen.entry_blocks``): a regex container whose
+    # element is an exclusive chooser renders one fieldset per allowed block and lets the operator pick,
+    # instead of merging the blocks' fields into one row. Empty for every other field.
+    environment.globals["cfg_blocks"] = _configgen.entry_blocks
     log.debug("Web UI templates: shell dir '%s', plugin namespaces %s",
               SHELL_TEMPLATES_DIR, sorted(registrar.template_dirs) if registrar else [])
     return environment

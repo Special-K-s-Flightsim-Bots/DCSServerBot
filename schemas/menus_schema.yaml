@@ -12,15 +12,39 @@ schema;params_map:
 schema;command_menu_element:
   type: map
   mapping:
-    command: {type: str, nullable: false, range: {min: 1}}
-    subcommand: {type: str, nullable: false, range: {min: 1}}
+    command:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Chat command or game event triggered by this menu entry.
+      example: "onChatCommand"
+    subcommand:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Sub-command or flag name passed to the command.
+      example: "help"
     params:
       type: any
       nullable: false
       func: seq_or_map
       enum: ['params_seq', 'params_map']
-    discord: {type: any, nullable: false, func: text_or_list}
-    ucid: {type: any, nullable: false, func: str_or_list}
+      desc: Arguments passed to the command or game event.
+      example: |
+        - 1
+        - 1
+    discord:
+      type: any
+      nullable: false
+      func: text_or_list
+      desc: Discord roles required to see and use this menu entry.
+      example: "DCS Admin"
+    ucid:
+      type: any
+      nullable: false
+      func: str_or_list
+      desc: UCIDs allowed to use this menu entry.
+      example: "aabbccddeeffgghhiijjkkllmmnnoopp"
 
 schema;list_menu_element:
   type: seq

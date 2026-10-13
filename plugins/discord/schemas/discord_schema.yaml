@@ -1,24 +1,67 @@
 schema;element_schema:
   type: map
   nullable: false
+  desc: Applies to every instance.
   mapping:
     ping_everyone:
       type: map
       nullable: false
+      desc: Handling of unauthorized @everyone or @here pings.
+      example: |
+        report: true
+        timeout: 60
+        kick: false
       mapping:
-        report: {type: bool, nullable: false, required: true}
-        timeout: {type: int, nullable: false, range: {min: 0}}
-        kick: {type: bool, nullable: false}
+        report:
+          type: bool
+          nullable: false
+          required: true
+          desc: Create an audit report for each unauthorized ping.
+          example: "true"
+        timeout:
+          type: int
+          nullable: false
+          range: {min: 0}
+          desc: Minutes the member is timed out for mentioning everyone.
+          example: "60"
+        kick:
+          type: bool
+          nullable: false
+          desc: Kick members that mention everyone in a message.
+          example: "false"
     on_join:
       type: map
       nullable: false
+      desc: Automatic welcome for members joining the server.
+      example: |
+        message: Welcome {name} to this server!
+        mention: 9988776655443322
+        channel: 1199228833774466
       mapping:
-        message: {type: str, nullable: false, range: {min: 1}}
-        mention: {type: text, nullable: false}
-        channel: {type: int, nullable: false}
+        message:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Welcome message sent to the new member.
+          example: "Welcome {name} to this server!"
+        mention:
+          type: text
+          nullable: false
+          desc: Role mentioned in the welcome message.
+          example: "9988776655443322"
+        channel:
+          type: int
+          nullable: false
+          desc: Channel for the welcome; -1 sends it as a DM.
+          example: "1199228833774466"
     roles:
       type: map
       nullable: false
+      desc: Per-role messages sent when a member gets or loses a role.
+      example: |
+        1122334455667788:
+          on_add:
+            message: '{mention}, welcome to the Sample role!'
       mapping:
         regex;(.+):
           type: map
@@ -28,27 +71,81 @@ schema;element_schema:
               type: map
               nullable: false
               mapping:
-                message: {type: str, nullable: false, range: {min: 1}}
-                mention: {type: text, nullable: false}
-                channel: {type: int, nullable: false}
+                message:
+                  type: str
+                  nullable: false
+                  range: {min: 1}
+                  desc: Message sent when the role change happens.
+                  example: "{mention}, welcome to the Sample role!"
+                mention:
+                  type: text
+                  nullable: false
+                  desc: Role mentioned in the role-change message.
+                  example: "@here"
+                channel:
+                  type: int
+                  nullable: false
+                  desc: Channel for the message; -1 sends it as a DM.
+                  example: "-1"
     reaction:
       type: map
       nullable: false
+      desc: Reaction-role message that hands out roles.
+      example: |
+        channel: 1122334455667788
+        title: Welcome to {guild}!
+        roles:
+          T:
+            role: Tester
+            message: Test Role
       mapping:
-        channel: {type: text, nullable: false}
-        title: {type: str, nullable: false, range: {min: 1}}
-        message: {type: str, nullable: false, range: {min: 1}}
-        bot_trap: {type: bool, nullable: false}
+        channel:
+          type: text
+          nullable: false
+          desc: Channel that holds the reaction message.
+          example: "1122334455667788"
+        title:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Title of the reaction message embed.
+          example: "Welcome to {guild}!"
+        message:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Body text of the reaction message.
+          example: "Please react to give yourself a role!"
+        bot_trap:
+          type: bool
+          nullable: false
+          desc: Add a trap that kicks bots reacting to the message.
+          example: "true"
         roles:
           type: map
           nullable: false
+          desc: Emoji-to-role mappings for the reaction message.
+          example: |
+            T:
+              role: Tester
+              message: Test Role
           mapping:
             regex;(.+):
               type: map
               nullable: false
               mapping:
-                role: {type: text, nullable: false, required: true}
-                message: {type: str, nullable: false, required: true}
+                role:
+                  type: text
+                  nullable: false
+                  required: true
+                  desc: Role given when the emoji is clicked.
+                  example: "Tester"
+                message:
+                  type: str
+                  nullable: false
+                  required: true
+                  desc: Text shown next to this emoji reaction.
+                  example: "Test Role"
 
 type: map
 func: check_main_structure

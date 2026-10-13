@@ -3,54 +3,246 @@ schema;node_tacview_schema:
   nullable: false
   allowempty: true
   mapping:
-    name: {type: str, nullable: false, range: {min: 1}}
-    installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-    host: {type: str, nullable: false}
-    show_passwords: {type: bool, nullable: false}
-    alternate_recording: {type: bool, nullable: false}
-    tacviewExportPath: {type: str, nullable: false, range: {min: 1}}
-    tacviewAutoDiscardFlights: {type: int, nullable: false}
-    tacviewDebugMode: {type: int, nullable: false}
-    tacviewFlightDataRecordingEnabled: {type: bool, nullable: false}
-    tacviewModuleEnabled: {type: bool, nullable: false}
-    tacviewMultiplayerFlightsAsClient: {type: int, nullable: false}
-    tacviewMultiplayerFlightsAsHost: {type: int, nullable: false}
-    tacviewRealTimeTelemetryEnabled: {type: bool,nullable: false}
-    tacviewRealTimeTelemetryPassword: {type: str, nullable: false}
-    tacviewRemoteControlEnabled: {type: bool, nullable: false}
-    tacviewRemoteControlPassword: {type: str, nullable: false}
-    tacviewSinglePlayerFlights: {type: int, nullable: false}
-    tacviewTerrainExport: {type: int, nullable: false}
-    tacviewPlaybackDelay: {type: int, range: {min: 0}, nullable: false}
-    tacviewDataCaptureMode: {type: int, range: {min: 1}, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the Tacview extension in status embeds.
+      example: "Tacview"
+    installation:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory where Tacview is installed.
+      example: "%ProgramFiles(x86)%\\Tacview"
+    host:
+      type: str
+      nullable: false
+      desc: Hostname or IP shown to players for the telemetry.
+      example: "127.0.0.1"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the Tacview passwords in the status embed.
+      example: "false"
+    alternate_recording:
+      type: bool
+      nullable: false
+      desc: Record the flight with the bot's own recorder.
+      example: "false"
+    tacviewExportPath:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Directory Tacview exports the ACMI files to.
+      example: "%USERPROFILE%\\Documents\\Tacview"
+    tacviewAutoDiscardFlights:
+      type: int
+      nullable: false
+      desc: Discard flights shorter than this many minutes.
+      example: "10"
+    tacviewDebugMode:
+      type: int
+      nullable: false
+      desc: Tacview debug verbosity.
+      example: "0"
+    tacviewFlightDataRecordingEnabled:
+      type: bool
+      nullable: false
+      desc: Enable Tacview flight data recording.
+      example: "true"
+    tacviewModuleEnabled:
+      type: bool
+      nullable: false
+      desc: Enable the Tacview module in DCS.
+      example: "true"
+    tacviewMultiplayerFlightsAsClient:
+      type: int
+      nullable: false
+      desc: Recording mode for multiplayer flights as client.
+      example: "2"
+    tacviewMultiplayerFlightsAsHost:
+      type: int
+      nullable: false
+      desc: Recording mode for multiplayer flights as host.
+      example: "2"
+    tacviewRealTimeTelemetryEnabled:
+      type: bool
+      nullable: false
+      desc: Stream the Tacview real-time telemetry.
+      example: "true"
+    tacviewRealTimeTelemetryPassword:
+      type: str
+      nullable: false
+      desc: Password for the telemetry stream.
+      example: "***"
+    tacviewRemoteControlEnabled:
+      type: bool
+      nullable: false
+      desc: Allow remote control of Tacview.
+      example: "false"
+    tacviewRemoteControlPassword:
+      type: str
+      nullable: false
+      desc: Password for the Tacview remote control.
+      example: "***"
+    tacviewSinglePlayerFlights:
+      type: int
+      nullable: false
+      desc: Recording mode for single player flights.
+      example: "2"
+    tacviewTerrainExport:
+      type: int
+      nullable: false
+      desc: Tacview terrain export mode.
+      example: "0"
+    tacviewPlaybackDelay:
+      type: int
+      range: {min: 0}
+      nullable: false
+      desc: Delay in seconds before telemetry is played back.
+      example: "600"
+    tacviewDataCaptureMode:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Frame interval Tacview records at (1 = every frame).
+      example: "8"
 
 schema;instance_tacview_schema:
   type: map
   nullable: false
   allowempty: true
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    autoupdate: {type: bool, nullable: false}
-    host: {type: str, nullable: false}
-    log: {type: str, nullable: false}
-    show_passwords: {type: bool, nullable: false}
-    alternate_recording: {type: bool, nullable: false}
-    tacviewExportPath: {type: str, nullable: false}
-    tacviewAutoDiscardFlights: {type: int, nullable: false}
-    tacviewDebugMode: {type: int, nullable: false}
-    tacviewFlightDataRecordingEnabled: {type: bool, nullable: false}
-    tacviewModuleEnabled: {type: bool, nullable: false}
-    tacviewMultiplayerFlightsAsClient: {type: int, nullable: false}
-    tacviewMultiplayerFlightsAsHost: {type: int, nullable: false}
-    tacviewRealTimeTelemetryEnabled: {type: bool,nullable: false}
-    tacviewRealTimeTelemetryPort: {type: int, nullable: false, func: unique_port}
-    tacviewRealTimeTelemetryPassword: {type: str, nullable: false}
-    tacviewRemoteControlEnabled: {type: bool, nullable: false}
-    tacviewRemoteControlPort: {type: int, nullable: false, func: unique_port}
-    tacviewRemoteControlPassword: {type: str, nullable: false}
-    tacviewSinglePlayerFlights: {type: int, nullable: false}
-    tacviewTerrainExport: {type: int, nullable: false}
-    tacviewPlaybackDelay: {type: int, range: {min: 0}, nullable: false}
-    tacviewDataCaptureMode: {type: int, range: {min: 1}, nullable: false}
-    target: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the Tacview extension for this instance.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the Tacview extension in status embeds.
+      example: "Tacview"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Sync the Tacview mod when Tacview is updated.
+      example: "true"
+    host:
+      type: str
+      nullable: false
+      desc: Hostname or IP shown to players for the telemetry.
+      example: "127.0.0.1"
+    log:
+      type: str
+      nullable: false
+      desc: Log file Tacview writes saved-flight messages to.
+      example: "%USERPROFILE%\\Saved Games\\DCS.dcs_serverrelease\\Logs\\dcs.log"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the Tacview passwords in the status embed.
+      example: "false"
+    alternate_recording:
+      type: bool
+      nullable: false
+      desc: Record the flight with the bot's own recorder.
+      example: "false"
+    tacviewExportPath:
+      type: str
+      nullable: false
+      desc: Directory Tacview exports the ACMI files to.
+      example: "%USERPROFILE%\\Documents\\Tacview"
+    tacviewAutoDiscardFlights:
+      type: int
+      nullable: false
+      desc: Discard flights shorter than this many minutes.
+      example: "10"
+    tacviewDebugMode:
+      type: int
+      nullable: false
+      desc: Tacview debug verbosity.
+      example: "0"
+    tacviewFlightDataRecordingEnabled:
+      type: bool
+      nullable: false
+      desc: Enable Tacview flight data recording.
+      example: "true"
+    tacviewModuleEnabled:
+      type: bool
+      nullable: false
+      desc: Enable the Tacview module in DCS.
+      example: "true"
+    tacviewMultiplayerFlightsAsClient:
+      type: int
+      nullable: false
+      desc: Recording mode for multiplayer flights as client.
+      example: "2"
+    tacviewMultiplayerFlightsAsHost:
+      type: int
+      nullable: false
+      desc: Recording mode for multiplayer flights as host.
+      example: "2"
+    tacviewRealTimeTelemetryEnabled:
+      type: bool
+      nullable: false
+      desc: Stream the Tacview real-time telemetry.
+      example: "true"
+    tacviewRealTimeTelemetryPort:
+      type: int
+      nullable: false
+      func: unique_port
+      desc: Port for the Tacview real-time telemetry.
+      example: "42674"
+    tacviewRealTimeTelemetryPassword:
+      type: str
+      nullable: false
+      desc: Password for the telemetry stream.
+      example: "***"
+    tacviewRemoteControlEnabled:
+      type: bool
+      nullable: false
+      desc: Allow remote control of Tacview.
+      example: "false"
+    tacviewRemoteControlPort:
+      type: int
+      nullable: false
+      func: unique_port
+      desc: Port for the Tacview remote control.
+      example: "42675"
+    tacviewRemoteControlPassword:
+      type: str
+      nullable: false
+      desc: Password for the Tacview remote control.
+      example: "***"
+    tacviewSinglePlayerFlights:
+      type: int
+      nullable: false
+      desc: Recording mode for single player flights.
+      example: "2"
+    tacviewTerrainExport:
+      type: int
+      nullable: false
+      desc: Tacview terrain export mode.
+      example: "0"
+    tacviewPlaybackDelay:
+      type: int
+      range: {min: 0}
+      nullable: false
+      desc: Delay in seconds before telemetry is played back.
+      example: "600"
+    tacviewDataCaptureMode:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Frame interval Tacview records at (1 = every frame).
+      example: "8"
+    target:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Discord channel id or directory the ACMI files go to.
+      example: "<id:112233445566778899>"

@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,37 +11,121 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    time_sync: {type: bool, nullable: false}
-    time_server: {type: str, nullable: false, range: {min: 1}}
+    time_sync:
+      type: bool
+      nullable: false
+      desc: Sync the PC clock with a time server twice a day.
+      example: "true"
+    time_server:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: NTP server used for the automated time sync.
+      example: "pool.ntp.org"
     thresholds:
       type: map
       nullable: false
+      desc: Warn and alert limits for the drive, FPS and RAM checks.
+      example: |
+        Drive:
+          warn: 10
+          alert: 5
       mapping:
         Drive:
           type: map
           nullable: false
+          desc: Free-space warnings for the DCS and system drives.
+          example: |
+            warn: 10
+            alert: 5
           mapping:
-            warn: {type: int, nullable: false, range: {min: 1, max: 50}}
-            alert: {type: int, nullable: false, range: {min: 1, max: 25}}
-            message: {type: str, nullable: false, range: {min: 1}}
-            mentioning: {type: bool, nullable: false}
+            warn:
+              type: int
+              nullable: false
+              range: {min: 1, max: 50}
+              desc: Free-space percentage that raises a warning.
+              example: "10"
+            alert:
+              type: int
+              nullable: false
+              range: {min: 1, max: 25}
+              desc: Free-space percentage that raises a full alert.
+              example: "5"
+            message:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Message sent when a drive drops below a threshold.
+              example: "Available space on drive {drive} dropped below {pct}%!"
+            mentioning:
+              type: bool
+              nullable: false
+              desc: Mention the admin role in the drive warning.
+              example: "true"
         FPS:
           type: map
           nullable: false
+          desc: Warn when the server FPS stays too low.
+          example: |
+            min: 30
+            period: 5
           mapping:
-            min: {type: int, nullable: false, range: {min: 1, max: 60}}
-            period: {type: int, nullable: false, range: {min: 1, max: 30}}
-            message: {type: str, nullable: false, range: {min: 1}}
-            mentioning: {type: bool, nullable: false}
+            min:
+              type: int
+              nullable: false
+              range: {min: 1, max: 60}
+              desc: FPS floor that triggers the warning.
+              example: "30"
+            period:
+              type: int
+              nullable: false
+              range: {min: 1, max: 30}
+              desc: Minutes FPS must stay low before warning.
+              example: "5"
+            message:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Message sent when server FPS stays too low.
+              example: "Server {server} FPS ({fps}) has been below {min_fps} for more than {period} minutes."
+            mentioning:
+              type: bool
+              nullable: false
+              desc: Mention the admin role in the FPS warning.
+              example: "true"
         RAM:
           type: map
           nullable: false
+          desc: Warn when the server RAM usage stays too high.
+          example: |
+            max: 32
+            period: 5
           mapping:
-            max: {type: int, nullable: false, range: {min: 8}}
-            period: {type: int, nullable: false, range: {min: 1, max: 30}}
-            message: {type: str, nullable: false, range: {min: 1}}
-            mentioning: {type: bool, nullable: false}
+            max:
+              type: int
+              nullable: false
+              range: {min: 8}
+              desc: RAM ceiling in GB that triggers the warning.
+              example: "32"
+            period:
+              type: int
+              nullable: false
+              range: {min: 1, max: 30}
+              desc: Minutes RAM must stay high before warning.
+              example: "5"
+            message:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Message sent when server RAM usage stays too high.
+              example: "Server {server} RAM usage is {ram} GB, exceeding the maximum of {max_ram} GB."
+            mentioning:
+              type: bool
+              nullable: false
+              desc: Mention the admin role in the RAM warning.
+              example: "true"
 
 type: map
 func: check_main_structure

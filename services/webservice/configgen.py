@@ -81,6 +81,8 @@ mutates the round-trip document the primitive hands it, so comments and formatti
 """
 from __future__ import annotations
 
+import hashlib
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -93,9 +95,12 @@ from . import i18n
 __all__ = [
     "KIND_BOOL", "KIND_NUMBER", "KIND_TEXT", "KIND_MULTILINE", "KIND_SELECT",
     "KIND_LIST", "KIND_SEQ", "KIND_MAP", "KIND_REGEX", "KIND_FUNC", "KIND_CHOICE",
+    "KIND_OR_LIST", "KIND_OR_MAP", "FORM_COMPANION",
     "KIND_LABELS", "VALIDATE_ON_SAVE_LABEL", "DEFAULT_LABEL", "REQUIRED_LABEL",
     "UnknownFieldError", "DuplicateEntryError", "encode_token", "decode_token",
     "Field", "Schema", "load_schema", "schema_files_for", "resolve", "describe", "leaves",
+    "partial_label",
+    "ONE_OF_FUNC", "entry_blocks", "entry_block",
     "value_at", "collect_current", "apply_form", "read_document", "find_field",
     "flatten", "element_leaves", "form_leaves", "rows_for", "custom_entries", "regex_value",
     "relative_name", "scopes", "alternatives", "SECTION_LABEL", "section_state", "view_id",
@@ -128,6 +133,14 @@ KIND_REGEX = "regex"
 KIND_FUNC = "func"
 #: ``type: any`` with an ``enum`` of includes — a chooser between two declared layouts
 KIND_CHOICE = "choice"
+#: a ``*_or_list`` rule — a scalar the schema ALSO allows as a list of it. The editor offers the LIST
+#: (one row to start with, since a list of one is legal) and, when the FILE already carries a scalar,
+#: that scalar plus the button that migrates it into the list. The two shapes post differently, so the
+#: control states which one it rendered (``__form``) — a one-row list is still a list.
+KIND_OR_LIST = "or_list"
+#: a ``*_or_map`` rule — a scalar the schema ALSO allows as one map block. WHICH one is offered is the
+#: FILE's business: a map there renders the block, anything else the scalar (never a guess).
+KIND_OR_MAP = "or_map"
 
 #: The chrome word a control of each kind shows, beside its key. These are the strings the generator
 #: composes, so they are born wrapped (``i18n._``) and filled in every catalog.
@@ -143,6 +156,8 @@ KIND_LABELS: dict[str, str] = {
     KIND_REGEX: i18n._("Custom entries"),
     KIND_FUNC: i18n._("Value validated on save"),
     KIND_CHOICE: i18n._("List or single"),
+    KIND_OR_LIST: i18n._("Value or list"),
+    KIND_OR_MAP: i18n._("Value or block"),
 }
 
 #: THE CHROME WORD a ``regex;`` container shows when its pattern is a FIXED list of literal names
@@ -173,6 +188,28 @@ _LAYOUT_FUNCS = frozenset({
     # noise. The save's schema validation is what enforces them.
     "is_node", "is_element", "is_server", "check_main_structure", "deprecated", "obsolete",
 })
+
+#: ``*_or_list`` — the schema allows a scalar of this type OR a list of it. ``validators.py`` is the
+#: authority: a LIST is validated against the rule's ``enum[0]`` partial when it names one, otherwise
+#: against a seq of the base type; anything else must simply BE the base type. The mapped value is that
+#: base type, which is also what one ROW of the list holds. A rule that DOES name a partial
+#: (``initiator``, ``settings_list``) is a list of BLOCKS — a shape left on the chooser for now.
+_SCALAR_OR_LIST = {
+    "bool_or_list": "bool",
+    "str_or_list": "str",
+    "int_or_list": "int",
+    "text_or_list": "text",
+    "int_csv_or_list": "str",
+    "str_csv_or_list": "str",
+}
+
+#: ``*_or_map`` — a scalar OR one map block. The VALUE is the base type, the BLOCK is the rule's
+#: ``enum[0]`` partial when it names one (``str_or_map`` on ``clouds``: a preset name or a layer map).
+_SCALAR_OR_MAP = {"bool_or_map": "bool", "str_or_map": "str", "int_or_map": "int"}
+
+#: the ``func`` names whose SCALAR side is a comma-separated list (``bad_pattern: "a,b,c"``) — the
+#: convert button SPLITS it into rows rather than carrying the CSV into one row.
+_CSV_FUNCS = frozenset({"int_csv_or_list", "str_csv_or_list"})
 
 _SCALAR_TYPES = {"str": KIND_TEXT, "text": KIND_MULTILINE, "url": KIND_TEXT}
 _NUMBER_TYPES = {"int", "float"}
@@ -229,6 +266,13 @@ class Field:
     alternatives: tuple = ()
     #: the pykwalify partial name the rule ``include:``d (``None`` when the rule was not an include)
     include: str | None = None
+    #: the schema's OWN prose for this field (``desc:``), translated at RENDER time through the
+    #: ``schema`` catalog. Empty when the schema author wrote none — the kind word is then the only
+    #: description there is, exactly as before.
+    desc: str = ""
+    #: the schema's ``example:`` value: shown as the control's PLACEHOLDER while the field is empty,
+    #: never as a value (it is an illustration, not a default, and never translated).
+    example: Any = None
     #: the BASENAME of the OTHER file that declared the included partial — the page marks a fieldset
     #: with it. ``None`` when the partial was declared in the primary file (nothing to mark).
     include_source: str | None = None
@@ -236,6 +280,17 @@ class Field:
     include_cycle: str | None = None
     #: the i18n-wrapped chrome word for this control's kind (never empty)
     kind_label: str = ""
+    #: the SCALAR control of a hybrid kind (``or_map``: the value side; ``element`` then holds the
+    #: block). ``None`` for every other kind, and for an ``or_list`` (whose ``element`` IS the scalar,
+    #: used both as one row and as the single value).
+    scalar: "Field | None" = None
+    #: TRUE for an ``any_of`` chooser: the blocks are alternatives, so the operator picks ONE and only
+    #: that one is enabled (a save posts one block, never both). A false chooser — ``seq_or_map`` and
+    #: its siblings — renders every layout, because there the FILE decides which one is in use.
+    exclusive: bool = False
+    #: whether the scalar side of this rule is a COMMA-SEPARATED list (``int_csv_or_list``): the
+    #: convert button then SPLITS it into one row per value instead of carrying the CSV into a row.
+    csv: bool = False
 
     @property
     def name(self) -> str:
@@ -312,8 +367,42 @@ def schema_files_for(path: str | Path) -> list[str]:
     return files
 
 
+#: PARSED SCHEMAS, kept — a parse is EXPENSIVE and a render asks for the same files again and again.
+#: Measured: the node schema set (21 files) costs ~380 ms and the extension set (20 files) ~285 ms, and
+#: every page render of a config page reads them. A :class:`Schema` is FROZEN, so sharing one is safe.
+#: The key carries every input the parse depends on — the primary path, the exact file list, and the
+#: mtime+size of every file read — so an edited schema is picked up on the very NEXT call and a stale
+#: entry can never be served. Bounded, because a test run touches many short-lived directories.
+_SCHEMA_CACHE: dict[tuple, Schema] = {}
+_SCHEMA_CACHE_LIMIT = 256
+_SCHEMA_LOCK = threading.Lock()
+
+
+def _file_digest(paths) -> tuple:
+    """``(path, sha256)`` for each file — the fingerprint a cache key is built from.
+
+    A CONTENT digest, never mtime+size: two writes of the same length can land in the same clock tick
+    (measured on this project's own scratch filesystem — ``st_mtime_ns`` came back IDENTICAL), and such
+    a key would serve a stale schema. Hashing the whole set costs ~0.5 ms for 26 schema files, against
+    the ~380 ms parse it guards, so exactness is free here.
+    """
+    digest = []
+    for name in paths:
+        try:
+            data = Path(name).read_bytes()
+        except OSError:
+            digest.append((str(name), None))
+            continue
+        digest.append((str(name), hashlib.sha256(data).hexdigest()))
+    return tuple(digest)
+
+
 def load_schema(path: str | Path, *, schema_files: "list[str] | None" = None) -> Schema:
     """Parse a pykwalify schema *file* into its root rule and its merged ``schema;<name>`` partials.
+
+    CACHED by the files themselves (see :data:`_SCHEMA_CACHE`): the same, unchanged files answer from
+    memory, and any edit — to the primary file or to a sibling the includes resolve in — is seen on the
+    next call because the key carries every file's mtime and size.
 
     ``schema_files`` is the set of files whose partials are ALSO collected (the cross-file half of
     ``include:``). When it is ``None`` the conventional set is computed from *path* by
@@ -323,7 +412,15 @@ def load_schema(path: str | Path, *, schema_files: "list[str] | None" = None) ->
     the parts that come from a DIFFERENT file, which is what the page marks.
     """
     path = Path(path).resolve()
-    names = [str(path), *(schema_files or schema_files_for(path))]
+    # ``schema_files_for`` ALREADY leads with the primary file (its docstring states that), so an
+    # explicit list may repeat it: dedupe in order, or the primary — usually the largest file — is
+    # parsed TWICE per load.
+    names = list(dict.fromkeys([str(path), *(schema_files or schema_files_for(path))]))
+    cache_key = (str(path), tuple(names), _file_digest(names))
+    with _SCHEMA_LOCK:
+        cached = _SCHEMA_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     partials: dict[str, dict] = {}
     included_files: dict[str, str] = {}
     root: dict = {}
@@ -341,7 +438,13 @@ def load_schema(path: str | Path, *, schema_files: "list[str] | None" = None) ->
             partials[partial_name] = value
             if candidate.name != primary:
                 included_files[partial_name] = candidate.name
-    return Schema(root=root, partials=partials, included_files=included_files, primary=primary)
+    schema = Schema(root=root, partials=partials, included_files=included_files, primary=primary)
+    with _SCHEMA_LOCK:
+        if len(_SCHEMA_CACHE) >= _SCHEMA_CACHE_LIMIT:
+            for stale in list(_SCHEMA_CACHE)[: _SCHEMA_CACHE_LIMIT // 2]:
+                _SCHEMA_CACHE.pop(stale, None)
+        _SCHEMA_CACHE[cache_key] = schema
+    return schema
 
 
 def _resolve_chain(rule: Any, partials: dict, seen: tuple) -> tuple[dict, tuple, str | None]:
@@ -367,6 +470,12 @@ def _resolve_chain(rule: Any, partials: dict, seen: tuple) -> tuple[dict, tuple,
     base = dict(partials.get(name, {}))
     rest = {key: value for key, value in rule.items() if key != "include"}
     base.update(rest)
+    if "desc" in base and "desc" not in rest:
+        # A PARTIAL's ``desc`` describes the BLOCK itself — it is the label an ``any_of`` chooser shows
+        # for it (see :func:`partial_label`) — and it is deliberately NOT inherited as prose by every
+        # rule that merely includes the partial: a field would otherwise wear a sentence written about
+        # the partial, in every file that reuses it. A rule that wants prose writes its own ``desc``.
+        base.pop("desc")
     return _resolve_chain(base, partials, seen + (name,))
 
 
@@ -393,6 +502,21 @@ def _scalar_kind(type_: str | None, enum: Any, func: str | None) -> str:
     if type_ == "bool":
         return KIND_BOOL
     return KIND_FUNC
+
+
+def partial_label(partials: dict, name: str) -> str:
+    """The LABEL a block of ``func: any_of`` shows: the PARTIAL's own ``desc``, else ``""``.
+
+    Read from the partial rather than from the resolved option field, because :func:`_resolve_chain`
+    DROPS a partial's ``desc`` (it describes the block, never whatever includes it). The caller falls
+    back to the partial's NAME when this answers nothing, so a choice is never unlabelled.
+    """
+    rule = partials.get(name)
+    if isinstance(rule, dict):
+        text = rule.get("desc")
+        if isinstance(text, str) and text.strip():
+            return " ".join(text.split())
+    return ""
 
 
 def _element_rule(rule: dict) -> dict:
@@ -578,6 +702,10 @@ def _field(key: str, rule: Any, partials: dict, included_files: dict, path: tupl
     required = bool(rule.get("required"))
     nullable = rule.get("nullable", True)
     validate = bool(func) and func not in _LAYOUT_FUNCS
+    #: the schema author's own prose and illustration for this field (both optional, both ignored by
+    #: every rule that placed the field — they describe, they never decide).
+    desc = rule.get("desc")
+    example = rule.get("example")
 
     common = dict(
         key=key, path=path, required=required, nullable=nullable,
@@ -585,6 +713,7 @@ def _field(key: str, rule: Any, partials: dict, included_files: dict, path: tupl
         minimum=rng.get("min"), maximum=rng.get("max"), regex=regex,
         validate_on_save=validate,
         include=include,
+        desc="" if desc is None else str(desc), example=example,
         include_source=included_files.get(include) if include else None,
         include_cycle=cycle,
     )
@@ -607,6 +736,48 @@ def _field(key: str, rule: Any, partials: dict, included_files: dict, path: tupl
                                           KIND_SELECT, KIND_FUNC)
         kind = KIND_LIST if scalar_element else KIND_SEQ
         return Field(kind=kind, element=element, kind_label=KIND_LABELS[kind], **common)
+
+    # ``*_or_list``: the schema allows a scalar OR a list of it. The page offers the LIST — one row to
+    # start with, since a list of one is legal and that is the documented default — and shows the
+    # SCALAR, with the button that migrates it, only when the FILE already carries one. WHICH of the
+    # two the control rendered is posted (``__form``), so a one-row list is never read back as a
+    # scalar: the operator's own choice of shape survives the save.
+    if func in _SCALAR_OR_LIST:
+        element = _field(key, {"type": _SCALAR_OR_LIST[func], "example": rule.get("example")},
+                         partials, included_files, path + ("*",), _seen=seen)
+        return Field(kind=KIND_OR_LIST, element=element, csv=func in _CSV_FUNCS,
+                     kind_label=KIND_LABELS[KIND_OR_LIST], **common)
+
+    # ``*_or_map``: a scalar OR one map block. WHICH one is offered is the FILE's business — a map
+    # there renders the block, anything else the scalar — so BOTH shapes are carried and the template
+    # picks by the value it was handed. The schema's own decision, never a guess.
+    if func in _SCALAR_OR_MAP:
+        block = None
+        if isinstance(enum, list) and enum and isinstance(enum[0], str):
+            option = _field(key, {"include": enum[0]}, partials, included_files, path, _seen=seen)
+            block = option if option.kind == KIND_MAP else None
+        scalar = _field(key, {"type": _SCALAR_OR_MAP[func], "example": rule.get("example")},
+                        partials, included_files, path + ("*",), _seen=seen)
+        return Field(kind=KIND_OR_MAP, element=block, scalar=scalar,
+                     kind_label=KIND_LABELS[KIND_OR_MAP], **common)
+
+    # ``func: any_of``: the value must match ONE of the blocks the ``enum`` names. The operator CHOOSES
+    # which block to work on — the chooser's options are labelled with the partial's own ``desc`` (the
+    # sentence the schema wrote about that block), falling back to the partial's name — and only the
+    # chosen one is enabled, so a save posts exactly the block being edited.
+    if func == "any_of" and isinstance(enum, list) and enum and all(isinstance(n, str) for n in enum):
+        options = []
+        for partial_name in enum:
+            rule_for_option: dict = {"include": partial_name}
+            label = partial_label(partials, partial_name)
+            if label:
+                # carried as the OPTION's own description (the rule's key wins over the partial's, see
+                # ``_resolve_chain``), so the chooser can print the schema's sentence for that block
+                rule_for_option["desc"] = label
+            options.append(_field(partial_name, rule_for_option, partials, included_files, path,
+                                  _seen=seen))
+        return Field(kind=KIND_CHOICE, children=tuple(options), enum=tuple(enum), exclusive=True,
+                     kind_label=KIND_LABELS[KIND_CHOICE], **common)
 
     # ``type: any`` (or none) with an ``enum`` of include NAMES and a layout ``func`` is the schema's
     # "either of these two shapes" — offer BOTH editors (the mockup's List/Single chooser).
@@ -786,10 +957,53 @@ def custom_entries(field: Field, value: Any) -> list[dict]:
         return []
     out = []
     for key, row in value.items():
-        out.append({"key": key, "enc_key": encode_token(key),
-                    "values": {relative_name(leaf, field): _row_value(row, relative_name(leaf, field))
-                               for leaf in element_leaves(field)}})
+        values = {relative_name(leaf, field): _row_value(row, relative_name(leaf, field))
+                  for leaf in element_leaves(field)}
+        # WHICH block this entry carries, for a container whose element is an ``any_of`` (empty
+        # otherwise) — the row opens on the block the FILE uses, never on a guess.
+        out.append({"key": key, "enc_key": encode_token(key), "values": values,
+                    "block": entry_block(field, values)})
     return out
+
+
+def entry_blocks(field: Field) -> list[dict]:
+    """The BLOCKS an entry of *field* may carry: one per option of an EXCLUSIVE chooser element.
+
+    A ``regex;`` container whose element is ``func: any_of`` used to render its options' leaves MERGED
+    into one row: the operator could not see which block they were filling in, and both blocks' fields
+    landed in the file. Each block is returned with its leaves ready to name (``rel`` relative to the
+    entry — the SAME names the merged row already posted, so the save path is unchanged), letting the
+    row draw one fieldset per block and the operator pick the one this entry carries.
+
+    Empty for every other field, so a template can ask unconditionally.
+    """
+    element = field.element
+    if element is None or element.kind != KIND_CHOICE or not element.exclusive:
+        return []
+    blocks = [{"key": option.key, "desc": option.desc, "leaves": form_leaves(option)}
+              for option in element.children]
+    # A BLOCK WITH NOTHING NAMEABLE IS NOT OFFERED. Every ``any_of`` in the shipped schemas pairs a flat
+    # element block with an ``instance_schema`` whose content is a NESTED KEYED MAP (``regex;(.+)``), so
+    # its fields live one level down and cannot be named by a row: the picker is WITHHELD rather than
+    # offering a block the operator could not fill in. Such a container keeps the row it has today.
+    if not all(block["leaves"] for block in blocks):
+        return []
+    return blocks
+
+
+def entry_block(field: Field, values: dict) -> str:
+    """WHICH block an entry's values belong to: the first option carrying a value, else the first.
+
+    Read from the DATA the entry already holds — the block whose leaves are set IS the block in the
+    file — so a hand-written file opens on the block it uses instead of on whichever is listed first.
+    """
+    blocks = entry_blocks(field)
+    if not blocks:
+        return ""
+    for block in blocks:
+        if any(values.get(rel) not in (None, "") for _leaf, rel in block["leaves"]):
+            return block["key"]
+    return str(blocks[0]["key"])
 
 
 def _literal_sibling_keys(tree: Field, field: Field) -> frozenset:
@@ -839,6 +1053,14 @@ def regex_value(tree: Field, field: Field, document: Any) -> Any:
     return result
 
 
+#: the ``func:`` a FIXED-ALTERNATIVE container carries when its names are SPELLINGS OF ONE SECTION
+#: (``regex;(frontend|client)`` — a key renamed between releases). The function itself lives in
+#: ``core/utils/validators.py`` and WARNS when two spellings are present at once; this module only
+#: reads its name, so a container marked that way offers no SECOND spelling once the section exists
+#: (see :func:`section_state`). A container without it behaves exactly as before.
+ONE_OF_FUNC = "one_of"
+
+
 def section_state(field: Field, entries) -> dict:
     """For a FIXED-ALTERNATIVE regex container: which allowed names are PRESENT, and which are MISSING.
 
@@ -847,8 +1069,17 @@ def section_state(field: Field, entries) -> dict:
     schema's own alternatives that are NOT present, in the schema's own order — the exact list the
     "+ Add section" control offers. A non-alternative field yields an empty mapping, so the template's
     fallback branch is used.
+
+    A container marked ``func: one_of`` in the schema names SPELLINGS OF ONE SECTION rather than
+    several sections (``regex;(frontend|client)`` — a key renamed between releases): once ONE spelling
+    is present the section exists, so NOTHING is missing and no second spelling is offered — that would
+    write the same block twice under two names, which is exactly what the validator's ``one_of`` warns
+    about. A spelling the file already carries keeps rendering and saving either way.
     """
     present = [entry["key"] for entry in entries]
+    element = field.element
+    if present and element is not None and element.func == ONE_OF_FUNC:
+        return {"present": present, "missing": []}
     missing = [name for name in field.alternatives if name not in present]
     return {"present": present, "missing": missing}
 
@@ -919,13 +1150,22 @@ def hidden_options(tree: Field, children, document: Any) -> list[dict]:
     for child in children:
         if field_shown(tree, child, document):
             continue
+        if child.kind == KIND_CHOICE and child.exclusive and child.children:
+            # An ``any_of`` BLOCK: the ``+ Add`` offers ONE CHOICE PER ALLOWED BLOCK — labelled with the
+            # schema's own sentence for it — instead of one entry naming the field. Adding one writes
+            # THAT block's shape, which is what the operator meant when they picked it.
+            for choice in child.children:
+                options.append({"id": view_id(child) + _VIEW_ID_SEP + str(choice.key),
+                                "key": choice.key, "name": choice.name, "kind": choice.kind_label,
+                                "block": True, "desc": choice.desc, "field": choice})
+            continue
         # a FIXED-ALTERNATIVE container's own key is ``regex;(frontend|client)`` — unreadable. Its
         # display name is the schema's own list, joined, so the picker reads "frontend | client".
         key = " | ".join(child.alternatives) if child.kind == KIND_REGEX and child.alternatives \
             else child.key
         options.append({"id": view_id(child), "key": key, "name": child.name,
                         "kind": child.kind_label, "block": child.kind in BLOCK_KINDS,
-                        "field": child})
+                        "desc": child.desc, "field": child})
     options.sort(key=lambda option: option["block"])   # stable: fields (False) first, blocks after
     return options
 
@@ -955,6 +1195,12 @@ def visibility(tree: Field, container: Field, document: Any) -> dict:
         if options:
             picks[name] = options
             hidden.update(option["id"] for option in options)
+        for child in children:
+            # the FIELD of an expanded ``any_of`` is not rendered either: its blocks are offered by the
+            # picker one by one, so the whole chooser must not also appear in the form.
+            if child.kind == KIND_CHOICE and child.exclusive and child.children \
+                    and not field_shown(tree, child, document):
+                hidden.add(view_id(child))
         for child in children:
             if child.kind == KIND_MAP:
                 walk(child.name, child.children)
@@ -1215,9 +1461,14 @@ ENTRIES_COMPANION = "__entries"
 #: Both are skipped by the leaf pass: an entry's identity comes from its path token, never the echo.
 KEY_COMPANION = "__key"
 
+#: WHICH SHAPE a hybrid (``*_or_list``) control RENDERED — ``list`` or ``scalar``. The two shapes post
+#: the same field name, so without this a one-row list would read back as a scalar (and the operator's
+#: choice of shape would be silently undone by every save). A value that is neither is REFUSED.
+FORM_COMPANION = "__form"
+
 #: EVERY companion a generated form posts that is NOT a document path — the leaf pass skips them all.
 #: Declared here (with the companions it names) so a new one is added in ONE place.
-_COMPANIONS = frozenset({"__n", KEY_COMPANION, ENTRIES_COMPANION, REMOVED_COMPANION,
+_COMPANIONS = frozenset({"__n", FORM_COMPANION, KEY_COMPANION, ENTRIES_COMPANION, REMOVED_COMPANION,
                          REMOVE_ACK_COMPANION})
 
 
@@ -1283,7 +1534,12 @@ def find_field(tree: Field, tokens: tuple) -> Field | None:
             found = find_field(child, tokens)
             if found is not None:
                 return found
-    if tree.kind in (KIND_LIST, KIND_SEQ, KIND_REGEX) and tree.element is not None:
+    # A HYBRID MAP's block IS the field (same path): its children are addressed by their own names, so
+    # this descent consumes NO token — unlike a list/seq/regex, whose element is addressed by an index
+    # or a free-text key that the posted path DOES carry.
+    if tree.kind == KIND_OR_MAP and tree.element is not None:
+        return find_field(tree.element, tokens)
+    if tree.kind in (KIND_LIST, KIND_SEQ, KIND_REGEX, KIND_OR_LIST) and tree.element is not None:
         # Descend into the element ONLY when it is itself a structured type (a map, a nested
         # seq/regex, a layout chooser). A SCALAR element is addressed by the collection's OWN name
         # (``f.<list>`` repeated), never by ``f.<list>.<token>`` — and descending into it would make
@@ -1533,7 +1789,40 @@ def apply_form(document: Any, form, tree: Field) -> None:
         if field is None:
             raise UnknownFieldError(name)
         current = value_at(document, tokens)
-        if field.kind == KIND_LIST:
+        if field.kind == KIND_OR_LIST:
+            if field.element is None:       # the generator never builds one without a row control
+                raise UnknownFieldError(name)
+            # WHICH shape the control rendered is STATED, never inferred: a one-row list comes back a
+            # list (the operator chose that shape) and a scalar comes back a scalar. A marker naming
+            # anything else is refused, so a crafted post cannot decide a shape for the schema.
+            shape = "list"
+            marker = stated.get(name + "." + FORM_COMPANION)
+            if marker:
+                shape = str(marker[-1]).strip()
+                if shape not in ("list", "scalar"):
+                    raise UnknownFieldError(name + "." + FORM_COMPANION)
+            if shape == "scalar":
+                new_value = _coerce(field.element, values[-1] if values else "")
+                if _path_missing(document, tokens) and not str(new_value).strip():
+                    continue
+            else:
+                items = [item for value in values
+                         for item in str(value or "").split("\n") if item != ""]
+                new_value = [_coerce(field.element, item) for item in items]
+                # A list the operator never filled is not a new setting: showing the control must not
+                # CREATE the key (the same rule a scalar follows).
+                if not new_value and _path_missing(document, tokens):
+                    continue
+        elif field.kind == KIND_OR_MAP:
+            if field.scalar is None:        # the generator never builds one without a value control
+                raise UnknownFieldError(name)
+            # The BLOCK case posts its own leaves (they resolve to the block's children, below), so
+            # only the VALUE side is read here — coerced by the SCALAR field, which owns its type.
+            posted_scalar = values[-1] if values else ""
+            if _path_missing(document, tokens) and str(posted_scalar).strip() == "":
+                continue
+            new_value = _coerce(field.scalar, posted_scalar)
+        elif field.kind == KIND_LIST:
             element = field.element
             items = [item for value in values for item in str(value or "").split("\n") if item != ""]
             new_value = [_coerce(element, item) for item in items] if element else list(values)

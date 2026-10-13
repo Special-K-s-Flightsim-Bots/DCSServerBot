@@ -4,22 +4,54 @@ mapping:
   DEFAULT:
     type: map
     nullable: false
+    desc: Web service settings applied to every node.
+    example: |
+      debug: false
+      listen: 0.0.0.0
+      port: 9876
+      frontend: true
     mapping:
-      debug: {type: bool, nullable: false}
-      listen: {type: str, pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', nullable: false}
-      port: {type: int, nullable: false, default: 9876, func: unique_port}
+      debug:
+        type: bool
+        nullable: false
+        desc: Serve the API docs endpoints and uvicorn's access log.
+        example: "false"
+      listen:
+        type: str
+        pattern: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+        nullable: false
+        desc: Interface the HTTP server binds to.
+        example: "0.0.0.0"
+      port:
+        type: int
+        nullable: false
+        default: 9876
+        func: unique_port
+        desc: TCP port the service listens on; unique per node.
+        example: "9876"
       # The admin frontend switch, default `false`: the frontend is opt-in while it is WIP, so an
       # existing configuration that does not set `frontend: true` gets the REST API only. `true`
       # installs the whole web UI; `false` never installs the shell — no page route, no `/auth/*`,
       # no session middleware, no shell assets, no UI background work — and the `auth:` block is not
       # evaluated at all, so a stale login block cannot stop an API-only installation. The REST API
       # is unaffected in both modes. A non-boolean value is refused here.
-      frontend: {type: bool, nullable: false, default: false}
+      frontend:
+        type: bool
+        nullable: false
+        default: false
+        desc: Install the admin web console; false serves the API only.
+        example: "false"
       # The log panel's default level filter — the SAME vocabulary the page offers in its URL
       # (`?level=`). "info" is INFO and up (DEBUG hidden), "warning" is WARNING and up, "all" shows
       # everything. An unknown value is refused here by the schema and again in the read model, so
       # a value nobody defined can never widen or narrow the panel.
-      log_level: {type: str, nullable: false, default: info, enum: [info, warning, all]}
+      log_level:
+        type: str
+        nullable: false
+        default: info
+        enum: [info, warning, all]
+        desc: Default level filter of the console's log panel.
+        example: "info"
       # Live updates of the read-only dashboard (services/webservice/pages/live.py). The log tail
       # and the servers/KPI figures are pushed as HTML fragments over Server-Sent Events, so a
       # reader does not have to refresh the page. Every value below has a code default too, so an
@@ -27,72 +59,161 @@ mapping:
       dashboard:
         type: map
         nullable: false
+        desc: Live update settings of the read-only dashboard.
+        example: |
+          live: true
+          refresh_seconds: 2
+          stream_clients: 16
         mapping:
           # Serve the live stream at all. Off: the page renders in full (with JavaScript off it
           # always does) and simply is not live; no script is loaded.
-          live: {type: bool, nullable: false, default: true}
+          live:
+            type: bool
+            nullable: false
+            default: true
+            desc: Push live updates to the dashboard over SSE.
+            example: "true"
           # How often the server re-renders the fragments and pushes what changed, in seconds.
           # Nothing is sent when nothing changed, so this is a poll interval, not a traffic rate.
-          refresh_seconds: {type: int, nullable: false, default: 2, range: {min: 1, max: 60}}
+          refresh_seconds:
+            type: int
+            nullable: false
+            default: 2
+            range: {min: 1, max: 60}
+            desc: Seconds between re-rendering and pushing changes.
+            example: "2"
           # The most concurrent live streams the console serves. Past the cap a client still gets
           # its snapshot and the stream closes cleanly (rather than queueing forever).
-          stream_clients: {type: int, nullable: false, default: 16, range: {min: 1, max: 256}}
+          stream_clients:
+            type: int
+            nullable: false
+            default: 16
+            range: {min: 1, max: 256}
+            desc: Most concurrent live streams the console serves.
+            example: "16"
       # Session cookie of the admin web UI (services/webservice/session.py). Every value is
       # explicit configuration - nothing is derived from a request, so the cookie behaves the
       # same behind a reverse proxy as it does on localhost.
       session:
         type: map
         nullable: false
+        desc: Session cookie settings of the admin web UI.
+        example: |
+          secret: SECRET_SESSION_KEY
+          cookie_name: dcssb_session
+          max_age: 86400
         mapping:
           # signing key of the session cookie. Unset = a random key per process start (sessions
           # do not survive a restart), which is logged as a warning at startup.
-          secret: {type: str, nullable: true}
-          cookie_name: {type: str, nullable: false, default: dcssb_session}
+          secret:
+            type: str
+            nullable: true
+            desc: Key that signs the session cookie; unset picks a random one.
+            example: "***"
+          cookie_name:
+            type: str
+            nullable: false
+            default: dcssb_session
+            desc: Name of the session cookie.
+            example: "dcssb_session"
           # session lifetime in seconds; also the compensating control for treating a signed-in
           # caller as trusted elsewhere
-          max_age: {type: int, nullable: false, default: 86400, range: {min: 60}}
+          max_age:
+            type: int
+            nullable: false
+            default: 86400
+            range: {min: 60}
+            desc: Session lifetime in seconds.
+            example: "86400"
           # set the Secure flag: required whenever the console is reachable over TLS.
           # NOT defaulted here on purpose. Absent OR empty means *unset* (never "off") and is
           # derived from `listen`: loopback-only (127.0.0.1/localhost/::1) may serve the cookie over
           # plain HTTP, anything else is Secure unless `false` is written down here - and that
           # explicit `false` on a non-loopback bind is logged as a warning at startup.
-          https_only: {type: bool, nullable: true}
+          https_only:
+            type: bool
+            nullable: true
+            desc: Set the Secure flag on the session cookie.
+            example: "false"
           # "lax" is load-bearing: it is what lets the OAuth callback (a cross-site top-level GET)
           # carry the session cookie. "strict" makes every login fail with an empty session,
           # "none" requires https_only: true. A non-lax value is logged as a warning.
-          same_site: {type: str, nullable: false, default: lax, enum: [lax, strict, none]}
+          same_site:
+            type: str
+            nullable: false
+            default: lax
+            enum: [lax, strict, none]
+            desc: Cookie SameSite policy; keep 'lax' for OAuth logins.
+            example: "lax"
       # The identity layer of the admin web UI (services/webservice/auth/). Optional: without it
       # every non-public page is refused (deny by default), which is the safe direction.
       auth:
         type: map
         nullable: true
+        desc: Identity layer of the admin web UI; optional.
+        example: |
+          public_base_url: http://localhost:9876
+          local:
+            enabled: true
         mapping:
           # The public origin this console is reachable at, scheme and host explicit. It is what
           # any redirect URI is built from - NEVER from a request (a proxy would silently flip
           # https to http, or land the callback on an origin that has no session cookie).
-          public_base_url: {type: str, nullable: true}
+          public_base_url:
+            type: str
+            nullable: true
+            desc: Public origin the console is reachable at.
+            example: "http://localhost:9876"
           local:
             type: map
             nullable: true
+            desc: Username and password login for the console.
+            example: |
+              enabled: true
+              users:
+                - username: specialk
+                  password_hash: pbkdf2_sha256$***
+                  roles: [Admin]
             mapping:
               # Nothing is enabled by default: `true` is required, so an installation never grows
               # a login path by accident.
-              enabled: {type: bool, nullable: false, default: false}
+              enabled:
+                type: bool
+                nullable: false
+                default: false
+                desc: Enable username/password login for the console.
+                example: "true"
               users:
                 type: seq
                 nullable: true
+                desc: Accounts that may sign in with a username and password.
+                example: |
+                  - username: specialk
+                    password_hash: pbkdf2_sha256$***
+                    roles: [Admin]
                 sequence:
                   - type: map
                     mapping:
-                      username: {type: str, nullable: false}
+                      username:
+                        type: str
+                        nullable: false
+                        desc: Account name of the local console user.
+                        example: "specialk"
                       # a PBKDF2-HMAC-SHA256 hash, NEVER a plaintext password. Generate one with
                       # `python -m services.webservice.auth.local --hash`.
-                      password_hash: {type: str, nullable: false}
+                      password_hash:
+                        type: str
+                        nullable: false
+                        desc: PBKDF2 hash of the account's password.
+                        example: "pbkdf2_sha256$***"
                       # role NAMES of the bot's role model (bot.yaml 'roles:' keys plus the bot's
                       # own defaults), validated at startup. An unknown name is refused loudly.
                       roles:
                         type: seq
                         nullable: false
+                        desc: Role names granted to this account, validated at startup.
+                        example: |
+                          - Admin
                         sequence:
                           - type: str
                       # Optional: the SERVERS this account may see and act on, as the `managed_by`
@@ -106,6 +227,9 @@ mapping:
                       scope:
                         type: seq
                         nullable: true
+                        desc: managed_by values this account may see and act on.
+                        example: |
+                          - Server 1
                         sequence:
                           - type: str
           # Discord OAuth (the second door into the console). Nothing is enabled unless
@@ -118,29 +242,73 @@ mapping:
           discord:
             type: map
             nullable: true
+            desc: Discord OAuth login; the second door into the console.
+            example: |
+              enabled: true
+              client_id: 123456789012345678
+              client_secret_key: discord_client_secret
             mapping:
-              enabled: {type: bool, nullable: false, default: false}
-              client_id: {type: int, nullable: true}
+              enabled:
+                type: bool
+                nullable: false
+                default: false
+                desc: Enable Discord OAuth login.
+                example: "true"
+              client_id:
+                type: int
+                nullable: true
+                desc: Client id of your Discord application.
+                example: "123456789012345678"
               # the client secret INLINE. Precedence: `client_secret_key` wins when it is set,
               # otherwise this value is used.
-              client_secret: {type: str, nullable: true}
+              client_secret:
+                type: str
+                nullable: true
+                desc: Inline Discord client secret; used when no key is set.
+                example: "***"
               # the NAME of a key in the bot's secret store (config/.secret/<key>.pkl, written by
               # utils.set_password). When set it WINS over `client_secret`. An enabled backend
               # with neither, or with a key the store does not hold, is refused loudly at startup.
-              client_secret_key: {type: str, nullable: true}
+              client_secret_key:
+                type: str
+                nullable: true
+                desc: Secret store key holding the client secret; wins inline.
+                example: "discord_client_secret"
               # How long (seconds) a per-request member resolution may be served from memory when
               # the bot runs WITHOUT the Server Members Intent (privileged_intents: false), where
               # discord.py has no member cache to look at. A value is never served older than this,
               # so a removed member/role loses the capability within the TTL. Ignored with the
               # intent on. Clamped to 1..3600 (with a warning) rather than refused.
-              member_ttl: {type: int, nullable: true, default: 60}
+              member_ttl:
+                type: int
+                nullable: true
+                default: 60
+                desc: Seconds a member resolution is cached without the intent.
+                example: "60"
           # One Admin credential for the day the identity provider is what broke. Same store and
           # format as auth.local; refused unless `enabled: true` is set explicitly.
           breakglass:
             type: map
             nullable: true
+            desc: Emergency Admin credential for a broken identity provider.
+            example: |
+              enabled: true
+              username: emergency
+              password_hash: pbkdf2_sha256$***
             mapping:
-              enabled: {type: bool, nullable: false, default: false}
-              username: {type: str, nullable: true}
-              password_hash: {type: str, nullable: true}
-
+              enabled:
+                type: bool
+                nullable: false
+                default: false
+                desc: Enable the emergency Admin credential.
+                example: "false"
+              username:
+                type: str
+                nullable: true
+                desc: Username of the emergency Admin account.
+                example: "emergency"
+              password_hash:
+                type: str
+                nullable: true
+                desc: PBKDF2 hash of the emergency password.
+                example: "pbkdf2_sha256$***"

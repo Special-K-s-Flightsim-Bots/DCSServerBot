@@ -1035,12 +1035,24 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
 .cfg-field:first-child { border-top: 0; }
 .cfg-label { display: flex; flex-wrap: wrap; gap: .35rem; align-items: baseline; }
 .cfg-key { color: var(--text); font-size: .8rem; }
+/* The schema's own sentence, on the row itself — no hover needed to read what a field is for. */
+.cfg-desc { color: var(--text-3); font-size: .75rem; max-width: 62ch; }
 .cfg-kind { color: var(--text-3); font-size: .72rem; }
 .cfg-badge { border: 1px solid var(--line-2); border-radius: 999px; padding: 0 .4rem;
   font-size: .68rem; color: var(--text-3); background: var(--panel-2); }
 .cfg-badge.warn { border-color: var(--warn-line); color: var(--warn-text); background: var(--warn-bg); }
 .cfg-badge.inc { border-color: var(--inc-line); color: var(--inc-text); background: var(--inc-bg); }
 .cfg-badge.cycle { border-color: var(--cycle-line); color: var(--cycle-text); background: var(--cycle-bg); }
+/* THE SCHEMA'S OWN DESCRIPTION (``desc:``) as a hover/focus tooltip. The marker is inert chrome —
+ * a help cursor and a keyboard focus ring, never a click target — and the sentence it reveals is the
+ * schema author's text, looked up in the reader's language by the ``schema_text`` global. Mirrors the
+ * tiles' tooltip: ``title`` for the mouse, and a visually-hidden copy the ``aria-describedby`` on the
+ * marker reaches, so the sentence is readable WITHOUT a mouse either. */
+.cfg-info { color: var(--text-3); font-size: .78rem; line-height: 1; cursor: help; }
+.cfg-info:hover { color: var(--accent); }
+.cfg-info:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.cfg-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 .cfg-hint { grid-column: 1 / -1; color: var(--text-3); font-size: .76rem; margin: .1rem 0 .3rem; }
 .cfg-input { width: 100%; background: var(--ground-2); border: 1px solid var(--line-2);
   color: var(--text); border-radius: var(--radius-s); padding: .3rem .5rem; font: inherit;
@@ -1058,6 +1070,10 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
 .cfg-input.mono, .cfg-key.mono, .cfg-subkey.mono, pre.yaml.mono, .cfg-file.mono {
   font-family: var(--font-mono); }
 .cfg-row, .cfg-rowbox { display: flex; gap: .4rem; align-items: flex-end; margin-bottom: .35rem; }
+/* A hybrid `*_or_list` field: the scalar the file carries, with the button that turns it into a list,
+   on ONE line — the button belongs to the value it converts, so the pair reads as one control. */
+.cfg-orpair { display: flex; gap: .4rem; align-items: center; }
+.cfg-orpair .cfg-input, .cfg-orpair textarea, .cfg-orpair select { flex: 1 1 auto; }
 .cfg-rowbox { flex-wrap: wrap; border: 1px solid var(--line); border-radius: var(--radius-s);
   padding: .4rem; background: var(--ground-2); }
 .cfg-sub { display: flex; flex-direction: column; gap: .15rem; min-width: 8rem; flex: 1 1 8rem; }

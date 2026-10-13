@@ -2,4 +2,9 @@ schema;tempban_schema:
   type: map
   nullable: false
   mapping:
-    duration: {type: int, range: {min: 1}, nullable: false}
+    duration:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Days a player is banned for by the vote.
+      example: "3"

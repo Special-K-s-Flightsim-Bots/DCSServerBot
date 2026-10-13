@@ -3,38 +3,151 @@ schema;node_lotatc_schema:
   nullable: false
   allowempty: true  # allow additional parameters
   mapping:
-    name: { type: str, nullable: false, range: { min: 1 } }
-    installation: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-    autoupdate: {type: bool, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: { min: 1 }
+      desc: Name shown for the LotAtc extension in the server status embed.
+      example: "LotAtc"
+    installation:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Path to your LotAtc base installation.
+      example: "%ProgramFiles%\\LotAtc"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Auto-update LotAtc on the node when a new version is available.
+      example: "true"
     announce:
       type: map
       nullable: false
+      desc: Optional Discord message posted after every LotAtc update.
+      example: |
+        channel: 112233445566778899
+        title: LotAtc has been updated to version {}!
+        description: The following servers will be updated on the next restart:
+        footer: Please make sure you update your LotAtc client also!
+        mention:
+          - DCS
       mapping:
-        channel: { type: int, required: true, nullable: false }
-        title: { type: str, nullable: false, range: { min: 1 } }
-        description: { type: str, nullable: false, range: { min: 1 } }
-        footer: { type: str, nullable: false, range: { min: 1 } }
+        channel:
+          type: int
+          required: true
+          nullable: false
+          desc: Discord channel id the update announcement is posted to.
+          example: "112233445566778899"
+        title:
+          type: str
+          nullable: false
+          range: { min: 1 }
+          desc: Title of the update announcement embed.
+          example: "LotAtc has been updated to version {}!"
+        description:
+          type: str
+          nullable: false
+          range: { min: 1 }
+          desc: Body text of the update announcement embed.
+          example: "The following servers will be updated on the next restart:"
+        footer:
+          type: str
+          nullable: false
+          range: { min: 1 }
+          desc: Footer text of the update announcement embed.
+          example: "Please make sure you update your LotAtc client also!"
         mention:
           type: seq
           nullable: false
+          desc: Discord roles or users pinged with the announcement.
+          example: |
+            - DCS
           sequence:
-            - { type: text, nullable: false }
+            - type: text
+              nullable: false
+              desc: Role or user name to mention.
+              example: "DCS"
 
 schema;instance_lotatc_schema:
   type: map
   nullable: false
   allowempty: true  # allow additional parameters
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    host: {type: str, nullable: false, range: {min: 1}}
-    port: {type: int, nullable: false, func: unique_port}
-    show_passwords: {type: bool, nullable: false}
-    autoupdate: {type: bool, nullable: false}
-    dedicated_mode: {type: bool, nullable: false, func: obsolete}
-    dump_json_stats: {type: bool, nullable: false, func: obsolete}
-    srs_path: {type: str, nullable: false, range: {min: 1}, func: obsolete}
-    srs_server: {type: str, nullable: false, range: {min: 1}, func: obsolete}
-    srs_server_port: {type: int, nullable: false, func: obsolete}
-    srs_use_transponder: {type: bool, nullable: false, func: obsolete}
-    srs_transponder_port: {type: int, nullable: false, func: obsolete}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the LotAtc extension is enabled on this instance.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name shown for this instance's LotAtc entry in the status embed.
+      example: "LotAtc"
+    host:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Hostname shown in the status embed instead of the public IP.
+      example: "myfancyhost.com"
+    port:
+      type: int
+      nullable: false
+      func: unique_port
+      desc: TCP port your LotAtc server listens on.
+      example: "10310"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the GCI passwords in the server status embed.
+      example: "false"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Auto-update LotAtc on this instance when a new version is available.
+      example: "true"
+    dedicated_mode:
+      type: bool
+      nullable: false
+      func: obsolete
+      desc: "Obsolete: dedicated mode is now always enabled."
+      example: "true"
+    dump_json_stats:
+      type: bool
+      nullable: false
+      func: obsolete
+      desc: "Obsolete: JSON statistics are now always written."
+      example: "true"
+    srs_path:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: "Obsolete: the SRS path is taken from the SRS extension."
+      example: "%ProgramFiles%\\DCS-SimpleRadio-Standalone"
+    srs_server:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: "Obsolete: the SRS server address is taken from the SRS extension."
+      example: "127.0.0.1"
+    srs_server_port:
+      type: int
+      nullable: false
+      func: obsolete
+      desc: "Obsolete: the SRS port is taken from the SRS extension."
+      example: "5002"
+    srs_use_transponder:
+      type: bool
+      nullable: false
+      func: obsolete
+      desc: "Obsolete: transponder usage is taken from the SRS extension."
+      example: "true"
+    srs_transponder_port:
+      type: int
+      nullable: false
+      func: obsolete
+      desc: "Obsolete: the transponder port is taken from the SRS extension."
+      example: "10712"

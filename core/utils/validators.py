@@ -67,7 +67,7 @@ else:
 
 class NodeData:
     _instance: ClassVar[NodeData | None] = None
-    _lock = threading.Lock()    # make it thread-safe
+    _lock = threading.Lock()  # make it thread-safe
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -120,13 +120,16 @@ class NodeData:
     def all_instances(self):
         return self._all_instances
 
+
 def get_node_data() -> NodeData:
     return cast(NodeData, NodeData())
+
 
 def _is_valid(path: str) -> bool:
     if path and path.split("/")[1] in [DEFAULT_TAG, COMMAND_LINE_ARGS.node, 'backups', 'commands']:
         return True
     return False
+
 
 def file_exists(value, _, path) -> bool | str:
     if _is_valid(path):
@@ -135,8 +138,9 @@ def file_exists(value, _, path) -> bool | str:
         if '{' in filename:
             return True
         if not os.path.exists(filename) or not os.path.isfile(filename):
-           return f'File "{value}" does not exist or is no file'
+            return f'File "{value}" does not exist or is no file'
     return True
+
 
 def dir_exists(value, _, path) -> str | bool:
     if _is_valid(path):
@@ -148,6 +152,7 @@ def dir_exists(value, _, path) -> str | bool:
             return f'Directory "{value}" does not exist or is no directory'
     return True
 
+
 def deprecated(_value, rule_obj, path) -> str | bool:
     message = f'Parameter "{os.path.basename(path)}" is deprecated.'
     enum = rule_obj.schema_str.get('enum', [])
@@ -158,10 +163,12 @@ def deprecated(_value, rule_obj, path) -> str | bool:
     rule_obj.enum = None
     return True
 
+
 def obsolete(_value, _rule_obj, path) -> str | bool:
     if _is_valid(path):
         logger.warning(f'"{os.path.basename(path)}" is obsolete and will be set by the bot: Path "{path}"')
     return True
+
 
 def unique_port(value, _, path) -> str | bool:
     if _is_valid(path):
@@ -179,6 +186,7 @@ def unique_port(value, _, path) -> str | bool:
         ports[node][value] = path
     return True
 
+
 def _load_schema(include_name: str, _path: str) -> str:
     partial_schema_rule = partial_schemas.get(include_name)
     if not partial_schema_rule:
@@ -187,12 +195,14 @@ def _load_schema(include_name: str, _path: str) -> str:
                          f"Existing partial schemas: '{existing_schemas}'")
     return partial_schema_rule.schema
 
+
 def _validate_schema(schema, value, path):
     c = Core(source_data=value, schema_data=schema, extensions=['core/utils/validators.py'])
     try:
         c.validate()
     except SchemaError as ex:
         raise SchemaError(msg=ex.msg, path=path + '/' + ex.path.lstrip('/'))
+
 
 def any_of(value, rule_obj, path):
     errors = []
@@ -221,6 +231,18 @@ def any_of(value, rule_obj, path):
     rule_obj.enum = None
     return True
 
+
+def one_of(_value, _rule_obj, _path) -> bool:
+    """A fixed-alternative ``regex;(a|b)`` container whose names are SPELLINGS of ONE section.
+
+    A MARKER, read by the configuration console (``services/webservice/configgen.py:ONE_OF_FUNC``):
+    once a file carries one spelling, the console offers no other, so the same block can never be
+    written twice under two names. Validation itself is unaffected — the pattern already allows any of
+    the names, and this returns True.
+    """
+    return True
+
+
 def seq_or_map(value, rule_obj, path) -> str | bool:
     if isinstance(value, list):
         include_name = rule_obj.schema_str.get('enum')[0]
@@ -236,6 +258,7 @@ def seq_or_map(value, rule_obj, path) -> str | bool:
     rule_obj.enum = None
     return True
 
+
 def _scalar_or_map(t: Type, value: Any, rule_obj: Rule, path: str) -> str | bool:
     if isinstance(value, dict):
         try:
@@ -248,14 +271,18 @@ def _scalar_or_map(t: Type, value: Any, rule_obj: Rule, path: str) -> str | bool
     rule_obj.enum = None
     return True
 
+
 def bool_or_map(value, rule_obj, path):
     return _scalar_or_map(bool, value, rule_obj, path)
+
 
 def str_or_map(value, rule_obj, path):
     return _scalar_or_map(str, value, rule_obj, path)
 
+
 def int_or_map(value, rule_obj, path):
     return _scalar_or_map(int, value, rule_obj, path)
+
 
 def _scalar_or_list(t: Type, value: Any, rule_obj: Rule, path: str):
     if isinstance(value, list):
@@ -287,17 +314,22 @@ def _scalar_or_list(t: Type, value: Any, rule_obj: Rule, path: str):
     rule_obj.enum = None
     return True
 
+
 def bool_or_list(value, rule_obj, path):
     return _scalar_or_list(bool, value, rule_obj, path)
+
 
 def str_or_list(value, rule_obj, path):
     return _scalar_or_list(str, value, rule_obj, path)
 
+
 def int_or_list(value, rule_obj, path):
     return _scalar_or_list(int, value, rule_obj, path)
 
+
 def text_or_list(value, rule_obj, path):
     return _scalar_or_list(Text, value, rule_obj, path)
+
 
 def _csv_or_list(t, value, rule_obj, path) -> str | bool:
     if isinstance(value, list):
@@ -329,13 +361,16 @@ def _csv_or_list(t, value, rule_obj, path) -> str | bool:
     rule_obj.enum = None
     return True
 
+
 def int_csv_or_list(value, rule_obj, path):
     rule_obj.pattern = "^(\\d+)(,\\d+)*$"
     return _csv_or_list(int, value, rule_obj, path)
 
+
 def str_csv_or_list(value, rule_obj, path):
     rule_obj.pattern = r"^\[?[a-zA-Z0-9]+(,[a-zA-Z0-9]+)*\]?$"
     return _csv_or_list(str, value, rule_obj, path)
+
 
 def is_node(value, _rule_obj, _path) -> bool:
     node_data = get_node_data()
@@ -343,6 +378,7 @@ def is_node(value, _rule_obj, _path) -> bool:
         if instance not in node_data.all_instances:
             return False
     return True
+
 
 def is_server(value, rule_obj, path) -> str | bool:
     if isinstance(value, list):
@@ -360,6 +396,7 @@ def is_server(value, rule_obj, path) -> str | bool:
     except re.error as ex:
         return f'Invalid regular expression: "{ex.pattern}"'
 
+
 def is_element(value, _rule_obj, path) -> bool:
     if path == '/DEFAULT':
         return True
@@ -368,6 +405,7 @@ def is_element(value, _rule_obj, path) -> bool:
         if instance in node_data.all_instances:
             return False
     return True
+
 
 def check_main_structure(value, _rule_obj, path) -> str | bool:
     node_data = get_node_data()
@@ -398,6 +436,7 @@ def check_main_structure(value, _rule_obj, path) -> str | bool:
             raise SchemaError(msg=f"Schema validation failed:\n- {element} is neither a node nor an instance name!",
                               path=path)
     return True
+
 
 def validate(source_file: str, schema_files: list[str], *, raise_exception: bool = False):
     c = Core(source_file=source_file, schema_files=schema_files, file_encoding='utf-8',

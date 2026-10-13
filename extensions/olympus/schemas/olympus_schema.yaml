@@ -2,108 +2,362 @@ schema;node_olympus_schema:
   type: map
   nullable: false
   mapping:
-    name: {type: str, nullable: false, range: {min: 1}}
-    nodejs: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-    autoupdate: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
-    show_passwords: {type: bool, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name shown for the Olympus extension in the server status embed.
+      example: "DCS Olympus"
+    nodejs:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Path to your Node.js installation.
+      example: "%ProgramFiles%\\nodejs"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Auto-update DCS Olympus when a new version is available online.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Show the Olympus console output in the bot console.
+      example: "false"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the Olympus passwords in the server status embed.
+      example: "true"
     authentication:
       type: map
       nullable: false
       allowempty: true
+      desc: Passwords that guard the Olympus roles.
+      example: |
+        gameMasterPassword: '***'
+        blueCommanderPassword: '***'
+        redCommanderPassword: '***'
       mapping:
-        gameMasterPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        blueCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        redCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        adminPassword: {type: str, nullable: false, range: {min: 1}}
+        gameMasterPassword:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Password for the Game Master role.
+          example: "***"
+        blueCommanderPassword:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Password for the Blue Tactical Commander role.
+          example: "***"
+        redCommanderPassword:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Password for the Red Tactical Commander role.
+          example: "***"
+        adminPassword:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Admin password (Olympus 2.0 and later).
+          example: "***"
     auto_affinity:
       type: map
       nullable: false
+      desc: CPU affinity applied to the Olympus Node.js process.
+      example: |
+        min_cores: 1
+        max_cores: 1
+        quality: 1
       mapping:
-        min_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-        max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-        quality: {type: int, nullable: false, range: {min: 0, max: 2}}
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 2}
+          desc: Minimum number of cores reserved for Node.js.
+          example: "1"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 2}
+          desc: Maximum number of cores reserved for Node.js.
+          example: "1"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 2}
+          desc: Core quality to prefer (0 = E-cores, 1 = normal, 2 = high).
+          example: "1"
 
 schema;instance_olympus_schema:
   type: map
   nullable: false
   allowempty: true
   mapping:
-    enabled: {type: bool, nullable: false}
-    autoupdate: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    debug: {type: bool, nullable: false}
-    show_passwords: {type: bool, nullable: false}
-    url: {type: url, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the Olympus extension is enabled on this instance.
+      example: "true"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Auto-update DCS Olympus on this instance when a new version is available.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name shown for the Olympus extension in the server status embed.
+      example: "DCS Olympus"
+    debug:
+      type: bool
+      nullable: false
+      desc: Show the Olympus console output in the bot console.
+      example: "false"
+    show_passwords:
+      type: bool
+      nullable: false
+      desc: Show the Olympus passwords in the server status embed.
+      example: "true"
+    url:
+      type: url
+      nullable: false
+      desc: Public URL of the Olympus frontend, if you have one.
+      example: "http://myfancyurl:3000/"
     auto_affinity:
       type: map
       nullable: false
+      desc: CPU affinity applied to the Olympus Node.js process.
+      example: |
+        min_cores: 1
+        max_cores: 1
+        quality: 1
       mapping:
-        min_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-        max_cores: {type: int, nullable: false, range: {min: 1, max: 2}}
-        quality: {type: int, nullable: false, range: {min: 0, max: 2}}
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 2}
+          desc: Minimum number of cores reserved for Node.js.
+          example: "1"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 1, max: 2}
+          desc: Maximum number of cores reserved for Node.js.
+          example: "1"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 2}
+          desc: Core quality to prefer (0 = E-cores, 1 = normal, 2 = high).
+          example: "1"
     regex;(backend|server):
       type: map
       nullable: false
       required: true
       allowempty: true
+      func: one_of
       mapping:
-        address: {type: str, nullable: false, range: {min: 1}}
-        port: {type: int, nullable: false, func: unique_port}
+        address:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Bind address for the Olympus backend service.
+          example: "localhost"
+        port:
+          type: int
+          nullable: false
+          func: unique_port
+          desc: Unique TCP port for Olympus internal communication.
+          example: "4512"
     authentication:
       type: map
       nullable: false
       allowempty: true
+      desc: Passwords that guard the Olympus roles.
+      example: |
+        gameMasterPassword: '***'
+        blueCommanderPassword: '***'
+        redCommanderPassword: '***'
+        adminPassword: '***'
       mapping:
-        gameMasterPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        blueCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        redCommanderPassword: {type: str, required: true, nullable: false, range: {min: 1}}
-        adminPassword: {type: str, nullable: false, range: {min: 1}}
+        gameMasterPassword:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Password for the Game Master role.
+          example: "***"
+        blueCommanderPassword:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Password for the Blue Tactical Commander role.
+          example: "***"
+        redCommanderPassword:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Password for the Red Tactical Commander role.
+          example: "***"
+        adminPassword:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Admin password (Olympus 2.0 and later).
+          example: "***"
     regex;(frontend|client):
       type: map
       nullable: false
       required: true
       allowempty: true
+      func: one_of
       mapping:
-        path: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-        port: {type: int, nullable: false, func: unique_port}
+        path:
+          type: str
+          nullable: false
+          range: {min: 1}
+          func: dir_exists
+          desc: Path to the Olympus frontend installation.
+          example: "%USERPROFILE%\\Saved Games\\Olympus\\frontend"
+        port:
+          type: int
+          nullable: false
+          func: unique_port
+          desc: Unique TCP port the Olympus web client connects to.
+          example: "3000"
         customAuthHeaders:
           type: map
           nullable: false
+          desc: Single sign-on header configuration (Olympus 2.0).
+          example: |
+            enabled: true
+            username: olympus
+            group: admin
           mapping:
-            enabled: {type: bool, nullable: false}
-            username: {type: str, nullable: false, range: {min: 1}}
-            group: {type: str, nullable: false, range: {min: 1}}
+            enabled:
+              type: bool
+              nullable: false
+              desc: Enable custom authentication headers.
+              example: "true"
+            username:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Username sent in the authentication header.
+              example: "olympus"
+            group:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Group sent in the authentication header.
+              example: "admin"
         elevationProvider:
           type: map
           nullable: false
+          desc: Terrain elevation data provider (Olympus 2.0).
+          example: |
+            provider: https://srtm.fasma.org/{lat}{lng}.SRTMGL3S.hgt.zip
+            username: srtmuser
+            password: '***'
           mapping:
-            provider: {type: url, nullable: false}
-            username: {type: str}
-            password: {type: str}
+            provider:
+              type: url
+              nullable: false
+              desc: URL template of the elevation data source.
+              example: "https://srtm.fasma.org/{lat}{lng}.SRTMGL3S.hgt.zip"
+            username:
+              type: str
+              desc: Username for the elevation provider, if required.
+              example: "srtmuser"
+            password:
+              type: str
+              desc: Password for the elevation provider, if required.
+              example: "***"
         mapLayers:
           type: map
           nullable: false
+          desc: Additional map layer providers (Olympus 2.0).
+          example: |
+            Topo:
+              urlTemplate: https://tiles.example.com/{z}/{x}/{y}.png
           mapping:
             regex;(.+):
               type: map
               nullable: false
               mapping:
-                urlTemplate: {type: url, nullable: false}
-                minZoom: {type: int, range: {min: 1}}
-                maxZoom: {type: int, range: {max: 100}}
-                attribution: {type: str, nullable: false, range: {min: 1}}
+                urlTemplate:
+                  type: url
+                  nullable: false
+                  desc: URL template of this map layer's tiles.
+                  example: "https://tiles.example.com/{z}/{x}/{y}.png"
+                minZoom:
+                  type: int
+                  range: {min: 1}
+                  desc: Lowest zoom level this map layer is shown at.
+                  example: "1"
+                maxZoom:
+                  type: int
+                  range: {max: 100}
+                  desc: Highest zoom level this map layer is shown at.
+                  example: "18"
+                attribution:
+                  type: str
+                  nullable: false
+                  range: {min: 1}
+                  desc: Attribution text displayed on this map layer.
+                  example: "© OpenStreetMap"
         mapMirrors:
           type: map
           nullable: false
+          desc: Alternative map tile sources (Olympus 2.0).
+          example: |
+            Topo: https://mirror.example.com/{z}/{x}/{y}.png
           mapping:
             regex;(.+): { type: url, nullable: false}
-        autoconnectWhenLocal: {type: bool, nullable: false}
-        proxyHeader: {type: str, nullable: false, range: {min: 1}}
+        autoconnectWhenLocal:
+          type: bool
+          nullable: false
+          desc: Auto-connect the client when it runs on the same host.
+          example: "true"
+        proxyHeader:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: HTTP header used to detect the client behind a proxy.
+          example: "X-Forwarded-For"
     audio:
       type: map
       nullable: false
+      desc: SRS audio settings for the Olympus web client (Olympus 2.0).
+      example: |
+        WSPort: 4000
+        WSEndpoint: audio
       mapping:
-        SRSPort: {type: int, nullable: false, func: obsolete}
-        WSPort: {type: int, nullable: false, func: unique_port}
-        WSEndpoint: {type: str, nullable: false, range: {min: 1}}
+        SRSPort:
+          type: int
+          nullable: false
+          func: obsolete
+          desc: "Obsolete: the SRS port is filled in from the SRS extension."
+          example: "5002"
+        WSPort:
+          type: int
+          nullable: false
+          func: unique_port
+          desc: Port of the Olympus audio backend WebSocket.
+          example: "4000"
+        WSEndpoint:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: WebSocket endpoint exposed through a reverse proxy.
+          example: "audio"
