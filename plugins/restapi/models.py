@@ -1637,6 +1637,36 @@ class ServerRestartResponse(BaseModel):
     }
 
 
+class ServerShutdownResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation (success, or pending with when_empty)")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Server 'DCS Server' shut down."
+            }
+        }
+    }
+
+
+class NodeRestartResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+    nodes: list[str] = Field(..., description="Nodes that are restarting")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Node(s) node1 restarting.",
+                "nodes": ["node1"]
+            }
+        }
+    }
+
+
 class ConvertCoordinates(BaseModel):
     latlon: str = Field(..., description="Latitude and Longitude in decimal degrees")
     mgrs: str = Field(..., description="Cooridnate provided, converted to MGRS")

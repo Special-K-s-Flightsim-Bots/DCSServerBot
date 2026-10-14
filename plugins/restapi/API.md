@@ -10,6 +10,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 - [Credits](#credits)
 - [Utilities](#utilities)
 - [Instance Control](#instance-control)
+- [Node Control](#node-control)
 - [Mission Control](#mission-control)
 - [Mission](#mission)
 - [Schema Models Reference](#schema-models-reference)
@@ -37,6 +38,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /instance/mission/unpause | POST | server_name: string | Unpause the mission on a given server. |
 | /instance/missions | GET | server_name: string | Return all missions for a given server. |
 | /instance/restart | POST | server_name: string | Restart a server. |
+| /instance/shutdown | POST | server_name: string, [force: bool], [maintenance: bool], [when_empty: bool] | Shut a server down (terminates the DCS process). |
 | /instance/start | POST | server_name: string | Start a server. |
 | /instance/stop | POST | server_name: string | Stop a server. |
 | /leaderboard | GET | what: string, [order: string], [query: string | None], [limit: int | None], [offset: int | None], [server_name: string | None] | Get leaderbord information |
@@ -49,6 +51,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
 | /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |
+| /node/restart | POST | [node_name: string | None] | Restart a node, or all nodes. The bot reloads its configuration. |
 | /player_info | POST | nick: string, [date: string | None], [server_name: string | None] | Get player information |
 | /player_squadrons | POST | nick: string, [date: string | None] | List of player squadrons |
 | /refuelings | GET | ucid: string, [module: string | None], [tanker: string | None], [start_time: datetime | None], [end_time: datetime | None] | Get refueling stats for players |
@@ -1961,6 +1964,68 @@ This documentation is automatically generated from the RestAPI plugin definition
 
 ---
 
+### `POST` /instance/shutdown
+
+**Summary:** Shut down a server instance.
+
+**Description:** Shut a server down (terminates the DCS process), like `/server shutdown`. Unlike `/instance/stop`, which only stops the mission, the DCS process ends: DCS reads its mission list and the bot rewrites `serverSettings.lua` on the next start.
+
+With `when_empty=true` and players connected, nothing is shut down at once: the shutdown runs when the last player leaves (needs the Scheduler plugin, like "later" in `/server shutdown`) and the response status is `pending`.
+
+Errors: 404 if the server is unknown; 409 if it is already shut down, if it is in a transient state (`UNREGISTERED`, `LOADING`, `SHUTTING_DOWN`) without `force`, or if an action is already pending with `when_empty`; 504 on timeout.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | - | Server Name |
+| `force` | `boolean` | query | No | `false` | Kill the DCS process instead of a graceful shutdown (a shutdown deferred by `when_empty` is always graceful) |
+| `maintenance` | `boolean` | query | No | `true` | Set the maintenance flag, so the Scheduler does not start the server again |
+| `when_empty` | `boolean` | query | No | `false` | If players are connected, shut down once the server is empty |
+
+**Response:** `ServerShutdownResponse`
+
+#### Response Example
+
+```json
+{
+  "message": "Server 'DCS Server' shut down.",
+  "status": "success"
+}
+```
+
+---
+
+## Node Control
+
+### `POST` /node/restart
+
+**Summary:** Restart a node.
+
+**Description:** Restart a node, or all nodes, like `/node restart`. The bot reloads its configuration. The response is sent before the node that serves the RestAPI restarts, so the API is unavailable for a moment afterwards.
+
+Errors: 404 if the node is unknown; 409 if it is not active.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `node_name` | `string` | query | No | all nodes | Node to restart |
+
+**Response:** `NodeRestartResponse`
+
+#### Response Example
+
+```json
+{
+  "message": "Node(s) node1 restarting.",
+  "nodes": ["node1"],
+  "status": "success"
+}
+```
+
+---
+
 ## Mission Control
 
 ### `GET` /instance/missions
@@ -3540,6 +3605,24 @@ Below are the data structures and response models used across the API endpoints:
 }
 ```
 
+### `NodeRestartResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `status` | `string` | **Yes** | Status of the operation |
+| `message` | `string` | **Yes** | Status message |
+| `nodes` | `array[string]` | **Yes** | Nodes that are restarting |
+
+#### Example
+
+```json
+{
+  "message": "Node(s) node1 restarting.",
+  "nodes": ["node1"],
+  "status": "success"
+}
+```
+
 ### `PlayerEntry`
 
 | Property | Type | Required | Description |
@@ -4021,6 +4104,22 @@ Below are the data structures and response models used across the API endpoints:
 ```json
 {
   "message": "Server 'DCS Server' restarted.",
+  "status": "success"
+}
+```
+
+### `ServerShutdownResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `status` | `string` | **Yes** | Status of the operation (success, or pending with when_empty) |
+| `message` | `string` | **Yes** | Status message |
+
+#### Example
+
+```json
+{
+  "message": "Server 'DCS Server' shut down.",
   "status": "success"
 }
 ```
