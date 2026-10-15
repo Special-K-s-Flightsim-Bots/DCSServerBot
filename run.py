@@ -62,6 +62,10 @@ LOGLEVEL = {
 async_error_rc: int | None = None
 
 
+def async_error_log_path(node: str) -> str:
+    return os.path.join('logs', f'async_errors-{node}.log')
+
+
 class Main:
 
     def __init__(self, node: NodeImpl, no_autoupdate: bool) -> None:
@@ -128,7 +132,7 @@ class Main:
         perf_logger.addHandler(pfh)
 
         # Rotate async_errors.log
-        async_log = os.path.join('logs', 'async_errors.log')
+        async_log = async_error_log_path(node)
         async_old = async_log.replace('.log', '.old')
         if os.path.exists(async_old):
             os.remove(async_old)
@@ -300,7 +304,7 @@ def handle_exception(loop, context):
         log.error(f"Async error: {message}")
 
     # Write to async_errors.log with task information
-    with open(os.path.join('logs', 'async_errors.log'), 'a', encoding='utf-8') as f:
+    with open(async_error_log_path(COMMAND_LINE_ARGS.node), 'a', encoding='utf-8') as f:
         f.write(f"\n{'=' * 50}\n{datetime.now().isoformat()}: {message}\n")
 
         # Dump all running tasks
