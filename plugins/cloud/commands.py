@@ -12,7 +12,7 @@ import ssl
 from contextlib import suppress
 from core import Plugin, utils, PaginationReport, Group, DEFAULT_TAG, PluginConfigurationError, get_translation, \
     command, ThreadSafeDict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from discord import app_commands, DiscordServerError
 from discord.ext import commands, tasks
 from psycopg.rows import dict_row
@@ -331,10 +331,28 @@ class Cloud(Plugin[CloudListener]):
                     ucid for ucid, ban in dgsa_bans.items()
                     if (ban['scope'] == 'Both' or not banlist or ban['scope'].lower() == banlist)
                 }
-                # find UCIDs to ban (in DGSA bans but not in local bans incl the ones we unbanned)
-                for ucid in to_ban - all_local_bans.keys():
+
+                def parse_dgsa_added(ban: dict) -> datetime:
+                    added = ban['added']
+                    if isinstance(added, datetime):
+                        return added.replace(tzinfo=None)
+                    return datetime.fromisoformat(added.replace('Z', '+00:00')).replace(tzinfo=None)
+
+                def should_apply_dgsa_ban(ucid: str) -> bool:
+                    local_ban = all_local_bans.get(ucid)
+                    if not local_ban:
+                        return True
+                    if ucid in active_local_bans:
+                        return False
+                    return parse_dgsa_added(dgsa_bans[ucid]) > local_ban['banned_until']
+
+                # find UCIDs to ban:
+                # - in DGSA bans but not in local bans
+                # - or newly added in DGSA after a previous local unban
+                for ucid in {ucid for ucid in to_ban if should_apply_dgsa_ban(ucid)}:
                     reason = dgsa_bans[ucid]['reason']
                     await self.bus.ban(ucid=ucid, reason='DGSA: ' + reason, banned_by=self.plugin_name)
+
                 # find UCIDs to unban (in local bans but not in DGSA bans excluding the ones we unbanned already)
                 for ucid in active_local_bans.keys() - to_ban:
                     await self.bus.unban(ucid)
