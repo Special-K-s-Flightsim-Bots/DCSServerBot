@@ -324,16 +324,20 @@ def handle_exception(loop, context):
         f.write(f"{'=' * 50}\n")
 
 
-def setup_is_required(config_dir: str) -> bool:
-    """Whether this process must run the setup console.
+def setup_is_required(config_dir: str, node: str = "") -> bool:
+    """Whether this process must run the setup console, for the node it was started as.
 
     The rule itself lives with the console (:func:`services.webservice.setup.boot.should_run_setup`)
     so there is one copy of it; the import is inside the function because that module is the only
     one cheap enough to touch on a configured boot.
+
+    ``node`` is this launcher's own node name (``args.node``). It is what tells the two states apart:
+    with no ``main.yaml`` any node needs setup, and with one a node that ``nodes.yaml`` does not carry
+    needs the joining flow instead of the bot's own boot.
     """
     from services.webservice.setup.boot import should_run_setup
 
-    return should_run_setup(config_dir)
+    return should_run_setup(config_dir, node)
 
 
 def web_setup_enabled(args) -> bool:
@@ -441,7 +445,7 @@ if __name__ == "__main__":
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
                 rc = None
-                if args.setup and not setup_is_required(args.config):
+                if args.setup and not setup_is_required(args.config, args.node):
                     # The setup window is file-derived and decided at boot: it is not re-opened by
                     # an option, so this asks for nothing rather than starting a second front end
                     # on an install that already has one.
@@ -449,25 +453,30 @@ if __name__ == "__main__":
                               f"exists: this installation is configured, so the setup console is "
                               f"not started.")
                     rc = -2
-                elif setup_is_required(args.config):
-                    # UNCONFIGURED. Either the setup console, or - with no terminal to run it in -
-                    # the command line installer this has always used.
+                elif setup_is_required(args.config, args.node):
+                    # UNCONFIGURED, or THIS NODE IS MISSING FROM nodes.yaml. Either the setup
+                    # console, or - with no terminal to run it in - the command line installer this
+                    # has always used.
                     if web_setup_enabled(args):
                         from services.webservice.setup import boot as setup_boot
 
-                        log.info("No main.yaml found: starting the setup console.")
+                        log.info("No main.yaml found, or this node is not in nodes.yaml: starting "
+                                 "the setup console.")
                         rc = utils.asyncio_run(setup_boot.run_setup_console(
                             node=args.node,
                             config_dir=args.config,
                             open_browser=not args.no_browser
                         ))
-                        if not setup_is_required(args.config):
-                            # the console wrote main.yaml: continue into the normal boot path
+                        if not setup_is_required(args.config, args.node):
+                            # the console finished its own mode: main.yaml on a first run, this
+                            # node's block in nodes.yaml while joining. Continue into the boot.
                             log.info("Setup finished: booting DCSServerBot.")
                             rc = None
                         else:
-                            log.error(f"The setup console stopped while "
-                                      f"{os.path.join(args.config, 'main.yaml')} is still missing; "
+                            log.error(f"The setup console stopped while this installation is still "
+                                      f"not configured for node {args.node} "
+                                      f"({os.path.join(args.config, 'main.yaml')}, "
+                                      f"{os.path.join(args.config, 'nodes.yaml')}); "
                                       f"DCSServerBot is NOT started.")
                             rc = -2
                     else:

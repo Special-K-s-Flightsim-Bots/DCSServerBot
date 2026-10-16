@@ -47,8 +47,10 @@ from . import community as community_step
 from . import console as console_step
 from . import database as db_step
 from . import discord as discord_step
+from . import join as join_step
 from . import node as node_step
 from . import servers as servers_step
+from .boot import INSTALL, JOIN
 from .state import SetupDraft
 
 __all__ = [
@@ -71,6 +73,11 @@ __all__ = [
     "SECRET_TARGETS",
     "TARGETS",
     "SECRET_STEPS",
+    "JOIN_MERGE_TARGETS",
+    "JOIN_FORBIDDEN_TARGETS",
+    "JoinCollisionError",
+    "JoinNodeDatabaseError",
+    "join_database_refusal",
     "PlannedWrite",
     "WriteOutcome",
     "WriteReport",
@@ -170,15 +177,62 @@ TARGETS = SECRET_TARGETS + FILE_TARGETS + (MAIN,)
 SECRET_STEPS: dict[str, int] = {TOKEN_SECRET.key: 5, DATABASE_SECRET.key: 3,
                                 CLUSTER_SECRET.key: 3}
 
+#: The targets a JOINING commit may reach ONLY through the merge. ``nodes.yaml`` is keyed by node
+#: name, ``servers.yaml`` by server name and ``plugins/scheduler.yaml`` by instance name — all three
+#: are CLUSTER-WIDE documents, so writing one whole would drop every other node's rows.
+JOIN_MERGE_TARGETS = (NODES, SERVERS, SCHEDULER)
+
+#: The targets a JOINING commit must NEVER write. This installation is already configured: its
+#: ``main.yaml``, its guild role mapping, its console (account and OAuth client), its DGSA opt-ins and
+#: its Discord token are the install's, not this node's, and none of them is this flow's to change.
+JOIN_FORBIDDEN_TARGETS = (MAIN, BOT, WEBSERVICE, CLOUD, TOKEN_SECRET, DISCORD_CLIENT_SECRET,
+                          CLUSTER_SECRET)
+
+
+class JoinCollisionError(configwrite.ConfigWriteError):
+    """A joining merge refused: a key this node would write is another node's row already.
+
+    Raised from inside the merge's mutation, under the file's own write lock, so the refusal and the
+    read that found it cannot be raced. ``key`` names the colliding top-level key (a node, server or
+    instance name) and ``path`` the shared document it lives in.
+    """
+
+    def __init__(self, message: str, *, path, key: str):
+        super().__init__(message, path=path)
+        self.key = key
+
+
+class JoinNodeDatabaseError(configwrite.ConfigWriteError):
+    """A joining commit refused: a FEDERATED install's node has no database of its own to carry.
+
+    ``main.yaml``'s ``database`` is the CLUSTER database on a federated install
+    (``core.data.impl.nodeimpl.get_database_urls``). Writing this node's block with no ``database.url``
+    would make the node inherit the federation — a wrong database written into a running cluster. The
+    message names the missing piece so the operator knows which answer to give.
+
+    Raised while the plan is built, so nothing reaches the disk.
+    """
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
 
 @dataclass
 class PlannedWrite:
-    """One thing a commit will do: a validated file write, or a secret-store write."""
+    """One thing a commit will do: a validated file write, a secret-store write, or a merge.
+
+    ``merge`` selects the write: ``False`` (the default, and every first-run write) replaces the whole
+    document through :func:`core.utils.configwrite.save_config_file`; ``True`` merges the document's
+    top-level keys into the file's own round-trip document through
+    :func:`core.utils.configwrite.patch_config_file`, leaving every other key as the file holds it.
+    """
 
     target: Target
     document: Any = None
     #: ``(key, value)`` for a secret write, ``None`` for a file write
     secret: tuple[str, str] | None = None
+    #: whether the write merges into the existing document instead of replacing it
+    merge: bool = False
 
 
 @dataclass
@@ -202,16 +256,28 @@ class WriteOutcome:
 class WriteReport:
     """The whole commit's result, one outcome per target, in write order.
 
-    ``main_written`` is the closing rule as a fact: the commit is finished iff ``main.yaml`` reached
-    the disk. A report with ``main_written`` false describes a HALF-WRITTEN configuration and the
-    screen says exactly which files did and did not land.
+    ``main_written`` is the first-run closing rule as a fact: the commit is finished iff ``main.yaml``
+    reached the disk. A report with ``main_written`` false describes a HALF-WRITTEN configuration and
+    the screen says exactly which files did and did not land.
+
+    ``completed`` is the same question asked of the mode's OWN closing target (``closing``): in a
+    first-run commit that is ``main.yaml``, in a joining commit the node's ``nodes.yaml`` merge. The
+    two are deliberately separate facts — a joining commit never writes ``main.yaml``, so overloading
+    ``main_written`` would report a finished setup for a node that never landed.
     """
 
     outcomes: list[WriteOutcome] = field(default_factory=list)
+    #: the target whose write makes THIS commit finished
+    closing: Target = MAIN
 
     @property
     def main_written(self) -> bool:
         return any(outcome.target is MAIN and outcome.ok for outcome in self.outcomes)
+
+    @property
+    def completed(self) -> bool:
+        """Whether the mode's closing target reached the disk (see the class docstring)."""
+        return any(outcome.target is self.closing and outcome.ok for outcome in self.outcomes)
 
     @property
     def written(self) -> list[WriteOutcome]:
@@ -268,12 +334,28 @@ def _database_url(answers: db_step.DatabaseAnswers) -> str:
                                           answers.database)
 
 
-def _node_document(draft: SetupDraft, app=None) -> dict:
+def _node_document(draft: SetupDraft, app=None, *, include_database: bool = True) -> dict:
     """The whole ``nodes.yaml`` document: this node, its database URL, DCS and its instances.
 
     NO ``extensions`` block and NO per-instance SRS keys: extensions leave the tour (their home is the
     console's node page), so the tour writes only what brings the servers up — the node, and one
     ``instances`` entry per managed instance with its ``home`` and ``bot_port``.
+
+    THIS IS A WHOLE DOCUMENT, AND THAT IS ONLY EVER CORRECT ON A FIRST RUN. On a joining install it
+    would drop every other node's block; the joining plan merges the same key instead
+    (:func:`_join_plan`).
+    """
+    return {node_name(app): _node_block(draft, app, include_database=include_database)}
+
+
+def _node_block(draft: SetupDraft, app=None, *, include_database: bool = True) -> dict:
+    """This node's own ``nodes.yaml`` block, without the key it is stored under.
+
+    *include_database* is the caller's rule for the node-level ``database`` block. On a non-federated
+    install it follows the CLI (``install.py``: ``database_url if 'database' not in main else None``): a
+    node whose install already carries the shared database in ``main.yaml`` INHERITS it and writes no
+    block of its own. On a federated install ``main.yaml``'s database is the CLUSTER database, so the
+    block is always written (:func:`_join_plan`).
     """
     node_answers = node_step.answers_from_mapping(draft.node)
     servers_answers = servers_step.answers_from_mapping(draft.servers)
@@ -283,13 +365,14 @@ def _node_document(draft: SetupDraft, app=None) -> dict:
         listen_port=int(node_answers.listen_port),
         use_upnp=bool(node_answers.use_upnp),
         public_ip=node_answers.public_ip,
-        database_url=_database_url(db_answers),
+        database_url=_database_url(db_answers) if include_database else None,
         dcs_installation=node_answers.dcs_path,
+        dcs_autoupdate=bool(node_answers.dcs_autoupdate),
     )
     instances = servers_step.instance_blocks(servers_answers)
     if instances:
         node["instances"] = instances
-    return {node_name(app): node}
+    return node
 
 
 def _bot_document(draft: SetupDraft) -> dict:
@@ -425,16 +508,25 @@ def _secret_held(target: Target, *, app=None) -> bool:
     return True
 
 
-def required_secrets(draft: SetupDraft) -> tuple[Target, ...]:
+def required_secrets(draft: SetupDraft, *, mode: str = INSTALL) -> tuple[Target, ...]:
     """The secret targets a commit MUST hold in this process, in write order.
 
-    The Discord bot token whenever Discord support is on; the bot's database password on the
-    existing-database path — whose test is read-only and writes nothing, so the password reaches
+    FIRST RUN. The Discord bot token whenever Discord support is on; the bot's database password on
+    the existing-database path — whose test is read-only and writes nothing, so the password reaches
     ``config/.secret/database.pkl`` only at the commit; and the CLUSTER database's password on the
     same terms while Federation support is ticked. The create path's passwords are NOT required here:
     each block's test already wrote its secret to disk (``database.pkl`` / ``clusterdb.pkl``), so it
     survives a restart without this process holding it.
+
+    JOINING. This install already carries its token and its cluster database, and the joining flow
+    never writes either — so the token is NOT required and only the local database password is, on the
+    same existing-path terms. Requiring the token would refuse to commit on an install whose token the
+    flow has no business asking for.
     """
+    if mode == JOIN:
+        if db_step.answers_from_mapping(draft.database).is_create:
+            return ()
+        return (DATABASE_SECRET,)
     required: list[Target] = []
     if draft.discord:
         required.append(TOKEN_SECRET)
@@ -445,25 +537,31 @@ def required_secrets(draft: SetupDraft) -> tuple[Target, ...]:
     return tuple(required)
 
 
-def missing_secrets(draft: SetupDraft, *, app=None) -> list[Target]:
+def missing_secrets(draft: SetupDraft, *, app=None, mode: str = INSTALL) -> list[Target]:
     """The REQUIRED secret targets this process does not hold — what a mid-tour restart dropped.
 
     A non-empty answer means the Review step must refuse to render its commit or write anything: a
-    commit now would write ``main.yaml`` and close the setup window with a configuration the bot
-    cannot sign in with (no token) or reach its database with (no password). The value lives in
-    process memory only, so the caller names the step to re-enter (:data:`SECRET_STEPS`).
+    commit now would write the closing file and leave a configuration the bot cannot sign in with (no
+    token) or reach its database with (no password). The value lives in process memory only, so the
+    caller names the step to re-enter (:data:`SECRET_STEPS`).
     """
-    return [target for target in required_secrets(draft) if not _secret_held(target, app=app)]
+    return [target for target in required_secrets(draft, mode=mode)
+            if not _secret_held(target, app=app)]
 
 
-def plan(draft: SetupDraft, *, app=None) -> list[PlannedWrite]:
-    """Everything a commit will do, in the order it happens: secrets, files, then ``main.yaml``.
+def plan(draft: SetupDraft, *, app=None, mode: str = INSTALL) -> list[PlannedWrite]:
+    """Everything a commit will do, in the order it happens: secrets, files, then the closing file.
 
     Only targets that are actually wanted appear, so the Review screen's "will be written" list is
     the commit itself rather than a promise. A target that would be empty is left out exactly as the
     installer leaves it out (an empty scheduler mapping, a cloud block nobody opted into, a secret
     that is not held).
+
+    JOINING is a different list AND a different kind of write (:func:`_join_plan`): three merges into
+    documents that are already there, and nothing install-wide.
     """
+    if mode == JOIN:
+        return _join_plan(draft, app=app)
     writes: list[PlannedWrite] = []
 
     if draft.discord:
@@ -522,8 +620,220 @@ def _schema_files(target: Target) -> list[str] | None:
     return configgen.schema_files_for(REPO_ROOT / target.schema)
 
 
-def _write_one(item: PlannedWrite, config_dir) -> WriteOutcome:
-    """Write ONE planned target, classifying any refusal into the outcome's ``error``."""
+def _join_plan(draft: SetupDraft, *, app=None) -> list[PlannedWrite]:
+    """What a JOINING commit will do: this node's servers, its autostart entries, then the node.
+
+    THREE MERGES AND ONE OPTIONAL SECRET, AND NOTHING ELSE. Every target here is merged into a
+    document that already exists and that other nodes share, so the document's parser — not this
+    module — is what preserves the other nodes' blocks, their comments and their key order. The list
+    contains no ``main.yaml``, no ``services/bot.yaml``, no ``services/webservice.yaml``, no
+    ``plugins/cloud.yaml`` and no install token (:data:`JOIN_FORBIDDEN_TARGETS`); the write funnel
+    refuses any of those even if a later edit of this function asks for one.
+
+    ORDER: servers and their autostart entries first, the NODE LAST. The node's merge is what closes
+    the setup window for this node (:func:`services.webservice.setup.boot.setup_mode`), so writing it
+    last means a refused ``servers.yaml`` leaves the node out of ``nodes.yaml`` and the flow
+    repeatable, instead of adding a node whose servers never landed.
+
+    The three Discord channel fields ARE asked in this mode, from the EXISTING installation's own
+    Discord context (see :func:`setup.join.discord_context`): its token and guild id feed the pickers
+    and its ``no_discord``/central-admin answers decide the shape, exactly as step 2 and step 6 do on
+    a first run — so a managed server is written with the channels the operator picked, and a
+    no-Discord installation still writes the installer's empty shape.
+
+    THE NODE'S DATABASE BLOCK FOLLOWS THE CLI ON A NON-FEDERATED INSTALL, AND ONLY THERE. With no
+    federation, ``main.yaml``'s database IS the shared one and a node whose install already carries it
+    inherits it and writes no ``database`` block of its own — the same rule ``install.py`` applies
+    (``database_url if 'database' not in main else None``). A FEDERATED install is the opposite case:
+    there ``main.yaml``'s ``database`` is the CLUSTER database, so this node MUST carry its OWN URL
+    from the database step (:func:`_require_join_node_database`), and a step that produced none refuses
+    the whole commit rather than writing a block that would inherit the federation.
+    """
+    federated = _federated(app)
+    if federated:
+        _require_join_node_database(draft)
+    writes: list[PlannedWrite] = []
+    # the existing-database path's test is read-only, so its password reaches the store only here
+    if not db_step.answers_from_mapping(draft.database).is_create:
+        password = db_step.secret_store(app).get(db_step.BOT_PASSWORD_KEY)
+        if password:
+            writes.append(PlannedWrite(target=DATABASE_SECRET, secret=("database", password)))
+    servers_answers = servers_step.answers_from_mapping(draft.servers)
+    # the joining install's own Discord context decides the channel line, exactly as step 2/step 6 do
+    # on a first run (see :func:`setup.join.discord_context`)
+    discord = join_step.discord_context(_config_dir_of(app))
+    writes.append(PlannedWrite(target=SERVERS,
+                               document=servers_step.servers_entries(
+                                   servers_answers, discord=discord.discord,
+                                   central_admin=discord.central_admin),
+                               merge=True))
+    scheduler = servers_step.scheduler_entries(servers_answers)
+    if scheduler:
+        writes.append(PlannedWrite(target=SCHEDULER, document=scheduler, merge=True))
+    writes.append(PlannedWrite(target=NODES,
+                               document=_node_document(draft, app,
+                                                       include_database=federated
+                                                       or not _cluster_owns_database(app)),
+                               merge=True))
+    return writes
+
+
+def _config_dir_of(app=None):
+    """The config directory the setup application records on its state, or ``None``."""
+    return getattr(getattr(app, "state", None), "webui_config_dir", None)
+
+
+def _federated(app=None) -> bool:
+    """Whether this installation is federated, from the bot's OWN signal (:func:`database.is_federated`).
+
+    The signal is ``config/.secret/clusterdb.pkl`` — exactly what the database step's pre-fill asks
+    (:func:`services.webservice.setup.database.cluster_database_url`), so this commit and the pre-fill
+    can never disagree about which database ``main.yaml`` names. An application that records no config
+    directory is not federated.
+    """
+    config_dir = getattr(getattr(app, "state", None), "webui_config_dir", None)
+    return bool(config_dir) and db_step.is_federated(config_dir)
+
+
+def _node_step_answered(draft) -> bool:
+    """Whether the database step collected a node database at all.
+
+    An empty draft block means it collected NONE: on a federated install the pre-fill leaves the block
+    empty rather than offering ``main.yaml``'s cluster database, and a block nobody filled in stays
+    empty. A non-empty block is an answer — the node's own connection fields to write.
+    """
+    return bool(getattr(draft, "database", None))
+
+
+def _require_join_node_database(draft) -> None:
+    """Raise :class:`JoinNodeDatabaseError` when a FEDERATED node has no database of its own.
+
+    Called only when the install is federated (:func:`_federated`); a non-federated node inherits
+    ``main.yaml``'s shared database by the CLI's own rule and is never refused.
+    """
+    if _node_step_answered(draft):
+        return
+    raise JoinNodeDatabaseError(
+        "this installation is federated and the database step (step 3) collected no database for this "
+        "node. A node can never inherit the federation's database in main.yaml, so the commit is "
+        "refused — enter this node's own database on step 3 and write again.")
+
+
+def join_database_refusal(draft, *, app=None) -> str | None:
+    """The classified reason a joining commit is refused, or ``None`` when it may proceed.
+
+    The non-raising form of :func:`_require_join_node_database`, for a caller that must render the
+    refusal rather than build the plan (the Review step, whose plan would otherwise raise). The message
+    names the missing piece; nothing has been written when it is returned.
+    """
+    try:
+        if _federated(app):
+            _require_join_node_database(draft)
+    except JoinNodeDatabaseError as ex:
+        return str(ex)
+    return None
+
+
+def _cluster_owns_database(app=None) -> bool:
+    """Whether this install's ``main.yaml`` names a database block.
+
+    Read from the application's recorded config directory; an application that names none, or a
+    ``main.yaml`` that cannot be read or carries no ``database`` block, answers ``False``.
+
+    A true answer means the node writes no ``database`` block and INHERITS it — but only on a
+    non-federated install, where it is the shared database. On a federated install the same block is the
+    CLUSTER database and the node must never inherit it (:func:`_join_plan`), so this function is never
+    the deciding rule there.
+    """
+    config_dir = getattr(getattr(app, "state", None), "webui_config_dir", None)
+    if not config_dir:
+        return False
+    try:
+        main = configwrite.load_config_file(Path(config_dir) / "main.yaml")
+    except configwrite.ConfigWriteError as ex:
+        log.warning("Setup join: main.yaml could not be read (%s); writing the node's own database "
+                    "URL.", ex)
+        return False
+    return isinstance(main, dict) and bool(main.get("database"))
+
+
+def _merge_one(item: PlannedWrite, config_dir) -> WriteOutcome:
+    """Merge ONE planned target's top-level keys into the file's own round-trip document.
+
+    :func:`core.utils.configwrite.patch_config_file` loads the file, calls the mutation and writes it
+    again under ONE lock, so no other writer can slip between the read and the write. Only the keys
+    this commit names are assigned: every other top-level key is a value the file itself supplied and
+    is re-emitted unchanged — that is what keeps the other nodes' blocks intact.
+
+    A KEY THE FILE ALREADY HOLDS WITH A DIFFERENT VALUE IS REFUSED, NEVER OVERWRITTEN. These three
+    documents are CLUSTER-WIDE — ``nodes.yaml`` is keyed by node name, ``servers.yaml`` by server name
+    and ``plugins/scheduler.yaml`` by instance name — and every node reads all three
+    (``core/plugin.py``). A server name the operator typed, or an instance name this host happens to
+    carry, is enough to collide with another node's row; assigning it would delete that node's
+    channels or autostart. The refusal is classified per target (a :class:`JoinCollisionError`) and
+    nothing reaches disk — the same protection the node key already has through the boot rule. An
+    existing key whose value is EQUAL is allowed: that is an idempotent re-run, a no-op write.
+    """
+    path = Path(config_dir) / item.target.relpath
+
+    def mutate(document) -> None:
+        incoming = dict(item.document or {})
+        _refuse_collisions(item.target, incoming, document, path)
+        for key, value in incoming.items():
+            document[key] = value
+
+    try:
+        result = configwrite.patch_config_file(path, mutate, schemas=_schema_files(item.target))
+        return WriteOutcome(target=item.target, ok=True, changed=bool(result.changed))
+    except configwrite.ConfigWriteError as ex:
+        log.warning("Setup join: %s was not merged (%s).", path, ex)
+        return WriteOutcome(target=item.target, ok=False, error=str(ex))
+    except OSError as ex:
+        log.warning("Setup join: %s could not be written (%s).", path, ex)
+        return WriteOutcome(target=item.target, ok=False,
+                            error=f"Configuration file could not be written ({ex}): {path}")
+    except Exception as ex:  # noqa: BLE001 - a validator-side error is ONE classified outcome
+        log.warning("Setup join: %s could not be merged (%s).", path, ex, exc_info=True)
+        return WriteOutcome(target=item.target, ok=False,
+                            error=f"Configuration file could not be written: {path}")
+
+
+def _refuse_collisions(target: Target, incoming: dict, document, path) -> None:
+    """Raise :class:`JoinCollisionError` for the first ``incoming`` key *document* holds DIFFERENTLY.
+
+    Under the file's own write lock (called from the mutation), so no writer can slip between this
+    read and the refusal. An empty-existing file (``document`` with nothing) never collides.
+    """
+    for key, value in incoming.items():
+        if key in document and document[key] != value:
+            raise JoinCollisionError(
+                f"{target.relpath}: '{key}' already exists with different values — refusing to "
+                f"overwrite another node's entry.", path=path, key=key)
+
+
+def _write_one(item: PlannedWrite, config_dir, *, mode: str = INSTALL) -> WriteOutcome:
+    """Write ONE planned target, classifying any refusal into the outcome's ``error``.
+
+    JOINING IS REFUSED AT THIS FUNNEL, and that is the point of putting the check here rather than in
+    :func:`_join_plan`: every planned target becomes a disk write through this one function, so an
+    install-wide file (or a whole-document write of a cluster-keyed one) cannot be reintroduced by a
+    later edit of the plan, and a hand-built plan can be proven to write nothing.
+    """
+    if mode == JOIN:
+        if item.target in JOIN_FORBIDDEN_TARGETS:
+            log.error("Setup join: refusing to write %s — this installation is configured and that "
+                      "file is not this node's to change.", item.target.relpath)
+            return WriteOutcome(target=item.target, ok=False,
+                                error=f"{item.target.relpath} is not written while joining an "
+                                      f"existing installation")
+        if item.target in JOIN_MERGE_TARGETS and not item.merge:
+            log.error("Setup join: refusing a whole-document write of %s — it is shared by every "
+                      "node, so it is only ever merged.", item.target.relpath)
+            return WriteOutcome(target=item.target, ok=False,
+                                error=f"{item.target.relpath} is merged while joining an existing "
+                                      f"installation, never rewritten")
+    if item.merge:
+        return _merge_one(item, config_dir)
     path = Path(config_dir) / item.target.relpath
     try:
         if item.secret is not None:
@@ -551,20 +861,22 @@ def _write_one(item: PlannedWrite, config_dir) -> WriteOutcome:
                             error=f"Configuration file could not be written: {path}")
 
 
-def write(plan_items: list[PlannedWrite], config_dir) -> WriteReport:
+def write(plan_items: list[PlannedWrite], config_dir, *, mode: str = INSTALL,
+          closing: Target = MAIN) -> WriteReport:
     """Write every planned target through the ONE primitive, and report per target.
 
-    ``main.yaml`` is the last item and is written ONLY when every target before it reached the disk:
-    a refusal anywhere else must leave the setup window open, so the operator can fix the reason and
-    write again. A skipped ``main.yaml`` is reported as such — never as a success.
+    *closing* is the target that makes this commit finished — ``main.yaml`` on a first run, the node's
+    ``nodes.yaml`` merge while joining. It is written ONLY when every target before it reached the
+    disk: a refusal anywhere else must leave the mode's window open, so the operator can fix the
+    reason and write again. A skipped closing target is reported as such — never as a success.
     """
-    report = WriteReport()
+    report = WriteReport(closing=closing)
     blocked = False
     for item in plan_items:
-        if item.target is MAIN and blocked:
+        if item.target is closing and blocked:
             report.outcomes.append(WriteOutcome(target=item.target, ok=False, skipped=True))
             continue
-        outcome = _write_one(item, config_dir)
+        outcome = _write_one(item, config_dir, mode=mode)
         report.outcomes.append(outcome)
         if not outcome.ok:
             blocked = True

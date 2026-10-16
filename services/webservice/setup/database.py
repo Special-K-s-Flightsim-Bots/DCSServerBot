@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import errno
 import hashlib
+import ipaddress
 import logging
 import re
 import secrets
@@ -39,6 +40,8 @@ from contextlib import closing
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
+
+from urllib.parse import unquote, urlparse
 
 import psycopg
 from packaging.version import parse
@@ -68,6 +71,11 @@ __all__ = [
     "TestOutcome",
     "answers_from_mapping",
     "non_secret_document",
+    "prefill_document",
+    "is_loopback_host",
+    "cluster_database_url",
+    "federation_signal",
+    "is_federated",
     "signature",
     "verification",
     "TESTED_KEY",
@@ -223,6 +231,108 @@ def non_secret_document(answers: DatabaseAnswers) -> dict:
         "user": answers.user,
         "user_password_attempts": answers.user_password_attempts,
     }
+
+
+def is_loopback_host(host) -> bool:
+    """Whether *host* names this machine's own loopback interface (``localhost``, ``127.0.0.0/8``).
+
+    The whole ``127.0.0.0/8`` block counts, not the single spelling ``127.0.0.1``: ``127.0.0.2`` and
+    the rest of the block are loopback too, and a string comparison would miss them. An address that
+    does not parse is not loopback (a hostname may well name another machine).
+    """
+    text = str(host or "").strip().lower()
+    if not text:
+        return False
+    if text == "localhost" or text.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(text).is_loopback
+    except ValueError:
+        return False
+
+
+def federation_signal(config_dir) -> Path:
+    """The path whose presence the bot reads as "this install is federated".
+
+    Exactly ``config/.secret/clusterdb.pkl``: ``nodeimpl.get_database_urls`` reads that path for
+    the cluster pool's password and treats a federation as ``apool != cpool``, so a ``.pkl`` there
+    is the bot's own statement that this installation has a cluster database.
+    """
+    return Path(config_dir) / ".secret" / "clusterdb.pkl"
+
+
+def is_federated(config_dir) -> bool:
+    """Whether this installation is federated — the bot's own signal, not a re-derived one.
+
+    ``nodeimpl.get_database_urls`` decides a federation by the presence of
+    ``config/.secret/clusterdb.pkl``; asking the same file the same question keeps the pre-fill's
+    decision and the bot's decision from ever diverging. A missing config dir is not federated.
+    """
+    return bool(config_dir) and federation_signal(config_dir).exists()
+
+
+def _node_database_url(nodes) -> str | None:
+    """A node's OWN URL out of ``nodes.yaml``, PREFERRING one whose host is not loopback.
+
+    A ``127.0.0.1`` URL in a node's block names the machine that WROTE it, which on a joining
+    machine is itself, so a non-loopback one is taken first. The first node URL is still returned
+    when every one of them is loopback: a single-machine install has nowhere else to point.
+    """
+    if not isinstance(nodes, Mapping):
+        return None
+    first: str | None = None
+    for node in nodes.values():
+        block = node.get("database") if isinstance(node, Mapping) else None
+        url = block.get("url") if isinstance(block, Mapping) else None
+        if not url:
+            continue
+        url = str(url)
+        if first is None:
+            first = url
+        if not is_loopback_host(urlparse(url).hostname):
+            return url
+    return first
+
+
+def cluster_database_url(main, nodes, config_dir) -> str | None:
+    """The connection URL a JOINING node's database step should be pre-filled with, or ``None``.
+
+    A node's OWN database — ``nodes.yaml``'s per-node ``database.url`` — is preferred, and among a
+    node's URLs one whose host is not loopback first (see :func:`_node_database_url`).
+
+    ``main.yaml``'s ``database.url`` is the CLUSTER database (``nodeimpl.get_database_urls`` reads
+    it as the cluster pool), so it is taken ONLY when no node block carries a URL AND the install is
+    NOT federated (:func:`is_federated`). A node database can never be the federation database: on a
+    federated install whose ``nodes.yaml`` carries no URL the answer is ``None`` — an empty field is
+    answered, a wrong database is not.
+    """
+    url = _node_database_url(nodes)
+    if url:
+        return url
+    if is_federated(config_dir):
+        return None
+    block = main.get("database") if isinstance(main, Mapping) else None
+    url = block.get("url") if isinstance(block, Mapping) else None
+    return str(url) if url else None
+
+
+def prefill_document(url) -> dict:
+    """The draft's ``database`` block pre-filled from *url*, on the ``EXISTING`` path.
+
+    Every connection field is filled from the URL the install already names — the user and the
+    database name are percent-decoded, since that is how the config writer encodes them — so the one
+    field the operator still types on step 3 is the password (which is process-memory only and can
+    never be pre-filled).
+    """
+    parsed = urlparse(str(url or ""))
+    answers = DatabaseAnswers(
+        path=EXISTING,
+        host=parsed.hostname or DEFAULT_HOST,
+        port=_as_port(parsed.port),
+        database=unquote(parsed.path.lstrip("/")) or DEFAULT_DATABASE,
+        user=unquote(parsed.username or "") or DEFAULT_USER,
+    )
+    return non_secret_document(answers)
 
 
 def signature(answers: DatabaseAnswers, master_password: str, bot_password: str) -> str:

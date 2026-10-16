@@ -42,6 +42,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from .. import permissions, session, shell
 from ..registry import Registrar
 from . import tour
+from .boot import INSTALL, JOIN
 from .window import ACCEPTED, EXPIRED, LOCKED, SPENT, WRONG, SetupWindow, normalise_code
 
 __all__ = [
@@ -50,6 +51,7 @@ __all__ = [
     "HEALTH_PATH",
     "SESSION_ACCEPTED_KEY",
     "SetupBindRefused",
+    "SetupModeRefused",
     "require_loopback_bind",
     "create_setup_app",
     "setup_accepted",
@@ -82,6 +84,17 @@ SETUP_PORT = 9876
 
 class SetupBindRefused(RuntimeError):
     """Raised when the setup console is asked to bind anything but the loopback interface."""
+
+
+class SetupModeRefused(ValueError):
+    """Raised when the setup console is asked for a mode it cannot serve.
+
+    Today that is exactly ``mode=JOIN`` with no node name. The joining mode's whole subject is ONE
+    node, named by the launcher; without it :func:`services.webservice.setup.tour._setup_finished`
+    reads the inert joining check and would render the terminal Done screen for a node that was never
+    added. The boot rule never produces the combination (``setup_mode`` answers ``JOIN`` only for a
+    named node), so this is a fail-closed guard on the factory's own contract, not a live path.
+    """
 
 
 def require_loopback_bind(listen: str) -> str:
@@ -138,8 +151,15 @@ def setup_window_dependency(window: SetupWindow):
 # --------------------------------------------------------------------------------- the application
 
 def create_setup_app(window: SetupWindow, *, config_dir, listen: str = SETUP_LISTEN,
-                     node: str = "") -> FastAPI:
+                     node: str = "", mode: str = INSTALL) -> FastAPI:
     """Build the setup console for *window*. Refuses a non-loopback bind.
+
+    *mode* is ``boot.INSTALL`` or ``boot.JOIN`` — the state the window was opened in, recorded here
+    and read by every render and every write for this application's whole life. It is NEVER read
+    from the draft: a caller-writable file must not decide which rail is served or what a commit may
+    write. ``JOIN`` names ONE node, so a joining mode with no node is REFUSED
+    (:class:`SetupModeRefused`) rather than served: the joining rail's ``_setup_finished`` would
+    otherwise read the inert check and render Done for a node that was never added.
 
     The app-level capability gate is the SAME floor the admin console uses
     (:func:`services.webservice.shell.create_app` attaches it at construction), so a route added
@@ -148,12 +168,19 @@ def create_setup_app(window: SetupWindow, *, config_dir, listen: str = SETUP_LIS
     :func:`setup_window_dependency`.
     """
     listen = require_loopback_bind(listen)
+    if mode == JOIN and not str(node or "").strip():
+        raise SetupModeRefused(
+            "the setup console refuses mode='join' with no node name: the joining state is one named "
+            "node absent from nodes.yaml, and without it nothing can tell this node apart from a "
+            "configured install.")
     app = shell.create_app()
     # the tour's config directory: where its draft lives and where the Review step writes the real
     # configuration. Recorded here so a request never re-derives it.
     app.state.webui_config_dir = str(config_dir)
     # the node name the written nodes.yaml is keyed on. Recorded here for the same reason.
     app.state.webui_setup_node = str(node or "")
+    # which state this console serves (see the docstring).
+    app.state.webui_setup_mode = mode if mode in (INSTALL, JOIN) else INSTALL
     session.install_session_middleware(app, {"listen": listen})
     shell.install_refusal_handlers(app)
     registrar = Registrar(app)

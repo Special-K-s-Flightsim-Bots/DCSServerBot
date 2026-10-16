@@ -7,7 +7,8 @@ import stat
 import sys
 
 from core import utils, SAVED_GAMES, translations, COMMAND_LINE_ARGS
-from core.utils.db_setup import DatabaseProvisionIO, provision_database
+from core.utils.db_setup import (DatabaseProvisionIO, is_reserved_master_user, is_valid_master_user,
+                                 provision_database, rebuild_url)
 from core.utils.setup_config import (DEFAULT_NO_DISCORD_ROLES, DEFAULT_ROLE_DEFAULTS,
                                      DEFAULT_ROLE_NAMES, build_discord_bot, build_instance,
                                      build_main, build_no_discord_bot, build_no_discord_main,
@@ -28,6 +29,17 @@ yaml = YAML()
 _: Callable[[str], str] | None = None
 
 
+def is_federated(config_dir: str) -> bool:
+    """Whether this installation carries a cluster database — the bot's own signal.
+
+    The signal is ``config/.secret/clusterdb.pkl``, the file ``core.data.impl.nodeimpl`` reads for
+    the cluster pool's password; its presence marks a federated installation. A missing config
+    directory is not federated.
+    """
+    return bool(config_dir) and os.path.exists(
+        os.path.join(config_dir, '.secret', 'clusterdb.pkl'))
+
+
 class _InstallIO(DatabaseProvisionIO):
     """The installer's answers to the database provisioning decisions: gettext'd prompts and
     rich notices, mirroring the messages the installer has always printed."""
@@ -35,8 +47,16 @@ class _InstallIO(DatabaseProvisionIO):
     def master_credentials(self) -> tuple[str, str]:
         master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'),
                                default='postgres')
-        master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'), default='postgres')
-        return master_db, master_user
+        while True:
+            master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'),
+                                     default='postgres')
+            if is_reserved_master_user(master_user):
+                print(_("[red]The master user may not be named after one of the bot's own secret "
+                        "files. Choose another name.[/]"))
+            elif not is_valid_master_user(master_user):
+                print(_("[red]The master user may only use letters, digits, '_' and '-'.[/]"))
+            else:
+                return master_db, master_user
 
     def master_password(self, master_user: str) -> str:
         return Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
@@ -310,6 +330,7 @@ If you need any further assistance, please visit the support discord, listed in 
             master = False
             i = 0
 
+        federated = is_federated(config_dir)
         print(_("\n{}. [u]Database Setup[/]").format(i + 1))
         if master:
             database_url = Install.get_database_url(user, database, config_dir)
@@ -317,7 +338,7 @@ If you need any further assistance, please visit the support discord, listed in 
                 self.log.error(_("Aborted: No valid Database URL provided."))
                 exit(-2)
         else:
-            if 'database' in main:
+            if 'database' in main and not federated:
                 database_url = main['database']['url']
             else:
                 try:
@@ -327,7 +348,7 @@ If you need any further assistance, please visit the support discord, listed in 
             if database_url:
                 url = urlparse(database_url)
                 hostname, port = self.get_database_host(url.hostname, url.port)
-                database_url = f"{url.scheme}://{url.username}:{url.password}@{hostname}:{port}{url.path}?sslmode=prefer"
+                database_url = rebuild_url(url, host=hostname, port=port)
             else:
                 database_url = Install.get_database_url(user, database, config_dir)
                 if not database_url:
@@ -383,7 +404,7 @@ If you need any further assistance, please visit the support discord, listed in 
             ]) + 1 if nodes else 10042,
             use_upnp=self.use_upnp,
             public_ip=public_ip,
-            database_url=database_url if 'database' not in main else None,
+            database_url=database_url if federated or 'database' not in main else None,
             dcs_installation=dcs_installation,
             dcs_autoupdate=dcs_autoupdate,
             srs_installation=srs_path,
@@ -561,8 +582,8 @@ If you need any further assistance, please visit the support discord, listed in 
             with psycopg.connect(url, autocommit=True) as conn:
                 # rename nodes in all relevant tables
                 conn.execute("DELETE FROM instances WHERE node = %s", (old_name, ))
-                conn.execute("UPDATE nodestats SET node = %s WHERE node = %s", (old_name, new_name))
-                conn.execute("UPDATE audit SET node = %s WHERE node = %s", (old_name, new_name))
+                conn.execute("UPDATE nodestats SET node = %s WHERE node = %s", (new_name, old_name))
+                conn.execute("UPDATE audit SET node = %s WHERE node = %s", (new_name, old_name))
                 # serverstats might not be there
                 conn.execute(
                     sql.SQL(

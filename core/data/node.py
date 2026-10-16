@@ -7,6 +7,7 @@ import os
 from abc import ABC, abstractmethod
 from core import utils
 from core.translations import get_translation
+from core.utils.db_setup import rebuild_url
 from core.utils.helper import YAMLError
 from enum import Enum, auto
 from pathlib import Path
@@ -139,8 +140,8 @@ class Node(ABC):
                 if url.password != 'SECRET':
                     utils.set_password('clusterdb', unquote(url.password), self.config_dir)
                     port = url.port or 5432
-                    config['database']['url'] = \
-                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
+                    config['database']['url'] = rebuild_url(
+                        url, host=url.hostname, port=port, password='SECRET')
                     with open(file, 'w', encoding='utf-8') as f:
                         yaml.dump(config, f)
                     self.log.info("Database password found, removing it from config.")

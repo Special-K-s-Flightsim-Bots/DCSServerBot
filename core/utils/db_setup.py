@@ -10,8 +10,9 @@ The statements and the retry/recovery sequence are the ones the installer has al
 from __future__ import annotations
 
 import os
+import re
 import secrets
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import psycopg
 from packaging.version import parse
@@ -23,10 +24,15 @@ __all__ = [
     "MIN_SERVER_VERSION_MAJOR",
     "DEFAULT_MASTER_DATABASE",
     "DEFAULT_MASTER_USER",
+    "RESERVED_SECRET_KEYS",
     "DatabaseProvisionIO",
     "ProvisionResult",
     "connection_url",
     "config_connection_url",
+    "requote",
+    "rebuild_url",
+    "is_valid_master_user",
+    "is_reserved_master_user",
     "get_server_version",
     "is_version_outdated",
     "create_user",
@@ -39,6 +45,18 @@ __all__ = [
 MIN_SERVER_VERSION_MAJOR = 14
 DEFAULT_MASTER_DATABASE = 'postgres'
 DEFAULT_MASTER_USER = 'postgres'
+
+# The names the bot stores its OWN secrets under in ``config/.secret/<key>.pkl``. A master user
+# carrying one of them would overwrite that secret's file, so it is refused (case-insensitively,
+# closing the collision on case-folding file systems too). ``postgres`` is the master user by
+# design and is not one of the bot's own keys.
+RESERVED_SECRET_KEYS = frozenset({
+    'database', 'clusterdb', 'dcs', 'proxy', 'token', 'hash', 'discord_client_secret'
+})
+
+# A master user becomes a ``config/.secret/<user>.pkl`` file name and a URL userinfo component:
+# letters, digits, ``_`` and ``-`` only. An empty name, a dot, a slash or any other character is out.
+_MASTER_USER_RE = re.compile(r'[A-Za-z0-9_-]+')
 
 # Placeholder written instead of the password in the stored connection URL. ``rename_node`` and the
 # bot's config loader substitute it with the value from ``config/.secret``.
@@ -53,14 +71,57 @@ _SERVER_VERSION_SQL = """
 """
 
 
+def is_valid_master_user(user: str) -> bool:
+    """True when *user* is safe as a ``config/.secret/<user>.pkl`` file name and a URL userinfo
+    component: letters, digits, ``_`` and ``-`` only, and not one of the bot's reserved secret
+    keys."""
+    return bool(_MASTER_USER_RE.fullmatch(user)) and not is_reserved_master_user(user)
+
+
+def is_reserved_master_user(user: str) -> bool:
+    """True when *user* equals one of the bot's own ``config/.secret`` keys (case-insensitive):
+    storing the master password under it would overwrite that secret."""
+    return user.lower() in RESERVED_SECRET_KEYS
+
+
+def requote(value: str, *, safe: str = "") -> str:
+    """Normalize a userinfo or path component read back out of ``urlparse`` for re-insertion into a
+    URL.
+
+    ``urlparse`` hands the component back still percent-encoded, so ``unquote`` followed by
+    ``quote`` leaves an already-encoded value byte-identical while encoding any raw ``?``/``#``/
+    ``/``/``@``/``:`` it still carries. *safe* keeps the separators a caller needs (``/`` for a
+    path).
+    """
+    return quote(unquote(value), safe=safe)
+
+
+def rebuild_url(url, *, host: str, port: int, password: str | None = None) -> str:
+    """Rebuild a connection URL from a ``urlparse`` result against *host* and *port*, keeping the
+    userinfo and the database path percent-encoded.
+
+    *password* is the userinfo password to write; omitted, the URL's own password is kept. The
+    config carriers pass the ``SECRET`` placeholder instead, because the real password lives in
+    ``config/.secret``.
+    """
+    if password is None:
+        password = url.password
+    # the path is ``/`` + the (encoded) database name: quote each segment, keep the separators
+    path = "/".join(requote(segment) for segment in url.path.split("/"))
+    return (f"{url.scheme}://{requote(url.username or '')}:{requote(password or '')}"
+            f"@{host}:{port}{path}?sslmode=prefer")
+
+
 def connection_url(user: str, password: str, host: str, port: int, database: str) -> str:
-    return f'postgres://{user}:{quote(password)}@{host}:{port}/{database}?sslmode=prefer'
+    return (f"postgres://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}"
+            f"/{quote(database, safe='')}?sslmode=prefer")
 
 
 def config_connection_url(user: str, host: str, port: int, database: str) -> str:
     """The URL stored in the config: the password is the literal ``SECRET`` placeholder that
     ``rename_node`` substitutes with the real password from ``config/.secret``."""
-    return f"postgres://{user}:{_PASSWORD_PLACEHOLDER}@{host}:{port}/{database}?sslmode=prefer"
+    return (f"postgres://{quote(user, safe='')}:{_PASSWORD_PLACEHOLDER}@{host}:{port}"
+            f"/{quote(database, safe='')}?sslmode=prefer")
 
 
 def get_server_version(conn) -> str:

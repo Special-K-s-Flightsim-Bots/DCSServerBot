@@ -59,6 +59,7 @@ from . import community as community_step
 from . import console as console_step
 from . import database as db_step
 from . import discord as discord_step
+from . import join as join_step
 from . import language as language_step
 from . import node as node_step
 from . import review as review_step
@@ -68,6 +69,7 @@ from .state import LAST_STEP, SetupDraft, draft_path
 __all__ = [
     "STEP_PATH", "LANGUAGE_PATH", "THEME_PATH", "FLAGS_PATH", "FLAGS_DIR",
     "STEP_LABELS", "COMMUNITY_LABEL", "rail_steps", "current_step", "label_for", "step_label",
+    "suggested_listen_port",
     "render_root", "render_step", "render_flags", "submit_step",
     "language_redirect", "theme_redirect",
 ]
@@ -162,19 +164,32 @@ def has_servers(draft: SetupDraft) -> bool:
     return servers.has_instances
 
 
-def rail_rows(draft: SetupDraft) -> list[int]:
-    """The step ids in rail order, for THIS draft's answers."""
-    return rail_steps(draft.discord, has_dcs(draft), has_servers(draft))
+def rail_rows(draft: SetupDraft, mode: str = boot_module.INSTALL) -> list[int]:
+    """The step ids in rail order, for THIS draft's answers and this console's mode."""
+    return rail_steps(draft.discord, has_dcs(draft), has_servers(draft), mode)
 
 
-def rail_steps(discord: bool, dcs: bool = True, servers: bool = True) -> list[int]:
+def rail_steps(discord: bool, dcs: bool = True, servers: bool = True,
+               mode: str = boot_module.INSTALL) -> list[int]:
     """The step ids in rail order.
 
     Discord comes BEFORE the servers so the central admin-channel question (step 6) is answered
     before any per-server row reads it, and so the pickers a server row offers are already fetched.
     Nine rows with Discord, eight without (5+6 -> "Your community"); row 8 ("DCS servers") is
     present only when a DCS installation was configured AND instances were detected.
+
+    JOINING SERVES A SUBSET OF THE SAME IDS, IN THE SAME ORDER: database (3), this node (4), DCS
+    servers (8, under the same DCS/instance rule) and review (9). The first-run steps are not asked
+    again — this installation already has its language, its guild, its roles, its console and its
+    database — so they are simply not on the rail. Every id here is a subsequence of the first-run
+    rail's, which is why the "furthest completed step" arithmetic needs no change: a draft whose
+    ``step`` is 0 starts at 3, and the rows it can never reach are not in the list.
     """
+    if mode == boot_module.JOIN:
+        rows = [3, 4]
+        if dcs and servers:
+            rows.append(8)
+        return rows + [9]
     rows = [1, 2, 3, 4]
     rows += [5, 6] if discord else [5]
     rows.append(7)
@@ -184,17 +199,17 @@ def rail_steps(discord: bool, dcs: bool = True, servers: bool = True) -> list[in
     return rows
 
 
-def current_step(draft: SetupDraft) -> int | None:
+def current_step(draft: SetupDraft, mode: str = boot_module.INSTALL) -> int | None:
     """The first step the operator has not completed yet, or ``None`` when the tour is finished."""
-    for step in rail_rows(draft):
+    for step in rail_rows(draft, mode):
         if step > draft.step:
             return step
     return None
 
 
-def _previous_step(draft: SetupDraft, step: int) -> int | None:
+def _previous_step(draft: SetupDraft, step: int, mode: str = boot_module.INSTALL) -> int | None:
     """The rail row before *step*, or ``None`` when it is the first."""
-    rows = rail_rows(draft)
+    rows = rail_rows(draft, mode)
     if step not in rows:
         return None
     index = rows.index(step)
@@ -301,6 +316,14 @@ font-size:14px}
 .source{color:var(--text-3);font-size:13px;margin:0 0 12px}
 fieldset.choice{border:0;margin:0 0 14px;padding:0}
 .choice-legend{color:var(--text-3);font-size:12.5px;padding:0 0 6px}
+/* The joining question's two choices: two DISTINCT blocks of equal weight, each headed by a
+   headline at the SAME size, weight and colour as the other (``.join-head`` on both), separated by
+   their own borders and the grid's gap rather than by spacing alone. */
+.join-choices{display:grid;gap:14px;margin:2px 0 0}
+.join-choice{border:1px solid var(--line);border-left:3px solid var(--accent);
+border-radius:var(--radius);background:var(--panel-2);padding:14px 16px}
+.join-head{font-size:17px;font-weight:600;color:var(--text);margin:0 0 4px}
+.join-help{color:var(--text-3);font-size:13px;margin:0 0 12px}
 label.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;cursor:pointer;
 border:1px solid var(--line);border-radius:var(--radius-s);margin-bottom:6px}
 label.opt:hover{border-color:var(--line-2)}
@@ -466,9 +489,25 @@ def _theme_control(request: Request, lang: str, current: str, next_target: str) 
 
 # ------------------------------------------------------------------------------------ the rail
 
-def _rail(draft: SetupDraft, current: int | None, translate) -> str:
+def _mode(request: Request) -> str:
+    """This console's state (``boot.INSTALL`` / ``boot.JOIN``), recorded on the application at start.
+
+    Read from the application and never from the draft: the mode decides which rail is served and
+    what a commit may write, so it must not be something a caller-writable file can change.
+    """
+    recorded = getattr(request.app.state, "webui_setup_mode", boot_module.INSTALL)
+    return str(recorded) if recorded in (boot_module.INSTALL, boot_module.JOIN) \
+        else boot_module.INSTALL
+
+
+def _node_name(request: Request) -> str:
+    """The node name this console writes and renames, recorded on the application at start."""
+    return str(getattr(request.app.state, "webui_setup_node", "") or "")
+
+
+def _rail(draft: SetupDraft, current: int | None, translate, mode: str = boot_module.INSTALL) -> str:
     """The rail: numbers + labels, the current row amber, completed rows links, future rows inert."""
-    rows = rail_rows(draft)
+    rows = rail_rows(draft, mode)
     items = []
     current_label = ""
     for position, step in enumerate(rows, start=1):
@@ -688,6 +727,8 @@ T_NODE_DCS_HELP = i18n._(
 T_NODE_DCS_OTHER = i18n._("Other — I will enter the path")
 T_NODE_DCS_DECLINE = i18n._("Continue without a DCS installation")
 T_NODE_DCS_PATH = i18n._("path")
+T_NODE_DCS_AUTOUPDATE = i18n._(
+    "Do you want your DCS installation being auto-updated by the bot?")
 T_NODE_LISTEN_PORT = i18n._("listen port")
 T_NODE_LISTEN_PORT_HELP = i18n._("Other nodes of this installation talk to this one on this port.")
 T_NODE_STATIC_IP = i18n._("Is {ip} a static IP-address for this node?")
@@ -1010,6 +1051,37 @@ T_DONE_NO_CONSOLE = i18n._(
 T_DONE_START = i18n._("If it is not running, start it with {script}.")
 T_DONE_BUTTON = i18n._("Open the console")
 
+# ---- the joining state: the add/rename question, its refusals and its own Done sentence ----
+
+T_JOIN_TITLE = i18n._("This node is not configured yet")
+T_JOIN_INTRO = i18n._(
+    "This installation is already configured, but it has no entry for the node {node} in "
+    "config/nodes.yaml, so the bot cannot start on this machine. Is this a new node, or did the "
+    "hostname of an existing node change?")
+T_JOIN_NEW = i18n._("A new node")
+T_JOIN_NEW_HELP = i18n._(
+    "Add this machine to config/nodes.yaml. Nothing else of this installation is changed.")
+T_JOIN_RENAME = i18n._("An existing node whose hostname changed")
+T_JOIN_RENAME_HELP = i18n._(
+    "Rename one of the configured nodes to {node}. Its configuration and its database rows are "
+    "carried over, and nothing is added.")
+T_JOIN_OLD = i18n._("node to rename")
+T_JOIN_CONFIRM = i18n._(
+    "I understand: the node picked above was this machine, and it is now called {node}")
+T_JOIN_CHOOSE = i18n._("Choose whether this is a new node or a renamed one.")
+T_JOIN_CONFIRM_NEEDED = i18n._("Tick the confirmation before renaming a node.")
+T_JOIN_OLD_NEEDED = i18n._("Pick the node whose hostname changed.")
+T_JOIN_FAILED = i18n._(
+    "The node could not be renamed. Nothing was changed by this page; the log names the reason.")
+T_JOIN_RENAMED = i18n._("Node {old} was renamed to {node}.")
+T_DONE_JOINED = i18n._("This node was added to config/nodes.yaml as {node}.")
+
+#: The two action values the joining state's first screen posts. They are not step ids: the screen
+#: comes before the rail exists, so it is routed on its own action and not on ``n``.
+JOIN_NEW_ACTION = "join_new"
+JOIN_RENAME_ACTION = "join_rename"
+JOIN_ACTIONS = (JOIN_NEW_ACTION, JOIN_RENAME_ACTION)
+
 
 def _top_bar(request: Request, lang: str, theme: str, translate) -> str:
     """The tour's top bar: brand, the flag control and the theme control."""
@@ -1037,7 +1109,7 @@ def _document(request: Request, draft: SetupDraft, *, title: str, body: str,
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         '<title>DCSServerBot setup</title>\n'
         f'{_the_style()}\n</head>\n<body>\n{top}\n'
-        f'<div class="tour">{_rail(draft, current, translate)}'
+        f'<div class="tour">{_rail(draft, current, translate, _mode(request))}'
         f'<main class="panel"><p class="legend">{escape(translate(LEGEND))}</p>'
         f'<section class="card"><div class="hd"><h1>{escape(translate(title))}</h1></div>'
         f'<div class="bd">{notice}{body}</div></section></main></div>\n'
@@ -1200,11 +1272,21 @@ def _guild_context(request: Request, draft: SetupDraft):
     The state comes from the in-memory cache and status, NEVER from the draft: the data is a live
     machine fact (a guild layout) and the draft is plain text on disk. A key the last read did not
     cover yields no pickers; a read that failed for THIS key yields its code, so the step can say so.
+
+    WHILE JOINING the key is the INSTALLATION's own: this flow asks no Discord question, so the token
+    comes from the shared ``.secret/token.pkl`` and the guild id from the shared ``main.yaml`` (see
+    :func:`setup.join.discord_context`) rather than from the draft.
     """
-    if not draft.discord:
-        return None, ""
-    token = discord_step.token_store(request.app).get(discord_step.TOKEN_KEY)
-    guild_id = discord_step.answers_from_mapping(draft.discord_bot).guild_id
+    if _mode(request) == boot_module.JOIN:
+        context = join_step.discord_context(_config_dir(request))
+        if not context.discord:
+            return None, ""
+        token, guild_id = context.token, context.guild_id
+    else:
+        if not draft.discord:
+            return None, ""
+        token = discord_step.token_store(request.app).get(discord_step.TOKEN_KEY)
+        guild_id = discord_step.answers_from_mapping(draft.discord_bot).guild_id
     data = discord_step.cached_guild(request.app, token, guild_id)
     if data is not None:
         return data, ""
@@ -1590,7 +1672,10 @@ def _step_three(request: Request, draft: SetupDraft, translate) -> str:
     enabled = (db_step.verification(draft.database, app=request.app)
                and db_step.tested_here(request.app, local_signature))
 
-    federation = bool(draft.database.get(db_step.FEDERATION_KEY))
+    # Federation is a FIRST-RUN question: this installation either has its cluster database already
+    # or has none, and the joining flow never writes main.yaml — so the block is not asked here.
+    joining = _mode(request) == boot_module.JOIN
+    federation = (not joining) and bool(draft.database.get(db_step.FEDERATION_KEY))
     cluster_block = draft.database.get(db_step.CLUSTER_KEY)
     cluster_answers = db_step.answers_from_mapping(cluster_block,
                                                    secret_key=db_step.CLUSTER_SECRET_KEY)
@@ -1608,11 +1693,13 @@ def _step_three(request: Request, draft: SetupDraft, translate) -> str:
         enabled=enabled, last=_db_last(draft.database), legend=T_DB_CHOICE, prefix="",
         action_test="test")
 
-    federation_row = (
-        f'<label class="switch fed"><input type="checkbox" name="federation"'
-        f'{" checked" if federation else ""}>'
-        f'<span>{escape(translate(T_FEDERATION))}'
-        f'<span class="help">{escape(translate(T_FEDERATION_HELP))}</span></span></label>')
+    federation_row = ""
+    if not joining:
+        federation_row = (
+            f'<label class="switch fed"><input type="checkbox" name="federation"'
+            f'{" checked" if federation else ""}>'
+            f'<span>{escape(translate(T_FEDERATION))}'
+            f'<span class="help">{escape(translate(T_FEDERATION_HELP))}</span></span></label>')
 
     cluster_html = ""
     if federation:
@@ -1626,7 +1713,7 @@ def _step_three(request: Request, draft: SetupDraft, translate) -> str:
 
     # Continue opens only when every TESTED block verifies — the cluster block counted while ticked
     enabled_all = enabled and (cluster_enabled if federation else True)
-    back = _previous_step(draft, 3)
+    back = _previous_step(draft, 3, _mode(request))
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
     disabled = "" if enabled_all else " disabled"
@@ -1636,8 +1723,9 @@ def _step_three(request: Request, draft: SetupDraft, translate) -> str:
     hint = ""
     if not enabled_all and _db_last(draft.database).get("code") != "continue_blocked":
         hint = (f'<p class="note" role="note">{escape(translate(T_CONTINUE_NEEDS_TEST))}</p>')
-    scripts = [_resubmit_on_change('input[name="path"]', "switch"),
-               _resubmit_on_change('input[name="federation"]', "federation")]
+    scripts = [_resubmit_on_change('input[name="path"]', "switch")]
+    if not joining:
+        scripts.append(_resubmit_on_change('input[name="federation"]', "federation"))
     if federation:
         scripts.append(_resubmit_on_change('input[name="cluster_path"]', "cluster_switch"))
     scripts.append(_busy_submit_script())
@@ -1699,14 +1787,30 @@ def _radio_row(name: str, value: str, label: str, help_text: str | None, checked
             f'<span><b>{escape(label)}</b>{help_html}</span></label>')
 
 
+def suggested_listen_port(config_dir) -> int:
+    """The port the node step offers: the installer's own formula over the WHOLE cluster.
+
+    ``nodes.yaml`` is cluster-wide, so the nodes already in it are the starting point — the CLI
+    derives its port as ``max(existing listen_ports) + 1`` (falling back to ``10042`` with no nodes).
+    Only a bound-port probe would be blind to another node's port, so the suggestion is seeded from
+    the file, then advanced past any port actually bound on this host. A node block that is not a
+    mapping carries no port and is skipped.
+    """
+    existing = [node for node in join_step.existing_nodes(config_dir).values()
+                if isinstance(node, dict)]
+    return node_step.next_free_listen_port(existing)
+
+
 def _step_four(request: Request, draft: SetupDraft, translate) -> str:
-    """Step 4 — This node: DCS World installation, listen port, static IP and the DGSA opt-ins.
+    """Step 4 — This node: DCS World installation, its auto-update, listen port, static IP and the
+    DGSA opt-ins.
 
     The DCS choices come from the machine's own detection (never re-detected here) and the FIRST
     detected installation is preselected while nothing has been chosen yet; the decline checkbox
-    removes the whole DCS block, exactly as the installer's ``get_dcs_installation`` offers.
-    The static-IP switch is drawn only when an address was actually detected, and the DGSA block
-    carries the installer's own explanatory paragraph.
+    removes the whole DCS block, exactly as the installer's ``get_dcs_installation`` offers. The
+    static-IP switch is drawn only when an address was actually detected, the auto-update switch
+    only once a DCS installation is configured (the installer's ``if dcs_installation:``), and the
+    DGSA block carries the installer's own explanatory paragraph.
     """
     token = session.get_csrf_token(request)
     detection = node_step.cached_detection(request.app)
@@ -1744,9 +1848,17 @@ def _step_four(request: Request, draft: SetupDraft, translate) -> str:
         f'<label class="switch"><input type="checkbox" name="no_dcs"{declined}>'
         f'<span>{escape(translate(T_NODE_DCS_DECLINE))}</span></label>')
 
-    # the listen port, prefilled with the derived next free port
+    # the DCS auto-update question: the installer asks it only under ``if dcs_installation:``, so
+    # it is drawn only once an installation is configured — a chosen path, or a detected candidate
+    if not answers.no_dcs and (answers.dcs_installation or detection.candidates):
+        marked = ' checked' if answers.dcs_autoupdate else ''
+        blocks.append(
+            f'<label class="switch"><input type="checkbox" name="dcs_autoupdate"{marked}>'
+            f'<span>{escape(translate(T_NODE_DCS_AUTOUPDATE))}</span></label>')
+
+    # the listen port, prefilled with the derived next free port over the whole cluster
     stored_port = "listen_port" in (draft.node or {})
-    port = answers.listen_port if stored_port else node_step.next_free_listen_port()
+    port = answers.listen_port if stored_port else suggested_listen_port(_config_dir(request))
     blocks.append(_field(translate(T_NODE_LISTEN_PORT), "listen_port", port,
                          translate(T_NODE_LISTEN_PORT_HELP), type_="number", required=True))
 
@@ -1757,19 +1869,22 @@ def _step_four(request: Request, draft: SetupDraft, translate) -> str:
             f'<label class="switch"><input type="checkbox" name="static_ip"{marked}>'
             f'<span>{_say(translate, T_NODE_STATIC_IP, ip=detection.public_ip)}</span></label>')
 
-    # the DGSA banlist block, with the installer's own paragraph and its own two defaults
-    dgsa = [f'<p class="note">{escape(translate(T_NODE_DGSA_INTRO))}</p>']
-    dcs_marked = ' checked' if answers.dgsa_dcs else ''
-    dgsa.append(f'<label class="switch"><input type="checkbox" name="dgsa_dcs"{dcs_marked}>'
-                f'<span>{escape(translate(T_NODE_DGSA_DCS))}</span></label>')
-    if draft.discord:
-        discord_marked = ' checked' if answers.dgsa_discord else ''
-        dgsa.append(
-            f'<label class="switch"><input type="checkbox" name="dgsa_discord"{discord_marked}>'
-            f'<span>{escape(translate(T_NODE_DGSA_DISCORD))}</span></label>')
-    blocks.append("".join(dgsa))
+    # the DGSA banlist block, with the installer's own paragraph and its own two defaults.
+    # NOT asked while joining: the opt-ins live in plugins/cloud.yaml, which belongs to the whole
+    # installation and is never written by this flow.
+    if _mode(request) != boot_module.JOIN:
+        dgsa = [f'<p class="note">{escape(translate(T_NODE_DGSA_INTRO))}</p>']
+        dcs_marked = ' checked' if answers.dgsa_dcs else ''
+        dgsa.append(f'<label class="switch"><input type="checkbox" name="dgsa_dcs"{dcs_marked}>'
+                    f'<span>{escape(translate(T_NODE_DGSA_DCS))}</span></label>')
+        if draft.discord:
+            discord_marked = ' checked' if answers.dgsa_discord else ''
+            dgsa.append(
+                f'<label class="switch"><input type="checkbox" name="dgsa_discord"{discord_marked}>'
+                f'<span>{escape(translate(T_NODE_DGSA_DISCORD))}</span></label>')
+        blocks.append("".join(dgsa))
 
-    back = _previous_step(draft, 4)
+    back = _previous_step(draft, 4, _mode(request))
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
     # the one progressive enhancement: toggling the DCS choice or the decline box re-renders the
@@ -1805,15 +1920,20 @@ _CHEV = ('<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor
          '<path d="M9.4 5.4 16 12l-6.6 6.6"/></svg>')
 
 
-def _server_row(request: Request, draft: SetupDraft, translate, index: int,
-                row: servers_step.ServerRow, port: int | None, guild, *,
-                central_admin: bool = False) -> str:
+def _server_row(translate, index: int, row: servers_step.ServerRow, port: int | None, guild, *,
+                central_admin: bool = False, channels: bool = True) -> str:
     """One detected instance's row, drawn as the shared collapsible ``<details class="st-block">``.
 
     The ``<summary>`` is the row's header: the chevron, the server name and the manage switch — plus,
     while the row is NOT managed, the one-line handover sentence. The ``.bd`` is the edit block: the
     instance, the name, the derived port, autostart and — on the Discord path — the channel pickers
     (real ``<select>`` when the guild was read).
+
+    *channels* is the caller's decision, and it is the SAME decision on both flows: the channel ids
+    are asked whenever this installation talks to Discord. On a first run that is step 2's answer; on
+    a joining run it is the EXISTING installation's own Discord state (see
+    :func:`setup.join.discord_context`), because the joining flow asks no Discord question of its own.
+    The pickers the rows offer are the first-run ones, on the same terms.
 
     A managed row renders ``open``, an unticked row renders COLLAPSED, so a re-render keeps the page
     where it was and a no-JS operator cannot tab into a field the row is not asking for. With a
@@ -1826,8 +1946,8 @@ def _server_row(request: Request, draft: SetupDraft, translate, index: int,
     fields = [_stat(translate(T_SRV_INSTANCE), row.instance),
               _field(translate(T_SRV_NAME), f"row_name_{index}", row.name),
               _stat(translate(T_SRV_BOT_PORT), str(port) if port is not None else "—")]
-    channels = ""
-    if draft.discord:
+    channel_fields = ""
+    if channels:
         controls = [_channel_control(translate(T_SRV_STATUS), f"row_status_{index}", row.status,
                                      guild, translate),
                     _channel_control(translate(T_SRV_CHAT), f"row_chat_{index}", row.chat,
@@ -1835,7 +1955,7 @@ def _server_row(request: Request, draft: SetupDraft, translate, index: int,
         if not central_admin:
             controls.append(_channel_control(translate(T_SRV_ADMIN), f"row_admin_{index}",
                                              row.admin, guild, translate))
-        channels = f'<div class="fields">{"".join(controls)}</div>'
+        channel_fields = f'<div class="fields">{"".join(controls)}</div>'
     return (
         f'<details class="st-block"{opn}>'
         f'<summary>{_CHEV}<span class="k">'
@@ -1847,7 +1967,7 @@ def _server_row(request: Request, draft: SetupDraft, translate, index: int,
         f'<div class="fields">{"".join(fields)}'
         f'<label class="switch"><input type="checkbox" name="row_autostart_{index}"{autostart}>'
         f'<span>{escape(translate(T_SRV_AUTOSTART))}</span></label></div>'
-        f'{channels}</div></details>')
+        f'{channel_fields}</div></details>')
 
 
 def _channels_intro(translate, *, admin: bool) -> str:
@@ -1870,6 +1990,23 @@ def _channels_intro(translate, *, admin: bool) -> str:
             f'<ul>{roles}</ul>{tail}</div>')
 
 
+def _servers_discord(request: Request, draft: SetupDraft) -> tuple[bool, bool]:
+    """Step 8's two Discord decisions: ``(ask the channel line, suppress the per-server admin)``.
+
+    A first run answers both from the tour's own steps — step 2 says whether this install talks to
+    Discord at all, and step 6's admin scope says whether a per-server admin channel is offered. The
+    joining flow asks neither of those questions, so it takes both from the EXISTING installation's
+    shared config instead (:func:`setup.join.discord_context`): its ``no_discord`` flag, and whether
+    ``services/bot.yaml`` already carries a central admin channel.
+    """
+    if _mode(request) == boot_module.JOIN:
+        context = join_step.discord_context(_config_dir(request))
+        return context.discord, context.central_admin
+    if not draft.discord:
+        return False, False
+    return True, discord_step.roles_from_mapping(draft.roles).central_admin
+
+
 def _step_servers(request: Request, draft: SetupDraft, translate) -> str:
     """Step 8 — DCS servers: one screen, one collapsible row per detected Saved Games instance.
 
@@ -1881,12 +2018,16 @@ def _step_servers(request: Request, draft: SetupDraft, translate) -> str:
     step says why (see :func:`_guild_notice`). The step is deliberately minimal: it records WHICH
     servers the bot runs and where their channels are — extensions and per-server settings belong to
     the console's server page.
+
+    THE SAME SCREEN IS SERVED WHILE JOINING. That flow asks no Discord question of its own, so both
+    the channel line and the admin scope come from the existing installation (see
+    :func:`_servers_discord`) — the rows, their fields and their help text are the first-run ones.
     """
     token = session.get_csrf_token(request)
     answers = servers_step.answers_from_mapping(draft.servers)
-    # the central/per-server admin answer (step 6) decides whether a row offers an admin channel
-    central_admin = (discord_step.roles_from_mapping(draft.roles).central_admin
-                     if draft.discord else False)
+    # the Discord context decides whether the channel fields are asked and whether a row offers a
+    # per-server admin channel (see :func:`_servers_discord`)
+    channels, central_admin = _servers_discord(request, draft)
     guild, code = _guild_context(request, draft)
     last = draft.servers.get("last")
     last = last if isinstance(last, dict) else {}
@@ -1902,17 +2043,18 @@ def _step_servers(request: Request, draft: SetupDraft, translate) -> str:
         header = [escape(translate(T_SRV_SEARCHING)),
                   _say(translate, T_SRV_FOUND, count=len(answers.rows))]
         blocks.append(f'<p class="note">{" ".join(header)}</p>')
-        if draft.discord:
+        if channels:
             admin = bool(guild is not None and guild.bot_is_admin)
             blocks.append(_channels_intro(translate, admin=admin))
             blocks.append(_guild_notice(request, draft, translate, code))
         ports = servers_step.bot_ports(answers)
         for index, row in enumerate(answers.rows):
-            blocks.append(_server_row(request, draft, translate, index, row,
+            blocks.append(_server_row(translate, index, row,
                                       ports.get(row.instance), guild,
-                                      central_admin=central_admin))
+                                      central_admin=central_admin,
+                                      channels=channels))
 
-    back = _previous_step(draft, 8)
+    back = _previous_step(draft, 8, _mode(request))
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
     # the one progressive enhancement: switching a row's manage/autostart answer re-renders the
@@ -2351,7 +2493,7 @@ def _will_write(request: Request, draft: SetupDraft, translate) -> list[str]:
     set: a target the commit will not write cannot appear here.
     """
     lines: list[str] = []
-    for item in review_step.plan(draft, app=request.app):
+    for item in review_step.plan(draft, app=request.app, mode=_mode(request)):
         if item.target is review_step.MAIN:
             detail = _main_detail(draft, app=request.app)
         else:
@@ -2362,7 +2504,7 @@ def _will_write(request: Request, draft: SetupDraft, translate) -> list[str]:
     return lines
 
 
-def _not_written(draft: SetupDraft, app, translate) -> list[str]:
+def _not_written(draft: SetupDraft, app, translate, mode: str = boot_module.INSTALL) -> list[str]:
     """The answers the commit will NOT write: the blocks the earlier decisions left out.
 
     Named only when a block actually holds answers, so the list never claims something was dropped
@@ -2371,7 +2513,12 @@ def _not_written(draft: SetupDraft, app, translate) -> list[str]:
     Discord login is named when Discord is on, the console is enabled and no client secret is held in
     this process — the secret is process-memory only, so a mid-tour restart drops it and the login
     silently stays off.
+
+    JOINING NAMES NOTHING: this flow asks no Discord, console or cluster question at all, so there is
+    no answer of those it could be leaving out.
     """
+    if mode == boot_module.JOIN:
+        return []
     lines: list[str] = []
     if draft.discord:
         if draft.community:
@@ -2437,6 +2584,18 @@ def _review_results(token: str, results: list, translate) -> str:
             + _review_write_form(token, translate(T_REVIEW_WRITE_AGAIN)))
 
 
+def _review_refused(reason: str, back_link: str) -> str:
+    """The Review screen when the commit itself cannot be built.
+
+    The joining plan raises (:class:`review.JoinNodeDatabaseError`) rather than writing a node that
+    would inherit the federation's database, so the screen shows the classified reason and NO commit
+    button — the plan cannot be rendered as a "will be written" list when it refuses. The reason names
+    the missing answer, and the Back link returns to the step that collects it.
+    """
+    notice = f'<p class="notice bad" role="alert">{escape(reason)}</p>'
+    return notice + f'<div class="actions">{back_link}</div>'
+
+
 def _review_missing(request: Request, draft: SetupDraft, missing: list, back_link: str,
                     translate) -> str:
     """The Review screen when a required secret is not held in THIS process.
@@ -2473,10 +2632,16 @@ def _step_nine(request: Request, draft: SetupDraft, translate) -> str:
     re-enter instead of offering a commit that must not happen.
     """
     token = session.get_csrf_token(request)
-    back = _previous_step(draft, 9)
+    back = _previous_step(draft, 9, _mode(request))
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
-    missing = review_step.missing_secrets(draft, app=request.app)
+    # a joining commit that cannot be built is refused BEFORE the commit button: the plan would raise
+    # for a federated node with no database of its own, so the reason is shown and no write is offered
+    if _mode(request) == boot_module.JOIN:
+        refusal = review_step.join_database_refusal(draft, app=request.app)
+        if refusal:
+            return _review_refused(refusal, back_link)
+    missing = review_step.missing_secrets(draft, app=request.app, mode=_mode(request))
     if missing:
         return _review_missing(request, draft, missing, back_link, translate)
     results = draft.review.get("results")
@@ -2485,7 +2650,8 @@ def _step_nine(request: Request, draft: SetupDraft, translate) -> str:
     return (
         _review_list(translate(T_REVIEW_ALREADY), _already_done(request, draft, translate))
         + _review_list(translate(T_REVIEW_WILL_WRITE), _will_write(request, draft, translate))
-        + _review_list(translate(T_REVIEW_NOT_WRITTEN), _not_written(draft, request.app, translate))
+        + _review_list(translate(T_REVIEW_NOT_WRITTEN),
+                       _not_written(draft, request.app, translate, _mode(request)))
         + f'<form method="post" action="{STEP_PATH}">'
         + f'<input type="hidden" name="{session.CSRF_FIELD}" value="{escape(token)}">'
         + f'<input type="hidden" name="n" value="9">'
@@ -2510,7 +2676,99 @@ def _console_enabled(config_dir) -> bool:
     return bool(isinstance(default, dict) and default.get("frontend"))
 
 
-def _done_document(request: Request, draft: SetupDraft) -> str:
+def _join_document(request: Request, draft: SetupDraft, *, notice: str = "") -> str:
+    """The joining state's FIRST screen: the add/rename question, and nothing else.
+
+    It carries NO rail: which of the two flows this is decides the rail, so there is nothing to show
+    before the answer. Both routes are ONE form and two submit controls (no scripting: the rename
+    route reads the select and the confirmation beside it, the add route ignores both), because the
+    operator may press either without the page having to know which they meant.
+    """
+    lang = language_step.prefill_language(request, draft)
+    theme = theme_module.resolve_theme(request)
+    translate = i18n.translations_for(lang).gettext
+    token = session.get_csrf_token(request)
+    node = _node_name(request) or "this host"
+    names = sorted(join_step.existing_nodes(_config_dir(request)))
+    options = "".join(f'<option value="{escape(name)}">{escape(name)}</option>' for name in names)
+    body = (
+        f'<p class="note">{_say(translate, T_JOIN_INTRO, node=node)}</p>'
+        f'{notice}'
+        f'<form method="post" action="{STEP_PATH}">'
+        f'<input type="hidden" name="{session.CSRF_FIELD}" value="{escape(token)}">'
+        f'<div class="join-choices">'
+        f'<section class="join-choice"><h2 class="join-head">{escape(translate(T_JOIN_NEW))}</h2>'
+        f'<p class="join-help">{escape(translate(T_JOIN_NEW_HELP))}</p>'
+        f'<div class="actions"><button type="submit" name="action" '
+        f'value="{JOIN_NEW_ACTION}">{escape(translate(T_CONTINUE))}</button></div></section>'
+        f'<section class="join-choice"><h2 class="join-head">{escape(translate(T_JOIN_RENAME))}</h2>'
+        f'<p class="join-help">{_say(translate, T_JOIN_RENAME_HELP, node=node)}</p>'
+        f'<div class="fields">'
+        f'<label class="field" for="join_old_node">'
+        f'<span class="lbl">{escape(translate(T_JOIN_OLD))}</span>'
+        f'<select id="join_old_node" name="join_old_node">{options}</select></label>'
+        f'</div>'
+        f'<label class="switch"><input type="checkbox" name="join_confirm">'
+        f'<span>{_say(translate, T_JOIN_CONFIRM, node=node)}</span></label>'
+        f'<div class="actions"><button type="submit" name="action" '
+        f'value="{JOIN_RENAME_ACTION}">{escape(translate(T_JOIN_RENAME))}</button></div>'
+        f'</section></div></form>')
+    return (
+        "<!doctype html>\n"
+        f'<html lang="{escape(lang)}" data-theme="{escape(theme)}">\n<head>\n'
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        '<title>DCSServerBot setup</title>\n'
+        f'{_the_style()}\n</head>\n<body>\n{_top_bar(request, lang, theme, translate)}\n'
+        f'<main class="panel"><section class="card">'
+        f'<div class="hd"><h1>{escape(translate(T_JOIN_TITLE))}</h1></div>'
+        f'<div class="bd">{body}</div></section></main>\n</body>\n</html>\n')
+
+
+def _submit_join_route(request: Request, draft: SetupDraft, form, config_dir) -> Response:
+    """The add/rename answer: continue into the tour, or rename and END the flow.
+
+    RENAME IS THE INSTALLER'S OWN CALL. :func:`services.webservice.setup.join.rename_node` hands the
+    pair to ``Install.rename_node``, which rewrites the config yamls key by key and migrates the
+    database — so the console owns no second implementation of it, and nothing is written here that
+    the command line installer would not write. The flow ends on the spot: the renamed node's block
+    is what closes the window.
+    """
+    translate = _translator(request, draft)
+    node = _node_name(request)
+    if str(form.get("action")) == JOIN_NEW_ACTION:
+        join_step.set_route(draft, join_step.ROUTE_NEW)
+        draft.save(config_dir)
+        return RedirectResponse(STEP_PATH, status_code=303)
+
+    def refused(msgid) -> HTMLResponse:
+        return HTMLResponse(_join_document(request, draft,
+                                          notice=f'<p class="notice bad" role="alert">'
+                                                 f'{escape(translate(msgid))}</p>'))
+
+    old = str(form.get("join_old_node") or "").strip()
+    if not old or old not in join_step.existing_nodes(config_dir):
+        return refused(T_JOIN_OLD_NEEDED)
+    if form.get("join_confirm") is None:
+        return refused(T_JOIN_CONFIRM_NEEDED)
+    try:
+        join_step.rename_node(config_dir, old, node)
+    except Exception as ex:  # noqa: BLE001 - the operator gets a sentence, the log the reason
+        log.warning("Setup join: node '%s' could not be renamed to '%s' (%s).", old, node, ex,
+                    exc_info=True)
+        return refused(T_JOIN_FAILED)
+    log.info("Setup join: node '%s' was renamed to '%s' through the installer's own helper.",
+             old, node)
+    _discard_draft(config_dir)
+    response = HTMLResponse(_done_document(request, draft, renamed=(old, node)))
+    finish = getattr(request.app.state, "setup_finish", None)
+    if callable(finish):
+        response.background = BackgroundTask(finish)
+    return response
+
+
+def _done_document(request: Request, draft: SetupDraft,
+                   renamed: tuple[str, str] | None = None) -> str:
     """The terminal screen: the configuration is written and the console is handing over.
 
     It stays the tour's own document — the admin shell's banner, pills and environment bar are
@@ -2520,14 +2778,28 @@ def _done_document(request: Request, draft: SetupDraft) -> str:
     The console is mentioned only when it was actually enabled: a console-less install drops the link
     (and the sign-in line) and says so instead, because a button to a console that will never serve
     would be a lie.
+
+    JOINING HAS ITS OWN TWO LINES. This install already has its console and its servers, so the
+    handed-over lines ("the console will be at ...", "add your DCS servers") are both false here; what
+    is true is that this node is now in ``nodes.yaml`` (or was renamed into it) and can be started.
     """
     lang = language_step.prefill_language(request, draft)
     theme = theme_module.resolve_theme(request)
     translate = i18n.translations_for(lang).gettext
     url = f"http://localhost:{review_step.console_port(request.app)}"
     script = "run.cmd" if sys.platform == "win32" else "run.sh"
-    lines = [f'<p class="note">{escape(translate(T_DONE_WRITTEN))}</p>']
+    node = _node_name(request)
     buttons = ""
+    if _mode(request) == boot_module.JOIN:
+        if renamed is not None:
+            sentence = _say(translate, T_JOIN_RENAMED, old=renamed[0], node=renamed[1])
+        else:
+            sentence = _say(translate, T_DONE_JOINED, node=node)
+        lines = [f'<p class="note">{sentence}</p>',
+                 f'<p class="note">{_say(translate, T_DONE_START, script=script)}</p>']
+        return _standalone_document(request, lang, theme, translate, T_DONE_TITLE,
+                                    "".join(lines))
+    lines = [f'<p class="note">{escape(translate(T_DONE_WRITTEN))}</p>']
     if _console_enabled(_config_dir(request)):
         lines.append(f'<p class="note">{_say(translate, T_DONE_OPEN, url=url)}</p>')
         lines.append(f'<p class="note">{escape(translate(T_DONE_SIGNIN))}</p>')
@@ -2538,7 +2810,17 @@ def _done_document(request: Request, draft: SetupDraft) -> str:
         lines.append(f'<p class="note">{escape(translate(T_DONE_NO_CONSOLE))}</p>')
         lines.append(f'<p class="note">{escape(translate(T_DONE_ADD_SERVERS_OFF))}</p>')
     lines.append(f'<p class="note">{_say(translate, T_DONE_START, script=script)}</p>')
-    body = "".join(lines) + buttons
+    return _standalone_document(request, lang, theme, translate, T_DONE_TITLE,
+                               "".join(lines) + buttons)
+
+
+def _standalone_document(request: Request, lang: str, theme: str, translate, title: str,
+                         body: str) -> str:
+    """One of the tour's OWN documents, outside the rail (the Done screen, the joining question).
+
+    It carries the top bar (brand, flags, theme) and the same stylesheet, and deliberately no rail:
+    neither screen is a step of a walkable tour.
+    """
     return (
         "<!doctype html>\n"
         f'<html lang="{escape(lang)}" data-theme="{escape(theme)}">\n<head>\n'
@@ -2547,7 +2829,7 @@ def _done_document(request: Request, draft: SetupDraft) -> str:
         '<title>DCSServerBot setup</title>\n'
         f'{_the_style()}\n</head>\n<body>\n{_top_bar(request, lang, theme, translate)}\n'
         f'<main class="panel"><section class="card">'
-        f'<div class="hd"><h1>{escape(translate(T_DONE_TITLE))}</h1></div>'
+        f'<div class="hd"><h1>{escape(translate(title))}</h1></div>'
         f'<div class="bd">{body}</div></section></main>\n</body>\n</html>\n')
 
 
@@ -2591,13 +2873,22 @@ def _config_dir(request: Request) -> str:
     return getattr(request.app.state, "webui_config_dir", "config")
 
 
-def _setup_finished(config_dir) -> bool:
-    """Whether the setup window is closed: ``main.yaml`` exists, so this installation is configured.
+def _setup_finished(request: Request) -> bool:
+    """Whether the setup window is closed FOR THIS CONSOLE — the boot rule, read here.
 
     The rule is the boot window's own (:func:`services.webservice.setup.boot.should_run_setup`), read
-    here so the tour shows the terminal screen instead of a step list the moment the configuration is
-    written — even before the console stops.
+    so the tour shows the terminal screen instead of a step list the moment its own mode is done —
+    even before the console stops.
+
+    THE MODE DECIDES WHICH FACT THAT IS. A first-run console is finished when ``main.yaml`` exists; a
+    joining one when this node's block is in ``nodes.yaml`` (which is what closes the window for it,
+    and what makes the tour self-finishing the instant the merge lands). The node is passed ONLY in
+    joining: a first-run console must never read a node block in a ``nodes.yaml`` that already has one
+    as "the setup is over" — that file is exactly what it is there to write.
     """
+    config_dir = _config_dir(request)
+    if _mode(request) == boot_module.JOIN:
+        return not boot_module.should_run_setup(config_dir, _node_name(request))
     return not boot_module.should_run_setup(config_dir)
 
 
@@ -2611,11 +2902,21 @@ async def _prepare_detection(request: Request, step: int | None) -> None:
     Step 3 reads whether the LOCAL PostgreSQL port answers (the install nudge's own fact), and steps
     4/7 read detection (the DCS candidates, the public address). Both are cached on the application,
     so a re-render never probes twice and the socket/network calls are paid on those steps only.
+
+    Step 8 WHILE JOINING also warms the guild read, so its channel pickers are real ``<select>``s
+    instead of the typed-id degrade: the token and the guild id come from the existing installation's
+    shared config (see :func:`setup.join.discord_context`), and the read is cached on
+    ``(token, guild_id)``, so it is paid once per process and a failure degrades the same way it does
+    on a first run (see :func:`_guild_notice`).
     """
     if step == 3:
         await db_step.local_postgres_open(request.app)
     if step in (4, 7):
         await node_step.detection_for(request.app)
+    if step == 8 and _mode(request) == boot_module.JOIN:
+        context = join_step.discord_context(_config_dir(request))
+        if context.discord and context.token and context.guild_id is not None:
+            await discord_step.fetch_guild_data(request.app, context.token, context.guild_id)
 
 
 def _node_answered(draft: SetupDraft) -> bool:
@@ -2644,7 +2945,8 @@ def _rescan_servers(draft: SetupDraft, config_dir, *, force: bool = False) -> No
     draft.save(config_dir)
 
 
-def _rescan_or_fail(request: Request, draft: SetupDraft) -> HTMLResponse | None:
+def _rescan_or_fail(request: Request, draft: SetupDraft,
+                    mode: str = boot_module.INSTALL) -> HTMLResponse | None:
     """Run the once-per-tour server scan, or return the save-failure page when its draft write fails.
 
     The scan is the ONE draft write a GET can make (see :func:`_rescan_servers`); a failure here is
@@ -2656,24 +2958,54 @@ def _rescan_or_fail(request: Request, draft: SetupDraft) -> HTMLResponse | None:
     except configwrite.ConfigWriteError as ex:
         log.warning("Setup tour: the draft at '%s' could not be written (%s); the scan result was "
                     "not persisted.", _config_dir(request), ex)
-        return _save_failure_response(request, draft, current_step(draft))
+        return _save_failure_response(request, draft, current_step(draft, mode))
+    return None
+
+
+def _seed_or_fail(request: Request, draft: SetupDraft, mode: str) -> HTMLResponse | None:
+    """Seed the joining draft's database pre-fill, or report a failed draft write.
+
+    The pre-fill is the ONE draft write a GET makes in this mode, beside the server scan, and it runs
+    before the step is rendered so step 3 opens with "Use an existing database" already chosen. A
+    failure renders the same classified notice a step submit's failed write renders.
+
+    It is INERT on a first run: that flow writes its own database block on step 3, and seeding there
+    would put an answer in a draft nobody gave.
+    """
+    if mode != boot_module.JOIN:
+        return None
+    try:
+        join_step.seed_draft(draft, _config_dir(request))
+    except configwrite.ConfigWriteError as ex:
+        log.warning("Setup join: the draft at '%s' could not be written (%s); the database pre-fill "
+                    "was not persisted.", _config_dir(request), ex)
+        return _save_failure_response(request, draft, current_step(draft, mode))
     return None
 
 
 async def render_root(request: Request) -> HTMLResponse:
     """``GET /setup`` once accepted: the tour at its current step, or the terminal Done screen.
 
-    The Done screen is decided by the FILESYSTEM, not by the draft: the moment ``main.yaml`` exists
-    the setup is over, and a reload (before the console has stopped, or after) says so rather than
-    re-offering step 1.
+    The Done screen is decided by the FILESYSTEM, not by the draft: the moment this console's mode is
+    finished the setup is over, and a reload (before the console has stopped, or after) says so rather
+    than re-offering a step.
+
+    In the joining state the FIRST screen is the add/rename question and not a step: which of the two
+    flows this is decides everything after it.
     """
     draft = _draft_for(request)
-    if _setup_finished(_config_dir(request)):
+    if _setup_finished(request):
         return HTMLResponse(_done_document(request, draft))
-    failure = _rescan_or_fail(request, draft)
+    mode = _mode(request)
+    if mode == boot_module.JOIN and join_step.route(draft) != join_step.ROUTE_NEW:
+        return HTMLResponse(_join_document(request, draft))
+    failure = _seed_or_fail(request, draft, mode)
     if failure is not None:
         return failure
-    step = current_step(draft)
+    failure = _rescan_or_fail(request, draft, mode)
+    if failure is not None:
+        return failure
+    step = current_step(draft, mode)
     await _prepare_detection(request, step)
     return HTMLResponse(_render(request, draft, step))
 
@@ -2685,19 +3017,26 @@ async def render_step(request: Request, requested) -> HTMLResponse:
     the CURRENT step instead — a future row is not a link, and a crafted ``n`` must not jump ahead.
     """
     draft = _draft_for(request)
-    if _setup_finished(_config_dir(request)):
+    if _setup_finished(request):
         return HTMLResponse(_done_document(request, draft))
-    failure = _rescan_or_fail(request, draft)
+    mode = _mode(request)
+    if mode == boot_module.JOIN and join_step.route(draft) != join_step.ROUTE_NEW:
+        return HTMLResponse(_join_document(request, draft))
+    failure = _seed_or_fail(request, draft, mode)
     if failure is not None:
         return failure
-    current = current_step(draft)
-    step = _as_reachable_step(requested, draft, current)
+    failure = _rescan_or_fail(request, draft, mode)
+    if failure is not None:
+        return failure
+    current = current_step(draft, mode)
+    step = _as_reachable_step(requested, draft, current, mode)
     await _prepare_detection(request, step)
     return HTMLResponse(_render(request, draft, step))
 
 
-def _as_reachable_step(requested, draft: SetupDraft, current: int | None) -> int | None:
-    rows = rail_rows(draft)
+def _as_reachable_step(requested, draft: SetupDraft, current: int | None,
+                       mode: str = boot_module.INSTALL) -> int | None:
+    rows = rail_rows(draft, mode)
     if current is None:
         return None
     try:
@@ -2712,13 +3051,14 @@ def _as_reachable_step(requested, draft: SetupDraft, current: int | None) -> int
 def _render(request: Request, draft: SetupDraft, step: int | None, *,
             stay: bool = False, notice: str = "") -> str:
     translate = _translator(request, draft)
+    mode = _mode(request)
     if step is None:
         # Every rail row is done: the configuration is written, so the terminal screen is the only
         # honest state (a step list would offer a tour that no longer exists).
         return _done_document(request, draft)
     return _document(request, draft, title=step_label(step, draft.discord),
                      body=_card_body(request, draft, step, translate, stay=stay),
-                     current=current_step(draft), notice=notice)
+                     current=current_step(draft, mode), notice=notice)
 
 
 def _translator(request: Request, draft: SetupDraft):
@@ -2803,15 +3143,19 @@ async def submit_step(request: Request) -> Response:
     """
     draft = _draft_for(request)
     config_dir = getattr(request.app.state, "webui_config_dir", "config")
-    if _setup_finished(config_dir):
+    mode = _mode(request)
+    if _setup_finished(request):
         # The configuration is written and the tour state is spent. A POST replayed after the commit
         # (a stale form, a back button, an embedding that never stopped the console) must NOT
         # recreate the draft and re-open the tour — the same file check render_root and render_step
         # carry is enforced here, on the ONE write route.
         return HTMLResponse(_done_document(request, draft))
-    current = current_step(draft)
+    current = current_step(draft, mode)
     form = await request.form()
-    step = _as_reachable_step(form.get("n"), draft, current)
+    if mode == boot_module.JOIN and form.get("action") in JOIN_ACTIONS:
+        # the joining flow's FIRST screen posts its own action, and it is not a step
+        return _submit_join_route(request, draft, form, config_dir)
+    step = _as_reachable_step(form.get("n"), draft, current, mode)
     if step is None:
         return RedirectResponse(STEP_PATH, status_code=303)
     stay = bool(form.get("stay"))
@@ -3119,12 +3463,19 @@ def _resolve_node(form, detection: node_step.Detection, previous: node_step.Node
     if validate and not node_step.port_is_free(port):
         return None, ("port_busy", {"port": port})
 
+    # the DCS auto-update box is drawn only once an installation is configured; when it was not
+    # drawn its absence is not a "no", so the previous answer (the installer's default, on) stands
+    dcs_configured = (not no_dcs) and (dcs_installation is not None or bool(detection.candidates))
+    dcs_autoupdate = ((form.get("dcs_autoupdate") is not None) if dcs_configured
+                      else previous.dcs_autoupdate)
+
     answers = node_step.NodeAnswers(
         listen_port=port,
         use_upnp=detection.upnp,
         no_dcs=no_dcs,
         dcs_choice=dcs_choice,
         dcs_installation=dcs_installation,
+        dcs_autoupdate=dcs_autoupdate,
         public_ip=detection.public_ip if form.get("static_ip") is not None else None,
         dgsa_dcs=form.get("dgsa_dcs") is not None,
         dgsa_discord=(form.get("dgsa_discord") is not None) if discord else False,
@@ -3176,7 +3527,11 @@ def _submit_servers(request: Request, draft: SetupDraft, form, config_dir, stay:
     even when the step refuses. The write goes to the draft through the ONE config-write primitive.
     """
     answers = servers_step.answers_from_mapping(draft.servers)
-    resolved, failure = servers_step.resolve_rows(form, answers, validate=not stay)
+    # the channel fields are required exactly where the step ASKED for them — the same Discord
+    # context that renders the rows decides it (see :func:`_servers_discord`)
+    channels, _central_admin = _servers_discord(request, draft)
+    resolved, failure = servers_step.resolve_rows(form, answers, validate=not stay,
+                                                  channels=channels)
     draft.servers = dict(draft.servers)
     if failure is not None:
         code, data = failure
@@ -3453,42 +3808,52 @@ def _submit_review(request: Request, draft: SetupDraft, form, config_dir) -> Res
     """Step 9's one write path: the whole configuration, in one ordered commit.
 
     :func:`services.webservice.setup.review.write` writes every target through the ONE config-write
-    primitive and writes ``main.yaml`` LAST, and only when everything before it reached the disk.
+    primitive and writes the CLOSING target LAST, and only when everything before it reached the
+    disk: ``main.yaml`` on a first run, this node's ``nodes.yaml`` merge while joining.
 
     GATED ON THE REQUIRED SECRETS BEING HELD in this process: a mid-tour restart loses the in-memory
     Discord token and, on the existing-database path, the password. Committing then would write a
     configuration with no token and close the window — an install the bot can never sign in with — so
-    the step refuses outright, writes NOTHING (least of all ``main.yaml``) and re-renders the refusal
-    that names the step to re-enter.
+    the step refuses outright, writes NOTHING (least of all the closing file) and re-renders the
+    refusal that names the step to re-enter.
 
-    A commit that wrote ``main.yaml`` closes the setup window: the draft (tour state, no longer
+    A commit whose CLOSING target landed closes the setup window: the draft (tour state, no longer
     needed) is removed, the terminal Done screen is returned, and the console is asked to stop AFTER
     the response is on the wire, so the launcher continues into the normal boot. A commit that did
     not is reported per target and the window stays open — the reason can be fixed and the write
     repeated.
     """
-    missing = review_step.missing_secrets(draft, app=request.app)
+    mode = _mode(request)
+    if mode == boot_module.JOIN:
+        refusal = review_step.join_database_refusal(draft, app=request.app)
+        if refusal:
+            log.warning("Setup join: the Review step refused — %s Nothing was written and the setup "
+                        "window stays open.", refusal)
+            return HTMLResponse(_render(request, draft, 9))
+    missing = review_step.missing_secrets(draft, app=request.app, mode=mode)
     if missing:
         log.warning("Setup tour: the Review step refused — %s not held in this process; nothing was "
                     "written and the setup window stays open.", ", ".join(t.key for t in missing))
         return HTMLResponse(_render(request, draft, 9))
-    report = review_step.write(review_step.plan(draft, app=request.app), config_dir)
+    plan = review_step.plan(draft, app=request.app, mode=mode)
+    closing = review_step.NODES if mode == boot_module.JOIN else review_step.MAIN
+    report = review_step.write(plan, config_dir, mode=mode, closing=closing)
     results = [{"key": outcome.target.key, "ok": outcome.ok, "changed": outcome.changed,
                 "skipped": outcome.skipped, "error": outcome.error}
                for outcome in report.outcomes]
-    if report.main_written:
+    if report.completed:
         draft.review = {"written": True, "results": results}
         draft.step = LAST_STEP
         _discard_draft(config_dir)
-        log.info("Setup tour: the configuration was written and main.yaml closed the setup window "
-                 "(%d target(s)).", len(results))
+        log.info("Setup tour: the configuration was written and %s closed the setup window "
+                 "(%d target(s)).", closing.relpath, len(results))
         response = HTMLResponse(_done_document(request, draft))
         finish = getattr(request.app.state, "setup_finish", None)
         if callable(finish):
             response.background = BackgroundTask(finish)
         return response
-    log.warning("Setup tour: %d of %d target(s) were NOT written; main.yaml was not written and "
-                "the setup window stays open.", len(report.failed), len(results))
+    log.warning("Setup tour: %d of %d target(s) were NOT written; %s was not written and "
+                "the setup window stays open.", len(report.failed), len(results), closing.relpath)
     draft.review = {"written": False, "results": results}
     draft.save(config_dir)
     return HTMLResponse(_render(request, SetupDraft.load(config_dir), 9))

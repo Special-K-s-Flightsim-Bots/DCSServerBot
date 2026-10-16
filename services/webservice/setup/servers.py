@@ -34,6 +34,8 @@ from core.utils import setup_config
 
 __all__ = [
     "DEFAULT_BOT_PORT",
+    "NO_CHANNEL",
+    "MAX_CHANNEL_ID",
     "UNNAMED_INSTANCES",
     "ServerRow",
     "ServerAnswers",
@@ -55,6 +57,13 @@ log = logging.getLogger(__name__)
 
 #: The first bot port the installer assigns to a managed instance.
 DEFAULT_BOT_PORT = 6666
+
+#: The installer's "no channel" id: the one negative value a channel field may carry, and what an
+#: optional channel field parses an empty answer as.
+NO_CHANNEL = -1
+
+#: The largest Discord snowflake (an unsigned 64-bit id): the ceiling a channel id must stay under.
+MAX_CHANNEL_ID = (1 << 64) - 1
 
 #: The names the installer treats as "this instance has no server name yet" — the "give it a name"
 #: case, whose row starts with an empty name field.
@@ -208,10 +217,10 @@ def servers_entries(answers: ServerAnswers, *, discord: bool,
 
     def channels(row: ServerRow) -> dict:
         status = parse_channel(row.status) or 0
-        chat = parse_channel(row.chat, none=-1)
-        admin = None if central_admin else parse_channel(row.admin, none=-1)
+        chat = parse_channel(row.chat, none=NO_CHANNEL)
+        admin = None if central_admin else parse_channel(row.admin, none=NO_CHANNEL)
         return {"channels": setup_config.build_server_channels(
-            status=int(status), chat=int(-1 if chat is None else chat),
+            status=int(status), chat=int(NO_CHANNEL if chat is None else chat),
             admin=None if admin is None else int(admin))}
 
     return {row.name: channels(row) for row in managed_rows(answers)}
@@ -230,15 +239,20 @@ def scheduler_entries(answers: ServerAnswers) -> dict[str, dict]:
 def parse_channel(value, *, none: int | None = None) -> int | None:
     """*value* as a channel id, ``None`` when empty (and ``none`` is not given), else the id.
 
-    ``-1`` is the installer's "no channel" id and is accepted wherever a channel is optional.
+    A channel id is the installer's reserved :data:`NO_CHANNEL` (``-1``) — accepted wherever a channel
+    is optional — or a POSITIVE id no larger than :data:`MAX_CHANNEL_ID`. ``0``, any other negative
+    value and anything past that ceiling is not a channel id and answers ``None``; so does text.
     """
     text = str(value or "").strip()
     if not text:
         return none
     try:
-        return int(text)
+        number = int(text)
     except (TypeError, ValueError):
         return None
+    if number == NO_CHANNEL or 0 < number <= MAX_CHANNEL_ID:
+        return number
+    return None
 
 
 def servername_duplicate(rows: list[ServerRow]) -> str | None:
@@ -257,13 +271,19 @@ def servername_duplicate(rows: list[ServerRow]) -> str | None:
 
 # ---------------------------------------------------------------------------------- the resolving
 
-def resolve_rows(values: Mapping, answers: ServerAnswers, *, validate: bool
-                 ) -> tuple[ServerAnswers | None, tuple[str, dict] | None]:
+def resolve_rows(values: Mapping, answers: ServerAnswers, *, validate: bool,
+                 channels: bool = True) -> tuple[ServerAnswers | None, tuple[str, dict] | None]:
     """Turn the submitted row values into step 5's answers.
 
     With ``validate`` set, an incomplete managed row returns ``(None, (code, data))`` — the
     classified failure that keeps the step open. Without it the answers are best-effort, which is
     what the progressive-enhancement re-render uses so a mere switch never reports a false failure.
+
+    ``channels`` mirrors whether the step RENDERED the three channel ids, so it is ON for both flows
+    that do: the first-run Discord path, and the joining flow (which reads its Discord context from
+    the existing installation's shared config). It is OFF on a no-Discord install, whose screens show
+    no channel fields: a managed row is then complete with its name alone, and no answer is required
+    that the operator was never asked for.
     """
     rows: list[ServerRow] = []
     for index, row in enumerate(answers.rows):
@@ -285,6 +305,8 @@ def resolve_rows(values: Mapping, answers: ServerAnswers, *, validate: bool
             continue
         if not row.name:
             return None, ("server_name_required", {"instance": row.instance})
+        if not channels:
+            continue
         if parse_channel(row.status) is None:
             if str(row.status).strip():
                 return None, ("channel_invalid", {"name": row.name, "field": "status"})

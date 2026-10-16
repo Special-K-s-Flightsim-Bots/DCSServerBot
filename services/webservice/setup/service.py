@@ -31,6 +31,7 @@ from contextlib import suppress
 import uvicorn
 
 from .app import SETUP_LISTEN, SETUP_PATH, create_setup_app, require_loopback_bind
+from .boot import INSTALL
 from .window import SetupWindow
 
 __all__ = ["SETUP_PORT", "SetupService", "browses_locally"]
@@ -62,17 +63,20 @@ class SetupService:
     """The setup console: its window (the code), its application, and its uvicorn server."""
 
     def __init__(self, window: SetupWindow, *, config_dir, node: str = "",
-                 listen: str = SETUP_LISTEN, port: int = SETUP_PORT,
+                 listen: str = SETUP_LISTEN, port: int = SETUP_PORT, mode: str = INSTALL,
                  open_browser: bool = True, announce: bool = True,
                  ready_timeout: float = 10.0) -> None:
         self.window = window
         self.node = node
+        #: which state this console serves (``boot.INSTALL`` / ``boot.JOIN``) — the rail, the steps
+        #: and the write plan all read it from the application
+        self.mode = mode
         # A HARD refusal before anything is built: see app.require_loopback_bind.
         self.listen = require_loopback_bind(listen)
         self.port = int(port)
         self.config_dir = str(config_dir)
         self.app = create_setup_app(window, config_dir=self.config_dir, listen=self.listen,
-                                    node=node)
+                                    node=node, mode=mode)
         # The port the console serves on, and the way to end it: both are what the Review step needs
         # to hand over (the written console config uses this port; finishing closes the window and
         # lets the launcher continue into the normal boot).

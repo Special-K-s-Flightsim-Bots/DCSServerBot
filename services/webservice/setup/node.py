@@ -139,9 +139,11 @@ def cached_detection(app) -> Detection:
 
 @dataclass
 class NodeAnswers:
-    """Step 4's answers: the listen port, the DCS decision and the two banlist opt-ins.
+    """Step 4's answers: the listen port, the DCS decision (its installation and auto-update) and
+    the two banlist opt-ins.
 
-    Defaults are the installer's: both banlists on, no DCS decline, UPnP from detection.
+    Defaults are the installer's: both banlists on, DCS auto-update on, no DCS decline, UPnP from
+    detection.
     """
 
     listen_port: int = DEFAULT_LISTEN_PORT
@@ -154,6 +156,9 @@ class NodeAnswers:
     dcs_choice: str | None = None
     #: the chosen DCS World installation path (a detected candidate or a typed one)
     dcs_installation: str | None = None
+    #: the DCS auto-update answer (the installer's default is on). Read only when a DCS
+    #: installation is configured — ``build_node`` writes no ``DCS`` block without one.
+    dcs_autoupdate: bool = True
     #: the detected address, written only when the operator answered the static-IP question yes
     public_ip: str | None = None
     dgsa_dcs: bool = True
@@ -216,6 +221,7 @@ def answers_from_mapping(data: Mapping | None) -> NodeAnswers:
         no_dcs=bool(data.get("no_dcs")),
         dcs_choice=str(choice) if choice is not None else None,
         dcs_installation=str(data["dcs_installation"]) if data.get("dcs_installation") else None,
+        dcs_autoupdate=bool(data.get("dcs_autoupdate", True)),
         public_ip=str(data["public_ip"]) if data.get("public_ip") else None,
         dgsa_dcs=bool(data.get("dgsa_dcs", True)),
         dgsa_discord=bool(data.get("dgsa_discord", True)),
@@ -230,6 +236,7 @@ def non_secret_document(answers: NodeAnswers) -> dict:
         "no_dcs": answers.no_dcs,
         "dcs_choice": answers.dcs_choice,
         "dcs_installation": answers.dcs_installation,
+        "dcs_autoupdate": answers.dcs_autoupdate,
         "public_ip": answers.public_ip,
         "dgsa_dcs": answers.dgsa_dcs,
         "dgsa_discord": answers.dgsa_discord,
@@ -241,13 +248,16 @@ def non_secret_document(answers: NodeAnswers) -> dict:
 def node_block(answers: NodeAnswers) -> dict:
     """The ``nodes.yaml`` entry for this node, built by the installer's own builder.
 
-    Only the keys this step owns are passed: the database URL and the DCS auto-update belong to other
-    steps and are omitted here exactly as a node without them is.
+    Only the keys this step owns are passed: the database URL belongs to another step and is
+    omitted here exactly as a node without it is. The DCS auto-update answer rides the DCS block
+    and is read only when a DCS installation is set — with none, ``build_node`` writes no ``DCS``
+    block and the answer is dropped.
     """
     return setup_config.build_node(listen_port=int(answers.listen_port),
                                    use_upnp=bool(answers.use_upnp),
                                    public_ip=answers.public_ip,
-                                   dcs_installation=answers.dcs_path)
+                                   dcs_installation=answers.dcs_path,
+                                   dcs_autoupdate=bool(answers.dcs_autoupdate))
 
 
 def cloud_block(answers: NodeAnswers) -> dict | None:

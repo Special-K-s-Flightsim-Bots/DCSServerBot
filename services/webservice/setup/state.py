@@ -52,7 +52,7 @@ LAST_STEP = 9
 #: The top-level keys this module owns; every other key is carried through untouched (see the module
 #: docstring).
 _OWNED_KEYS = ("step", "discord", "language", "main", "database", "node", "servers",
-               "discord_bot", "roles", "community", "console", "review")
+               "discord_bot", "roles", "community", "console", "join", "review")
 
 #: The ``main`` sub-keys this module owns; the rest of the block is carried through untouched.
 _OWNED_MAIN_KEYS = ("language", "autoupdate")
@@ -85,7 +85,8 @@ class SetupDraft:
                  node: Mapping | None = None, servers: Mapping | None = None,
                  discord_bot: Mapping | None = None,
                  roles: Mapping | None = None, community: Mapping | None = None,
-                 console: Mapping | None = None, review: Mapping | None = None) -> None:
+                 console: Mapping | None = None, join: Mapping | None = None,
+                 review: Mapping | None = None) -> None:
         self.step = _as_step(step)
         self.language = language or None
         self.bot_language = bool(bot_language)
@@ -108,6 +109,9 @@ class SetupDraft:
         self.community: dict[str, Any] = dict(community or {})
         #: the console account — the username and the password HASH, never the password itself
         self.console: dict[str, Any] = dict(console or {})
+        #: the joining state's own answer — the add/rename route (see
+        #: :mod:`services.webservice.setup.join`); absent in a first-run tour
+        self.join: dict[str, Any] = dict(join or {})
         #: the Review step's last write attempt — per-target outcomes, so a half-written
         #: configuration survives a reload as the same honest list
         self.review: dict[str, Any] = dict(review or {})
@@ -142,6 +146,7 @@ class SetupDraft:
         document["roles"] = dict(self.roles)
         document["community"] = dict(self.community)
         document["console"] = dict(self.console)
+        document["join"] = dict(self.join)
         document["review"] = dict(self.review)
         return document
 
@@ -167,6 +172,7 @@ class SetupDraft:
             roles=_as_mapping(data.get("roles")),
             community=_as_mapping(data.get("community")),
             console=_as_mapping(data.get("console")),
+            join=_as_mapping(data.get("join")),
             review=_as_mapping(data.get("review")),
         )
 

@@ -34,6 +34,7 @@ from core.data.maintenance import ServerMaintenanceManager
 from core.data.resources import ResourceRegistry, scope_of
 from core.data.resource_window import ResourceWindowProtocol, WINDOW_WAIT
 from core.translations import get_translation
+from core.utils.db_setup import rebuild_url
 from datetime import datetime
 from discord.ext import tasks
 from gzip import BadGzipFile
@@ -440,8 +441,8 @@ class NodeImpl(Node):
                 if url.password and url.password != 'SECRET':
                     utils.set_password('database', unquote(url.password), self.config_dir)
                     port = url.port or 5432
-                    node['database']['url'] = \
-                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
+                    node['database']['url'] = rebuild_url(
+                        url, host=url.hostname, port=port, password='SECRET')
                     dirty = True
                     self.log.info("Database password found, removing it from config.")
             else:
