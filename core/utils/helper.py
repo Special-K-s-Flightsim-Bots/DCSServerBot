@@ -40,11 +40,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any, Coroutine
 from urllib.parse import urlparse
 
-# ruamel YAML support
+from core.utils.yaml_helper import new_yaml
 from pykwalify.errors import SchemaError
-from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import ServerProxy, DataObject, Node
@@ -484,7 +482,7 @@ def get_presets(node: Node) -> Iterable[str]:
     for file in Path(node.config_dir).glob('presets*.yaml'):
         with open(file, mode='r', encoding='utf-8') as infile:
             presets |= set([
-                name for name, value in yaml.load(infile).items()
+                name for name, value in new_yaml().load(infile).items()
                 if isinstance(value, dict) and not value.get('hidden', False)
             ])
     return presets
@@ -499,7 +497,7 @@ def get_preset(node: Node, name: str, filename: str | list[str] | None = None) -
     """
     @cache_with_expiration(120)
     def load_all_presets(filename: Path) -> dict:
-        return yaml.load(filename.read_text(encoding='utf-8'))
+        return new_yaml().load(filename.read_text(encoding='utf-8'))
 
     def _read_presets_from_file(filename: Path, name: str) -> dict | list | None:
         all_presets = load_all_presets(filename)
@@ -888,7 +886,7 @@ class SettingsDict(dict):
                     raise ex
         elif self.path.lower().endswith('.yaml'):
             with open(self.path, mode='r', encoding='utf-8') as file:
-                data = yaml.load(file)
+                data = new_yaml().load(file)
         if data:
             self.clear()
             self.update(data)
@@ -906,7 +904,7 @@ class SettingsDict(dict):
                                                                      indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.yaml'):
             with open(tmpname, mode="w", encoding='utf-8') as outfile:
-                yaml.dump(self, outfile)
+                new_yaml().dump(self, outfile)
         if not os.path.exists(self.path):
             self.log.info(f"- Creating {self.path} as it did not exist yet.")
         try:

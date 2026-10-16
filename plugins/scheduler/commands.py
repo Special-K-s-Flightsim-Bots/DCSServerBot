@@ -23,9 +23,7 @@ from zoneinfo import ZoneInfo
 from .listener import SchedulerListener
 from .views import ServerConfigView
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -49,7 +47,7 @@ class Scheduler(Plugin[SchedulerListener]):
             os.makedirs(os.path.join(self.node.config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
                       encoding='utf-8') as outfile:
-                yaml.dump(config, outfile)
+                new_yaml().dump(config, outfile)
         return config
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
@@ -106,7 +104,7 @@ class Scheduler(Plugin[SchedulerListener]):
             return
 
         config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-        data = yaml.load(Path(config).read_text(encoding='utf-8'))
+        data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
         if self.node.name in data.keys():
             for name, node in data.items():
                 if name == DEFAULT_TAG:
@@ -118,7 +116,7 @@ class Scheduler(Plugin[SchedulerListener]):
             for instance in data.values():
                 change_instance(instance)
         with Path(config).open(mode='w', encoding='utf-8') as outfile:
-            yaml.dump(data, outfile)
+            new_yaml().dump(data, outfile)
         self.locals = self.read_locals()
 
     async def _handle_load(self, server: Server, config: dict) -> Status:

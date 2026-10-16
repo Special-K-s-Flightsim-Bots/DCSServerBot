@@ -35,10 +35,8 @@ from .upload import MissionUploadHandler
 from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal, WatchModal
 from ..userstats.filter import PeriodFilter
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -735,7 +733,7 @@ class Mission(Plugin[MissionEventListener]):
                 ]
                 utils.validate(presets_file, schema_files, raise_exception=(validation == 'strict'))
 
-            presets = yaml.load(Path(presets_file).read_text(encoding='utf-8'))
+            presets = new_yaml().load(Path(presets_file).read_text(encoding='utf-8'))
         except MarkedYAMLError:
             await interaction.response.send_message(
                 _("Can't load presets file {}.").format(presets_file), ephemeral=True)
@@ -861,7 +859,7 @@ class Mission(Plugin[MissionEventListener]):
         config_file = os.path.join(self.node.config_dir, 'presets.yaml')
         if os.path.exists(config_file):
             with open(config_file, mode='r', encoding='utf-8') as infile:
-                presets = yaml.load(infile)
+                presets = new_yaml().load(infile)
         else:
             presets = {}
         if name in presets and \
@@ -884,7 +882,7 @@ class Mission(Plugin[MissionEventListener]):
             "halo": miz.halo
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(presets, outfile)
+            new_yaml().dump(presets, outfile)
         await interaction.followup.send(_('Preset "{}" added.').format(name), ephemeral=ephemeral)
 
     @mission.command(description=_('Rollback to the original mission file after any modifications'))
@@ -980,7 +978,7 @@ class Mission(Plugin[MissionEventListener]):
             presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
         try:
             with open(presets_file, mode='r', encoding='utf-8') as infile:
-                presets = yaml.load(infile)
+                presets = new_yaml().load(infile)
         except FileNotFoundError:
             await interaction.response.send_message(
                 _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
@@ -1674,7 +1672,7 @@ class Mission(Plugin[MissionEventListener]):
             section = DEFAULT_TAG
         else:
             section = server.name
-        data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+        data = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
         if section not in data:
             data[section] = {}
         if 'afk' not in data[section]:
@@ -1699,7 +1697,7 @@ class Mission(Plugin[MissionEventListener]):
             data[section]['afk']['exemptions']['ucid'].remove(ucid)
             await interaction.followup.send(_("User removed from the exemption list."), ephemeral=ephemeral)
         with open(config_file, 'w', encoding='utf-8') as outfile:
-            yaml.dump(data, outfile)
+            new_yaml().dump(data, outfile)
 
     @player.command(description=_('Sends a popup to a player\n'))
     @app_commands.guild_only()

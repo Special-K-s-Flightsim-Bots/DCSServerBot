@@ -3540,6 +3540,10 @@ msgstr "Continuar sin una instalación de DCS"
 msgid "path"
 msgstr "ruta"
 
+#: services/webservice/setup/tour.py:731
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "¿Quieres que el bot actualice automáticamente tu instalación de DCS?"
+
 #: services/webservice/setup/tour.py:665
 msgid "listen port"
 msgstr "puerto de escucha"
@@ -4394,6 +4398,88 @@ msgstr "Si no está en marcha, inícialo con {script}."
 #: services/webservice/setup/tour.py:977
 msgid "Open the console"
 msgstr "Abrir la consola"
+
+#: services/webservice/setup/tour.py:1056
+msgid "This node is not configured yet"
+msgstr "Este nodo aún no está configurado"
+
+#: services/webservice/setup/tour.py:1058
+#, python-brace-format
+msgid ""
+"This installation is already configured, but it has no entry for the node"
+" {node} in config/nodes.yaml, so the bot cannot start on this machine. Is"
+" this a new node, or did the hostname of an existing node change?"
+msgstr ""
+"Esta instalación ya está configurada, pero no tiene ninguna entrada para "
+"el nodo {node} en config/nodes.yaml, así que el bot no puede arrancar en "
+"esta máquina. ¿Es un nodo nuevo, o ha cambiado el nombre de host de un "
+"nodo existente?"
+
+#: services/webservice/setup/tour.py:1061
+msgid "A new node"
+msgstr "Un nodo nuevo"
+
+#: services/webservice/setup/tour.py:1063
+msgid ""
+"Add this machine to config/nodes.yaml. Nothing else of this installation "
+"is changed."
+msgstr ""
+"Añade esta máquina a config/nodes.yaml. No se cambia nada más de esta "
+"instalación."
+
+#: services/webservice/setup/tour.py:1064
+msgid "An existing node whose hostname changed"
+msgstr "Un nodo existente cuyo nombre de host ha cambiado"
+
+#: services/webservice/setup/tour.py:1066
+#, python-brace-format
+msgid ""
+"Rename one of the configured nodes to {node}. Its configuration and its "
+"database rows are carried over, and nothing is added."
+msgstr ""
+"Renombra uno de los nodos configurados a {node}. Su configuración y sus "
+"filas de base de datos se conservan, y no se añade nada."
+
+#: services/webservice/setup/tour.py:1068
+msgid "node to rename"
+msgstr "nodo que renombrar"
+
+#: services/webservice/setup/tour.py:1070
+#, python-brace-format
+msgid ""
+"I understand: the node picked above was this machine, and it is now "
+"called {node}"
+msgstr "Entiendo: el nodo elegido arriba era esta máquina, y ahora se llama {node}"
+
+#: services/webservice/setup/tour.py:1071
+msgid "Choose whether this is a new node or a renamed one."
+msgstr "Elige si es un nodo nuevo o uno renombrado."
+
+#: services/webservice/setup/tour.py:1072
+msgid "Tick the confirmation before renaming a node."
+msgstr "Marca la confirmación antes de renombrar un nodo."
+
+#: services/webservice/setup/tour.py:1073
+msgid "Pick the node whose hostname changed."
+msgstr "Elige el nodo cuyo nombre de host ha cambiado."
+
+#: services/webservice/setup/tour.py:1075
+msgid ""
+"The node could not be renamed. Nothing was changed by this page; the log "
+"names the reason."
+msgstr ""
+"No se pudo renombrar el nodo. Esta página no cambió nada; el registro "
+"indica el motivo."
+
+#: services/webservice/setup/tour.py:1076
+#, python-brace-format
+msgid "Node {old} was renamed to {node}."
+msgstr "El nodo {old} se renombró a {node}."
+
+#: services/webservice/setup/tour.py:1077
+#, python-brace-format
+msgid "This node was added to config/nodes.yaml as {node}."
+msgstr "Este nodo se añadió a config/nodes.yaml como {node}."
 
 #: services/webservice/templates/_config_fields.html:101
 msgid "Turn this value into a list of values"

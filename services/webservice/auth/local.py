@@ -86,8 +86,6 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-yaml = YAML(typ="safe")
-
 #: hash scheme marker, the first field of a stored hash
 SCHEME = "pbkdf2_sha256"
 
@@ -211,7 +209,8 @@ def read_bot_roles(config_dir: str | Path) -> dict[str, tuple[str, ...]]:
         log.debug("auth: no bot.yaml at '%s' - only the bot's built-in role names are known.", path)
         return {}
     try:
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}
+        # one safe parser per call: a ruamel YAML instance carries parse state and is not shared
+        data = YAML(typ="safe").load(path.read_text(encoding="utf-8")) or {}
     except Exception as ex:
         log.warning("auth: could not read '%s' (%s) - only the bot's built-in role names are "
                     "known.", path, ex)

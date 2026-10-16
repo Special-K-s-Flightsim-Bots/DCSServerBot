@@ -3146,6 +3146,10 @@ msgstr "在没有 DCS 安装的情况下继续"
 msgid "path"
 msgstr "路径"
 
+#: services/webservice/setup/tour.py:731
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "是否要让机器人自动更新你的 DCS 安装？"
+
 #: services/webservice/setup/tour.py:665
 msgid "listen port"
 msgstr "监听端口"
@@ -3917,6 +3921,80 @@ msgstr "如果他没有运行，请用 {script} 启动。"
 #: services/webservice/setup/tour.py:977
 msgid "Open the console"
 msgstr "打开控制台"
+
+#: services/webservice/setup/tour.py:1056
+msgid "This node is not configured yet"
+msgstr "此节点尚未配置"
+
+#: services/webservice/setup/tour.py:1058
+#, python-brace-format
+msgid ""
+"This installation is already configured, but it has no entry for the node"
+" {node} in config/nodes.yaml, so the bot cannot start on this machine. Is"
+" this a new node, or did the hostname of an existing node change?"
+msgstr ""
+"此安装已配置，但 config/nodes.yaml 中没有节点 {node} "
+"的条目，因此机器人无法在这台机器上启动。这是一个新节点，还是现有节点的主机名变了？"
+
+#: services/webservice/setup/tour.py:1061
+msgid "A new node"
+msgstr "新节点"
+
+#: services/webservice/setup/tour.py:1063
+msgid ""
+"Add this machine to config/nodes.yaml. Nothing else of this installation "
+"is changed."
+msgstr "将此机器添加到 config/nodes.yaml。此安装的其他内容都不会改变。"
+
+#: services/webservice/setup/tour.py:1064
+msgid "An existing node whose hostname changed"
+msgstr "主机名已变的现有节点"
+
+#: services/webservice/setup/tour.py:1066
+#, python-brace-format
+msgid ""
+"Rename one of the configured nodes to {node}. Its configuration and its "
+"database rows are carried over, and nothing is added."
+msgstr "将某个已配置的节点重命名为 {node}。它的配置和数据库行都会保留，不会新增任何内容。"
+
+#: services/webservice/setup/tour.py:1068
+msgid "node to rename"
+msgstr "要重命名的节点"
+
+#: services/webservice/setup/tour.py:1070
+#, python-brace-format
+msgid ""
+"I understand: the node picked above was this machine, and it is now "
+"called {node}"
+msgstr "我明白：上面选中的节点就是这台机器，它现在的名称是 {node}"
+
+#: services/webservice/setup/tour.py:1071
+msgid "Choose whether this is a new node or a renamed one."
+msgstr "选择这是一个新节点还是一个被重命名的节点。"
+
+#: services/webservice/setup/tour.py:1072
+msgid "Tick the confirmation before renaming a node."
+msgstr "重命名节点前先勾选确认。"
+
+#: services/webservice/setup/tour.py:1073
+msgid "Pick the node whose hostname changed."
+msgstr "选择主机名已变的那个节点。"
+
+#: services/webservice/setup/tour.py:1075
+msgid ""
+"The node could not be renamed. Nothing was changed by this page; the log "
+"names the reason."
+msgstr "节点无法重命名。本页面未做任何更改；原因见日志。"
+
+#: services/webservice/setup/tour.py:1076
+#, python-brace-format
+msgid "Node {old} was renamed to {node}."
+msgstr "节点 {old} 已重命名为 {node}。"
+
+#: services/webservice/setup/tour.py:1077
+#, python-brace-format
+msgid "This node was added to config/nodes.yaml as {node}."
+msgstr "此节点已作为 {node} 添加到 config/nodes.yaml。"
 
 #: services/webservice/templates/_config_fields.html:101
 msgid "Turn this value into a list of values"

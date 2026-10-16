@@ -31,10 +31,6 @@ from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModa
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 _ = get_translation(__name__.split('.')[1])
 
 

@@ -14,9 +14,7 @@ from services.bot import DCSServerBot
 
 from .listener import FunkManEventListener
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -62,7 +60,7 @@ class FunkMan(Plugin[FunkManEventListener]):
                         config['IMAGEPATH'] = ini['FUNKPLOT']['IMAGEPATH']
                 with open(os.path.join(self.node.config_dir, 'plugins', 'funkman.yaml'), mode='w',
                           encoding='utf-8') as outfile:
-                    yaml.dump({DEFAULT_TAG: config}, outfile)
+                    new_yaml().dump({DEFAULT_TAG: config}, outfile)
             return True
         return False
 

@@ -13,9 +13,8 @@ from typing_extensions import override
 from zoneinfo import ZoneInfo
 
 # ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ class MizEdit(Extension):
                 if schema_files:
                     utils.validate(file, schema_files, raise_exception=(validation == 'strict'))
 
-                presets |= yaml.load(Path(file).read_text(encoding='utf-8'))
+                presets |= new_yaml().load(Path(file).read_text(encoding='utf-8'))
                 if not isinstance(presets, dict):
                     raise ValueError("File must contain a dictionary, not a list!")
             except FileNotFoundError:

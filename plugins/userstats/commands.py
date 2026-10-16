@@ -21,9 +21,7 @@ from .listener import UserStatisticsEventListener
 from .views import SquadronModal
 from ..creditsystem.squadron import Squadron
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -97,7 +95,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
             if dirty:
                 path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
                 with open(path, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(self.locals, outfile)
+                    new_yaml().dump(self.locals, outfile)
                 self.locals = self.read_locals()
                 self.log.warning(f"New file {path} written, please check for possible errors.")
 

@@ -3488,6 +3488,10 @@ msgstr "Продолжить без установки DCS"
 msgid "path"
 msgstr "путь"
 
+#: services/webservice/setup/tour.py:731
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "Хочешь, чтобы бот автоматически обновлял твою установку DCS?"
+
 #: services/webservice/setup/tour.py:665
 msgid "listen port"
 msgstr "порт прослушивания"
@@ -4325,6 +4329,89 @@ msgstr "Если он не запущен, запусти его с помощь
 #: services/webservice/setup/tour.py:977
 msgid "Open the console"
 msgstr "Открыть консоль"
+
+#: services/webservice/setup/tour.py:1056
+msgid "This node is not configured yet"
+msgstr "Этот узел ещё не настроен"
+
+#: services/webservice/setup/tour.py:1058
+#, python-brace-format
+msgid ""
+"This installation is already configured, but it has no entry for the node"
+" {node} in config/nodes.yaml, so the bot cannot start on this machine. Is"
+" this a new node, or did the hostname of an existing node change?"
+msgstr ""
+"Эта установка уже настроена, но в config/nodes.yaml нет записи для узла "
+"{node}, поэтому бот не может запуститься на этой машине. Это новый узел, "
+"или у существующего узла изменилось имя хоста?"
+
+#: services/webservice/setup/tour.py:1061
+msgid "A new node"
+msgstr "Новый узел"
+
+#: services/webservice/setup/tour.py:1063
+msgid ""
+"Add this machine to config/nodes.yaml. Nothing else of this installation "
+"is changed."
+msgstr ""
+"Добавить эту машину в config/nodes.yaml. Больше в этой установке ничего "
+"не меняется."
+
+#: services/webservice/setup/tour.py:1064
+msgid "An existing node whose hostname changed"
+msgstr "Существующий узел, у которого изменилось имя хоста"
+
+#: services/webservice/setup/tour.py:1066
+#, python-brace-format
+msgid ""
+"Rename one of the configured nodes to {node}. Its configuration and its "
+"database rows are carried over, and nothing is added."
+msgstr ""
+"Переименуй один из настроенных узлов в {node}. Его конфигурация и его "
+"строки базы данных переносятся, и ничего не добавляется."
+
+#: services/webservice/setup/tour.py:1068
+msgid "node to rename"
+msgstr "узел для переименования"
+
+#: services/webservice/setup/tour.py:1070
+#, python-brace-format
+msgid ""
+"I understand: the node picked above was this machine, and it is now "
+"called {node}"
+msgstr ""
+"Понимаю: выбранный выше узел — это эта машина, и теперь он называется "
+"{node}"
+
+#: services/webservice/setup/tour.py:1071
+msgid "Choose whether this is a new node or a renamed one."
+msgstr "Выбери, это новый узел или переименованный."
+
+#: services/webservice/setup/tour.py:1072
+msgid "Tick the confirmation before renaming a node."
+msgstr "Поставь подтверждение, прежде чем переименовывать узел."
+
+#: services/webservice/setup/tour.py:1073
+msgid "Pick the node whose hostname changed."
+msgstr "Выбери узел, у которого изменилось имя хоста."
+
+#: services/webservice/setup/tour.py:1075
+msgid ""
+"The node could not be renamed. Nothing was changed by this page; the log "
+"names the reason."
+msgstr ""
+"Не удалось переименовать узел. Эта страница ничего не изменила; причина "
+"указана в журнале."
+
+#: services/webservice/setup/tour.py:1076
+#, python-brace-format
+msgid "Node {old} was renamed to {node}."
+msgstr "Узел {old} переименован в {node}."
+
+#: services/webservice/setup/tour.py:1077
+#, python-brace-format
+msgid "This node was added to config/nodes.yaml as {node}."
+msgstr "Этот узел добавлен в config/nodes.yaml как {node}."
 
 #: services/webservice/templates/_config_fields.html:101
 msgid "Turn this value into a list of values"

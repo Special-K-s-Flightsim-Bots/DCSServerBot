@@ -19,9 +19,7 @@ from .listener import MonitoringListener
 from ..userstats.filter import StatisticsFilter, PeriodFilter, CampaignFilter, MissionFilter, PeriodTransformer, \
     SquadronFilter
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -109,17 +107,17 @@ class Monitoring(Plugin[MonitoringListener]):
         if new_version == '3.3':
             # Check if we had serverstats loaded in main.yaml and if yes, remove it.
             config = os.path.join(self.node.config_dir, 'main.yaml')
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
             if 'serverstats' in data.get('opt_plugins', []):
                 data['opt_plugins'].remove('serverstats')
                 if not data['opt_plugins']:
                     del data['opt_plugins']
                 with open(config, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
             # Rewrite the configuration
             service_yaml = os.path.join(self.node.config_dir, 'services', 'monitoring.yaml')
             if os.path.exists(service_yaml):
-                service = yaml.load(Path(service_yaml).read_text(encoding='utf-8'))
+                service = new_yaml().load(Path(service_yaml).read_text(encoding='utf-8'))
             else:
                 service = {}
             for key, value in service.copy().items():
@@ -137,7 +135,7 @@ class Monitoring(Plugin[MonitoringListener]):
 
             plugin_yaml = os.path.join(self.node.config_dir, 'plugins', 'serverstats.yaml')
             if os.path.exists(plugin_yaml):
-                plugin = yaml.load(Path(plugin_yaml).read_text(encoding='utf-8'))
+                plugin = new_yaml().load(Path(plugin_yaml).read_text(encoding='utf-8'))
                 for key, value in plugin.items():
                     if key not in service:
                         service[key] = {}
@@ -158,7 +156,7 @@ class Monitoring(Plugin[MonitoringListener]):
                 os.remove(plugin_yaml)
                 self.locals = self.read_locals()
             if service:
-                yaml.dump(service, Path(service_yaml).open('w', encoding='utf-8'))
+                new_yaml().dump(service, Path(service_yaml).open('w', encoding='utf-8'))
                 await ServiceRegistry.get(MonitoringService).stop()
                 await ServiceRegistry.get(MonitoringService).start()
 

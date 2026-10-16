@@ -22,9 +22,7 @@ from .listener import GreenieBoardEventListener
 from .trapsheet import read_trapsheet, parse_filename, plot_trapsheet
 from .views import TrapView
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -146,7 +144,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                     instance['grades'] = grades
 
             config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
             if self.node.name in data.keys():
                 for name, node in data.items():
                     if name == DEFAULT_TAG:
@@ -158,7 +156,7 @@ class GreenieBoard(Plugin[GreenieBoardEventListener]):
                 for instance in data.values():
                     change_instance(instance)
             with open(config, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+                new_yaml().dump(data, outfile)
             self.locals = self.read_locals()
 
     async def prune(self, conn: psycopg.AsyncConnection, days: int) -> None:

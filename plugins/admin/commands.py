@@ -24,10 +24,6 @@ from services.modmanager import ModManagerService
 from typing import Literal
 from zipfile import ZipFile, ZIP_DEFLATED
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 _ = get_translation(__name__.split('.')[1])
 
 

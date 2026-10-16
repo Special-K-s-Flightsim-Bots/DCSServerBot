@@ -21,10 +21,6 @@ from .dcsserverbot import DCSServerBot
 from .dummy import DummyBot
 from ..servicebus import ServiceBus
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 if TYPE_CHECKING:
     from core import Server, Node
 

@@ -16,9 +16,7 @@ from starlette.requests import Request
 from typing_extensions import override
 from uvicorn import Config
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 @ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
@@ -62,7 +60,7 @@ class WebService(Service):
         old_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
         new_config = os.path.join(self.node.config_dir, 'services', 'webservice.yaml')
         if os.path.exists(old_config) and not os.path.exists(new_config):
-            old = yaml.load(Path(old_config).read_text(encoding='utf-8'))
+            old = new_yaml().load(Path(old_config).read_text(encoding='utf-8'))
             new = old.copy()
             if 'prefix' in old.get(DEFAULT_TAG, {}):
                 old[DEFAULT_TAG] = {
@@ -73,12 +71,12 @@ class WebService(Service):
 
             if old:
                 with open(old_config, mode='w', encoding='utf-8') as old_out:
-                    yaml.dump(old, old_out)
+                    new_yaml().dump(old, old_out)
             else:
                 os.remove(old_config)
             if new:
                 with open(new_config, mode='w', encoding='utf-8') as new_out:
-                    yaml.dump(new, new_out)
+                    new_yaml().dump(new, new_out)
 
     def _create_app(self) -> FastAPI:
         """Create the FastAPI app and install the admin web shell on it.

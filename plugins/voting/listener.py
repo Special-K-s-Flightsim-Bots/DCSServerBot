@@ -7,10 +7,6 @@ from typing import TYPE_CHECKING
 from plugins.creditsystem.player import CreditPlayer
 from plugins.voting.base import VotableItem
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 if TYPE_CHECKING:
     from .commands import Voting
 

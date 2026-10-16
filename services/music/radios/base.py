@@ -13,9 +13,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from services.music import MusicService
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 __all__ = [
     "Mode",
@@ -107,7 +105,7 @@ class Radio(ABC):
             configs[self.server.instance.name]['radios'][self.name] |= config
         with open(os.path.join(self.server.node.config_dir, 'services', 'music.yaml'), mode='w',
                   encoding='utf-8') as outfile:
-            yaml.dump(configs, outfile)
+            new_yaml().dump(configs, outfile)
 
     def is_running(self) -> bool:
         return self.queue_worker.is_running()

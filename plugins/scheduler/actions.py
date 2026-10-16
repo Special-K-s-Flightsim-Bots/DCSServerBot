@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 
 from core import utils
 from core.action_results import ServerConfigResult, ServerControlResult
@@ -35,9 +35,6 @@ from core.data.const import Coalition, Status
 from core.server_config import CHANNELS_ITEM, MANAGER_DENIED, MANAGER_DENIED_KEYS, manager_denial
 
 log = logging.getLogger(__name__)
-
-# ruamel round-trip loader — preserves the operator's comments and key order in ``servers.yaml``.
-yaml = YAML()
 
 __all__ = [
     # the maintenance flag pair
@@ -434,7 +431,7 @@ async def _sync_override(server: Any) -> bool:
                     "config dir; servers.yaml was left untouched.", getattr(server, "name", "?"))
         return False
     config = os.path.join(config_dir, "servers.yaml")
-    data = yaml.load(Path(config).read_text(encoding="utf-8"))
+    data = new_yaml().load(Path(config).read_text(encoding="utf-8"))
     entry = data.get(server.name) if isinstance(data, dict) else None
     if not isinstance(entry, dict):
         # HONEST BEHAVIOUR when the entry is ABSENT: the settings write has already
@@ -450,7 +447,7 @@ async def _sync_override(server: Any) -> bool:
         return False
     utils.update_in_place(entry.get("serverSettings", {}), server.settings)
     with Path(config).open("w", encoding="utf-8") as f:
-        yaml.dump(data, f)
+        new_yaml().dump(data, f)
     await server.reload()
     return True
 

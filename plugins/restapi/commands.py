@@ -26,9 +26,7 @@ from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from plugins.srs.commands import SRS
@@ -121,14 +119,14 @@ class RestAPI(Plugin):
             config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
             if not os.path.exists(config):
                 return
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
             api_key = data.get(DEFAULT_TAG, {}).pop('api_key', None)
             if api_key:
                 data[DEFAULT_TAG]['auth'] = {
                     "api_key": api_key
                 }
                 with Path(config).open(mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
 
     async def init_webservice(self):
         # give the webservice 10 seconds to launch on master switches

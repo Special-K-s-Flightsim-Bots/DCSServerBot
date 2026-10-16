@@ -14,10 +14,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse, unquote
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Server, Instance
@@ -105,14 +103,14 @@ class Node(ABC):
     @property
     def proxy(self) -> str | None:
         if 'proxy' not in self.locals:
-            config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            config = new_yaml().load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             self.locals['proxy'] = config.get('proxy', {}).get('url')
         return self.locals['proxy']
 
     @property
     def proxy_auth(self) -> aiohttp.BasicAuth | None:
         if 'proxy_auth' not in self.locals:
-            config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            config = new_yaml().load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             username = config.get('proxy', {}).get('username')
             try:
                 password = utils.get_password('proxy', self.config_dir)
@@ -128,7 +126,7 @@ class Node(ABC):
     def read_config(self, file: str) -> dict:
         try:
             # we need to read first, otherwise we would not know the validation settings
-            config = yaml.load(Path(file).read_text(encoding='utf-8'))
+            config = new_yaml().load(Path(file).read_text(encoding='utf-8'))
             validation = config.get('validation', 'lazy')
             if validation in ['strict', 'lazy']:
                 utils.validate(file, ['schemas/main_schema.yaml'], raise_exception=(validation == 'strict'))
@@ -143,7 +141,7 @@ class Node(ABC):
                     config['database']['url'] = rebuild_url(
                         url, host=url.hostname, port=port, password='SECRET')
                     with open(file, 'w', encoding='utf-8') as f:
-                        yaml.dump(config, f)
+                        new_yaml().dump(config, f)
                     self.log.info("Database password found, removing it from config.")
 
             # set defaults

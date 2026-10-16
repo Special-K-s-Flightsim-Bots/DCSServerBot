@@ -17,10 +17,8 @@ from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side, Port
 from ..utils.helper import YAMLError, async_cache
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Extension, Instance, Mission, UploadStatus, Player
@@ -79,7 +77,7 @@ class Server(DataObject, ABC):
                     utils.validate(config_file, ['schemas/servers_schema.yaml'],
                                    raise_exception=(validation == 'strict'))
 
-                data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+                data = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
             _locals = utils.deep_merge(data.get(DEFAULT_TAG, {}), data.get(self.name, {}))

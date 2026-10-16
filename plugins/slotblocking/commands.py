@@ -8,9 +8,7 @@ from typing import Type
 
 from .listener import SlotBlockingListener
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 class SlotBlocking(Plugin[SlotBlockingListener]):
@@ -37,7 +35,7 @@ class SlotBlocking(Plugin[SlotBlockingListener]):
             _change_instance = self._migrate_3_1
         elif new_version == '3.2':
             server_config = os.path.join(self.node.config_dir, 'servers.yaml')
-            server_data = yaml.load(Path(server_config).read_text(encoding='utf-8'))
+            server_data = new_yaml().load(Path(server_config).read_text(encoding='utf-8'))
             message = server_data.get(DEFAULT_TAG, {}).get('message_server_full',
                                                            'The server is full, please try again later!')
             kwargs['message'] = message
@@ -46,7 +44,7 @@ class SlotBlocking(Plugin[SlotBlockingListener]):
             return
 
         path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
-        data = yaml.load(Path(path).read_text(encoding='utf-8'))
+        data = new_yaml().load(Path(path).read_text(encoding='utf-8'))
         if self.node.name in data.keys():
             for name, node in data.items():
                 if name == DEFAULT_TAG:
@@ -58,12 +56,12 @@ class SlotBlocking(Plugin[SlotBlockingListener]):
             for instance in data.values():
                 _change_instance(instance, **kwargs)
         with open(path, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(data, outfile)
+            new_yaml().dump(data, outfile)
         if new_version == '3.2':
             if DEFAULT_TAG in server_data:
                 server_data[DEFAULT_TAG].pop('message_server_full', None)
             with open(server_config, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(server_data, outfile)
+                new_yaml().dump(server_data, outfile)
         self.locals = self.read_locals()
 
     def get_config(self, server: Server | None = None, *, plugin_name: str | None = None,

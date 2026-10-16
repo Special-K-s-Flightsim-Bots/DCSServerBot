@@ -5,9 +5,7 @@ from core.commandline import COMMAND_LINE_ARGS
 from pathlib import Path
 from typing import Callable
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 __all__ = [
@@ -36,7 +34,7 @@ def set_language(language: str):
 
 if not _language:
     try:
-        config = yaml.load(Path(os.path.join(COMMAND_LINE_ARGS.config, 'main.yaml')).read_text(encoding='utf-8'))
+        config = new_yaml().load(Path(os.path.join(COMMAND_LINE_ARGS.config, 'main.yaml')).read_text(encoding='utf-8'))
         _language = config.get('language', 'en_US')
     except FileNotFoundError:
         _language = 'en_US'

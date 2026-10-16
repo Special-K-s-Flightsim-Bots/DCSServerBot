@@ -29,10 +29,8 @@ from .const import DEFAULT_TAG
 from .listener import TEventListener
 from .utils.helper import YAMLError
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Server
@@ -408,7 +406,7 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
         with open(old_file, mode='r', encoding='utf-8') as infile:
             old = json.load(infile)
         if os.path.exists(new_file):
-            all_new = yaml.load(Path(new_file).read_text(encoding='utf-8'))
+            all_new = new_yaml().load(Path(new_file).read_text(encoding='utf-8'))
             exists = True
         else:
             all_new = {}
@@ -430,7 +428,7 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
         else:
             all_new = old
         with open(new_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(all_new, outfile)
+            new_yaml().dump(all_new, outfile)
         shutil.move(old_file, BACKUP_FOLDER)
 
     def read_locals(self) -> dict:
@@ -458,7 +456,7 @@ class Plugin(commands.Cog, Generic[TEventListener], metaclass=PluginMeta):
                 else:
                     self.log.warning(f'  - No schema files found for plugin {self.plugin_name}.')
 
-            return yaml.load(Path(filename).read_text(encoding='utf-8'))
+            return new_yaml().load(Path(filename).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
             raise YAMLError(filename, ex)
 

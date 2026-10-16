@@ -61,10 +61,8 @@ from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
 from core.utils.helper import YAMLError, cache_with_expiration
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 
 __all__ = [
@@ -423,7 +421,7 @@ class NodeImpl(Node):
                     schema_files = ['schemas/nodes_schema.yaml']
                     schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
                     utils.validate(config_file, schema_files, raise_exception=(validation == 'strict'))
-                data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+                data: dict = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
             for node_name in data.keys():
@@ -466,7 +464,7 @@ class NodeImpl(Node):
                 dirty = True
             if dirty:
                 with open(config_file, 'w', encoding='utf-8') as f:
-                    yaml.dump(data, f)
+                    new_yaml().dump(data, f)
             return node
         raise InstallationException(f"No {config_file} found. Exiting.")
 
@@ -676,7 +674,7 @@ class NodeImpl(Node):
         # initialize the nodes
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
         dirty = False
 
         for _name, _element in self.locals.pop('instances', {}).items():
@@ -699,7 +697,7 @@ class NodeImpl(Node):
         if dirty:
             # save the new config
             with open(config_file, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(config, outfile)
+                new_yaml().dump(config, outfile)
 
     async def register_resources(self):
         """Declare this node's DCS installation in the federation registry.
@@ -2200,7 +2198,7 @@ class NodeImpl(Node):
 
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
 
         max_bot_port = max_dcs_port = max_webgui_port = -1
         for node_name, node in self.all_nodes.items():
@@ -2279,7 +2277,7 @@ class NodeImpl(Node):
 
         # save the new config
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+            new_yaml().dump(config, outfile)
 
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
@@ -2296,10 +2294,10 @@ class NodeImpl(Node):
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
         config[self.name]['instances'].pop(instance.name, None)
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+            new_yaml().dump(config, outfile)
         if instance.server:
             await self.unregister_server(instance.server)
         self.instances.pop(instance.name, None)
@@ -2365,7 +2363,7 @@ class NodeImpl(Node):
             # read nodes.yaml
             config_file = os.path.join(self.config_dir, 'nodes.yaml')
             with open(config_file, mode='r', encoding='utf-8') as infile:
-                config = yaml.load(infile)
+                config = new_yaml().load(infile)
 
             # rename the instance in nodes.yaml
             config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
@@ -2382,17 +2380,17 @@ class NodeImpl(Node):
 
             # rename plugin configs
             for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
-                data = yaml.load(plugin.read_text(encoding='utf-8'))
+                data = new_yaml().load(plugin.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
                 with plugin.open('w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
 
             # rename service configs
             for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
-                data = yaml.load(service.read_text(encoding='utf-8'))
+                data = new_yaml().load(service.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
                 with service.open('w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
 
             # restart all services but the bot
             tasks = []
@@ -2412,7 +2410,7 @@ class NodeImpl(Node):
 
             # write the new nodes.yaml
             with open(config_file, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(config, outfile)
+                new_yaml().dump(config, outfile)
 
             # reload the bot service
             if self.master:
@@ -2470,12 +2468,12 @@ class NodeImpl(Node):
 
         # amend the main.yaml
         main_yaml = os.path.join(self.config_dir, 'main.yaml')
-        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        data: dict = new_yaml().load(Path(main_yaml).read_text(encoding='utf-8'))
         if 'opt_plugins' not in data:
             data['opt_plugins'] = []
         data['opt_plugins'].append(plugin)
         with Path(main_yaml).open("w", encoding="utf-8") as file:
-            yaml.dump(data, file)
+            new_yaml().dump(data, file)
         self.plugins.append(plugin)
 
         # install the plugin into all DCS servers
@@ -2494,10 +2492,10 @@ class NodeImpl(Node):
         if not self.master or plugin not in self.plugins:
             return False
         main_yaml = os.path.join(self.config_dir, 'main.yaml')
-        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        data: dict = new_yaml().load(Path(main_yaml).read_text(encoding='utf-8'))
         data['opt_plugins'].remove(plugin)
         with Path(main_yaml).open("w", encoding="utf-8") as file:
-            yaml.dump(data, file)
+            new_yaml().dump(data, file)
         bot = ServiceRegistry.get(BotService).bot
         await bot.unload_plugin(plugin)
         self.plugins.remove(plugin)
@@ -2579,8 +2577,8 @@ class NodeImpl(Node):
     async def set_config(self, config: dict) -> dict:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            old_config = yaml.load(infile)
+            old_config = new_yaml().load(infile)
         old_config[self.name] = utils.deep_merge(old_config[self.name], config)
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(old_config, outfile)
+            new_yaml().dump(old_config, outfile)
         return self.read_locals()

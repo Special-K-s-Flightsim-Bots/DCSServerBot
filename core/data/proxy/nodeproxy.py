@@ -14,9 +14,7 @@ from psycopg import sql
 from typing import TYPE_CHECKING, cast
 from typing_extensions import override
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from core import Instance, Server
@@ -76,7 +74,7 @@ class NodeProxy(Node):
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         if os.path.exists(config_file):
-            node: dict = yaml.load(Path(config_file).read_text(encoding='utf-8')).get(self.name)
+            node: dict = new_yaml().load(Path(config_file).read_text(encoding='utf-8')).get(self.name)
             if not node:
                 return {}
             for name, element in node.items():

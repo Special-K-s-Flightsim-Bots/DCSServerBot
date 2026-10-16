@@ -10,10 +10,8 @@ from pathlib import Path
 from services.bot import DCSServerBot
 from services.backup import BackupService
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -75,7 +73,7 @@ class Backup(Plugin):
         if not os.path.exists(config_file):
             return {}
         try:
-            return yaml.load(Path(config_file).read_text(encoding='utf-8'))
+            return new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
         except MarkedYAMLError as ex:
             raise YAMLError(config_file, ex)
 

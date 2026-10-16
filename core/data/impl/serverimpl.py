@@ -47,9 +47,7 @@ from watchdog.events import (FileSystemEventHandler, DirCreatedEvent, FileCreate
                              FileDeletedEvent, DirMovedEvent, FileMovedEvent)
 from watchdog.observers import Observer, ObserverType
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from core import Instance
@@ -389,7 +387,7 @@ class ServerImpl(Server):
     async def update_channels(self, channels: dict[str, int]) -> None:
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
         # PRESERVE the keys this write does not name: merge onto the FILE's current map, not an
         # in-memory copy (which can be stale after a hand-edit) and not the partial map a caller hands
         # in (the Discord editor sends only the rows it shows). A key absent from ``channels`` keeps
@@ -400,7 +398,7 @@ class ServerImpl(Server):
         current.update(channels)
         entry['channels'] = current
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+            new_yaml().dump(config, outfile)
         self.locals.setdefault('channels', {}).update(channels)
         self._channels.clear()
 
@@ -420,7 +418,7 @@ class ServerImpl(Server):
         try:
             admin_channel = self.channels.get(Channel.ADMIN)
             if not admin_channel:
-                data = yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')))
+                data = new_yaml().load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')))
                 admin_channel = data.get('channels', {}).get('admin', -1)
             with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), mode='r',
                       encoding='utf-8') as template:
@@ -582,7 +580,7 @@ class ServerImpl(Server):
         if not os.path.exists(filename):
             return []
         try:
-            data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(filename).read_text(encoding='utf-8'))
         except Exception:
             return []
         return [str(key) for key in data.keys()] if isinstance(data, dict) else []
@@ -631,7 +629,7 @@ class ServerImpl(Server):
             # update servers.yaml
             filename = os.path.join(self.node.config_dir, 'servers.yaml')
             if os.path.exists(filename):
-                data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+                data = new_yaml().load(Path(filename).read_text(encoding='utf-8'))
                 # proper rename
                 if old_name in data and new_name not in data:
                     data[new_name] = data.pop(old_name)
@@ -639,7 +637,7 @@ class ServerImpl(Server):
                 elif not old_name:
                     data[new_name] = {}
                 with open(filename, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
             # update serverSettings.lua if requested
             if update_settings:
                 self.settings['name'] = new_name
@@ -1279,7 +1277,7 @@ class ServerImpl(Server):
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
         if self.name not in config:
             config[self.name] = {}
         config[self.name]['serverSettings'] = {
@@ -1296,7 +1294,7 @@ class ServerImpl(Server):
             "maxPlayers": self.settings.get('maxPlayers', 16)
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+            new_yaml().dump(config, outfile)
 
     @override
     async def render_extensions(self) -> list[dict]:
@@ -1665,7 +1663,7 @@ class ServerImpl(Server):
     @override
     async def config_extension(self, name: str, config: dict | None = None) -> dict:
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
-        data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+        data: dict = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
         all_config = data.get(self.node.name, {})
         node_config = all_config.setdefault('extensions', {})
         extensions = all_config.setdefault('instances', {}).setdefault(
@@ -1681,7 +1679,7 @@ class ServerImpl(Server):
         if 'Instance' in config:
             extensions[name] = extensions.get(name, {}) | config.get('Instance', {})
         with open(config_file, 'w', encoding='utf-8') as f:
-            yaml.dump(data, f)
+            new_yaml().dump(data, f)
         # re-read config
         self.node.locals = self.node.read_locals()
         self.locals |= self.node.locals['instances'][self.instance.name]

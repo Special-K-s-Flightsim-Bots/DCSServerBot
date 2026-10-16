@@ -25,8 +25,7 @@ from typing import Any
 from typing_extensions import override
 
 # ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -126,7 +125,7 @@ class SkyEye(InstallableExtension):
     def load_config(self) -> dict:
         base_config = os.path.join(os.path.dirname(self.get_exe_path()), "config.yaml")
         if os.path.exists(base_config):
-            data = yaml.load(Path(base_config).read_text(encoding='utf-8')) or {}
+            data = new_yaml().load(Path(base_config).read_text(encoding='utf-8')) or {}
         else:
             data = {}
         if 'instances' in self.config:
@@ -143,7 +142,7 @@ class SkyEye(InstallableExtension):
                 cfg |= main_config
                 cfg_file = self.get_config_path(cfg | instance)
                 if os.path.exists(cfg_file):
-                    cfg |= yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}
+                    cfg |= new_yaml().load(Path(cfg_file).read_text(encoding='utf-8')) or {}
                 else:
                     self._prepare_config(cfg)
                 cfg |= instance.copy()
@@ -151,7 +150,7 @@ class SkyEye(InstallableExtension):
         else:
             cfg_file = self.get_config_path(self.config)
             if os.path.exists(cfg_file):
-                self.config = utils.deep_merge(yaml.load(Path(cfg_file).read_text(encoding='utf-8')) or {}, self.config)
+                self.config = utils.deep_merge(new_yaml().load(Path(cfg_file).read_text(encoding='utf-8')) or {}, self.config)
             else:
                 self._prepare_config(self.config)
             self.configs = [data | self.config]
@@ -303,7 +302,7 @@ class SkyEye(InstallableExtension):
                 out.pop('config', None)
                 out.pop('affinity', None)
                 out.pop('auto_affinity', None)
-                yaml.dump(out, outfile)
+                new_yaml().dump(out, outfile)
 
     @override
     async def prepare(self) -> bool:
