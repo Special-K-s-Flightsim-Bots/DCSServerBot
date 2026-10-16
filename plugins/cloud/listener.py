@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import discord
 
 from core import EventListener, Server, Player, Side, event, get_translation, utils
 from datetime import datetime, timezone
@@ -123,7 +122,7 @@ class CloudListener(EventListener["Cloud"]):
                                 "origin": "cloud"
                             }
                         ))
-                        member = await get_member(discord_id)
+                        member = await self.bot.get_member(discord_id)
                         if member:
                             player.member = member
                             player.verified = True

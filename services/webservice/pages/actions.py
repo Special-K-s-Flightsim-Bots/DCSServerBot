@@ -9,7 +9,7 @@ import os
 import secrets
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timezone
 from typing import Any
 
@@ -4755,8 +4755,12 @@ def _context(request: Request, identity: Identity) -> ActionContext:
     resolves its target against the SAME cluster the page it came from rendered. The seam only ever
     reads ``bus.servers`` (``core/actions.py``), which is exactly what that carries.
 
-    The SCOPE is the caller's own (``from_web`` reads it off the identity), and it is applied by
-    ``resolve_scoped_server`` — the route never resolves a server itself.
+    The SCOPE is the request's RESOLVED scope — ``permissions.scope_for``, the SAME resolver every
+    page and read model renders from — carried on the identity ``from_web`` reads it off. A backend
+    that builds a RESTRICTED identity for a caller who holds a cluster role (the Discord OAuth
+    backend always does) therefore reaches the seam with the cluster-role upgrade already applied,
+    so the read path and the write path cannot disagree about which servers this caller may act on.
+    ``resolve_scoped_server`` applies it — the route never resolves a server itself.
     """
     # THE SCOPED SOURCE, through the ONE function pages may read it from (pinned by
     # tests/test_webui_scope_view.py: ``request_source`` is the only caller of the source seam in
@@ -4765,7 +4769,8 @@ def _context(request: Request, identity: Identity) -> ActionContext:
     # a name outside the scope produce the SAME answer, which is the point: a hoster
     # cannot enumerate the fleet by probing names.
     source = dashboard_page.request_source(request)
-    return ActionContext.from_web(identity, _node(), _Cluster(source))
+    scoped_identity = replace(identity, scope=permissions.scope_for(request))
+    return ActionContext.from_web(scoped_identity, _node(), _Cluster(source))
 
 
 def _node() -> Any:

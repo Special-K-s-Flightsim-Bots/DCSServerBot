@@ -4,7 +4,7 @@ import asyncio
 import importlib
 import logging
 import os
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 from core import utils
 from core.const import DEFAULT_TAG

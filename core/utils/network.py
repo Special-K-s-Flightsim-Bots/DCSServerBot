@@ -11,12 +11,10 @@ import time
 
 from contextlib import closing, suppress
 from core import Port, PortType
-from typing import Iterable, TYPE_CHECKING
+from typing import Iterable
 
 from .os import get_password, set_password
 
-if TYPE_CHECKING:
-    from core import Node
 
 __all__ = [
     "hmac_hash",

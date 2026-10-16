@@ -14,7 +14,6 @@ from pathlib import Path
 from psycopg import Connection
 from rich import print
 from rich.prompt import IntPrompt, Confirm
-from typing import cast
 
 # ruamel YAML support
 from ruamel.yaml import YAML

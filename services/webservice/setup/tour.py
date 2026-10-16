@@ -1514,8 +1514,7 @@ def _db_notice(translate, last: dict, *, enabled: bool) -> tuple[str, str | None
                   f'{_say(translate, DB_NOTICE[code], **data)}</p>')
     if last.get("version_outdated") and code is not None:
         notice += (f'<p class="tag warn">'
-                   f'{_say(translate, T_DB_VERSION_OLD, version=last.get("version"),
-                           min=db_step.MIN_SERVER_VERSION_MAJOR)}</p>')
+                   f'{_say(translate, T_DB_VERSION_OLD, version=last.get("version"), min=db_step.MIN_SERVER_VERSION_MAJOR)}</p>')
     return notice, code
 
 
@@ -1558,8 +1557,7 @@ def _db_block(translate, answers: db_step.DatabaseAnswers, *, master_password: s
         fields.append(_field(translate(T_DB_MASTER_PASSWORD), name("master_password"), "",
                              translate(T_DB_SECRET_HELP), type_="password",
                              required=not master_password))
-        fields.append(f'<p class="note">{_say(translate, T_DB_DERIVED, database=answers.database,
-                                              user=answers.user)}</p>')
+        fields.append(f'<p class="note">{_say(translate, T_DB_DERIVED, database=answers.database, user=answers.user)}</p>')
         fields.append(_field(translate(T_DB_DATABASE), name("database"), answers.database))
         fields.append(_field(translate(T_DB_USER), name("user"), answers.user))
         if master_password:

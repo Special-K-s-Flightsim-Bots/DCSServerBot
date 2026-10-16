@@ -34,7 +34,6 @@ import argparse
 import io
 import pathlib
 import sys
-from typing import Iterator
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 LOCALE_DIR = REPO_ROOT / "locale"

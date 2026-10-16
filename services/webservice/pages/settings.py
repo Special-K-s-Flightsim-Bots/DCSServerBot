@@ -1238,8 +1238,6 @@ def load_landing(request: Request) -> dict:
     its own is never dropped. A default plugin being switched OFF is shown the inline warning first
     (``?warn=<name>``) — the switch is a LINK, and only the confirm button posts the write.
     """
-    from urllib.parse import quote
-
     config = config_dir(request)
     main_path = config_path(request)
     csrf = session.get_csrf_token(request)
