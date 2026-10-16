@@ -43,7 +43,8 @@ from .auth import routes as auth_routes
 from .registry import Registrar
 
 __all__ = ["SHELL_ASSET_PATH", "SHELL_STATIC_DIR", "REFUSED_STATUSES", "create_app", "install_shell",
-           "frontend_enabled", "refusal_response", "refusal_page", "retryable_page"]
+           "frontend_enabled", "install_refusal_handlers", "refusal_response", "refusal_page",
+           "retryable_page"]
 
 log = logging.getLogger(__name__)
 
@@ -297,6 +298,19 @@ def _install_refusal_handlers(app: FastAPI) -> None:
     """
     for status in REFUSED_STATUSES:
         app.add_exception_handler(status, _refusal_handler(status))
+
+
+def install_refusal_handlers(app: FastAPI) -> None:
+    """Public entry point for :func:`_install_refusal_handlers`.
+
+    The one caller outside this module is the setup console
+    (:func:`services.webservice.setup.app.create_setup_app`), which serves its own application and
+    must answer a refusal — a missing CSRF token on a tour write, say — the same way the admin shell
+    does instead of depending on whatever handler FastAPI's default happens to be. With no identity
+    layer installed, ``refusal_response`` renders the standalone page rather than bouncing the
+    caller to a login door this application does not serve.
+    """
+    _install_refusal_handlers(app)
 
 
 def _refusal_handler(status_code: int):

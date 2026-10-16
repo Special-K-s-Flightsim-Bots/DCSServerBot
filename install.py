@@ -2,24 +2,22 @@ import asyncio
 import logging
 import os
 import psycopg
-import random
-import secrets
 import shutil
 import stat
 import sys
 
-if sys.platform == 'win32':
-    import winreg
-
-from contextlib import suppress
 from core import utils, SAVED_GAMES, translations, COMMAND_LINE_ARGS
+from core.utils.db_setup import DatabaseProvisionIO, provision_database
+from core.utils.setup_config import (DEFAULT_NO_DISCORD_ROLES, DEFAULT_ROLE_DEFAULTS,
+                                     DEFAULT_ROLE_NAMES, build_discord_bot, build_instance,
+                                     build_main, build_no_discord_bot, build_no_discord_main,
+                                     build_node, build_scheduler, build_server_channels)
 from pathlib import Path
-from packaging.version import parse
 from psycopg import sql
 from rich import print
 from rich.console import Console
 from rich.prompt import IntPrompt, Prompt, Confirm
-from typing import Callable, Any
+from typing import Callable
 from urllib.parse import quote, urlparse
 
 # ruamel YAML support
@@ -28,6 +26,47 @@ yaml = YAML()
 
 # for gettext // i18n
 _: Callable[[str], str] | None = None
+
+
+class _InstallIO(DatabaseProvisionIO):
+    """The installer's answers to the database provisioning decisions: gettext'd prompts and
+    rich notices, mirroring the messages the installer has always printed."""
+
+    def master_credentials(self) -> tuple[str, str]:
+        master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'),
+                               default='postgres')
+        master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'), default='postgres')
+        return master_db, master_user
+
+    def master_password(self, master_user: str) -> str:
+        return Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
+
+    def bot_user_password(self, user: str) -> str:
+        return Prompt.ask(_("Please enter your password for user {}").format(user))
+
+    def on_outdated_version(self) -> None:
+        print(_('[yellow]Your PostgreSQL version is outdated. Please upgrade to 14 or higher![/]\n'))
+
+    def on_existing_user(self, user: str) -> None:
+        print(_('[yellow]Existing {} user found![/]').format(user))
+
+    def on_wrong_user_password(self, attempt: int) -> None:
+        print(_("[red]Wrong password! Try again ({}/3).[/]").format(attempt + 1))
+
+    def on_user_password_reset(self) -> None:
+        print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
+
+    def on_master_password_wrong(self) -> None:
+        print(_("[red]Master password wrong. Please try again.[/]"))
+
+    def on_connection_issue(self, error: Exception) -> None:
+        print(_("[yellow]Connection issue to the database: {} \nPlease try again.[/]").format(error))
+
+    def on_provisioned(self) -> None:
+        print(_("[green]Database user and database created.[/]"))
+
+    def on_gave_up(self) -> None:
+        print(_("[red]Could not connect to the database after 3 tries.[/]"))
 
 
 class Install:
@@ -63,40 +102,23 @@ class Install:
     @staticmethod
     def get_dcs_installation_win32() -> str | None:
         print(_("Searching for DCS installations ..."))
-        key = skey = None
         try:
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Eagle Dynamics", 0)
-            num_dcs_installs = winreg.QueryInfoKey(key)[0]
-            if num_dcs_installs == 0:
+            installs = utils.detect_dcs_installation()
+            if not installs:
                 raise FileNotFoundError
-            installs = list[tuple[str, str]]()
-            for i in range(0, num_dcs_installs):
-                name = winreg.EnumKey(key, i)
-                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, f"Software\\Eagle Dynamics\\{name}", 0)
-                path = winreg.QueryValueEx(skey, 'Path')[0]
-                if os.path.exists(path):
-                    installs.append((name, path))
-            if len(installs) == 0:
+            installs.append((_("Other"), ""))
+            for i in range(0, len(installs)):
+                print(f'{i+1}: {installs[i][0]}')
+            num = IntPrompt.ask(prompt=_('Please specify, which installation you want the bot to use.\n'
+                                         'Chose "Other", if it is not in the list'),
+                                choices=[str(x) for x in range(1, len(installs) + 1)],
+                                show_choices=True)
+            path = installs[num-1][1]
+            if not path:
                 raise FileNotFoundError
-            else:
-                installs.append((_("Other"), ""))
-                for i in range(0, len(installs)):
-                    print(f'{i+1}: {installs[i][0]}')
-                num = IntPrompt.ask(prompt=_('Please specify, which installation you want the bot to use.\n'
-                                             'Chose "Other", if it is not in the list'),
-                                    choices=[str(x) for x in range(1, len(installs) + 1)],
-                                    show_choices=True)
-                path = installs[num-1][1]
-                if not path:
-                    raise FileNotFoundError
-                return path
+            return path
         except (FileNotFoundError, OSError):
             return Install.get_dcs_installation_linux()
-        finally:
-            if key:
-                key.Close()
-            if skey:
-                skey.Close()
 
     @staticmethod
     def get_database_host(host: str = '127.0.0.1', port: int = 5432) -> tuple[str, int] | None:
@@ -110,76 +132,9 @@ class Install:
     @staticmethod
     def get_database_url(user: str, database: str, config_dir: str = 'config') -> str | None:
         host, port = Install.get_database_host('127.0.0.1', 5432)
-        for tries in range(1, 4):
-            master_db = Prompt.ask(_('Please enter the name of your PostgreSQL master database'), default='postgres')
-            master_user = Prompt.ask(_('Please enter your PostgreSQL master user name'), default='postgres')
-            try:
-                master_passwd = utils.get_password(master_user, config_dir)
-            except ValueError:
-                master_passwd = Prompt.ask(_('Please enter your PostgreSQL master password (user={})').format(master_user))
-            url = f'postgres://{master_user}:{quote(master_passwd)}@{host}:{port}/{master_db}?sslmode=prefer'
-            try:
-                with psycopg.connect(url, autocommit=True) as conn:
-                    utils.set_password(master_user, master_passwd, config_dir)
-                    try:
-                        passwd = utils.get_password('database', config_dir) or ''
-                    except ValueError:
-                        passwd = secrets.token_urlsafe(8)
-                    try:
-                        cursor = conn.execute("""
-                            SELECT (current_setting('server_version_num')::int / 10000) 
-                                   || '.' || 
-                                   (current_setting('server_version_num')::int % 100) AS version
-                        """)
-                        version = cursor.fetchone()[0]
-                        if parse(version).major < 14:
-                            print(_('[yellow]Your PostgreSQL version is outdated. Please upgrade to 14 or higher![/]\n'))
-
-                        conn.execute(
-                            sql.SQL("CREATE USER {} WITH ENCRYPTED PASSWORD {}")
-                            .format(sql.Identifier(user), sql.Literal(passwd))
-                        )
-                    except psycopg.Error:
-                        print(_('[yellow]Existing {} user found![/]').format(user))
-                        for i in range(1, 4):
-                            passwd = Prompt.ask(
-                                _("Please enter your password for user {}").format(user))
-                            try:
-                                with psycopg.connect(f"postgres://{user}:{quote(passwd)}@{host}:{port}/{database}?sslmode=prefer"):
-                                    pass
-                                break
-                            except psycopg.Error:
-                                print(_("[red]Wrong password! Try again ({}/3).[/]").format(i+1))
-                        else:
-                            print(_('[yellow]You have entered 3x a wrong password. I have reset it.[/]'))
-                            passwd = secrets.token_urlsafe(8)
-                            conn.execute(
-                                sql.SQL("ALTER USER {} WITH ENCRYPTED PASSWORD {}")
-                                .format(sql.Identifier(user), sql.Literal(passwd))
-                            )
-                    # store the (new) password
-                    utils.set_password('database', passwd, config_dir)
-                    with suppress(psycopg.Error):
-                        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
-                        conn.execute(
-                            sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {}")
-                            .format(sql.Identifier(database), sql.Identifier(user))
-                        )
-                        conn.execute(
-                            sql.SQL("ALTER DATABASE {} OWNER TO {}")
-                            .format(sql.Identifier(database), sql.Identifier(user))
-                        )
-                    print(_("[green]Database user and database created.[/]"))
-                return f"postgres://{user}:SECRET@{host}:{port}/{database}?sslmode=prefer"
-            except psycopg.errors.InvalidPassword:
-                print(_("[red]Master password wrong. Please try again.[/]"))
-                pkl_file = os.path.join(config_dir, '.secret', master_user + '.pkl')
-                if os.path.exists(pkl_file):
-                    os.remove(pkl_file)
-            except psycopg.OperationalError as ex:
-                print(_("[yellow]Connection issue to the database: {} \nPlease try again.[/]").format(ex))
-        print(_("[red]Could not connect to the database after 3 tries.[/]"))
-        return None
+        result = provision_database(host=host, port=port, user=user, database=database,
+                                    config_dir=config_dir, io=_InstallIO())
+        return result.url if result else None
 
     def install_master(self) -> tuple[dict, dict, dict]:
         global _
@@ -194,12 +149,8 @@ class Install:
             print(_("\n[u]2. Discord Setup[/]"))
             guild_id = IntPrompt.ask(
                 _('Please enter your Discord Guild ID (right click on your Discord server, "Copy Server ID")'))
-            main: dict[str, Any] = {
-                "guild_id": guild_id,
-                "autoupdate": autoupdate
-            }
-            if use_lang_in_game:
-                main['language'] = translations.get_language()
+            main = build_main(guild_id, autoupdate,
+                              translations.get_language() if use_lang_in_game else None)
             token = Prompt.ask(_('Please enter your discord TOKEN (see documentation)')) or '<see documentation>'
             utils.set_password('token', token)
             owner = IntPrompt.ask(_('Please enter your Owner ID (right click on your discord user, "Copy User ID")'))
@@ -220,10 +171,8 @@ class Install:
             print(_("Please separate roles by comma, if you want to provide more than one.\n"
                     "You can keep the defaults, if unsure and create the respective roles in your Discord server."))
 
-            role_names = ["Admin", "DCS Admin", "DCS"]
-            defaults = ["Admin", "DCS Admin", "@everyone"]
             roles = {}
-            for role_name, default in zip(role_names, defaults):
+            for role_name, default in zip(DEFAULT_ROLE_NAMES, DEFAULT_ROLE_DEFAULTS):
                 _roles = Prompt.ask(
                     _("Which role(s) in your discord should hold the [bold]{}[/] role?").format(role_name),
                     default=default).split(',')
@@ -231,47 +180,29 @@ class Install:
                 _roles = [int(item) if item.isdigit() else item for item in _roles]
                 roles[role_name] = _roles
 
-            bot = {
-                "owner": owner,
-                "privileged_intents": privileged_intents,
-                "roles": roles
-            }
             audit_channel = IntPrompt.ask(_("\nPlease provide a channel ID for audit events (optional)"), default=-1)
             admin_channel = IntPrompt.ask(_("\nThe bot can either use a dedicated admin channel for each server or a "
                                             "central admin channel for all servers.\n"
                                             "If you want to use a central one, please provide the ID (optional)"),
                                           default=-1)
-            channels = {}
-            if audit_channel and audit_channel != -1:
-                channels['audit'] = audit_channel
-            if admin_channel and admin_channel != -1:
-                channels['admin'] = admin_channel
-            if channels:
-                bot['channels'] = channels
+            bot = build_discord_bot(owner, privileged_intents, roles, audit_channel, admin_channel)
             return main, bot
 
         def configure_no_discord() -> tuple[dict, dict]:
             print(_("\n2. [u]Bot Setup[/]"))
             guild_name = Prompt.ask(_("Please enter the name of your DCS group"))
-            main = {
-                "guild_id": random.randint(111111111111111111, 999999999999999999),
-                "guild_name": guild_name,
-                "autoupdate": autoupdate
-            }
+            main = build_no_discord_main(guild_name, autoupdate)
             print(_("You now need to setup your users.\nDCSServerBot uses the following internal roles:"))
             print({
                 "Admin": _("Users can delete data and change the bot"),
                 "DCS Admin": _("Users can restart missions, kick/ban users, etc.")
             })
             roles = {}
-            for role in ["Admin", "DCS Admin"]:
+            for role in DEFAULT_NO_DISCORD_ROLES:
                 users = Prompt.ask(_("Which user(s) should get the [bold]{}[/] role?\n"
                                      "Please enter a comma-separated list of UCIDs").format(role)).split(',')
                 roles[role] = [x.strip() for x in users]
-            bot = {
-                "no_discord": True,
-                "roles": roles
-            }
+            bot = build_no_discord_bot(roles)
             return main, bot
 
         # initialize translations
@@ -408,17 +339,13 @@ If you need any further assistance, please visit the support discord, listed in 
             dcs_installation = Install.get_dcs_installation_win32() or '<see documentation>'
         else:
             dcs_installation = Install.get_dcs_installation_linux()
-        node = nodes[self.node] = {
-            "listen_port": max([
-                n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())
-            ]) + 1 if nodes else 10042,
-            "use_upnp": self.use_upnp
-        }
+
         # read public IP, if possible
+        public_ip = None
         try:
-            public_ip = asyncio.run(utils.get_public_ip())
-            if Confirm.ask(_("Is {} a static IP-address for this node?").format(public_ip), default=False):
-                node['public_ip'] = public_ip
+            _public_ip = asyncio.run(utils.get_public_ip())
+            if Confirm.ask(_("Is {} a static IP-address for this node?").format(_public_ip), default=False):
+                public_ip = _public_ip
         except TimeoutError:
             pass
 
@@ -435,18 +362,11 @@ If you need any further assistance, please visit the support discord, listed in 
         else:
             cloud = None
 
-        if 'database' not in main:
-            node["database"] = {
-                "url": database_url
-            }
+        dcs_autoupdate = False
+        srs_path = None
         if dcs_installation:
-            node["DCS"] = {
-                "installation": dcs_installation
-            }
-
-            if Confirm.ask(_("Do you want your DCS installation being auto-updated by the bot?"), default=True):
-                node["DCS"]["autoupdate"] = True
-
+            dcs_autoupdate = Confirm.ask(
+                _("Do you want your DCS installation being auto-updated by the bot?"), default=True)
             # Check for SRS
             srs_path = os.path.expandvars('%ProgramFiles%\\DCS-SimpleRadio-Standalone')
             if not os.path.exists(srs_path):
@@ -454,17 +374,24 @@ If you need any further assistance, please visit the support discord, listed in 
                                         "Press ENTER, if there is none."))
             if srs_path:
                 self.log.info(_("DCS-SRS installation path: {}").format(srs_path))
-                node['extensions'] = {
-                    'SRS': {
-                        'installation': srs_path
-                    }
-                }
             else:
                 self.log.info(_("DCS-SRS not configured."))
 
+        node = nodes[self.node] = build_node(
+            listen_port=max([
+                n.get('listen_port', 10041 + idx) for idx, n in enumerate(nodes.values())
+            ]) + 1 if nodes else 10042,
+            use_upnp=self.use_upnp,
+            public_ip=public_ip,
+            database_url=database_url if 'database' not in main else None,
+            dcs_installation=dcs_installation,
+            dcs_autoupdate=dcs_autoupdate,
+            srs_installation=srs_path,
+        )
+
+        if dcs_installation:
             print(_("\n{}. [u]DCS Server Setup[/]").format(i+3))
             scheduler = schedulers[self.node] = {}
-            node['instances'] = {}
             # calculate unique bot ports
             bot_port = max([
                 i.get('bot_port', 6665 + idx)
@@ -502,17 +429,13 @@ If you need any further assistance, please visit the support discord, listed in 
                 if Confirm.ask(_('Would you like to manage this server through DCSServerBot?'), default=True):
                     self.log.info(_("Adding instance {instance} with server {name} ...").format(instance=instance,
                                                                                                 name=name))
-                    node['instances'][instance] = {
-                        "bot_port": bot_port,
-                        "home": os.path.join(SAVED_GAMES, instance)
-                    }
+                    node['instances'][instance] = build_instance(
+                        home=os.path.join(SAVED_GAMES, instance),
+                        bot_port=bot_port,
+                        srs_installation=srs_path,
+                        srs_port=srs_port,
+                    )
                     if srs_path:
-                        node['instances'][instance]['extensions'] = {
-                            "SRS": {
-                                "config": "{instance.home}/Config/SRS.cfg",
-                                "port": srs_port
-                            }
-                        }
                         srs_config = os.path.join(SAVED_GAMES, instance, 'Config', 'SRS.cfg')
                         if not os.path.exists(os.path.expandvars(srs_config)):
                             if os.path.exists(os.path.join(srs_path, "server.cfg")):
@@ -548,27 +471,18 @@ If you need any further assistance, please visit the support discord, listed in 
                                 "    - Embed Links\n"
                                 "    - Manage Messages\n\n"))
 
-                        servers[name] = {
-                            "channels": {
-                                "status": IntPrompt.ask(_("Please enter the ID of your [bold]Status Channel[/]")),
-                                "chat": IntPrompt.ask(_("Please enter the ID of your [bold]Chat Channel[/] (optional)"),
-                                                      default=-1)
-                            }
-                        }
+                        status = IntPrompt.ask(_("Please enter the ID of your [bold]Status Channel[/]"))
+                        chat = IntPrompt.ask(_("Please enter the ID of your [bold]Chat Channel[/] (optional)"),
+                                             default=-1)
+                        admin = None
                         if not bot.get('channels', {}).get('admin'):
-                            servers[name]['channels']['admin'] = IntPrompt.ask(
-                                _("Please enter the ID of your [bold]Admin Channel[/]"))
+                            admin = IntPrompt.ask(_("Please enter the ID of your [bold]Admin Channel[/]"))
+                        servers[name] = {"channels": build_server_channels(status, chat, admin)}
                     else:
                         servers[name] = {}
-                    if Prompt.ask(_("Do you want DCSServerBot to autostart this server?"), choices=['y', 'n'],
-                                  default='y') == 'y':
-                        scheduler[instance] = {
-                            "schedule": {
-                                "00-24": "YYYYYYY"
-                            }
-                        }
-                    else:
-                        scheduler[instance] = {}
+                    autostart = Prompt.ask(_("Do you want DCSServerBot to autostart this server?"),
+                                           choices=['y', 'n'], default='y') == 'y'
+                    scheduler[instance] = build_scheduler(autostart)
                     self.log.info(_("Instance {} configured.").format(instance))
 
         print(_("\n\nAll set. Writing / updating your config files now..."))

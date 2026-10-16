@@ -11,8 +11,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-11 23:33+0200\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"POT-Creation-Date: 2026-10-15 21:49+0200\n"
+"PO-Revision-Date: 2026-10-14 22:07+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
 "Language-Team: de <LL@li.org>\n"
@@ -50,11 +50,11 @@ msgstr ""
 msgid "both nodes"
 msgstr ""
 
-#: services/webservice/catalog.py:98 services/webservice/pages/settings.py:139
+#: services/webservice/catalog.py:98 services/webservice/pages/settings.py:140
 msgid "Plugin"
 msgstr "Plugin"
 
-#: services/webservice/catalog.py:99 services/webservice/pages/settings.py:138
+#: services/webservice/catalog.py:99 services/webservice/pages/settings.py:139
 msgid "Service"
 msgstr ""
 
@@ -67,203 +67,211 @@ msgstr "Erweiterung"
 msgid "held off by the %(plugin)s plugin: add it to opt_plugins"
 msgstr ""
 
-#: services/webservice/configgen.py:135
+#: services/webservice/configgen.py:148
 msgid "Switch"
 msgstr "Schalter"
 
-#: services/webservice/configgen.py:136
+#: services/webservice/configgen.py:149
 msgid "Number"
 msgstr "Zahl"
 
-#: services/webservice/configgen.py:137
+#: services/webservice/configgen.py:150
 msgid "Text"
 msgstr "Text"
 
-#: services/webservice/configgen.py:138
+#: services/webservice/configgen.py:151
 msgid "Text (multi-line)"
 msgstr "Text (mehrzeilig)"
 
-#: services/webservice/configgen.py:139
+#: services/webservice/configgen.py:152
 msgid "Select"
 msgstr "Auswahl"
 
-#: services/webservice/configgen.py:140
+#: services/webservice/configgen.py:153
 msgid "List of values"
 msgstr "Werteliste"
 
-#: services/webservice/configgen.py:141
+#: services/webservice/configgen.py:154
 msgid "List of entries"
 msgstr "Liste von Einträgen"
 
-#: services/webservice/configgen.py:142
+#: services/webservice/configgen.py:155
 msgid "Group"
 msgstr "Gruppe"
 
-#: services/webservice/configgen.py:143
+#: services/webservice/configgen.py:156
 msgid "Custom entries"
 msgstr "Eigene Einträge"
 
-#: services/webservice/configgen.py:144
+#: services/webservice/configgen.py:157
 msgid "Value validated on save"
 msgstr "Wert wird beim Speichern geprüft"
 
-#: services/webservice/configgen.py:145
+#: services/webservice/configgen.py:158
 msgid "List or single"
 msgstr "Liste oder einzeln"
 
-#: services/webservice/configgen.py:151
+#: services/webservice/configgen.py:159
+msgid "Value or list"
+msgstr "Wert oder Liste"
+
+#: services/webservice/configgen.py:160
+msgid "Value or block"
+msgstr "Wert oder Block"
+
+#: services/webservice/configgen.py:166
 msgid "Sections"
 msgstr "Abschnitte"
 
-#: services/webservice/configgen.py:154
-#: services/webservice/templates/_config_fields.html:143
-#: services/webservice/templates/_scope_fields.html:32
+#: services/webservice/configgen.py:169
+#: services/webservice/templates/_config_fields.html:232
+#: services/webservice/templates/_scope_fields.html:39
 msgid "validate on save"
 msgstr "wird beim Speichern geprüft"
 
-#: services/webservice/configgen.py:156
+#: services/webservice/configgen.py:171
 #: services/webservice/plugin_registry.py:66
 msgid "default"
 msgstr "Standard"
 
-#: services/webservice/configgen.py:162
-#: services/webservice/templates/_config_fields.html:141
-#: services/webservice/templates/_scope_fields.html:30
+#: services/webservice/configgen.py:177
+#: services/webservice/templates/_config_fields.html:230
+#: services/webservice/templates/_scope_fields.html:37
 #: services/webservice/templates/server_detail.html:322
 msgid "required"
 msgstr "erforderlich"
 
-#: services/webservice/i18n.py:504
+#: services/webservice/i18n.py:554
 #, python-brace-format
 msgid "Live updates: {status}"
 msgstr "Live-Updates: {status}"
 
-#: services/webservice/i18n.py:505
+#: services/webservice/i18n.py:555
 #: services/webservice/templates/server_detail.html:257
 msgid "on"
 msgstr "ein"
 
-#: services/webservice/i18n.py:506
+#: services/webservice/i18n.py:556
 msgid "connecting…"
 msgstr "verbinden…"
 
-#: services/webservice/i18n.py:507
+#: services/webservice/i18n.py:557
 msgid "polling every 10 seconds"
 msgstr "Abfrage alle 10 Sekunden"
 
-#: services/webservice/i18n.py:508
+#: services/webservice/i18n.py:558
 #, python-brace-format
 msgid "the bot is not ready yet — retrying in {seconds}s"
 msgstr "der Bot ist noch nicht bereit — neuer Versuch in {seconds}s"
 
-#: services/webservice/i18n.py:509
+#: services/webservice/i18n.py:559
 msgid "not permitted — sign in again"
 msgstr "nicht erlaubt — bitte erneut anmelden"
 
-#: services/webservice/i18n.py:510
+#: services/webservice/i18n.py:560
 msgid "Sign in again"
 msgstr "Erneut anmelden"
 
-#: services/webservice/i18n.py:512
+#: services/webservice/i18n.py:562
 #: services/webservice/templates/node_log.html:39
 #: services/webservice/templates/server_detail.html:66
 msgid "Load older"
 msgstr "Ältere laden"
 
-#: services/webservice/i18n.py:513
+#: services/webservice/i18n.py:563
 #: services/webservice/templates/node_log.html:34
 #: services/webservice/templates/server_detail.html:61
 msgid "not available"
 msgstr "nicht verfügbar"
 
-#: services/webservice/i18n.py:514
+#: services/webservice/i18n.py:564
 msgid "The log file is not there yet."
 msgstr "Die Logdatei ist noch nicht vorhanden."
 
-#: services/webservice/i18n.py:515
+#: services/webservice/i18n.py:565
 msgid "waiting for the log file to appear"
 msgstr "warte darauf, dass die Logdatei erscheint"
 
-#: services/webservice/i18n.py:516
+#: services/webservice/i18n.py:566
 msgid "retrying…"
 msgstr "neuer Versuch…"
 
-#: services/webservice/i18n.py:517
+#: services/webservice/i18n.py:567
 msgid "— the log was rotated; showing the new file —"
 msgstr "— das Log wurde rotiert; die neue Datei wird angezeigt —"
 
-#: services/webservice/i18n.py:518
+#: services/webservice/i18n.py:568
 msgid "— the log was rotated while loading older lines —"
 msgstr "— das Log wurde rotiert, während ältere Zeilen geladen wurden —"
 
-#: services/webservice/i18n.py:519
+#: services/webservice/i18n.py:569
 msgid "the log was rotated"
 msgstr "das Log wurde rotiert"
 
-#: services/webservice/i18n.py:520
+#: services/webservice/i18n.py:570
 msgid "Log restarted"
 msgstr "Log neu gestartet"
 
-#: services/webservice/i18n.py:521
+#: services/webservice/i18n.py:571
 #: services/webservice/templates/node_log.html:39
 #: services/webservice/templates/server_detail.html:66
 msgid "Start of log"
 msgstr "Anfang des Protokolls"
 
-#: services/webservice/i18n.py:522
+#: services/webservice/i18n.py:572
 #: services/webservice/templates/node_log.html:34
 #: services/webservice/templates/server_detail.html:61
 msgid "following while this tab is open"
 msgstr "folgt, solange dieser Tab geöffnet ist"
 
-#: services/webservice/i18n.py:523
+#: services/webservice/i18n.py:573
 msgid "paused — this tab is hidden"
 msgstr "pausiert — dieser Tab ist ausgeblendet"
 
-#: services/webservice/i18n.py:525
+#: services/webservice/i18n.py:575
 #, python-brace-format
 msgid "{n} of {total} selected"
 msgstr "{n} von {total} ausgewählt"
 
-#: services/webservice/i18n.py:526
+#: services/webservice/i18n.py:576
 #: services/webservice/templates/server_detail.html:478
 msgid "Remove selected…"
 msgstr "Ausgewählte entfernen…"
 
-#: services/webservice/i18n.py:527
+#: services/webservice/i18n.py:577
 msgid "Remove 1 mission…"
 msgstr "1 Mission entfernen…"
 
-#: services/webservice/i18n.py:528
+#: services/webservice/i18n.py:578
 #, python-brace-format
 msgid "Remove {n} missions…"
 msgstr "{n} Missionen entfernen…"
 
-#: services/webservice/i18n.py:530
+#: services/webservice/i18n.py:580
 #: services/webservice/templates/server_detail.html:242
 #: services/webservice/templates/server_detail.html:385
 msgid "Show password"
 msgstr "Passwort anzeigen"
 
-#: services/webservice/i18n.py:531
+#: services/webservice/i18n.py:581
 msgid "Hide password"
 msgstr "Passwort verbergen"
 
-#: services/webservice/i18n.py:532
+#: services/webservice/i18n.py:582
 msgid "Nothing to show — type a password first, then this reveals what you typed."
 msgstr ""
 "Nichts anzuzeigen — gib zuerst ein Passwort ein; dann zeigt dies, was du "
 "eingegeben hast."
 
-#: services/webservice/i18n.py:537
+#: services/webservice/i18n.py:587
 msgid "Checking…"
 msgstr ""
 
-#: services/webservice/i18n.py:538
+#: services/webservice/i18n.py:588
 msgid "Valid."
 msgstr ""
 
-#: services/webservice/i18n.py:539
+#: services/webservice/i18n.py:589
 msgid "editing"
 msgstr ""
 
@@ -291,29 +299,29 @@ msgstr ""
 "ohne Eintrag hier geladen. Die Rohliste bleibt im Expertenmodus "
 "bearbeitbar."
 
-#: services/webservice/shell.py:432
+#: services/webservice/shell.py:449
 msgid "Your request could not be completed, and nothing was saved."
 msgstr ""
 "Deine Anfrage konnte nicht abgeschlossen werden und nichts wurde "
 "gespeichert."
 
-#: services/webservice/shell.py:434
+#: services/webservice/shell.py:451
 msgid "Your account does not have access to this page."
 msgstr "Dein Konto hat keinen Zugriff auf diese Seite."
 
-#: services/webservice/shell.py:439
+#: services/webservice/shell.py:456
 msgid "access denied"
 msgstr "Zugriff verweigert"
 
-#: services/webservice/shell.py:443
+#: services/webservice/shell.py:460
 msgid "Access denied"
 msgstr "Zugriff verweigert"
 
-#: services/webservice/shell.py:446
+#: services/webservice/shell.py:463
 msgid "Return to the dashboard"
 msgstr "Zurück zur Übersicht"
 
-#: services/webservice/shell.py:506
+#: services/webservice/shell.py:523
 msgid ""
 "You are still signed in &mdash; no new sign-in is needed. The console has"
 " just started and is verifying your identity; this page will retry by "
@@ -323,27 +331,27 @@ msgstr ""
 " Die Konsole wurde gerade gestartet und überprüft deine Identität; diese "
 "Seite versucht es von selbst erneut."
 
-#: services/webservice/shell.py:508
+#: services/webservice/shell.py:525
 msgid "Still not ready. Retry by hand when you are ready."
 msgstr "Noch nicht bereit. Versuch es von Hand erneut, wenn du bereit bist."
 
-#: services/webservice/shell.py:509
+#: services/webservice/shell.py:526
 msgid "The answer changed. Reload to continue."
 msgstr "Die Antwort hat sich geändert. Lade neu, um fortzufahren."
 
-#: services/webservice/shell.py:514
+#: services/webservice/shell.py:531
 msgid "verifying your identity"
 msgstr "Identität wird überprüft"
 
-#: services/webservice/shell.py:518
+#: services/webservice/shell.py:535
 msgid "The console is starting up"
 msgstr "Die Konsole startet gerade"
 
-#: services/webservice/shell.py:520
+#: services/webservice/shell.py:537
 msgid "Retrying automatically&hellip;"
 msgstr "Automatischer neuer Versuch&hellip;"
 
-#: services/webservice/shell.py:521
+#: services/webservice/shell.py:538
 msgid "Retry now"
 msgstr "Jetzt erneut versuchen"
 
@@ -510,6 +518,7 @@ msgstr "die Mission auf {server} fortsetzen"
 
 #: services/webservice/pages/actions.py:525
 #: services/webservice/pages/actions.py:1019
+#: services/webservice/templates/overview.html:59
 #: services/webservice/templates/server_detail.html:710
 msgid "Restart"
 msgstr "Neustart"
@@ -734,28 +743,30 @@ msgid "Add the mission to {server}'s rotation list"
 msgstr "Die Mission zur Rotationsliste von {server} hinzufügen"
 
 #: services/webservice/pages/actions.py:691
-#: services/webservice/templates/_config_fields.html:63
-#: services/webservice/templates/_config_fields.html:67
-#: services/webservice/templates/_config_fields.html:101
-#: services/webservice/templates/_config_fields.html:155
-#: services/webservice/templates/_config_fields.html:161
-#: services/webservice/templates/_config_fields.html:177
-#: services/webservice/templates/_config_fields.html:188
-#: services/webservice/templates/_config_fields.html:207
-#: services/webservice/templates/_config_fields.html:223
-#: services/webservice/templates/_config_fields.html:263
-#: services/webservice/templates/_config_fields.html:278
-#: services/webservice/templates/_scope_fields.html:41
-#: services/webservice/templates/_scope_fields.html:45
-#: services/webservice/templates/_scope_fields.html:74
-#: services/webservice/templates/_scope_fields.html:100
-#: services/webservice/templates/_scope_fields.html:106
-#: services/webservice/templates/_scope_fields.html:123
-#: services/webservice/templates/_scope_fields.html:132
-#: services/webservice/templates/_scope_fields.html:154
-#: services/webservice/templates/_scope_fields.html:165
-#: services/webservice/templates/_scope_fields.html:220
-#: services/webservice/templates/_scope_fields.html:233
+#: services/webservice/templates/_config_fields.html:109
+#: services/webservice/templates/_config_fields.html:116
+#: services/webservice/templates/_config_fields.html:148
+#: services/webservice/templates/_config_fields.html:152
+#: services/webservice/templates/_config_fields.html:189
+#: services/webservice/templates/_config_fields.html:248
+#: services/webservice/templates/_config_fields.html:254
+#: services/webservice/templates/_config_fields.html:270
+#: services/webservice/templates/_config_fields.html:281
+#: services/webservice/templates/_config_fields.html:300
+#: services/webservice/templates/_config_fields.html:316
+#: services/webservice/templates/_config_fields.html:376
+#: services/webservice/templates/_config_fields.html:405
+#: services/webservice/templates/_scope_fields.html:48
+#: services/webservice/templates/_scope_fields.html:52
+#: services/webservice/templates/_scope_fields.html:81
+#: services/webservice/templates/_scope_fields.html:112
+#: services/webservice/templates/_scope_fields.html:118
+#: services/webservice/templates/_scope_fields.html:135
+#: services/webservice/templates/_scope_fields.html:144
+#: services/webservice/templates/_scope_fields.html:182
+#: services/webservice/templates/_scope_fields.html:205
+#: services/webservice/templates/_scope_fields.html:268
+#: services/webservice/templates/_scope_fields.html:281
 msgid "Remove"
 msgstr "Entfernen"
 
@@ -1480,6 +1491,7 @@ msgstr "Betrieb"
 
 #: services/webservice/pages/dashboard.py:86
 #: services/webservice/templates/_state.html:23
+#: services/webservice/templates/overview.html:34
 msgid "Cluster"
 msgstr "Cluster"
 
@@ -1593,11 +1605,11 @@ msgstr ""
 "Das Bot-Protokoll, über die volle Breite, mit demselben Stufenfilter und "
 "derselben Platzierung wie die Übersicht."
 
-#: services/webservice/pages/node_settings.py:101
+#: services/webservice/pages/node_settings.py:102
 msgid "Node settings"
 msgstr "Knoten-Einstellungen"
 
-#: services/webservice/pages/node_settings.py:102
+#: services/webservice/pages/node_settings.py:103
 msgid ""
 "This node's block of nodes.yaml — the machine's own settings. A save "
 "applies on the next bot restart."
@@ -1605,33 +1617,33 @@ msgstr ""
 "Der Block dieses Knotens in der nodes.yaml — die Einstellungen der "
 "Maschine. Ein Speichern wird beim nächsten Neustart des Bots übernommen."
 
-#: services/webservice/pages/node_settings.py:157
-#: services/webservice/pages/node_settings.py:285
-#: services/webservice/pages/settings.py:154
-#: services/webservice/pages/settings.py:158
-#: services/webservice/pages/settings.py:283
+#: services/webservice/pages/node_settings.py:158
+#: services/webservice/pages/node_settings.py:286
+#: services/webservice/pages/settings.py:155
+#: services/webservice/pages/settings.py:159
+#: services/webservice/pages/settings.py:284
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: services/webservice/pages/node_settings.py:158
+#: services/webservice/pages/node_settings.py:159
 #, python-brace-format
 msgid "Settings — open {node}'s own settings (nodes.yaml)"
 msgstr "Einstellungen — die eigenen Einstellungen von {node} öffnen (nodes.yaml)"
 
-#: services/webservice/pages/node_settings.py:160
+#: services/webservice/pages/node_settings.py:161
 #, python-brace-format
 msgid "Open the settings of node {node}"
 msgstr "Die Einstellungen von Knoten {node} öffnen"
 
-#: services/webservice/pages/node_settings.py:286
+#: services/webservice/pages/node_settings.py:287
 msgid "Extensions"
 msgstr ""
 
-#: services/webservice/pages/node_settings.py:288
+#: services/webservice/pages/node_settings.py:289
 msgid "extension"
 msgstr "Erweiterung"
 
-#: services/webservice/pages/node_settings.py:293
+#: services/webservice/pages/node_settings.py:294
 msgid ""
 "<b>Node-wide</b> is this node's own block — its settings and the "
 "extensions every instance starts from. An instance tab beside it changes "
@@ -1641,7 +1653,7 @@ msgstr ""
 "Einstellungen und die Erweiterungen, von denen jede Instanz ausgeht. Ein "
 "Instanz-Tab daneben ändert nur diese Instanz."
 
-#: services/webservice/pages/node_settings.py:296
+#: services/webservice/pages/node_settings.py:297
 #, python-format
 msgid ""
 "This block changes only <b>%(scope)s</b>. It INHERITS everything it does "
@@ -1650,7 +1662,7 @@ msgstr ""
 "Dieser Block ändert nur <b>%(scope)s</b>. Er ERBT alles, was er nicht "
 "setzt, vom eigenen Block des Knotens — nichts wird kopiert."
 
-#: services/webservice/pages/node_settings.py:314
+#: services/webservice/pages/node_settings.py:315
 msgid ""
 "No change was saved: the form named a setting outside the tab you were "
 "editing, so saving it would have written into a scope you did not open. "
@@ -1662,7 +1674,7 @@ msgstr ""
 "Seite neu, öffne diesen Reiter und versuche es erneut — es wurde nichts "
 "geschrieben."
 
-#: services/webservice/pages/node_settings.py:320
+#: services/webservice/pages/node_settings.py:321
 msgid ""
 "No change was saved: this page did not name a tab of this node, so there "
 "is nothing to write. Reload the page and pick a tab — nothing was "
@@ -1672,7 +1684,7 @@ msgstr ""
 "Knotens, es gibt also nichts zu schreiben. Lade die Seite neu und wähle "
 "einen Reiter — es wurde nichts geschrieben."
 
-#: services/webservice/pages/node_settings.py:326
+#: services/webservice/pages/node_settings.py:327
 msgid ""
 "No change was saved: this node has no block in nodes.yaml yet, so there "
 "is nothing to save. Add the node in Expert Mode first — nothing was "
@@ -1682,7 +1694,7 @@ msgstr ""
 "nodes.yaml, es gibt also nichts zu speichern. Füge den Knoten zuerst im "
 "Expertenmodus hinzu — es wurde nichts geschrieben."
 
-#: services/webservice/pages/node_settings.py:333
+#: services/webservice/pages/node_settings.py:334
 msgid ""
 "This extension is not configured for this scope yet. The form never "
 "creates it — add its block in Expert Mode, then it becomes editable here."
@@ -1691,39 +1703,39 @@ msgstr ""
 "Formular legt sie nie an — füge ihren Block im Expertenmodus hinzu, dann "
 "wird sie hier bearbeitbar."
 
-#: services/webservice/pages/node_settings.py:373
-#: services/webservice/pages/settings.py:347
+#: services/webservice/pages/node_settings.py:374
+#: services/webservice/pages/settings.py:348
 msgid "Configured"
 msgstr ""
 
-#: services/webservice/pages/node_settings.py:374
-#: services/webservice/pages/settings.py:348
+#: services/webservice/pages/node_settings.py:375
+#: services/webservice/pages/settings.py:349
 msgid "Not configured"
 msgstr ""
 
-#: services/webservice/pages/node_settings.py:375
-#: services/webservice/pages/settings.py:358
+#: services/webservice/pages/node_settings.py:376
+#: services/webservice/pages/settings.py:359
 msgid "Turn on"
 msgstr ""
 
-#: services/webservice/pages/node_settings.py:376
-#: services/webservice/pages/settings.py:357
+#: services/webservice/pages/node_settings.py:377
+#: services/webservice/pages/settings.py:358
 msgid "Turn off"
 msgstr ""
 
-#: services/webservice/pages/node_settings.py:377
+#: services/webservice/pages/node_settings.py:378
 msgid "Keep it"
 msgstr "Beibehalten"
 
-#: services/webservice/pages/node_settings.py:385
+#: services/webservice/pages/node_settings.py:386
 msgid "Enabled"
 msgstr "Aktiviert"
 
-#: services/webservice/pages/node_settings.py:386
+#: services/webservice/pages/node_settings.py:387
 msgid "Disabled"
 msgstr "Deaktiviert"
 
-#: services/webservice/pages/node_settings.py:389
+#: services/webservice/pages/node_settings.py:390
 #, python-format
 msgid ""
 "Turned off the default extension %(name)s for this scope — it will not "
@@ -1732,12 +1744,12 @@ msgstr ""
 "Die Standarderweiterung %(name)s wurde für diesen Bereich ausgeschaltet —"
 " sie wird dort nicht geladen."
 
-#: services/webservice/pages/node_settings.py:391
+#: services/webservice/pages/node_settings.py:392
 #, python-format
 msgid "Turned on the default extension %(name)s for this scope."
 msgstr "Die Standarderweiterung %(name)s wurde für diesen Bereich eingeschaltet."
 
-#: services/webservice/pages/node_settings.py:395
+#: services/webservice/pages/node_settings.py:396
 msgid ""
 "Turning this off REMOVES this extension's block from this scope. "
 "Everything it holds right now is discarded:"
@@ -1745,19 +1757,19 @@ msgstr ""
 "Wenn du das ausschaltest, wird der Block dieser Erweiterung aus diesem "
 "Bereich ENTFERNT. Alles, was er gerade enthält, geht verloren:"
 
-#: services/webservice/pages/node_settings.py:400
+#: services/webservice/pages/node_settings.py:401
 #, python-format
 msgid "Added the extension %(name)s to this scope as an empty block."
 msgstr ""
 "Die Erweiterung %(name)s wurde diesem Bereich als leerer Block "
 "hinzugefügt."
 
-#: services/webservice/pages/node_settings.py:401
+#: services/webservice/pages/node_settings.py:402
 #, python-format
 msgid "Removed the extension %(name)s from this scope."
 msgstr "Die Erweiterung %(name)s wurde aus diesem Bereich entfernt."
 
-#: services/webservice/pages/node_settings.py:403
+#: services/webservice/pages/node_settings.py:404
 #, python-format
 msgid ""
 "The extension %(name)s is already configured for this scope — nothing was"
@@ -1766,7 +1778,7 @@ msgstr ""
 "Die Erweiterung %(name)s ist für diesen Bereich bereits konfiguriert — es"
 " wurde nichts hinzugefügt."
 
-#: services/webservice/pages/node_settings.py:405
+#: services/webservice/pages/node_settings.py:406
 #, python-format
 msgid ""
 "The extension %(name)s is not configured for this scope — nothing was "
@@ -1775,7 +1787,7 @@ msgstr ""
 "Die Erweiterung %(name)s ist für diesen Bereich nicht konfiguriert — es "
 "wurde nichts entfernt."
 
-#: services/webservice/pages/node_settings.py:411
+#: services/webservice/pages/node_settings.py:412
 msgid ""
 "Every extension of this scope is configured already — there is nothing "
 "left to add."
@@ -1783,7 +1795,7 @@ msgstr ""
 "Jede Erweiterung dieses Bereichs ist bereits konfiguriert — es gibt "
 "nichts mehr hinzuzufügen."
 
-#: services/webservice/pages/node_settings.py:415
+#: services/webservice/pages/node_settings.py:416
 msgid ""
 "No change was saved: this page did not name an extension of the tab you "
 "were editing, so there is nothing to write. Reload the page and try again"
@@ -1793,7 +1805,7 @@ msgstr ""
 "genannt, den du bearbeitet hast, also gibt es nichts zu schreiben. Lade "
 "die Seite neu und versuche es erneut — es wurde nichts geschrieben."
 
-#: services/webservice/pages/node_settings.py:422
+#: services/webservice/pages/node_settings.py:423
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
 "warning produces, so the extension's block was left exactly as it was. "
@@ -1805,7 +1817,7 @@ msgstr ""
 "belassen, wie er war. Öffne den Schalter der Erweiterung, lies die "
 "Warnung, die zeigt, was verworfen wird, und bestätige von dort aus."
 
-#: services/webservice/pages/node_settings.py:527
+#: services/webservice/pages/node_settings.py:528
 msgid ""
 "This extension is not configured for this node yet, so there is nothing "
 "to edit here. Turn it on from the node page first."
@@ -1814,7 +1826,7 @@ msgstr ""
 "gibt es hier nichts zu bearbeiten. Aktiviere sie zuerst auf der "
 "Knotenseite."
 
-#: services/webservice/pages/node_settings.py:532
+#: services/webservice/pages/node_settings.py:533
 msgid ""
 "Each tab is this extension's block for one scope — the node's own block, "
 "then one per instance that configures it. Nothing is copied between them."
@@ -1823,22 +1835,22 @@ msgstr ""
 " Block des Knotens, dann einer pro Instanz, die sie konfiguriert. "
 "Zwischen ihnen wird nichts kopiert."
 
-#: services/webservice/pages/node_settings.py:1067
+#: services/webservice/pages/node_settings.py:1068
 msgid "No nodes.yaml on this install, so this node has no settings to show."
 msgstr ""
 "Keine nodes.yaml in dieser Installation, daher hat dieser Knoten keine "
 "Einstellungen zum Anzeigen."
 
-#: services/webservice/pages/node_settings.py:1072
-#: services/webservice/pages/node_settings.py:1618
+#: services/webservice/pages/node_settings.py:1073
+#: services/webservice/pages/node_settings.py:1620
 msgid "This node has no block in nodes.yaml yet."
 msgstr "Dieser Knoten hat noch keinen Block in der nodes.yaml."
 
-#: services/webservice/pages/node_settings.py:1407
-#: services/webservice/pages/node_settings.py:1555
-#: services/webservice/pages/node_settings.py:1797
-#: services/webservice/pages/settings.py:2016
-#: services/webservice/pages/settings.py:2146
+#: services/webservice/pages/node_settings.py:1409
+#: services/webservice/pages/node_settings.py:1557
+#: services/webservice/pages/node_settings.py:1800
+#: services/webservice/pages/settings.py:2019
+#: services/webservice/pages/settings.py:2149
 msgid ""
 "This page is stale — the file changed on disk since it was rendered. "
 "Reload and try again."
@@ -1846,7 +1858,7 @@ msgstr ""
 "Diese Seite ist veraltet — die Datei hat sich seit dem Rendern geändert. "
 "Lade sie neu und versuch es erneut."
 
-#: services/webservice/pages/node_settings.py:1612
+#: services/webservice/pages/node_settings.py:1614
 msgid "No nodes.yaml on this install, so this extension has nothing to show."
 msgstr ""
 "Keine nodes.yaml in dieser Installation, daher hat diese Erweiterung "
@@ -1945,6 +1957,56 @@ msgstr "Der Offset muss eine nicht-negative ganze Zahl sein."
 msgid "The behind position must be a non-negative whole number."
 msgstr "Die Behind-Position muss eine nicht-negative ganze Zahl sein."
 
+#: services/webservice/pages/overview.py:72
+#: services/webservice/pages/overview.py:79
+msgid "Server overview"
+msgstr "Server-Übersicht"
+
+#: services/webservice/pages/overview.py:73
+msgid ""
+"Every server of the cluster at a glance: status, mission, players, "
+"weather and runtime, each with a link to its own page."
+msgstr ""
+"Jeder Server des Clusters auf einen Blick: Status, Mission, Spieler, "
+"Wetter und Laufzeit — jeweils mit einem Link auf seine eigene Seite."
+
+#: services/webservice/pages/overview.py:96
+#: services/webservice/pages/server_detail.py:218
+#: services/webservice/templates/overview.html:57
+#: services/webservice/templates/server_detail.html:708
+msgid "Map"
+msgstr "Karte"
+
+#: services/webservice/pages/overview.py:97
+#: services/webservice/pages/server_detail.py:219
+#: services/webservice/templates/overview.html:62
+#: services/webservice/templates/server_detail.html:713
+msgid "Temperature"
+msgstr "Temperatur"
+
+#: services/webservice/pages/overview.py:98
+#: services/webservice/pages/overview.py:99
+#: services/webservice/pages/server_detail.py:220
+#: services/webservice/pages/server_detail.py:221
+#: services/webservice/templates/overview.html:64
+#: services/webservice/templates/server_detail.html:715
+msgid "Weather"
+msgstr "Wetter"
+
+#: services/webservice/pages/overview.py:100
+#: services/webservice/pages/server_detail.py:222
+#: services/webservice/templates/overview.html:63
+#: services/webservice/templates/server_detail.html:714
+msgid "Wind"
+msgstr "Wind"
+
+#: services/webservice/pages/overview.py:101
+#: services/webservice/pages/server_detail.py:223
+#: services/webservice/templates/overview.html:58
+#: services/webservice/templates/server_detail.html:709
+msgid "Runtime"
+msgstr "Laufzeit"
+
 #: services/webservice/pages/players.py:31
 #: services/webservice/pages/server_detail.py:187
 #: services/webservice/readmodels/views.py:113
@@ -1989,32 +2051,6 @@ msgstr "Protokoll"
 #: services/webservice/templates/server_detail.html:690
 msgid "Events"
 msgstr "Ereignisse"
-
-#: services/webservice/pages/server_detail.py:218
-#: services/webservice/templates/server_detail.html:708
-msgid "Map"
-msgstr "Karte"
-
-#: services/webservice/pages/server_detail.py:219
-#: services/webservice/templates/server_detail.html:713
-msgid "Temperature"
-msgstr "Temperatur"
-
-#: services/webservice/pages/server_detail.py:220
-#: services/webservice/pages/server_detail.py:221
-#: services/webservice/templates/server_detail.html:715
-msgid "Weather"
-msgstr "Wetter"
-
-#: services/webservice/pages/server_detail.py:222
-#: services/webservice/templates/server_detail.html:714
-msgid "Wind"
-msgstr "Wind"
-
-#: services/webservice/pages/server_detail.py:223
-#: services/webservice/templates/server_detail.html:709
-msgid "Runtime"
-msgstr "Laufzeit"
 
 #: services/webservice/pages/server_detail.py:647
 #, python-brace-format
@@ -2103,17 +2139,17 @@ msgstr ""
 "darfst, trägt ihre Steuerung in der Zeile; eine Aktion wirkt nur auf "
 "diesen Server."
 
-#: services/webservice/pages/settings.py:137
+#: services/webservice/pages/settings.py:138
 #: services/webservice/templates/settings_tiles.html:48
 msgid "Main"
 msgstr ""
 
-#: services/webservice/pages/settings.py:142
+#: services/webservice/pages/settings.py:143
 #: services/webservice/templates/_settings_files.html:13
 msgid "Configuration files"
 msgstr ""
 
-#: services/webservice/pages/settings.py:155
+#: services/webservice/pages/settings.py:156
 msgid ""
 "The bot's own configuration, generated from its schema. The form and the "
 "YAML are one file: a save writes only what you changed, and a restart "
@@ -2123,40 +2159,40 @@ msgstr ""
 "und YAML sind eine Datei: Beim Speichern wird nur geschrieben, was du "
 "geändert hast, und ein Neustart wendet es an."
 
-#: services/webservice/pages/settings.py:176
+#: services/webservice/pages/settings.py:177
 #, python-format
 msgid "Not valid YAML on line %(line)s, column %(column)s."
 msgstr ""
 
-#: services/webservice/pages/settings.py:177
+#: services/webservice/pages/settings.py:178
 #, python-format
 msgid "Not valid against the schema — line %(line)s, in %(block)s."
 msgstr ""
 
-#: services/webservice/pages/settings.py:178
+#: services/webservice/pages/settings.py:179
 #, python-format
 msgid "Not valid against the schema — in %(block)s."
 msgstr ""
 
-#: services/webservice/pages/settings.py:206
+#: services/webservice/pages/settings.py:207
 msgid "Saved — this configuration applies on the next bot restart."
 msgstr ""
 "Gespeichert — diese Konfiguration wird beim nächsten Neustart des Bots "
 "übernommen."
 
-#: services/webservice/pages/settings.py:211
+#: services/webservice/pages/settings.py:212
 msgid "Saved — this change applies immediately."
 msgstr "Gespeichert — diese Änderung wird sofort übernommen."
 
-#: services/webservice/pages/settings.py:212
+#: services/webservice/pages/settings.py:213
 msgid "Nothing changed — the file is untouched."
 msgstr "Nichts geändert — die Datei bleibt unangetastet."
 
-#: services/webservice/pages/settings.py:213
+#: services/webservice/pages/settings.py:214
 msgid "The change was refused, and nothing was written."
 msgstr "Die Änderung wurde abgelehnt, und nichts wurde geschrieben."
 
-#: services/webservice/pages/settings.py:220
+#: services/webservice/pages/settings.py:221
 msgid ""
 "No change was saved: the form carried a field this page cannot place in "
 "the config, so saving it would have silently dropped it. Nothing was "
@@ -2167,7 +2203,7 @@ msgstr ""
 " es stillschweigend verworfen. Es wurde nichts geschrieben — lade die "
 "Seite neu und versuch es erneut."
 
-#: services/webservice/pages/settings.py:225
+#: services/webservice/pages/settings.py:226
 msgid ""
 "No change was saved: a new entry's key already names an existing entry, "
 "so saving it would have overwritten that entry. Give the new entry a "
@@ -2178,7 +2214,7 @@ msgstr ""
 "Eintrag überschrieben. Gib dem neuen Eintrag einen anderen Schlüssel — es"
 " wurde nichts geschrieben."
 
-#: services/webservice/pages/settings.py:233
+#: services/webservice/pages/settings.py:234
 msgid ""
 "No change was saved: the document is empty, and an empty document is not "
 "a document — saving it would replace the file with nothing. Edit the file"
@@ -2189,7 +2225,7 @@ msgstr ""
 " ersetzen. Bearbeite die Datei und versuche es erneut; es wurde nichts "
 "geschrieben."
 
-#: services/webservice/pages/settings.py:240
+#: services/webservice/pages/settings.py:241
 msgid ""
 "No change was saved: the form named a node that is not the selected one, "
 "so saving it would have rewritten another node's block. Reload the page, "
@@ -2201,7 +2237,7 @@ msgstr ""
 "umgeschrieben. Lade die Seite neu, wähle diesen Knoten, wenn du ihn "
 "bearbeiten wolltest, und versuch es erneut — es wurde nichts geschrieben."
 
-#: services/webservice/pages/settings.py:247
+#: services/webservice/pages/settings.py:248
 msgid ""
 "No change was saved: this page did not name a node this file carries, so "
 "there is no part of the file to write. Reload the page and pick a node — "
@@ -2211,7 +2247,7 @@ msgstr ""
 "Datei enthält, es gibt also keinen Teil der Datei zu schreiben. Lade die "
 "Seite neu und wähle einen Knoten — es wurde nichts geschrieben."
 
-#: services/webservice/pages/settings.py:253
+#: services/webservice/pages/settings.py:254
 msgid ""
 "This editor did not name a node this file carries, so its part of the "
 "file cannot be checked. Reload the page and pick a node."
@@ -2220,24 +2256,24 @@ msgstr ""
 "sein Teil der Datei nicht geprüft werden. Lade die Seite neu und wähle "
 "einen Knoten."
 
-#: services/webservice/pages/settings.py:261
+#: services/webservice/pages/settings.py:262
 msgid ""
 "This file does not validate against its schema. The form is still "
 "generated from the schema, but the file on disk has an error — correct it"
 " before saving."
 msgstr ""
 
-#: services/webservice/pages/settings.py:266
+#: services/webservice/pages/settings.py:267
 msgid ""
 "No schema ships for this file, so its form cannot be generated — it is "
 "shown read-only."
 msgstr ""
 
-#: services/webservice/pages/settings.py:284
+#: services/webservice/pages/settings.py:285
 msgid "instance name"
 msgstr "Instanzname"
 
-#: services/webservice/pages/settings.py:288
+#: services/webservice/pages/settings.py:289
 #: services/webservice/readmodels/views.py:111
 #: services/webservice/readmodels/views.py:114
 #: services/webservice/readmodels/views.py:117
@@ -2249,7 +2285,7 @@ msgstr "Instanzname"
 msgid "Node"
 msgstr "Knoten"
 
-#: services/webservice/pages/settings.py:290
+#: services/webservice/pages/settings.py:291
 msgid ""
 "Pick a node to configure. The tabs then show only its own block and its "
 "instances — never every node at once."
@@ -2257,7 +2293,7 @@ msgstr ""
 "Wähle einen Node zum Konfigurieren. Die Tabs zeigen dann nur seinen "
 "eigenen Block und seine Instanzen — nie alle Nodes auf einmal."
 
-#: services/webservice/pages/settings.py:295
+#: services/webservice/pages/settings.py:296
 msgid ""
 "Expert Mode edits only this node's part of the file — every other node is"
 " left untouched."
@@ -2265,7 +2301,7 @@ msgstr ""
 "Der Expert-Modus bearbeitet nur den Teil der Datei dieses Nodes — jeder "
 "andere Node bleibt unberührt."
 
-#: services/webservice/pages/settings.py:298
+#: services/webservice/pages/settings.py:299
 msgid ""
 "<b>DEFAULT</b> is the scope every instance starts from. A block under it "
 "changes only that node or instance — and because the scope is the TAB, no"
@@ -2275,7 +2311,7 @@ msgstr ""
 "darunter ändert nur diesen Knoten oder diese Instanz — und da der Bereich"
 " die Registerkarte ist, trägt kein Feld ein <code>default.</code>-Präfix."
 
-#: services/webservice/pages/settings.py:301
+#: services/webservice/pages/settings.py:302
 #, python-format
 msgid ""
 "This block changes only <b>%(scope)s</b>. It INHERITS everything it does "
@@ -2286,7 +2322,7 @@ msgstr ""
 "setzt, von DEFAULT — nichts wird kopiert, ein nicht gesetztes Feld folgt "
 "also weiter dem Standardblock."
 
-#: services/webservice/pages/settings.py:308
+#: services/webservice/pages/settings.py:309
 msgid ""
 "This configuration has no node or instance blocks — the whole file is one"
 " scope, so no field carries a <code>DEFAULT.</code> prefix."
@@ -2295,94 +2331,94 @@ msgstr ""
 " ist ein einziger Bereich, daher trägt kein Feld das Präfix "
 "<code>DEFAULT.</code>"
 
-#: services/webservice/pages/settings.py:311
+#: services/webservice/pages/settings.py:312
 #, python-format
 msgid "Added the block %(scope)s."
 msgstr "Der Block %(scope)s wurde hinzugefügt."
 
-#: services/webservice/pages/settings.py:312
+#: services/webservice/pages/settings.py:313
 #, python-format
 msgid "The block %(scope)s already exists — nothing was added."
 msgstr "Der Block %(scope)s existiert bereits — es wurde nichts hinzugefügt."
 
-#: services/webservice/pages/settings.py:313
+#: services/webservice/pages/settings.py:314
 #, python-format
 msgid "No block was added: %(detail)s"
 msgstr "Es wurde kein Block hinzugefügt: %(detail)s"
 
-#: services/webservice/pages/settings.py:314
+#: services/webservice/pages/settings.py:315
 msgid "no name was given."
 msgstr "es wurde kein Name angegeben."
 
-#: services/webservice/pages/settings.py:317
+#: services/webservice/pages/settings.py:318
 msgid ""
 "Every plugin, service and extension of this install, each with its own "
 "configuration behind one cogwheel. A service change applies on the next "
 "bot restart."
 msgstr ""
 
-#: services/webservice/pages/settings.py:321
+#: services/webservice/pages/settings.py:322
 msgid "Plugins"
 msgstr ""
 
-#: services/webservice/pages/settings.py:322
+#: services/webservice/pages/settings.py:323
 msgid "Services"
 msgstr ""
 
-#: services/webservice/pages/settings.py:328
+#: services/webservice/pages/settings.py:329
 #, python-format
 msgid ""
 "Load on the bot master node · the lists live in main.yaml › plugins and "
 "opt_plugins · %(on)s of %(total)s load today"
 msgstr ""
 
-#: services/webservice/pages/settings.py:331
+#: services/webservice/pages/settings.py:332
 msgid ""
 "Node-wide background workers · one file each in config/services/ · "
 "changes apply on the next bot restart"
 msgstr ""
 
-#: services/webservice/pages/settings.py:338
+#: services/webservice/pages/settings.py:339
 msgid "Every optional plugin is enabled already — there is nothing left to add."
 msgstr ""
 "Jedes optionale Plugin ist bereits aktiviert — es gibt nichts mehr "
 "hinzuzufügen."
 
-#: services/webservice/pages/settings.py:341
+#: services/webservice/pages/settings.py:342
 msgid "runs on"
 msgstr ""
 
-#: services/webservice/pages/settings.py:345
+#: services/webservice/pages/settings.py:346
 msgid "Load on"
 msgstr ""
 
-#: services/webservice/pages/settings.py:346
+#: services/webservice/pages/settings.py:347
 msgid "Load off"
 msgstr ""
 
-#: services/webservice/pages/settings.py:349
+#: services/webservice/pages/settings.py:350
 msgid "Config"
 msgstr ""
 
-#: services/webservice/pages/settings.py:353
+#: services/webservice/pages/settings.py:354
 #, python-format
 msgid ""
 "Held off by the %(plugin)s plugin — it is not in opt_plugins. Add it "
 "there to enable this service; nothing is moved."
 msgstr ""
 
-#: services/webservice/pages/settings.py:356
+#: services/webservice/pages/settings.py:357
 #, python-format
 msgid ""
 "No config/services/%(name)s.yaml — the service has nothing to read and "
 "does not run."
 msgstr ""
 
-#: services/webservice/pages/settings.py:359
+#: services/webservice/pages/settings.py:360
 msgid "Saved — the service change applies on the next bot restart."
 msgstr ""
 
-#: services/webservice/pages/settings.py:370
+#: services/webservice/pages/settings.py:371
 msgid ""
 "You are turning off a default plugin. This can affect the functionality "
 "of DCSServerBot."
@@ -2390,51 +2426,51 @@ msgstr ""
 "Du schaltest ein Standard-Plugin aus. Das kann die Funktionsweise von "
 "DCSServerBot beeinträchtigen."
 
-#: services/webservice/pages/settings.py:371
+#: services/webservice/pages/settings.py:372
 msgid "Switch it off anyway"
 msgstr "Trotzdem ausschalten"
 
-#: services/webservice/pages/settings.py:372
+#: services/webservice/pages/settings.py:373
 msgid "Keep it on"
 msgstr "Eingeschaltet lassen"
 
-#: services/webservice/pages/settings.py:376
+#: services/webservice/pages/settings.py:377
 #, python-format
 msgid ""
 "Service turned off — its config was moved to %(path)s. It applies on the "
 "next bot restart."
 msgstr ""
 
-#: services/webservice/pages/settings.py:378
+#: services/webservice/pages/settings.py:379
 #, python-format
 msgid ""
 "Service turned on — its config was moved back to %(path)s. It applies on "
 "the next bot restart."
 msgstr ""
 
-#: services/webservice/pages/settings.py:379
+#: services/webservice/pages/settings.py:380
 msgid "No change was made: this service has no config file to move."
 msgstr ""
 
-#: services/webservice/pages/settings.py:381
+#: services/webservice/pages/settings.py:382
 msgid ""
 "Nothing was moved: this service is held off by its plugin dependency, not"
 " by a missing file. Add the plugin to opt_plugins instead."
 msgstr ""
 
-#: services/webservice/pages/settings.py:383
+#: services/webservice/pages/settings.py:384
 msgid "No such service."
 msgstr ""
 
-#: services/webservice/pages/settings.py:794
+#: services/webservice/pages/settings.py:796
 msgid "defaults"
 msgstr "Standardwerte"
 
-#: services/webservice/pages/settings.py:795
+#: services/webservice/pages/settings.py:797
 msgid "override"
 msgstr "Übersteuerung"
 
-#: services/webservice/pages/settings.py:1648
+#: services/webservice/pages/settings.py:1651
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
 "page produces, so the setting was left exactly as it was. Reload the page"
@@ -2636,6 +2672,7 @@ msgstr ""
 
 #: services/webservice/readmodels/serverconfig.py:231
 #: services/webservice/templates/login.html:131
+#: services/webservice/templates/overview.html:51
 #: services/webservice/templates/server_detail.html:703
 msgid "Password"
 msgstr "Passwort"
@@ -2997,53 +3034,1427 @@ msgstr "UCID"
 msgid "Slot"
 msgstr "Slot"
 
-#: services/webservice/templates/_config_fields.html:64
-#: services/webservice/templates/_scope_fields.html:42
-msgid "Remove this setting from the file"
+#: services/webservice/setup/tour.py:104 services/webservice/setup/tour.py:491
+#: services/webservice/templates/_language.html:24
+msgid "Language"
+msgstr "Sprache"
+
+#: services/webservice/setup/tour.py:105
+msgid "General"
+msgstr "Allgemein"
+
+#: services/webservice/setup/tour.py:106
+msgid "Database"
+msgstr "Datenbank"
+
+#: services/webservice/setup/tour.py:107
+msgid "This node"
+msgstr "Dieser Node"
+
+#: services/webservice/setup/tour.py:108
+msgid "Discord — the bot"
+msgstr "Discord — der Bot"
+
+#: services/webservice/setup/tour.py:109
+msgid "Discord — roles and channels"
+msgstr "Discord — Rollen und Kanäle"
+
+#: services/webservice/setup/tour.py:110
+msgid "Web console"
+msgstr "Web-Konsole"
+
+#: services/webservice/setup/tour.py:111
+msgid "DCS servers"
+msgstr "DCS-Server"
+
+#: services/webservice/setup/tour.py:112
+msgid "Review and write"
+msgstr "Prüfen und schreiben"
+
+#: services/webservice/setup/tour.py:116
+msgid "Your community"
+msgstr "Deine Community"
+
+#: services/webservice/setup/tour.py:129
+msgid "Which language do you speak?"
+msgstr "Welche Sprache sprichst Du?"
+
+#: services/webservice/setup/tour.py:130
+msgid "Do you want the web admin console?"
+msgstr "Möchtest Du die Web-Admin-Konsole?"
+
+#: services/webservice/setup/tour.py:486
+msgid "Nothing is written yet — the last screen writes your configuration."
 msgstr ""
+"Es wurde noch nichts geschrieben — der letzte Bildschirm schreibt Deine "
+"Konfiguration."
 
-#: services/webservice/templates/_config_fields.html:66
-#: services/webservice/templates/_scope_fields.html:44
-msgid "This removes the setting and its value from the file."
+#: services/webservice/setup/tour.py:490
+msgid "Setup"
+msgstr "Einrichtung"
+
+#: services/webservice/setup/tour.py:492
+msgid "tap to see the steps"
+msgstr "zum Anzeigen der Schritte tippen"
+
+#: services/webservice/setup/tour.py:493
+msgid "Setup steps"
+msgstr "Einrichtungsschritte"
+
+#: services/webservice/setup/tour.py:494
+msgid "Continue"
+msgstr "Weiter"
+
+#: services/webservice/setup/tour.py:495
+msgid "Back"
+msgstr "Zurück"
+
+#: services/webservice/setup/tour.py:497
+msgid ""
+"The bot can be set to the same language, which means, that all Discord "
+"and in-game messages will be in your language as well. Would you like me "
+"to configure the bot this way?"
 msgstr ""
+"Der Bot kann auf dieselbe Sprache eingestellt werden, das heißt, dass "
+"auch alle Discord- und Ingame-Nachrichten in Deiner Sprache erscheinen. "
+"Soll ich den Bot so konfigurieren?"
 
-#: services/webservice/templates/_config_fields.html:68
-#: services/webservice/templates/_scope_fields.html:46
-#: services/webservice/templates/confirm.html:164
-msgid "Cancel"
-msgstr "Abbrechen"
+#: services/webservice/setup/tour.py:500
+msgid ""
+"Unticked, the bot keeps its own default language (English) — the console "
+"still speaks the language of your browser."
+msgstr ""
+"Ohne Häkchen behält der Bot seine eigene Standardsprache (Englisch) — die"
+" Konsole spricht weiterhin die Sprache Deines Browsers."
 
-#: services/webservice/templates/_config_fields.html:89
-#: services/webservice/templates/_config_fields.html:164
-#: services/webservice/templates/_config_fields.html:191
-#: services/webservice/templates/_scope_fields.html:62
-#: services/webservice/templates/_scope_fields.html:109
-#: services/webservice/templates/_scope_fields.html:135
+#: services/webservice/setup/tour.py:507
+#, python-brace-format
+msgid "Preselected from your browser — it sent \"{header}\"."
+msgstr "Vorgewählt aus Deinem Browser — er sendet \"{header}\"."
+
+#: services/webservice/setup/tour.py:509
+#, python-brace-format
+msgid ""
+"Preselected from the language in the link you followed — the \"{param}\" "
+"parameter."
+msgstr ""
+"Vorgewählt aus der Sprache in dem Link, dem Du gefolgt bist — der "
+"Parameter \"{param}\"."
+
+#: services/webservice/setup/tour.py:511
+#, python-brace-format
+msgid ""
+"Preselected from the language this console stored for you — the "
+"\"{cookie}\" cookie."
+msgstr ""
+"Vorgewählt aus der Sprache, die diese Konsole für Dich gespeichert hat — "
+"das Cookie \"{cookie}\"."
+
+#: services/webservice/setup/tour.py:513
+msgid "Preselected from the answer you saved to this step on an earlier run."
+msgstr ""
+"Vorgewählt aus Deiner Antwort, die Du auf diesem Schritt in einem "
+"früheren Durchlauf gespeichert hast."
+
+#: services/webservice/setup/tour.py:515
+msgid "Preselected from this install's default language — nothing else named one."
+msgstr ""
+"Vorgewählt aus der Standardsprache dieser Installation — nichts anderes "
+"hat eine genannt."
+
+#: services/webservice/setup/tour.py:518
+msgid ""
+"Before you start you need PostgreSQL 14 or higher, and a Discord bot "
+"token. On a no-Discord install the token is not needed."
+msgstr ""
+"Bevor Du startest, brauchst Du PostgreSQL 14 oder neuer und einen "
+"Discord-Bot-Token. Bei einer Installation ohne Discord ist der Token "
+"nicht nötig."
+
+#: services/webservice/setup/tour.py:520
+msgid "Do you want your DCSServerBot being auto-updated?"
+msgstr "Möchtest Du Deinen DCSServerBot automatisch aktualisieren lassen?"
+
+#: services/webservice/setup/tour.py:521
+msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
+msgstr "Möchtest Du DCSServerBot mit Discord-Unterstützung betreiben (empfohlen)?"
+
+#: services/webservice/setup/tour.py:523
+msgid ""
+"Discord is how the bot talks to your admins and players. Without it you "
+"manage everything from this console."
+msgstr ""
+"Über Discord spricht der Bot mit Deinen Admins und Spielern. Ohne Discord"
+" verwaltest Du alles über diese Konsole."
+
+#: services/webservice/setup/tour.py:525
+msgid "This step is not built yet."
+msgstr "Dieser Schritt ist noch nicht umgesetzt."
+
+#: services/webservice/setup/tour.py:530
+msgid ""
+"Your answers could not be saved — the setup draft was not written, so "
+"this step is not recorded. Try again."
+msgstr ""
+"Deine Antworten konnten nicht gespeichert werden — der Setup-Entwurf "
+"wurde nicht geschrieben, dieser Schritt ist also nicht erfasst. Versuche "
+"es erneut."
+
+#: services/webservice/setup/tour.py:534
+msgid "Create a new database"
+msgstr "Eine neue Datenbank anlegen"
+
+#: services/webservice/setup/tour.py:536
+msgid ""
+"The bot creates its own database and its own user. You enter the "
+"PostgreSQL superuser credentials below."
+msgstr ""
+"Der Bot legt seine eigene Datenbank und seinen eigenen Benutzer an. Du "
+"gibst unten die Zugangsdaten des PostgreSQL-Superusers ein."
+
+#: services/webservice/setup/tour.py:538
+msgid "Use an existing database"
+msgstr "Eine vorhandene Datenbank verwenden"
+
+#: services/webservice/setup/tour.py:540
+msgid ""
+"Point the bot at a database that already exists. You enter the "
+"credentials the bot should use, not a superuser's."
+msgstr ""
+"Richte den Bot auf eine bereits vorhandene Datenbank. Du gibst die "
+"Zugangsdaten ein, die der Bot verwenden soll — nicht die eines "
+"Superusers."
+
+#: services/webservice/setup/tour.py:542
+msgid "How should the bot get its database?"
+msgstr "Wie soll der Bot seine Datenbank bekommen?"
+
+#: services/webservice/setup/tour.py:543
+msgid "host"
+msgstr "Host"
+
+#: services/webservice/setup/tour.py:544
+msgid "Where PostgreSQL runs. The bot usually runs on the same machine."
+msgstr "Wo PostgreSQL läuft. Der Bot läuft normalerweise auf derselben Maschine."
+
+#: services/webservice/setup/tour.py:545
+#: services/webservice/templates/server_detail.html:110
+#: services/webservice/templates/server_detail.html:706
+msgid "port"
+msgstr "Port"
+
+#: services/webservice/setup/tour.py:546
+msgid "master database"
+msgstr "Master-Datenbank"
+
+#: services/webservice/setup/tour.py:547
+msgid "The maintenance database of your PostgreSQL server."
+msgstr "Die Wartungsdatenbank Deines PostgreSQL-Servers."
+
+#: services/webservice/setup/tour.py:548
+msgid "master user"
+msgstr "Master-Benutzer"
+
+#: services/webservice/setup/tour.py:550
+msgid ""
+"The PostgreSQL superuser the bot uses once, to create its own database "
+"and user."
+msgstr ""
+"Der PostgreSQL-Superuser, den der Bot einmalig verwendet, um seine eigene"
+" Datenbank und seinen eigenen Benutzer anzulegen."
+
+#: services/webservice/setup/tour.py:551
+msgid "master password"
+msgstr "Master-Passwort"
+
+#: services/webservice/setup/tour.py:552
+msgid "database"
+msgstr "Datenbank"
+
+#: services/webservice/setup/tour.py:553
+msgid "The database the bot should use."
+msgstr "Die Datenbank, die der Bot verwenden soll."
+
+#: services/webservice/setup/tour.py:554
+msgid "user"
+msgstr "Benutzer"
+
+#: services/webservice/setup/tour.py:555
+msgid "The user the bot connects with."
+msgstr "Der Benutzer, mit dem sich der Bot verbindet."
+
+#: services/webservice/setup/tour.py:556 services/webservice/setup/tour.py:896
+msgid "password"
+msgstr "Passwort"
+
+#: services/webservice/setup/tour.py:557
+msgid "Stored in config/.secret/, never on this page again."
+msgstr ""
+"Wird in config/.secret/ gespeichert und erscheint nie wieder auf dieser "
+"Seite."
+
+#: services/webservice/setup/tour.py:558
+#, python-brace-format
+msgid "The bot will create the database {database} and the user {user}."
+msgstr "Der Bot legt die Datenbank {database} und den Benutzer {user} an."
+
+#: services/webservice/setup/tour.py:559
+msgid "A password is kept for this test — leave the field empty to reuse it."
+msgstr ""
+"Für diesen Test ist ein Passwort hinterlegt — lass das Feld leer, um es "
+"wiederzuverwenden."
+
+#: services/webservice/setup/tour.py:560
+msgid "Test connection and create"
+msgstr "Verbindung testen und anlegen"
+
+#: services/webservice/setup/tour.py:562
+msgid "Test connection"
+msgstr "Verbindung testen"
+
+#: services/webservice/setup/tour.py:565
+msgid "Test the connection before you continue."
+msgstr "Teste die Verbindung, bevor Du fortfährst."
+
+#: services/webservice/setup/tour.py:566 services/webservice/setup/tour.py:628
+#, python-brace-format
+msgid "The user {user} already exists."
+msgstr "Der Benutzer {user} existiert bereits."
+
+#: services/webservice/setup/tour.py:568
+msgid "Reset its password (a new one is generated and stored in config/.secret/)."
+msgstr ""
+"Sein Passwort zurücksetzen (ein neues wird erzeugt und in config/.secret/"
+" gespeichert)."
+
+#: services/webservice/setup/tour.py:569
+msgid "its password"
+msgstr "sein Passwort"
+
+#: services/webservice/setup/tour.py:573
+msgid "Creating the database…"
+msgstr "Datenbank wird erstellt…"
+
+#: services/webservice/setup/tour.py:574
+msgid "Testing the connection…"
+msgstr "Verbindung wird getestet…"
+
+#: services/webservice/setup/tour.py:575
+msgid "Continuing…"
+msgstr "Fortfahren…"
+
+#: services/webservice/setup/tour.py:580
+msgid "Federation support"
+msgstr "Föderationsunterstützung"
+
+#: services/webservice/setup/tour.py:582
+msgid ""
+"Share resources with another DCSServerBot installation. This adds a "
+"second, cluster-wide database to config/main.yaml — only needed when this"
+" installation joins an existing federation."
+msgstr ""
+"Teile Ressourcen mit einer anderen DCSServerBot-Installation. Das fügt "
+"eine zweite, clusterweite Datenbank in config/main.yaml hinzu — nur "
+"nötig, wenn diese Installation einer bestehenden Föderation beitritt."
+
+#: services/webservice/setup/tour.py:584
+msgid "How should the bot get the cluster database?"
+msgstr "Wie soll der Bot die Cluster-Datenbank bekommen?"
+
+#: services/webservice/setup/tour.py:590
+#, python-brace-format
+msgid ""
+"Connected to PostgreSQL {version}. Created database {database} and user "
+"{user}."
+msgstr ""
+"Verbunden mit PostgreSQL {version}. Datenbank {database} und Benutzer "
+"{user} angelegt."
+
+#: services/webservice/setup/tour.py:592
+#, python-brace-format
+msgid ""
+"Connected to PostgreSQL {version}. The database {database} was created; "
+"the user {user} already existed."
+msgstr ""
+"Verbunden mit PostgreSQL {version}. Die Datenbank {database} wurde "
+"angelegt; der Benutzer {user} existierte bereits."
+
+#: services/webservice/setup/tour.py:595
+#, python-brace-format
+msgid ""
+"Connected to PostgreSQL {version}. The database {database} already "
+"existed; the bot will migrate it on first start."
+msgstr ""
+"Verbunden mit PostgreSQL {version}. Die Datenbank {database} existierte "
+"bereits; der Bot migriert sie beim ersten Start."
+
+#: services/webservice/setup/tour.py:598
+#, python-brace-format
+msgid ""
+"Connected to PostgreSQL {version}. The user {user}'s password was reset "
+"and stored in config/.secret/."
+msgstr ""
+"Verbunden mit PostgreSQL {version}. Das Passwort des Benutzers {user} "
+"wurde zurückgesetzt und in config/.secret/ gespeichert."
+
+#: services/webservice/setup/tour.py:601
+#, python-brace-format
+msgid ""
+"Connected to {database} (PostgreSQL {version}). The database is empty — "
+"the bot will create its tables on first start."
+msgstr ""
+"Verbunden mit {database} (PostgreSQL {version}). Die Datenbank ist leer —"
+" der Bot legt seine Tabellen beim ersten Start an."
+
+#: services/webservice/setup/tour.py:604
+#, python-brace-format
+msgid ""
+"Connected. This database already holds DCSServerBot data ({count} "
+"tables). The bot will continue from it."
+msgstr ""
+"Verbunden. Diese Datenbank enthält bereits DCSServerBot-Daten ({count} "
+"Tabellen). Der Bot macht damit weiter."
+
+#: services/webservice/setup/tour.py:607
+#, python-brace-format
+msgid ""
+"Connected. This database holds data from an older DCSServerBot ({count} "
+"tables). The bot will migrate it on first start."
+msgstr ""
+"Verbunden. Diese Datenbank enthält Daten eines älteren DCSServerBot "
+"({count} Tabellen). Der Bot migriert sie beim ersten Start."
+
+#: services/webservice/setup/tour.py:609
+msgid "Could not connect: the master password was refused."
+msgstr "Verbindung fehlgeschlagen: Das Master-Passwort wurde abgelehnt."
+
+#: services/webservice/setup/tour.py:610
+msgid "The master user may only use letters, digits, '_' and '-'."
+msgstr "Der Master-Benutzer darf nur Buchstaben, Ziffern, '_' und '-' enthalten."
+
+#: services/webservice/setup/tour.py:612
+msgid ""
+"The master user may not be named after one of the bot's own secret files."
+" Choose another name."
+msgstr ""
+"Der Master-Benutzer darf nicht nach einer der geheimen Dateien des Bots "
+"benannt sein. Wähle einen anderen Namen."
+
+#: services/webservice/setup/tour.py:615
+#, python-brace-format
+msgid ""
+"Could not connect: nothing is answering on {host}:{port}. Is the "
+"PostgreSQL service running?"
+msgstr ""
+"Verbindung fehlgeschlagen: Auf {host}:{port} antwortet nichts. Läuft der "
+"PostgreSQL-Dienst?"
+
+#: services/webservice/setup/tour.py:617
+#, python-brace-format
+msgid "Could not connect to {host}:{port}."
+msgstr "Verbindung zu {host}:{port} fehlgeschlagen."
+
+#: services/webservice/setup/tour.py:619
+#, python-brace-format
+msgid ""
+"Could not connect: {user} cannot sign in to this database. Check the "
+"password, or switch to 'Create a new database' — only the superuser "
+"credentials on that path can reset it."
+msgstr ""
+"Verbindung fehlgeschlagen: {user} kann sich nicht an dieser Datenbank "
+"anmelden. Prüfe das Passwort oder wechsle zu 'Eine neue Datenbank "
+"anlegen' — nur die Superuser-Zugangsdaten auf jenem Pfad können es "
+"zurücksetzen."
+
+#: services/webservice/setup/tour.py:621
+#, python-brace-format
+msgid "Could not connect: the database {database} does not exist."
+msgstr "Verbindung fehlgeschlagen: Die Datenbank {database} existiert nicht."
+
+#: services/webservice/setup/tour.py:623
+#, python-brace-format
+msgid ""
+"This database contains tables DCSServerBot did not create ({count} "
+"tables, e.g. {example}). Choose an empty database, or create a new one."
+msgstr ""
+"Diese Datenbank enthält Tabellen, die DCSServerBot nicht angelegt hat "
+"({count} Tabellen, z. B. {example}). Wähle eine leere Datenbank oder lege"
+" eine neue an."
+
+#: services/webservice/setup/tour.py:626
+#, python-brace-format
+msgid ""
+"{database} already exists and holds data. Switch to 'Use an existing "
+"database' to adopt it, or enter a different name."
+msgstr ""
+"{database} existiert bereits und enthält Daten. Wechsle zu 'Eine "
+"vorhandene Datenbank verwenden', um sie zu übernehmen, oder gib einen "
+"anderen Namen ein."
+
+#: services/webservice/setup/tour.py:630
+#, python-brace-format
+msgid ""
+"That password was not accepted ({left} attempts left before the password "
+"is reset)."
+msgstr ""
+"Dieses Passwort wurde nicht akzeptiert ({left} Versuche bleiben, bevor "
+"das Passwort zurückgesetzt wird)."
+
+#: services/webservice/setup/tour.py:632
+#, python-brace-format
+msgid ""
+"The server refused while the database or user was being created (database"
+" {database}, user {user}). Check the PostgreSQL log and your superuser's "
+"rights, then test again."
+msgstr ""
+"Der Server hat sich geweigert, während die Datenbank oder der Benutzer "
+"angelegt wurde (Datenbank {database}, Benutzer {user}). Prüfe das "
+"PostgreSQL-Log und die Rechte deines Superusers und teste dann erneut."
+
+#: services/webservice/setup/tour.py:636
+msgid ""
+"The connection was verified for these values — nothing has been written "
+"yet."
+msgstr ""
+"Die Verbindung wurde für diese Werte geprüft — es wurde noch nichts "
+"geschrieben."
+
+#: services/webservice/setup/tour.py:638
+#, python-brace-format
+msgid ""
+"Connected to {database}. This database has the same name as this "
+"installation's own — the bot treats a federation by database name, so "
+"this will not federate anything."
+msgstr ""
+"Verbunden mit {database}. Diese Datenbank hat denselben Namen wie die "
+"eigene dieser Installation — der Bot erkennt eine Föderation am "
+"Datenbanknamen, also föderiert das nichts."
+
+#: services/webservice/setup/tour.py:655
+#, python-brace-format
+msgid "PostgreSQL {version} is older than the supported {min}."
+msgstr "PostgreSQL {version} ist älter als die unterstützte {min}."
+
+#: services/webservice/setup/tour.py:659
+msgid "DCS World installation"
+msgstr "DCS-World-Installation"
+
+#: services/webservice/setup/tour.py:661
+msgid ""
+"Where DCS World is installed. The bot writes Scripts/MissionScripting.lua"
+" there."
+msgstr ""
+"Wo DCS World installiert ist. Der Bot schreibt dort "
+"Scripts/MissionScripting.lua."
+
+#: services/webservice/setup/tour.py:662
+msgid "Other — I will enter the path"
+msgstr "Andere — ich gebe den Pfad selbst ein"
+
+#: services/webservice/setup/tour.py:663
+msgid "Continue without a DCS installation"
+msgstr "Ohne DCS-Installation fortfahren"
+
+#: services/webservice/setup/tour.py:664
+msgid "path"
+msgstr "Pfad"
+
+#: services/webservice/setup/tour.py:665
+msgid "listen port"
+msgstr "Listen-Port"
+
+#: services/webservice/setup/tour.py:666
+msgid "Other nodes of this installation talk to this one on this port."
+msgstr "Andere Nodes dieser Installation sprechen diesen über diesen Port an."
+
+#: services/webservice/setup/tour.py:667
+#, python-brace-format
+msgid "Is {ip} a static IP-address for this node?"
+msgstr "Ist {ip} eine statische IP-Adresse für diesen Node?"
+
+#: services/webservice/setup/tour.py:669
+msgid ""
+"DCSServerBot can subscribe to the DGSA banlist managed by a group of DCS "
+"administrators.\n"
+"It is split into two parts: one for banned DCS players and one for banned"
+" Discord users.\n"
+"For public servers, it's recommended to subscribe to this list for "
+"optimal security."
+msgstr ""
+"DCSServerBot kann die DGSA-Bannliste abonnieren, die von einer Gruppe von"
+" DCS-Administratoren verwaltet wird.\n"
+"Sie ist in zwei Teile geteilt: einen für gebannte DCS-Spieler und einen "
+"für gebannte Discord-Nutzer.\n"
+"Für öffentliche Server wird empfohlen, diese Liste für optimale "
+"Sicherheit zu abonnieren."
+
+#: services/webservice/setup/tour.py:672
+msgid "Do you want to use the global banlist for DCS players?"
+msgstr "Möchtest Du die globale Bannliste für DCS-Spieler verwenden?"
+
+#: services/webservice/setup/tour.py:673
+msgid "Do you want to use the global banlist for Discord users?"
+msgstr "Möchtest Du die globale Bannliste für Discord-Nutzer verwenden?"
+
+#: services/webservice/setup/tour.py:678
+msgid "The listen port must be a whole number between 1 and 65535."
+msgstr "Der Listen-Port muss eine ganze Zahl zwischen 1 und 65535 sein."
+
+#: services/webservice/setup/tour.py:679
+#, python-brace-format
+msgid "Something is already listening on port {port}."
+msgstr "Auf Port {port} lauscht bereits etwas."
+
+#: services/webservice/setup/tour.py:680
+msgid "Enter the path to your DCS World installation."
+msgstr "Gib den Pfad zu Deiner DCS-World-Installation ein."
+
+#: services/webservice/setup/tour.py:681
+#, python-brace-format
+msgid "That folder does not exist: {path}. Check the path and try again."
+msgstr ""
+"Dieser Ordner existiert nicht: {path}. Prüfe den Pfad und versuche es "
+"erneut."
+
+#: services/webservice/setup/tour.py:682
+msgid "Choose a DCS World installation, or the last entry."
+msgstr "Wähle eine DCS-World-Installation oder den letzten Eintrag."
+
+#: services/webservice/setup/tour.py:691
+msgid "Searching for existing DCS server configurations ..."
+msgstr "Suche nach existierenden DCS-Server-Konfigurationen ..."
+
+#: services/webservice/setup/tour.py:692
+#, python-brace-format
+msgid "{count} found."
+msgstr "{count} gefunden."
+
+#: services/webservice/setup/tour.py:693
+msgid "No configured DCS servers found. Add them later in the admin console."
+msgstr ""
+"Keine konfigurierten DCS-Server gefunden. Füge sie später in der Admin-"
+"Konsole hinzu."
+
+#: services/webservice/setup/tour.py:699
+msgid ""
+"Pick each server's Status, Chat and Admin channels below from your "
+"Discord server — create any you are missing there first. The channels are"
+" used like this:"
+msgstr ""
+"Wähle unten für jeden Server die Kanäle Status, Chat und Admin aus deinem"
+" Discord-Server — erstelle fehlende vorher dort. Die Kanäle werden so "
+"verwendet:"
+
+#: services/webservice/setup/tour.py:701
+msgid "Status Channel — readable by everyone, writable only by the bot."
+msgstr "Status-Kanal — für alle lesbar, nur der Bot darf schreiben."
+
+#: services/webservice/setup/tour.py:702
+msgid "Chat Channel — readable and writable by everyone."
+msgstr "Chat-Kanal — für alle lesbar und beschreibbar."
+
+#: services/webservice/setup/tour.py:704
+msgid ""
+"Admin channel, central or per server — readable and writable only by "
+"Admin and DCS Admin users."
+msgstr ""
+"Admin-Kanal, zentral oder pro Server — nur für Admin- und DCS-Admin-"
+"Nutzer lesbar und beschreibbar."
+
+#: services/webservice/setup/tour.py:708
+msgid "DCSServerBot needs these permissions on the channels:"
+msgstr "DCSServerBot benötigt auf den Kanälen diese Berechtigungen:"
+
+#: services/webservice/setup/tour.py:710
+msgid "View Channel"
+msgstr "Kanal ansehen"
+
+#: services/webservice/setup/tour.py:711
+msgid "Send Messages"
+msgstr "Nachrichten senden"
+
+#: services/webservice/setup/tour.py:712
+msgid "Read Messages"
+msgstr "Nachrichten lesen"
+
+#: services/webservice/setup/tour.py:713
+msgid "Read Message History"
+msgstr "Nachrichtenverlauf lesen"
+
+#: services/webservice/setup/tour.py:714
+msgid "Add Reactions"
+msgstr "Reaktionen hinzufügen"
+
+#: services/webservice/setup/tour.py:715
+msgid "Attach Files"
+msgstr "Dateien anhängen"
+
+#: services/webservice/setup/tour.py:716
+msgid "Embed Links"
+msgstr "Links einbetten"
+
+#: services/webservice/setup/tour.py:717
+msgid "Manage Messages"
+msgstr "Nachrichten verwalten"
+
+#: services/webservice/setup/tour.py:722
+msgid ""
+"The bot is an administrator on your server, so it already holds every "
+"permission it needs — nothing to set by hand."
+msgstr ""
+"Der Bot ist Administrator auf deinem Server und hat damit bereits alle "
+"nötigen Berechtigungen — es ist nichts von Hand einzustellen."
+
+#: services/webservice/setup/tour.py:724
+msgid "Manage this server through DCSServerBot"
+msgstr "Diesen Server über DCSServerBot verwalten"
+
+#: services/webservice/setup/tour.py:726
+msgid ""
+"This server is not managed — channels and settings are set on the "
+"console's server page after setup."
+msgstr ""
+"Dieser Server wird nicht verwaltet — Kanäle und Einstellungen werden nach"
+" der Einrichtung auf der Server-Seite der Konsole festgelegt."
+
+#: services/webservice/setup/tour.py:728
+#: services/webservice/templates/_table.html:68
+#: services/webservice/templates/overview.html:55
+#: services/webservice/templates/server_detail.html:110
+#: services/webservice/templates/server_detail.html:706
+msgid "instance"
+msgstr "Instanz"
+
+#: services/webservice/setup/tour.py:729
+msgid "server name"
+msgstr "Servername"
+
+#: services/webservice/setup/tour.py:730
+msgid "bot port"
+msgstr "Bot-Port"
+
+#: services/webservice/setup/tour.py:731
+msgid "autostart"
+msgstr "Autostart"
+
+#: services/webservice/setup/tour.py:732
+msgid "channels"
+msgstr "Kanäle"
+
+#: services/webservice/setup/tour.py:733
+msgid "status"
+msgstr "Status"
+
+#: services/webservice/setup/tour.py:734
+msgid "chat"
+msgstr "Chat"
+
+#: services/webservice/setup/tour.py:735
+msgid "admin"
+msgstr "Admin"
+
+#: services/webservice/setup/tour.py:739
+#: services/webservice/templates/server_detail.html:338
+msgid "— not set —"
+msgstr "— nicht gesetzt —"
+
+#: services/webservice/setup/tour.py:740
+msgid "Chosen from your Discord server."
+msgstr "Aus Deinem Discord-Server gewählt."
+
+#: services/webservice/setup/tour.py:741
+msgid "Pick one or more roles from your Discord server."
+msgstr "Wähle eine oder mehrere Rollen aus Deinem Discord-Server."
+
+#: services/webservice/setup/tour.py:747
+msgid ""
+"Discord refused this token, so the bot has no connection and DCSServerBot"
+" cannot start. Get the token from the Discord Developer Portal → your "
+"application → Bot → Reset Token; it is shown once. If you no longer have "
+"it, reset it there and copy the new value — a reset invalidates the old "
+"one."
+msgstr ""
+"Discord hat diesen Token abgelehnt, daher hat der Bot keine Verbindung "
+"und DCSServerBot kann nicht starten. Hole den Token aus dem Discord "
+"Developer Portal → deine Anwendung → Bot → Reset Token; er wird nur "
+"einmal angezeigt. Wenn du ihn nicht mehr hast, setze ihn dort zurück und "
+"kopiere den neuen Wert — ein Zurücksetzen macht den alten ungültig."
+
+#: services/webservice/setup/tour.py:751
+msgid "The bot is not in that guild — or the id is wrong."
+msgstr "Der Bot ist nicht in dieser Guild — oder die ID ist falsch."
+
+#: services/webservice/setup/tour.py:752
+msgid "The bot cannot read that guild — grant it access."
+msgstr "Der Bot kann diese Guild nicht lesen — gewähre ihm Zugriff."
+
+#: services/webservice/setup/tour.py:753
+msgid "Discord is rate-limiting us — try again in a moment."
+msgstr "Discord begrenzt uns gerade — versuche es gleich noch einmal."
+
+#: services/webservice/setup/tour.py:755
+msgid ""
+"Discord could not be reached — enter the values by hand, or pick them "
+"later in the console."
+msgstr ""
+"Discord war nicht erreichbar — gebe die Werte von Hand ein oder wähle sie"
+" später in der Konsole."
+
+#: services/webservice/setup/tour.py:761
+msgid ""
+"Discord accepted this token, but the bot is not a member of any Discord "
+"server. DCSServerBot manages exactly one server and cannot start without "
+"it."
+msgstr ""
+"Discord hat diesen Token akzeptiert, aber der Bot ist in keinem Discord-"
+"Server Mitglied. DCSServerBot verwaltet genau einen Server und kann ohne "
+"ihn nicht starten."
+
+#: services/webservice/setup/tour.py:763
+msgid "Invite the bot with this link, then test again:"
+msgstr "Lade den Bot mit diesem Link ein und teste dann erneut:"
+
+#: services/webservice/setup/tour.py:765
+msgid ""
+"Discord accepted this token, but the bot is a member of more than one "
+"Discord server, and DCSServerBot allows exactly one."
+msgstr ""
+"Discord hat diesen Token akzeptiert, aber der Bot ist in mehr als einem "
+"Discord-Server Mitglied, und DCSServerBot erlaubt genau einen."
+
+#: services/webservice/setup/tour.py:768
+msgid ""
+"Kick it from every server but the one you keep, then test again. The "
+"servers it is in:"
+msgstr ""
+"Wirf ihn aus jedem Server außer dem, den du behalten willst, und teste "
+"dann erneut. Die Server, in denen er ist:"
+
+#: services/webservice/setup/tour.py:770
+msgid ""
+"Or let the tour make the bot leave the others: pick the server to keep — "
+"it becomes the guild id written to your configuration."
+msgstr ""
+"Oder lass die Tour den Bot aus den anderen austreten: wähle den Server, "
+"den du behalten willst — er wird zur Guild-ID, die in deine Konfiguration"
+" geschrieben wird."
+
+#: services/webservice/setup/tour.py:772
+msgid "I understand the bot will leave every other server."
+msgstr "Ich verstehe, dass der Bot jeden anderen Server verlässt."
+
+#: services/webservice/setup/tour.py:773
+msgid "Leave the other servers"
+msgstr "Die anderen Server verlassen"
+
+#: services/webservice/setup/tour.py:775
+#, python-brace-format
+msgid ""
+"The bot left {left}. The server kept is {guild} — that is the guild id "
+"your configuration gets."
+msgstr ""
+"Der Bot hat {left} verlassen. Der behaltene Server ist {guild} — das ist "
+"die Guild-ID, die deine Konfiguration bekommt."
+
+#: services/webservice/setup/tour.py:777
+#, python-brace-format
+msgid "These could not be left, so kick them by hand and test again: {failed}."
+msgstr ""
+"Diese konnten nicht verlassen werden, wirf sie daher von Hand heraus und "
+"teste erneut: {failed}."
+
+#: services/webservice/setup/tour.py:781
+msgid "Give every managed server a name."
+msgstr "Gib jedem verwalteten Server einen Namen."
+
+#: services/webservice/setup/tour.py:782
+#, python-brace-format
+msgid "Enter the status channel id for {name}."
+msgstr "Gib die ID des Statuskanals für {name} ein."
+
+#: services/webservice/setup/tour.py:784
+#, python-brace-format
+msgid "The {field} channel id for {name} must be a number, or -1 for none."
+msgstr ""
+"Die ID des {field}-Kanals für {name} muss eine Zahl sein, oder -1 für "
+"keinen."
+
+#: services/webservice/setup/tour.py:785
+#, python-brace-format
+msgid "Two servers are named {name}. Names must be unique."
+msgstr "Zwei Server heißen {name}. Namen müssen eindeutig sein."
+
+#: services/webservice/setup/tour.py:790
+msgid "Guild ID"
+msgstr "Guild ID"
+
+#: services/webservice/setup/tour.py:791
+msgid "Right-click your Discord server → Copy Server ID."
+msgstr "Rechts-klick auf Deinen Discord-Server → Copy Server ID."
+
+#: services/webservice/setup/tour.py:792
+msgid "TOKEN"
+msgstr "TOKEN"
+
+#: services/webservice/setup/tour.py:812
+msgid "Discord Developer Portal"
+msgstr "Discord Developer Portal"
+
+#: services/webservice/setup/tour.py:807
+msgid ""
+"→ your application → Bot → Reset Token. This is shown once; the console "
+"stores it in config/.secret/."
+msgstr ""
+"→ Deine Anwendung → Bot → Reset Token. Er wird nur einmal angezeigt; die "
+"Konsole speichert ihn in config/.secret/."
+
+#: services/webservice/setup/tour.py:796
+msgid "Owner ID"
+msgstr "Owner ID"
+
+#: services/webservice/setup/tour.py:797
+msgid "Right-click your own Discord user → Copy User ID."
+msgstr "Rechts-klick auf Deinen eigenen Discord-Benutzer → Copy User ID."
+
+#: services/webservice/setup/tour.py:798
+msgid "Do you have more than 10000 members in your Discord server?"
+msgstr "Hast Du mehr als 10000 Mitglieder in Deinem Discord-Server?"
+
+#: services/webservice/setup/tour.py:799
+msgid "You need to grant the 'View Audit Log' permission to your bot."
+msgstr "Du musst Deinem Bot die Berechtigung \"View Audit Log\" geben."
+
+#: services/webservice/setup/tour.py:800
+msgid "A token is kept for this step — leave the field empty to reuse it."
+msgstr ""
+"Ein Token ist für diesen Schritt gespeichert — lasse das Feld leer, um "
+"ihn weiterzuverwenden."
+
+#: services/webservice/setup/tour.py:804
+msgid "client secret"
+msgstr "Client Secret"
+
+#: services/webservice/setup/tour.py:806
+msgid ""
+"Discord Developer Portal → your application → OAuth2 → Client Secret. "
+"Shown once; the console stores it in config/.secret/."
+msgstr ""
+"Discord Developer Portal → Deine Anwendung → OAuth2 → Client Secret. Wird"
+" einmal angezeigt; die Konsole speichert es in config/.secret/."
+
+#: services/webservice/setup/tour.py:809
+msgid "A client secret is kept — leave the field empty to reuse it."
+msgstr ""
+"Ein Client Secret ist gespeichert — lasse das Feld leer, um es "
+"weiterzuverwenden."
+
+#: services/webservice/setup/tour.py:811
+msgid "Leave it empty and the console's Discord login stays off."
+msgstr "Lass es leer, und die Discord-Anmeldung der Konsole bleibt aus."
+
+#: services/webservice/setup/tour.py:813
+msgid "Connecting to Discord…"
+msgstr "Verbindung zu Discord…"
+
+#: services/webservice/setup/tour.py:817
+#, python-brace-format
+msgid "Connected — the bot is in {guild}."
+msgstr "Verbunden — der Bot ist in {guild}."
+
+#: services/webservice/setup/tour.py:821
+msgid "Enter your Discord Guild ID."
+msgstr "Gebe Deine Discord Guild ID ein."
+
+#: services/webservice/setup/tour.py:822
+msgid "The Guild ID must be a whole number."
+msgstr "Die Guild ID muss eine ganze Zahl sein."
+
+#: services/webservice/setup/tour.py:823
+msgid "Enter your Discord Owner ID."
+msgstr "Gebe Deine Discord Owner ID ein."
+
+#: services/webservice/setup/tour.py:824
+msgid "The Owner ID must be a whole number."
+msgstr "Die Owner ID muss eine ganze Zahl sein."
+
+#: services/webservice/setup/tour.py:825
+msgid "Enter your Discord TOKEN."
+msgstr "Gebe Deinen Discord TOKEN ein."
+
+#: services/webservice/setup/tour.py:827
+msgid "Choose the server to keep."
+msgstr "Wähle den Server, den du behalten willst."
+
+#: services/webservice/setup/tour.py:828
+msgid "Tick the box to confirm the bot will leave the other servers."
+msgstr ""
+"Setze das Häkchen, um zu bestätigen, dass der Bot die anderen Server "
+"verlässt."
+
+#: services/webservice/setup/tour.py:834
+msgid ""
+"We now need to setup your Discord roles and channels.\n"
+"DCSServerBot creates a role mapping for your bot users. It has the "
+"following internal roles:"
+msgstr ""
+"Nun erstellen wir das Discord-Rollen-Mapping und die Discord-Kanäle.\n"
+"DCSServerBot hat ein eigenes Rollen-Mapping. Es gibt die folgenden "
+"internen Rollen:"
+
+#: services/webservice/setup/tour.py:837
+msgid ""
+"Please separate roles by comma, if you want to provide more than one.\n"
+"You can keep the defaults, if unsure and create the respective roles in "
+"your Discord server."
+msgstr ""
+"Bitte separiere mehrere Rollen mit Kommas, falls notwendig.\n"
+"Du kannst auch den Standard verwenden, wenn Du unsicher bist und die "
+"entsprechenden Rollen in Deinem Discord-Server anlegen."
+
+#: services/webservice/setup/tour.py:839
+#: services/webservice/templates/_config_fields.html:101
+#: services/webservice/templates/_config_fields.html:119
+#: services/webservice/templates/_config_fields.html:174
+#: services/webservice/templates/_config_fields.html:257
+#: services/webservice/templates/_config_fields.html:284
+#: services/webservice/templates/_scope_fields.html:69
+#: services/webservice/templates/_scope_fields.html:121
+#: services/webservice/templates/_scope_fields.html:147
 #: services/webservice/templates/_tiles.html:160
 #: services/webservice/templates/_tiles.html:174
 msgid "+ Add"
 msgstr "+ Hinzufügen"
 
-#: services/webservice/templates/_config_fields.html:94
-#: services/webservice/templates/_scope_fields.html:67
+#: services/webservice/setup/tour.py:841
+msgid "Users can delete data, change the bot, run commands on your server"
+msgstr ""
+"Benutzer können bspw. alle Daten löschen, den Bot verändern oder sogar "
+"Kommandos auf dem Server ausführen"
+
+#: services/webservice/setup/tour.py:842
+msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
+msgstr ""
+"Benutzer können bspw. Missionen hochladen, DCS-Server starten und stoppen"
+" sowie Nutzer kicken und bannen"
+
+#: services/webservice/setup/tour.py:843
+msgid "Normal user, can pull statistics, ATIS, etc."
+msgstr "Normale Benutzerrolle, kann Statistiken aufrufen, ATIS, etc."
+
+#: services/webservice/setup/tour.py:845
+msgid "audit channel"
+msgstr "Audit-Kanal"
+
+#: services/webservice/setup/tour.py:846
+msgid "A channel for audit events — optional, -1 for none."
+msgstr "Ein Kanal für Audit-Ereignisse — optional, -1 für keinen."
+
+#: services/webservice/setup/tour.py:848
+msgid ""
+"The bot can either use a dedicated admin channel for each server or a "
+"central admin channel for all servers."
+msgstr ""
+"Der Bot kann entweder einen eigenen Admin-Kanal pro Server oder einen "
+"zentralen Admin-Kanal für alle Server nutzen."
+
+#: services/webservice/setup/tour.py:850
+msgid "A dedicated admin channel per server"
+msgstr "Ein eigener Admin-Kanal pro Server"
+
+#: services/webservice/setup/tour.py:851
+msgid "One central admin channel for all servers"
+msgstr "Ein zentraler Admin-Kanal für alle Server"
+
+#: services/webservice/setup/tour.py:852
+msgid "admin channel"
+msgstr "Admin-Kanal"
+
+#: services/webservice/setup/tour.py:853
+msgid "The id of the central admin channel — optional, -1 for none."
+msgstr "Die ID des zentralen Admin-Kanals — optional, -1 für keinen."
+
+#: services/webservice/setup/tour.py:857
+#, python-brace-format
+msgid "Enter at least one role or role id for {role}."
+msgstr "Gebe mindestens eine Rolle oder Rollen-ID für {role} ein."
+
+#: services/webservice/setup/tour.py:858
+msgid "A channel id must be a whole number, or -1 for none."
+msgstr "Eine Kanal-ID muss eine ganze Zahl sein, oder -1 für keinen."
+
+#: services/webservice/setup/tour.py:863
+msgid "Please enter the name of your DCS group"
+msgstr "Bitte gebe den Namen Deiner DCS-Gruppe ein"
+
+#: services/webservice/setup/tour.py:865
+msgid ""
+"You now need to setup your users.\n"
+"DCSServerBot uses the following internal roles:"
+msgstr ""
+"Nun musst Du Deine Benutzer anlegen.\n"
+"DCSServerBot benutzt diese internen Rollen:"
+
+#: services/webservice/setup/tour.py:868
+msgid "Users can delete data and change the bot"
+msgstr "Benutzer können bspw. alle Daten löschen und den Bot verändern"
+
+#: services/webservice/setup/tour.py:869
+msgid "Users can restart missions, kick/ban users, etc."
+msgstr ""
+"Benutzer können bspw. Missionen neu starten sowie Nutzer kicken und "
+"bannen."
+
+#: services/webservice/setup/tour.py:871
+msgid "Please enter a comma-separated list of UCIDs"
+msgstr "Bitte gib eine Komma-separierte Liste von UCIDs ein"
+
+#: services/webservice/setup/tour.py:875
+msgid "Enter the name of your DCS group."
+msgstr "Gebe den Namen Deiner DCS-Gruppe ein."
+
+#: services/webservice/setup/tour.py:880
+msgid "Run the web admin console (recommended)"
+msgstr "Web-Admin-Konsole betreiben (empfohlen)"
+
+#: services/webservice/setup/tour.py:882
+msgid ""
+"Configure and watch this installation in a browser. Turn this off and "
+"DCSServerBot runs bot-only — you edit the YAML files by hand."
+msgstr ""
+"Konfiguriere und beobachte diese Installation im Browser. Schalte dies "
+"aus, und DCSServerBot läuft nur als Bot — Du bearbeitest die YAML-Dateien"
+" von Hand."
+
+#: services/webservice/setup/tour.py:885
+msgid ""
+"The console is off. DCSServerBot runs bot-only, and enabling the console "
+"later is one key in config/services/webservice.yaml."
+msgstr ""
+"Die Konsole ist aus. DCSServerBot läuft nur als Bot, und die Konsole "
+"lässt sich später mit einem Schlüssel in config/services/webservice.yaml "
+"aktivieren."
+
+#: services/webservice/setup/tour.py:887
+msgid "public address"
+msgstr "öffentliche Adresse"
+
+#: services/webservice/setup/tour.py:889
+msgid ""
+"The address this console is reachable at. Discord sends its login back "
+"here, so it must match the redirect you registered."
+msgstr ""
+"Die Adresse, unter der diese Konsole erreichbar ist. Discord schickt die "
+"Anmeldung hierher zurück, sie muss also zur registrierten Weiterleitung "
+"passen."
+
+#: services/webservice/setup/tour.py:891
+msgid "Console account"
+msgstr "Konsolen-Konto"
+
+#: services/webservice/setup/tour.py:893
+msgid ""
+"The console's own sign-in: a username and a password. Only the password's"
+" hash is stored. This account always exists — it is how you get into the "
+"console when Discord is down."
+msgstr ""
+"Die eigene Anmeldung der Konsole: ein Benutzername und ein Passwort. Nur "
+"der Hash des Passworts wird gespeichert. Dieses Konto existiert immer — "
+"damit kommst Du in die Konsole, wenn Discord down ist."
+
+#: services/webservice/setup/tour.py:895
+msgid "username"
+msgstr "Benutzername"
+
+#: services/webservice/setup/tour.py:897
+msgid "A password is set — leave the field empty to keep it."
+msgstr "Ein Passwort ist gesetzt — lasse das Feld leer, um es beizubehalten."
+
+#: services/webservice/setup/tour.py:901
+msgid "Enter a username for the console account."
+msgstr "Gebe einen Benutzernamen für das Konsolen-Konto ein."
+
+#: services/webservice/setup/tour.py:902
+msgid "Enter a password for the console account."
+msgstr "Gebe ein Passwort für das Konsolen-Konto ein."
+
+#: services/webservice/setup/tour.py:903
+#, python-brace-format
+msgid "The password must be at most {max} characters."
+msgstr "Das Passwort darf höchstens {max} Zeichen lang sein."
+
+#: services/webservice/setup/tour.py:908
+msgid "Already done"
+msgstr "Bereits erledigt"
+
+#: services/webservice/setup/tour.py:909
+msgid "Will be written, nothing yet"
+msgstr "Wird geschrieben, bislang nichts"
+
+#: services/webservice/setup/tour.py:910
+msgid "Not written"
+msgstr "Nicht geschrieben"
+
+#: services/webservice/setup/tour.py:911
+msgid "Write configuration"
+msgstr "Konfiguration schreiben"
+
+#: services/webservice/setup/tour.py:912
+msgid "Write again"
+msgstr "Erneut schreiben"
+
+#: services/webservice/setup/tour.py:913
+msgid "written"
+msgstr "geschrieben"
+
+#: services/webservice/setup/tour.py:914
+msgid "not written"
+msgstr "nicht geschrieben"
+
+#: services/webservice/setup/tour.py:915
+msgid "What the write did"
+msgstr "Was der Schreibvorgang getan hat"
+
+#: services/webservice/setup/tour.py:916
+msgid "not attempted — an earlier file was not written"
+msgstr "nicht versucht — eine frühere Datei wurde nicht geschrieben"
+
+#: services/webservice/setup/tour.py:918
+msgid ""
+"Only the entries marked written reached the disk. The setup is not "
+"finished — fix the reason below and write again."
+msgstr ""
+"Nur die als geschrieben markierten Einträge sind auf der Platte gelandet."
+" Die Einrichtung ist nicht abgeschlossen — behebe die Ursache unten und "
+"schreibe erneut."
+
+#: services/webservice/setup/tour.py:920
+msgid "the file was not written"
+msgstr "die Datei wurde nicht geschrieben"
+
+#: services/webservice/setup/tour.py:921
+msgid "the bot's database and its own user were created (step 3)"
+msgstr ""
+"die Datenbank des Bots und sein eigener Benutzer wurden angelegt (Schritt"
+" 3)"
+
+#: services/webservice/setup/tour.py:922
+msgid "the bot's database and its user were verified (step 3)"
+msgstr "die Datenbank des Bots und ihr Benutzer wurden geprüft (Schritt 3)"
+
+#: services/webservice/setup/tour.py:923
+msgid "the PostgreSQL master password is stored in config/.secret/"
+msgstr "das PostgreSQL-Master-Passwort liegt in config/.secret/"
+
+#: services/webservice/setup/tour.py:924
+msgid "the bot's database password is stored in config/.secret/"
+msgstr "das Datenbank-Passwort des Bots liegt in config/.secret/"
+
+#: services/webservice/setup/tour.py:926
+msgid "the Discord answers (guild, owner, roles) — Discord support is off"
+msgstr ""
+"die Discord-Antworten (Guild, Owner, Rollen) — Discord-Unterstützung ist "
+"aus"
+
+#: services/webservice/setup/tour.py:928
+msgid "the community answers (group name, users) — Discord support is on"
+msgstr ""
+"die Community-Antworten (Gruppenname, Benutzer) — Discord-Unterstützung "
+"ist an"
+
+#: services/webservice/setup/tour.py:929
+msgid "Missing — enter again"
+msgstr "Fehlt — erneut eingeben"
+
+#: services/webservice/setup/tour.py:931
+msgid ""
+"A restart dropped a secret this configuration needs, and nothing was "
+"written. Go back to the step named below, enter the value again, then "
+"write."
+msgstr ""
+"Ein Neustart hat ein Geheimnis verloren, das diese Konfiguration braucht,"
+" und es wurde nichts geschrieben. Gehe zurück zum unten genannten "
+"Schritt, gib den Wert erneut ein und schreibe dann."
+
+#: services/webservice/setup/tour.py:933
+msgid "the Discord bot token is not held — enter it again on step 5"
+msgstr "das Discord-Bot-Token fehlt — gib es in Schritt 5 erneut ein"
+
+#: services/webservice/setup/tour.py:934
+msgid "the database password is not held — enter it again on step 3"
+msgstr "das Datenbank-Passwort fehlt — gib es in Schritt 3 erneut ein"
+
+#: services/webservice/setup/tour.py:936
+msgid "the cluster database's password is not held — enter it again on step 3"
+msgstr "das Passwort der Cluster-Datenbank fehlt — gib es in Schritt 3 erneut ein"
+
+#: services/webservice/setup/tour.py:937
+msgid "guild, language, autoupdate, the cluster database"
+msgstr "Guild, Sprache, Auto-Update, die Cluster-Datenbank"
+
+#: services/webservice/setup/tour.py:939
+msgid ""
+"guild, language, autoupdate, the cluster database — NOT a federation "
+"(same database name)"
+msgstr ""
+"Guild, Sprache, Auto-Update, die Cluster-Datenbank — KEINE Föderation "
+"(gleicher Datenbankname)"
+
+#: services/webservice/setup/tour.py:941
+msgid ""
+"the cluster database (config/.secret/clusterdb.pkl and main.yaml) — "
+"Federation support is off"
+msgstr ""
+"die Cluster-Datenbank (config/.secret/clusterdb.pkl und main.yaml) — "
+"Föderationsunterstützung ist aus"
+
+#: services/webservice/setup/tour.py:943
+msgid ""
+"the cluster database (config/.secret/clusterdb.pkl and main.yaml) — the "
+"cluster database was not verified, so it is not written"
+msgstr ""
+"die Cluster-Datenbank (config/.secret/clusterdb.pkl und main.yaml) — die "
+"Cluster-Datenbank wurde nicht überprüft, daher wird sie nicht geschrieben"
+
+#: services/webservice/setup/tour.py:946
+msgid "the console's Discord login — no client secret is held, so it stays off"
+msgstr ""
+"die Discord-Anmeldung der Konsole — kein Client-Secret gespeichert, sie "
+"bleibt aus"
+
+#: services/webservice/setup/tour.py:950
+msgid "guild, language, autoupdate"
+msgstr "Guild, Sprache, Auto-Update"
+
+#: services/webservice/setup/tour.py:951
+msgid "roles, channels, owner"
+msgstr "Rollen, Kanäle, Owner"
+
+#: services/webservice/setup/tour.py:952
+msgid "the console and its sign-in"
+msgstr "die Konsole und ihre Anmeldung"
+
+#: services/webservice/setup/tour.py:953
+msgid "this node, DCS"
+msgstr "dieser Knoten, DCS"
+
+#: services/webservice/setup/tour.py:954
+msgid "status/chat/admin channels"
+msgstr "Status-/Chat-/Admin-Kanäle"
+
+#: services/webservice/setup/tour.py:955
+msgid "autostart per server"
+msgstr "Autostart pro Server"
+
+#: services/webservice/setup/tour.py:956
+msgid "DGSA banlist opt-ins"
+msgstr "DGSA-Banlist-Opt-ins"
+
+#: services/webservice/setup/tour.py:957
+msgid "the Discord bot token"
+msgstr "der Discord-Bot-Token"
+
+#: services/webservice/setup/tour.py:958
+msgid "the console's Discord client secret"
+msgstr "das Discord-Client-Secret der Konsole"
+
+#: services/webservice/setup/tour.py:959
+msgid "the bot's database password"
+msgstr "das Datenbank-Passwort des Bots"
+
+#: services/webservice/setup/tour.py:960
+msgid "the cluster database's password"
+msgstr "das Passwort der Cluster-Datenbank"
+
+#: services/webservice/setup/tour.py:965
+msgid "Setup is done"
+msgstr "Einrichtung abgeschlossen"
+
+#: services/webservice/setup/tour.py:967
+msgid ""
+"Your configuration is written. The setup console closes now and "
+"DCSServerBot starts."
+msgstr ""
+"Deine Konfiguration ist geschrieben. Die Einrichtungskonsole schließt "
+"jetzt und DCSServerBot startet."
+
+#: services/webservice/setup/tour.py:968
+#, python-brace-format
+msgid "The console will be at {url} once it is up."
+msgstr "Die Konsole ist unter {url} erreichbar, sobald er läuft."
+
+#: services/webservice/setup/tour.py:969
+msgid "Sign in with the console account you just created."
+msgstr "Melde Dich mit dem gerade erstellten Konsolen-Konto an."
+
+#: services/webservice/setup/tour.py:970
+msgid "Add your DCS servers in the console: Servers → Add Server."
+msgstr "Füge Deine DCS-Server in der Konsole hinzu: Server → Server hinzufügen."
+
+#: services/webservice/setup/tour.py:972
+msgid ""
+"To add or change DCS servers, edit config/nodes.yaml and "
+"config/servers.yaml."
+msgstr ""
+"Um DCS-Server hinzuzufügen oder zu ändern, bearbeite config/nodes.yaml "
+"und config/servers.yaml."
+
+#: services/webservice/setup/tour.py:974
+msgid ""
+"The web admin console is off — DCSServerBot runs bot-only until you "
+"enable it in config/services/webservice.yaml."
+msgstr ""
+"Die Web-Admin-Konsole ist aus — DCSServerBot läuft nur als Bot, bis Du "
+"sie in config/services/webservice.yaml aktivierst."
+
+#: services/webservice/setup/tour.py:976
+#, python-brace-format
+msgid "If it is not running, start it with {script}."
+msgstr "Falls er nicht läuft, starte ihn mit {script}."
+
+#: services/webservice/setup/tour.py:977
+msgid "Open the console"
+msgstr "Konsole öffnen"
+
+#: services/webservice/templates/_config_fields.html:101
+msgid "Turn this value into a list of values"
+msgstr "Diesen Wert in eine Werteliste umwandeln"
+
+#: services/webservice/templates/_config_fields.html:149
+#: services/webservice/templates/_scope_fields.html:49
+msgid "Remove this setting from the file"
+msgstr ""
+
+#: services/webservice/templates/_config_fields.html:151
+#: services/webservice/templates/_scope_fields.html:51
+msgid "This removes the setting and its value from the file."
+msgstr ""
+
+#: services/webservice/templates/_config_fields.html:153
+#: services/webservice/templates/_scope_fields.html:53
+#: services/webservice/templates/confirm.html:164
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: services/webservice/templates/_config_fields.html:179
+#: services/webservice/templates/_scope_fields.html:74
 msgid "Fields"
 msgstr ""
 
-#: services/webservice/templates/_config_fields.html:94
-#: services/webservice/templates/_scope_fields.html:67
+#: services/webservice/templates/_config_fields.html:179
+#: services/webservice/templates/_scope_fields.html:74
 msgid "Blocks"
 msgstr ""
 
-#: services/webservice/templates/_config_fields.html:126
-#: services/webservice/templates/_config_fields.html:144
-#: services/webservice/templates/_scope_fields.html:33
-#: services/webservice/templates/_scope_fields.html:180
+#: services/webservice/templates/_config_fields.html:215
+#: services/webservice/templates/_config_fields.html:233
+#: services/webservice/templates/_scope_fields.html:40
+#: services/webservice/templates/_scope_fields.html:228
 #, python-format
 msgid "included: %(file)s"
 msgstr "eingebunden aus: %(file)s"
 
-#: services/webservice/templates/_config_fields.html:129
-#: services/webservice/templates/_scope_fields.html:183
+#: services/webservice/templates/_config_fields.html:218
+#: services/webservice/templates/_scope_fields.html:231
 #, python-format
 msgid ""
 "This block is described by %(file)s; its values live in this file, so a "
@@ -3052,22 +4463,22 @@ msgstr ""
 "Dieser Block wird von %(file)s beschrieben; seine Werte liegen in dieser "
 "Datei, ein Speichern schreibt sie also hierhin — niemals in %(file)s."
 
-#: services/webservice/templates/_config_fields.html:142
-#: services/webservice/templates/_scope_fields.html:31
+#: services/webservice/templates/_config_fields.html:231
+#: services/webservice/templates/_scope_fields.html:38
 #, python-format
 msgid "default: %(default)s"
 msgstr "Standard: %(default)s"
 
-#: services/webservice/templates/_config_fields.html:145
-#: services/webservice/templates/_scope_fields.html:34
+#: services/webservice/templates/_config_fields.html:234
+#: services/webservice/templates/_scope_fields.html:41
 #, python-format
 msgid "include cycle: %(name)s is included again here, so it is not expanded"
 msgstr ""
 "include-Zyklus: %(name)s wird hier erneut eingebunden und daher nicht "
 "aufgeschlüsselt"
 
-#: services/webservice/templates/_config_fields.html:199
-#: services/webservice/templates/_scope_fields.html:213
+#: services/webservice/templates/_config_fields.html:292
+#: services/webservice/templates/_scope_fields.html:261
 msgid ""
 "The schema names the sections this block may carry. Add the one this file"
 " should use."
@@ -3075,18 +4486,27 @@ msgstr ""
 "Das Schema benennt die Abschnitte, die dieser Block enthalten darf. Füge "
 "den hinzu, den diese Datei verwenden soll."
 
-#: services/webservice/templates/_config_fields.html:237
-#: services/webservice/templates/_scope_fields.html:245
+#: services/webservice/templates/_config_fields.html:332
+#: services/webservice/templates/_scope_fields.html:295
 msgid "Section"
 msgstr "Abschnitt"
 
-#: services/webservice/templates/_config_fields.html:240
-#: services/webservice/templates/_scope_fields.html:248
+#: services/webservice/templates/_config_fields.html:335
+#: services/webservice/templates/_scope_fields.html:298
 msgid "+ Add section"
 msgstr "+ Abschnitt hinzufügen"
 
-#: services/webservice/templates/_config_fields.html:245
-#: services/webservice/templates/_scope_fields.html:260
+#: services/webservice/templates/_config_fields.html:341
+#: services/webservice/templates/_scope_fields.html:310
+msgid ""
+"The schema allows more than one block here — pick the one this entry "
+"carries."
+msgstr ""
+"Das Schema erlaubt hier mehr als einen Block — wähle den, den dieser "
+"Eintrag trägt."
+
+#: services/webservice/templates/_config_fields.html:341
+#: services/webservice/templates/_scope_fields.html:310
 msgid ""
 "A key the schema describes with a regex is not known ahead of time. Add "
 "an entry with its own key."
@@ -3095,15 +4515,15 @@ msgstr ""
 "ist nicht im Voraus bekannt. Füge einen Eintrag mit eigenem Schlüssel "
 "hinzu."
 
-#: services/webservice/templates/_config_fields.html:253
-#: services/webservice/templates/_config_fields.html:269
-#: services/webservice/templates/_scope_fields.html:147
-#: services/webservice/templates/_scope_fields.html:159
+#: services/webservice/templates/_config_fields.html:349
+#: services/webservice/templates/_config_fields.html:382
+#: services/webservice/templates/_scope_fields.html:160
+#: services/webservice/templates/_scope_fields.html:187
 msgid "key"
 msgstr "Schlüssel"
 
-#: services/webservice/templates/_config_fields.html:255
-#: services/webservice/templates/_scope_fields.html:149
+#: services/webservice/templates/_config_fields.html:351
+#: services/webservice/templates/_scope_fields.html:162
 msgid ""
 "An existing entry's key cannot be edited here — remove the entry and add "
 "a new one."
@@ -3111,24 +4531,22 @@ msgstr ""
 "Der Schlüssel eines vorhandenen Eintrags kann hier nicht geändert werden "
 "— entferne den Eintrag und füge einen neuen hinzu."
 
-#: services/webservice/templates/_config_fields.html:281
-#: services/webservice/templates/_scope_fields.html:168
+#: services/webservice/templates/_config_fields.html:413
+#: services/webservice/templates/_config_fields.html:416
+#: services/webservice/templates/_scope_fields.html:212
+#: services/webservice/templates/_scope_fields.html:215
 msgid "+ Add entry"
 msgstr "+ Eintrag hinzufügen"
 
-#: services/webservice/templates/_config_fields.html:284
-#: services/webservice/templates/_scope_fields.html:269
+#: services/webservice/templates/_config_fields.html:457
+#: services/webservice/templates/_scope_fields.html:343
 msgid "Either layout is allowed. Edit the one that matches your file."
 msgstr "Beide Layouts sind erlaubt. Bearbeite das, das zu deiner Datei passt."
 
-#: services/webservice/templates/_config_fields.html:287
-#: services/webservice/templates/_scope_fields.html:272
+#: services/webservice/templates/_config_fields.html:460
+#: services/webservice/templates/_scope_fields.html:346
 msgid "matches this file"
 msgstr "passt zu dieser Datei"
-
-#: services/webservice/templates/_language.html:24
-msgid "Language"
-msgstr "Sprache"
 
 #: services/webservice/templates/_log_card.html:16
 msgid "Recent log"
@@ -3173,6 +4591,7 @@ msgstr "Aktionen"
 
 #: services/webservice/templates/_table.html:44
 #: services/webservice/templates/node_page.html:105
+#: services/webservice/templates/node_settings.html:78
 #: services/webservice/templates/server_detail.html:289
 #: services/webservice/templates/server_detail.html:651
 #: services/webservice/templates/settings.html:112
@@ -3225,24 +4644,21 @@ msgid "Actions"
 msgstr "Aktionen"
 
 #: services/webservice/templates/_table.html:68
+#: services/webservice/templates/overview.html:55
 #: services/webservice/templates/server_detail.html:110
 #: services/webservice/templates/server_detail.html:706
 msgid "node"
 msgstr "Knoten"
 
 #: services/webservice/templates/_table.html:68
-#: services/webservice/templates/server_detail.html:110
-#: services/webservice/templates/server_detail.html:706
-msgid "instance"
-msgstr "Instanz"
-
-#: services/webservice/templates/_table.html:68
+#: services/webservice/templates/overview.html:52
 #: services/webservice/templates/server_detail.html:110
 #: services/webservice/templates/server_detail.html:704
 msgid "maintenance"
 msgstr "Wartung"
 
 #: services/webservice/templates/_table.html:68
+#: services/webservice/templates/overview.html:58
 #: services/webservice/templates/server_detail.html:709
 #, python-format
 msgid "%(count)s player(s)"
@@ -3253,6 +4669,7 @@ msgid "online"
 msgstr "online"
 
 #: services/webservice/templates/_table.html:77
+#: services/webservice/templates/overview.html:35
 msgid "offline"
 msgstr "offline"
 
@@ -3416,12 +4833,14 @@ msgid "Node log"
 msgstr "Knoten-Protokoll"
 
 #: services/webservice/templates/node_page.html:51
+#: services/webservice/templates/node_settings.html:46
 #: services/webservice/templates/settings.html:55
 #: services/webservice/templates/settings_scope.html:42
 msgid "schema"
 msgstr "Schema"
 
 #: services/webservice/templates/node_page.html:56
+#: services/webservice/templates/node_settings.html:48
 #: services/webservice/templates/server_detail.html:190
 #: services/webservice/templates/settings.html:63
 #: services/webservice/templates/settings_scope.html:60
@@ -3452,6 +4871,7 @@ msgstr ""
 " angezeigt werden. Korrigiere sie im Expertenmodus."
 
 #: services/webservice/templates/node_page.html:104
+#: services/webservice/templates/node_settings.html:77
 #: services/webservice/templates/settings.html:111
 #: services/webservice/templates/settings_scope.html:107
 msgid "The file, as YAML"
@@ -3481,6 +4901,32 @@ msgstr ""
 "Ein Speichern im Expertenmodus schreibt das Dokument; die noch offenen "
 "Änderungen im Formular werden nicht übernommen."
 
+#: services/webservice/templates/overview.html:38
+#, python-format
+msgid "%(count)s server(s) on this cluster"
+msgstr "%(count)s Server in diesem Cluster"
+
+#: services/webservice/templates/overview.html:38
+#, python-format
+msgid "%(up)s up"
+msgstr "%(up)s online"
+
+#: services/webservice/templates/overview.html:55
+#: services/webservice/templates/server_detail.html:706
+msgid "remote"
+msgstr "remote"
+
+#: services/webservice/templates/overview.html:57
+#: services/webservice/templates/server_detail.html:708
+msgid "Current mission:"
+msgstr "Aktuelle Mission:"
+
+#: services/webservice/templates/overview.html:58
+#: services/webservice/templates/server_detail.html:709
+#, python-format
+msgid "%(count)s active"
+msgstr "%(count)s aktiv"
+
 #: services/webservice/templates/server_detail.html:76
 msgid "Log files"
 msgstr "Protokolldateien"
@@ -3508,11 +4954,6 @@ msgstr "Herunterladen"
 #: services/webservice/templates/server_detail.html:95
 msgid "No log files are in this server's log directory yet."
 msgstr "Im Log-Verzeichnis dieses Servers liegen noch keine Protokolldateien."
-
-#: services/webservice/templates/server_detail.html:110
-#: services/webservice/templates/server_detail.html:706
-msgid "port"
-msgstr "Port"
 
 #: services/webservice/templates/server_detail.html:144
 msgid "0 — always run"
@@ -3649,10 +5090,6 @@ msgstr ""
 #: services/webservice/templates/server_detail.html:337
 msgid "(not in this guild)"
 msgstr "(nicht in dieser Gilde)"
-
-#: services/webservice/templates/server_detail.html:338
-msgid "— not set —"
-msgstr "— nicht gesetzt —"
 
 #: services/webservice/templates/server_detail.html:344
 msgid "Channel changes apply immediately."
@@ -3922,19 +5359,6 @@ msgstr "jetzt laden"
 msgid "Server log"
 msgstr "Server-Protokoll"
 
-#: services/webservice/templates/server_detail.html:706
-msgid "remote"
-msgstr "remote"
-
-#: services/webservice/templates/server_detail.html:708
-msgid "Current mission:"
-msgstr "Aktuelle Mission:"
-
-#: services/webservice/templates/server_detail.html:709
-#, python-format
-msgid "%(count)s active"
-msgstr "%(count)s aktiv"
-
 #: services/webservice/templates/settings_scope.html:56
 msgid "+ Add block"
 msgstr "+ Block hinzufügen"
@@ -3951,18 +5375,72 @@ msgstr ""
 msgid "The bot's own configuration: guild, database, logging, the plugin list."
 msgstr ""
 
+#~ msgid "Discord refused this token — check it and try again."
+#~ msgstr "Discord hat diesen Token abgelehnt — prüfe ihn und versuche es erneut."
+
+#~ msgid "Discord login"
+#~ msgstr "Discord-Anmeldung"
+
 #~ msgid ""
-#~ "Not installed: %(names)s — these entries"
-#~ " stay in the config until you "
-#~ "remove them."
+#~ "\n"
+#~ "The Status Channel should be readable"
+#~ " by everyone and only writable by "
+#~ "the bot.\n"
+#~ "The Chat Channel should be readable and writable by everyone.\n"
+#~ "The Admin channel - central or not"
+#~ " - should only be readable and "
+#~ "writable by Admin and DCS Admin "
+#~ "users.\n"
+#~ "\n"
+#~ "You can create these channels now, "
+#~ "as I will ask for the IDs in"
+#~ " a bit.\n"
+#~ "DCSServerBot needs the following permissions on them to work:\n"
+#~ "\n"
+#~ "    - View Channel\n"
+#~ "    - Send Messages\n"
+#~ "    - Read Messages\n"
+#~ "    - Read Message History\n"
+#~ "    - Add Reactions\n"
+#~ "    - Attach Files\n"
+#~ "    - Embed Links\n"
+#~ "    - Manage Messages\n"
+#~ "\n"
 #~ msgstr ""
-#~ "Nicht installiert: %(names)s — diese "
-#~ "Einträge bleiben in der Konfiguration, "
-#~ "bis du sie entfernst."
+#~ "\n"
+#~ "Der Statuskanal sollte für jeden lesbar"
+#~ " und nur vom Bot beschreibbar sein."
+#~ "\n"
+#~ "Der Chat-Kanal sollte für jeden lesbar und beschreibbar sein.\n"
+#~ "Der Admin-Kanal - ob zentral oder"
+#~ " nicht - sollte nur von Admin "
+#~ "und DCS Admin lesbar und beschreibbar"
+#~ " sein.\n"
+#~ "\n"
+#~ "Du kannst diese Kanäle jetzt erstellen,"
+#~ " da ich gleich nach den IDs "
+#~ "fragen werde.\n"
+#~ "DCSServerBot benötigt die folgenden "
+#~ "Berechtigungen auf all diesen Kanälen:\n"
+#~ "\n"
+#~ "    - View Channel\n"
+#~ "    - Send Messages\n"
+#~ "    - Read Messages\n"
+#~ "    - Read Message History\n"
+#~ "    - Add Reactions\n"
+#~ "    - Attach Files\n"
+#~ "    - Embed Links\n"
+#~ "    - Manage Messages\n"
+#~ "\n"
 
-#~ msgid "DCS carries a hash for this coalition"
-#~ msgstr "DCS hat einen Hash für diese Koalition"
+#: services/webservice/setup/tour.py
+msgid "To use DCSServerBot, you need to install PostgreSQL. You can download it {link}."
+msgstr "Um DCSServerBot zu nutzen, musst Du PostgreSQL installieren. Du kannst es {link} herunterladen."
 
-#~ msgid "DCS carries no hash for this coalition"
-#~ msgstr "DCS hat keinen Hash für diese Koalition"
+#: services/webservice/setup/tour.py
+msgid "here"
+msgstr "hier"
 
+#: services/webservice/setup/tour.py
+msgid "To obtain the following values, you need to log into the {link}."
+msgstr "Um die folgenden Werte zu erhalten, musst Du Dich im {link} anmelden."

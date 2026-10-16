@@ -16,6 +16,7 @@ from core.utils.helper import alternate_parse_settings
 __all__ = [
     "ParseError",
     "findDCSInstances",
+    "detect_dcs_installation",
     "desanitize",
     "is_desanitized",
     "dd_to_dms",
@@ -66,6 +67,41 @@ def findDCSInstances(server_name: str | None = None) -> dict[str, str]:
                 else:
                     instances[dirname] = settings['name']
     return instances
+
+
+def detect_dcs_installation() -> list[tuple[str, str]]:
+    """Return the DCS World installations found on this host, as ``(name, path)`` pairs.
+
+    On Windows the candidates come from the Eagle Dynamics registry branch; a candidate whose path
+    no longer exists is dropped. On any other platform there is no discovery source, so the list is
+    empty and the caller asks for a path instead.
+    """
+    if sys.platform != 'win32':
+        return []
+    import winreg
+    installs: list[tuple[str, str]] = []
+    key = None
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Eagle Dynamics", 0)
+        num_dcs_installs = winreg.QueryInfoKey(key)[0]
+        for i in range(0, num_dcs_installs):
+            name = winreg.EnumKey(key, i)
+            skey = None
+            try:
+                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                      f"Software\\Eagle Dynamics\\{name}", 0)
+                path = winreg.QueryValueEx(skey, 'Path')[0]
+                if os.path.exists(path):
+                    installs.append((name, path))
+            finally:
+                if skey:
+                    skey.Close()
+    except (FileNotFoundError, OSError):
+        return []
+    finally:
+        if key:
+            key.Close()
+    return installs
 
 
 def desanitize(self, _filename: str = None) -> None:

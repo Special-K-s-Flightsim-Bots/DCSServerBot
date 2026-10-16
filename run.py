@@ -324,6 +324,39 @@ def handle_exception(loop, context):
         f.write(f"{'=' * 50}\n")
 
 
+def setup_is_required(config_dir: str) -> bool:
+    """Whether this process must run the setup console.
+
+    The rule itself lives with the console (:func:`services.webservice.setup.boot.should_run_setup`)
+    so there is one copy of it; the import is inside the function because that module is the only
+    one cheap enough to touch on a configured boot.
+    """
+    from services.webservice.setup.boot import should_run_setup
+
+    return should_run_setup(config_dir)
+
+
+def web_setup_enabled(args) -> bool:
+    """Whether the setup console may run instead of the command line installer.
+
+    The rule lives with the console (``services.webservice.setup.boot.web_setup_enabled``) so there
+    is one copy of it; this is the launcher's delegating call.
+    """
+    from services.webservice.setup.boot import web_setup_enabled as _web_setup_enabled
+
+    return _web_setup_enabled(args)
+
+
+def run_cmd_installer(node: str, config_dir: str) -> None:
+    """The command line installer: the headless/CI path, kept as an escape hatch.
+
+    It also remains the backstop ``run_node`` falls back to when it finds no ``main.yaml``.
+    """
+    from install import Install
+
+    Install(node=node).install(config_dir=config_dir, user='dcsserverbot', database='dcsserverbot')
+
+
 async def run_node(name, config_dir=None, no_autoupdate=False, restarted=False) -> int:
     loop = asyncio.get_running_loop()
     loop.set_exception_handler(handle_exception)
@@ -407,16 +440,49 @@ if __name__ == "__main__":
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = utils.asyncio_run(run_node(
-                    name=args.node,
-                    config_dir=args.config,
-                    no_autoupdate=args.noupdate,
-                    restarted=args.restarted
-                ))
-            except InstallationException:
-                from install import Install
+                rc = None
+                if args.setup and not setup_is_required(args.config):
+                    # The setup window is file-derived and decided at boot: it is not re-opened by
+                    # an option, so this asks for nothing rather than starting a second front end
+                    # on an install that already has one.
+                    log.error(f"--setup was given, but {os.path.join(args.config, 'main.yaml')} "
+                              f"exists: this installation is configured, so the setup console is "
+                              f"not started.")
+                    rc = -2
+                elif setup_is_required(args.config):
+                    # UNCONFIGURED. Either the setup console, or - with no terminal to run it in -
+                    # the command line installer this has always used.
+                    if web_setup_enabled(args):
+                        from services.webservice.setup import boot as setup_boot
 
-                Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
+                        log.info("No main.yaml found: starting the setup console.")
+                        rc = utils.asyncio_run(setup_boot.run_setup_console(
+                            node=args.node,
+                            config_dir=args.config,
+                            open_browser=not args.no_browser
+                        ))
+                        if not setup_is_required(args.config):
+                            # the console wrote main.yaml: continue into the normal boot path
+                            log.info("Setup finished: booting DCSServerBot.")
+                            rc = None
+                        else:
+                            log.error(f"The setup console stopped while "
+                                      f"{os.path.join(args.config, 'main.yaml')} is still missing; "
+                                      f"DCSServerBot is NOT started.")
+                            rc = -2
+                    else:
+                        run_cmd_installer(args.node, args.config)
+                if rc is None:
+                    rc = utils.asyncio_run(run_node(
+                        name=args.node,
+                        config_dir=args.config,
+                        no_autoupdate=args.noupdate,
+                        restarted=args.restarted
+                    ))
+            except InstallationException:
+                # The backstop: run_node found no main.yaml (the file appeared between the check
+                # above and the boot, or this is the installer path). Unchanged behaviour.
+                run_cmd_installer(args.node, args.config)
                 rc = utils.asyncio_run(run_node(
                     name=args.node,
                     config_dir=args.config,

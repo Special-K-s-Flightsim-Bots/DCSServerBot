@@ -212,7 +212,7 @@ The bot needs a unique Token per installation. This one can be obtained at http:
 > [!TIP]
 > For easier access to user- and channel-IDs, enable "Developer Mode" in "Advanced Settings" in your Discord client.
 
-### 🆕 Setup without using Discord
+### Setup without using Discord
 If you do not want to use Discord, or if you maybe are not allowed to do so due to limitations of your Country, etc.
 you can now install DCSServerBot without the need to use Discord. Select the respective option during the 
 installation, and you will install a variant that works without.
@@ -232,26 +232,64 @@ it somewhere on your PC running the DCS server(s) and give it write permissions,
 > outside via www etc. as it contains sensitive data. Do NEVER expose any of the DCSServerBot ports to the
 > outside world also.
 
-### DCSServerBot Installation (Discord)
-Run the provided `install.cmd` script or just `run.cmd`.<br>
-It will ask you for your Guild ID (right-click on your Discord server and select "Copy Server ID") 
-and the bot's user ID (right-click on the bot user and select "Copy User ID"). 
-Then it will search for existing DCS installations, create the database user, password, and database, and asks whether 
-you want to add existing DCS servers to the configuration.<br>
-When finished, the bot should launch successfully and maybe even start your servers already, if configured.
+### Guided Installation
+If you have a browser available on your PC where DCSServerBot should be installed, 
+the easiest is to just run `run.cmd`now. On a not-yet-configured installation, this opens a **setup console** in 
+your browser. It is served on this machine only (`http://127.0.0.1:9876/setup`), 
+and the URL that is printed to the terminal carries a one-time 8-character code. 
+When you finish the tour, the console writes the main configuration files, and the bot continues into its normal startup.
 
-### DCSServerBot Installation (non-Discord)
-Run the provided `install.cmd` script or just `run.cmd`.<br>
-It will ask you for your DCS group name and a role mapping, where you can give specific DCS users roles that are needed
-to make the in-game commands work. You need the UCIDs of the users here. Then it will search for existing DCS 
-installations, create the database user, password, and database, and asks whether you want to add existing DCS servers 
-to the configuration.<br>
+The command-line installer does the same job: `install.cmd` always runs it, and
+so does `run.cmd` when there is no terminal to serve the console from (a service, a container, a
+redirected output). `--no-web-setup` forces the command-line installer, `--setup` forces the web console,
+and `--no-browser` keeps the console from opening a browser — the printed URL is then the way in.
+
+The two sections below list the questions the setup asks, with or without Discord. The setup tour
+also asks whether you want the optional **web admin console**: with it on, the tour writes
+`config/services/webservice.yaml` with `frontend: true` and a local Admin login for the console itself
+(the same login is the only door on a non-Discord install, where there is no Discord OAuth). With it
+off, the webservice serves the REST API only. You can switch the console on later with a single
+`frontend: true` in `config/services/webservice.yaml` — see
+[`services/webservice/README.md`](./services/webservice/README.md) for how to turn it on and configure
+it, and the commented sample [`samples/services/webservice.yaml`](./samples/services/webservice.yaml).
+
+#### Discord Setup
+You will be asked for your Guild ID (right-click on your Discord server and select "Copy Server ID") 
+and the bot's user ID (right-click on the bot user and select "Copy User ID"). 
+
+#### Non-Discord Setup
+You will be asked you for your DCS group name and a role mapping, where you can give specific DCS users roles that are 
+needed to make the in-game commands work. You need the UCIDs of the users here.
+
+Then it will search for existing DCS installations, create the database user, password, and database, and asks whether 
+you want to add existing DCS servers to the configuration.
+
 When finished, the bot should launch successfully and maybe even start your servers already, if configured.
 
 > [!IMPORTANT] 
 > Please shut down your DCS servers during the bot installation! <br>
 
 You can start the installer with these _optional_ parameters (if unsure, do _not_ use them):
+
+a) Web Installation
+You can just run `run.cmd`, it will automatically open a browser window for you.
+```
+usage: run.py [-h] [-c CONFIG] [-n NODE] [--setup] [--no-web-setup] [--no-browser]
+
+Welcome to DCSServerBot!
+
+options:
+  -h, --help           show this help message and exit
+  -c, --config CONFIG  Path to configuration
+  -n, --node NODE      Node name
+  --setup              Start the web console for an unconfigured installation (local only). Ignored on a configured
+                       one, where the setup window is closed.
+  --no-web-setup       Never start the setup console; use the command line installer (see below)
+  --no-browser         Do not open a browser for the setup console
+```
+
+b) Headless Installation
+If you start `install.cmd`, it will launch the cli-based installer in a cmd window.
 ```
 Usage: install.cmd [-h] [-n NODE] [-c CONFIG] [-u USER] [-d DATABASE]
 

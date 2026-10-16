@@ -26,6 +26,15 @@ if not COMMAND_LINE_ARGS:
         parser.add_argument('-s', '--secret', action='store_true', help='Reveal all stored passwords')
         parser.add_argument('-a', '--restarted', action='store_true', help='Indicates if the bot was restarted')
         parser.add_argument('-p', '--ping', action='store_true', help='Ping Google DNS on startup to assure internet connection')
+        parser.add_argument('--setup', action='store_true', default=False,
+                            help='Start the setup console for an unconfigured installation '
+                                 '(local only). Ignored on a configured one, where the setup '
+                                 'window is closed.')
+        parser.add_argument('--no-web-setup', action='store_true', default=False, dest='no_web_setup',
+                            help='Never start the setup console; use the command line installer '
+                                 '(headless/CI)')
+        parser.add_argument('--no-browser', action='store_true', default=False, dest='no_browser',
+                            help='Do not open a browser for the setup console')
     elif program == 'update.py':
         parser.add_argument('-n', '--node', help='Node name', default=platform.node())
         parser.add_argument('-r', '--no-restart', action='store_true', default=False,
