@@ -18,6 +18,9 @@ from typing import Any, Type, ClassVar, cast
 
 logger = logging.getLogger(__name__)
 
+# Lock to avoid race conditions while parsing
+_pykwalify_lock = threading.RLock()
+
 Text = int | str
 
 _types: dict[Any, str] = {
@@ -197,11 +200,12 @@ def _load_schema(include_name: str, _path: str) -> str:
 
 
 def _validate_schema(schema, value, path):
-    c = Core(source_data=value, schema_data=schema, extensions=['core/utils/validators.py'])
-    try:
-        c.validate()
-    except SchemaError as ex:
-        raise SchemaError(msg=ex.msg, path=path + '/' + ex.path.lstrip('/'))
+    with _pykwalify_lock:
+        c = Core(source_data=value, schema_data=schema, extensions=['core/utils/validators.py'])
+        try:
+            c.validate()
+        except SchemaError as ex:
+            raise SchemaError(msg=ex.msg, path=path + '/' + ex.path.lstrip('/'))
 
 
 def any_of(value, rule_obj, path):
@@ -439,18 +443,19 @@ def check_main_structure(value, _rule_obj, path) -> str | bool:
 
 
 def validate(source_file: str, schema_files: list[str], *, raise_exception: bool = False):
-    c = Core(source_file=source_file, schema_files=schema_files, file_encoding='utf-8',
-             extensions=['core/utils/validators.py'])
-    try:
-        c.validate(raise_exception=True)
-    except PyKwalifyException as ex:
-        if ex.error_key:
-            source_file = ex.error_key
-        if raise_exception:
-            raise
-        if isinstance(ex, SchemaError):
-            logger.warning(f"{source_file}: {ex.msg}")
-        elif isinstance(ex, UnknownError):
-            logger.error(f'Error while parsing {ex.path}:\n{ex.error_key}')
-        else:
-            logger.error(f'Error while parsing {source_file}:\n{ex}', exc_info=ex)
+    with _pykwalify_lock:
+        c = Core(source_file=source_file, schema_files=schema_files, file_encoding='utf-8',
+                 extensions=['core/utils/validators.py'])
+        try:
+            c.validate(raise_exception=True)
+        except PyKwalifyException as ex:
+            if ex.error_key:
+                source_file = ex.error_key
+            if raise_exception:
+                raise
+            if isinstance(ex, SchemaError):
+                logger.warning(f"{source_file}: {ex.msg}")
+            elif isinstance(ex, UnknownError):
+                logger.error(f'Error while parsing {ex.path}:\n{ex.error_key}')
+            else:
+                logger.error(f'Error while parsing {source_file}:\n{ex}', exc_info=ex)
