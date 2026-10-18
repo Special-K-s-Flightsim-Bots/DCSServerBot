@@ -165,7 +165,7 @@ If that does not work, please have a look at the respective READMEs for more inf
 You need the following software to run DCSServerBot:
 
 #### a) Python
-You need to have [Python](https://www.python.org/downloads/) 3.11 or higher installed. 
+You need to have [Python](https://www.python.org/downloads/) 3.11 - 3.14 installed. 
 > [!IMPORTANT]
 > Please make sure that you tick "Add python.exe to PATH" during your Python installation.
 
