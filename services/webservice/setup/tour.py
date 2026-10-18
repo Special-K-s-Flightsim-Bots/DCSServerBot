@@ -13,12 +13,13 @@ THE RAIL IS DERIVED FROM THE ANSWERS, AND IT IS THE ONLY PROGRESS STATEMENT. The
 (step 2) decides whether the rail holds nine rows or eight; on the no-Discord path rows 5 and 6
 ("Discord — the bot", "Discord — roles and channels") are replaced by a single "Your community" row
 (the agreed layout). The DCS decision (step 4) decides whether row 8 ("DCS servers") is present:
-declining the DCS World installation removes it, and the rows around it stay. Row 8 also leaves when
-the machine's own instance scan finds no Saved Games instance at all — the step would have nothing to
-ask, so it is not on the rail; the scan runs once, from step 4's answer on, and its result is kept in
-the draft (see :func:`_rescan_servers`). There is no "step n of m" text and no progress bar beside it:
-the rail already states both facts. The current row carries the amber marker and ``aria-current``, a
-completed row is a LINK back, and a future row is inert text.
+declining the DCS World installation removes it, and the rows around it stay. Row 8 STAYS when the
+machine's own instance scan finds no Saved Games instance at all — the step then asks, with one blank
+row to fill in, because the operator's other way to add a server is the command line (see
+:mod:`services.webservice.setup.servers`). The scan runs once, from step 4's answer on, and its result
+is kept in the draft (see :func:`_rescan_servers`). There is no "step n of m" text and no progress bar
+beside it: the rail already states both facts. The current row carries the amber marker and
+``aria-current``, a completed row is a LINK back, and a future row is inert text.
 
 THE RAIL ORDER IS THE STEP IDS. Discord (5, 6) precedes the Web console (7) and the DCS servers (8)
 so the central admin-channel answer exists before any per-server row reads it, and so a server row's
@@ -101,7 +102,7 @@ FLAGS_DIR = Path(__file__).resolve().parents[1] / "static" / "flags"
 #: The step titles (msgids; English is the source and the way back from any translation).
 #: THE IDS ARE THE RAIL ORDER (see :func:`rail_steps`): 5 Discord (the bot), 6 Discord (roles and
 #: channels), 7 Web console, 8 DCS servers, 9 Review. The number a rail row SHOWS is its POSITION,
-#: not its id, so a dropped row (the servers row on a machine with no instance) renumbers the list.
+#: not its id, so a dropped row (the servers row on a machine with no DCS installation) renumbers it.
 STEP_LABELS: dict[int, str] = {
     1: i18n._("Language"),
     2: i18n._("General"),
@@ -150,18 +151,14 @@ def has_dcs(draft: SetupDraft) -> bool:
 
 
 def has_servers(draft: SetupDraft) -> bool:
-    """Whether the rail keeps the "DCS servers" row: a DCS installation was configured AND the
-    machine's scan found at least one Saved Games instance.
+    """Whether the rail keeps the "DCS servers" row: a DCS installation was configured.
 
-    Before step 4 has been answered the row is present — the default the installer offers. The fold
-    documented at the top of this module holds: a step that cannot be answered leaves the rail.
+    The machine's own instance scan does NOT decide it: a step that asks nothing because the scan was
+    empty would leave the operator with the command line as the only way to add a server. The empty
+    screen asks instead, with one blank row to fill in (see :mod:`services.webservice.setup.servers`),
+    so declining the DCS installation is the only thing that removes the row.
     """
-    if not has_dcs(draft):
-        return False
-    servers = servers_step.answers_from_mapping(draft.servers)
-    if not servers.scanned:
-        return True
-    return servers.has_instances
+    return has_dcs(draft)
 
 
 def rail_rows(draft: SetupDraft, mode: str = boot_module.INSTALL) -> list[int]:
@@ -176,10 +173,10 @@ def rail_steps(discord: bool, dcs: bool = True, servers: bool = True,
     Discord comes BEFORE the servers so the central admin-channel question (step 6) is answered
     before any per-server row reads it, and so the pickers a server row offers are already fetched.
     Nine rows with Discord, eight without (5+6 -> "Your community"); row 8 ("DCS servers") is
-    present only when a DCS installation was configured AND instances were detected.
+    present only when a DCS installation was configured.
 
     JOINING SERVES A SUBSET OF THE SAME IDS, IN THE SAME ORDER: database (3), this node (4), DCS
-    servers (8, under the same DCS/instance rule) and review (9). The first-run steps are not asked
+    servers (8, under the same DCS rule) and review (9). The first-run steps are not asked
     again — this installation already has its language, its guild, its roles, its console and its
     database — so they are simply not on the rail. Every id here is a subsequence of the first-run
     rail's, which is why the "furthest completed step" arithmetic needs no change: a draft whose
@@ -316,6 +313,10 @@ font-size:14px}
 .source{color:var(--text-3);font-size:13px;margin:0 0 12px}
 fieldset.choice{border:0;margin:0 0 14px;padding:0}
 .choice-legend{color:var(--text-3);font-size:12.5px;padding:0 0 6px}
+/* The admin-channel question: a role row's own shape — a bold lead with its sentence beneath it —
+   and the spacing that keeps it from running into the role-mapping note above it. */
+.choice.admin-choice{margin-top:14px}
+.choice-legend b{display:block;font-weight:600;color:var(--text);font-size:13px}
 /* The joining question's two choices: two DISTINCT blocks of equal weight, each headed by a
    headline at the SAME size, weight and colour as the other (``.join-head`` on both), separated by
    their own borders and the grid's gap rather than by spacing alone. */
@@ -757,7 +758,20 @@ NODE_BAD_CODES = frozenset({"port_invalid", "port_busy", "dcs_path_required", "d
 
 T_SRV_SEARCHING = i18n._("Searching for existing DCS server configurations ...")
 T_SRV_FOUND = i18n._("{count} found.")
-T_SRV_NONE = i18n._("No configured DCS servers found. Add them later in the admin console.")
+#: Shown when the scan found NOTHING. The step still asks (see
+#: :mod:`services.webservice.setup.servers`), so the sentence must not send the operator away — it
+#: names the row the screen offers next.
+T_SRV_NONE = i18n._(
+    "No configured DCS servers found. Add one below, or continue and add your servers later in the "
+    "admin console.")
+#: The blank row's own header, where a detected row shows its instance/name (it has neither yet).
+T_SRV_ADD = i18n._("Add a server")
+#: The blank row's ONE field. For a hand-added server there is no detected folder name, so the name
+#: the operator types IS the instance (the Saved Games folder) — which the label and its help say.
+T_SRV_ADD_INSTANCE = i18n._("instance — the Saved Games folder name")
+T_SRV_ADD_INSTANCE_HELP = i18n._(
+    "The name of this instance's folder under Saved Games, for example DCS.openbeta. "
+    "DCSServerBot starts DCS from there.")
 #: Step 8's channel guide. The channels come from the PICKERS (see :func:`_channel_control`), so the
 #: copy asks the operator to CHOOSE them from their Discord server — it never tells them to look up an
 #: id. The intro, the three channel roles and the permissions DCSServerBot needs are each their own
@@ -908,8 +922,7 @@ DISCORD_NOTICE: dict[str, str] = {
 T_ROLES_INTRO = i18n._(
     "We now need to setup your Discord roles and channels.\n"
     "DCSServerBot creates a role mapping for your bot users. It has the following internal roles:")
-T_ROLES_COMMA = i18n._(
-    "Please separate roles by comma, if you want to provide more than one.\n"
+T_ROLES_DEFAULTS = i18n._(
     "You can keep the defaults, if unsure and create the respective roles in your Discord server.")
 T_ROLES_ADD = i18n._("+ Add")
 T_ROLE_MEANINGS: dict[str, str] = {
@@ -1918,6 +1931,25 @@ _CHEV = ('<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor
          '<path d="M9.4 5.4 16 12l-6.6 6.6"/></svg>')
 
 
+def _channel_fields(translate, index: int, row: servers_step.ServerRow, guild, *,
+                    central_admin: bool, channels: bool) -> str:
+    """A row's channel line — the three pickers (or the installer's typed fields), or "".
+
+    ``channels`` says whether the channel ids are asked at all (see :func:`_servers_discord`); with a
+    CENTRAL admin channel (``central_admin``) the per-server admin field is not rendered at all.
+    """
+    if not channels:
+        return ""
+    controls = [_channel_control(translate(T_SRV_STATUS), f"row_status_{index}", row.status,
+                                 guild, translate),
+                _channel_control(translate(T_SRV_CHAT), f"row_chat_{index}", row.chat,
+                                 guild, translate)]
+    if not central_admin:
+        controls.append(_channel_control(translate(T_SRV_ADMIN), f"row_admin_{index}",
+                                         row.admin, guild, translate))
+    return f'<div class="fields">{"".join(controls)}</div>'
+
+
 def _server_row(translate, index: int, row: servers_step.ServerRow, port: int | None, guild, *,
                 central_admin: bool = False, channels: bool = True) -> str:
     """One detected instance's row, drawn as the shared collapsible ``<details class="st-block">``.
@@ -1934,8 +1966,7 @@ def _server_row(translate, index: int, row: servers_step.ServerRow, port: int | 
     The pickers the rows offer are the first-run ones, on the same terms.
 
     A managed row renders ``open``, an unticked row renders COLLAPSED, so a re-render keeps the page
-    where it was and a no-JS operator cannot tab into a field the row is not asking for. With a
-    CENTRAL admin channel (``central_admin``) the per-server admin channel is NOT rendered at all.
+    where it was and a no-JS operator cannot tab into a field the row is not asking for.
     """
     manage = ' checked' if row.manage else ''
     autostart = ' checked' if row.autostart else ''
@@ -1944,16 +1975,6 @@ def _server_row(translate, index: int, row: servers_step.ServerRow, port: int | 
     fields = [_stat(translate(T_SRV_INSTANCE), row.instance),
               _field(translate(T_SRV_NAME), f"row_name_{index}", row.name),
               _stat(translate(T_SRV_BOT_PORT), str(port) if port is not None else "—")]
-    channel_fields = ""
-    if channels:
-        controls = [_channel_control(translate(T_SRV_STATUS), f"row_status_{index}", row.status,
-                                     guild, translate),
-                    _channel_control(translate(T_SRV_CHAT), f"row_chat_{index}", row.chat,
-                                     guild, translate)]
-        if not central_admin:
-            controls.append(_channel_control(translate(T_SRV_ADMIN), f"row_admin_{index}",
-                                             row.admin, guild, translate))
-        channel_fields = f'<div class="fields">{"".join(controls)}</div>'
     return (
         f'<details class="st-block"{opn}>'
         f'<summary>{_CHEV}<span class="k">'
@@ -1965,7 +1986,38 @@ def _server_row(translate, index: int, row: servers_step.ServerRow, port: int | 
         f'<div class="fields">{"".join(fields)}'
         f'<label class="switch"><input type="checkbox" name="row_autostart_{index}"{autostart}>'
         f'<span>{escape(translate(T_SRV_AUTOSTART))}</span></label></div>'
-        f'{channel_fields}</div></details>')
+        f'{_channel_fields(translate, index, row, guild, central_admin=central_admin, channels=channels)}'
+        f'</div></details>')
+
+
+def _add_server_row(translate, index: int, row: servers_step.ServerRow, port: int | None, guild, *,
+                    central_admin: bool = False, channels: bool = True) -> str:
+    """The row a server is ADDED in — blank on an empty scan, and one per instance added already.
+
+    A hand-added server has no detected folder name, so there is no read-only instance to show and no
+    separate server name: ONE field carries both, which its label and its help line say. Everything
+    else — the manage switch, the derived port, autostart, the channel line — is the detected row's
+    own markup, and its values leave through the same builders (see ``setup.servers``).
+    """
+    manage = ' checked' if row.manage else ''
+    autostart = ' checked' if row.autostart else ''
+    opn = ' open' if row.manage else ''
+    title = escape(row.name) if row.name else escape(translate(T_SRV_ADD))
+    fields = [_field(translate(T_SRV_ADD_INSTANCE), f"row_name_{index}", row.name,
+                     translate(T_SRV_ADD_INSTANCE_HELP)),
+              _stat(translate(T_SRV_BOT_PORT), str(port) if port is not None else "—")]
+    return (
+        f'<details class="st-block"{opn}>'
+        f'<summary>{_CHEV}<span class="k">{title}</span>'
+        f'<span class="r"><label class="switch">'
+        f'<input type="checkbox" name="row_manage_{index}"{manage}>'
+        f'<span>{escape(translate(T_SRV_MANAGE))}</span></label></span></summary>'
+        f'<div class="bd">'
+        f'<div class="fields">{"".join(fields)}'
+        f'<label class="switch"><input type="checkbox" name="row_autostart_{index}"{autostart}>'
+        f'<span>{escape(translate(T_SRV_AUTOSTART))}</span></label></div>'
+        f'{_channel_fields(translate, index, row, guild, central_admin=central_admin, channels=channels)}'
+        f'</div></details>')
 
 
 def _channels_intro(translate, *, admin: bool) -> str:
@@ -2006,7 +2058,7 @@ def _servers_discord(request: Request, draft: SetupDraft) -> tuple[bool, bool]:
 
 
 def _step_servers(request: Request, draft: SetupDraft, translate) -> str:
-    """Step 8 — DCS servers: one screen, one collapsible row per detected Saved Games instance.
+    """Step 8 — DCS servers: one screen, one collapsible row per Saved Games instance.
 
     The rows come from the scan the draft carries (never re-detected here). A row is complete when it
     has a name and a status channel; the chat and admin channels are optional, and the whole channel
@@ -2016,6 +2068,11 @@ def _step_servers(request: Request, draft: SetupDraft, translate) -> str:
     step says why (see :func:`_guild_notice`). The step is deliberately minimal: it records WHICH
     servers the bot runs and where their channels are — extensions and per-server settings belong to
     the console's server page.
+
+    AN EMPTY SCAN IS A SCREEN THAT ASKS, not one that goes away: the rows are empty, so ONE BLANK ROW
+    is offered after the note (see :func:`_add_server_row`), and the channel line and its guide are
+    the same ones a detected row gets. A row the operator added earlier is rendered the same way —
+    with the instance name editable, because there is no detected folder to show.
 
     THE SAME SCREEN IS SERVED WHILE JOINING. That flow asks no Discord question of its own, so both
     the channel line and the admin scope come from the existing installation (see
@@ -2041,16 +2098,26 @@ def _step_servers(request: Request, draft: SetupDraft, translate) -> str:
         header = [escape(translate(T_SRV_SEARCHING)),
                   _say(translate, T_SRV_FOUND, count=len(answers.rows))]
         blocks.append(f'<p class="note">{" ".join(header)}</p>')
-        if channels:
-            admin = bool(guild is not None and guild.bot_is_admin)
-            blocks.append(_channels_intro(translate, admin=admin))
-            blocks.append(_guild_notice(request, draft, translate, code))
-        ports = servers_step.bot_ports(answers)
-        for index, row in enumerate(answers.rows):
-            blocks.append(_server_row(translate, index, row,
-                                      ports.get(row.instance), guild,
-                                      central_admin=central_admin,
-                                      channels=channels))
+    if channels:
+        admin = bool(guild is not None and guild.bot_is_admin)
+        blocks.append(_channels_intro(translate, admin=admin))
+        blocks.append(_guild_notice(request, draft, translate, code))
+    # the derived ports start above every bot_port the install's own nodes.yaml already carries, so
+    # an added instance cannot take one another instance holds (see servers.bot_port_base)
+    base = _bot_port_base(request)
+    ports = servers_step.bot_ports(answers, base=base)
+    added = set(answers.added)
+    for index, row in enumerate(answers.rows):
+        render = _add_server_row if row.instance in added else _server_row
+        blocks.append(render(translate, index, row, ports.get(row.instance), guild,
+                             central_admin=central_admin, channels=channels))
+    if not answers.detected:
+        # the blank row is the row AFTER the managed ones, so the port it would take is the one the
+        # formula would give it — a prediction of a derived value, never an answer of its own
+        blocks.append(_add_server_row(translate, len(answers.rows),
+                                      servers_step.ServerRow(instance=""),
+                                      base + len(servers_step.managed_rows(answers)), guild,
+                                      central_admin=central_admin, channels=channels))
 
     back = _previous_step(draft, 8, _mode(request))
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
@@ -2363,7 +2430,8 @@ def _step_roles(request: Request, draft: SetupDraft, translate) -> str:
     per = ' checked' if not answers.central_admin else ''
     central = ' checked' if answers.central_admin else ''
     admin_choice = (
-        f'<fieldset class="choice"><legend class="choice-legend">'
+        f'<fieldset class="choice admin-choice"><legend class="choice-legend">'
+        f'<b>{escape(translate(T_DISCORD_ADMIN))}</b>'
         f'{escape(translate(T_DISCORD_ADMIN_INTRO))}</legend>'
         f'<label class="opt"><input type="radio" name="admin_scope" value="per_server"{per}>'
         f'<span><b>{escape(translate(T_DISCORD_ADMIN_PER_SERVER))}</b></span></label>'
@@ -2398,7 +2466,7 @@ def _step_roles(request: Request, draft: SetupDraft, translate) -> str:
         f'<input type="hidden" name="n" value="6">'
         f'<p class="note">{escape(translate(T_ROLES_INTRO))}</p>'
         f'{"".join(rows)}'
-        f'<p class="note">{escape(translate(T_ROLES_COMMA))}</p>'
+        f'<p class="note">{escape(translate(T_ROLES_DEFAULTS))}</p>'
         f'{admin_choice}{channels}'
         f'{_guild_notice(request, draft, translate, fetch_code)}{notice}'
         f'<div class="actions">{back_link}'
@@ -2832,7 +2900,7 @@ def _standalone_document(request: Request, lang: str, theme: str, translate, tit
 
 
 def _placeholder(draft: SetupDraft, step: int, translate) -> str:
-    """A step built on a later card: its title, an honest note, and the way back."""
+    """A step whose content is built later: its title, an honest note, and the way back."""
     back = _previous_step(draft, step)
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else "")
@@ -2869,6 +2937,24 @@ def _card_body(request: Request, draft: SetupDraft, step: int, translate, *,
 def _config_dir(request: Request) -> str:
     """The tour's config directory, recorded on the application at start (never re-derived)."""
     return getattr(request.app.state, "webui_config_dir", "config")
+
+
+def _bot_port_base(request: Request) -> int:
+    """The first bot port this step may assign: above every ``bot_port`` ``nodes.yaml`` already holds.
+
+    Read from the INSTALLATION's own file, on every render and never from the draft — it is a machine
+    fact like the instance scan, and the port the page shows must be the one the commit writes. An
+    absent file (a first run), or one that cannot be read, answers the installer's own default, which
+    is what the formula counted from before.
+    """
+    path = Path(_config_dir(request)) / "nodes.yaml"
+    try:
+        nodes = configwrite.load_config_file(path)
+    except configwrite.ConfigWriteError as ex:
+        log.warning("Setup tour: '%s' could not be read (%s); assigning bot ports from the "
+                    "installer's own first port.", path, ex)
+        return servers_step.DEFAULT_BOT_PORT
+    return servers_step.bot_port_base(nodes)
 
 
 def _setup_finished(request: Request) -> bool:

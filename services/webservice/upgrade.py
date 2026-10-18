@@ -24,7 +24,7 @@ WHAT IS POLLED, AND WHEN (the poller's four triggers):
 * **immediately after an Upgrade is accepted** — the node route re-checks that ONE node once the
   action has succeeded (``pages/actions``), so the cache does not wait for the next tick.
 
-THE FAILURE RULE (item 4 of the card), stated here because it is a choice, not an accident. A check
+THE FAILURE RULE, stated here because it is a choice, not an accident. A check
 that RAISES means **UNKNOWN**, never "pending": the control is then not offered. Logging is ONCE PER
 TRANSITION — the first failure of a node logs a warning, and later failures stay quiet until a
 success clears the node's failure latch. A failure KEEPS THE LAST KNOWN VALUE ONLY IF IT WAS True,
@@ -56,12 +56,12 @@ __all__ = ["SAMPLE_SECONDS", "SWEEP_SECONDS", "NOTE_NO_CHECK", "Check", "Upgrade
 #: a tick is two dict lookups and, on the ordinary case, NO call at all.
 SAMPLE_SECONDS = 30
 
-#: how long a sweep's answer is trusted before EVERY node is re-checked. This is the card's
-#: "every 6 hours": the per-node answer is otherwise only refreshed when the node comes online.
+#: how long a sweep's answer is trusted before EVERY node is re-checked — "every 6 hours": the
+#: per-node answer is otherwise only refreshed when the node comes online.
 SWEEP_SECONDS = 6 * 60 * 60
 
 #: the honest statement a row carries while the cached value is UNKNOWN (never checked, or the last
-#: check failed). The card's own words. Marked for translation with the console's ``_`` marker (an
+#: check failed). Marked for translation with the console's ``_`` marker (an
 #: identity at runtime); the template renders it, so the row's note follows the page's language.
 NOTE_NO_CHECK = i18n._("no update check yet")
 

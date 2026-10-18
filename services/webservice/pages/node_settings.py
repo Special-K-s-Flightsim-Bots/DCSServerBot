@@ -298,8 +298,8 @@ NODE_PAGE_SCOPE_INSTANCE = i18n._(
     "node's own block — nothing is copied.")
 
 #: THE ACTIVE-SCOPE CARRIER. The tabs are a SERVER-SIDE selection (``?tab=<n>``), but a SAVE must know
-#: which scope a form came from WITHOUT inferring it from the posted fields — the review's B3 proved
-#: that inference writes a DEFAULT field from an instance tab (and the reverse). So the form carries
+#: which scope a form came from WITHOUT inferring it from the posted fields — inference writes a
+#: DEFAULT field from an instance tab (and the reverse). So the form carries
 #: the scope in a hidden field, and the route ALSO reads the ``?tab=`` index as a fallback (a bookmark
 #: or a stale form). The value is :data:`NODE_PAGE_SCOPE_DEFAULT` for the node's own block or
 #: ``instance:<name>`` for an instance's. It is ``_``-prefixed, so ``configgen.apply_form`` (which
@@ -322,14 +322,14 @@ SAVE_REFUSED_UNKNOWN_SCOPE = i18n._(
     "Reload the page and pick a tab — nothing was written.")
 #: the sentence a save shows when the node has NO block in ``nodes.yaml``. Such a node renders
 #: read-only (it has nothing to show), so its save door REFUSES rather than silently CREATING the
-#: block — a node is added in Expert Mode, never as a side effect of saving a form (the review's B4).
+#: block — a node is added in Expert Mode, never as a side effect of saving a form.
 SAVE_REFUSED_NO_NODE_BLOCK = i18n._(
     "No change was saved: this node has no block in nodes.yaml yet, so there is nothing to save. Add "
     "the node in Expert Mode first — nothing was written.")
 #: the sentence over an extension section the selected scope does NOT configure. The section is still
 #: SHOWN (every schema-known extension stays discoverable from the node page) but its controls are
 #: disabled and not posted: the form never CREATES an extension block — that is Expert Mode work
-#: (the review's B2, "no implicit block creation").
+#: ("no implicit block creation").
 NODE_PAGE_EXTENSION_UNCONFIGURED = i18n._(
     "This extension is not configured for this scope yet. The form never creates it — add its block "
     "in Expert Mode, then it becomes editable here.")
@@ -382,7 +382,7 @@ NODE_PAGE_EXTENSION_KEEP = i18n._("Keep it")
 NODE_PAGE_EXTENSION_DEFAULT_BADGE = plugin_registry.DEFAULT_BADGE
 #: THE TWO STATE WORDS A DEFAULT EXTENSION'S SWITCH SHOWS. A default extension's state is the
 #: RUNTIME's (enabled/disabled), not the file's (configured/not configured): an unconfigured default
-#: extension is ON, so "Configured"/"Not configured" would be the very lie this card fixes.
+#: extension is ON, so "Configured"/"Not configured" would be the very lie this fixes.
 NODE_PAGE_EXTENSION_ENABLED = i18n._("Enabled")
 NODE_PAGE_EXTENSION_DISABLED = i18n._("Disabled")
 #: the notices a default extension's switch leaves (translated AND interpolated at the route).
@@ -441,7 +441,7 @@ def _extension_ack_binding(doc_key: str, scope_value: str, ext_name: str) -> str
     ``instance:<name>``), so the binding the warning MINTS and the binding the save LOOKS UP are the
     one representation — they cannot drift.
 
-    LENGTH-PREFIXED, never a bare join (the review's delimiter nitpick). A plain ``"\\x1f".join`` is
+    LENGTH-PREFIXED, never a bare join. A plain ``"\\x1f".join`` is
     AMBIGUOUS: a part can itself CONTAIN the separator, so ``("A\\x1finstance:B", "default", "E")``
     and ``("A", "instance:B\\x1fdefault", "E")`` would encode the SAME string and an acknowledgement
     minted for one block could be spent on the other's. Each part is therefore written as
@@ -812,7 +812,7 @@ def _extension_sections(container: configgen.Field | None, base: tuple,
     ``nodes.yaml`` does not configure yet — so nothing became unreachable when the EXTENSIONS rail left
     Settings). ``configured`` is the set of extension names the scope's block carries in the file: a
     section the scope does not configure is shown LOCKED (its controls disabled and not posted) because
-    the form never CREATES an extension block (the review's B2).
+    the form never CREATES an extension block.
     """
     if container is None:
         return []
@@ -1378,9 +1378,9 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
             and ext_name.lower() not in catalog.default_extensions()):
         _notice(request, SAVE_REFUSED_UNKNOWN_EXTENSION, ok=False)
         return RedirectResponse(redirect_to, status_code=303)
-    # THE REMOVAL'S ACKNOWLEDGEMENT (the review's F1): a ``remove`` must present the token the warning
+    # THE REMOVAL'S ACKNOWLEDGEMENT: a ``remove`` must present the token the warning
     # step minted for EXACTLY this (node, scope, extension), AND that token must have been minted under
-    # the file's CURRENT revision (the review's replay fix). Absent, stale (a newer warning replaced
+    # the file's CURRENT revision. Absent, stale (a newer warning replaced
     # it), minted for a different block, or minted before the file changed -> REFUSED here, before the
     # patch runs, so nothing is written and the refusal says so. An ``add`` needs no acknowledgement —
     # it writes an empty block and discards nothing.
@@ -1416,7 +1416,7 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
     except configwrite.ConfigWriteError as ex:
         _notice(request, f"{settings_page.REFUSED_BANNER} {ex}", ok=False)
         return RedirectResponse(redirect_to, status_code=303)
-    # THE ACKNOWLEDGEMENT IS SPENT — a ONE-TIME token (the review's replay fix): once a removal has
+    # THE ACKNOWLEDGEMENT IS SPENT — a ONE-TIME token: once a removal has
     # been accepted, delete the store entry so the same token can never authorise a SECOND removal.
     if action == NODE_PAGE_EXTENSION_REMOVE:
         spend_extension_ack(request, doc_key, scope_value, ext_name)
@@ -1485,7 +1485,7 @@ async def save_node(request: Request, doc_key: str, redirect_to: str) -> Redirec
     expert = readmodels.text(form.get(settings_page.SETTINGS_EXPERT_FIELD)) == "1"
     slice_keys = [doc_key]
 
-    # B4: the node must HAVE a block. A node with none renders read-only; its save door REFUSES rather
+    # The node must HAVE a block. A node with none renders read-only; its save door REFUSES rather
     # than silently CREATING the block (a node is added in Expert Mode, never as a save side effect).
     try:
         existing = configgen.read_document(path)

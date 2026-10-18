@@ -8,10 +8,10 @@
   the second copy that drifts the first time a shape is fixed.
 
   ONE DRAWING PER OPERATION — the decision of 2026-09-29 evening, which CORRECTS the
-  same day's W4f rule ("one glyph per meaning", startup = start = unpause). W4f collapsed three
+  same day's rule ("one glyph per meaning", startup = start = unpause). That rule collapsed three
   controls onto one triangle; the corrected rule is that the triangle means "bring a DOWN server up",
   and PAUSED is not down — it is a frozen RUNNING server — so Unpause is a different operation from
-  Startup and Start, and keeps the mockup's own bar+triangle drawing that W4f replaced:
+  Startup and Start, and keeps the mockup's own bar+triangle drawing that rule replaced:
 
     | control    | state it appears in | drawing                     |
     |------------|---------------------|-----------------------------|
@@ -41,22 +41,22 @@
 
   The 2026-09-28 mockup (`mockups/dcssb-admin-ui/dashboard-actions`, whose `_build.py`
   holds the set) is the design source of record. The strip now follows the maintainer's 2026-09-29 decision
-  (): the mockup is AUTHORITATIVE for the bar+triangle Unpause drawing — it drew it and W4f
-  replaced it — and is NOT edited. Still standing from the 2026-09-28 set (unchanged):
+  (): the mockup is AUTHORITATIVE for the bar+triangle Unpause drawing — it drew it and the
+  corrected rule replaced it — and is NOT edited. Still standing from the 2026-09-28 set (unchanged):
 
   * **Popup is the bubble FILLED** (a knocked-out dot, so the fill reads at 16px where the mockup's
     bold "!") while **Chat keeps the outlined bubble** with its text lines;
   * **Kick is simplified** to an arrow leaving a barrier — see the note on the glyph itself;
-  * the node row (W4c-revised) shares `restart` and `shutdown` with the server row — the same two
+  * the node row shares `restart` and `shutdown` with the server row — the same two
     operations one level up — and owns `upgrade` (an arrow rising out of a tray: update and restart);
-  * the node row's MAINTENANCE PAIR (W4d) is the mockup's own `online`/`offline` artwork: the same
+  * the node row's MAINTENANCE PAIR is the mockup's own `online`/`offline` artwork: the same
     box twice, with the arrow above it pointing up (bring the servers online) and the arrow below it
     pointing down (take them offline). One box, one mirrored arrow — a coherent pair, and the mockup
-    drew it for exactly these two words (`dashboard-actions/_build.py`, its glyph legend). The W4c
-    card deliberately left it out because that card's three controls were NOT these words; W4d is the
-    card that was missing, and reusing the reviewed pair beats inventing a second drawing.
+    drew it for exactly these two words (`dashboard-actions/_build.py`, its glyph legend). It was
+    left out of the first pass because that pass's three controls were NOT these words; reusing the
+    reviewed pair beats inventing a second drawing.
 
-  THE MAINTENANCE FLAG PAIR (W5b) is on the SERVER row and draws TWO NEW shapes, and they must be new:
+  THE MAINTENANCE FLAG PAIR is on the SERVER row and draws TWO NEW shapes, and they must be new:
   the flag controls apply in EVERY server state (a flag is not a power state), so they are drawn
   beside every other glyph on some row — `startup`/`start` (triangle), `unpause` (bar+triangle),
   `pause` (two bars), `shutdown` (the power arc), `restart` (circular arrow) and `stop` (filled
@@ -76,13 +76,13 @@
   (`aria-pressed`; see `.cfg-reveal` in shell.css), so the shape states the state as plainly as the
   colour does.
 
-  THE `trash` GLYPH IS DELETED (M9). It had exactly ONE reader — the Missions tab's per-row Remove —
-  and M9 removed that control (a mission is removed by ticking its row and pressing the card's one
+  THE `trash` GLYPH IS DELETED. It had exactly ONE reader — the Missions tab's per-row Remove —
+  and that control was removed (a mission is removed by ticking its row and pressing the card's one
   action). A drawing is kept by having a CONTROL, never by being available: with no reader left it is
   gone, exactly as the old Startup ring was DELETED when its own control changed. `ban` is untouched
   (it belongs to the player row), and the set now carries no delete glyph because no surface deletes.
 
-  `move_up` / `move_down` (M5) are the Missions tab's per-row REORDER pair: one plain arrow each,
+  `move_up` / `move_down` are the Missions tab's per-row REORDER pair: one plain arrow each,
   pointing the way the mission moves. Deliberately NOT `upgrade` (an arrow rising out of a tray:
   update-and-restart, a NODE row word) nor `online` / `offline` (a box with a mirrored arrow): those
   carry the node rows' meanings, and the invariant above forbids a second copy of a drawing in one
@@ -106,6 +106,7 @@
   'mute': '<path d="M11.4 5.2 6.6 9.2H3.4v5.6h3.2l4.8 4z"/><path d="M15.4 9.6 20.6 14.8"/><path d="M20.6 9.6 15.4 14.8"/>',
   'unmute': '<path d="M11.4 5.2 6.6 9.2H3.4v5.6h3.2l4.8 4z"/><path d="M15.2 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/>',
   'maintenance': '<path d="M10.1 4.8h3.8L18.6 19.2H5.4Z"/><path d="M8.3 13.6h7.4"/>',
+  'delete': '<path d="M5 7h14"/><path d="M9.4 7V4.8h5.2V7"/><path d="M6.8 7l.8 13h8.8l.8-13"/><path d="M10.4 10.6v6"/><path d="M13.6 10.6v6"/>',
   'end_maintenance': '<circle cx="12" cy="12" r="8.4"/><path d="M8.2 12.3 11 15.1l5-5.6"/>',
   'more': '<circle cx="12" cy="5.2" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.9" fill="currentColor" stroke="none"/>',
   'download': '<path d="M12 3.8v10.6"/><path d="M7.8 10.2 12 14.4l4.2-4.2"/><path d="M4.8 16.6v1.8a1.4 1.4 0 0 0 1.4 1.4h11.6a1.4 1.4 0 0 0 1.4-1.4v-1.8"/>',

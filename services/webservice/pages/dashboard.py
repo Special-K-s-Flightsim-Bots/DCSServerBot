@@ -1,6 +1,6 @@
 """The dashboard: the first page a signed-in staff member opens.
 
-WHAT "READ-ONLY" MEANT HERE, and what is true now (the card that added the SERVER row strip, W4a,
+WHAT "READ-ONLY" MEANT HERE, and what is true now (adding the SERVER row strip
 had to change this claim rather than leave it standing):
 
 * the ROUTE is still a GET and there is no other method on it. No POST/PUT/PATCH/DELETE exists in
@@ -11,13 +11,14 @@ had to change this claim rather than leave it standing):
 * the WRITES live in ``pages/actions.py``, reachable from a server row that may be operated, and only
   from a row the caller's scope contains. They are POSTs to another module's routes, with the
   session's CSRF token and the target in the body, and nothing about them is owned here: this module
-  asks ``actions.controls_for`` for the CONTROLS of the tab it is about to render (data), and the
-  markup is ``templates/_table.html``'s;
+  asks ``actions.controls_for`` for the ROW controls of the tab it is about to render (data, markup
+  in ``templates/_table.html``) and ``actions.page_controls`` for that tab's PAGE control (markup in
+  this page's own head) — one reading, so the dashboard and the list pages offer one set of controls;
 * the players' Message/Kick/Ban and the node verbs are **omitted, not disabled** — a greyed-out
   control still tells a reader "this console can do that", and a control the viewer may not use is
   absent from the markup entirely. The player and node rows arrive in their own cards;
 * the dashboard renders the SERVER strip only (the tab's own table decides): the Players tab's
-  controls belong to the card that owns the player strip, and the two screens then stay in step
+  controls belong to the player strip's own page, and the two screens then stay in step
   because both read the same `pages/actions` declaration.
 
 NO DISCORD CALL ON RENDER. The data comes from :mod:`services.webservice.readmodels`: the
@@ -562,15 +563,21 @@ def row_controls_for(request: Request | None, tab: str) -> dict:
     offer one set of controls. The import is inside the function because ``pages/actions`` reaches
     THIS module for the page's own paths, and a module-level import would be a cycle.
 
-    The ORIGIN is this page's own path (Defect 1): the table here is the DASHBOARD's, on
-    the initial render and on every streamed fragment alike, so a write returns to ``/`` — and that
-    is why this cannot be read off the request, whose path is an ``/api/…`` stream endpoint.
+    The ORIGIN is this page's own path and the TAB IN FORCE travels beside it: the dashboard's four
+    tables share ``/`` and differ by ``?tab=``, while the registry resolves an origin by page PATH
+    alone, so ``/?tab=players`` is not a value it can return (Defect 1). The tab is therefore carried
+    in its own field (``pages/actions.TAB_FIELD``) and re-attached by ``pages/actions.origin_url`` on
+    the way back, so a write pressed on the Players tab returns to the Players tab — and the DEFAULT
+    tab states nothing, the way an unadorned page does. The path cannot be read off the request: the
+    live stream renders these tables through its own ``/api/…`` request.
     """
     if request is None:
         return {}
     from . import actions as actions_page
 
-    return actions_page.controls_for(request, tab, DASHBOARD_PATH)
+    return actions_page.controls_for(request, tab, DASHBOARD_PATH,
+                                     tab="" if tab == DEFAULT_TAB else tab)
+
 
 #: declared at import (see :func:`declare`), and again from :func:`capabilities`
 def declare() -> None:
@@ -648,10 +655,16 @@ def add_routes(router: APIRouter) -> APIRouter:
             empty=empty_messages(state),
             console=console,
             notice=notice,
-            # the tab's OWN controls (W4a) — the strip on a server row, nothing for a table with no
+            # the tab's OWN controls — the strip on a server row, nothing for a table with no
             # write; the same call the live stream makes on every tick, so a refreshed table cannot
             # lose the column the initial page drew.
             row_controls=row_controls_for(request, console["tab"]),
+            # the PAGE-LEVEL control of the tab in force (the fleet's "Add server"): the SAME call
+            # the Servers page makes, asked BY TABLE, so the tab whose table is `servers` offers it
+            # and every other tab renders none. It lives in the page head, OUTSIDE the swap targets,
+            # because the tab only changes by navigation (its links are plain `href`s), never on a
+            # stream tick.
+            add_control=actions_page.page_controls(request, console["tab"], DASHBOARD_PATH),
             nav_groups=nav_groups(registrar, roles, current=DASHBOARD_PATH, manager=manager),
             user=identity_summary(request),
             env=environment_marker(state),
@@ -846,7 +859,7 @@ def view_state_for(request: Request, state: readmodels.Overview | None = None) -
 def empty_messages(state: readmodels.Overview | None = None) -> dict[str, str]:
     """The empty-state copy, taken from the read models that own it (never typed in the template).
 
-    The template renders these instead of an empty container, which is the card's requirement:
+    The template renders these instead of an empty container, as required:
     0 servers / 0 players / a node with no instances / a missing log file each say so in words.
 
     ``state`` matters for ONE case, and it is the hoster view's: when the view is empty BECAUSE OF

@@ -263,6 +263,10 @@ class PlayerView:
     #: the link to the own page of the server the player is on (``/fleet/<encoded-name>``), built
     #: by :func:`~.servers.server_url`. Empty renders the name as plain text.
     link: str = ""
+    #: the side the player is on (``Red``/``Blue``/``Neutral``), read from ``Player.side``. EMPTY for
+    #: a player who has not picked one — the row then renders its "nothing here" placeholder rather
+    #: than a side the player is not on.
+    coalition: str = ""
 
 
 @dataclass(frozen=True, slots=True)

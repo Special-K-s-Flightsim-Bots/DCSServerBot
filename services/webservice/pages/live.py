@@ -3,7 +3,7 @@
 THE TRANSPORT CHOICE (made upstream, recorded here so the next reader does not re-open it): the
 traffic is one-directional (server -> browser), ``text/event-stream`` needs no dependency and no
 handshake, and the payloads are HTML FRAGMENTS RENDERED BY THE SAME JINJA TEMPLATES the initial
-page uses. WebSocket is deliberately not used; it belongs to the card that adds write actions with
+page uses. WebSocket is deliberately not used; it would belong to a write path with
 live output, where the browser talks back.
 
 WHAT IS ON THE WIRE. Every frame's ``data`` is one line of JSON (so no HTML newline can break the
@@ -250,7 +250,7 @@ def fragments(environment, state: readmodels.Overview, view=None, console=None,
     targets = {
         STATE_TARGET: environment.get_template(STATE_TEMPLATE).render(
             state=state, view=view, empty=dashboard_page.empty_messages(state), console=console,
-            # the tab's own controls (W4a): the strip on a server row. Passed through so a refreshed
+            # the tab's own controls: the strip on a server row. Passed through so a refreshed
             # table carries the SAME controls its initial render did — the stream and the page read
             # one map (``pages/dashboard.row_controls_for``).
             row_controls=row_controls or {}),
@@ -417,7 +417,7 @@ def render_for(request: Request) -> Callable[[], dict[str, str]]:
     THE ONE-SHOT NOTICE of a write is popped per tick as well (:func:`write_notice`), so a write whose
     outcome is stored after the connection opened is still delivered — by the polling fallback on the
     next poll, and on the snapshot for any outcome already stored when the connection opened (card
-    W4h: a strip control hands the page over to a fresh render, so its outcome is written a moment
+    A strip control hands the page over to a fresh render, so its outcome is written a moment
     after the page the person is looking at has already rendered).
     """
     environment = _environment(request)

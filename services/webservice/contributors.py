@@ -1,4 +1,4 @@
-"""The plugin-page contributor registry: what a rebuilt application replays (review defect D1).
+"""The plugin-page contributor registry: what a rebuilt application replays.
 
 WHY THIS EXISTS. `PluginManager` registers a plugin's web UI pages by calling
 ``plugins/<name>/webui.py::register_pages(registrar)``. That call needs a registrar, and a registrar

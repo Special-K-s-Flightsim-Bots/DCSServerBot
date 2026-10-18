@@ -28,9 +28,9 @@
   dashboard's Servers tab) and for that row. `row_controls` is DATA and is keyed by the row's own
   identity: a server's NAME (the record `pages/actions.server_controls` built — the strip, the menu,
   the glyphs, the two names per control) or a player's `(server, ucid)` (a form with a message field,
-  W3). This file still derives nothing and renders NO control for a row the map has no entry for. The
+  This file still derives nothing and renders NO control for a row the map has no entry for. The
   SERVER strip itself is the partial `_strip.html`, one component used by both screens; a player
-  control is a small form of its own shape, and so is a NODE row's lifecycle trio (W4c-revised:
+  control is a small form of its own shape, and so is a NODE row's lifecycle trio:
   restart / shut down / upgrade, Admin-only, keyed by the node's name). When no row has a control,
   the column is not rendered at all — no header, no empty cell — so a page with nothing to offer
   looks exactly as it did before writes existed. A control is OMITTED, never rendered disabled. The
@@ -80,7 +80,7 @@
         {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td>{{ row.node_name }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name or '—' }}{% endif %}</td><td class="num">{{ row.dcs_port or '—' }}</td><td class="num">{{ row.webgui_port or '—' }}</td></tr>
         {% endfor %}
       {% elif table.name == 'players' %}
-        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name }}{% endif %}</td><td>{{ row.slot }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name }}{% endif %}</td><td>{{ row.slot or '—' }}</td><td>{{ row.coalition or '—' }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
       {% endif %}
       </tbody>

@@ -266,7 +266,7 @@ class PluginManager:
         (most plugins have no pages yet); a module that raises is reported and skipped so one
         broken plugin cannot stop the others or the bot.
 
-        RECORD FIRST, REGISTER SECOND (review defect D1). The contributors are recorded *before* a
+        RECORD FIRST, REGISTER SECOND. The contributors are recorded *before* a
         registrar is looked up, so this works in all three orders of "plugins load" and "the web
         service starts": a WebService that starts later (its config appeared afterwards, or it was
         restarted by a master/agent switch) rebuilds its application object, and

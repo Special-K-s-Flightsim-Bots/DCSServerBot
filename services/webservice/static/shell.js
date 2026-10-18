@@ -18,6 +18,16 @@
  * If the stream cannot be used (no EventSource, or the connection errors — a proxy stripping
  * `text/event-stream` does this), it falls back to polling the fragment endpoint, so the page still
  * updates. The indicator says which state it is in, IN WORDS.
+ *
+ * THE STREAM BELONGS TO A PAGE THAT IS SHOWN. A page the reader navigates away from may be parked in
+ * the browser's back/forward cache rather than destroyed, and an open connection rides into that
+ * cache — one of the six the browser allows per origin, held for a page nobody is looking at. The
+ * stream is CLOSED when the page is PARKED (``pagehide`` with ``persisted`` true — the browser's own
+ * statement that the document stays alive) and reopened when it comes back, so a console cannot
+ * starve its own later requests (a click's navigation, an asset, a fragment poll). A ``pagehide``
+ * that is NOT a park closes nothing: that document is being destroyed and its connection goes with
+ * it, so the only thing a close could do is leave a surviving page (a navigation that did not
+ * complete) with no stream and no ``pageshow`` to reopen it.
  */
 (function () {
   "use strict";
@@ -160,6 +170,34 @@
       startPolling();
     };
   }
+
+  /* A PAGE THAT IS PARKED KEEPS ITS CONNECTION — and only a PARKED page does. ``pagehide`` fires for a
+     page the browser stores in its back/forward cache (``event.persisted`` is true: the document stays
+     alive, so the open stream rides into the cache and holds one of the browser's six connections per
+     origin) AND for a page that is being DESTROYED (``persisted`` false: the connection goes with the
+     document, so closing it frees nothing, while a navigation that does not complete — a cancelled or
+     refused one, a same-document restore — would leave a SURVIVING page with no stream and no
+     ``pageshow`` to reopen it). So the close is gated on the browser's own statement that this
+     document stays alive, and the park is the only case the leak fix needs. */
+  function suspend(event) {
+    if (event && event.persisted !== true) { return; }
+    if (source) { source.close(); source = null; }
+    if (poll) { clearInterval(poll); poll = null; }
+  }
+
+  window.addEventListener("pagehide", suspend);
+
+  /* A RESTORED PAGE GETS ITS STREAM BACK — whatever ran while it was parked. The polling fallback can
+     have been armed in the meantime (a 503 backoff, or the abort ``error`` a navigation fires on the
+     stream), and it must not be able to suppress the reconnect: it is a different transport, and it can
+     stop for good (an expired session answers 401/403 and ``stopPolling`` never restarts it), which
+     would leave the page with no live transport at all until a reload. The stream is the transport
+     this page wants, so the fallback is dropped rather than kept, and the two never both run. */
+  window.addEventListener("pageshow", function () {
+    if (source) { return; }
+    if (poll) { clearInterval(poll); poll = null; }
+    connect();
+  });
 
   connect();
 })();

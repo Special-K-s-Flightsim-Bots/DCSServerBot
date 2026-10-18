@@ -192,7 +192,7 @@ _ROLE_RESOLVER: Callable[[Request], Iterable[str]] | None = None
 
 
 def set_role_resolver(resolver: Callable[[Request], Iterable[str]] | None) -> None:
-    """Install the backend's role resolver. C2 (auth backends) calls this; tests call it to
+    """Install the backend's role resolver. The auth backends call this; tests call it to
     prove a declared capability is reachable *through the real gate*."""
     global _ROLE_RESOLVER
     _ROLE_RESOLVER = resolver
@@ -784,7 +784,7 @@ async def capability_gate(request: Request) -> None:
         else:
             # an EXPECTED refusal — anonymous, or a session the identity layer could not resolve
             # (an expired cookie, a bot that cannot see its members). A dashboard on such a session
-            # polls forever, so anything above DEBUG here would be the flood this card removes.
+            # polls forever, so anything above DEBUG here would flood the log.
             log.debug("Access gate: refusing %s %s - capability '%s' needs a signed-in session "
                       "(no identity resolved).", request.method, path, capability)
         raise HTTPException(status_code=403,

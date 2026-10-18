@@ -52,7 +52,7 @@ the guild owner included, to ``None``.
 * A Discord REST failure never becomes a 500 and never becomes an open door: the subject is refused
   and the failure is a log line.
 
-WHAT MUST NOT BE REUSED — verified in the phase-1 review, §D.3, and kept as hard rules here:
+WHAT MUST NOT BE REUSED — verified, and kept as hard rules here:
 
 * :func:`core.utils.discord.check_roles` returns ``False`` for every headless member (its first
   guard is ``isinstance(member, discord.Member)`` and ``DummyMember`` is a plain class);
@@ -165,7 +165,7 @@ BACKEND_NAME = "discord"
 
 #: absolute constants, shared by the routes, the developer-portal redirect URI and the tests.
 #: Never a config prefix: a prefix from a user-editable file would move the callback out from
-#: under the redirect URI registered with Discord, and nothing would warn (§C.1).
+#: under the redirect URI registered with Discord, and nothing would warn.
 START_PATH = "/auth/discord"
 CALLBACK_PATH = "/auth/discord/callback"
 
@@ -384,7 +384,7 @@ def role_names_for_member(member, role_map) -> set[str]:
     likely to be exercised by hand.
 
     The match is on role ID or role NAME, the same pair :func:`core.utils.discord.check_roles`
-    used, re-implemented here because ``check_roles`` refuses every headless member (§D.3).
+    used, re-implemented here because ``check_roles`` refuses every headless member.
     """
     held_ids: set[int] = set()
     held_names: set[str] = set()
@@ -965,7 +965,7 @@ class DiscordOAuthBackend(AuthBackend):
           because the entry aged out) while ONE background refresh runs — so the value is at most
           one TTL old plus one refresh.
 
-        THREE OUTCOMES, and the third one is the fix this card is about. When the member cannot be
+        THREE OUTCOMES, and the third one is the fix this exists for. When the member cannot be
         resolved the question is WHY:
 
         * the bot's member list is authoritative and the person is not in it — a DEFINITIVE

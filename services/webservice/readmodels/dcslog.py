@@ -1,4 +1,4 @@
-"""A server's OWN DCS log (``{instance.home}/Logs/dcs.log``) — the pure half of the Log tab (L1).
+"""A server's OWN DCS log (``{instance.home}/Logs/dcs.log``) — the pure half of the Log tab.
 
 This module is the read models' ``logtail.py`` for a *DCS* log rather than the bot's own log: it owns
 the CONFIG-DRIVEN path resolution, the line format and the byte-window arithmetic. It is PURE — no
@@ -21,7 +21,7 @@ import os
 import re
 
 from .access import attr, text
-# THE LEVEL FILTER'S ONE VOCABULARY (L2). The bot-log panel already owns it — ``LEVEL_CHOICES`` /
+# THE LEVEL FILTER'S ONE VOCABULARY. The bot-log panel already owns it — ``LEVEL_CHOICES`` /
 # ``LEVEL_FILTERS`` / ``LEVEL_LABELS`` / ``DEFAULT_LEVEL`` / ``normalise_level`` — shared between the
 # config and the ``?level=`` URL so the two can never drift. The DCS log tab MIRRORS it by importing
 # it rather than re-declaring a second vocabulary: the choices a reader is offered, and the levels
@@ -63,7 +63,7 @@ def _(message: str) -> str:
 #: after (see the log-window route), so the node name and the path stay verbatim.
 MISSING_SENTENCE = _("No log file yet for this server (looked for '{path}' on node '{node}').")
 
-#: the honest sentence a PAGE-BACK answers when a rotation landed DURING the walk (L2-fix): the page
+#: the honest sentence a PAGE-BACK answers when a rotation landed DURING the walk: the page
 #: the walk gathered is the PREVIOUS file's alone (never spliced with the replacement), and the view
 #: resets and says the log restarted.
 ROTATED_SENTENCE = _("The log restarted while loading older lines — the lines shown are from the "
@@ -108,8 +108,8 @@ def dcs_log_path(server) -> str:
 
 
 # ------------------------------------------------------------------------------- the log artifacts
-# THE DOWNLOAD LIST (L2). The naming below is what an INSTANCE'S log directory really holds, confirmed
-# rather than guessed (see the card): ``plugins/admin`` ships the download definitions DCS operators
+# THE DOWNLOAD LIST. The naming below is what an INSTANCE'S log directory really holds, confirmed
+# rather than guessed: ``plugins/admin`` ships the download definitions DCS operators
 # use — ``{server.instance.home}/logs`` with patterns ``dcs*.log`` and ``dcs*.zip`` — so the DCS log
 # tab offers exactly those, and the debug plugin's README writes ``events.log`` through DCS's own
 # ``log.set_output('events', …)`` in ``autoexec.cfg``, which DCS writes to the SAME ``Logs`` directory

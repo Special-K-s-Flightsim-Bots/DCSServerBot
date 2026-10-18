@@ -847,7 +847,7 @@ def scopes(tree: Field) -> list[dict]:
     beside it, one override per element/node (a ``regex;``/``is_element``/``is_node`` map or a
     ``check_main_structure`` map). A FLAT schema (``main_schema.yaml``) distinguishes nothing, so its
     whole mapping is the one DEFAULT scope. Each scope is ``{label, fields}`` and ``fields`` are the
-    :class:`Field`s the page renders under it — so a later card that makes the tabs switchable needs
+    :class:`Field`s the page renders under it — so a later change that makes the tabs switchable needs
     only presentation, not a second model. Order is DEFAULT first (the active tab), the overrides after.
     """
     default_child = next((child for child in tree.children if child.key == "DEFAULT"), None)

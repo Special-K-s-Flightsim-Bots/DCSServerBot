@@ -32,7 +32,7 @@ them omitted. The one part of that block the card deliberately does NOT show is 
 the lock indicator says a password is set, the cleartext is never rendered (the web page has no
 ``show_passwords`` gate to honour, so it errs on the side of never disclosing it).
 
-HONEST EMPTY STATES (the card requires them): no servers configured (the read models' own sentence,
+HONEST EMPTY STATES (required): no servers configured (the read models' own sentence,
 or the scope-aware one for a hoster), a server that is not running (its card says so rather than
 printing zeroes), and a node that has not reported (the cluster header names only the nodes the
 source knows). The copy lives in the read models / here, never typed into a template.

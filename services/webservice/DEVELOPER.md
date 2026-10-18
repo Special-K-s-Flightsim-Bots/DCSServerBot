@@ -22,7 +22,8 @@ writes**, declared the same way in the same file: the **DCS config write** (`SER
 and the **channels write** (`SERVER_CHANNEL_ACTIONS`) — plus the **coalition write**
 (`SERVER_COALITION_ACTIONS`, described with the config tab's two below). The same page's **Missions
 tab** carries the **mission-list writes** (`MISSION_ACTIONS`, described below). The table below is the
-WHOLE write surface — the three tables' rows and the two tabs' writes.
+WHOLE write surface — the three tables' rows, the servers page's own *Add server*, and the two tabs'
+writes.
 
 | Row    | Control              | Capability                  | Action (`__qualname__`) | Confirms |
 |--------|----------------------|-----------------------------|-------------------------|----------|
@@ -35,9 +36,14 @@ WHOLE write surface — the three tables' rows and the two tabs' writes.
 | server | Stop                 | `servers.stop`              | `stop_server`           | **yes**  |
 | server | Maintenance          | `servers.maintenance`       | `set_maintenance`       | no       |
 | server | End maintenance      | `servers.clear_maintenance` | `clear_maintenance`     | no       |
+| server | Chat                 | `servers.message`           | `message_server`        | **yes**  |
+| server | Popup                | `servers.message`           | `message_server`        | **yes**  |
+| server | Delete               | `servers.delete`            | `delete_server`         | **yes**  |
+| server (page)  | Add server   | `servers.add`               | `add_server`            | no       |
 | player | Kick                 | `players.kick`              | `kick_player`           | **yes**  |
 | player | Ban                  | `players.ban`               | `ban_player`            | **yes**  |
-| player | Chat / Popup         | `players.message`           | `message_player`        | no       |
+| player | Chat                 | `players.message`            | `message_player`        | **yes**  |
+| player | Popup                | `players.message`            | `message_player`        | **yes**  |
 | player | Mute                 | `players.mute`              | `mute_player`           | no       |
 | player | Unmute               | `players.mute`              | `unmute_player`         | no       |
 | node   | Restart              | `nodes.restart`             | `restart_node`          | **yes**  |
@@ -53,10 +59,15 @@ WHOLE write surface — the three tables' rows and the two tabs' writes.
 | mission (tab)  | Remove missions      | `missions.delete`           | `delete_missions`       | **yes**  |
 | mission (tab)  | Load                 | `missions.load`             | `load_mission`          | no       |
 | mission (tab)  | Upload mission       | `missions.upload`           | `upload_mission`        | no       |
-| mission (tab)  | Move up / Move down  | `missions.reorder`          | `reorder_mission`       | no       |
-| mission (tab)  | Make start           | `missions.activate`         | `set_active_mission`    | no       |
+| mission (tab)  | Move                 | `missions.reorder`          | `reorder_mission`       | no       |
+| mission (tab)  | Set as start         | `missions.activate`         | `set_active_mission`    | no       |
 
-**Two server controls open a DIALOG without confirming**: *Shutdown* and *Startup* each
+**The Control column is the declaration's own `label`** — the wording the code gives the
+control. Where the screen words one differently, the Missions tab's writes below name both
+readings (its bulk removal is declared *Remove missions* and shown on the tab as *Remove
+selected…*; its single *Remove* has no on-screen control).
+
+**Two server controls carry a `maintenance` option in their dialog**: *Shutdown* and *Startup* each
 carry a `maintenance` **option** — a checkbox with its `off` companion (the `NodeOption` shape the
 node row's *Take servers offline* uses), default ON — that mirrors Discord's `/server shutdown|startup`
 flag defaults: Shutdown **sets** the maintenance flag, Startup **clears** it. Because the checkbox is a
@@ -65,13 +76,14 @@ chosen; *Startup* is the non-destructive half, so its dialog is an **options** f
 one-shot token. *Start* and *Stop* carry **no** option: the process-level pair touches no flag.
 
 The write roles are `Admin` and `DCS Admin`, and every **server** and **player** row capability above is
-declared `scope_grants`: a **manager** (an identity whose scope holds a server's `managed_by`) reaches
-them **on their own servers** and on nobody else's. A server with **no** `managed_by` is **not** a
-manager's: the scoped source leaves it out of every page, so no control is built for it, and a
-crafted POST naming it is refused exactly like a name that does not exist. The **node** row is one
-exception and stays so: its five are declared `Admin`-only and **without** a scope grant
-(`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of *servers* and taking a whole
-node — or every server on it — out of service must never widen out of it.
+declared `scope_grants` — with ONE exception, the creation pair (*Add server* / *Delete*), which carries
+the node/instance rule instead (below): a **manager** (an identity whose scope holds a server's
+`managed_by`) reaches the rest **on their own servers** and on nobody else's. A server with **no**
+`managed_by` is **not** a manager's: the scoped source leaves it out of every page, so no control is
+built for it, and a crafted POST naming it is refused exactly like a name that does not exist. The
+**node** row is another exception and stays so: its five are declared `Admin`-only and **without** a
+scope grant (`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of *servers* and
+taking a whole node — or every server on it — out of service must never widen out of it.
 
 The Configuration tab's three writes do **not** follow the server/player row rule, and their own
 roles/scope rules differ from each other (`NODE_ROLES` is `Admin` alone, `declare()` in
@@ -111,29 +123,36 @@ writes follow the server rows' `scope_grants` rule, so a **manager** reaches the
 
 * **add**, `POST /actions/server/missions/add` (`missions.add`, `add_mission`) — puts a mission that is
   already on the server into its rotation list; reached through its options dialog (the mission picker
-  and the *load it now* / *load it next start* choices), and it confirms nothing, because adding is not
-  destructive. Accepted in **every** state.
+  and the *Load it now* / *Load it when the server next starts* choices), and it confirms nothing,
+  because adding is not destructive. Accepted in **every** state.
 * **remove**, `POST /actions/server/missions/delete` (`missions.delete`, `delete_mission`) — takes ONE
   mission out of the rotation list, optionally deleting its file from disk; confirms through its dialog.
-  Accepted in **every** state.
+  Accepted in **every** state. It has **no on-screen control**: the Missions tab's removal is the
+  bar's bulk action below, so only the declaration, its route and its `<path>/confirm` dialog
+  remain — nothing the tab renders reaches it.
 * **bulk remove**, `POST /actions/server/missions/delete_bulk` (`missions.delete`, `delete_missions`)
-  — the row's remove repeated over every selected mission in ONE write; its dialog carries the
+  — the single remove above, repeated over every selected mission in ONE write; its dialog carries the
   per-mission checkboxes that ARE its selection. It **refuses exactly `LOADING`** — every other state
   sticks — because in `LOADING` the process is up but the bot's `deleteMission` would edit the file and
-  the change is reverted.
+  the change is reverted. It is **declared *Remove missions* and shown on the tab as *Remove
+  selected…*** — the bar's button carries its own wording (which the follower script rewrites to
+  *Remove N missions…* once it takes over), while the dialog's own button reads *Remove missions*.
 * **upload**, `POST /actions/server/missions/upload` (`missions.upload`, `upload_mission`) — sends a
   `.miz` file from the operator's own computer into the server's missions directory and adds it.
   Accepted in **every** state.
 * **load**, `POST /actions/server/missions/load` (`missions.load`, `load_mission`) — starts the chosen
   mission now; offered only in `RUNNING` / `PAUSED` / `STOPPED`.
-* **make start**, `POST /actions/server/missions/activate` (`missions.activate`, `set_active_mission`)
-  — makes a configured mission the START mission through the bot's own `setStartIndex` (never a
-  hand-written settings write). It **refuses exactly `LOADING`** — every other state sticks — the same
-  narrower gate as bulk removal, and for the same reason.
-* **the move pair** (Move up / Move down), `POST /actions/server/missions/reorder`
-  (`missions.reorder`, `reorder_mission`) — reorders ONE mission in the rotation list. It is
-  **process-down only** — `UNREGISTERED` / `SHUTDOWN` / `SHUTTING_DOWN` — because a reorder made while
-  DCS is up is reverted.
+* **set the start mission**, `POST /actions/server/missions/activate` (`missions.activate`,
+  `set_active_mission`) — makes a configured mission the START mission through the bot's own
+  `setStartIndex` (never a hand-written settings write). Its control is the selection bar's
+  *Set as start* button, not a per-row one: it acts on the ONE ticked row. It **refuses exactly
+  `LOADING`** — every other state sticks — the same narrower gate as bulk removal, and for the same
+  reason.
+* **move**, `POST /actions/server/missions/reorder` (`missions.reorder`, `reorder_mission`) — reorders
+  ONE mission in the rotation list. The declaration is ONE `Move` control, which the row renders as
+  two glyph buttons (up and down — each absent at the end where a move would be a no-op); there is no
+  named *Move up* / *Move down* pair. It is **process-down only** — `UNREGISTERED` / `SHUTDOWN` /
+  `SHUTTING_DOWN` — because a reorder made while DCS is up is reverted.
 
 **Two things that look like one.** The server row's *Maintenance* / *End maintenance* is the
 MAINTENANCE FLAG (`servers.maintenance`, a persisted switch that keeps a server out of service and is
@@ -147,7 +166,7 @@ the SERVERS, never the node's own process, which is *Shut down* (`MAINTENANCE.md
 one place that decides it:
 
 * **capability** — `permissions.allows` (`services/webservice/permissions.py:146`), the same predicate
-  the route's capability gate runs (`:693`), so "offered ⊆ authorised" holds by construction;
+  the route's capability gate runs (`:699`), so "offered ⊆ authorised" holds by construction;
 * **scope** — the row comes from the *scoped* source every page renders from, so a server (or a
   player's server) outside the caller's scope is not in the source at all and no control is built;
 * **action availability** — `action_available(qualname)`, so an installation whose `mission` plugin is
@@ -163,7 +182,7 @@ one place that decides it:
 
 **An unusable control is ABSENT, never rendered disabled.** When no row of a table offers a control,
 the Actions column is not rendered at all — no header, no empty cell — and the table's chip reads
-`read-only` instead of `actions` (`services/webservice/templates/_table.html:35`). A `read-only` chip
+`read-only` instead of `actions` (`services/webservice/templates/_table.html:44`). A `read-only` chip
 therefore means *the console found no action to offer*, **not** "you are not allowed" — see the
 empty-registry trap in `core/ACTIONS.md`.
 
@@ -187,10 +206,10 @@ rule is intact: rendering a page asks no node for anything.
   named through `pages/logs` as `LOG_DOWNLOAD_CAPABILITY` rather than re-spelled. No new capability
   exists; a caller who is not offered the control meets the SAME 403 the `/logs` panel answers with.
 * **The path is resolved ON THE NODE.** The console sends the RELATIVE `logs/dcssb-<node>.log` — the
-  very path `run.py:87` writes the node's own rotating log at — to `Node.read_file`, which resolves
+  very path `run.py:91` writes the node's own rotating log at — to `Node.read_file`, which resolves
   it in the working directory of the node that answers (the master for its own row, the agent's own
   process for an agent's row). A master-local absolute path would be wrong on any other machine
-  (this project runs on WSL and Windows), so none is ever built; `plugins/admin/commands.py:515`
+  (this project runs on WSL and Windows), so none is ever built; `plugins/admin/commands.py:514`
   reads a node-side file the same relative way.
 * **The payload is bounded.** A log AT OR BELOW `LOG_DOWNLOAD_MAX_BYTES` (10 MiB — `run.py`'s own
   default `logrotate_size`) is served WHOLE; a log ABOVE it is **refused** with its own sentence and
@@ -312,10 +331,20 @@ a bare 403 nobody read. With JavaScript off every form is a plain POST, exactly 
 
 ## The confirm rule, and the two server-side tokens
 
-**The confirm rule.** `restart`, `shutdown`, `stop`, `kick` and `ban` do not POST their action: they
-POST to `<path>/confirm`, which renders the dialog (`services/webservice/templates/confirm.html`), and
-the dialog's form carries a **one-shot confirm token** minted for that target. The action's own route
-**refuses a POST that did not come through the dialog** (`services/webservice/pages/actions.py:709`):
+**The confirm rule.** A control that DECLARES `confirm` — the `WriteAction.confirm`,
+`PlayerAction.confirm` or `NodeAction.confirm` flag, which is what the table's **Confirms** column
+reads — does not POST its action: it POSTs to `<path>/confirm`, which renders the dialog
+(`services/webservice/templates/confirm.html`), and the dialog's form carries a **one-shot confirm
+token** minted for that target. It is not only the power writes: the declarations that carry it are
+the server row's *Restart*, *Shutdown*, *Stop*, *Delete* and its *Chat*/*Popup* pair; the player
+row's *Kick*, *Ban* and its *Chat*/*Popup* pair; the node row's *Restart*, *Shut down*, *Upgrade*
+and *Take servers offline*; and the Missions tab's *Remove* and *Remove missions*. *Bring servers
+online* is the node row's one half that does NOT confirm — ending the maintenance IS the operation.
+The table's **Confirms** column and `capabilities` (which registers each confirming control's dialog
+route from the same flag) are the readings of that set, and
+`tests/test_webui_developer_controls.py` keeps the column equal to the declarations — so the column,
+not this sentence, is where the set is checked. The action's own route
+**refuses a POST that did not come through the dialog** (`services/webservice/pages/actions.py:4643`):
 a confirmation a `curl` can skip is decoration, so the check is server-side. The dialog's wording
 names the **real consequence** in the user's terms — the players currently flying on a restart, the
 count on a shutdown — assembled from the **resolved** object, never from a field the browser sent.
@@ -354,10 +383,10 @@ refused or failed write seeds nothing, and a second node action replaces (never 
 * the **one-shot confirm token** — minted per dialog render, keyed on the action path and the resolved
   target, held in the session (bounded to 8 pending), compared in constant time and **spent on use**,
   so a replayed dialog form is refused rather than re-running the action
-  (`mint_confirm_token` `:688`, `consume_confirm_token` `:709`);
+  (`mint_confirm_token` `:2633`, `consume_confirm_token` `:2654`);
 * the **CSRF token** — one token per session, rendered into every control's form as `_csrf_token`
-  (`services/webservice/session.py:51`) and re-checked by the route's `csrf_protect` dependency
-  (`:300`). It is accepted, not spent, and there is **no CSRF middleware**: a blanket "unsafe method
+  (`services/webservice/session.py:52`) and re-checked by the route's `csrf_protect` dependency
+  (`:307`). It is accepted, not spent, and there is **no CSRF middleware**: a blanket "unsafe method
   needs a token" check would refuse the RestAPI plugin's Bearer-token POSTs, which carry no cookie and
   no CSRF token.
 
@@ -395,7 +424,7 @@ lookup that fails never becomes a 500 and never becomes an open door: the login 
 failure is logged.
 
 > **Deliberate divergence from the bot's own behaviour.** The bot's player auto-matching *declines*
-> when there is no member list (`services/bot/dcsserverbot.py:643`). The console must not copy that —
+> when there is no member list (`services/bot/dcsserverbot.py:664`). The console must not copy that —
 > refusing on an empty cache would lock the operator out of the admin UI — so this path degrades
 > (one REST lookup per login, at most one refresh per `member_ttl`) instead of refusing. The
 > corollary: **"is not a member of the bot's guild" is only ever logged when the bot can actually
@@ -413,7 +442,7 @@ bounded to `RETRYABLE_PAGE_MAX_ATTEMPTS` (10) and `RETRYABLE_PAGE_BUDGET_S` (60)
 a manual retry. It is never a redirect to the login door: the visitor is signed in, only the
 verification is late. This is what turns a bot restart into a short automatic pause instead of a
 manual reload. Its copy (HTML and its own JS status lines) is composed in Python and translated at
-render through the request's per-language environment. See `services/webservice/shell.py:461`.
+render through the request's per-language environment. See `services/webservice/shell.py:501`.
 
 ---
 
@@ -428,7 +457,7 @@ Documented in [`core/ACTIONS.md`](../../core/ACTIONS.md): the registry, `@action
 
 `GET /settings` is not hand-written: it is GENERATED from a pykwalify schema
 (`services/webservice/configgen.py`), and its save goes through the ONE config-write primitive
-(`core/utils/configwrite.patch_config_file`, card S0). The first consumer is the install's
+(`core/utils/configwrite.patch_config_file`). The first consumer is the install's
 `main.yaml` against `schemas/main_schema.yaml`; the page is the pattern every later config page copies.
 
 **The mapping** (schema construct -> control), exhaustive: `bool` -> switch; `int`/`float` (+ `range`)

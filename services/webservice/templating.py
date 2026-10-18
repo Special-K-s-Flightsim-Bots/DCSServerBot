@@ -188,7 +188,7 @@ def build_environment(registrar=None, *, translations=None, language=None) -> En
 
 
 def render(registrar, name: str, **context: Any) -> str:
-    """Render a template through the shell's environment (used by tests and by C3's pages)."""
+    """Render a template through the shell's environment (used by tests and by the core pages)."""
     environment = getattr(registrar, "environment", None)
     if environment is None:  # pragma: no cover - install_shell always sets it
         raise RuntimeError("the web UI shell was not installed (no template environment)")

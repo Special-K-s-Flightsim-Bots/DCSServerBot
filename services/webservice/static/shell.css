@@ -222,7 +222,7 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
 .signout button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------------------------------------------------------------- top bar
- * `.shell-bar` is the shell's original name for this element and is kept (C1's asset test asserts
+ * `.shell-bar` is the shell's original name for this element and is kept (an asset test asserts
  * it); `.top` is the ported name. One element, one declaration — the second selector is an alias,
  * not a second rule. */
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0;
@@ -500,22 +500,6 @@ td.acts button { padding: 4px 10px; font: inherit; font-size: 11.5px; cursor: po
 td.acts button:hover { color: var(--text); border-color: var(--accent); }
 td.acts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* The MESSAGE control — the first write with a FIELD. It is the same one-form-per-row shape as
- * the pause buttons, but a text input inside a form has to stop being `inline` (above) or the field
- * and its label collapse onto one baseline: the form becomes an inline FLEX row, and the width is
- * capped so a long message cannot push the table's other columns out of the viewport. Namespaced to
- * `form.msg` so the pilot's plain buttons keep the rules above. */
-td.acts form.msg { display: inline-flex; align-items: center; gap: 6px; }
-td.acts form.msg label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase;
-  letter-spacing: .06em; }
-td.acts form.msg input[type="text"] { width: 16rem; max-width: 40vw; padding: 4px 8px; font: inherit;
-  font-size: 12px; color: var(--text); background: var(--ground-2);
-  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-td.acts form.msg select { padding: 4px 6px; font: inherit; font-size: 12px; color: var(--text);
-  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-td.acts form.msg input[type="text"]:focus-visible, td.acts form.msg select:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px; }
-
 /* ---------------------------------------------------------------- the row ACTION STRIP */
 /* The server row's quick controls as an ICON STRIP — the mockup's `td.acts` cell. One glyph per
  * control, a native `title` and an `aria-label` on each (never an icon alone), and the row's rarer
@@ -653,7 +637,7 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   border-radius: 0 var(--radius-s) var(--radius-s) 0; }
 .dlg-warn svg { width: 15px; height: 15px; flex: 0 0 auto; margin-top: 1px; }
 .dlg-warn b { color: var(--danger-strong); }
-.dlg > .ft { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+.dlg > .ft { display: block; padding: 12px 14px;
   border-top: 1px solid var(--line); background: var(--ground-2); }
 .dlg > .ft .spacer { flex: 1; }
 .dlg .btn { padding: 8px 14px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
@@ -664,18 +648,30 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg .btn.danger { color: var(--danger-btn-text); border-color: var(--danger-btn-line);
   background: linear-gradient(180deg, var(--danger-btn-top), var(--danger)); }
 .dlg .target { font-family: var(--font-mono); color: var(--text-2); }
-/* THE DIALOG'S FIELDS. Kick and ban need a REASON (the ban a duration too), so the dialog's
- * own form carries them — beside the warning that explains the consequence, and directly above the
- * destructive button, which is the last thing read before acting. The form is a COLUMN inside the
- * shipped footer row, so the Cancel/spacer/danger layout is untouched and a dialog with no fields
- * (the three server ones) renders exactly as it did. */
+/* THE DIALOG'S FIELDS. Kick and ban need a REASON (the ban a duration too) and a message is typed
+ * into a box, so the dialog's own form carries them — beside the warning that explains the
+ * consequence, and directly above the two ways out. The form is a COLUMN inside the footer: its
+ * fields first, and the CANCEL/primary row LAST (`.dlg-buttons`), so a field of several lines cannot
+ * leave the primary button beside it while the cancel link floats in the middle of the row. */
 .dlg > .ft > form.dlg-act { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+/* THE TWO WAYS OUT. One row, full width of the dialog: Cancel left, primary right, on the bottom
+ * line whichever fields the dialog has above them. */
+.dlg-buttons { align-self: stretch; display: flex; align-items: center; gap: 10px; }
 .dlg-field { display: flex; flex-direction: column; gap: 3px; margin: 0; min-width: min(300px, 60vw); }
+/* A FIELD'S WIDTH IS ITS DECLARATION'S, not a template guess: a reason is read back, so it takes the
+ * dialog's full width; a day count is two or three characters, so it shrinks to the box they need
+ * instead of offering three hundred pixels for "14". */
+.dlg-field.wide { align-self: stretch; }
+.dlg-field.narrow { align-self: flex-end; min-width: 0; width: 8.5rem; }
 .dlg-field label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase;
   letter-spacing: .04em; }
-.dlg-field input { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+.dlg-field input, .dlg-field textarea { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
   background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.dlg-field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dlg-field input:focus-visible, .dlg-field textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A TEXTAREA IS A TEXT FIELD THAT HOLDS SEVERAL LINES: it wears the box above, keeps its own resize
+ * handle (vertical only — a dialog is a column and cannot afford a horizontal one) and starts tall
+ * enough that a message of a few lines is visible without scrolling inside it. */
+.dlg-field textarea { min-height: 92px; resize: vertical; }
 /* A SELECT IS A FIELD TOO — the Missions tab's ADD dialog chooses the mission file with one, so it
  * wears the same box the text fields do. */
 .dlg-field select { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
@@ -834,7 +830,7 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   .cfg-form .st-w { justify-content: flex-start; }
 }
 
-/* ================================================================ the Missions tab (M9)
+/* ================================================================ the Missions tab
  * THREE SMALL RULES IN THE SHELL'S OWN IDIOM, and no new colour: the card-header SELECTION BAR
  * (`.sel-bar`), the START row's MARKER treatment (`.row-active`, re-using the amber the `.nav a.on`
  * gradient and the `.tabs .tab.on` inset edge are drawn from), and the dialog's READ-ONLY selection
@@ -937,6 +933,16 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
 .search input[type="search"]:focus-visible, .search button:focus-visible,
 .logpos a:focus-visible, .tabs .tab:focus-visible, .sort:focus-visible, .pdot:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px; }
+/* THE PAGE-LEVEL CONTROL — the Servers page's "Add server" (one POST form in the page head, its
+ * answer IS the dialog page). `.btn` is styled only inside `.dlg`, so this chip is stated here for a
+ * control that lives outside one, mirroring the log card's footer control. */
+.page-actions { display: flex; gap: 10px; padding: 12px 0 0; }
+.page-actions button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.page-actions button:hover { border-color: var(--accent); }
+.page-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .search button { padding: 7px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
   color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
   border-radius: var(--radius-s); }
@@ -959,7 +965,7 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
 .logpos { display: inline-flex; gap: 4px; }
 .col-log > .log-card { margin: 0; }
 
-/* THE LOG CARD'S DOWNLOAD PICKER (L3) — the server Log / Events tab's one `<select>` plus its one
+/* THE LOG CARD'S DOWNLOAD PICKER — the server Log / Events tab's one `<select>` plus its one
  * Download control, in place of the old per-file link list. The chip mirrors the footer control
  * above; the select already wears the `.cfg-widget` control styling (it lives in a `.cfg-widget`). */
 .log-picker button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;

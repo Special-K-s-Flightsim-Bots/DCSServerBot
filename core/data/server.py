@@ -29,6 +29,15 @@ __all__ = ["Server"]
 # Internationalisation
 _ = get_translation('core')
 
+#: The ``Side`` a coalition chat addresses, for the FAN-OUT of :meth:`Server.sendChatMessage`.
+#: ``Coalition.ALL`` is deliberately absent: it is the game's own server-wide broadcast and takes no
+#: side. Every other member addresses the players of the side named here.
+_COALITION_SIDES: dict[Coalition, Side] = {
+    Coalition.NEUTRAL: Side.NEUTRAL,
+    Coalition.RED: Side.RED,
+    Coalition.BLUE: Side.BLUE,
+}
+
 
 @dataclass
 class Server(DataObject, ABC):
@@ -326,6 +335,18 @@ class Server(DataObject, ABC):
                 self.listeners.pop(token, None)
 
     async def sendChatMessage(self, coalition: Coalition, message: str, sender: str | None = None):
+        """Post a chat line to the whole server, or to the active players of ONE side.
+
+        ``Coalition.ALL`` is the game's own server-wide broadcast (``net.send_chat``): one payload per
+        line of *message*, no recipient. DCS has no coalition-scoped chat broadcast, so any other side
+        is delivered as a FAN-OUT — one TARGETED line per active player of that side, through
+        :meth:`Player.sendChatMessage` (the ``net.send_chat_to`` primitive), and nothing at all where
+        that side has nobody flying.
+
+        The players enumerated are THIS object's own. The process that holds a server holds its
+        players (an agent-hosted server's players live on the master, whose ``ServerProxy`` this runs
+        on) and each targeted line reaches the owning node through :meth:`send_to_dcs`.
+        """
         if coalition == Coalition.ALL:
             for msg in message.split('\n'):
                 await self.send_to_dcs({
@@ -333,8 +354,12 @@ class Server(DataObject, ABC):
                     "from": sender,
                     "message": msg
                 })
-        else:
-            raise NotImplementedError()
+            return
+        side = _COALITION_SIDES.get(coalition)
+        if side is None:
+            raise ValueError(f"{coalition!r} is not a coalition a chat line can be addressed to.")
+        for player in self.get_active_players(side=side):
+            await player.sendChatMessage(message, sender)
 
     async def sendPopupMessage(self, recipient: Coalition | str, message: str, timeout: int | None = -1,
                                sender: str | None = None):

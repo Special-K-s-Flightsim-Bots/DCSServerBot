@@ -96,7 +96,7 @@ def create_app() -> FastAPI:
 def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Registrar:
     """Install the shell on *app* and return the registrar. Idempotent per app object.
 
-    ``node`` supplies ``config_dir`` to the identity layer (C2 reads ``bot.yaml`` through it, never
+    ``node`` supplies ``config_dir`` to the identity layer (which reads ``bot.yaml`` through it, never
     through a relative path, so a request can never see a different ``bot.yaml`` than the running
     process); ``config`` is the service's own ``webservice.yaml`` block, which carries both the
     session/cookie policy and the auth backends.
@@ -212,8 +212,8 @@ def _discover_actions(node=None) -> None:
 def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     """The shell's own router, its capability declaration, and its navigation.
 
-    The shell owns the reserved surface: ``/auth/login`` and ``/auth/logout`` (C2) plus the core
-    pages (C3) here, all registered under the owner name ``shell`` — because the registrar reserves
+    The shell owns the reserved surface: ``/auth/login`` and ``/auth/logout`` plus the core
+    pages here, all registered under the owner name ``shell`` — because the registrar reserves
     ``/auth/*`` and ``/`` (and the ``/static`` asset area) for the shell, a plugin cannot claim a
     login path or the site root, and it cannot bypass the gate either, since it only ever receives
     the registrar.
@@ -256,7 +256,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     instances_page.add_routes(router)
     players_page.add_routes(router)
     live_page.add_routes(router)
-    # THE SETTINGS PAGE: the schema-driven config page (card S1), Admin-only.
+    # THE SETTINGS PAGE: the schema-driven config page, Admin-only.
     settings_page.add_routes(router)
     capabilities = dict(auth_routes.capabilities())
     capabilities.update(i18n.capabilities())

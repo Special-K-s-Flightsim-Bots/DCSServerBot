@@ -28,7 +28,7 @@
     class="st-block">` the schema-driven editor draws, so the DCS groups below are the
     SAME control a schema map renders — one editor look, whatever the file format.  -#}
 {% import "_editor.html" as editor %}
-{#- THE LOG FAMILY'S ONE CARD (L2/L3). The Log tab and the optional Events tab render the SAME
+{#- THE LOG FAMILY'S ONE CARD. The Log tab and the optional Events tab render the SAME
     presentation — the tailed window, "Load older", and the artifacts PICKER — so it is ONE macro, not
     two copies that could drift. `which` is the file selector the shared window route reads; the level
     rides on the card as `data-level` and the follow/page-back script appends it.
@@ -40,10 +40,10 @@
     follower bailed out at once and the "no log file yet" sentence could never become the log without a
     toolbar reload.
 
-    THE LEVEL ROW IS OMITTED ON THE EVENTS TAB (`log_levels` empty there, L3): every debug entry is
+    THE LEVEL ROW IS OMITTED ON THE EVENTS TAB (`log_levels` empty there): every debug entry is
     DEBUG, so a filter there is noise.
 
-    THE DOWNLOAD IS A PICKER, NOT A LIST (L3): one `<select>` of the server's artifacts plus a single
+    THE DOWNLOAD IS A PICKER, NOT A LIST: one `<select>` of the server's artifacts plus a single
     Download control, mirroring the bot's own `/download`. Each option carries the name, the size and
     the modification time. The listing is still enumerated server-side and the route still matches the
     choice BY IDENTITY against a fresh enumeration — the form only chooses; the route is unchanged. -#}
@@ -103,7 +103,7 @@
 <div class="page-head">
   <h1>{{ page_title }}</h1>
   {% if server is defined and server %}
-  {#- THE STATUS IS A LIVE REGION (L5). The mark is wrapped so the status's own poll can replace its
+  {#- THE STATUS IS A LIVE REGION. The mark is wrapped so the status's own poll can replace its
       content, and the page head carries the poll's URL and cadence (the way the log card carries its
       window URL and follow seconds). The status is kept current on EVERY tab: this head is outside the
       tab branches, and `/static/server-status.js` is loaded on every tab. -#}
@@ -358,7 +358,7 @@
     hash is never rendered anywhere.
 
     REMOVING A PASSWORD IS EMPTYING ITS FIELD — the same way the DCS server password is removed, and
-    the reason this card carries no Clear control. A field that shipped HOLDING a password and comes
+    the reason no Clear control is offered. A field that shipped HOLDING a password and comes
     back empty is the deliberate clear; a field that shipped EMPTY does nothing, so a password the bot
     knows only as a hash (its field renders empty) can be REPLACED but never wiped by a blank submit. -#}
 {% set coalitions_enabled = config.coalitions_serviceable and coalitions_available %}
@@ -415,12 +415,12 @@
     types it), and neither is the primary/secondary copy tag. A configured entry whose file is GONE
     stays in the list, tagged `missing` — never silently dropped.
 
-    THE TWO FACTS the rows carry, in two marks (M9): the START mission (the row ``listStartIndex``
+    THE TWO FACTS the rows carry, in two marks: the START mission (the row ``listStartIndex``
     names — what the server loads when it starts) wears the amber ``START`` tag and the row treatment
     (`.row-active`); the RUNNING mission wears the console's own live dot. They are DIFFERENT facts and
     at most one row carries each.
 
-    THE CONTROLS mirror `/mission add|delete|load` plus the M7 activate (never an invented
+    THE CONTROLS mirror `/mission add|delete|load` plus the activate (never an invented
     behaviour): the LIST IS THE SELECTION — a box per row (the running one drawn DISABLED with the
     reason on its row) belongs to the ONE selection form, and the card header's bar carries TWO
     actions on that one selection — ``Set as start`` (meaningful with exactly ONE ticked: the rotation
@@ -443,14 +443,14 @@
 {% if missions_write_available %}
 <div class="card">
   <div class="hd"><h3>{% trans %}Missions{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}rotation list{% endtrans %}</span>
-    {#- THE SELECTION BAR (M9; M11 adds the bar's SECOND action): the list IS the selection, so its
+    {#- THE SELECTION BAR (the bar's SECOND action is the activate): the list IS the selection, so its
         count and its actions live in the card header — the whole "Remove several missions" card is
         gone. The bar is drawn only while the viewer may remove missions AND the installation runs the
         action AND the STATE accepts a removal (every state but ``LOADING``, the bot's own per-mission
         gate) — otherwise no boxes and no bar at all (omit, never disable), with the action's OWN
         sentence where a capable viewer is in ``LOADING``. The count and the count-bearing label are the
         console's own client enhancement (``/static/mission-select.js``). BOTH BUTTONS SHIP **ENABLED**
-        (M9-fix / M11): with JavaScript off they must still submit the selection, so the
+        (with JavaScript off too): they must still submit the selection, so the
         server-rendered controls can never depend on the script — the script ADDS the behaviour (it
         disables a button whose selection it cannot serve and rewrites the removal label) only once it
         has taken over, and each ACTION refuses an invalid selection itself, with an honest sentence.
@@ -506,7 +506,7 @@
     <div class="cfg-form">
       {% for m in missions %}
       {% set m_lab %}
-          {#- ONE ROW, ONE FACT, ONE BOX (M9): the box is SELECTION only — it is first in the row, on
+          {#- ONE ROW, ONE FACT, ONE BOX: the box is SELECTION only — it is first in the row, on
               the line of the fact it selects, and belongs to the ONE selection form above
               (``form="missions-form"``). The RUNNING mission's box is the single deliberate
               exception to omit-never-disable: it is drawn DISABLED, with the row's own line saying
@@ -519,7 +519,7 @@
           {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission cannot be removed — load another mission first.{% endtrans %}</div>{% endif %}
       {% endset %}
       {% set m_ctl %}
-          {#- THE MOVE PAIR (M5): reorder this row in the rotation list. Offered only while the DCS
+          {#- THE MOVE PAIR: reorder this row in the rotation list. Offered only while the DCS
               process is DOWN (a write made while it is up is reverted); the FIRST row's up and the
               LAST row's down are ABSENT rather than drawn dead, because a move off the end is a
               no-op. Each posts the 1-based index and the direction in the BODY (never a URL). -#}
@@ -546,7 +546,7 @@
           {% endif %}
           {% endif %}
           <a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>
-          {#- THE ONE ROW WRITE (M11): ``Load`` is the ONLY per-row write left. ``Set as start`` — the
+          {#- THE ONE ROW WRITE: ``Load`` is the ONLY per-row write left. ``Set as start`` — the
               rotation pointer (``set_active_mission``) — MOVED to the selection bar, where it acts on
               the ticked row. It is a DIFFERENT write
               from ``Load``: ``Set as start`` sets what the server loads when it STARTS and does NOT
@@ -554,7 +554,7 @@
               the server is RUNNING/PAUSED — does NOT change the start index, while at STOPPED it DOES
               (the bot's ``loadMission`` sets ``listStartIndex`` and starts the server). ``Load`` stays
               on the row because it acts on the row it names. It posts the row's 1-based index and its
-              logical name in the BODY. THE LOAD TITLE IS STATE-DEPENDENT (M9-fix): it says what THIS
+              logical name in the BODY. THE LOAD TITLE IS STATE-DEPENDENT: it says what THIS
               control does IN THE STATE THE ROW IS RENDERED IN (``missions_load_sets_start``), so the
               difference is stated where the operator reads it. -#}
           {% if missions_load_allowed %}
@@ -626,7 +626,7 @@
               browser) — browser chrome must never be what the operator reads; the console is English.
               So the REAL input stays in the DOM and in the tab order, visually hidden by CLIPPING
               (never `display:none`, never `aria-hidden`: either would take it away from a keyboard
-              and a screen reader, and the card forbids both); the `<label for=...>` is the control
+              and a screen reader, and both are forbidden); the `<label for=...>` is the control
               the operator sees and presses, wearing the tab's own button chip; and
               `/static/filepick.js` writes the chosen file's name into the span beside it, so what
               they picked is visible — and changes if they pick again — before they submit. -#}
@@ -679,13 +679,13 @@
 
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
-{#  THE SERVER'S OWN LOG (L1/L2): the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
+{#  THE SERVER'S OWN LOG: the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
     renders this tab and the Events tab so the two cannot drift.  #}
 {{ log_card(_('Server log'), 'log') }}
 
 {% elif tab == 'events' %}
 {# ---------------------------------------------------------------- the Events tab: the debug plugin's events.log #}
-{#  THE DEBUG PLUGIN'S events.log (L2): offered ONLY while the debug plugin is active for this server.
+{#  THE DEBUG PLUGIN'S events.log: offered ONLY while the debug plugin is active for this server.
     Same presentation as the Log tab; its downloads cover only events.log / events.log.old.  #}
 {{ log_card(_('Events'), 'events') }}
 
@@ -741,10 +741,10 @@
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>
 <script src="/static/mission-select.js" defer></script>
-{#  THE SERVER LOG's follow + page-back (L1): a progressive enhancement. With JavaScript off the tail
+{#  THE SERVER LOG's follow + page-back: a progressive enhancement. With JavaScript off the tail
     the page rendered is all there is — the page is not live and "Load older" does nothing.  #}
 <script src="/static/server-log.js" defer></script>
-{#  THE SERVER'S STATUS's own poll (L5): a progressive enhancement. It keeps the status "at the top"
+{#  THE SERVER'S STATUS's own poll: a progressive enhancement. It keeps the status "at the top"
     (and the Overview card's copy) current on its OWN interval, on every tab — separate from the log
     follower on purpose, so one fact has one updater and the two can never drift.  #}
 <script src="/static/server-status.js" defer></script>{% endblock %}

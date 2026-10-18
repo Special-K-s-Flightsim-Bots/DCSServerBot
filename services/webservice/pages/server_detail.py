@@ -1,8 +1,8 @@
-"""The per-server page and its **Configuration** tab — and (M2) the **Missions** tab and download.
+"""The per-server page and its **Configuration** tab — and the **Missions** tab and download.
 
 A server gets its own page: Overview / Players / Missions / Log plus a Configuration tab. The module
 adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter carries a name containing
-``/``), ``GET /fleet/{name:path}/status`` (the status poll, L5), ``GET
+``/``), ``GET /fleet/{name:path}/status`` (the status poll), ``GET
 /fleet/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
 routes (``.../log/window`` and ``.../log/download``) — registered FIRST so the page's greedy converter
 cannot swallow them, and reuses the shell, the sidebar, the table component and the read models rather
@@ -124,7 +124,7 @@ PAGE_TITLE_SUFFIX = " — DCSServerBot"
 #: the tab that carries the DCS configuration
 CONFIG_TAB = "configuration"
 
-#: THE LOG TAB — the server's OWN DCS log (``{instance.home}/Logs/dcs.log``), tailed (L1). Its
+#: THE LOG TAB — the server's OWN DCS log (``{instance.home}/Logs/dcs.log``), tailed. Its
 #: capability is the CLUSTER LOG PANEL's own ``logs.view`` (``Admin`` only, no scope grant): the log
 #: carries UCIDs and IPs, so who may read this tab is exactly who may read ``/logs`` — no new
 #: capability is invented, and the tab's link, the ``?tab=log`` refusal and the window route all read
@@ -157,7 +157,7 @@ LOG_WINDOW_PATH = "/fleet/{name:path}/log/window"
 #: route for the same greedy-converter reason as the window route.
 LOG_DOWNLOAD_PATH = "/fleet/{name:path}/log/download"
 
-#: THE STATUS route — the server page's own status poll (L5). A GET answering the CURRENT status as
+#: THE STATUS route — the server page's own status poll. A GET answering the CURRENT status as
 #: the markup the page itself renders (the partial ``_server_status.html``), so the mark "at the top"
 #: of the page and the Overview card's copy of it keep up with the server WITHOUT a reload. The page
 #: is NOT wired to the console's live path (that is the dashboard's SSE stream, whose fragments are
@@ -379,7 +379,7 @@ def events_request_refused() -> HTTPException:
     The viewer may hold ``logs.view`` — this is NOT an authorization failure — but the tab's file is
     written by the debug plugin's DCS-side ``log.set_output('events', …)``, so with the plugin off
     there is nothing to serve and the tab is not offered at all. Refused rather than served: a dead
-    tab is exactly what the card forbids.
+    tab is exactly what is forbidden.
     """
     return HTTPException(status_code=403, detail=EVENTS_REFUSED_SENTENCE)
 
@@ -481,7 +481,7 @@ def mission_rows(data: dict, server_name: str) -> list[dict]:
     row carries the ``index`` (every write posts it; it is NO LONGER rendered as a ``#N`` label), the
     logical name, the missions-directory-relative ``path`` (NEVER an absolute server path), the copy
     ``kind`` (kept in the data for the read model, NOT rendered — the ``primary`` / ``secondary`` /
-    ``orig`` tag was dropped, M9), whether it is the loaded mission (``current``) and whether it is the
+    ``orig`` tag was dropped), whether it is the loaded mission (``current``) and whether it is the
     START one (``active`` — the row ``listStartIndex`` names, a DIFFERENT fact the tab marks with the
     ``START`` tag while ``current`` gets the live dot), and the download link (the mission as a
     1-based index — never a path).
@@ -584,8 +584,8 @@ def _refuse(status_code: int, sentence: str) -> PlainTextResponse:
     Modeled on the node-log route's own refusal: a ``PlainTextResponse`` and NOT an
     ``HTTPException``, whose rendered page would talk about AUTHORIZATION (false for a mission that
     simply is not there). A download has no page to render its failure into, so the sentence IS the
-    answer — and a zero-byte 200 that downloads like an empty mission is exactly what the card
-    forbids.
+    answer — and a zero-byte 200 that downloads like an empty mission is exactly what is
+    forbidden.
     """
     log.info("Mission download answered %d: %s", status_code, sentence)
     return PlainTextResponse(sentence + "\n", status_code=status_code)
@@ -597,7 +597,7 @@ def _safe_filename(name: str) -> str:
     return cleaned or "mission.miz"
 
 
-# ---------------------------------------------------------------------------------- the Log tab (L1)
+# ---------------------------------------------------------------------------------- the Log tab
 # The server's OWN DCS log, read as a BOUNDED WINDOW (never the whole file) and followed only while
 # the tab is open. The bytes come from the node read path's WINDOWED sibling
 # (``Node.read_file_window`` — a local ``seek`` on the master, the same one-shot drop-box row to an
@@ -611,7 +611,7 @@ def log_window_path(server_name: str) -> str:
 
 
 def server_status_path(server_name: str) -> str:
-    """The URL of *server_name*'s status endpoint — the name as ONE percent-encoded segment (L5)."""
+    """The URL of *server_name*'s status endpoint — the name as ONE percent-encoded segment."""
     return f"/fleet/{quote(readmodels.text(server_name), safe='')}/status"
 
 
@@ -727,7 +727,7 @@ def _end_of(lines, fallback: int) -> int:
 
 
 def identity_token(value) -> str:
-    """A file identity as the LOSSLESS STRING token that crosses JSON (L2-fix).
+    """A file identity as the LOSSLESS STRING token that crosses JSON.
 
     The identity is compared EQUAL or NOT-EQUAL and never as a magnitude, so a POSIX inode above
     ``2**53`` — real on network/64-bit-inode filesystems — must not go out as a JSON NUMBER: a
@@ -762,7 +762,7 @@ async def _collect_back(node, path: str, node_name: str, *, behind, allowed,
     or the beginning of the file is reached, and it REPORTS which of the two happened (``at_start``).
     Never "take the last N rows, then filter", which returns almost nothing on a DEBUG-heavy tail.
 
-    THE WALK CARRIES THE FILE'S IDENTITY (L2-fix). The FIRST read's identity is remembered, and any
+    THE WALK CARRIES THE FILE'S IDENTITY. The FIRST read's identity is remembered, and any
     later read whose identity DIFFERS — or whose ``size`` fell below the cursor — means a ROTATION (or
     a truncation) landed MID-WALK: the walk STOPS right there, the lines gathered so far (the OLD
     file's alone) are the page, and ``rotated`` says so. Two files are NEVER spliced into one page —
@@ -965,7 +965,7 @@ def _human_time(mtime) -> str:
 
 
 async def log_artifacts(node, directory: str, node_name: str, patterns) -> tuple[list[dict], dict | None]:
-    """The server's log artifacts as listing ROWS — enumerated SERVER-SIDE, newest first (L2).
+    """The server's log artifacts as listing ROWS — enumerated SERVER-SIDE, newest first.
 
     Returns ``(rows, record)``: each row carries the artifact's IDENTITY (its file name — never a
     path), its size (raw bytes and a human string) and its modification time; ``record`` is the honest
@@ -1018,7 +1018,7 @@ def add_log_window_route(router: APIRouter) -> APIRouter:
     answer, a node that answers a failure code, and the Events tab while its plugin is off.
 
     A NEW LOG means the view is RESET (``reset: true``) and the fresh file's tail is returned — two
-    files are never spliced together silently. It is detected TWO ways (L1-fix): the offset no longer
+    files are never spliced together silently. It is detected TWO ways: the offset no longer
     fits the file (``size < offset``, a truncation), OR the file's IDENTITY changed since the reader
     last looked (``?identity=``, a replacement) — the second catches a rotation whose replacement file
     is ALREADY BIGGER than the old offset, which a size check alone cannot see.
@@ -1285,7 +1285,7 @@ def add_log_download_route(router: APIRouter) -> APIRouter:
 
 
 def add_server_status_route(router: APIRouter) -> APIRouter:
-    """Add THE status route (``GET``) — the server page's own status poll (L5).
+    """Add THE status route (``GET``) — the server page's own status poll.
 
     A GET answering JSON with the CURRENT status as the markup the page itself renders (the partial
     ``_server_status.html``): the dot and the word, from the SAME read model the initial render used
@@ -1357,7 +1357,7 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
                                      target=server_name),
         "server_name": server_name,
         "server": server_view(server),
-        # THE STATUS POLL (L5): the URL and the cadence the page head carries so the mark "at the top"
+        # THE STATUS POLL: the URL and the cadence the page head carries so the mark "at the top"
         # (and the Overview card's copy) keep current without a reload.
         "server_status_url": server_status_path(server_name),
         "server_status_seconds": SERVER_STATUS_SECONDS,
@@ -1481,18 +1481,18 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         context.update({
             "missions_available": True,
             "missions": rows,
-            # THE SERVER-RENDERED COUNT'S OWN TOTAL (M9-fix): the bar counts SELECTABLE rows only —
+            # THE SERVER-RENDERED COUNT'S OWN TOTAL: the bar counts SELECTABLE rows only —
             # the running row's box is disabled and never counted — so with JavaScript off the number
             # shown here and, with JavaScript on, the script's ``N of M`` mean the SAME thing.
             "missions_selectable": sum(1 for row in rows if not row["current"]),
         })
         return context
     if tab == LOG_TAB:
-        # THE SERVER'S OWN DCS LOG (L1): the config-driven path and the initial TAIL, read as a
+        # THE SERVER'S OWN DCS LOG: the config-driven path and the initial TAIL, read as a
         # BOUNDED window. Failures render their own sentence, never a blank panel.
         return await _log_tab_context(request, server, server_name)
     if tab == EVENTS_TAB:
-        # THE DEBUG PLUGIN'S events.log (L2): the same presentation as the log tab, selected by
+        # THE DEBUG PLUGIN'S events.log: the same presentation as the log tab, selected by
         # ``which=events`` on the shared window route; downloads limited to its two files.
         return await _log_tab_context(request, server, server_name, which=dcs_log.EVENTS_WHICH)
     # overview: the tab renders the server's own facts (status, mission, map, players, runtime,
@@ -1524,13 +1524,13 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
     activate_allowed = allowed(actions_page.MISSIONS_ACTIVATE_CAPABILITY, "activate")
     upload_allowed = allowed(actions_page.MISSIONS_UPLOAD_CAPABILITY, "upload")
     state = actions_page.state_of(getattr(server, "status", None))
-    # THE M5 OFFLINE-ONLY WRITE: move up/down. Its control is offered only while the DCS process is
+    # THE OFFLINE-ONLY WRITE: move up/down. Its control is offered only while the DCS process is
     # DOWN (``MISSION_LIST_OFFLINE_STATES``), because a file write made while it is up is reverted —
     # the tab states the reason where it omits the pair, and the action refuses a POST outside those
     # states too.
     reorder_capable = allowed(actions_page.MISSIONS_REORDER_CAPABILITY, "reorder")
     offline = state in actions_page.MISSION_LIST_OFFLINE_STATES
-    # THE BULK REMOVE'S OWN GATE (M8/M9): every state except ``LOADING``. It is the ROW's delete,
+    # THE BULK REMOVE'S OWN GATE: every state except ``LOADING``. It is the ROW's delete,
     # repeated, so it follows the bot's own per-mission gate — the tab offers the selection AND its
     # bar in every state but ``LOADING``, and states the action's own refusal there (never the
     # offline-only sentence, which belongs to the move pair alone).
@@ -1568,19 +1568,19 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         # that one, where the write would be silently reverted)
         "missions_activate_allowed": activate_allowed
         and state in actions_page.MISSIONS_ACTIVATE_STATES,
-        #: M11: the activate CAPABILITY alone (ignoring the state) and the state that blocks the whole
+        #: The activate CAPABILITY alone (ignoring the state) and the state that blocks the whole
         #: selection, so the bar's omission in ``LOADING`` is spoken in the ACTIVATE action's OWN
         #: sentence rather than the removal's — never a second copy of the per-state rule.
         "missions_activate_capable": activate_allowed,
         "missions_activate_reason": actions_page.MISSION_ACTIVE_LOADING_REFUSAL,
         "missions_select_blocked": state not in actions_page.MISSIONS_BULK_DELETE_STATES,
-        #: THE BAR'S START REASON (M11): the sentence the activate route refuses a selection that is
+        #: THE BAR'S START REASON: the sentence the activate route refuses a selection that is
         #: not exactly one mission with. Rendered onto the bar's button as ``data-sel-why`` so the
         #: client script states the SAME wording in the count when the tick is none or several — never
         #: a second copy of the rule written in JavaScript.
         "missions_activate_why": actions_page.MISSIONS_ACTIVATE_SELECTION_REFUSAL,
         "missions_upload_allowed": upload_allowed,
-        # THE M5 OFFLINE-ONLY MOVE PAIR: its gate is the offline one; the reason is carried so the
+        # THE OFFLINE-ONLY MOVE PAIR: its gate is the offline one; the reason is carried so the
         # tab can state it where it omits the pair.
         "missions_reorder_path": actions_page.MISSIONS_REORDER_PATH,
         "missions_direction_field": actions_page.MISSION_DIRECTION_FIELD,

@@ -21,17 +21,16 @@ that the bot's import-time parser (``core/commandline.py``) cannot eat the CLI's
 
 HOW A USER'S ROLES ARE DECIDED. By ``auth.local.users[].roles`` -- role NAMES, validated at
 startup against the role names the bot defines (``bot.yaml -> roles:`` keys, read through
-``node.config_dir``, plus the bot's built-in names). The phase-1 review (§D.2) notes that
-``bot.yaml -> roles:`` has two meanings in this codebase: on the Discord path it maps a bot role
+``node.config_dir``, plus the bot's built-in names). ``bot.yaml -> roles:`` has two meanings in
+this codebase: on the Discord path it maps a bot role
 name to the Discord roles that grant it, and on the headless path it maps a role name to MEMBER
 names. This backend deliberately does NOT derive a web user's roles from the headless meaning:
 
-* the card's config declares the roles explicitly, and an explicit declaration is the only one that
+* the config declares the roles explicitly, and an explicit declaration is the only one that
   also works for a web-only principal who is not listed in ``bot.yaml`` at all;
-* deriving them would put a second, independent source of truth next to the declared list -- the
-  exact divergence §D.2/F3 warns about, where one path grants Admin and the other silently does
-  not;
-* ``DummyGuild`` reads ``config/services/bot.yaml`` off a *relative* path, which §D.3 forbids in
+* deriving them would put a second, independent source of truth next to the declared list -- a
+  divergence where one path grants Admin and the other silently does not;
+* ``DummyGuild`` reads ``config/services/bot.yaml`` off a *relative* path, which is forbidden in
   the web layer.
 
 So ``bot.yaml`` is read for exactly one purpose here: to answer "is this a role name this bot
@@ -201,7 +200,7 @@ def _decoy_hash() -> str:
 def read_bot_roles(config_dir: str | Path) -> dict[str, tuple[str, ...]]:
     """``bot.yaml -> roles:`` exactly as declared, read through the GIVEN config dir.
 
-    Deliberately not ``DummyGuild``'s relative ``config/services/bot.yaml`` (§D.3): a request must
+    Deliberately not ``DummyGuild``'s relative ``config/services/bot.yaml``: a request must
     never be able to read a different ``bot.yaml`` than the running process.
     """
     path = Path(config_dir) / "services" / "bot.yaml"

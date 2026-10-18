@@ -11,7 +11,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-15 21:49+0200\n"
+"POT-Creation-Date: 2026-10-18 10:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -393,7 +393,7 @@ msgstr "Включён локальный вход"
 msgid "No sign-in method enabled"
 msgstr "Ни один способ входа не включён"
 
-#: services/webservice/pages/actions.py:299
+#: services/webservice/pages/actions.py:352
 msgid ""
 "The previous values are too long to offer a one-shot Revert here. Re-open"
 " the page to edit them back by hand."
@@ -401,7 +401,7 @@ msgstr ""
 "Прежние значения слишком длинны, чтобы предложить здесь одноразовый "
 "откат. Открой страницу заново, чтобы вернуть их вручную."
 
-#: services/webservice/pages/actions.py:328
+#: services/webservice/pages/actions.py:395
 msgid ""
 "Start and Stop live only here: they act on fewer states than Startup and "
 "Shutdown, so they do not earn a place in the strip."
@@ -409,25 +409,43 @@ msgstr ""
 "Старт и Стоп есть только здесь: они действуют в меньшем числе состояний, "
 "чем Запуск и Выключение, поэтому не удостаиваются места в панели."
 
-#: services/webservice/pages/actions.py:336
+#: services/webservice/pages/actions.py:403
 #, python-brace-format
 msgid "{label} — an action on {name} is running; this can take a moment"
 msgstr "{label} — на {name} выполняется действие; это может занять минуту"
 
-#: services/webservice/pages/actions.py:337
+#: services/webservice/pages/actions.py:404
 #, python-brace-format
 msgid "{label} — an action on {name} is running"
 msgstr "{label} — на {name} выполняется действие"
 
-#: services/webservice/pages/actions.py:490
+#: services/webservice/pages/actions.py:630
+msgid "Everyone"
+msgstr ""
+
+#: services/webservice/pages/actions.py:631
+msgid "Red coalition"
+msgstr ""
+
+#: services/webservice/pages/actions.py:632
+msgid "Blue coalition"
+msgstr ""
+
+#: services/webservice/pages/actions.py:637
+msgid ""
+"The choice is the audience: everyone on the server, or one side of the "
+"mission."
+msgstr ""
+
+#: services/webservice/pages/actions.py:657
 msgid "Startup"
 msgstr "Запуск"
 
-#: services/webservice/pages/actions.py:494
+#: services/webservice/pages/actions.py:661
 msgid "End maintenance so the server is scheduled again"
 msgstr "Завершить обслуживание, чтобы сервер снова попал в расписание"
 
-#: services/webservice/pages/actions.py:496
+#: services/webservice/pages/actions.py:663
 msgid ""
 "On by default, exactly like Discord's /server startup. An unflagged "
 "server simply stays unflagged."
@@ -435,16 +453,16 @@ msgstr ""
 "Включено по умолчанию, точно как /server startup в Discord. Сервер без "
 "флага просто остаётся без флага."
 
-#: services/webservice/pages/actions.py:498
+#: services/webservice/pages/actions.py:665
 msgid "Startup — bring this server up from SHUTDOWN"
 msgstr "Запуск — поднять этот сервер из состояния ВЫКЛЮЧЕН"
 
-#: services/webservice/pages/actions.py:499
+#: services/webservice/pages/actions.py:666
 #, python-brace-format
 msgid "Startup server {server}"
 msgstr "Запустить сервер {server}"
 
-#: services/webservice/pages/actions.py:500
+#: services/webservice/pages/actions.py:667
 msgid ""
 "It comes back up and rejoins the rotation: with the box below ticked (the"
 " default) any maintenance is ended, so the scheduler may start it again. "
@@ -456,77 +474,77 @@ msgstr ""
 "запустить. Сервер, который не был на обслуживании, просто остаётся таким."
 " Это подъём на уровне DCS, а не Старт на уровне процесса в меню строки."
 
-#: services/webservice/pages/actions.py:505
+#: services/webservice/pages/actions.py:672
 msgid "Start up server"
 msgstr "Запустить сервер"
 
-#: services/webservice/pages/actions.py:506
+#: services/webservice/pages/actions.py:673
 #, python-brace-format
 msgid "Start up {server} — ends maintenance so the scheduler may start it"
 msgstr ""
 "Запустить {server} — завершает обслуживание, чтобы планировщик мог его "
 "запустить"
 
-#: services/webservice/pages/actions.py:508
+#: services/webservice/pages/actions.py:675
 msgid "Start"
 msgstr "Старт"
 
-#: services/webservice/pages/actions.py:511
+#: services/webservice/pages/actions.py:678
 msgid "Start — start a STOPPED server"
 msgstr "Старт — запустить ОСТАНОВЛЕННЫЙ сервер"
 
-#: services/webservice/pages/actions.py:512
+#: services/webservice/pages/actions.py:679
 #, python-brace-format
 msgid "Start server {server}"
 msgstr "Запустить сервер {server}"
 
-#: services/webservice/pages/actions.py:513
+#: services/webservice/pages/actions.py:680
 msgid "start a STOPPED server — Startup is the usual one"
 msgstr "запустить ОСТАНОВЛЕННЫЙ сервер — обычно используется Запуск"
 
-#: services/webservice/pages/actions.py:515
+#: services/webservice/pages/actions.py:682
 msgid "Pause"
 msgstr "Пауза"
 
-#: services/webservice/pages/actions.py:517
+#: services/webservice/pages/actions.py:684
 msgid "Pause — freeze the mission; players stay connected"
 msgstr "Пауза — заморозить миссию; игроки остаются на связи"
 
-#: services/webservice/pages/actions.py:518
+#: services/webservice/pages/actions.py:685
 #, python-brace-format
 msgid "Pause the mission on {server}"
 msgstr "Поставить миссию на паузу на {server}"
 
-#: services/webservice/pages/actions.py:520
+#: services/webservice/pages/actions.py:687
 msgid "Unpause"
 msgstr "Продолжить"
 
-#: services/webservice/pages/actions.py:522
+#: services/webservice/pages/actions.py:689
 msgid "Unpause — resume the frozen mission"
 msgstr "Продолжить — возобновить замороженную миссию"
 
-#: services/webservice/pages/actions.py:523
+#: services/webservice/pages/actions.py:690
 #, python-brace-format
 msgid "Unpause the mission on {server}"
 msgstr "Возобновить миссию на {server}"
 
-#: services/webservice/pages/actions.py:525
-#: services/webservice/pages/actions.py:1019
+#: services/webservice/pages/actions.py:692
+#: services/webservice/pages/actions.py:1318
 #: services/webservice/templates/overview.html:59
 #: services/webservice/templates/server_detail.html:710
 msgid "Restart"
 msgstr "Перезапуск"
 
-#: services/webservice/pages/actions.py:529
+#: services/webservice/pages/actions.py:696
 msgid "Restart — players currently flying lose their sortie"
 msgstr "Перезапуск — летящие сейчас игроки теряют свой вылет"
 
-#: services/webservice/pages/actions.py:530
+#: services/webservice/pages/actions.py:697
 #, python-brace-format
 msgid "Restart server {server}"
 msgstr "Перезапустить сервер {server}"
 
-#: services/webservice/pages/actions.py:531
+#: services/webservice/pages/actions.py:698
 msgid ""
 "<b>Players currently flying lose their sortie.</b> The mission restarts "
 "from the beginning — mid-mission progress is gone."
@@ -534,7 +552,7 @@ msgstr ""
 "<b>Летящие сейчас игроки теряют свой вылет.</b> Миссия перезапускается с "
 "начала — прогресс в середине миссии потерян."
 
-#: services/webservice/pages/actions.py:533
+#: services/webservice/pages/actions.py:700
 msgid ""
 "A restart stops the mission, reloads it from the start and the players "
 "reconnect to a fresh round. It cannot be undone from here."
@@ -542,24 +560,24 @@ msgstr ""
 "Перезапуск останавливает миссию, загружает её заново с начала, и игроки "
 "переподключаются к новому раунду. Отсюда это отменить нельзя."
 
-#: services/webservice/pages/actions.py:535
+#: services/webservice/pages/actions.py:702
 msgid "Restart server"
 msgstr "Перезапустить сервер"
 
-#: services/webservice/pages/actions.py:536
+#: services/webservice/pages/actions.py:703
 #, python-brace-format
 msgid "Restart {server} — players flying lose their sortie"
 msgstr "Перезапустить {server} — летящие игроки теряют свой вылет"
 
-#: services/webservice/pages/actions.py:538
+#: services/webservice/pages/actions.py:705
 msgid "Shutdown"
 msgstr "Выключение"
 
-#: services/webservice/pages/actions.py:544
+#: services/webservice/pages/actions.py:711
 msgid "Set maintenance so the scheduler does not restart it"
 msgstr "Поставить на обслуживание, чтобы планировщик его не перезапускал"
 
-#: services/webservice/pages/actions.py:546
+#: services/webservice/pages/actions.py:713
 msgid ""
 "On by default, exactly like Discord's /server shutdown: without it a "
 "scheduled start brings the server straight back."
@@ -567,16 +585,16 @@ msgstr ""
 "Включено по умолчанию, точно как /server shutdown в Discord: без этого "
 "запланированный запуск сразу вернёт сервер."
 
-#: services/webservice/pages/actions.py:548
+#: services/webservice/pages/actions.py:715
 msgid "Shutdown — stop the DCS server; everyone on it is disconnected"
 msgstr "Выключение — остановить сервер DCS; все на нём будут отключены"
 
-#: services/webservice/pages/actions.py:549
+#: services/webservice/pages/actions.py:716
 #, python-brace-format
 msgid "Shutdown server {server}"
 msgstr "Выключить сервер {server}"
 
-#: services/webservice/pages/actions.py:550
+#: services/webservice/pages/actions.py:717
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected</b> and nobody can join until "
@@ -591,7 +609,7 @@ msgstr ""
 "планировщик его не поднимет. Снимай его, только чтобы выключить сервер, "
 "не удерживая его выключенным."
 
-#: services/webservice/pages/actions.py:555
+#: services/webservice/pages/actions.py:722
 msgid ""
 "It stays SHUTDOWN on every page until a Startup brings it back — this is "
 "the graceful stop, not the process-level Stop in the row's menu."
@@ -599,34 +617,34 @@ msgstr ""
 "Он остаётся ВЫКЛЮЧЕН на всех страницах, пока Запуск не вернёт его — это "
 "корректная остановка, а не Стоп на уровне процесса в меню строки."
 
-#: services/webservice/pages/actions.py:558
-#: services/webservice/pages/actions.py:1034
+#: services/webservice/pages/actions.py:725
+#: services/webservice/pages/actions.py:1333
 msgid "Shut down"
 msgstr "Выключить"
 
-#: services/webservice/pages/actions.py:559
+#: services/webservice/pages/actions.py:726
 #, python-brace-format
 msgid "Shut down {server} — {players} players are disconnected"
 msgstr "Выключить {server} — {players} игроков будут отключены"
 
-#: services/webservice/pages/actions.py:561
+#: services/webservice/pages/actions.py:728
 msgid "Stop"
 msgstr "Стоп"
 
-#: services/webservice/pages/actions.py:564
+#: services/webservice/pages/actions.py:731
 msgid "Stop — stop the server process; players are disconnected"
 msgstr "Стоп — остановить процесс сервера; игроки будут отключены"
 
-#: services/webservice/pages/actions.py:565
+#: services/webservice/pages/actions.py:732
 #, python-brace-format
 msgid "Stop server {server}"
 msgstr "Остановить сервер {server}"
 
-#: services/webservice/pages/actions.py:566
+#: services/webservice/pages/actions.py:733
 msgid "stop the server process — players are disconnected"
 msgstr "остановить процесс сервера — игроки будут отключены"
 
-#: services/webservice/pages/actions.py:567
+#: services/webservice/pages/actions.py:734
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected.</b> Stop ends the server process, "
@@ -635,7 +653,7 @@ msgstr ""
 "<b>{players} игроков будут отключены.</b> Стоп завершает процесс сервера,"
 " и никто не сможет зайти, пока Старт не вернёт его."
 
-#: services/webservice/pages/actions.py:569
+#: services/webservice/pages/actions.py:736
 msgid ""
 "This is the process-level pair (Stop/Start), not the DCS-level pair "
 "(Shutdown/Startup)."
@@ -643,74 +661,254 @@ msgstr ""
 "Это пара уровня процесса (Стоп/Старт), а не пара уровня DCS "
 "(Выключение/Запуск)."
 
-#: services/webservice/pages/actions.py:571
+#: services/webservice/pages/actions.py:738
 msgid "Stop server process"
 msgstr "Остановить процесс сервера"
 
-#: services/webservice/pages/actions.py:572
+#: services/webservice/pages/actions.py:739
 #, python-brace-format
 msgid "Stop {server} — {players} players are disconnected"
 msgstr "Остановить {server} — {players} игроков будут отключены"
 
-#: services/webservice/pages/actions.py:587
+#: services/webservice/pages/actions.py:754
 msgid "Maintenance"
 msgstr "Обслуживание"
 
-#: services/webservice/pages/actions.py:589
+#: services/webservice/pages/actions.py:756
 msgid ""
 "Maintenance — keep this server out of service; the scheduler will not "
 "start it"
 msgstr "Обслуживание — держать этот сервер вне работы; планировщик его не запустит"
 
-#: services/webservice/pages/actions.py:590
+#: services/webservice/pages/actions.py:757
 #, python-brace-format
 msgid "Put server {server} into maintenance"
 msgstr "Перевести сервер {server} на обслуживание"
 
-#: services/webservice/pages/actions.py:591
+#: services/webservice/pages/actions.py:758
 msgid "keep the server out of service — it is not stopped by this"
 msgstr "держать сервер вне работы — этим он не останавливается"
 
-#: services/webservice/pages/actions.py:594
+#: services/webservice/pages/actions.py:761
 msgid "End maintenance"
 msgstr "Завершить обслуживание"
 
-#: services/webservice/pages/actions.py:596
+#: services/webservice/pages/actions.py:763
 msgid "End maintenance — let the scheduler start this server again"
 msgstr ""
 "Завершить обслуживание — позволить планировщику снова запустить этот "
 "сервер"
 
-#: services/webservice/pages/actions.py:597
+#: services/webservice/pages/actions.py:764
 #, python-brace-format
 msgid "Take server {server} out of maintenance"
 msgstr "Снять сервер {server} с обслуживания"
 
-#: services/webservice/pages/actions.py:598
+#: services/webservice/pages/actions.py:765
 msgid "the server may be started again — nothing is started by this"
 msgstr "сервер снова может быть запущен — этим ничего не запускается"
 
-#: services/webservice/pages/actions.py:664
-#: services/webservice/pages/actions.py:684
+#: services/webservice/pages/actions.py:779
+#: services/webservice/pages/actions.py:1184
+msgid "Chat"
+msgstr ""
+
+#: services/webservice/pages/actions.py:781
+#: services/webservice/pages/actions.py:803
+#: services/webservice/pages/actions.py:1185
+#: services/webservice/pages/actions.py:1200
+msgid "Message"
+msgstr "Сообщение"
+
+#: services/webservice/pages/actions.py:783
+msgid "Written into the game chat of the recipients you choose below."
+msgstr ""
+
+#: services/webservice/pages/actions.py:787
+#: services/webservice/pages/actions.py:809
+msgid "Send to"
+msgstr ""
+
+#: services/webservice/pages/actions.py:790
+msgid "Chat — a chat line in game, to the recipients you choose"
+msgstr ""
+
+#: services/webservice/pages/actions.py:791
+#: services/webservice/pages/actions.py:799
+#, python-brace-format
+msgid "Send a chat line on {server}"
+msgstr ""
+
+#: services/webservice/pages/actions.py:792
+msgid "a chat line in game, addressed to the recipients you choose"
+msgstr ""
+
+#: services/webservice/pages/actions.py:793
+#, python-brace-format
+msgid ""
+"<b>The recipients you choose below read this line.</b> It appears in "
+"their game chat on {server} under your name, as if you had typed it "
+"there."
+msgstr ""
+
+#: services/webservice/pages/actions.py:796
+#, python-brace-format
+msgid ""
+"The line goes into the game chat of every player on {server}, or of the "
+"one side you choose below."
+msgstr ""
+
+#: services/webservice/pages/actions.py:798
+#: services/webservice/pages/actions.py:1196
+msgid "Send chat line"
+msgstr ""
+
+#: services/webservice/pages/actions.py:801
+#: services/webservice/pages/actions.py:1199
+msgid "Popup"
+msgstr ""
+
+#: services/webservice/pages/actions.py:805
+msgid "Arrives in a box of its own and closes by itself."
+msgstr ""
+
+#: services/webservice/pages/actions.py:812
+msgid "Popup — a message box on every screen"
+msgstr ""
+
+#: services/webservice/pages/actions.py:813
+#: services/webservice/pages/actions.py:821
+#, python-brace-format
+msgid "Send a popup to {server}"
+msgstr ""
+
+#: services/webservice/pages/actions.py:814
+msgid "a message box on every screen"
+msgstr ""
+
+#: services/webservice/pages/actions.py:815
+#, python-brace-format
+msgid ""
+"<b>Every player on {server} sees this box</b> — or, with a coalition "
+"chosen below, every player on that side. It closes by itself after the "
+"server's configured message timeout."
+msgstr ""
+
+#: services/webservice/pages/actions.py:818
+#, python-brace-format
+msgid ""
+"The box is addressed to everyone on {server}, or to the one side you "
+"choose below."
+msgstr ""
+
+#: services/webservice/pages/actions.py:820
+#: services/webservice/pages/actions.py:1212
+msgid "Send popup"
+msgstr ""
+
+#: services/webservice/pages/actions.py:847
+msgid "Delete"
+msgstr "Удалить"
+
+#: services/webservice/pages/actions.py:851
+msgid "Also delete the Saved Games directory"
+msgstr "Также удалить каталог Saved Games"
+
+#: services/webservice/pages/actions.py:853
+msgid ""
+"Deletes the instance's own directory, with every mission and "
+"configuration file in it. Left OFF, the directory stays on the machine."
+msgstr ""
+"Удаляет собственный каталог экземпляра вместе со всеми миссиями и файлами"
+" конфигурации в нём. Если не отмечено, каталог остаётся на машине."
+
+#: services/webservice/pages/actions.py:856
+msgid "Delete — stop this server and remove it with the instance it runs in"
+msgstr "Удалить — остановить этот сервер и удалить его вместе с его экземпляром"
+
+#: services/webservice/pages/actions.py:857
+#, python-brace-format
+msgid "Delete server {server}"
+msgstr "Удалить сервер {server}"
+
+#: services/webservice/pages/actions.py:858
+msgid "remove the server and the instance it runs in"
+msgstr "удалить сервер и экземпляр, в котором он работает"
+
+#: services/webservice/pages/actions.py:859
+#, python-brace-format
+msgid ""
+"<b>{server} is stopped and removed, together with the instance it runs "
+"in.</b> {players} player(s) are disconnected if it is up. The box below "
+"is off by default: with it ticked the instance's Saved Games directory is"
+" deleted as well, and that cannot be undone."
+msgstr ""
+"<b>{server} будет остановлен и удалён вместе с экземпляром, в котором он "
+"работает.</b> Если он запущен, {players} игрок(ов) будут отключены. "
+"Флажок ниже по умолчанию снят: если его поставить, каталог Saved Games "
+"экземпляра тоже будет удалён, и это нельзя отменить."
+
+#: services/webservice/pages/actions.py:863
+msgid ""
+"Type the server's name below to confirm. The server, its instance block "
+"in nodes.yaml and its database rows go away; the Saved Games directory "
+"stays unless you tick the box."
+msgstr ""
+"Введи ниже имя сервера для подтверждения. Сервер, его блок экземпляра в "
+"nodes.yaml и его строки в базе данных исчезнут; каталог Saved Games "
+"останется, если не поставить флажок."
+
+#: services/webservice/pages/actions.py:866
+msgid "Delete server"
+msgstr "Удалить сервер"
+
+#: services/webservice/pages/actions.py:867
+#, python-brace-format
+msgid "Delete {server} — it is stopped and removed with its instance"
+msgstr "Удалить {server} — он будет остановлен и удалён вместе с экземпляром"
+
+#: services/webservice/pages/actions.py:872
+#: services/webservice/pages/actions.py:4992
+msgid "Add server"
+msgstr "Добавить сервер"
+
+#: services/webservice/pages/actions.py:874
+msgid ""
+"Add server — give an instance that has none its server, or create a new "
+"instance"
+msgstr ""
+"Добавить сервер — назначь сервер экземпляру, у которого его нет, или "
+"создай новый экземпляр"
+
+#: services/webservice/pages/actions.py:876
+#: services/webservice/pages/actions.py:4984
+#: services/webservice/pages/actions.py:5012
+#: services/webservice/pages/actions.py:5013
+#: services/webservice/setup/tour.py:768
+msgid "Add a server"
+msgstr "Добавить сервер"
+
+#: services/webservice/pages/actions.py:951
+#: services/webservice/pages/actions.py:971
 #: services/webservice/templates/server_detail.html:585
 msgid "Add to the rotation"
 msgstr "Добавить в ротацию"
 
-#: services/webservice/pages/actions.py:668
+#: services/webservice/pages/actions.py:955
 msgid "Load it when the server next starts"
 msgstr "Загрузить его при следующем запуске сервера"
 
-#: services/webservice/pages/actions.py:670
+#: services/webservice/pages/actions.py:957
 msgid "Arms the rotation so this mission is the next one the server loads."
 msgstr ""
 "Настраивает ротацию так, чтобы эта миссия была следующей, которую "
 "загрузит сервер."
 
-#: services/webservice/pages/actions.py:674
+#: services/webservice/pages/actions.py:961
 msgid "Load it now"
 msgstr "Загрузить сейчас"
 
-#: services/webservice/pages/actions.py:676
+#: services/webservice/pages/actions.py:963
 msgid ""
 "Loads it right away — only honoured while the server is running, paused "
 "or stopped."
@@ -718,7 +916,7 @@ msgstr ""
 "Загружает её сразу — учитывается, только пока сервер работает, на паузе "
 "или остановлен."
 
-#: services/webservice/pages/actions.py:681
+#: services/webservice/pages/actions.py:968
 msgid ""
 "This mission is already on the server: adding it changes the ROTATION "
 "LIST only. No file is copied and nothing is deleted — that is what Upload"
@@ -728,12 +926,12 @@ msgstr ""
 "Ни один файл не копируется и ничего не удаляется — это делает Отправка "
 "файла миссии."
 
-#: services/webservice/pages/actions.py:685
+#: services/webservice/pages/actions.py:972
 #, python-brace-format
 msgid "Add the mission to {server}'s rotation list"
 msgstr "Добавить миссию в список ротации {server}"
 
-#: services/webservice/pages/actions.py:691
+#: services/webservice/pages/actions.py:978
 #: services/webservice/templates/_config_fields.html:109
 #: services/webservice/templates/_config_fields.html:116
 #: services/webservice/templates/_config_fields.html:148
@@ -761,17 +959,17 @@ msgstr "Добавить миссию в список ротации {server}"
 msgid "Remove"
 msgstr "Удалить"
 
-#: services/webservice/pages/actions.py:695
+#: services/webservice/pages/actions.py:982
 msgid "Also delete the mission file from disk"
 msgstr "Также удалить файл миссии с диска"
 
-#: services/webservice/pages/actions.py:697
+#: services/webservice/pages/actions.py:984
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig. This cannot be "
 "undone."
 msgstr "Удаляет основной файл, его копию .dcssb и .orig. Это нельзя отменить."
 
-#: services/webservice/pages/actions.py:702
+#: services/webservice/pages/actions.py:989
 msgid ""
 "<b>The mission is removed from the rotation list and stops being "
 "loaded.</b> The box below is off by default: with it ticked the mission "
@@ -782,7 +980,7 @@ msgstr ""
 " ниже по умолчанию снят: если его отметить, сам файл миссии — основной, "
 "его копия .dcssb и .orig — удаляется с сервера, и это нельзя отменить."
 
-#: services/webservice/pages/actions.py:706
+#: services/webservice/pages/actions.py:993
 msgid ""
 "Removing it from the list changes the rotation only; the file stays on "
 "the server unless you tick the box. Discord's /mission delete asks the "
@@ -792,37 +990,37 @@ msgstr ""
 "ты не отметишь флажок. /mission delete в Discord задаёт те же два "
 "вопроса."
 
-#: services/webservice/pages/actions.py:709
-#: services/webservice/pages/actions.py:4051
+#: services/webservice/pages/actions.py:996
+#: services/webservice/pages/actions.py:4462
 msgid "Remove mission"
 msgstr "Удалить миссию"
 
-#: services/webservice/pages/actions.py:710
+#: services/webservice/pages/actions.py:997
 #, python-brace-format
 msgid "Remove the mission from {server}'s rotation list"
 msgstr "Удалить миссию из списка ротации {server}"
 
-#: services/webservice/pages/actions.py:712
+#: services/webservice/pages/actions.py:999
 #: services/webservice/templates/server_detail.html:566
 msgid "Load"
 msgstr "Загрузить"
 
-#: services/webservice/pages/actions.py:717
+#: services/webservice/pages/actions.py:1004
 #: services/webservice/templates/server_detail.html:641
 msgid "Upload mission"
 msgstr "Отправить миссию"
 
-#: services/webservice/pages/actions.py:732
-#: services/webservice/pages/actions.py:752
-#: services/webservice/pages/actions.py:4056
+#: services/webservice/pages/actions.py:1019
+#: services/webservice/pages/actions.py:1039
+#: services/webservice/pages/actions.py:4467
 msgid "Remove missions"
 msgstr "Удалить миссии"
 
-#: services/webservice/pages/actions.py:736
+#: services/webservice/pages/actions.py:1023
 msgid "Also delete the mission files from disk"
 msgstr "Также удалить файлы миссий с диска"
 
-#: services/webservice/pages/actions.py:738
+#: services/webservice/pages/actions.py:1025
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig of EVERY selected"
 " mission. This cannot be undone. Left OFF, the mission only leaves the "
@@ -835,7 +1033,7 @@ msgstr ""
 " на диске файл миссии снова добавляется в список, поэтому удаление не "
 "окончательное."
 
-#: services/webservice/pages/actions.py:746
+#: services/webservice/pages/actions.py:1033
 msgid ""
 "<b>The selected missions are removed from the rotation list and stop "
 "being loaded.</b> The box below is off by default: with it ticked the "
@@ -846,7 +1044,7 @@ msgstr ""
 "загружаться.</b> Флажок ниже по умолчанию снят: если его отметить, сами "
 "файлы миссий удаляются с сервера, и это нельзя отменить."
 
-#: services/webservice/pages/actions.py:750
+#: services/webservice/pages/actions.py:1037
 msgid ""
 "The chosen missions leave the rotation list; their files stay on the "
 "server unless you tick the box."
@@ -854,47 +1052,47 @@ msgstr ""
 "Выбранные миссии покидают список ротации; их файлы остаются на сервере, "
 "если ты не отметишь флажок."
 
-#: services/webservice/pages/actions.py:753
+#: services/webservice/pages/actions.py:1040
 #, python-brace-format
 msgid "Remove the selected missions from {server}'s rotation list"
 msgstr "Удалить выбранные миссии из списка ротации {server}"
 
-#: services/webservice/pages/actions.py:757
+#: services/webservice/pages/actions.py:1044
 msgid "Move"
 msgstr "Переместить"
 
-#: services/webservice/pages/actions.py:771
+#: services/webservice/pages/actions.py:1058
 #: services/webservice/templates/server_detail.html:477
 msgid "Set as start"
 msgstr "Сделать стартовой"
 
-#: services/webservice/pages/actions.py:872
+#: services/webservice/pages/actions.py:1152
 msgid "Kick"
 msgstr "Кик"
 
-#: services/webservice/pages/actions.py:874
-#: services/webservice/pages/actions.py:890
+#: services/webservice/pages/actions.py:1154
+#: services/webservice/pages/actions.py:1170
 msgid "Reason"
 msgstr "Причина"
 
-#: services/webservice/pages/actions.py:875
+#: services/webservice/pages/actions.py:1155
 msgid "Shown to the player in game."
 msgstr "Показывается игроку в игре."
 
-#: services/webservice/pages/actions.py:877
+#: services/webservice/pages/actions.py:1157
 msgid "Kick — disconnected now; they may rejoin immediately"
 msgstr "Кик — отключён сейчас; может сразу вернуться"
 
-#: services/webservice/pages/actions.py:878
+#: services/webservice/pages/actions.py:1158
 #, python-brace-format
 msgid "Kick {player} from {server}"
 msgstr "Кикнуть {player} с {server}"
 
-#: services/webservice/pages/actions.py:879
+#: services/webservice/pages/actions.py:1159
 msgid "disconnected now — a kick is not a ban"
 msgstr "отключён сейчас — кик это не бан"
 
-#: services/webservice/pages/actions.py:880
+#: services/webservice/pages/actions.py:1160
 #, python-brace-format
 msgid ""
 "<b>{player} is disconnected from {server} now.</b> They can rejoin "
@@ -903,7 +1101,7 @@ msgstr ""
 "<b>{player} сейчас отключён от {server}.</b> Он может сразу вернуться — "
 "кик это не бан и не оставляет блокировки."
 
-#: services/webservice/pages/actions.py:882
+#: services/webservice/pages/actions.py:1162
 msgid ""
 "A kick ends their session; it blocks nothing and expires with it. Nothing"
 " is written to the ban list, so they may be back in the air in a minute."
@@ -912,37 +1110,37 @@ msgstr ""
 " ней. В список банов ничего не записывается, так что через минуту он "
 "может снова быть в воздухе."
 
-#: services/webservice/pages/actions.py:885
+#: services/webservice/pages/actions.py:1165
 msgid "Kick player"
 msgstr "Кикнуть игрока"
 
-#: services/webservice/pages/actions.py:886
+#: services/webservice/pages/actions.py:1166
 #, python-brace-format
 msgid "Kick {player} from {server} — they may rejoin immediately"
 msgstr "Кикнуть {player} с {server} — может сразу вернуться"
 
-#: services/webservice/pages/actions.py:888
+#: services/webservice/pages/actions.py:1168
 msgid "Ban"
 msgstr "Бан"
 
-#: services/webservice/pages/actions.py:891
+#: services/webservice/pages/actions.py:1171
 msgid "Kept on the ban list."
 msgstr "Хранится в списке банов."
 
-#: services/webservice/pages/actions.py:893
+#: services/webservice/pages/actions.py:1173
 msgid "Ban — removed and blocked from rejoining"
 msgstr "Бан — удалён и не может вернуться"
 
-#: services/webservice/pages/actions.py:894
+#: services/webservice/pages/actions.py:1174
 #, python-brace-format
 msgid "Ban {player} from {server}"
 msgstr "Забанить {player} на {server}"
 
-#: services/webservice/pages/actions.py:895
+#: services/webservice/pages/actions.py:1175
 msgid "removed and blocked from rejoining"
 msgstr "удалён и не может вернуться"
 
-#: services/webservice/pages/actions.py:896
+#: services/webservice/pages/actions.py:1176
 #, python-brace-format
 msgid ""
 "<b>{player} is removed from {server} and cannot rejoin it</b> for as long"
@@ -951,7 +1149,7 @@ msgstr ""
 "<b>{player} удаляется с {server} и не может вернуться</b>, пока действует"
 " бан. Пустая длительность означает, что он никогда не истечёт сам."
 
-#: services/webservice/pages/actions.py:899
+#: services/webservice/pages/actions.py:1179
 msgid ""
 "The ban is written to the ban list every installation syncs, so it holds "
 "wherever they connect from — not only on this server."
@@ -960,88 +1158,133 @@ msgstr ""
 "установкой, поэтому он действует, откуда бы они ни подключались — не "
 "только на этом сервере."
 
-#: services/webservice/pages/actions.py:901
+#: services/webservice/pages/actions.py:1181
 msgid "Ban player"
 msgstr "Забанить игрока"
 
-#: services/webservice/pages/actions.py:902
+#: services/webservice/pages/actions.py:1182
 #, python-brace-format
 msgid "Ban {player} — empty duration is permanent"
 msgstr "Забанить {player} — пустая длительность означает бессрочно"
 
-#: services/webservice/pages/actions.py:904
-#: services/webservice/pages/actions.py:905
-msgid "Message"
-msgstr "Сообщение"
+#: services/webservice/pages/actions.py:1187
+msgid "Sent to this player's game chat — only they read it."
+msgstr ""
 
-#: services/webservice/pages/actions.py:909
-msgid "Chat — a chat line in game, visible to everyone"
-msgstr "Чат — строка чата в игре, видимая всем"
+#: services/webservice/pages/actions.py:1189
+msgid "Chat — a chat line only this player reads"
+msgstr ""
 
-#: services/webservice/pages/actions.py:910
+#: services/webservice/pages/actions.py:1190
+#: services/webservice/pages/actions.py:1197
 #, python-brace-format
 msgid "Send a chat line to {player} on {server}"
 msgstr "Отправить строку чата {player} на {server}"
 
-#: services/webservice/pages/actions.py:912
+#: services/webservice/pages/actions.py:1191
+msgid "a chat line in game only they read"
+msgstr ""
+
+#: services/webservice/pages/actions.py:1192
+#, python-brace-format
+msgid ""
+"<b>Only {player} reads this line.</b> It is written in their own game "
+"chat under your name, as if you had typed it there."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1194
+#, python-brace-format
+msgid ""
+"The line is addressed to {player} alone: it goes into their game chat and"
+" nobody else on {server} sees it."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1202
+msgid "A popup — only this player sees it."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1204
 msgid "Popup — a private message in game"
 msgstr "Всплывающее окно — личное сообщение в игре"
 
-#: services/webservice/pages/actions.py:913
+#: services/webservice/pages/actions.py:1205
 #, python-brace-format
 msgid "Send a popup to {player} on {server}"
 msgstr "Отправить всплывающее окно {player} на {server}"
 
-#: services/webservice/pages/actions.py:916
+#: services/webservice/pages/actions.py:1206
+msgid "a private message only they see"
+msgstr ""
+
+#: services/webservice/pages/actions.py:1207
+#, python-brace-format
+msgid ""
+"<b>Only {player} sees this message.</b> It arrives in a box of its own "
+"and closes by itself after the server's configured message timeout."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1210
+#, python-brace-format
+msgid ""
+"The popup is addressed to {player} alone. It arrives in a box of its own,"
+" not as a line in their chat."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1213
+#, python-brace-format
+msgid "Send a popup to {player} on {server} — only they see it"
+msgstr ""
+
+#: services/webservice/pages/actions.py:1215
 msgid "Mute"
 msgstr "Мут"
 
-#: services/webservice/pages/actions.py:917
+#: services/webservice/pages/actions.py:1216
 msgid "Mute — they can no longer send chat"
 msgstr "Мут — больше не может писать в чат"
 
-#: services/webservice/pages/actions.py:918
+#: services/webservice/pages/actions.py:1217
 #, python-brace-format
 msgid "Mute {player} on {server}"
 msgstr "Замутить {player} на {server}"
 
-#: services/webservice/pages/actions.py:919
+#: services/webservice/pages/actions.py:1218
 msgid "they can no longer send chat"
 msgstr "больше не может писать в чат"
 
-#: services/webservice/pages/actions.py:921
+#: services/webservice/pages/actions.py:1220
 msgid "Unmute"
 msgstr "Снять мут"
 
-#: services/webservice/pages/actions.py:922
+#: services/webservice/pages/actions.py:1221
 msgid "Unmute — restore their chat"
 msgstr "Снять мут — вернуть ему чат"
 
-#: services/webservice/pages/actions.py:923
+#: services/webservice/pages/actions.py:1222
 #, python-brace-format
 msgid "Unmute {player} on {server}"
 msgstr "Снять мут с {player} на {server}"
 
-#: services/webservice/pages/actions.py:924
+#: services/webservice/pages/actions.py:1223
 msgid "restore their chat"
 msgstr "вернуть ему чат"
 
-#: services/webservice/pages/actions.py:1020
+#: services/webservice/pages/actions.py:1319
 #, python-brace-format
 msgid "Restart node — every server on {node} goes down while the node restarts"
 msgstr "Перезапуск узла — все серверы на {node} падают, пока узел перезапускается"
 
-#: services/webservice/pages/actions.py:1021
+#: services/webservice/pages/actions.py:1320
 #, python-brace-format
 msgid "Restart node {node}"
 msgstr "Перезапустить узел {node}"
 
-#: services/webservice/pages/actions.py:1022
+#: services/webservice/pages/actions.py:1321
 msgid "every server on the node goes down"
 msgstr "все серверы на узле падают"
 
-#: services/webservice/pages/actions.py:1023
-#: services/webservice/pages/actions.py:1055
+#: services/webservice/pages/actions.py:1322
+#: services/webservice/pages/actions.py:1354
 #, python-brace-format
 msgid ""
 "<b>Every server on {node} goes down with it</b> — {servers} server(s) and"
@@ -1050,7 +1293,7 @@ msgstr ""
 "<b>Все серверы на {node} падают вместе с ним</b> — прямо сейчас на нём "
 "{servers} сервер(ов) и {players} игрок(ов)."
 
-#: services/webservice/pages/actions.py:1025
+#: services/webservice/pages/actions.py:1324
 msgid ""
 "A node restart ends the bot process on that machine; the launcher there "
 "brings the node back, and its servers do not: they stay down until "
@@ -1060,7 +1303,7 @@ msgstr ""
 "возвращает узел, а его серверы — нет: они остаются выключенными, пока "
 "кто-нибудь не запустит их снова."
 
-#: services/webservice/pages/actions.py:1028
+#: services/webservice/pages/actions.py:1327
 msgid ""
 "<b>This console runs inside that node</b> — restarting it ends the "
 "process serving this page, and this window has to be reloaded once the "
@@ -1070,32 +1313,32 @@ msgstr ""
 "процесс, обслуживающий эту страницу, и это окно нужно перезагрузить, "
 "когда узел вернётся."
 
-#: services/webservice/pages/actions.py:1031
+#: services/webservice/pages/actions.py:1330
 msgid "Restart node"
 msgstr "Перезапустить узел"
 
-#: services/webservice/pages/actions.py:1032
+#: services/webservice/pages/actions.py:1331
 #, python-brace-format
 msgid "Restart {node} — every server on it goes down"
 msgstr "Перезапустить {node} — все серверы на нём падают"
 
-#: services/webservice/pages/actions.py:1035
+#: services/webservice/pages/actions.py:1334
 #, python-brace-format
 msgid ""
 "Shut down node — every server on {node} goes down and nothing brings it "
 "back"
 msgstr "Выключить узел — все серверы на {node} падают, и ничто его не вернёт"
 
-#: services/webservice/pages/actions.py:1036
+#: services/webservice/pages/actions.py:1335
 #, python-brace-format
 msgid "Shut down node {node}"
 msgstr "Выключить узел {node}"
 
-#: services/webservice/pages/actions.py:1037
+#: services/webservice/pages/actions.py:1336
 msgid "every server on the node goes down, for good"
 msgstr "все серверы на узле падают, окончательно"
 
-#: services/webservice/pages/actions.py:1038
+#: services/webservice/pages/actions.py:1337
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
@@ -1104,7 +1347,7 @@ msgstr ""
 "<b>{servers} сервер(ов) на {node} падают и {players} игрок(ов) будут "
 "отключены, и ничто не вернёт узел.</b>"
 
-#: services/webservice/pages/actions.py:1040
+#: services/webservice/pages/actions.py:1339
 msgid ""
 "A node shutdown ends the bot process on that machine for good: somebody "
 "has to start the node THERE, at the machine. A node that is down cannot "
@@ -1115,7 +1358,7 @@ msgstr ""
 "запустить из этого браузера, и его серверы остаются выключенными вместе с"
 " ним."
 
-#: services/webservice/pages/actions.py:1044
+#: services/webservice/pages/actions.py:1343
 msgid ""
 "<b>This console runs inside that node</b> — shutting it down ends the "
 "process serving this page, and nothing brings it back until somebody "
@@ -1125,20 +1368,20 @@ msgstr ""
 "процесс, обслуживающий эту страницу, и ничто не вернёт его, пока "
 "кто-нибудь не запустит узел на той машине."
 
-#: services/webservice/pages/actions.py:1047
+#: services/webservice/pages/actions.py:1346
 msgid "Shut down node"
 msgstr "Выключить узел"
 
-#: services/webservice/pages/actions.py:1048
+#: services/webservice/pages/actions.py:1347
 #, python-brace-format
 msgid "Shut down {node} — every server on it goes down"
 msgstr "Выключить {node} — все серверы на нём падают"
 
-#: services/webservice/pages/actions.py:1050
+#: services/webservice/pages/actions.py:1349
 msgid "Upgrade"
 msgstr "Обновление"
 
-#: services/webservice/pages/actions.py:1051
+#: services/webservice/pages/actions.py:1350
 #, python-brace-format
 msgid ""
 "Upgrade node — update DCSServerBot on {node} and restart it; every server"
@@ -1147,16 +1390,16 @@ msgstr ""
 "Обновление узла — обновить DCSServerBot на {node} и перезапустить его; "
 "все серверы на нём падают"
 
-#: services/webservice/pages/actions.py:1053
+#: services/webservice/pages/actions.py:1352
 #, python-brace-format
 msgid "Upgrade node {node}"
 msgstr "Обновить узел {node}"
 
-#: services/webservice/pages/actions.py:1054
+#: services/webservice/pages/actions.py:1353
 msgid "update and restart, every server goes down"
 msgstr "обновить и перезапустить, все серверы падают"
 
-#: services/webservice/pages/actions.py:1057
+#: services/webservice/pages/actions.py:1356
 msgid ""
 "The node is updated and restarted. The console offers Upgrade ONLY while "
 "the node itself reports an update pending — it asks every node in the "
@@ -1168,7 +1411,7 @@ msgstr ""
 "узел в фоне, никогда при отрисовке страницы, и это управление снова "
 "исчезает, как только обновлять больше нечего."
 
-#: services/webservice/pages/actions.py:1061
+#: services/webservice/pages/actions.py:1360
 msgid ""
 "<b>This console runs inside that node</b> — upgrading it ends the process"
 " serving this page, and this window has to be reloaded once the node is "
@@ -1178,25 +1421,25 @@ msgstr ""
 "процесс, обслуживающий эту страницу, и это окно нужно перезагрузить, "
 "когда узел вернётся."
 
-#: services/webservice/pages/actions.py:1064
+#: services/webservice/pages/actions.py:1363
 msgid "Upgrade node"
 msgstr "Обновить узел"
 
-#: services/webservice/pages/actions.py:1065
+#: services/webservice/pages/actions.py:1364
 #, python-brace-format
 msgid "Upgrade {node} — every server on it goes down"
 msgstr "Обновить {node} — все серверы на нём падают"
 
-#: services/webservice/pages/actions.py:1080
-#: services/webservice/pages/actions.py:1104
+#: services/webservice/pages/actions.py:1379
+#: services/webservice/pages/actions.py:1403
 msgid "Take servers offline"
 msgstr "Отключить серверы"
 
-#: services/webservice/pages/actions.py:1083
+#: services/webservice/pages/actions.py:1382
 msgid "Also mark them as maintenance"
 msgstr "Также пометить их как обслуживание"
 
-#: services/webservice/pages/actions.py:1085
+#: services/webservice/pages/actions.py:1384
 msgid ""
 "On by default: without it a scheduled start can bring the servers back "
 "while the node is \"offline\"."
@@ -1204,12 +1447,12 @@ msgstr ""
 "Включено по умолчанию: без этого запланированный запуск может вернуть "
 "серверы, пока узел \"офлайн\"."
 
-#: services/webservice/pages/actions.py:1087
+#: services/webservice/pages/actions.py:1386
 #, python-brace-format
 msgid "Take the servers on {node} offline?"
 msgstr "Отключить серверы на {node}?"
 
-#: services/webservice/pages/actions.py:1088
+#: services/webservice/pages/actions.py:1387
 #, python-brace-format
 msgid ""
 "Take servers offline — every server on {node} that is up is marked as "
@@ -1220,16 +1463,16 @@ msgstr ""
 "обслуживание и останавливается; его игроки отключаются, а службы узла "
 "продолжают работать"
 
-#: services/webservice/pages/actions.py:1091
+#: services/webservice/pages/actions.py:1390
 #, python-brace-format
 msgid "Take the servers on {node} out of service"
 msgstr "Вывести серверы на {node} из работы"
 
-#: services/webservice/pages/actions.py:1092
+#: services/webservice/pages/actions.py:1391
 msgid "marks the node's servers as maintenance and stops them"
 msgstr "помечает серверы узла как обслуживание и останавливает их"
 
-#: services/webservice/pages/actions.py:1093
+#: services/webservice/pages/actions.py:1392
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
@@ -1242,7 +1485,7 @@ msgstr ""
 "как обслуживание — оставь его отмеченным, если только ты не хочешь "
 "позволить запланированному запуску вернуть их, пока узел \"офлайн\"."
 
-#: services/webservice/pages/actions.py:1097
+#: services/webservice/pages/actions.py:1396
 msgid ""
 "Only the SERVERS on the node change. The node itself keeps running, so "
 "its services — including this console — stay up, and bringing the node "
@@ -1260,7 +1503,7 @@ msgstr ""
 " серверы останавливаются, и ничто не мешает планировщику снова их "
 "запустить."
 
-#: services/webservice/pages/actions.py:1105
+#: services/webservice/pages/actions.py:1404
 #, python-brace-format
 msgid ""
 "Take {node} offline — {servers} server(s) go down, {players} player(s) "
@@ -1269,17 +1512,17 @@ msgstr ""
 "Отключить {node} — {servers} сервер(ов) падают, {players} игрок(ов) будут"
 " отключены"
 
-#: services/webservice/pages/actions.py:1113
-#: services/webservice/pages/actions.py:1131
+#: services/webservice/pages/actions.py:1412
+#: services/webservice/pages/actions.py:1430
 msgid "Bring servers online"
 msgstr "Включить серверы"
 
-#: services/webservice/pages/actions.py:1115
+#: services/webservice/pages/actions.py:1414
 #, python-brace-format
 msgid "Bring the servers on {node} back online?"
 msgstr "Вернуть серверы на {node} в строй?"
 
-#: services/webservice/pages/actions.py:1116
+#: services/webservice/pages/actions.py:1415
 msgid ""
 "Bring servers online — clear the maintenance flags this node's power-off "
 "set; the scheduler then starts the servers it stopped. A flag set by hand"
@@ -1289,12 +1532,12 @@ msgstr ""
 " этого узла, и запустить серверы, которые он остановил; вручную "
 "поставленный флаг не трогается"
 
-#: services/webservice/pages/actions.py:1119
+#: services/webservice/pages/actions.py:1418
 #, python-brace-format
 msgid "Bring the servers on {node} back into service"
 msgstr "Вернуть серверы на {node} в работу"
 
-#: services/webservice/pages/actions.py:1120
+#: services/webservice/pages/actions.py:1419
 msgid ""
 "ends the maintenance this node's power-off set — the scheduler starts "
 "what it stopped"
@@ -1302,7 +1545,7 @@ msgstr ""
 "завершает обслуживание, установленное при отключении этого узла, и "
 "запускает то, что он остановил"
 
-#: services/webservice/pages/actions.py:1123
+#: services/webservice/pages/actions.py:1422
 msgid ""
 "This reverts EXACTLY the last power-off on this node: it clears only the "
 "maintenance flags that operation set, and the servers it stopped are left"
@@ -1322,7 +1565,7 @@ msgstr ""
 "обслуживании, не снимая ни одного флага — сообщение говорит, какой из "
 "двух случаев произошёл. Службы узла никогда не затрагивались."
 
-#: services/webservice/pages/actions.py:1132
+#: services/webservice/pages/actions.py:1431
 #, python-brace-format
 msgid ""
 "Bring {node} online — the flags its power-off set are cleared, and the "
@@ -1331,60 +1574,61 @@ msgstr ""
 "Включить {node} — флаги, поставленные при его отключении, снимаются, "
 "остановленное запускается"
 
-#: services/webservice/pages/actions.py:1600
+#: services/webservice/pages/actions.py:1914
 #: services/webservice/pages/server_detail.py:188
 #: services/webservice/templates/server_detail.html:151
 msgid "Configuration"
 msgstr "Конфигурация"
 
-#: services/webservice/pages/actions.py:1601
+#: services/webservice/pages/actions.py:1915
 #, python-brace-format
 msgid "Configuration — open {server}'s own settings"
 msgstr "Конфигурация — открыть собственные настройки {server}"
 
-#: services/webservice/pages/actions.py:1603
+#: services/webservice/pages/actions.py:1917
 #, python-brace-format
 msgid "Open the configuration of server {server}"
 msgstr "Открыть конфигурацию сервера {server}"
 
-#: services/webservice/pages/actions.py:1736
+#: services/webservice/pages/actions.py:2052
 #, python-brace-format
 msgid "More controls for {server}"
 msgstr "Больше управления для {server}"
 
-#: services/webservice/pages/actions.py:2057
+#: services/webservice/pages/actions.py:2392
 #, python-brace-format
 msgid "Controls for node {node}"
 msgstr "Управление для узла {node}"
 
-#: services/webservice/pages/actions.py:2259
+#: services/webservice/pages/actions.py:2600
 #, python-brace-format
 msgid "Controls for {player} on {server}"
 msgstr "Управление для {player} на {server}"
 
-#: services/webservice/pages/actions.py:2394
+#: services/webservice/pages/actions.py:2734
 #, python-brace-format
 msgid "{label} {target}?"
 msgstr "{label} {target}?"
 
-#: services/webservice/pages/actions.py:2447
-#: services/webservice/pages/actions.py:2544
-#: services/webservice/pages/actions.py:2699
-#: services/webservice/pages/actions.py:4094
+#: services/webservice/pages/actions.py:2792
+#: services/webservice/pages/actions.py:2905
+#: services/webservice/pages/actions.py:3084
+#: services/webservice/pages/actions.py:4505
 msgid "confirm"
 msgstr "подтвердить"
 
-#: services/webservice/pages/actions.py:2447
-#: services/webservice/pages/actions.py:2699
-#: services/webservice/pages/actions.py:4094
+#: services/webservice/pages/actions.py:2792
+#: services/webservice/pages/actions.py:3084
+#: services/webservice/pages/actions.py:4505
+#: services/webservice/pages/actions.py:5002
 msgid "options"
 msgstr "параметры"
 
-#: services/webservice/pages/actions.py:2526
+#: services/webservice/pages/actions.py:2887
 msgid "Days (optional)"
 msgstr "Дней (необязательно)"
 
-#: services/webservice/pages/actions.py:2527
+#: services/webservice/pages/actions.py:2888
 msgid ""
 "Empty = permanent — the ban does not expire on its own. 7 means seven "
 "days from now."
@@ -1392,68 +1636,171 @@ msgstr ""
 "Пусто = бессрочно — бан не истекает сам. 7 означает семь дней с этого "
 "момента."
 
-#: services/webservice/pages/actions.py:2675
+#: services/webservice/pages/actions.py:3060
 #, python-brace-format
 msgid "Last update check: {when}."
 msgstr "Последняя проверка обновлений: {when}."
 
-#: services/webservice/pages/actions.py:2688
+#: services/webservice/pages/actions.py:3073
 #, python-brace-format
 msgid "{label} (node)"
 msgstr "{label} (узел)"
 
-#: services/webservice/pages/actions.py:2782
+#: services/webservice/pages/actions.py:3167
 msgid "Not authorized (this target is outside your scope)."
 msgstr "Не авторизовано (эта цель вне твоей области)."
 
-#: services/webservice/pages/actions.py:2789
+#: services/webservice/pages/actions.py:3174
 msgid "Not authorized (no signed-in identity)."
 msgstr "Не авторизовано (нет вошедшей учётной записи)."
 
-#: services/webservice/pages/actions.py:2790
+#: services/webservice/pages/actions.py:3175
 msgid "Not authorized (this action must be confirmed through its dialog)."
 msgstr "Не авторизовано (это действие нужно подтвердить через его диалог)."
 
-#: services/webservice/pages/actions.py:4015
+#: services/webservice/pages/actions.py:3179
+msgid "Not done (the typed name does not match the target)."
+msgstr "Не выполнено (введённое имя не совпадает с целью)."
+
+#: services/webservice/pages/actions.py:4426
 msgid "Mission file already on this server"
 msgstr "Файл миссии, уже имеющийся на этом сервере"
 
-#: services/webservice/pages/actions.py:4017
+#: services/webservice/pages/actions.py:4428
 msgid "Only files NOT already in the rotation are offered."
 msgstr "Предлагаются только файлы, которых ЕЩЁ НЕТ в ротации."
 
-#: services/webservice/pages/actions.py:4022
+#: services/webservice/pages/actions.py:4433
 #, python-brace-format
 msgid "Add a mission to {server}?"
 msgstr "Добавить миссию на {server}?"
 
-#: services/webservice/pages/actions.py:4049
-#: services/webservice/pages/actions.py:4074
+#: services/webservice/pages/actions.py:4460
+#: services/webservice/pages/actions.py:4485
 #, python-brace-format
 msgid "Remove {mission} from the rotation?"
 msgstr "Удалить {mission} из ротации?"
 
-#: services/webservice/pages/actions.py:4053
+#: services/webservice/pages/actions.py:4464
 #, python-brace-format
 msgid "Remove {count} missions from {server}?"
 msgstr "Удалить {count} миссий с {server}?"
 
-#: services/webservice/pages/actions.py:4055
+#: services/webservice/pages/actions.py:4466
 #, python-brace-format
 msgid "Remove {count} missions"
 msgstr "Удалить {count} миссий"
 
-#: services/webservice/pages/actions.py:4058
+#: services/webservice/pages/actions.py:4469
 #, python-brace-format
 msgid "<b>The running mission ({mission}) cannot be removed.</b>"
 msgstr "<b>Запущенную миссию ({mission}) нельзя удалить.</b>"
 
-#: services/webservice/pages/dashboard.py:79
-#: services/webservice/pages/dashboard.py:82
+#: services/webservice/pages/actions.py:4830
+msgid "Type the name to confirm"
+msgstr "Введи имя для подтверждения"
+
+#: services/webservice/pages/actions.py:4831
+msgid "The action is refused unless this matches the target's name exactly."
+msgstr "Действие будет отклонено, если это не совпадает с именем цели точно."
+
+#: services/webservice/pages/actions.py:4900
+#, python-format
+msgid "DCS port %(port)s"
+msgstr "Порт DCS %(port)s"
+
+#: services/webservice/pages/actions.py:4960
+msgid "Create a new instance"
+msgstr "Создать новый экземпляр"
+
+#: services/webservice/pages/actions.py:4963
+#: services/webservice/pages/settings.py:289
+#: services/webservice/readmodels/views.py:111
+#: services/webservice/readmodels/views.py:114
+#: services/webservice/readmodels/views.py:117
+#: services/webservice/templates/node_log.html:23
+#: services/webservice/templates/node_log.html:41
+#: services/webservice/templates/node_page.html:35
+#: services/webservice/templates/server_detail.html:68
+#: services/webservice/templates/settings_scope.html:51
+msgid "Node"
+msgstr "Узел"
+
+#: services/webservice/pages/actions.py:4965
+msgid ""
+"Where a NEW instance is created. An instance picked below is attached on "
+"its own node."
+msgstr ""
+"Где создаётся НОВЫЙ экземпляр. Выбранный ниже экземпляр используется на "
+"своём узле."
+
+#: services/webservice/pages/actions.py:4967
+msgid "Attach to an existing instance"
+msgstr "Привязать к существующему экземпляру"
+
+#: services/webservice/pages/actions.py:4969
+msgid ""
+"Every instance that carries no server yet is offered, with the node it is"
+" on — a server is bound on that node. \"Create a new instance\" uses the "
+"node above."
+msgstr ""
+"Показываются все экземпляры без сервера вместе с узлом, на котором они "
+"находятся — сервер привязывается на этом узле. «Создать новый экземпляр» "
+"использует узел выше."
+
+#: services/webservice/pages/actions.py:4972
+#: services/webservice/readmodels/serverconfig.py:220
+msgid "Server name"
+msgstr "Имя сервера"
+
+#: services/webservice/pages/actions.py:4973
+msgid ""
+"The name of the new server (its key in servers.yaml) — and the Saved "
+"Games folder name of a NEW instance. A name another server already uses "
+"is refused."
+msgstr ""
+"Имя нового сервера (его ключ в servers.yaml) — и имя папки Saved Games "
+"НОВОГО экземпляра. Имя, которое уже использует другой сервер, будет "
+"отклонено."
+
+#: services/webservice/pages/actions.py:4977
+msgid "Configure a server for the instance"
+msgstr "Настроить сервер для экземпляра"
+
+#: services/webservice/pages/actions.py:4979
+msgid ""
+"On by default, exactly like Discord's own view. Off: a NEW instance is "
+"created blank, with no server bound to it."
+msgstr ""
+"Включено по умолчанию, как и в самом Discord. Выключено: НОВЫЙ экземпляр "
+"создаётся пустым, без сервера."
+
+#: services/webservice/pages/actions.py:4987
+msgid ""
+"The instance carries the ports; a new one gets the next free ports on its"
+" node, and its Saved Games directory is created there. Nothing is "
+"started: the server is created and comes up when somebody starts it or "
+"the scheduler does."
+msgstr ""
+"Порты принадлежат экземпляру; новый получает следующие свободные порты на"
+" своём узле, и там создаётся его каталог Saved Games. Ничего не "
+"запускается: сервер создаётся и запускается, когда его запустит кто-то "
+"или планировщик."
+
+#: services/webservice/pages/actions.py:4993
+msgid "Add the server — it is created, not started"
+msgstr "Добавить сервер — он создаётся, но не запускается"
+
+#: services/webservice/pages/actions.py:4998
+msgid "a new server"
+msgstr "новый сервер"
+
+#: services/webservice/pages/dashboard.py:80
+#: services/webservice/pages/dashboard.py:83
 msgid "Dashboard"
 msgstr "Обзор"
 
-#: services/webservice/pages/dashboard.py:80
+#: services/webservice/pages/dashboard.py:81
 msgid ""
 "Live state of every node, instance and server in the cluster. A server "
 "row you may operate carries its own controls."
@@ -1462,100 +1809,100 @@ msgstr ""
 "сервера, которым ты можешь управлять, несёт собственные элементы "
 "управления."
 
-#: services/webservice/pages/dashboard.py:83
+#: services/webservice/pages/dashboard.py:84
 msgid "Operations"
 msgstr "Операции"
 
-#: services/webservice/pages/dashboard.py:86
+#: services/webservice/pages/dashboard.py:87
 #: services/webservice/templates/_state.html:23
 #: services/webservice/templates/overview.html:34
 msgid "Cluster"
 msgstr "Кластер"
 
-#: services/webservice/pages/dashboard.py:169
+#: services/webservice/pages/dashboard.py:170
 msgid "Nothing needs you — every node is heartbeating and no server is down."
 msgstr ""
 "Ты не нужен — все узлы подают признаки жизни, и ни один сервер не "
 "выключен."
 
-#: services/webservice/pages/dashboard.py:176
+#: services/webservice/pages/dashboard.py:177
 #: services/webservice/pages/server_detail.py:1464
 msgid "No players match this search."
 msgstr "Ни один игрок не подходит под этот поиск."
 
-#: services/webservice/pages/dashboard.py:333
+#: services/webservice/pages/dashboard.py:334
 #, python-format
 msgid "%(count)d node(s) not heartbeating: %(names)s"
 msgstr "Узлов без heartbeat: %(count)d: %(names)s"
 
-#: services/webservice/pages/dashboard.py:338
+#: services/webservice/pages/dashboard.py:339
 #, python-format
 msgid "%(count)d server(s) down: %(names)s"
 msgstr "Серверов выключено: %(count)d: %(names)s"
 
-#: services/webservice/pages/dashboard.py:343
+#: services/webservice/pages/dashboard.py:344
 #, python-format
 msgid "%(count)d server(s) paused: %(names)s"
 msgstr "Серверов на паузе: %(count)d: %(names)s"
 
-#: services/webservice/pages/dashboard.py:348
+#: services/webservice/pages/dashboard.py:349
 #, python-format
 msgid "%(count)d ERROR line(s) in the visible log"
 msgstr "Строк с ERROR в видимом журнале: %(count)d"
 
-#: services/webservice/pages/dashboard.py:375
+#: services/webservice/pages/dashboard.py:376
 #, python-brace-format
 msgid "{count} node(s) offline"
 msgstr "{count} узлов офлайн"
 
-#: services/webservice/pages/dashboard.py:379
+#: services/webservice/pages/dashboard.py:380
 #, python-brace-format
 msgid "{count} server(s) not running"
 msgstr "{count} серверов не запущено"
 
-#: services/webservice/pages/dashboard.py:491
+#: services/webservice/pages/dashboard.py:492
 #, python-brace-format
 msgid "bottom when ≤ {rows} rows, right when more"
 msgstr "снизу при ≤ {rows} строках, справа при большем"
 
-#: services/webservice/pages/dashboard.py:761
+#: services/webservice/pages/dashboard.py:774
 msgid "Not authorized (this server is outside your scope)."
 msgstr "Не авторизовано (этот сервер вне твоей области)."
 
-#: services/webservice/pages/dashboard.py:973
+#: services/webservice/pages/dashboard.py:986
 msgid "no node"
 msgstr "нет узла"
 
-#: services/webservice/pages/dashboard.py:974
+#: services/webservice/pages/dashboard.py:987
 #: services/webservice/templates/_table.html:77
 msgid "master"
 msgstr "мастер"
 
 # ---------------------------------------------------------- card I8: the last
 # four literals
-#: services/webservice/pages/dashboard.py:974
+#: services/webservice/pages/dashboard.py:987
 msgid "agent"
 msgstr "агент"
 
-#: services/webservice/pages/dashboard.py:975
+#: services/webservice/pages/dashboard.py:988
 msgid "live state"
 msgstr "живое состояние"
 
-#: services/webservice/pages/dashboard.py:975
+#: services/webservice/pages/dashboard.py:988
 msgid "no live state"
 msgstr "нет живого состояния"
 
-#: services/webservice/pages/dashboard.py:987
+#: services/webservice/pages/dashboard.py:1000
 #, python-format
 msgid "%(online)d/%(total)d nodes online"
 msgstr "%(online)d/%(total)d узлов онлайн"
 
-#: services/webservice/pages/dashboard.py:989
+#: services/webservice/pages/dashboard.py:1002
 #, python-format
 msgid "%(running)d/%(total)d servers up"
 msgstr "%(running)d/%(total)d серверов работают"
 
-#: services/webservice/pages/dashboard.py:991
+#: services/webservice/pages/dashboard.py:1004
 #, python-format
 msgid "%(count)d players online"
 msgstr "%(count)d игроков онлайн"
@@ -1816,8 +2163,8 @@ msgstr "У этого узла ещё нет блока в nodes.yaml."
 #: services/webservice/pages/node_settings.py:1409
 #: services/webservice/pages/node_settings.py:1557
 #: services/webservice/pages/node_settings.py:1800
-#: services/webservice/pages/settings.py:2019
-#: services/webservice/pages/settings.py:2149
+#: services/webservice/pages/settings.py:2017
+#: services/webservice/pages/settings.py:2147
 msgid ""
 "This page is stale — the file changed on disk since it was rendered. "
 "Reload and try again."
@@ -2228,18 +2575,6 @@ msgstr ""
 msgid "instance name"
 msgstr "имя инстанса"
 
-#: services/webservice/pages/settings.py:289
-#: services/webservice/readmodels/views.py:111
-#: services/webservice/readmodels/views.py:114
-#: services/webservice/readmodels/views.py:117
-#: services/webservice/templates/node_log.html:23
-#: services/webservice/templates/node_log.html:41
-#: services/webservice/templates/node_page.html:35
-#: services/webservice/templates/server_detail.html:68
-#: services/webservice/templates/settings_scope.html:51
-msgid "Node"
-msgstr "Узел"
-
 #: services/webservice/pages/settings.py:291
 msgid ""
 "Pick a node to configure. The tabs then show only its own block and its "
@@ -2423,7 +2758,7 @@ msgstr "значения по умолчанию"
 msgid "override"
 msgstr "переопределение"
 
-#: services/webservice/pages/settings.py:1651
+#: services/webservice/pages/settings.py:1649
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
 "page produces, so the setting was left exactly as it was. Reload the page"
@@ -2580,10 +2915,6 @@ msgid ""
 msgstr ""
 "Изменение канала применяется сразу: бот перезаписывает servers.yaml и "
 "немедленно начинает использовать новый канал, без перезапуска."
-
-#: services/webservice/readmodels/serverconfig.py:220
-msgid "Server name"
-msgstr "Имя сервера"
 
 #: services/webservice/readmodels/serverconfig.py:221
 msgid ""
@@ -2978,80 +3309,84 @@ msgstr "UCID"
 msgid "Slot"
 msgstr "Слот"
 
-#: services/webservice/setup/tour.py:104 services/webservice/setup/tour.py:491
+#: services/webservice/readmodels/views.py:120
+msgid "Coalition"
+msgstr "Коалиция"
+
+#: services/webservice/setup/tour.py:107 services/webservice/setup/tour.py:544
 #: services/webservice/templates/_language.html:24
 msgid "Language"
 msgstr "Язык"
 
-#: services/webservice/setup/tour.py:105
+#: services/webservice/setup/tour.py:108
 msgid "General"
 msgstr "Общее"
 
-#: services/webservice/setup/tour.py:106
+#: services/webservice/setup/tour.py:109
 msgid "Database"
 msgstr "База данных"
 
-#: services/webservice/setup/tour.py:107
+#: services/webservice/setup/tour.py:110
 msgid "This node"
 msgstr "Этот узел"
 
-#: services/webservice/setup/tour.py:108
+#: services/webservice/setup/tour.py:111
 msgid "Discord — the bot"
 msgstr "Discord — бот"
 
-#: services/webservice/setup/tour.py:109
+#: services/webservice/setup/tour.py:112
 msgid "Discord — roles and channels"
 msgstr "Discord — роли и каналы"
 
-#: services/webservice/setup/tour.py:110
+#: services/webservice/setup/tour.py:113
 msgid "Web console"
 msgstr "Веб-консоль"
 
-#: services/webservice/setup/tour.py:111
+#: services/webservice/setup/tour.py:114
 msgid "DCS servers"
 msgstr "Серверы DCS"
 
-#: services/webservice/setup/tour.py:112
+#: services/webservice/setup/tour.py:115
 msgid "Review and write"
 msgstr "Проверить и записать"
 
-#: services/webservice/setup/tour.py:116
+#: services/webservice/setup/tour.py:119
 msgid "Your community"
 msgstr "Твоё сообщество"
 
-#: services/webservice/setup/tour.py:129
+#: services/webservice/setup/tour.py:132
 msgid "Which language do you speak?"
 msgstr "На каком языке ты говоришь?"
 
-#: services/webservice/setup/tour.py:130
+#: services/webservice/setup/tour.py:133
 msgid "Do you want the web admin console?"
 msgstr "Хочешь веб-админ-консоль?"
 
-#: services/webservice/setup/tour.py:486
+#: services/webservice/setup/tour.py:539
 msgid "Nothing is written yet — the last screen writes your configuration."
 msgstr "Пока ничего не записано — конфигурацию записывает последний экран."
 
-#: services/webservice/setup/tour.py:490
+#: services/webservice/setup/tour.py:543
 msgid "Setup"
 msgstr "Настройка"
 
-#: services/webservice/setup/tour.py:492
+#: services/webservice/setup/tour.py:545
 msgid "tap to see the steps"
 msgstr "нажми, чтобы увидеть шаги"
 
-#: services/webservice/setup/tour.py:493
+#: services/webservice/setup/tour.py:546
 msgid "Setup steps"
 msgstr "Шаги настройки"
 
-#: services/webservice/setup/tour.py:494
+#: services/webservice/setup/tour.py:547
 msgid "Continue"
 msgstr "Продолжить"
 
-#: services/webservice/setup/tour.py:495
+#: services/webservice/setup/tour.py:548
 msgid "Back"
 msgstr "Назад"
 
-#: services/webservice/setup/tour.py:497
+#: services/webservice/setup/tour.py:550
 msgid ""
 "The bot can be set to the same language, which means, that all Discord "
 "and in-game messages will be in your language as well. Would you like me "
@@ -3060,7 +3395,7 @@ msgstr ""
 "Бота можно настроить на тот же язык — тогда все сообщения в Discord и в "
 "игре тоже будут на твоём языке. Настроить бота так?"
 
-#: services/webservice/setup/tour.py:500
+#: services/webservice/setup/tour.py:553
 msgid ""
 "Unticked, the bot keeps its own default language (English) — the console "
 "still speaks the language of your browser."
@@ -3068,12 +3403,12 @@ msgstr ""
 "Без галочки бот сохраняет свой язык по умолчанию (английский) — консоль "
 "по-прежнему говорит на языке твоего браузера."
 
-#: services/webservice/setup/tour.py:507
+#: services/webservice/setup/tour.py:560
 #, python-brace-format
 msgid "Preselected from your browser — it sent \"{header}\"."
 msgstr "Предварительно выбрано из твоего браузера — он отправил \"{header}\"."
 
-#: services/webservice/setup/tour.py:509
+#: services/webservice/setup/tour.py:562
 #, python-brace-format
 msgid ""
 "Preselected from the language in the link you followed — the \"{param}\" "
@@ -3082,7 +3417,7 @@ msgstr ""
 "Предварительно выбрано из языка ссылки, по которой ты перешёл — параметр "
 "\"{param}\"."
 
-#: services/webservice/setup/tour.py:511
+#: services/webservice/setup/tour.py:564
 #, python-brace-format
 msgid ""
 "Preselected from the language this console stored for you — the "
@@ -3091,17 +3426,17 @@ msgstr ""
 "Предварительно выбрано из языка, который эта консоль сохранила для тебя —"
 " cookie \"{cookie}\"."
 
-#: services/webservice/setup/tour.py:513
+#: services/webservice/setup/tour.py:566
 msgid "Preselected from the answer you saved to this step on an earlier run."
 msgstr "Предварительно выбрано из твоего ответа на этот шаг в прошлом запуске."
 
-#: services/webservice/setup/tour.py:515
+#: services/webservice/setup/tour.py:568
 msgid "Preselected from this install's default language — nothing else named one."
 msgstr ""
 "Предварительно выбрано из языка по умолчанию этой установки — больше "
 "ничего его не назвало."
 
-#: services/webservice/setup/tour.py:518
+#: services/webservice/setup/tour.py:571
 msgid ""
 "Before you start you need PostgreSQL 14 or higher, and a Discord bot "
 "token. On a no-Discord install the token is not needed."
@@ -3109,15 +3444,15 @@ msgstr ""
 "Перед началом тебе понадобится PostgreSQL 14 или новее и токен бота "
 "Discord. При установке без Discord токен не нужен."
 
-#: services/webservice/setup/tour.py:520
+#: services/webservice/setup/tour.py:573
 msgid "Do you want your DCSServerBot being auto-updated?"
 msgstr "Хочешь, чтобы твой DCSServerBot обновлялся автоматически?"
 
-#: services/webservice/setup/tour.py:521
+#: services/webservice/setup/tour.py:574
 msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
 msgstr "Хочешь запустить DCSServerBot с поддержкой Discord (рекомендуется)?"
 
-#: services/webservice/setup/tour.py:523
+#: services/webservice/setup/tour.py:576
 msgid ""
 "Discord is how the bot talks to your admins and players. Without it you "
 "manage everything from this console."
@@ -3125,11 +3460,11 @@ msgstr ""
 "Через Discord бот общается с твоими админами и игроками. Без него ты "
 "управляешь всем из этой консоли."
 
-#: services/webservice/setup/tour.py:525
+#: services/webservice/setup/tour.py:578
 msgid "This step is not built yet."
 msgstr "Этот шаг ещё не реализован."
 
-#: services/webservice/setup/tour.py:530
+#: services/webservice/setup/tour.py:583
 msgid ""
 "Your answers could not be saved — the setup draft was not written, so "
 "this step is not recorded. Try again."
@@ -3137,11 +3472,11 @@ msgstr ""
 "Твои ответы не удалось сохранить — черновик настройки не был записан, "
 "поэтому этот шаг не сохранён. Попробуй ещё раз."
 
-#: services/webservice/setup/tour.py:534
+#: services/webservice/setup/tour.py:593
 msgid "Create a new database"
 msgstr "Создать новую базу данных"
 
-#: services/webservice/setup/tour.py:536
+#: services/webservice/setup/tour.py:595
 msgid ""
 "The bot creates its own database and its own user. You enter the "
 "PostgreSQL superuser credentials below."
@@ -3149,11 +3484,11 @@ msgstr ""
 "Бот создаёт собственную базу данных и собственного пользователя. Ниже "
 "введите учётные данные суперпользователя PostgreSQL."
 
-#: services/webservice/setup/tour.py:538
+#: services/webservice/setup/tour.py:597
 msgid "Use an existing database"
 msgstr "Использовать существующую базу данных"
 
-#: services/webservice/setup/tour.py:540
+#: services/webservice/setup/tour.py:599
 msgid ""
 "Point the bot at a database that already exists. You enter the "
 "credentials the bot should use, not a superuser's."
@@ -3161,37 +3496,37 @@ msgstr ""
 "Направьте бота на уже существующую базу данных. Введите учётные данные, "
 "которые должен использовать бот, а не суперпользователя."
 
-#: services/webservice/setup/tour.py:542
+#: services/webservice/setup/tour.py:601
 msgid "How should the bot get its database?"
 msgstr "Как бот должен получить базу данных?"
 
-#: services/webservice/setup/tour.py:543
+#: services/webservice/setup/tour.py:602
 msgid "host"
 msgstr "хост"
 
-#: services/webservice/setup/tour.py:544
+#: services/webservice/setup/tour.py:603
 msgid "Where PostgreSQL runs. The bot usually runs on the same machine."
 msgstr "Где работает PostgreSQL. Обычно бот работает на той же машине."
 
-#: services/webservice/setup/tour.py:545
+#: services/webservice/setup/tour.py:604
 #: services/webservice/templates/server_detail.html:110
 #: services/webservice/templates/server_detail.html:706
 msgid "port"
 msgstr "порт"
 
-#: services/webservice/setup/tour.py:546
+#: services/webservice/setup/tour.py:605
 msgid "master database"
 msgstr "главная база данных"
 
-#: services/webservice/setup/tour.py:547
+#: services/webservice/setup/tour.py:606
 msgid "The maintenance database of your PostgreSQL server."
 msgstr "Служебная база данных вашего сервера PostgreSQL."
 
-#: services/webservice/setup/tour.py:548
+#: services/webservice/setup/tour.py:607
 msgid "master user"
 msgstr "главный пользователь"
 
-#: services/webservice/setup/tour.py:550
+#: services/webservice/setup/tour.py:609
 msgid ""
 "The PostgreSQL superuser the bot uses once, to create its own database "
 "and user."
@@ -3199,89 +3534,102 @@ msgstr ""
 "Суперпользователь PostgreSQL, которого бот использует один раз, чтобы "
 "создать собственную базу данных и пользователя."
 
-#: services/webservice/setup/tour.py:551
+#: services/webservice/setup/tour.py:610
 msgid "master password"
 msgstr "главный пароль"
 
-#: services/webservice/setup/tour.py:552
+#: services/webservice/setup/tour.py:611
 msgid "database"
 msgstr "база данных"
 
-#: services/webservice/setup/tour.py:553
+#: services/webservice/setup/tour.py:612
 msgid "The database the bot should use."
 msgstr "База данных, которую должен использовать бот."
 
-#: services/webservice/setup/tour.py:554
+#: services/webservice/setup/tour.py:613
 msgid "user"
 msgstr "пользователь"
 
-#: services/webservice/setup/tour.py:555
+#: services/webservice/setup/tour.py:614
 msgid "The user the bot connects with."
 msgstr "Пользователь, с которым подключается бот."
 
-#: services/webservice/setup/tour.py:556 services/webservice/setup/tour.py:896
+#: services/webservice/setup/tour.py:615 services/webservice/setup/tour.py:984
 msgid "password"
 msgstr "пароль"
 
-#: services/webservice/setup/tour.py:557
+#: services/webservice/setup/tour.py:616
 msgid "Stored in config/.secret/, never on this page again."
 msgstr ""
 "Сохраняется в config/.secret/ и больше никогда не отображается на этой "
 "странице."
 
-#: services/webservice/setup/tour.py:558
+#: services/webservice/setup/tour.py:617
 #, python-brace-format
 msgid "The bot will create the database {database} and the user {user}."
 msgstr "Бот создаст базу данных {database} и пользователя {user}."
 
-#: services/webservice/setup/tour.py:559
+#: services/webservice/setup/tour.py:618
 msgid "A password is kept for this test — leave the field empty to reuse it."
 msgstr ""
 "Для этой проверки сохранён пароль — оставьте поле пустым, чтобы "
 "использовать его."
 
-#: services/webservice/setup/tour.py:560
+#: services/webservice/setup/tour.py:619
 msgid "Test connection and create"
 msgstr "Проверить соединение и создать"
 
-#: services/webservice/setup/tour.py:562
+#: services/webservice/setup/tour.py:621
 msgid "Test connection"
 msgstr "Проверить соединение"
 
-#: services/webservice/setup/tour.py:565
+#: services/webservice/setup/tour.py:624
 msgid "Test the connection before you continue."
 msgstr "Проверьте соединение, прежде чем продолжить."
 
-#: services/webservice/setup/tour.py:566 services/webservice/setup/tour.py:628
+#: services/webservice/setup/tour.py:625 services/webservice/setup/tour.py:694
 #, python-brace-format
 msgid "The user {user} already exists."
 msgstr "Пользователь {user} уже существует."
 
-#: services/webservice/setup/tour.py:568
+#: services/webservice/setup/tour.py:627
 msgid "Reset its password (a new one is generated and stored in config/.secret/)."
 msgstr "Сбросить его пароль (будет создан новый и сохранён в config/.secret/)."
 
-#: services/webservice/setup/tour.py:569
+#: services/webservice/setup/tour.py:628
 msgid "its password"
 msgstr "его пароль"
 
-#: services/webservice/setup/tour.py:573
+#: services/webservice/setup/tour.py:633
+#, python-brace-format
+msgid ""
+"To use DCSServerBot, you need to install PostgreSQL. You can download it "
+"{link}."
+msgstr ""
+"Чтобы использовать DCSServerBot, тебе нужно установить PostgreSQL. Ты "
+"можешь скачать его {link}."
+
+#: services/webservice/setup/tour.py:635
+msgid "here"
+msgstr "здесь"
+
+#: services/webservice/setup/tour.py:639
 msgid "Creating the database…"
 msgstr "Создание базы данных…"
 
-#: services/webservice/setup/tour.py:574
+#: services/webservice/setup/tour.py:640
 msgid "Testing the connection…"
 msgstr "Проверка соединения…"
 
-#: services/webservice/setup/tour.py:575
+#: services/webservice/setup/tour.py:641
 msgid "Continuing…"
 msgstr "Продолжение…"
 
-#: services/webservice/setup/tour.py:580
+#: services/webservice/setup/tour.py:646
 msgid "Federation support"
 msgstr "Поддержка федерации"
 
-#: services/webservice/setup/tour.py:582
+#: services/webservice/setup/tour.py:648
 msgid ""
 "Share resources with another DCSServerBot installation. This adds a "
 "second, cluster-wide database to config/main.yaml — only needed when this"
@@ -3291,11 +3639,11 @@ msgstr ""
 "кластерную базу данных в config/main.yaml — она нужна, только если эта "
 "установка входит в существующую федерацию."
 
-#: services/webservice/setup/tour.py:584
+#: services/webservice/setup/tour.py:650
 msgid "How should the bot get the cluster database?"
 msgstr "Как бот должен получить кластерную базу данных?"
 
-#: services/webservice/setup/tour.py:590
+#: services/webservice/setup/tour.py:656
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. Created database {database} and user "
@@ -3304,7 +3652,7 @@ msgstr ""
 "Соединение с PostgreSQL {version} установлено. База данных {database} и "
 "пользователь {user} созданы."
 
-#: services/webservice/setup/tour.py:592
+#: services/webservice/setup/tour.py:658
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. The database {database} was created; "
@@ -3313,7 +3661,7 @@ msgstr ""
 "Соединение с PostgreSQL {version} установлено. База данных {database} "
 "создана; пользователь {user} уже существовал."
 
-#: services/webservice/setup/tour.py:595
+#: services/webservice/setup/tour.py:661
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. The database {database} already "
@@ -3322,7 +3670,7 @@ msgstr ""
 "Соединение с PostgreSQL {version} установлено. База данных {database} уже"
 " существовала; бот перенесёт её при первом запуске."
 
-#: services/webservice/setup/tour.py:598
+#: services/webservice/setup/tour.py:664
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. The user {user}'s password was reset "
@@ -3331,7 +3679,7 @@ msgstr ""
 "Соединение с PostgreSQL {version} установлено. Пароль пользователя {user}"
 " сброшен и сохранён в config/.secret/."
 
-#: services/webservice/setup/tour.py:601
+#: services/webservice/setup/tour.py:667
 #, python-brace-format
 msgid ""
 "Connected to {database} (PostgreSQL {version}). The database is empty — "
@@ -3340,7 +3688,7 @@ msgstr ""
 "Соединение с {database} (PostgreSQL {version}) установлено. База данных "
 "пуста — бот создаст свои таблицы при первом запуске."
 
-#: services/webservice/setup/tour.py:604
+#: services/webservice/setup/tour.py:670
 #, python-brace-format
 msgid ""
 "Connected. This database already holds DCSServerBot data ({count} "
@@ -3349,7 +3697,7 @@ msgstr ""
 "Соединение установлено. Эта база данных уже содержит данные DCSServerBot "
 "({count} таблиц). Бот продолжит работу с ней."
 
-#: services/webservice/setup/tour.py:607
+#: services/webservice/setup/tour.py:673
 #, python-brace-format
 msgid ""
 "Connected. This database holds data from an older DCSServerBot ({count} "
@@ -3358,15 +3706,15 @@ msgstr ""
 "Соединение установлено. Эта база данных содержит данные более старого "
 "DCSServerBot ({count} таблиц). Бот перенесёт её при первом запуске."
 
-#: services/webservice/setup/tour.py:609
+#: services/webservice/setup/tour.py:675
 msgid "Could not connect: the master password was refused."
 msgstr "Не удалось подключиться: главный пароль отклонён."
 
-#: services/webservice/setup/tour.py:610
+#: services/webservice/setup/tour.py:676
 msgid "The master user may only use letters, digits, '_' and '-'."
 msgstr "Имя главного пользователя может содержать только буквы, цифры, '_' и '-'."
 
-#: services/webservice/setup/tour.py:612
+#: services/webservice/setup/tour.py:678
 msgid ""
 "The master user may not be named after one of the bot's own secret files."
 " Choose another name."
@@ -3374,7 +3722,7 @@ msgstr ""
 "Имя главного пользователя не может совпадать с именем одного из секретных"
 " файлов бота. Выбери другое имя."
 
-#: services/webservice/setup/tour.py:615
+#: services/webservice/setup/tour.py:681
 #, python-brace-format
 msgid ""
 "Could not connect: nothing is answering on {host}:{port}. Is the "
@@ -3383,12 +3731,12 @@ msgstr ""
 "Не удалось подключиться: на {host}:{port} никто не отвечает. Запущена ли "
 "служба PostgreSQL?"
 
-#: services/webservice/setup/tour.py:617
+#: services/webservice/setup/tour.py:683
 #, python-brace-format
 msgid "Could not connect to {host}:{port}."
 msgstr "Не удалось подключиться к {host}:{port}."
 
-#: services/webservice/setup/tour.py:619
+#: services/webservice/setup/tour.py:685
 #, python-brace-format
 msgid ""
 "Could not connect: {user} cannot sign in to this database. Check the "
@@ -3399,12 +3747,12 @@ msgstr ""
 "Проверьте пароль или переключитесь на 'Создать новую базу данных' — "
 "сбросить его могут только учётные данные суперпользователя на этом пути."
 
-#: services/webservice/setup/tour.py:621
+#: services/webservice/setup/tour.py:687
 #, python-brace-format
 msgid "Could not connect: the database {database} does not exist."
 msgstr "Не удалось подключиться: база данных {database} не существует."
 
-#: services/webservice/setup/tour.py:623
+#: services/webservice/setup/tour.py:689
 #, python-brace-format
 msgid ""
 "This database contains tables DCSServerBot did not create ({count} "
@@ -3414,7 +3762,7 @@ msgstr ""
 "таблиц, например {example}). Выберите пустую базу данных или создайте "
 "новую."
 
-#: services/webservice/setup/tour.py:626
+#: services/webservice/setup/tour.py:692
 #, python-brace-format
 msgid ""
 "{database} already exists and holds data. Switch to 'Use an existing "
@@ -3424,14 +3772,14 @@ msgstr ""
 "'Использовать существующую базу данных', чтобы принять её, или введите "
 "другое имя."
 
-#: services/webservice/setup/tour.py:630
+#: services/webservice/setup/tour.py:696
 #, python-brace-format
 msgid ""
 "That password was not accepted ({left} attempts left before the password "
 "is reset)."
 msgstr "Этот пароль не принят (осталось попыток до сброса пароля: {left})."
 
-#: services/webservice/setup/tour.py:632
+#: services/webservice/setup/tour.py:698
 #, python-brace-format
 msgid ""
 "The server refused while the database or user was being created (database"
@@ -3442,13 +3790,13 @@ msgstr ""
 "{database}, пользователь {user}). Проверь лог PostgreSQL и права своего "
 "суперпользователя и попробуй снова."
 
-#: services/webservice/setup/tour.py:636
+#: services/webservice/setup/tour.py:702
 msgid ""
 "The connection was verified for these values — nothing has been written "
 "yet."
 msgstr "Соединение проверено для этих значений — пока ничего не записано."
 
-#: services/webservice/setup/tour.py:638
+#: services/webservice/setup/tour.py:704
 #, python-brace-format
 msgid ""
 "Connected to {database}. This database has the same name as this "
@@ -3459,16 +3807,16 @@ msgstr ""
 "собственная база этой установки — бот определяет федерацию по имени базы "
 "данных, так что это ничего не федерирует."
 
-#: services/webservice/setup/tour.py:655
+#: services/webservice/setup/tour.py:721
 #, python-brace-format
 msgid "PostgreSQL {version} is older than the supported {min}."
 msgstr "PostgreSQL {version} старее поддерживаемой версии {min}."
 
-#: services/webservice/setup/tour.py:659
+#: services/webservice/setup/tour.py:725
 msgid "DCS World installation"
 msgstr "Установка DCS World"
 
-#: services/webservice/setup/tour.py:661
+#: services/webservice/setup/tour.py:727
 msgid ""
 "Where DCS World is installed. The bot writes Scripts/MissionScripting.lua"
 " there."
@@ -3476,36 +3824,36 @@ msgstr ""
 "Где установлен DCS World. Бот записывает туда "
 "Scripts/MissionScripting.lua."
 
-#: services/webservice/setup/tour.py:662
+#: services/webservice/setup/tour.py:728
 msgid "Other — I will enter the path"
 msgstr "Другая — я введу путь"
 
-#: services/webservice/setup/tour.py:663
+#: services/webservice/setup/tour.py:729
 msgid "Continue without a DCS installation"
 msgstr "Продолжить без установки DCS"
 
-#: services/webservice/setup/tour.py:664
+#: services/webservice/setup/tour.py:730
 msgid "path"
 msgstr "путь"
 
-#: services/webservice/setup/tour.py:731
+#: services/webservice/setup/tour.py:732
 msgid "Do you want your DCS installation being auto-updated by the bot?"
 msgstr "Хочешь, чтобы бот автоматически обновлял твою установку DCS?"
 
-#: services/webservice/setup/tour.py:665
+#: services/webservice/setup/tour.py:733
 msgid "listen port"
 msgstr "порт прослушивания"
 
-#: services/webservice/setup/tour.py:666
+#: services/webservice/setup/tour.py:734
 msgid "Other nodes of this installation talk to this one on this port."
 msgstr "Другие узлы этой установки обращаются к этому по этому порту."
 
-#: services/webservice/setup/tour.py:667
+#: services/webservice/setup/tour.py:735
 #, python-brace-format
 msgid "Is {ip} a static IP-address for this node?"
 msgstr "Является ли {ip} статическим IP-адресом для этого узла?"
 
-#: services/webservice/setup/tour.py:669
+#: services/webservice/setup/tour.py:737
 msgid ""
 "DCSServerBot can subscribe to the DGSA banlist managed by a group of DCS "
 "administrators.\n"
@@ -3521,50 +3869,66 @@ msgstr ""
 "Для публичных серверов рекомендуется подписаться на этот список для "
 "оптимальной безопасности."
 
-#: services/webservice/setup/tour.py:672
+#: services/webservice/setup/tour.py:740
 msgid "Do you want to use the global banlist for DCS players?"
 msgstr "Хотите использовать глобальный банлист для игроков DCS?"
 
-#: services/webservice/setup/tour.py:673
+#: services/webservice/setup/tour.py:741
 msgid "Do you want to use the global banlist for Discord users?"
 msgstr "Хотите использовать глобальный банлист для пользователей Discord?"
 
-#: services/webservice/setup/tour.py:678
+#: services/webservice/setup/tour.py:746
 msgid "The listen port must be a whole number between 1 and 65535."
 msgstr "Порт прослушивания должен быть целым числом от 1 до 65535."
 
-#: services/webservice/setup/tour.py:679
+#: services/webservice/setup/tour.py:747
 #, python-brace-format
 msgid "Something is already listening on port {port}."
 msgstr "На порту {port} уже что-то слушает."
 
-#: services/webservice/setup/tour.py:680
+#: services/webservice/setup/tour.py:748
 msgid "Enter the path to your DCS World installation."
 msgstr "Введите путь к вашей установке DCS World."
 
-#: services/webservice/setup/tour.py:681
+#: services/webservice/setup/tour.py:749
 #, python-brace-format
 msgid "That folder does not exist: {path}. Check the path and try again."
 msgstr "Такой папки не существует: {path}. Проверьте путь и попробуйте снова."
 
-#: services/webservice/setup/tour.py:682
+#: services/webservice/setup/tour.py:750
 msgid "Choose a DCS World installation, or the last entry."
 msgstr "Выберите установку DCS World или последний пункт."
 
-#: services/webservice/setup/tour.py:691
+#: services/webservice/setup/tour.py:759
 msgid "Searching for existing DCS server configurations ..."
 msgstr "Поиск существующих конфигураций сервера DCS ..."
 
-#: services/webservice/setup/tour.py:692
+#: services/webservice/setup/tour.py:760
 #, python-brace-format
 msgid "{count} found."
 msgstr "{count} найдено."
 
-#: services/webservice/setup/tour.py:693
-msgid "No configured DCS servers found. Add them later in the admin console."
-msgstr "Настроенные DCS-серверы не найдены. Добавь их позже в админ-консоли."
+#: services/webservice/setup/tour.py:765
+msgid ""
+"No configured DCS servers found. Add one below, or continue and add your "
+"servers later in the admin console."
+msgstr ""
+"Настроенные DCS-серверы не найдены. Добавь один ниже или продолжи и "
+"добавь свои серверы позже в админ-консоли."
 
-#: services/webservice/setup/tour.py:699
+#: services/webservice/setup/tour.py:771
+msgid "instance — the Saved Games folder name"
+msgstr "инстанс — имя папки Saved Games"
+
+#: services/webservice/setup/tour.py:773
+msgid ""
+"The name of this instance's folder under Saved Games, for example "
+"DCS.openbeta. DCSServerBot starts DCS from there."
+msgstr ""
+"Имя папки этого инстанса в Saved Games, например DCS.openbeta. Оттуда "
+"DCSServerBot запускает DCS."
+
+#: services/webservice/setup/tour.py:780
 msgid ""
 "Pick each server's Status, Chat and Admin channels below from your "
 "Discord server — create any you are missing there first. The channels are"
@@ -3574,15 +3938,15 @@ msgstr ""
 "Discord-сервера — сначала создай там недостающие. Каналы используются "
 "так:"
 
-#: services/webservice/setup/tour.py:701
+#: services/webservice/setup/tour.py:782
 msgid "Status Channel — readable by everyone, writable only by the bot."
 msgstr "Канал Status — читают все, пишет только бот."
 
-#: services/webservice/setup/tour.py:702
+#: services/webservice/setup/tour.py:783
 msgid "Chat Channel — readable and writable by everyone."
 msgstr "Канал Chat — читают и пишут все."
 
-#: services/webservice/setup/tour.py:704
+#: services/webservice/setup/tour.py:785
 msgid ""
 "Admin channel, central or per server — readable and writable only by "
 "Admin and DCS Admin users."
@@ -3590,43 +3954,43 @@ msgstr ""
 "Канал Admin, общий или для каждого сервера — читают и пишут только "
 "пользователи Admin и DCS Admin."
 
-#: services/webservice/setup/tour.py:708
+#: services/webservice/setup/tour.py:789
 msgid "DCSServerBot needs these permissions on the channels:"
 msgstr "DCSServerBot нужны на каналах такие права:"
 
-#: services/webservice/setup/tour.py:710
+#: services/webservice/setup/tour.py:791
 msgid "View Channel"
 msgstr "Просмотр каналов"
 
-#: services/webservice/setup/tour.py:711
+#: services/webservice/setup/tour.py:792
 msgid "Send Messages"
 msgstr "Отправка сообщений"
 
-#: services/webservice/setup/tour.py:712
+#: services/webservice/setup/tour.py:793
 msgid "Read Messages"
 msgstr "Чтение сообщений"
 
-#: services/webservice/setup/tour.py:713
+#: services/webservice/setup/tour.py:794
 msgid "Read Message History"
 msgstr "Чтение истории сообщений"
 
-#: services/webservice/setup/tour.py:714
+#: services/webservice/setup/tour.py:795
 msgid "Add Reactions"
 msgstr "Добавление реакций"
 
-#: services/webservice/setup/tour.py:715
+#: services/webservice/setup/tour.py:796
 msgid "Attach Files"
 msgstr "Прикрепление файлов"
 
-#: services/webservice/setup/tour.py:716
+#: services/webservice/setup/tour.py:797
 msgid "Embed Links"
 msgstr "Вставка ссылок"
 
-#: services/webservice/setup/tour.py:717
+#: services/webservice/setup/tour.py:798
 msgid "Manage Messages"
 msgstr "Управление сообщениями"
 
-#: services/webservice/setup/tour.py:722
+#: services/webservice/setup/tour.py:803
 msgid ""
 "The bot is an administrator on your server, so it already holds every "
 "permission it needs — nothing to set by hand."
@@ -3634,11 +3998,11 @@ msgstr ""
 "Бот — администратор на твоём сервере, поэтому у него уже есть все нужные "
 "права — вручную ничего настраивать не нужно."
 
-#: services/webservice/setup/tour.py:724
+#: services/webservice/setup/tour.py:805
 msgid "Manage this server through DCSServerBot"
 msgstr "Управлять этим сервером через DCSServerBot"
 
-#: services/webservice/setup/tour.py:726
+#: services/webservice/setup/tour.py:807
 msgid ""
 "This server is not managed — channels and settings are set on the "
 "console's server page after setup."
@@ -3646,7 +4010,7 @@ msgstr ""
 "Этот сервер не управляется — каналы и настройки задаются на странице "
 "сервера в консоли после установки."
 
-#: services/webservice/setup/tour.py:728
+#: services/webservice/setup/tour.py:809
 #: services/webservice/templates/_table.html:68
 #: services/webservice/templates/overview.html:55
 #: services/webservice/templates/server_detail.html:110
@@ -3654,48 +4018,48 @@ msgstr ""
 msgid "instance"
 msgstr "инстанс"
 
-#: services/webservice/setup/tour.py:729
+#: services/webservice/setup/tour.py:810
 msgid "server name"
 msgstr "имя сервера"
 
-#: services/webservice/setup/tour.py:730
+#: services/webservice/setup/tour.py:811
 msgid "bot port"
 msgstr "порт бота"
 
-#: services/webservice/setup/tour.py:731
+#: services/webservice/setup/tour.py:812
 msgid "autostart"
 msgstr "автозапуск"
 
-#: services/webservice/setup/tour.py:732
+#: services/webservice/setup/tour.py:813
 msgid "channels"
 msgstr "каналы"
 
-#: services/webservice/setup/tour.py:733
+#: services/webservice/setup/tour.py:814
 msgid "status"
 msgstr "статус"
 
-#: services/webservice/setup/tour.py:734
+#: services/webservice/setup/tour.py:815
 msgid "chat"
 msgstr "чат"
 
-#: services/webservice/setup/tour.py:735
+#: services/webservice/setup/tour.py:816
 msgid "admin"
 msgstr "админ"
 
-#: services/webservice/setup/tour.py:739
+#: services/webservice/setup/tour.py:820
 #: services/webservice/templates/server_detail.html:338
 msgid "— not set —"
 msgstr "— не задано —"
 
-#: services/webservice/setup/tour.py:740
+#: services/webservice/setup/tour.py:821
 msgid "Chosen from your Discord server."
 msgstr "Выбрано с твоего Discord-сервера."
 
-#: services/webservice/setup/tour.py:741
+#: services/webservice/setup/tour.py:822
 msgid "Pick one or more roles from your Discord server."
 msgstr "Выбери одну или несколько ролей со своего Discord-сервера."
 
-#: services/webservice/setup/tour.py:747
+#: services/webservice/setup/tour.py:828
 msgid ""
 "Discord refused this token, so the bot has no connection and DCSServerBot"
 " cannot start. Get the token from the Discord Developer Portal → your "
@@ -3709,25 +4073,25 @@ msgstr ""
 " больше нет, сбрось его там и скопируй новое значение — сброс делает "
 "старое недействительным."
 
-#: services/webservice/setup/tour.py:751
+#: services/webservice/setup/tour.py:832
 msgid "The bot is not in that guild — or the id is wrong."
 msgstr "Бот не состоит в этой гильдии — или id неверный."
 
-#: services/webservice/setup/tour.py:752
+#: services/webservice/setup/tour.py:833
 msgid "The bot cannot read that guild — grant it access."
 msgstr "Бот не может читать эту гильдию — дай ему доступ."
 
-#: services/webservice/setup/tour.py:753
+#: services/webservice/setup/tour.py:834
 msgid "Discord is rate-limiting us — try again in a moment."
 msgstr "Discord ограничивает запросы — попробуй ещё раз через мгновение."
 
-#: services/webservice/setup/tour.py:755
+#: services/webservice/setup/tour.py:836
 msgid ""
 "Discord could not be reached — enter the values by hand, or pick them "
 "later in the console."
 msgstr "Discord недоступен — введи значения вручную или выбери их позже в консоли."
 
-#: services/webservice/setup/tour.py:761
+#: services/webservice/setup/tour.py:842
 msgid ""
 "Discord accepted this token, but the bot is not a member of any Discord "
 "server. DCSServerBot manages exactly one server and cannot start without "
@@ -3737,11 +4101,11 @@ msgstr ""
 "DCSServerBot управляет ровно одним сервером и не может запуститься без "
 "него."
 
-#: services/webservice/setup/tour.py:763
+#: services/webservice/setup/tour.py:844
 msgid "Invite the bot with this link, then test again:"
 msgstr "Пригласи бота по этой ссылке, затем проверь снова:"
 
-#: services/webservice/setup/tour.py:765
+#: services/webservice/setup/tour.py:846
 msgid ""
 "Discord accepted this token, but the bot is a member of more than one "
 "Discord server, and DCSServerBot allows exactly one."
@@ -3749,7 +4113,7 @@ msgstr ""
 "Discord принял этот токен, но бот состоит более чем в одном сервере "
 "Discord, а DCSServerBot допускает только один."
 
-#: services/webservice/setup/tour.py:768
+#: services/webservice/setup/tour.py:849
 msgid ""
 "Kick it from every server but the one you keep, then test again. The "
 "servers it is in:"
@@ -3757,7 +4121,7 @@ msgstr ""
 "Выгони его из всех серверов, кроме того, который хочешь оставить, затем "
 "проверь снова. Серверы, в которых он состоит:"
 
-#: services/webservice/setup/tour.py:770
+#: services/webservice/setup/tour.py:851
 msgid ""
 "Or let the tour make the bot leave the others: pick the server to keep — "
 "it becomes the guild id written to your configuration."
@@ -3766,15 +4130,15 @@ msgstr ""
 "который хочешь оставить — он станет guild id, записанным в твою "
 "конфигурацию."
 
-#: services/webservice/setup/tour.py:772
+#: services/webservice/setup/tour.py:853
 msgid "I understand the bot will leave every other server."
 msgstr "Я понимаю, что бот покинет все остальные серверы."
 
-#: services/webservice/setup/tour.py:773
+#: services/webservice/setup/tour.py:854
 msgid "Leave the other servers"
 msgstr "Вывести бота из остальных серверов"
 
-#: services/webservice/setup/tour.py:775
+#: services/webservice/setup/tour.py:856
 #, python-brace-format
 msgid ""
 "The bot left {left}. The server kept is {guild} — that is the guild id "
@@ -3783,49 +4147,45 @@ msgstr ""
 "Бот покинул {left}. Оставленный сервер — {guild} — это guild id, который "
 "получит твоя конфигурация."
 
-#: services/webservice/setup/tour.py:777
+#: services/webservice/setup/tour.py:858
 #, python-brace-format
 msgid "These could not be left, so kick them by hand and test again: {failed}."
 msgstr ""
 "Из этих выйти не удалось, поэтому выгони их вручную и проверь снова: "
 "{failed}."
 
-#: services/webservice/setup/tour.py:781
+#: services/webservice/setup/tour.py:862
 msgid "Give every managed server a name."
 msgstr "Задайте имя для каждого управляемого сервера."
 
-#: services/webservice/setup/tour.py:782
+#: services/webservice/setup/tour.py:863
 #, python-brace-format
 msgid "Enter the status channel id for {name}."
 msgstr "Введите ID канала статуса для {name}."
 
-#: services/webservice/setup/tour.py:784
+#: services/webservice/setup/tour.py:865
 #, python-brace-format
 msgid "The {field} channel id for {name} must be a number, or -1 for none."
 msgstr "ID канала {field} для {name} должен быть числом, или -1, если канала нет."
 
-#: services/webservice/setup/tour.py:785
+#: services/webservice/setup/tour.py:866
 #, python-brace-format
 msgid "Two servers are named {name}. Names must be unique."
 msgstr "Два сервера названы {name}. Имена должны быть уникальными."
 
-#: services/webservice/setup/tour.py:790
+#: services/webservice/setup/tour.py:871
 msgid "Guild ID"
 msgstr "Guild ID"
 
-#: services/webservice/setup/tour.py:791
+#: services/webservice/setup/tour.py:872
 msgid "Right-click your Discord server → Copy Server ID."
 msgstr "Правый щелчок по вашему Discord-серверу → Copy Server ID."
 
-#: services/webservice/setup/tour.py:792
+#: services/webservice/setup/tour.py:873
 msgid "TOKEN"
 msgstr "TOKEN"
 
-#: services/webservice/setup/tour.py:812
-msgid "Discord Developer Portal"
-msgstr "Discord Developer Portal"
-
-#: services/webservice/setup/tour.py:807
+#: services/webservice/setup/tour.py:876
 msgid ""
 "→ your application → Bot → Reset Token. This is shown once; the console "
 "stores it in config/.secret/."
@@ -3833,33 +4193,42 @@ msgstr ""
 "→ ваше приложение → Bot → Reset Token. Он показывается только один раз; "
 "консоль сохраняет его в config/.secret/."
 
-#: services/webservice/setup/tour.py:796
+#: services/webservice/setup/tour.py:880
+msgid "Discord Developer Portal"
+msgstr "Discord Developer Portal"
+
+#: services/webservice/setup/tour.py:884
+#, python-brace-format
+msgid "To obtain the following values, you need to log into the {link}."
+msgstr "Чтобы получить следующие значения, тебе нужно войти в {link}."
+
+#: services/webservice/setup/tour.py:885
 msgid "Owner ID"
 msgstr "Owner ID"
 
-#: services/webservice/setup/tour.py:797
+#: services/webservice/setup/tour.py:886
 msgid "Right-click your own Discord user → Copy User ID."
 msgstr "Правый щелчок по вашему Discord-пользователю → Copy User ID."
 
-#: services/webservice/setup/tour.py:798
+#: services/webservice/setup/tour.py:887
 msgid "Do you have more than 10000 members in your Discord server?"
 msgstr "У вас более 10000 участников на вашем Discord-сервере?"
 
-#: services/webservice/setup/tour.py:799
+#: services/webservice/setup/tour.py:888
 msgid "You need to grant the 'View Audit Log' permission to your bot."
 msgstr "Вам нужно выдать боту разрешение \"View Audit Log\"."
 
-#: services/webservice/setup/tour.py:800
+#: services/webservice/setup/tour.py:889
 msgid "A token is kept for this step — leave the field empty to reuse it."
 msgstr ""
 "Токен сохранён для этого шага — оставьте поле пустым, чтобы использовать "
 "его снова."
 
-#: services/webservice/setup/tour.py:804
+#: services/webservice/setup/tour.py:893
 msgid "client secret"
 msgstr "секрет клиента"
 
-#: services/webservice/setup/tour.py:806
+#: services/webservice/setup/tour.py:895
 msgid ""
 "Discord Developer Portal → your application → OAuth2 → Client Secret. "
 "Shown once; the console stores it in config/.secret/."
@@ -3867,54 +4236,54 @@ msgstr ""
 "Discord Developer Portal → твоё приложение → OAuth2 → Client Secret. "
 "Показывается один раз; консоль сохраняет его в config/.secret/."
 
-#: services/webservice/setup/tour.py:809
+#: services/webservice/setup/tour.py:898
 msgid "A client secret is kept — leave the field empty to reuse it."
 msgstr ""
 "Секрет клиента сохранён — оставь поле пустым, чтобы использовать его "
 "снова."
 
-#: services/webservice/setup/tour.py:811
+#: services/webservice/setup/tour.py:900
 msgid "Leave it empty and the console's Discord login stays off."
 msgstr "Оставь поле пустым — вход через Discord в консоли останется выключенным."
 
-#: services/webservice/setup/tour.py:813
+#: services/webservice/setup/tour.py:902
 msgid "Connecting to Discord…"
 msgstr "Подключение к Discord…"
 
-#: services/webservice/setup/tour.py:817
+#: services/webservice/setup/tour.py:906
 #, python-brace-format
 msgid "Connected — the bot is in {guild}."
 msgstr "Подключено — бот находится в {guild}."
 
-#: services/webservice/setup/tour.py:821
+#: services/webservice/setup/tour.py:910
 msgid "Enter your Discord Guild ID."
 msgstr "Введите ваш Discord Guild ID."
 
-#: services/webservice/setup/tour.py:822
+#: services/webservice/setup/tour.py:911
 msgid "The Guild ID must be a whole number."
 msgstr "Guild ID должен быть целым числом."
 
-#: services/webservice/setup/tour.py:823
+#: services/webservice/setup/tour.py:912
 msgid "Enter your Discord Owner ID."
 msgstr "Введите ваш Discord Owner ID."
 
-#: services/webservice/setup/tour.py:824
+#: services/webservice/setup/tour.py:913
 msgid "The Owner ID must be a whole number."
 msgstr "Owner ID должен быть целым числом."
 
-#: services/webservice/setup/tour.py:825
+#: services/webservice/setup/tour.py:914
 msgid "Enter your Discord TOKEN."
 msgstr "Введите ваш Discord TOKEN."
 
-#: services/webservice/setup/tour.py:827
+#: services/webservice/setup/tour.py:916
 msgid "Choose the server to keep."
 msgstr "Выбери сервер, который хочешь оставить."
 
-#: services/webservice/setup/tour.py:828
+#: services/webservice/setup/tour.py:917
 msgid "Tick the box to confirm the bot will leave the other servers."
 msgstr "Поставь галочку, чтобы подтвердить, что бот покинет остальные серверы."
 
-#: services/webservice/setup/tour.py:834
+#: services/webservice/setup/tour.py:923
 msgid ""
 "We now need to setup your Discord roles and channels.\n"
 "DCSServerBot creates a role mapping for your bot users. It has the "
@@ -3924,17 +4293,15 @@ msgstr ""
 "DCSServerBot создаёт маппинг ролей для пользователей бота. Доступны "
 "следующие внутренние роли:"
 
-#: services/webservice/setup/tour.py:837
+#: services/webservice/setup/tour.py:926
 msgid ""
-"Please separate roles by comma, if you want to provide more than one.\n"
 "You can keep the defaults, if unsure and create the respective roles in "
 "your Discord server."
 msgstr ""
-"Пожалуйста, при указании более одной роли, разделяйте их запятой.\n"
-"Вы можете оставить значения по умолчанию, если не уверены, и создать "
-"соответствующие роли на вашем Discord сервере."
+"Ты можешь оставить значения по умолчанию, если не уверен, и создать "
+"соответствующие роли на своём Discord-сервере."
 
-#: services/webservice/setup/tour.py:839
+#: services/webservice/setup/tour.py:927
 #: services/webservice/templates/_config_fields.html:101
 #: services/webservice/templates/_config_fields.html:119
 #: services/webservice/templates/_config_fields.html:174
@@ -3948,31 +4315,31 @@ msgstr ""
 msgid "+ Add"
 msgstr "+ Добавить"
 
-#: services/webservice/setup/tour.py:841
+#: services/webservice/setup/tour.py:929
 msgid "Users can delete data, change the bot, run commands on your server"
 msgstr ""
 "Пользователи могут удалять данные, изменять настройки бота и выполнять "
 "команды на вашем сервере"
 
-#: services/webservice/setup/tour.py:842
+#: services/webservice/setup/tour.py:930
 msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
 msgstr ""
 "Пользователи могут заливать миссии, запускать и останавливать DCS "
 "серверы, кикать и банить пользователей и т.д."
 
-#: services/webservice/setup/tour.py:843
+#: services/webservice/setup/tour.py:931
 msgid "Normal user, can pull statistics, ATIS, etc."
 msgstr "Обычный пользователь, может запрашивать статистику, ATIS, и т.д."
 
-#: services/webservice/setup/tour.py:845
+#: services/webservice/setup/tour.py:933
 msgid "audit channel"
 msgstr "канал аудита"
 
-#: services/webservice/setup/tour.py:846
+#: services/webservice/setup/tour.py:934
 msgid "A channel for audit events — optional, -1 for none."
 msgstr "Канал для событий аудита — необязательно, -1 означает отсутствие."
 
-#: services/webservice/setup/tour.py:848
+#: services/webservice/setup/tour.py:936
 msgid ""
 "The bot can either use a dedicated admin channel for each server or a "
 "central admin channel for all servers."
@@ -3980,36 +4347,36 @@ msgstr ""
 "Бот может использовать отдельный канал администратора для каждого сервера"
 " или один общий канал для всех серверов."
 
-#: services/webservice/setup/tour.py:850
+#: services/webservice/setup/tour.py:938
 msgid "A dedicated admin channel per server"
 msgstr "Свой канал администратора для каждого сервера"
 
-#: services/webservice/setup/tour.py:851
+#: services/webservice/setup/tour.py:939
 msgid "One central admin channel for all servers"
 msgstr "Один общий канал администратора для всех серверов"
 
-#: services/webservice/setup/tour.py:852
+#: services/webservice/setup/tour.py:940
 msgid "admin channel"
 msgstr "канал администратора"
 
-#: services/webservice/setup/tour.py:853
+#: services/webservice/setup/tour.py:941
 msgid "The id of the central admin channel — optional, -1 for none."
 msgstr "ID общего канала администратора — необязательно, -1 означает отсутствие."
 
-#: services/webservice/setup/tour.py:857
+#: services/webservice/setup/tour.py:945
 #, python-brace-format
 msgid "Enter at least one role or role id for {role}."
 msgstr "Введите хотя бы одну роль или ID роли для {role}."
 
-#: services/webservice/setup/tour.py:858
+#: services/webservice/setup/tour.py:946
 msgid "A channel id must be a whole number, or -1 for none."
 msgstr "ID канала должен быть целым числом или -1, если канала нет."
 
-#: services/webservice/setup/tour.py:863
+#: services/webservice/setup/tour.py:951
 msgid "Please enter the name of your DCS group"
 msgstr "Пожалуйста введите название вашей DCS группы"
 
-#: services/webservice/setup/tour.py:865
+#: services/webservice/setup/tour.py:953
 msgid ""
 "You now need to setup your users.\n"
 "DCSServerBot uses the following internal roles:"
@@ -4017,29 +4384,29 @@ msgstr ""
 "Теперь вам нужно настроить пользователей.\n"
 "DCSServerBot использует следующие внутренние роли:"
 
-#: services/webservice/setup/tour.py:868
+#: services/webservice/setup/tour.py:956
 msgid "Users can delete data and change the bot"
 msgstr "Пользователи с правом удалять данные и менять параметры бота"
 
-#: services/webservice/setup/tour.py:869
+#: services/webservice/setup/tour.py:957
 msgid "Users can restart missions, kick/ban users, etc."
 msgstr ""
 "Пользователи с правом перезапускать миссии, выгонять/банить пользователей"
 " и т. д."
 
-#: services/webservice/setup/tour.py:871
+#: services/webservice/setup/tour.py:959
 msgid "Please enter a comma-separated list of UCIDs"
 msgstr "Введите список UCID, разделенный запятыми"
 
-#: services/webservice/setup/tour.py:875
+#: services/webservice/setup/tour.py:963
 msgid "Enter the name of your DCS group."
 msgstr "Введите название вашей DCS-группы."
 
-#: services/webservice/setup/tour.py:880
+#: services/webservice/setup/tour.py:968
 msgid "Run the web admin console (recommended)"
 msgstr "Запустить веб-админ-консоль (рекомендуется)"
 
-#: services/webservice/setup/tour.py:882
+#: services/webservice/setup/tour.py:970
 msgid ""
 "Configure and watch this installation in a browser. Turn this off and "
 "DCSServerBot runs bot-only — you edit the YAML files by hand."
@@ -4047,7 +4414,7 @@ msgstr ""
 "Настраивай и наблюдай за этой установкой в браузере. Выключишь — "
 "DCSServerBot работает только как бот, а YAML-файлы ты правишь вручную."
 
-#: services/webservice/setup/tour.py:885
+#: services/webservice/setup/tour.py:973
 msgid ""
 "The console is off. DCSServerBot runs bot-only, and enabling the console "
 "later is one key in config/services/webservice.yaml."
@@ -4055,11 +4422,11 @@ msgstr ""
 "Консоль выключена. DCSServerBot работает только как бот, а включить "
 "консоль позже — один ключ в config/services/webservice.yaml."
 
-#: services/webservice/setup/tour.py:887
+#: services/webservice/setup/tour.py:975
 msgid "public address"
 msgstr "публичный адрес"
 
-#: services/webservice/setup/tour.py:889
+#: services/webservice/setup/tour.py:977
 msgid ""
 "The address this console is reachable at. Discord sends its login back "
 "here, so it must match the redirect you registered."
@@ -4067,11 +4434,11 @@ msgstr ""
 "Адрес, по которому доступна эта консоль. Discord возвращает сюда вход, "
 "поэтому он должен совпадать с зарегистрированным адресом перенаправления."
 
-#: services/webservice/setup/tour.py:891
+#: services/webservice/setup/tour.py:979
 msgid "Console account"
 msgstr "Учётная запись консоли"
 
-#: services/webservice/setup/tour.py:893
+#: services/webservice/setup/tour.py:981
 msgid ""
 "The console's own sign-in: a username and a password. Only the password's"
 " hash is stored. This account always exists — it is how you get into the "
@@ -4081,64 +4448,64 @@ msgstr ""
 "пароля. Эта учётная запись существует всегда — именно так ты войдёшь в "
 "консоль, когда Discord недоступен."
 
-#: services/webservice/setup/tour.py:895
+#: services/webservice/setup/tour.py:983
 msgid "username"
 msgstr "Имя пользователя"
 
-#: services/webservice/setup/tour.py:897
+#: services/webservice/setup/tour.py:985
 msgid "A password is set — leave the field empty to keep it."
 msgstr "Пароль установлен — оставьте поле пустым, чтобы сохранить его."
 
-#: services/webservice/setup/tour.py:901
+#: services/webservice/setup/tour.py:989
 msgid "Enter a username for the console account."
 msgstr "Введите имя пользователя для учётной записи консоли."
 
-#: services/webservice/setup/tour.py:902
+#: services/webservice/setup/tour.py:990
 msgid "Enter a password for the console account."
 msgstr "Введите пароль для учётной записи консоли."
 
-#: services/webservice/setup/tour.py:903
+#: services/webservice/setup/tour.py:991
 #, python-brace-format
 msgid "The password must be at most {max} characters."
 msgstr "Пароль должен содержать не более {max} символов."
 
-#: services/webservice/setup/tour.py:908
+#: services/webservice/setup/tour.py:996
 msgid "Already done"
 msgstr "Уже сделано"
 
-#: services/webservice/setup/tour.py:909
+#: services/webservice/setup/tour.py:997
 msgid "Will be written, nothing yet"
 msgstr "Будет записано, пока ничего"
 
-#: services/webservice/setup/tour.py:910
+#: services/webservice/setup/tour.py:998
 msgid "Not written"
 msgstr "Не записано"
 
-#: services/webservice/setup/tour.py:911
+#: services/webservice/setup/tour.py:999
 msgid "Write configuration"
 msgstr "Записать конфигурацию"
 
-#: services/webservice/setup/tour.py:912
+#: services/webservice/setup/tour.py:1000
 msgid "Write again"
 msgstr "Записать снова"
 
-#: services/webservice/setup/tour.py:913
+#: services/webservice/setup/tour.py:1001
 msgid "written"
 msgstr "записано"
 
-#: services/webservice/setup/tour.py:914
+#: services/webservice/setup/tour.py:1002
 msgid "not written"
 msgstr "не записано"
 
-#: services/webservice/setup/tour.py:915
+#: services/webservice/setup/tour.py:1003
 msgid "What the write did"
 msgstr "Что сделала запись"
 
-#: services/webservice/setup/tour.py:916
+#: services/webservice/setup/tour.py:1004
 msgid "not attempted — an earlier file was not written"
 msgstr "не предпринято — предыдущий файл не был записан"
 
-#: services/webservice/setup/tour.py:918
+#: services/webservice/setup/tour.py:1006
 msgid ""
 "Only the entries marked written reached the disk. The setup is not "
 "finished — fix the reason below and write again."
@@ -4146,41 +4513,41 @@ msgstr ""
 "На диск попали только записи, отмеченные как записанные. Настройка не "
 "завершена — исправь причину ниже и запиши снова."
 
-#: services/webservice/setup/tour.py:920
+#: services/webservice/setup/tour.py:1008
 msgid "the file was not written"
 msgstr "файл не был записан"
 
-#: services/webservice/setup/tour.py:921
+#: services/webservice/setup/tour.py:1009
 msgid "the bot's database and its own user were created (step 3)"
 msgstr "база данных бота и его собственная роль были созданы (шаг 3)"
 
-#: services/webservice/setup/tour.py:922
+#: services/webservice/setup/tour.py:1010
 msgid "the bot's database and its user were verified (step 3)"
 msgstr "база данных бота и её пользователь были проверены (шаг 3)"
 
-#: services/webservice/setup/tour.py:923
+#: services/webservice/setup/tour.py:1011
 msgid "the PostgreSQL master password is stored in config/.secret/"
 msgstr "мастер-пароль PostgreSQL сохранён в config/.secret/"
 
-#: services/webservice/setup/tour.py:924
+#: services/webservice/setup/tour.py:1012
 msgid "the bot's database password is stored in config/.secret/"
 msgstr "пароль базы данных бота сохранён в config/.secret/"
 
-#: services/webservice/setup/tour.py:926
+#: services/webservice/setup/tour.py:1014
 msgid "the Discord answers (guild, owner, roles) — Discord support is off"
 msgstr "ответы Discord (гильдия, владелец, роли) — поддержка Discord отключена"
 
-#: services/webservice/setup/tour.py:928
+#: services/webservice/setup/tour.py:1016
 msgid "the community answers (group name, users) — Discord support is on"
 msgstr ""
 "ответы сообщества (название группы, пользователи) — поддержка Discord "
 "включена"
 
-#: services/webservice/setup/tour.py:929
+#: services/webservice/setup/tour.py:1017
 msgid "Missing — enter again"
 msgstr "Отсутствует — введи снова"
 
-#: services/webservice/setup/tour.py:931
+#: services/webservice/setup/tour.py:1019
 msgid ""
 "A restart dropped a secret this configuration needs, and nothing was "
 "written. Go back to the step named below, enter the value again, then "
@@ -4190,23 +4557,23 @@ msgstr ""
 "записано. Вернись к шагу, указанному ниже, введи значение снова и затем "
 "запиши."
 
-#: services/webservice/setup/tour.py:933
+#: services/webservice/setup/tour.py:1021
 msgid "the Discord bot token is not held — enter it again on step 5"
 msgstr "токен бота Discord отсутствует — введи его снова на шаге 5"
 
-#: services/webservice/setup/tour.py:934
+#: services/webservice/setup/tour.py:1022
 msgid "the database password is not held — enter it again on step 3"
 msgstr "пароль базы данных отсутствует — введи его снова на шаге 3"
 
-#: services/webservice/setup/tour.py:936
+#: services/webservice/setup/tour.py:1024
 msgid "the cluster database's password is not held — enter it again on step 3"
 msgstr "пароль кластерной базы данных отсутствует — введи его снова на шаге 3"
 
-#: services/webservice/setup/tour.py:937
+#: services/webservice/setup/tour.py:1025
 msgid "guild, language, autoupdate, the cluster database"
 msgstr "гильдия, язык, автообновление, кластерная база данных"
 
-#: services/webservice/setup/tour.py:939
+#: services/webservice/setup/tour.py:1027
 msgid ""
 "guild, language, autoupdate, the cluster database — NOT a federation "
 "(same database name)"
@@ -4214,7 +4581,7 @@ msgstr ""
 "гильдия, язык, автообновление, кластерная база данных — НЕ федерация (то "
 "же имя базы данных)"
 
-#: services/webservice/setup/tour.py:941
+#: services/webservice/setup/tour.py:1029
 msgid ""
 "the cluster database (config/.secret/clusterdb.pkl and main.yaml) — "
 "Federation support is off"
@@ -4222,7 +4589,7 @@ msgstr ""
 "кластерная база данных (config/.secret/clusterdb.pkl и main.yaml) — "
 "поддержка федерации выключена"
 
-#: services/webservice/setup/tour.py:943
+#: services/webservice/setup/tour.py:1031
 msgid ""
 "the cluster database (config/.secret/clusterdb.pkl and main.yaml) — the "
 "cluster database was not verified, so it is not written"
@@ -4230,61 +4597,61 @@ msgstr ""
 "кластерная база данных (config/.secret/clusterdb.pkl и main.yaml) — "
 "кластерная база данных не проверена, поэтому не записывается"
 
-#: services/webservice/setup/tour.py:946
+#: services/webservice/setup/tour.py:1034
 msgid "the console's Discord login — no client secret is held, so it stays off"
 msgstr ""
 "вход через Discord в консоли — секрет клиента не сохранён, поэтому он "
 "останется выключенным"
 
-#: services/webservice/setup/tour.py:950
+#: services/webservice/setup/tour.py:1038
 msgid "guild, language, autoupdate"
 msgstr "гильдия, язык, автообновление"
 
-#: services/webservice/setup/tour.py:951
+#: services/webservice/setup/tour.py:1039
 msgid "roles, channels, owner"
 msgstr "роли, каналы, владелец"
 
-#: services/webservice/setup/tour.py:952
+#: services/webservice/setup/tour.py:1040
 msgid "the console and its sign-in"
 msgstr "консоль и её вход"
 
-#: services/webservice/setup/tour.py:953
+#: services/webservice/setup/tour.py:1041
 msgid "this node, DCS"
 msgstr "этот узел, DCS"
 
-#: services/webservice/setup/tour.py:954
+#: services/webservice/setup/tour.py:1042
 msgid "status/chat/admin channels"
 msgstr "каналы статуса/чата/админов"
 
-#: services/webservice/setup/tour.py:955
+#: services/webservice/setup/tour.py:1043
 msgid "autostart per server"
 msgstr "автозапуск для каждого сервера"
 
-#: services/webservice/setup/tour.py:956
+#: services/webservice/setup/tour.py:1044
 msgid "DGSA banlist opt-ins"
 msgstr "подписки на бан-лист DGSA"
 
-#: services/webservice/setup/tour.py:957
+#: services/webservice/setup/tour.py:1045
 msgid "the Discord bot token"
 msgstr "токен бота Discord"
 
-#: services/webservice/setup/tour.py:958
+#: services/webservice/setup/tour.py:1046
 msgid "the console's Discord client secret"
 msgstr "секрет клиента Discord консоли"
 
-#: services/webservice/setup/tour.py:959
+#: services/webservice/setup/tour.py:1047
 msgid "the bot's database password"
 msgstr "пароль базы данных бота"
 
-#: services/webservice/setup/tour.py:960
+#: services/webservice/setup/tour.py:1048
 msgid "the cluster database's password"
 msgstr "пароль кластерной базы данных"
 
-#: services/webservice/setup/tour.py:965
+#: services/webservice/setup/tour.py:1053
 msgid "Setup is done"
 msgstr "Настройка завершена"
 
-#: services/webservice/setup/tour.py:967
+#: services/webservice/setup/tour.py:1055
 msgid ""
 "Your configuration is written. The setup console closes now and "
 "DCSServerBot starts."
@@ -4292,20 +4659,20 @@ msgstr ""
 "Твоя конфигурация записана. Консоль настройки сейчас закроется, и "
 "DCSServerBot запустится."
 
-#: services/webservice/setup/tour.py:968
+#: services/webservice/setup/tour.py:1056
 #, python-brace-format
 msgid "The console will be at {url} once it is up."
 msgstr "Консоль будет доступна по адресу {url}, как только он запустится."
 
-#: services/webservice/setup/tour.py:969
+#: services/webservice/setup/tour.py:1057
 msgid "Sign in with the console account you just created."
 msgstr "Войди с учётной записью консоли, которую ты только что создал."
 
-#: services/webservice/setup/tour.py:970
+#: services/webservice/setup/tour.py:1058
 msgid "Add your DCS servers in the console: Servers → Add Server."
 msgstr "Добавь свои DCS-серверы в консоли: Серверы → Добавить сервер."
 
-#: services/webservice/setup/tour.py:972
+#: services/webservice/setup/tour.py:1060
 msgid ""
 "To add or change DCS servers, edit config/nodes.yaml and "
 "config/servers.yaml."
@@ -4313,7 +4680,7 @@ msgstr ""
 "Чтобы добавить или изменить серверы DCS, отредактируй config/nodes.yaml и"
 " config/servers.yaml."
 
-#: services/webservice/setup/tour.py:974
+#: services/webservice/setup/tour.py:1062
 msgid ""
 "The web admin console is off — DCSServerBot runs bot-only until you "
 "enable it in config/services/webservice.yaml."
@@ -4321,20 +4688,20 @@ msgstr ""
 "Веб-админ-консоль выключена — DCSServerBot работает только как бот, пока "
 "ты не включишь её в config/services/webservice.yaml."
 
-#: services/webservice/setup/tour.py:976
+#: services/webservice/setup/tour.py:1064
 #, python-brace-format
 msgid "If it is not running, start it with {script}."
 msgstr "Если он не запущен, запусти его с помощью {script}."
 
-#: services/webservice/setup/tour.py:977
+#: services/webservice/setup/tour.py:1065
 msgid "Open the console"
 msgstr "Открыть консоль"
 
-#: services/webservice/setup/tour.py:1056
+#: services/webservice/setup/tour.py:1069
 msgid "This node is not configured yet"
 msgstr "Этот узел ещё не настроен"
 
-#: services/webservice/setup/tour.py:1058
+#: services/webservice/setup/tour.py:1071
 #, python-brace-format
 msgid ""
 "This installation is already configured, but it has no entry for the node"
@@ -4345,11 +4712,11 @@ msgstr ""
 "{node}, поэтому бот не может запуститься на этой машине. Это новый узел, "
 "или у существующего узла изменилось имя хоста?"
 
-#: services/webservice/setup/tour.py:1061
+#: services/webservice/setup/tour.py:1074
 msgid "A new node"
 msgstr "Новый узел"
 
-#: services/webservice/setup/tour.py:1063
+#: services/webservice/setup/tour.py:1076
 msgid ""
 "Add this machine to config/nodes.yaml. Nothing else of this installation "
 "is changed."
@@ -4357,11 +4724,11 @@ msgstr ""
 "Добавить эту машину в config/nodes.yaml. Больше в этой установке ничего "
 "не меняется."
 
-#: services/webservice/setup/tour.py:1064
+#: services/webservice/setup/tour.py:1077
 msgid "An existing node whose hostname changed"
 msgstr "Существующий узел, у которого изменилось имя хоста"
 
-#: services/webservice/setup/tour.py:1066
+#: services/webservice/setup/tour.py:1079
 #, python-brace-format
 msgid ""
 "Rename one of the configured nodes to {node}. Its configuration and its "
@@ -4370,11 +4737,11 @@ msgstr ""
 "Переименуй один из настроенных узлов в {node}. Его конфигурация и его "
 "строки базы данных переносятся, и ничего не добавляется."
 
-#: services/webservice/setup/tour.py:1068
+#: services/webservice/setup/tour.py:1081
 msgid "node to rename"
 msgstr "узел для переименования"
 
-#: services/webservice/setup/tour.py:1070
+#: services/webservice/setup/tour.py:1083
 #, python-brace-format
 msgid ""
 "I understand: the node picked above was this machine, and it is now "
@@ -4383,19 +4750,19 @@ msgstr ""
 "Понимаю: выбранный выше узел — это эта машина, и теперь он называется "
 "{node}"
 
-#: services/webservice/setup/tour.py:1071
+#: services/webservice/setup/tour.py:1084
 msgid "Choose whether this is a new node or a renamed one."
 msgstr "Выбери, это новый узел или переименованный."
 
-#: services/webservice/setup/tour.py:1072
+#: services/webservice/setup/tour.py:1085
 msgid "Tick the confirmation before renaming a node."
 msgstr "Поставь подтверждение, прежде чем переименовывать узел."
 
-#: services/webservice/setup/tour.py:1073
+#: services/webservice/setup/tour.py:1086
 msgid "Pick the node whose hostname changed."
 msgstr "Выбери узел, у которого изменилось имя хоста."
 
-#: services/webservice/setup/tour.py:1075
+#: services/webservice/setup/tour.py:1088
 msgid ""
 "The node could not be renamed. Nothing was changed by this page; the log "
 "names the reason."
@@ -4403,12 +4770,12 @@ msgstr ""
 "Не удалось переименовать узел. Эта страница ничего не изменила; причина "
 "указана в журнале."
 
-#: services/webservice/setup/tour.py:1076
+#: services/webservice/setup/tour.py:1089
 #, python-brace-format
 msgid "Node {old} was renamed to {node}."
 msgstr "Узел {old} переименован в {node}."
 
-#: services/webservice/setup/tour.py:1077
+#: services/webservice/setup/tour.py:1090
 #, python-brace-format
 msgid "This node was added to config/nodes.yaml as {node}."
 msgstr "Этот узел добавлен в config/nodes.yaml как {node}."
@@ -4429,7 +4796,7 @@ msgstr ""
 
 #: services/webservice/templates/_config_fields.html:153
 #: services/webservice/templates/_scope_fields.html:53
-#: services/webservice/templates/confirm.html:164
+#: services/webservice/templates/confirm.html:177
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -4573,7 +4940,7 @@ msgstr ""
 "Запись аудита для этого действия не удалось сохранить — смотри журнал "
 "бота."
 
-#: services/webservice/templates/_strip.html:92
+#: services/webservice/templates/_strip.html:90
 msgid "More controls"
 msgstr "Больше управления"
 
@@ -4679,16 +5046,16 @@ msgstr "Админ-консоль"
 msgid "Sign out"
 msgstr "Выйти"
 
-#: services/webservice/templates/confirm.html:112
+#: services/webservice/templates/confirm.html:114
 msgid "Selected missions"
 msgstr "Выбранные миссии"
 
-#: services/webservice/templates/confirm.html:131
+#: services/webservice/templates/confirm.html:144
 #, python-format
 msgid "Confirming: %(go)s."
 msgstr "Подтверждение: %(go)s."
 
-#: services/webservice/templates/confirm.html:146
+#: services/webservice/templates/confirm.html:159
 #, python-format
 msgid ""
 "Target: <span class=\"target\">%(target)s</span> — the action and your "
@@ -4697,7 +5064,7 @@ msgstr ""
 "Цель: <span class=\"target\">%(target)s</span> — действие и твоё имя "
 "записываются в журнал бота, и отсюда это отменить нельзя."
 
-#: services/webservice/templates/confirm.html:148
+#: services/webservice/templates/confirm.html:161
 #, python-format
 msgid ""
 "Target: <span class=\"target\">%(target)s</span> — the action and your "
@@ -4706,11 +5073,11 @@ msgstr ""
 "Цель: <span class=\"target\">%(target)s</span> — действие и твоё имя "
 "записываются в журнал бота."
 
-#: services/webservice/templates/confirm.html:164
+#: services/webservice/templates/confirm.html:177
 msgid "Cancel — go back without doing anything (Esc)"
 msgstr "Отмена — вернуться назад, ничего не делая (Esc)"
 
-#: services/webservice/templates/dashboard.html:36
+#: services/webservice/templates/dashboard.html:37
 #: services/webservice/templates/logs.html:18
 msgid "Live updates: unavailable"
 msgstr "Живые обновления: недоступно"
@@ -5358,85 +5725,3 @@ msgstr ""
 msgid "The bot's own configuration: guild, database, logging, the plugin list."
 msgstr ""
 
-#~ msgid ""
-#~ "Not installed: %(names)s — these entries"
-#~ " stay in the config until you "
-#~ "remove them."
-#~ msgstr ""
-#~ "Не установлено: %(names)s — эти записи"
-#~ " останутся в конфигурации, пока ты их"
-#~ " не удалишь."
-
-#~ msgid "DCS carries a hash for this coalition"
-#~ msgstr "DCS несёт хеш для этой коалиции"
-
-#~ msgid "DCS carries no hash for this coalition"
-#~ msgstr "DCS не несёт хеш для этой коалиции"
-
-#~ msgid "The setup steps are complete."
-#~ msgstr "Шаги настройки завершены."
-
-#~ msgid "Discord refused this token — check it and try again."
-#~ msgstr "Discord отклонил этот токен — проверь его и попробуй снова."
-
-#~ msgid "Discord login"
-#~ msgstr "Вход через Discord"
-
-#~ msgid ""
-#~ "\n"
-#~ "The Status Channel should be readable"
-#~ " by everyone and only writable by "
-#~ "the bot.\n"
-#~ "The Chat Channel should be readable and writable by everyone.\n"
-#~ "The Admin channel - central or not"
-#~ " - should only be readable and "
-#~ "writable by Admin and DCS Admin "
-#~ "users.\n"
-#~ "\n"
-#~ "You can create these channels now, "
-#~ "as I will ask for the IDs in"
-#~ " a bit.\n"
-#~ "DCSServerBot needs the following permissions on them to work:\n"
-#~ "\n"
-#~ "    - View Channel\n"
-#~ "    - Send Messages\n"
-#~ "    - Read Messages\n"
-#~ "    - Read Message History\n"
-#~ "    - Add Reactions\n"
-#~ "    - Attach Files\n"
-#~ "    - Embed Links\n"
-#~ "    - Manage Messages\n"
-#~ "\n"
-#~ msgstr ""
-#~ "\n"
-#~ "Канал статуса должен быть доступен всем на чтение и на запись боту.\n"
-#~ "Канал чата должен быть доступен на чтение и на запись всем.\n"
-#~ "Административные каналы - общий или "
-#~ "отдельные - должны быть доступны на "
-#~ "чтение и запись только ролям Admin "
-#~ "и DCS Admin.\n"
-#~ "\n"
-#~ "Вы можете создать каналы сейчас, их ID нужно будет ввести чуть позже.\n"
-#~ "DCSServerBot для работы требуются следующие разрешения для каналов:\n"
-#~ "\n"
-#~ "    - View Channel\n"
-#~ "    - Send Messages\n"
-#~ "    - Read Messages\n"
-#~ "    - Read Message History\n"
-#~ "    - Add Reactions\n"
-#~ "    - Attach Files\n"
-#~ "    - Embed Links\n"
-#~ "    - Manage Messages\n"
-#~ "\n"
-
-#: services/webservice/setup/tour.py
-msgid "To use DCSServerBot, you need to install PostgreSQL. You can download it {link}."
-msgstr "Чтобы использовать DCSServerBot, тебе нужно установить PostgreSQL. Ты можешь скачать его {link}."
-
-#: services/webservice/setup/tour.py
-msgid "here"
-msgstr "здесь"
-
-#: services/webservice/setup/tour.py
-msgid "To obtain the following values, you need to log into the {link}."
-msgstr "Чтобы получить следующие значения, тебе нужно войти в {link}."

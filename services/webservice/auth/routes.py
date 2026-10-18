@@ -1,7 +1,7 @@
 """``/auth/login`` and ``/auth/logout`` — absolute constant paths, declared PUBLIC.
 
-THE PATHS ARE CONSTANTS, not a prefix from config and not derived from a request. The review's
-§C.1 makes the point for the OAuth callback and it holds for the whole ``/auth`` area: a route
+THE PATHS ARE CONSTANTS, not a prefix from config and not derived from a request. The point made
+for the OAuth callback holds for the whole ``/auth`` area: a route
 registered inside a router whose prefix comes from a user-editable config file silently moves the
 moment somebody edits that file, while the developer-portal redirect URI and the session cookie's
 ``Path`` still point at the old path. :data:`LOGIN_PATH` and :data:`LOGOUT_PATH` are what the form
@@ -63,7 +63,7 @@ FAILED_LOGIN_MESSAGE = i18n._("Sign-in failed. Check your username and password 
 PASSWORD_DOOR_DISABLED_MESSAGE = ("This console does not accept a username and password sign-in "
                                   "(no username/password backend is enabled).")
 
-#: where the site root is (logout lands here, per the card: never back on the login page -- except
+#: where the site root is (logout lands here, never back on the login page -- except
 #: in a Discord-only install, where the root would bounce the visitor straight back into the flow;
 #: see the logout route)
 SITE_ROOT = "/"

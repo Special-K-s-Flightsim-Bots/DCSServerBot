@@ -1,4 +1,4 @@
-/* The server's STATUS, kept current while the page is open (L5) — the mark at the TOP of the server
+/* The server's STATUS, kept current while the page is open — the mark at the TOP of the server
  * page (the page head's dot + word, and the Overview card's copy of the same fact).
  *
  * A PROGRESSIVE ENHANCEMENT. The initial page already contains the status the server rendered, so

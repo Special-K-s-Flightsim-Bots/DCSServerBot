@@ -1,6 +1,6 @@
 {#-
   The dashboard (rebuilt as the approved variant 3 refined) — the console's READ page: it
-  renders no write of its own, and the controls a server row may carry (W4a) are `pages/actions`'
+  renders no write of its own, and the controls a server row may carry are `pages/actions`'
   POST routes, handed in as the `row_controls` data `_table.html` renders. See
   `pages/dashboard.row_controls_for`.
 
@@ -21,10 +21,11 @@
   viewport — a bottom panel while the longest list is short, the right column once the list is the
   thing being read, and `?log=expanded` hands it the whole content area. No media query decides it.
 
-  NO WRITE CONTROL APPEARS HERE. The mockup's Pause/Restart/Stop/Start, Message/Kick/Ban controls
-  are omitted rather than rendered disabled — a disabled control still advertises the capability,
-  and this page's promise is that nothing on it mutates anything. The one form in the chrome is
-  the Sign out control in the shell's chip.
+  NO CONTROL IS RENDERED DISABLED. A server row's strip (`row_controls`) and the page head's
+  Add-server control (`add_control`) are the controls a viewer may ACTUALLY use: each is ABSENT —
+  never greyed out — when the capability, the availability check or the tab's table refuses it, so a
+  control on this page always names something the viewer can do. Nothing here writes by itself; every
+  form posts to `pages/actions`' own routes.
 -#}
 {% extends "base.html" %}
 {% block title %}{{ title }} — DCSServerBot{% endblock %}
@@ -35,6 +36,24 @@
   <div class="sub">{{ _(lead) }}</div>
   <span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span>
 </div>
+
+{#- THE PAGE-LEVEL CONTROL — the fleet's "Add server", for the tab whose table is `servers` (the
+    SAME `page_controls` reading the Servers page renders, handed in as `add_control` data). Absent
+    for every other tab and for a caller the capability or the action refuses, so a table with no
+    page control renders nothing. It is a PLAIN POST form: its answer IS the dialog page, so it is
+    never intercepted (the same rule `list.html` applies). It sits in the page head, OUTSIDE every
+    swap target (`#state-panel`, `#log-panel`, `#notice`), because the tab changes only by
+    navigation — the tab links are plain `href`s — and the stream's `state` event re-renders the
+    panel, never the head, so no tick can drop it. -#}
+{% if add_control %}
+<div class="page-actions">
+  <form method="post" action="{{ add_control.path }}">
+    <input type="hidden" name="{{ add_control.csrf_field }}" value="{{ add_control.csrf_token }}">
+    <input type="hidden" name="{{ add_control.origin_field }}" value="{{ add_control.origin }}">
+    <button type="submit" title="{{ say(add_control.title) }}" aria-label="{{ say(add_control.aria) }}">{{ _(add_control.label) }}</button>
+  </form>
+</div>
+{% endif %}
 
 {# THE ONE-SHOT NOTICE of a write — the same partial the list pages include. A write pressed on a
    server/player/node row here redirects back to this page (the origin fix), so its outcome

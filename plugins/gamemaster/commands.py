@@ -683,7 +683,10 @@ class GameMaster(Plugin[GameMasterEventListener]):
                     return
                 handler = GameMasterUploadHandler(plugin=self, server=server, message=message, patterns=patterns)
                 try:
-                    base_dir = config.get('script_dir', os.path.join(await handler.server.get_missions_dir(), 'Scripts'))
+                    base_dir = utils.format_string(
+                        config.get('script_dir', os.path.join(await handler.server.get_missions_dir(), 'Scripts')),
+                        server=server, instance=server.instance
+                    )
                     await handler.upload(base_dir)
                     return
                 except Exception as ex:

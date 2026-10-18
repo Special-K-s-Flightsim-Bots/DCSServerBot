@@ -45,17 +45,27 @@ from . import dashboard as dashboard_page
 __all__ = [
     "OWNER", "WRITE_ROLES", "NODE_ROLES", "PAUSE_PATH", "UNPAUSE_PATH", "PAUSE_CAPABILITY",
     "UNPAUSE_CAPABILITY",
-    "MESSAGE_PATH", "MESSAGE_CAPABILITY", "MESSAGE_FIELD_MAX", "MESSAGE_DEFAULT_MODE",
+    "CHAT_PATH", "POPUP_PATH", "MESSAGE_CAPABILITY", "MESSAGE_FIELD_MAX", "BAN_DAYS_MIN",
+    "BAN_DAYS_MAX",
+    "SERVER_CHAT_PATH", "SERVER_POPUP_PATH", "SERVER_MESSAGE_CAPABILITY",
+    "SERVER_MESSAGE_AUDIENCE", "SERVER_MESSAGE_AUDIENCE_HELP",
     "SERVER_MAINTENANCE_CAPABILITY", "SERVER_CLEAR_MAINTENANCE_CAPABILITY",
     "NOTICE_MAX_CHARS", "CONFIRM_SUFFIX", "CONFIRM_FIELD", "CONFIRM_TEMPLATE", "CONFIRM_MAX_PENDING",
-    "ORIGIN_FIELD", "origin_path",
+    "ORIGIN_FIELD", "TAB_FIELD", "origin_path", "origin_url", "posted_tab", "tabbed_origin",
     "ROW_STRIP", "ROW_MENU",
     "NODE_RESTART_CAPABILITY", "NODE_SHUTDOWN_CAPABILITY", "NODE_UPGRADE_CAPABILITY",
     "NODE_OFFLINE_CAPABILITY", "NODE_ONLINE_CAPABILITY",
     "NODE_IN_SERVICE", "NODE_MAINTENANCE", "NODE_POWER_OFF", "NODE_POWER_ON",
     "NOTE_NO_CHECK",
-    "WriteAction", "PlayerAction", "PlayerButton", "NodeAction", "NodeOption",
+    "WriteAction", "PlayerAction", "NodeAction", "NodeOption", "SelectField", "SelectOption",
     "SERVER_ACTIONS", "PLAYER_ACTIONS", "NODE_ACTIONS",
+    # the SERVER CREATION pair: the row-level DELETE and the page-level ADD
+    "SERVER_NODE_ACTIONS", "SERVER_PAGE_ACTIONS", "server_row_actions",
+    "SERVER_ADD_CAPABILITY", "SERVER_DELETE_CAPABILITY", "SERVER_ADD_PATH", "SERVER_DELETE_PATH",
+    "ADD_NODE_FIELD", "ADD_INSTANCE_FIELD", "ADD_NAME_FIELD", "ADD_CONFIGURE_FIELD",
+    "ADD_NEW_OPTION",
+    "CONFIRM_NAME_FIELD", "REMOVE_FILES_FIELD",
+    "page_controls", "add_dialog_context", "empty_instances", "installable_nodes",
     "declare", "capabilities", "register", "add_routes",
     "server_controls", "player_controls", "node_controls", "controls_for", "state_of", "node_state",
     "node_states", "node_power_states",
@@ -114,6 +124,35 @@ NODE_SHUTDOWN_CAPABILITY = "nodes.shutdown"
 NODE_UPGRADE_CAPABILITY = "nodes.upgrade"
 NODE_OFFLINE_CAPABILITY = "nodes.offline"
 NODE_ONLINE_CAPABILITY = "nodes.online"
+# ── the SERVER CREATION pair ───────────────────────────────────────────────
+#: THE ADD SERVER capability. ``servers.*`` because the page is the fleet — and ADMIN ONLY with NO
+#: scope grant, exactly like every other node/instance write: this one CREATES an instance (its
+#: ``nodes.yaml`` block, its ports, its Saved Games directory), which is a node fact, and a manager's
+#: scope is a set of SERVER names that cannot name a server which does not exist yet.
+SERVER_ADD_CAPABILITY = "servers.add"
+#: THE DELETE SERVER capability — the same rule for the same reason: it removes the instance with the
+#: server. The two are separate capabilities because they are two operations, not two halves of one.
+SERVER_DELETE_CAPABILITY = "servers.delete"
+#: the ADD dialog's own path — a PAGE-LEVEL control (the Servers page head), not a row control: there
+#: is no server yet to hang it on.
+SERVER_ADD_PATH = "/actions/server/add"
+#: the DELETE control's path — a row control on the server row, like every other server write.
+SERVER_DELETE_PATH = "/actions/server/delete"
+#: the ADD form's fields. One name for the field and the ACTION's parameter, so the dialog cannot post
+#: one thing and the action read another.
+ADD_NODE_FIELD = "node"
+ADD_INSTANCE_FIELD = "instance"
+ADD_NAME_FIELD = "name"
+ADD_CONFIGURE_FIELD = "configure"
+#: the value of the ADD form's instance picker that means "create a new instance", and therefore the
+#: value that carries NO instance name.
+ADD_NEW_OPTION = ""
+#: the DELETE dialog's TYPED confirmation: the field the operator types the server's name into. A
+#: yes/no is a click; typing the name is the deliberate act a removal earns.
+CONFIRM_NAME_FIELD = "confirm_name"
+#: the DELETE action's own option — the Saved Games directory, which is a choice of its own and never
+#: implied by removing the server.
+REMOVE_FILES_FIELD = "remove_files"
 NODE_IN_SERVICE = "in-service"
 NODE_MAINTENANCE = "maintenance"
 NODE_POWER_OFF = "servers-up"
@@ -125,10 +164,31 @@ UNPAUSE_PATH = "/actions/server/unpause"
 PAUSE_CAPABILITY = "missions.pause"
 UNPAUSE_CAPABILITY = "missions.unpause"
 
-MESSAGE_PATH = "/actions/player/message"
+#: THE PLAYER MESSAGE PAIR — ONE control per mode, each a glyph on the row with its OWN dialog. The
+#: row carries neither the text field nor a mode button: the mode is the CONTROL's own fact
+#: (:attr:`PlayerAction.constants`), so the message is typed in the dialog and nothing a request
+#: sends can move a write from one mode to the other. Both post to the ONE ``message_player`` action,
+#: whose modes are ``plugins.mission.actions.MESSAGE_MODES``.
+CHAT_PATH = "/actions/player/chat"
+POPUP_PATH = "/actions/player/popup"
 MESSAGE_CAPABILITY = "players.message"
+#: The console's own bound on a ban's length, in days — a human-scale suspension, and the range the
+#: ban dialog's number box refuses to submit outside. It is deliberately NARROWER than the action's
+#: own :data:`plugins.mission.actions.MAX_BAN_DAYS` (100 years, the domain's overflow guard): the
+#: console offers what an operator actually means, and the action still re-checks every POST.
+BAN_DAYS_MIN = 1
+BAN_DAYS_MAX = 999
 
-MESSAGE_DEFAULT_MODE = "popup"
+#: THE SERVER MESSAGE PAIR — the server-row twin of the pair above: ONE glyph per mode, each with
+#: its OWN dialog, both posting to the ONE ``message_server`` action. They differ from the player
+#: pair in ONE thing: the audience is a CHOICE (``SelectField``) drawn on the dialog, because a
+#: server-wide message may be addressed to the whole server or to one coalition. The choice is a
+#: declared SELECT whose options are validated by the ACTION against its own allow-list
+#: (``plugins.mission.actions.SERVER_MESSAGE_RECIPIENTS``), so a crafted body cannot address a
+#: message to something the domain cannot deliver.
+SERVER_CHAT_PATH = "/actions/server/chat"
+SERVER_POPUP_PATH = "/actions/server/popup"
+SERVER_MESSAGE_CAPABILITY = "servers.message"
 
 SERVER_MAINTENANCE_CAPABILITY = "servers.maintenance"
 SERVER_CLEAR_MAINTENANCE_CAPABILITY = "servers.clear_maintenance"
@@ -204,8 +264,8 @@ MISSION_DISK_FIELD = "delete_from_disk"
 #: two together so they cannot drift. 100 MiB: comfortably above a real ``.miz``.
 MISSIONS_UPLOAD_MAX_BYTES = 100 * 1024 * 1024
 
-#: THE M5 MISSION-LIST WRITES. The REORDER replaces the ORDER of ``missionList`` in ONE write through
-#: the bot's own ``Server.setMissionList`` — no DCS-side function (the card's ruling: the idle states'
+#: THE MISSION-LIST WRITES. The REORDER replaces the ORDER of ``missionList`` in ONE write through
+#: the bot's own ``Server.setMissionList`` — no DCS-side function (the idle states'
 #: file write is the whole answer) — and is OFFLINE ONLY. BULK REMOVE is the row's own delete,
 #: repeated: it calls the bot's own per-mission ``deleteMission``, one per selected mission,
 #: DESCENDING, in every state but ``LOADING``. Both re-use ``missions.delete``, each has its own path,
@@ -213,7 +273,7 @@ MISSIONS_UPLOAD_MAX_BYTES = 100 * 1024 * 1024
 MISSIONS_REORDER_CAPABILITY = "missions.reorder"
 MISSIONS_REORDER_PATH = "/actions/server/missions/reorder"
 MISSIONS_BULK_DELETE_PATH = "/actions/server/missions/delete_bulk"
-#: THE ACTIVATE WRITE (M7): make a CONFIGURED mission the START mission — through the bot's own
+#: THE ACTIVATE WRITE: make a CONFIGURED mission the START mission — through the bot's own
 #: ``Server.setStartIndex``. Its own capability (``missions.activate``) and path; it works in every
 #: state EXCEPT ``LOADING`` (see ``MISSIONS_ACTIVATE_STATES``).
 MISSIONS_ACTIVATE_CAPABILITY = "missions.activate"
@@ -231,7 +291,7 @@ MISSION_LIST_OFFLINE_STATES: tuple[str, ...] = ("UNREGISTERED", "SHUTDOWN", "SHU
 #: copy so the generic web surface never imports a plugin module (a test pins them equal).
 MISSION_LIST_OFFLINE_ONLY = "Missions can only be changed while the server is not running."
 
-#: BULK REMOVE'S STATE GATE (M8): every state EXCEPT ``LOADING``. The bot's ``deleteMission`` routes
+#: BULK REMOVE'S STATE GATE: every state EXCEPT ``LOADING``. The bot's ``deleteMission`` routes
 #: to DCS in ``{STOPPED, PAUSED, RUNNING}`` and edits the mission file otherwise; in ``LOADING`` the
 #: process is up (DCS owns ``net.missionlist``) but the method would edit the file, so the removal is
 #: reverted — the action refuses it and the tab omits the control there. The other five states stick.
@@ -243,7 +303,7 @@ MISSIONS_BULK_DELETE_STATES: tuple[str, ...] = (
 #: generic web surface never imports a plugin module (a test pins the two equal).
 MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
 
-#: THE ACTIVATE WRITE'S STATE GATE (M7): every state EXCEPT ``LOADING``. The bot's ``setStartIndex``
+#: THE ACTIVATE WRITE'S STATE GATE: every state EXCEPT ``LOADING``. The bot's ``setStartIndex``
 #: routes to DCS in ``{STOPPED, PAUSED, RUNNING}`` and writes the file otherwise; in ``LOADING`` the
 #: process is up (DCS owns ``net.missionlist``) but the method would write the file, so the change is
 #: reverted — the action refuses it and the tab omits the control there. The other five states stick.
@@ -256,7 +316,7 @@ MISSIONS_ACTIVATE_STATES: tuple[str, ...] = (
 MISSION_ACTIVE_LOADING_REFUSAL = "The start mission cannot be changed while the server is loading."
 
 #: The sentence the bar's ``Set as start`` refuses a selection that is not EXACTLY ONE mission with —
-#: the tick IS its target (M11), so NONE names nothing and SEVERAL names no single mission. Owned by
+#: the tick IS its target, so NONE names nothing and SEVERAL names no single mission. Owned by
 #: the console (no plugin copy: the plugin's action takes ONE mission and never sees a selection), and
 #: stated where the count already reads, so the client's own reason and this answer are one rule.
 MISSIONS_ACTIVATE_SELECTION_REFUSAL = (
@@ -313,12 +373,26 @@ AWAIT_OBSERVABLE_MAINTENANCE = "maintenance"
 #: node the expectation can end on the background poller's tick rather than on this response, bounded
 #: by :data:`AWAIT_CHANGE_SECONDS` like every other action.
 AWAIT_OBSERVABLE_CONFIG = "config"
+#: THE FOURTH CASE, and the one an action declares when it MOVES NOTHING AT ALL: a message is posted
+#: to players and no status, flag or revision changes. An expectation recorded for such an action
+#: could only ever end on the ceiling, so the row's glyph would blink for two minutes over a write
+#: that already finished — the declaration says ``none`` and the route records no expectation, which
+#: is exactly "there is nothing to wait for".
+AWAIT_OBSERVABLE_NONE = "none"
 
 CONFIRM_SUFFIX = "/confirm"
 CONFIRM_FIELD = "_confirm_token"
 CONFIRM_TEMPLATE = "confirm.html"
 
 ORIGIN_FIELD = "_origin"
+#: THE ACTIVE-TAB CARRIER, and the reason it is a SECOND field rather than a query on the origin:
+#: the dashboard renders all four tables at ONE path (``/``) and the table in force is a query
+#: parameter, while a write returns by looking its origin up in the registry — an allow-list of PAGE
+#: PATHS (``Registrar.page_paths``), which refuses ``/?tab=players`` outright. So the tab travels
+#: beside the origin and the routes that build the return URL append it (:func:`origin_url`). A
+#: control on a page whose table is its path (``/fleet``, ``/players``, ``/nodes``) carries no tab
+#: at all, and neither does the dashboard's default tab: an unadorned page stays unadorned.
+TAB_FIELD = "_tab"
 CONFIRM_KEY = "_action_confirms"
 CONFIRM_MAX_PENDING = 8
 
@@ -367,6 +441,36 @@ class NodeOption:
 
 
 @dataclass(frozen=True, slots=True)
+class SelectOption:
+    """ONE option a control's DIALOG offers in its SELECT.
+
+    ``value`` is the string the form posts and the ACTION validates (never a label a translator
+    could move); ``label`` is the ``i18n._``-marked English the dialog shows, translated for the
+    REQUEST where the dialog is built.
+    """
+
+    value: str
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
+class SelectField:
+    """The SELECT ONE control's DIALOG draws, when the operation offers a choice among named values.
+
+    Its own shape rather than a second :class:`NodeOption`, because a checkbox is a boolean and this
+    is a choice: ``field`` is BOTH the form field's name and the ACTION parameter's name (one
+    string, so the route cannot post one thing and the action read another), and ``options`` is the
+    declaration's own list. A select with ONE option is honest where the operation has one audience —
+    it states the recipient rather than leaving the operator to guess.
+    """
+
+    field: str
+    label: str
+    options: tuple[SelectOption, ...]
+    help: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class WriteAction:
     """One write of the console: what it needs, what it calls, and which state it applies to.
 
@@ -404,7 +508,23 @@ class WriteAction:
     row: str = ROW_STRIP
     danger: bool = False
     confirm: bool = False
+    #: record EVERY attempt at this action in the audit, including a refusal the ROUTE made before
+    #: any action ran. The default is False — a refusal a route makes is not an incident for most
+    #: writes — and an action whose refusal IS worth a row (a destructive one, or one whose probe the
+    #: operator wants to see) declares True here, so the flag travels with the declaration rather than
+    #: with the route. Read by :func:`_audit_refusal`, the single consumer.
+    audit_refusals: bool = False
     when_maintenance: bool | None = None
+    #: whether this control is reached through its DIALOG while requiring NO confirmation — the ADD
+    # SERVER control, whose dialog IS the form (a node, an instance, a name, the channels). A dialog
+    # is otherwise reached because the action confirms or carries an option; this one carries neither
+    # and still needs the page, so it says so. It mints no one-shot token: adding a server is not
+    # destructive, and a token nothing spends is the dead knob this console forbids.
+    form: bool = False
+    #: whether the DIALOG requires the target's NAME to be TYPED into it. A destructive write a click
+    # cannot be undone from earns the deliberate act: the route compares the posted value with the
+    # RESOLVED target's own name and refuses a mismatch before it resolves anything.
+    typed_confirm: bool = False
     #: the command's own OPTION, when the action has one: a checkbox with its ``off`` companion,
     # drawn by the action's DIALOG (``templates/confirm.html`` via :func:`option_inputs`).
     # Shutdown sets the maintenance flag, Startup clears it (``plugins.mission.actions``'s own contract),
@@ -419,13 +539,47 @@ class WriteAction:
     #: node rows use, and a control may use either. A mission route parses its own option fields
     #: (``_mission_add_handler``), so ``_handler``'s single-option parse is untouched by this.
     options: tuple[NodeOption, ...] = ()
+    #: THE DIALOG'S own TEXT field, when the action asks the operator for text (a server-wide
+    #: message). The same shape and the same discipline as :attr:`PlayerAction.field`: ``field`` is
+    #: BOTH the form field's name and the ACTION parameter's name, and the value travels UNVALIDATED
+    #: — the action owns its own refusals.
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    #: HOW the dialog renders that text field: ``text`` is the one-line input, ``textarea`` the box a
+    #: message of several lines is typed into. It lives on the declaration for the same reason the
+    #: rest of the dialog does — the operator's message is prose, so the control that collects it
+    #: says so once, beside the field it describes.
+    field_kind: str = "text"
+    #: THE DIALOG'S own SELECT, when the action offers a choice among named values (a message's
+    #: audience). Drawn by the SAME template as the text field and the checkboxes
+    #: (``confirm.html``'s ``field_input``), and its ``field`` is likewise the action's parameter.
+    select: SelectField | None = None
+    #: what the CONTROL adds to the action call on its OWN authority — the fields the declaration
+    #: states and the body cannot supply, applied AFTER the posted values so they can never be
+    #: overridden. The server message pair is the case that needs it: ``chat`` and ``popup`` are two
+    #: controls of ONE ``message_server`` action whose MODE is not a choice the browser makes
+    #: (``(("mode", "chat"),)``), so a crafted POST cannot move a write from one mode to the other.
+    constants: tuple[tuple[str, str], ...] = ()
+    #: whether the ACTOR's own name is passed to the action as ``sender`` — the label an in-game
+    #: message appears to come from. Read off the request's identity, never from the body, so nobody
+    #: can sign another person's name onto a message.
+    sender: bool = False
+    #: whether the ACTION writes its own audit entry (``core.actions.audit_action``), which is what
+    #: decides the seam's ``audit_result``. True for an action this repo owns; False for a plugin
+    #: action this console may not modify, whose entry the SEAM writes instead — one entry either
+    #: way, never two.
+    self_audited: bool = False
     #: WHICH observable this action MOVES, and therefore which signal ends the pulse it starts.
     # The default — the row's status/state — is what every power action and the
     #: mission pair change; ``AWAIT_OBSERVABLE_MAINTENANCE`` is the flag pair's own, because setting or
-    #: clearing ``server.maintenance`` moves no status at all. It lives on the DECLARATION for the same
-    #: reason every other fact about a control does: the route that records the expectation and the
-    #: read that ends it are two readings of ONE declaration, never a second list of "which actions
-    #: are flag actions" that could drift from the pair below.
+    #: clearing ``server.maintenance`` moves no status at all; ``AWAIT_OBSERVABLE_CONFIG`` is the
+    #: config writes' own (the revision); and ``AWAIT_OBSERVABLE_NONE`` is an action that moves
+    #: NOTHING, so no expectation is recorded and its control never pulses. It lives on the
+    #: DECLARATION for the same reason every other fact about a control does: the route that records
+    #: the expectation and the read that ends it are two readings of ONE declaration, never a second
+    #: list of "which actions are flag actions" that could drift from the pair below.
     observable: str = AWAIT_OBSERVABLE_STATUS
     #: THE STATE ITS WRITE IS WORKING TOWARD: the row reads one of these when the action has SETTLED,
     #: and only then is its pulse spent. The end condition is not simply "the status moved", which a
@@ -468,7 +622,27 @@ class WriteAction:
         dialog route's registration and the capability map (``capabilities``) are three readings of
         it, so a control cannot post directly while its option is rendered on a page nobody reaches.
         """
-        return bool(self.confirm or self.option is not None or self.options)
+        return bool(self.confirm or self.option is not None or self.options or self.form)
+
+
+#: THE SERVER MESSAGE AUDIENCE — the recipients a server-wide message offers, declared ONCE and read
+#: by BOTH dialogs of the pair (the chat control and the popup control), so the two cannot drift into
+#: two vocabularies for one choice. The values are the ACTION's own recipient words
+#: (``plugins.mission.actions.SERVER_MESSAGE_RECIPIENTS``); the labels are the three the console
+#: shows. ALL THREE ARE ALWAYS OFFERED on a server whose process can take the message: DCS addresses
+#: a coalition directly (``trigger.action.outTextForCoalition``) and the chat line fans out per player
+#: of that side, so red/blue need no server-side configuration. The action re-validates every POST
+#: against its own allow-list.
+SERVER_MESSAGE_AUDIENCE: tuple[SelectOption, ...] = (
+    SelectOption("all", i18n._("Everyone")),
+    SelectOption("red", i18n._("Red coalition")),
+    SelectOption("blue", i18n._("Blue coalition")),
+)
+
+#: The audience SELECT's own help line, shared by both dialogs because the choice it explains is the
+#: same one.
+SERVER_MESSAGE_AUDIENCE_HELP = i18n._("The choice is the audience: everyone on the server, or one "
+                                      "side of the mission.")
 
 
 #: The SERVER row's controls. The three process/DCS-level writes
@@ -596,7 +770,127 @@ SERVER_ACTIONS: tuple[WriteAction, ...] = (
                 tip=i18n._("End maintenance — let the scheduler start this server again"),
                 aria=i18n._("Take server {server} out of maintenance"),
                 hint=i18n._("the server may be started again — nothing is started by this")),
+    # ── the SERVER MESSAGE pair ────────────────────────────
+    # The server-row twin of the player pair (``PLAYER_ACTIONS``' ``chat``/``popup``): ONE glyph per
+    # mode, its own dialog, both posting to the ONE ``message_server`` action. They sit in the strip
+    # on the RUNNING and PAUSED rows alone — the states whose process can receive the message at all —
+    # and they CONFIRM, exactly as the player pair does, so the message is typed in a dialog beside
+    # the consequence and a POST that skipped it is refused.
+    #
+    # THE AUDIENCE is the difference: a server-wide message may be addressed to the whole server or
+    # to one coalition, so each dialog carries a SELECT (``SelectField``) whose values are the
+    # ACTION's own recipient words. Both dialogs read the SAME declaration
+    # (:data:`SERVER_MESSAGE_AUDIENCE`): one choice, one vocabulary, whether the line is a chat line
+    # or a popup.
+    WriteAction(key="chat", capability=SERVER_MESSAGE_CAPABILITY, qualname="message_server",
+                path=SERVER_CHAT_PATH, label=i18n._("Chat"), statuses=("RUNNING", "PAUSED"),
+                confirm=True, audit_refusals=True, self_audited=True, sender=True,
+                field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                field_kind="textarea",
+                field_help=i18n._("Written into the game chat of the recipients you choose below."),
+                observable=AWAIT_OBSERVABLE_NONE,
+                constants=(("mode", "chat"),),
+                select=SelectField(
+                    field="coalition", label=i18n._("Send to"),
+                    options=SERVER_MESSAGE_AUDIENCE,
+                    help=SERVER_MESSAGE_AUDIENCE_HELP),
+                tip=i18n._("Chat — a chat line in game, to the recipients you choose"),
+                aria=i18n._("Send a chat line on {server}"),
+                hint=i18n._("a chat line in game, addressed to the recipients you choose"),
+                warning=i18n._("<b>The recipients you choose below read this line.</b> It appears "
+                               "in their game chat on {server} under your name, as if you had typed "
+                               "it there."),
+                detail=i18n._("The line goes into the game chat of every player on {server}, or of "
+                              "the one side you choose below."),
+                go=i18n._("Send chat line"),
+                go_title=i18n._("Send a chat line on {server}")),
+    WriteAction(key="popup", capability=SERVER_MESSAGE_CAPABILITY, qualname="message_server",
+                path=SERVER_POPUP_PATH, label=i18n._("Popup"), statuses=("RUNNING", "PAUSED"),
+                confirm=True, audit_refusals=True, self_audited=True, sender=True,
+                field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                field_kind="textarea",
+                field_help=i18n._("Arrives in a box of its own and closes by itself."),
+                observable=AWAIT_OBSERVABLE_NONE,
+                constants=(("mode", "popup"),),
+                select=SelectField(
+                    field="coalition", label=i18n._("Send to"),
+                    options=SERVER_MESSAGE_AUDIENCE,
+                    help=SERVER_MESSAGE_AUDIENCE_HELP),
+                tip=i18n._("Popup — a message box on every screen"),
+                aria=i18n._("Send a popup to {server}"),
+                hint=i18n._("a message box on every screen"),
+                warning=i18n._("<b>Every player on {server} sees this box</b> — or, with a "
+                               "coalition chosen below, every player on that side. It closes by "
+                               "itself after the server's configured message timeout."),
+                detail=i18n._("The box is addressed to everyone on {server}, or to the one side "
+                              "you choose below."),
+                go=i18n._("Send popup"),
+                go_title=i18n._("Send a popup to {server}")),
 )
+
+
+#: THE SERVER CREATION PAIR — the two writes that did not exist before a server did.
+#:
+#: DELETE (``servers.delete``) is a ROW control: the row names the server, and the operation removes
+#: that server TOGETHER with the instance it runs in. ADMIN ONLY with NO scope grant
+#: (:data:`NODE_ROLES`) — removing an instance is a node fact, like every other write in that family,
+#: and a manager's scope is a set of servers, which is not a licence to delete one's machine state. Its
+#: ``statuses`` is EMPTY because the ACTION stops the server itself, so no state can refuse it, and
+#: ``typed_confirm`` makes its dialog ask for the name to be TYPED instead of a click.
+#:
+#: ``audit_refusals`` is True: a probe of a DESTRUCTIVE removal — a typed name that does not match, a
+#: target outside the caller's view, a body stating an option this console never sends — is exactly the
+#: incident the trail exists for, and the route records it before it answers the bare refusal.
+#:
+#: ADD (``servers.add``) is a PAGE control (:func:`page_controls`), not a row one: there is no row yet
+#: to hang it on. It opens the ONE dialog that asks for the node, the instance (an existing EMPTY one,
+#: or a new one), the name and whether to configure the server — ``form`` rather than ``confirm``,
+#: because adding a server is not destructive and the dialog is a form, not a confirmation.
+#:
+#: ``audit_refusals`` is True here too: a refused creation — a node outside the caller's view — leaves
+#: a row, so the pair is recorded on every attempt.
+SERVER_NODE_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key="delete", capability=SERVER_DELETE_CAPABILITY, qualname="delete_server",
+                path=SERVER_DELETE_PATH, label=i18n._("Delete"), statuses=(),
+                row=ROW_MENU, danger=True, confirm=True, typed_confirm=True, audit_refusals=True,
+                option=NodeOption(
+                    field=REMOVE_FILES_FIELD,
+                    label=i18n._("Also delete the Saved Games directory"),
+                    default=False,
+                    help=i18n._("Deletes the instance's own directory, with every mission and "
+                                "configuration file in it. Left OFF, the directory stays on the "
+                                "machine.")),
+                tip=i18n._("Delete — stop this server and remove it with the instance it runs in"),
+                aria=i18n._("Delete server {server}"),
+                hint=i18n._("remove the server and the instance it runs in"),
+                warning=i18n._("<b>{server} is stopped and removed, together with the instance it "
+                               "runs in.</b> {players} player(s) are disconnected if it is up. The "
+                               "box below is off by default: with it ticked the instance's Saved "
+                               "Games directory is deleted as well, and that cannot be undone."),
+                detail=i18n._("Type the server's name below to confirm. The server, its instance "
+                              "block in nodes.yaml and its database rows go away; the Saved Games "
+                              "directory stays unless you tick the box."),
+                go=i18n._("Delete server"),
+                go_title=i18n._("Delete {server} — it is stopped and removed with its instance")),
+)
+
+SERVER_PAGE_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key="add_server", capability=SERVER_ADD_CAPABILITY, qualname="add_server",
+                path=SERVER_ADD_PATH, label=i18n._("Add server"), statuses=(), form=True,
+                audit_refusals=True,
+                tip=i18n._("Add server — give an instance that has none its server, or create a new "
+                           "instance"),
+                aria=i18n._("Add a server")),
+)
+
+
+def server_row_actions() -> tuple[WriteAction, ...]:
+    """EVERY control a SERVER row may render, in order: the server writes, then the creation pair.
+
+    ONE function, so the row's strip, the pending-control lookups and the capability map cannot
+    disagree about which declarations belong to a server row.
+    """
+    return SERVER_ACTIONS + SERVER_NODE_ACTIONS
 
 
 #: THE DCS CONFIG WRITE — a declaration of its own, NOT a ``SERVER_ACTIONS`` row: it is not a
@@ -653,7 +947,7 @@ SERVER_COALITION_ACTIONS: tuple[WriteAction, ...] = (
 #: ``load``'s ``statuses`` IS the gate ``load_mission`` applies (RUNNING / PAUSED / STOPPED); the tab
 #: omits the control where the action would refuse. ``add`` / ``delete`` / ``upload`` work in every
 #: state (``addMission`` / ``deleteMission`` route through DCS or edit the file directly), so their
-#: ``statuses`` is empty — as does the M8 BULK REMOVE, except in ``LOADING``
+#: ``statuses`` is empty — as does the BULK REMOVE, except in ``LOADING``
 #: (``MISSIONS_BULK_DELETE_STATES``).
 MISSION_ACTIONS: tuple[WriteAction, ...] = (
     # ADD is reached through its DIALOG (``MISSION_DIALOG_KEYS``): the picker and the load choices
@@ -719,7 +1013,7 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
                 tip="Upload — send a .miz FILE from your own computer into {server}'s missions "
                     "directory and add it",
                 aria="Upload a mission to {server}"),
-    # BULK REMOVE (M5; the gate reworked by M8): several missions out of the rotation, one row's
+    # BULK REMOVE: several missions out of the rotation, one row's
     # delete repeated. It RE-USES ``missions.delete`` (it is still delete) and goes through its DIALOG
     # — the console's ONE dialog component, which here IS the selection (a checkbox per configured
     # mission, the running one omitted with the reason stated in the warning) plus the same "delete
@@ -751,7 +1045,7 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
                               "server unless you tick the box."),
                 go=i18n._("Remove missions"),
                 go_title=i18n._("Remove the selected missions from {server}'s rotation list")),
-    # MOVE UP / DOWN (M5): reorder ONE mission in the rotation list. Two small buttons per row open
+    # MOVE UP / DOWN: reorder ONE mission in the rotation list. Two small buttons per row open
     # no dialog — they post directly — and the offline-only gate is its ``statuses``.
     WriteAction(key="mission_reorder", capability=MISSIONS_REORDER_CAPABILITY,
                 qualname="reorder_mission", path=MISSIONS_REORDER_PATH, label=i18n._("Move"),
@@ -759,10 +1053,10 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
                 tip="Move — reorder a mission in {server}'s rotation list (only while the server is "
                     "not running)",
                 aria="Move a mission in {server}'s rotation list"),
-    # ACTIVATE (M7): make ONE configured mission the START mission — through the bot's own
+    # ACTIVATE: make ONE configured mission the START mission — through the bot's own
     # ``setStartIndex``. Offered in every state EXCEPT ``LOADING`` (``MISSIONS_ACTIVATE_STATES``); the
     # action refuses that one state, where the write would be silently reverted. It posts directly —
-    # not destructive, no options — like the move pair. ITS LABEL IS THE OPERATOR'S WORD (M9):
+    # not destructive, no options — like the move pair. ITS LABEL IS THE OPERATOR'S WORD:
     # ``Set as start``, matching the ``START`` marker on the row it names; it sets the rotation
     # pointer and does NOT load the mission now (that is ``Load``, a different control and a
     # different write).
@@ -777,7 +1071,7 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
 
 #: The mission controls reached through their DIALOG (``confirm.html``): the ADD flow, whose picker
 #: and load choices live on the dialog, the single REMOVE (its tab control is gone, but the route
-#: remains), and the M5 bulk REMOVE — whose dialog shows the LIST'S selection READ-ONLY. All post
+#: remains), and the bulk REMOVE — whose dialog shows the LIST'S selection READ-ONLY. All post
 #: through ``<path>/confirm``; the capability map declares that path (``capabilities``) and
 #: ``add_routes`` registers it. ``mission_delete`` and ``mission_delete_bulk`` also declare ``confirm``,
 #: so their own routes demand the token.
@@ -786,42 +1080,27 @@ MISSION_DIALOG_KEYS: frozenset[str] = frozenset(
 
 
 @dataclass(frozen=True, slots=True)
-class PlayerButton:
-    """ONE button of a player control that offers several — the chat/popup pair.
-
-    The mode is the button's own ``name``/``value`` pair, so one form carries both modes and the
-    browser sends the mode the person clicked; nothing is inferred from the label, and there is no
-    second form to keep in step. ``icon``/``aria``/``tip`` name the MODE because the two buttons of
-    one control must be told apart by a screen reader (two identical accessible names on one row is
-    the same failure as an unlabelled icon).
-    """
-    mode: str
-    icon: str
-    tip: str = ""
-    aria: str = ""
-
-
-@dataclass(frozen=True, slots=True)
 class PlayerAction:
     """One write of the console that acts on a PLAYER row.
 
     Its own record rather than a second :class:`WriteAction`, because a player write carries what a
-    server write does not: the UCID that completes its target, the MODES it offers and, with them, a
+    server write does not: the UCID that completes its target, the MODE it writes in and, with it, a
     field the person fills in. Same discipline as its server twin — data, not code: the route table,
     the capability map, the page control and the dialog are four readings of ONE declaration.
 
-    ``buttons`` is the control's own button set, in the order the control draws it: the message
-    control's two modes (chat, popup), each with its own glyph and accessible name. A control with
-    NO buttons renders one button carrying the action's own ``icon``/``tip``/``aria``.
-
     ``params`` is the translation from FORM field name to the ACTION's parameter name, which is the
-    only thing the route does with a body (``{"message": "message", "mode": "mode"}``); ``sender``
-    marks the actions that are told who is acting, so the copy reads the identity rather than a field
-    the browser sent.
+    only thing the route does with a body (``{"message": "message"}``); ``constants`` is what the
+    control adds to that call on its OWN authority — the fields the declaration states and the body
+    cannot supply. The message pair is why it exists: ``chat`` and ``popup`` are two controls of ONE
+    action whose mode is not a choice the browser makes (``("mode", "chat")``), so the mode travels
+    with the control rather than in a form, and a crafted POST cannot send the other one.
+
+    ``sender`` marks the actions that are told who is acting, so the copy reads the identity rather
+    than a field the browser sent.
 
     ``field``/``field_label``/``field_max`` describe the text field the DIALOG offers (a kick reason,
-    a ban reason). A control with ``confirm`` never carries a field on the row: the field lives in
-    the dialog, where the mockup draws it.
+    a ban reason, the message the two message controls send). A player row renders GLYPHS ONLY: the
+    field is asked for on the dialog, where the consequence is written next to it.
 
     ``when_muted`` is the mute pair's own state gate: ``unmute`` is offered only on a player the read
     model says is muted, ``mute`` only on one it does not. It is the ONLY per-row player state the
@@ -842,8 +1121,15 @@ class PlayerAction:
     field_label: str = ""
     field_max: int = 0
     field_help: str = ""
-    buttons: tuple[PlayerButton, ...] = ()
+    #: how the dialog renders that field — see :attr:`WriteAction.field_kind`
+    field_kind: str = "text"
+    #: the field's own width class in the dialog: ``wide`` stretches it across the dialog (a reason
+    #: the operator reads back), ``narrow`` shrinks it to the few characters a count needs. Empty
+    #: keeps the shared default. Declared here for the same reason as the kind: the field's SHAPE is
+    #: a fact about what it collects, not a decision the template makes per action.
+    field_width: str = ""
     params: tuple[tuple[str, str], ...] = ()
+    constants: tuple[tuple[str, str], ...] = ()
     sender: bool = False
     when_muted: bool | None = None
     tip: str = ""
@@ -856,9 +1142,15 @@ class PlayerAction:
 
 
 #: The player row's controls: kick · ban · chat · popup · mute. Every one of them posts to an
-#: action that EXISTS — ``message_player`` (its two modes drawn as the chat/popup pair) and the three
-#: mission actions in ``plugins/mission/actions.py``. The ``__qualname__`` is the registry's key
+#: action that EXISTS — ``message_player`` (one control per mode) and the four mission actions in
+#: ``plugins/mission/actions.py``. The ``__qualname__`` is the registry's key
 #: (``core/actions.py``), never the function NAME.
+#:
+#: THE ROW IS GLYPHS ONLY: every control here that asks for something asks for it on its DIALOG
+#: (``confirm``), so the strip carries the five icons and the widest column of the table stops being
+#: a text field. The two message controls are the split of what used to be one control with an
+#: inline field and a mode button per mode: the mode is now the control's own ``constants`` entry,
+#: and the field is typed in the dialog the glyph opens.
 #:
 #: CAPABILITIES: ``players.kick`` / ``players.ban`` / ``players.mute`` alongside ``players.message``
 #: — all four declared here with ``scope_grants=True``, so a
@@ -872,6 +1164,7 @@ PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
                  path="/actions/player/kick", label=i18n._("Kick"), icon="kick",
                  danger=True, confirm=True, audit_refusals=True,
                  field="reason", field_label=i18n._("Reason"), field_max=200,
+                 field_width="wide",
                  field_help=i18n._("Shown to the player in game."),
                  params=(("reason", "reason"),),
                  tip=i18n._("Kick — disconnected now; they may rejoin immediately"),
@@ -888,6 +1181,7 @@ PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
                  path="/actions/player/ban", label=i18n._("Ban"), icon="ban",
                  danger=True, confirm=True, audit_refusals=True,
                  field="reason", field_label=i18n._("Reason"), field_max=80,
+                 field_width="wide",
                  field_help=i18n._("Kept on the ban list."),
                  params=(("reason", "reason"), ("days", "days")), sender=True,
                  tip=i18n._("Ban — removed and blocked from rejoining"),
@@ -900,18 +1194,37 @@ PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
                                "holds wherever they connect from — not only on this server."),
                  go=i18n._("Ban player"),
                  go_title=i18n._("Ban {player} — empty duration is permanent")),
-    PlayerAction(key="message", capability=MESSAGE_CAPABILITY, qualname="message_player",
-                 path=MESSAGE_PATH, label=i18n._("Message"),
+    PlayerAction(key="chat", capability=MESSAGE_CAPABILITY, qualname="message_player",
+                 path=CHAT_PATH, label=i18n._("Chat"), icon="chat", confirm=True,
                  field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
-                 params=(("message", "message"), ("mode", "mode")), sender=True,
-                 buttons=(
-                     PlayerButton(mode="chat", icon="chat",
-                                  tip=i18n._("Chat — a chat line in game, visible to everyone"),
-                                  aria=i18n._("Send a chat line to {player} on {server}")),
-                     PlayerButton(mode="popup", icon="popup",
-                                  tip=i18n._("Popup — a private message in game"),
-                                  aria=i18n._("Send a popup to {player} on {server}")),
-                 )),
+                 field_kind="textarea",
+                 field_help=i18n._("Sent to this player's game chat — only they read it."),
+                 params=(("message", "message"),), constants=(("mode", "chat"),), sender=True,
+                 tip=i18n._("Chat — a chat line only this player reads"),
+                 aria=i18n._("Send a chat line to {player} on {server}"),
+                 hint=i18n._("a chat line in game only they read"),
+                 warning=i18n._("<b>Only {player} reads this line.</b> It is written in their own "
+                                "game chat under your name, as if you had typed it there."),
+                 detail=i18n._("The line is addressed to {player} alone: it goes into their game "
+                               "chat and nobody else on {server} sees it."),
+                 go=i18n._("Send chat line"),
+                 go_title=i18n._("Send a chat line to {player} on {server}")),
+    PlayerAction(key="popup", capability=MESSAGE_CAPABILITY, qualname="message_player",
+                 path=POPUP_PATH, label=i18n._("Popup"), icon="popup", confirm=True,
+                 field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                 field_kind="textarea",
+                 field_help=i18n._("A popup — only this player sees it."),
+                 params=(("message", "message"),), constants=(("mode", "popup"),), sender=True,
+                 tip=i18n._("Popup — a private message in game"),
+                 aria=i18n._("Send a popup to {player} on {server}"),
+                 hint=i18n._("a private message only they see"),
+                 warning=i18n._("<b>Only {player} sees this message.</b> It arrives in a box of its "
+                                "own and closes by itself after the server's configured message "
+                                "timeout."),
+                 detail=i18n._("The popup is addressed to {player} alone. It arrives in a box of "
+                               "its own, not as a line in their chat."),
+                 go=i18n._("Send popup"),
+                 go_title=i18n._("Send a popup to {player} on {server} — only they see it")),
     PlayerAction(key="mute", capability="players.mute", qualname="mute_player",
                  path="/actions/player/mute", label=i18n._("Mute"), icon="mute", when_muted=False,
                  tip=i18n._("Mute — they can no longer send chat"),
@@ -1148,6 +1461,16 @@ def declare() -> None:
     """
     for action in SERVER_ACTIONS:
         permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE SERVER MESSAGE PAIR (``servers.message``) is declared by that same loop: a server-wide
+    # message is a server-row write, so it carries the server row's rule — ``Admin`` + ``DCS Admin``,
+    # with a manager's scope grant, exactly as the PLAYER message pair carries it for a manager's own
+    # players.
+    # THE SERVER CREATION PAIR is declared by its OWN loop, NOT the one above: ``servers.add`` and
+    # ``servers.delete`` create and remove an INSTANCE, so they carry the node/instance rule —
+    # ``Admin`` only, and NO scope grant. A manager's scope is a set of server names and cannot widen
+    # into creating one (there is no name to scope yet) or into removing a machine's instance.
+    for action in SERVER_NODE_ACTIONS + SERVER_PAGE_ACTIONS:
+        permissions.declare_capability(action.capability, NODE_ROLES)
     # THE MAINTENANCE PAIR IS DECLARED BY THE LOOP ABOVE, deliberately, and that IS §10.9's
     # decision made visible: ``servers.maintenance`` / ``servers.clear_maintenance`` carry the
     # console's server-write rule — ``Admin`` + ``DCS Admin`` WITH a manager's scope grant — which is
@@ -1200,9 +1523,14 @@ def capabilities() -> dict[str, str]:
     own refusal would be unusable if the door to it were narrower.
     """
     declare()
-    capabilities_ = {action.path: action.capability for action in SERVER_ACTIONS}
+    capabilities_ = {action.path: action.capability for action in server_row_actions()}
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
-                          for action in SERVER_ACTIONS if action.dialog})
+                          for action in server_row_actions() if action.dialog})
+    # the PAGE control (Add server) contributes its own two paths for the same reason: the dialog is
+    # reached through POST too, and opening it is not a lesser right than performing the action.
+    capabilities_.update({action.path: action.capability for action in SERVER_PAGE_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in SERVER_PAGE_ACTIONS if action.dialog})
     capabilities_.update({action.path: action.capability for action in PLAYER_ACTIONS})
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
                           for action in PLAYER_ACTIONS if action.confirm})
@@ -1500,7 +1828,7 @@ NODE_MOVE_ACTIONS: dict[str, str] = {"offline": "shutdown", "online": "startup"}
 
 def _server_action(key: str) -> WriteAction:
     """The :class:`WriteAction` a SERVER control KEY names — the observable/settled the seed borrows."""
-    return next(action for action in SERVER_ACTIONS if action.key == key)
+    return next(action for action in server_row_actions() if action.key == key)
 
 
 def node_moved_names(request: Request, node_name: str,
@@ -1604,15 +1932,17 @@ def _server_settings_link(name: str) -> dict:
     }
 
 
-def server_controls(request: Request, origin: str) -> dict[str, dict]:
+def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, dict]:
     """The row STRIP each server row may render, keyed by server name — and nothing for a row whose
     controls may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on (its own path constant), and it travels
     into every control as a hidden field so the write can return there: the
     Dashboard (``/``) and ``/fleet`` render the SAME strip, so a Startup pressed on either must
-    keep the person on the page they were on. The route re-checks it against the registry — this
-    value is a rendering aid, never the authority (see :func:`origin_path`).
+    keep the person on the page they were on. ``tab`` is the dashboard's active tab, carried beside
+    it for the page whose tables share one path (see :func:`controls_for`). The route re-checks the
+    origin against the registry — this value is a rendering aid, never the authority (see
+    :func:`origin_path`).
 
     Three conditions, each read from the ONE place that decides it; a control is
     OMITTED — never rendered disabled — when any of them is false:
@@ -1665,7 +1995,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
     # (a restricted scope WITHOUT a cluster role), read from the page module that owns both, so the
     # row's cogwheel and the tab it opens cannot disagree about who may open it. The cogwheel is
     # offered on the standalone SERVERS page ONLY (``origin``): the dashboard's Servers tab keeps the
-    # layout it had, and the card scopes this to the page where servers are listed.
+    # layout it had, and this is scoped to the page where servers are listed.
     from . import server_detail as server_detail_page
     from . import servers as servers_page
     can_open_config = (origin == servers_page.SERVERS_PATH
@@ -1687,7 +2017,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
         # flagged — which offers *Maintenance*; the action's own "already in maintenance mode" guard
         # is the authority a stale page meets, and a wrong guess costs one typed refusal.
         flagged = bool(readmodels.safe(lambda: getattr(server, "maintenance", False), False))
-        offered = tuple(action for action in SERVER_ACTIONS
+        offered = tuple(action for action in server_row_actions()
                         if (not action.statuses or state in action.statuses)
                         and (action.when_maintenance is None
                              or action.when_maintenance == flagged)
@@ -1715,7 +2045,7 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
         # transitional and a start/restart is pending, the pending control's OWN glyph is rendered,
         # busy: the honest affordance is "this server is starting". It is DISABLED — not an
         # invitation — because a second start through the UI is meaningless while the first boots.
-        stuck = _pending_row_control(pending, offered, name, token, origin, roles, manager)
+        stuck = _pending_row_control(pending, offered, name, token, origin, roles, manager, tab=tab)
         # THE SETTINGS COGWHEEL — the row's link INTO this server's Configuration tab. It is a READ
         # shortcut, gated on that tab's OWN capability (see ``can_open_config`` above): offered when
         # the caller may open the tab, absent otherwise, and never a second editor.
@@ -1741,7 +2071,8 @@ def server_controls(request: Request, origin: str) -> dict[str, dict]:
 
 
 def _pending_row_control(pending: str | None, offered: tuple[WriteAction, ...], name: str,
-                         token: str, origin: str, roles: frozenset[str], manager: bool) -> dict | None:
+                         token: str, origin: str, roles: frozenset[str], manager: bool,
+                         *, tab: str = "") -> dict | None:
     """The busy, DISABLED control a row shows for a pending action its own gate no longer matches.
 
     ``pending`` is the action key :func:`awaiting_action` read for this row; it
@@ -1754,19 +2085,34 @@ def _pending_row_control(pending: str | None, offered: tuple[WriteAction, ...], 
     """
     if not pending or any(action.key == pending for action in offered):
         return None
-    action = next((candidate for candidate in SERVER_ACTIONS
+    action = next((candidate for candidate in server_row_actions()
                    if candidate.key == pending
                    and candidate.observable == AWAIT_OBSERVABLE_STATUS
                    and permissions.allows(candidate.capability, roles, manager=manager)
                    and action_available(candidate.qualname)), None)
     if action is None:
         return None
-    control = _control(action, name, token, origin, busy=True)
+    control = _control(action, name, token, origin, busy=True, tab=tab)
     control["disabled"] = True
     return control
 
 
-def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool = False) -> dict:
+def _hidden_fields(origin: str, tab: str, *pairs: tuple[str, str]) -> tuple[tuple[str, str], ...]:
+    """The hidden fields a control or dialog carries: its TARGETS, its ORIGIN, and its TAB.
+
+    The tab field is emitted only when a tab is stated, so a control on a page whose table IS its
+    path (``/fleet``, ``/players``, ``/nodes``) and one on the dashboard's default tab render exactly
+    the fields they did before the carrier existed — the value is empty there and an empty field is
+    the dead knob this console forbids.
+    """
+    fields = tuple(pairs) + ((ORIGIN_FIELD, origin),)
+    if tab:
+        return fields + ((TAB_FIELD, tab),)
+    return fields
+
+
+def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool = False,
+             *, tab: str = "") -> dict:
     """One rendered control, as data: where it posts, its glyph, its two names, and the target.
 
     The target travels in the request BODY, never in a URL: there is no path or query
@@ -1776,6 +2122,9 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     is rendered on, so the route can 303 back to it rather than to the section's own page. It is a
     hidden field and not a URL parameter for the same reason the target is — and the route accepts it
     only by lookup against the registry (:func:`origin_path`), so it is a candidate, not a choice.
+    ``tab`` (the dashboard's active tab, empty elsewhere) travels beside it in :data:`TAB_FIELD`,
+    because the registry holds page paths and refuses a query-carrying origin: the route rebuilds the
+    return URL from both (:func:`origin_url`).
 
     A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
     :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
@@ -1813,8 +2162,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
             # other control leaves this False and stays a real, focusable button (the seam's guard, not
             # a disabled attribute, is what refuses a second press).
             "disabled": False,
-            "hidden": (("server", name), (ORIGIN_FIELD, origin)), "buttons": (),
-            "field": "", "field_label": "", "field_max": 0, "field_help": "", "field_id": "",
+            "hidden": _hidden_fields(origin, tab, ("server", name)),
             "csrf_field": session.CSRF_FIELD, "csrf_token": token}
 
 
@@ -1933,7 +2281,7 @@ def node_states(source, node_name: str) -> frozenset[str]:
     return frozenset(states)
 
 
-def node_controls(request: Request, origin: str) -> dict[str, dict]:
+def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, dict]:
     """The row STRIP each NODE row may render, keyed by node name — and nothing for a row that may
     not be offered one.
 
@@ -2013,7 +2361,7 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
             # do not: keep the row when it has either, and render just those.
             if settings is None and page is None:
                 continue
-            controls[key] = _node_record(key, index, (), "", None, settings, page=page)
+            controls[key] = _node_record(key, index, (), "", None, settings, page=page, tab=tab)
             continue
         # THE TWO READ CONTROLS on the row: *View log* (follow the node's own bot log) and
         # *Download log* (hand over the whole file), both offered on the LOG PANEL's own capability
@@ -2037,12 +2385,13 @@ def node_controls(request: Request, origin: str) -> dict[str, dict]:
                 and page is None):
             continue
         controls[key] = _node_record(key, index, offered, note, download, settings,
-                                     view=view, token=token, origin=origin, page=page)
+                                     view=view, token=token, origin=origin, page=page, tab=tab)
     return controls
 
 
 def _node_record(key: str, index: int, offered, note: str, download, settings,
-                 *, view=None, token: str = "", origin: str = "", page: str | None = None) -> dict:
+                 *, view=None, token: str = "", origin: str = "", page: str | None = None,
+                 tab: str = "") -> dict:
     """One NODE row's control record — the SAME shape whether the node is reachable or not.
 
     ``offered`` are the lifecycle/power actions the reachable node may render (empty for an OFFLINE
@@ -2052,7 +2401,7 @@ def _node_record(key: str, index: int, offered, note: str, download, settings,
     different record shapes that ``_table.html`` would then have to know apart.
     """
     return {
-        "strip": tuple(_node_control(action, key, token, origin) for action in offered),
+        "strip": tuple(_node_control(action, key, token, origin, tab=tab) for action in offered),
         "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
         "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
         "menu_note": "",
@@ -2131,7 +2480,7 @@ def node_load(source, node_name: str) -> tuple[int, int]:
     return servers, players
 
 
-def _node_control(action: NodeAction, name: str, token: str, origin: str) -> dict:
+def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab: str = "") -> dict:
     """One rendered NODE control, as data: where it posts, its glyph, its two names, its target.
 
     The target travels in the request BODY, never in a URL, under the field name the
@@ -2149,12 +2498,11 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str) -> dic
             "aria": _sentence(action.aria, node=name), "hint": action.hint,
             "danger": action.danger, "node": name,
             "direct": False,
-            "hidden": (("node", name), (ORIGIN_FIELD, origin)), "buttons": (),
-            "field": "", "field_label": "", "field_max": 0, "field_help": "", "field_id": "",
+            "hidden": _hidden_fields(origin, tab, ("node", name)),
             "csrf_field": session.CSRF_FIELD, "csrf_token": token}
 
 
-def controls_for(request: Request, table: str, origin: str) -> dict:
+def controls_for(request: Request, table: str, origin: str, *, tab: str = "") -> dict:
     """The row controls the table *table* may render — ONE call a list page makes for its own table.
 
     A list page asks for controls by the table it renders, so the page never decides which map
@@ -2166,13 +2514,18 @@ def controls_for(request: Request, table: str, origin: str) -> dict:
     is (``page.path`` for a list page, the Dashboard's ``/`` for the console), which is the one thing
     this module cannot read off the request — the live stream renders the dashboard's tables through
     its own ``/api/…`` request, so the request path is not the page.
+
+    ``tab`` is the ACTIVE TABLE of that page, for the one page whose tables share its path: the
+    dashboard's four tabs live at ``/`` and differ by a query parameter, so the tab rides beside the
+    origin in :data:`TAB_FIELD` and the routes re-attach it (:func:`origin_url`). A caller whose
+    table IS its path passes nothing (the default tab included — see :func:`dashboard.row_controls_for`).
     """
     if table == "players":
-        return player_controls(request, origin)
+        return player_controls(request, origin, tab=tab)
     if table == "servers":
-        return server_controls(request, origin)
+        return server_controls(request, origin, tab=tab)
     if table == "nodes":
-        return node_controls(request, origin)
+        return node_controls(request, origin, tab=tab)
     return {}
 
 
@@ -2201,12 +2554,14 @@ def _muted_state(source) -> dict[tuple[str, str], bool]:
     return out
 
 
-def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict]:
+def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tuple[str, str], dict]:
     """The controls each PLAYER row may render, keyed by ``(server name, ucid)`` — and nothing for a
     row whose control may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
-    field so the write returns there — the registry re-checks it (:func:`origin_path`).
+    field so the write returns there — the registry re-checks it (:func:`origin_path`) — and ``tab``
+    is the dashboard's active tab, carried beside it for the page whose tables share one path
+    (:func:`controls_for`).
 
     Same three conditions as :func:`server_controls`, each read from the ONE place that decides it,
     and the control is OMITTED — never rendered disabled — when any is false:
@@ -2247,7 +2602,7 @@ def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict
             continue
         is_muted = bool(muted.get((server_name, ucid), False))
         name = readmodels.text(view.name) or ucid
-        offered = tuple(_player_control(action, server_name, ucid, name, token, origin)
+        offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab)
                         for action in PLAYER_ACTIONS
                         if (action.when_muted is None or action.when_muted == is_muted)
                         and permissions.allows(action.capability, roles, manager=manager)
@@ -2262,16 +2617,21 @@ def player_controls(request: Request, origin: str) -> dict[tuple[str, str], dict
 
 
 def _player_control(action: PlayerAction, server_name: str, ucid: str, player_name: str,
-                    token: str, origin: str) -> dict:
-    """One rendered PLAYER control, as data: path, glyph, the two names, modes, field, target, token.
+                    token: str, origin: str, tab: str = "") -> dict:
+    """One rendered PLAYER control, as data: path, glyph, the two names, target, token.
 
     BOTH halves of the target travel in the request BODY — there is no URL a person
     can edit to point a write at another server or another player — and the ORIGIN travels beside
-    them, the page this control is rendered on.
+    them, the page this control is rendered on, with the dashboard's TAB beside the origin
+    (:func:`_hidden_fields`).
 
     A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
     :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
     dialog, so the row could not reach it directly even if it wanted to.
+
+    A player row renders GLYPHS ONLY — this record carries no field and no mode button. Everything a
+    write asks the person for (a reason, a message) is asked for on its dialog
+    (:func:`player_confirm_context`), which is where the consequence is written beside it.
     """
     values = {"server": server_name, "player": player_name}
     return {
@@ -2281,13 +2641,7 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
         "hint": action.hint, "danger": action.danger,
         "server": server_name, "ucid": ucid,
         "direct": not action.confirm,
-        "hidden": (("server", server_name), ("ucid", ucid), (ORIGIN_FIELD, origin)),
-        "buttons": tuple({"mode": button.mode, "icon": button.icon,
-                          "title": _sentence(button.tip, **values),
-                          "aria": _sentence(button.aria, **values)}
-                         for button in action.buttons),
-        "field": action.field, "field_label": action.field_label, "field_max": action.field_max,
-        "field_help": action.field_help, "field_id": f"{action.field}-{ucid}" if action.field else "",
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
         "csrf_field": session.CSRF_FIELD, "csrf_token": token,
     }
 
@@ -2396,13 +2750,15 @@ def _default_title(action_label: str, target: str) -> dict:
 
 
 def confirm_context(request: Request, action: WriteAction, name: str, players: int,
-                    token: str, origin: str) -> dict:
+                    token: str, origin: str, tab: str = "") -> dict:
     """Everything the confirm dialog's page reads, in one value.
 
     ``origin`` is the page the row that opened this dialog was rendered on: it
     is re-emitted in the dialog's own form (so the action's route can 303 back there), and it is what
     the dialog's ``Cancel`` and its ``Esc`` go back to — cancelling a Dashboard dialog must not
-    strand the person on the Servers page either.
+    strand the person on the Servers page either. ``tab`` is the dashboard's active tab, re-emitted
+    beside the origin and re-attached to both destinations by :func:`tabbed_origin`, so the dialog
+    that was opened from the Players tab returns there too.
 
     The MARKUP of the warning is assembled HERE and not in the template, with the interpolated values
     HTML-escaped (``html.escape``): the two halves of that copy — the consequence in bold, the detail
@@ -2433,14 +2789,17 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         #: server; a player dialog targets the player on it.
         "target": name,
         #: the form's hidden fields — the whole target and the page it was pressed on
-        "hidden": (("server", name), (ORIGIN_FIELD, origin)),
-        #: the fields the dialog asks for, drawn before the button: the command's own OPTION when
-        #: the action declares one (Shutdown/Startup's maintenance box), otherwise none — the
-        #: destructive trio need no input, which is why this row exists at all.
-        "inputs": option_inputs(action),
-        #: no BODY fields: the server dialog lives entirely in the footer form (M9's bulk-remove
-        #: dialog is the one that adds them).
-        "body_inputs": (),
+        "hidden": _hidden_fields(origin, tab, ("server", name)),
+        #: the fields the dialog asks for, drawn before the button, in the declaration's order: the
+        #: command's own OPTION when the action declares one (Shutdown/Startup's maintenance box), the
+        #: TEXT field and the SELECT a message control declares, otherwise none — the destructive trio
+        #: need no input, which is why this row exists at all.
+        "inputs": _dialog_inputs(request, action),
+        #: the TYPED confirmation, for an action that declares one (:attr:`WriteAction.typed_confirm`):
+        #: the operator types the target's name and the route compares it with the RESOLVED name. It
+        #: is a body field (drawn beside the warning that explains it) and an EMPTY tuple for every
+        #: other action, so their markup is unchanged.
+        "body_inputs": typed_confirm_inputs(action),
         #: the template's own chrome. A DESTRUCTIVE write confirms (red button, "cannot be undone");
         #: an action that only CARRIES AN OPTION (Startup) renders the plain form its sibling
         #: ``online`` does on the node row — driven by the declaration, never by an action's name.
@@ -2462,7 +2821,7 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         "user": dashboard_page.identity_summary(request),
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
-        "back": origin,
+        "back": tabbed_origin(origin, tab),
         "dialog": dialog,
     }
 
@@ -2476,30 +2835,46 @@ def _player_target(server_name: str, ucid: str) -> str:
     return f"{server_name}|{ucid}"
 
 
-def _player_name(player: Any, ucid: str) -> str:
-    """The label a player dialog shows — the RESOLVED object's own name, never a browser field.
+def _plain_name(source: Any, attributes: tuple[str, ...]) -> str:
+    """The PLAIN name of *source*: the first of *attributes* that carries one.
 
-    The console must not import the ``mission`` plugin (its pages have to render on an install whose
-    plugin is absent), so this is the console's own tolerant read of the same two attributes the
-    plugin's actions use (``display_name`` then ``name``), falling back to the ucid so a dialog can
-    never name nobody.
+    The DOMAIN objects carry a name twice: ``name`` is the plain string, and ``display_name`` is that
+    same string ESCAPED for Discord's markdown (``core/data/player.py``: ``utils.escape_string``),
+    so ``[TAG] Test Pilot`` reads back as ``\\[TAG\\] Test Pilot``. The console renders names into a
+    browser and never into Discord, so it reads the plain attribute; a display name stays the LAST
+    candidate, for a double that carries nothing else.
     """
-    for attribute in ("display_name", "name"):
-        value = readmodels.text(readmodels.safe(lambda: getattr(player, attribute, "")))
+    for attribute in attributes:
+        value = readmodels.text(readmodels.safe(lambda: getattr(source, attribute, "")))
         if value:
             return value
-    return ucid
+    return ""
+
+
+def _player_name(player: Any, ucid: str) -> str:
+    """The label a player dialog shows — the RESOLVED object's own PLAIN name, never a browser field.
+
+    The console must not import the ``mission`` plugin (its pages have to render on an install whose
+    plugin is absent), so this is the console's own tolerant read of the same object the plugin's
+    actions read. ``name`` comes FIRST (:func:`_plain_name`): the domain ``display_name`` is the name
+    escaped for Discord's markdown, and a dialog that showed ``\\[TAG\\] Test Pilot`` for a name with
+    brackets was reading that escaped value. The ucid is the fallback, so a dialog can never name
+    nobody.
+    """
+    return _plain_name(player, ("name", "display_name")) or ucid
 
 
 def player_confirm_context(request: Request, action: PlayerAction, server: Any, player: Any,
-                           server_name: str, ucid: str, token: str, origin: str) -> dict:
+                           server_name: str, ucid: str, token: str, origin: str,
+                           tab: str = "") -> dict:
     """Everything a PLAYER confirm dialog's page reads — the twin of :func:`confirm_context`.
 
     Same discipline, one difference that is the whole point: the dialog carries the SECOND half of
     the target (the ucid) and the fields the destructive action needs (a reason, an optional number
     of days), which is why the mockup draws kick and ban as dialogs with a message field while the
     three server dialogs ask for nothing. ``origin`` is the page the row was rendered on, re-emitted
-    in the dialog's form and used for its ``Cancel``/``Esc``.
+    in the dialog's form and used for its ``Cancel``/``Esc``, with the dashboard's ``tab`` re-attached
+    to both (:func:`tabbed_origin`).
 
     The player's label is read off the RESOLVED ``Player`` — never a hidden field the browser sent
  — and the warning is assembled here with :func:`html.escape` for the same reason
@@ -2513,20 +2888,20 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
     values = {"server": html.escape(str(server_name)), "player": label}
     inputs: list[dict] = []
     if action.field:
-        inputs.append({"name": action.field, "id": f"{action.field}-dialog", "type": "text",
-                       "label": action.field_label or action.label,
-                       "max": action.field_max, "required": True, "value": "",
-                       "help": action.field_help, "placeholder": ""})
+        inputs.append(_dialog_field(action.field, action.field_label or action.label,
+                                    kind=action.field_kind, required=True,
+                                    maximum=action.field_max, help_text=action.field_help,
+                                    width=action.field_width))
     if action.key == "ban":
-        # The days field the mockup draws: optional, empty = permanent. It is
-        # typed as text with a numeric keyboard rather than ``type="number"`` because the ACTION —
-        # not the browser — is the validator, and a number input that silently refuses a value would
-        # hide the action's own typed refusal behind a browser tooltip.
-        inputs.append({"name": "days", "id": "days-dialog", "type": "text",
-                       "label": i18n._("Days (optional)"), "max": 5, "required": False, "value": "",
-                       "help": i18n._("Empty = permanent — the ban does not expire on its own. 7 "
-                                      "means seven days from now."),
-                       "placeholder": ""})
+        # The days field: a NUMBER box, bounded by the console's own human-scale cap (BAN_DAYS_MAX)
+        # and three characters wide, so a field meant for "14" cannot take a date or a paragraph. The
+        # browser refuses to submit outside the range, and the ACTION still re-validates whatever a
+        # crafted POST sends — the bound is the field's shape, never the authority. Empty is
+        # permanent, which is why the box is not required.
+        inputs.append(_dialog_field("days", i18n._("Days (optional)"), kind="number", maximum=3,
+                                    bounds=dict(min=BAN_DAYS_MIN, max=BAN_DAYS_MAX), width="narrow",
+                                    help_text=i18n._("Empty = permanent — the ban does not expire "
+                                                     "on its own. 7 means seven days from now.")))
     dialog = {
         "heading": _default_title(action.label, label),
         "warning": _sentence(action.warning, **values) if action.warning else None,
@@ -2538,7 +2913,7 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "path": action.path,
         "server": server_name,
         "target": label,
-        "hidden": (("server", server_name), ("ucid", ucid), (ORIGIN_FIELD, origin)),
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
         "inputs": tuple(inputs),
         "body_inputs": (),
         "tag": i18n._("confirm"),
@@ -2559,7 +2934,7 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "user": dashboard_page.identity_summary(request),
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
-        "back": origin,
+        "back": tabbed_origin(origin, tab),
         "dialog": dialog,
     }
 
@@ -2614,6 +2989,30 @@ def option_inputs(action: WriteAction | NodeAction) -> tuple[dict, ...]:
     return _option_fields(dialog_options(action))
 
 
+def _dialog_inputs(request: Request, action: WriteAction) -> tuple[dict, ...]:
+    """EVERY field ONE action's dialog asks for, in the declaration's order.
+
+    Three shapes, each read off the declaration: the TEXT field (``field``, rendered as a textarea
+    where the declaration says so), the SELECT (``select``), then the checkboxes
+    (``option``/``options``). The select's labels are translated for THIS request, because
+    ``confirm.html`` renders a select option's label verbatim (the page module is the one place the
+    request's language is known).
+    """
+    fields: list[dict] = []
+    if action.field:
+        fields.append(_dialog_field(action.field, action.field_label, kind=action.field_kind,
+                                    required=True, maximum=action.field_max,
+                                    help_text=action.field_help))
+    select = action.select
+    if select is not None:
+        options = tuple({"value": option.value, "label": i18n.translate(request, option.label)}
+                        for option in select.options)
+        fields.append(_dialog_field(select.field, select.label, kind="select", options=options,
+                                    help_text=select.help))
+    fields.extend(option_inputs(action))
+    return tuple(fields)
+
+
 def _checked_text(when) -> str:
     """A cache timestamp as the dialog's own words: ``YYYY-MM-DD HH:MM UTC``.
 
@@ -2628,7 +3027,7 @@ def _checked_text(when) -> str:
 
 
 def node_confirm_context(request: Request, action: NodeAction, name: str, node: Any,
-                         token: str, origin: str) -> dict:
+                         token: str, origin: str, tab: str = "") -> dict:
     """Everything a NODE dialog's page reads — the third twin of :func:`confirm_context`.
 
     Same discipline, three differences that are the whole point of a node dialog:
@@ -2686,7 +3085,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         "path": action.path,
         "server": label,
         "target": _sentence(i18n._("{label} (node)"), label=label),
-        "hidden": (("node", name), (ORIGIN_FIELD, origin)),
+        "hidden": _hidden_fields(origin, tab, ("node", name)),
         # the action's own option, when it has one; otherwise the dialog asks for nothing, which is
         # why the mockup draws the lifecycle trio as plain confirmations
         "inputs": option_inputs(action),
@@ -2712,7 +3111,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         "user": dashboard_page.identity_summary(request),
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
-        "back": origin,
+        "back": tabbed_origin(origin, tab),
         "dialog": dialog,
     }
 
@@ -2788,6 +3187,10 @@ REFUSAL_OUT_OF_SCOPE = i18n._("Not authorized (this target is outside your scope
 #: composed where a write runs or shown on Discord, so translating it leaks nothing.
 REFUSAL_NO_IDENTITY = i18n._("Not authorized (no signed-in identity).")
 REFUSAL_CONFIRM_REQUIRED = i18n._("Not authorized (this action must be confirmed through its dialog).")
+#: The refusal a TYPED confirmation owes: the operator typed a name that is not the target's. It names
+#: nothing about the target (the dialog showed it), so it cannot become a second channel that discloses
+#: whether a name exists — and the action never ran.
+REFUSAL_NAME_MISMATCH = i18n._("Not done (the typed name does not match the target).")
 
 
 def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeAction,
@@ -2831,6 +3234,28 @@ def add_routes(router: APIRouter) -> APIRouter:
             # its own maintenance option there — see ``_confirm_handler`` and
             # ``WriteAction.dialog``.
             router.add_api_route(action.path + CONFIRM_SUFFIX, _confirm_handler(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-{action.key}-confirm")
+    # THE DELETE of the creation pair: the DIALOG route is the shared one (the action declares a
+    # ``confirm`` and an ``option``, so ``confirm_context`` draws both, plus the typed-name field it
+    # declares), while the POST has a handler of its own — it reads the TYPED name and the directory
+    # choice beside a target it resolves the same way every other server write does.
+    for action in SERVER_NODE_ACTIONS:
+        router.add_api_route(action.path, _delete_server_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        router.add_api_route(action.path + CONFIRM_SUFFIX, _confirm_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}-confirm")
+    # THE ADD of the creation pair: a PAGE control posts to the DIALOG (there is no row to post from),
+    # and the dialog's own form posts to the action.
+    for action in SERVER_PAGE_ACTIONS:
+        router.add_api_route(action.path, _add_server_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        if action.dialog:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, _add_server_confirm_handler(action),
                                  methods=["POST"],
                                  dependencies=[Depends(session.csrf_protect)],
                                  name=f"action-{action.key}-confirm")
@@ -3564,7 +3989,7 @@ def _mission_delete_handler(action: WriteAction):
     """The route for ``missions.delete`` — the running-mission refusal is the ACTION's own sentence.
 
     DESTRUCTIVE, so it refuses a POST that did not come through its dialog: the control that opens it
-    (the API/legacy path — the Missions tab's per-row trashcan was removed in M9) posts to
+    (the API/legacy path — the Missions tab's per-row trashcan was removed) posts to
     ``<path>/confirm``, that dialog's form carries the one-shot token minted for THIS (server, mission),
     and a caller who skips the dialog has no token — a confirmation curl can bypass is decoration. The
     token is spent by the first POST.
@@ -3595,7 +4020,7 @@ def _mission_delete_handler(action: WriteAction):
 
 
 def _mission_bulk_delete_handler(action: WriteAction):
-    """The route for ``delete_missions`` (M5) — the SELECTION rides repeated ``mission`` fields.
+    """The route for ``delete_missions`` — the SELECTION rides repeated ``mission`` fields.
 
     The dialog is the selection (a checkbox per configured mission, ``name="mission"``, each value
     the 1-based index), so the confirm POST can carry several. DESTRUCTIVE, so it refuses a POST that
@@ -3631,7 +4056,7 @@ def _mission_bulk_delete_handler(action: WriteAction):
 
 
 def _mission_reorder_handler(action: WriteAction):
-    """The route for ``reorder_mission`` (M5) — one row's up/down button, posted directly.
+    """The route for ``reorder_mission`` — one row's up/down button, posted directly.
 
     The 1-based ``missionList`` index rides the body beside the direction (``up`` / ``down``), both
     under their own field names, so a control can never be pointed at another mission by editing a
@@ -3976,8 +4401,8 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
     * the ADD dialog (:attr:`mission_add`) renders the PICKER (the ``get_addable_missions`` READ action,
       never the request) and the load pair (``action.options``) — so choosing a mission and confirming
       happen in ONE dialog, with the load/autostart choice owned by it. The picker and the load pair sit
-      in the BODY, beside what they modify (M11): they are form-associated to the footer's form, so the
-      footer keeps exactly one cancel and one primary — the SAME shape M9 gave the removal dialog (a
+      in the BODY, beside what they modify: they are form-associated to the footer's form, so the
+      footer keeps exactly one cancel and one primary — the SAME shape the removal dialog has (a
       field drawn in the footer's form ahead of the button pushed the primary out of line). It mints NO
       token (adding is not destructive) and wears the OPTIONS chrome, like Startup's dialog;
     * the REMOVE dialog (:attr:`mission_delete`) names the mission (read through the ``get_mission_list``
@@ -3995,7 +4420,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
     label = html.escape(str(server_name))
     back = _mission_back_path(server_name)
     inputs: list[dict] = []
-    # THE DIALOG BODY'S OWN FIELDS (M9): the fields rendered in ``.bd`` rather than the footer form —
+    # THE DIALOG BODY'S OWN FIELDS: the fields rendered in ``.bd`` rather than the footer form —
     # the read-only selection ``list`` and the "delete the files from disk?" box that belongs beside
     # it. They are form-associated to the footer's form (``form="dlg-form"``), so the body carries the
     # choice and the footer still carries exactly one primary and one cancel. Empty for every other
@@ -4007,7 +4432,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
     hidden: list[tuple[str, str]] = [("server", server_name)]
     if action.key == "mission_add":
         picker = await _mission_picker(request, server_name, ctx)
-        # THE PICKER AND THE LOAD PAIR LIVE IN THE BODY (M11): drawn in the dialog's `.bd` and
+        # THE PICKER AND THE LOAD PAIR LIVE IN THE BODY: drawn in the dialog's `.bd` and
         # form-associated to the footer's `dlg-form` (the template's `field_input(field, 'dlg-form')`),
         # so the footer carries exactly one cancel and one primary — the options are NOT posted ahead of
         # the primary button, which is what pushed the primary out of the footer row's line.
@@ -4024,7 +4449,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         running_note = None
         token_target = _mission_target(server_name, form.get(MISSION_FIELD))
     elif action.key == "mission_delete_bulk":
-        # THE DIALOG IS A CONFIRMATION, NOT THE SELECTION (M9): the selection is made in the LIST
+        # THE DIALOG IS A CONFIRMATION, NOT THE SELECTION: the selection is made in the LIST
         # (a checkbox per row) and rides the POST as repeated ``mission`` fields. The dialog shows the
         # CHOSEN missions READ-ONLY (the new ``list`` input shape, the names the server's own list
         # resolves, never a posting) and the "delete the files from disk?" box beside it — the ONE
@@ -4289,7 +4714,7 @@ def _handler(action: WriteAction):
         # there is no cookie round-trip to wait for any more, because the store is process-side. A
         # write that then fails or is refused drops it again below, so the pulse never outlives a
         # failed write's notice.
-        if resolution.is_found:
+        if resolution.is_found and action.observable != AWAIT_OBSERVABLE_NONE:
             remember_awaiting_change("server", name, action, submitted, submitted_flag)
         # THE COMMAND'S OWN OPTION, when the action declares one: Shutdown's and
         # Startup's ``maintenance`` box, parsed out of the same body and handed to the action as its
@@ -4297,6 +4722,23 @@ def _handler(action: WriteAction):
         # route cannot post one thing and the action read another. A body stating an option this
         # console never sends is refused (never guessed at), exactly as the node routes do.
         params: dict[str, Any] = {"server_name": name}
+        # THE DIALOG'S OWN FIELDS, when the control declares any: the TEXT field (a message) and the
+        # SELECT (a named choice), each ONE name for the form field and the action's parameter, so
+        # the route cannot post one thing and the action read another. The values travel
+        # UNVALIDATED — the ACTION owns its allow-list (``message_server``), so a body stating
+        # something else meets its typed refusal rather than this route guessing at it.
+        if action.field:
+            params[action.field] = readmodels.text(form.get(action.field))
+        if action.select is not None:
+            params[action.select.field] = readmodels.text(form.get(action.select.field))
+        # THE CONTROL'S OWN PARAMETERS, applied AFTER the body and never before it: the mode one of
+        # the two message controls writes in is the DECLARATION's, so a crafted POST naming the other
+        # one changes nothing.
+        params.update(dict(action.constants))
+        # THE ACTOR'S OWN NAME, when the action is told who is acting: the label an in-game message
+        # appears to come from, read off the identity and never from the body.
+        if action.sender:
+            params["sender"] = _sender(identity)
         if action.option is not None:
             try:
                 params[action.option.field] = option_value(action, form)
@@ -4304,13 +4746,14 @@ def _handler(action: WriteAction):
                 forget_awaiting_change("server", name)   # nothing will run: no expectation to keep
                 raise HTTPException(status_code=400, detail=str(ex))
         if resolution.is_found:
-            # ``audit_result=True``: the seam writes the ONE audit entry for this attempt, with the
-            # resolved target as the server — see ``core/actions.call_action``. The trail belongs on
-            # the ACTION, but the pilot's action is the ``mission`` plugin's own function, which this
-            # route may not modify: without the flag the route would audit a result the seam had
-            # already reported as unaudited, and the log would claim a trail that exists. When the
-            # plugin's actions take the trail over, the flag goes away with the need.
-            result = await call_action(action.qualname, ctx, audit_result=True, **params)
+            # ``audit_result`` is the DECLARATION's own fact (``WriteAction.self_audited``): True for
+            # the plugin's power/mission actions, which do not write a trail themselves and which
+            # this route may not modify — the SEAM writes the ONE entry then, with the resolved
+            # target as the server (``core/actions.call_action``), so the log never claims a trail
+            # that does not exist. False for an action this repo owns (``message_server``), which
+            # writes its own entry per attempt; auditing it here as well would write two.
+            result = await call_action(action.qualname, ctx,
+                                       audit_result=not action.self_audited, **params)
         else:
             # The request WAS authorized; the name genuinely does not exist. The honest answer is
             # the seam's typed refusal, rendered inline — never a 404 and never a silent success.
@@ -4328,10 +4771,13 @@ def _handler(action: WriteAction):
         if not (resolution.is_found and bool(getattr(result, "success", False))):
             forget_awaiting_change("server", name)
         # 303 back to the PAGE the control was rendered on — its own constant when the form carried a
-        # known one, else the section default. A POST that re-rendered a table would re-POST on
-        # refresh; the page re-reads its data, so it shows the state the action produced.
-        return RedirectResponse(origin_path(request, form.get(ORIGIN_FIELD), _servers_path()),
-                                status_code=303)
+        # known one, else the section default, with the dashboard's active tab re-attached so a write
+        # pressed on the Players tab lands back on the Players tab and not on the default one. A POST
+        # that re-rendered a table would re-POST on refresh; the page re-reads its data, so it shows
+        # the state the action produced.
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _servers_path()),
+            status_code=303)
 
     return handle
 
@@ -4369,13 +4815,366 @@ def _confirm_handler(action: WriteAction):
         # posts here with the origin hidden field, and the dialog's own form re-emits it so the
         # action's route can 303 back there. Validated here too, so the dialog never echoes an
         # unknown page onward — but the route re-checks, because this field is attacker-modifiable.
+        # The TAB rides beside it (the dashboard's tables share one path) and is re-attached to the
+        # dialog's Cancel link and to its form by :func:`tabbed_origin`.
         origin = origin_path(request, form.get(ORIGIN_FIELD), _servers_path())
-        dialog = confirm_context(request, action, name, players_on(resolution.server), token, origin)
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = confirm_context(request, action, name, players_on(resolution.server), token, origin,
+                                 tab)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
         return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+# ── the SERVER CREATION pair's own surfaces ─────────────────────────────────
+#
+# ADD is a PAGE control and DELETE is a ROW control, and both reach a dialog: the add dialog IS the
+# form (a node, an instance, a name and whether to configure the server), the delete dialog ASKS FOR
+# THE NAME TO BE TYPED beside the consequence. Neither the page control nor either dialog invents its
+# own data: the instances and the nodes come from the caller's SCOPED source (no RPC, no node call —
+# the render rule every page in this console obeys), and the delete resolves its target through the
+# same scoped seam every other server write uses.
+
+#: The typed-confirmation field's label and the sentence that says what it is for. Both are rendered
+#: through the template's own ``_`` (a FIELD's label/help is translated there, unlike a sentence record).
+_TYPED_CONFIRM_LABEL = i18n._("Type the name to confirm")
+_TYPED_CONFIRM_HELP = i18n._("The action is refused unless this matches the target's name exactly.")
+
+
+def _dialog_field(name: str, label: str, *, kind: str = "text", value: str = "",
+                  required: bool = False, maximum: int = 0, help_text: str = "",
+                  options: tuple[dict, ...] = (), checked: bool = False, rows: int = 0,
+                  bounds: dict | None = None, width: str = "") -> dict:
+    """ONE dialog field record — the shape ``confirm.html``'s ``field_input`` renders.
+
+    The TEMPLATE owns the markup and this owns the meaning: a ``select`` carries its ``options``
+    (``{value, label}`` pairs), a ``textarea`` its ``rows``, a ``checkbox`` its ``checked`` default,
+    everything else its own input ``type``. ``bounds`` is a NUMBER field's ``{min, max}`` — the range
+    the browser itself refuses to submit outside, which for a day count is what keeps a field meant
+    for ``14`` from taking a date. ``width`` is the field's own width class (``wide`` across the
+    dialog, ``narrow`` down to the few characters a count needs); empty keeps the shared default. One
+    builder, so a field this module adds is shaped exactly like the ones the mission dialogs already
+    generate, and a new shape is one edit in the template.
+    """
+    return {"type": kind, "name": name, "id": f"{name}-dialog" if name else "", "label": label,
+            "max": maximum, "required": required, "checked": checked, "value": value,
+            "help": help_text, "placeholder": "", "options": options, "rows": rows,
+            "bounds": bounds, "width": width}
+
+
+def typed_confirm_inputs(action: WriteAction) -> tuple[dict, ...]:
+    """The TYPED-confirmation fields ONE action's dialog draws — or none when it declares none.
+
+    The operator types the target's name here and the action's route compares it with the RESOLVED
+    name, so the field is the deliberate act a removal earns; the sentence says the condition rather
+    than repeating the target, whose own name the dialog already shows.
+    """
+    if not action.typed_confirm:
+        return ()
+    return (_dialog_field(CONFIRM_NAME_FIELD, _TYPED_CONFIRM_LABEL, required=True, maximum=128,
+                          help_text=_TYPED_CONFIRM_HELP),)
+
+
+def installable_nodes(request: Request) -> tuple[dict, ...]:
+    """The nodes a NEW instance may be created on, as SELECT options, in name order.
+
+    Read from the caller's own view of the cluster (``source.nodes``), and only the entries that
+    resolve: ``None`` is the heartbeat's verdict that the node cannot be reached, and creating an
+    instance on it is an RPC with nothing behind it. A node outside the caller's view is not in the
+    mapping at all.
+    """
+    entries = getattr(dashboard_page.request_source(request), "nodes", None) or {}
+    names = sorted(readmodels.text(name) for name, node in entries.items()
+                   if node is not None and readmodels.text(name))
+    return tuple({"value": name, "label": name} for name in names)
+
+
+def empty_instances(request: Request) -> tuple[dict, ...]:
+    """The instances that carry NO server, as SELECT options, across the caller's whole view.
+
+    ONE condition is structural rather than a guess: ``instance.server is None`` — no server is bound
+    to it, which is what declining Discord's "configure a server for this instance?" leaves behind.
+
+    The VALUE states the instance's OWN node with its name (``<node>/<instance>``): the node an
+    instance lives on is the machine that binds a server to it, and the same instance name can exist
+    on two nodes. The LABEL names what the operator recognises it by: the instance's Saved Games
+    folder (the instance's own name), the node it is on and its DCS port. Every figure is read from
+    the caller's SCOPED source, so an instance outside the caller's view is not in the list at all,
+    and no node is asked anything while rendering.
+    """
+    source = dashboard_page.request_source(request)
+    options: list[dict] = []
+    for instance in getattr(source, "instances", ()) or ():
+        name = readmodels.text(readmodels.safe(lambda: getattr(instance, "name", "")))
+        if not name or readmodels.safe(lambda: getattr(instance, "server", None)) is not None:
+            continue
+        node_name = readmodels.text(readmodels.safe(
+            lambda: getattr(getattr(instance, "node", None), "name", "")))
+        port = readmodels.text(readmodels.safe(
+            lambda: (getattr(instance, "locals", None) or {}).get("dcs_port")))
+        words = i18n.translate(request, i18n._("DCS port %(port)s"), port=port or "?")
+        if node_name:
+            options.append({"value": f"{node_name}/{name}",
+                            "label": f"{name} — {node_name} — {words}"})
+        else:
+            # no readable node name: the value is the bare instance name, which the action resolves
+            # on the node the form named
+            options.append({"value": name, "label": f"{name} — {words}"})
+    return tuple(options)
+
+
+def page_controls(request: Request, table: str, origin: str) -> dict | None:
+    """The PAGE-LEVEL control the table *table* may render — or ``None`` for a page that has none.
+
+    The Servers page is the only page that creates a server, and there is no row to hang the control
+    on, so it renders in the page head from this ONE record: the dialog's path, the session's CSRF
+    token and the page it was pressed on (the same origin contract every row control carries).
+
+    THREE conditions, each read from the place that decides it: the CAPABILITY
+    (``permissions.allows``, the very predicate the gate runs, so ``offered ⊆ authorised`` holds by
+    construction), the ACTION (``action_available`` — an installation whose ``admin`` plugin is not
+    loaded is offered no button whose only answer is a refusal), and the TABLE (asked by table, so a
+    page can never be handed another page's control).
+    """
+    if table != "servers":
+        return None
+    action = SERVER_PAGE_ACTIONS[0]
+    if not permissions.allows(action.capability, permissions.role_names_for(request),
+                              manager=permissions.manages_console(request)):
+        return None
+    if not action_available(action.qualname):
+        return None
+    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+            "label": action.label, "title": _sentence(action.tip), "aria": _sentence(action.aria),
+            "csrf_field": session.CSRF_FIELD, "csrf_token": session.get_csrf_token(request),
+            "origin_field": ORIGIN_FIELD, "origin": origin}
+
+
+def add_dialog_context(request: Request, action: WriteAction, origin: str, tab: str = "") -> dict:
+    """Everything the ADD SERVER dialog's page reads — the fifth sibling of :func:`confirm_context`.
+
+    The form IS the dialog, so this is the ONE dialog that asks for several things and asks for no
+    target: the NODE to create a new instance on, the INSTANCE picker (an existing EMPTY one, or
+    "create a new instance"), the NAME, and whether a server should be bound at all. Every figure is
+    from the caller's SCOPED source, never a field the browser sent.
+
+    NO CHANNEL PICKER. A Discord channel is configured on the server's own page (its Configuration
+    tab), where the bot that owns the channels is also the thing showing them — so nothing about a
+    channel is asked while a server is created, and a body that states one is not read (the ACTION's
+    optional channel parameters keep their defaults).
+
+    NO ONE-SHOT TOKEN: adding a server is not destructive (``action.confirm`` is False), so nothing
+    this route could refuse a later POST against exists — the dialog is a form, and its own POST is
+    the write. The template's own chrome follows the declaration for the same reason: no red button,
+    and the sentence beside the target says the action is recorded, not that it cannot be undone.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    options = ({"value": ADD_NEW_OPTION,
+                "label": i18n.translate(request, i18n._("Create a new instance"))},
+               *empty_instances(request))
+    body_inputs: tuple[dict, ...] = (
+        _dialog_field(ADD_NODE_FIELD, i18n._("Node"), kind="select",
+                      options=installable_nodes(request), required=True,
+                      help_text=i18n._("Where a NEW instance is created. An instance picked below "
+                                       "is attached on its own node.")),
+        _dialog_field(ADD_INSTANCE_FIELD, i18n._("Attach to an existing instance"), kind="select",
+                      options=options, required=False,
+                      help_text=i18n._("Every instance that carries no server yet is offered, with "
+                                       "the node it is on — a server is bound on that node. "
+                                       "\"Create a new instance\" uses the node above.")),
+        _dialog_field(ADD_NAME_FIELD, i18n._("Server name"), required=True, maximum=64,
+                      help_text=i18n._("The name of the new server (its key in servers.yaml) — and "
+                                       "the Saved Games folder name of a NEW instance. A name "
+                                       "another server already uses is refused.")),
+        *_option_fields([NodeOption(field=ADD_CONFIGURE_FIELD,
+                                    label=i18n._("Configure a server for the instance"),
+                                    default=True,
+                                    help=i18n._("On by default, exactly like Discord's own view. "
+                                                "Off: a NEW instance is created blank, with no "
+                                                "server bound to it."))]),
+    )
+    dialog = {
+        "heading": {"msgid": i18n._("Add a server"), "params": {}},
+        "warning": None,
+        "warning_note": None,
+        "detail": _sentence(i18n._("The instance carries the ports; a new one gets the next free "
+                                   "ports on its node, and its Saved Games directory is created "
+                                   "there. Nothing is started: the server is created and comes up "
+                                   "when somebody starts it or the scheduler does.")),
+        "detail_notes": (),
+        "go": _sentence(i18n._("Add server")),
+        "go_title": _sentence(i18n._("Add the server — it is created, not started")),
+        "path": action.path,
+        "server": "",
+        #: the TARGET is what is being created — an operator-facing phrase rather than a name, so the
+        #: template's own "Target: …" sentence still reads as a sentence.
+        "target": {"msgid": i18n._("a new server"), "params": {}},
+        "hidden": _hidden_fields(origin, tab),
+        "inputs": (),
+        "body_inputs": body_inputs,
+        "tag": i18n._("options"),
+        "irreversible": False,
+        "danger": False,
+        "confirm_field": CONFIRM_FIELD,
+        #: NO TOKEN — adding is not destructive (see this function's docstring).
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Add a server')}",
+        "page_title": {"msgid": i18n._("Add a server"), "params": {}},
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": tabbed_origin(origin, tab),
+        "dialog": dialog,
+    }
+
+
+def _add_server_confirm_handler(action: WriteAction):
+    """The route that RENDERS the ADD SERVER dialog. It changes nothing.
+
+    It resolves nothing: the node is CHOSEN in the dialog, so there is no target to look up and no
+    refusal to make beyond the identity one. The form it renders posts to the action's own route.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _servers_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = add_dialog_context(request, action, origin, tab)
+        # no-store: the dialog is a console page too (see ``_confirm_handler``).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _add_server_handler(action: WriteAction):
+    """The route for the ADD write — the dialog's own POST.
+
+    Same order as its siblings (identity, form, the node resolution, the action, the notice, the
+    redirect) with the one difference a creation has: the target is a NODE, so the scoped seam's node
+    twin answers for it — a node outside the caller's view is the console's bare 403, the SAME answer
+    as a node that does not exist, and a node the cluster cannot reach is the seam's typed refusal.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        node_name = readmodels.text(form.get(ADD_NODE_FIELD))
+        back = origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _servers_path())
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_node(node_name)
+        if resolution.status == NodeResolution.NOT_PERMITTED:
+            # The console's refusal for a node outside the caller's view — the SAME answer as a node
+            # that does not exist. The attempt is recorded (the pair is audited on every refusal), and
+            # the notice discloses nothing about the target.
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"node '{node_name}'")
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return RedirectResponse(back, status_code=303)
+        canonical = readmodels.text(readmodels.safe(
+            lambda: getattr(resolution.node, "name", ""))) or node_name
+        result = await call_action(
+            action.qualname, ctx, node_name=canonical,
+            name=readmodels.text(form.get(ADD_NAME_FIELD)),
+            instance=readmodels.text(form.get(ADD_INSTANCE_FIELD)),
+            configure=_as_bool(_last_form_value(form, ADD_CONFIGURE_FIELD)))
+        _remember_notice(request, action, result)
+        # 303 back to the PAGE the control was rendered on, for the reason every other write returns
+        # there: a POST that re-rendered the page would re-POST on refresh, and the page re-reads its
+        # data so it shows what the action produced.
+        return RedirectResponse(back, status_code=303)
+
+    return handle
+
+
+def _delete_server_handler(action: WriteAction):
+    """The route for the DELETE write — the ROW control's dialog, then this.
+
+    The fourth twin of :func:`_handler`, and the TWO things it adds are the removal's own:
+
+    * the TYPED NAME (``CONFIRM_NAME_FIELD``) must equal the RESOLVED server's own name, compared the
+      way every name in this seam is compared (case-folded). A mismatch is refused BEFORE the action
+      runs — nothing is read, nothing is stopped — and the refusal is stored as the one-shot notice,
+      because the write was submitted in the background. The name is checked against the RESOLVED
+      object, never against the field the browser sent;
+    * the TARGET comes from the resolved server, not from the request: the action derives the node it
+      runs on from the server itself (``server.node``), so no posted node name can point the removal
+      at another machine's instance.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        back = origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _servers_path())
+        if action.confirm and not consume_confirm_token(request, action.path, name,
+                                                        readmodels.text(form.get(CONFIRM_FIELD))):
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            # The console's refusal for a named target outside the caller's view — the SAME answer as
+            # a name that does not exist. This is a DESTRUCTIVE removal, so the attempt is recorded
+            # first, naming the actor, the action and the target, and the person's page gets the
+            # one-shot notice whose wording discloses nothing about the target.
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"server '{name}'")
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return RedirectResponse(back, status_code=303)
+        server = resolution.server
+        canonical = readmodels.text(readmodels.safe(
+            lambda: getattr(server, "name", ""))) or name
+        if action.typed_confirm:
+            typed = readmodels.text(form.get(CONFIRM_NAME_FIELD))
+            if typed.strip().casefold() != canonical.casefold():
+                # A typed name that is not the target's is a refused REMOVAL, and the target was
+                # resolved — so the row names the real one, never the spelling the browser sent.
+                await _audit_refusal(ctx, action, "typed name does not match the target",
+                                     f"server '{canonical}'")
+                _refusal_notice(request, action, REFUSAL_NAME_MISMATCH)
+                raise HTTPException(status_code=400, detail=REFUSAL_NAME_MISMATCH)
+        try:
+            remove_files = option_value(action, form)
+        except ValueError as ex:
+            # A body stating an option this console never sends is not a form submission: refuse it
+            # (never guess a boolean from it) and leave a row — this operation must leave a trail.
+            await _audit_refusal(ctx, action, f"invalid option ({ex})", f"server '{canonical}'")
+            raise HTTPException(status_code=400, detail=str(ex))
+        result = await call_action(action.qualname, ctx, server_name=canonical,
+                                   remove_files=remove_files)
+        _remember_notice(request, action, result)
+        return RedirectResponse(back, status_code=303)
 
     return handle
 
@@ -4386,8 +5185,8 @@ async def _audit_refusal(ctx: ActionContext, action: WriteAction | PlayerAction 
 
     A scope-refused or permission-refused POST used to leave no audit row; that was acceptable for
     PAUSE but had to be revisited once the console carries DESTRUCTIVE writes. This is that revisit,
-    and it is DELIBERATELY NARROW: only the actions that declare ``audit_refusals`` (the player pair
-    and all three node operations) are recorded here.
+    and it is DELIBERATELY NARROW: only the actions that declare ``audit_refusals`` are recorded here
+    — the player pair, the five node operations, and the server creation pair (add, delete).
 
     ``target`` is the caller's own spelling of what was aimed at — ``server 'X', ucid=Y`` or
     ``node 'X'`` — assembled by the calling route, so one message shape serves every surface. The
@@ -4551,12 +5350,14 @@ def _node_handler(action: NodeAction):
                 and getattr(action, "check", False):
             asyncio.create_task(upgrade_signal.check_node(resolution.node))
         # 303 back to the PAGE the control was rendered on — the Dashboard's
-        # Nodes tab and /nodes render the same row strip, so the write must not re-orient the person;
-        # a POST that re-rendered a table would re-POST on refresh, and the page re-reads its data so
-        # it shows the state the operation produced (for the master's own row that state may be
-        # "gone", which is exactly what the dialog warned about).
-        return RedirectResponse(origin_path(request, form.get(ORIGIN_FIELD), _nodes_path()),
-                                status_code=303)
+        # Nodes tab and /nodes render the same row strip, so the write must not re-orient the person,
+        # and the tab in force is re-attached so a node write pressed on the Nodes tab lands back on
+        # the Nodes tab; a POST that re-rendered a table would re-POST on refresh, and the page
+        # re-reads its data so it shows the state the operation produced (for the master's own row
+        # that state may be "gone", which is exactly what the dialog warned about).
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _nodes_path()),
+            status_code=303)
 
     return handle
 
@@ -4601,7 +5402,8 @@ def _node_confirm_handler(action: NodeAction):
         # back there. For the online half (no token) the dialog's POST runs the action directly, and
         # it still carries the origin — the person stays where they were either way.
         origin = origin_path(request, form.get(ORIGIN_FIELD), _nodes_path())
-        dialog = node_confirm_context(request, action, name, resolution.node, token, origin)
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = node_confirm_context(request, action, name, resolution.node, token, origin, tab)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
@@ -4660,6 +5462,9 @@ def _player_handler(action: PlayerAction):
             # every outcome — the flag belongs to a plugin action this route may not modify.
             params: dict[str, Any] = {target: readmodels.text(form.get(source))
                                       for source, target in action.params}
+            # The control's OWN parameters, added AFTER the body: the mode a message control writes
+            # in is the declaration's, so a crafted POST naming the other one changes nothing.
+            params.update(dict(action.constants))
             if action.sender:
                 params["sender"] = _sender(identity)
             result = await call_action(action.qualname, ctx, server_name=name, ucid=ucid,
@@ -4673,9 +5478,11 @@ def _player_handler(action: PlayerAction):
         _remember_notice(request, action, result)
         # 303 back to the PAGE the control was rendered on — the Dashboard's
         # Players tab and /players render the same row strip, so the write must not re-orient the
-        # person; never a re-render of a POST.
-        return RedirectResponse(origin_path(request, form.get(ORIGIN_FIELD), _players_path()),
-                                status_code=303)
+        # person, and the tab in force is re-attached so a player write pressed on the Players tab
+        # lands back on the Players tab; never a re-render of a POST.
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
 
     return handle
 
@@ -4717,8 +5524,9 @@ def _player_confirm_handler(action: PlayerAction):
                                 detail=f"No active player '{ucid}' on server '{name}'.")
         token = mint_confirm_token(request, action.path, _player_target(name, ucid))
         origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
         dialog = player_confirm_context(request, action, resolution.server, player, name, ucid,
-                                        token, origin)
+                                        token, origin, tab)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
@@ -4729,13 +5537,16 @@ def _player_confirm_handler(action: PlayerAction):
 
 
 def _sender(identity: Identity) -> str:
-    """The label an in-game message appears to come from: the identity's own shown name.
+    """The label an in-game message appears to come from: the identity's own PLAIN shown name.
 
     The twin of what the Discord commands pass (``interaction.user.display_name``), read off the
     identity rather than from the form — a person cannot sign somebody else's name onto a message.
+    Read through :func:`_plain_name` like every other name this module labels with: an identity's
+    shown name is plain (no Discord-markdown escaping is introduced on an ``Identity`` — that
+    escaping lives on the DOMAIN objects' ``display_name``), and a chat line must carry the name as
+    it is, never a display string.
     """
-    return readmodels.text(getattr(identity, "shown_name", "")
-                           or getattr(identity, "display_name", ""))
+    return _plain_name(identity, ("shown_name", "display_name"))
 
 
 def _identity(request: Request) -> Identity | None:
@@ -4808,6 +5619,11 @@ def origin_path(request: Request, posted: Any, section_default: str) -> str:
     A missing or unknown origin is not an error — it is the section default (``/fleet`` for a server
     write, ``/nodes`` for a node write, ``/players`` for a player write), which is what every write
     redirects to and stays the honest answer for a caller that never sent one.
+
+    A value carrying a QUERY is not a page path either, so ``/?tab=players`` is refused here exactly
+    like any other value the registry does not hold: the dashboard's tab in force travels BESIDE the
+    origin, in :data:`TAB_FIELD`, and :func:`origin_url` is what re-attaches it to the value this
+    function returned.
     """
     wanted = readmodels.text(posted)
     registrar = getattr(getattr(request, "app", None), "state", None)
@@ -4816,6 +5632,54 @@ def origin_path(request: Request, posted: Any, section_default: str) -> str:
         if path == wanted:
             return path
     return section_default
+
+
+def origin_url(request: Request, posted_origin: Any, posted_tab: Any, section_default: str) -> str:
+    """Where a write RETURNS TO: :func:`origin_path`'s page, with the dashboard's tab re-attached.
+
+    THE ONE place a return URL is built, so a control's ``Cancel`` link and the post-write redirect
+    cannot disagree about where the person goes back to. The origin is resolved by LOOKUP against the
+    registry (:func:`origin_path`) and never trusted; the tab rides beside it in :data:`TAB_FIELD`
+    because the registry holds PAGE PATHS and a query-carrying value is refused there.
+
+    The tab is appended ONLY for the dashboard — the one page whose table is chosen by a parameter —
+    and it is validated by the dashboard's own :func:`~services.webservice.pages.dashboard.normalise_tab`,
+    so a crafted ``_tab`` is dropped rather than echoed, a tab this console does not serve becomes the
+    default, and the DEFAULT tab leaves the URL unadorned (an unadorned page stays unadorned). Nothing
+    else of the request reaches the URL: the path is the registry's own constant and the query is
+    rebuilt from the validated tab key alone.
+    """
+    return tabbed_origin(origin_path(request, posted_origin, section_default), posted_tab)
+
+
+def tabbed_origin(origin: str, tab: Any) -> str:
+    """The dashboard URL of *origin* with its active *tab*, or *origin* unchanged for any other page.
+
+    :func:`origin_url`'s read of the two values once the origin has been resolved, and the same one
+    composition the DIALOG pages need (their ``Cancel`` link and their form's ``data-back`` go to the
+    page the row was rendered on, tab and all). One function, so the link and the redirect cannot
+    drift; the tab goes through :func:`posted_tab`, so a value this console does not serve is dropped
+    here as well as at the route.
+    """
+    from urllib.parse import urlencode
+
+    key = posted_tab(tab)
+    if origin == dashboard_page.DASHBOARD_PATH and key:
+        return f"{origin}?{urlencode({'tab': key})}"
+    return origin
+
+
+def posted_tab(value: Any) -> str:
+    """A posted tab carrier as the console's OWN canonical tab key — ``""`` for the default tab.
+
+    The carrier is a closed vocabulary, so it is read through the dashboard's own validator
+    (:func:`~services.webservice.pages.dashboard.normalise_tab`) rather than echoed: a value this
+    console does not serve becomes the default, a value it does serve is normalised, and the DEFAULT
+    tab answers the empty string — which is what an unadorned URL means, and what a dialog must
+    re-emit rather than a tab nobody chose.
+    """
+    key = dashboard_page.normalise_tab(value)
+    return "" if key == dashboard_page.DEFAULT_TAB else key
 
 
 def _players_path() -> str:

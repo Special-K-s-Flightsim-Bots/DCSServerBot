@@ -22,8 +22,8 @@ the table renders all of them. The dashboard's tab is the same list; the differe
 dashboard also has to share its width with a log column and a tab strip.
 
 READ-ONLY EXCEPT THE SERVERS AND PLAYERS PAGES. The route here is a GET, no other method exists on
-it, and the markup it renders writes nothing — but since W2 (the pause pilot) the Servers page
-carries the console's write controls, and since W3 the Players page carries the Message control:
+it, and the markup it renders writes nothing — but since the pause pilot the Servers page
+carries the console's write controls, and the Players page carries the Message control:
 ``writes=True`` on a page's spec makes :func:`page_context` hand the table the per-row control DATA
 (``pages/actions``, asked for BY TABLE so one page can never be handed another's) plus the one-shot
 notice of the last write, and ``_table.html`` renders each one as a POST form. The other two list
@@ -172,6 +172,13 @@ def page_context(request: Request, page: ListPage) -> dict:
         # this page's own path, so a write returns here even when the same row is also on a dashboard
         # tab (Defect 1).
         context["row_controls"] = actions_page.controls_for(request, page.table, page.path)
+        # THE PAGE-LEVEL control (the Servers page's "Add server"): asked for BY TABLE for the same
+        # reason, and ``None`` for a table that has none — so the template's own condition decides
+        # whether the page head carries a control, never the page's name.
+        context["add_control"] = actions_page.page_controls(request, page.table, page.path)
+    else:
+        #: defined for EVERY page, so a template that reads it never meets StrictUndefined
+        context["add_control"] = None
     return context
 
 

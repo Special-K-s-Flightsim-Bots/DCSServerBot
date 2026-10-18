@@ -11,7 +11,12 @@ TWO FAMILIES:
   the engine's popup chain) and, unless the caller opts out, marks them ``maintenance``. ``online``
   reverts EXACTLY what ``offline`` did — clearing only the flags that operation set and starting only
   the servers it stopped. The node's services, including the webservice serving the console's request,
-  keep running, which is why these two CAN be called from a browser.
+  keep running, which is why these two CAN be called from a browser;
+* the SERVER CREATION pair — **add** and **delete** — acts on ONE instance and the server it carries,
+  through the node's own instance operations (``Node.add_instance`` / ``Node.delete_instance``), so a
+  running install can create and remove a server without a restart. Everything these two write —
+  the ``nodes.yaml`` block, ``servers.yaml``, the database rows — is written by the bot method they
+  call (``plugins/admin/commands.py``'s ``/node add_instance`` and ``/node delete_instance``).
 
 The SEMANTICS do not live here: they are the engine's (``core/data/maintenance.py``,
 :class:`~core.data.maintenance.ServerMaintenanceManager`), as is the record of what an ``offline`` did
@@ -44,6 +49,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
 from datetime import datetime
 from typing import Any
 
@@ -56,7 +62,7 @@ log = logging.getLogger(__name__)
 
 __all__ = ["NODE_OPERATIONS", "NODE_MAINTENANCE_OPERATIONS",
            "restart_node", "shutdown_node", "upgrade_node", "take_node_offline",
-           "bring_node_online"]
+           "bring_node_online", "add_server", "delete_server"]
 
 #: method name -> the two wordings ONE node operation needs: how it reads in a success sentence and
 #: how it reads in a failure sentence. Declared here rather than inline so the three operations cannot
@@ -448,3 +454,261 @@ async def bring_node_online(ctx: Any, node_name: str, clear_all: bool = False) -
     opt-in because those flags are then taken on trust. The node's services are untouched either way.
     """
     return await _power_on(ctx, node_name, clear_all=bool(clear_all))
+
+
+# ── the SERVER CREATION pair ───────────────────────────────────────────────
+#
+# TWO operations, one instance each: **add** puts a server where there is none (an existing instance
+# that carries none, or a fresh instance), **delete** removes the server TOGETHER with the instance it
+# lives in — the two halves of ``/node add_instance`` and ``/node delete_instance``.
+#
+# The node method owns the writes (``nodes.yaml``, the directory, the database rows); this module
+# resolves the target, calls it and words the report, exactly as the four operations above do.
+# Binding a server to an instance that ALREADY exists is ``Node.bind_server`` on that instance's own
+# node — ``add_instance`` mints a NEW instance and would overwrite an existing one's block, so it
+# cannot serve an instance that is already there.
+
+#: The word an agent answers an RPC method it does not have with — the fallback sentence is worded
+#: for a node whose bot still predates ``Node.bind_server``.
+MISSING_METHOD_MARKER = "non-existing function"
+
+
+def _node_has_no_bind_server(ex: Exception) -> bool:
+    """Whether *ex* is the RPC layer's answer to a method the node does not have."""
+    return MISSING_METHOD_MARKER in str(ex)
+
+
+def _instance_target(instance: str, node_name: str) -> tuple[str, str]:
+    """``(node, instance)`` for a picker value — ``<node>/<instance>``, or the named node's own.
+
+    The instance picker states the OWNING node with the instance because the same instance name can
+    exist on two nodes; a value that carries no separator is an instance of *node_name*. The split is
+    on the LAST separator: an instance name is a Saved Games folder name, so it carries none itself.
+    """
+    value = str(instance or "").strip()
+    node, _, name = value.rpartition("/")
+    return (node, name) if node else (node_name, value)
+
+
+def _service_bus() -> Any:
+    """The process's own ``ServiceBus``, or ``None`` when there is none.
+
+    Deliberately NOT ``ctx.bus``: the console hands an action a per-request, SCOPED VIEW of the
+    cluster (``services/webservice/pages/actions._Cluster``), which is a read surface with no
+    ``send_init`` — and a bound server is a PROCESS fact. The real registry is the one
+    ``NodeImpl.add_instance`` writes, so this is the same place a Discord `/node add_instance` lands.
+    """
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.servicebus import ServiceBus
+
+        return ServiceRegistry.get(ServiceBus)
+    except Exception:
+        return None
+
+
+async def _drop_blank_server(server: Any, bus: Any) -> None:
+    """Undo a binding that could not be completed: unbind the blank server and forget it.
+
+    ``ServerImpl.unlink`` is the decline Discord's own view offers (its Dismiss leaves the instance
+    behind, unbound); the bus entry is dropped here as well, because a declined blank server left in
+    the registry is a server row no instance owns.
+    """
+    with suppress(Exception):
+        await server.unlink()
+    if getattr(bus, "servers", None) is not None and bus.servers.get(server.name) is server:
+        bus.servers.pop(server.name, None)
+
+
+async def _name_server(server: Any, name: str, channels: dict[str, int]) -> None:
+    """Give *server* its NAME — the ``servers.yaml`` key — and its channels.
+
+    The two writes Discord's ``ServerConfigView`` Save performs: ``Server.rename`` refuses a reserved,
+    empty or colliding name itself (``RenameError``), so a name another node already owns is refused
+    by the bot's own guard and never overwrites it.
+    """
+    await server.rename(name, update_settings=True)
+    if channels:
+        await server.update_channels(channels)
+
+
+@action
+async def add_server(ctx: Any, node_name: str, name: str, instance: str = "",
+                     configure: bool = True, status: int | None = None,
+                     chat: int | None = None,
+                     admin: int | None = None) -> NodeControlResult:
+    """Create a server on ONE node — either ON an instance that already exists, or on a new one.
+
+    TWO PATHS, one parameter each:
+
+    * *instance* names an instance that exists and carries NO server (exactly what declining
+      Discord's "configure a server for this instance?" leaves behind): ``Node.bind_server`` runs on
+      that instance's OWN node and binds a blank server to its EXISTING ``bot_port``, then names it.
+      A taken instance is REFUSED, never replaced. The value states the owning node with the instance
+      (``<node>/<instance>``), so the instance is bound where it lives rather than where this process
+      runs; a value carrying no separator is an instance of *node_name*;
+    * no *instance*: ``Node.add_instance(name)`` runs on *node_name* — it mints the instance's ports,
+      creates its Saved Games directory and writes its ``nodes.yaml`` block — and the server it
+      creates is named here. With *configure* off that instance is left blank, unbound, which is what
+      Discord's own Dismiss does.
+
+    *name* is the server's name (the ``servers.yaml`` key) and, on the new-instance path, the
+    instance's name as well: the two are the same word in ``/node add_instance``'s flow, and a
+    separate instance name is a decision nobody needs. *status* / *chat* / *admin* are the Discord
+    channel ids of the same names, each optional and each written through the bot's own
+    ``Server.update_channels``, which MERGES onto the file (a channel this write does not name keeps
+    what the file holds).
+
+    The trail is written once, for every outcome, including each refusal.
+    """
+    node = ctx.resolve_node(node_name)
+    if node is None:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Node '{node_name}' is offline or unknown.", node_name=node_name))
+    wanted = str(name or "").strip()
+    chosen = str(instance or "").strip()
+    canonical = str(getattr(node, "name", "") or node_name)
+    channels = {key: int(value) for key, value in
+                (("status", status), ("chat", chat), ("admin", admin)) if value is not None}
+
+    if chosen:
+        if not configure:
+            return await _audited(ctx, NodeControlResult(
+                success=False,
+                message=(f"Attaching a server to instance '{chosen}' IS binding it — the "
+                         f"'configure a server' choice only applies to a new instance."),
+                node_name=canonical))
+        if not wanted:
+            return await _audited(ctx, NodeControlResult(
+                success=False, message="A server name is required.", node_name=canonical))
+        owner_name, instance_name = _instance_target(chosen, canonical)
+        owner = ctx.resolve_node(owner_name)
+        if owner is None:
+            return await _audited(ctx, NodeControlResult(
+                success=False, message=f"Node '{owner_name}' is offline or unknown.",
+                node_name=owner_name))
+        owner_canonical = str(getattr(owner, "name", "") or owner_name)
+        try:
+            # the node that OWNS the instance binds it: its home, its serverSettings.lua and its DCS
+            # process are there, and only that node can hand the new server its bot port
+            await owner.bind_server(instance_name, wanted, channels)
+        except Exception as ex:
+            if _node_has_no_bind_server(ex):
+                return await _audited(ctx, NodeControlResult(
+                    success=False,
+                    message=(f"Instance '{instance_name}' is on node '{owner_canonical}', whose bot "
+                             f"does not support binding a server to an existing instance; update "
+                             f"that node and try again."),
+                    node_name=owner_canonical))
+            return await _audited(ctx, NodeControlResult(
+                success=False,
+                message=(f"Could not bind server '{wanted}' to instance '{instance_name}' on node "
+                         f"'{owner_canonical}': {ex}"),
+                node_name=owner_canonical))
+        return await _audited(ctx, NodeControlResult(
+            success=True,
+            message=(f"Server '{wanted}' was bound to instance '{instance_name}' on node "
+                     f"'{owner_canonical}'."),
+            node_name=owner_canonical))
+
+    # ── a NEW instance ────────────────────────────────────────────────────
+    if not wanted:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message="A name is required for a new instance.", node_name=canonical))
+    try:
+        new_instance = await node.add_instance(wanted)
+    except Exception as ex:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Instance '{wanted}' could not be added to node '{canonical}': {ex}",
+            node_name=canonical))
+    if not new_instance:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Instance '{wanted}' could not be added to node '{canonical}'.",
+            node_name=canonical))
+    server = getattr(new_instance, "server", None)
+    if not configure:
+        # Discord's own "no": the instance exists, no server is bound to it
+        if server is not None:
+            await _drop_blank_server(server, _service_bus())
+        return await _audited(ctx, NodeControlResult(
+            success=True,
+            message=(f"Instance '{wanted}' was created on node '{canonical}' with no server bound "
+                     f"to it."),
+            node_name=canonical))
+    if server is None:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Instance '{wanted}' was created on node '{canonical}' but carries no server "
+                     f"to name."),
+            node_name=canonical))
+    try:
+        await _name_server(server, wanted, channels)
+    except Exception as ex:
+        await _drop_blank_server(server, _service_bus())
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Instance '{wanted}' was created on node '{canonical}', but the server could "
+                     f"not be named: {ex}"),
+            node_name=canonical))
+    return await _audited(ctx, NodeControlResult(
+        success=True,
+        message=(f"Server '{wanted}' was created on node '{canonical}' "
+                 f"(instance '{wanted}', port {new_instance.bot_port})."),
+        node_name=canonical))
+
+
+@action
+async def delete_server(ctx: Any, server_name: str, remove_files: bool = False) -> NodeControlResult:
+    """Remove ONE server TOGETHER with the instance it lives in — ``/node delete_instance``.
+
+    The server is stopped first (``Server.shutdown(force=True)``, the call ``/node delete_instance``
+    makes) whenever its process may be up, then the node's own ``delete_instance`` removes the
+    instance: its ``nodes.yaml`` block, its database rows, its registration — and, only with
+    *remove_files*, its Saved Games directory. That directory is the ONE thing a mistake cannot be
+    undone from, which is why it is a choice of its own and never implied by removing the server.
+
+    THE NODE IS DERIVED, never posted: it is the server's own ``node``, so a request cannot point the
+    removal at another machine's instance, and a remote server's removal goes over the RPC its node
+    proxy owns — the same call ``/node delete_instance`` makes from Discord.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Server '{server_name}' not found.", node_name=""))
+    name = str(getattr(server, "name", "") or server_name)
+    node = getattr(server, "node", None)
+    canonical_node = str(getattr(node, "name", "") or "")
+    if node is None or not canonical_node:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Server '{name}' has no node to be removed from.",
+            node_name=canonical_node))
+    instance = getattr(server, "instance", None)
+    if instance is None:
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Server '{name}' is not bound to an instance.",
+            node_name=canonical_node))
+    instance_name = str(getattr(instance, "name", "") or "")
+    try:
+        if ServerMaintenanceManager.in_service(server):
+            # The engine's OWN test for "this server's process may be up" — a LOADING or
+            # SHUTTING_DOWN server is stopped as well, not only the states Discord's command lists.
+            # Removing an instance under a live DCS process is how a directory ends up in use.
+            await server.shutdown(force=True)
+        await node.delete_instance(instance, bool(remove_files))
+    except PermissionError:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Server '{name}' was stopped, but instance '{instance_name}' could not be "
+                     f"removed, because its directory is in use."),
+            node_name=canonical_node))
+    except Exception as ex:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=f"Could not remove server '{name}' from node '{canonical_node}': {ex}",
+            node_name=canonical_node))
+    extra = " and its Saved Games directory" if remove_files else ""
+    return await _audited(ctx, NodeControlResult(
+        success=True,
+        message=(f"Server '{name}' and instance '{instance_name}' were removed from node "
+                 f"'{canonical_node}'{extra}."),
+        node_name=canonical_node))

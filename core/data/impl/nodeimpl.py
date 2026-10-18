@@ -59,6 +59,8 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
+from core.utils import configwrite
+from core.utils.configwrite import ConfigWriteError
 from core.utils.helper import YAMLError, cache_with_expiration
 
 from core.utils.yaml_helper import new_yaml
@@ -80,7 +82,7 @@ RESTART = -1
 SHUTDOWN = -2
 UPDATE = -3
 
-#: THE NODE READ PATH'S OWN CEILING (L1-fix). ``read_file_window`` moves a BOUNDED window and nothing
+#: THE NODE READ PATH'S OWN CEILING. ``read_file_window`` moves a BOUNDED window and nothing
 #: else; this is the hard upper bound on ``length`` — the most bytes ONE window read will ever move,
 #: whatever a caller asks. It lives on the PRIMITIVE, not on the one caller (the console passes 64
 #: KiB), so a future caller cannot turn the windowed read back into a whole-file transfer: a length
@@ -91,7 +93,7 @@ NODE_READ_WINDOW_MAX_BYTES = 1024 * 1024
 
 def file_identity(st: os.stat_result) -> int | float:
     """A file's IDENTITY: a value that does NOT change when the file is APPENDED to but DOES change
-    when it is REPLACED — the signal a follower needs to tell a growing log from a ROTATED one (L1-fix).
+    when it is REPLACED — the signal a follower needs to tell a growing log from a ROTATED one.
 
     ``st_ctime`` is the natural choice ON WINDOWS, where it IS the creation time. On POSIX it is the
     inode-change time, which the kernel updates on EVERY WRITE — using it there would reset the view
@@ -431,6 +433,12 @@ class NodeImpl(Node):
             if not node:
                 raise InstallationException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
+            #: The stamps to apply to THIS node's block on disk, each recorded as it is computed: the
+            #: write below re-applies exactly these and touches no other block.
+            secured_database_url: str | None = None
+            removed_dcs_password = False
+            dcs_user: str | None = None
+            use_upnp_stamp: bool | None = None
 
             # check if we need to secure the database URL
             database_url = node.get('database', {}).get('url')
@@ -439,8 +447,9 @@ class NodeImpl(Node):
                 if url.password and url.password != 'SECRET':
                     utils.set_password('database', unquote(url.password), self.config_dir)
                     port = url.port or 5432
-                    node['database']['url'] = rebuild_url(
+                    secured_database_url = rebuild_url(
                         url, host=url.hostname, port=port, password='SECRET')
+                    node['database']['url'] = secured_database_url
                     dirty = True
                     self.log.info("Database password found, removing it from config.")
             else:
@@ -456,15 +465,37 @@ class NodeImpl(Node):
             if 'DCS' in node:
                 password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
                 if password:
-                    node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
+                    dcs_user = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
+                    node['DCS']['user'] = dcs_user
                     utils.set_password('DCS', password, self.config_dir)
+                    removed_dcs_password = True
                     dirty = True
             if not 'use_upnp' in node:
-                node['use_upnp'] = utils.is_upnp_available()
+                use_upnp_stamp = utils.is_upnp_available()
+                node['use_upnp'] = use_upnp_stamp
                 dirty = True
             if dirty:
-                with open(config_file, 'w', encoding='utf-8') as f:
-                    new_yaml().dump(data, f)
+                def stamp_node_block(document: Any) -> None:
+                    """Apply the stamps above to THIS node's block; every other block is left as it is."""
+                    node_block = document.get(self.name)
+                    if node_block is None:
+                        raise ConfigWriteError(
+                            f"nodes.yaml has no block for node '{self.name}'.")
+                    if secured_database_url is not None:
+                        node_block.setdefault('database', {})['url'] = secured_database_url
+                    if removed_dcs_password:
+                        dcs_block = node_block.get('DCS')
+                        if isinstance(dcs_block, dict):
+                            dcs_block.pop('dcs_password', None)
+                            dcs_block.pop('password', None)
+                            if dcs_user is not None:
+                                dcs_block['user'] = dcs_user
+                    if use_upnp_stamp is not None:
+                        node_block['use_upnp'] = use_upnp_stamp
+
+                # No schema check: the node schema validates the WHOLE document, so a fault in another
+                # node's block would refuse this edit.
+                configwrite.patch_config_file(config_file, stamp_node_block, schemas=None)
             return node
         raise InstallationException(f"No {config_file} found. Exiting.")
 
@@ -673,31 +704,38 @@ class NodeImpl(Node):
             """, (self.name,))
         # initialize the nodes
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = new_yaml().load(infile)
-        dirty = False
-
+        initialized: list[Instance] = []
         for _name, _element in self.locals.pop('instances', {}).items():
             try:
                 instance = self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
-                # make sure the necessary config is in the nodes.yaml
-                instance_config = config[self.name]['instances'][_name]
-                if 'dcs_port' not in instance_config:
-                    instance_config['dcs_port'] = int(instance.dcs_port)
-                    dirty = True
-                if 'webgui_port' not in instance_config:
-                    instance_config['webgui_port'] = int(instance.webgui_port)
-                    dirty = True
+                initialized.append(instance)
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
             except Exception:
                 self.log.error(f"Instance \"{_name}\" can't be added.", exc_info=True)
 
-        if dirty:
-            # save the new config
-            with open(config_file, mode='w', encoding='utf-8') as outfile:
-                new_yaml().dump(config, outfile)
+        def stamp_instance_ports(document: Any) -> None:
+            """Make sure the necessary config is in THIS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            if node_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no block for node '{self.name}'.")
+            instances = node_block.get('instances')
+            for instance in initialized:
+                instance_config = instances.get(instance.name) if instances is not None else None
+                if instance_config is None:
+                    raise ConfigWriteError(
+                        f"nodes.yaml has no instance '{instance.name}' for node '{self.name}'.")
+                if 'dcs_port' not in instance_config:
+                    instance_config['dcs_port'] = int(instance.dcs_port)
+                if 'webgui_port' not in instance_config:
+                    instance_config['webgui_port'] = int(instance.webgui_port)
+
+        # No schema check: the node schema validates the WHOLE document, so a fault in another node's
+        # block would refuse this edit. When no port has to be stamped the mutate is a no-op and the
+        # primitive writes nothing, so a clean file is left exactly as it is.
+        configwrite.patch_config_file(config_file, stamp_instance_ports, schemas=None)
 
     async def register_resources(self):
         """Declare this node's DCS installation in the federation registry.
@@ -1808,7 +1846,7 @@ class NodeImpl(Node):
     @override
     async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
                                behind: int | None = None) -> tuple[bytes, int, int | float] | tuple[int, int, int | float]:
-        """A WINDOW of a file, its size and its identity — never the whole file (L1; see :meth:`Node.read_file_window`).
+        """A WINDOW of a file, its size and its identity — never the whole file (see :meth:`Node.read_file_window`).
 
         A read-only sibling of :meth:`read_file`. On the MASTER this node reads the window off its own
         disk with a ``seek`` and NOTHING crosses the wire; on an AGENT it writes ONLY the window into
@@ -1930,7 +1968,7 @@ class NodeImpl(Node):
     @override
     async def list_files(self, path: str, *, pattern: str | list[str] = '*'
                          ) -> list[tuple[str, int, float]]:
-        """The FILES matching *pattern*, each as ``(path, size, mtime)``, NEWEST FIRST (L2).
+        """The FILES matching *pattern*, each as ``(path, size, mtime)``, NEWEST FIRST.
 
         The local half of :meth:`Node.list_files`: a ``glob`` over the expanded directory, each match
         ``stat``-ed for its size and modification time, sorted by ``mtime`` DESCENDING. A directory
@@ -2197,6 +2235,12 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        # The port mint below is a READ that has to agree with the write: it computes the free ports
+        # from what is on disk now, so a writer landing in between would let two concurrent adds mint
+        # the SAME ports for two instances. The revision pins the generation this add was computed
+        # from, and ``patch_config_file`` refuses a write whose revision has moved since — the loser
+        # raises ``StaleConfigRevision`` and retries against the newer file instead of overwriting.
+        document_revision = configwrite.config_revision(config_file)
         with open(config_file, mode='r', encoding='utf-8') as infile:
             config = new_yaml().load(infile)
 
@@ -2268,16 +2312,24 @@ class NodeImpl(Node):
             }
             autoexec.net = net
 
-        if 'instances' not in config[self.name]:
-            config[self.name]['instances'] = {}
-        config[self.name]['instances'][instance.name] = {
-            "home": instance.home,
-            "bot_port": int(instance.bot_port)
-        }
+        def add_instance_to_document(document: Any) -> None:
+            """Write the new instance into ITS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            if node_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no block for node '{self.name}': instance "
+                    f"'{instance.name}' cannot be added.")
+            if 'instances' not in node_block:
+                node_block['instances'] = {}
+            node_block['instances'][instance.name] = {
+                "home": instance.home,
+                "bot_port": int(instance.bot_port)
+            }
 
-        # save the new config
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            new_yaml().dump(config, outfile)
+        # No schema check: the node schema's ``is_node`` rule resolves the candidate's instance names
+        # against the ON-DISK nodes.yaml, and would refuse the name added here.
+        configwrite.patch_config_file(config_file, add_instance_to_document, schemas=None,
+                                      expect_revision=document_revision)
 
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
@@ -2293,11 +2345,27 @@ class NodeImpl(Node):
     @override
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = new_yaml().load(infile)
-        config[self.name]['instances'].pop(instance.name, None)
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            new_yaml().dump(config, outfile)
+        # The server's own name IS its key in servers.yaml, and the delete removes it there too. Read
+        # BEFORE ``unregister_server`` clears the binding; an instance with no server has no name, and
+        # the reserved blank marker 'n/a' is never a key.
+        server_name = str(getattr(instance.server, 'name', '') or '')
+        if not server_name or server_name == 'n/a':
+            server_name = None
+
+        def delete_instance_from_document(document: Any) -> None:
+            """Drop the instance from ITS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            instances = node_block.get('instances') if node_block is not None else None
+            if not instances or instance.name not in instances:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no instance '{instance.name}' for node '{self.name}'.")
+            instances.pop(instance.name)
+
+        # No schema check: the node schema validates the WHOLE document, so a fault in another node's
+        # block would refuse this edit.
+        configwrite.patch_config_file(config_file, delete_instance_from_document, schemas=None)
+        if server_name:
+            self._remove_server_key(server_name)
         if instance.server:
             await self.unregister_server(instance.server)
         self.instances.pop(instance.name, None)
@@ -2305,6 +2373,26 @@ class NodeImpl(Node):
             await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
         if remove_files:
             shutil.rmtree(instance.home, ignore_errors=True)
+
+    def _remove_server_key(self, server_name: str) -> None:
+        """Drop ONE server's key from ``servers.yaml`` — the file is cluster-wide, so key-scoped.
+
+        ``configwrite.patch_config_file`` loads, mutates and writes under the file's own lock, so every
+        other server's block — and every comment — survives byte-identically. A key the file does not
+        carry is a no-op, not an error; a node without a ``servers.yaml`` is left without one.
+
+        No schema is passed: ``schemas/servers_schema.yaml`` validates the WHOLE document (one
+        regex-keyed block per server), so a fault in another server's block would refuse this edit —
+        the same reason the ``nodes.yaml`` writers pass none.
+        """
+        config_file = os.path.join(self.config_dir, 'servers.yaml')
+        if not os.path.exists(config_file):
+            return
+
+        def pop_server_key(document: Any) -> None:
+            document.pop(server_name, None)
+
+        configwrite.patch_config_file(config_file, pop_server_key, schemas=None)
 
     @override
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
@@ -2360,23 +2448,29 @@ class NodeImpl(Node):
                     new_mission_list.append(rename_path(mission))
                 instance.server.settings['missionList'] = new_mission_list
 
-            # read nodes.yaml
+            # read nodes.yaml: the paths below are rewritten against the file system as it is BEFORE
+            # the instance directory is renamed at the end of this method
             config_file = os.path.join(self.config_dir, 'nodes.yaml')
             with open(config_file, mode='r', encoding='utf-8') as infile:
                 config = new_yaml().load(infile)
 
-            # rename the instance in nodes.yaml
-            config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
-            config[self.name]['instances'][new_name]['home'] = new_home
-            missions_dir = config[self.name]['instances'][new_name].get('missions_dir')
+            node_block = config.get(self.name)
+            instance_block = node_block.get('instances', {}).get(instance.name) if node_block else None
+            if instance_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no instance '{instance.name}' for node '{self.name}'.")
+
+            # the paths of the instance's own block that name the instance directory
+            missions_dir = instance_block.get('missions_dir')
             if missions_dir:
-                instance.missions_dir = config[self.name]['instances'][new_name]['missions_dir'] = rename_path(missions_dir)
+                instance.missions_dir = new_missions_dir = rename_path(missions_dir)
             else:
                 instance.missions_dir = rename_path(instance.missions_dir)
-
-            # rename extensions in nodes.yaml
-            for name, extension in config[self.name]['instances'][new_name].get('extensions', {}).items():
-                change_instance_in_path(extension)
+                new_missions_dir = None
+            new_extensions = instance_block.get('extensions')
+            if new_extensions is not None:
+                for name, extension in new_extensions.items():
+                    change_instance_in_path(extension)
 
             # rename plugin configs
             for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
@@ -2409,8 +2503,24 @@ class NodeImpl(Node):
             self.instances[new_name] = self.instances.pop(old_name)
 
             # write the new nodes.yaml
-            with open(config_file, mode='w', encoding='utf-8') as outfile:
-                new_yaml().dump(config, outfile)
+            def rename_instance_in_document(document: Any) -> None:
+                """Move the instance's block to its new name; every other node is left as it is."""
+                node_block = document.get(self.name)
+                instances = node_block.get('instances') if node_block is not None else None
+                if not instances or old_name not in instances:
+                    raise ConfigWriteError(
+                        f"nodes.yaml has no instance '{old_name}' for node '{self.name}'.")
+                block = instances.pop(old_name)
+                block['home'] = new_home
+                if new_missions_dir is not None:
+                    block['missions_dir'] = new_missions_dir
+                if new_extensions is not None:
+                    block['extensions'] = new_extensions
+                instances[new_name] = block
+
+            # No schema check: the node schema's ``is_node`` rule resolves the candidate's instance
+            # names against the ON-DISK nodes.yaml, and would refuse the new name written here.
+            configwrite.patch_config_file(config_file, rename_instance_in_document, schemas=None)
 
             # reload the bot service
             if self.master:
@@ -2449,6 +2559,58 @@ class NodeImpl(Node):
         if not self.master:
             await bus.send_init(server)
         server.status = Status.SHUTDOWN
+
+    @override
+    async def bind_server(self, instance_name: str, name: str, channels: dict | None = None) -> None:
+        """Give an instance that carries NO server one, and name it — ``add_instance``'s tail.
+
+        The instance keeps the ports its ``nodes.yaml`` block holds: nothing is minted here. Its
+        ``server`` is a NEW blank server (the reserved name ``n/a``) created for THIS node's disk,
+        registered on the bus and reported to the master (``send_init``) when this node is not the
+        master. ``Server.rename`` then gives it its real name — its collision guard runs before any
+        write, and a refused or failed rename leaves the instance unbound again rather than holding a
+        blank server — followed by the channels.
+
+        Refuses an unknown instance and an instance that already carries a server, naming it.
+
+        Runs on the node that owns the instance: ``instance.server`` holds a server built for its own
+        filesystem, and only that node can register it on the bus and hand it its DCS port.
+        """
+        from services.servicebus import ServiceBus
+
+        instance = self.instances.get(instance_name)
+        if instance is None:
+            raise ValueError(f"Instance '{instance_name}' does not exist on node '{self.name}'.")
+        bound = instance.server
+        if bound is not None:
+            raise ValueError(f"Instance '{instance_name}' already carries server "
+                             f"'{getattr(bound, 'name', None) or 'an unnamed server'}'.")
+        bus = ServiceRegistry.get(ServiceBus)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port,
+                                         name='n/a', bus=bus)
+        instance.server = server
+        # we cannot use instance.dcs_port here as that would refer to the server just bound
+        dcs_port = (instance.locals or {}).get('dcs_port')
+        if dcs_port:
+            server.settings['port'] = int(dcs_port)
+        bus.servers[server.name] = server
+        try:
+            # an agent reports the new server to the master before it is named
+            if not self.master:
+                await bus.send_init(server)
+            await server.rename(name, update_settings=True)
+        except Exception:
+            # no half-state: the instance is left as it was found
+            try:
+                await server.unlink()
+            except Exception:
+                self.log.exception(
+                    f"Could not unbind the server of instance '{instance_name}' after a failed "
+                    f"bind.")
+            bus.servers.pop(server.name, None)
+            raise
+        if channels:
+            await server.update_channels(channels)
 
     @override
     async def unregister_server(self, server: Server) -> None:
@@ -2576,9 +2738,16 @@ class NodeImpl(Node):
     @override
     async def set_config(self, config: dict) -> dict:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            old_config = new_yaml().load(infile)
-        old_config[self.name] = utils.deep_merge(old_config[self.name], config)
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            new_yaml().dump(old_config, outfile)
+
+        def merge_config_into_document(document: Any) -> None:
+            """Deep-merge the changes into THIS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            if node_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no block for node '{self.name}'.")
+            document[self.name] = utils.deep_merge(node_block, config)
+
+        # No schema check: the node schema validates the WHOLE document, so a fault in another node's
+        # block would refuse this edit.
+        configwrite.patch_config_file(config_file, merge_config_into_document, schemas=None)
         return self.read_locals()

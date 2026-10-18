@@ -2,7 +2,7 @@
  *
  * WHY THIS EXISTS. The list IS the selection: every mission row carries a checkbox that
  * belongs to ONE form (`form="missions-form"`), and the card header carries the bar — a select-all
- * box, the count, a Clear link and TWO actions on the one selection (M11: `Set as start` and
+ * box, the count, a Clear link and TWO actions on the one selection (`Set as start` and
  * `Remove selected…`). What markup alone cannot do is keep the count and the buttons' own state in
  * step with what is ticked, so this script does exactly that and nothing else: the count reads
  * "N of M selected", and — ONCE THIS SCRIPT HAS TAKEN OVER —
@@ -68,7 +68,7 @@
       var n = ticked();
       if (count) {
         var words = t("mission.count", {n: n, total: total});
-        /* THE START REASON (M11): `Set as start` acts on the tick and is meaningful with EXACTLY ONE
+        /* THE START REASON: `Set as start` acts on the tick and is meaningful with EXACTLY ONE
            mission, so with none or several the count — the one place the selection is described —
            also says why. The wording is the SERVER's own sentence (`data-sel-why` on the button,
            rendered from the route's refusal constant), so the client reason and the server's answer

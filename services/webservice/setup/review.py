@@ -369,10 +369,31 @@ def _node_block(draft: SetupDraft, app=None, *, include_database: bool = True) -
         dcs_installation=node_answers.dcs_path,
         dcs_autoupdate=bool(node_answers.dcs_autoupdate),
     )
-    instances = servers_step.instance_blocks(servers_answers)
+    instances = servers_step.instance_blocks(servers_answers, base=_bot_port_base(app))
     if instances:
         node["instances"] = instances
     return node
+
+
+def _bot_port_base(app=None) -> int:
+    """The first bot port this commit may assign, given the ``nodes.yaml`` already on disk.
+
+    Read from the installation's own config directory, because the port the commit writes must be the
+    port the step RENDERED (``setup.tour._bot_port_base`` reads the same file the same way). An
+    application that records no directory, or a file that is absent or unreadable, answers the
+    installer's own first port — which is what a first-time setup gets.
+    """
+    config_dir = _config_dir_of(app)
+    if not config_dir:
+        return servers_step.DEFAULT_BOT_PORT
+    path = Path(config_dir) / "nodes.yaml"
+    try:
+        nodes = configwrite.load_config_file(path)
+    except configwrite.ConfigWriteError as ex:
+        log.warning("Setup tour: '%s' could not be read (%s); assigning bot ports from the "
+                    "installer's own first port.", path, ex)
+        return servers_step.DEFAULT_BOT_PORT
+    return servers_step.bot_port_base(nodes)
 
 
 def _bot_document(draft: SetupDraft) -> dict:

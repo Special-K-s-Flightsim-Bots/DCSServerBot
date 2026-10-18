@@ -7,7 +7,7 @@ READ-ONLY, bounded, and never fatal:
   cannot be pulled into memory whole;
 * a missing file, an unreadable file and an empty file each produce their OWN message
   (:data:`~.model.LOG_MISSING_MESSAGE`, :data:`~.model.LOG_EMPTY_MESSAGE`) rather than an empty
-  list, because an empty container reaching the template is exactly the blank field the card's
+  list, because an empty container reaching the template is exactly the blank field the
   empty-state requirement forbids;
 * a line that does not match the log format is still rendered, with no level — hiding a line
   because its format surprised us is worse than showing it plainly.

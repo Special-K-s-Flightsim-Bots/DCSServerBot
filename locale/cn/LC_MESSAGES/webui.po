@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-15 21:49+0200\n"
+"POT-Creation-Date: 2026-10-18 10:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -389,52 +389,70 @@ msgstr "已启用本地登录"
 msgid "No sign-in method enabled"
 msgstr "未启用任何登录方式"
 
-#: services/webservice/pages/actions.py:299
+#: services/webservice/pages/actions.py:352
 msgid ""
 "The previous values are too long to offer a one-shot Revert here. Re-open"
 " the page to edit them back by hand."
 msgstr "之前的值太长，无法在这里提供一次性还原。请重新打开页面，手动改回它们。"
 
-#: services/webservice/pages/actions.py:328
+#: services/webservice/pages/actions.py:395
 msgid ""
 "Start and Stop live only here: they act on fewer states than Startup and "
 "Shutdown, so they do not earn a place in the strip."
 msgstr "“开始”和“停止”仅在此处提供：它们作用的状态比“启动”和“关机”更少，因此不值得在工具栏中占一席之地。"
 
-#: services/webservice/pages/actions.py:336
+#: services/webservice/pages/actions.py:403
 #, python-brace-format
 msgid "{label} — an action on {name} is running; this can take a moment"
 msgstr "{label} — 正在对 {name} 执行操作；可能需要一点时间"
 
-#: services/webservice/pages/actions.py:337
+#: services/webservice/pages/actions.py:404
 #, python-brace-format
 msgid "{label} — an action on {name} is running"
 msgstr "{label} — 正在对 {name} 执行操作"
 
-#: services/webservice/pages/actions.py:490
+#: services/webservice/pages/actions.py:630
+msgid "Everyone"
+msgstr ""
+
+#: services/webservice/pages/actions.py:631
+msgid "Red coalition"
+msgstr ""
+
+#: services/webservice/pages/actions.py:632
+msgid "Blue coalition"
+msgstr ""
+
+#: services/webservice/pages/actions.py:637
+msgid ""
+"The choice is the audience: everyone on the server, or one side of the "
+"mission."
+msgstr ""
+
+#: services/webservice/pages/actions.py:657
 msgid "Startup"
 msgstr "启动"
 
-#: services/webservice/pages/actions.py:494
+#: services/webservice/pages/actions.py:661
 msgid "End maintenance so the server is scheduled again"
 msgstr "结束维护，使服务器重新纳入调度"
 
-#: services/webservice/pages/actions.py:496
+#: services/webservice/pages/actions.py:663
 msgid ""
 "On by default, exactly like Discord's /server startup. An unflagged "
 "server simply stays unflagged."
 msgstr "默认开启，与 Discord 的 /server startup 完全一致。未被标记的服务器就保持未标记。"
 
-#: services/webservice/pages/actions.py:498
+#: services/webservice/pages/actions.py:665
 msgid "Startup — bring this server up from SHUTDOWN"
 msgstr "启动 — 让此服务器从“已关闭”状态启动"
 
-#: services/webservice/pages/actions.py:499
+#: services/webservice/pages/actions.py:666
 #, python-brace-format
 msgid "Startup server {server}"
 msgstr "启动服务器 {server}"
 
-#: services/webservice/pages/actions.py:500
+#: services/webservice/pages/actions.py:667
 msgid ""
 "It comes back up and rejoins the rotation: with the box below ticked (the"
 " default) any maintenance is ended, so the scheduler may start it again. "
@@ -444,119 +462,119 @@ msgstr ""
 "它会重新启动并加入轮换：勾选下方复选框（默认）会结束任何维护，从而让调度器可以再次启动它。本来就不在维护中的服务器则保持不变。这是 DCS "
 "层面的启动，而不是该行菜单里进程层面的“开始”。"
 
-#: services/webservice/pages/actions.py:505
+#: services/webservice/pages/actions.py:672
 msgid "Start up server"
 msgstr "启动服务器"
 
-#: services/webservice/pages/actions.py:506
+#: services/webservice/pages/actions.py:673
 #, python-brace-format
 msgid "Start up {server} — ends maintenance so the scheduler may start it"
 msgstr "启动 {server} — 结束维护，让调度器可以启动它"
 
-#: services/webservice/pages/actions.py:508
+#: services/webservice/pages/actions.py:675
 msgid "Start"
 msgstr "开始"
 
-#: services/webservice/pages/actions.py:511
+#: services/webservice/pages/actions.py:678
 msgid "Start — start a STOPPED server"
 msgstr "开始 — 让一台“已停止”的服务器运行"
 
-#: services/webservice/pages/actions.py:512
+#: services/webservice/pages/actions.py:679
 #, python-brace-format
 msgid "Start server {server}"
 msgstr "让服务器 {server} 运行"
 
-#: services/webservice/pages/actions.py:513
+#: services/webservice/pages/actions.py:680
 msgid "start a STOPPED server — Startup is the usual one"
 msgstr "让一台“已停止”的服务器运行 — 通常用的是“启动”"
 
-#: services/webservice/pages/actions.py:515
+#: services/webservice/pages/actions.py:682
 msgid "Pause"
 msgstr "暂停"
 
-#: services/webservice/pages/actions.py:517
+#: services/webservice/pages/actions.py:684
 msgid "Pause — freeze the mission; players stay connected"
 msgstr "暂停 — 冻结任务；玩家保持连接"
 
-#: services/webservice/pages/actions.py:518
+#: services/webservice/pages/actions.py:685
 #, python-brace-format
 msgid "Pause the mission on {server}"
 msgstr "暂停 {server} 上的任务"
 
-#: services/webservice/pages/actions.py:520
+#: services/webservice/pages/actions.py:687
 msgid "Unpause"
 msgstr "继续"
 
-#: services/webservice/pages/actions.py:522
+#: services/webservice/pages/actions.py:689
 msgid "Unpause — resume the frozen mission"
 msgstr "继续 — 恢复已冻结的任务"
 
-#: services/webservice/pages/actions.py:523
+#: services/webservice/pages/actions.py:690
 #, python-brace-format
 msgid "Unpause the mission on {server}"
 msgstr "继续 {server} 上的任务"
 
-#: services/webservice/pages/actions.py:525
-#: services/webservice/pages/actions.py:1019
+#: services/webservice/pages/actions.py:692
+#: services/webservice/pages/actions.py:1318
 #: services/webservice/templates/overview.html:59
 #: services/webservice/templates/server_detail.html:710
 msgid "Restart"
 msgstr "重启"
 
-#: services/webservice/pages/actions.py:529
+#: services/webservice/pages/actions.py:696
 msgid "Restart — players currently flying lose their sortie"
 msgstr "重启 — 正在飞行的玩家会失去本轮出击"
 
-#: services/webservice/pages/actions.py:530
+#: services/webservice/pages/actions.py:697
 #, python-brace-format
 msgid "Restart server {server}"
 msgstr "重启服务器 {server}"
 
-#: services/webservice/pages/actions.py:531
+#: services/webservice/pages/actions.py:698
 msgid ""
 "<b>Players currently flying lose their sortie.</b> The mission restarts "
 "from the beginning — mid-mission progress is gone."
 msgstr "<b>正在飞行的玩家会失去本轮出击。</b>任务将从头重新开始 — 任务进行中的进度会丢失。"
 
-#: services/webservice/pages/actions.py:533
+#: services/webservice/pages/actions.py:700
 msgid ""
 "A restart stops the mission, reloads it from the start and the players "
 "reconnect to a fresh round. It cannot be undone from here."
 msgstr "重启会停止任务，从头重新载入，玩家将重新连接到新的一轮。此操作无法在此撤销。"
 
-#: services/webservice/pages/actions.py:535
+#: services/webservice/pages/actions.py:702
 msgid "Restart server"
 msgstr "重启服务器"
 
-#: services/webservice/pages/actions.py:536
+#: services/webservice/pages/actions.py:703
 #, python-brace-format
 msgid "Restart {server} — players flying lose their sortie"
 msgstr "重启 {server} — 飞行中的玩家会失去本轮出击"
 
-#: services/webservice/pages/actions.py:538
+#: services/webservice/pages/actions.py:705
 msgid "Shutdown"
 msgstr "关机"
 
-#: services/webservice/pages/actions.py:544
+#: services/webservice/pages/actions.py:711
 msgid "Set maintenance so the scheduler does not restart it"
 msgstr "设为维护状态，以免调度器重启它"
 
-#: services/webservice/pages/actions.py:546
+#: services/webservice/pages/actions.py:713
 msgid ""
 "On by default, exactly like Discord's /server shutdown: without it a "
 "scheduled start brings the server straight back."
 msgstr "默认开启，与 Discord 的 /server shutdown 完全一致：若不勾选，计划启动会立刻把服务器重新拉起。"
 
-#: services/webservice/pages/actions.py:548
+#: services/webservice/pages/actions.py:715
 msgid "Shutdown — stop the DCS server; everyone on it is disconnected"
 msgstr "关机 — 停止 DCS 服务器；上面的所有人都会被断开连接"
 
-#: services/webservice/pages/actions.py:549
+#: services/webservice/pages/actions.py:716
 #, python-brace-format
 msgid "Shutdown server {server}"
 msgstr "关闭服务器 {server}"
 
-#: services/webservice/pages/actions.py:550
+#: services/webservice/pages/actions.py:717
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected</b> and nobody can join until "
@@ -568,134 +586,307 @@ msgstr ""
 "<b>{players} 名玩家将被断开</b>，在有人重新启动服务器之前无人能加入。下方复选框默认勾选，会把服务器置为维护状态 — "
 "它保持停止服务，因此调度器不会把它重新拉起。只有在你希望关闭服务器但不想让它保持关闭时才取消勾选。"
 
-#: services/webservice/pages/actions.py:555
+#: services/webservice/pages/actions.py:722
 msgid ""
 "It stays SHUTDOWN on every page until a Startup brings it back — this is "
 "the graceful stop, not the process-level Stop in the row's menu."
 msgstr "它会在所有页面上保持“已关闭”，直到有一次“启动”把它带回来 — 这是优雅停止，而不是该行菜单里进程层面的“停止”。"
 
-#: services/webservice/pages/actions.py:558
-#: services/webservice/pages/actions.py:1034
+#: services/webservice/pages/actions.py:725
+#: services/webservice/pages/actions.py:1333
 msgid "Shut down"
 msgstr "关机"
 
-#: services/webservice/pages/actions.py:559
+#: services/webservice/pages/actions.py:726
 #, python-brace-format
 msgid "Shut down {server} — {players} players are disconnected"
 msgstr "关闭 {server} — {players} 名玩家将被断开"
 
-#: services/webservice/pages/actions.py:561
+#: services/webservice/pages/actions.py:728
 msgid "Stop"
 msgstr "停止"
 
-#: services/webservice/pages/actions.py:564
+#: services/webservice/pages/actions.py:731
 msgid "Stop — stop the server process; players are disconnected"
 msgstr "停止 — 停止服务器进程；玩家会被断开"
 
-#: services/webservice/pages/actions.py:565
+#: services/webservice/pages/actions.py:732
 #, python-brace-format
 msgid "Stop server {server}"
 msgstr "停止服务器 {server}"
 
-#: services/webservice/pages/actions.py:566
+#: services/webservice/pages/actions.py:733
 msgid "stop the server process — players are disconnected"
 msgstr "停止服务器进程 — 玩家会被断开"
 
-#: services/webservice/pages/actions.py:567
+#: services/webservice/pages/actions.py:734
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected.</b> Stop ends the server process, "
 "and nobody can join until a Start brings it back."
 msgstr "<b>{players} 名玩家将被断开。</b>“停止”会结束服务器进程，在有一次“开始”把它带回来之前无人能加入。"
 
-#: services/webservice/pages/actions.py:569
+#: services/webservice/pages/actions.py:736
 msgid ""
 "This is the process-level pair (Stop/Start), not the DCS-level pair "
 "(Shutdown/Startup)."
 msgstr "这是进程层面的一对（停止/开始），而不是 DCS 层面的一对（关机/启动）。"
 
-#: services/webservice/pages/actions.py:571
+#: services/webservice/pages/actions.py:738
 msgid "Stop server process"
 msgstr "停止服务器进程"
 
-#: services/webservice/pages/actions.py:572
+#: services/webservice/pages/actions.py:739
 #, python-brace-format
 msgid "Stop {server} — {players} players are disconnected"
 msgstr "停止 {server} — {players} 名玩家将被断开"
 
-#: services/webservice/pages/actions.py:587
+#: services/webservice/pages/actions.py:754
 msgid "Maintenance"
 msgstr "维护"
 
-#: services/webservice/pages/actions.py:589
+#: services/webservice/pages/actions.py:756
 msgid ""
 "Maintenance — keep this server out of service; the scheduler will not "
 "start it"
 msgstr "维护 — 让此服务器保持停止服务；调度器不会启动它"
 
-#: services/webservice/pages/actions.py:590
+#: services/webservice/pages/actions.py:757
 #, python-brace-format
 msgid "Put server {server} into maintenance"
 msgstr "将服务器 {server} 置于维护状态"
 
-#: services/webservice/pages/actions.py:591
+#: services/webservice/pages/actions.py:758
 msgid "keep the server out of service — it is not stopped by this"
 msgstr "让服务器保持停止服务 — 此操作不会停止它"
 
-#: services/webservice/pages/actions.py:594
+#: services/webservice/pages/actions.py:761
 msgid "End maintenance"
 msgstr "结束维护"
 
-#: services/webservice/pages/actions.py:596
+#: services/webservice/pages/actions.py:763
 msgid "End maintenance — let the scheduler start this server again"
 msgstr "结束维护 — 让调度器可以再次启动此服务器"
 
-#: services/webservice/pages/actions.py:597
+#: services/webservice/pages/actions.py:764
 #, python-brace-format
 msgid "Take server {server} out of maintenance"
 msgstr "将服务器 {server} 移出维护状态"
 
-#: services/webservice/pages/actions.py:598
+#: services/webservice/pages/actions.py:765
 msgid "the server may be started again — nothing is started by this"
 msgstr "服务器可以再次启动了 — 此操作不会启动任何东西"
 
-#: services/webservice/pages/actions.py:664
-#: services/webservice/pages/actions.py:684
+#: services/webservice/pages/actions.py:779
+#: services/webservice/pages/actions.py:1184
+msgid "Chat"
+msgstr ""
+
+#: services/webservice/pages/actions.py:781
+#: services/webservice/pages/actions.py:803
+#: services/webservice/pages/actions.py:1185
+#: services/webservice/pages/actions.py:1200
+msgid "Message"
+msgstr "消息"
+
+#: services/webservice/pages/actions.py:783
+msgid "Written into the game chat of the recipients you choose below."
+msgstr ""
+
+#: services/webservice/pages/actions.py:787
+#: services/webservice/pages/actions.py:809
+msgid "Send to"
+msgstr ""
+
+#: services/webservice/pages/actions.py:790
+msgid "Chat — a chat line in game, to the recipients you choose"
+msgstr ""
+
+#: services/webservice/pages/actions.py:791
+#: services/webservice/pages/actions.py:799
+#, python-brace-format
+msgid "Send a chat line on {server}"
+msgstr ""
+
+#: services/webservice/pages/actions.py:792
+msgid "a chat line in game, addressed to the recipients you choose"
+msgstr ""
+
+#: services/webservice/pages/actions.py:793
+#, python-brace-format
+msgid ""
+"<b>The recipients you choose below read this line.</b> It appears in "
+"their game chat on {server} under your name, as if you had typed it "
+"there."
+msgstr ""
+
+#: services/webservice/pages/actions.py:796
+#, python-brace-format
+msgid ""
+"The line goes into the game chat of every player on {server}, or of the "
+"one side you choose below."
+msgstr ""
+
+#: services/webservice/pages/actions.py:798
+#: services/webservice/pages/actions.py:1196
+msgid "Send chat line"
+msgstr ""
+
+#: services/webservice/pages/actions.py:801
+#: services/webservice/pages/actions.py:1199
+msgid "Popup"
+msgstr ""
+
+#: services/webservice/pages/actions.py:805
+msgid "Arrives in a box of its own and closes by itself."
+msgstr ""
+
+#: services/webservice/pages/actions.py:812
+msgid "Popup — a message box on every screen"
+msgstr ""
+
+#: services/webservice/pages/actions.py:813
+#: services/webservice/pages/actions.py:821
+#, python-brace-format
+msgid "Send a popup to {server}"
+msgstr ""
+
+#: services/webservice/pages/actions.py:814
+msgid "a message box on every screen"
+msgstr ""
+
+#: services/webservice/pages/actions.py:815
+#, python-brace-format
+msgid ""
+"<b>Every player on {server} sees this box</b> — or, with a coalition "
+"chosen below, every player on that side. It closes by itself after the "
+"server's configured message timeout."
+msgstr ""
+
+#: services/webservice/pages/actions.py:818
+#, python-brace-format
+msgid ""
+"The box is addressed to everyone on {server}, or to the one side you "
+"choose below."
+msgstr ""
+
+#: services/webservice/pages/actions.py:820
+#: services/webservice/pages/actions.py:1212
+msgid "Send popup"
+msgstr ""
+
+#: services/webservice/pages/actions.py:847
+msgid "Delete"
+msgstr "删除"
+
+#: services/webservice/pages/actions.py:851
+msgid "Also delete the Saved Games directory"
+msgstr "同时删除 Saved Games 目录"
+
+#: services/webservice/pages/actions.py:853
+msgid ""
+"Deletes the instance's own directory, with every mission and "
+"configuration file in it. Left OFF, the directory stays on the machine."
+msgstr "删除该实例自己的目录，包括其中的所有任务和配置文件。不勾选时，目录保留在机器上。"
+
+#: services/webservice/pages/actions.py:856
+msgid "Delete — stop this server and remove it with the instance it runs in"
+msgstr "删除 — 停止该服务器并将其连同所在实例一起移除"
+
+#: services/webservice/pages/actions.py:857
+#, python-brace-format
+msgid "Delete server {server}"
+msgstr "删除服务器 {server}"
+
+#: services/webservice/pages/actions.py:858
+msgid "remove the server and the instance it runs in"
+msgstr "移除该服务器及其所在实例"
+
+#: services/webservice/pages/actions.py:859
+#, python-brace-format
+msgid ""
+"<b>{server} is stopped and removed, together with the instance it runs "
+"in.</b> {players} player(s) are disconnected if it is up. The box below "
+"is off by default: with it ticked the instance's Saved Games directory is"
+" deleted as well, and that cannot be undone."
+msgstr ""
+"<b>{server} 将被停止，并连同其所在实例一起移除。</b>如果它正在运行，{players} "
+"名玩家将被断开。下方复选框默认不勾选：勾选后该实例的 Saved Games 目录也会被删除，且无法撤销。"
+
+#: services/webservice/pages/actions.py:863
+msgid ""
+"Type the server's name below to confirm. The server, its instance block "
+"in nodes.yaml and its database rows go away; the Saved Games directory "
+"stays unless you tick the box."
+msgstr ""
+"在下方输入服务器名称以确认。服务器、其在 nodes.yaml 中的实例块及其数据库行都会被移除；除非勾选该复选框，否则 Saved Games "
+"目录会保留。"
+
+#: services/webservice/pages/actions.py:866
+msgid "Delete server"
+msgstr "删除服务器"
+
+#: services/webservice/pages/actions.py:867
+#, python-brace-format
+msgid "Delete {server} — it is stopped and removed with its instance"
+msgstr "删除 {server} — 它将被停止并连同实例一起移除"
+
+#: services/webservice/pages/actions.py:872
+#: services/webservice/pages/actions.py:4992
+msgid "Add server"
+msgstr "添加服务器"
+
+#: services/webservice/pages/actions.py:874
+msgid ""
+"Add server — give an instance that has none its server, or create a new "
+"instance"
+msgstr "添加服务器 — 为没有服务器的实例绑定服务器，或新建一个实例"
+
+#: services/webservice/pages/actions.py:876
+#: services/webservice/pages/actions.py:4984
+#: services/webservice/pages/actions.py:5012
+#: services/webservice/pages/actions.py:5013
+#: services/webservice/setup/tour.py:768
+msgid "Add a server"
+msgstr "添加服务器"
+
+#: services/webservice/pages/actions.py:951
+#: services/webservice/pages/actions.py:971
 #: services/webservice/templates/server_detail.html:585
 msgid "Add to the rotation"
 msgstr "加入轮换"
 
-#: services/webservice/pages/actions.py:668
+#: services/webservice/pages/actions.py:955
 msgid "Load it when the server next starts"
 msgstr "在服务器下次启动时载入它"
 
-#: services/webservice/pages/actions.py:670
+#: services/webservice/pages/actions.py:957
 msgid "Arms the rotation so this mission is the next one the server loads."
 msgstr "设定轮换，使此任务成为服务器下一个载入的任务。"
 
-#: services/webservice/pages/actions.py:674
+#: services/webservice/pages/actions.py:961
 msgid "Load it now"
 msgstr "立即载入"
 
-#: services/webservice/pages/actions.py:676
+#: services/webservice/pages/actions.py:963
 msgid ""
 "Loads it right away — only honoured while the server is running, paused "
 "or stopped."
 msgstr "立即载入 — 仅在服务器处于运行、暂停或停止状态时生效。"
 
-#: services/webservice/pages/actions.py:681
+#: services/webservice/pages/actions.py:968
 msgid ""
 "This mission is already on the server: adding it changes the ROTATION "
 "LIST only. No file is copied and nothing is deleted — that is what Upload"
 " does."
 msgstr "此任务已在服务器上：加入它只会改变轮换列表。不会复制任何文件，也不会删除任何东西 — 那是“上传”做的事。"
 
-#: services/webservice/pages/actions.py:685
+#: services/webservice/pages/actions.py:972
 #, python-brace-format
 msgid "Add the mission to {server}'s rotation list"
 msgstr "将任务加入 {server} 的轮换列表"
 
-#: services/webservice/pages/actions.py:691
+#: services/webservice/pages/actions.py:978
 #: services/webservice/templates/_config_fields.html:109
 #: services/webservice/templates/_config_fields.html:116
 #: services/webservice/templates/_config_fields.html:148
@@ -723,17 +914,17 @@ msgstr "将任务加入 {server} 的轮换列表"
 msgid "Remove"
 msgstr "移除"
 
-#: services/webservice/pages/actions.py:695
+#: services/webservice/pages/actions.py:982
 msgid "Also delete the mission file from disk"
 msgstr "同时从磁盘删除任务文件"
 
-#: services/webservice/pages/actions.py:697
+#: services/webservice/pages/actions.py:984
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig. This cannot be "
 "undone."
 msgstr "删除主文件、其 .dcssb 副本和 .orig。此操作无法撤销。"
 
-#: services/webservice/pages/actions.py:702
+#: services/webservice/pages/actions.py:989
 msgid ""
 "<b>The mission is removed from the rotation list and stops being "
 "loaded.</b> The box below is off by default: with it ticked the mission "
@@ -743,44 +934,44 @@ msgstr ""
 "<b>该任务将从轮换列表中移除，不再被载入。</b>下方复选框默认关闭：勾选后，任务文件本身 — 主文件、其 .dcssb 副本和 .orig —"
 " 会从服务器上删除，且无法撤销。"
 
-#: services/webservice/pages/actions.py:706
+#: services/webservice/pages/actions.py:993
 msgid ""
 "Removing it from the list changes the rotation only; the file stays on "
 "the server unless you tick the box. Discord's /mission delete asks the "
 "same two questions."
 msgstr "将其从列表中移除只会改变轮换；除非你勾选该复选框，文件会保留在服务器上。Discord 的 /mission delete 会问同样的两个问题。"
 
-#: services/webservice/pages/actions.py:709
-#: services/webservice/pages/actions.py:4051
+#: services/webservice/pages/actions.py:996
+#: services/webservice/pages/actions.py:4462
 msgid "Remove mission"
 msgstr "移除任务"
 
-#: services/webservice/pages/actions.py:710
+#: services/webservice/pages/actions.py:997
 #, python-brace-format
 msgid "Remove the mission from {server}'s rotation list"
 msgstr "从 {server} 的轮换列表中移除该任务"
 
-#: services/webservice/pages/actions.py:712
+#: services/webservice/pages/actions.py:999
 #: services/webservice/templates/server_detail.html:566
 msgid "Load"
 msgstr "载入"
 
-#: services/webservice/pages/actions.py:717
+#: services/webservice/pages/actions.py:1004
 #: services/webservice/templates/server_detail.html:641
 msgid "Upload mission"
 msgstr "上传任务"
 
-#: services/webservice/pages/actions.py:732
-#: services/webservice/pages/actions.py:752
-#: services/webservice/pages/actions.py:4056
+#: services/webservice/pages/actions.py:1019
+#: services/webservice/pages/actions.py:1039
+#: services/webservice/pages/actions.py:4467
 msgid "Remove missions"
 msgstr "移除任务"
 
-#: services/webservice/pages/actions.py:736
+#: services/webservice/pages/actions.py:1023
 msgid "Also delete the mission files from disk"
 msgstr "同时从磁盘删除任务文件"
 
-#: services/webservice/pages/actions.py:738
+#: services/webservice/pages/actions.py:1025
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig of EVERY selected"
 " mission. This cannot be undone. Left OFF, the mission only leaves the "
@@ -790,7 +981,7 @@ msgstr ""
 "删除每一个所选任务的主文件、其 .dcssb 副本和 .orig。此操作无法撤销。若保持关闭，任务只会离开轮换 — "
 "而当服务器的任务自动扫描开启时，留在磁盘上的任务文件会被重新加入列表，因此移除并非永久性的。"
 
-#: services/webservice/pages/actions.py:746
+#: services/webservice/pages/actions.py:1033
 msgid ""
 "<b>The selected missions are removed from the rotation list and stop "
 "being loaded.</b> The box below is off by default: with it ticked the "
@@ -798,286 +989,331 @@ msgid ""
 "undone."
 msgstr "<b>所选任务将从轮换列表中移除，不再被载入。</b>下方复选框默认关闭：勾选后，任务文件本身会从服务器上删除，且无法撤销。"
 
-#: services/webservice/pages/actions.py:750
+#: services/webservice/pages/actions.py:1037
 msgid ""
 "The chosen missions leave the rotation list; their files stay on the "
 "server unless you tick the box."
 msgstr "所选任务会离开轮换列表；除非你勾选该复选框，它们的文件会保留在服务器上。"
 
-#: services/webservice/pages/actions.py:753
+#: services/webservice/pages/actions.py:1040
 #, python-brace-format
 msgid "Remove the selected missions from {server}'s rotation list"
 msgstr "从 {server} 的轮换列表中移除所选任务"
 
-#: services/webservice/pages/actions.py:757
+#: services/webservice/pages/actions.py:1044
 msgid "Move"
 msgstr "移动"
 
-#: services/webservice/pages/actions.py:771
+#: services/webservice/pages/actions.py:1058
 #: services/webservice/templates/server_detail.html:477
 msgid "Set as start"
 msgstr "设为起始任务"
 
-#: services/webservice/pages/actions.py:872
+#: services/webservice/pages/actions.py:1152
 msgid "Kick"
 msgstr "踢出"
 
-#: services/webservice/pages/actions.py:874
-#: services/webservice/pages/actions.py:890
+#: services/webservice/pages/actions.py:1154
+#: services/webservice/pages/actions.py:1170
 msgid "Reason"
 msgstr "原因"
 
-#: services/webservice/pages/actions.py:875
+#: services/webservice/pages/actions.py:1155
 msgid "Shown to the player in game."
 msgstr "在游戏内显示给该玩家。"
 
-#: services/webservice/pages/actions.py:877
+#: services/webservice/pages/actions.py:1157
 msgid "Kick — disconnected now; they may rejoin immediately"
 msgstr "踢出 — 立即断开连接；他们可以马上重新加入"
 
-#: services/webservice/pages/actions.py:878
+#: services/webservice/pages/actions.py:1158
 #, python-brace-format
 msgid "Kick {player} from {server}"
 msgstr "将 {player} 从 {server} 踢出"
 
-#: services/webservice/pages/actions.py:879
+#: services/webservice/pages/actions.py:1159
 msgid "disconnected now — a kick is not a ban"
 msgstr "立即断开连接 — 踢出不是封禁"
 
-#: services/webservice/pages/actions.py:880
+#: services/webservice/pages/actions.py:1160
 #, python-brace-format
 msgid ""
 "<b>{player} is disconnected from {server} now.</b> They can rejoin "
 "immediately — a kick is not a ban and leaves no block behind."
 msgstr "<b>{player} 现在已被从 {server} 断开。</b>他们可以马上重新加入 — 踢出不是封禁，不会留下任何封禁记录。"
 
-#: services/webservice/pages/actions.py:882
+#: services/webservice/pages/actions.py:1162
 msgid ""
 "A kick ends their session; it blocks nothing and expires with it. Nothing"
 " is written to the ban list, so they may be back in the air in a minute."
 msgstr "踢出会结束他们的会话；它不封禁任何东西，并随会话一同失效。不会写入封禁列表，所以他们可能一分钟后又能起飞。"
 
-#: services/webservice/pages/actions.py:885
+#: services/webservice/pages/actions.py:1165
 msgid "Kick player"
 msgstr "踢出玩家"
 
-#: services/webservice/pages/actions.py:886
+#: services/webservice/pages/actions.py:1166
 #, python-brace-format
 msgid "Kick {player} from {server} — they may rejoin immediately"
 msgstr "将 {player} 从 {server} 踢出 — 他们可以马上重新加入"
 
-#: services/webservice/pages/actions.py:888
+#: services/webservice/pages/actions.py:1168
 msgid "Ban"
 msgstr "封禁"
 
-#: services/webservice/pages/actions.py:891
+#: services/webservice/pages/actions.py:1171
 msgid "Kept on the ban list."
 msgstr "保留在封禁列表中。"
 
-#: services/webservice/pages/actions.py:893
+#: services/webservice/pages/actions.py:1173
 msgid "Ban — removed and blocked from rejoining"
 msgstr "封禁 — 移除并阻止其重新加入"
 
-#: services/webservice/pages/actions.py:894
+#: services/webservice/pages/actions.py:1174
 #, python-brace-format
 msgid "Ban {player} from {server}"
 msgstr "封禁 {player}，禁止其加入 {server}"
 
-#: services/webservice/pages/actions.py:895
+#: services/webservice/pages/actions.py:1175
 msgid "removed and blocked from rejoining"
 msgstr "移除并阻止其重新加入"
 
-#: services/webservice/pages/actions.py:896
+#: services/webservice/pages/actions.py:1176
 #, python-brace-format
 msgid ""
 "<b>{player} is removed from {server} and cannot rejoin it</b> for as long"
 " as the ban stands. Empty duration means it never expires on its own."
 msgstr "<b>{player} 将被移出 {server} 且无法重新加入</b>，只要封禁仍然有效。时长留空表示它永远不会自行过期。"
 
-#: services/webservice/pages/actions.py:899
+#: services/webservice/pages/actions.py:1179
 msgid ""
 "The ban is written to the ban list every installation syncs, so it holds "
 "wherever they connect from — not only on this server."
 msgstr "该封禁会写入每个安装都会同步的封禁列表，因此无论他们从何处连接都有效 — 不仅限于此服务器。"
 
-#: services/webservice/pages/actions.py:901
+#: services/webservice/pages/actions.py:1181
 msgid "Ban player"
 msgstr "封禁玩家"
 
-#: services/webservice/pages/actions.py:902
+#: services/webservice/pages/actions.py:1182
 #, python-brace-format
 msgid "Ban {player} — empty duration is permanent"
 msgstr "封禁 {player} — 时长留空即为永久"
 
-#: services/webservice/pages/actions.py:904
-#: services/webservice/pages/actions.py:905
-msgid "Message"
-msgstr "消息"
+#: services/webservice/pages/actions.py:1187
+msgid "Sent to this player's game chat — only they read it."
+msgstr ""
 
-#: services/webservice/pages/actions.py:909
-msgid "Chat — a chat line in game, visible to everyone"
-msgstr "聊天 — 游戏内的一条聊天消息，所有人都能看到"
+#: services/webservice/pages/actions.py:1189
+msgid "Chat — a chat line only this player reads"
+msgstr ""
 
-#: services/webservice/pages/actions.py:910
+#: services/webservice/pages/actions.py:1190
+#: services/webservice/pages/actions.py:1197
 #, python-brace-format
 msgid "Send a chat line to {player} on {server}"
 msgstr "向 {server} 上的 {player} 发送一条聊天消息"
 
-#: services/webservice/pages/actions.py:912
+#: services/webservice/pages/actions.py:1191
+msgid "a chat line in game only they read"
+msgstr ""
+
+#: services/webservice/pages/actions.py:1192
+#, python-brace-format
+msgid ""
+"<b>Only {player} reads this line.</b> It is written in their own game "
+"chat under your name, as if you had typed it there."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1194
+#, python-brace-format
+msgid ""
+"The line is addressed to {player} alone: it goes into their game chat and"
+" nobody else on {server} sees it."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1202
+msgid "A popup — only this player sees it."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1204
 msgid "Popup — a private message in game"
 msgstr "弹窗 — 游戏内的一条私密消息"
 
-#: services/webservice/pages/actions.py:913
+#: services/webservice/pages/actions.py:1205
 #, python-brace-format
 msgid "Send a popup to {player} on {server}"
 msgstr "向 {server} 上的 {player} 发送一条弹窗"
 
-#: services/webservice/pages/actions.py:916
+#: services/webservice/pages/actions.py:1206
+msgid "a private message only they see"
+msgstr ""
+
+#: services/webservice/pages/actions.py:1207
+#, python-brace-format
+msgid ""
+"<b>Only {player} sees this message.</b> It arrives in a box of its own "
+"and closes by itself after the server's configured message timeout."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1210
+#, python-brace-format
+msgid ""
+"The popup is addressed to {player} alone. It arrives in a box of its own,"
+" not as a line in their chat."
+msgstr ""
+
+#: services/webservice/pages/actions.py:1213
+#, python-brace-format
+msgid "Send a popup to {player} on {server} — only they see it"
+msgstr ""
+
+#: services/webservice/pages/actions.py:1215
 msgid "Mute"
 msgstr "禁言"
 
-#: services/webservice/pages/actions.py:917
+#: services/webservice/pages/actions.py:1216
 msgid "Mute — they can no longer send chat"
 msgstr "禁言 — 他们不能再发送聊天消息"
 
-#: services/webservice/pages/actions.py:918
+#: services/webservice/pages/actions.py:1217
 #, python-brace-format
 msgid "Mute {player} on {server}"
 msgstr "在 {server} 上禁言 {player}"
 
-#: services/webservice/pages/actions.py:919
+#: services/webservice/pages/actions.py:1218
 msgid "they can no longer send chat"
 msgstr "他们不能再发送聊天消息"
 
-#: services/webservice/pages/actions.py:921
+#: services/webservice/pages/actions.py:1220
 msgid "Unmute"
 msgstr "解除禁言"
 
-#: services/webservice/pages/actions.py:922
+#: services/webservice/pages/actions.py:1221
 msgid "Unmute — restore their chat"
 msgstr "解除禁言 — 恢复他们的聊天"
 
-#: services/webservice/pages/actions.py:923
+#: services/webservice/pages/actions.py:1222
 #, python-brace-format
 msgid "Unmute {player} on {server}"
 msgstr "在 {server} 上解除 {player} 的禁言"
 
-#: services/webservice/pages/actions.py:924
+#: services/webservice/pages/actions.py:1223
 msgid "restore their chat"
 msgstr "恢复他们的聊天"
 
-#: services/webservice/pages/actions.py:1020
+#: services/webservice/pages/actions.py:1319
 #, python-brace-format
 msgid "Restart node — every server on {node} goes down while the node restarts"
 msgstr "重启节点 — 节点重启期间 {node} 上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1021
+#: services/webservice/pages/actions.py:1320
 #, python-brace-format
 msgid "Restart node {node}"
 msgstr "重启节点 {node}"
 
-#: services/webservice/pages/actions.py:1022
+#: services/webservice/pages/actions.py:1321
 msgid "every server on the node goes down"
 msgstr "节点上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1023
-#: services/webservice/pages/actions.py:1055
+#: services/webservice/pages/actions.py:1322
+#: services/webservice/pages/actions.py:1354
 #, python-brace-format
 msgid ""
 "<b>Every server on {node} goes down with it</b> — {servers} server(s) and"
 " {players} player(s) are on it right now."
 msgstr "<b>{node} 上的每台服务器都会随之下线</b> — 目前上面有 {servers} 台服务器和 {players} 名玩家。"
 
-#: services/webservice/pages/actions.py:1025
+#: services/webservice/pages/actions.py:1324
 msgid ""
 "A node restart ends the bot process on that machine; the launcher there "
 "brings the node back, and its servers do not: they stay down until "
 "somebody starts them again."
 msgstr "重启节点会结束该机器上的机器人进程；那里的启动器会把节点带回来，但它的服务器不会：它们保持下线，直到有人重新启动它们。"
 
-#: services/webservice/pages/actions.py:1028
+#: services/webservice/pages/actions.py:1327
 msgid ""
 "<b>This console runs inside that node</b> — restarting it ends the "
 "process serving this page, and this window has to be reloaded once the "
 "node is back."
 msgstr "<b>此控制台运行在该节点内</b> — 重启它会结束服务此页面的进程，节点恢复后需要重新加载此窗口。"
 
-#: services/webservice/pages/actions.py:1031
+#: services/webservice/pages/actions.py:1330
 msgid "Restart node"
 msgstr "重启节点"
 
-#: services/webservice/pages/actions.py:1032
+#: services/webservice/pages/actions.py:1331
 #, python-brace-format
 msgid "Restart {node} — every server on it goes down"
 msgstr "重启 {node} — 其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1035
+#: services/webservice/pages/actions.py:1334
 #, python-brace-format
 msgid ""
 "Shut down node — every server on {node} goes down and nothing brings it "
 "back"
 msgstr "关闭节点 — {node} 上的每台服务器都会下线，且没有任何东西能把它带回来"
 
-#: services/webservice/pages/actions.py:1036
+#: services/webservice/pages/actions.py:1335
 #, python-brace-format
 msgid "Shut down node {node}"
 msgstr "关闭节点 {node}"
 
-#: services/webservice/pages/actions.py:1037
+#: services/webservice/pages/actions.py:1336
 msgid "every server on the node goes down, for good"
 msgstr "节点上的每台服务器都会永久下线"
 
-#: services/webservice/pages/actions.py:1038
+#: services/webservice/pages/actions.py:1337
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
 "disconnected, and nothing brings the node back.</b>"
 msgstr "<b>{node} 上的 {servers} 台服务器将下线，{players} 名玩家将被断开，且没有任何东西能把节点带回来。</b>"
 
-#: services/webservice/pages/actions.py:1040
+#: services/webservice/pages/actions.py:1339
 msgid ""
 "A node shutdown ends the bot process on that machine for good: somebody "
 "has to start the node THERE, at the machine. A node that is down cannot "
 "be started from this browser, and its servers stay down with it."
 msgstr "关闭节点会永久结束该机器上的机器人进程：必须有人在那台机器那里启动节点。已下线的节点无法从此浏览器启动，它的服务器也会随之保持下线。"
 
-#: services/webservice/pages/actions.py:1044
+#: services/webservice/pages/actions.py:1343
 msgid ""
 "<b>This console runs inside that node</b> — shutting it down ends the "
 "process serving this page, and nothing brings it back until somebody "
 "starts the node on that machine."
 msgstr "<b>此控制台运行在该节点内</b> — 关闭它会结束服务此页面的进程，在有人在那台机器上启动节点之前，没有任何东西能把它带回来。"
 
-#: services/webservice/pages/actions.py:1047
+#: services/webservice/pages/actions.py:1346
 msgid "Shut down node"
 msgstr "关闭节点"
 
-#: services/webservice/pages/actions.py:1048
+#: services/webservice/pages/actions.py:1347
 #, python-brace-format
 msgid "Shut down {node} — every server on it goes down"
 msgstr "关闭 {node} — 其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1050
+#: services/webservice/pages/actions.py:1349
 msgid "Upgrade"
 msgstr "升级"
 
-#: services/webservice/pages/actions.py:1051
+#: services/webservice/pages/actions.py:1350
 #, python-brace-format
 msgid ""
 "Upgrade node — update DCSServerBot on {node} and restart it; every server"
 " on it goes down"
 msgstr "升级节点 — 更新 {node} 上的 DCSServerBot 并重启它；其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1053
+#: services/webservice/pages/actions.py:1352
 #, python-brace-format
 msgid "Upgrade node {node}"
 msgstr "升级节点 {node}"
 
-#: services/webservice/pages/actions.py:1054
+#: services/webservice/pages/actions.py:1353
 msgid "update and restart, every server goes down"
 msgstr "更新并重启，每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1057
+#: services/webservice/pages/actions.py:1356
 msgid ""
 "The node is updated and restarted. The console offers Upgrade ONLY while "
 "the node itself reports an update pending — it asks every node in the "
@@ -1087,43 +1323,43 @@ msgstr ""
 "节点会被更新并重启。只有当节点自身报告有更新待处理时，控制台才会提供“升级” — "
 "它在后台询问每个节点，从不在渲染页面时询问，一旦没有可升级的内容，此控件又会消失。"
 
-#: services/webservice/pages/actions.py:1061
+#: services/webservice/pages/actions.py:1360
 msgid ""
 "<b>This console runs inside that node</b> — upgrading it ends the process"
 " serving this page, and this window has to be reloaded once the node is "
 "back."
 msgstr "<b>此控制台运行在该节点内</b> — 升级它会结束服务此页面的进程，节点恢复后需要重新加载此窗口。"
 
-#: services/webservice/pages/actions.py:1064
+#: services/webservice/pages/actions.py:1363
 msgid "Upgrade node"
 msgstr "升级节点"
 
-#: services/webservice/pages/actions.py:1065
+#: services/webservice/pages/actions.py:1364
 #, python-brace-format
 msgid "Upgrade {node} — every server on it goes down"
 msgstr "升级 {node} — 其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1080
-#: services/webservice/pages/actions.py:1104
+#: services/webservice/pages/actions.py:1379
+#: services/webservice/pages/actions.py:1403
 msgid "Take servers offline"
 msgstr "让服务器下线"
 
-#: services/webservice/pages/actions.py:1083
+#: services/webservice/pages/actions.py:1382
 msgid "Also mark them as maintenance"
 msgstr "同时将它们标记为维护"
 
-#: services/webservice/pages/actions.py:1085
+#: services/webservice/pages/actions.py:1384
 msgid ""
 "On by default: without it a scheduled start can bring the servers back "
 "while the node is \"offline\"."
 msgstr "默认开启：不勾选的话，计划启动可能会在节点“离线”期间把服务器重新拉起。"
 
-#: services/webservice/pages/actions.py:1087
+#: services/webservice/pages/actions.py:1386
 #, python-brace-format
 msgid "Take the servers on {node} offline?"
 msgstr "让 {node} 上的服务器下线？"
 
-#: services/webservice/pages/actions.py:1088
+#: services/webservice/pages/actions.py:1387
 #, python-brace-format
 msgid ""
 "Take servers offline — every server on {node} that is up is marked as "
@@ -1131,16 +1367,16 @@ msgid ""
 "services stay up"
 msgstr "让服务器下线 — {node} 上每一台正在运行的服务器都会被标记为维护并停止；其玩家会被断开，而节点的服务保持不变"
 
-#: services/webservice/pages/actions.py:1091
+#: services/webservice/pages/actions.py:1390
 #, python-brace-format
 msgid "Take the servers on {node} out of service"
 msgstr "让 {node} 上的服务器停止服务"
 
-#: services/webservice/pages/actions.py:1092
+#: services/webservice/pages/actions.py:1391
 msgid "marks the node's servers as maintenance and stops them"
 msgstr "将节点的服务器标记为维护并停止它们"
 
-#: services/webservice/pages/actions.py:1093
+#: services/webservice/pages/actions.py:1392
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
@@ -1151,7 +1387,7 @@ msgstr ""
 "<b>{node} 上的 {servers} 台服务器将下线，{players} "
 "名玩家将被断开。</b>下方复选框默认勾选，会把这些服务器标记为维护 — 除非你想让计划启动在节点“离线”期间把它们带回来，否则请保持勾选。"
 
-#: services/webservice/pages/actions.py:1097
+#: services/webservice/pages/actions.py:1396
 msgid ""
 "Only the SERVERS on the node change. The node itself keeps running, so "
 "its services — including this console — stay up, and bringing the node "
@@ -1165,42 +1401,42 @@ msgstr ""
 "保持在线，把节点带回来是此浏览器可以完成的工作。勾选复选框后，服务器在停止前会被标记为维护，因此它们会保持停止服务，直到有人结束该状态；取消勾选则不写入任何标记"
 " — 服务器会停止，且没有任何东西阻止调度器再次启动它们。"
 
-#: services/webservice/pages/actions.py:1105
+#: services/webservice/pages/actions.py:1404
 #, python-brace-format
 msgid ""
 "Take {node} offline — {servers} server(s) go down, {players} player(s) "
 "are disconnected"
 msgstr "让 {node} 下线 — {servers} 台服务器将下线，{players} 名玩家将被断开"
 
-#: services/webservice/pages/actions.py:1113
-#: services/webservice/pages/actions.py:1131
+#: services/webservice/pages/actions.py:1412
+#: services/webservice/pages/actions.py:1430
 msgid "Bring servers online"
 msgstr "让服务器上线"
 
-#: services/webservice/pages/actions.py:1115
+#: services/webservice/pages/actions.py:1414
 #, python-brace-format
 msgid "Bring the servers on {node} back online?"
 msgstr "让 {node} 上的服务器重新上线？"
 
-#: services/webservice/pages/actions.py:1116
+#: services/webservice/pages/actions.py:1415
 msgid ""
 "Bring servers online — clear the maintenance flags this node's power-off "
 "set; the scheduler then starts the servers it stopped. A flag set by hand"
 " is left alone"
 msgstr "让服务器上线 — 清除该节点下线时设置的维护标记，并启动它停止的服务器；手动设置的标记则保持不动"
 
-#: services/webservice/pages/actions.py:1119
+#: services/webservice/pages/actions.py:1418
 #, python-brace-format
 msgid "Bring the servers on {node} back into service"
 msgstr "让 {node} 上的服务器恢复服务"
 
-#: services/webservice/pages/actions.py:1120
+#: services/webservice/pages/actions.py:1419
 msgid ""
 "ends the maintenance this node's power-off set — the scheduler starts "
 "what it stopped"
 msgstr "结束该节点下线时设置的维护，并启动它停止的服务器"
 
-#: services/webservice/pages/actions.py:1123
+#: services/webservice/pages/actions.py:1422
 msgid ""
 "This reverts EXACTLY the last power-off on this node: it clears only the "
 "maintenance flags that operation set, and the servers it stopped are left"
@@ -1214,229 +1450,321 @@ msgstr ""
 "此操作会精确地撤销该节点上一次的下线：它只清除该操作设置的维护标记，并且只启动它停止的服务器。有人手动设置的标记绝不会被清除，仍处于维护的服务器绝不会被启动。如果自那次下线以来机器人已经重启，记录就没了，此时它会启动每一台处于下线且不在维护的服务器，且不清除任何标记"
 " — 消息会说明发生的是这两种情况中的哪一种。节点的服务从未被触碰。"
 
-#: services/webservice/pages/actions.py:1132
+#: services/webservice/pages/actions.py:1431
 #, python-brace-format
 msgid ""
 "Bring {node} online — the flags its power-off set are cleared, and the "
 "scheduler starts what it stopped"
 msgstr "让 {node} 上线 — 清除其下线时设置的标记，启动它停止的服务器"
 
-#: services/webservice/pages/actions.py:1600
+#: services/webservice/pages/actions.py:1914
 #: services/webservice/pages/server_detail.py:188
 #: services/webservice/templates/server_detail.html:151
 msgid "Configuration"
 msgstr "配置"
 
-#: services/webservice/pages/actions.py:1601
+#: services/webservice/pages/actions.py:1915
 #, python-brace-format
 msgid "Configuration — open {server}'s own settings"
 msgstr "配置——打开 {server} 自身的设置"
 
-#: services/webservice/pages/actions.py:1603
+#: services/webservice/pages/actions.py:1917
 #, python-brace-format
 msgid "Open the configuration of server {server}"
 msgstr "打开服务器 {server} 的配置"
 
-#: services/webservice/pages/actions.py:1736
+#: services/webservice/pages/actions.py:2052
 #, python-brace-format
 msgid "More controls for {server}"
 msgstr "{server} 的更多控件"
 
-#: services/webservice/pages/actions.py:2057
+#: services/webservice/pages/actions.py:2392
 #, python-brace-format
 msgid "Controls for node {node}"
 msgstr "节点 {node} 的控件"
 
-#: services/webservice/pages/actions.py:2259
+#: services/webservice/pages/actions.py:2600
 #, python-brace-format
 msgid "Controls for {player} on {server}"
 msgstr "{server} 上 {player} 的控件"
 
-#: services/webservice/pages/actions.py:2394
+#: services/webservice/pages/actions.py:2734
 #, python-brace-format
 msgid "{label} {target}?"
 msgstr "{label} {target}？"
 
-#: services/webservice/pages/actions.py:2447
-#: services/webservice/pages/actions.py:2544
-#: services/webservice/pages/actions.py:2699
-#: services/webservice/pages/actions.py:4094
+#: services/webservice/pages/actions.py:2792
+#: services/webservice/pages/actions.py:2905
+#: services/webservice/pages/actions.py:3084
+#: services/webservice/pages/actions.py:4505
 msgid "confirm"
 msgstr "确认"
 
-#: services/webservice/pages/actions.py:2447
-#: services/webservice/pages/actions.py:2699
-#: services/webservice/pages/actions.py:4094
+#: services/webservice/pages/actions.py:2792
+#: services/webservice/pages/actions.py:3084
+#: services/webservice/pages/actions.py:4505
+#: services/webservice/pages/actions.py:5002
 msgid "options"
 msgstr "选项"
 
-#: services/webservice/pages/actions.py:2526
+#: services/webservice/pages/actions.py:2887
 msgid "Days (optional)"
 msgstr "天数（可选）"
 
-#: services/webservice/pages/actions.py:2527
+#: services/webservice/pages/actions.py:2888
 msgid ""
 "Empty = permanent — the ban does not expire on its own. 7 means seven "
 "days from now."
 msgstr "留空 = 永久 — 封禁不会自行过期。7 表示从此刻起七天。"
 
-#: services/webservice/pages/actions.py:2675
+#: services/webservice/pages/actions.py:3060
 #, python-brace-format
 msgid "Last update check: {when}."
 msgstr "上次更新检查：{when}。"
 
-#: services/webservice/pages/actions.py:2688
+#: services/webservice/pages/actions.py:3073
 #, python-brace-format
 msgid "{label} (node)"
 msgstr "{label}（节点）"
 
-#: services/webservice/pages/actions.py:2782
+#: services/webservice/pages/actions.py:3167
 msgid "Not authorized (this target is outside your scope)."
 msgstr "未授权（此目标不在你的范围内）。"
 
-#: services/webservice/pages/actions.py:2789
+#: services/webservice/pages/actions.py:3174
 msgid "Not authorized (no signed-in identity)."
 msgstr "未授权（没有已登录的身份）。"
 
-#: services/webservice/pages/actions.py:2790
+#: services/webservice/pages/actions.py:3175
 msgid "Not authorized (this action must be confirmed through its dialog)."
 msgstr "未授权（此操作必须通过其对话框确认）。"
 
-#: services/webservice/pages/actions.py:4015
+#: services/webservice/pages/actions.py:3179
+msgid "Not done (the typed name does not match the target)."
+msgstr "未执行（输入的名称与目标不一致）。"
+
+#: services/webservice/pages/actions.py:4426
 msgid "Mission file already on this server"
 msgstr "此服务器上已有的任务文件"
 
-#: services/webservice/pages/actions.py:4017
+#: services/webservice/pages/actions.py:4428
 msgid "Only files NOT already in the rotation are offered."
 msgstr "只提供尚未在轮换中的文件。"
 
-#: services/webservice/pages/actions.py:4022
+#: services/webservice/pages/actions.py:4433
 #, python-brace-format
 msgid "Add a mission to {server}?"
 msgstr "向 {server} 添加一个任务？"
 
-#: services/webservice/pages/actions.py:4049
-#: services/webservice/pages/actions.py:4074
+#: services/webservice/pages/actions.py:4460
+#: services/webservice/pages/actions.py:4485
 #, python-brace-format
 msgid "Remove {mission} from the rotation?"
 msgstr "从轮换中移除 {mission}？"
 
-#: services/webservice/pages/actions.py:4053
+#: services/webservice/pages/actions.py:4464
 #, python-brace-format
 msgid "Remove {count} missions from {server}?"
 msgstr "从 {server} 移除 {count} 个任务？"
 
-#: services/webservice/pages/actions.py:4055
+#: services/webservice/pages/actions.py:4466
 #, python-brace-format
 msgid "Remove {count} missions"
 msgstr "移除 {count} 个任务"
 
-#: services/webservice/pages/actions.py:4058
+#: services/webservice/pages/actions.py:4469
 #, python-brace-format
 msgid "<b>The running mission ({mission}) cannot be removed.</b>"
 msgstr "<b>正在运行的任务（{mission}）无法移除。</b>"
 
-#: services/webservice/pages/dashboard.py:79
-#: services/webservice/pages/dashboard.py:82
+#: services/webservice/pages/actions.py:4830
+msgid "Type the name to confirm"
+msgstr "输入名称以确认"
+
+#: services/webservice/pages/actions.py:4831
+msgid "The action is refused unless this matches the target's name exactly."
+msgstr "只有与目标名称完全一致，操作才会执行。"
+
+#: services/webservice/pages/actions.py:4900
+#, python-format
+msgid "DCS port %(port)s"
+msgstr "DCS 端口 %(port)s"
+
+#: services/webservice/pages/actions.py:4960
+msgid "Create a new instance"
+msgstr "新建实例"
+
+#: services/webservice/pages/actions.py:4963
+#: services/webservice/pages/settings.py:289
+#: services/webservice/readmodels/views.py:111
+#: services/webservice/readmodels/views.py:114
+#: services/webservice/readmodels/views.py:117
+#: services/webservice/templates/node_log.html:23
+#: services/webservice/templates/node_log.html:41
+#: services/webservice/templates/node_page.html:35
+#: services/webservice/templates/server_detail.html:68
+#: services/webservice/templates/settings_scope.html:51
+msgid "Node"
+msgstr "节点"
+
+#: services/webservice/pages/actions.py:4965
+msgid ""
+"Where a NEW instance is created. An instance picked below is attached on "
+"its own node."
+msgstr "新建实例所在的位置。下方选中的实例会在其自己的节点上使用。"
+
+#: services/webservice/pages/actions.py:4967
+msgid "Attach to an existing instance"
+msgstr "绑定到现有实例"
+
+#: services/webservice/pages/actions.py:4969
+msgid ""
+"Every instance that carries no server yet is offered, with the node it is"
+" on — a server is bound on that node. \"Create a new instance\" uses the "
+"node above."
+msgstr "所有还没有服务器的实例都会列出，并标出它所在的节点——服务器会在该节点上绑定。“创建新实例”使用上方选择的节点。"
+
+#: services/webservice/pages/actions.py:4972
+#: services/webservice/readmodels/serverconfig.py:220
+msgid "Server name"
+msgstr "服务器名称"
+
+#: services/webservice/pages/actions.py:4973
+msgid ""
+"The name of the new server (its key in servers.yaml) — and the Saved "
+"Games folder name of a NEW instance. A name another server already uses "
+"is refused."
+msgstr "新服务器的名称（其在 servers.yaml 中的键）——同时也是新实例的 Saved Games 文件夹名。已被其他服务器使用的名称会被拒绝。"
+
+#: services/webservice/pages/actions.py:4977
+msgid "Configure a server for the instance"
+msgstr "为该实例配置服务器"
+
+#: services/webservice/pages/actions.py:4979
+msgid ""
+"On by default, exactly like Discord's own view. Off: a NEW instance is "
+"created blank, with no server bound to it."
+msgstr "默认开启，与 Discord 中的视图一致。关闭时，新实例将以空白创建，不绑定服务器。"
+
+#: services/webservice/pages/actions.py:4987
+msgid ""
+"The instance carries the ports; a new one gets the next free ports on its"
+" node, and its Saved Games directory is created there. Nothing is "
+"started: the server is created and comes up when somebody starts it or "
+"the scheduler does."
+msgstr ""
+"端口属于实例；新实例会获得其节点上的下一个空闲端口，并在该节点创建其 Saved Games "
+"目录。不会启动任何内容：服务器创建后，需有人启动或由计划任务启动。"
+
+#: services/webservice/pages/actions.py:4993
+msgid "Add the server — it is created, not started"
+msgstr "添加服务器 — 仅创建，不启动"
+
+#: services/webservice/pages/actions.py:4998
+msgid "a new server"
+msgstr "一台新服务器"
+
+#: services/webservice/pages/dashboard.py:80
+#: services/webservice/pages/dashboard.py:83
 msgid "Dashboard"
 msgstr "仪表盘"
 
-#: services/webservice/pages/dashboard.py:80
+#: services/webservice/pages/dashboard.py:81
 msgid ""
 "Live state of every node, instance and server in the cluster. A server "
 "row you may operate carries its own controls."
 msgstr "集群中每个节点、实例和服务器的实时状态。你可以操作的服务器行会带有自己的控件。"
 
-#: services/webservice/pages/dashboard.py:83
+#: services/webservice/pages/dashboard.py:84
 msgid "Operations"
 msgstr "运维"
 
-#: services/webservice/pages/dashboard.py:86
+#: services/webservice/pages/dashboard.py:87
 #: services/webservice/templates/_state.html:23
 #: services/webservice/templates/overview.html:34
 msgid "Cluster"
 msgstr "集群"
 
-#: services/webservice/pages/dashboard.py:169
+#: services/webservice/pages/dashboard.py:170
 msgid "Nothing needs you — every node is heartbeating and no server is down."
 msgstr "一切正常 — 每个节点都在发送心跳，没有服务器下线。"
 
-#: services/webservice/pages/dashboard.py:176
+#: services/webservice/pages/dashboard.py:177
 #: services/webservice/pages/server_detail.py:1464
 msgid "No players match this search."
 msgstr "没有玩家匹配此搜索。"
 
-#: services/webservice/pages/dashboard.py:333
+#: services/webservice/pages/dashboard.py:334
 #, python-format
 msgid "%(count)d node(s) not heartbeating: %(names)s"
 msgstr "%(count)d 个节点未发送心跳：%(names)s"
 
-#: services/webservice/pages/dashboard.py:338
+#: services/webservice/pages/dashboard.py:339
 #, python-format
 msgid "%(count)d server(s) down: %(names)s"
 msgstr "%(count)d 台服务器下线：%(names)s"
 
-#: services/webservice/pages/dashboard.py:343
+#: services/webservice/pages/dashboard.py:344
 #, python-format
 msgid "%(count)d server(s) paused: %(names)s"
 msgstr "%(count)d 台服务器已暂停：%(names)s"
 
-#: services/webservice/pages/dashboard.py:348
+#: services/webservice/pages/dashboard.py:349
 #, python-format
 msgid "%(count)d ERROR line(s) in the visible log"
 msgstr "可见日志中有 %(count)d 行 ERROR"
 
-#: services/webservice/pages/dashboard.py:375
+#: services/webservice/pages/dashboard.py:376
 #, python-brace-format
 msgid "{count} node(s) offline"
 msgstr "{count} 个节点离线"
 
-#: services/webservice/pages/dashboard.py:379
+#: services/webservice/pages/dashboard.py:380
 #, python-brace-format
 msgid "{count} server(s) not running"
 msgstr "{count} 个服务器未运行"
 
-#: services/webservice/pages/dashboard.py:491
+#: services/webservice/pages/dashboard.py:492
 #, python-brace-format
 msgid "bottom when ≤ {rows} rows, right when more"
 msgstr "行数 ≤ {rows} 时在底部，否则在右侧"
 
-#: services/webservice/pages/dashboard.py:761
+#: services/webservice/pages/dashboard.py:774
 msgid "Not authorized (this server is outside your scope)."
 msgstr "未授权（此服务器不在你的范围内）。"
 
-#: services/webservice/pages/dashboard.py:973
+#: services/webservice/pages/dashboard.py:986
 msgid "no node"
 msgstr "无节点"
 
-#: services/webservice/pages/dashboard.py:974
+#: services/webservice/pages/dashboard.py:987
 #: services/webservice/templates/_table.html:77
 msgid "master"
 msgstr "主节点"
 
-#: services/webservice/pages/dashboard.py:974
+#: services/webservice/pages/dashboard.py:987
 msgid "agent"
 msgstr "代理节点"
 
-#: services/webservice/pages/dashboard.py:975
+#: services/webservice/pages/dashboard.py:988
 msgid "live state"
 msgstr "实时状态"
 
-#: services/webservice/pages/dashboard.py:975
+#: services/webservice/pages/dashboard.py:988
 msgid "no live state"
 msgstr "无实时状态"
 
-#: services/webservice/pages/dashboard.py:987
+#: services/webservice/pages/dashboard.py:1000
 #, python-format
 msgid "%(online)d/%(total)d nodes online"
 msgstr "%(online)d/%(total)d 个节点在线"
 
-#: services/webservice/pages/dashboard.py:989
+#: services/webservice/pages/dashboard.py:1002
 #, python-format
 msgid "%(running)d/%(total)d servers up"
 msgstr "%(running)d/%(total)d 台服务器运行中"
 
-#: services/webservice/pages/dashboard.py:991
+#: services/webservice/pages/dashboard.py:1004
 #, python-format
 msgid "%(count)d players online"
 msgstr "%(count)d 名玩家在线"
@@ -1657,8 +1985,8 @@ msgstr "此节点在 nodes.yaml 中还没有配置块。"
 #: services/webservice/pages/node_settings.py:1409
 #: services/webservice/pages/node_settings.py:1557
 #: services/webservice/pages/node_settings.py:1800
-#: services/webservice/pages/settings.py:2019
-#: services/webservice/pages/settings.py:2149
+#: services/webservice/pages/settings.py:2017
+#: services/webservice/pages/settings.py:2147
 msgid ""
 "This page is stale — the file changed on disk since it was rendered. "
 "Reload and try again."
@@ -2017,18 +2345,6 @@ msgstr ""
 msgid "instance name"
 msgstr "实例名称"
 
-#: services/webservice/pages/settings.py:289
-#: services/webservice/readmodels/views.py:111
-#: services/webservice/readmodels/views.py:114
-#: services/webservice/readmodels/views.py:117
-#: services/webservice/templates/node_log.html:23
-#: services/webservice/templates/node_log.html:41
-#: services/webservice/templates/node_page.html:35
-#: services/webservice/templates/server_detail.html:68
-#: services/webservice/templates/settings_scope.html:51
-msgid "Node"
-msgstr "节点"
-
 #: services/webservice/pages/settings.py:291
 msgid ""
 "Pick a node to configure. The tabs then show only its own block and its "
@@ -2199,7 +2515,7 @@ msgstr "默认值"
 msgid "override"
 msgstr "覆盖"
 
-#: services/webservice/pages/settings.py:1651
+#: services/webservice/pages/settings.py:1649
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
 "page produces, so the setting was left exactly as it was. Reload the page"
@@ -2349,10 +2665,6 @@ msgid ""
 "A channel change is applied immediately: the bot rewrites servers.yaml "
 "and starts using the new channel at once, with no restart."
 msgstr "频道更改会立即生效：机器人会改写 servers.yaml 并立刻开始使用新频道，无需重启。"
-
-#: services/webservice/readmodels/serverconfig.py:220
-msgid "Server name"
-msgstr "服务器名称"
 
 #: services/webservice/readmodels/serverconfig.py:221
 msgid ""
@@ -2696,284 +3008,299 @@ msgstr "UCID"
 msgid "Slot"
 msgstr "席位"
 
-#: services/webservice/setup/tour.py:104 services/webservice/setup/tour.py:491
+#: services/webservice/readmodels/views.py:120
+msgid "Coalition"
+msgstr "阵营"
+
+#: services/webservice/setup/tour.py:107 services/webservice/setup/tour.py:544
 #: services/webservice/templates/_language.html:24
 msgid "Language"
 msgstr "语言"
 
-#: services/webservice/setup/tour.py:105
+#: services/webservice/setup/tour.py:108
 msgid "General"
 msgstr "常规"
 
-#: services/webservice/setup/tour.py:106
+#: services/webservice/setup/tour.py:109
 msgid "Database"
 msgstr "数据库"
 
-#: services/webservice/setup/tour.py:107
+#: services/webservice/setup/tour.py:110
 msgid "This node"
 msgstr "此节点"
 
-#: services/webservice/setup/tour.py:108
+#: services/webservice/setup/tour.py:111
 msgid "Discord — the bot"
 msgstr "Discord — 机器人"
 
-#: services/webservice/setup/tour.py:109
+#: services/webservice/setup/tour.py:112
 msgid "Discord — roles and channels"
 msgstr "Discord — 角色与频道"
 
-#: services/webservice/setup/tour.py:110
+#: services/webservice/setup/tour.py:113
 msgid "Web console"
 msgstr "Web 控制台"
 
-#: services/webservice/setup/tour.py:111
+#: services/webservice/setup/tour.py:114
 msgid "DCS servers"
 msgstr "DCS 服务器"
 
-#: services/webservice/setup/tour.py:112
+#: services/webservice/setup/tour.py:115
 msgid "Review and write"
 msgstr "检查并写入"
 
-#: services/webservice/setup/tour.py:116
+#: services/webservice/setup/tour.py:119
 msgid "Your community"
 msgstr "你的社区"
 
-#: services/webservice/setup/tour.py:129
+#: services/webservice/setup/tour.py:132
 msgid "Which language do you speak?"
 msgstr "你说哪种语言?"
 
-#: services/webservice/setup/tour.py:130
+#: services/webservice/setup/tour.py:133
 msgid "Do you want the web admin console?"
 msgstr "你需要 Web 管理控制台吗？"
 
-#: services/webservice/setup/tour.py:486
+#: services/webservice/setup/tour.py:539
 msgid "Nothing is written yet — the last screen writes your configuration."
 msgstr "尚未写入任何内容——最后一个界面会写入你的配置。"
 
-#: services/webservice/setup/tour.py:490
+#: services/webservice/setup/tour.py:543
 msgid "Setup"
 msgstr "设置"
 
-#: services/webservice/setup/tour.py:492
+#: services/webservice/setup/tour.py:545
 msgid "tap to see the steps"
 msgstr "轻触查看步骤"
 
-#: services/webservice/setup/tour.py:493
+#: services/webservice/setup/tour.py:546
 msgid "Setup steps"
 msgstr "设置步骤"
 
-#: services/webservice/setup/tour.py:494
+#: services/webservice/setup/tour.py:547
 msgid "Continue"
 msgstr "继续"
 
-#: services/webservice/setup/tour.py:495
+#: services/webservice/setup/tour.py:548
 msgid "Back"
 msgstr "返回"
 
-#: services/webservice/setup/tour.py:497
+#: services/webservice/setup/tour.py:550
 msgid ""
 "The bot can be set to the same language, which means, that all Discord "
 "and in-game messages will be in your language as well. Would you like me "
 "to configure the bot this way?"
 msgstr "机器人可以设置为使用相同的语言，这样 Discord 和游戏内消息也都会以该语言显示。是否要按此方式配置机器人?"
 
-#: services/webservice/setup/tour.py:500
+#: services/webservice/setup/tour.py:553
 msgid ""
 "Unticked, the bot keeps its own default language (English) — the console "
 "still speaks the language of your browser."
 msgstr "不勾选时，机器人保留其默认语言（英语）——控制台仍使用你浏览器的语言。"
 
-#: services/webservice/setup/tour.py:507
+#: services/webservice/setup/tour.py:560
 #, python-brace-format
 msgid "Preselected from your browser — it sent \"{header}\"."
 msgstr "预选：来自你的浏览器 —— 它发送了 \"{header}\"。"
 
-#: services/webservice/setup/tour.py:509
+#: services/webservice/setup/tour.py:562
 #, python-brace-format
 msgid ""
 "Preselected from the language in the link you followed — the \"{param}\" "
 "parameter."
 msgstr "预选：来自你打开的链接里的语言 —— \"{param}\" 参数。"
 
-#: services/webservice/setup/tour.py:511
+#: services/webservice/setup/tour.py:564
 #, python-brace-format
 msgid ""
 "Preselected from the language this console stored for you — the "
 "\"{cookie}\" cookie."
 msgstr "预选：来自本控制台为你保存的语言 —— \"{cookie}\" cookie。"
 
-#: services/webservice/setup/tour.py:513
+#: services/webservice/setup/tour.py:566
 msgid "Preselected from the answer you saved to this step on an earlier run."
 msgstr "预选：来自你在上一次运行时为这一步保存的答案。"
 
-#: services/webservice/setup/tour.py:515
+#: services/webservice/setup/tour.py:568
 msgid "Preselected from this install's default language — nothing else named one."
 msgstr "预选：来自本次安装的默认语言 —— 没有别的地方指定语言。"
 
-#: services/webservice/setup/tour.py:518
+#: services/webservice/setup/tour.py:571
 msgid ""
 "Before you start you need PostgreSQL 14 or higher, and a Discord bot "
 "token. On a no-Discord install the token is not needed."
 msgstr "开始之前，你需要 PostgreSQL 14 或更高版本，以及一个 Discord 机器人令牌。在无 Discord 的安装中不需要令牌。"
 
-#: services/webservice/setup/tour.py:520
+#: services/webservice/setup/tour.py:573
 msgid "Do you want your DCSServerBot being auto-updated?"
 msgstr "是否要让你的 DCSServerBot 自动更新?"
 
-#: services/webservice/setup/tour.py:521
+#: services/webservice/setup/tour.py:574
 msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
 msgstr "是否要以支持 Discord 的方式运行 DCSServerBot（推荐）?"
 
-#: services/webservice/setup/tour.py:523
+#: services/webservice/setup/tour.py:576
 msgid ""
 "Discord is how the bot talks to your admins and players. Without it you "
 "manage everything from this console."
 msgstr "机器人通过 Discord 与你的管理员和玩家交流。没有它时，你的一切管理都在这个控制台中进行。"
 
-#: services/webservice/setup/tour.py:525
+#: services/webservice/setup/tour.py:578
 msgid "This step is not built yet."
 msgstr "此步骤尚未实现。"
 
-#: services/webservice/setup/tour.py:530
+#: services/webservice/setup/tour.py:583
 msgid ""
 "Your answers could not be saved — the setup draft was not written, so "
 "this step is not recorded. Try again."
 msgstr "无法保存你的回答——设置草稿未写入，因此这一步没有记录。请重试。"
 
-#: services/webservice/setup/tour.py:534
+#: services/webservice/setup/tour.py:593
 msgid "Create a new database"
 msgstr "创建新数据库"
 
-#: services/webservice/setup/tour.py:536
+#: services/webservice/setup/tour.py:595
 msgid ""
 "The bot creates its own database and its own user. You enter the "
 "PostgreSQL superuser credentials below."
 msgstr "机器人会创建自己的数据库和自己的用户。请在下方输入 PostgreSQL 超级用户的凭据。"
 
-#: services/webservice/setup/tour.py:538
+#: services/webservice/setup/tour.py:597
 msgid "Use an existing database"
 msgstr "使用现有数据库"
 
-#: services/webservice/setup/tour.py:540
+#: services/webservice/setup/tour.py:599
 msgid ""
 "Point the bot at a database that already exists. You enter the "
 "credentials the bot should use, not a superuser's."
 msgstr "让机器人指向一个已经存在的数据库。请输入机器人应使用的凭据，而不是超级用户的凭据。"
 
-#: services/webservice/setup/tour.py:542
+#: services/webservice/setup/tour.py:601
 msgid "How should the bot get its database?"
 msgstr "机器人应如何获得数据库？"
 
-#: services/webservice/setup/tour.py:543
+#: services/webservice/setup/tour.py:602
 msgid "host"
 msgstr "主机"
 
-#: services/webservice/setup/tour.py:544
+#: services/webservice/setup/tour.py:603
 msgid "Where PostgreSQL runs. The bot usually runs on the same machine."
 msgstr "PostgreSQL 运行的位置。机器人通常运行在同一台机器上。"
 
-#: services/webservice/setup/tour.py:545
+#: services/webservice/setup/tour.py:604
 #: services/webservice/templates/server_detail.html:110
 #: services/webservice/templates/server_detail.html:706
 msgid "port"
 msgstr "端口"
 
-#: services/webservice/setup/tour.py:546
+#: services/webservice/setup/tour.py:605
 msgid "master database"
 msgstr "主数据库"
 
-#: services/webservice/setup/tour.py:547
+#: services/webservice/setup/tour.py:606
 msgid "The maintenance database of your PostgreSQL server."
 msgstr "PostgreSQL 服务器的维护数据库。"
 
-#: services/webservice/setup/tour.py:548
+#: services/webservice/setup/tour.py:607
 msgid "master user"
 msgstr "主用户"
 
-#: services/webservice/setup/tour.py:550
+#: services/webservice/setup/tour.py:609
 msgid ""
 "The PostgreSQL superuser the bot uses once, to create its own database "
 "and user."
 msgstr "机器人一次性使用的 PostgreSQL 超级用户，用于创建它自己的数据库和用户。"
 
-#: services/webservice/setup/tour.py:551
+#: services/webservice/setup/tour.py:610
 msgid "master password"
 msgstr "主密码"
 
-#: services/webservice/setup/tour.py:552
+#: services/webservice/setup/tour.py:611
 msgid "database"
 msgstr "数据库"
 
-#: services/webservice/setup/tour.py:553
+#: services/webservice/setup/tour.py:612
 msgid "The database the bot should use."
 msgstr "机器人应使用的数据库。"
 
-#: services/webservice/setup/tour.py:554
+#: services/webservice/setup/tour.py:613
 msgid "user"
 msgstr "用户"
 
-#: services/webservice/setup/tour.py:555
+#: services/webservice/setup/tour.py:614
 msgid "The user the bot connects with."
 msgstr "机器人连接所用的用户。"
 
-#: services/webservice/setup/tour.py:556 services/webservice/setup/tour.py:896
+#: services/webservice/setup/tour.py:615 services/webservice/setup/tour.py:984
 msgid "password"
 msgstr "密码"
 
-#: services/webservice/setup/tour.py:557
+#: services/webservice/setup/tour.py:616
 msgid "Stored in config/.secret/, never on this page again."
 msgstr "保存在 config/.secret/ 中，之后不会再出现在这个页面上。"
 
-#: services/webservice/setup/tour.py:558
+#: services/webservice/setup/tour.py:617
 #, python-brace-format
 msgid "The bot will create the database {database} and the user {user}."
 msgstr "机器人将创建数据库 {database} 和用户 {user}。"
 
-#: services/webservice/setup/tour.py:559
+#: services/webservice/setup/tour.py:618
 msgid "A password is kept for this test — leave the field empty to reuse it."
 msgstr "本次测试保留了一个密码——留空即可重复使用。"
 
-#: services/webservice/setup/tour.py:560
+#: services/webservice/setup/tour.py:619
 msgid "Test connection and create"
 msgstr "测试连接并创建"
 
-#: services/webservice/setup/tour.py:562
+#: services/webservice/setup/tour.py:621
 msgid "Test connection"
 msgstr "测试连接"
 
-#: services/webservice/setup/tour.py:565
+#: services/webservice/setup/tour.py:624
 msgid "Test the connection before you continue."
 msgstr "请先测试连接再继续。"
 
-#: services/webservice/setup/tour.py:566 services/webservice/setup/tour.py:628
+#: services/webservice/setup/tour.py:625 services/webservice/setup/tour.py:694
 #, python-brace-format
 msgid "The user {user} already exists."
 msgstr "用户 {user} 已经存在。"
 
-#: services/webservice/setup/tour.py:568
+#: services/webservice/setup/tour.py:627
 msgid "Reset its password (a new one is generated and stored in config/.secret/)."
 msgstr "重置其密码（会生成新密码并保存到 config/.secret/）。"
 
-#: services/webservice/setup/tour.py:569
+#: services/webservice/setup/tour.py:628
 msgid "its password"
 msgstr "其密码"
 
-#: services/webservice/setup/tour.py:573
+#: services/webservice/setup/tour.py:633
+#, python-brace-format
+msgid ""
+"To use DCSServerBot, you need to install PostgreSQL. You can download it "
+"{link}."
+msgstr "要使用 DCSServerBot，你需要安装 PostgreSQL。你可以{link}下载。"
+
+#: services/webservice/setup/tour.py:635
+msgid "here"
+msgstr "此处"
+
+#: services/webservice/setup/tour.py:639
 msgid "Creating the database…"
 msgstr "正在创建数据库…"
 
-#: services/webservice/setup/tour.py:574
+#: services/webservice/setup/tour.py:640
 msgid "Testing the connection…"
 msgstr "正在测试连接…"
 
-#: services/webservice/setup/tour.py:575
+#: services/webservice/setup/tour.py:641
 msgid "Continuing…"
 msgstr "正在继续…"
 
-#: services/webservice/setup/tour.py:580
+#: services/webservice/setup/tour.py:646
 msgid "Federation support"
 msgstr "联邦支持"
 
-#: services/webservice/setup/tour.py:582
+#: services/webservice/setup/tour.py:648
 msgid ""
 "Share resources with another DCSServerBot installation. This adds a "
 "second, cluster-wide database to config/main.yaml — only needed when this"
@@ -2982,86 +3309,86 @@ msgstr ""
 "与其他 DCSServerBot 安装共享资源。这会在 config/main.yaml "
 "中加入第二个集群级数据库——仅当此安装要加入已有联邦时才需要。"
 
-#: services/webservice/setup/tour.py:584
+#: services/webservice/setup/tour.py:650
 msgid "How should the bot get the cluster database?"
 msgstr "机器人应如何获得集群数据库？"
 
-#: services/webservice/setup/tour.py:590
+#: services/webservice/setup/tour.py:656
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. Created database {database} and user "
 "{user}."
 msgstr "已连接到 PostgreSQL {version}。已创建数据库 {database} 和用户 {user}。"
 
-#: services/webservice/setup/tour.py:592
+#: services/webservice/setup/tour.py:658
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. The database {database} was created; "
 "the user {user} already existed."
 msgstr "已连接到 PostgreSQL {version}。数据库 {database} 已创建；用户 {user} 已存在。"
 
-#: services/webservice/setup/tour.py:595
+#: services/webservice/setup/tour.py:661
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. The database {database} already "
 "existed; the bot will migrate it on first start."
 msgstr "已连接到 PostgreSQL {version}。数据库 {database} 已经存在；机器人将在首次启动时迁移它。"
 
-#: services/webservice/setup/tour.py:598
+#: services/webservice/setup/tour.py:664
 #, python-brace-format
 msgid ""
 "Connected to PostgreSQL {version}. The user {user}'s password was reset "
 "and stored in config/.secret/."
 msgstr "已连接到 PostgreSQL {version}。用户 {user} 的密码已重置并保存到 config/.secret/。"
 
-#: services/webservice/setup/tour.py:601
+#: services/webservice/setup/tour.py:667
 #, python-brace-format
 msgid ""
 "Connected to {database} (PostgreSQL {version}). The database is empty — "
 "the bot will create its tables on first start."
 msgstr "已连接到 {database}（PostgreSQL {version}）。数据库为空——机器人将在首次启动时创建其表。"
 
-#: services/webservice/setup/tour.py:604
+#: services/webservice/setup/tour.py:670
 #, python-brace-format
 msgid ""
 "Connected. This database already holds DCSServerBot data ({count} "
 "tables). The bot will continue from it."
 msgstr "已连接。该数据库已包含 DCSServerBot 数据（{count} 个表）。机器人将从中继续。"
 
-#: services/webservice/setup/tour.py:607
+#: services/webservice/setup/tour.py:673
 #, python-brace-format
 msgid ""
 "Connected. This database holds data from an older DCSServerBot ({count} "
 "tables). The bot will migrate it on first start."
 msgstr "已连接。该数据库包含较旧版本 DCSServerBot 的数据（{count} 个表）。机器人将在首次启动时迁移它。"
 
-#: services/webservice/setup/tour.py:609
+#: services/webservice/setup/tour.py:675
 msgid "Could not connect: the master password was refused."
 msgstr "无法连接：主密码被拒绝。"
 
-#: services/webservice/setup/tour.py:610
+#: services/webservice/setup/tour.py:676
 msgid "The master user may only use letters, digits, '_' and '-'."
 msgstr "主用户只能包含字母、数字、'_' 和 '-'。"
 
-#: services/webservice/setup/tour.py:612
+#: services/webservice/setup/tour.py:678
 msgid ""
 "The master user may not be named after one of the bot's own secret files."
 " Choose another name."
 msgstr "主用户不能与机器人自身的某个密钥文件同名。请换一个名字。"
 
-#: services/webservice/setup/tour.py:615
+#: services/webservice/setup/tour.py:681
 #, python-brace-format
 msgid ""
 "Could not connect: nothing is answering on {host}:{port}. Is the "
 "PostgreSQL service running?"
 msgstr "无法连接：{host}:{port} 无响应。PostgreSQL 服务正在运行吗？"
 
-#: services/webservice/setup/tour.py:617
+#: services/webservice/setup/tour.py:683
 #, python-brace-format
 msgid "Could not connect to {host}:{port}."
 msgstr "无法连接到 {host}:{port}。"
 
-#: services/webservice/setup/tour.py:619
+#: services/webservice/setup/tour.py:685
 #, python-brace-format
 msgid ""
 "Could not connect: {user} cannot sign in to this database. Check the "
@@ -3069,33 +3396,33 @@ msgid ""
 "credentials on that path can reset it."
 msgstr "无法连接：{user} 无法登录此数据库。请检查密码，或切换到“创建新数据库”——只有该路径上的超级用户凭据才能重置它。"
 
-#: services/webservice/setup/tour.py:621
+#: services/webservice/setup/tour.py:687
 #, python-brace-format
 msgid "Could not connect: the database {database} does not exist."
 msgstr "无法连接：数据库 {database} 不存在。"
 
-#: services/webservice/setup/tour.py:623
+#: services/webservice/setup/tour.py:689
 #, python-brace-format
 msgid ""
 "This database contains tables DCSServerBot did not create ({count} "
 "tables, e.g. {example}). Choose an empty database, or create a new one."
 msgstr "该数据库包含并非由 DCSServerBot 创建的表（{count} 个表，例如 {example}）。请选择一个空数据库，或创建一个新数据库。"
 
-#: services/webservice/setup/tour.py:626
+#: services/webservice/setup/tour.py:692
 #, python-brace-format
 msgid ""
 "{database} already exists and holds data. Switch to 'Use an existing "
 "database' to adopt it, or enter a different name."
 msgstr "{database} 已经存在并包含数据。请切换到“使用现有数据库”以采用它，或输入其他名称。"
 
-#: services/webservice/setup/tour.py:630
+#: services/webservice/setup/tour.py:696
 #, python-brace-format
 msgid ""
 "That password was not accepted ({left} attempts left before the password "
 "is reset)."
 msgstr "该密码未被接受（密码重置前还剩 {left} 次尝试）。"
 
-#: services/webservice/setup/tour.py:632
+#: services/webservice/setup/tour.py:698
 #, python-brace-format
 msgid ""
 "The server refused while the database or user was being created (database"
@@ -3105,13 +3432,13 @@ msgstr ""
 "在创建数据库或用户时服务器拒绝了操作（数据库 {database}，用户 {user}）。请检查 PostgreSQL "
 "日志和你的超级用户权限，然后重试。"
 
-#: services/webservice/setup/tour.py:636
+#: services/webservice/setup/tour.py:702
 msgid ""
 "The connection was verified for these values — nothing has been written "
 "yet."
 msgstr "已针对这些值验证连接——目前尚未写入任何内容。"
 
-#: services/webservice/setup/tour.py:638
+#: services/webservice/setup/tour.py:704
 #, python-brace-format
 msgid ""
 "Connected to {database}. This database has the same name as this "
@@ -3119,51 +3446,51 @@ msgid ""
 "this will not federate anything."
 msgstr "已连接到 {database}。该数据库的名称与本安装自身的数据库相同——机器人按数据库名称判断联邦，因此这不会联邦任何东西。"
 
-#: services/webservice/setup/tour.py:655
+#: services/webservice/setup/tour.py:721
 #, python-brace-format
 msgid "PostgreSQL {version} is older than the supported {min}."
 msgstr "PostgreSQL {version} 低于受支持的 {min}。"
 
-#: services/webservice/setup/tour.py:659
+#: services/webservice/setup/tour.py:725
 msgid "DCS World installation"
 msgstr "DCS World 安装"
 
-#: services/webservice/setup/tour.py:661
+#: services/webservice/setup/tour.py:727
 msgid ""
 "Where DCS World is installed. The bot writes Scripts/MissionScripting.lua"
 " there."
 msgstr "DCS World 的安装位置。机器人会在那里写入 Scripts/MissionScripting.lua。"
 
-#: services/webservice/setup/tour.py:662
+#: services/webservice/setup/tour.py:728
 msgid "Other — I will enter the path"
 msgstr "其他 — 我将输入路径"
 
-#: services/webservice/setup/tour.py:663
+#: services/webservice/setup/tour.py:729
 msgid "Continue without a DCS installation"
 msgstr "在没有 DCS 安装的情况下继续"
 
-#: services/webservice/setup/tour.py:664
+#: services/webservice/setup/tour.py:730
 msgid "path"
 msgstr "路径"
 
-#: services/webservice/setup/tour.py:731
+#: services/webservice/setup/tour.py:732
 msgid "Do you want your DCS installation being auto-updated by the bot?"
 msgstr "是否要让机器人自动更新你的 DCS 安装？"
 
-#: services/webservice/setup/tour.py:665
+#: services/webservice/setup/tour.py:733
 msgid "listen port"
 msgstr "监听端口"
 
-#: services/webservice/setup/tour.py:666
+#: services/webservice/setup/tour.py:734
 msgid "Other nodes of this installation talk to this one on this port."
 msgstr "此安装的其他节点通过此端口与本节点通信。"
 
-#: services/webservice/setup/tour.py:667
+#: services/webservice/setup/tour.py:735
 #, python-brace-format
 msgid "Is {ip} a static IP-address for this node?"
 msgstr "{ip} 是本节点的静态 IP 地址吗？"
 
-#: services/webservice/setup/tour.py:669
+#: services/webservice/setup/tour.py:737
 msgid ""
 "DCSServerBot can subscribe to the DGSA banlist managed by a group of DCS "
 "administrators.\n"
@@ -3176,123 +3503,135 @@ msgstr ""
 "它分为两部分：一部分用于被封禁的 DCS 玩家，一部分用于被封禁的 Discord 用户。\n"
 "对于公共服务器，建议订阅此列表以获得最佳安全性。"
 
-#: services/webservice/setup/tour.py:672
+#: services/webservice/setup/tour.py:740
 msgid "Do you want to use the global banlist for DCS players?"
 msgstr "是否使用针对 DCS 玩家的全局封禁列表？"
 
-#: services/webservice/setup/tour.py:673
+#: services/webservice/setup/tour.py:741
 msgid "Do you want to use the global banlist for Discord users?"
 msgstr "是否使用针对 Discord 用户的全局封禁列表？"
 
-#: services/webservice/setup/tour.py:678
+#: services/webservice/setup/tour.py:746
 msgid "The listen port must be a whole number between 1 and 65535."
 msgstr "监听端口必须是 1 到 65535 之间的整数。"
 
-#: services/webservice/setup/tour.py:679
+#: services/webservice/setup/tour.py:747
 #, python-brace-format
 msgid "Something is already listening on port {port}."
 msgstr "端口 {port} 上已有服务在监听。"
 
-#: services/webservice/setup/tour.py:680
+#: services/webservice/setup/tour.py:748
 msgid "Enter the path to your DCS World installation."
 msgstr "请输入你的 DCS World 安装路径。"
 
-#: services/webservice/setup/tour.py:681
+#: services/webservice/setup/tour.py:749
 #, python-brace-format
 msgid "That folder does not exist: {path}. Check the path and try again."
 msgstr "该文件夹不存在：{path}。请检查路径后重试。"
 
-#: services/webservice/setup/tour.py:682
+#: services/webservice/setup/tour.py:750
 msgid "Choose a DCS World installation, or the last entry."
 msgstr "请选择一个 DCS World 安装，或最后一项。"
 
-#: services/webservice/setup/tour.py:691
+#: services/webservice/setup/tour.py:759
 msgid "Searching for existing DCS server configurations ..."
 msgstr "正在搜索现有的 DCS 服务器配置 ..."
 
-#: services/webservice/setup/tour.py:692
+#: services/webservice/setup/tour.py:760
 #, python-brace-format
 msgid "{count} found."
 msgstr "找到 {count} 个."
 
-#: services/webservice/setup/tour.py:693
-msgid "No configured DCS servers found. Add them later in the admin console."
-msgstr "未找到已配置的 DCS 服务器。请稍后在管理控制台中添加。"
+#: services/webservice/setup/tour.py:765
+msgid ""
+"No configured DCS servers found. Add one below, or continue and add your "
+"servers later in the admin console."
+msgstr "未找到已配置的 DCS 服务器。请在下方添加一个，或继续，稍后在管理控制台中添加你的服务器。"
 
-#: services/webservice/setup/tour.py:699
+#: services/webservice/setup/tour.py:771
+msgid "instance — the Saved Games folder name"
+msgstr "实例 — Saved Games 文件夹名称"
+
+#: services/webservice/setup/tour.py:773
+msgid ""
+"The name of this instance's folder under Saved Games, for example "
+"DCS.openbeta. DCSServerBot starts DCS from there."
+msgstr "该实例在 Saved Games 下的文件夹名称，例如 DCS.openbeta。DCSServerBot 会从该文件夹启动 DCS。"
+
+#: services/webservice/setup/tour.py:780
 msgid ""
 "Pick each server's Status, Chat and Admin channels below from your "
 "Discord server — create any you are missing there first. The channels are"
 " used like this:"
 msgstr "在下方为每个服务器从你的 Discord 服务器选择 Status、Chat 和 Admin 频道——不存在的请先在那里创建。这些频道的用途如下："
 
-#: services/webservice/setup/tour.py:701
+#: services/webservice/setup/tour.py:782
 msgid "Status Channel — readable by everyone, writable only by the bot."
 msgstr "Status 频道——所有人可读，只有机器人可写。"
 
-#: services/webservice/setup/tour.py:702
+#: services/webservice/setup/tour.py:783
 msgid "Chat Channel — readable and writable by everyone."
 msgstr "Chat 频道——所有人可读可写。"
 
-#: services/webservice/setup/tour.py:704
+#: services/webservice/setup/tour.py:785
 msgid ""
 "Admin channel, central or per server — readable and writable only by "
 "Admin and DCS Admin users."
 msgstr "Admin 频道（全局或每个服务器）——只有 Admin 和 DCS Admin 用户可读可写。"
 
-#: services/webservice/setup/tour.py:708
+#: services/webservice/setup/tour.py:789
 msgid "DCSServerBot needs these permissions on the channels:"
 msgstr "DCSServerBot 需要在这些频道上拥有以下权限："
 
-#: services/webservice/setup/tour.py:710
+#: services/webservice/setup/tour.py:791
 msgid "View Channel"
 msgstr "查看频道"
 
-#: services/webservice/setup/tour.py:711
+#: services/webservice/setup/tour.py:792
 msgid "Send Messages"
 msgstr "发送消息"
 
-#: services/webservice/setup/tour.py:712
+#: services/webservice/setup/tour.py:793
 msgid "Read Messages"
 msgstr "阅读消息"
 
-#: services/webservice/setup/tour.py:713
+#: services/webservice/setup/tour.py:794
 msgid "Read Message History"
 msgstr "阅读消息历史"
 
-#: services/webservice/setup/tour.py:714
+#: services/webservice/setup/tour.py:795
 msgid "Add Reactions"
 msgstr "添加回应"
 
-#: services/webservice/setup/tour.py:715
+#: services/webservice/setup/tour.py:796
 msgid "Attach Files"
 msgstr "附加文件"
 
-#: services/webservice/setup/tour.py:716
+#: services/webservice/setup/tour.py:797
 msgid "Embed Links"
 msgstr "嵌入链接"
 
-#: services/webservice/setup/tour.py:717
+#: services/webservice/setup/tour.py:798
 msgid "Manage Messages"
 msgstr "管理消息"
 
-#: services/webservice/setup/tour.py:722
+#: services/webservice/setup/tour.py:803
 msgid ""
 "The bot is an administrator on your server, so it already holds every "
 "permission it needs — nothing to set by hand."
 msgstr "机器人在你的服务器上是管理员，因此已经拥有所需的全部权限——无需手动设置。"
 
-#: services/webservice/setup/tour.py:724
+#: services/webservice/setup/tour.py:805
 msgid "Manage this server through DCSServerBot"
 msgstr "通过 DCSServerBot 管理此服务器"
 
-#: services/webservice/setup/tour.py:726
+#: services/webservice/setup/tour.py:807
 msgid ""
 "This server is not managed — channels and settings are set on the "
 "console's server page after setup."
 msgstr "此服务器不受管理——频道和设置将在安装后于控制台的服务器页面中配置。"
 
-#: services/webservice/setup/tour.py:728
+#: services/webservice/setup/tour.py:809
 #: services/webservice/templates/_table.html:68
 #: services/webservice/templates/overview.html:55
 #: services/webservice/templates/server_detail.html:110
@@ -3300,48 +3639,48 @@ msgstr "此服务器不受管理——频道和设置将在安装后于控制台
 msgid "instance"
 msgstr "实例"
 
-#: services/webservice/setup/tour.py:729
+#: services/webservice/setup/tour.py:810
 msgid "server name"
 msgstr "服务器名称"
 
-#: services/webservice/setup/tour.py:730
+#: services/webservice/setup/tour.py:811
 msgid "bot port"
 msgstr "机器人端口"
 
-#: services/webservice/setup/tour.py:731
+#: services/webservice/setup/tour.py:812
 msgid "autostart"
 msgstr "自动启动"
 
-#: services/webservice/setup/tour.py:732
+#: services/webservice/setup/tour.py:813
 msgid "channels"
 msgstr "频道"
 
-#: services/webservice/setup/tour.py:733
+#: services/webservice/setup/tour.py:814
 msgid "status"
 msgstr "状态"
 
-#: services/webservice/setup/tour.py:734
+#: services/webservice/setup/tour.py:815
 msgid "chat"
 msgstr "聊天"
 
-#: services/webservice/setup/tour.py:735
+#: services/webservice/setup/tour.py:816
 msgid "admin"
 msgstr "管理"
 
-#: services/webservice/setup/tour.py:739
+#: services/webservice/setup/tour.py:820
 #: services/webservice/templates/server_detail.html:338
 msgid "— not set —"
 msgstr "— 未设置 —"
 
-#: services/webservice/setup/tour.py:740
+#: services/webservice/setup/tour.py:821
 msgid "Chosen from your Discord server."
 msgstr "已从你的 Discord 服务器中选择。"
 
-#: services/webservice/setup/tour.py:741
+#: services/webservice/setup/tour.py:822
 msgid "Pick one or more roles from your Discord server."
 msgstr "从你的 Discord 服务器中选择一个或多个角色。"
 
-#: services/webservice/setup/tour.py:747
+#: services/webservice/setup/tour.py:828
 msgid ""
 "Discord refused this token, so the bot has no connection and DCSServerBot"
 " cannot start. Get the token from the Discord Developer Portal → your "
@@ -3353,25 +3692,25 @@ msgstr ""
 "Portal → 你的应用 → Bot → Reset Token 中获取 "
 "token；它只显示一次。如果你已经没有了，就在那里重置并复制新值——重置会使旧值失效。"
 
-#: services/webservice/setup/tour.py:751
+#: services/webservice/setup/tour.py:832
 msgid "The bot is not in that guild — or the id is wrong."
 msgstr "机器人不在该服务器中——或者 ID 有误。"
 
-#: services/webservice/setup/tour.py:752
+#: services/webservice/setup/tour.py:833
 msgid "The bot cannot read that guild — grant it access."
 msgstr "机器人无法读取该服务器——请授予其访问权限。"
 
-#: services/webservice/setup/tour.py:753
+#: services/webservice/setup/tour.py:834
 msgid "Discord is rate-limiting us — try again in a moment."
 msgstr "Discord 正在限流——请稍后重试。"
 
-#: services/webservice/setup/tour.py:755
+#: services/webservice/setup/tour.py:836
 msgid ""
 "Discord could not be reached — enter the values by hand, or pick them "
 "later in the console."
 msgstr "无法连接 Discord——请手动输入这些值，或稍后在控制台中选择。"
 
-#: services/webservice/setup/tour.py:761
+#: services/webservice/setup/tour.py:842
 msgid ""
 "Discord accepted this token, but the bot is not a member of any Discord "
 "server. DCSServerBot manages exactly one server and cannot start without "
@@ -3380,116 +3719,119 @@ msgstr ""
 "Discord 接受了这个 token，但机器人不是任何 Discord 服务器的成员。DCSServerBot "
 "只管理一个服务器，没有它就无法启动。"
 
-#: services/webservice/setup/tour.py:763
+#: services/webservice/setup/tour.py:844
 msgid "Invite the bot with this link, then test again:"
 msgstr "用这个链接邀请机器人，然后重新测试："
 
-#: services/webservice/setup/tour.py:765
+#: services/webservice/setup/tour.py:846
 msgid ""
 "Discord accepted this token, but the bot is a member of more than one "
 "Discord server, and DCSServerBot allows exactly one."
 msgstr "Discord 接受了这个 token，但机器人是多个 Discord 服务器的成员，而 DCSServerBot 只允许一个。"
 
-#: services/webservice/setup/tour.py:768
+#: services/webservice/setup/tour.py:849
 msgid ""
 "Kick it from every server but the one you keep, then test again. The "
 "servers it is in:"
 msgstr "把机器人从除你要保留的服务器之外的所有服务器中踢出，然后重新测试。它所在的服务器："
 
-#: services/webservice/setup/tour.py:770
+#: services/webservice/setup/tour.py:851
 msgid ""
 "Or let the tour make the bot leave the others: pick the server to keep — "
 "it becomes the guild id written to your configuration."
 msgstr "或者让向导让机器人退出其他服务器：选择你要保留的服务器——它会成为写入你配置的 guild id。"
 
-#: services/webservice/setup/tour.py:772
+#: services/webservice/setup/tour.py:853
 msgid "I understand the bot will leave every other server."
 msgstr "我明白机器人将退出所有其他服务器。"
 
-#: services/webservice/setup/tour.py:773
+#: services/webservice/setup/tour.py:854
 msgid "Leave the other servers"
 msgstr "让机器人退出其他服务器"
 
-#: services/webservice/setup/tour.py:775
+#: services/webservice/setup/tour.py:856
 #, python-brace-format
 msgid ""
 "The bot left {left}. The server kept is {guild} — that is the guild id "
 "your configuration gets."
 msgstr "机器人退出了 {left}。保留的服务器是 {guild}——这就是你的配置得到的 guild id。"
 
-#: services/webservice/setup/tour.py:777
+#: services/webservice/setup/tour.py:858
 #, python-brace-format
 msgid "These could not be left, so kick them by hand and test again: {failed}."
 msgstr "以下服务器无法退出，请手动踢出它们后重新测试：{failed}。"
 
-#: services/webservice/setup/tour.py:781
+#: services/webservice/setup/tour.py:862
 msgid "Give every managed server a name."
 msgstr "请为每个受管理的服务器命名。"
 
-#: services/webservice/setup/tour.py:782
+#: services/webservice/setup/tour.py:863
 #, python-brace-format
 msgid "Enter the status channel id for {name}."
 msgstr "请输入 {name} 的状态频道 ID。"
 
-#: services/webservice/setup/tour.py:784
+#: services/webservice/setup/tour.py:865
 #, python-brace-format
 msgid "The {field} channel id for {name} must be a number, or -1 for none."
 msgstr "{name} 的 {field} 频道 ID 必须是数字，或使用 -1 表示无。"
 
-#: services/webservice/setup/tour.py:785
+#: services/webservice/setup/tour.py:866
 #, python-brace-format
 msgid "Two servers are named {name}. Names must be unique."
 msgstr "有两个服务器都名为 {name}。名称必须唯一。"
 
-#: services/webservice/setup/tour.py:790
+#: services/webservice/setup/tour.py:871
 msgid "Guild ID"
 msgstr "Guild ID"
 
-#: services/webservice/setup/tour.py:791
+#: services/webservice/setup/tour.py:872
 msgid "Right-click your Discord server → Copy Server ID."
 msgstr "右键点击你的 Discord 服务器 → 复制服务器 ID。"
 
-#: services/webservice/setup/tour.py:792
+#: services/webservice/setup/tour.py:873
 msgid "TOKEN"
 msgstr "TOKEN"
 
-#: services/webservice/setup/tour.py:812
-msgid "Discord Developer Portal"
-msgstr "Discord Developer Portal"
-
-#: services/webservice/setup/tour.py:807
+#: services/webservice/setup/tour.py:876
 msgid ""
 "→ your application → Bot → Reset Token. This is shown once; the console "
 "stores it in config/.secret/."
-msgstr ""
-"→ 你的应用 → Bot → Reset Token。它只显示一次；控制台会将其保存到 "
-"config/.secret/。"
+msgstr "→ 你的应用 → Bot → Reset Token。它只显示一次；控制台会将其保存到 config/.secret/。"
 
-#: services/webservice/setup/tour.py:796
+#: services/webservice/setup/tour.py:880
+msgid "Discord Developer Portal"
+msgstr "Discord Developer Portal"
+
+#: services/webservice/setup/tour.py:884
+#, python-brace-format
+msgid "To obtain the following values, you need to log into the {link}."
+msgstr "要获取以下值，你需要登录{link}。"
+
+#: services/webservice/setup/tour.py:885
 msgid "Owner ID"
 msgstr "Owner ID"
 
-#: services/webservice/setup/tour.py:797
+#: services/webservice/setup/tour.py:886
 msgid "Right-click your own Discord user → Copy User ID."
 msgstr "右键点击你自己的 Discord 用户 → 复制用户 ID。"
 
-#: services/webservice/setup/tour.py:798
+#: services/webservice/setup/tour.py:887
 msgid "Do you have more than 10000 members in your Discord server?"
 msgstr "你的 Discord 服务器成员超过 10000 人吗？"
 
-#: services/webservice/setup/tour.py:799
+#: services/webservice/setup/tour.py:888
 msgid "You need to grant the 'View Audit Log' permission to your bot."
 msgstr "你需要为机器人授予 'View Audit Log' 权限。"
 
-#: services/webservice/setup/tour.py:800
+#: services/webservice/setup/tour.py:889
 msgid "A token is kept for this step — leave the field empty to reuse it."
 msgstr "此步骤已保存 TOKEN — 留空即可继续使用。"
 
-#: services/webservice/setup/tour.py:804
+#: services/webservice/setup/tour.py:893
 msgid "client secret"
 msgstr "客户端密钥"
 
-#: services/webservice/setup/tour.py:806
+#: services/webservice/setup/tour.py:895
 msgid ""
 "Discord Developer Portal → your application → OAuth2 → Client Secret. "
 "Shown once; the console stores it in config/.secret/."
@@ -3497,52 +3839,52 @@ msgstr ""
 "Discord Developer Portal → 你的应用 → OAuth2 → Client Secret。只显示一次；控制台将其保存在 "
 "config/.secret/。"
 
-#: services/webservice/setup/tour.py:809
+#: services/webservice/setup/tour.py:898
 msgid "A client secret is kept — leave the field empty to reuse it."
 msgstr "已保留客户端密钥 — 留空即可继续使用。"
 
-#: services/webservice/setup/tour.py:811
+#: services/webservice/setup/tour.py:900
 msgid "Leave it empty and the console's Discord login stays off."
 msgstr "留空则控制台的 Discord 登录保持关闭。"
 
-#: services/webservice/setup/tour.py:813
+#: services/webservice/setup/tour.py:902
 msgid "Connecting to Discord…"
 msgstr "正在连接 Discord…"
 
-#: services/webservice/setup/tour.py:817
+#: services/webservice/setup/tour.py:906
 #, python-brace-format
 msgid "Connected — the bot is in {guild}."
 msgstr "已连接 — 机器人在 {guild} 中。"
 
-#: services/webservice/setup/tour.py:821
+#: services/webservice/setup/tour.py:910
 msgid "Enter your Discord Guild ID."
 msgstr "请输入你的 Discord Guild ID。"
 
-#: services/webservice/setup/tour.py:822
+#: services/webservice/setup/tour.py:911
 msgid "The Guild ID must be a whole number."
 msgstr "Guild ID 必须是整数。"
 
-#: services/webservice/setup/tour.py:823
+#: services/webservice/setup/tour.py:912
 msgid "Enter your Discord Owner ID."
 msgstr "请输入你的 Discord Owner ID。"
 
-#: services/webservice/setup/tour.py:824
+#: services/webservice/setup/tour.py:913
 msgid "The Owner ID must be a whole number."
 msgstr "Owner ID 必须是整数。"
 
-#: services/webservice/setup/tour.py:825
+#: services/webservice/setup/tour.py:914
 msgid "Enter your Discord TOKEN."
 msgstr "请输入你的 Discord TOKEN。"
 
-#: services/webservice/setup/tour.py:827
+#: services/webservice/setup/tour.py:916
 msgid "Choose the server to keep."
 msgstr "选择你要保留的服务器。"
 
-#: services/webservice/setup/tour.py:828
+#: services/webservice/setup/tour.py:917
 msgid "Tick the box to confirm the bot will leave the other servers."
 msgstr "勾选此框以确认机器人将退出其他服务器。"
 
-#: services/webservice/setup/tour.py:834
+#: services/webservice/setup/tour.py:923
 msgid ""
 "We now need to setup your Discord roles and channels.\n"
 "DCSServerBot creates a role mapping for your bot users. It has the "
@@ -3551,16 +3893,13 @@ msgstr ""
 "我们现在需要设置您的 Discord 角色和频道.\n"
 "DCSServerBot 会为机器人用户创建角色映射。可用的内部角色如下:"
 
-#: services/webservice/setup/tour.py:837
+#: services/webservice/setup/tour.py:926
 msgid ""
-"Please separate roles by comma, if you want to provide more than one.\n"
 "You can keep the defaults, if unsure and create the respective roles in "
 "your Discord server."
-msgstr ""
-"如果要提供多个角色，请使用逗号分隔。\n"
-"如果不确定，可以保留默认值，并在 Discord 服务器中创建对应角色."
+msgstr "如果不确定，可以保留默认值，并在 Discord 服务器中创建对应角色。"
 
-#: services/webservice/setup/tour.py:839
+#: services/webservice/setup/tour.py:927
 #: services/webservice/templates/_config_fields.html:101
 #: services/webservice/templates/_config_fields.html:119
 #: services/webservice/templates/_config_fields.html:174
@@ -3574,62 +3913,62 @@ msgstr ""
 msgid "+ Add"
 msgstr "+ 添加"
 
-#: services/webservice/setup/tour.py:841
+#: services/webservice/setup/tour.py:929
 msgid "Users can delete data, change the bot, run commands on your server"
 msgstr "可删除数据、修改机器人配置，并在您的服务器上执行命令的用户"
 
-#: services/webservice/setup/tour.py:842
+#: services/webservice/setup/tour.py:930
 msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
 msgstr "可上传任务、启停 DCS 服务器、踢出或封禁用户等的用户"
 
-#: services/webservice/setup/tour.py:843
+#: services/webservice/setup/tour.py:931
 msgid "Normal user, can pull statistics, ATIS, etc."
 msgstr "普通用户，可查询统计、ATIS 等信息"
 
-#: services/webservice/setup/tour.py:845
+#: services/webservice/setup/tour.py:933
 msgid "audit channel"
 msgstr "审计频道"
 
-#: services/webservice/setup/tour.py:846
+#: services/webservice/setup/tour.py:934
 msgid "A channel for audit events — optional, -1 for none."
 msgstr "用于审计事件的频道 — 可选，-1 表示不设置。"
 
-#: services/webservice/setup/tour.py:848
+#: services/webservice/setup/tour.py:936
 msgid ""
 "The bot can either use a dedicated admin channel for each server or a "
 "central admin channel for all servers."
 msgstr "机器人可以使用每个服务器单独的管理频道，或所有服务器共用的中央管理频道。"
 
-#: services/webservice/setup/tour.py:850
+#: services/webservice/setup/tour.py:938
 msgid "A dedicated admin channel per server"
 msgstr "每个服务器单独的管理频道"
 
-#: services/webservice/setup/tour.py:851
+#: services/webservice/setup/tour.py:939
 msgid "One central admin channel for all servers"
 msgstr "所有服务器共用一个中央管理频道"
 
-#: services/webservice/setup/tour.py:852
+#: services/webservice/setup/tour.py:940
 msgid "admin channel"
 msgstr "管理频道"
 
-#: services/webservice/setup/tour.py:853
+#: services/webservice/setup/tour.py:941
 msgid "The id of the central admin channel — optional, -1 for none."
 msgstr "中央管理频道的 ID — 可选，-1 表示不设置。"
 
-#: services/webservice/setup/tour.py:857
+#: services/webservice/setup/tour.py:945
 #, python-brace-format
 msgid "Enter at least one role or role id for {role}."
 msgstr "请为 {role} 输入至少一个角色或角色 ID。"
 
-#: services/webservice/setup/tour.py:858
+#: services/webservice/setup/tour.py:946
 msgid "A channel id must be a whole number, or -1 for none."
 msgstr "频道 ID 必须是整数，或 -1 表示不设置。"
 
-#: services/webservice/setup/tour.py:863
+#: services/webservice/setup/tour.py:951
 msgid "Please enter the name of your DCS group"
 msgstr "请输入您的 DCS 用户组名称"
 
-#: services/webservice/setup/tour.py:865
+#: services/webservice/setup/tour.py:953
 msgid ""
 "You now need to setup your users.\n"
 "DCSServerBot uses the following internal roles:"
@@ -3637,33 +3976,33 @@ msgstr ""
 "现在需要配置您的用户。\n"
 "DCSServerBot 使用以下内部角色:"
 
-#: services/webservice/setup/tour.py:868
+#: services/webservice/setup/tour.py:956
 msgid "Users can delete data and change the bot"
 msgstr "可删除数据并修改机器人配置的用户"
 
-#: services/webservice/setup/tour.py:869
+#: services/webservice/setup/tour.py:957
 msgid "Users can restart missions, kick/ban users, etc."
 msgstr "可重启任务、踢出或封禁用户等的用户"
 
-#: services/webservice/setup/tour.py:871
+#: services/webservice/setup/tour.py:959
 msgid "Please enter a comma-separated list of UCIDs"
 msgstr "请输入以逗号分隔的 UCID 列表"
 
-#: services/webservice/setup/tour.py:875
+#: services/webservice/setup/tour.py:963
 msgid "Enter the name of your DCS group."
 msgstr "请输入你的 DCS 用户组名称。"
 
-#: services/webservice/setup/tour.py:880
+#: services/webservice/setup/tour.py:968
 msgid "Run the web admin console (recommended)"
 msgstr "运行 Web 管理控制台（推荐）"
 
-#: services/webservice/setup/tour.py:882
+#: services/webservice/setup/tour.py:970
 msgid ""
 "Configure and watch this installation in a browser. Turn this off and "
 "DCSServerBot runs bot-only — you edit the YAML files by hand."
 msgstr "在浏览器中配置和查看此安装。关闭后 DCSServerBot 仅运行机器人——你需要手动编辑 YAML 文件。"
 
-#: services/webservice/setup/tour.py:885
+#: services/webservice/setup/tour.py:973
 msgid ""
 "The console is off. DCSServerBot runs bot-only, and enabling the console "
 "later is one key in config/services/webservice.yaml."
@@ -3671,241 +4010,241 @@ msgstr ""
 "控制台已关闭。DCSServerBot 仅运行机器人，之后启用控制台只需改 config/services/webservice.yaml "
 "中的一个键。"
 
-#: services/webservice/setup/tour.py:887
+#: services/webservice/setup/tour.py:975
 msgid "public address"
 msgstr "公网地址"
 
-#: services/webservice/setup/tour.py:889
+#: services/webservice/setup/tour.py:977
 msgid ""
 "The address this console is reachable at. Discord sends its login back "
 "here, so it must match the redirect you registered."
 msgstr "此控制台的可访问地址。Discord 会将登录回调发送到这里，因此必须与你注册的重定向地址一致。"
 
-#: services/webservice/setup/tour.py:891
+#: services/webservice/setup/tour.py:979
 msgid "Console account"
 msgstr "控制台账户"
 
-#: services/webservice/setup/tour.py:893
+#: services/webservice/setup/tour.py:981
 msgid ""
 "The console's own sign-in: a username and a password. Only the password's"
 " hash is stored. This account always exists — it is how you get into the "
 "console when Discord is down."
 msgstr "控制台自有的登录方式：用户名和密码。只保存密码的哈希。此账户始终存在——当 Discord 不可用时你就用它进入控制台。"
 
-#: services/webservice/setup/tour.py:895
+#: services/webservice/setup/tour.py:983
 msgid "username"
 msgstr "用户名"
 
-#: services/webservice/setup/tour.py:897
+#: services/webservice/setup/tour.py:985
 msgid "A password is set — leave the field empty to keep it."
 msgstr "已设置密码 — 留空即可保留。"
 
-#: services/webservice/setup/tour.py:901
+#: services/webservice/setup/tour.py:989
 msgid "Enter a username for the console account."
 msgstr "请输入控制台账户的用户名。"
 
-#: services/webservice/setup/tour.py:902
+#: services/webservice/setup/tour.py:990
 msgid "Enter a password for the console account."
 msgstr "请输入控制台账户的密码。"
 
-#: services/webservice/setup/tour.py:903
+#: services/webservice/setup/tour.py:991
 #, python-brace-format
 msgid "The password must be at most {max} characters."
 msgstr "密码最多 {max} 个字符。"
 
-#: services/webservice/setup/tour.py:908
+#: services/webservice/setup/tour.py:996
 msgid "Already done"
 msgstr "已完成"
 
-#: services/webservice/setup/tour.py:909
+#: services/webservice/setup/tour.py:997
 msgid "Will be written, nothing yet"
 msgstr "将要写入，目前还没有"
 
-#: services/webservice/setup/tour.py:910
+#: services/webservice/setup/tour.py:998
 msgid "Not written"
 msgstr "未写入"
 
-#: services/webservice/setup/tour.py:911
+#: services/webservice/setup/tour.py:999
 msgid "Write configuration"
 msgstr "写入配置"
 
-#: services/webservice/setup/tour.py:912
+#: services/webservice/setup/tour.py:1000
 msgid "Write again"
 msgstr "再次写入"
 
-#: services/webservice/setup/tour.py:913
+#: services/webservice/setup/tour.py:1001
 msgid "written"
 msgstr "已写入"
 
-#: services/webservice/setup/tour.py:914
+#: services/webservice/setup/tour.py:1002
 msgid "not written"
 msgstr "未写入"
 
-#: services/webservice/setup/tour.py:915
+#: services/webservice/setup/tour.py:1003
 msgid "What the write did"
 msgstr "写入做了什么"
 
-#: services/webservice/setup/tour.py:916
+#: services/webservice/setup/tour.py:1004
 msgid "not attempted — an earlier file was not written"
 msgstr "未尝试——之前的文件未写入"
 
-#: services/webservice/setup/tour.py:918
+#: services/webservice/setup/tour.py:1006
 msgid ""
 "Only the entries marked written reached the disk. The setup is not "
 "finished — fix the reason below and write again."
 msgstr "只有标记为已写入的条目真正写到了磁盘。设置尚未完成——请解决下面的原因后再次写入。"
 
-#: services/webservice/setup/tour.py:920
+#: services/webservice/setup/tour.py:1008
 msgid "the file was not written"
 msgstr "该文件未写入"
 
-#: services/webservice/setup/tour.py:921
+#: services/webservice/setup/tour.py:1009
 msgid "the bot's database and its own user were created (step 3)"
 msgstr "机器人的数据库及其专属用户已创建（第 3 步）"
 
-#: services/webservice/setup/tour.py:922
+#: services/webservice/setup/tour.py:1010
 msgid "the bot's database and its user were verified (step 3)"
 msgstr "机器人的数据库及其用户已验证（第 3 步）"
 
-#: services/webservice/setup/tour.py:923
+#: services/webservice/setup/tour.py:1011
 msgid "the PostgreSQL master password is stored in config/.secret/"
 msgstr "PostgreSQL 主密码已保存在 config/.secret/"
 
-#: services/webservice/setup/tour.py:924
+#: services/webservice/setup/tour.py:1012
 msgid "the bot's database password is stored in config/.secret/"
 msgstr "机器人的数据库密码已保存在 config/.secret/"
 
-#: services/webservice/setup/tour.py:926
+#: services/webservice/setup/tour.py:1014
 msgid "the Discord answers (guild, owner, roles) — Discord support is off"
 msgstr "Discord 的回答（服务器、所有者、角色）——Discord 支持已关闭"
 
-#: services/webservice/setup/tour.py:928
+#: services/webservice/setup/tour.py:1016
 msgid "the community answers (group name, users) — Discord support is on"
 msgstr "社区的回答（群组名称、用户）——Discord 支持已开启"
 
-#: services/webservice/setup/tour.py:929
+#: services/webservice/setup/tour.py:1017
 msgid "Missing — enter again"
 msgstr "缺失——请重新输入"
 
-#: services/webservice/setup/tour.py:931
+#: services/webservice/setup/tour.py:1019
 msgid ""
 "A restart dropped a secret this configuration needs, and nothing was "
 "written. Go back to the step named below, enter the value again, then "
 "write."
 msgstr "重启丢失了此配置所需的密钥，且没有写入任何内容。请返回下面指出的步骤，重新输入该值，然后再写入。"
 
-#: services/webservice/setup/tour.py:933
+#: services/webservice/setup/tour.py:1021
 msgid "the Discord bot token is not held — enter it again on step 5"
 msgstr "Discord 机器人令牌不存在——请在第 5 步重新输入"
 
-#: services/webservice/setup/tour.py:934
+#: services/webservice/setup/tour.py:1022
 msgid "the database password is not held — enter it again on step 3"
 msgstr "数据库密码未保留——请在步骤 3 重新输入"
 
-#: services/webservice/setup/tour.py:936
+#: services/webservice/setup/tour.py:1024
 msgid "the cluster database's password is not held — enter it again on step 3"
 msgstr "集群数据库密码未保留——请在步骤 3 重新输入"
 
-#: services/webservice/setup/tour.py:937
+#: services/webservice/setup/tour.py:1025
 msgid "guild, language, autoupdate, the cluster database"
 msgstr "服务器、语言、自动更新、集群数据库"
 
-#: services/webservice/setup/tour.py:939
+#: services/webservice/setup/tour.py:1027
 msgid ""
 "guild, language, autoupdate, the cluster database — NOT a federation "
 "(same database name)"
 msgstr "服务器、语言、自动更新、集群数据库——不是联邦（数据库名称相同）"
 
-#: services/webservice/setup/tour.py:941
+#: services/webservice/setup/tour.py:1029
 msgid ""
 "the cluster database (config/.secret/clusterdb.pkl and main.yaml) — "
 "Federation support is off"
 msgstr "集群数据库（config/.secret/clusterdb.pkl 和 main.yaml）——联邦支持已关闭"
 
-#: services/webservice/setup/tour.py:943
+#: services/webservice/setup/tour.py:1031
 msgid ""
 "the cluster database (config/.secret/clusterdb.pkl and main.yaml) — the "
 "cluster database was not verified, so it is not written"
 msgstr "集群数据库（config/.secret/clusterdb.pkl 和 main.yaml）——集群数据库未经验证，因此不会写入"
 
-#: services/webservice/setup/tour.py:946
+#: services/webservice/setup/tour.py:1034
 msgid "the console's Discord login — no client secret is held, so it stays off"
 msgstr "控制台的 Discord 登录 —— 未保存客户端密钥，因此将保持关闭"
 
-#: services/webservice/setup/tour.py:950
+#: services/webservice/setup/tour.py:1038
 msgid "guild, language, autoupdate"
 msgstr "服务器、语言、自动更新"
 
-#: services/webservice/setup/tour.py:951
+#: services/webservice/setup/tour.py:1039
 msgid "roles, channels, owner"
 msgstr "角色、频道、所有者"
 
-#: services/webservice/setup/tour.py:952
+#: services/webservice/setup/tour.py:1040
 msgid "the console and its sign-in"
 msgstr "控制台及其登录"
 
-#: services/webservice/setup/tour.py:953
+#: services/webservice/setup/tour.py:1041
 msgid "this node, DCS"
 msgstr "此节点, DCS"
 
-#: services/webservice/setup/tour.py:954
+#: services/webservice/setup/tour.py:1042
 msgid "status/chat/admin channels"
 msgstr "状态/聊天/管理频道"
 
-#: services/webservice/setup/tour.py:955
+#: services/webservice/setup/tour.py:1043
 msgid "autostart per server"
 msgstr "每个服务器的自启动"
 
-#: services/webservice/setup/tour.py:956
+#: services/webservice/setup/tour.py:1044
 msgid "DGSA banlist opt-ins"
 msgstr "DGSA 封禁列表选项"
 
-#: services/webservice/setup/tour.py:957
+#: services/webservice/setup/tour.py:1045
 msgid "the Discord bot token"
 msgstr "Discord 机器人令牌"
 
-#: services/webservice/setup/tour.py:958
+#: services/webservice/setup/tour.py:1046
 msgid "the console's Discord client secret"
 msgstr "控制台的 Discord 客户端密钥"
 
-#: services/webservice/setup/tour.py:959
+#: services/webservice/setup/tour.py:1047
 msgid "the bot's database password"
 msgstr "机器人的数据库密码"
 
-#: services/webservice/setup/tour.py:960
+#: services/webservice/setup/tour.py:1048
 msgid "the cluster database's password"
 msgstr "集群数据库密码"
 
-#: services/webservice/setup/tour.py:965
+#: services/webservice/setup/tour.py:1053
 msgid "Setup is done"
 msgstr "设置已完成"
 
-#: services/webservice/setup/tour.py:967
+#: services/webservice/setup/tour.py:1055
 msgid ""
 "Your configuration is written. The setup console closes now and "
 "DCSServerBot starts."
 msgstr "你的配置已写入。设置控制台现在关闭，DCSServerBot 随即启动。"
 
-#: services/webservice/setup/tour.py:968
+#: services/webservice/setup/tour.py:1056
 #, python-brace-format
 msgid "The console will be at {url} once it is up."
 msgstr "他启动后，控制台位于 {url}。"
 
-#: services/webservice/setup/tour.py:969
+#: services/webservice/setup/tour.py:1057
 msgid "Sign in with the console account you just created."
 msgstr "使用你刚创建的控制台账户登录。"
 
-#: services/webservice/setup/tour.py:970
+#: services/webservice/setup/tour.py:1058
 msgid "Add your DCS servers in the console: Servers → Add Server."
 msgstr "在控制台中添加你的 DCS 服务器：服务器 → 添加服务器。"
 
-#: services/webservice/setup/tour.py:972
+#: services/webservice/setup/tour.py:1060
 msgid ""
 "To add or change DCS servers, edit config/nodes.yaml and "
 "config/servers.yaml."
 msgstr "要添加或更改 DCS 服务器，请编辑 config/nodes.yaml 和 config/servers.yaml。"
 
-#: services/webservice/setup/tour.py:974
+#: services/webservice/setup/tour.py:1062
 msgid ""
 "The web admin console is off — DCSServerBot runs bot-only until you "
 "enable it in config/services/webservice.yaml."
@@ -3913,20 +4252,20 @@ msgstr ""
 "Web 管理控制台已关闭——在你于 config/services/webservice.yaml 中启用之前，DCSServerBot "
 "仅运行机器人。"
 
-#: services/webservice/setup/tour.py:976
+#: services/webservice/setup/tour.py:1064
 #, python-brace-format
 msgid "If it is not running, start it with {script}."
 msgstr "如果他没有运行，请用 {script} 启动。"
 
-#: services/webservice/setup/tour.py:977
+#: services/webservice/setup/tour.py:1065
 msgid "Open the console"
 msgstr "打开控制台"
 
-#: services/webservice/setup/tour.py:1056
+#: services/webservice/setup/tour.py:1069
 msgid "This node is not configured yet"
 msgstr "此节点尚未配置"
 
-#: services/webservice/setup/tour.py:1058
+#: services/webservice/setup/tour.py:1071
 #, python-brace-format
 msgid ""
 "This installation is already configured, but it has no entry for the node"
@@ -3936,62 +4275,62 @@ msgstr ""
 "此安装已配置，但 config/nodes.yaml 中没有节点 {node} "
 "的条目，因此机器人无法在这台机器上启动。这是一个新节点，还是现有节点的主机名变了？"
 
-#: services/webservice/setup/tour.py:1061
+#: services/webservice/setup/tour.py:1074
 msgid "A new node"
 msgstr "新节点"
 
-#: services/webservice/setup/tour.py:1063
+#: services/webservice/setup/tour.py:1076
 msgid ""
 "Add this machine to config/nodes.yaml. Nothing else of this installation "
 "is changed."
 msgstr "将此机器添加到 config/nodes.yaml。此安装的其他内容都不会改变。"
 
-#: services/webservice/setup/tour.py:1064
+#: services/webservice/setup/tour.py:1077
 msgid "An existing node whose hostname changed"
 msgstr "主机名已变的现有节点"
 
-#: services/webservice/setup/tour.py:1066
+#: services/webservice/setup/tour.py:1079
 #, python-brace-format
 msgid ""
 "Rename one of the configured nodes to {node}. Its configuration and its "
 "database rows are carried over, and nothing is added."
 msgstr "将某个已配置的节点重命名为 {node}。它的配置和数据库行都会保留，不会新增任何内容。"
 
-#: services/webservice/setup/tour.py:1068
+#: services/webservice/setup/tour.py:1081
 msgid "node to rename"
 msgstr "要重命名的节点"
 
-#: services/webservice/setup/tour.py:1070
+#: services/webservice/setup/tour.py:1083
 #, python-brace-format
 msgid ""
 "I understand: the node picked above was this machine, and it is now "
 "called {node}"
 msgstr "我明白：上面选中的节点就是这台机器，它现在的名称是 {node}"
 
-#: services/webservice/setup/tour.py:1071
+#: services/webservice/setup/tour.py:1084
 msgid "Choose whether this is a new node or a renamed one."
 msgstr "选择这是一个新节点还是一个被重命名的节点。"
 
-#: services/webservice/setup/tour.py:1072
+#: services/webservice/setup/tour.py:1085
 msgid "Tick the confirmation before renaming a node."
 msgstr "重命名节点前先勾选确认。"
 
-#: services/webservice/setup/tour.py:1073
+#: services/webservice/setup/tour.py:1086
 msgid "Pick the node whose hostname changed."
 msgstr "选择主机名已变的那个节点。"
 
-#: services/webservice/setup/tour.py:1075
+#: services/webservice/setup/tour.py:1088
 msgid ""
 "The node could not be renamed. Nothing was changed by this page; the log "
 "names the reason."
 msgstr "节点无法重命名。本页面未做任何更改；原因见日志。"
 
-#: services/webservice/setup/tour.py:1076
+#: services/webservice/setup/tour.py:1089
 #, python-brace-format
 msgid "Node {old} was renamed to {node}."
 msgstr "节点 {old} 已重命名为 {node}。"
 
-#: services/webservice/setup/tour.py:1077
+#: services/webservice/setup/tour.py:1090
 #, python-brace-format
 msgid "This node was added to config/nodes.yaml as {node}."
 msgstr "此节点已作为 {node} 添加到 config/nodes.yaml。"
@@ -4012,7 +4351,7 @@ msgstr ""
 
 #: services/webservice/templates/_config_fields.html:153
 #: services/webservice/templates/_scope_fields.html:53
-#: services/webservice/templates/confirm.html:164
+#: services/webservice/templates/confirm.html:177
 msgid "Cancel"
 msgstr "取消"
 
@@ -4140,7 +4479,7 @@ msgstr "日志位置 <b>%(position)s</b> — 最长列表 %(rows)s 行，规则 
 msgid "The audit entry for this action could not be recorded — see the bot log."
 msgstr "无法记录此操作的审计条目 — 请查看机器人日志。"
 
-#: services/webservice/templates/_strip.html:92
+#: services/webservice/templates/_strip.html:90
 msgid "More controls"
 msgstr "更多控件"
 
@@ -4244,34 +4583,34 @@ msgstr "管理控制台"
 msgid "Sign out"
 msgstr "退出登录"
 
-#: services/webservice/templates/confirm.html:112
+#: services/webservice/templates/confirm.html:114
 msgid "Selected missions"
 msgstr "已选任务"
 
-#: services/webservice/templates/confirm.html:131
+#: services/webservice/templates/confirm.html:144
 #, python-format
 msgid "Confirming: %(go)s."
 msgstr "确认：%(go)s。"
 
-#: services/webservice/templates/confirm.html:146
+#: services/webservice/templates/confirm.html:159
 #, python-format
 msgid ""
 "Target: <span class=\"target\">%(target)s</span> — the action and your "
 "name are written to the bot log, and it cannot be undone from here."
 msgstr "目标：<span class=\"target\">%(target)s</span> — 该操作和你的名字会写入机器人日志，且无法在此撤销。"
 
-#: services/webservice/templates/confirm.html:148
+#: services/webservice/templates/confirm.html:161
 #, python-format
 msgid ""
 "Target: <span class=\"target\">%(target)s</span> — the action and your "
 "name are written to the bot log."
 msgstr "目标：<span class=\"target\">%(target)s</span> — 该操作和你的名字会写入机器人日志。"
 
-#: services/webservice/templates/confirm.html:164
+#: services/webservice/templates/confirm.html:177
 msgid "Cancel — go back without doing anything (Esc)"
 msgstr "取消 — 什么都不做直接返回（Esc）"
 
-#: services/webservice/templates/dashboard.html:36
+#: services/webservice/templates/dashboard.html:37
 #: services/webservice/templates/logs.html:18
 msgid "Live updates: unavailable"
 msgstr "实时更新：不可用"
@@ -4854,79 +5193,3 @@ msgstr ""
 msgid "The bot's own configuration: guild, database, logging, the plugin list."
 msgstr ""
 
-#~ msgid ""
-#~ "Not installed: %(names)s — these entries"
-#~ " stay in the config until you "
-#~ "remove them."
-#~ msgstr "未安装：%(names)s — 这些条目会一直保留在配置中，直到你移除它们。"
-
-#~ msgid "DCS carries a hash for this coalition"
-#~ msgstr "DCS 为此阵营保存了哈希值"
-
-#~ msgid "DCS carries no hash for this coalition"
-#~ msgstr "DCS 未为此阵营保存哈希值"
-
-#~ msgid "The setup steps are complete."
-#~ msgstr "设置步骤已完成。"
-
-#~ msgid "Discord refused this token — check it and try again."
-#~ msgstr "Discord 拒绝了这个令牌——请检查后重试。"
-
-#~ msgid "Discord login"
-#~ msgstr "Discord 登录"
-
-#~ msgid ""
-#~ "\n"
-#~ "The Status Channel should be readable"
-#~ " by everyone and only writable by "
-#~ "the bot.\n"
-#~ "The Chat Channel should be readable and writable by everyone.\n"
-#~ "The Admin channel - central or not"
-#~ " - should only be readable and "
-#~ "writable by Admin and DCS Admin "
-#~ "users.\n"
-#~ "\n"
-#~ "You can create these channels now, "
-#~ "as I will ask for the IDs in"
-#~ " a bit.\n"
-#~ "DCSServerBot needs the following permissions on them to work:\n"
-#~ "\n"
-#~ "    - View Channel\n"
-#~ "    - Send Messages\n"
-#~ "    - Read Messages\n"
-#~ "    - Read Message History\n"
-#~ "    - Add Reactions\n"
-#~ "    - Attach Files\n"
-#~ "    - Embed Links\n"
-#~ "    - Manage Messages\n"
-#~ "\n"
-#~ msgstr ""
-#~ "\n"
-#~ "状态通道应可供所有人读取，但只能由机器人写入.\n"
-#~ "聊天频道应允许所有人读取和写入。\n"
-#~ "管理频道无论是否为中央频道，都应只允许 Admin 和 DCS Admin 用户读取和写入。\n"
-#~ "\n"
-#~ "您现在就可以创建这些频道，稍后我会要求您提供它们的 ID。\n"
-#~ "DCSServerBot 需要以下权限才能正常工作:\n"
-#~ "\n"
-#~ "    - 查看频道\n"
-#~ "    - 发送消息\n"
-#~ "    - 读取消息\n"
-#~ "    - 读取历史消息\n"
-#~ "    - 添加反应\n"
-#~ "    - 附加文件\n"
-#~ "    - 嵌入链接\n"
-#~ "    - 管理消息\n"
-#~ "\n"
-
-#: services/webservice/setup/tour.py
-msgid "To use DCSServerBot, you need to install PostgreSQL. You can download it {link}."
-msgstr "要使用 DCSServerBot，你需要安装 PostgreSQL。你可以{link}下载。"
-
-#: services/webservice/setup/tour.py
-msgid "here"
-msgstr "此处"
-
-#: services/webservice/setup/tour.py
-msgid "To obtain the following values, you need to log into the {link}."
-msgstr "要获取以下值，你需要登录{link}。"

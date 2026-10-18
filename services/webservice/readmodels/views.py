@@ -117,7 +117,7 @@ TABLE_COLUMNS: dict[str, tuple[Column, ...]] = {
     "instances": (Column("name", _("Instance")), Column("node", _("Node")), Column("server", _("Server")),
                   Column("dcs_port", _("DCS port"), NUM), Column("webgui_port", _("WebGUI port"), NUM)),
     "players": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("server", _("Server")),
-                Column("slot", _("Slot"))),
+                Column("slot", _("Slot")), Column("coalition", _("Coalition"))),
 }
 
 TABLE_LABELS: dict[str, str] = {
@@ -315,6 +315,8 @@ def _cell(table: str, key: str, row):
             return row.server_name
         if key == "slot":
             return row.slot
+        if key == "coalition":
+            return row.coalition
     raise KeyError(f"no cell for {table}.{key}")
 
 

@@ -24,7 +24,7 @@ make authorization a function of a value the client holds until it expires: a us
 request for the same reason the bot object is (``ServiceRegistry.get(BotService).bot`` can be
 ``None`` early and after a takeover): the answer is configuration, not a snapshot.
 
-WHAT MUST NOT BE REUSED (verified in the phase-1 review, §D):
+WHAT MUST NOT BE REUSED:
 
 * :func:`core.utils.discord.check_roles` returns ``False`` for every headless member -- its first
   guard is ``if not member or not isinstance(member, discord.Member)`` and ``DummyMember`` is a
@@ -33,9 +33,9 @@ WHAT MUST NOT BE REUSED (verified in the phase-1 review, §D):
   no ``"DCS"`` key) and its owner bypass needs an interaction. Neither exists in a web request.
 * ``DummyGuild`` (relative ``config/services/bot.yaml`` path) -- read through ``node.config_dir``
   instead, so a request can never see a different ``bot.yaml`` than the running process.
-* ``utils.set_password``/``get_password`` (pickle-based ``config/.secret/``): C2 keeps the local
-  credentials in the schema-validated ``services/webservice.yaml`` and the pickle store out of the
-  login path. See the lead's decision in the card.
+* ``utils.set_password``/``get_password`` (pickle-based ``config/.secret/``): the local
+  credentials stay in the schema-validated ``services/webservice.yaml`` and the pickle store stays
+  out of the login path.
 """
 from __future__ import annotations
 

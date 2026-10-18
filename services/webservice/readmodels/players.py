@@ -22,13 +22,40 @@ __all__ = ["players_online", "player_views"]
 EMPTY_MESSAGE = NO_PLAYERS_MESSAGE
 
 
+#: The seat a player currently occupies is read from ``unit_display_name`` ALONE — never
+#: ``unit_type``. ``unit_type`` is DCS's own coarse bucket (``"Planes"`` for anything airborne) and
+#: says nothing about the seat, so falling back to it printed "Planes" for a player sitting in NO
+#: slot at all. ``unit_display_name`` is the type name of the occupied aircraft ("A-10C II"); DCS
+#: reports ``"?"`` while a side is chosen but no seat is taken, and ``""`` before that, and neither
+#: is a seat.
+NO_SEAT = ("", "?", "Planes")
+
+
 def _slot(player) -> str:
-    """The seat a player occupies: ``A-10C II · Hog 1`` when both are known, else whichever is."""
-    unit = text(attr(player, "unit_display_name", None)) or text(attr(player, "unit_type", None))
+    """The seat a player occupies: ``A-10C II · Hog 1`` when both are known, else whichever is.
+
+    An unreadable or empty seat is the EMPTY string, which the table renders as its own "nothing
+    here" placeholder — the same treatment every other absent cell gets.
+    """
+    unit = text(attr(player, "unit_display_name", None))
+    if unit in NO_SEAT:
+        unit = ""
     group = text(attr(player, "group_name", None))
     if unit and group:
         return f"{unit} · {group}"
     return unit or group
+
+
+def _coalition(player) -> str:
+    """The side the player is on — ``Red``/``Blue``/``Neutral``, or the empty string.
+
+    ``Player.side`` is the DCS side (``core.data.const.Side``); ``Side.UNKNOWN`` and a double that
+    carries no side at all both read as the empty string, so a row never claims a side a player has
+    not picked.
+    """
+    side = attr(player, "side", None)
+    name = text(getattr(side, "name", "")).title()
+    return "" if name in ("", "Unknown") else name
 
 
 def player_views(server_name: str, players) -> list[PlayerView]:
@@ -42,6 +69,7 @@ def player_views(server_name: str, players) -> list[PlayerView]:
             ucid=text(attr(player, "ucid", None)),
             server_name=server_name,
             slot=safe(lambda: _slot(player), "") or "",
+            coalition=safe(lambda: _coalition(player), "") or "",
             active=True,
             # the server the player is on is the link to its page, built from the same name the row
             # renders — a player row exists only for a server that survived the scope.

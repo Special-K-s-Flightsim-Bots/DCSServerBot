@@ -27,13 +27,13 @@
  * the moment real lines arrive it hides the note and renders into the body. If the log DISAPPEARS or
  * is rotated away, the body is cleared and the note says so rather than holding a stale tail.
  *
- * "NO LOG FILE YET" IS NOT A FAILURE (L3). The server marks that normal state with `pending: true` on
+ * "NO LOG FILE YET" IS NOT A FAILURE. The server marks that normal state with `pending: true` on
  * an otherwise empty answer; the follower keeps its NORMAL cadence on a pending answer and only backs
  * off on a genuine failure (a network error, a non-2xx, or an `available: false` answer WITHOUT the
  * pending flag — a node that is down). So a server that is still starting shows its log the moment it
  * boots, with no reload.
  *
- * A FAILED READ BACKS OFF (L1-fix). A network hiccup, a non-2xx, or an "available: false" body (a node
+ * A FAILED READ BACKS OFF. A network hiccup, a non-2xx, or an "available: false" body (a node
  * that is down) stops the normal interval and retries on a GROWING delay (2s doubling to 60s) — the
  * console's own live discipline (static/shell.js) — so a node that is down is not hammered once per
  * tick by every open tab. The status line says "retrying…" while it waits, and the first success drops
@@ -90,7 +90,7 @@
 
   function setStatus(text) { if (statusEl) { statusEl.textContent = text; } }
 
-  /* THE EMPTY SENTENCE BESIDE THE BODY (L3). `showNote` reveals the honest sentence ("no log file
+  /* THE EMPTY SENTENCE BESIDE THE BODY. `showNote` reveals the honest sentence ("no log file
      yet…", a node failure, a filtered-empty page); `hideNote` is called the moment real lines render.
      The note lives in its own element, so revealing it never touches the lines already shown. */
   function showNote(sentence) {
@@ -158,7 +158,7 @@
     setStatus(payload && payload.message ? payload.message : t("log.not_available"));
   }
 
-  /* A NORMAL "no log file yet" answer (L3): keep the body clear and show the honest sentence, but do
+  /* A NORMAL "no log file yet" answer: keep the body clear and show the honest sentence, but do
      NOT back off — the file may appear on the very next tick. The body is cleared so a log that
      DISAPPEARED leaves no stale tail behind. */
   function applyPending(payload) {
@@ -196,7 +196,7 @@
     }
     append(payload.lines);
     /* REAL LINES ARE HERE: the empty sentence (if any) gives way to the log — the empty state BECOMES
-       the log, which is the whole point of L3. */
+       the log, which is the whole point. */
     if (payload.lines) { hideNote(); }
     if (typeof payload.offset === "number") { offset = payload.offset; }
     if (payload.reset && typeof payload.before === "number") { before = payload.before; }

@@ -29,6 +29,20 @@
   <div class="sub">{{ _(lead) }}</div>
 </div>
 
+{#- THE PAGE-LEVEL CONTROL — the Servers page's "Add server". A PLAIN POST form: its answer IS the
+    dialog page, so it is never intercepted (the same rule the row strip applies to a control that
+    opens a dialog, `_strip.html`). The control is DATA (`add_control` from `pages/actions`): absent
+    for a page whose table has none, so this renders nothing on the other three list pages. -#}
+{% if add_control %}
+<div class="page-actions">
+  <form method="post" action="{{ add_control.path }}">
+    <input type="hidden" name="{{ add_control.csrf_field }}" value="{{ add_control.csrf_token }}">
+    <input type="hidden" name="{{ add_control.origin_field }}" value="{{ add_control.origin }}">
+    <button type="submit" title="{{ say(add_control.title) }}" aria-label="{{ say(add_control.aria) }}">{{ _(add_control.label) }}</button>
+  </form>
+</div>
+{% endif %}
+
 {% include "_notice.html" %}
 {% include "_table.html" %}
 

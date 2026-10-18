@@ -1,14 +1,14 @@
 /* settings-scope.css — THE COGWHEEL VIEW's sheet, ported from the admin-UI mockup.
  *
  * Source: the admin-UI mockup's settings-tiles stylesheet (§ tokens, §3 the
- * cogwheel view, §LIGHT). The tile grid's own rules already live in shell.css (slice 1); this file
+ * cogwheel view, §LIGHT). The tile grid's own rules already live in shell.css; this file
  * adds what the TABBED config view needs and nothing else, so the console's shipped sheet is not
  * duplicated. The palette is the shipped one — the tokens below name the shipped literals (their
  * dark value IS the literal), and §LIGHT re-states the shipped rules that carry a literal, scoped to
  * `html[data-theme="light"]` so the dark rendering is untouched.
  */
 
-/* EVERY TOKEN THIS VIEW READS IS DECLARED IN shell.css now (slice 3): the palette and the named
+/* EVERY TOKEN THIS VIEW READS IS DECLARED IN shell.css now: the palette and the named
  * literals have ONE owner, the shipped sheet, and the light values live in its html[data-theme=
  * "light"] block. This file carries the cogwheel view's RULES and no palette of its own — a second
  * declaration here is exactly the drift the one-token-source rule exists to prevent. The kind

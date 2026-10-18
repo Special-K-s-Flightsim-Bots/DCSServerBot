@@ -1417,7 +1417,7 @@ class ServerImpl(Server):
 
     @override
     async def setMissionList(self, missions: list[str]) -> list[str]:
-        """Replace ``self.settings['missionList']`` with *missions* in ONE write — the M5 primitive.
+        """Replace ``self.settings['missionList']`` with *missions* in ONE write.
 
         The ONE writer of the mission ORDER. It is **offline only**: while the DCS process is up
         (``{LOADING, STOPPED, PAUSED, RUNNING}``) it holds ``net.missionlist`` — the list AND the

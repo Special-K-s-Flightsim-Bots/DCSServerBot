@@ -227,7 +227,7 @@ class Node(ABC):
     @abstractmethod
     async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
                                behind: int | None = None) -> tuple[bytes, int, int | float] | tuple[int, int, int | float]:
-        """A WINDOW of a file — never the whole file — plus its size and IDENTITY at read time (L1).
+        """A WINDOW of a file — never the whole file — plus its size and IDENTITY at read time.
 
         A read-only, WINDOWED sibling of :meth:`read_file`, for files too large to move whole (a
         running server's ``dcs.log``). Exactly one of ``offset`` / ``behind`` names the window:
@@ -271,7 +271,7 @@ class Node(ABC):
     @abstractmethod
     async def list_files(self, path: str, *, pattern: str | list[str] = '*'
                          ) -> list[tuple[str, int, float]]:
-        """The FILES matching *pattern* in *path*, each as ``(path, size, mtime)``, NEWEST FIRST (L2).
+        """The FILES matching *pattern* in *path*, each as ``(path, size, mtime)``, NEWEST FIRST.
 
         A read-only sibling of :meth:`list_directory`, adding the two facts a download list needs and
         ``list_directory`` does not carry: each file's SIZE in bytes and its MODIFICATION TIME (a Unix
@@ -319,6 +319,10 @@ class Node(ABC):
 
     @abstractmethod
     async def migrate_server(self, server: Server, instance: Instance) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def bind_server(self, instance_name: str, name: str, channels: dict | None = None) -> None:
         raise NotImplementedError()
 
     @abstractmethod

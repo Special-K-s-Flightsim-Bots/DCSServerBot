@@ -7,10 +7,10 @@
   `empty` (the read models' own empty-state sentences). No figure is typed here and no status word is
   invented: the dot classes and the words come off the read model's own vocabulary.
 
-  THE EMBED PARITY (the card's requirement): the facts a card shows are the embed's own fields — Map,
+  THE EMBED PARITY: the facts a card shows are the embed's own fields — Map,
   Temperature, Weather (the cloud preset), Wind and Runtime — declared in
   `pages/overview.EMBED_FIELD_COVERAGE` and pinned by `tests/test_webui_server_overview.py`, which
-  fails if the embed grows a field this page neither shows nor documents. The card DELIBERATELY omits
+  fails if the embed grows a field this page neither shows nor documents. This page DELIBERATELY omits
   the embed's Client Limits / schedule / ruler fields (see `EMBED_FIELDS_NOT_COVERED`). The embed's
   DYNAMICALLY-NAMED per-server block (its `IP/Port`, `Restart` countdown and password-lock glyph) is
   ALSO shown here: `s.public_ip` + `s.port`, the `s.restart_in` countdown and the `s.locked` lock

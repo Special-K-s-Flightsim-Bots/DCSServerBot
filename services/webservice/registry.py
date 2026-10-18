@@ -4,7 +4,7 @@ The shell installs one registrar and hands it out; the shell itself and every pl
 through it. Nothing else may touch the FastAPI app: a contributor receives the registrar, never
 ``app``, so it cannot add middleware, mount a path or bypass the access gate.
 
-Why the registrar owns the include (risk F1 in the phase-1 review)
+Why the registrar owns the include
 ------------------------------------------------------------------
 On the pinned FastAPI/Starlette (0.141.1 / 1.6.0) ``app.include_router(r)`` appends **one**
 ``_IncludedRouter`` wrapper object to ``app.routes``; the router's own ``APIRoute``s stay inside

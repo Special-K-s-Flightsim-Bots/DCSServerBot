@@ -4,14 +4,14 @@ A page is not hand-written per file: it is GENERATED from the pykwalify schema t
 validates that file against (see :mod:`services.webservice.configgen`). This page is the generator's
 first real consumer — the install's ``main.yaml``, its DEFAULT configuration — and it is here to
 prove the machinery end to end: a schema becomes a form, the form's save goes through the ONE write
-primitive (``core.utils.configwrite``, card S0's ``patch_config_file``), and the honest banner says a
+primitive (``core.utils.configwrite``'s ``patch_config_file``), and the honest banner says a
 restart applies it.
 
 WHAT IS WHERE
 -------------
 * the GET renders the generated form (left) and the file RE-SERIALISED as YAML (right, READ-ONLY in
-  this card — it is a dump of the parse, not the raw bytes, and for a no-op save nothing is written);
-  expert mode is a later card and is deliberately NOT built here;
+  this version — it is a dump of the parse, not the raw bytes, and for a no-op save nothing is
+  written); expert mode is deliberately NOT built here;
 * the POST reads the submitted fields back through the SAME generator tree, mutates the round-trip
   document in place (:func:`configgen.apply_form`), and hands it to ``patch_config_file`` — it never
   opens, parses or writes a file itself, so there is no second write path;

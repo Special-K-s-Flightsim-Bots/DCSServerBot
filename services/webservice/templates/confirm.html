@@ -10,10 +10,13 @@
     * the session's CSRF field,
     * the target in the BODY (never in a URL),
     * the command's own OPTION, when the action declares one (`dialog.inputs`: a checkbox plus the
-      hidden companion that says "off" — a cleared box sends no field of its own). IT SITS IN THE BODY
-      WHERE IT MODIFIES SOMETHING: M11 moved the ADD dialog's picker/load pair out of the footer form
-      into `dialog.body_inputs` (form-associated to `dlg-form`), so the footer is exactly one cancel
-      and one primary — a field drawn in the footer ahead of the button is what misaligned the primary;
+      hidden companion that says "off" — a cleared box sends no field of its own) and the fields a
+      dialog asks the operator to fill in (a message, a reason, a recipient's side). A field drawn
+      higher up still rides this POST: the ADD dialog's picker/load pair and the bulk-remove's
+      selection list sit in `dialog.body_inputs`, form-associated to `dlg-form`. WHATEVER fields a
+      dialog has, the two ways out are the LAST line of the dialog and share it (`dlg-buttons`,
+      Cancel left / primary right) — a field of several lines beside the primary button is what left
+      the cancel link floating halfway up the row;
     * and, for a DESTRUCTIVE action, the ONE-SHOT CONFIRM TOKEN minted when this dialog was rendered
       (`pages/actions`). That action's route refuses a POST that did not come through here, so the
       confirmation is a control and not a screen: `curl` cannot skip it
@@ -36,7 +39,7 @@
   technology announces it as one.
 
   THE SUBMIT IS ASYNCHRONOUS TOO, and it is no longer a script of this page's own: the
-  interception W4e gave this dialog is now the console's ONE interceptor, `static/submit.js`, loaded
+  interception this dialog used is now the console's ONE interceptor, `static/submit.js`, loaded
   by `base.html` on every page so the ROW STRIP (which is on every page) submits in the background
   too. The form here carries the two attributes that script reads: `data-async` (this is a background
   write) and `data-back` (the page it returns to).
@@ -46,7 +49,7 @@
   returns to (its `data-back`), navigates to that page AT ONCE — on the press — with the write still
   running in the background (`keepalive`). The modal is gone the instant the button is clicked. The
   maintainer rejected twice a modal that stayed while the server worked ("still does not vanish the
-  moment I press the button"); M4-fix2's wait-for-the-answer brought that back, and this is the fix:
+  moment I press the button"); waiting for the answer brought that back, and this is the fix:
   a form that states a `data-back` IS a dialog being dismissed, so it leaves immediately, while a form
   that does NOT (the row strip's direct controls, the configuration forms) still waits for the answer
   so its fresh render reads the post-write state. The outcome is NOT lost to the early close: a refusal
@@ -87,10 +90,14 @@
     READ-ONLY selection the bulk-remove dialog shows (one name per line, no boxes — the selection was
     made in the list), and everything else keeps the stacked field the kick and ban reason use.
 
-    ``form_id`` associates a field rendered OUTSIDE the posting form (the body's selection list and
-    its box) with it: an input carrying ``form="dlg-form"`` belongs to that form wherever it sits, so
-    the body carries the choice and the footer still carries exactly one primary and one cancel. -#}
+    ``form_id`` associates a field rendered OUTSIDE the posting form (the body's selection list, its box,
+    and the ADD dialog's whole form) with it: an input carrying ``form="dlg-form"`` belongs to that form
+    wherever it sits, so the body carries the choice and the footer still carries exactly one primary and
+    one cancel. EVERY shape carries it — a text field in the body is associated no other way, and without
+    it the browser silently posts NOTHING for it (``test_webui_add_delete_server`` pins that). -#}
 {% macro field_input(field, form_id) -%}
+{%- set field_class = 'dlg-field' ~ (' ' ~ field.get('width') if field.get('width') else '') -%}
+{%- set bounds = field.get('bounds') -%}
 {% if field.type == 'hidden' %}
 <input type="hidden" name="{{ field.name }}" value="{{ field.value }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
 {% elif field.type == 'checkbox' %}
@@ -101,7 +108,7 @@
     {% if field.help %}<span class="hint">{{ _(field.help) }}</span>{% endif %}</span>
 </p>
 {% elif field.type == 'select' %}
-<p class="dlg-field">
+<p class="{{ field_class }}">
   <label for="{{ field.id }}">{{ _(field.label) }}</label>
   <select id="{{ field.id }}" name="{{ field.name }}"{% if field.required %} required{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
     {% for option in field.options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
@@ -110,14 +117,26 @@
 </p>
 {% elif field.type == 'list' %}
 <ul class="dlg-list" aria-label="{{ _(field.label) or _('Selected missions') }}">{% for item in field.lines %}<li>{{ item }}</li>{% endfor %}</ul>
+{% elif field.type == 'textarea' %}
+<p class="{{ field_class }}">
+  <label for="{{ field.id }}">{{ _(field.label) }}</label>
+  <textarea id="{{ field.id }}" name="{{ field.name }}" rows="{{ field.rows or 5 }}"
+         {%- if field.max %} maxlength="{{ field.max }}"{% endif %}
+         {%- if field.required %} required{% endif %}
+         {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}
+         {%- if form_id %} form="{{ form_id }}"{% endif %}>{{ field.value }}</textarea>
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
+</p>
 {% else %}
-<p class="dlg-field">
+<p class="{{ field_class }}">
   <label for="{{ field.id }}">{{ _(field.label) }}</label>
   <input type="{{ field.type }}" id="{{ field.id }}" name="{{ field.name }}"
+         {%- if bounds %} min="{{ bounds.min }}" max="{{ bounds.max }}" step="1"{% endif %}
          {%- if field.max %} maxlength="{{ field.max }}"{% endif %}
          {%- if field.required %} required{% endif %}
          {%- if field.value %} value="{{ field.value }}"{% endif %}
-         {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}>
+         {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}
+         {%- if form_id %} form="{{ form_id }}"{% endif %}>
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
 {% endif %}
@@ -147,7 +166,7 @@
       {% else %}
       <p class="dlg-what">{% trans target=tgt %}Target: <span class="target">{{ target }}</span> — the action and your name are written to the bot log.{% endtrans %}</p>
       {% endif %}
-      {#- THE BODY'S OWN FIELDS (M9): the read-only selection list and the "delete the files from
+      {#- THE BODY'S OWN FIELDS: the read-only selection list and the "delete the files from
           disk?" box that belongs BESIDE it — the one decision a bulk-remove dialog still asks. They are
           form-associated to the footer's form (``form="dlg-form"``), so the choice rides the same POST
           the button fires and the footer stays exactly one primary and one cancel. Behaviour-driven:
@@ -155,27 +174,33 @@
       {% if dialog.body_inputs is defined %}{% for field in dialog.body_inputs %}{{ field_input(field, 'dlg-form') }}{% endfor %}{% endif %}
     </div>
     <div class="ft">
-      {#- CANCEL IS A REAL LINK, NOT A FORM (M12). It was a GET form whose action carried the back path;
-          a GET form REPLACES that action's query with its own serialised data, and this form has no
-          successful control — so ``?tab=missions`` was wiped and every shared footer landed on the
-          target's Overview. An anchor goes to ``back`` verbatim, tab and all. It keeps the button look
-          (the console's ``btn`` styling styles an anchor too), ``autofocus`` so a keyboard still lands
-          on it, and Enter still dismisses because a focused link activates. -#}
-      <a class="btn" href="{{ back }}" autofocus title="{% trans %}Cancel — go back without doing anything (Esc){% endtrans %}">{% trans %}Cancel{% endtrans %}</a>
-      <span class="spacer"></span>
       <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}">
         {% for field in dialog.inputs %}{{ field_input(field, none) }}{% endfor %}
         {#- THE WHOLE TARGET travels in the BODY (design §3.1): an action can never be pointed at
             another server or another player by editing a URL. A player dialog carries the ucid as
             well, which is why the hidden fields are a list rather than one hard-coded input.
 
-            THE FORM'S OWN ID (``dlg-form``): the BODY's fields (M9's selection list and its box) are
+            THE FORM'S OWN ID (``dlg-form``): the BODY's fields (the selection list and its box) are
             form-associated to it through ``form="dlg-form"``, so a control drawn above the footer still
             rides this POST. -#}
         <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
         {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
         {% if dialog.confirm_token %}<input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">{% endif %}
-        <button class="btn{{ ' danger' if dialog.danger else '' }}" type="submit" title="{{ say(dialog.go_title) }}">{{ go_text }}</button>
+        {#- THE TWO WAYS OUT, as ONE ROW AT THE BOTTOM: a dialog whose fields are several lines tall
+            (a message) must not leave the primary button beside them and the cancel link floating in
+            the middle of the row. Both controls therefore sit on the LAST line of the dialog, Cancel
+            left and the primary right, whether the dialog has fields or none. -#}
+        <div class="dlg-buttons">
+          {#- CANCEL IS A REAL LINK, NOT A FORM. It was a GET form whose action carried the back path;
+              a GET form REPLACES that action's query with its own serialised data, and this form has no
+              successful control — so ``?tab=missions`` was wiped and every shared footer landed on the
+              target's Overview. An anchor goes to ``back`` verbatim, tab and all. It keeps the button look
+              (the console's ``btn`` styling styles an anchor too), ``autofocus`` so a keyboard still lands
+              on it, and Enter still dismisses because a focused link activates. -#}
+          <a class="btn" href="{{ back }}" autofocus title="{% trans %}Cancel — go back without doing anything (Esc){% endtrans %}">{% trans %}Cancel{% endtrans %}</a>
+          <span class="spacer"></span>
+          <button class="btn{{ ' danger' if dialog.danger else '' }}" type="submit" title="{{ say(dialog.go_title) }}">{{ go_text }}</button>
+        </div>
       </form>
     </div>
   </div>
@@ -191,14 +216,20 @@
    is autofocused and Enter dismisses, and the destructive button is never the default. The SUBMIT is
    no longer here: it is the console's one interceptor, `static/submit.js`, which this page's form
    opts into with `data-async` (see the block at the top of this file). */
-(function  {
+(function () {
   "use strict";
   var dialog = document.querySelector('[role="dialog"]');
   if (!dialog) { return; }
   var back = {{ back|tojson }};
   var items = dialog.querySelectorAll("button, [href], input, select, textarea");
   if (!items.length) { return; }
-  var first = items[0];
+  /* THE TRAP STARTS ON CANCEL, not on whatever happens to be first in the document: the fields of a
+     dialog that asks for text sit ABOVE the button row, so the first focusable can be a message or a
+     reason box — and Enter in a text field is an implicit SUBMIT of the dialog's action. Landing on
+     Cancel keeps the declared rule (Enter dismisses; the destructive button is never the default). A
+     dialog without a cancel link falls back to its first focusable. */
+  var cancel = dialog.querySelector("a.btn[href]");
+  var first = cancel || items[0];
   var last = items[items.length - 1];
   first.focus();
   document.addEventListener("keydown", function (event) {

@@ -5,7 +5,7 @@ Cookie policy comes from **explicit configuration** (``services/webservice.yaml`
 have to be configured values, and this module deliberately knows nothing about them. What it
 does own is the part that is easy to get backwards:
 
-* ``same_site`` defaults to ``lax`` and that default is load-bearing — the OAuth callback in C2
+* ``same_site`` defaults to ``lax`` and that default is load-bearing — the OAuth callback
   is a cross-site top-level GET, and ``strict`` does not send the cookie on it, so every login
   would read an empty session and fail the nonce check (symptom: "first attempt fails, retry
   works"). Setting it to something else is allowed but warned about, because the failure only

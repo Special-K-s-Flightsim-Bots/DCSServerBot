@@ -42,7 +42,7 @@
  * notice (no identity, a spent/absent confirm token, an out-of-scope target) store one before refusing,
  * so a refusal made in the background is seen rather than swallowed.
  *
- * IT NEVER DISABLES THE PRESSED CONTROL (the W4g rule): the server says what is running, and the action
+ * IT NEVER DISABLES THE PRESSED CONTROL: the server says what is running, and the action
  * seam's guard refusing a second press — with its own typed refusal — is already the answer to a double
  * click. A disabled button would be a second, silent refusal path. WHAT IT DOES INSTEAD, while a write
  * that STAYS ON ITS PAGE is in flight, is wear the console's own BUSY IDIOM: the `busy` class the

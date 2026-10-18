@@ -368,7 +368,7 @@ async def call_action(qualname: str, ctx: ActionContext, /, *, audit_result: boo
     * an action that RAISES is typed as well. The action functions already catch their own domain
       errors and return a result (``plugins/mission/actions.py``); anything that escapes them is a
       bug, and a web route must still answer with a result rather than a stack trace;
-    * the AUDIT is the ACTION's job (design §5.3 D1) and a convention nothing checks is not a
+    * the AUDIT is the ACTION's job and a convention nothing checks is not a
       mechanism, so a write that forgets the trail is visible in the log instead of silent. It is a
       WARNING and never a failure: the operation has already happened, and turning its outcome into
       an error would report a completed change as a failed one. The seam's own refusals (an absent
@@ -376,13 +376,13 @@ async def call_action(qualname: str, ctx: ActionContext, /, *, audit_result: boo
 
     ``audit_result`` is for the caller whose action CANNOT audit yet. The design puts the trail on
     the action so that one operation audits the same way from every transport; but where the action
-    is a plugin function this card may not modify (the W2 pause pilot — ``pause_mission`` /
+    is a plugin function this change may not modify (the pause pilot — ``pause_mission`` /
     ``unpause_mission``), the only alternative was for the ROUTE to audit a result the seam had
     already reported as unaudited — a false "the operation has no trail" in the log of a write that
     IS audited a microsecond later. Passing ``audit_result=True`` makes the SEAM write that entry
     itself (:func:`audit_action`, with the resolved target as the server), so the trail is still
     written once, by one mechanism, and the warning is reserved for a caller that audits nothing at
-    all. When the plugin's actions take the trail over (the W-R4 follow-up card), the flag comes off
+    all. When the plugin's actions take the trail over, the flag comes off
     with them and the default keeps the I-2 warning intact.
     """
     fn = _ACTIONS.get(qualname)
@@ -478,18 +478,18 @@ AUDIT_RECORDED = "recorded"
 AUDIT_NOT_RECORDED = "not-recorded"
 
 #: the module of the HEADLESS bot: its ``audit()`` is a no-op that returns normally, so "the entry
-#: was recorded" cannot be confirmed by the call returning (design §5.3 D4).
+#: was recorded" cannot be confirmed by the call returning.
 HEADLESS_BOT_MODULE = "services.bot.dummy.bot"
 
 #: The most characters of an action's OUTCOME the AUDIT event will ever carry. The event text is
 #: built from a typed refusal that can QUOTE a caller-supplied name (``Server '<name>' not found.``),
-#: so without a bound a crafted name grows the audit table without limit (review W2 I-1). The bound
+#: so without a bound a crafted name grows the audit table without limit. The bound
 #: lives HERE, at the one seam that builds the event, so every action — present and future —
 #: inherits it instead of each route having to remember to clip.
 AUDIT_EVENT_MAX_CHARS = 500
 
 #: What a clipped value carries in place of its tail, so a reader SEES that a string was truncated
-#: rather than reading a silently cut value as the whole of it (review W2 I-1: "mark the
+#: rather than reading a silently cut value as the whole of it ("mark the
 #: truncation").
 TRUNCATION_MARKER = " ... [truncated]"
 
@@ -549,7 +549,7 @@ async def audit_action(ctx: ActionContext, result: ActionResult, *, server: Any 
                        message: str | None = None, bot: Any = None) -> ActionResult:
     """Record ONE audit entry for an action's outcome, and report whether it was recorded.
 
-    Called by the ACTION, once, whatever the transport (design §5.3 D1): auditing at the route
+    Called by the ACTION, once, whatever the transport: auditing at the route
     would mean the same operation audits from Discord and not from the web — the divergence this
     seam exists to prevent. A REFUSED action is audited too (one entry per attempt, which is what
     an operator wants after an incident).
@@ -561,7 +561,7 @@ async def audit_action(ctx: ActionContext, result: ActionResult, *, server: Any 
 
     The event text is BOUNDED (:data:`AUDIT_EVENT_MAX_CHARS`) before it reaches the bot, because the
     refusal it carries can quote a caller-supplied name (``Server '<name>' not found.``) and a
-    crafted name must not grow the audit table without limit (review W2 I-1). The actor prefix leads
+    crafted name must not grow the audit table without limit. The actor prefix leads
     the text, so clipping the tail never loses who made the attempt.
     """
     event = bound_text(f"{ctx.audit_actor} {message or result.message or ''}".strip())
@@ -604,7 +604,7 @@ class ActionContext:
 
     #: the caller's role names — the console's capability vocabulary. Populated by ``from_web``
     #: and, for the Discord transport, by ``from_interaction``, so a permission check inside an
-    #: ACTION would make the same decision on both transports (design §9 Q4). Nothing reads them
+    #: ACTION would make the same decision on both transports. Nothing reads them
     #: today: the route is still the only authorization for a console write.
     _roles: frozenset = field(default_factory=frozenset, repr=False)
 
@@ -614,7 +614,7 @@ class ActionContext:
     _scope: Any = field(default=None, repr=False)
 
     #: the audit's actor for a WEB caller: its backend and its subject, written as the declared
-    #: ``[web:backend/subject]`` prefix (design §5.3 D2). Empty for every other transport, whose
+    #: ``[web:backend/subject]`` prefix. Empty for every other transport, whose
     #: actor is ``_audit_user``.
     _audit_backend: str = field(default="", repr=False)
     _audit_subject: str = field(default="", repr=False)
@@ -622,7 +622,7 @@ class ActionContext:
     #: which ``from_*`` builder built this context — one of:data:`TRANSPORT_WEB`,
     #::data:`TRANSPORT_DISCORD`,:data:`TRANSPORT_PLUGIN`,:data:`TRANSPORT_SERVICE`, or ``""`` for a
     #: context built by hand. An in-action authorisation check reads it through:attr:`transport`; an
-    #: EMPTY value is a transport nothing named, so every such check must fail CLOSED on it (B1b §2).
+    #: EMPTY value is a transport nothing named, so every such check must fail CLOSED on it.
     _transport: str = field(default="", repr=False)
 
     @classmethod
@@ -638,7 +638,7 @@ class ActionContext:
             ctx._audit_user = interaction.user.display_name
             # No behaviour changes here today (nothing reads the roles yet); populating them is
             # what lets a future in-action check answer the SAME question for Discord and the
-            # console (design §2.2 / §9 Q4). Role NAMES, because that is the vocabulary the
+            # console. Role NAMES, because that is the vocabulary the
             # capability map is declared in.
             ctx._roles = frozenset(_role_names(interaction.user))
         return ctx

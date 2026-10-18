@@ -10,11 +10,11 @@ wide; **operating** a node is not: the five writes below are declared with ``NOD
 (``Admin`` only) and carry no scope grant, because they take every server on the node out of
 service.
 
-WHAT A ROW OFFERS (W4c-revised, W4d, restated by W5b):
+WHAT A ROW OFFERS:
 
 * Restart, Shut down and Upgrade — the real node lifecycle (``Node.restart()`` / ``Node.shutdown()``
   / ``Node.upgrade()``, mirrored by ``plugins/admin/actions.py``). **Upgrade is OFFERED ONLY WHILE
-  THE NODE REPORTS AN UPDATE PENDING** (W7b): the console polls ``Node.upgrade_pending()`` in the
+  THE NODE REPORTS AN UPDATE PENDING**: the console polls ``Node.upgrade_pending()`` in the
   background (``services/webservice/upgrade.py``, never on a render) and hides the control once
   there is nothing to upgrade, saying ``"no update check yet"`` while the value is unknown;
 * the POWER pair Take servers offline / Bring servers online — ``/node offline`` and ``/node online``,
@@ -28,12 +28,12 @@ WHAT A ROW OFFERS (W4c-revised, W4d, restated by W5b):
 Every control is reachable only for ``Admin`` and only for a node the cluster can actually reach,
 and it is OMITTED — never rendered disabled — otherwise.
 
-THE PAIR IS GATED ON THE NODE'S OWN STATE, NOT ON THE SERVERS AND NOT ON A FLAG (W7a, restating W5b).
+THE PAIR IS GATED ON THE NODE'S OWN STATE, NOT ON THE SERVERS AND NOT ON A FLAG.
 "offline" here means the SERVERS, never the node's own process — that is *Shut down*, the trio's own
 third control. Which half is offered is decided by ``pages/actions.node_power_states``: a node that
 is heartbeating, carries servers and has NO power-off on record is IN SERVICE and offers *Take servers
 offline* — whether or not anything happens to be running — and a node whose power-off IS on record
-offers *Bring servers online*. The servers' statuses decide neither (they did until W7a, which is what
+offers *Bring servers online*. The servers' statuses decide neither (they once did, which is what
 put an online control on an online node), and the maintenance flag is not the row's business any more:
 its own controls are on the SERVER row (``Maintenance`` / ``End maintenance``), one to a server, which
 is what §10.4's "one home per concept" means.
@@ -57,7 +57,7 @@ intact, and a page render asks no node for anything.
 
 WHAT IT DOES — AND WHAT IT DOES NOT. It hands over ONE complete file, once, on demand. It does not
 tail, stream, merge or live-update an agent's log; the console's log PANEL stays master-only
-(the decision of 2026-09-30, audit Q3 deferred), and a node's log is here only ever a file
+(the decision of 2026-09-30), and a node's log is here only ever a file
 somebody asked for. Nothing about the file is parsed, filtered or clipped: an oversized log is
 REFUSED with its own sentence (:data:`LOG_DOWNLOAD_MAX_BYTES`), never silently truncated into a
 file that looks complete.
@@ -285,7 +285,7 @@ def _refuse(status_code: int, sentence: str) -> PlainTextResponse:
     own generic access-denied page, whose copy is about AUTHORIZATION ("your account does not have
     access"), which would be false for a log that simply is not there. A download has no page to
     render its failure into, so the sentence IS the answer — and a zero-byte 200 that downloads like
-    an empty log is exactly what the card forbids.
+    an empty log is exactly what is forbidden.
     """
     log.info("Node log download answered %d: %s", status_code, sentence)
     return PlainTextResponse(sentence + "\n", status_code=status_code)
