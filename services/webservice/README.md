@@ -129,12 +129,12 @@ Roles are the bot's role names from `bot.yaml` (`roles:`). The two-cluster-role 
 
 | Page or control | Who |
 |-----------------|-----|
-| Dashboard (`/`), Servers (`/fleet`), Players (`/players`), Nodes (`/nodes`), Instances (`/instances`) | `Admin` and `DCS Admin` see everything; a **manager** sees only their own servers (and the nodes/instances that carry them) |
+| Dashboard (`/`), Servers (`/fleet`), Players (`/players`), Nodes (`/nodes`), Instances (`/instances`) | `Admin` sees everything; `DCS Admin` sees the untagged servers plus those whose `managed_by` names one of its roles; a **manager** sees only their own servers (and the nodes/instances that carry them) |
 | Logs page (`/logs`) and a node's *Download log* | `Admin` only |
-| A server's own page and its **Missions** tab | `Admin`, `DCS Admin`, and any **manager** of that server |
+| A server's own page and its **Missions** tab | `Admin`, `DCS Admin`, and any **manager** — each on the servers in their view |
 | A server's **Configuration** tab — DCS config and coalition passwords | `Admin`, and a manager for the servers in their scope |
 | A server's **Configuration** tab — channels | `Admin` only (a manager may not write channels) |
-| Server **and** player controls (start/stop/restart, kick/ban/mute/message, mission add/remove/load/…) | `Admin`, `DCS Admin`, and managers on their own servers |
+| Server **and** player controls (start/stop/restart, kick/ban/mute/message, mission add/remove/load/…) | `Admin`, `DCS Admin`, and managers — each on the servers in their view |
 | Node controls (restart, shut down, upgrade, take servers offline, bring servers online) | `Admin` only |
 
 **Managers and scope.** A *manager* is a signed-in identity whose scope holds a server's
@@ -142,8 +142,16 @@ Roles are the bot's role names from `bot.yaml` (`roles:`). The two-cluster-role 
 `managed_by` is nobody's manager server: it is left out of every page for them, and a crafted request
 naming it is refused. For a local user the scope is declared in the config
 (`auth.local.users[].scope`); for a Discord user it comes from the roles that map to `managed_by`.
+
+**`DCS Admin` is narrowed by the same list**, exactly as it is on Discord: it holds the untagged
+servers plus the servers whose `managed_by` names one of its Discord roles, so a server tagged with a
+role it does not hold is out of its view and refused on a crafted request. If every server is tagged,
+a `DCS Admin` holding none of those roles gets an empty view. Only `Admin` is unscoped.
+
 Node controls are deliberately `Admin`-only and unscoped: a manager's scope is a set of *servers*, and
-taking a whole node out of service must never widen out of it.
+taking a whole node out of service must never widen out of it. A local account with a cluster role and
+**no** declared scope keeps the whole cluster, as does break-glass — the operator and emergency paths
+are never narrowed.
 
 **What is not gated by this model:** the REST API. Its endpoints carry the [RestAPI
 plugin](../../plugins/restapi/README.md)'s own authentication (API key / JWT) and are configured in

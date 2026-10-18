@@ -52,7 +52,7 @@ from .. import permissions
 # the bot's ``core`` with it — deliberate: the console runs in the bot's OWN environment (the same
 # venv) and CONSUMES the one shared rule instead of keeping a second copy. The direction is pinned
 # by ``tests/test_layering_direction.py``.
-from ..scope import CLUSTER_ROLES, Scope
+from ..scope import ADMIN_ROLE, CLUSTER_ROLES, Scope
 
 __all__ = [
     "SESSION_IDENTITY_KEY",
@@ -248,29 +248,43 @@ class AuthManager:
     def scope_for(self, request: Request) -> Scope:
         """THE scope resolver. Installed through ``permissions.set_scope_resolver``.
 
-        THREE rules, in this order (the order IS the precedence, highest first):
+        FOUR rules, in this order (the order IS the precedence, highest first):
 
         * an identity that could not be resolved is :meth:`Scope.unresolved` — FAIL CLOSED (the bot
           is restarting, the guild is unreachable, the member cache is empty). A scoped-to-nothing
           view is the only safe answer; a scoped-to-everything one is a leak;
-        * an explicit DECLARATION wins over everything else, INCLUDING the cluster-role bypass
+        * an explicit DECLARATION wins over everything else, INCLUDING the two cluster-role rules
           below: a local account's ``auth.local.users[].scope`` is the operator's instruction, so it
           is honoured even when the account also holds a cluster role (a declaration can only ever
           shrink a cluster role's view, never widen a non-cluster one);
-        * otherwise a CLUSTER role — ``Admin`` or ``DCS Admin`` (:data:`..scope.CLUSTER_ROLES`) — is
-          unscoped, whatever it declared implicitly: the two cluster roles keep the whole cluster,
-          so a scoped DCS Admin does not lose the untagged servers it has always administered. A
-          Discord cluster role carries no declaration — its scope is derived from member roles — so
-          it falls through to here. The bypass lives HERE, once, so no backend can forget it and no
-          page can re-invent it.
+        * ``Admin`` (:data:`scope.ADMIN_ROLE`) is UNSCOPED, whatever it declared implicitly: the
+          owner role keeps the whole cluster, tagged or not;
+        * ``DCS Admin`` HONOURS ``managed_by`` when its scope was DERIVED from the member's Discord
+          roles: it gets :meth:`Scope.cluster`, i.e. the servers naming one of those roles PLUS every
+          server that declares no ``managed_by``. That is the same rule the bot applies
+          (``core.utils.discord.holds_scope``), so the website and Discord cannot disagree. When the
+          BACKEND set the scope to unrestricted instead (a local account with no declaration, and
+          break-glass), that is the operator's/emergency path and it stays unrestricted — neither is
+          narrowed here.
+
+        The cluster roles' scopes live HERE, once, so no backend can forget them and no page can
+        re-invent them.
         """
         identity = self.authenticate(request)
         if identity is None:
             return Scope.unresolved()
         if identity.scope.declared:
             return identity.scope
-        if not set(CLUSTER_ROLES).isdisjoint(identity.roles):
+        roles = set(identity.roles)
+        if ADMIN_ROLE in roles:
             return Scope.everything()
+        if not set(CLUSTER_ROLES).isdisjoint(roles):
+            # a DCS Admin whose scope the backend DERIVED from its member roles honours managed_by;
+            # a scope the backend set to unrestricted (local without a declaration, break-glass)
+            # stays unrestricted.
+            if identity.scope.unrestricted:
+                return Scope.everything()
+            return Scope.cluster(identity.scope.tokens)
         return identity.scope
 
     def manages_any_server(self, request: Request) -> bool:
@@ -284,14 +298,17 @@ class AuthManager:
         * ``Admin`` -> ``False``: its scope is unscoped by the rule in :meth:`scope_for`, and it
           reaches the console through its ROLE. Being unscoped is never a manager's licence (a
           roleless local account is unscoped too, and must not be let in);
+        * ``DCS Admin`` -> ``False`` for the same reason: its scope is :meth:`Scope.cluster`, a ROLE's
+          scope, and the role is what admits it. Its narrower view must not become a second way into
+          the capabilities that role does not carry;
         * a scope that cannot be resolved -> ``False`` (:func:`services.webservice.scope.
           manages_any_server` answers ``False`` for it) — a bot that is restarting, a guild that is
           unreachable or an empty member cache refuses the manager rather than showing the cluster.
 
-        What is looked at, for a non-Admin: the servers THIS console serves, read through the same
-        seam the pages read (:func:`services.webservice.readmodels.console_source`) — a Discord
-        member's tokens are every role they hold, so only a server that declares one of them in
-        ``managed_by`` makes them a manager of it. A local account is in a different position: it
+        What is looked at, for a non-cluster identity: the servers THIS console serves, read through
+        the same seam the pages read (:func:`services.webservice.readmodels.console_source`) — a
+        Discord member's tokens are every role they hold, so only a server that declares one of them
+        in ``managed_by`` makes them a manager of it. A local account is in a different position: it
         cannot be compared against a Discord member at all, and its DECLARED scope is the fact
         (``Scope.declared``), so it needs no server to match.
         """

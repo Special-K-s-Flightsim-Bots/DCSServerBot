@@ -135,6 +135,30 @@
      page is simply not live. `live` is passed by a page that wants it (the dashboard, when
      `dashboard.live` is on); a page that does not pass it loads no script. #}
   {% block scripts %}{% endblock %}
+  {#- THE SCREENSHOT'S MODAL — the answer to the photo glyph, when a capture just arrived for THIS
+      session. It rides ``i18n.render`` (the one place every full page passes through), so it opens on
+      whichever page the glyph was pressed on, and it is spent there: a reload does not re-open it.
+      The card is the dialog's own markup and classes; the overlay is fixed, because unlike the
+      confirm dialog (a page of its own) this one appears OVER the page the person is reading. The
+      image is served from a short-lived token URL. -#}
+  {% if screenshot is defined and screenshot %}
+  {% import "_icons.html" as shot_icons %}
+  <div class="shot-back" role="dialog" aria-modal="true" aria-labelledby="shot-title">
+    <div class="dlg">
+      <div class="hd">{{ shot_icons.act('camera') }}<h3 id="shot-title">{% trans player=screenshot.player, server=screenshot.server %}Screenshot of {{ player }} on {{ server }}{% endtrans %}</h3><span class="tag">{% trans %}screenshot{% endtrans %}</span></div>
+      <div class="bd">
+        {#- the heading IS the accessible name of this dialog, so the image carries an empty alt:
+            nothing here is a picture of something unnamed. -#}
+        <img src="{{ screenshot.image_url }}" alt="">
+      </div>
+      <div class="ft">
+        <div class="dlg-buttons">
+          <a class="btn" href="{{ screenshot.back }}" autofocus title="{% trans %}Close — go back to the page you were on (Esc){% endtrans %}">{% trans %}Close{% endtrans %}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   {% if live is defined and live %}
   <script src="/static/shell.js" defer
           data-stream="{{ live.stream }}" data-fragments="{{ live.fragments }}"></script>

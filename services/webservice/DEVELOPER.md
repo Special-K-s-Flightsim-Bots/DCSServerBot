@@ -46,6 +46,7 @@ writes.
 | player | Popup                | `players.message`            | `message_player`        | **yes**  |
 | player | Mute                 | `players.mute`              | `mute_player`           | no       |
 | player | Unmute               | `players.mute`              | `unmute_player`         | no       |
+| player | Screenshot           | `players.screenshot`        | `screenshot_player`     | no       |
 | node   | Restart              | `nodes.restart`             | `restart_node`          | **yes**  |
 | node   | Shut down            | `nodes.shutdown`            | `shutdown_node`         | **yes**  |
 | node   | Upgrade              | `nodes.upgrade`             | `upgrade_node`          | **yes**  |
@@ -78,12 +79,14 @@ one-shot token. *Start* and *Stop* carry **no** option: the process-level pair t
 The write roles are `Admin` and `DCS Admin`, and every **server** and **player** row capability above is
 declared `scope_grants` — with ONE exception, the creation pair (*Add server* / *Delete*), which carries
 the node/instance rule instead (below): a **manager** (an identity whose scope holds a server's
-`managed_by`) reaches the rest **on their own servers** and on nobody else's. A server with **no**
-`managed_by` is **not** a manager's: the scoped source leaves it out of every page, so no control is
-built for it, and a crafted POST naming it is refused exactly like a name that does not exist. The
-**node** row is another exception and stays so: its five are declared `Admin`-only and **without** a
-scope grant (`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of *servers* and
-taking a whole node — or every server on it — out of service must never widen out of it.
+`managed_by`) reaches the rest **on their own servers** and on nobody else's. A `DCS Admin` carries the
+same role on both surfaces but the same NARROWED view as Discord: the untagged servers plus the ones
+naming one of its roles (`Scope.cluster`), never a server tagged with a role it does not hold. A server
+with **no** `managed_by` is **not** a manager's: the scoped source leaves it out of every page, so no
+control is built for it, and a crafted POST naming it is refused exactly like a name that does not
+exist. The **node** row is another exception and stays so: its five are declared `Admin`-only and
+**without** a scope grant (`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of
+*servers* and taking a whole node — or every server on it — out of service must never widen out of it.
 
 The Configuration tab's three writes do **not** follow the server/player row rule, and their own
 roles/scope rules differ from each other (`NODE_ROLES` is `Admin` alone, `declare()` in
@@ -100,8 +103,9 @@ own method tells DCS live):
   **except** the keys the manager deny-list names (`core/server_config`) — today the server **port**
   (`port`). The deny-list is enforced in the action, not only at the page: a manager's crafted POST of
   a denied key is refused with a typed sentence and nothing is written. A `DCS Admin` is refused here:
-  `allows` is satisfied by the `Admin` role or by a managing scope, and a `DCS Admin`'s scope is
-  *unscoped*, so it is neither.
+  `allows` is satisfied by the `Admin` role or by a managing scope, and a `DCS Admin`'s scope is the
+  cluster role's own (`Scope.cluster`) — a ROLE's scope, which `manages_any_server` never counts as a
+  managing one, so it is neither.
 * the **channels write**, `servers.config.channels`, is declared `Admin`-only **without** a scope grant:
   a manager may not write the channels **at all**. The channels are also named in the same manager
   deny-list (`CHANNELS_ITEM`, `core/server_config`), so the whole channels card is omitted from a

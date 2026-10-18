@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-18 10:36+0200\n"
+"POT-Creation-Date: 2026-10-18 19:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -146,135 +146,135 @@ msgstr "默认"
 msgid "required"
 msgstr "必填"
 
-#: services/webservice/i18n.py:554
+#: services/webservice/i18n.py:561
 #, python-brace-format
 msgid "Live updates: {status}"
 msgstr "实时更新：{status}"
 
-#: services/webservice/i18n.py:555
+#: services/webservice/i18n.py:562
 #: services/webservice/templates/server_detail.html:257
 msgid "on"
 msgstr "开"
 
-#: services/webservice/i18n.py:556
+#: services/webservice/i18n.py:563
 msgid "connecting…"
 msgstr "正在连接…"
 
-#: services/webservice/i18n.py:557
+#: services/webservice/i18n.py:564
 msgid "polling every 10 seconds"
 msgstr "每 10 秒轮询一次"
 
-#: services/webservice/i18n.py:558
+#: services/webservice/i18n.py:565
 #, python-brace-format
 msgid "the bot is not ready yet — retrying in {seconds}s"
 msgstr "机器人尚未就绪 — {seconds} 秒后重试"
 
-#: services/webservice/i18n.py:559
+#: services/webservice/i18n.py:566
 msgid "not permitted — sign in again"
 msgstr "无权限 — 请重新登录"
 
-#: services/webservice/i18n.py:560
+#: services/webservice/i18n.py:567
 msgid "Sign in again"
 msgstr "重新登录"
 
-#: services/webservice/i18n.py:562
+#: services/webservice/i18n.py:569
 #: services/webservice/templates/node_log.html:39
 #: services/webservice/templates/server_detail.html:66
 msgid "Load older"
 msgstr "加载更早内容"
 
-#: services/webservice/i18n.py:563
+#: services/webservice/i18n.py:570
 #: services/webservice/templates/node_log.html:34
 #: services/webservice/templates/server_detail.html:61
 msgid "not available"
 msgstr "不可用"
 
-#: services/webservice/i18n.py:564
+#: services/webservice/i18n.py:571
 msgid "The log file is not there yet."
 msgstr "日志文件尚不存在。"
 
-#: services/webservice/i18n.py:565
+#: services/webservice/i18n.py:572
 msgid "waiting for the log file to appear"
 msgstr "正在等待日志文件出现"
 
-#: services/webservice/i18n.py:566
+#: services/webservice/i18n.py:573
 msgid "retrying…"
 msgstr "正在重试…"
 
-#: services/webservice/i18n.py:567
+#: services/webservice/i18n.py:574
 msgid "— the log was rotated; showing the new file —"
 msgstr "— 日志已轮转；正在显示新文件 —"
 
-#: services/webservice/i18n.py:568
+#: services/webservice/i18n.py:575
 msgid "— the log was rotated while loading older lines —"
 msgstr "— 加载更早的行时日志已轮转 —"
 
-#: services/webservice/i18n.py:569
+#: services/webservice/i18n.py:576
 msgid "the log was rotated"
 msgstr "日志已轮转"
 
-#: services/webservice/i18n.py:570
+#: services/webservice/i18n.py:577
 msgid "Log restarted"
 msgstr "日志已重启"
 
-#: services/webservice/i18n.py:571
+#: services/webservice/i18n.py:578
 #: services/webservice/templates/node_log.html:39
 #: services/webservice/templates/server_detail.html:66
 msgid "Start of log"
 msgstr "日志开头"
 
-#: services/webservice/i18n.py:572
+#: services/webservice/i18n.py:579
 #: services/webservice/templates/node_log.html:34
 #: services/webservice/templates/server_detail.html:61
 msgid "following while this tab is open"
 msgstr "在此标签页打开期间持续跟随"
 
-#: services/webservice/i18n.py:573
+#: services/webservice/i18n.py:580
 msgid "paused — this tab is hidden"
 msgstr "已暂停 — 此标签页处于隐藏状态"
 
-#: services/webservice/i18n.py:575
+#: services/webservice/i18n.py:582
 #, python-brace-format
 msgid "{n} of {total} selected"
 msgstr "已选择 {n}/{total}"
 
-#: services/webservice/i18n.py:576
+#: services/webservice/i18n.py:583
 #: services/webservice/templates/server_detail.html:478
 msgid "Remove selected…"
 msgstr "移除所选…"
 
-#: services/webservice/i18n.py:577
+#: services/webservice/i18n.py:584
 msgid "Remove 1 mission…"
 msgstr "移除 1 个任务…"
 
-#: services/webservice/i18n.py:578
+#: services/webservice/i18n.py:585
 #, python-brace-format
 msgid "Remove {n} missions…"
 msgstr "移除 {n} 个任务…"
 
-#: services/webservice/i18n.py:580
+#: services/webservice/i18n.py:587
 #: services/webservice/templates/server_detail.html:242
 #: services/webservice/templates/server_detail.html:385
 msgid "Show password"
 msgstr "显示密码"
 
-#: services/webservice/i18n.py:581
+#: services/webservice/i18n.py:588
 msgid "Hide password"
 msgstr "隐藏密码"
 
-#: services/webservice/i18n.py:582
+#: services/webservice/i18n.py:589
 msgid "Nothing to show — type a password first, then this reveals what you typed."
 msgstr "没有可显示的内容 — 请先输入密码，此处会显示你输入的内容。"
 
-#: services/webservice/i18n.py:587
+#: services/webservice/i18n.py:594
 msgid "Checking…"
 msgstr ""
 
-#: services/webservice/i18n.py:588
+#: services/webservice/i18n.py:595
 msgid "Valid."
 msgstr ""
 
-#: services/webservice/i18n.py:589
+#: services/webservice/i18n.py:596
 msgid "editing"
 msgstr ""
 
@@ -389,192 +389,217 @@ msgstr "已启用本地登录"
 msgid "No sign-in method enabled"
 msgstr "未启用任何登录方式"
 
-#: services/webservice/pages/actions.py:352
+#: services/webservice/pages/actions.py:376
 msgid ""
 "The previous values are too long to offer a one-shot Revert here. Re-open"
 " the page to edit them back by hand."
 msgstr "之前的值太长，无法在这里提供一次性还原。请重新打开页面，手动改回它们。"
 
-#: services/webservice/pages/actions.py:395
+#: services/webservice/pages/actions.py:419
 msgid ""
 "Start and Stop live only here: they act on fewer states than Startup and "
 "Shutdown, so they do not earn a place in the strip."
 msgstr "“开始”和“停止”仅在此处提供：它们作用的状态比“启动”和“关机”更少，因此不值得在工具栏中占一席之地。"
 
-#: services/webservice/pages/actions.py:403
+#: services/webservice/pages/actions.py:427
 #, python-brace-format
 msgid "{label} — an action on {name} is running; this can take a moment"
 msgstr "{label} — 正在对 {name} 执行操作；可能需要一点时间"
 
-#: services/webservice/pages/actions.py:404
+#: services/webservice/pages/actions.py:428
 #, python-brace-format
 msgid "{label} — an action on {name} is running"
 msgstr "{label} — 正在对 {name} 执行操作"
 
-#: services/webservice/pages/actions.py:630
+#: services/webservice/pages/actions.py:654
 msgid "Everyone"
 msgstr ""
 
-#: services/webservice/pages/actions.py:631
+#: services/webservice/pages/actions.py:655
 msgid "Red coalition"
 msgstr ""
 
-#: services/webservice/pages/actions.py:632
+#: services/webservice/pages/actions.py:656
 msgid "Blue coalition"
 msgstr ""
 
-#: services/webservice/pages/actions.py:637
+#: services/webservice/pages/actions.py:661
 msgid ""
 "The choice is the audience: everyone on the server, or one side of the "
 "mission."
 msgstr ""
 
-#: services/webservice/pages/actions.py:657
+#: services/webservice/pages/actions.py:681
 msgid "Startup"
 msgstr "启动"
 
-#: services/webservice/pages/actions.py:661
+#: services/webservice/pages/actions.py:685
 msgid "End maintenance so the server is scheduled again"
 msgstr "结束维护，使服务器重新纳入调度"
 
-#: services/webservice/pages/actions.py:663
+#: services/webservice/pages/actions.py:687
 msgid ""
 "On by default, exactly like Discord's /server startup. An unflagged "
 "server simply stays unflagged."
 msgstr "默认开启，与 Discord 的 /server startup 完全一致。未被标记的服务器就保持未标记。"
 
-#: services/webservice/pages/actions.py:665
+#: services/webservice/pages/actions.py:692
+msgid "Run extensions on the mission"
+msgstr "对任务运行扩展"
+
+#: services/webservice/pages/actions.py:694
+msgid ""
+"On by default, as in /server startup: the server's extensions are applied"
+" to the mission before it loads. Untick to launch the mission exactly as "
+"its file stands."
+msgstr "默认启用，与 /server startup 一致：服务器的扩展会在任务加载前应用到任务上。取消勾选则按文件原样启动任务。"
+
+#: services/webservice/pages/actions.py:699
+msgid "Apply them to the original mission file"
+msgstr "应用到原始任务文件"
+
+#: services/webservice/pages/actions.py:701
+msgid ""
+"Only matters while extensions run: on (the default) they are applied to "
+"the uploaded file, off to the file the server is on now."
+msgstr "仅在运行扩展时有效：启用（默认）时应用到上传的文件，禁用时应用到服务器当前所在的文件。"
+
+#: services/webservice/pages/actions.py:705
 msgid "Startup — bring this server up from SHUTDOWN"
 msgstr "启动 — 让此服务器从“已关闭”状态启动"
 
-#: services/webservice/pages/actions.py:666
+#: services/webservice/pages/actions.py:706
 #, python-brace-format
 msgid "Startup server {server}"
 msgstr "启动服务器 {server}"
 
-#: services/webservice/pages/actions.py:667
+#: services/webservice/pages/actions.py:707
 msgid ""
-"It comes back up and rejoins the rotation: with the box below ticked (the"
+"It comes back up and rejoins the rotation: with the first box ticked (the"
 " default) any maintenance is ended, so the scheduler may start it again. "
-"A server that was not in maintenance simply stays that way. This is the "
-"DCS-level bring-up, not the process-level Start in the row's menu."
+"A server that was not in maintenance simply stays that way. The other two"
+" are /server startup's own choices — whether the extensions are applied "
+"to the mission, and whether they are applied to the uploaded file or to "
+"the one the server is on. This is the DCS-level bring-up, not the "
+"process-level Start in the row's menu."
 msgstr ""
-"它会重新启动并加入轮换：勾选下方复选框（默认）会结束任何维护，从而让调度器可以再次启动它。本来就不在维护中的服务器则保持不变。这是 DCS "
+"它会重新启动并加入轮换：勾选第一个复选框（默认）会结束任何维护，从而让调度器可以再次启动它。本来就不在维护中的服务器则保持不变。另外两个是 "
+"/server startup 自己的选项 — 是否把扩展应用到任务上，以及应用到上传的文件还是服务器当前所在的文件。这是 DCS "
 "层面的启动，而不是该行菜单里进程层面的“开始”。"
 
-#: services/webservice/pages/actions.py:672
+#: services/webservice/pages/actions.py:714
 msgid "Start up server"
 msgstr "启动服务器"
 
-#: services/webservice/pages/actions.py:673
+#: services/webservice/pages/actions.py:715
 #, python-brace-format
 msgid "Start up {server} — ends maintenance so the scheduler may start it"
 msgstr "启动 {server} — 结束维护，让调度器可以启动它"
 
-#: services/webservice/pages/actions.py:675
+#: services/webservice/pages/actions.py:717
 msgid "Start"
 msgstr "开始"
 
-#: services/webservice/pages/actions.py:678
+#: services/webservice/pages/actions.py:720
 msgid "Start — start a STOPPED server"
 msgstr "开始 — 让一台“已停止”的服务器运行"
 
-#: services/webservice/pages/actions.py:679
+#: services/webservice/pages/actions.py:721
 #, python-brace-format
 msgid "Start server {server}"
 msgstr "让服务器 {server} 运行"
 
-#: services/webservice/pages/actions.py:680
+#: services/webservice/pages/actions.py:722
 msgid "start a STOPPED server — Startup is the usual one"
 msgstr "让一台“已停止”的服务器运行 — 通常用的是“启动”"
 
-#: services/webservice/pages/actions.py:682
+#: services/webservice/pages/actions.py:724
 msgid "Pause"
 msgstr "暂停"
 
-#: services/webservice/pages/actions.py:684
+#: services/webservice/pages/actions.py:726
 msgid "Pause — freeze the mission; players stay connected"
 msgstr "暂停 — 冻结任务；玩家保持连接"
 
-#: services/webservice/pages/actions.py:685
+#: services/webservice/pages/actions.py:727
 #, python-brace-format
 msgid "Pause the mission on {server}"
 msgstr "暂停 {server} 上的任务"
 
-#: services/webservice/pages/actions.py:687
+#: services/webservice/pages/actions.py:729
 msgid "Unpause"
 msgstr "继续"
 
-#: services/webservice/pages/actions.py:689
+#: services/webservice/pages/actions.py:731
 msgid "Unpause — resume the frozen mission"
 msgstr "继续 — 恢复已冻结的任务"
 
-#: services/webservice/pages/actions.py:690
+#: services/webservice/pages/actions.py:732
 #, python-brace-format
 msgid "Unpause the mission on {server}"
 msgstr "继续 {server} 上的任务"
 
-#: services/webservice/pages/actions.py:692
-#: services/webservice/pages/actions.py:1318
+#: services/webservice/pages/actions.py:734
+#: services/webservice/pages/actions.py:1384
 #: services/webservice/templates/overview.html:59
 #: services/webservice/templates/server_detail.html:710
 msgid "Restart"
 msgstr "重启"
 
-#: services/webservice/pages/actions.py:696
+#: services/webservice/pages/actions.py:738
 msgid "Restart — players currently flying lose their sortie"
 msgstr "重启 — 正在飞行的玩家会失去本轮出击"
 
-#: services/webservice/pages/actions.py:697
+#: services/webservice/pages/actions.py:739
 #, python-brace-format
 msgid "Restart server {server}"
 msgstr "重启服务器 {server}"
 
-#: services/webservice/pages/actions.py:698
+#: services/webservice/pages/actions.py:740
 msgid ""
 "<b>Players currently flying lose their sortie.</b> The mission restarts "
 "from the beginning — mid-mission progress is gone."
 msgstr "<b>正在飞行的玩家会失去本轮出击。</b>任务将从头重新开始 — 任务进行中的进度会丢失。"
 
-#: services/webservice/pages/actions.py:700
+#: services/webservice/pages/actions.py:742
 msgid ""
 "A restart stops the mission, reloads it from the start and the players "
 "reconnect to a fresh round. It cannot be undone from here."
 msgstr "重启会停止任务，从头重新载入，玩家将重新连接到新的一轮。此操作无法在此撤销。"
 
-#: services/webservice/pages/actions.py:702
+#: services/webservice/pages/actions.py:744
 msgid "Restart server"
 msgstr "重启服务器"
 
-#: services/webservice/pages/actions.py:703
+#: services/webservice/pages/actions.py:745
 #, python-brace-format
 msgid "Restart {server} — players flying lose their sortie"
 msgstr "重启 {server} — 飞行中的玩家会失去本轮出击"
 
-#: services/webservice/pages/actions.py:705
+#: services/webservice/pages/actions.py:747
 msgid "Shutdown"
 msgstr "关机"
 
-#: services/webservice/pages/actions.py:711
+#: services/webservice/pages/actions.py:753
 msgid "Set maintenance so the scheduler does not restart it"
 msgstr "设为维护状态，以免调度器重启它"
 
-#: services/webservice/pages/actions.py:713
+#: services/webservice/pages/actions.py:755
 msgid ""
 "On by default, exactly like Discord's /server shutdown: without it a "
 "scheduled start brings the server straight back."
 msgstr "默认开启，与 Discord 的 /server shutdown 完全一致：若不勾选，计划启动会立刻把服务器重新拉起。"
 
-#: services/webservice/pages/actions.py:715
+#: services/webservice/pages/actions.py:757
 msgid "Shutdown — stop the DCS server; everyone on it is disconnected"
 msgstr "关机 — 停止 DCS 服务器；上面的所有人都会被断开连接"
 
-#: services/webservice/pages/actions.py:716
+#: services/webservice/pages/actions.py:758
 #, python-brace-format
 msgid "Shutdown server {server}"
 msgstr "关闭服务器 {server}"
 
-#: services/webservice/pages/actions.py:717
+#: services/webservice/pages/actions.py:759
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected</b> and nobody can join until "
@@ -586,133 +611,133 @@ msgstr ""
 "<b>{players} 名玩家将被断开</b>，在有人重新启动服务器之前无人能加入。下方复选框默认勾选，会把服务器置为维护状态 — "
 "它保持停止服务，因此调度器不会把它重新拉起。只有在你希望关闭服务器但不想让它保持关闭时才取消勾选。"
 
-#: services/webservice/pages/actions.py:722
+#: services/webservice/pages/actions.py:764
 msgid ""
 "It stays SHUTDOWN on every page until a Startup brings it back — this is "
 "the graceful stop, not the process-level Stop in the row's menu."
 msgstr "它会在所有页面上保持“已关闭”，直到有一次“启动”把它带回来 — 这是优雅停止，而不是该行菜单里进程层面的“停止”。"
 
-#: services/webservice/pages/actions.py:725
-#: services/webservice/pages/actions.py:1333
+#: services/webservice/pages/actions.py:767
+#: services/webservice/pages/actions.py:1399
 msgid "Shut down"
 msgstr "关机"
 
-#: services/webservice/pages/actions.py:726
+#: services/webservice/pages/actions.py:768
 #, python-brace-format
 msgid "Shut down {server} — {players} players are disconnected"
 msgstr "关闭 {server} — {players} 名玩家将被断开"
 
-#: services/webservice/pages/actions.py:728
+#: services/webservice/pages/actions.py:770
 msgid "Stop"
 msgstr "停止"
 
-#: services/webservice/pages/actions.py:731
+#: services/webservice/pages/actions.py:773
 msgid "Stop — stop the server process; players are disconnected"
 msgstr "停止 — 停止服务器进程；玩家会被断开"
 
-#: services/webservice/pages/actions.py:732
+#: services/webservice/pages/actions.py:774
 #, python-brace-format
 msgid "Stop server {server}"
 msgstr "停止服务器 {server}"
 
-#: services/webservice/pages/actions.py:733
+#: services/webservice/pages/actions.py:775
 msgid "stop the server process — players are disconnected"
 msgstr "停止服务器进程 — 玩家会被断开"
 
-#: services/webservice/pages/actions.py:734
+#: services/webservice/pages/actions.py:776
 #, python-brace-format
 msgid ""
 "<b>{players} players are disconnected.</b> Stop ends the server process, "
 "and nobody can join until a Start brings it back."
 msgstr "<b>{players} 名玩家将被断开。</b>“停止”会结束服务器进程，在有一次“开始”把它带回来之前无人能加入。"
 
-#: services/webservice/pages/actions.py:736
+#: services/webservice/pages/actions.py:778
 msgid ""
 "This is the process-level pair (Stop/Start), not the DCS-level pair "
 "(Shutdown/Startup)."
 msgstr "这是进程层面的一对（停止/开始），而不是 DCS 层面的一对（关机/启动）。"
 
-#: services/webservice/pages/actions.py:738
+#: services/webservice/pages/actions.py:780
 msgid "Stop server process"
 msgstr "停止服务器进程"
 
-#: services/webservice/pages/actions.py:739
+#: services/webservice/pages/actions.py:781
 #, python-brace-format
 msgid "Stop {server} — {players} players are disconnected"
 msgstr "停止 {server} — {players} 名玩家将被断开"
 
-#: services/webservice/pages/actions.py:754
+#: services/webservice/pages/actions.py:796
 msgid "Maintenance"
 msgstr "维护"
 
-#: services/webservice/pages/actions.py:756
+#: services/webservice/pages/actions.py:798
 msgid ""
 "Maintenance — keep this server out of service; the scheduler will not "
 "start it"
 msgstr "维护 — 让此服务器保持停止服务；调度器不会启动它"
 
-#: services/webservice/pages/actions.py:757
+#: services/webservice/pages/actions.py:799
 #, python-brace-format
 msgid "Put server {server} into maintenance"
 msgstr "将服务器 {server} 置于维护状态"
 
-#: services/webservice/pages/actions.py:758
+#: services/webservice/pages/actions.py:800
 msgid "keep the server out of service — it is not stopped by this"
 msgstr "让服务器保持停止服务 — 此操作不会停止它"
 
-#: services/webservice/pages/actions.py:761
+#: services/webservice/pages/actions.py:803
 msgid "End maintenance"
 msgstr "结束维护"
 
-#: services/webservice/pages/actions.py:763
+#: services/webservice/pages/actions.py:805
 msgid "End maintenance — let the scheduler start this server again"
 msgstr "结束维护 — 让调度器可以再次启动此服务器"
 
-#: services/webservice/pages/actions.py:764
+#: services/webservice/pages/actions.py:806
 #, python-brace-format
 msgid "Take server {server} out of maintenance"
 msgstr "将服务器 {server} 移出维护状态"
 
-#: services/webservice/pages/actions.py:765
+#: services/webservice/pages/actions.py:807
 msgid "the server may be started again — nothing is started by this"
 msgstr "服务器可以再次启动了 — 此操作不会启动任何东西"
 
-#: services/webservice/pages/actions.py:779
-#: services/webservice/pages/actions.py:1184
+#: services/webservice/pages/actions.py:821
+#: services/webservice/pages/actions.py:1239
 msgid "Chat"
 msgstr ""
 
-#: services/webservice/pages/actions.py:781
-#: services/webservice/pages/actions.py:803
-#: services/webservice/pages/actions.py:1185
-#: services/webservice/pages/actions.py:1200
+#: services/webservice/pages/actions.py:823
+#: services/webservice/pages/actions.py:845
+#: services/webservice/pages/actions.py:1240
+#: services/webservice/pages/actions.py:1255
 msgid "Message"
 msgstr "消息"
 
-#: services/webservice/pages/actions.py:783
+#: services/webservice/pages/actions.py:825
 msgid "Written into the game chat of the recipients you choose below."
 msgstr ""
 
-#: services/webservice/pages/actions.py:787
-#: services/webservice/pages/actions.py:809
+#: services/webservice/pages/actions.py:829
+#: services/webservice/pages/actions.py:851
 msgid "Send to"
 msgstr ""
 
-#: services/webservice/pages/actions.py:790
+#: services/webservice/pages/actions.py:832
 msgid "Chat — a chat line in game, to the recipients you choose"
 msgstr ""
 
-#: services/webservice/pages/actions.py:791
-#: services/webservice/pages/actions.py:799
+#: services/webservice/pages/actions.py:833
+#: services/webservice/pages/actions.py:841
 #, python-brace-format
 msgid "Send a chat line on {server}"
 msgstr ""
 
-#: services/webservice/pages/actions.py:792
+#: services/webservice/pages/actions.py:834
 msgid "a chat line in game, addressed to the recipients you choose"
 msgstr ""
 
-#: services/webservice/pages/actions.py:793
+#: services/webservice/pages/actions.py:835
 #, python-brace-format
 msgid ""
 "<b>The recipients you choose below read this line.</b> It appears in "
@@ -720,42 +745,42 @@ msgid ""
 "there."
 msgstr ""
 
-#: services/webservice/pages/actions.py:796
+#: services/webservice/pages/actions.py:838
 #, python-brace-format
 msgid ""
 "The line goes into the game chat of every player on {server}, or of the "
 "one side you choose below."
 msgstr ""
 
-#: services/webservice/pages/actions.py:798
-#: services/webservice/pages/actions.py:1196
+#: services/webservice/pages/actions.py:840
+#: services/webservice/pages/actions.py:1251
 msgid "Send chat line"
 msgstr ""
 
-#: services/webservice/pages/actions.py:801
-#: services/webservice/pages/actions.py:1199
+#: services/webservice/pages/actions.py:843
+#: services/webservice/pages/actions.py:1254
 msgid "Popup"
 msgstr ""
 
-#: services/webservice/pages/actions.py:805
+#: services/webservice/pages/actions.py:847
 msgid "Arrives in a box of its own and closes by itself."
 msgstr ""
 
-#: services/webservice/pages/actions.py:812
+#: services/webservice/pages/actions.py:854
 msgid "Popup — a message box on every screen"
 msgstr ""
 
-#: services/webservice/pages/actions.py:813
-#: services/webservice/pages/actions.py:821
+#: services/webservice/pages/actions.py:855
+#: services/webservice/pages/actions.py:863
 #, python-brace-format
 msgid "Send a popup to {server}"
 msgstr ""
 
-#: services/webservice/pages/actions.py:814
+#: services/webservice/pages/actions.py:856
 msgid "a message box on every screen"
 msgstr ""
 
-#: services/webservice/pages/actions.py:815
+#: services/webservice/pages/actions.py:857
 #, python-brace-format
 msgid ""
 "<b>Every player on {server} sees this box</b> — or, with a coalition "
@@ -763,46 +788,46 @@ msgid ""
 "server's configured message timeout."
 msgstr ""
 
-#: services/webservice/pages/actions.py:818
+#: services/webservice/pages/actions.py:860
 #, python-brace-format
 msgid ""
 "The box is addressed to everyone on {server}, or to the one side you "
 "choose below."
 msgstr ""
 
-#: services/webservice/pages/actions.py:820
-#: services/webservice/pages/actions.py:1212
+#: services/webservice/pages/actions.py:862
+#: services/webservice/pages/actions.py:1267
 msgid "Send popup"
 msgstr ""
 
-#: services/webservice/pages/actions.py:847
+#: services/webservice/pages/actions.py:889
 msgid "Delete"
 msgstr "删除"
 
-#: services/webservice/pages/actions.py:851
+#: services/webservice/pages/actions.py:893
 msgid "Also delete the Saved Games directory"
 msgstr "同时删除 Saved Games 目录"
 
-#: services/webservice/pages/actions.py:853
+#: services/webservice/pages/actions.py:895
 msgid ""
 "Deletes the instance's own directory, with every mission and "
 "configuration file in it. Left OFF, the directory stays on the machine."
 msgstr "删除该实例自己的目录，包括其中的所有任务和配置文件。不勾选时，目录保留在机器上。"
 
-#: services/webservice/pages/actions.py:856
+#: services/webservice/pages/actions.py:898
 msgid "Delete — stop this server and remove it with the instance it runs in"
 msgstr "删除 — 停止该服务器并将其连同所在实例一起移除"
 
-#: services/webservice/pages/actions.py:857
+#: services/webservice/pages/actions.py:899
 #, python-brace-format
 msgid "Delete server {server}"
 msgstr "删除服务器 {server}"
 
-#: services/webservice/pages/actions.py:858
+#: services/webservice/pages/actions.py:900
 msgid "remove the server and the instance it runs in"
 msgstr "移除该服务器及其所在实例"
 
-#: services/webservice/pages/actions.py:859
+#: services/webservice/pages/actions.py:901
 #, python-brace-format
 msgid ""
 "<b>{server} is stopped and removed, together with the instance it runs "
@@ -813,7 +838,7 @@ msgstr ""
 "<b>{server} 将被停止，并连同其所在实例一起移除。</b>如果它正在运行，{players} "
 "名玩家将被断开。下方复选框默认不勾选：勾选后该实例的 Saved Games 目录也会被删除，且无法撤销。"
 
-#: services/webservice/pages/actions.py:863
+#: services/webservice/pages/actions.py:905
 msgid ""
 "Type the server's name below to confirm. The server, its instance block "
 "in nodes.yaml and its database rows go away; the Saved Games directory "
@@ -822,71 +847,71 @@ msgstr ""
 "在下方输入服务器名称以确认。服务器、其在 nodes.yaml 中的实例块及其数据库行都会被移除；除非勾选该复选框，否则 Saved Games "
 "目录会保留。"
 
-#: services/webservice/pages/actions.py:866
+#: services/webservice/pages/actions.py:908
 msgid "Delete server"
 msgstr "删除服务器"
 
-#: services/webservice/pages/actions.py:867
+#: services/webservice/pages/actions.py:909
 #, python-brace-format
 msgid "Delete {server} — it is stopped and removed with its instance"
 msgstr "删除 {server} — 它将被停止并连同实例一起移除"
 
-#: services/webservice/pages/actions.py:872
-#: services/webservice/pages/actions.py:4992
+#: services/webservice/pages/actions.py:914
+#: services/webservice/pages/actions.py:5214
 msgid "Add server"
 msgstr "添加服务器"
 
-#: services/webservice/pages/actions.py:874
+#: services/webservice/pages/actions.py:916
 msgid ""
 "Add server — give an instance that has none its server, or create a new "
 "instance"
 msgstr "添加服务器 — 为没有服务器的实例绑定服务器，或新建一个实例"
 
-#: services/webservice/pages/actions.py:876
-#: services/webservice/pages/actions.py:4984
-#: services/webservice/pages/actions.py:5012
-#: services/webservice/pages/actions.py:5013
+#: services/webservice/pages/actions.py:918
+#: services/webservice/pages/actions.py:5206
+#: services/webservice/pages/actions.py:5234
+#: services/webservice/pages/actions.py:5235
 #: services/webservice/setup/tour.py:768
 msgid "Add a server"
 msgstr "添加服务器"
 
-#: services/webservice/pages/actions.py:951
-#: services/webservice/pages/actions.py:971
+#: services/webservice/pages/actions.py:993
+#: services/webservice/pages/actions.py:1013
 #: services/webservice/templates/server_detail.html:585
 msgid "Add to the rotation"
 msgstr "加入轮换"
 
-#: services/webservice/pages/actions.py:955
+#: services/webservice/pages/actions.py:997
 msgid "Load it when the server next starts"
 msgstr "在服务器下次启动时载入它"
 
-#: services/webservice/pages/actions.py:957
+#: services/webservice/pages/actions.py:999
 msgid "Arms the rotation so this mission is the next one the server loads."
 msgstr "设定轮换，使此任务成为服务器下一个载入的任务。"
 
-#: services/webservice/pages/actions.py:961
+#: services/webservice/pages/actions.py:1003
 msgid "Load it now"
 msgstr "立即载入"
 
-#: services/webservice/pages/actions.py:963
+#: services/webservice/pages/actions.py:1005
 msgid ""
 "Loads it right away — only honoured while the server is running, paused "
 "or stopped."
 msgstr "立即载入 — 仅在服务器处于运行、暂停或停止状态时生效。"
 
-#: services/webservice/pages/actions.py:968
+#: services/webservice/pages/actions.py:1010
 msgid ""
 "This mission is already on the server: adding it changes the ROTATION "
 "LIST only. No file is copied and nothing is deleted — that is what Upload"
 " does."
 msgstr "此任务已在服务器上：加入它只会改变轮换列表。不会复制任何文件，也不会删除任何东西 — 那是“上传”做的事。"
 
-#: services/webservice/pages/actions.py:972
+#: services/webservice/pages/actions.py:1014
 #, python-brace-format
 msgid "Add the mission to {server}'s rotation list"
 msgstr "将任务加入 {server} 的轮换列表"
 
-#: services/webservice/pages/actions.py:978
+#: services/webservice/pages/actions.py:1020
 #: services/webservice/templates/_config_fields.html:109
 #: services/webservice/templates/_config_fields.html:116
 #: services/webservice/templates/_config_fields.html:148
@@ -914,17 +939,17 @@ msgstr "将任务加入 {server} 的轮换列表"
 msgid "Remove"
 msgstr "移除"
 
-#: services/webservice/pages/actions.py:982
+#: services/webservice/pages/actions.py:1024
 msgid "Also delete the mission file from disk"
 msgstr "同时从磁盘删除任务文件"
 
-#: services/webservice/pages/actions.py:984
+#: services/webservice/pages/actions.py:1026
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig. This cannot be "
 "undone."
 msgstr "删除主文件、其 .dcssb 副本和 .orig。此操作无法撤销。"
 
-#: services/webservice/pages/actions.py:989
+#: services/webservice/pages/actions.py:1031
 msgid ""
 "<b>The mission is removed from the rotation list and stops being "
 "loaded.</b> The box below is off by default: with it ticked the mission "
@@ -934,44 +959,44 @@ msgstr ""
 "<b>该任务将从轮换列表中移除，不再被载入。</b>下方复选框默认关闭：勾选后，任务文件本身 — 主文件、其 .dcssb 副本和 .orig —"
 " 会从服务器上删除，且无法撤销。"
 
-#: services/webservice/pages/actions.py:993
+#: services/webservice/pages/actions.py:1035
 msgid ""
 "Removing it from the list changes the rotation only; the file stays on "
 "the server unless you tick the box. Discord's /mission delete asks the "
 "same two questions."
 msgstr "将其从列表中移除只会改变轮换；除非你勾选该复选框，文件会保留在服务器上。Discord 的 /mission delete 会问同样的两个问题。"
 
-#: services/webservice/pages/actions.py:996
-#: services/webservice/pages/actions.py:4462
+#: services/webservice/pages/actions.py:1038
+#: services/webservice/pages/actions.py:4675
 msgid "Remove mission"
 msgstr "移除任务"
 
-#: services/webservice/pages/actions.py:997
+#: services/webservice/pages/actions.py:1039
 #, python-brace-format
 msgid "Remove the mission from {server}'s rotation list"
 msgstr "从 {server} 的轮换列表中移除该任务"
 
-#: services/webservice/pages/actions.py:999
+#: services/webservice/pages/actions.py:1041
 #: services/webservice/templates/server_detail.html:566
 msgid "Load"
 msgstr "载入"
 
-#: services/webservice/pages/actions.py:1004
+#: services/webservice/pages/actions.py:1046
 #: services/webservice/templates/server_detail.html:641
 msgid "Upload mission"
 msgstr "上传任务"
 
-#: services/webservice/pages/actions.py:1019
-#: services/webservice/pages/actions.py:1039
-#: services/webservice/pages/actions.py:4467
+#: services/webservice/pages/actions.py:1061
+#: services/webservice/pages/actions.py:1081
+#: services/webservice/pages/actions.py:4680
 msgid "Remove missions"
 msgstr "移除任务"
 
-#: services/webservice/pages/actions.py:1023
+#: services/webservice/pages/actions.py:1065
 msgid "Also delete the mission files from disk"
 msgstr "同时从磁盘删除任务文件"
 
-#: services/webservice/pages/actions.py:1025
+#: services/webservice/pages/actions.py:1067
 msgid ""
 "Removes the primary file, its .dcssb copy and the .orig of EVERY selected"
 " mission. This cannot be undone. Left OFF, the mission only leaves the "
@@ -981,7 +1006,7 @@ msgstr ""
 "删除每一个所选任务的主文件、其 .dcssb 副本和 .orig。此操作无法撤销。若保持关闭，任务只会离开轮换 — "
 "而当服务器的任务自动扫描开启时，留在磁盘上的任务文件会被重新加入列表，因此移除并非永久性的。"
 
-#: services/webservice/pages/actions.py:1033
+#: services/webservice/pages/actions.py:1075
 msgid ""
 "<b>The selected missions are removed from the rotation list and stop "
 "being loaded.</b> The box below is off by default: with it ticked the "
@@ -989,331 +1014,349 @@ msgid ""
 "undone."
 msgstr "<b>所选任务将从轮换列表中移除，不再被载入。</b>下方复选框默认关闭：勾选后，任务文件本身会从服务器上删除，且无法撤销。"
 
-#: services/webservice/pages/actions.py:1037
+#: services/webservice/pages/actions.py:1079
 msgid ""
 "The chosen missions leave the rotation list; their files stay on the "
 "server unless you tick the box."
 msgstr "所选任务会离开轮换列表；除非你勾选该复选框，它们的文件会保留在服务器上。"
 
-#: services/webservice/pages/actions.py:1040
+#: services/webservice/pages/actions.py:1082
 #, python-brace-format
 msgid "Remove the selected missions from {server}'s rotation list"
 msgstr "从 {server} 的轮换列表中移除所选任务"
 
-#: services/webservice/pages/actions.py:1044
+#: services/webservice/pages/actions.py:1086
 msgid "Move"
 msgstr "移动"
 
-#: services/webservice/pages/actions.py:1058
+#: services/webservice/pages/actions.py:1100
 #: services/webservice/templates/server_detail.html:477
 msgid "Set as start"
 msgstr "设为起始任务"
 
-#: services/webservice/pages/actions.py:1152
+#: services/webservice/pages/actions.py:1205
 msgid "Kick"
 msgstr "踢出"
 
-#: services/webservice/pages/actions.py:1154
-#: services/webservice/pages/actions.py:1170
+#: services/webservice/pages/actions.py:1207
+#: services/webservice/pages/actions.py:1224
 msgid "Reason"
 msgstr "原因"
 
-#: services/webservice/pages/actions.py:1155
+#: services/webservice/pages/actions.py:1209
 msgid "Shown to the player in game."
 msgstr "在游戏内显示给该玩家。"
 
-#: services/webservice/pages/actions.py:1157
+#: services/webservice/pages/actions.py:1211
 msgid "Kick — disconnected now; they may rejoin immediately"
 msgstr "踢出 — 立即断开连接；他们可以马上重新加入"
 
-#: services/webservice/pages/actions.py:1158
+#: services/webservice/pages/actions.py:1212
 #, python-brace-format
 msgid "Kick {player} from {server}"
 msgstr "将 {player} 从 {server} 踢出"
 
-#: services/webservice/pages/actions.py:1159
+#: services/webservice/pages/actions.py:1213
 msgid "disconnected now — a kick is not a ban"
 msgstr "立即断开连接 — 踢出不是封禁"
 
-#: services/webservice/pages/actions.py:1160
+#: services/webservice/pages/actions.py:1214
 #, python-brace-format
 msgid ""
 "<b>{player} is disconnected from {server} now.</b> They can rejoin "
 "immediately — a kick is not a ban and leaves no block behind."
 msgstr "<b>{player} 现在已被从 {server} 断开。</b>他们可以马上重新加入 — 踢出不是封禁，不会留下任何封禁记录。"
 
-#: services/webservice/pages/actions.py:1162
+#: services/webservice/pages/actions.py:1216
 msgid ""
 "A kick ends their session; it blocks nothing and expires with it. Nothing"
 " is written to the ban list, so they may be back in the air in a minute."
 msgstr "踢出会结束他们的会话；它不封禁任何东西，并随会话一同失效。不会写入封禁列表，所以他们可能一分钟后又能起飞。"
 
-#: services/webservice/pages/actions.py:1165
+#: services/webservice/pages/actions.py:1219
 msgid "Kick player"
 msgstr "踢出玩家"
 
-#: services/webservice/pages/actions.py:1166
+#: services/webservice/pages/actions.py:1220
 #, python-brace-format
 msgid "Kick {player} from {server} — they may rejoin immediately"
 msgstr "将 {player} 从 {server} 踢出 — 他们可以马上重新加入"
 
-#: services/webservice/pages/actions.py:1168
+#: services/webservice/pages/actions.py:1222
 msgid "Ban"
 msgstr "封禁"
 
-#: services/webservice/pages/actions.py:1171
+#: services/webservice/pages/actions.py:1226
 msgid "Kept on the ban list."
 msgstr "保留在封禁列表中。"
 
-#: services/webservice/pages/actions.py:1173
+#: services/webservice/pages/actions.py:1228
 msgid "Ban — removed and blocked from rejoining"
 msgstr "封禁 — 移除并阻止其重新加入"
 
-#: services/webservice/pages/actions.py:1174
+#: services/webservice/pages/actions.py:1229
 #, python-brace-format
 msgid "Ban {player} from {server}"
 msgstr "封禁 {player}，禁止其加入 {server}"
 
-#: services/webservice/pages/actions.py:1175
+#: services/webservice/pages/actions.py:1230
 msgid "removed and blocked from rejoining"
 msgstr "移除并阻止其重新加入"
 
-#: services/webservice/pages/actions.py:1176
+#: services/webservice/pages/actions.py:1231
 #, python-brace-format
 msgid ""
 "<b>{player} is removed from {server} and cannot rejoin it</b> for as long"
 " as the ban stands. Empty duration means it never expires on its own."
 msgstr "<b>{player} 将被移出 {server} 且无法重新加入</b>，只要封禁仍然有效。时长留空表示它永远不会自行过期。"
 
-#: services/webservice/pages/actions.py:1179
+#: services/webservice/pages/actions.py:1234
 msgid ""
 "The ban is written to the ban list every installation syncs, so it holds "
 "wherever they connect from — not only on this server."
 msgstr "该封禁会写入每个安装都会同步的封禁列表，因此无论他们从何处连接都有效 — 不仅限于此服务器。"
 
-#: services/webservice/pages/actions.py:1181
+#: services/webservice/pages/actions.py:1236
 msgid "Ban player"
 msgstr "封禁玩家"
 
-#: services/webservice/pages/actions.py:1182
+#: services/webservice/pages/actions.py:1237
 #, python-brace-format
 msgid "Ban {player} — empty duration is permanent"
 msgstr "封禁 {player} — 时长留空即为永久"
 
-#: services/webservice/pages/actions.py:1187
+#: services/webservice/pages/actions.py:1242
 msgid "Sent to this player's game chat — only they read it."
 msgstr ""
 
-#: services/webservice/pages/actions.py:1189
+#: services/webservice/pages/actions.py:1244
 msgid "Chat — a chat line only this player reads"
 msgstr ""
 
-#: services/webservice/pages/actions.py:1190
-#: services/webservice/pages/actions.py:1197
+#: services/webservice/pages/actions.py:1245
+#: services/webservice/pages/actions.py:1252
 #, python-brace-format
 msgid "Send a chat line to {player} on {server}"
 msgstr "向 {server} 上的 {player} 发送一条聊天消息"
 
-#: services/webservice/pages/actions.py:1191
+#: services/webservice/pages/actions.py:1246
 msgid "a chat line in game only they read"
 msgstr ""
 
-#: services/webservice/pages/actions.py:1192
+#: services/webservice/pages/actions.py:1247
 #, python-brace-format
 msgid ""
 "<b>Only {player} reads this line.</b> It is written in their own game "
 "chat under your name, as if you had typed it there."
 msgstr ""
 
-#: services/webservice/pages/actions.py:1194
+#: services/webservice/pages/actions.py:1249
 #, python-brace-format
 msgid ""
 "The line is addressed to {player} alone: it goes into their game chat and"
 " nobody else on {server} sees it."
 msgstr ""
 
-#: services/webservice/pages/actions.py:1202
+#: services/webservice/pages/actions.py:1257
 msgid "A popup — only this player sees it."
 msgstr ""
 
-#: services/webservice/pages/actions.py:1204
+#: services/webservice/pages/actions.py:1259
 msgid "Popup — a private message in game"
 msgstr "弹窗 — 游戏内的一条私密消息"
 
-#: services/webservice/pages/actions.py:1205
+#: services/webservice/pages/actions.py:1260
 #, python-brace-format
 msgid "Send a popup to {player} on {server}"
 msgstr "向 {server} 上的 {player} 发送一条弹窗"
 
-#: services/webservice/pages/actions.py:1206
+#: services/webservice/pages/actions.py:1261
 msgid "a private message only they see"
 msgstr ""
 
-#: services/webservice/pages/actions.py:1207
+#: services/webservice/pages/actions.py:1262
 #, python-brace-format
 msgid ""
 "<b>Only {player} sees this message.</b> It arrives in a box of its own "
 "and closes by itself after the server's configured message timeout."
 msgstr ""
 
-#: services/webservice/pages/actions.py:1210
+#: services/webservice/pages/actions.py:1265
 #, python-brace-format
 msgid ""
 "The popup is addressed to {player} alone. It arrives in a box of its own,"
 " not as a line in their chat."
 msgstr ""
 
-#: services/webservice/pages/actions.py:1213
+#: services/webservice/pages/actions.py:1268
 #, python-brace-format
 msgid "Send a popup to {player} on {server} — only they see it"
 msgstr ""
 
-#: services/webservice/pages/actions.py:1215
+#: services/webservice/pages/actions.py:1270
 msgid "Mute"
 msgstr "禁言"
 
-#: services/webservice/pages/actions.py:1216
+#: services/webservice/pages/actions.py:1271
 msgid "Mute — they can no longer send chat"
 msgstr "禁言 — 他们不能再发送聊天消息"
 
-#: services/webservice/pages/actions.py:1217
+#: services/webservice/pages/actions.py:1272
 #, python-brace-format
 msgid "Mute {player} on {server}"
 msgstr "在 {server} 上禁言 {player}"
 
-#: services/webservice/pages/actions.py:1218
+#: services/webservice/pages/actions.py:1273
 msgid "they can no longer send chat"
 msgstr "他们不能再发送聊天消息"
 
-#: services/webservice/pages/actions.py:1220
+#: services/webservice/pages/actions.py:1275
 msgid "Unmute"
 msgstr "解除禁言"
 
-#: services/webservice/pages/actions.py:1221
+#: services/webservice/pages/actions.py:1276
 msgid "Unmute — restore their chat"
 msgstr "解除禁言 — 恢复他们的聊天"
 
-#: services/webservice/pages/actions.py:1222
+#: services/webservice/pages/actions.py:1277
 #, python-brace-format
 msgid "Unmute {player} on {server}"
 msgstr "在 {server} 上解除 {player} 的禁言"
 
-#: services/webservice/pages/actions.py:1223
+#: services/webservice/pages/actions.py:1278
 msgid "restore their chat"
 msgstr "恢复他们的聊天"
 
-#: services/webservice/pages/actions.py:1319
+#: services/webservice/pages/actions.py:1285
+
+msgid "Screenshot"
+msgstr "截图"
+
+#: services/webservice/pages/actions.py:1287
+msgid "Screenshot — capture this player's screen"
+msgstr "截图 — 抓取该玩家的屏幕画面"
+
+#: services/webservice/pages/actions.py:1288
+#, python-brace-format
+msgid "Take a screenshot of {player} on {server}"
+msgstr "为 {server} 上的 {player} 截图"
+
+#: services/webservice/pages/actions.py:1289
+msgid "a photo of their screen, shown when it arrives"
+msgstr "他们屏幕的照片，收到后显示"
+
+#: services/webservice/pages/actions.py:1385
 #, python-brace-format
 msgid "Restart node — every server on {node} goes down while the node restarts"
 msgstr "重启节点 — 节点重启期间 {node} 上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1320
+#: services/webservice/pages/actions.py:1386
 #, python-brace-format
 msgid "Restart node {node}"
 msgstr "重启节点 {node}"
 
-#: services/webservice/pages/actions.py:1321
+#: services/webservice/pages/actions.py:1387
 msgid "every server on the node goes down"
 msgstr "节点上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1322
-#: services/webservice/pages/actions.py:1354
+#: services/webservice/pages/actions.py:1388
+#: services/webservice/pages/actions.py:1420
 #, python-brace-format
 msgid ""
 "<b>Every server on {node} goes down with it</b> — {servers} server(s) and"
 " {players} player(s) are on it right now."
 msgstr "<b>{node} 上的每台服务器都会随之下线</b> — 目前上面有 {servers} 台服务器和 {players} 名玩家。"
 
-#: services/webservice/pages/actions.py:1324
+#: services/webservice/pages/actions.py:1390
 msgid ""
 "A node restart ends the bot process on that machine; the launcher there "
 "brings the node back, and its servers do not: they stay down until "
 "somebody starts them again."
 msgstr "重启节点会结束该机器上的机器人进程；那里的启动器会把节点带回来，但它的服务器不会：它们保持下线，直到有人重新启动它们。"
 
-#: services/webservice/pages/actions.py:1327
+#: services/webservice/pages/actions.py:1393
 msgid ""
 "<b>This console runs inside that node</b> — restarting it ends the "
 "process serving this page, and this window has to be reloaded once the "
 "node is back."
 msgstr "<b>此控制台运行在该节点内</b> — 重启它会结束服务此页面的进程，节点恢复后需要重新加载此窗口。"
 
-#: services/webservice/pages/actions.py:1330
+#: services/webservice/pages/actions.py:1396
 msgid "Restart node"
 msgstr "重启节点"
 
-#: services/webservice/pages/actions.py:1331
+#: services/webservice/pages/actions.py:1397
 #, python-brace-format
 msgid "Restart {node} — every server on it goes down"
 msgstr "重启 {node} — 其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1334
+#: services/webservice/pages/actions.py:1400
 #, python-brace-format
 msgid ""
 "Shut down node — every server on {node} goes down and nothing brings it "
 "back"
 msgstr "关闭节点 — {node} 上的每台服务器都会下线，且没有任何东西能把它带回来"
 
-#: services/webservice/pages/actions.py:1335
+#: services/webservice/pages/actions.py:1401
 #, python-brace-format
 msgid "Shut down node {node}"
 msgstr "关闭节点 {node}"
 
-#: services/webservice/pages/actions.py:1336
+#: services/webservice/pages/actions.py:1402
 msgid "every server on the node goes down, for good"
 msgstr "节点上的每台服务器都会永久下线"
 
-#: services/webservice/pages/actions.py:1337
+#: services/webservice/pages/actions.py:1403
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
 "disconnected, and nothing brings the node back.</b>"
 msgstr "<b>{node} 上的 {servers} 台服务器将下线，{players} 名玩家将被断开，且没有任何东西能把节点带回来。</b>"
 
-#: services/webservice/pages/actions.py:1339
+#: services/webservice/pages/actions.py:1405
 msgid ""
 "A node shutdown ends the bot process on that machine for good: somebody "
 "has to start the node THERE, at the machine. A node that is down cannot "
 "be started from this browser, and its servers stay down with it."
 msgstr "关闭节点会永久结束该机器上的机器人进程：必须有人在那台机器那里启动节点。已下线的节点无法从此浏览器启动，它的服务器也会随之保持下线。"
 
-#: services/webservice/pages/actions.py:1343
+#: services/webservice/pages/actions.py:1409
 msgid ""
 "<b>This console runs inside that node</b> — shutting it down ends the "
 "process serving this page, and nothing brings it back until somebody "
 "starts the node on that machine."
 msgstr "<b>此控制台运行在该节点内</b> — 关闭它会结束服务此页面的进程，在有人在那台机器上启动节点之前，没有任何东西能把它带回来。"
 
-#: services/webservice/pages/actions.py:1346
+#: services/webservice/pages/actions.py:1412
 msgid "Shut down node"
 msgstr "关闭节点"
 
-#: services/webservice/pages/actions.py:1347
+#: services/webservice/pages/actions.py:1413
 #, python-brace-format
 msgid "Shut down {node} — every server on it goes down"
 msgstr "关闭 {node} — 其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1349
+#: services/webservice/pages/actions.py:1415
 msgid "Upgrade"
 msgstr "升级"
 
-#: services/webservice/pages/actions.py:1350
+#: services/webservice/pages/actions.py:1416
 #, python-brace-format
 msgid ""
 "Upgrade node — update DCSServerBot on {node} and restart it; every server"
 " on it goes down"
 msgstr "升级节点 — 更新 {node} 上的 DCSServerBot 并重启它；其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1352
+#: services/webservice/pages/actions.py:1418
 #, python-brace-format
 msgid "Upgrade node {node}"
 msgstr "升级节点 {node}"
 
-#: services/webservice/pages/actions.py:1353
+#: services/webservice/pages/actions.py:1419
 msgid "update and restart, every server goes down"
 msgstr "更新并重启，每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1356
+#: services/webservice/pages/actions.py:1422
 msgid ""
 "The node is updated and restarted. The console offers Upgrade ONLY while "
 "the node itself reports an update pending — it asks every node in the "
@@ -1323,43 +1366,43 @@ msgstr ""
 "节点会被更新并重启。只有当节点自身报告有更新待处理时，控制台才会提供“升级” — "
 "它在后台询问每个节点，从不在渲染页面时询问，一旦没有可升级的内容，此控件又会消失。"
 
-#: services/webservice/pages/actions.py:1360
+#: services/webservice/pages/actions.py:1426
 msgid ""
 "<b>This console runs inside that node</b> — upgrading it ends the process"
 " serving this page, and this window has to be reloaded once the node is "
 "back."
 msgstr "<b>此控制台运行在该节点内</b> — 升级它会结束服务此页面的进程，节点恢复后需要重新加载此窗口。"
 
-#: services/webservice/pages/actions.py:1363
+#: services/webservice/pages/actions.py:1429
 msgid "Upgrade node"
 msgstr "升级节点"
 
-#: services/webservice/pages/actions.py:1364
+#: services/webservice/pages/actions.py:1430
 #, python-brace-format
 msgid "Upgrade {node} — every server on it goes down"
 msgstr "升级 {node} — 其上的每台服务器都会下线"
 
-#: services/webservice/pages/actions.py:1379
-#: services/webservice/pages/actions.py:1403
+#: services/webservice/pages/actions.py:1445
+#: services/webservice/pages/actions.py:1469
 msgid "Take servers offline"
 msgstr "让服务器下线"
 
-#: services/webservice/pages/actions.py:1382
+#: services/webservice/pages/actions.py:1448
 msgid "Also mark them as maintenance"
 msgstr "同时将它们标记为维护"
 
-#: services/webservice/pages/actions.py:1384
+#: services/webservice/pages/actions.py:1450
 msgid ""
 "On by default: without it a scheduled start can bring the servers back "
 "while the node is \"offline\"."
 msgstr "默认开启：不勾选的话，计划启动可能会在节点“离线”期间把服务器重新拉起。"
 
-#: services/webservice/pages/actions.py:1386
+#: services/webservice/pages/actions.py:1452
 #, python-brace-format
 msgid "Take the servers on {node} offline?"
 msgstr "让 {node} 上的服务器下线？"
 
-#: services/webservice/pages/actions.py:1387
+#: services/webservice/pages/actions.py:1453
 #, python-brace-format
 msgid ""
 "Take servers offline — every server on {node} that is up is marked as "
@@ -1367,16 +1410,16 @@ msgid ""
 "services stay up"
 msgstr "让服务器下线 — {node} 上每一台正在运行的服务器都会被标记为维护并停止；其玩家会被断开，而节点的服务保持不变"
 
-#: services/webservice/pages/actions.py:1390
+#: services/webservice/pages/actions.py:1456
 #, python-brace-format
 msgid "Take the servers on {node} out of service"
 msgstr "让 {node} 上的服务器停止服务"
 
-#: services/webservice/pages/actions.py:1391
+#: services/webservice/pages/actions.py:1457
 msgid "marks the node's servers as maintenance and stops them"
 msgstr "将节点的服务器标记为维护并停止它们"
 
-#: services/webservice/pages/actions.py:1392
+#: services/webservice/pages/actions.py:1458
 #, python-brace-format
 msgid ""
 "<b>{servers} server(s) on {node} go down and {players} player(s) are "
@@ -1387,7 +1430,7 @@ msgstr ""
 "<b>{node} 上的 {servers} 台服务器将下线，{players} "
 "名玩家将被断开。</b>下方复选框默认勾选，会把这些服务器标记为维护 — 除非你想让计划启动在节点“离线”期间把它们带回来，否则请保持勾选。"
 
-#: services/webservice/pages/actions.py:1396
+#: services/webservice/pages/actions.py:1462
 msgid ""
 "Only the SERVERS on the node change. The node itself keeps running, so "
 "its services — including this console — stay up, and bringing the node "
@@ -1401,42 +1444,42 @@ msgstr ""
 "保持在线，把节点带回来是此浏览器可以完成的工作。勾选复选框后，服务器在停止前会被标记为维护，因此它们会保持停止服务，直到有人结束该状态；取消勾选则不写入任何标记"
 " — 服务器会停止，且没有任何东西阻止调度器再次启动它们。"
 
-#: services/webservice/pages/actions.py:1404
+#: services/webservice/pages/actions.py:1470
 #, python-brace-format
 msgid ""
 "Take {node} offline — {servers} server(s) go down, {players} player(s) "
 "are disconnected"
 msgstr "让 {node} 下线 — {servers} 台服务器将下线，{players} 名玩家将被断开"
 
-#: services/webservice/pages/actions.py:1412
-#: services/webservice/pages/actions.py:1430
+#: services/webservice/pages/actions.py:1478
+#: services/webservice/pages/actions.py:1496
 msgid "Bring servers online"
 msgstr "让服务器上线"
 
-#: services/webservice/pages/actions.py:1414
+#: services/webservice/pages/actions.py:1480
 #, python-brace-format
 msgid "Bring the servers on {node} back online?"
 msgstr "让 {node} 上的服务器重新上线？"
 
-#: services/webservice/pages/actions.py:1415
+#: services/webservice/pages/actions.py:1481
 msgid ""
 "Bring servers online — clear the maintenance flags this node's power-off "
 "set; the scheduler then starts the servers it stopped. A flag set by hand"
 " is left alone"
 msgstr "让服务器上线 — 清除该节点下线时设置的维护标记，并启动它停止的服务器；手动设置的标记则保持不动"
 
-#: services/webservice/pages/actions.py:1418
+#: services/webservice/pages/actions.py:1484
 #, python-brace-format
 msgid "Bring the servers on {node} back into service"
 msgstr "让 {node} 上的服务器恢复服务"
 
-#: services/webservice/pages/actions.py:1419
+#: services/webservice/pages/actions.py:1485
 msgid ""
 "ends the maintenance this node's power-off set — the scheduler starts "
 "what it stopped"
 msgstr "结束该节点下线时设置的维护，并启动它停止的服务器"
 
-#: services/webservice/pages/actions.py:1422
+#: services/webservice/pages/actions.py:1488
 msgid ""
 "This reverts EXACTLY the last power-off on this node: it clears only the "
 "maintenance flags that operation set, and the servers it stopped are left"
@@ -1450,151 +1493,151 @@ msgstr ""
 "此操作会精确地撤销该节点上一次的下线：它只清除该操作设置的维护标记，并且只启动它停止的服务器。有人手动设置的标记绝不会被清除，仍处于维护的服务器绝不会被启动。如果自那次下线以来机器人已经重启，记录就没了，此时它会启动每一台处于下线且不在维护的服务器，且不清除任何标记"
 " — 消息会说明发生的是这两种情况中的哪一种。节点的服务从未被触碰。"
 
-#: services/webservice/pages/actions.py:1431
+#: services/webservice/pages/actions.py:1497
 #, python-brace-format
 msgid ""
 "Bring {node} online — the flags its power-off set are cleared, and the "
 "scheduler starts what it stopped"
 msgstr "让 {node} 上线 — 清除其下线时设置的标记，启动它停止的服务器"
 
-#: services/webservice/pages/actions.py:1914
+#: services/webservice/pages/actions.py:1984
 #: services/webservice/pages/server_detail.py:188
 #: services/webservice/templates/server_detail.html:151
 msgid "Configuration"
 msgstr "配置"
 
-#: services/webservice/pages/actions.py:1915
+#: services/webservice/pages/actions.py:1985
 #, python-brace-format
 msgid "Configuration — open {server}'s own settings"
 msgstr "配置——打开 {server} 自身的设置"
 
-#: services/webservice/pages/actions.py:1917
+#: services/webservice/pages/actions.py:1987
 #, python-brace-format
 msgid "Open the configuration of server {server}"
 msgstr "打开服务器 {server} 的配置"
 
-#: services/webservice/pages/actions.py:2052
+#: services/webservice/pages/actions.py:2122
 #, python-brace-format
 msgid "More controls for {server}"
 msgstr "{server} 的更多控件"
 
-#: services/webservice/pages/actions.py:2392
+#: services/webservice/pages/actions.py:2462
 #, python-brace-format
 msgid "Controls for node {node}"
 msgstr "节点 {node} 的控件"
 
-#: services/webservice/pages/actions.py:2600
+#: services/webservice/pages/actions.py:2805
 #, python-brace-format
 msgid "Controls for {player} on {server}"
 msgstr "{server} 上 {player} 的控件"
 
-#: services/webservice/pages/actions.py:2734
+#: services/webservice/pages/actions.py:2939
 #, python-brace-format
 msgid "{label} {target}?"
 msgstr "{label} {target}？"
 
-#: services/webservice/pages/actions.py:2792
-#: services/webservice/pages/actions.py:2905
-#: services/webservice/pages/actions.py:3084
-#: services/webservice/pages/actions.py:4505
+#: services/webservice/pages/actions.py:2997
+#: services/webservice/pages/actions.py:3110
+#: services/webservice/pages/actions.py:3289
+#: services/webservice/pages/actions.py:4718
 msgid "confirm"
 msgstr "确认"
 
-#: services/webservice/pages/actions.py:2792
-#: services/webservice/pages/actions.py:3084
-#: services/webservice/pages/actions.py:4505
-#: services/webservice/pages/actions.py:5002
+#: services/webservice/pages/actions.py:2997
+#: services/webservice/pages/actions.py:3289
+#: services/webservice/pages/actions.py:4718
+#: services/webservice/pages/actions.py:5224
 msgid "options"
 msgstr "选项"
 
-#: services/webservice/pages/actions.py:2887
+#: services/webservice/pages/actions.py:3092
 msgid "Days (optional)"
 msgstr "天数（可选）"
 
-#: services/webservice/pages/actions.py:2888
+#: services/webservice/pages/actions.py:3094
 msgid ""
 "Empty = permanent — the ban does not expire on its own. 7 means seven "
 "days from now."
 msgstr "留空 = 永久 — 封禁不会自行过期。7 表示从此刻起七天。"
 
-#: services/webservice/pages/actions.py:3060
+#: services/webservice/pages/actions.py:3265
 #, python-brace-format
 msgid "Last update check: {when}."
 msgstr "上次更新检查：{when}。"
 
-#: services/webservice/pages/actions.py:3073
+#: services/webservice/pages/actions.py:3278
 #, python-brace-format
 msgid "{label} (node)"
 msgstr "{label}（节点）"
 
-#: services/webservice/pages/actions.py:3167
+#: services/webservice/pages/actions.py:3372
 msgid "Not authorized (this target is outside your scope)."
 msgstr "未授权（此目标不在你的范围内）。"
 
-#: services/webservice/pages/actions.py:3174
+#: services/webservice/pages/actions.py:3379
 msgid "Not authorized (no signed-in identity)."
 msgstr "未授权（没有已登录的身份）。"
 
-#: services/webservice/pages/actions.py:3175
+#: services/webservice/pages/actions.py:3380
 msgid "Not authorized (this action must be confirmed through its dialog)."
 msgstr "未授权（此操作必须通过其对话框确认）。"
 
-#: services/webservice/pages/actions.py:3179
+#: services/webservice/pages/actions.py:3384
 msgid "Not done (the typed name does not match the target)."
 msgstr "未执行（输入的名称与目标不一致）。"
 
-#: services/webservice/pages/actions.py:4426
+#: services/webservice/pages/actions.py:4639
 msgid "Mission file already on this server"
 msgstr "此服务器上已有的任务文件"
 
-#: services/webservice/pages/actions.py:4428
+#: services/webservice/pages/actions.py:4641
 msgid "Only files NOT already in the rotation are offered."
 msgstr "只提供尚未在轮换中的文件。"
 
-#: services/webservice/pages/actions.py:4433
+#: services/webservice/pages/actions.py:4646
 #, python-brace-format
 msgid "Add a mission to {server}?"
 msgstr "向 {server} 添加一个任务？"
 
-#: services/webservice/pages/actions.py:4460
-#: services/webservice/pages/actions.py:4485
+#: services/webservice/pages/actions.py:4673
+#: services/webservice/pages/actions.py:4698
 #, python-brace-format
 msgid "Remove {mission} from the rotation?"
 msgstr "从轮换中移除 {mission}？"
 
-#: services/webservice/pages/actions.py:4464
+#: services/webservice/pages/actions.py:4677
 #, python-brace-format
 msgid "Remove {count} missions from {server}?"
 msgstr "从 {server} 移除 {count} 个任务？"
 
-#: services/webservice/pages/actions.py:4466
+#: services/webservice/pages/actions.py:4679
 #, python-brace-format
 msgid "Remove {count} missions"
 msgstr "移除 {count} 个任务"
 
-#: services/webservice/pages/actions.py:4469
+#: services/webservice/pages/actions.py:4682
 #, python-brace-format
 msgid "<b>The running mission ({mission}) cannot be removed.</b>"
 msgstr "<b>正在运行的任务（{mission}）无法移除。</b>"
 
-#: services/webservice/pages/actions.py:4830
+#: services/webservice/pages/actions.py:5047
 msgid "Type the name to confirm"
 msgstr "输入名称以确认"
 
-#: services/webservice/pages/actions.py:4831
+#: services/webservice/pages/actions.py:5048
 msgid "The action is refused unless this matches the target's name exactly."
 msgstr "只有与目标名称完全一致，操作才会执行。"
 
-#: services/webservice/pages/actions.py:4900
+#: services/webservice/pages/actions.py:5122
 #, python-format
 msgid "DCS port %(port)s"
 msgstr "DCS 端口 %(port)s"
 
-#: services/webservice/pages/actions.py:4960
+#: services/webservice/pages/actions.py:5182
 msgid "Create a new instance"
 msgstr "新建实例"
 
-#: services/webservice/pages/actions.py:4963
+#: services/webservice/pages/actions.py:5185
 #: services/webservice/pages/settings.py:289
 #: services/webservice/readmodels/views.py:111
 #: services/webservice/readmodels/views.py:114
@@ -1607,46 +1650,46 @@ msgstr "新建实例"
 msgid "Node"
 msgstr "节点"
 
-#: services/webservice/pages/actions.py:4965
+#: services/webservice/pages/actions.py:5187
 msgid ""
 "Where a NEW instance is created. An instance picked below is attached on "
 "its own node."
 msgstr "新建实例所在的位置。下方选中的实例会在其自己的节点上使用。"
 
-#: services/webservice/pages/actions.py:4967
+#: services/webservice/pages/actions.py:5189
 msgid "Attach to an existing instance"
 msgstr "绑定到现有实例"
 
-#: services/webservice/pages/actions.py:4969
+#: services/webservice/pages/actions.py:5191
 msgid ""
 "Every instance that carries no server yet is offered, with the node it is"
 " on — a server is bound on that node. \"Create a new instance\" uses the "
 "node above."
 msgstr "所有还没有服务器的实例都会列出，并标出它所在的节点——服务器会在该节点上绑定。“创建新实例”使用上方选择的节点。"
 
-#: services/webservice/pages/actions.py:4972
+#: services/webservice/pages/actions.py:5194
 #: services/webservice/readmodels/serverconfig.py:220
 msgid "Server name"
 msgstr "服务器名称"
 
-#: services/webservice/pages/actions.py:4973
+#: services/webservice/pages/actions.py:5195
 msgid ""
 "The name of the new server (its key in servers.yaml) — and the Saved "
 "Games folder name of a NEW instance. A name another server already uses "
 "is refused."
 msgstr "新服务器的名称（其在 servers.yaml 中的键）——同时也是新实例的 Saved Games 文件夹名。已被其他服务器使用的名称会被拒绝。"
 
-#: services/webservice/pages/actions.py:4977
+#: services/webservice/pages/actions.py:5199
 msgid "Configure a server for the instance"
 msgstr "为该实例配置服务器"
 
-#: services/webservice/pages/actions.py:4979
+#: services/webservice/pages/actions.py:5201
 msgid ""
 "On by default, exactly like Discord's own view. Off: a NEW instance is "
 "created blank, with no server bound to it."
 msgstr "默认开启，与 Discord 中的视图一致。关闭时，新实例将以空白创建，不绑定服务器。"
 
-#: services/webservice/pages/actions.py:4987
+#: services/webservice/pages/actions.py:5209
 msgid ""
 "The instance carries the ports; a new one gets the next free ports on its"
 " node, and its Saved Games directory is created there. Nothing is "
@@ -1656,11 +1699,11 @@ msgstr ""
 "端口属于实例；新实例会获得其节点上的下一个空闲端口，并在该节点创建其 Saved Games "
 "目录。不会启动任何内容：服务器创建后，需有人启动或由计划任务启动。"
 
-#: services/webservice/pages/actions.py:4993
+#: services/webservice/pages/actions.py:5215
 msgid "Add the server — it is created, not started"
 msgstr "添加服务器 — 仅创建，不启动"
 
-#: services/webservice/pages/actions.py:4998
+#: services/webservice/pages/actions.py:5220
 msgid "a new server"
 msgstr "一台新服务器"
 
@@ -4351,7 +4394,7 @@ msgstr ""
 
 #: services/webservice/templates/_config_fields.html:153
 #: services/webservice/templates/_scope_fields.html:53
-#: services/webservice/templates/confirm.html:177
+#: services/webservice/templates/confirm.html:200
 msgid "Cancel"
 msgstr "取消"
 
@@ -4583,30 +4626,49 @@ msgstr "管理控制台"
 msgid "Sign out"
 msgstr "退出登录"
 
-#: services/webservice/templates/confirm.html:114
+#: services/webservice/templates/base.html:148
+#, python-format
+msgid "Screenshot of %(player)s on %(server)s"
+msgstr "%(server)s 上 %(player)s 的截图"
+
+#: services/webservice/templates/base.html:148
+
+msgid "screenshot"
+msgstr "截图"
+
+#: services/webservice/templates/base.html:156
+msgid "Close — go back to the page you were on (Esc)"
+msgstr "关闭 — 返回你刚才所在的页面（Esc）"
+
+#: services/webservice/templates/base.html:156
+
+msgid "Close"
+msgstr "关闭"
+
+#: services/webservice/templates/confirm.html:119
 msgid "Selected missions"
 msgstr "已选任务"
 
-#: services/webservice/templates/confirm.html:144
+#: services/webservice/templates/confirm.html:150
 #, python-format
 msgid "Confirming: %(go)s."
 msgstr "确认：%(go)s。"
 
-#: services/webservice/templates/confirm.html:159
+#: services/webservice/templates/confirm.html:165
 #, python-format
 msgid ""
 "Target: <span class=\"target\">%(target)s</span> — the action and your "
 "name are written to the bot log, and it cannot be undone from here."
 msgstr "目标：<span class=\"target\">%(target)s</span> — 该操作和你的名字会写入机器人日志，且无法在此撤销。"
 
-#: services/webservice/templates/confirm.html:161
+#: services/webservice/templates/confirm.html:167
 #, python-format
 msgid ""
 "Target: <span class=\"target\">%(target)s</span> — the action and your "
 "name are written to the bot log."
 msgstr "目标：<span class=\"target\">%(target)s</span> — 该操作和你的名字会写入机器人日志。"
 
-#: services/webservice/templates/confirm.html:177
+#: services/webservice/templates/confirm.html:200
 msgid "Cancel — go back without doing anything (Esc)"
 msgstr "取消 — 什么都不做直接返回（Esc）"
 

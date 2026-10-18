@@ -725,9 +725,16 @@ class ActionContext:
         KIND (resolved, restricted), not the transport label, so a manager is recognised whichever
         door it came through.
 
-        ``False`` for a role-holding or unscoped caller and for any transport that carries no scope at
-        all (Discord, MCP, REST). Fails closed: no scope, an unresolved scope, or a scope that raises
-        is ``False`` — a caller is never made a manager by an error.
+        ``False`` for a caller that carries no scope at all (Discord, MCP, REST) and for an unscoped
+        one (``Admin``, break-glass). Fails closed: no scope, an unresolved scope, or a scope that
+        raises is ``False`` — a caller is never made a manager by an error.
+
+        A caller that holds a cluster ROLE **and** a restricted per-server scope — a web ``DCS
+        Admin``, whose resolved scope is the cluster role's own — answers ``True`` here, because
+        that scope IS resolved and restricted. The manager deny-list therefore never keys on this
+        property alone: its reader also excludes a cluster-role holder
+        (``plugins/scheduler/actions.py``), so a ``DCS Admin`` is not deny-listed. Change this
+        together with that reader, never on its own.
         """
         scope = self._scope
         if scope is None:

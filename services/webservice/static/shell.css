@@ -107,6 +107,7 @@
   --err-wash: rgba(248, 81, 73, .22);
   --tab-active: rgba(232, 163, 61, .10);        /* .cfg-tab.on */
   --elev: rgba(0, 0, 0, .6); --elev-sm: rgba(0, 0, 0, .55);  /* .dlg / .menu drop shadows */
+  --scrim: rgba(0, 0, 0, .62);                  /* .shot-back — the one overlay that dims the page */
   --login-line: #a9711f; --login-text: #1a1204; --login-hover: #c98f34; --login-lead: #3a3320;
   --login-ring: rgba(232, 163, 61, .12);        /* .login-grid .card.lead inset ring */
   --sw-off: #26313f; --sw-on: #2c4a30; --sw-on-line: #3d6b44;  /* .st-sw tile track */
@@ -621,6 +622,15 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 
 /* ---------------------------------------------------------------- the confirm dialog */
 .dlg-back { display: grid; place-items: start center; padding: 20px 0 0; }
+/* THE SCREENSHOT MODAL: the same card, opened OVER the page the glyph was pressed on (the confirm
+ * dialog is a page of its own, this one is not), so the wrapper is fixed to the viewport and the page
+ * stays behind it. The card may be wider than a confirm dialog: a screenshot is read, not skimmed. */
+.shot-back { position: fixed; inset: 0; z-index: 40; padding: 18px; overflow: auto;
+  display: grid; place-items: center; background: var(--scrim); }
+.shot-back .dlg { width: min(760px, 100%); }
+.shot-back .dlg > .bd { padding: 10px; }
+.shot-back .dlg > .bd img { display: block; width: 100%; height: auto; border-radius: var(--radius-s);
+  border: 1px solid var(--line); background: var(--ground-2); }
 .dlg { width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line-2);
   border-radius: var(--radius); box-shadow: 0 24px 60px var(--elev); overflow: hidden; }
 .dlg > .hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
@@ -1444,6 +1454,7 @@ html[data-theme="light"] {
   --block-wash: rgba(154, 90, 5, .12); --err-wash: rgba(192, 38, 38, .18);
   --tab-active: rgba(154, 90, 5, .10);
   --elev: rgba(24, 32, 43, .18); --elev-sm: rgba(24, 32, 43, .16);
+  --scrim: rgba(24, 32, 43, .45);
   --login-line: #a9711f; --login-text: #ffffff; --login-hover: #8a5a10; --login-lead: #e3d7b4;
   --login-ring: rgba(154, 90, 5, .14);
   --sw-off: #d4dbe5; --sw-on: #bfe3c6; --sw-on-line: #7bbf8a;

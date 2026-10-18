@@ -159,8 +159,9 @@ class ScopedSource(Source):
 
     * ``servers`` — kept iff :meth:`services.webservice.scope.Scope.allows` the server's
       ``managed_by``. ``managed_by`` is an ALLOW-LIST: a server is theirs iff it NAMES one of their
-      tokens, so a server that declares none is NOT in a scoped viewer's view (only an UNSCOPED
-      viewer — ``Admin``/``DCS Admin``, break-glass — sees it);
+      tokens, so a server that declares none is NOT in a MANAGER's view — while an UNSCOPED viewer
+      (``Admin``, break-glass) sees it, and so does a ``DCS Admin``, whose cluster scope keeps the
+      untagged servers (:meth:`Scope.cluster`);
     * ``instances`` — kept iff BOUND TO A SURVIVING SERVER. An idle instance (one holding no server)
       is cluster infrastructure, not "their server", and its ports are not part of the hoster view:
       it is OMITTED for a scoped viewer;

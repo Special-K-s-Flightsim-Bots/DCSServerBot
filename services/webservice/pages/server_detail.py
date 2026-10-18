@@ -103,8 +103,8 @@ SERVER_DETAIL_CAPABILITY = servers_page.SERVERS_CAPABILITY
 #: ``roles=("Admin",)`` and a SCOPE GRANT: an Admin reads everything, and a MANAGER (an identity whose
 #: scope holds a server's ``managed_by``) may open the tab for THEIR servers — the denied rows
 #: (``core.server_config``) are OMITTED (not built), and the write action refuses a denied key. A DCS Admin
-#: gets no capability: ``allows`` needs the ``Admin`` role OR a managing scope, and its scope is
-#: unscoped.
+#: gets no capability: ``allows`` needs the ``Admin`` role OR a managing scope, and a DCS Admin's
+#: ``Scope.cluster`` is a ROLE's scope, never a managing one (``scope.manages_any_server``).
 CONFIG_CAPABILITY = "servers.config"
 CONFIG_ROLES: tuple[str, ...] = ("Admin",)
 
@@ -428,7 +428,7 @@ def capabilities() -> dict[str, str]:
     everything, and a MANAGER (an identity whose scope holds a server's ``managed_by``) may open the
     tab for THEIR servers — with the denied rows (``core.server_config``) omitted. A DCS
     Admin gets no capability: ``allows`` is satisfied by the ``Admin`` role OR by a managing scope,
-    and a DCS Admin's scope is unscoped.
+    and a DCS Admin's ``Scope.cluster`` is a ROLE's scope, never a managing one.
 
     ``missions.view`` carries the SAME read roles as the server page PLUS a scope grant, so a hoster
     sees the missions of their own servers. It also gates the mission-download route, declared here

@@ -13,10 +13,10 @@ from dataclasses import dataclass, replace
 from datetime import timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from core.action_results import ActionResult
+from core.action_results import ActionResult, PlayerScreenshotResult
 from core.actions import (AUDIT_NOT_RECORDED, ActionContext, NodeResolution, ServerResolution,
                           action_available, audit_action, bound_text, call_action,
                           in_flight_targets, read_action)
@@ -46,7 +46,9 @@ __all__ = [
     "OWNER", "WRITE_ROLES", "NODE_ROLES", "PAUSE_PATH", "UNPAUSE_PATH", "PAUSE_CAPABILITY",
     "UNPAUSE_CAPABILITY",
     "CHAT_PATH", "POPUP_PATH", "MESSAGE_CAPABILITY", "MESSAGE_FIELD_MAX", "BAN_DAYS_MIN",
-    "BAN_DAYS_MAX",
+    "BAN_DAYS_MAX", "SCREENSHOT_PATH", "SCREENSHOT_IMAGE_PATH", "SCREENSHOT_CAPABILITY",
+    "SCREENSHOT_SETTING", "screenshot_control", "screenshot_capture", "remember_screenshot",
+    "prune_screenshots", "ScreenshotCapture", "SCREENSHOT_RETENTION_SECONDS",
     "SERVER_CHAT_PATH", "SERVER_POPUP_PATH", "SERVER_MESSAGE_CAPABILITY",
     "SERVER_MESSAGE_AUDIENCE", "SERVER_MESSAGE_AUDIENCE_HELP",
     "SERVER_MAINTENANCE_CAPABILITY", "SERVER_CLEAR_MAINTENANCE_CAPABILITY",
@@ -179,6 +181,21 @@ MESSAGE_CAPABILITY = "players.message"
 BAN_DAYS_MIN = 1
 BAN_DAYS_MAX = 999
 
+#: THE PLAYER SCREENSHOT: the glyph that asks a server for a capture of one player's screen.
+SCREENSHOT_PATH = "/actions/player/screenshot"
+#: Where the TAKEN image is served from: ``{SCREENSHOT_IMAGE_PATH}/<token>.png``. The token is the
+#: only handle — minted per capture, held in memory, and gone a day later — so the URL is
+#: short-lived by construction and never names the server or the player in a path a person can edit.
+SCREENSHOT_IMAGE_PATH = "/players/screenshot"
+SCREENSHOT_CAPABILITY = "players.screenshot"
+#: The declaration's own key, so the route table can pick the screenshot's handler without matching
+#: on a path string (assembled in two places: the declaration and the route loop).
+SCREENSHOT_KEY = "screenshot"
+#: The server setting that decides whether the glyph is offered at all, in the dotted form the
+#: ``servers.yaml`` schema writes it. The SAME path ``plugins.mission.actions`` reads — one string,
+#: two readers, so a rename cannot leave the console offering a glyph the action then refuses.
+SCREENSHOT_SETTING = "advanced.server_can_screenshot"
+
 #: THE SERVER MESSAGE PAIR — the server-row twin of the pair above: ONE glyph per mode, each with
 #: its OWN dialog, both posting to the ONE ``message_server`` action. They differ from the player
 #: pair in ONE thing: the audience is a CHOICE (``SelectField``) drawn on the dialog, because a
@@ -198,7 +215,8 @@ SERVER_CLEAR_MAINTENANCE_CAPABILITY = "servers.clear_maintenance"
 #: Admin changes everything, and a MANAGER (an identity whose scope holds a server's ``managed_by``)
 #: may change every setting EXCEPT the ones the manager deny-list names (``core.server_config`` — the
 #: port today). The deny-list is applied inside the action, on top of the scope grant. A ``DCS Admin``
-#: is refused: ``allows`` needs the ``Admin`` role or a managing scope, and its scope is unscoped.
+#: is refused: ``allows`` needs the ``Admin`` role or a managing scope, and a DCS Admin's
+#: ``Scope.cluster`` is a ROLE's scope, never a managing one.
 SERVER_CONFIG_CAPABILITY = "servers.config.dcs"
 SERVER_CONFIG_PATH = "/actions/server/config"
 SERVER_CONFIG_ACTION_KEY = "config"
@@ -669,13 +687,31 @@ SERVER_ACTIONS: tuple[WriteAction, ...] = (
                     default=True,
                     help=i18n._("On by default, exactly like Discord's /server startup. An unflagged "
                                 "server simply stays unflagged.")),
+                options=(
+                    NodeOption(
+                        field="modify_mission",
+                        label=i18n._("Run extensions on the mission"),
+                        default=True,
+                        help=i18n._("On by default, as in /server startup: the server's extensions "
+                                    "are applied to the mission before it loads. Untick to launch the "
+                                    "mission exactly as its file stands.")),
+                    NodeOption(
+                        field="use_orig",
+                        label=i18n._("Apply them to the original mission file"),
+                        default=True,
+                        help=i18n._("Only matters while extensions run: on (the default) they are "
+                                    "applied to the uploaded file, off to the file the server is on "
+                                    "now.")),
+                ),
                 tip=i18n._("Startup — bring this server up from SHUTDOWN"),
                 aria=i18n._("Startup server {server}"),
-                detail=i18n._("It comes back up and rejoins the rotation: with the box below ticked "
+                detail=i18n._("It comes back up and rejoins the rotation: with the first box ticked "
                               "(the default) any maintenance is ended, so the scheduler may start it "
                               "again. A server that was not in maintenance simply stays that way. "
-                              "This is the DCS-level bring-up, not the process-level Start in the "
-                              "row's menu."),
+                              "The other two are /server startup's own choices — whether the "
+                              "extensions are applied to the mission, and whether they are applied to "
+                              "the uploaded file or to the one the server is on. This is the "
+                              "DCS-level bring-up, not the process-level Start in the row's menu."),
                 go=i18n._("Start up server"),
                 go_title=i18n._("Start up {server} — ends maintenance so the scheduler may start it")),
     WriteAction(key="start", capability="servers.start", qualname="start_server",
@@ -1132,6 +1168,12 @@ class PlayerAction:
     constants: tuple[tuple[str, str], ...] = ()
     sender: bool = False
     when_muted: bool | None = None
+    #: THE SERVER'S OWN PERMISSION, when the action needs one: a dotted ``servers.yaml`` path
+    #: (``advanced.server_can_screenshot``), read from the row's own server through the same scoped
+    #: source. False OMITS the control — an action the server cannot perform is not a control to
+    #: offer disabled. The screenshot is the only one that declares it: it is the ONE per-row SERVER
+    #: fact a player control consults, exactly as ``when_muted`` is its one per-row PLAYER fact.
+    when_server_allows: str = ""
     tip: str = ""
     aria: str = ""
     hint: str = ""
@@ -1235,6 +1277,17 @@ PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
                  tip=i18n._("Unmute — restore their chat"),
                  aria=i18n._("Unmute {player} on {server}"),
                  hint=i18n._("restore their chat")),
+    # THE SCREENSHOT: the ONE player control whose answer is not a sentence but an IMAGE, and the
+    # only one gated on the SERVER's own permission (``when_server_allows``) — a DCS server that may
+    # not screenshot cannot answer at all, so the glyph is omitted there rather than offered
+    # disabled. Its route reads the capture out of the server's own web GUI and serves it back under
+    # a short-lived token (see ``screenshot_control``).
+    PlayerAction(key="screenshot", capability=SCREENSHOT_CAPABILITY, qualname="screenshot_player",
+                 path=SCREENSHOT_PATH, label=i18n._("Screenshot"), icon="camera",
+                 when_server_allows=SCREENSHOT_SETTING,
+                 tip=i18n._("Screenshot — capture this player's screen"),
+                 aria=i18n._("Take a screenshot of {player} on {server}"),
+                 hint=i18n._("a photo of their screen, shown when it arrives")),
 )
 
 
@@ -1489,8 +1542,8 @@ def declare() -> None:
     for action in NODE_ACTIONS:
         permissions.declare_capability(action.capability, NODE_ROLES)
     # THE DCS CONFIG WRITE: ``("Admin",)`` WITH a scope grant, so a manager may reach it; a DCS Admin
-    # is still refused (its scope is unscoped). The manager deny-list (``core.server_config``) is
-    # applied inside the action, on top of this.
+    # is still refused (its Scope.cluster is a ROLE's scope, never a managing one). The manager
+    # deny-list (``core.server_config``) is applied inside the action, on top of this.
     for action in SERVER_CONFIG_ACTIONS:
         permissions.declare_capability(action.capability, NODE_ROLES, scope_grants=True)
     # THE CHANNELS WRITE: its OWN capability, Admin only, NO scope grant — a manager may not write the
@@ -1534,6 +1587,10 @@ def capabilities() -> dict[str, str]:
     capabilities_.update({action.path: action.capability for action in PLAYER_ACTIONS})
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
                           for action in PLAYER_ACTIONS if action.confirm})
+    # THE SHORT-LIVED IMAGE URL carries the SCREENSHOT's own capability: it is the glyph's answer, so
+    # whoever may ask for a capture may load it, and nobody else — a token is not a second door. The
+    # declaration is the ROUTE's pattern, because that is what the gate resolves a request against.
+    capabilities_[f"{SCREENSHOT_IMAGE_PATH}/{{token}}.png"] = SCREENSHOT_CAPABILITY
     # the node writes contribute both of their paths, exactly like the two surfaces above: opening a
     # dialog is not a lesser right than performing the action. The dialog path is declared for EVERY
     # node action — the maintenance pair's two halves both collect their option there, even though only
@@ -2529,6 +2586,142 @@ def controls_for(request: Request, table: str, origin: str, *, tab: str = "") ->
     return {}
 
 
+# ── the player screenshot's short-lived images ──────────────────────────────
+#: How long a taken screenshot stays readable, in seconds. The URL it is served under is SHORT-LIVED
+#: on purpose — the image is a moment of a player's screen, so it is not kept: a capture older than
+#: this is dropped on the next look. That sweep IS the cleanup; no job is scheduled, and there is no
+#: window in which an old capture is still reachable.
+SCREENSHOT_RETENTION_SECONDS = 24 * 3600
+
+#: How many captures may be held at once, oldest dropped first. The retention above bounds TIME; this
+#: bounds MEMORY, so a burst of captures cannot grow the console's footprint without limit.
+SCREENSHOT_MAX_CAPTURES = 64
+
+
+@dataclass
+class ScreenshotCapture:
+    """ONE taken screenshot: the bytes, who asked for it, and whether it has been shown yet.
+
+    ``actor`` is the session that pressed the glyph (``{backend}:{subject}`` — the identity's own
+    stable pair), because the photo belongs to the person who asked and must not open on somebody
+    else's page. ``delivered`` is SPENT by the page that renders it, so a reload does not re-open the
+    modal.
+    """
+    token: str
+    server: str
+    player: str
+    ucid: str
+    actor: str
+    created: float
+    image: bytes
+    delivered: bool = False
+
+
+#: token -> capture. Process-side, like the awaiting-change store below: the console serves from ONE
+#: process, and an image that had to survive a restart would be a file, not a notice.
+_SCREENSHOT_CAPTURES: dict[str, ScreenshotCapture] = {}
+_SCREENSHOT_LOCK = threading.Lock()
+
+
+def prune_screenshots(now: float | None = None) -> int:
+    """Drop every capture past :data:`SCREENSHOT_RETENTION_SECONDS` (or past the cap); return the count.
+
+    Called on every look — storing one, reading one, rendering the modal — which is why there is no
+    scheduler: the only moment the held bytes matter is when something asks for them, and a sweep
+    then is O(open captures), which is single digits.
+    """
+    moment = time.time() if now is None else now
+    gone = 0
+    with _SCREENSHOT_LOCK:
+        for token, capture in list(_SCREENSHOT_CAPTURES.items()):
+            if moment - capture.created > SCREENSHOT_RETENTION_SECONDS:
+                del _SCREENSHOT_CAPTURES[token]
+                gone += 1
+        if len(_SCREENSHOT_CAPTURES) > SCREENSHOT_MAX_CAPTURES:
+            oldest = sorted(_SCREENSHOT_CAPTURES.values(), key=lambda item: item.created)
+            for capture in oldest[:len(_SCREENSHOT_CAPTURES) - SCREENSHOT_MAX_CAPTURES]:
+                del _SCREENSHOT_CAPTURES[capture.token]
+                gone += 1
+    return gone
+
+
+def screenshot_capture(token: str) -> ScreenshotCapture | None:
+    """The capture a token names, or ``None``. Swept first, so a token past its life answers nothing."""
+    prune_screenshots()
+    with _SCREENSHOT_LOCK:
+        return _SCREENSHOT_CAPTURES.get(token)
+
+
+def remember_screenshot(server_name: str, player_name: str, ucid: str, actor: str,
+                        image: bytes) -> ScreenshotCapture:
+    """Store ONE image under a fresh token and return its record."""
+    prune_screenshots()
+    capture = ScreenshotCapture(token=secrets.token_urlsafe(24), server=server_name,
+                                player=player_name, ucid=ucid, actor=actor,
+                                created=time.time(), image=image)
+    with _SCREENSHOT_LOCK:
+        _SCREENSHOT_CAPTURES[capture.token] = capture
+    return capture
+
+
+def _actor_key(identity) -> str:
+    """The session a capture belongs to: ``{backend}:{subject}``, the identity's own stable pair.
+
+    Never the shown name: that is presentation, re-resolved per request and changeable, and two
+    people may read the same one.
+    """
+    return f"{getattr(identity, 'backend', '')}:{getattr(identity, 'subject', '')}"
+
+
+def screenshot_control(request: Request) -> dict | None:
+    """THE MODAL: the freshest capture THIS request's own session has not been shown yet, or ``None``.
+
+    Read by :func:`services.webservice.i18n.render` for EVERY page, so the answer to a press can be
+    shown wherever the glyph was rendered. It is SPENT here — the flag is set while the record is
+    read — so a reload, or the next live refresh, does not re-open it.
+    """
+    # A request this cannot identify (no session, a page rendered outside a sign-in) has no capture
+    # to show — the same fail-closed reading the rest of the console uses, and a render must never
+    # raise because the identity could not be resolved.
+    identity = readmodels.safe(lambda: _identity(request), None)
+    if identity is None:
+        return None
+    actor = _actor_key(identity)
+    prune_screenshots()
+    with _SCREENSHOT_LOCK:
+        fresh = [capture for capture in _SCREENSHOT_CAPTURES.values()
+                 if not capture.delivered and capture.actor == actor]
+        if not fresh:
+            return None
+        capture = max(fresh, key=lambda item: item.created)
+        capture.delivered = True
+    return {"token": capture.token, "player": capture.player, "server": capture.server,
+            # where the modal's own Close goes: THIS page, path and query, so closing it is the same
+            # render without the capture (it is already spent) — the dialog's "the way out is where
+            # you came from" rule, applied to a modal that opens over the page rather than as one.
+            "back": f"{request.url.path}{f'?{request.url.query}' if request.url.query else ''}",
+            "image_url": f"{SCREENSHOT_IMAGE_PATH}/{capture.token}.png"}
+
+
+def _screenshot_capable(source) -> dict[str, bool]:
+    """Which servers in the caller's view may be asked for a screenshot, keyed by server name.
+
+    Read from the SAME scoped source the rows come from — so a control is never offered for a server
+    outside the caller's view — and from the server's own ``advanced.server_can_screenshot`` setting,
+    the exact path the action and the Discord command read. A server that cannot answer is a server
+    whose glyph is OMITTED (:attr:`PlayerAction.when_server_allows`), never rendered disabled.
+    """
+    out: dict[str, bool] = {}
+    for server in getattr(source, "servers", ()) or ():
+        server_name = readmodels.text(readmodels.safe(lambda: getattr(server, "name", "")))
+        if not server_name:
+            continue
+        section, _, key = SCREENSHOT_SETTING.partition(".")
+        out[server_name] = bool(readmodels.safe(
+            lambda: (getattr(server, "settings", None) or {}).get(section, {}).get(key, False), False))
+    return out
+
+
 def _muted_state(source) -> dict[tuple[str, str], bool]:
     """The MUTE flag of every ACTIVE player in the caller's view, keyed by ``(server, ucid)``.
 
@@ -2594,6 +2787,7 @@ def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tup
     manager = permissions.manages_console(request)
     token = session.get_csrf_token(request)
     muted = _muted_state(source)
+    capable = _screenshot_capable(source)
     controls: dict[tuple[str, str], dict] = {}
     for index, view in enumerate(readmodels.players_online(source)):
         server_name = readmodels.text(view.server_name)
@@ -2605,6 +2799,7 @@ def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tup
         offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab)
                         for action in PLAYER_ACTIONS
                         if (action.when_muted is None or action.when_muted == is_muted)
+                        and (not action.when_server_allows or capable.get(server_name, False))
                         and permissions.allows(action.capability, roles, manager=manager)
                         and action_available(action.qualname))
         if offered:
@@ -3260,7 +3455,11 @@ def add_routes(router: APIRouter) -> APIRouter:
                                  dependencies=[Depends(session.csrf_protect)],
                                  name=f"action-{action.key}-confirm")
     for action in PLAYER_ACTIONS:
-        router.add_api_route(action.path, _player_handler(action), methods=["POST"],
+        # THE SCREENSHOT IS THE ONE PLAYER WRITE WHOSE ANSWER IS A FILE: its route has to keep the
+        # image, not only report a sentence, so it carries a handler of its own.
+        handler = (_screenshot_handler(action) if action.key == SCREENSHOT_KEY
+                   else _player_handler(action))
+        router.add_api_route(action.path, handler, methods=["POST"],
                              dependencies=[Depends(session.csrf_protect)],
                              name=f"action-player-{action.key}")
         if action.confirm:
@@ -3268,6 +3467,10 @@ def add_routes(router: APIRouter) -> APIRouter:
                                  methods=["POST"],
                                  dependencies=[Depends(session.csrf_protect)],
                                  name=f"action-player-{action.key}-confirm")
+    # THE SHORT-LIVED IMAGE URL the modal's own <img> loads. A GET because it changes nothing, gated
+    # by the glyph's own capability (declared in ``capabilities``): a token is not a second door.
+    router.add_api_route(f"{SCREENSHOT_IMAGE_PATH}/{{token}}.png", _screenshot_image_handler(),
+                         methods=["GET"], name="player-screenshot-image")
     for action in NODE_ACTIONS:
         router.add_api_route(action.path, _node_handler(action), methods=["POST"],
                              dependencies=[Depends(session.csrf_protect)],
@@ -4739,9 +4942,13 @@ def _handler(action: WriteAction):
         # appears to come from, read off the identity and never from the body.
         if action.sender:
             params["sender"] = _sender(identity)
-        if action.option is not None:
+        # THE CONTROL'S OWN OPTIONS — every checkbox its dialog drew, in the order it drew them, each
+        # parsed and passed under the DECLARATION's field name (``maintenance``, ``modify_mission``,
+        # ``use_orig``). Looping over :func:`dialog_options` rather than reading ``action.option`` is
+        # what keeps a control that declares SEVERAL boxes from having one of them silently dropped.
+        for option in dialog_options(action):
             try:
-                params[action.option.field] = option_value(action, form)
+                params[option.field] = option_value(option, form)
             except ValueError as ex:
                 forget_awaiting_change("server", name)   # nothing will run: no expectation to keep
                 raise HTTPException(status_code=400, detail=str(ex))
@@ -5164,8 +5371,9 @@ def _delete_server_handler(action: WriteAction):
                                      f"server '{canonical}'")
                 _refusal_notice(request, action, REFUSAL_NAME_MISMATCH)
                 raise HTTPException(status_code=400, detail=REFUSAL_NAME_MISMATCH)
+        assert action.option is not None, "the remove-server control declares its file box"
         try:
-            remove_files = option_value(action, form)
+            remove_files = option_value(action.option, form)
         except ValueError as ex:
             # A body stating an option this console never sends is not a form submission: refuse it
             # (never guess a boolean from it) and leave a row — this operation must leave a trail.
@@ -5235,17 +5443,18 @@ def _form_has(form, name: str) -> bool:
         return form.get(name) is not None
 
 
-def option_value(action: WriteAction | NodeAction, form) -> bool:
-    """The boolean ONE action's option was submitted as — the command's own flag, parsed.
+def option_value(option: NodeOption, form) -> bool:
+    """The boolean ONE checkbox was submitted as — the command's own flag, parsed.
 
     Parsed, never truthiness-tested: ``bool('0')`` is ``True`` and a form sends strings, so a
     truthiness test would read the OFF value as ON (``write-form-state-contract.md`` §8). An ABSENT
     or empty value is "the form did not state it" and falls back to the declaration's ``default`` —
     the same value the checkbox was rendered checked with — while anything outside the known
     spellings raises :class:`ValueError`, which the route turns into a 400 rather than a guess.
+
+    It takes the OPTION, not the action: a control may declare several boxes
+    (:func:`dialog_options`), and each is parsed by its own declaration and nothing else.
     """
-    option = action.option
-    assert option is not None, "option_value is only called for an action with an option"
     posted = _last_form_value(form, option.field)
     if posted == "":
         return option.default
@@ -5292,9 +5501,9 @@ def _node_handler(action: NodeAction):
                 detail=REFUSAL_CONFIRM_REQUIRED)
         ctx = _context(request, identity)
         params: dict[str, Any] = {"node_name": name}
-        if action.option is not None:
+        for option in dialog_options(action):
             try:
-                params[action.option.field] = option_value(action, form)
+                params[option.field] = option_value(option, form)
             except ValueError as ex:
                 # A body stating an option this console never sends is not a form submission: refuse
                 # it (never guess a boolean from it) and leave a row — these operations are in the
@@ -5483,6 +5692,98 @@ def _player_handler(action: PlayerAction):
         return RedirectResponse(
             origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
             status_code=303)
+
+    return handle
+
+
+def _screenshot_handler(action: PlayerAction):
+    """The route for the player SCREENSHOT — the one player write whose answer is an IMAGE.
+
+    Everything up to the action is :func:`_player_handler`'s own discipline: the identity, the scoped
+    resolution, the seam's typed refusals. The difference comes after it — the action answers with the
+    KEY of a file the GAME SERVER wrote, so this route reads that file out of the server's own web GUI
+    and keeps it under a short-lived token, which the page it lands on renders as a modal
+    (:func:`screenshot_control`). The bytes are read HERE rather than in the action because the file is
+    served by DCS itself, on the loopback address the bot already knows.
+
+    A capture that was taken but cannot be read back is reported as a FAILURE: "taken" with no image
+    would be a success whose answer never arrives.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if resolution.is_found:
+            player_name = ucid
+            result = await call_action(action.qualname, ctx, server_name=name, ucid=ucid)
+            player_name = readmodels.text(getattr(result, "player_name", "")) or player_name
+            key = readmodels.text(getattr(result, "screenshot", ""))
+            if bool(getattr(result, "success", False)) and key:
+                image = await _read_screenshot(resolution.server, key)
+                if image is None:
+                    result = PlayerScreenshotResult(
+                        success=False,
+                        message=(f"The screenshot of {player_name} on server '{name}' was taken but "
+                                 f"could not be read back."),
+                        player_name=player_name, ucid=ucid)
+                else:
+                    remember_screenshot(name, player_name, ucid, _actor_key(identity), image)
+        else:
+            # The request WAS authorized; the name genuinely does not exist. The honest answer is the
+            # seam's typed refusal, rendered inline — never a 404 and never a silent success.
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+async def _read_screenshot(server, key: str) -> bytes | None:
+    """The PNG the game server wrote, read from ITS OWN web GUI — or ``None``.
+
+    The file is served by the DCS server's web GUI on the loopback address the bot already knows
+    (``server.instance.webgui_port``, exactly as the Discord command reads it), so this is one HTTP
+    read through the node's own file accessor. Every failure answers the same ``None``: the caller
+    turns it into a typed refusal rather than a success with no image.
+    """
+    port = int(readmodels.safe(
+        lambda: getattr(getattr(server, "instance", None), "webgui_port", 0), 0) or 0)
+    if not port:
+        return None
+    try:
+        data = await server.node.read_file(f"http://127.0.0.1:{port}{key}")
+    except Exception:  # noqa: BLE001 - any failure here has the same answer: no image
+        log.exception("the screenshot %s could not be read from server '%s'",
+                      key, getattr(server, "name", "?"))
+        return None
+    return bytes(data) if data else None
+
+
+def _screenshot_image_handler():
+    """The SHORT-LIVED URL: the PNG a token names, or a 404.
+
+    It changes nothing, so it is a GET, and its capability is the glyph's own
+    (:data:`SCREENSHOT_CAPABILITY`) — a token is not a second door. A token past its life and one that
+    never existed answer the SAME way, so a probe learns nothing about what is held.
+    """
+    async def handle(token: str) -> Response:
+        capture = screenshot_capture(token)
+        if capture is None:
+            raise HTTPException(status_code=404, detail="No such screenshot.")
+        return Response(content=capture.image, media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
 
     return handle
 

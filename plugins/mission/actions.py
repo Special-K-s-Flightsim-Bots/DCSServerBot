@@ -27,6 +27,7 @@ from core.action_results import (
     MissionLoadResult,
     MissionUploadResult,
     PlayerActionResult,
+    PlayerScreenshotResult,
     ServerControlResult,
 )
 
@@ -190,14 +191,18 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
     """Start up a SHUTDOWN DCS server (the DCS-level Startup; process-level Start is another action).
 
     ``modify_mission`` / ``use_orig`` mirror the arguments ``Server.startup`` takes and the Discord
-    command passes (``plugins/scheduler/commands.py``).
+    command passes (``plugins/scheduler/commands.py``), and both are REPRODUCED here: the values reach
+    ``Server.startup`` unchanged, so a startup from the console runs the extensions exactly as
+    ``/server startup`` does. The console's Startup dialog declares the two as its own checkboxes
+    (``services/webservice/pages/actions.py``), so the operator makes the choice rather than the
+    route deciding it.
 
     ``maintenance`` mirrors ``/server startup``'s own default: a TRUE value
     CLEARS the maintenance flag on a successful start, so the server rejoins the rotation — a server
     that stays flagged after an explicit startup would be skipped by the scheduler while looking up.
     Pass ``False`` to leave the flag exactly as it is. A flag that could not be cleared is reported
-    in the message instead of being claimed. The ``delay`` warning popups and the extension runs of
-    that command are still NOT reproduced here — see the W-R3 marker above.
+    in the message instead of being claimed. The ``delay`` warning popups of that command are still
+    NOT reproduced here — see the W-R3 marker above.
     """
     server = ctx.resolve_server(server_name)
     if server is None:
@@ -765,6 +770,100 @@ async def message_player(ctx: Any, server_name: str, ucid: str, message: str, mo
         log.exception("message_player failed")
         result = PlayerActionResult(success=False, message=f"Failed to send the message: {ex}",
                                     player_name=name, ucid=ucid)
+    return await _audited(ctx, result, server)
+
+
+#: How long the console waits for the screenshot it asked the server to take, in seconds — the
+#: numbers the Discord command uses. DCS writes the capture itself, so the file appears a moment
+#: after the request; a node flagged ``slow_system`` is given three times the wait.
+SCREENSHOT_TIMEOUT = 10
+SCREENSHOT_TIMEOUT_SLOW = 30
+
+#: How often the wait above looks for the new file, in seconds. One constant, because the cadence is
+#: part of the behaviour (a capture appears within a second or two, and polling faster than DCS writes
+#: only burns calls on the node).
+SCREENSHOT_POLL_SECONDS = 1
+
+#: The settings path that decides whether a server may be asked for a screenshot at all
+#: (``servers.yaml``: ``advanced.server_can_screenshot``). The server-side capture is a DCS feature
+#: of its own, so a server without it cannot answer — a refusal, not a failure.
+SCREENSHOT_SETTING = "advanced.server_can_screenshot"
+
+
+@action
+async def screenshot_player(ctx: Any, server_name: str, ucid: str) -> PlayerScreenshotResult:
+    """Take a screenshot of ONE player's screen, on a RUNNING server that allows it.
+
+    Mirrors the Discord command that does the same thing (``plugins/mission/commands.py``): the same
+    ``Player.makeScreenshot`` call, the same "wait for a NEW file to appear" loop and the same
+    ``SCREENSHOT_SETTING`` gate — with the console's TYPED refusals instead of a followup message.
+
+    WHICH FILE IS NEW is decided by comparing the server's screenshot list before and after the
+    request, never by taking the newest name: the server's list is written by DCS on its own
+    schedule, so a name alone cannot tell a fresh capture from one that was already there.
+
+    The KEY (not the image) comes back in the result — see
+    :class:`~core.action_results.PlayerScreenshotResult`. Reading the bytes is the transport's own
+    step, because the file is served by the SERVER's web GUI, not by this action's process.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return await _audited(ctx, PlayerScreenshotResult(
+            success=False, message=f"Server '{server_name}' not found.", ucid=ucid))
+
+    label = _server_label(server, server_name)
+    if server.status != Status.RUNNING:
+        return await _audited(ctx, PlayerScreenshotResult(
+            success=False,
+            message=f"Server '{label}' is {server.status.value}, not running — a screenshot needs "
+                    f"the mission up.",
+            ucid=ucid), server)
+
+    if not server.settings.get('advanced', {}).get('server_can_screenshot', False):
+        return await _audited(ctx, PlayerScreenshotResult(
+            success=False,
+            message=f"Server '{label}' can not take screenshots (advanced.server_can_screenshot).",
+            ucid=ucid), server)
+
+    player = server.get_player(ucid=ucid, active=True)
+    if player is None:
+        return await _audited(ctx, PlayerScreenshotResult(
+            success=False, message=f"Player not found on server '{label}'.", ucid=ucid), server)
+
+    name = _player_label(player, ucid)
+    try:
+        before = await player.getScreenshots()
+        await player.makeScreenshot()
+        wait = (SCREENSHOT_TIMEOUT_SLOW if server.node.locals.get('slow_system', False)
+                else SCREENSHOT_TIMEOUT)
+        after: list[str] = []
+        for _ in range(wait):
+            await asyncio.sleep(SCREENSHOT_POLL_SECONDS)
+            after = await player.getScreenshots()
+            if len(after) > len(before):
+                break
+        if len(after) <= len(before):
+            result = PlayerScreenshotResult(
+                success=False,
+                message=f"Timeout while waiting for the screenshot of {name} on server '{label}'.",
+                player_name=name, ucid=ucid)
+        else:
+            key = after[-1]
+            # DCS 2.9.11+ answers with the file's name only; older servers answer with a path.
+            if 'screenshots' not in key:
+                key = '/screenshots/' + key
+            result = PlayerScreenshotResult(
+                success=True, message=f"Screenshot of {name} on server '{label}' taken.",
+                player_name=name, ucid=ucid, screenshot=key)
+    except (TimeoutError, asyncio.TimeoutError):
+        result = PlayerScreenshotResult(
+            success=False,
+            message=f"Timeout while taking the screenshot of {name} on server '{label}'.",
+            player_name=name, ucid=ucid)
+    except Exception as ex:
+        log.exception("screenshot_player failed")
+        result = PlayerScreenshotResult(success=False, message=f"Failed to take the screenshot: {ex}",
+                                        player_name=name, ucid=ucid)
     return await _audited(ctx, result, server)
 
 

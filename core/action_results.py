@@ -112,6 +112,19 @@ class PlayerActionResult(ActionResult):
 
 
 @dataclass
+class PlayerScreenshotResult(PlayerActionResult):
+    """Result for a player screenshot capture.
+
+    ``screenshot`` is the KEY the server wrote the image under, relative to its own web GUI root
+    (``/screenshots/<name>.png``, or the bare name before DCS 2.9.11) — never the image itself: the
+    bytes belong to whichever transport wants them, so a caller that needs them reads that key
+    through its own node access. A refusal (the server may not screenshot, the player is gone, the
+    capture never appeared) leaves it empty and carries its typed reason in ``message``.
+    """
+    screenshot: str = ""
+
+
+@dataclass
 class NodeControlResult(ActionResult):
     """Result for node lifecycle operations (restart / shutdown / upgrade).
 

@@ -441,6 +441,11 @@ def render(request, name: str, **context) -> str:
     Every page that renders the shell goes through here, which is what makes the sidebar and the
     brand follow the chosen language without each page knowing how. A caller may pass its own
     ``language`` (respecting it), otherwise the control is built from the request.
+
+    The SCREENSHOT MODAL rides the same choke point, for the same reason: a capture belongs to the
+    session that asked for it and must open on whichever page the glyph was pressed on. The import is
+    LAZY — ``pages.actions`` imports this module for its ``_`` markers, so a top-level import back
+    would be a cycle. Both modules are loaded by the time a request runs.
     """
     context.setdefault("language", language_control(request))
     # the theme switch rides the same choke point: every page that renders the shell goes through
@@ -449,6 +454,8 @@ def render(request, name: str, **context) -> str:
     # a top-level import back would be a cycle. Both modules are loaded by the time a request runs.
     from . import theme as theme_module
     context.setdefault("theme", theme_module.theme_control(request))
+    from .pages import actions as actions_module
+    context.setdefault("screenshot", actions_module.screenshot_control(request))
     return environment_for(request).get_template(name).render(**context)
 
 

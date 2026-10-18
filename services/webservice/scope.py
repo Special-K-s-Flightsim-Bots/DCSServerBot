@@ -7,16 +7,19 @@ other servers."*
 
 THE RULE:
 
-* ``Admin`` and ``DCS Admin`` (:data:`CLUSTER_ROLES`) are UNSCOPED — they see and act on every
-  server, tagged or not;
+* ``Admin`` (:data:`ADMIN_ROLE`) is UNSCOPED — it sees and acts on every server, tagged or not;
+* ``DCS Admin`` — the other CLUSTER role — HONOURS ``managed_by``: it sees the servers that name one
+  of its Discord role ids/names PLUS every server that declares none. This is Discord's own rule
+  (:func:`core.utils.discord.holds_scope`, empty ``managed_by`` = no restriction), so the website
+  matches the bot;
 * for every OTHER viewer (a manager), a server is theirs iff it NAMES one of their tokens in
   ``managed_by``. A server that declares NO ``managed_by`` is NOT theirs — invisible and not
   actionable. ``managed_by`` is an ALLOW-LIST: fail closed.
 
-NOTE the asymmetry with ``core.utils.discord.holds_scope``, where an empty ``managed_by`` means
-"no restriction": that default suits the bot's own Discord commands, whose caller already passed a
-role check, and is wrong for a manager's console view — so :meth:`Scope.allows` applies the
-allow-list rule itself instead of deferring to ``holds_scope``.
+The manager and the ``DCS Admin`` differ in exactly ONE place: the UNTAGGED server, which the
+manager fails closed on and the cluster role keeps. That is the ``cluster_default`` flag on the
+scope shape — the comparison itself stays :func:`core.utils.discord.holds_scope`, called from
+:meth:`Scope.allows`, so there is no second spelling of the rule.
 
 The comparison is made against the caller's **Discord** role ids and names — the same pair
 :func:`core.utils.discord.check_roles` builds — because ``managed_by`` entries are free text
@@ -37,11 +40,14 @@ one direction: ``core`` owns it; the web consumes it.
 
 ONE VALUE PER REQUEST. A token set alone cannot say "Admin: unscoped" or "we could not resolve this
 identity": both would be an empty set, and the second must DENY while the first must ALLOW
-everything. :class:`Scope` is therefore three states, and it is the single value a page, the live
+everything. :class:`Scope` is therefore four states, and it is the single value a page, the live
 stream or a read model consumes:
 
-* :meth:`Scope.everything` — unscoped (any ``Admin`` / ``DCS Admin`` cluster role, break-glass, a
-  local account that declares no scope AND holds a cluster role);
+* :meth:`Scope.everything` — unscoped: ``Admin``, break-glass, or a local account that declares no
+  scope and holds ``Admin``;
+* :meth:`Scope.cluster` — a CLUSTER role's scope derived from a member's Discord roles
+  (``DCS Admin``): ``managed_by`` narrows it, and an UNTAGGED server survives
+  (``cluster_default``);
 * :meth:`Scope.restricted` — the resolved tokens; a server is visible iff it NAMES one of them in
   ``managed_by`` (a server that declares none is NOT theirs — :meth:`Scope.allows`);
 * :meth:`Scope.unresolved` — FAIL CLOSED: nothing is visible, not everything (bot restarting, no
@@ -83,8 +89,9 @@ __all__ = [
 #: exists — this is the name, not a second rule).
 ADMIN_ROLE = "Admin"
 
-#: The CLUSTER roles — ``Admin`` and ``DCS Admin`` — the viewers who are UNSCOPED: they see and act
-#: on every server, whatever it declares in ``managed_by``. This is the ONE definition of "a cluster
+#: The CLUSTER roles — ``Admin`` and ``DCS Admin`` — the two privileged viewers. ``Admin`` is fully
+#: UNSCOPED (it sees every server, tagged or not); ``DCS Admin`` still HONOURS ``managed_by`` and
+#: keeps the untagged servers (see :meth:`Scope.cluster`). This is the ONE definition of "a cluster
 #: viewer"; the pages (``pages/lists.CLUSTER_ROLES``), the scope resolution and the local backend's
 #: fallback all read it, so the role model and the scope rule cannot drift apart.
 CLUSTER_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
@@ -122,11 +129,15 @@ def manages_any_server(scope: "Scope", servers: Iterable[Any] | None = ()) -> bo
       (``Admin``, break-glass, a local account that declares nothing). It is never a second way in:
       a roleless local account declares no scope and is exactly the account that must NOT reach
       the console;
+    * a :meth:`Scope.cluster` scope — the ``DCS Admin`` cluster role's own scope. It is what a ROLE
+      granted (the same reason ``Scope.everything`` is excluded), it is never a second way in: a
+      ``DCS Admin`` reaches the console through the role, and every capability that role does not
+      carry must stay out of reach even though the scope now holds some servers;
     * a server that declares NO ``managed_by`` — NOT visible to any scoped viewer (the allow-list
       rule in :meth:`Scope.allows`), so it can neither be what makes somebody a manager nor what a
       manager manages;
     """
-    if not scope.resolved or scope.unrestricted:
+    if not scope.resolved or scope.unrestricted or scope.cluster_default:
         return False
     if scope.declared:
         return True
@@ -174,16 +185,24 @@ class Scope:
     #: itself, while a Discord member's token set is every role they hold and only becomes a licence
     #: by matching a server's ``managed_by``.
     declared: bool = False
+    #: True for a CLUSTER ROLE's scope derived from a member's Discord roles (``DCS Admin``): the
+    #: untagged server survives it (see :meth:`allows`) instead of failing closed the way a manager's
+    #: scope does. Also excludes the scope from :func:`manages_any_server` — the role, not the scope,
+    #: is what admitted this identity.
+    cluster_default: bool = False
 
     def allows(self, managed_by) -> bool:
         """Whether a server declaring *managed_by* is inside this scope.
 
-        The allow-list rule for a RESTRICTED scope: a server is theirs iff it NAMES one of their
-        tokens in ``managed_by``. A server that declares NO ``managed_by`` is NOT theirs — invisible
-        and not actionable — because ``managed_by`` is a manager's ALLOW-LIST, not a default-allow.
+        The allow-list rule for a RESTRICTED manager scope: a server is theirs iff it NAMES one of
+        their tokens in ``managed_by``. A server that declares NO ``managed_by`` is NOT theirs —
+        invisible and not actionable — because ``managed_by`` is a manager's ALLOW-LIST, not a
+        default-allow. A CLUSTER role (:meth:`cluster`) is the one restricted shape that keeps an
+        untagged server: ``cluster_default`` states that, and the comparison is still
+        :func:`core.utils.discord.holds_scope`.
 
-        An ``unrestricted`` scope (``Admin`` / ``DCS Admin``, break-glass, a local account that
-        declares nothing) still allows everything; an ``unresolved`` scope allows nothing (fail
+        An ``unrestricted`` scope (``Admin``, break-glass, a local account that declares nothing and
+        holds ``Admin``) still allows everything; an ``unresolved`` scope allows nothing (fail
         closed).
         """
         if not self.resolved:
@@ -192,13 +211,25 @@ class Scope:
             return True
         declared = tuple(managed_by or ())
         if not declared:
-            return False            # no allow-list entry -> not this manager's server
+            # An untagged server: not a MANAGER's (the allow-list fails closed), but a CLUSTER role
+            # keeps it — that is the one difference between the two restricted shapes.
+            return self.cluster_default
         return holds_scope(declared, self.tokens)
 
     @classmethod
     def everything(cls) -> "Scope":
         """Unscoped: an ``Admin``, break-glass, or a local account with no declared scope."""
         return cls(unrestricted=True)
+
+    @classmethod
+    def cluster(cls, tokens: Iterable[Any]) -> "Scope":
+        """A CLUSTER role's (``DCS Admin``) scope derived from a member's Discord roles.
+
+        ``managed_by`` narrows it — a server naming a role the member does not hold is out — and a
+        server that declares NO ``managed_by`` stays in (``cluster_default``). This is Discord's own
+        rule (``core.utils.discord.holds_scope``), so the website matches the bot.
+        """
+        return cls(unrestricted=False, tokens=frozenset(tokens), cluster_default=True)
 
     @classmethod
     def restricted(cls, tokens: Iterable[Any], *, declared: bool = False) -> "Scope":
