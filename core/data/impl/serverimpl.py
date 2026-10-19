@@ -1190,22 +1190,25 @@ class ServerImpl(Server):
                 shutil.copy2(orig_filename, new_filename)
             elif new_filename != filename:
                 shutil.copy2(filename, new_filename)
-            try:
-                # process all mission modifications
-                dirty = False
-                for ext in self.extensions.values():
-                    if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
+            # the mission is locked (running) and the .orig went into a copy beside it: that copy is the version
+            # to load, even if no extension changes it
+            fresh = use_orig and new_filename != filename
+            # process all mission modifications
+            dirty = False
+            for ext in self.extensions.values():
+                if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
+                    try:
                         new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
-                        if _dirty:
-                            self.log.info(f'  => {ext.name} applied on {new_filename}.')
-                        dirty |= _dirty
+                    except Exception as ex:
+                        # a failing extension (RealWeather without a METAR) must not throw away the others, nor
+                        # the fresh copy of the .orig: loading the locked file would silently load the old version
+                        self.log.exception(ex)
+                        continue
+                    if _dirty:
+                        self.log.info(f'  => {ext.name} applied on {new_filename}.')
+                    dirty |= _dirty
 
-                return filename if not dirty else new_filename
-            except Exception as ex:
-                self.log.exception(ex)
-                if filename != new_filename and os.path.exists(new_filename):
-                    os.remove(new_filename)
-                return filename
+            return new_filename if dirty or fresh else filename
         finally:
             # enable autoscan
             if self.locals.get('autoscan', False):
