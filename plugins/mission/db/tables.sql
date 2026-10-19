@@ -36,26 +36,31 @@ END;
 $$ LANGUAGE plpgsql;
 CREATE TRIGGER tgr_player_update AFTER UPDATE OF discord_id, name, manual ON players FOR EACH ROW EXECUTE PROCEDURE player_hist_change();
 CREATE TABLE IF NOT EXISTS bans (
-    ucid TEXT PRIMARY KEY,
+    ucid TEXT NOT NULL,
     banned_by TEXT NOT NULL,
     reason TEXT,
     banned_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
-    banned_until TIMESTAMP NOT NULL DEFAULT TO_DATE('99991231','YYYYMMDD')
+    banned_until TIMESTAMP NOT NULL DEFAULT TO_DATE('99991231','YYYYMMDD'),
+    server_name TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS bans_ucid_server_uidx ON bans (ucid, COALESCE(server_name, ''));
 CREATE TABLE IF NOT EXISTS bans_hist (
     ucid TEXT NOT NULL,
     banned_by TEXT NOT NULL,
     reason TEXT,
     banned_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     banned_until TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
-    auto_unban BOOLEAN DEFAULT FALSE, PRIMARY KEY(ucid, banned_at)
+    auto_unban BOOLEAN DEFAULT FALSE,
+    server_name TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS bans_hist_ucid_banned_at_server_uidx
+    ON bans_hist (ucid, banned_at, COALESCE(server_name, ''));
 CREATE OR REPLACE FUNCTION bans_hist_change()
 RETURNS trigger
 AS $$
 BEGIN
-    INSERT INTO bans_hist(ucid, banned_by, reason, banned_at, banned_until, auto_unban)
-    SELECT OLD.ucid, OLD.banned_by, OLD.reason, OLD.banned_at, (NOW() AT TIME ZONE 'utc'), (OLD.banned_until < (now() AT TIME ZONE 'utc'))
+    INSERT INTO bans_hist(ucid, banned_by, reason, banned_at, banned_until, auto_unban, server_name)
+    SELECT OLD.ucid, OLD.banned_by, OLD.reason, OLD.banned_at, (NOW() AT TIME ZONE 'utc'), (OLD.banned_until < (now() AT TIME ZONE 'utc')), OLD.server_name
 	ON CONFLICT DO NOTHING;
     RETURN NEW;
 END;

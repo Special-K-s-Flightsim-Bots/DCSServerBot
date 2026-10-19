@@ -554,3 +554,9 @@ msgstr "Вы хотите применить расширения перед з�
 
 msgid "Timeout while trying to load the mission."
 msgstr "Истекло время попытки загрузки миссии."
+
+msgid "User {} unbanned on {}."
+msgstr "Игрок {} разбанен на {}."
+
+msgid "User {} was not banned on {}."
+msgstr "Игрок {} не был забанен на {}."

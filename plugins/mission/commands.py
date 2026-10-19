@@ -40,6 +40,22 @@ from ruamel.yaml.error import MarkedYAMLError
 
 _ = get_translation(__name__.split('.')[1])
 
+
+def _ban_targets(server: Server | None, servers: dict) -> list[str | None]:
+    """The ``server_name`` rows a ban raised on *server* covers.
+
+    Every server whose ``managed_by`` names one of *server*'s own, or a single bot-wide row
+    (``None``) when *server* is unknown or declares no ``managed_by``.
+    """
+    if server is None:
+        return [None]
+    managed_by = server.locals.get('managed_by') or []
+    if not managed_by:
+        return [None]
+    return [name for name, srv in servers.items()
+            if (srv.locals.get('managed_by') or [])
+            and not set(srv.locals['managed_by']).isdisjoint(managed_by)] or [None]
+
 SHEET_TITLES = {
     "aircraft": "Aircraft",
     "weapon": "Weapons",
@@ -238,24 +254,26 @@ class Mission(Plugin[MissionEventListener]):
     async def update_ucid(self, conn: psycopg.AsyncConnection, old_ucid: str, new_ucid: str) -> None:
         # check if the new ucid was banned already
         cursor = await conn.execute("""
-            SELECT banned_by, reason, banned_at, banned_until 
+            SELECT banned_by, reason, banned_at, banned_until, server_name 
             FROM bans WHERE ucid = %s
             AND banned_until > (NOW() AT TIME ZONE 'UTC')
         """,(new_ucid, ))
-        if cursor.rowcount == 1:
-            row = await cursor.fetchone()
-            # if yes, create a ban for the old ucid also
-            await conn.execute("""
-                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (ucid) DO NOTHING
-            """, (old_ucid, row[0], row[1], row[2], row[3]))
+        rows = await cursor.fetchall()
+        if rows:
+            # if yes, create the same bans for the old ucid also, one row per server scope
+            for row in rows:
+                await conn.execute("""
+                    INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until, server_name)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (ucid, COALESCE(server_name, '')) DO NOTHING
+                """, (old_ucid, *row))
         else:
-            # otherwise create a new ban if the old ucid was banned already
+            # otherwise create new bans if the old ucid was banned already
             await conn.execute(f"""
-                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until) 
-                SELECT %(new_ucid)s, banned_by, reason, banned_at, banned_until FROM bans WHERE ucid = %(old_ucid)s
-                ON CONFLICT (ucid) DO NOTHING
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until, server_name) 
+                SELECT %(new_ucid)s, banned_by, reason, banned_at, banned_until, server_name 
+                FROM bans WHERE ucid = %(old_ucid)s
+                ON CONFLICT (ucid, COALESCE(server_name, '')) DO NOTHING
             """, {"new_ucid": new_ucid, "old_ucid": old_ucid})
 
     # New command group "/mission"
@@ -2441,23 +2459,30 @@ class Mission(Plugin[MissionEventListener]):
     async def check_for_unban(self):
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
-                SELECT ucid FROM bans 
+                SELECT ucid, server_name FROM bans 
                 WHERE banned_by <> 'cloud'
                 AND banned_until < (NOW() AT TIME ZONE 'utc')
             """)
             rows = await cursor.fetchall()
-            for row in rows:
-                for server in self.bot.servers.values():
-                    player = server.get_player(ucid=row[0])
+            for ucid, server_name in rows:
+                # a scoped row releases its own server only; a bot-wide row releases every server
+                if server_name:
+                    servers = [self.bot.servers[server_name]] if server_name in self.bot.servers else []
+                else:
+                    servers = list(self.bot.servers.values())
+                for server in servers:
+                    player = server.get_player(ucid=ucid)
                     if player:
                         player.banned = False
                     if server.status in [Status.PAUSED, Status.RUNNING, Status.STOPPED]:
                         await server.send_to_dcs({
                             "command": "unban",
-                            "ucid": row[0]
+                            "ucid": ucid
                         })
-                # delete unbanned accounts from the database
-                await conn.execute("DELETE FROM bans WHERE ucid = %s", (row[0], ))
+                # delete only the expired row, with the same predicate the SELECT used
+                await conn.execute(
+                    "DELETE FROM bans WHERE ucid = %s AND banned_until < (NOW() AT TIME ZONE 'utc') "
+                    "AND server_name IS NOT DISTINCT FROM %s", (ucid, server_name))
 
     @check_for_unban.before_loop
     async def before_check_unban(self):
@@ -2886,25 +2911,30 @@ class Mission(Plugin[MissionEventListener]):
         elif custom_id.startswith('ban_profanity_') or custom_id.startswith('ban_evade_'):
             config = self.get_config()
             if custom_id.startswith('ban_profanity_'):
-                ucid = custom_id[len('ban_profanity_'):]
-                await self.bus.ban(
-                    ucid, interaction.user.display_name,
-                    config.get('messages', {}).get('ban_username',
-                                                   'Inappropriate username, please contact an admin.')
-                )
-            elif custom_id.startswith('ban_evade_'):
-                ucid = custom_id[len('ban_evade_'):]
-                await self.bus.ban(
-                    ucid, interaction.user.display_name,
-                    config.get('messages', {}).get('ban_evasion',
-                                                   'Trying to evade a ban with a 2nd account.')
-                )
+                rest = custom_id[len('ban_profanity_'):]
+                reason = config.get('messages', {}).get(
+                    'ban_username', 'Inappropriate username, please contact an admin.')
+            else:
+                rest = custom_id[len('ban_evade_'):]
+                reason = config.get('messages', {}).get(
+                    'ban_evasion', 'Trying to evade a ban with a 2nd account.')
+            # the button carries the server it was raised on (``<ucid>|<server>``); a button posted
+            # before that carried only the ucid, which bans bot-wide
+            ucid, _, name = rest.partition('|')
+            stamp = datetime.now(tz=timezone.utc)
+            for target in _ban_targets(self.bot.servers.get(name) if name else None, self.bot.servers):
+                await self.bus.ban(ucid, interaction.user.display_name, reason,
+                                   server_name=target, banned_at=stamp)
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('🚫')
 
         elif custom_id.startswith('unban_'):
-            ucid = custom_id[len('unban_'):]
-            await self.bus.unban(ucid)
+            # the same server scope the ban buttons use; a button that carries no server (one posted
+            # before the id included it) resolves to the bot-wide row
+            rest = custom_id[len('unban_'):]
+            ucid, _, name = rest.partition('|')
+            for target in _ban_targets(self.bot.servers.get(name) if name else None, self.bot.servers):
+                await self.bus.unban(ucid, target)
             await interaction.response.edit_message(view=None)
             await interaction.message.add_reaction('✅')
 

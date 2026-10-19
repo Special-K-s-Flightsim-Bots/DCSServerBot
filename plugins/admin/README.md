@@ -131,3 +131,4 @@ The files act as templates, which means that several data will be replaced autom
 | reason       | TEXT                                                       | Reason for the ban.                                  |
 | banned_at    | TIMESTAMP NOT NULL DEFAULT NOW()                           | When was that user banned.                           |
 | banned_until | TIMESTAMP NOT NULL DEFAULT TO_DATE('99991231','YYYYMMDD')  | Until when the user should be banned.                |
+| server_name  | TEXT                                                       | Server this ban is limited to. NULL bans on all servers. |

@@ -1391,7 +1391,12 @@ class Scheduler(Plugin[SchedulerListener]):
                 await interaction.followup.send(_('Aborted.'))
                 return
 
-        view = ServerConfigView(self.bot, server)
+        view = ServerConfigView(
+            self.bot, server,
+            admin=((not interaction.client.node.locals.get('restrict_owner', False) and
+                    interaction.user.id == interaction.client.owner_id) or
+                   utils.check_roles(interaction.client.roles['Admin'], interaction.user))
+        )
         embed = view.render()
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:

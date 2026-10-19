@@ -550,3 +550,9 @@ msgstr "¿Desea aplicar alguna extensión antes del comienzo de misión?"
 
 msgid "Timeout while trying to load the mission."
 msgstr "Tiempo de espera expirado al intentar cargar la misión."
+
+msgid "User {} unbanned on {}."
+msgstr "Usuario {} ha sido desbaneado en {}."
+
+msgid "User {} was not banned on {}."
+msgstr "Usuario {} no estaba baneado en {}."

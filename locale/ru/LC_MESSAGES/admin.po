@@ -1,8 +1,6 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
-"POT-Creation-Date: \n"
-"PO-Revision-Date: \n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "Language: ru\n"
@@ -44,8 +42,11 @@ msgstr " (на {} дней)."
 msgid "Unbans a user by name or ucid"
 msgstr "Разбанивает игрока по имени или ucid"
 
-msgid "Player {} unbanned on all servers."
-msgstr "Игрок {} разбанен на всех серверах."
+msgid "Player {} unbanned on {}."
+msgstr "Игрок {} разбанен на {}."
+
+msgid "Player {} was not banned on {}."
+msgstr "Игрок {} не был забанен на {}."
 
 msgid "Shows active bans"
 msgstr "Показывает активные баны"

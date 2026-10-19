@@ -554,3 +554,9 @@ msgstr "您想在任务开始前应用扩展吗?"
 
 msgid "Timeout while trying to load the mission."
 msgstr "尝试加载任务时超时."
+
+msgid "User {} unbanned on {}."
+msgstr "已在 {} 解封用户 {}."
+
+msgid "User {} was not banned on {}."
+msgstr "用户 {} 未在 {} 上被封禁."

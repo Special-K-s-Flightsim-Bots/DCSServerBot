@@ -5,6 +5,7 @@ import psycopg
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Server, PluginInstallationError, command, DEFAULT_TAG,
                   Report, get_translation, SEND_ONLY_CHANNEL_PERMISSIONS, PubSub)
+from datetime import datetime, timezone
 from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
@@ -17,6 +18,20 @@ from .listener import PunishmentEventListener
 from ..creditsystem.player import CreditPlayer
 
 _ = get_translation(__name__.split('.')[1])
+
+
+def _ban_targets(server: Server, servers: dict) -> list[str]:
+    """The servers a ban raised on *server* covers.
+
+    Every server whose ``managed_by`` names one of *server*'s own; an empty list means *server*
+    declares no ``managed_by`` and the ban is bot-wide.
+    """
+    managed_by = server.locals.get('managed_by') or []
+    if not managed_by:
+        return []
+    return [name for name, srv in servers.items()
+            if (srv.locals.get('managed_by') or [])
+            and not set(srv.locals['managed_by']).isdisjoint(managed_by)]
 
 
 class Punishment(Plugin[PunishmentEventListener]):
@@ -53,10 +68,13 @@ class Punishment(Plugin[PunishmentEventListener]):
             # we must not punish for reslots here
             self.eventlistener.pending_kill.pop(ucid, None)
             # do not create doubled bans on multiple events
-            if await self.bus.is_banned(ucid):
+            if await self.bus.is_banned(ucid, server.name):
                 return
 
-            await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3))
+            stamp = datetime.now(tz=timezone.utc)
+            for target in _ban_targets(server, self.bus.servers) or [None]:
+                await self.bus.ban(ucid, self.plugin_name, reason, punishment.get('days', 3),
+                                   server_name=target, banned_at=stamp)
             if member:
                 message = _("Member {member} banned by {banned_by} for {reason}.").format(
                     member=member.display_name, banned_by=self.bot.member.display_name, reason=reason)
@@ -257,9 +275,14 @@ class Punishment(Plugin[PunishmentEventListener]):
                 else:
                     ucids = [user]
 
+                # the same server scope a ban raised here uses: this server's managed_by cluster,
+                # or the bot-wide row when the server declares none
+                server = self.bot.get_server(interaction)
+                targets = _ban_targets(server, self.bus.servers) if server else []
                 for ucid in ucids:
                     await conn.execute('DELETE FROM pu_events WHERE init_id = %s', (ucid, ))
-                    await self.bus.unban(ucid)
+                    for target in targets or [None]:
+                        await self.bus.unban(ucid, target)
 
             await interaction.followup.send(
                 _("All punishment points deleted and player unbanned (if they were banned by the bot before)."),
@@ -324,8 +347,10 @@ class Punishment(Plugin[PunishmentEventListener]):
         embed.add_field(name=_('Event'), value=events)
         embed.add_field(name=_('Points'), value=points)
         embed.set_footer(text=_('Points decay over time, you might see different results on different days.'))
-        # check bans
-        ban = await self.bus.is_banned(ucid)
+        # check bans — scoped to the server the command was issued on, so a ban that covers only
+        # ANOTHER server is not reported here as "currently banned"
+        server = self.bot.get_server(interaction)
+        ban = await self.bus.is_banned(ucid, server.name if server else None)
         if ban:
             if ban['banned_until'].year == 9999:
                 until = _('never')

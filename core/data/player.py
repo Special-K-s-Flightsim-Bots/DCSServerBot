@@ -81,6 +81,7 @@ class Player(DataObject):
                        p.vip,
                        p.muted 
                 FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                     AND (b.server_name IS NULL OR b.server_name = %s)
                 LEFT OUTER JOIN coalitions c 
                      ON p.ucid = c.player_ucid 
                      AND c.server_name = %s 
@@ -88,7 +89,7 @@ class Player(DataObject):
                 LEFT OUTER JOIN watchlist w ON p.ucid = w.player_ucid
                 WHERE p.ucid = %s 
                 AND COALESCE(b.banned_until, (now() AT TIME ZONE 'utc')) >= (now() AT TIME ZONE 'utc')
-            """, (self.server.name, self.ucid))
+            """, (self.server.name, self.server.name, self.ucid))
             # existing member found?
             row = await cursor.fetchone()
             if row:

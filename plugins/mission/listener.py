@@ -28,6 +28,20 @@ _ = get_translation(__name__.split('.')[1])
 RATE_LIMIT_SLEEP = 1.2
 
 
+def _ban_targets(server: Server, servers: dict) -> list[str]:
+    """The servers a ban raised on *server* covers.
+
+    Every server whose ``managed_by`` names one of *server*'s own; an empty list means *server*
+    declares no ``managed_by`` and the ban is bot-wide.
+    """
+    managed_by = server.locals.get('managed_by') or []
+    if not managed_by:
+        return []
+    return [name for name, srv in servers.items()
+            if (srv.locals.get('managed_by') or [])
+            and not set(srv.locals['managed_by']).isdisjoint(managed_by)]
+
+
 class DevNullQueue(asyncio.Queue):
     async def put(self, item: Any) -> None:
         return
@@ -306,8 +320,10 @@ class MissionEventListener(EventListener["Mission"]):
                 batch = []
                 async for ban in await cursor.execute("""
                     SELECT ucid, reason, banned_until 
-                    FROM bans WHERE banned_until > (NOW() AT TIME ZONE 'utc')
-                """):
+                    FROM bans 
+                    WHERE banned_until > (NOW() AT TIME ZONE 'utc')
+                    AND (server_name IS NULL OR server_name = %s)
+                """, (server.name, )):
                     batch.append({
                         "ucid": ban['ucid'],
                         "reason": ban['reason'],
@@ -738,7 +754,7 @@ class MissionEventListener(EventListener["Mission"]):
         player.connected = True
 
         # security check, if a banned player somehow managed to get here (should never happen)
-        if await self.bus.is_banned(player.ucid):
+        if await self.bus.is_banned(player.ucid, server.name):
             player.banned = True
             asyncio.create_task(server.kick(player, messages['message_ban'].format('n/a')))
             return
@@ -798,7 +814,7 @@ class MissionEventListener(EventListener["Mission"]):
         view = View(timeout=None)
         button = Button(label="Whitelist", style=ButtonStyle.primary, custom_id=f"whitelist_{data['name']}")
         view.add_item(button)
-        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}")
+        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_profanity_{data['ucid']}|{server.name}")
         view.add_item(button)
         button = Button(label="Kick", style=ButtonStyle.red, custom_id=f"kick_profanity_{data['ucid']}")
         view.add_item(button)
@@ -837,7 +853,8 @@ class MissionEventListener(EventListener["Mission"]):
 
         if not data['reason'].startswith('DGSA'):
             view = View(timeout=None)
-            button = Button(label="Unban", style=ButtonStyle.primary, custom_id=f"unban_{data['ucid']}")
+            button = Button(label="Unban", style=ButtonStyle.primary,
+                            custom_id=f"unban_{data['ucid']}|{server.name}")
             view.add_item(button)
             button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id=f"cancel")
             view.add_item(button)
@@ -898,7 +915,7 @@ class MissionEventListener(EventListener["Mission"]):
             embed.add_field(name="Banned until", value=until, inline=True)
 
         view = View(timeout=None)
-        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}")
+        button = Button(label="Ban", style=ButtonStyle.red, custom_id=f"ban_evade_{data['ucid']}|{server.name}")
         view.add_item(button)
         button = Button(label="Cancel", style=ButtonStyle.secondary, custom_id="cancel")
         view.add_item(button)
@@ -1161,7 +1178,11 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onPlayerBanned")
     async def onPlayerBanned(self, _server: Server, data: dict) -> None:
+        # a scoped ban reaches only the server it names; a bot-wide ban (server_name None) reaches all
+        target = data.get('server_name')
         for server in self.bot.servers.values():
+            if target is not None and server.name != target:
+                continue
             await server.send_to_dcs({
                 "command": "ban",
                 "ucid": data['ucid'],
@@ -1174,7 +1195,11 @@ class MissionEventListener(EventListener["Mission"]):
 
     @event(name="onPlayerUnbanned")
     async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
+        # a scoped unban reaches only the server it names; a bot-wide one (server_name None) reaches all
+        target = data.get('server_name')
         for server in self.bot.servers.values():
+            if target is not None and server.name != target:
+                continue
             await server.send_to_dcs({
                 "command": "unban",
                 "ucid": data['ucid']
@@ -1421,8 +1446,15 @@ class MissionEventListener(EventListener["Mission"]):
 
     @chat_command(name="ban", roles=['DCS Admin'], usage="<name> [reason]", help="ban a user for 3 days")
     async def ban(self, server: Server, player: Player, params: list[str]):
+        async def do_ban(delinquent: Player, reason: str) -> None:
+            """One ban row per covered server, all sharing one timestamp so they group as one ban."""
+            stamp = datetime.now(tz=timezone.utc)
+            for target in _ban_targets(server, self.bus.servers) or [None]:
+                await self.bus.ban(delinquent.ucid, player.name, reason, 3,
+                                   server_name=target, banned_at=stamp)
+
         await self._handle_command(server, player, params, self.ban.name, lambda delinquent, reason: (
-            self.bus.ban(delinquent.ucid, player.name, reason, 3),
+            do_ban(delinquent, reason),
             f'User {delinquent.display_name} banned for 3 days'))
 
     @chat_command(name="kick", roles=['DCS Admin'], usage="<name> [reason]", help="kick a user")

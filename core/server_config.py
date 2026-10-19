@@ -34,9 +34,8 @@ CHANNELS_ITEM = "channels"
 #: channels write as a whole) to the typed sentence a manager is REFUSED with and the page shows beside
 #: the row.
 MANAGER_DENIED: dict[str, str] = {
-    "port": "Changing the server port requires the Admin role — a manager may not set it.",
-    CHANNELS_ITEM: ("Changing the Discord channels requires the Admin role — a manager may not set "
-                    "them."),
+    "port": "Changing the server port requires the Admin role.",
+    CHANNELS_ITEM: "Changing the Discord channels requires the Admin role.",
 }
 
 #: The denied CONFIG KEYS — the subset of :data:`MANAGER_DENIED` that are DCS settings — which

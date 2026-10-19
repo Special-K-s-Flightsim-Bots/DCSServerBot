@@ -14,6 +14,7 @@ from core.data.maintenance import ServerMaintenanceManager
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
+from datetime import datetime, timezone
 from io import BytesIO
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
@@ -25,6 +26,36 @@ from typing import Literal
 from zipfile import ZipFile, ZIP_DEFLATED
 
 _ = get_translation(__name__.split('.')[1])
+
+
+class BanServerTransformer(utils.ServerTransformer):
+    """``ServerTransformer`` that leaves an EMPTY value empty.
+
+    The parent maps a missing value to the interaction's own server
+    (``interaction.client.get_server``), which would silently scope an omitted ``/dcs ban`` to
+    whatever channel it was typed in. An empty value here means "the issuer's own scope" and must
+    stay distinguishable from a named server.
+    """
+
+    async def transform(self, interaction: discord.Interaction, value: str | None):  # type: ignore[override]
+        return await super().transform(interaction, value) if value else None
+
+
+def _ban_targets(member, servers: dict) -> list[str]:
+    """The servers a ban issued by *member* covers.
+
+    Every server whose ``managed_by`` names one of *member*'s roles; an empty list means the caller
+    is unscoped and the ban is bot-wide — the same rule the server picker narrows a caller with.
+    """
+    tokens = utils.member_scope_tokens(member)
+    return [name for name, server in servers.items()
+            if (server.locals.get('managed_by') or [])
+            and utils.holds_scope(server.locals['managed_by'], tokens)]
+
+
+def _ban_scope_label(targets: list[str]) -> str:
+    """The human-readable scope of a ban the ``server_name`` rows of *targets* cover."""
+    return _("all servers") if not targets else ", ".join(targets)
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -292,9 +323,11 @@ class Admin(Plugin[AdminEventListener]):
     @dcs.command(description=_('Bans a user by name or ucid'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.describe(server=_("Server to ban on (empty = all of your servers, or every server)"))
     async def ban(self, interaction: discord.Interaction,
                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER)]):
+                      sel_type=PlayerType.PLAYER)],
+                  server: app_commands.Transform[Server, BanServerTransformer] | None = None):
 
         class BanModal(Modal):
             reason = TextInput(label=_("Reason"), max_length=80, required=True)
@@ -326,12 +359,18 @@ class Admin(Plugin[AdminEventListener]):
                     await interaction.response.send_message(_("{} is not a valid UCID!").format(user),
                                                             ephemeral=ephemeral)
                     return
-                await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
-                await interaction.response.send_message(_("Player {} banned on all servers").format(name) +
-                                                        (_(" for {} days.").format(days) if days else "."),
-                                                        ephemeral=ephemeral)
+                targets: list[str] = [server.name] if server else _ban_targets(interaction.user, self.bot.servers)
+                stamp = datetime.now(tz=timezone.utc)
+                for target in targets or [None]:
+                    await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days,
+                                       server_name=target, banned_at=stamp)
+                await interaction.response.send_message(
+                    _("Player {} banned on {}").format(name, _ban_scope_label(targets)) +
+                    (_(" for {} days.").format(days) if days else "."),
+                    ephemeral=ephemeral)
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
-                                     (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
+                                     (f' for {days} days.' if days else ' permanently.') +
+                                     f' on {_ban_scope_label(targets)}.', user=interaction.user)
 
             async def on_error(derived, _: discord.Interaction, error: Exception) -> None:
                 self.log.exception(error)
@@ -344,15 +383,26 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.rename(ucid="user")
     @app_commands.autocomplete(ucid=bans_autocomplete)
     async def unban(self, interaction: discord.Interaction, ucid: str):
-        await self.bus.unban(ucid)
+        # the same issuer scope the ban uses: a narrowed issuer clears their own servers' rows only,
+        # an unscoped one (no target) clears every row of that ucid
+        targets = _ban_targets(interaction.user, self.bot.servers)
+        cleared = 0
+        for target in targets or [None]:
+            cleared += await self.bus.unban(ucid, target)
         name = await self.bot.get_member_or_name_by_ucid(ucid)
         if isinstance(name, discord.Member):
             name = name.display_name
         elif not name:
             name = ucid
-        await interaction.response.send_message(_("Player {} unbanned on all servers.").format(name),
+        if cleared:
+            message = _("Player {} unbanned on {}.")
+            audit = f'unbanned player {name} (ucid={ucid})'
+        else:
+            message = _("Player {} was not banned on {}.")
+            audit = f'did not unban player {name} (ucid={ucid}): no ban in scope'
+        await interaction.response.send_message(message.format(name, _ban_scope_label(targets)),
                                                 ephemeral=utils.get_ephemeral(interaction))
-        await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
+        await self.bot.audit(audit, user=interaction.user)
 
     @dcs.command(description=_('Shows active bans'))
     @app_commands.guild_only()
@@ -378,6 +428,8 @@ class Admin(Plugin[AdminEventListener]):
             until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
         embed.add_field(name=_("Banned by"),
                         value=ban['banned_by'])
+        embed.add_field(name=_("Scope"),
+                        value=_ban_scope_label(ban.get('server_name') or []))
         embed.add_field(name=_("Expires"),
                         value=until)
         embed.add_field(name=_('Reason'),
@@ -1107,7 +1159,7 @@ class Admin(Plugin[AdminEventListener]):
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server
-            view = ServerConfigView(self.bot, server)
+            view = ServerConfigView(self.bot, server, admin=True)
             embed = discord.Embed(title=_("Instance \"{}\" created.\n"
                                           "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())

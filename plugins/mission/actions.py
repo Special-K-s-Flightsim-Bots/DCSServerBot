@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, TypeVar
 
 from core import Coalition, Status, UploadStatus, utils
@@ -1099,6 +1100,36 @@ def _mission_label(mission: Any, fallback: str) -> str:
     return getattr(mission, "name", "") or getattr(mission, "display_name", None) or fallback
 
 
+def _caller_ban_targets(ctx: Any) -> list[str]:
+    """The servers a ban issued through *ctx* covers.
+
+    Every server in the caller's view whose ``managed_by`` names one of the caller's roles; an empty
+    list means the caller is unscoped and the ban is bot-wide.
+    """
+    scope = getattr(ctx, "_scope", None)
+    if scope is None or getattr(scope, "unrestricted", False):
+        return []
+    names: list[str] = []
+    for name, server in ctx.servers.items():
+        try:
+            managed_by = server.locals.get("managed_by")
+        except AttributeError:
+            managed_by = None
+        if not managed_by:
+            continue
+        try:
+            if scope.allows(managed_by):
+                names.append(name)
+        except Exception:
+            log.exception("ban scope: the scope could not be applied to '%s', skipping it.", name)
+    return names
+
+
+def _ban_scope_label(targets: list[str]) -> str:
+    """The human-readable scope of a ban the ``server_name`` rows of *targets* cover."""
+    return "all servers" if not targets else ", ".join(targets)
+
+
 def _ban_service(ctx: Any) -> Any:
     """The service that owns the ban list: the caller's bus when it carries one, else the running one.
 
@@ -1189,6 +1220,10 @@ async def ban_player(ctx: Any, server_name: str, ucid: str, reason: str = "",
     ``sender`` is who the ban list names as ``banned_by``, mirroring ``BanModal``'s
     ``interaction.user.display_name``; ``None`` falls back to the transport's own audit actor, so a
     ban is never attributed to nobody.
+
+    The rows written are the CALLER's own scope — every server in the caller's view whose
+    ``managed_by`` names one of the caller's roles, one row each, or a single bot-wide row when the
+    caller is unscoped or manages no tagged server.
     """
     server = ctx.resolve_server(server_name)
     if server is None:
@@ -1223,12 +1258,16 @@ async def ban_player(ctx: Any, server_name: str, ucid: str, reason: str = "",
 
     name = _player_label(player, ucid)
     banned_by = (sender or "").strip() or ctx.audit_actor
+    targets = _caller_ban_targets(ctx)
+    scope = _ban_scope_label(targets)
+    stamp = datetime.now(tz=timezone.utc)
     try:
-        await service.ban(ucid, banned_by, body, period)
+        for target in targets or [None]:
+            await service.ban(ucid, banned_by, body, period, server_name=target, banned_at=stamp)
         result = PlayerActionResult(
             success=True,
-            message=(f"Player {name} (ucid={ucid}) banned for {period} days."
-                     if period else f"Player {name} (ucid={ucid}) banned permanently."),
+            message=(f"Player {name} (ucid={ucid}) banned for {period} days on {scope}." if period
+                     else f"Player {name} (ucid={ucid}) banned permanently on {scope}."),
             player_name=name, ucid=ucid)
     except (TimeoutError, asyncio.TimeoutError):
         result = PlayerActionResult(success=False, message=f"Timeout while banning {name}.",

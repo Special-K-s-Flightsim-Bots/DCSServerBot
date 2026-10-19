@@ -6,6 +6,7 @@ import psycopg
 from contextlib import suppress
 from core import (Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side,
                   ServiceRegistry)
+from datetime import datetime, timezone
 from discord import SelectOption, ButtonStyle
 from discord.ui import View, Select, Button, Modal, TextInput
 from io import StringIO
@@ -17,6 +18,23 @@ from services.servicebus import ServiceBus
 
 WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true"
 _ = get_translation(__name__.split('.')[1])
+
+
+def ban_targets(member, servers: dict) -> list[str]:
+    """The servers a ban issued by *member* covers.
+
+    Every server whose ``managed_by`` names one of *member*'s roles; an empty list means the caller
+    is unscoped and the ban is bot-wide — the rule the Discord picker narrows a caller with.
+    """
+    tokens = utils.member_scope_tokens(member)
+    return [name for name, server in servers.items()
+            if (server.locals.get('managed_by') or [])
+            and utils.holds_scope(server.locals['managed_by'], tokens)]
+
+
+def ban_scope_label(targets: list[str]) -> str:
+    """The human-readable scope of a ban the ``server_name`` rows of *targets* cover."""
+    return _("all servers") if not targets else ", ".join(targets)
 
 
 class ServerView(View):
@@ -231,7 +249,9 @@ class InfoView(View):
         return env.embed
 
     async def is_banned(self) -> bool:
-        return await self.bus.is_banned(self.ucid) is not None
+        # no server context (the player is not on any server) asks the unscoped question
+        server_name = self.server.name if self.server else None
+        return await self.bus.is_banned(self.ucid, server_name) is not None
 
     async def is_watchlist(self) -> bool:
         async with self.bot.apool.connection() as conn:
@@ -251,8 +271,17 @@ class InfoView(View):
 
     async def on_unban(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        await self.bus.unban(self.ucid)
-        await interaction.followup.send("User has been unbanned.", ephemeral=self.ephemeral)
+        # the same issuer scope the ban modal uses: a narrowed issuer clears their own servers' rows
+        # only, an unscoped one (no target) clears every row of that ucid
+        targets = ban_targets(interaction.user, self.bus.servers)
+        cleared = 0
+        for target in targets or [None]:
+            cleared += await self.bus.unban(self.ucid, target)
+        if cleared:
+            message = _("User {} unbanned on {}.").format(self.ucid, ban_scope_label(targets))
+        else:
+            message = _("User {} was not banned on {}.").format(self.ucid, ban_scope_label(targets))
+        await interaction.followup.send(message, ephemeral=self.ephemeral)
         await self.bot.audit(f'unbanned user {self.ucid}.', user=interaction.user)
         self.stop()
 
@@ -518,14 +547,18 @@ class BanModal(Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         days = int(self.period.value) if self.period.value else None
-        await self.bus.ban(self.ucid, interaction.user.display_name, self.reason.value, days)
+        targets = ban_targets(interaction.user, self.bus.servers)
+        stamp = datetime.now(tz=timezone.utc)
+        for target in targets or [None]:
+            await self.bus.ban(self.ucid, interaction.user.display_name, self.reason.value, days,
+                               server_name=target, banned_at=stamp)
         name = await self.bot.bot.get_member_or_name_by_ucid(self.ucid)
         if isinstance(name, discord.Member):
             name = name.display_name
         elif not name:
             name = '<unknown>'
         await interaction.response.send_message(
-            _("User {} banned on all servers ").format(name) +
+            _("User {} banned on {} ").format(name, ban_scope_label(targets)) +
             (_("for {} days.").format(days) if days else ""),
             ephemeral=utils.get_ephemeral(interaction))
         await self.bot.audit(f'banned player {name} (ucid={self.ucid} with reason "{self.reason.value}"' +

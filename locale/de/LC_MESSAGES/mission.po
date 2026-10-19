@@ -598,3 +598,9 @@ msgstr "Möchtest Du die Mission durch Erweiterungen modifizieren?"
 
 msgid "Timeout while trying to load the mission."
 msgstr "Es ist ein Timeout beim Laden der Mission aufgetreten."
+
+msgid "User {} unbanned on {}."
+msgstr "Spieler {} wurde auf {} entbannt."
+
+msgid "User {} was not banned on {}."
+msgstr "Spieler {} war auf {} nicht gebannt."

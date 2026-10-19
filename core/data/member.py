@@ -26,7 +26,7 @@ class Member(DataObject):
         async with self.apool.connection() as conn:
             cursor = await conn.execute("""
                 SELECT p.ucid, CASE WHEN b.ucid IS NOT NULL THEN TRUE ELSE FALSE END AS banned, manual 
-                FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid 
+                FROM players p LEFT OUTER JOIN bans b ON p.ucid = b.ucid AND b.server_name IS NULL 
                 WHERE p.discord_id = %s 
                 AND COALESCE(b.banned_until, now() AT TIME ZONE 'utc') >= (now() AT TIME ZONE 'utc')
                 ORDER BY manual DESC LIMIT 1

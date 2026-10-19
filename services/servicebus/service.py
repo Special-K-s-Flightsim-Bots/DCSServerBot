@@ -554,21 +554,25 @@ class ServiceBus(Service):
             self.udp_server.message_queue[new_name] = asyncio.Queue()
             asyncio.create_task(self.udp_server.process_messages(new_name))
 
-    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: int | None = None):
+    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: int | None = None,
+                  server_name: str | None = None, banned_at: datetime | None = None):
         if days:
             until = datetime.now(tz=timezone.utc) + timedelta(days=days)
             until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
         else:
             until = datetime(year=9999, month=12, day=31)
             until_str = 'never'
+        # banned_at is passed explicitly so the ONE ROW PER SERVER of a single scoped ban share a
+        # timestamp — that is the key their grouping in bans() uses to surface them as one ban.
+        stamp = (banned_at or datetime.now(tz=timezone.utc)).replace(tzinfo=None)
         async with self.apool.connection() as conn:
             await conn.execute("""
-                INSERT INTO bans (ucid, banned_by, reason, banned_until) 
-                VALUES (%s, %s, %s, %s) 
-                ON CONFLICT (ucid) DO UPDATE 
-                SET banned_by = excluded.banned_by, reason = excluded.reason, 
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until, server_name)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (ucid, COALESCE(server_name, '')) DO UPDATE
+                SET banned_by = excluded.banned_by, reason = excluded.reason,
                     banned_at = excluded.banned_at, banned_until = excluded.banned_until
-            """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
+            """, (ucid, banned_by, reason, stamp, until.replace(tzinfo=None), server_name))
         asyncio.create_task(self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -578,15 +582,28 @@ class ServiceBus(Service):
                 "data": {
                     "ucid": ucid,
                     "reason": reason,
-                    "banned_at": datetime.now(tz=timezone.utc).isoformat(),
-                    "banned_until": until_str
+                    "banned_at": stamp.replace(tzinfo=timezone.utc).isoformat(),
+                    "banned_until": until_str,
+                    "server_name": server_name
                 }
             }
         }))
 
-    async def unban(self, ucid: str):
+    async def unban(self, ucid: str, server_name: str | None = None) -> int:
+        """Expire the ban rows of *ucid* that fall inside *server_name*.
+
+        ``server_name=None`` expires every row of that ucid; a name expires that server's row only.
+        Returns the number of rows cleared, so a caller can tell "cleared" from "nothing in scope".
+        """
+        sql = "UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s"
+        params: tuple = (ucid, )
+        # None is every row of that ucid (a bot-wide unban); a name is that server's row only.
+        if server_name is not None:
+            sql += " AND server_name = %s"
+            params = (ucid, server_name)
         async with self.apool.connection() as conn:
-            await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
+            cursor = await conn.execute(sql, params)
+            cleared = cursor.rowcount
         asyncio.create_task(self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -594,10 +611,12 @@ class ServiceBus(Service):
             "params": {
                 "command": "onPlayerUnbanned",
                 "data": {
-                    "ucid": ucid
+                    "ucid": ucid,
+                    "server_name": server_name
                 }
             }
         }))
+        return cleared
 
     async def bans(self, *, expired: bool = False) -> list[dict]:
         if expired:
@@ -608,18 +627,40 @@ class ServiceBus(Service):
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute(f"""
                     SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
-                           b.banned_at, b.banned_until 
+                           b.banned_at, b.banned_until, b.server_name 
                     FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
                     {where}
+                    ORDER BY b.ucid, b.banned_at
                 """)
-                return [x async for x in cursor]
+                rows = [x async for x in cursor]
+        # A ban that covers several servers is stored as one row per server, so the rows of ONE ban
+        # (same ucid, banned_at and reason) are grouped back into a single entry: its scope reads as
+        # the list of server names, or None for a bot-wide ban.
+        grouped: dict[tuple, dict] = {}
+        for row in rows:
+            key = (row['ucid'], row['banned_at'], row['reason'])
+            ban = grouped.get(key)
+            if ban is None:
+                ban = dict(row)
+                ban['server_name'] = None if row['server_name'] is None else [row['server_name']]
+                grouped[key] = ban
+            elif row['server_name'] is None:
+                ban['server_name'] = None
+            elif ban['server_name'] is not None:
+                ban['server_name'].append(row['server_name'])
+        return list(grouped.values())
 
-    async def is_banned(self, ucid: str) -> dict | None:
+    async def is_banned(self, ucid: str, server_name: str | None = None) -> dict | None:
+        # The ONE scope predicate: a ban applies here when it is bot-wide or names THIS server. A
+        # caller with no server context (None) asks the unscoped question and matches any ban.
+        sql = "SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')"
+        params: tuple = (ucid, )
+        if server_name is not None:
+            sql += " AND (server_name IS NULL OR server_name = %s)"
+            params = (ucid, server_name)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')
-                """, (ucid, ))
+                await cursor.execute(sql, params)
                 return await cursor.fetchone()
 
     async def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
