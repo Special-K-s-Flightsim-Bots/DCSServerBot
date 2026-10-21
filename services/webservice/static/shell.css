@@ -879,16 +879,10 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   accent-color: var(--accent); vertical-align: -2px; }
 .cfg-form .st-lab input[type="checkbox"]:disabled { cursor: not-allowed; }
 
-/* THE MISSION ROW'S OWN COLUMNS. The selection box gets a column of its OWN, so the mission NAME and
- * the `.miz` PATH below it both start to its RIGHT and line up with each other — with the box inline
- * in the label's flow the path began under the box. The label also clears the START row's 3px inset
- * stripe (`.row-active`), which otherwise runs through the box's left edge. The fact column is
- * `minmax(0, 1fr)` so a long path wraps inside the row instead of widening it. */
-.m-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start;
-  padding-left: 9px; }
-.m-row.no-box { grid-template-columns: minmax(0, 1fr); }
-.m-row .m-box { padding-top: 2px; }
-.m-row .m-fact { min-width: 0; }
+/* THE MISSION ROW'S OWN COLUMNS ARE CARRIED ON THE MARKUP, not here: the row's grid (box column,
+ * then the fact column) is set inline on `.m-row` in the template, so the alignment cannot depend on
+ * a browser's cached copy of THIS file — a stale `shell.css` once landed the name UNDER the box, and
+ * the START row's inset stripe (`.row-active`) then ran through the text as well as the box. */
 
 /* THE DIALOG'S READ-ONLY SELECTION LIST: the missions a bulk removal will act on, one name per line,
  * unnumbered and without boxes — the selection was made in the list. It scrolls rather than growing

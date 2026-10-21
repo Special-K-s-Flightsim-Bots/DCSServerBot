@@ -514,10 +514,14 @@
               box's absence is what made the old numbering read as a gap. The START marker (amber
               ``.tag.a``) names the mission the server loads when it starts; the live ``.dot.run``
               beside the name names the mission it is running NOW — two different facts. No ``#N`` and
-              no primary/secondary copy tag: the ``.miz`` path names the file. -#}
-          <div class="m-row{{ '' if missions_select_allowed else ' no-box' }}">
-            {% if missions_select_allowed %}<div class="m-box"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box{% if m.current %} disabled{% endif %}></div>{% endif %}
-            <div class="m-fact">
+              no primary/secondary copy tag: the ``.miz`` path names the file.
+
+              THE ROW'S COLUMNS ARE SET INLINE, deliberately: the layout must not depend on a
+              browser's cached copy of ``shell.css`` (a stale sheet left the name UNDER the box), and
+              the 9px inset keeps the START row's 3px `.row-active` stripe off the box and the text. -#}
+          <div class="m-row" style="display:grid;grid-template-columns:{{ '22px minmax(0, 1fr)' if missions_select_allowed else 'minmax(0, 1fr)' }};align-items:start;padding-left:9px">
+            {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box{% if m.current %} disabled{% endif %}></div>{% endif %}
+            <div class="m-fact" style="min-width:0">
               <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
               <div class="hp mono">{{ m.path }}</div>
               {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission cannot be removed — load another mission first.{% endtrans %}</div>{% endif %}
@@ -670,7 +674,7 @@
           download is the one control a read-only viewer keeps. -#}
       {% set ro_lab %}
           {#-  the same row anatomy without a box (a read-only viewer selects nothing)  -#}
-          <div class="m-row no-box"><div class="m-fact">
+          <div class="m-row" style="display:grid;grid-template-columns:minmax(0, 1fr);align-items:start;padding-left:9px"><div class="m-fact" style="min-width:0">
             <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
             <div class="hp mono">{{ m.path }}</div>
           </div></div>
@@ -708,6 +712,13 @@
     render, the live fog reading and the scheduler's plan) the heading renders, so a shown fact cannot
     disagree with the polled status. The one embed fact NOT rendered is the password VALUE: the lock
     indicator says a password is set, the cleartext is never disclosed. -#}
+{#-  ONE CARD, FIVE SECTIONS. The facts the operator came for are ONE block: the header carries the
+     status and the server's address/versions, and beneath it the sections sit in two columns with
+     HAIRLINES between them instead of a card each. The columns are set INLINE — the arrangement must
+     not depend on a browser's cached copy of the stylesheet. -#}
+{% set sec = 'padding:13px 14px 14px' %}
+{% set sec_t = 'padding:13px 14px 14px;border-top:1px solid var(--line)' %}
+{% set sec_h = 'margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)' %}
 <div class="card">
   <div class="hd"><h3>{% trans %}Overview{% endtrans %}</h3><div class="spacer"></div>
     <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span>
@@ -718,128 +729,122 @@
     {#- the embed's FOOTER: the server's own DCS build, the console's version and when this page read
         the state — the two brands print verbatim, they are names and not words -#}
     <div class="sub mono">{% if server.dcs_version %}DCS {{ server.dcs_version }} · {% endif %}DCSServerBot {{ bot_version }} · {% trans when=updated %}Last updated: %(when)s{% endtrans %}</div>
-  </div>
-</div>
 
-{% if not server.running %}
-<div class="card"><div class="bd"><p class="empty">{{ _(empty.not_running) }}</p></div></div>
-{% else %}
-<div class="grid g-2">
-  <div class="grid">
-    <div class="card">
-      <div class="hd"><h3>{% trans %}Mission{% endtrans %}</h3></div>
-      <div class="bd">
-        <div class="sub">{% trans %}Current mission:{% endtrans %} <b>{{ server.mission_name or '—' }}</b></div>
-        <div class="sub">{% trans %}Map{% endtrans %}: {{ server.map_name or '—' }}</div>
-        {% if server.mission_date %}<div class="sub">{% trans %}Date / Time in Mission{% endtrans %}: {{ server.mission_date }}</div>{% endif %}
-        <div class="sub">{% trans %}Runtime{% endtrans %}: {{ server.runtime }}{% if server.restart_in %} · {% trans %}Restart{% endtrans %}: {{ server.restart_in }}{% endif %}</div>
-        {% if server.coalitions %}
-        <div class="sub">{% trans %}Coalitions{% endtrans %}: {% trans %}Yes{% endtrans %}</div>
-        {% elif server.slots_blue or server.slots_red %}
-        <div class="sub">{% trans %}Slots{% endtrans %}: {% if server.slots_blue %}{% trans %}Blue{% endtrans %} {{ server.slots_blue }}{% endif %}{% if server.slots_blue and server.slots_red %} · {% endif %}{% if server.slots_red %}{% trans %}Red{% endtrans %} {{ server.slots_red }}{% endif %}</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="hd"><h3>{% trans %}Weather{% endtrans %}</h3></div>
-      <div class="bd">
-        {% if server.weather and (server.weather.preset or server.weather.temperature) %}
-        <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
-          {#- THE PRESET'S OWN PICTURE, served by this console's thumbnail route: the file lives in the
-              DCS installation on the server's node, so its path can never reach an `src` attribute. A
-              picture that cannot be read answers a plain refusal and `preset-thumb.js` hides the empty
-              frame, so a mission whose install has no thumbnail simply draws none. -#}
-          {% if preset_image %}<img data-preset-thumb src="{{ preset_image }}" alt="{{ server.weather.preset }}" width="150" height="100" style="border:1px solid var(--line);border-radius:var(--radius-s)">{% endif %}
-          <div>
-            <div><b>{{ _(server.weather.preset) }}</b></div>
-            {% if server.weather.temperature %}<div class="sub">{% trans %}Temperature{% endtrans %}: {{ server.weather.temperature }} · {% trans %}QNH (QFF){% endtrans %}: {{ server.weather.qnh }}</div>{% endif %}
-            {% if server.weather.cloudbase %}
-            <div class="sub">{% trans %}Cloudbase{% endtrans %}: {{ server.weather.cloudbase }}{% if server.weather.density %} · {% trans %}Density{% endtrans %}: {{ server.weather.density }}/10{% endif %}{% if server.weather.thickness %} · {% trans %}Thickness{% endtrans %}: {{ server.weather.thickness }}{% endif %}</div>
-            {% endif %}
-            {% if server.weather.visibility %}<div class="sub">{% trans %}Visibility{% endtrans %}: {{ server.weather.visibility }}</div>{% endif %}
-            {% if server.weather.wind or server.weather.wind_low or server.weather.wind_high %}
-            <div class="sub">{% trans %}Wind{% endtrans %}:{% if server.weather.wind %} {% trans %}Ground{% endtrans %} {{ server.weather.wind }}{% endif %}{% if server.weather.wind_low %} · 6,600 ft {{ server.weather.wind_low }}{% endif %}{% if server.weather.wind_high %} · 26,000 ft {{ server.weather.wind_high }}{% endif %}</div>
-            {% endif %}
-          </div>
-        </div>
-        {% else %}
-        <p class="empty">{{ _(empty.weather) }}</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <div class="hd"><h3>{% trans %}Server{% endtrans %}</h3></div>
-      <div class="bd">
-        <div class="sub">{% trans count=server.players %}{{ count }} player(s){% endtrans %}{% if server.max_players %} / {{ server.max_players }}{% endif %}{% if server.active_players %} ({% trans count=server.active_players %}{{ count }} active{% endtrans %}){% endif %}</div>
-        {% if server.restrictions %}
-        {#-  EVERY anti-cheat switch, and whether it is IN FORCE — never only the set ones (the embed
-             prints just those, so a hole in the protection reads like a closed server). The two
-             families are labelled because a tick means the opposite above and below: an integrity
-             flag in force PROTECTS the server, an export switch in force OPENS it.  -#}
-        <div class="sub"><b>{% trans %}Client Limits{% endtrans %}</b>
-          {% for group, group_label in (('integrity', _('Integrity')), ('export', _('Exports'))) %}
-          {% set rows = server.restrictions | selectattr('kind', 'equalto', group) | list %}
-          {% if rows %}
-          <div style="margin-top:4px"><span class="tag">{{ group_label }}</span></div>
-          <ul style="margin:4px 0 0;padding-left:18px;list-style:none">
-            {% for row in rows %}
-            <li><span aria-hidden="true">{{ '✅' if row.enabled else '❌' }}</span> {{ _(row.label) }}
-              <span class="meta">{{ _('on') if row.enabled else _('off') }}</span></li>
-            {% endfor %}
-          </ul>
+    {% if not server.running %}
+    <p class="empty" style="margin-top:12px">{{ _(empty.not_running) }}</p>
+    {% else %}
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;border-top:1px solid var(--line);margin-top:12px">
+      <div style="min-width:0">
+        <section style="{{ sec }}">
+          <h4 style="{{ sec_h }}">{% trans %}Mission{% endtrans %}</h4>
+          <div class="sub">{% trans %}Current mission:{% endtrans %} <b>{{ server.mission_name or '—' }}</b></div>
+          <div class="sub">{% trans %}Map{% endtrans %}: {{ server.map_name or '—' }}</div>
+          {% if server.mission_date %}<div class="sub">{% trans %}Date / Time in Mission{% endtrans %}: {{ server.mission_date }}</div>{% endif %}
+          <div class="sub">{% trans %}Runtime{% endtrans %}: {{ server.runtime }}{% if server.restart_in %} · {% trans %}Restart{% endtrans %}: {{ server.restart_in }}{% endif %}</div>
+          {% if server.coalitions %}
+          <div class="sub">{% trans %}Coalitions{% endtrans %}: {% trans %}Yes{% endtrans %}</div>
+          {% elif server.slots_blue or server.slots_red %}
+          <div class="sub">{% trans %}Slots{% endtrans %}: {% if server.slots_blue %}{% trans %}Blue{% endtrans %} {{ server.slots_blue }}{% endif %}{% if server.slots_blue and server.slots_red %} · {% endif %}{% if server.slots_red %}{% trans %}Red{% endtrans %} {{ server.slots_red }}{% endif %}</div>
           {% endif %}
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div>
-    </div>
+        </section>
 
-    {% if schedule %}
-    <div class="card">
-      <div class="hd"><h3>{% trans %}Schedule{% endtrans %}</h3></div>
-      <div class="bd">
-        <div class="sub mono">{% trans offset=schedule.offset %}Time (UTC%(offset)s){% endtrans %}</div>
-        {% for row in schedule.rows %}
-        <div class="sub mono">{{ row.period }} &nbsp; {{ row.glyphs|join(' ') }}</div>
-        {% endfor %}
-        <div class="sub meta">{% trans %}✅ running · ❌ not running · ☑️ shuts down without players{% endtrans %}</div>
+        <section style="{{ sec_t }}">
+          <h4 style="{{ sec_h }}">{% trans %}Weather{% endtrans %}</h4>
+          {% if server.weather and (server.weather.preset or server.weather.temperature) %}
+          <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+            {#- THE PRESET'S OWN PICTURE, served by this console's thumbnail route: the file lives in the
+                DCS installation on the server's node, so its path can never reach an `src` attribute. A
+                picture that cannot be read answers a plain refusal and `preset-thumb.js` hides the empty
+                frame, so a mission whose install has no thumbnail simply draws none. -#}
+            {% if preset_image %}<img data-preset-thumb src="{{ preset_image }}" alt="{{ server.weather.preset }}" width="150" height="100" style="border:1px solid var(--line);border-radius:var(--radius-s)">{% endif %}
+            <div>
+              <div><b>{{ _(server.weather.preset) }}</b></div>
+              {% if server.weather.temperature %}<div class="sub">{% trans %}Temperature{% endtrans %}: {{ server.weather.temperature }} · {% trans %}QNH (QFF){% endtrans %}: {{ server.weather.qnh }}</div>{% endif %}
+              {% if server.weather.cloudbase %}
+              <div class="sub">{% trans %}Cloudbase{% endtrans %}: {{ server.weather.cloudbase }}{% if server.weather.density %} · {% trans %}Density{% endtrans %}: {{ server.weather.density }}/10{% endif %}{% if server.weather.thickness %} · {% trans %}Thickness{% endtrans %}: {{ server.weather.thickness }}{% endif %}</div>
+              {% endif %}
+              {% if server.weather.visibility %}<div class="sub">{% trans %}Visibility{% endtrans %}: {{ server.weather.visibility }}</div>{% endif %}
+              {% if server.weather.wind or server.weather.wind_low or server.weather.wind_high %}
+              <div class="sub">{% trans %}Wind{% endtrans %}:{% if server.weather.wind %} {% trans %}Ground{% endtrans %} {{ server.weather.wind }}{% endif %}{% if server.weather.wind_low %} · 6,600 ft {{ server.weather.wind_low }}{% endif %}{% if server.weather.wind_high %} · 26,000 ft {{ server.weather.wind_high }}{% endif %}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <p class="empty">{{ _(empty.weather) }}</p>
+          {% endif %}
+        </section>
+      </div>
+
+      <div style="min-width:0;border-left:1px solid var(--line)">
+        <section style="{{ sec }}">
+          <h4 style="{{ sec_h }}">{% trans %}Server{% endtrans %}</h4>
+          <div class="sub">{% trans count=server.players %}{{ count }} player(s){% endtrans %}{% if server.max_players %} / {{ server.max_players }}{% endif %}{% if server.active_players %} ({% trans count=server.active_players %}{{ count }} active{% endtrans %}){% endif %}</div>
+          {% if server.restrictions %}
+          {#-  EVERY anti-cheat switch, and whether it is IN FORCE — never only the set ones (the embed
+               prints just those, so a hole in the protection reads like a closed server). The two
+               families are labelled because a tick means the opposite above and below: an integrity
+               flag in force PROTECTS the server, an export switch in force OPENS it.  -#}
+          <div class="sub"><b>{% trans %}Client Limits{% endtrans %}</b>
+            {% for group, group_label in (('integrity', _('Integrity')), ('export', _('Exports'))) %}
+            {% set rows = server.restrictions | selectattr('kind', 'equalto', group) | list %}
+            {% if rows %}
+            <div style="margin-top:4px"><span class="tag">{{ group_label }}</span></div>
+            <ul style="margin:4px 0 0;padding-left:18px;list-style:none">
+              {% for row in rows %}
+              <li><span aria-hidden="true">{{ '✅' if row.enabled else '❌' }}</span> {{ _(row.label) }}
+                <span class="meta">{{ _('on') if row.enabled else _('off') }}</span></li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </section>
+
+        {% if schedule %}
+        <section style="{{ sec_t }}">
+          <h4 style="{{ sec_h }}">{% trans %}Schedule{% endtrans %}</h4>
+          <div class="sub mono">{% trans offset=schedule.offset %}Time (UTC%(offset)s){% endtrans %}</div>
+          {% for row in schedule.rows %}
+          <div class="sub mono">{{ row.period }} &nbsp; {{ row.glyphs|join(' ') }}</div>
+          {% endfor %}
+          <div class="sub meta">{% trans %}✅ running · ❌ not running · ☑️ shuts down without players{% endtrans %}</div>
+        </section>
+        {% endif %}
       </div>
     </div>
     {% endif %}
   </div>
 </div>
 
-{#-  THE EXTENSIONS, as TILES at the bottom — the SAME tile component the Settings page and the node
-     page draw (``_tiles.html``: ``tile`` for the card shell, ``tile_head`` for the kind line, the
-     kind's own glyph), not a lookalike list. A tile per extension: its name, its value line as the
-     card's description, and its version as a badge when the extension reports one (an extension that
-     reports no version shows none — never a bare ``v``).  -#}
+{#-  THE EXTENSIONS, in their OWN card below — one entry per extension, hairline-separated, the same
+     treatment as the sections above. An entry prints its name, its version as a chip when the extension
+     reports one (never a bare ``v``), and its value line dressed as its author wrote it: the parts come
+     from the read model, which recognises an absolute http(s) link (markdown or bare), ``**bold**`` and
+     ``__italic__`` — every other character is escaped text, so an extension cannot inject markup. An
+     external link opens in a new tab. -#}
 {% if extensions %}
-{% import "_tiles.html" as tiles with context %}
-<section class="st-sect">
-  <div class="st-sect-head"><h2>{% trans %}Extensions{% endtrans %}</h2></div>
-  <div class="st-grid">
-    {% for extension in extensions %}
-    {% call tiles.tile('extension') %}
-      {{ tiles.tile_head(_('Extension'), tiles.glyph('extension'),
-                         '<span class="st-badge">v' ~ extension.version ~ '</span>' if extension.version else '') }}
-      <h3 class="st-name">{{ extension.name }}</h3>
-      {#-  THE VALUE LINE, dressed as its author wrote it: the parts come from the read model, which
-           recognises an absolute http(s) link (markdown or bare), ``**bold**`` and ``__italic__`` —
-           every other character is escaped text, so an extension cannot inject markup. An external
-           link opens in a new tab.  -#}
-      <p class="st-desc" style="white-space:pre-line">{% for part in extension.parts %}{% if part.href %}<a href="{{ part.href }}" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>{% elif part.style == 'bold' %}<strong>{{ part.text }}</strong>{% elif part.style == 'italic' %}<em>{{ part.text }}</em>{% else %}{{ part.text }}{% endif %}{% endfor %}</p>
-    {% endcall %}
-    {% endfor %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Extensions{% endtrans %}</h3></div>
+  <div class="bd">
+    {#-  SIDE BY SIDE, one column per extension, with a HAIRLINE between the columns — not a stack. The
+         columns auto-fit, so a wide screen shows them all on one row and a narrow one wraps them; the
+         negative margin cancels the body's padding so the first and last columns' text line up with
+         the card's content edge. -#}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));column-gap:0;row-gap:12px;margin:0 -14px">
+      {% for extension in extensions %}
+      <section style="padding:0 14px{% if not loop.first %};border-left:1px solid var(--line){% endif %}">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>{{ extension.name }}</b>{% if extension.version %}<span class="tag">v{{ extension.version }}</span>{% endif %}</div>
+        <p class="st-desc" style="white-space:pre-line;margin:4px 0 0">{% for part in extension.parts %}{% if part.href %}<a href="{{ part.href }}" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>{% elif part.style == 'bold' %}<strong>{{ part.text }}</strong>{% elif part.style == 'italic' %}<em>{{ part.text }}</em>{% else %}{{ part.text }}{% endif %}{% endfor %}</p>
+      </section>
+      {% endfor %}
+    </div>
   </div>
-</section>
+</div>
 {% endif %}
-{% endif %}
-
+{#-  the TAB CHAIN's closer: the Overview tab is this template's ``{% else %}`` branch (the last
+     ``{% elif tab == … %}`` above it), so exactly one ``{% endif %}`` belongs to it — not to the
+     overview block's own conditionals. -#}
 {% endif %}
 
 {% endblock %}
