@@ -228,7 +228,7 @@ class RealWeather(InstallableExtension):
             os.remove(tmpname)
 
     @override
-    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
+    async def modify_mission(self, filename: str) -> tuple[str, bool]:
         tmpfd, tmpname = tempfile.mkstemp()
         os.close(tmpfd)
         if await self.generate_config(filename, tmpname):

@@ -41,6 +41,8 @@ __all__ = [
     "populated_question",
     "check_roles",
     "holds_scope",
+    "holds_admin_role",
+    "member_ban_targets",
     "member_scope_tokens",
     "may_manage_server",
     "has_role",
@@ -447,14 +449,55 @@ def member_scope_tokens(member) -> frozenset[Any]:
     return frozenset(tokens)
 
 
-def may_manage_server(managed_by, member, *, is_admin: bool) -> bool:
+def holds_admin_role(member, admin_roles: Iterable[Any] | None = None) -> bool:
+    """True when *member* holds the bot's own configured Admin role.
+
+    The ONE home of the Admin-role notion. *admin_roles* is ``bot.roles['Admin']`` — role ids and/or
+    names — matched against the member's tokens the way a ``managed_by`` entry is matched
+    (:func:`holds_scope`, via :func:`member_scope_tokens`), so a role NAME and a role ID both count.
+    An empty *admin_roles* means the installation grants the role to nobody.
+    """
+    return not member_scope_tokens(member).isdisjoint(admin_roles or ())
+
+
+def member_ban_targets(member, servers, admin_roles: Iterable[Any] | None = None) -> list[str]:
+    """The servers a ban issued by *member* covers — the ONE member-derived ban scope.
+
+    An issuer holding the bot's Admin role is UNRESTRICTED: the ban covers every server, so the
+    answer is the EMPTY list — the bot-wide set — whatever any server's ``managed_by`` says.
+    *admin_roles* is the bot's own configured Admin role (``bot.roles['Admin']``, role ids and/or
+    names), matched against the member's roles by :func:`holds_admin_role`. An empty *admin_roles*
+    means the installation grants the role to nobody.
+
+    Every other issuer covers the servers whose ``managed_by`` names one of their roles. An issuer
+    that tags none yields the empty list too: the two share the empty SET, but only the
+    unrestricted issuer holds the licence to name any server — that is the caller's own
+    ``[server.name]``, not this rule's.
+    """
+    tokens = member_scope_tokens(member)
+    if holds_admin_role(member, admin_roles):
+        return []
+    return [name for name, server in servers.items()
+            if (server.locals.get('managed_by') or [])
+            and holds_scope(server.locals['managed_by'], tokens)]
+
+
+def may_manage_server(managed_by, member, *, is_admin: bool,
+                      admin_roles: Iterable[Any] | None = None) -> bool:
     """The Discord Server picker's rule, verbatim: the restriction applies to the admin class only.
 
     ``is_admin`` is the command's own check (the picker derives it from the command's first role
     check), and a non-admin caller passes — that asymmetry is Discord's behaviour and it is preserved
-    here rather than "fixed", because this card is behaviour-preserving.
+    here rather than "fixed".
+
+    A caller holding the bot's own Admin role (*admin_roles*, role ids and/or names) is UNRESTRICTED:
+    it passes whatever ``managed_by`` says, matching the console, where Admin is unscoped
+    (``services/webservice/scope.py``). Only an admin-class caller that is NOT an Admin must hold one
+    of *managed_by*'s entries.
     """
     if not is_admin:
+        return True
+    if holds_admin_role(member, admin_roles):
         return True
     return holds_scope(managed_by, member_scope_tokens(member))
 
@@ -1046,6 +1089,16 @@ class ServerTransformer(app_commands.Transformer):
                 return True
         return False
 
+    @staticmethod
+    def configured_admin_roles(interaction: discord.Interaction) -> Iterable[Any] | None:
+        """The bot's own configured Admin role (``bot.roles['Admin']``, role ids and/or names).
+
+        ``None`` when the client carries no ``roles`` mapping (a headless double, a plain client):
+        the caller then falls back to the ``managed_by`` rule, never crashing.
+        """
+        roles = getattr(interaction.client, "roles", None)
+        return roles.get("Admin") if isinstance(roles, dict) else None
+
     async def transform(self, interaction: discord.Interaction, value: str | None) -> Server:
         """
         Converts a server name into a Server object.
@@ -1065,10 +1118,12 @@ class ServerTransformer(app_commands.Transformer):
             is_admin = self.is_admin(interaction)
 
             # The restriction is the shared `may_manage_server` rule (services/webservice/scope.py),
-            # NOT a re-statement of it: an admin-class caller may only name a server whose
-            # `managed_by` roles they hold, a non-admin caller is not restricted here at all.
-            if not server or not may_manage_server(server.locals.get('managed_by'),
-                                                   interaction.user, is_admin=is_admin):
+            # NOT a re-statement of it: a non-admin caller is not restricted here at all, a caller
+            # holding the bot's Admin role is UNRESTRICTED (matching the console), and any other
+            # admin-class caller may only name a server whose `managed_by` roles they hold.
+            if not server or not may_manage_server(server.locals.get('managed_by'), interaction.user,
+                                                   is_admin=is_admin,
+                                                   admin_roles=self.configured_admin_roles(interaction)):
                 raise app_commands.TransformerError(value, self.type, self)
         else:
             server = interaction.client.get_server(interaction)
@@ -1093,6 +1148,7 @@ class ServerTransformer(app_commands.Transformer):
         try:
             server: Server | None = interaction.client.get_server(interaction)
             is_admin = self.is_admin(interaction)
+            admin_roles = self.configured_admin_roles(interaction)
             current_lc = current.casefold() if current else None
 
             if (not current_lc and server and server.status != Status.UNREGISTERED and
@@ -1110,7 +1166,7 @@ class ServerTransformer(app_commands.Transformer):
                 if current_lc and current_lc not in name.casefold():
                     continue
                 if not may_manage_server(value.locals.get('managed_by'), interaction.user,
-                                         is_admin=is_admin):
+                                         is_admin=is_admin, admin_roles=admin_roles):
                     continue
 
                 choices.append(app_commands.Choice[str](name=name, value=name))

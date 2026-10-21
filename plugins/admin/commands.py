@@ -41,16 +41,13 @@ class BanServerTransformer(utils.ServerTransformer):
         return await super().transform(interaction, value) if value else None
 
 
-def _ban_targets(member, servers: dict) -> list[str]:
-    """The servers a ban issued by *member* covers.
+def _ban_targets(member, servers: dict, admin_roles=None) -> list[str]:
+    """The servers a ban issued by *member* covers: :func:`core.utils.discord.member_ban_targets`.
 
-    Every server whose ``managed_by`` names one of *member*'s roles; an empty list means the caller
-    is unscoped and the ban is bot-wide — the same rule the server picker narrows a caller with.
+    *admin_roles* is the bot's configured Admin role (``self.bot.roles['Admin']``): an issuer
+    holding it is unrestricted and the ban is bot-wide.
     """
-    tokens = utils.member_scope_tokens(member)
-    return [name for name, server in servers.items()
-            if (server.locals.get('managed_by') or [])
-            and utils.holds_scope(server.locals['managed_by'], tokens)]
+    return utils.member_ban_targets(member, servers, admin_roles)
 
 
 def _ban_scope_label(targets: list[str]) -> str:
@@ -359,7 +356,8 @@ class Admin(Plugin[AdminEventListener]):
                     await interaction.response.send_message(_("{} is not a valid UCID!").format(user),
                                                             ephemeral=ephemeral)
                     return
-                targets: list[str] = [server.name] if server else _ban_targets(interaction.user, self.bot.servers)
+                targets: list[str] = [server.name] if server else _ban_targets(
+                    interaction.user, self.bot.servers, self.bot.roles['Admin'])
                 stamp = datetime.now(tz=timezone.utc)
                 for target in targets or [None]:
                     await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days,
@@ -385,7 +383,7 @@ class Admin(Plugin[AdminEventListener]):
     async def unban(self, interaction: discord.Interaction, ucid: str):
         # the same issuer scope the ban uses: a narrowed issuer clears their own servers' rows only,
         # an unscoped one (no target) clears every row of that ucid
-        targets = _ban_targets(interaction.user, self.bot.servers)
+        targets = _ban_targets(interaction.user, self.bot.servers, self.bot.roles['Admin'])
         cleared = 0
         for target in targets or [None]:
             cleared += await self.bus.unban(ucid, target)

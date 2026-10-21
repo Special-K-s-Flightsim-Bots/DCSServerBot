@@ -555,13 +555,22 @@ class ServiceBus(Service):
             asyncio.create_task(self.udp_server.process_messages(new_name))
 
     async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: int | None = None,
-                  server_name: str | None = None, banned_at: datetime | None = None):
-        if days:
-            until = datetime.now(tz=timezone.utc) + timedelta(days=days)
-            until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+                  server_name: str | None = None, banned_at: datetime | None = None,
+                  until: datetime | None = None):
+        # Three ways to an end: an ABSOLUTE ``until`` (a datetime, written NAIVE UTC as-is), ``days``
+        # from now, or permanent (the year-9999 sentinel). ``until`` wins when given, so a caller that
+        # already knows the end writes it verbatim instead of re-deriving it from a day count — which
+        # is what keeps a reason-only edit from moving the expiry. Every caller that passes no
+        # ``until`` keeps the days math byte-for-byte.
+        if until is not None:
+            end = until.replace(tzinfo=None)
+        elif days:
+            end = (datetime.now(tz=timezone.utc) + timedelta(days=days)).replace(tzinfo=None)
         else:
-            until = datetime(year=9999, month=12, day=31)
-            until_str = 'never'
+            end = datetime(year=9999, month=12, day=31)
+        # The year-9999 sentinel is the permanent ban and announces itself as ``never``; every other
+        # end is a UTC wall-clock stamp stated as UTC.
+        until_str = 'never' if end.year == 9999 else end.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
         # banned_at is passed explicitly so the ONE ROW PER SERVER of a single scoped ban share a
         # timestamp — that is the key their grouping in bans() uses to surface them as one ban.
         stamp = (banned_at or datetime.now(tz=timezone.utc)).replace(tzinfo=None)
@@ -572,7 +581,7 @@ class ServiceBus(Service):
                 ON CONFLICT (ucid, COALESCE(server_name, '')) DO UPDATE
                 SET banned_by = excluded.banned_by, reason = excluded.reason,
                     banned_at = excluded.banned_at, banned_until = excluded.banned_until
-            """, (ucid, banned_by, reason, stamp, until.replace(tzinfo=None), server_name))
+            """, (ucid, banned_by, reason, stamp, end, server_name))
         asyncio.create_task(self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -618,20 +627,37 @@ class ServiceBus(Service):
         }))
         return cleared
 
-    async def bans(self, *, expired: bool = False) -> list[dict]:
+    async def bans(self, *, expired: bool = False, servers: tuple[str, ...] | None = None) -> list[dict]:
+        """The active (or every) ban, one ENTRY per ban.
+
+        ``servers=None`` is the unscoped read and reproduces the statement this method has always
+        run, byte for byte — every caller that passes nothing keeps its answer. ``servers=(…)``
+        restricts the SOURCE to those server names, so a scoped read is built FROM the caller's set
+        rather than filtered afterwards; a bot-wide row (``server_name IS NULL``) is not one of the
+        named servers and is therefore not in a scoped answer.
+        """
         if expired:
             where = ""
         else:
             where = "WHERE b.banned_until >= (now() AT TIME ZONE 'utc')"
+        params: tuple = ()
+        if servers is not None:
+            clause = "b.server_name = ANY(%s)"
+            where = f"{where} AND {clause}" if where else f"WHERE {clause}"
+            params = (list(servers),)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(f"""
+                statement = f"""
                     SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
                            b.banned_at, b.banned_until, b.server_name 
                     FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
                     {where}
                     ORDER BY b.ucid, b.banned_at
-                """)
+                """
+                if params:
+                    await cursor.execute(statement, params)
+                else:
+                    await cursor.execute(statement)
                 rows = [x async for x in cursor]
         # A ban that covers several servers is stored as one row per server, so the rows of ONE ban
         # (same ucid, banned_at and reason) are grouped back into a single entry: its scope reads as

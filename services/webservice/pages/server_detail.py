@@ -30,10 +30,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import unicodedata
+from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
+
+# THE CACHED-RPC decorator the bot itself uses for the same two reads (``status.get_visibility``):
+# an Overview card's optional data is reused for a window instead of asked for on every render.
+from core.utils import cache_with_expiration
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
@@ -46,8 +53,9 @@ from ..templating import SENTENCE_GLOBAL
 from ..readmodels import dcslog as dcs_log
 from ..readmodels import serverconfig as server_config
 from ..readmodels.access import attr
+from ..readmodels.model import ExtensionView, value_parts
 from ..readmodels.players import player_views
-from ..readmodels.servers import server_url, server_view
+from ..readmodels.servers import format_visibility, server_url, server_view
 # THE console's CLUSTER roles: a cluster role is never a "manager ONLY", so the config tab's manager
 # scope grant excludes one — the same rule the write action applies.
 from ..scope import CLUSTER_ROLES
@@ -75,7 +83,9 @@ __all__ = [
     "PAGE_TITLE_SUFFIX", "capabilities", "nav_items", "add_routes",
     "normalise_tab", "tabs_for", "tab_views", "config_request_refused", "tab_request_refused",
     "mission_download_path", "mission_rows", "add_mission_download_route",
-    "add_server_status_route",
+    "add_server_status_route", "add_preset_image_route", "PRESET_IMAGE_PATH",
+    "PRESET_IMAGE_MAX_BYTES", "PRESET_IMAGE_MEDIA_TYPE", "preset_image_path", "preset_image_file",
+    "schedule_view", "SCHEDULE_GLYPHS",
 ]
 
 log = logging.getLogger(__name__)
@@ -169,6 +179,38 @@ SERVER_STATUS_PATH = "/fleet/{name:path}/status"
 #: The status is a single small mark, so it does not need the log follower's tighter cadence.
 SERVER_STATUS_SECONDS = 10
 
+#: THE PRESET-THUMBNAIL route — the mission editor's own picture of the cloud preset the server is
+#: running. The file lives in the GAME host's DCS installation (``clouds.preset.thumbnailName`` is
+#: relative to it), so it is not under the web root and its path must never reach an ``<img src>``:
+#: the route resolves the reported name ON the server's node and hands the bytes back. It answers
+#: GET, changes nothing (no state, no CSRF), and declares the server page's own ``servers.view``
+#: through the SCOPED lookup, so the picture is exactly as reachable as the card that shows it.
+#: Registered BEFORE the page route, whose greedy ``{name:path}`` would otherwise swallow the suffix.
+PRESET_IMAGE_PATH = "/fleet/{name:path}/weather/preset.png"
+
+#: The most this console hands over as a preset thumbnail. A DCS preset picture is a small PNG (tens
+#: of KB); the cap is generous so a replaced asset still shows, and it refuses a reported file that is
+#: not a picture — never streaming an arbitrary binary out of the DCS installation.
+PRESET_IMAGE_MAX_BYTES = 4 * 1024 * 1024
+PRESET_IMAGE_MEDIA_TYPE = "image/png"
+
+#: HOW LONG THE OVERVIEW TAB'S OWN OPTIONAL READS ARE REUSED (seconds). Each is an RPC or a plugin
+#: lookup, so each is cached rather than repeated on every render: the server's extension render
+#: (``render_extensions``), and the live fog reading behind the visibility figure
+#: (``getFog`` — the bot's status embed caches the same read for 300 s).
+EXTENSIONS_SECONDS = 60
+LIVE_VISIBILITY_SECONDS = 300
+
+#: how long the extensions RPC may take before the card is simply left out. A page render must not
+#: wait a minute on a slow node for a decorative list: the request is left running (the node's own
+#: cache is filled by it) and this render answers without it.
+EXTENSIONS_TIMEOUT_SECONDS = 5.0
+
+#: the scheduler's day states and the glyph each one renders as. The letters are the bot's own
+#: (``plugins/scheduler``: Y/N/P), so this map is a rendering of that vocabulary, never a second
+#: declaration of it.
+SCHEDULE_GLYPHS: dict[str, str] = {"Y": "✅", "N": "❌", "P": "☑️"}
+
 #: HOW MUCH OF A LOG THIS CONSOLE HANDS OVER IN ONE RESPONSE — the SAME cap the node-log download
 #: already declares (``pages/nodes.LOG_DOWNLOAD_MAX_BYTES``, 10 MiB), named through it rather than
 #: re-spelled, so "the console's download cap" has ONE number. A log above it is REFUSED with its own
@@ -219,22 +261,22 @@ EMBED_FIELD_COVERAGE: dict[str, str] = {
     "Temperature": i18n._("Temperature"),
     "Clouds": i18n._("Weather"),
     "Weather": i18n._("Weather"),
-    "Visibility": i18n._("Wind"),
-    "Date / Time in Mission": i18n._("Runtime"),
+    "Visibility": i18n._("Visibility"),
+    "Date / Time in Mission": i18n._("Date / Time in Mission"),
+    "Client Limits": i18n._("Client Limits"),
+    # the ScheduleInfo element's field and its day grid are ONE card: the tooltip sentence names the
+    # schedule and the grid is what the card draws, so both labels are carried by the card's heading.
+    "This server runs on the following schedule:": i18n._("Schedule"),
+    "🇲|🇹|🇼|🇹|🇫|🇸|🇸": i18n._("Schedule"),
 }
 
 #: embed field labels the tab deliberately does NOT show, each with the reason a reviewer can check.
 #: Every literal name in the builder must appear in ONE of the two maps — that is the drift guard.
+#: The two maps are the WHOLE list: a field the tab shows belongs in coverage, so an omission left
+#: here after the tab grew the fact would make this declaration lie while the parity test still
+#: passed (it compares the union of both).
 EMBED_FIELDS_NOT_COVERED: dict[str, str] = {
-    "Client Limits": (
-        "the IntegrityCheck element renders the server's client-integrity policy flags (pure "
-        "clients/scripts/models, trial clients) — a per-server policy list, not a runtime fact the "
-        "Overview tab carries"),
     "_ _": "the Ruler/blank spacer fields every element appends — layout, not a fact",
-    "This server runs on the following schedule:": (
-        "the ScheduleInfo element — reads the scheduler plugin and a per-server schedule; not a "
-        "runtime fact the tab carries"),
-    "🇲|🇹|🇼|🇹|🇫|🇸|🇸": "the ScheduleInfo day grid (see above)",
 }
 
 
@@ -450,7 +492,11 @@ def capabilities() -> dict[str, str]:
             # THE STATUS POLL is a READ of the server page's own data (the status the page head and
             # the Overview card render), so it carries the PAGE's capability and its scope — the same
             # predicate the page route is gated with, never a new one.
-            SERVER_STATUS_PATH: SERVER_DETAIL_CAPABILITY}
+            SERVER_STATUS_PATH: SERVER_DETAIL_CAPABILITY,
+            # THE PRESET PICTURE is a read of the server's own weather (the cloud preset the card
+            # shows), so it carries the SAME predicate for the same reason — a caller who may not
+            # open the page may not read its server's picture either.
+            PRESET_IMAGE_PATH: SERVER_DETAIL_CAPABILITY}
 
 
 def nav_items():
@@ -1310,10 +1356,328 @@ def add_server_status_route(router: APIRouter) -> APIRouter:
         server = dashboard_page.scoped_server(request, requested)
         view = server_view(server)
         html = i18n.render_fragment(request, "_server_status.html", status=view.status)
-        # no-store: a polled status must always be the CURRENT one, never a cached mark.
-        return JSONResponse({"status": html}, headers={"Cache-Control": "no-store"})
+        # no-store: a polled status must always be the CURRENT one, never a cached mark. ``word`` is
+        # the RAW status: the page's script compares it with the one it was rendered for and reloads
+        # when they differ, because a state change invalidates every OTHER fact on the tab too (the
+        # mission block, the weather, the seats, the extensions) — an operator who starts a server
+        # otherwise sits on a page that still says "not running".
+        return JSONResponse({"status": html, "word": view.status.word},
+                            headers={"Cache-Control": "no-store"})
 
     return router
+
+
+# --------------------------------------------------------------------------- the Overview tab's data
+# The card's facts that are NOT a read of the process: the server's extension render, the live fog
+# reading behind its visibility and the scheduler's per-server plan. Each is an RPC or a plugin
+# lookup, so each lives HERE (the log tab's own rule: a read model must not await) and each degrades
+# to \"nothing to show\" — a card that cannot be filled is left out, never rendered empty.
+
+#: one backslash, written as its codepoint: a reported thumbnail name may use EITHER separator, and a
+#: literal backslash in this source would read as an escape to anyone skimming the join below.
+_BACKSLASH = chr(92)
+
+
+def preset_image_path(server_name: str) -> str:
+    """The URL of *server_name*'s preset thumbnail — the name as ONE percent-encoded segment.
+
+    Built from the SERVER name only. The picture's own name is never part of the URL: it comes from
+    that server's reported weather and is resolved by the route, so nothing a link carries can name a
+    file.
+    """
+    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/preset.png"
+
+
+def _preset_image_refuse(status_code: int, sentence: str) -> PlainTextResponse:
+    """The honest refusal an image request answers with: ONE sentence in plain text, never bytes.
+
+    The console's download-refusal shape (``_refuse`` / ``_log_refuse``): a picture has no page to
+    render its failure into, so the sentence IS the answer, and it stays English for the same reason
+    — these are the same class of body, and the card's own enhancement hides the ``<img>`` when the
+    request fails, so a missing picture draws nothing at all.
+    """
+    log.info("Preset image answered %d: %s", status_code, sentence)
+    return PlainTextResponse(sentence + "\n", status_code=status_code)
+
+
+def _installation_root(node) -> str:
+    """The DCS installation directory ON *node*, or ``''``.
+
+    ``nodes.<name>.locals.DCS.installation`` is the root every DCS-relative path in this tree is
+    resolved against (``core/mizfile.py`` reads the terrains folder the same way). ``locals`` is a
+    node's own merged configuration, so this is a tolerant read: a node that has not reported one
+    yields ``''`` and the caller refuses rather than guessing a directory.
+    """
+    node_locals = getattr(node, "locals", None)
+    if not isinstance(node_locals, dict):
+        return ""
+    dcs = node_locals.get("DCS")
+    root = dcs.get("installation") if isinstance(dcs, dict) else None
+    return str(root) if root else ""
+
+
+def preset_image_file(node, thumbnail: str) -> str | None:
+    """The thumbnail's path ON *node*, or ``None`` when the reported name cannot be used.
+
+    The name comes from the MISSION (``clouds.preset.thumbnailName``), so it is operator data rather
+    than a request parameter — and it is still REFUSED rather than resolved when it is not a plain
+    relative PNG path. An absolute path, a Windows drive, a UNC share or any ``..`` component would
+    let a mission file name a file outside the DCS installation, which is what keeps this route from
+    being a general file reader; the shape test is therefore on the REPORTED name, not on a
+    normalized comparison alone.
+
+    The join writes FORWARD slashes even on Windows: the path is opened on the NODE, which may be the
+    other platform, and both Windows and POSIX accept ``/`` — while a backslash is a literal
+    character in a POSIX filename, so a name carrying one is read as a separator instead.
+    """
+    root = _installation_root(node)
+    reported = str(thumbnail or "")
+    if not root or not reported:
+        return None
+    if reported.startswith("/") or reported.startswith(_BACKSLASH) or re.match(r"^[A-Za-z]:", reported):
+        return None
+    parts = [part for part in reported.replace(_BACKSLASH, "/").split("/") if part not in ("", ".")]
+    if not parts or ".." in parts or not parts[-1].lower().endswith(".png"):
+        return None
+    install = os.path.normpath(os.path.expandvars(root)).replace(os.sep, "/").rstrip("/")
+    return f"{install}/{'/'.join(parts)}"
+
+
+def add_preset_image_route(router: APIRouter) -> APIRouter:
+    """Add THE preset-thumbnail route (``GET``) — the cloud preset's mission-editor picture.
+
+    A READ: it changes nothing, so it is a GET, and it declares the server page's own capability
+    (``servers.view``) resolved through the SCOPED server lookup, so a caller who may not open the
+    page cannot read its server's picture either. The URL names the SERVER and nothing else.
+
+    Every failure is its own plain sentence — never a zero-byte 200 that renders as a broken
+    thumbnail: the node is offline or unknown (404), the reported name is unusable (400), the picture
+    is not there (404), the node cannot read it (403) or raises (502), it does not answer in time
+    (504), and one above the cap is refused with its size and the path to fetch it from (413).
+    """
+    @router.get(PRESET_IMAGE_PATH, name="server-preset-image")
+    async def preset_image(request: Request, name: str) -> Response:
+        server = dashboard_page.scoped_server(request, name)
+        node = _reachable_log_node(request, server)
+        node_name = readmodels.text(attr(node, "name", None)) or readmodels.text(
+            attr(attr(server, "node", None), "name", None))
+        if node is None:
+            return _preset_image_refuse(404, _node_offline_sentence(node_name))
+        view = server_view(server)
+        thumbnail = view.weather.thumbnail if view.weather else ""
+        path = preset_image_file(node, thumbnail)
+        if path is None:
+            return _preset_image_refuse(
+                400, f"Server '{name}' reported no usable cloud-preset picture"
+                     + (f" (thumbnailName '{thumbnail}')." if thumbnail else "."))
+        try:
+            data = await node.read_file(path)
+        except FileNotFoundError:
+            return _preset_image_refuse(404, f"'{thumbnail}' is not in this server's DCS installation "
+                                            f"(looked for '{path}').")
+        except PermissionError:
+            return _preset_image_refuse(403, f"Node '{node_name}' cannot read '{path}' "
+                                            f"(permission denied).")
+        except (TimeoutError, asyncio.TimeoutError):
+            return _preset_image_refuse(504, f"Node '{node_name}' did not answer in time, so the "
+                                            f"picture was not read.")
+        except Exception as ex:  # noqa: BLE001 - every transport failure is an honest sentence
+            log.warning("Preset image: node '%s' raised %s reading '%s'", node_name,
+                        type(ex).__name__, path, exc_info=True)
+            return _preset_image_refuse(502, f"Node '{node_name}' could not hand over '{thumbnail}' "
+                                            f"({type(ex).__name__}).")
+        if not isinstance(data, (bytes, bytearray)):
+            # ``read_file`` is ``bytes | int`` and an ``int`` is a FAILURE CODE, never content.
+            return _preset_image_refuse(502, f"Node '{node_name}' answered with a failure code "
+                                            f"instead of '{thumbnail}'.")
+        payload = bytes(data)
+        if len(payload) > PRESET_IMAGE_MAX_BYTES:
+            return _preset_image_refuse(413, f"'{thumbnail}' is {len(payload)} bytes, above the "
+                                            f"{PRESET_IMAGE_MAX_BYTES}-byte limit this console hands "
+                                            f"over as a thumbnail. Fetch it from the host: {path}")
+        return Response(content=payload, media_type=PRESET_IMAGE_MEDIA_TYPE,
+                        headers={"Cache-Control": "private, max-age=300"})
+
+    return router
+
+
+@cache_with_expiration(expiration=EXTENSIONS_SECONDS)
+async def _extension_views(server) -> tuple[ExtensionView, ...]:
+    """The extensions *server* reports, or ``()`` — ONE node RPC, cached, never awaited twice.
+
+    The embed renders extensions only for a RUNNING or PAUSED server (the caller applies that gate: a
+    stopped server has no extension host to ask), and this read is cached because it is a node RPC
+    rather than a process read. It answers ``()`` on ANY failure — a node that does not answer within
+    :data:`EXTENSIONS_TIMEOUT_SECONDS`, an installation whose extensions cannot render, a server
+    double with no such method — because a card that cannot be filled is left out, and a page render
+    must not wait a minute on a slow node for a decorative list. The timed-out request keeps running,
+    so the node's own cache is still filled for the next render.
+    """
+    try:
+        extensions = await asyncio.wait_for(server.render_extensions(), EXTENSIONS_TIMEOUT_SECONDS)
+    except Exception as ex:  # noqa: BLE001 - no extensions is a state, not an error
+        log.debug("Overview: no extensions for '%s' (%s): %s",
+                  readmodels.text(attr(server, "name", None)), type(ex).__name__, ex)
+        return ()
+    out: list[ExtensionView] = []
+    for extension in extensions or ():
+        if not isinstance(extension, dict):
+            continue
+        ext_name = readmodels.text(extension.get("name"))
+        if not ext_name:
+            continue
+        version = readmodels.text(extension.get("version"))
+        value = readmodels.text(extension.get("value"))
+        #: an extension that reports NO version fills the field with a placeholder of its own
+        #: ("n/a"), and printing "vn/a" is worse than printing nothing: these are the spellings that
+        #: mean "there is no version", not a version.
+        out.append(ExtensionView(name=ext_name,
+                                 value=value,
+                                 parts=value_parts(value),
+                                 version="" if version.lower() in ("n/a", "n.a.", "na", "-", "none")
+                                 else version))
+    return tuple(out)
+
+
+@cache_with_expiration(expiration=LIVE_VISIBILITY_SECONDS)
+async def _live_visibility(server) -> int:
+    """The LIVE visibility DCS reports, in metres, or ``0`` when it cannot be read.
+
+    The bot's own status embed asks the mission for ``getFog`` when a server is running, because
+    DYNAMIC weather moves the visibility after the mission starts — the mission file's own figure is
+    then stale. The same read, the same RPC and the same cache window (the embed caches it for 300 s);
+    ``0`` means \"nothing to add\", so the caller keeps the mission's own figure rather than printing
+    a zero.
+    """
+    try:
+        result = await server.send_to_dcs_sync({"command": "getFog"})
+        visibility = result.get("visibility") if isinstance(result, dict) else None
+        if visibility is not None:
+            return int(visibility)
+    except (TimeoutError, asyncio.TimeoutError):
+        pass
+    except Exception as ex:  # noqa: BLE001 - an unreadable fog value is a state, not an error
+        log.debug("Overview: no live visibility for '%s' (%s): %s",
+                  readmodels.text(attr(server, "name", None)), type(ex).__name__, ex)
+    return 0
+
+
+def _scheduler():
+    """The Scheduler plugin, or ``None`` — a RUNTIME object, resolved per render.
+
+    ``BotService.bot`` is ``None`` early in a boot and after a takeover (the same rule the auth layer
+    follows), and the cog is absent on an installation without the plugin, so both are tolerated: no
+    scheduler means no schedule card.
+    """
+    try:
+        from core import ServiceRegistry
+        from services.bot import BotService
+        bot = getattr(ServiceRegistry.get(BotService), "bot", None)
+        cogs = getattr(bot, "cogs", None)
+        return cogs.get("Scheduler") if cogs else None
+    except Exception as ex:  # noqa: BLE001 - an installation without a scheduler has no plan to show
+        log.debug("Overview: the scheduler plugin is not reachable (%s): %s", type(ex).__name__, ex)
+        return None
+
+
+def _schedule_offset(config: dict) -> str:
+    """The plan's UTC offset as ``+02:00``, or ``''`` for UTC itself — the embed's own label."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        tz = ZoneInfo(config["timezone"]) if "timezone" in config else None
+    except Exception:  # noqa: BLE001 - an unknown zone name falls back to this host's own offset
+        tz = None
+    now = datetime.now().astimezone()
+    if tz is not None:
+        now = now.astimezone(tz)
+    offset = now.utcoffset()
+    hours, remainder = divmod(int(offset.total_seconds()) if offset is not None else 0, 3600)
+    minutes = abs(int(remainder)) // 60
+    if hours == 0 and minutes == 0:
+        return ""
+    sign = "+" if hours >= 0 else "-"
+    return f"{sign}{abs(hours):02d}:{minutes:02d}"
+
+
+def schedule_view(server) -> dict | None:
+    """The server's own scheduler plan for the card, or ``None`` when there is none to show.
+
+    Read through the PLUGIN's own ``get_config`` so the DEFAULT/instance merge, the timezone and the
+    day strings are the scheduler's answer — never a second parse of ``plugins/scheduler.yaml`` here.
+    The default plan (``00-24`` = ``YYYYYYY``, i.e. always on) yields ``None``: the embed omits the
+    field in that case, and a card saying \"always on\" on every server is noise, not information.
+    """
+    scheduler = _scheduler()
+    if scheduler is None:
+        return None
+    try:
+        config = scheduler.get_config(server)
+    except Exception as ex:  # noqa: BLE001 - a plugin that cannot answer the card's question
+        log.debug("Overview: no schedule for '%s' (%s): %s",
+                  readmodels.text(attr(server, "name", None)), type(ex).__name__, ex)
+        return None
+    if not isinstance(config, dict):
+        return None
+    schedule = config.get("schedule")
+    if not isinstance(schedule, dict) or not schedule or schedule == {"00-24": "YYYYYYY"}:
+        return None
+    rows = [{"period": readmodels.text(period),
+             "glyphs": [SCHEDULE_GLYPHS.get(letter, "") for letter in str(days)]}
+            for period, days in schedule.items() if str(period) != "timezone"]
+    if not rows:
+        return None
+    return {"offset": _schedule_offset(config), "rows": rows}
+
+
+def _bot_version() -> str:
+    """The console's own DCSServerBot version, or ``''`` — the embed footer's other half.
+
+    The server's DCS build comes from its node (``ServerView.dcs_version``); the bot's own version is
+    the one SERVING the page, so it is read from the console's node at render time. Both halves are
+    the embed footer's, in its own order.
+    """
+    try:
+        from core import ServiceRegistry
+        from services.bot import BotService
+        node = getattr(ServiceRegistry.get(BotService), "node", None)
+    except Exception:  # noqa: BLE001 - early in a boot there is no service to ask
+        return ""
+    version = readmodels.text(getattr(node, "bot_version", None))
+    sub = getattr(node, "sub_version", None)
+    if version and sub is not None:
+        return f"{version}.{sub}"
+    return version
+
+
+async def _overview_context(request: Request, server, view) -> dict:
+    """The Overview tab's data: the shared ``ServerView`` plus the reads that are not in it.
+
+    The ``ServerView`` is rebuilt only to carry the LIVE visibility (a running server's fog reading
+    replaces the mission file's own figure, exactly as the embed prefers it); every other fact still
+    comes from the ONE per-server read model the heading renders, so a figure shown twice cannot
+    disagree. The extensions and the schedule are separate because neither is a process read.
+    """
+    weather = view.weather
+    if view.running and weather is not None and weather.visibility:
+        live = await _live_visibility(server)
+        if live:
+            view = replace(view, weather=replace(weather, visibility=format_visibility(float(live))))
+    extensions = await _extension_views(server) if view.running else ()
+    thumbnail = view.weather.thumbnail if view.weather else ""
+    return {
+        # the rebuilt view (see above) — the same record the heading renders
+        "server": view,
+        "extensions": extensions,
+        "schedule": schedule_view(server),
+        # the thumbnail's URL, built from the SERVER, offered only when the mission reported a picture
+        "preset_image": preset_image_path(view.name) if thumbnail else "",
+        "preset_thumbnail": thumbnail,
+        "bot_version": _bot_version(),
+        "updated": f"{datetime.now(timezone.utc):%y-%m-%d %H:%M:%S} UTC",
+        "empty": {"weather": readmodels.NO_WEATHER_MESSAGE,
+                  "not_running": readmodels.NOT_RUNNING_MESSAGE},
+    }
 
 
 async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
@@ -1394,6 +1758,7 @@ def add_routes(router: APIRouter) -> APIRouter:
     add_log_window_route(router)
     add_log_download_route(router)
     add_server_status_route(router)
+    add_preset_image_route(router)
 
     @router.get(SERVER_DETAIL_PATH, response_class=HTMLResponse, name="page-server-detail")
     async def server_detail(request: Request, name: str):
@@ -1495,11 +1860,10 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         # THE DEBUG PLUGIN'S events.log: the same presentation as the log tab, selected by
         # ``which=events`` on the shared window route; downloads limited to its two files.
         return await _log_tab_context(request, server, server_name, which=dcs_log.EVENTS_WHICH)
-    # overview: the tab renders the server's own facts (status, mission, map, players, runtime,
-    # weather) off the shared ServerView the heading already reads; the only extra data is the
-    # honest empty-state copy the weather block and a not-running server use.
-    return {"empty": {"weather": readmodels.NO_WEATHER_MESSAGE,
-                      "not_running": readmodels.NOT_RUNNING_MESSAGE}}
+    # overview: the tab renders the server's own facts off the shared ServerView the heading already
+    # reads, plus the three reads that are NOT in it (the extension render, the live fog reading and
+    # the scheduler's plan) and the honest empty-state copy.
+    return await _overview_context(request, server, server_view(server))
 
 
 async def _missions_write_context(request: Request, server, server_name: str) -> dict:

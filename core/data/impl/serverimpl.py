@@ -1181,31 +1181,52 @@ class ServerImpl(Server):
                     self.log.warning("No mission found. Is your mission list empty?")
                     return None
 
-            # create a writable mission
-            new_filename = utils.create_writable_mission(filename)
-            if use_orig:
-                # get the orig file
-                orig_filename = utils.get_orig_file(new_filename)
-                # and copy the orig file over
-                shutil.copy2(orig_filename, new_filename)
-            elif new_filename != filename:
-                shutil.copy2(filename, new_filename)
+            # select the mission file to use before creating a temp copy
+            selected_filename = filename
+            dirty = False
+            for ext in self.extensions.values():
+                if type(ext).get_mission_file != Extension.get_mission_file:
+                    new_selected_filename = await ext.get_mission_file(selected_filename)
+                    if new_selected_filename != selected_filename:
+                        self.log.info(f'  => {ext.name} selected {os.path.basename(new_selected_filename)}.')
+                        selected_filename = new_selected_filename
+                        dirty = True
+
+            source_filename = utils.get_orig_file(selected_filename) if use_orig else selected_filename
+            temp_dir = tempfile.mkdtemp(prefix='dcssb-mission-')
+            tmp_filename = os.path.join(temp_dir, os.path.basename(selected_filename))
+            new_filename = tmp_filename
+
             try:
-                # process all mission modifications
-                dirty = False
+                shutil.copy2(source_filename, tmp_filename)
+
+                # process all mission modifications on the temporary copy
+                dirty |= use_orig
                 for ext in self.extensions.values():
-                    if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
-                        new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
+                    if type(ext).modify_mission != Extension.modify_mission:
+                        new_filename, _dirty = await ext.modify_mission(new_filename)
                         if _dirty:
-                            self.log.info(f'  => {ext.name} applied on {new_filename}.')
+                            self.log.info(f'  => {ext.name} applied on {os.path.basename(new_filename)}.')
                         dirty |= _dirty
 
-                return filename if not dirty else new_filename
+                if not dirty:
+                    return filename
+
+                writable_filename = utils.create_writable_mission(selected_filename)
+                shutil.copy2(new_filename, writable_filename)
+                return writable_filename
+
             except Exception as ex:
                 self.log.exception(ex)
-                if filename != new_filename and os.path.exists(new_filename):
-                    os.remove(new_filename)
+                if use_orig:
+                    writable_filename = utils.create_writable_mission(selected_filename)
+                    orig_filename = utils.get_orig_file(selected_filename)
+                    shutil.copy2(orig_filename, writable_filename)
+                    return writable_filename
                 return filename
+
+            finally:
+                utils.safe_rmtree(temp_dir)
         finally:
             # enable autoscan
             if self.locals.get('autoscan', False):

@@ -166,7 +166,7 @@ class MizEdit(Extension):
         return re.search(self.config['filter'], os.path.basename(filename)) is not None
 
     @override
-    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
+    async def modify_mission(self, filename: str) -> tuple[str, bool]:
         if 'filter' in self.config and not self._filter(filename):
             return filename, False
         presets = await self.get_presets(self.config)

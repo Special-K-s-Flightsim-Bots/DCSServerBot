@@ -560,3 +560,101 @@ msgstr "Игрок {} разбанен на {}."
 
 msgid "User {} was not banned on {}."
 msgstr "Игрок {} не был забанен на {}."
+
+#: plugins/mission/actions.py
+msgid "The ban list is only available in the web console."
+msgstr "Список банов доступен только в веб-консоли."
+
+#: plugins/mission/actions.py
+msgid "The ban list is not available in this installation."
+msgstr "Список банов недоступен в этой установке."
+
+#: plugins/mission/actions.py
+msgid "The ban list could not be read: {}"
+msgstr "Не удалось прочитать список банов: {}"
+
+#: plugins/mission/actions.py
+msgid "Timeout while lifting the ban."
+msgstr "Тайм-аут при снятии бана."
+
+#: plugins/mission/actions.py
+msgid "Failed to lift the ban: {}"
+msgstr "Не удалось снять бан: {}"
+
+#: plugins/mission/actions.py
+msgid "No active ban for {} in your scope."
+msgstr "Нет активного бана для {} в твоей области."
+
+#: plugins/mission/actions.py
+msgid "Ban lifted on {}."
+msgstr "Бан снят на {}."
+
+#: plugins/mission/actions.py
+msgid "'{}' is not a valid UCID."
+msgstr "'{}' — недопустимый UCID."
+
+#: plugins/mission/actions.py
+msgid "A reason is required to ban a player."
+msgstr "Для бана игрока нужна причина."
+
+#: plugins/mission/actions.py
+msgid "The reason is longer than {} characters."
+msgstr "Причина длиннее {} символов."
+
+#: plugins/mission/actions.py
+msgid "Server '{}' is outside your scope."
+msgstr "Сервер '{}' вне твоей области."
+
+#: plugins/mission/actions.py
+msgid "Player {} banned for {} days on {}."
+msgstr "Игрок {} забанен на {} дней на {}."
+
+#: plugins/mission/actions.py
+msgid "Player {} banned permanently on {}."
+msgstr "Игрок {} забанен бессрочно на {}."
+
+#: plugins/mission/actions.py
+msgid "Timeout while adding the ban."
+msgstr "Тайм-аут при добавлении бана."
+
+#: plugins/mission/actions.py
+msgid "Failed to add the ban: {}"
+msgstr "Не удалось добавить бан: {}"
+
+#: plugins/mission/actions.py
+msgid "The player list could not be read: {}"
+msgstr "Не удалось прочитать список игроков: {}"
+
+#: plugins/mission/actions.py
+msgid "The ban could not be identified — open it from the list."
+msgstr "Не удалось определить бан — откройте его из списка."
+
+#: plugins/mission/actions.py
+msgid "A DGSA ban cannot be edited — it can only be lifted here."
+msgstr "Бан DGSA нельзя изменить — его можно только снять здесь."
+
+#: plugins/mission/actions.py
+msgid "Ban on {} updated."
+msgstr "Бан для {} обновлён."
+
+#: plugins/mission/actions.py
+msgid "Timeout while editing the ban."
+msgstr "Тайм-аут при изменении бана."
+
+#: plugins/mission/actions.py
+msgid "Failed to edit the ban: {}"
+msgstr "Не удалось изменить бан: {}"
+
+#: plugins/mission/actions.py
+msgid ""
+"Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it "
+"empty for a permanent ban."
+msgstr ""
+"Срок истечения должен быть датой/временем UTC, например YYYY-MM-DD "
+"HH:MM:SS — оставь пустым для бессрочного бана."
+
+#: plugins/mission/actions.py
+msgid "Expires must be in the future — a past date would lift the ban. Leave it "
+"empty for a permanent ban."
+msgstr "Срок истечения должен быть в будущем — прошедшая дата сняла бы бан. Оставь "
+"пустым для бессрочного бана."

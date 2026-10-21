@@ -227,6 +227,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     knows what the reserved surface consists of.
     """
     from .pages import dashboard as dashboard_page
+    from .pages import bans as bans_page
     from .pages import instances as instances_page
     from .pages import live as live_page
     from .pages import logs as logs_page
@@ -255,6 +256,9 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     node_settings_page.add_routes(router)
     instances_page.add_routes(router)
     players_page.add_routes(router)
+    # THE BANS PAGE: the console's scoped ban list and its LIFT. One route, one capability and one
+    # nav item, registered flat like the pages above.
+    bans_page.add_routes(router)
     live_page.add_routes(router)
     # THE SETTINGS PAGE: the schema-driven config page, Admin-only.
     settings_page.add_routes(router)
@@ -269,9 +273,10 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     capabilities.update(node_settings_page.capabilities())
     capabilities.update(instances_page.capabilities())
     capabilities.update(players_page.capabilities())
+    capabilities.update(bans_page.capabilities())
     capabilities.update(live_page.capabilities())
     capabilities.update(settings_page.capabilities())
-    # THE MAIN MENU IS FOUR ITEMS: Dashboard, Servers, Nodes, Settings. Logs, Instances and
+    # THE MAIN MENU IS FIVE ITEMS: Dashboard, Servers, Nodes, Bans, Settings. Logs, Instances and
     # Players are still PAGES — their routes are registered above and stay reachable/linkable —
     # but they contribute NO nav entry: each one's content is already on the Dashboard (the
     # Servers/Nodes/Instances/Players tabs and the log panel with its expanded mode). A page whose
@@ -279,6 +284,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     # presents it. See pages/instances.py, pages/players.py and pages/logs.py.
     return router, capabilities, (dashboard_page.nav_items()
                                   + servers_page.nav_items() + nodes_page.nav_items()
+                                  + bans_page.nav_items()
                                   + settings_page.nav_items())
 
 

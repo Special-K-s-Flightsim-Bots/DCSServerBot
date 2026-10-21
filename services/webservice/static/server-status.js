@@ -56,15 +56,33 @@
     for (var i = 0; i < regions.length; i++) { regions[i].innerHTML = html; }
   }
 
+  /* THE STATUS THE PAGE WAS RENDERED FOR — the RAW word, out of the mark's own `data-word` attribute
+     (never its text, which is translated). */
+  function currentWord() {
+    var mark = document.querySelector("[data-server-status] [data-word]");
+    return mark ? mark.getAttribute("data-word") : "";
+  }
+
   function pollOnce() {
     if (inFlight) { return; }
     inFlight = true;
+    var before = currentWord();
     fetch(url, { headers: { "accept": "application/json" }, credentials: "same-origin" })
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (payload) {
         inFlight = false;
         if (!payload || typeof payload.status !== "string") { fail(); return; }
         backoff = BACKOFF_MS;
+        /* A STATE CHANGE IS NOT A COSMETIC UPDATE. Everything under the mark is rendered for the state
+           the page was loaded in — the mission block, the weather, the seats, the extensions, the
+           buttons' availability — so a server that just came up (or went to PAUSED) would leave the
+           operator looking at a page that still says "not running" until they reload by hand. Reload
+           once on the transition itself: the polled word differs from the rendered one, which cannot
+           happen twice for the same transition (the reload renders the new word). */
+        if (payload.word && before && payload.word !== before) {
+          window.location.reload();
+          return;
+        }
         paint(payload.status);
       })
       .catch(function () { inFlight = false; fail(); });

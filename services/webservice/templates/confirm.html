@@ -56,6 +56,14 @@
   reaches the person through the console's OWN one-shot notice, rendered where they land and on the
   live path (`pages/live.py`'s `notice` target), the same mechanism every other write already uses.
   Nothing is retried: a confirm token is spent by the POST, so a re-send would only be refused again.
+
+  ONE EXCEPTION: THE WAITING DIALOG (`dialog.await`). A dialog whose write MUST be seen on the page it
+  returns to carries `data-await` beside its `data-back`, and the interceptor then waits for the write's
+  answer before navigating — the SAME destination, reached once the route has committed. The Bans
+  dialogs (lift, add, edit) are the case: the list they return to is the very thing the write changed,
+  so a render raced ahead of the write would show the ban that was just lifted. The general dialogs
+  (a server's Startup/Shutdown) keep the immediate close — their outcome is read on the page they
+  return to or through the one-shot notice, not in the row the write touched.
 -#}
 {% extends "base.html" %}
 {% import "_icons.html" as icons %}
@@ -89,6 +97,12 @@
     labelled picker (the Missions tab's ADD dialog chooses the mission file here), a LIST is the
     READ-ONLY selection the bulk-remove dialog shows (one name per line, no boxes — the selection was
     made in the list), and everything else keeps the stacked field the kick and ban reason use.
+
+    ``data-lookup`` (a text field's OWN record, ``field.lookup``): the URL the console's own
+    progressive enhancement reads to suggest what belongs in the box (the ADD ban dialog's UCID
+    field). It is an attribute on an otherwise plain input, so with JavaScript off the field is the
+    required text box it always was, and ``autocomplete="off"`` keeps the browser's own history from
+    competing with the suggestions the field's URL returns.
 
     ``form_id`` associates a field rendered OUTSIDE the posting form (the body's selection list, its box,
     and the ADD dialog's whole form) with it: an input carrying ``form="dlg-form"`` belongs to that form
@@ -136,6 +150,7 @@
          {%- if field.required %} required{% endif %}
          {%- if field.value %} value="{{ field.value }}"{% endif %}
          {%- if field.help %} aria-describedby="{{ field.id }}-help"{% endif %}
+         {%- if field.get('lookup') %} data-lookup="{{ field.lookup }}" autocomplete="off"{% endif %}
          {%- if form_id %} form="{{ form_id }}"{% endif %}>
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
@@ -174,7 +189,7 @@
       {% if dialog.body_inputs is defined %}{% for field in dialog.body_inputs %}{{ field_input(field, 'dlg-form') }}{% endfor %}{% endif %}
     </div>
     <div class="ft">
-      <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}">
+      <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}"{% if dialog.get('await') %} data-await{% endif %}>
         {% for field in dialog.inputs %}{{ field_input(field, none) }}{% endfor %}
         {#- THE WHOLE TARGET travels in the BODY (design §3.1): an action can never be pointed at
             another server or another player by editing a URL. A player dialog carries the ucid as
@@ -208,6 +223,11 @@
 
 {% endblock %}
 {% block scripts %}
+{#- THE FIELD LOOKUP: the enhancement of any field that carries `data-lookup` (the ADD ban dialog's
+    UCID box). It is a shipped asset of its own, like the missions selection bar, because it is a
+    CONTROL's behaviour rather than this page's, and it does nothing on a dialog whose fields carry no
+    `data-lookup`. -#}
+<script src="/static/player-lookup.js" defer></script>
 <script>
 /* The dialog's keyboard contract — the ONE page-specific script left in the console (the read pages
    load none; base.html loads `submit.js` on every page and shell.js for a page that passes `live`).

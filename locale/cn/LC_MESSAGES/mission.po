@@ -560,3 +560,98 @@ msgstr "已在 {} 解封用户 {}."
 
 msgid "User {} was not banned on {}."
 msgstr "用户 {} 未在 {} 上被封禁."
+
+#: plugins/mission/actions.py
+msgid "The ban list is only available in the web console."
+msgstr "封禁列表仅在网页控制台中可用。"
+
+#: plugins/mission/actions.py
+msgid "The ban list is not available in this installation."
+msgstr "此安装中不可用封禁列表。"
+
+#: plugins/mission/actions.py
+msgid "The ban list could not be read: {}"
+msgstr "无法读取封禁列表：{}"
+
+#: plugins/mission/actions.py
+msgid "Timeout while lifting the ban."
+msgstr "解除封禁超时。"
+
+#: plugins/mission/actions.py
+msgid "Failed to lift the ban: {}"
+msgstr "解除封禁失败：{}"
+
+#: plugins/mission/actions.py
+msgid "No active ban for {} in your scope."
+msgstr "你的范围内没有 {} 的有效封禁。"
+
+#: plugins/mission/actions.py
+msgid "Ban lifted on {}."
+msgstr "已在 {} 上解除封禁。"
+
+#: plugins/mission/actions.py
+msgid "'{}' is not a valid UCID."
+msgstr "'{}' 不是有效的 UCID。"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to ban a player."
+msgstr "封禁玩家需要填写原因。"
+
+#: plugins/mission/actions.py
+msgid "The reason is longer than {} characters."
+msgstr "原因超过 {} 个字符。"
+
+#: plugins/mission/actions.py
+msgid "Server '{}' is outside your scope."
+msgstr "服务器 '{}' 不在你的范围内。"
+
+#: plugins/mission/actions.py
+msgid "Player {} banned for {} days on {}."
+msgstr "玩家 {} 已在 {} 上封禁 {} 天。"
+
+#: plugins/mission/actions.py
+msgid "Player {} banned permanently on {}."
+msgstr "玩家 {} 已在 {} 上永久封禁。"
+
+#: plugins/mission/actions.py
+msgid "Timeout while adding the ban."
+msgstr "添加封禁时超时。"
+
+#: plugins/mission/actions.py
+msgid "Failed to add the ban: {}"
+msgstr "添加封禁失败：{}"
+
+#: plugins/mission/actions.py
+msgid "The player list could not be read: {}"
+msgstr "无法读取玩家列表：{}"
+
+#: plugins/mission/actions.py
+msgid "The ban could not be identified — open it from the list."
+msgstr "无法识别该封禁——请从列表中打开。"
+
+#: plugins/mission/actions.py
+msgid "A DGSA ban cannot be edited — it can only be lifted here."
+msgstr "DGSA 封禁无法编辑——只能在此解除。"
+
+#: plugins/mission/actions.py
+msgid "Ban on {} updated."
+msgstr "已更新对 {} 的封禁。"
+
+#: plugins/mission/actions.py
+msgid "Timeout while editing the ban."
+msgstr "编辑封禁时超时。"
+
+#: plugins/mission/actions.py
+msgid "Failed to edit the ban: {}"
+msgstr "编辑封禁失败：{}"
+
+#: plugins/mission/actions.py
+msgid ""
+"Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it "
+"empty for a permanent ban."
+msgstr "到期时间必须是 UTC 的日期/时间，例如 YYYY-MM-DD HH:MM:SS — 永久封禁请留空。"
+
+#: plugins/mission/actions.py
+msgid "Expires must be in the future — a past date would lift the ban. Leave it "
+"empty for a permanent ban."
+msgstr "到期时间必须在未来 — 过去的日期会解除封禁。永久封禁请留空。"

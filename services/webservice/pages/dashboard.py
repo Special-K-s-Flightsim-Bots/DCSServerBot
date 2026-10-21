@@ -877,6 +877,9 @@ def empty_messages(state: readmodels.Overview | None = None) -> dict[str, str]:
         "servers": readmodels.NO_SERVERS_MESSAGE,
         "players": readmodels.NO_PLAYERS_MESSAGE,
         "players_matched": NO_PLAYERS_MATCHED_MESSAGE,
+        #: the Bans page's table (``_table.html`` indexes ``empty[table.name]``); it is never a
+        #: dashboard tab, so this key only ever reaches that page's own card.
+        "bans": readmodels.NO_BANS_MESSAGE,
     }
     if getattr(state, "scoped_empty", False):
         for key in ("nodes", "instances", "servers", "players"):

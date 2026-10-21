@@ -407,7 +407,8 @@ def get_all_players(
         linked: bool | None = None,
         watchlist: bool | None = None,
         vip: bool | None = None,
-        search: str | None = None
+        search: str | None = None,
+        present: Iterable[str] | None = None
 ) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
@@ -421,6 +422,7 @@ def get_all_players(
     :param vip: Optional boolean parameter to filter players based on whether they are VIP players or not. If set to `True`, only VIP players will be returned. If set to `False`, only non
     *-VIP players will be returned. If not provided, no filtering based on VIP status will be applied.
     :param search: Optional string parameter to search for players by name or UCID. If provided, only players whose name or UCID contain the search string will be returned.
+    :param present: Optional collection of UCIDs the result is BOUND to: only players whose UCID is one of them are returned. It is the WHERE bound a caller that only reaches a SET of servers applies, because ``players`` carries no server column (the players PRESENT on those servers). An empty collection matches nobody; `None` applies no bound at all.
     :return: A list of tuples containing the UCID and name of players from the database.
 
     """
@@ -450,6 +452,13 @@ def get_all_players(
             clauses.append("(p.name ILIKE %s OR p.ucid ILIKE %s)")
             pattern = f"%{search_lc}%"
             params.extend([pattern, pattern])
+
+    if present is not None:
+        # the bound is a WHERE term, never a post-filter: the caller only ever reaches the players
+        # PRESENT on the servers it may see. An empty collection is a legal empty array and matches
+        # nobody, so a caller with no such server cannot fall back to the unbounded list.
+        clauses.append("p.ucid = ANY(%s)")
+        params.append(list(present))
 
     sql = "SELECT p.ucid, p.name FROM players p"
     if join_watchlist:

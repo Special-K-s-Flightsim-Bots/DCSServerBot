@@ -20,12 +20,14 @@ an empty string reaches the template as a missing dot and a reader who cannot te
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 __all__ = [
     "STATUS_WORDS", "DEFAULT_STATUS", "RAW_LABELS",
     "raw_status", "status_view", "StatusView",
     "SourceStatus", "NodeView", "InstanceView", "ServerView", "PlayerView", "WeatherView",
+    "ExtensionView", "LimitView", "ValuePart", "value_parts",
     "LogLine", "LogTail", "Overview",
     "NO_LIVE_REASON", "NO_SERVERS_MESSAGE", "NO_PLAYERS_MESSAGE", "NO_NODES_MESSAGE",
     "NO_INSTANCES_MESSAGE", "NO_NODE_INSTANCES_MESSAGE", "LOG_MISSING_MESSAGE",
@@ -183,6 +185,131 @@ class WeatherView:
     temperature: str = ""
     #: the surface wind, e.g. ``"180° / 5 kts"``, or ``''``
     wind: str = ""
+    #: the altimeter setting: ``"1013 hPa / 29.92 inHg"``, or ``''``. The two figures are ALSO
+    #: carried separately (:attr:`qnh_hpa` / :attr:`qnh_inhg`) for a card that stacks them.
+    qnh: str = ""
+    qnh_hpa: str = ""
+    qnh_inhg: str = ""
+    #: the cloud base, e.g. ``"1,000 ft"``, or ``''``
+    cloudbase: str = ""
+    #: the DYNAMIC weather's own two figures (``"4"`` and ``"1,000 ft"``), or ``''`` for a named
+    #: preset and for clear skies — a preset carries no density or thickness of its own.
+    density: str = ""
+    thickness: str = ""
+    #: the mission's visibility, e.g. ``"10,000 m / 6.21 SM"`` or ``"10 km / 6 SM (+)"``, or ``''``.
+    #: The mission's OWN figure; a live server's fog reading is a page-level override (it needs the
+    #: bot's ``getFog`` RPC, which a read model must not await).
+    visibility: str = ""
+    #: the wind at 6600 ft and at 26000 ft, same shape as :attr:`wind`, or ``''``
+    wind_low: str = ""
+    wind_high: str = ""
+    #: the preset THUMBNAIL's path **relative to the DCS installation directory**
+    #: (``clouds.preset.thumbnailName``, e.g. ``"Bazar/Effects/Clouds/Thumbnails/cloud_2.png"``), or
+    #: ``''``. The bot reports it with the weather, and the picture itself sits in the GAME host's
+    #: installation — not under the web root — so the page serves it through its own thumbnail route
+    #: instead of putting a host path in ``<img src>``. A reported name that escapes that directory is
+    #: refused by the route, never resolved.
+    thumbnail: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ExtensionView:
+    """One extension as the server reports it: its NAME, its VALUE line and its version.
+
+    Mirrors one entry of the bot's extension render (``Server.render_extensions``), which the status
+    embed's ``ExtensionsInfo`` element prints as one field per extension. ``version`` is empty for an
+    extension that reports none — the card then shows the value alone rather than a bare ``v``.
+    """
+    name: str = ""
+    value: str = ""
+    version: str = ""
+    #: the value line split into TEXT and LINK parts (see :func:`link_parts`), so an extension that
+    #: prints a URL renders it as a link the reader can press. ``value`` stays the raw line.
+    parts: tuple[ValuePart, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ValuePart:
+    """One run of an extension's value line: TEXT, or text wearing a LINK, BOLD or ITALIC.
+
+    ``href`` is always an absolute ``http(s)`` URL — the parser refuses every other scheme — and
+    ``style`` is ``''``, ``'bold'`` or ``'italic'``. ``text`` is what the reader sees (the markdown
+    label, or the URL itself for a bare one). The template renders a link as an anchor with
+    ``target="_blank" rel="noopener noreferrer"``, a style as ``<strong>``/``<em>``, and everything
+    else through Jinja's autoescaping, so an extension's own text can never become markup.
+    """
+    text: str = ""
+    href: str = ""
+    style: str = ""
+
+
+#: The formatting an extension's value line may carry, in the order it is tried: a markdown LINK
+#: ``[label](https://…)``, ``**bold**``, ``__italic__``, or a bare ``https://…`` URL. ONLY http(s)
+#: matches a link, which is what keeps ``javascript:`` / ``data:`` / ``file:`` out of an href built
+#: from operator data. Bold and italic must be NON-SPACE bounded (``**x**``, never ``** x **``) and
+#: stay on ONE line, so ordinary prose — a stray ``*``, a multiplication, a snake_case key — is left
+#: alone. Deliberately NOT supported: single ``*``/``_`` italic (the snake_case trap above), and
+#: nesting (a link inside a bold run is bold text, not a link).
+_MARKUP = re.compile(r"\[(?P<label>[^\]\n]+)\]\((?P<markdown>https?://[^\s)]+)\)"
+                     r"|(?P<bold>\*\*(?=\S)(?P<bold_text>[^\n]+?)(?<=\S)\*\*)"
+                     r"|(?P<italic>__(?=\S)(?P<italic_text>[^\n]+?)(?<=\S)__)"
+                     r"|(?P<bare>https?://[^\s<>\"']+)")
+
+#: punctuation a BARE url must not swallow when it ends a sentence ("see https://x.example." )
+_TRAILING = ".,;:!?"
+
+
+def value_parts(value) -> tuple[ValuePart, ...]:
+    """An extension's value line as TEXT, LINK, BOLD and ITALIC parts, newlines included.
+
+    The bot's own extensions write DISCORD formatting and links into their value lines (Tacview
+    prints ``**Remote Ctrl [52675]**``, a kneeboard prints a markdown link), and rendering those
+    verbatim leaves the operator reading asterisks and unable to open the link. Splitting the line
+    into parts keeps the escaping with the template: only what the PARSER recognised is dressed, and
+    every other character of the extension's own text is escaped as it always was.
+    """
+    text = str(value or "")
+    if not text:
+        return ()
+    parts: list[ValuePart] = []
+    cursor = 0
+    for match in _MARKUP.finditer(text):
+        if match.start() > cursor:
+            parts.append(ValuePart(text=text[cursor:match.start()]))
+        if match.group("markdown"):
+            parts.append(ValuePart(text=match.group("label"), href=match.group("markdown")))
+        elif match.group("bold"):
+            parts.append(ValuePart(text=match.group("bold_text"), style="bold"))
+        elif match.group("italic"):
+            parts.append(ValuePart(text=match.group("italic_text"), style="italic"))
+        else:
+            href = match.group("bare")
+            trailing = ""
+            while href and href[-1] in _TRAILING:
+                trailing = href[-1] + trailing
+                href = href[:-1]
+            parts.append(ValuePart(text=href, href=href))
+            if trailing:
+                parts.append(ValuePart(text=trailing))
+        cursor = match.end()
+    if cursor < len(text):
+        parts.append(ValuePart(text=text[cursor:]))
+    return tuple(parts)
+
+
+@dataclass(frozen=True, slots=True)
+class LimitView:
+    """One anti-cheat switch: its NAME, whether it is in force, and which family it belongs to.
+
+    ``kind`` is ``"integrity"`` (the client-integrity flags: trial clients, pure clients/scripts/
+    models/textures) or ``"export"`` (the DCS data-export switches, which external cheat tools read
+    the mission through). The family matters because the two read OPPOSITE ways — an integrity flag
+    in force PROTECTS the server, an export switch in force OPENS it — so the card labels the two
+    groups rather than leaving a bare tick to be misread.
+    """
+    label: str = ""
+    enabled: bool = False
+    kind: str = "integrity"
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,6 +364,27 @@ class ServerView:
     #: embed's per-server block uses), or ``''`` when no restart is scheduled or the server is in
     #: maintenance. The overview card shows it while the server is running. Defaulted to ``''``.
     restart_in: str = ""
+    #: the mission's own clock as a reader reads it — ``Mission.date`` + ``start_time`` + the elapsed
+    #: ``mission_time``, formatted exactly as the embed's "Date / Time in Mission" field does, or
+    #: ``''``. The embed puts the runtime/restart pair in that same field; the card shows
+    #: :attr:`runtime` and :attr:`restart_in` instead, which are the same two figures.
+    mission_date: str = ""
+    #: the seats in use per side — ``"1 / 20"`` for blue and for red — for a server whose coalitions
+    #: are DCS-side. Empty when the mission reports no slot counts.
+    slots_blue: str = ""
+    slots_red: str = ""
+    #: whether this server drives DISCORD coalition roles (``server.locals['coalitions']``). The
+    #: embed prints "Coalitions: Yes" INSTEAD of the slot counts in that case, because the seats are
+    #: assigned by the role switch rather than by the mission; the card does the same.
+    coalitions: bool = False
+    #: the anti-cheat switches this server runs with — the client-integrity flags the embed's
+    #: "Client Limits" field lists AND the DCS data-export switches, each row carrying whether it is
+    #: IN FORCE. ALL of them are present, so a reader can see what is off as clearly as what is on:
+    #: the embed only prints the flags that are set, which hides the holes in a server's protection.
+    restrictions: tuple[LimitView, ...] = ()
+    #: the DCS build the server's node reports (``node.dcs_version``), or ``''``. Half of the embed's
+    #: footer; the other half, the bot's own version, belongs to the console and is read there.
+    dcs_version: str = ""
 
     @property
     def running(self) -> bool:

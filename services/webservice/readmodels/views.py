@@ -40,9 +40,11 @@ from typing import Mapping, Sequence
 from urllib.parse import urlencode
 
 __all__ = [
-    "MAX_QUERY_LENGTH", "MAX_SORT_LENGTH", "SORT_DIRECTIONS", "DEFAULT_SORT", "DEFAULT_DIRECTION",
+    "MAX_QUERY_LENGTH", "MAX_SORT_LENGTH", "SORT_PARAM", "DIRECTION_PARAM", "SORT_DIRECTIONS",
+    "DEFAULT_SORT", "DEFAULT_DIRECTION",
     "LOG_POSITIONS", "TEXT", "NUM", "Column", "ColumnView", "TableView", "PlayerSearch",
-    "ViewParams", "ViewState", "TABLE_COLUMNS", "TABLE_LABELS", "ALL_COLUMN_KEYS",
+    "ViewParams", "ViewState", "TABLE_COLUMNS", "TABLE_LABELS", "PAGE_COLUMNS", "PAGE_LABELS",
+    "ALL_COLUMN_KEYS", "columns_for",
     "column_keys", "normalise_sort", "normalise_direction", "normalise_query",
     "normalise_position", "opposite_direction", "natural_direction",
     "sort_rows", "search_players", "column_link", "table_view", "view_state", "view_params",
@@ -66,6 +68,13 @@ MAX_QUERY_LENGTH = 64
 
 #: a sort key is a column key from a closed allow-list, so it has no room for prose
 MAX_SORT_LENGTH = 32
+
+#: THE VIEW PARAMETERS' OWN NAMES in the query string. One spelling, read by the parser
+#: (:func:`view_params`), by the link builder (:func:`column_link`) and by the pages that CARRY the
+#: current order in a form or a link (:func:`services.webservice.pages.bans.dgsa_context`) — a rename
+#: here moves every reader with it instead of silently desyncing the ones that typed the literal.
+SORT_PARAM = "sort"
+DIRECTION_PARAM = "dir"
 
 #: the two directions, and the one in force when the URL says nothing
 SORT_DIRECTIONS: tuple[str, ...] = ("asc", "desc")
@@ -124,10 +133,36 @@ TABLE_LABELS: dict[str, str] = {
     "servers": _("Servers"), "nodes": _("Nodes"), "instances": _("Instances"), "players": _("Players"),
 }
 
+#: The sortable columns of a PAGE-ONLY table — a table the console renders on its own page and never
+#: as a dashboard tab. ``bans`` is the first: its rows are a database read (not part of the pure
+#: Overview), so it cannot be a dashboard tab, but it reuses the SAME sort layer and table component
+#: as the four tabs. ``TABLE_COLUMNS`` stays the four on purpose: the dashboard's tab strip derives
+#: from it, and a fifth key there would put a Postgres-backed table on every live tick.
+PAGE_COLUMNS: dict[str, tuple[Column, ...]] = {
+    "bans": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("reason", _("Reason")),
+             Column("banned_at", _("Banned")), Column("banned_until", _("Expires")),
+             Column("scope", _("Scope"))),
+}
+
+#: The card heading of a PAGE-ONLY table (the dashboard's own labels are :data:`TABLE_LABELS`).
+PAGE_LABELS: dict[str, str] = {"bans": _("Bans")}
+
+
+def columns_for(table: str) -> tuple[Column, ...]:
+    """The sortable columns of *table* — a dashboard tab's or a page-only table's.
+
+    ONE lookup, so ``column_keys``, ``_column``, ``table_view`` and :data:`ALL_COLUMN_KEYS` cannot
+    disagree about which table carries which columns, and the per-table allow-list of ``?sort=``
+    reads the same tuple the header renders from.
+    """
+    return TABLE_COLUMNS.get(table) or PAGE_COLUMNS.get(table, ())
+
+
 #: every column key of every table. Used ONLY to decide whether a ``sort`` value is worth carrying
 #: into a link at all (the per-table allow-list is still the authority on what a table honours).
 ALL_COLUMN_KEYS: frozenset[str] = frozenset(
-    column.key for columns in TABLE_COLUMNS.values() for column in columns)
+    column.key for columns in (*TABLE_COLUMNS.values(), *PAGE_COLUMNS.values())
+    for column in columns)
 
 
 # --------------------------------------------------------------------------------- cleaning
@@ -173,11 +208,11 @@ def normalise_position(value) -> str | None:
 
 def column_keys(table: str) -> tuple[str, ...]:
     """The ``?sort=`` vocabulary of *table* — its allow-list, in render order."""
-    return tuple(column.key for column in TABLE_COLUMNS.get(table, ()))
+    return tuple(column.key for column in columns_for(table))
 
 
 def _column(table: str, key: str) -> Column:
-    for column in TABLE_COLUMNS.get(table, ()):
+    for column in columns_for(table):
         if column.key == key:
             return column
     raise KeyError(f"{table} has no sortable column {key!r}")
@@ -238,10 +273,10 @@ class ViewParams:
                     else bool(self.sort) and self.sort in column_keys(table))
         carried: dict[str, str] = {}
         if honoured:
-            carried["sort"] = self.sort
-            carried["dir"] = self.direction
+            carried[SORT_PARAM] = self.sort
+            carried[DIRECTION_PARAM] = self.direction
         elif self.direction != DEFAULT_DIRECTION:
-            carried["dir"] = self.direction
+            carried[DIRECTION_PARAM] = self.direction
         if self.query:
             carried["q"] = self.query
         if self.position:
@@ -257,8 +292,8 @@ def view_params(query: Mapping | None) -> ViewParams:
     """
     lookup = query if hasattr(query, "get") else {}
     return ViewParams(
-        sort=_clean(lookup.get("sort"), MAX_SORT_LENGTH),
-        direction=normalise_direction(lookup.get("dir")),
+        sort=_clean(lookup.get(SORT_PARAM), MAX_SORT_LENGTH),
+        direction=normalise_direction(lookup.get(DIRECTION_PARAM)),
         query=normalise_query(lookup.get("q")),
         position=normalise_position(lookup.get("log")),
     )
@@ -317,6 +352,19 @@ def _cell(table: str, key: str, row):
             return row.slot
         if key == "coalition":
             return row.coalition
+    elif table == "bans":
+        if key == "name":
+            return row.name
+        if key == "ucid":
+            return row.ucid
+        if key == "reason":
+            return row.reason
+        if key == "banned_at":
+            return row.banned_at
+        if key == "banned_until":
+            return row.banned_until
+        if key == "scope":
+            return row.scope
     raise KeyError(f"no cell for {table}.{key}")
 
 
@@ -478,10 +526,10 @@ def column_link(path: str, table: str, key: str, *, sort: str = DEFAULT_SORT,
         else natural_direction(column.kind)
 
     query: dict[str, str] = dict(params or {})
-    query.pop("sort", None)
-    query.pop("dir", None)
-    query["sort"] = column.key
-    query["dir"] = wanted
+    query.pop(SORT_PARAM, None)
+    query.pop(DIRECTION_PARAM, None)
+    query[SORT_PARAM] = column.key
+    query[DIRECTION_PARAM] = wanted
     return f"{path}?{urlencode(query)}"
 
 
@@ -506,17 +554,23 @@ def _column_view(path: str, table: str, column: Column, *, sort: str,
 
 
 def table_view(path: str, table: str, rows: Sequence, *, sort: str = DEFAULT_SORT,
-               direction: str = DEFAULT_DIRECTION, params: Mapping | None = None) -> TableView:
-    """One table as the template reads it: sorted rows plus every header's link and state."""
+               direction: str = DEFAULT_DIRECTION, params: Mapping | None = None,
+               label: str | None = None) -> TableView:
+    """One table as the template reads it: sorted rows plus every header's link and state.
+
+    *label* overrides the card heading — a PAGE-ONLY table (``bans``) names its own, since it is not
+    in :data:`TABLE_LABELS` (which stays the four dashboard tabs).
+    """
     key = normalise_sort(table, sort)
     direction = normalise_direction(direction)
     columns = tuple(_column_view(path, table, column, sort=key, direction=direction, params=params)
-                    for column in TABLE_COLUMNS.get(table, ()))
-    label = _column(table, key).label
-    return TableView(name=table, label=TABLE_LABELS.get(table, table), columns=columns,
+                    for column in columns_for(table))
+    column_label = _column(table, key).label
+    return TableView(name=table, label=label or TABLE_LABELS.get(table) or PAGE_LABELS.get(table, table),
+                     columns=columns,
                      rows=tuple(sort_rows(table, rows, key, direction)),
                      sort=key, direction=direction,
-                     sorted_label=f"Sorted by {label}, {_DIRECTION_WORDS[direction]}")
+                     sorted_label=f"Sorted by {column_label}, {_DIRECTION_WORDS[direction]}")
 
 
 def view_state(path: str, rows: Mapping | None = None, *, params: ViewParams | None = None,

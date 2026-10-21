@@ -20,16 +20,13 @@ WARNING_ICON = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/
 _ = get_translation(__name__.split('.')[1])
 
 
-def ban_targets(member, servers: dict) -> list[str]:
-    """The servers a ban issued by *member* covers.
+def ban_targets(member, servers: dict, admin_roles=None) -> list[str]:
+    """The servers a ban issued by *member* covers: :func:`core.utils.discord.member_ban_targets`.
 
-    Every server whose ``managed_by`` names one of *member*'s roles; an empty list means the caller
-    is unscoped and the ban is bot-wide — the rule the Discord picker narrows a caller with.
+    *admin_roles* is the bot's configured Admin role (``<bot>.roles['Admin']``): an issuer holding
+    it is unrestricted and the ban is bot-wide.
     """
-    tokens = utils.member_scope_tokens(member)
-    return [name for name, server in servers.items()
-            if (server.locals.get('managed_by') or [])
-            and utils.holds_scope(server.locals['managed_by'], tokens)]
+    return utils.member_ban_targets(member, servers, admin_roles)
 
 
 def ban_scope_label(targets: list[str]) -> str:
@@ -273,7 +270,7 @@ class InfoView(View):
         await interaction.response.defer()
         # the same issuer scope the ban modal uses: a narrowed issuer clears their own servers' rows
         # only, an unscoped one (no target) clears every row of that ucid
-        targets = ban_targets(interaction.user, self.bus.servers)
+        targets = ban_targets(interaction.user, self.bus.servers, self.bot.roles['Admin'])
         cleared = 0
         for target in targets or [None]:
             cleared += await self.bus.unban(self.ucid, target)
@@ -547,7 +544,7 @@ class BanModal(Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         days = int(self.period.value) if self.period.value else None
-        targets = ban_targets(interaction.user, self.bus.servers)
+        targets = ban_targets(interaction.user, self.bus.servers, self.bot.bot.roles['Admin'])
         stamp = datetime.now(tz=timezone.utc)
         for target in targets or [None]:
             await self.bus.ban(self.ucid, interaction.user.display_name, self.reason.value, days,

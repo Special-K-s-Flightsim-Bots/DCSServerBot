@@ -12,13 +12,14 @@ import time
 from dataclasses import dataclass, replace
 from datetime import timezone
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.action_results import ActionResult, PlayerScreenshotResult
-from core.actions import (AUDIT_NOT_RECORDED, ActionContext, NodeResolution, ServerResolution,
-                          action_available, audit_action, bound_text, call_action,
+from core.actions import (AUDIT_NOT_RECORDED, TRANSPORT_WEB, ActionContext, NodeResolution,
+                          ServerResolution, action_available, audit_action, bound_text, call_action,
                           in_flight_targets, read_action)
 from core.data.const import Status
 # the engine's power-off RECORD, read by :func:`node_power_states` to gate the node row's power pair
@@ -30,6 +31,9 @@ from core.data.const import Status
 from core.data.maintenance import ServerMaintenanceManager, power_record
 
 from .. import i18n, permissions, readmodels, session
+# THE BANS PAGE'S READ MODEL, for its ONE view option: the ``dgsa`` query pair a ban write carries
+# back to the page (``_dgsa_carry``). The page module owns the words; this module owns the URL.
+from ..readmodels import bans as ban_readmodel
 # THE CONFIG FIELD DECLARATION, the same one the page renders from, so the form and this submit path
 # cannot disagree (``readmodels`` stays free of ``core``).
 from ..readmodels import serverconfig as server_config
@@ -59,17 +63,30 @@ __all__ = [
     "NODE_OFFLINE_CAPABILITY", "NODE_ONLINE_CAPABILITY",
     "NODE_IN_SERVICE", "NODE_MAINTENANCE", "NODE_POWER_OFF", "NODE_POWER_ON",
     "NOTE_NO_CHECK",
-    "WriteAction", "PlayerAction", "NodeAction", "NodeOption", "SelectField", "SelectOption",
-    "SERVER_ACTIONS", "PLAYER_ACTIONS", "NODE_ACTIONS",
+    "WriteAction", "PlayerAction", "NodeAction", "BanAction", "NodeOption", "SelectField", "SelectOption",
+    "SERVER_ACTIONS", "PLAYER_ACTIONS", "NODE_ACTIONS", "BAN_ACTIONS",
     # the SERVER CREATION pair: the row-level DELETE and the page-level ADD
     "SERVER_NODE_ACTIONS", "SERVER_PAGE_ACTIONS", "server_row_actions",
     "SERVER_ADD_CAPABILITY", "SERVER_DELETE_CAPABILITY", "SERVER_ADD_PATH", "SERVER_DELETE_PATH",
     "ADD_NODE_FIELD", "ADD_INSTANCE_FIELD", "ADD_NAME_FIELD", "ADD_CONFIGURE_FIELD",
     "ADD_NEW_OPTION",
     "CONFIRM_NAME_FIELD", "REMOVE_FILES_FIELD",
+    # the BAN-ENTRY writes: the row-level LIFT and EDIT, the page-level ADD
+    "BAN_LIFT_ACTION", "BAN_ADD_ACTION", "BAN_EDIT_ACTION", "BAN_ADD_CAPABILITY", "BAN_ADD_PATH",
+    "BAN_LIFT_CAPABILITY", "BAN_LIFT_PATH", "BAN_EDIT_CAPABILITY", "BAN_EDIT_PATH",
+    "BAN_ADD_UCID_FIELD", "BAN_SCOPE_FIELD", "BAN_DAYS_FIELD", "BAN_REASON_FIELD",
+    "BAN_UNTIL_FIELD",
+    # the ADD's own player search: the JSON GET its UCID field autocompletes on
+    "BAN_PLAYERS_PATH", "BAN_PLAYERS_QUERY", "BAN_ADD_UCID_LOOKUP",
+    "ban_dialog_fields", "ban_days_field", "ban_until_field", "ban_add_dialog_context",
+    "ban_edit_dialog_context",
+    "ban_scope_options",
+    "BanScope",
     "page_controls", "add_dialog_context", "empty_instances", "installable_nodes",
     "declare", "capabilities", "register", "add_routes",
-    "server_controls", "player_controls", "node_controls", "controls_for", "state_of", "node_state",
+    "server_controls", "player_controls", "node_controls", "ban_controls", "controls_for", "state_of",
+    "context_for",
+    "node_state",
     "node_states", "node_power_states",
     "target_key", "target_is_busy",
     "AWAIT_CHANGE_SECONDS", "AWAIT_MAX_PENDING",
@@ -1291,6 +1308,185 @@ PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
 )
 
 
+#: THE LIFT — the capability the console's lift declares. Its own capability, NOT ``players.ban``:
+#: a hoster who may ban is not thereby allowed to unban, and the tree's own rule is one capability
+#: per OPERATION (``servers.add`` / ``servers.delete`` are two).
+BAN_LIFT_CAPABILITY = "players.unban"
+BAN_LIFT_PATH = "/actions/ban/lift"
+
+#: THE ADD — its own path, and the capability the player-row Ban already carries: adding a ban is
+#: ONE concept, whether it is aimed at an online player on a resolved server or at a bare ucid.
+BAN_ADD_CAPABILITY = "players.ban"
+BAN_ADD_PATH = "/actions/ban/add"
+
+#: THE EDIT — its own capability, on the tree's own rule that one OPERATION is one capability
+#: (``servers.add`` / ``servers.delete``, kick / ban). A hoster who may add a ban is not thereby
+#: allowed to rewrite the reasons on the list, and vice versa.
+BAN_EDIT_CAPABILITY = "players.edit_ban"
+BAN_EDIT_PATH = "/actions/ban/edit"
+
+#: The ADD dialog's own fields, beside the reason and the duration the ban dialogs share. ``value``
+#: names both the form field and the ACTION's own parameter, so the route cannot post one thing and
+#: the action read another.
+BAN_ADD_UCID_FIELD = "ucid"
+BAN_SCOPE_FIELD = "scope"
+BAN_DAYS_FIELD = "days"
+BAN_REASON_FIELD = "reason"
+#: The EDIT dialog's ABSOLUTE expiration field. Its own name, NOT ``days``: the EDIT states a UTC
+#: datetime where the ADD and the player-row Ban state a day count, and the two must not share a
+#: field name — the route maps a field to the action's own parameter (``edit_ban`` reads ``until``).
+BAN_UNTIL_FIELD = "until"
+
+#: THE ADD'S PLAYER SEARCH — the JSON GET the UCID field's autocomplete reads: a fragment of a name
+#: or a UCID in (``?q=``), at most 25 ``{name, ucid}`` suggestions out, most recently seen first.
+#: It is a declared READ (like the screenshot's short-lived image URL), and it carries the ADD's OWN
+#: capability: the door to the search is the door to the write the search feeds, so nobody reaches a
+#: player's name through a narrower right than the ban itself.
+BAN_PLAYERS_PATH = "/actions/ban/players"
+#: the search's own query parameter.
+BAN_PLAYERS_QUERY = "q"
+#: the value the UCID field's declaration carries as its ``data-lookup`` — the URL the ADD dialog's
+#: own enhancement reads. ONE string, so the field, the route and the declaration cannot drift.
+BAN_ADD_UCID_LOOKUP = BAN_PLAYERS_PATH
+
+
+@dataclass(frozen=True, slots=True)
+class BanAction:
+    """One write of the console that acts on a ban ENTRY.
+
+    Its own record rather than a fourth :class:`WriteAction`, because a ban write's target is neither
+    a server nor a player ON a server: it is an ENTRY — a UCID plus the ban's own identity. The same
+    discipline as its three siblings: data, not code, so the route table, the capability map, the row
+    control and the dialog are four readings of ONE declaration.
+
+    ``dgsa_warning``/``dgsa_detail`` are the DGSA copy: a DGSA ban (``banned_by == 'cloud'``) is
+    liftable LOCALLY only. ONE meaning, in both sentences — the lift removes this installation's
+    copy and does NOT touch the DGSA cloud ban. The control's LABEL and the dialog's TITLE are the
+    SAME on every row: a DGSA entry is identified by its tag and explained by the warning sentence,
+    never by a second wording of the control — so the declaration carries one label and the
+    DGSA-only sentences.
+
+    ``form`` marks the ONE ban write that is reached through its dialog while requiring no
+    confirmation (:attr:`WriteAction.form`'s twin): the ADD's dialog IS its form, and adding a ban
+    mints no one-shot token because there is no irreversible step a token would gate — the ban can be
+    lifted again from the same page. ``field``/``field_label``/``field_max``/``field_help``/
+    ``field_width`` are the REASON field, declared here exactly as :class:`PlayerAction` declares it,
+    so both ban dialogs draw it from the one builder (:func:`ban_dialog_fields`).
+    """
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    icon: str = ""
+    danger: bool = True
+    confirm: bool = True
+    form: bool = False
+    audit_refusals: bool = False
+    #: whether the ACTOR's own shown name is passed to the action as ``sender`` — the value the ban
+    #: list records as ``banned_by``, read off the request's identity and never from the body, so
+    #: nobody can sign another person's name onto a ban.
+    sender: bool = False
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    field_width: str = ""
+    field_kind: str = "text"
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    dgsa_warning: str = ""
+    detail: str = ""
+    dgsa_detail: str = ""
+    go: str = ""
+    go_title: str = ""
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG (see :attr:`WriteAction.dialog`).
+
+        The same ONE place the question is answered for a server write: a control that CONFIRMS or
+        that has a FORM posts to ``<path>/confirm``, so the route can refuse a POST that skipped the
+        dialog, and a control that posts directly has no dialog to skip.
+        """
+        return bool(self.confirm or self.form)
+
+
+#: The ban ENTRY's controls. The LIFT and the EDIT are the ROW controls; the ADD is the PAGE-LEVEL
+#: one (a ban being added has no row), so the two kinds are never asked for by the same caller —
+#: the row map names the first pair, ``PAGE_CONTROLS`` the second.
+#:
+#: The LIFT is the first console write whose target is NOT a server, so it carries the entry's
+#: identity (ucid + the ban's own timestamp) rather than a server name. ``confirm`` is the modal
+#: gate: the action's route refuses a POST that did not come through the dialog, so the one-shot
+#: token machinery IS the confirmation. The EDIT carries the same identity but is a FORM (no token).
+BAN_LIFT_ACTION = BanAction(
+    key="lift", capability=BAN_LIFT_CAPABILITY, qualname="unban", path=BAN_LIFT_PATH,
+    label=i18n._("Lift ban…"), icon="unmute",
+    danger=True, confirm=True, audit_refusals=True,
+    tip=i18n._("Lift — remove this ban from the list"),
+    aria=i18n._("Lift the ban on {player}"),
+    hint=i18n._("the ban is removed from the list"),
+    warning=i18n._("<b>{player} may rejoin the servers this ban covers.</b> The ban is "
+                   "removed from the ban list and expires now."),
+    dgsa_warning=i18n._("<b>This lift applies here only.</b> The DGSA cloud ban is not "
+                        "affected by it."),
+    detail=i18n._("The ban expires on the servers it covers here. A player who is online "
+                  "right now is not disconnected by the lift."),
+    dgsa_detail=i18n._("Only this installation's copy is lifted: the global DGSA ban is "
+                       "untouched."),
+    go=i18n._("Lift ban"),
+    go_title=i18n._("Lift the ban on {player}"))
+
+#: The ADD: a ban written by UCID, for a player who may be offline or unknown to this installation.
+#: It resolves nothing and looks no player up, which is why it is its own action and not
+#: ``ban_player``. ``form`` says its dialog is a form (no one-shot token); ``sender`` says the
+#: acting person's shown name is written as ``banned_by``, mirroring the Discord ban dialog.
+BAN_ADD_ACTION = BanAction(
+    key="add", capability=BAN_ADD_CAPABILITY, qualname="ban_ucid", path=BAN_ADD_PATH,
+    label=i18n._("Add ban…"), danger=True, confirm=False, form=True, audit_refusals=True,
+    field=BAN_REASON_FIELD, field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the ban list."),
+    sender=True,
+    tip=i18n._("Add a ban to the list"),
+    aria=i18n._("Add a ban"),
+    hint=i18n._("the ban is written to the list every installation syncs"),
+    warning=i18n._("<b>The player is removed from the servers this ban covers and cannot "
+                   "rejoin them</b> for as long as the ban stands. Empty duration means it never "
+                   "expires on its own."),
+    detail=i18n._("The ban is written to the ban list every installation syncs, so it holds "
+                  "wherever they connect from — not only on one server."),
+    go=i18n._("Ban player"),
+    go_title=i18n._("Add the ban — an empty duration is permanent"))
+
+#: The EDIT: the second row control. Like the ADD it is a FORM (no one-shot token — an edit is
+#: reversible from the same page, so a token nothing spends would be a dead knob), and like the lift
+#: its target is the entry's identity (ucid + the ban's own timestamp) carried hidden. ``danger`` is
+#: False: nothing here is destructive, and the mockup tints the primary button not at all.
+#:
+#: NO ``warning``: the mockup's edit dialog carries no red-edged block — what it says about the
+#: action is one sentence of ``detail`` (reason and expiration only; the rest is lift-and-re-add).
+#: The reason and the expiration are ITS OWN two records (:func:`ban_edit_dialog_context` feeds them
+#: their pre-filled values): a day-count box is the ADD's and the player-row Ban's alone.
+BAN_EDIT_ACTION = BanAction(
+    key="edit", capability=BAN_EDIT_CAPABILITY, qualname="edit_ban", path=BAN_EDIT_PATH,
+    label=i18n._("Edit…"), icon="pencil", danger=False, confirm=False, form=True, audit_refusals=True,
+    field=BAN_REASON_FIELD, field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the ban list."),
+    tip=i18n._("Edit the reason or the expiration of the ban on {player}"),
+    aria=i18n._("Edit the ban on {player}"),
+    hint=i18n._("only the reason and the expiration can change"),
+    detail=i18n._("Only the reason and the expiration can change. The player, the UCID and the "
+                  "scope stay: a different player is a different ban, and a ban that covers other "
+                  "servers is lifted and re-added instead of moved."),
+    go=i18n._("Save ban"),
+    go_title=i18n._("Save the ban on {player}"))
+
+BAN_ACTIONS: tuple[BanAction, ...] = (BAN_LIFT_ACTION, BAN_ADD_ACTION, BAN_EDIT_ACTION)
+
+
 @dataclass(frozen=True, slots=True)
 class NodeAction:
     """One write of the console that acts on a NODE row.
@@ -1537,6 +1733,13 @@ def declare() -> None:
     # a node, which is why flagging a server is here and taking a node offline is not.
     for action in PLAYER_ACTIONS:
         permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE BAN-ENTRY WRITES: the same server-write rule — ``WRITE_ROLES`` WITH a scope grant — so a
+    # manager adds and lifts the bans on THEIR OWN servers and nobody else's. The lift is per ROW and
+    # the ADD covers the caller's whole target set (or one server of it), and the scope is applied
+    # inside the action (``_caller_ban_targets``), which is what a scoped entry needs. The ADD reuses
+    # ``players.ban`` — adding a ban is ONE concept, whether it is aimed at a player row or a ucid.
+    for action in BAN_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
     # the node writes: Admin only, and NO scope grant — see NODE_ROLES for why (a manager's scope is
     # a set of servers, and "one of mine runs there" must not become "let me stop that machine").
     for action in NODE_ACTIONS:
@@ -1587,6 +1790,14 @@ def capabilities() -> dict[str, str]:
     capabilities_.update({action.path: action.capability for action in PLAYER_ACTIONS})
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
                           for action in PLAYER_ACTIONS if action.confirm})
+    # THE BAN-ENTRY WRITES: each posts its own form and reaches its DIALOG (the lift confirms, the
+    # ADD is a form), so opening one is gated by the SAME capability as performing it.
+    capabilities_.update({action.path: action.capability for action in BAN_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in BAN_ACTIONS if action.dialog})
+    # THE ADD'S PLAYER SEARCH: a READ (a GET), declared with the ADD's own capability — the search is
+    # the door to the write it feeds, so opening it is not a lesser right than the ban itself.
+    capabilities_[BAN_PLAYERS_PATH] = BAN_ADD_CAPABILITY
     # THE SHORT-LIVED IMAGE URL carries the SCREENSHOT's own capability: it is the glyph's answer, so
     # whoever may ask for a capture may load it, and nobody else — a token is not a second door. The
     # declaration is the ROUTE's pattern, because that is what the gate resolves a request against.
@@ -2583,6 +2794,12 @@ def controls_for(request: Request, table: str, origin: str, *, tab: str = "") ->
         return server_controls(request, origin, tab=tab)
     if table == "nodes":
         return node_controls(request, origin, tab=tab)
+    if table == "bans":
+        # A ban row's control is built from the ROWS the page already fetched: a ban list is a
+        # DATABASE read and this function is synchronous, so the page's route stashes its rows on
+        # ``request.state`` (``pages/bans``) and the control is shaped here — the same one map every
+        # other table's controls come from, asked BY TABLE.
+        return ban_controls(request, getattr(request.state, "bans_rows", ()) or (), origin)
     return {}
 
 
@@ -2841,6 +3058,87 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
     }
 
 
+def ban_controls(request: Request, rows, origin: str) -> dict[str, dict]:
+    """The LIFT and EDIT controls a ban ENTRY row may render, keyed by the entry's IDENTITY.
+
+    The rows are the SAME :class:`~services.webservice.readmodels.bans.BanView` records the table
+    renders from (the page's route fetched them once and stashed them for :func:`controls_for`), so
+    ``controls ⊆ rows`` holds by construction and each control is built from the entry's OWN identity
+    (``key``: ``<ucid>@<banned_at ISO>``), never a value the browser sent.
+
+    EACH control is gated on its OWN capability (``permissions.allows``, the very predicate the gate
+    runs) and its own action (``action_available`` — an installation whose ``mission`` plugin is not
+    loaded is offered no control whose only answer is a refusal), so a caller holding one right sees
+    one control and not the other. A DGSA row keeps its LIFT and NEVER carries the EDIT: a DGSA ban
+    cannot be edited, so the control's only possible answer would be a refusal, and a control is
+    omitted rather than rendered disabled. A row no control applies to gets NO entry, so its Actions
+    cell renders nothing.
+
+    THE SHAPE IS THE ROW STRIP's (``templates/_strip.html``): ``{"strip": (control, …), "wide":
+    False}`` — the SAME component the server and player rows render, so a ban control is a glyph on
+    a strip and not a second control shape. A ban row has two glyphs at most, so it never goes wide
+    (no ``⋮`` menu).
+
+    The current view option (``?dgsa=1``) rides with every control as a hidden field
+    (:func:`_dgsa_carry`), so the dialog it opens can return to the SAME view state.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    # the EDIT first, then the LIFT — the order the mockup draws the row's two glyphs in.
+    available = [action for action in (BAN_EDIT_ACTION, BAN_LIFT_ACTION)
+                 if permissions.allows(action.capability, roles, manager=manager)
+                 and action_available(action.qualname)]
+    if not available:
+        return {}
+    token = session.get_csrf_token(request)
+    carry = _dgsa_carry(request.query_params)
+    controls: dict[str, dict] = {}
+    for row in rows:
+        key = readmodels.text(getattr(row, "key", ""))
+        if not key:
+            continue
+        offered = tuple(action for action in available
+                        if not (action.key == BAN_EDIT_ACTION.key
+                                and bool(getattr(row, "dgsa", False))))
+        if offered:
+            controls[key] = {"strip": tuple(_ban_control(action, row, token, origin, carry)
+                                            for action in offered),
+                             "wide": False}
+    return controls
+
+
+def _ban_control(action: BanAction, row, token: str, origin: str,
+                 carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """One rendered ban control, as the strip's control record: where it posts, its glyph, its names.
+
+    BOTH halves of the target travel in the request BODY — the ucid and the ban's own timestamp — so
+    there is no URL a person can edit to point a write at another ban, and the ORIGIN travels beside
+    them (the page this control is rendered on). A control whose answer is a DIALOG (the lift
+    confirms, the edit is a form) posts to that dialog's path, so the action's own route can refuse a
+    POST that skipped it. ``carry`` is the page's current view option, re-emitted so the dialog can
+    return to it.
+
+    The record is the strip's own (``templates/_strip.html``): ``icon`` is the declaration's glyph,
+    ``title`` the native tooltip and ``aria`` the accessible name (both formatted from the entry's
+    resolved name, never from a field the browser sent). A DGSA row reads the SAME label as any
+    other row — the distinction is the row's ``DGSA`` tag and the dialog's warning, never a second
+    spelling of the control.
+    """
+    values = {"player": readmodels.text(getattr(row, "name", ""))}
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "label": action.label, "icon": action.icon,
+        "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
+        "danger": bool(action.danger),
+        "key": readmodels.text(getattr(row, "key", "")),
+        "hidden": _hidden_fields(origin, "",
+                                 ("ucid", readmodels.text(getattr(row, "ucid", ""))),
+                                 ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
+                                 *carry),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
 # ------------------------------------------------------------------------------- the confirm step
 
 def _confirm_key(path: str, name: str) -> str:
@@ -3082,21 +3380,16 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
     label = html.escape(_player_name(player, ucid))
     values = {"server": html.escape(str(server_name)), "player": label}
     inputs: list[dict] = []
-    if action.field:
+    if action.key == "ban":
+        # THE BAN PAIR comes from the ONE builder both ban dialogs read (``ban_dialog_fields``): the
+        # reason and the duration are the same two records the console's ADD draws, so neither
+        # dialog can drift from the other.
+        inputs.extend(ban_dialog_fields(action))
+    elif action.field:
         inputs.append(_dialog_field(action.field, action.field_label or action.label,
                                     kind=action.field_kind, required=True,
                                     maximum=action.field_max, help_text=action.field_help,
                                     width=action.field_width))
-    if action.key == "ban":
-        # The days field: a NUMBER box, bounded by the console's own human-scale cap (BAN_DAYS_MAX)
-        # and three characters wide, so a field meant for "14" cannot take a date or a paragraph. The
-        # browser refuses to submit outside the range, and the ACTION still re-validates whatever a
-        # crafted POST sends — the bound is the field's shape, never the authority. Empty is
-        # permanent, which is why the box is not required.
-        inputs.append(_dialog_field("days", i18n._("Days (optional)"), kind="number", maximum=3,
-                                    bounds=dict(min=BAN_DAYS_MIN, max=BAN_DAYS_MAX), width="narrow",
-                                    help_text=i18n._("Empty = permanent — the ban does not expire "
-                                                     "on its own. 7 means seven days from now.")))
     dialog = {
         "heading": _default_title(action.label, label),
         "warning": _sentence(action.warning, **values) if action.warning else None,
@@ -3130,6 +3423,127 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
         "back": tabbed_origin(origin, tab),
+        "dialog": dialog,
+    }
+
+
+def _ban_target(ucid: str, banned_at: str) -> str:
+    """The confirm store's key for a BAN-ENTRY write: the entry's identity, as one string.
+
+    The entry is ``(ucid, the ban's own timestamp)`` — the same pair ``readmodels.bans`` builds its
+    ``key`` from — so two bans of one ucid (or a ban re-dated after an edit) never share a pending
+    confirmation.
+    """
+    return f"{ucid}@{banned_at}"
+
+
+def _dgsa_carry(source) -> tuple[tuple[str, str], ...]:
+    """The Bans page's view option as hidden fields, or ``()`` when it is off.
+
+    Read from a query mapping (the page render) or a submitted form (a write or a dialog): the ONE
+    spelling of "the DGSA rows are shown" — ``readmodels.bans.DGSA_PARAM`` / ``DGSA_ON`` — so the row
+    control, the dialog's ``back`` link and the write's redirect cannot disagree about the view.
+    """
+    if not hasattr(source, "get"):
+        return ()
+    if readmodels.text(source.get(ban_readmodel.DGSA_PARAM)) == ban_readmodel.DGSA_ON:
+        return ((ban_readmodel.DGSA_PARAM, ban_readmodel.DGSA_ON),)
+    return ()
+
+
+def _bans_url(origin: str, tab: str, carry: tuple[tuple[str, str], ...] = ()) -> str:
+    """A Bans page URL: the resolved origin and tab, with the carried view option appended."""
+    url = tabbed_origin(origin, tab)
+    if not carry:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{urlencode(dict(carry))}"
+
+
+def _bans_return(request: Request, form) -> str:
+    """Where a BAN write returns: the page it was rendered on, carrying the DGSA view option.
+
+    :func:`origin_url`'s rule (a lookup against the registry, never a redirect to raw input) with the
+    page's OWN view option re-attached, so a lift or an add made while the DGSA rows are shown lands
+    back on the state the operator was reading — the SAME URL the dialog's ``back`` states.
+    """
+    return _bans_url(origin_path(request, form.get(ORIGIN_FIELD), _bans_path()),
+                     posted_tab(form.get(TAB_FIELD)), _dgsa_carry(form))
+
+
+async def _ban_rows(ctx: ActionContext):
+    """The ban entries the caller may act on, through the console's own READ action.
+
+    The dialog re-reads the entry it is acting on (never a value the browser sent): the route knows
+    only the identity, so the entry's name, reason and DGSA-ness come from this read — the SAME
+    scoped source the table rendered from.
+    """
+    result = await read_action("list_bans", ctx)
+    data = getattr(result, "data", None) or {}
+    entries = data.get("bans") if getattr(result, "success", False) else None
+    return readmodels.ban_views(entries or ())
+
+
+def ban_confirm_context(request: Request, action: BanAction, row, token: str, origin: str,
+                        tab: str = "", carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """Everything the LIFT confirm dialog's page reads.
+
+    The twin of :func:`player_confirm_context`, for the one write whose target is a ban ENTRY rather
+    than a player on a server: it carries no fields (a lift asks for nothing) and its WARNING and
+    DETAIL are the DGSA copy for a DGSA entry, chosen from the ENTRY's own marker — never from the
+    browser. The target line names the RESOLVED player (or the ucid), read off the entry, and the
+    copy is assembled here with :func:`html.escape` for the same reason every dialog's is.
+
+    ``carry`` is the page's current view option (``?dgsa=1``), re-emitted into the form and the
+    ``Cancel``/``data-back`` URL so the dialog returns to the SAME view it was opened from.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = html.escape(readmodels.text(getattr(row, "name", "")) or readmodels.text(getattr(row, "ucid", "")))
+    values = {"player": label}
+    dgsa = bool(getattr(row, "dgsa", False))
+    heading_label = action.label
+    dialog = {
+        "heading": _default_title(heading_label, label),
+        "warning": _sentence(action.dgsa_warning if dgsa else action.warning, **values),
+        "warning_note": None,
+        "detail": _sentence(action.dgsa_detail if dgsa else action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab,
+                                 ("ucid", readmodels.text(getattr(row, "ucid", ""))),
+                                 ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
+                                 *carry),
+        "inputs": (),
+        "body_inputs": (),
+        # THE LIFT WAITS FOR ITS WRITE (``data-await``): the returned page is read AFTER the route has
+        # committed the lift, so the list the operator lands on shows the ban as gone (see
+        # ``templates/confirm.html``).
+        "await": True,
+        "tag": i18n._("confirm"),
+        "irreversible": True,
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{heading_label} — confirm",
+        "page_title": _default_title(heading_label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, heading_label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": _bans_url(origin, tab, carry),
         "dialog": dialog,
     }
 
@@ -3313,7 +3727,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
 
 # ------------------------------------------------------------------------------- the notice
 
-def _remember_notice(request: Request, action: WriteAction | PlayerAction | NodeAction,
+def _remember_notice(request: Request, action: WriteAction | PlayerAction | NodeAction | BanAction,
                      result: ActionResult, *, revert: str = "", revert_omitted: str = "",
                      refusal: bool = False) -> None:
     """Store the outcome of one write as a ONE-SHOT notice, for the page the redirect lands on.
@@ -3387,8 +3801,13 @@ REFUSAL_CONFIRM_REQUIRED = i18n._("Not authorized (this action must be confirmed
 #: whether a name exists — and the action never ran.
 REFUSAL_NAME_MISMATCH = i18n._("Not done (the typed name does not match the target).")
 
+#: The refusal a crafted POST meets when it names a DGSA entry as its EDIT target. The console renders
+#: NO Edit control on such a row, and this is the door behind that omission: a DGSA ban is never
+#: editable, so a direct POST must not reach an edit form that would offer to rewrite it.
+BAN_EDIT_DGSA_REFUSAL = i18n._("A DGSA ban cannot be edited — it can only be lifted here.")
 
-def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeAction,
+
+def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeAction | BanAction,
                     message: str) -> None:
     """Store the ONE-SHOT refusal *message* for the page the person lands on.
 
@@ -3471,6 +3890,29 @@ def add_routes(router: APIRouter) -> APIRouter:
     # by the glyph's own capability (declared in ``capabilities``): a token is not a second door.
     router.add_api_route(f"{SCREENSHOT_IMAGE_PATH}/{{token}}.png", _screenshot_image_handler(),
                          methods=["GET"], name="player-screenshot-image")
+    # THE BAN-ENTRY WRITES: three shapes, told apart by their own declaration and key — the LIFT
+    # confirms (its own route + a dialog that mints the one-shot token), the ADD and the EDIT are
+    # FORMS (the dialog IS the write, no token). The lift's route refuses a POST that skipped its
+    # dialog; the two forms post to their own route directly.
+    for action in BAN_ACTIONS:
+        if action.form and action.key == BAN_EDIT_ACTION.key:
+            handler, dialog = _ban_edit_handler(action), _ban_edit_confirm_handler(action)
+        elif action.form:
+            handler, dialog = _ban_add_handler(action), _ban_add_confirm_handler(action)
+        else:
+            handler, dialog = _ban_handler(action), _ban_confirm_handler(action)
+        router.add_api_route(action.path, handler, methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-ban-{action.key}")
+        if action.dialog:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, dialog, methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-ban-{action.key}-confirm")
+    # THE ADD'S PLAYER SEARCH — the JSON GET the UCID field's enhancement reads. A GET because it
+    # changes nothing, and so WITHOUT the CSRF dependency the writes carry: there is no token to send
+    # and nothing a forged request could change. Gated by the ADD's own capability (declared above).
+    router.add_api_route(BAN_PLAYERS_PATH, _ban_players_handler(), methods=["GET"],
+                         name="ban-players")
     for action in NODE_ACTIONS:
         router.add_api_route(action.path, _node_handler(action), methods=["POST"],
                              dependencies=[Depends(session.csrf_protect)],
@@ -5055,7 +5497,7 @@ _TYPED_CONFIRM_HELP = i18n._("The action is refused unless this matches the targ
 def _dialog_field(name: str, label: str, *, kind: str = "text", value: str = "",
                   required: bool = False, maximum: int = 0, help_text: str = "",
                   options: tuple[dict, ...] = (), checked: bool = False, rows: int = 0,
-                  bounds: dict | None = None, width: str = "") -> dict:
+                  bounds: dict | None = None, width: str = "", lookup: str = "") -> dict:
     """ONE dialog field record — the shape ``confirm.html``'s ``field_input`` renders.
 
     The TEMPLATE owns the markup and this owns the meaning: a ``select`` carries its ``options``
@@ -5063,14 +5505,16 @@ def _dialog_field(name: str, label: str, *, kind: str = "text", value: str = "",
     everything else its own input ``type``. ``bounds`` is a NUMBER field's ``{min, max}`` — the range
     the browser itself refuses to submit outside, which for a day count is what keeps a field meant
     for ``14`` from taking a date. ``width`` is the field's own width class (``wide`` across the
-    dialog, ``narrow`` down to the few characters a count needs); empty keeps the shared default. One
-    builder, so a field this module adds is shaped exactly like the ones the mission dialogs already
-    generate, and a new shape is one edit in the template.
+    dialog, ``narrow`` down to the few characters a count needs); empty keeps the shared default.
+    ``lookup`` is the URL a text field's own PROGRESSIVE ENHANCEMENT reads (``data-lookup``); empty
+    is a field the browser's plain markup alone is answerable for. One builder, so a field this
+    module adds is shaped exactly like the ones the mission dialogs already generate, and a new shape
+    is one edit in the template.
     """
     return {"type": kind, "name": name, "id": f"{name}-dialog" if name else "", "label": label,
             "max": maximum, "required": required, "checked": checked, "value": value,
             "help": help_text, "placeholder": "", "options": options, "rows": rows,
-            "bounds": bounds, "width": width}
+            "bounds": bounds, "width": width, "lookup": lookup}
 
 
 def typed_confirm_inputs(action: WriteAction) -> tuple[dict, ...]:
@@ -5084,6 +5528,299 @@ def typed_confirm_inputs(action: WriteAction) -> tuple[dict, ...]:
         return ()
     return (_dialog_field(CONFIRM_NAME_FIELD, _TYPED_CONFIRM_LABEL, required=True, maximum=128,
                           help_text=_TYPED_CONFIRM_HELP),)
+
+
+# ── the ban dialogs' own fields ──────────────────────────────────────────────
+#: The DURATION field's label and help: a NUMBER box bounded by the console's human-scale cap and
+#: three characters wide, so a field meant for ``14`` cannot take a date or a paragraph. The browser
+#: refuses to submit outside the range and the ACTION still re-validates whatever a crafted POST
+#: sends — the bound is the field's shape, never the authority. Empty is permanent, which is why the
+#: box is not required.
+BAN_DAYS_LABEL = i18n._("Days (optional)")
+BAN_DAYS_HELP = i18n._("Empty = permanent — the ban does not expire on its own. 7 means seven days "
+                       "from now.")
+
+
+def ban_days_field() -> dict:
+    """The DURATION field every ban dialog draws — ONE record, so no two spellings of it can exist."""
+    return _dialog_field(BAN_DAYS_FIELD, BAN_DAYS_LABEL, kind="number", maximum=3,
+                         bounds=dict(min=BAN_DAYS_MIN, max=BAN_DAYS_MAX), width="narrow",
+                         help_text=BAN_DAYS_HELP)
+
+
+#: The EDIT dialog's expiration field: an ABSOLUTE UTC datetime typed as text and written straight to
+#: the list. ``UTC`` is stated in the label and in the format in the help, because the value the field
+#: reads and writes is a NAIVE UTC stamp — the same convention the list's own stamps use. The parser
+#: accepts shorter inputs (minutes, hour, or the date alone), so the help names the full layout and
+#: says less is allowed. Empty means the permanent sentinel, which is why the field is not required.
+BAN_UNTIL_LABEL = i18n._("Expires (UTC)")
+BAN_UNTIL_HELP = i18n._("A UTC date/time: YYYY-MM-DD HH:MM:SS, or less — HH:MM, HH, or the date "
+                        "alone (the current time that day). Empty = permanent.")
+
+
+def ban_until_field() -> dict:
+    """The EDIT dialog's ABSOLUTE expiration field — a UTC text box, not a day count.
+
+    The ADD and the player-row Ban keep :func:`ban_days_field`: only an EDIT of an EXISTING entry
+    states an absolute end, so that a reason-only save writes the entry's own instant back instead of
+    re-deriving a drifting one from a day count.
+    """
+    return _dialog_field(BAN_UNTIL_FIELD, BAN_UNTIL_LABEL, kind="text", width="wide",
+                         help_text=BAN_UNTIL_HELP)
+
+
+def ban_dialog_fields(action: BanAction | PlayerAction) -> tuple[dict, ...]:
+    """The REASON and the DURATION, in the order every ban dialog asks for them.
+
+    ONE builder, read by the player-row Ban dialog (:func:`player_confirm_context`) and by the
+    console's ADD (:func:`ban_add_dialog_context`), and fed from the DECLARATION — so a ban dialog
+    added later draws the same two fields instead of copying them, and a changed bound or help line
+    changes both at once.
+    """
+    return (_dialog_field(action.field, action.field_label or action.label, kind=action.field_kind,
+                          required=True, maximum=action.field_max, help_text=action.field_help,
+                          width=action.field_width),
+            ban_days_field())
+
+
+# ── the ADD dialog ───────────────────────────────────────────────────────────
+#: The UCID field: the ONE thing that can name whom a ban is for when nothing is resolved.
+BAN_ADD_UCID_LABEL = i18n._("Player (UCID)")
+BAN_ADD_UCID_HELP = i18n._("The player's UCID, as the ban list records it — e.g. 4b1f9c22.")
+
+#: The SCOPE picker: the bot-wide value first (the empty one), then one option per server the caller
+#: may name. The bot-wide option's WORD states what it writes: ``All my servers`` when the caller
+#: holds a target set of its own (one row per server of it), and the accurate ``Every server
+#: (bot-wide)`` when it holds none (ONE bot-wide row).
+BAN_SCOPE_LABEL = i18n._("Applies to")
+BAN_SCOPE_ALL_LABEL = i18n._("All my servers")
+BAN_SCOPE_EVERY_LABEL = i18n._("Every server (bot-wide)")
+BAN_SCOPE_HELP = i18n._("One server, or every server you manage. A ban on all of them is written to "
+                        "the list every installation syncs.")
+
+#: The dialog's own heading and its target sentence. The ADD has no resolved object to name, so the
+#: target line points at the field instead of at a name.
+BAN_ADD_HEADING = i18n._("Add a ban?")
+BAN_ADD_TARGET = i18n._("the UCID you enter below")
+
+
+@dataclass(frozen=True, slots=True)
+class BanScope:
+    """The ADD picker's scope, read from the console's own scoped ``list_bans``.
+
+    ``servers`` are the names a per-server ban may NAME — the caller's whole view for an unscoped
+    caller, its own target set for a narrowed one — and ``scoped`` says whether the caller holds a
+    target set of its own, which chooses the bot-wide option's word.
+    """
+    servers: tuple[str, ...]
+    scoped: bool
+
+
+async def _ban_scope(request: Request) -> BanScope:
+    """The servers a ban added from this console may name, and whether the caller holds a target set.
+
+    Read through the console's own scoped read action (``list_bans``), which reports both beside the
+    rows: the same call, and the same rule (``plugins.mission.actions._caller_ban_servers`` /
+    ``_caller_ban_targets``), the write re-checks a chosen name against, so the picker cannot offer a
+    server the action would refuse — and the console keeps no second spelling of the scope rule. An
+    absent plugin or a refused read answers the empty set, which is the bot-wide value alone.
+    """
+    result = await read_action("list_bans", context_for(request))
+    data = getattr(result, "data", None) or {}
+    if not getattr(result, "success", False):
+        return BanScope(servers=(), scoped=False)
+    servers = tuple(name for name in (readmodels.text(value) for value in (data.get("servers") or ()))
+                    if name)
+    targets = tuple(name for name in (readmodels.text(value) for value in (data.get("targets") or ()))
+                    if name)
+    return BanScope(servers=servers, scoped=bool(targets))
+
+
+def ban_scope_options(request: Request, scope: BanScope) -> tuple[dict, ...]:
+    """The scope picker's options: the bot-wide value, then one per server the caller may name.
+
+    ``""`` IS the bot-wide value (the whole target set, or a single bot-wide row when that set is
+    empty). Its word follows *scope*: ``All my servers`` when the caller holds a target set, else the
+    accurate ``Every server (bot-wide)``. A server name is operator data and is emitted verbatim;
+    only the bot-wide word is translated, because ``confirm.html`` renders a select option's label
+    as written.
+    """
+    label = BAN_SCOPE_ALL_LABEL if scope.scoped else BAN_SCOPE_EVERY_LABEL
+    return ({"value": "", "label": i18n.translate(request, label)},
+            *({"value": name, "label": name} for name in scope.servers))
+
+
+def ban_add_inputs(request: Request, action: BanAction, scope: BanScope) -> tuple[dict, ...]:
+    """The ADD dialog's fields, in the mockup's order: the UCID, the reason, the duration, the scope.
+
+    The ucid is REQUIRED — nothing else can name whom the ban is for — and the reason and the
+    duration are the SAME records the player-row Ban dialog draws (:func:`ban_dialog_fields`). The
+    ucid field is the ONE field that carries a ``lookup`` (``BAN_ADD_UCID_LOOKUP``): its own
+    progressive enhancement turns the name the operator knows into the UCID it has to type.
+    """
+    ucid = _dialog_field(BAN_ADD_UCID_FIELD, BAN_ADD_UCID_LABEL, required=True, maximum=64,
+                         width="wide", help_text=BAN_ADD_UCID_HELP, lookup=BAN_ADD_UCID_LOOKUP)
+    return (ucid,
+            *ban_dialog_fields(action),
+            _dialog_field(BAN_SCOPE_FIELD, BAN_SCOPE_LABEL, kind="select",
+                          options=ban_scope_options(request, scope), help_text=BAN_SCOPE_HELP))
+
+
+def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab: str = "",
+                           scope: BanScope = BanScope(servers=(), scoped=False),
+                           carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """Everything the ADD ban dialog's page reads — the sixth sibling of :func:`confirm_context`.
+
+    It is the one ban dialog that ASKS for its target: a ban is added from the PAGE head, so no row
+    was clicked and nothing was resolved — the ucid is typed into the form, the reason and the
+    duration are the records the player-row Ban dialog draws, and the scope picker offers the
+    bot-wide value followed by the servers the caller may name (*scope*, read through the scoped
+    action, never off the request).
+
+    NO ONE-SHOT TOKEN (``action.form``, ``action.confirm`` False): adding a ban is not a step that
+    cannot be undone from here — the row it writes carries a Lift — so nothing this route could
+    refuse a later POST against exists, and a token nothing spends is the dead knob this console
+    forbids. The dialog is a form; its own POST is the write.
+
+    The markup is assembled through the SAME records every other dialog uses: ``heading`` and
+    ``target`` are sentence records (the ucid is named by its own field, so there is no resolved name
+    to carry), and the warning and detail are the declaration's own sentences.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    dialog = {
+        "heading": {"msgid": BAN_ADD_HEADING, "params": {}},
+        "warning": _sentence(action.warning),
+        "warning_note": None,
+        "detail": _sentence(action.detail),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title),
+        "path": action.path,
+        "server": "",
+        "target": {"msgid": BAN_ADD_TARGET, "params": {}},
+        "hidden": _hidden_fields(origin, tab, *carry),
+        "inputs": ban_add_inputs(request, action, scope),
+        "body_inputs": (),
+        # THE ADD WAITS FOR ITS WRITE (``data-await``): the returned list is read AFTER the ban is
+        # written, so the operator lands on a list that already holds it.
+        "await": True,
+        # the tokenless form's chrome (the tree's own rule for a dialog whose write IS reversible):
+        # the tag names no confirmation it does not have, and the CALLER's write is not irreversible
+        # from here — the row it writes carries a Lift. ``danger`` stays the declaration's own tint.
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Add a ban')}",
+        "page_title": {"msgid": i18n._("Add ban"), "params": {}},
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": _bans_url(origin, tab, carry),
+        "dialog": dialog,
+    }
+
+
+#: The EDIT dialog's own heading. An edit has a RESOLVED entry whose name it can carry, so the
+#: sentence names the player; the reason and the absolute UTC expiration below it are pre-filled from
+#: that entry.
+BAN_EDIT_HEADING = i18n._("Edit the ban on {player}?")
+
+
+def ban_edit_inputs(action: BanAction, row) -> tuple[dict, ...]:
+    """The EDIT dialog's fields: the reason and the ABSOLUTE UTC expiration, PRE-FILLED from the entry.
+
+    The reason is the declaration's own record. The expiration is :func:`ban_until_field` — a UTC text
+    box, NOT the day-count box the ADD and the player-row Ban draw — fed the entry's OWN end
+    (:func:`readmodels.bans.expires_utc`), so saving the form untouched writes that exact instant back
+    and a reason-only edit cannot drift the expiration. ``confirm.html`` renders a field's ``value``
+    into the input, so the operator edits what is there rather than retyping it.
+    """
+    reason = _dialog_field(action.field, action.field_label or action.label, kind=action.field_kind,
+                           required=True, maximum=action.field_max, help_text=action.field_help,
+                           width=action.field_width)
+    reason["value"] = readmodels.text(getattr(row, "reason", ""))
+    expires = ban_until_field()
+    expires["value"] = readmodels.text(getattr(row, "expires_utc", ""))
+    return (reason, expires)
+
+
+def ban_edit_dialog_context(request: Request, action: BanAction, row, origin: str,
+                            tab: str = "", carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """Everything the EDIT ban dialog's page reads — the ADD dialog's twin.
+
+    A FORM, and no one-shot token (``action.form``, ``action.confirm`` False): editing a ban is
+    reversible from the same page, so nothing this route could refuse a later POST against exists.
+    The entry's IDENTITY (ucid + its own ``banned_at``) rides hidden, so the action re-reads and
+    re-writes exactly that entry and the ban does not move in time.
+
+    The route ALREADY re-read the entry (through the scoped ``list_bans``) and refuses a DGSA one
+    before this is called, so the name, the reason and the DGSA-ness here are the entry's own and
+    never a field the browser sent. NO warning block: the mockup's edit dialog carries none, and the
+    one thing the operator must read — reason and expiration only, re-scoping is lift-and-re-add —
+    is the declaration's ``detail``.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = (readmodels.text(getattr(row, "name", ""))
+             or readmodels.text(getattr(row, "ucid", "")))
+    ucid = readmodels.text(getattr(row, "ucid", ""))
+    dialog = {
+        "heading": _sentence(BAN_EDIT_HEADING, player=label),
+        "warning": None,
+        "warning_note": None,
+        "detail": _sentence(action.detail),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, player=label),
+        "path": action.path,
+        "server": "",
+        #: the target line names the RESOLVED player and its ucid — the pair the entry is identified
+        #: by — as ONE plain string of operator data (it is never translated).
+        "target": f"{label} · {ucid}",
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid),
+                                 ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
+                                 *carry),
+        "inputs": ban_edit_inputs(action, row),
+        "body_inputs": (),
+        # THE EDIT WAITS FOR ITS WRITE (``data-await``): the returned list is read AFTER the entry is
+        # rewritten, so the operator lands on the edited row rather than the one they opened.
+        "await": True,
+        # the tokenless form's chrome (the tree's own rule for a dialog whose write IS reversible):
+        # no "confirm" badge and no sentence claiming it cannot be undone.
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Edit ban')}",
+        "page_title": {"msgid": i18n._("Edit ban"), "params": {}},
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, i18n._("Edit ban")),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": _bans_url(origin, tab, carry),
+        "dialog": dialog,
+    }
 
 
 def installable_nodes(request: Request) -> tuple[dict, ...]:
@@ -5134,12 +5871,24 @@ def empty_instances(request: Request) -> tuple[dict, ...]:
     return tuple(options)
 
 
+#: table name -> the PAGE-LEVEL declaration its page head renders. ONE map, asked BY TABLE, so a
+#: page can never be handed another page's control and a table with no page-level control (every
+#: other table today) is simply absent. Two entries: the Servers page creates a SERVER, and the Bans
+#: page adds a BAN — the ADD belongs in the TABLE's own map, never on a row, because a ban being
+#: added has no row to hang a control on.
+PAGE_CONTROLS: dict[str, tuple[WriteAction | BanAction, ...]] = {
+    "servers": SERVER_PAGE_ACTIONS,
+    "bans": (BAN_ADD_ACTION,),
+}
+
+
 def page_controls(request: Request, table: str, origin: str) -> dict | None:
     """The PAGE-LEVEL control the table *table* may render — or ``None`` for a page that has none.
 
-    The Servers page is the only page that creates a server, and there is no row to hang the control
-    on, so it renders in the page head from this ONE record: the dialog's path, the session's CSRF
-    token and the page it was pressed on (the same origin contract every row control carries).
+    The Servers page is the only page that creates a server, and the Bans page the only one that
+    adds a ban; there is no row to hang either control on, so it renders in the page head from this
+    ONE map: the dialog's path, the session's CSRF token and the page it was pressed on (the same
+    origin contract every row control carries).
 
     THREE conditions, each read from the place that decides it: the CAPABILITY
     (``permissions.allows``, the very predicate the gate runs, so ``offered ⊆ authorised`` holds by
@@ -5147,9 +5896,10 @@ def page_controls(request: Request, table: str, origin: str) -> dict | None:
     loaded is offered no button whose only answer is a refusal), and the TABLE (asked by table, so a
     page can never be handed another page's control).
     """
-    if table != "servers":
+    declared = PAGE_CONTROLS.get(table)
+    if not declared:
         return None
-    action = SERVER_PAGE_ACTIONS[0]
+    action = declared[0]
     if not permissions.allows(action.capability, permissions.role_names_for(request),
                               manager=permissions.manages_console(request)):
         return None
@@ -5158,7 +5908,10 @@ def page_controls(request: Request, table: str, origin: str) -> dict | None:
     return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
             "label": action.label, "title": _sentence(action.tip), "aria": _sentence(action.aria),
             "csrf_field": session.CSRF_FIELD, "csrf_token": session.get_csrf_token(request),
-            "origin_field": ORIGIN_FIELD, "origin": origin}
+            "origin_field": ORIGIN_FIELD, "origin": origin,
+            # THE PAGE'S OWN VIEW OPTION, re-emitted so the dialog it opens returns to the same state
+            # (the Bans page's ``?dgsa=1``; empty for every other page's control).
+            "hidden": _dgsa_carry(request.query_params)}
 
 
 def add_dialog_context(request: Request, action: WriteAction, origin: str, tab: str = "") -> dict:
@@ -5387,7 +6140,7 @@ def _delete_server_handler(action: WriteAction):
     return handle
 
 
-async def _audit_refusal(ctx: ActionContext, action: WriteAction | PlayerAction | NodeAction,
+async def _audit_refusal(ctx: ActionContext, action: WriteAction | PlayerAction | NodeAction | BanAction,
                          why: str, target: str) -> None:
     """Record ONE audit entry for an attempt the ROUTE refused before any action ran.
 
@@ -5616,6 +6369,215 @@ def _node_confirm_handler(action: NodeAction):
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_players_handler():
+    """The JSON GET the ADD dialog's UCID field reads: ``{"players": [{"name", "ucid"}, …]}``.
+
+    The search is the console's own READ action (``search_players``), so the SCOPE rule — an unscoped
+    caller finds every player, a narrowed one only the players PRESENT on the servers it may see —
+    lives inside the action and nowhere else, and this route names no server and applies no filter of
+    its own.
+
+    The answer ALWAYS carries a list: a query matching nobody, a query that is empty, and a plugin
+    that is not loaded all answer HTTP 200 with nothing in it. The field is a plain required text box
+    with or without this route, and the write re-validates the UCID, so a lookup that cannot answer
+    must not become an error the operator has to read before typing the UCID themselves.
+    """
+    async def handle(request: Request) -> JSONResponse:
+        query = readmodels.text(request.query_params.get(BAN_PLAYERS_QUERY))
+        result = await read_action("search_players", context_for(request), query=query)
+        data = getattr(result, "data", None) or {}
+        players = data.get("players") if getattr(result, "success", False) else ()
+        # no-store: a suggestion list is a live view of who is on a server right now.
+        return JSONResponse({"players": list(players or ())},
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_add_handler(action: BanAction):
+    """The route for the console's ADD — the dialog's own POST.
+
+    Nothing is resolved and no token is spent: the target is the ucid in the BODY, and the scope is
+    re-derived INSIDE the action (``plugins.mission.actions._caller_ban_targets``), so this route
+    never names a server and cannot widen what the action may cover. It reads the person's shown
+    name off the IDENTITY (``action.sender``, never a body field) so nobody can sign another person's
+    name onto a ban, and the reason, the duration and the scope ride the declaration's OWN field
+    names — one string each, so the route cannot post one thing and the action read another.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the add-ban control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {
+            BAN_ADD_UCID_FIELD: readmodels.text(form.get(BAN_ADD_UCID_FIELD)),
+            action.field: readmodels.text(form.get(action.field)),
+            BAN_DAYS_FIELD: readmodels.text(form.get(BAN_DAYS_FIELD)),
+            BAN_SCOPE_FIELD: readmodels.text(form.get(BAN_SCOPE_FIELD)),
+        }
+        if action.sender:
+            params["sender"] = _sender(identity)
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_bans_return(request, form), status_code=303)
+
+    return handle
+
+
+def _ban_add_confirm_handler(action: BanAction):
+    """The route that RENDERS the ADD dialog. It changes nothing.
+
+    It resolves nothing — the ucid is TYPED into the form, so there is no target to look up and no
+    refusal to make beyond the identity one — and it mints NO one-shot token, because the write it
+    opens is not irreversible (``action.confirm`` is False). Its OWN scope picker is read here,
+    through the console's scoped action, never off the request.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = ban_add_dialog_context(request, action, origin, tab, await _ban_scope(request),
+                                        carry=_dgsa_carry(form))
+        # no-store: the dialog is a console page too (see ``_confirm_handler``).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_handler(action: BanAction):
+    """The route for one BAN-ENTRY write (the LIFT). One implementation, so the refusal shape is
+    the same as every other write's.
+
+    Two differences from its siblings, both about a target that is not a server: the identity is
+    (ucid, the ban's own timestamp) and the confirm token is keyed on it; and there is NOTHING to
+    resolve against the cluster — the scope is re-derived INSIDE the action (``_caller_ban_targets``),
+    so the route never names a server.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        banned_at = readmodels.text(form.get("banned_at"))
+        ctx = _context(request, identity)
+        if action.confirm and not consume_confirm_token(
+                request, action.path, _ban_target(ucid, banned_at),
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            # A confirm-required write REFUSES a POST that did not come through its dialog: the row's
+            # control posts to the dialog, the dialog's form carries the one-shot token minted for
+            # THIS entry, and a caller who skips the dialog has no token. That refusal IS the modal
+            # gate — a curl cannot skip it.
+            await _audit_refusal(ctx, action, "not confirmed through its dialog", f"ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        result = await call_action(action.qualname, ctx, ucid=ucid, banned_at=banned_at)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_bans_return(request, form), status_code=303)
+
+    return handle
+
+
+def _ban_confirm_handler(action: BanAction):
+    """The route that RENDERS the LIFT's dialog. It changes nothing.
+
+    The entry is RE-READ here (through the console's own scoped read action) from the identity the
+    form carries, so the dialog's name, reason and DGSA copy come from the entry — never from a field
+    the browser sent. A POST naming an entry the caller cannot see answers the console's bare 404,
+    the SAME answer as an entry that does not exist.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        banned_at = readmodels.text(form.get("banned_at"))
+        ctx = _context(request, identity)
+        row = next((candidate for candidate in await _ban_rows(ctx)
+                    if candidate.ucid == ucid and candidate.banned_at_key == banned_at), None)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"No ban for ucid '{ucid}'.")
+        token = mint_confirm_token(request, action.path, _ban_target(ucid, banned_at))
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = ban_confirm_context(request, action, row, token, origin, tab, _dgsa_carry(form))
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_edit_handler(action: BanAction):
+    """The route for the console's EDIT — the dialog's own POST.
+
+    Nothing is resolved and no token is spent: the target is the entry IDENTITY in the BODY (ucid +
+    the ban's own ``banned_at``), and the scope is re-derived INSIDE the action
+    (``plugins.mission.actions._caller_ban_targets``), so this route never names a server and cannot
+    widen what the action may write. The reason and the ABSOLUTE UTC expiration ride the declaration's
+    OWN field names — one string each, so the route cannot post one thing and the action read another.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the edit-ban control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {
+            "ucid": readmodels.text(form.get("ucid")),
+            "banned_at": readmodels.text(form.get("banned_at")),
+            action.field: readmodels.text(form.get(action.field)),
+            BAN_UNTIL_FIELD: readmodels.text(form.get(BAN_UNTIL_FIELD)),
+        }
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_bans_return(request, form), status_code=303)
+
+    return handle
+
+
+def _ban_edit_confirm_handler(action: BanAction):
+    """The route that RENDERS the EDIT dialog. It changes nothing.
+
+    The entry is RE-READ here (through the console's own scoped read action) from the identity the
+    form carries, so the dialog's name, reason and pre-filled duration come from the entry — never
+    from a field the browser sent. A POST naming an entry the caller cannot see answers the console's
+    bare 404, the SAME answer as an entry that does not exist; a DGSA entry is REFUSED outright,
+    because the list renders no Edit control on one and this is the door behind that omission.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        banned_at = readmodels.text(form.get("banned_at"))
+        ctx = _context(request, identity)
+        row = next((candidate for candidate in await _ban_rows(ctx)
+                    if candidate.ucid == ucid and candidate.banned_at_key == banned_at), None)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"No ban for ucid '{ucid}'.")
+        if bool(getattr(row, "dgsa", False)):
+            raise HTTPException(status_code=403, detail=BAN_EDIT_DGSA_REFUSAL)
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = ban_edit_dialog_context(request, action, row, origin, tab, _dgsa_carry(form))
         return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 
@@ -5858,6 +6820,23 @@ def _identity(request: Request) -> Identity | None:
     return manager.authenticate(request)
 
 
+def context_for(request: Request) -> ActionContext:
+    """The seam's context for a READ page: the request's own resolved roles and scope.
+
+    A page must render for an AUTHORISED caller even when no identity BACKEND is installed (a test
+    shell, a console with no sign-in door): the capability gate has already authorised the request,
+    and the roles/scope resolvers are the very facts the gate and the sidebar read. No audit actor is
+    set — a read writes no trail. A WRITE keeps using :func:`_context`, which requires a resolvable
+    identity so its trail can name the actor.
+    """
+    source = dashboard_page.request_source(request)
+    ctx = ActionContext(node=_node(), bus=_Cluster(source))
+    ctx._scope = permissions.scope_for(request)
+    ctx._roles = permissions.role_names_for(request)
+    ctx._transport = TRANSPORT_WEB
+    return ctx
+
+
 def _context(request: Request, identity: Identity) -> ActionContext:
     """The seam's context for this request: the caller's identity against the console's own cluster.
 
@@ -5988,6 +6967,13 @@ def _players_path() -> str:
     from . import players as players_page
 
     return players_page.PLAYERS_PATH
+
+
+def _bans_path() -> str:
+    """Where a BAN-ENTRY write redirects back to: the Bans page's own constant."""
+    from . import bans as bans_page
+
+    return bans_page.BANS_PATH
 
 
 def _nodes_path() -> str:

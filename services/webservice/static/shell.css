@@ -879,6 +879,17 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   accent-color: var(--accent); vertical-align: -2px; }
 .cfg-form .st-lab input[type="checkbox"]:disabled { cursor: not-allowed; }
 
+/* THE MISSION ROW'S OWN COLUMNS. The selection box gets a column of its OWN, so the mission NAME and
+ * the `.miz` PATH below it both start to its RIGHT and line up with each other — with the box inline
+ * in the label's flow the path began under the box. The label also clears the START row's 3px inset
+ * stripe (`.row-active`), which otherwise runs through the box's left edge. The fact column is
+ * `minmax(0, 1fr)` so a long path wraps inside the row instead of widening it. */
+.m-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start;
+  padding-left: 9px; }
+.m-row.no-box { grid-template-columns: minmax(0, 1fr); }
+.m-row .m-box { padding-top: 2px; }
+.m-row .m-fact { min-width: 0; }
+
 /* THE DIALOG'S READ-ONLY SELECTION LIST: the missions a bulk removal will act on, one name per line,
  * unnumbered and without boxes — the selection was made in the list. It scrolls rather than growing
  * the dialog, exactly as the dialog's own `.bd` is bounded. */
@@ -1406,6 +1417,30 @@ a.st-sw { text-decoration: none; }
 .theme-opt:hover { color: var(--text-2); border-color: var(--line-2); }
 .theme-opt.on { color: var(--text); background: var(--panel); border-color: var(--line-2); }
 .theme-opt svg { width: 15px; height: 15px; display: block; }
+
+/* ---------------------------------------------------------------- a field's own suggestions
+ * THE `data-lookup` SUGGESTIONS (static/player-lookup.js): the list the ADD ban dialog's UCID field
+ * shows while the operator types a name. The markup is the SCRIPT's (the attribute rides the field,
+ * the list is created beside it), so the look is the sheet's like every other shipped control's, and
+ * the rules below state nothing the script does not create.
+ *
+ * A WRAP IS WHAT MAKES THE POPUP FLOAT: the list is positioned against the field, so the script puts
+ * the input inside `.lk-wrap` and the list under it — the field keeps the shape it had (a flex column,
+ * so the input still stretches the way `.dlg-field`'s own rule drew it) and the list is taken out of
+ * the flow, over whatever sits under the field.
+ */
+.lk-wrap { position: relative; display: flex; flex-direction: column; }
+.lk-list {
+  position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin: .25rem 0 0;
+  padding: .25rem 0; list-style: none; max-height: 15rem; overflow-y: auto;
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-s);
+  box-shadow: 0 10px 26px var(--elev);
+}
+.lk-opt { display: flex; gap: .5rem; align-items: baseline; padding: .35rem .6rem;
+  font-size: 12.5px; cursor: pointer; }
+.lk-opt .lk-name { color: var(--text); }
+.lk-opt .lk-ucid { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.lk-opt.sel { background: var(--sel-wash); }
 
 /* ============================================================================ §LIGHT
  *

@@ -29,12 +29,16 @@
  *    NOTICE, rendered where they land and on the LIVE path (`pages/actions._remember_notice` /
  *    `pages/live.py`'s `notice` target) — the same mechanism every other write already uses. (A NETWORK
  *    failure is an honest no-op: the write was attempted once and never retried.)
+ *    ONE SUBCASE WAITS: a dialog that carries `data-await` beside its `data-back` (the Bans lift, add and
+ *    edit) keeps that stated destination but takes the branch below instead, so the page it lands on is
+ *    read only AFTER the write has answered — the list it returns to is the thing the write changed.
  *  * A FORM THAT STAYS ON ITS PAGE (the config/revert/channels/coalitions forms and the strip's DIRECT
  *    controls) does not state a `data-back`, so it is NOT a dialog being dismissed. It navigates back to
  *    the page it is on — path and query, no fragment — but only ONCE THE WRITE HAS ANSWERED
  *    (`redirect: "manual"` resolves when the server's answer is on the wire, i.e. AFTER the route has run
  *    the action and committed it). That is the delete-button rule: the fresh render such a write returns
- *    to reads the state the action CHANGED, not the pre-write state it was rendered from.
+ *    to reads the state the action CHANGED, not the pre-write state it was rendered from. The `data-await`
+ *    dialog above lands here too, on its own stated page.
  *
  * A REFUSAL IS NEVER LOST. Every refusal is decided by a ROUTE (or refused by the console's access gate)
  * and reaches the person through the ONE-SHOT NOTICE, rendered where they land and on the live path —
@@ -117,8 +121,11 @@
     var control = event.submitter;
     /* THE DIALOG'S OWN DESTINATION is `data-back` (see `destination`). Its presence is what says this
        form IS a dialog being dismissed — a page that must close on the press — as opposed to a form
-       that stays and waits for a fresh render. */
-    var goingBack = form.getAttribute("data-back");
+       that stays and waits for a fresh render. `data-await` is the ONE exception: a dialog that keeps
+       its stated destination but must SEE its write before navigating (the Bans lift/add/edit, whose
+       returned list is the thing the write changed). Such a form takes the waiting branch below and
+       lands on the same `to` only once the route has answered. */
+    var goingBack = form.getAttribute("data-back") && !form.getAttribute("data-await");
 
     /* The SAME body, method and destination the browser would have sent — with `redirect: "manual"`
        so fetch does not follow the 303 itself. `keepalive` lets a write the person abandons by closing

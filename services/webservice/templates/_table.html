@@ -29,8 +29,8 @@
   identity: a server's NAME (the record `pages/actions.server_controls` built — the strip, the menu,
   the glyphs, the two names per control) or a player's `(server, ucid)` (a form with a message field,
   This file still derives nothing and renders NO control for a row the map has no entry for. The
-  SERVER strip itself is the partial `_strip.html`, one component used by both screens; a player
-  control is a small form of its own shape, and so is a NODE row's lifecycle trio:
+  SERVER and BANS rows render the SAME partial, `_strip.html` — one component, three rows now; a
+  player control is a small form of its own shape, and so is a NODE row's lifecycle trio:
   restart / shut down / upgrade, Admin-only, keyed by the node's name). When no row has a control,
   the column is not rendered at all — no header, no empty cell — so a page with nothing to offer
   looks exactly as it did before writes existed. A control is OMITTED, never rendered disabled. The
@@ -52,6 +52,18 @@
     <a href="{{ search_clear }}">{% trans %}Clear{% endtrans %}</a>
   </form>
   <p class="sub search-state">{% if view.search.active %}{% trans query=view.search.query, filtered=view.search.filtered, total=view.search.total %}Filter: name or UCID contains {{ query }} · {{ filtered }} of {{ total }} players{% endtrans %} · <a href="{{ search_clear }}">{% trans %}clear{% endtrans %}</a>{% else %}{% trans count=view.search.total %}{{ count }} player(s) online{% endtrans %}{% endif %}</p>
+  {% elif table.name == 'bans' %}
+  {#- THE DGSA VIEW OPTION, in the players search's own slot: a LINK, not a form. The option is a GET
+      parameter on this page's path, so the hidden state states how many rows were withheld with the
+      link that reveals them, and the shown state states that they are shown with the link back. It is
+      NOT a page action (no ban changes) and NOT a permission — it filters within the caller's
+      already-scoped set. Silent hiding would let a globally banned player read as unbanned, so the
+      sentence is not optional. -#}
+  {% if dgsa.show %}
+  <p class="sub search-state">{{ _(dgsa.shown_sentence) }} — <a href="{{ dgsa.hide_link }}">{{ _(dgsa.hide_label) }}</a></p>
+  {% elif dgsa.hidden_count %}
+  <p class="sub search-state">{% trans count=dgsa.hidden_count %}{{ count }} DGSA ban hidden{% pluralize %}{{ count }} DGSA bans hidden{% endtrans %} — <a href="{{ dgsa.show_link }}">{{ _(dgsa.show_label) }}</a></p>
+  {% endif %}
   {% endif %}
 
   {% if table.rows %}
@@ -81,6 +93,17 @@
         {% endfor %}
       {% elif table.name == 'players' %}
         {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name }}{% endif %}</td><td>{{ row.slot or '—' }}</td><td>{{ row.coalition or '—' }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
+        {% endfor %}
+      {% elif table.name == 'bans' %}
+        {#- A BAN ENTRY: one row per ban (the bus groups a multi-server ban back into one). The name
+            is the players table's name, or the ucid when that ucid is unknown — never a blank. A
+            DGSA entry wears the WORD as a tag (a proper noun: no glyph, no second accent colour). A
+            permanent ban wears the state chip word instead of a stamp; every stamp states UTC. The
+            row's controls are the SAME glyph strip every other row renders (`_strip.html`): the EDIT
+            (a pencil) then the LIFT (the unmute glyph), each carrying its `title` and `aria-label`.
+            A control the caller may not use is ABSENT, not disabled, and a DGSA entry offers the
+            LIFT only — a DGSA ban cannot be edited. -#}
+        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b>{% if row.dgsa %} <span class="tag" title="{% trans %}Held in the DGSA global ban list, shared by every installation that syncs it{% endtrans %}">DGSA</span>{% endif %}</td><td class="mono">{{ row.ucid }}</td><td>{{ row.reason }}</td><td class="mono"><span class="stamp">{{ row.banned_at }}</span></td><td>{% if row.permanent %}<span class="tag">{{ _(row.banned_until) }}</span>{% else %}<span class="stamp mono">{{ row.banned_until }}</span>{% endif %}</td><td>{% if row.bot_wide %}<span class="tag">{{ _(row.scope) }}</span>{% else %}<span class="mono">{{ row.scope }}</span>{% endif %}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.key) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
       {% endif %}
       </tbody>

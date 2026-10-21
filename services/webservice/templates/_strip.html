@@ -1,7 +1,8 @@
 {#-
-  ONE ROW STRIP — a row's controls, as the mockup's `td.acts` cell draws them. ONE component, TWO
-  rows: the SERVER row and the PLAYER row are the same strip, driven by the record
-  `pages/actions.server_controls` / `pages/actions.player_controls` built for that row.
+  ONE ROW STRIP — a row's controls, as the mockup's `td.acts` cell draws them. ONE component, THREE
+  rows: the SERVER, PLAYER and BANS rows are the same strip, driven by the record
+  `pages/actions.server_controls` / `pages/actions.player_controls` / `pages/actions.ban_controls`
+  built for that row.
 
   IT COMPUTES NOTHING. `strip.strip` are the controls already filtered by capability, scope,
   availability and state (a control the caller may not use is ABSENT, never rendered disabled), their

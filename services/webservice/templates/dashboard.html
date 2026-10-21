@@ -50,6 +50,7 @@
   <form method="post" action="{{ add_control.path }}">
     <input type="hidden" name="{{ add_control.csrf_field }}" value="{{ add_control.csrf_token }}">
     <input type="hidden" name="{{ add_control.origin_field }}" value="{{ add_control.origin }}">
+    {% for name, value in add_control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
     <button type="submit" title="{{ say(add_control.title) }}" aria-label="{{ say(add_control.aria) }}">{{ _(add_control.label) }}</button>
   </form>
 </div>

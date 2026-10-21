@@ -10,13 +10,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime, timezone
-from typing import Any, TypeVar
+from typing import Any, Iterable, TypeVar, cast
 
-from core import Coalition, Status, UploadStatus, utils
+from core import Coalition, Status, UploadStatus, utils, get_translation
 from core.actions import (
     TRANSPORT_DISCORD,
     TRANSPORT_SERVICE,
+    TRANSPORT_WEB,
     action,
     audit_action,
 )
@@ -33,6 +35,11 @@ from core.action_results import (
 )
 
 log = logging.getLogger(__name__)
+
+#: The mission catalog's translator — the SAME domain the plugin's commands use, so the sentences
+#: this module composes for the console are translated where the bot's own are. It resolves the
+#: language at CALL time (``core.translations``), never at import.
+_ = get_translation(__name__.split('.')[1])
 
 
 # ── Server control ──────────────────────────────────────────────────────────
@@ -1036,6 +1043,105 @@ MAX_BAN_REASON_LENGTH = 80
 #: enough that the ``banned_until`` timestamp it computes cannot overflow into a nonsense date).
 MAX_BAN_DAYS = 36500
 
+#: The EXACT text layout the EDIT dialog's absolute expiration states: a UTC wall-clock stamp, with
+#: an optional trailing suffix the parser strips — EXACTLY ONE of `` UTC`` / ``Z``. NAIVE — the value
+#: is UTC by convention. The SECONDS are part of the layout: a days-created ban stores them, so a
+#: reason-only save that posts the entry's own end back writes the IDENTICAL instant instead of
+#: truncating to the minute. It is the LONGEST accepted shape — :func:`parse_ban_until` also reads the
+#: shorter ones below.
+BAN_UNTIL_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+#: The accepted expiration shapes, as ONE strict pattern: the date, then optionally the hour, then
+#: optionally the minute, then optionally the second — every field ZERO-PADDED and separated by a
+#: single space. A shape the field does not spell out (``2029-3-4``, a tab, a double space) is a
+#: typed refusal, never a lenient ``strptime`` read. The time parts are optional: an hour shape
+#: zeroes the minutes AND seconds, and the date alone takes the time of day from the reference.
+_UNTIL_PATTERN = re.compile(
+    r"^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})"
+    r"(?: (?P<hour>\d{2})(?::(?P<minute>\d{2})(?::(?P<second>\d{2}))?)?)?$"
+)
+
+#: The ``banned_until`` a ban with no expiry carries — the SAME year-9999 sentinel ``ServiceBus.ban``
+#: writes for ``days=None``, so a blank expiration and an empty day count mean the identical value.
+BAN_PERMANENT_UNTIL = datetime(year=9999, month=12, day=31)
+
+
+def _utc_naive(moment: datetime) -> datetime:
+    """*moment* as a NAIVE UTC datetime — an aware value is converted, a naive one is read as UTC."""
+    if moment.tzinfo is None:
+        return moment
+    return moment.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _parse_until_stamp(text: str, reference: datetime) -> datetime | None:
+    """The UTC instant *text* states, filling the missing parts from *reference*, or ``None``.
+
+    :data:`_UNTIL_PATTERN` must match *text* WHOLE; a shorter shape leaves the fields it does not
+    carry at their zero (``HH`` -> ``:00:00``, ``HH:MM`` -> ``:00``), and the date-only shape takes
+    the time of day from *reference* ("ban them until that date, same time"). A text that matches no
+    shape — a bad month/day/hour/minute/second, a bare ``YYYY-MM``, trailing junk, a non-padded field
+    — answers ``None``, which the caller turns into a typed refusal.
+    """
+    match = _UNTIL_PATTERN.match(text)
+    if match is None:
+        return None
+    parts = match.groupdict()
+    if parts["hour"] is None:
+        hour, minute, second = reference.hour, reference.minute, reference.second
+    else:
+        hour = int(parts["hour"])
+        minute = int(parts["minute"]) if parts["minute"] is not None else 0
+        second = int(parts["second"]) if parts["second"] is not None else 0
+    try:
+        return datetime(int(parts["year"]), int(parts["month"]), int(parts["day"]),
+                        hour, minute, second)
+    except ValueError:
+        return None
+
+
+def parse_ban_until(value: Any, now: datetime | None = None) -> tuple[datetime | None, str]:
+    """The absolute UTC expiration the EDIT form states: ``(until, refusal)``.
+
+    The mirror of :func:`parse_ban_days` for an ABSOLUTE end, so a reason-only edit writes the ban's
+    own instant back instead of re-deriving it from a day count (which would drift). The answers:
+
+    * empty / absent / whitespace -> the PERMANENT sentinel (:data:`BAN_PERMANENT_UNTIL`), the same
+      value ``days=None`` writes;
+    * a UTC date/time matching :data:`_UNTIL_PATTERN` — EXACTLY ONE trailing suffix token, either a
+      bare ``Z`` or ``UTC`` with at most one space before it, is accepted and stripped; the remainder
+      after that single peel must match :data:`_UNTIL_PATTERN` WHOLE, so a doubled suffix (``…ZUTC``,
+      ``…Z UTC``, ``…ZZ``, ``…UTC UTC``) is refused. Read as NAIVE UTC. The LENIENT shapes fill their
+      missing parts: the seconds, then the minutes, then the whole time of day (a date alone takes the
+      wall-clock time of *now* on that date);
+    * a stamp at or before *now* is a TYPED refusal: an expiration in the past IS a lift, and the row
+      carries its own Lift control, so the edit will not expire a ban by accident;
+    * anything else — a text whose remainder does not match :data:`_UNTIL_PATTERN` whole — is a TYPED
+      refusal with nothing written.
+
+    The current time is INJECTED through *now* (a naive or aware datetime; absent means the current
+    UTC time), so the date-only fill and the past check read ONE instant and a test can pin both.
+    """
+    raw = str(value if value is not None else "").strip()
+    if not raw:
+        return BAN_PERMANENT_UNTIL, ""
+    text = raw
+    if text.endswith(" UTC"):
+        text = text[:-4]
+    elif text.endswith("UTC"):
+        text = text[:-3]
+    elif text.endswith("Z"):
+        text = text[:-1]
+    reference = (_utc_naive(now) if now is not None
+                 else datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    parsed = _parse_until_stamp(text, reference)
+    if parsed is None:
+        return None, _("Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it "
+                       "empty for a permanent ban.")
+    if parsed <= reference:
+        return None, _("Expires must be in the future — a past date would lift the ban. Leave it "
+                       "empty for a permanent ban.")
+    return parsed, ""
+
 
 def parse_ban_days(value: Any) -> tuple[int | None, str]:
     """The ban duration a request states: ``(days, refusal)`` — exactly one of the two is set.
@@ -1123,6 +1229,31 @@ def _caller_ban_targets(ctx: Any) -> list[str]:
         except Exception:
             log.exception("ban scope: the scope could not be applied to '%s', skipping it.", name)
     return names
+
+
+def _caller_ban_unrestricted(ctx: Any) -> bool:
+    """Whether *ctx*'s caller is UNSCOPED — it reaches every server in its view.
+
+    The scope's own ``unrestricted`` flag, read the same way :func:`_caller_ban_targets` reads it
+    (``None`` is an unscoped context too). This is the ONE predicate that tells an unscoped caller
+    apart from a narrowed one whose own target set happens to be empty: the two share an empty set,
+    but only the unscoped caller holds a licence to name any server.
+    """
+    scope = getattr(ctx, "_scope", None)
+    return scope is None or bool(getattr(scope, "unrestricted", False))
+
+
+def _caller_ban_servers(ctx: Any) -> list[str]:
+    """The servers a ban issued through *ctx* may NAME as its one-server scope.
+
+    An UNSCOPED caller may name any server in its view (``ctx.servers``, already the caller's own
+    view — the console hands the seam its scoped cluster); a narrowed caller may name only the
+    servers of its own target set (:func:`_caller_ban_targets`). It is what the ADD dialog's picker
+    offers AND what the action re-checks, so the two cannot disagree about which name is allowed.
+    """
+    if _caller_ban_unrestricted(ctx):
+        return [name for name in ctx.servers]
+    return _caller_ban_targets(ctx)
 
 
 def _ban_scope_label(targets: list[str]) -> str:
@@ -1223,7 +1354,9 @@ async def ban_player(ctx: Any, server_name: str, ucid: str, reason: str = "",
 
     The rows written are the CALLER's own scope — every server in the caller's view whose
     ``managed_by`` names one of the caller's roles, one row each, or a single bot-wide row when the
-    caller is unscoped or manages no tagged server.
+    caller is unscoped or manages no tagged server. A narrowed caller banning an online player on a
+    server OUTSIDE their set therefore writes the rows on their OWN servers, so the ban does not land
+    where that player is.
     """
     server = ctx.resolve_server(server_name)
     if server is None:
@@ -1277,6 +1410,395 @@ async def ban_player(ctx: Any, server_name: str, ucid: str, reason: str = "",
         result = PlayerActionResult(success=False, message=f"Failed to ban the player: {ex}",
                                     player_name=name, ucid=ucid)
     return await _audited(ctx, result, server)
+
+
+# ── The ban list: the console's scoped READ, the console's ADD and the LIFT ──
+#
+# All three are CONSOLE-TRANSPORT ONLY. Their whole scope rule is ``ctx._scope`` (through
+# :func:`_caller_ban_targets`), and a transport that carries no scope — REST, MCP — would read as
+# GLOBAL: a fleet-wide read, a fleet-wide ban and a fleet-wide unban nobody asked for. They refuse
+# such a caller rather than guess, and the refusal is typed.
+
+#: The refusal a non-console caller meets (the whole ban surface is the console's own).
+BANS_CONSOLE_ONLY = _("The ban list is only available in the web console.")
+
+#: The ``banned_by`` value the cloud plugin writes for a DGSA ban — the plugin's OWN name
+#: (``plugins/cloud/commands.py`` writes ``banned_by=self.plugin_name``, and ``core/plugin.py``
+#: derives that from the plugin directory name ``cloud``). A DGSA entry is NEVER editable: rewriting
+#: its ``reason`` would destroy the listener's own ``reason.startswith('DGSA')`` marker, and
+#: rewriting ``banned_by`` would hide the row from the cloud's own bookkeeping and let the next sync
+#: pass re-add the ban. The plugin keeps its own copy of the word; a test pins the two equal.
+DGSA_BANNED_BY = "cloud"
+
+
+def _entry_field(entry: Any, name: str) -> Any:
+    """One field of a ban ENTRY, whether the bus handed over a mapping or a record."""
+    if isinstance(entry, dict):
+        return entry.get(name)
+    return getattr(entry, name, None)
+
+
+def _entry_stamp(entry: Any) -> str:
+    """The ISO identity of a ban ENTRY's own timestamp — the key half an edit posts back."""
+    stamp = _entry_field(entry, "banned_at")
+    return stamp.isoformat() if isinstance(stamp, datetime) else ""
+
+
+def _entry_servers(entry: Any) -> list[str] | None:
+    """The server names ONE ban entry covers — ``None`` for a bot-wide entry (no server row)."""
+    raw = _entry_field(entry, "server_name")
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        return [raw] if raw else []
+    return [str(name) for name in raw]
+
+
+def _entry_in_targets(servers: list[str] | None, targets: list[str]) -> bool:
+    """Whether EVERY row of a ban entry falls inside *targets* — an empty set means GLOBAL.
+
+    A bot-wide entry carries no server row, so it is never inside a narrowed caller's named set; a
+    global caller (empty *targets*) reaches it, the same "empty means global" the ban commands use.
+    """
+    if not targets:
+        return True
+    if not servers:
+        return False
+    return all(name in targets for name in servers)
+
+
+@action
+async def ban_ucid(ctx: Any, ucid: str, reason: str, days: str | int | None = None,
+                   sender: str | None = None, scope: str | None = None) -> PlayerActionResult:
+    """Add a ban BY UCID — the console's ADD, mirroring the Discord ``/dcs ban``.
+
+    NOT :func:`ban_player`. That action resolves a server and requires the player to be ONLINE on it
+    (it is ``/mission player ban``); ``/dcs ban`` and this action ban a ucid the installation may
+    never have seen, with no server resolved and no player looked up.
+
+    ``days`` is the form's own value and is parsed by :func:`parse_ban_days`: empty is a PERMANENT
+    ban, ``N`` is N days, and anything else is a TYPED refusal with nothing written.
+
+    ``scope`` is the dialog's own scope choice: the name of ONE server the caller may name, or empty
+    for the caller's whole target set — one row per server in it, or a single bot-wide row
+    (``server_name IS NULL``) when that set is empty. An UNSCOPED caller may name any server in its
+    view (:func:`_caller_ban_servers`); a narrowed one only servers of its own set. A name outside
+    what the caller may name is refused before anything is written. Every row shares ONE ``banned_at``
+    stamp, so the rows group back into a single entry in the list.
+
+    ``sender`` is who the ban list names as ``banned_by`` (the acting person's shown name);
+    ``None`` falls back to the transport's own audit actor, so a ban is never attributed to nobody.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=BANS_CONSOLE_ONLY, ucid=ucid))
+    value = (ucid or "").strip()
+    if not utils.is_ucid(value):
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("'{}' is not a valid UCID.").format(value), ucid=value))
+
+    body = (reason or "").strip()
+    if not body:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("A reason is required to ban a player."), ucid=value))
+    if len(body) > MAX_BAN_REASON_LENGTH:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("The reason is longer than {} characters.").format(MAX_BAN_REASON_LENGTH),
+            ucid=value))
+
+    period, refusal = parse_ban_days(days)
+    if refusal:
+        return await _audited(ctx, PlayerActionResult(success=False, message=refusal, ucid=value))
+
+    service = _ban_service(ctx)
+    if service is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The ban list is not available in this installation."),
+            ucid=value))
+
+    targets = _caller_ban_targets(ctx)
+    chosen = (scope or "").strip()
+    if chosen:
+        if chosen not in _caller_ban_servers(ctx):
+            return await _audited(ctx, PlayerActionResult(
+                success=False, message=_("Server '{}' is outside your scope.").format(chosen),
+                ucid=value))
+        targets = [chosen]
+
+    banned_by = (sender or "").strip() or ctx.audit_actor
+    label = _ban_scope_label(targets)
+    stamp = datetime.now(tz=timezone.utc)
+    try:
+        for target in targets or [None]:
+            await service.ban(value, banned_by, body, period, server_name=target, banned_at=stamp)
+        result = PlayerActionResult(
+            success=True,
+            message=(_("Player {} banned for {} days on {}.").format(value, period, label) if period
+                     else _("Player {} banned permanently on {}.").format(value, label)),
+            ucid=value)
+    except (TimeoutError, asyncio.TimeoutError):
+        result = PlayerActionResult(success=False, message=_("Timeout while adding the ban."),
+                                    ucid=value)
+    except Exception as ex:
+        log.exception("ban_ucid failed")
+        result = PlayerActionResult(success=False, message=_("Failed to add the ban: {}").format(ex),
+                                    ucid=value)
+    return await _audited(ctx, result)
+
+
+@action
+async def list_bans(ctx: Any) -> ActionResult:
+    """The bans the caller may see, built FROM the caller's target set.
+
+    The scope is a scoped SOURCE, never a post-hoc filter: an Admin (or any caller whose target set
+    is empty — the "empty means global" rule the ban commands already use) reads every ban, while a
+    ``managed_by`` holder reads exactly the rows on their managed servers. The grouping of one ban's
+    rows into one entry stays in the bus.
+
+    ``data["targets"]`` is the SET the bot-wide option writes (one row per server, or a single
+    bot-wide row when the set is empty), reported beside the rows. ``data["servers"]`` is what the
+    ADD dialog's scope picker offers as per-server options AND what :func:`ban_ucid` re-checks a
+    chosen name against (:func:`_caller_ban_servers`): the caller's whole view for an unscoped
+    caller, its own target set for a narrowed one. Both are read from the same call that built the
+    rows, so the picker and the list cannot drift.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return ActionResult(success=False, message=BANS_CONSOLE_ONLY)
+    service = _ban_service(ctx)
+    if service is None:
+        return ActionResult(success=False,
+                            message=_("The ban list is not available in this installation."))
+    targets = _caller_ban_targets(ctx)
+    servers = _caller_ban_servers(ctx)
+    try:
+        entries = await service.bans(servers=tuple(targets) or None)
+    except Exception as ex:
+        log.exception("list_bans failed")
+        return ActionResult(success=False, message=_("The ban list could not be read: {}").format(ex))
+    return ActionResult(success=True, data={"bans": entries, "targets": tuple(targets),
+                                            "servers": tuple(servers)})
+
+
+def _active_players(server: Any) -> list[Any]:
+    """The players SITTING IN A SLOT on *server*, or ``[]`` when nothing can be read.
+
+    ``Server.get_active_players`` is the domain's own accessor; a double that carries only the
+    ``players`` mapping is read the same way the players read model reads it (``active`` marks the
+    ones in a slot). A server whose players cannot be read contributes nobody rather than failing the
+    search: a search is an enhancement, and a partly-readable cluster must not turn it into an error.
+    """
+    getter = getattr(server, "get_active_players", None)
+    if callable(getter):
+        try:
+            found = cast(Iterable[Any], getter())
+        except Exception:
+            log.exception("player search: the active players of '%s' could not be read.",
+                          getattr(server, "name", "?"))
+            return []
+        return list(found) if found else []
+    players = getattr(server, "players", None) or {}
+    try:
+        return [player for player in players.values() if getattr(player, "active", False)]
+    except Exception:
+        log.exception("player search: the players of '%s' could not be read.",
+                      getattr(server, "name", "?"))
+        return []
+
+
+def _present_ucids(ctx: Any) -> list[str]:
+    """The UCIDs of the players PRESENT on the servers of *ctx*'s own view, in no particular order.
+
+    ``ctx.servers`` is the console's SCOPED cluster, so this is the presence set of exactly the
+    servers the caller may see. It is the bound a narrowed caller's player search is held to, because
+    ``players`` carries no server column: the players PRESENT on those servers is the only reading of
+    "a player of mine" the schema can express. Read off the live server objects, never queried.
+    """
+    out: list[str] = []
+    for server in (getattr(ctx, "servers", None) or {}).values():
+        for player in _active_players(server):
+            ucid = getattr(player, "ucid", "")
+            if isinstance(ucid, str) and ucid and ucid not in out:
+                out.append(ucid)
+    return out
+
+
+@action
+async def search_players(ctx: Any, query: str = "") -> ActionResult:
+    """The players whose NAME or UCID matches *query* — the console's ban ADD autocompletes on it.
+
+    The search itself is ``utils.get_all_players``, the function ``/info``'s autocomplete is fed by:
+    at most 25 rows, most recently seen first. There is no second spelling of "find a player by name"
+    for the console to drift from.
+
+    An EMPTY (or whitespace-only) *query* answers NOTHING — never every player the caller can reach.
+
+    An UNSCOPED caller (an ``Admin``, break-glass — ``_caller_ban_unrestricted``) gets that list
+    whole. Every OTHER caller is bound to the players PRESENT on the servers of its own view
+    (:func:`_present_ucids`): the console may never show a caller a player outside its servers, and
+    the bound is a WHERE term, never a filter applied after the read.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return ActionResult(success=False, message=BANS_CONSOLE_ONLY)
+    wanted = (query or "").strip()
+    if not wanted:
+        return ActionResult(success=True, data={"players": []})
+    present = None if _caller_ban_unrestricted(ctx) else _present_ucids(ctx)
+    try:
+        rows = utils.get_all_players(ctx.node, search=wanted, present=present)
+    except Exception as ex:
+        log.exception("search_players failed")
+        return ActionResult(success=False,
+                            message=_("The player list could not be read: {}").format(ex))
+    return ActionResult(success=True, data={"players": [{"name": name, "ucid": ucid}
+                                                       for ucid, name in rows]})
+
+
+@action
+async def unban(ctx: Any, ucid: str, banned_at: str = "") -> PlayerActionResult:
+    """Lift the ban on ONE player — the console's LIFT, scoped to the caller's own servers.
+
+    The rows expired are exactly those INSIDE the caller's target set, so lifting a partially-owned
+    ban leaves the servers outside it banned. An empty target set is GLOBAL ("empty means global"):
+    every row of the ucid is expired, which is what a bot-wide (DGSA) entry needs. ``banned_at`` is
+    the entry's own identity (it names WHICH ban of the ucid the operator acted on); the expiry
+    itself keys on the ucid and the server, because the bans table holds one row per
+    ``(ucid, server)``.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=BANS_CONSOLE_ONLY, ucid=ucid))
+    service = _ban_service(ctx)
+    if service is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The ban list is not available in this installation."),
+            ucid=ucid))
+    targets = _caller_ban_targets(ctx)
+    scope = _ban_scope_label(targets)
+    try:
+        cleared = 0
+        for target in targets or [None]:
+            cleared += await service.unban(ucid, target)
+    except (TimeoutError, asyncio.TimeoutError):
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("Timeout while lifting the ban."), ucid=ucid))
+    except Exception as ex:
+        log.exception("unban failed")
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("Failed to lift the ban: {}").format(ex), ucid=ucid))
+    if not cleared:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("No active ban for {} in your scope.").format(ucid), ucid=ucid))
+    return await _audited(ctx, PlayerActionResult(
+        success=True, message=_("Ban lifted on {}.").format(scope), ucid=ucid))
+
+
+@action
+async def edit_ban(ctx: Any, ucid: str, banned_at: str, reason: str,
+                   until: str | None = None) -> PlayerActionResult:
+    """Change ONE ban ENTRY's reason and expiration — the console's EDIT.
+
+    The entry is identified by its ``ucid`` plus its OWN ``banned_at`` (the pair the list renders as
+    the row's key). The re-upsert passes that same ``banned_at`` back, so the entry does NOT move in
+    time and keeps its identity and its history key.
+
+    WHAT AN EDIT MAY CHANGE IS REASON AND EXPIRATION ONLY. Which servers a ban covers is not an edit:
+    a scoped ban is one row per server, so re-scoping is delete-and-re-add, and neither the ucid, nor
+    the ``banned_by`` (a fact about who placed it) nor the ``banned_at`` is written.
+
+    THE WRITE IS THE ENTRY'S FULL ROW SET AND IT IS ALL-OR-NOTHING. The entry's rows are re-read
+    server-side (an UNSCOPED read, because a scoped one would hide exactly the foreign rows the check
+    exists for) and the edit is refused unless EVERY row is inside the caller's target set — a
+    partially-owned entry is refused WHOLE with nothing written. The entry's grouping key includes
+    the reason, so re-writing the reason on some rows and not others would split one ban into two
+    entries; that is why this is not a per-row operation.
+
+    A DGSA entry (``banned_by == DGSA_BANNED_BY``) is refused: rewriting its reason or its
+    ``banned_by`` would break the cloud's own bookkeeping. Every refusal is typed and writes nothing.
+
+    ``until`` is the form's own value — an ABSOLUTE UTC datetime — and is parsed by
+    :func:`parse_ban_until`: empty is the PERMANENT sentinel, a malformed or past stamp is a TYPED
+    refusal writing nothing. It is passed to ``ServiceBus.ban(..., until=...)`` so the ban's own end
+    is written verbatim; a reason-only save posts the entry's own end back and does not move it.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=BANS_CONSOLE_ONLY, ucid=ucid))
+    value = (ucid or "").strip()
+    if not utils.is_ucid(value):
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("'{}' is not a valid UCID.").format(value), ucid=value))
+
+    body = (reason or "").strip()
+    if not body:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("A reason is required to ban a player."), ucid=value))
+    if len(body) > MAX_BAN_REASON_LENGTH:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("The reason is longer than {} characters.").format(MAX_BAN_REASON_LENGTH),
+            ucid=value))
+
+    end, refusal = parse_ban_until(until)
+    if refusal:
+        return await _audited(ctx, PlayerActionResult(success=False, message=refusal, ucid=value))
+
+    key = (banned_at or "").strip()
+    if not key:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The ban could not be identified — open it from the list."),
+            ucid=value))
+
+    service = _ban_service(ctx)
+    if service is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The ban list is not available in this installation."),
+            ucid=value))
+
+    try:
+        entries = await service.bans()
+    except Exception as ex:
+        log.exception("edit_ban failed to read the ban list")
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The ban list could not be read: {}").format(ex), ucid=value))
+
+    entry = next((candidate for candidate in entries
+                  if _entry_field(candidate, "ucid") == value
+                  and _entry_stamp(candidate) == key), None)
+    if entry is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("No active ban for {} in your scope.").format(value), ucid=value))
+    if _entry_field(entry, "banned_by") == DGSA_BANNED_BY:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("A DGSA ban cannot be edited — it can only be lifted here."), ucid=value))
+
+    servers = _entry_servers(entry)
+    targets = _caller_ban_targets(ctx)
+    if not _entry_in_targets(servers, targets):
+        # The SAME sentence as the "no such entry" refusal above: a ban that stands only on foreign
+        # servers and a ucid+stamp that names no ban must be indistinguishable, or a holder of this
+        # capability could probe whether a ban exists outside their scope.
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("No active ban for {} in your scope.").format(value),
+            ucid=value))
+
+    banned_by = _entry_field(entry, "banned_by") or ctx.audit_actor
+    stamp = _entry_field(entry, "banned_at")
+    try:
+        for target in (servers or [None]):
+            await service.ban(value, banned_by, body, server_name=target, banned_at=stamp,
+                              until=end)
+        result = PlayerActionResult(
+            success=True, message=_("Ban on {} updated.").format(value), ucid=value)
+    except (TimeoutError, asyncio.TimeoutError):
+        result = PlayerActionResult(success=False, message=_("Timeout while editing the ban."),
+                                    ucid=value)
+    except Exception as ex:
+        log.exception("edit_ban failed")
+        result = PlayerActionResult(success=False, message=_("Failed to edit the ban: {}").format(ex),
+                                    ucid=value)
+    return await _audited(ctx, result)
 
 
 async def _set_muted(ctx: Any, server_name: str, ucid: str, mute: bool) -> PlayerActionResult:

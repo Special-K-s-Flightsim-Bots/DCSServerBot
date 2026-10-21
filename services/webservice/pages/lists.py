@@ -124,12 +124,17 @@ def list_view(request: Request, state: readmodels.Overview, path: str) -> readmo
         params=readmodels.view_params(request.query_params))
 
 
-def page_context(request: Request, page: ListPage) -> dict:
+def page_context(request: Request, page: ListPage, *, rows=None) -> dict:
     """EVERYTHING the list template reads, in one value.
 
     The table is selected by the page's own spec, so a page cannot render another page's list, and
     the two counts the table needs for its search state come from the same :class:`ViewState` the
     table rows do — one source, so "1 of 2 players" and the single row cannot disagree.
+
+    ``rows`` is the optional PAGE-ONLY path: a table whose rows are NOT part of the pure Overview
+    (``bans``, a database read the page's route already fetched) is built here from the SAME
+    validated view layer and the SAME table component, with the page's own title as the card heading.
+    With no ``rows`` this does exactly what it always did for the four Overview-backed pages.
 
     The SERVERS page additionally carries the write controls and the one-shot notice of a write
     (``pages/actions``): the control is DATA here and the markup is ``_table.html``'s, and both are
@@ -139,13 +144,22 @@ def page_context(request: Request, page: ListPage) -> dict:
     registrar = getattr(request.app.state, "webui_registrar", None)
     state = readmodels.overview(dashboard_page.request_source(request),
                                 level=dashboard_page.log_level(request))
+    params = readmodels.view_params(request.query_params)
     view = list_view(request, state, page.path)
+    if rows is not None:
+        # the PAGE-ONLY table: the rows are the page's own, so they are shaped here through the one
+        # sort layer — never re-derived in the template.
+        table = readmodels.table_view(page.path, page.table, rows,
+                                      sort=params.sort_for(page.table), direction=params.direction,
+                                      params=view.params, label=page.title)
+    else:
+        table = view.tables[page.table]
     context = {
         "title": page.title,
         "page_title": page.title,
         "lead": page.lead,
         "crumb": dashboard_page.crumb(CRUMB_GROUP, page.title),
-        "table": view.tables[page.table],
+        "table": table,
         "view": view,
         "empty": dashboard_page.empty_messages(state),
         # the search form posts back to the page it is on, and its only hidden state is what this

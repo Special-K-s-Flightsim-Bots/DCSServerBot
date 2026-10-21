@@ -10,4 +10,7 @@
   The reader passes ``status`` (a ``StatusView``): the dot class and the word, never a raw status and
   never a string typed into a template.
 -#}
-<span class="dot {{ status.dot }}" aria-hidden="true"></span> {{ _(status.word) }}
+{#-  ``data-word`` carries the RAW status (never the translated word): the status poll compares it
+    with the status it just fetched, and on a language other than English the drawn word is a
+    translation — comparing that would never match and would reload the page forever.  -#}
+<span data-word="{{ status.word }}"><span class="dot {{ status.dot }}" aria-hidden="true"></span> {{ _(status.word) }}</span>

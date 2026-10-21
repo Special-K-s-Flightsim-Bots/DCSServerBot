@@ -33,6 +33,8 @@ LIVE registry's ``core`` import is kept function-local, in
 from __future__ import annotations
 
 from .access import as_int, port_number, safe, text
+from .bans import (ALL_SERVERS, DGSA_BANNED_BY, NEVER, NO_BANS_MESSAGE, PERMANENT_YEAR, BanView,
+                   ban_views, permanent)
 from .instances import instances
 from .logtail import DEFAULT_LINES, log_tail, tail
 from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE,
@@ -59,7 +61,8 @@ from .servers import SERVERS_HREF_PREFIX, server_url, servers
 from .source import EmptySource, LiveSource, ScopedSource, Source, console_source, \
     declared_node_instances, log_path_for, resolve_source, scoped_source
 from .views import (Column, ColumnView, PlayerSearch, TableView, ViewParams, ViewState,
-                    column_link, sort_rows, table_view, view_params, view_state)
+                    column_link, sort_rows, table_view, view_params, view_state, columns_for,
+                    PAGE_COLUMNS)
 
 __all__ = [
     # records + vocabulary
@@ -70,6 +73,9 @@ __all__ = [
     "NO_INSTANCES_MESSAGE", "NO_NODE_INSTANCES_MESSAGE", "LOG_MISSING_MESSAGE",
     "LOG_EMPTY_MESSAGE", "SCOPED_EMPTY_MESSAGE",
     "NO_MISSION_MESSAGE", "NO_WEATHER_MESSAGE", "NOT_RUNNING_MESSAGE",
+    # the Bans page's read model (one row per ban entry, the permanent sentinel, the DGSA marker)
+    "BanView", "ban_views", "permanent", "NO_BANS_MESSAGE", "DGSA_BANNED_BY", "PERMANENT_YEAR",
+    "ALL_SERVERS", "NEVER",
     # sources (the scope wrap is the ONE place the hoster view is applied; console_source is the
     # ONE place the application's source seam is resolved)
     "Source", "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "resolve_source",

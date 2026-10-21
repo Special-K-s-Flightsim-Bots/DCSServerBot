@@ -85,7 +85,10 @@ class Extension(ABC):
             raise InstallException(f"{self.name} is not installed.")
         return True
 
-    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
+    async def get_mission_file(self, filename: str) -> str:
+        return filename
+
+    async def modify_mission(self, filename: str) -> tuple[str, bool]:
         return filename, False
 
     async def startup(self, *, quiet: bool = False) -> bool:
