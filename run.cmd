@@ -92,8 +92,14 @@ if %ERRORLEVEL% EQU -1 (
     SET PROGRAM=run.py
     goto loop
 ) else if %ERRORLEVEL% EQU -3 (
-    SET PROGRAM=update.py
-    goto loop
+    "%PYTHON%" update.py %ARGS%
+    if errorlevel 1 (
+        echo.
+        echo ***  Autoupdate failed  ***
+        echo Please check the output above, then press any key to continue...
+        pause > NUL
+    )
+    exit /B 0
 ) else if %ERRORLEVEL% EQU -5 (
     REM The updater already started a fresh launcher (see update.py), so there is nothing to do.
     exit /B 0
