@@ -354,6 +354,12 @@ class SRS(InstallableExtension, FileSystemEventHandler):
                 # we want the SRS logfile in our normal logs folder
                 cwd = os.path.join(self.server.instance.home, 'Logs')
 
+                # Own hidden console on Windows / own session on Linux: a close of the bot's
+                # cmd window, or a kill of the bot's process group, does not reach SRS.
+                detach = ({'creationflags': subprocess.CREATE_NO_WINDOW}
+                          if sys.platform == 'win32' else
+                          {'start_new_session': True})
+
                 proc = ProcessManager().launch_process(
                     [
                         self.get_exe_path(),
@@ -367,7 +373,8 @@ class SRS(InstallableExtension, FileSystemEventHandler):
                     min_cores=self.config.get('auto_affinity', {}).get('min_cores', 1),
                     max_cores=self.config.get('auto_affinity', {}).get('max_cores', 1),
                     quality=self.config.get('auto_affinity', {}).get('quality', 0),
-                    instance=self.server.instance.name
+                    instance=self.server.instance.name,
+                    **detach
                 )
 
                 if self.config.get('debug', False):
