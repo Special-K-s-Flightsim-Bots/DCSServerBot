@@ -4,7 +4,7 @@ import os
 import time
 
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict, Coalition, Side, utils
+    ThreadSafeDict, Coalition, Side, utils, ServiceRegistry
 from pathlib import Path
 from plugins.competitive.commands import Competitive
 from psycopg.types.json import Json
@@ -643,6 +643,21 @@ class PunishmentEventListener(EventListener["Punishment"]):
 
             # we got hit by a player
             elif initiator and s_event:
+                # check for cheaters
+                distance = data.get('distance', -1)
+                if data.get('weapon', {}).get('name', 'Gun') == 'Gun' and distance > 10000:
+                    from services.bot import BotService
+
+                    await self.bus.ban(initiator.ucid, banned_by=self.plugin_name, reason="Cheating")
+                    bot = cast(BotService, ServiceRegistry.get(BotService))
+                    await bot.alert(
+                        title="Cheater detected!",
+                        message=f"Player {initiator.display_name} ({initiator.ucid}) was banned "
+                                f"for cheating with weapons. Please report them to DGSA.",
+                        server=server
+                    )
+                    return
+
                 # check how good our prediction was
                 orig_name = s_event.get('initiator', {}).get('name')
                 if orig_name == initiator.name:
