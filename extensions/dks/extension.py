@@ -152,7 +152,7 @@ class DKS(InstallableExtension):
             value = "not enabled"
         else:
             value = f"[Link](https://www.digitalkneeboardsimulator.com/)"
-            if self.tacview.locals.get('tacviewRealTimeTelemetryEnabled', True):
+            if self.tacview and self.tacview.locals.get('tacviewRealTimeTelemetryEnabled', True):
                 value += "\nTacview RT feed enabled"
         return ret | {
             "value": value
