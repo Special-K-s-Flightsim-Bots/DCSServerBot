@@ -641,9 +641,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         else:
                             self.log.debug(f"Punishment: Replacing old shot event as new PBK was higher.")
 
-            # we got hit by a player
-            elif initiator and s_event:
-                # check for cheaters
+            # we got hit by a player ...
+            elif initiator:
+                # ... (check for cheaters) ...
                 distance = data.get('distance', -1)
                 if data.get('weapon', {}).get('name', 'Gun') == 'Gun' and distance > 10000:
                     from services.bot import BotService
@@ -658,13 +658,15 @@ class PunishmentEventListener(EventListener["Punishment"]):
                     )
                     return
 
-                # check how good our prediction was
-                orig_name = s_event.get('initiator', {}).get('name')
-                if orig_name == initiator.name:
-                    self.log.debug("Punishment: Good prediction, shot hit the player.")
-                elif orig_name:
-                    self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
-                                   f"where player {orig_name} was predicted.")
+                # ... that shot before
+                if s_event:
+                    # check how good our prediction was
+                    orig_name = s_event.get('initiator', {}).get('name')
+                    if orig_name == initiator.name:
+                        self.log.debug("Punishment: Good prediction, shot hit the player.")
+                    elif orig_name:
+                        self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
+                                       f"where player {orig_name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
             self.log.debug(f"Punishment: Storing {data['eventName']}: {init_name} -> {target.name}.")
