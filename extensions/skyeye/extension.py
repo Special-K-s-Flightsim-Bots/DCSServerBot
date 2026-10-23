@@ -29,7 +29,7 @@ from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
-SKYEYE_GITHUB_URL = "https://github.com/dharmab/skyeye/releases/latest"
+SKYEYE_GITHUB_URL = "https://api.github.com/repos/dharmab/skyeye/releases/latest"
 SKYEYE_DOWNLOAD_URL = "https://github.com/dharmab/skyeye/releases/download/v{}/skyeye-windows-amd64.zip"
 WHISPER_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}"
 
@@ -542,9 +542,10 @@ class SkyEye(InstallableExtension):
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
                 async with session.get(SKYEYE_GITHUB_URL, proxy=self.node.proxy,
                                        proxy_auth=self.node.proxy_auth) as response:
-                    if response.status in [200, 302]:
-                        return response.url.raw_parts[-1].lstrip('v')
-        except ClientConnectionError as ex:
+                    response.raise_for_status()
+                    data = await response.json()
+                    return data.get('tag_name', '').lstrip('v') or None
+        except (ClientConnectionError, aiohttp.ClientResponseError) as ex:
             self.log.error(ex)
         return None
 
