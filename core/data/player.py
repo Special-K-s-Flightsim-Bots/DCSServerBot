@@ -348,7 +348,7 @@ class Player(DataObject):
         data = await self.server.send_to_dcs_sync({
             "command": "getScreenshots",
             "id": self.id
-        }, timeout=30)
+        }, timeout=120)
         if not data:
             return []
         return data.get('screens', [])

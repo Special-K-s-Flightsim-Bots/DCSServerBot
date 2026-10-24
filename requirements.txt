@@ -26,7 +26,7 @@ discord-py==2.7.1
 docopt==0.6.2
 et-xmlfile==2.0.0
 eyed3==0.9.9
-fastapi==0.161.1
+fastapi==0.162.0
 filetype==1.2.0
 fonttools==4.67.0
 frozenlist==1.8.0
@@ -50,7 +50,7 @@ mdurl==0.1.2
 mgrs==1.6.0
 minidump==0.0.24 ; sys_platform == 'win32'
 miniupnpc==2.3.3 ; python_full_version < '3.14'
-multidict==7.1.0
+multidict==7.2.0
 numpy==2.3.5
 openpyxl==3.1.5
 opentelemetry-api==1.45.1
