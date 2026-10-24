@@ -39,6 +39,8 @@ class WebService(Service):
         self.upgrade_task = None
         #: the render warm-up's task — created in ``start()``, cancelled in ``stop()``
         self.warm_task = None
+        #: the ready-time scope audit's task — created in ``start()``, cancelled in ``stop()``
+        self.scope_task = None
         if cfg:
             self.app = self._create_app()
             self.config = Config(
@@ -209,6 +211,10 @@ class WebService(Service):
             # things a page will ask for, ONCE, in a THREAD — so the FIRST click costs what the rest
             # cost, and nothing here delays the console becoming available.
             self.warm_task = asyncio.create_task(self._warm_render_caches())
+            # THE SCOPE AUDIT: it compares every server's managed_by against the LIVE guild roles,
+            # and that cache exists only after Discord's READY — later than this service is built
+            # (which is why the install-time audit defers). One shot, once the bot is ready.
+            self.scope_task = asyncio.create_task(self._audit_scope_when_ready())
 
     async def _poll_upgrades(self) -> None:
         """Sample the cluster for pending upgrades and refresh the cache the render reads.
@@ -255,8 +261,37 @@ class WebService(Service):
         self.log.info(f"WebService: render warm-up done — {parsed} schemas parsed, "
                       f"{checked} notices checked, {templates} templates compiled in {seconds:.1f}s.")
 
+    async def _audit_scope_when_ready(self) -> None:
+        """Run the per-server scope audit once the bot's guild cache exists.
+
+        The audit compares free-text ``managed_by`` values against the LIVE guild role names and ids.
+        ``Client.guilds`` is filled by Discord's READY, which comes AFTER this service is built, so
+        the install-time audit defers (``auth.audit_scope_declarations``) and this is what finally
+        runs it — without it, the diagnostic would never fire at all. One shot, and every failure
+        contained: a console whose audit cannot run is the console we had before.
+        """
+        from .auth.discord_oauth import current_bot
+
+        try:
+            bot = current_bot()
+            wait = getattr(bot, "wait_until_ready", None)
+            if callable(wait):
+                await wait()
+            from . import auth as auth_api
+            auth_api.audit_scope_declarations(self.app)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.log.debug("WebService: the ready-time scope audit could not run.", exc_info=True)
+
     @override
     async def stop(self):
+        if self.scope_task:
+            # one-shot, like the warm-up: end the WAIT for READY if the service stops first
+            self.scope_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.scope_task
+            self.scope_task = None
         if self.warm_task:
             # the warm-up is a one-shot: if the service stops while it runs, end the WAIT for it (the
             # thread itself finishes harmlessly in the background).
