@@ -26,7 +26,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.161.1
+fastapi==0.162.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -71,7 +71,7 @@ packaging==26.3
 pid==3.0.4
 
 # PIP Tools
-pip-tools==7.6.1
+pip-tools==7.6.2
 
 # Psycopg: PostgreSQL database adapter for Python
 psycopg[binary]==3.3.6
