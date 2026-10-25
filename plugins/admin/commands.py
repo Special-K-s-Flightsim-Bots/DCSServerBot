@@ -320,11 +320,12 @@ class Admin(Plugin[AdminEventListener]):
     @dcs.command(description=_('Bans a user by name or ucid'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.describe(server=_("Server to ban on (empty = all of your servers, or every server)"))
+    @app_commands.rename(_server="server")
+    @app_commands.describe(_server=_("Server to ban on (empty = all of your servers, or every server)"))
     async def ban(self, interaction: discord.Interaction,
                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
                       sel_type=PlayerType.PLAYER)],
-                  server: app_commands.Transform[Server, BanServerTransformer] | None = None):
+                  _server: app_commands.Transform[Server, BanServerTransformer] | None = None):
 
         class BanModal(Modal):
             reason = TextInput(label=_("Reason"), max_length=80, required=True)
@@ -356,7 +357,7 @@ class Admin(Plugin[AdminEventListener]):
                     await interaction.response.send_message(_("{} is not a valid UCID!").format(user),
                                                             ephemeral=ephemeral)
                     return
-                targets: list[str] = [server.name] if server else _ban_targets(
+                targets: list[str] = [_server.name] if _server else _ban_targets(
                     interaction.user, self.bot.servers, self.bot.roles['Admin'])
                 stamp = datetime.now(tz=timezone.utc)
                 for target in targets or [None]:
