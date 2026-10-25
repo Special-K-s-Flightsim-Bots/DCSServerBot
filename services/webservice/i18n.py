@@ -9,11 +9,10 @@ bot's own tree, ``locale/<lang>/LC_MESSAGES/``, under the **``webui`` domain** �
 translator already knows from the bot's plugins, but a domain of its own, because Discord and the
 frontend share almost nothing.
 
-ENGLISH IS THE MSGID, AND THAT IS THE POINT. ``en`` is the source language: wrapping a string is a
-no-op until a translation exists, so the tree stays green and nothing changes visually while the
-migration proceeds slice by slice. ``locale/en/LC_MESSAGES/webui.po`` is the identity catalog (its
-msgstrs are their msgids) — it exists so English is a first-class choice in the language control and
-so a new translator has a template to copy, not because anything needs translating.
+ENGLISH IS THE MSGID, AND THAT IS THE POINT. ``en`` is the source language and every English string
+IS its msgid, so it needs no catalog and ships none: a lookup falls back to the msgid itself, which
+is why wrapping a string is a no-op until a translation exists. English stays a first-class choice in
+the language control — :func:`selectable_languages` always offers it, first.
 
 A RUNTIME WITH NO NEW DEPENDENCY. The console uses the standard library's :mod:`gettext` and Jinja's
 i18n extension. Babel is a **build/developer** tool only (like the ``msgfmt`` step the bot's own
