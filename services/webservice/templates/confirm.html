@@ -129,6 +129,25 @@
   </select>
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
+{% elif field.type == 'pick' %}
+<fieldset class="dlg-field dlg-pick" id="{{ field.id }}">
+  <legend>{{ _(field.label) }}</legend>
+  {% if field.get('text') %}
+  <p class="dlg-pick-typed">
+    <label for="{{ field.text.id }}">{{ _(field.text.label) }}</label>
+    <input type="text" id="{{ field.text.id }}" name="{{ field.name }}" value=""{% if form_id %} form="{{ form_id }}"{% endif %}>
+  </p>
+  {% endif %}
+  {#- THE PICK IS ONE ``<select multiple>``, not a box per entry: the node merges a comma list of
+      preset names, so the field REPEATS exactly as the multi boxes did and the route's ``getlist``
+      reads every selected entry. ``data-exclusive`` marks an entry that clears the others, and
+      ``data-custom`` marks the ONE entry the temporary weather fields belong to; both are read by
+      the dialog's own script (a ``<select multiple>`` cannot be gated by CSS). -#}
+  <select class="dlg-pick-select" name="{{ field.name }}" multiple{% if form_id %} form="{{ form_id }}"{% endif %}>
+    {% for option in field.options %}<option value="{{ option.value }}"{% if option.get('id') %} id="{{ option['id'] }}"{% endif %}{% if option.checked %} selected{% endif %}{% if option.get('exclusive') %} data-exclusive{% endif %}{% if option.get('custom') %} data-custom{% endif %}>{{ option.label }}</option>{% endfor %}
+  </select>
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
+</fieldset>
 {% elif field.type == 'list' %}
 <ul class="dlg-list" aria-label="{{ _(field.label) or _('Selected missions') }}">{% for item in field.lines %}<li>{{ item }}</li>{% endfor %}</ul>
 {% elif field.type == 'textarea' %}
@@ -155,6 +174,158 @@
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
 {% endif %}
+{%- endmacro %}
+{#- THE TEMPORARY PRESET'S ROW RENDERER: the SAME control vocabulary the weather wizard draws
+    (``templates/presets_wizard.html``), over the SAME field-table rows, so the launch dialog's
+    controls cannot carry a label, a unit or a limit the wizard's do not. The row's ``kind`` picks
+    the control; every named input carries ``form`` so a control drawn in the dialog's BODY rides the
+    footer's ``dlg-form`` POST (the browser posts nothing for an associated field without it).
+
+    The slider is the wizard's own pair — a ``range`` (no name, never submitted) wired BOTH ways to
+    the ``number`` box the form actually posts, both driven by ``static/weather-slider.js``. With
+    JavaScript off the number box alone is typed and bounded by the same min/max/step. -#}
+{% macro weather_input(row, form_id) -%}
+{%- set gate = row.get('gate', {}) -%}
+<div class="dlg-wrow"{% if gate.get('cloud') %} data-gate-cloud="{{ gate.cloud | join(' ') }}"{% endif %}{% if gate.get('haze') %} data-gate-haze="{{ gate.haze | join(' ') }}"{% endif %}{% if gate.get('fog_mode') %} data-gate-fog-mode="{{ gate.fog_mode | join(' ') }}"{% endif %}{% if gate.get('halo_real') %} data-halo-real{% endif %}>
+  <div class="lb"><span class="nm">{{ _(row.label) }}</span><span class="kk">{{ row.key }}</span></div>
+  <div class="ct{{ ' dlg-wct-dial' if row.kind == 'dial' else (' dlg-wct-wide' if row.kind == 'fogtable' else '') }}">
+    {% if row.kind == 'slider' %}
+    {#- THE SLIDER PAIR: a ``range`` (no name, never submitted) wired BOTH ways to the ``number`` box
+        the form posts, by the SAME shipped asset the wizard loads. With JavaScript off the number box
+        alone is typed and bounded by the same min/max. The BOX carries its own step, never the
+        slider's: a native number input refuses a value that is not a multiple of its ``step``. -#}
+    <div class="dlg-wsl" data-weather-pair>
+      <input type="range" aria-label="{{ _(row.label) }}"
+             {%- if row.min is not none %} min="{{ row.min }}"{% endif %}
+             {%- if row.max is not none %} max="{{ row.max }}"{% endif %}
+             {%- if row.step is not none %} step="{{ row.step }}"{% endif %}
+             value="{{ row.value }}"
+             style="--pct:{{ ((row.value or row.min or 0) | float - (row.min or 0)) / ((row.max or 1) - (row.min or 0)) * 100 }}%">
+      <output class="dlg-wv" data-weather-readout aria-hidden="true">{{ row.value }}</output>
+      <input type="number" name="{{ row.key }}" value="{{ row.value }}"
+             {%- if row.min is not none %} min="{{ row.min }}"{% endif %}
+             {%- if row.max is not none %} max="{{ row.max }}"{% endif %}
+             {%- if row.box_step is not none %} step="{{ row.box_step }}"{% endif %}
+             {%- if form_id %} form="{{ form_id }}"{% endif %}>
+    </div>
+    {% if row.unit %}<span class="u">{{ _(row.unit) }}</span>{% endif %}
+    {% elif row.kind == 'dial' %}
+    {#- THE DIRECTION DIAL: the SAME pair drawn round — a ``range`` ring (never submitted) wired to the
+        named ``number`` box, so the posted field name and the value are the table's. -#}
+    <div class="dlg-dial" data-weather-pair data-weather-dial
+         style="--angle:{{ ((row.value or row.min or 0) | float - (row.min or 0)) / ((row.max or 1) - (row.min or 0)) }}">
+      <input class="dlg-dial-ring" type="range" aria-label="{{ _(row.label) }}"
+             {%- if row.min is not none %} min="{{ row.min }}"{% endif %}
+             {%- if row.max is not none %} max="{{ row.max }}"{% endif %}
+             {%- if row.step is not none %} step="{{ row.step }}"{% endif %}
+             value="{{ row.value }}">
+      <span class="dlg-dial-rose" aria-hidden="true"></span>
+      <span class="dlg-dial-needle" aria-hidden="true"></span>
+      <input class="dlg-dial-num" type="number" name="{{ row.key }}" value="{{ row.value }}"
+             {%- if row.min is not none %} min="{{ row.min }}"{% endif %}
+             {%- if row.max is not none %} max="{{ row.max }}"{% endif %}
+             {%- if row.box_step is not none %} step="{{ row.box_step }}"{% endif %}
+             {%- if form_id %} form="{{ form_id }}"{% endif %}>
+    </div>
+    {% if row.unit %}<span class="u">{{ _(row.unit) }}</span>{% endif %}
+    {% elif row.kind == 'number' %}
+    <input type="number" name="{{ row.key }}" value="{{ row.value }}"
+           {%- if row.min is not none %} min="{{ row.min }}"{% endif %}
+           {%- if row.max is not none %} max="{{ row.max }}"{% endif %}
+           {%- if row.box_step is not none %} step="{{ row.box_step }}"{% endif %}
+           {%- if form_id %} form="{{ form_id }}"{% endif %}>
+    {% if row.unit %}<span class="u">{{ _(row.unit) }}</span>{% endif %}
+    {% elif row.kind == 'select' %}
+    {% if row.get('free_text') %}
+    <input type="text" name="{{ row.key }}" value="{{ row.value }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+    {% else %}
+    <select name="{{ row.key }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+      <option value=""></option>
+      {% for choice in row.choices %}<option value="{{ choice.value }}">{{ _(choice.label) }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    {% elif row.kind == 'picker' %}
+    {#- A PICTURE KEY: the wizard's own plate CHOICES (the node's entries), drawn as a ``<select>``
+        because the dialog is a plain POST form — the wizard's clickable plate links are a GET
+        navigation and cannot set a value in a POST. With no readable list the key is typed instead, the
+        same free-text fallback the wizard offers, said so in words. -#}
+    {% if row.get('free_text') or not row.choices %}
+    <input type="text" name="{{ row.key }}" value="{{ row.value }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+    {% else %}
+    <select name="{{ row.key }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+      <option value=""></option>
+      {% for choice in row.choices %}<option value="{{ choice.value }}"{% if choice.get('base') %} data-base="{{ choice.base }}"{% endif %}>{{ _(choice.label) }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    {% elif row.kind == 'date' %}
+    <div class="dlg-winline">
+      {#- a real date picker for a real date; a stored NAMED day (today/yesterday/tomorrow) is one a
+          picker cannot hold, so it keeps the text box. The named days ride a ``<datalist>`` — a POST
+          form carries one value per name, so a second same-named control could never be read. -#}
+      {% if row.get('iso_date') %}
+      <input type="date" name="{{ row.key }}" value="{{ row.value }}" list="dlg-named-days"{% if form_id %} form="{{ form_id }}"{% endif %}>
+      {% else %}
+      <input type="text" name="{{ row.key }}" value="{{ row.value }}" list="dlg-named-days"{% if form_id %} form="{{ form_id }}"{% endif %}>
+      {% endif %}
+      <datalist id="dlg-named-days">
+        {% for day in row.named_days %}<option value="{{ day }}">{{ _(day) }}</option>{% endfor %}
+      </datalist>
+    </div>
+    {% elif row.kind == 'moment' %}
+    <div class="dlg-winline">
+      {#- the text box posts the value (an absolute time, a named moment, or a moment plus an offset);
+          the named moments ride a ``<datalist>`` and the time helper is an ADDITION beside them, never
+          a replacement. With JavaScript off the helper does nothing and the text box is the control. -#}
+      <input type="text" name="{{ row.key }}" value="{{ row.value }}" list="dlg-moments"{% if form_id %} form="{{ form_id }}"{% endif %}>
+      <input class="dlg-wtime" type="time" data-weather-time="{{ row.key }}" aria-label="{{ _(row.label) }}"
+             value="{{ row.time_value }}">
+      <datalist id="dlg-moments">
+        {% for moment in row.moments %}<option value="{{ moment }}">{{ moment }}</option>{% endfor %}
+      </datalist>
+    </div>
+    {% elif row.kind == 'fogtable' %}
+    {#- THE FOG TABLE: one row per time offset, each cell a named number box the form posts. The
+        preset stores the rows as ONE ``fog.rows`` value, which the route composes from these indexed
+        cells through the wizard's own serializer. Add and remove are progressive enhancement (this
+        dialog's inline script); with JavaScript off the rows that are drawn still post their cells. -#}
+    <div class="dlg-ftable">
+      <div class="dlg-frow hd">
+        {% for column in row.fog_columns %}
+        <span class="c">{{ _(column.label) }}{% if column.unit %} <small class="u">{{ _(column.unit) }}</small>{% endif %}</span>
+        {% endfor %}
+        <span class="c x"></span>
+      </div>
+      {% for entry in row.fog_table %}
+      <div class="dlg-frow">
+        {% for cell in entry.cells %}
+        <span class="c">
+          <input type="number" name="{{ cell.name }}" value="{{ cell.value }}"
+                 {%- if cell.min is not none %} min="{{ cell.min }}"{% endif %}
+                 {%- if cell.max is not none %} max="{{ cell.max }}"{% endif %}
+                 {%- if cell.box_step is not none %} step="{{ cell.box_step }}"{% endif %}
+                 title="{{ _(cell.hint) }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+          {% if cell.start %}<small class="s">{{ _(row.fog_start_label) }}</small>{% endif %}
+        </span>
+        {% endfor %}
+        <span class="c x">
+          <button class="dlg-fbtn" type="button" data-fog-remove="{{ entry.index }}"
+                  title="{{ _(row.fog_remove_label) }}">✕</button>
+        </span>
+      </div>
+      {% endfor %}
+      <div class="dlg-winline">
+        <button class="dlg-fbtn" type="button" data-fog-add>{{ _(row.fog_add_label) }}</button>
+      </div>
+    </div>
+    {% elif row.kind == 'chips' %}
+    <input type="text" name="{{ row.key }}" value="{{ row.value }}" placeholder="Syria, Caucasus"{% if form_id %} form="{{ form_id }}"{% endif %}>
+    {% elif row.kind == 'toggle' %}
+    <label class="dlg-chip"><input type="checkbox" name="{{ row.key }}" value="true"{% if row.value == 'true' %} checked{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}> {{ _(row.label) }}</label>
+    {% else %}
+    <input type="text" name="{{ row.key }}" value="{{ row.value }}"{% if form_id %} form="{{ form_id }}"{% endif %}>
+    {% endif %}
+  </div>
+</div>
 {%- endmacro %}
 {% block title %}{{ say_title(page_title) }} — DCSServerBot{% endblock %}
 {% block content %}
@@ -187,6 +358,42 @@
           the button fires and the footer stays exactly one primary and one cancel. Behaviour-driven:
           a dialog that supplies no ``body_inputs`` (every other dialog) renders nothing here. -#}
       {% if dialog.body_inputs is defined %}{% for field in dialog.body_inputs %}{{ field_input(field, 'dlg-form') }}{% endfor %}{% endif %}
+      {#- THE TEMPORARY PRESET: the same weather pick's other shape, drawn from the ONE field table.
+          Its controls belong to the footer's form — they are several lines tall, so they sit in the
+          BODY and carry ``form="dlg-form"`` rather than pushing the two ways out off the last row. -#}
+      {% if dialog.get('temporary') %}
+      {#- THE TEMPORARY PRESET'S FIELDS: the pick's SECOND shape, drawn only while "Create your own weather"
+          is selected — the dialog's own script toggles this block, because a ``<select
+          multiple>`` cannot be gated by CSS. It is a plain region, never a ``<details>``: nothing here
+          needs opening, so the fields cannot hide behind a collapsed disclosure. Its controls sit in
+          the DOM and stay form-associated to the footer's form (``form="dlg-form"``), so a POST made
+          while the block is hidden carries exactly what a visible one would. With JavaScript off the
+          block simply stays visible, and the route's conflict refusal is the backstop. -#}
+      <div class="dlg-temp">
+        <h4 class="dlg-temp-head">{{ _(dialog.temporary.head) }} <span class="opt">({{ _(dialog.temporary.optional) }})</span></h4>
+        <p class="dlg-temp-help">{{ _(dialog.temporary.help) }}</p>
+        {#- THE MISSION READ'S LINE: empty as rendered (nothing is fetched until the entry is
+            selected), it says the read is running, then names the mission it read from, and carries
+            the read route's own sentence when the read fails. The read is performed by the shipped
+            ``static/dialog-mission-weather.js``, which reads the URL and the three sentences from this
+            element — the dialog's form POSTS the launch, so the read can never be a submit. -#}
+        <p class="dlg-temp-read" data-mission-line role="status" aria-live="polite"
+           data-mission-url="{{ dialog.temporary.url }}"
+           {%- if dialog.temporary.mission %} data-mission-name="{{ dialog.temporary.mission }}"{% endif %}
+           data-mission-loading="{{ dialog.temporary.loading }}"
+           data-mission-read="{{ dialog.temporary.read }}"
+           data-mission-error="{{ dialog.temporary.error }}"></p>
+        <div class="dlg-temp-rows">
+          {% for row in dialog.temporary.rows %}{{ weather_input(row, 'dlg-form') }}{% endfor %}
+        </div>
+        <p class="dlg-temp-note">{{ _(dialog.temporary.note) }}</p>
+      </div>
+      {% elif dialog.get('weather_note') %}
+      {#- NO CURRENT MISSION: the weather pick is withheld (the caller passes ``select_field=None`` and
+          ``temporary=None``), and this sentence says why — there is nothing to apply a preset to. The
+          STARTUP dialog is the one that can be here; the LOAD dialog always has its picked row. -#}
+      <p class="dlg-temp-note" data-weather-note>{{ say(dialog.weather_note) }}</p>
+      {% endif %}
     </div>
     <div class="ft">
       <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ back }}"{% if dialog.get('await') %} data-await{% endif %}>
@@ -228,6 +435,20 @@
     CONTROL's behaviour rather than this page's, and it does nothing on a dialog whose fields carry no
     `data-lookup`. -#}
 <script src="/static/player-lookup.js" defer></script>
+{#- THE WEATHER SLIDER PAIR's behaviour — the SAME shipped asset the presets wizard loads, because the
+    pair is a CONTROL rather than this page's. It does nothing on a dialog whose rows carry no
+    `data-weather-pair`. -#}
+<script src="/static/weather-slider.js" defer></script>
+{#- THE TEMPORARY PRESET'S MODE GATE — the SAME gate the wizard's step applies, driven on the client
+    because this form POSTS the launch (a mode change must never submit it). It shows/hides the
+    temporary rows by the current mode values and pre-fills the cloud base from the chosen preset. It
+    does nothing on a dialog whose rows carry no `data-gate-*`. -#}
+<script src="/static/dialog-preset.js" defer></script>
+{#- THE MISSION READ — the temporary block's other half: selecting "Create your own weather" fetches
+    the mission's own weather and fills the rows with it, never submitting the launch. It reads the
+    URL and the three sentences off the block's `[data-mission-line]` and does nothing on a dialog that
+    draws no temporary block. -#}
+<script src="/static/dialog-mission-weather.js" defer></script>
 <script>
 /* The dialog's keyboard contract — the ONE page-specific script left in the console (the read pages
    load none; base.html loads `submit.js` on every page and shell.js for a page that passes `live`).
@@ -252,6 +473,84 @@
   var first = cancel || items[0];
   var last = items[items.length - 1];
   first.focus();
+  /* THE WEATHER PICK. The pick is a MULTI <select> (the node merges a comma list of preset names),
+     and two of its entries are exclusive with the rest: "leave the weather alone" and
+     "Create your own weather" — the second of which is what reveals the temporary weather fields. A
+     <select multiple>
+     cannot be gated by CSS (:has(option:checked) does not track the selection), so the reveal is
+     driven here. Choosing an exclusive entry clears the others; choosing a preset NAME clears the
+     exclusive entries. This is the progressive enhancement, not the rule: with JavaScript off the
+     select is a plain control, the empty entry is ignored by the route, and a post stating a name
+     BESIDE "Create your own weather" is refused with the console's own sentence. */
+  var pick = dialog.querySelector(".dlg-pick select.dlg-pick-select");
+  if (pick) {
+    var options = Array.prototype.slice.call(pick.options);
+    var fields = dialog.querySelector(".dlg-temp");
+    var chosen = function () {
+      return options.filter(function (option) { return option.selected; });
+    };
+    var reveal = function () {
+      if (!fields) { return; }
+      var own = chosen().some(function (option) { return option.hasAttribute("data-custom"); });
+      fields.style.display = own ? "" : "none";
+    };
+    var previous = chosen();
+    pick.addEventListener("change", function () {
+      var now = chosen();
+      var added = now.filter(function (option) { return previous.indexOf(option) === -1; });
+      var lead = added.length ? added[added.length - 1] : null;
+      if (lead && lead.hasAttribute("data-exclusive")) {
+        /* an exclusive entry — "leave the weather alone" or "Create your own weather" — is the only choice */
+        now.forEach(function (option) { if (option !== lead) { option.selected = false; } });
+      } else if (lead) {
+        /* a preset NAME was picked: the exclusive entries give way */
+        now.forEach(function (option) {
+          if (option.hasAttribute("data-exclusive")) { option.selected = false; }
+        });
+      }
+      previous = chosen();
+      reveal();
+    });
+    reveal();
+  }
+  /* THE FOG TABLE. Its cells are plain named number boxes the form posts; ADD and REMOVE are
+     progressive enhancement (a plain POST form has no GET reload to spawn a row the way the wizard's
+     own step does). ADD appends a blank row by cloning the last one, REMOVE drops the row it names,
+     and every row is renumbered so its cells keep the ``fog_row_<index>_<cell>`` names the route
+     reads. With JavaScript off the rows that were drawn still post their cells. */
+  var ftable = dialog.querySelector(".dlg-ftable");
+  if (ftable) {
+    var renumber = function () {
+      var rows = ftable.querySelectorAll(".dlg-frow:not(.hd)");
+      for (var i = 0; i < rows.length; i += 1) {
+        var cells = rows[i].querySelectorAll('input[type="number"]');
+        for (var c = 0; c < cells.length; c += 1) {
+          var m = /^fog_row_\d+_(.+)$/.exec(cells[c].name);
+          if (m) { cells[c].name = "fog_row_" + i + "_" + m[1]; }
+        }
+        var del = rows[i].querySelector("[data-fog-remove]");
+        if (del) { del.setAttribute("data-fog-remove", String(i)); }
+      }
+    };
+    ftable.addEventListener("click", function (event) {
+      var target = event.target.closest("[data-fog-add],[data-fog-remove]");
+      if (!target || !ftable.contains(target)) { return; }
+      var rows = ftable.querySelectorAll(".dlg-frow:not(.hd)");
+      if (target.hasAttribute("data-fog-add")) {
+        var last = rows[rows.length - 1];
+        if (last) {
+          var clone = last.cloneNode(true);
+          var inputs = clone.querySelectorAll("input");
+          for (var k = 0; k < inputs.length; k += 1) { inputs[k].value = ""; }
+          last.parentNode.insertBefore(clone, last.nextSibling);
+        }
+      } else {
+        var index = Number(target.getAttribute("data-fog-remove"));
+        if (rows[index]) { rows[index].parentNode.removeChild(rows[index]); }
+      }
+      renumber();
+    });
+  }
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") { window.location.assign(back); }
   });

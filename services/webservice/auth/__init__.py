@@ -458,8 +458,15 @@ def _audit_scope_declarations(declared_by_user: dict[str, tuple[str, ...]], *,
 
     *bot* is the running bot, or ``None`` to resolve it from the ServiceRegistry (the production
     path; a test hands one in). The two inputs are read through :func:`_live_scope_inputs`, the ONE
-    tolerant seam: a bot whose guild cache does not exist yet is refused there, like a bot object
-    that cannot supply them at all.
+    tolerant seam: a bot that has not seen Discord's READY is refused there, like a bot object that
+    cannot supply them at all.
+
+    The two halves do not need the same inputs, so each is gated separately: the ``managed_by``
+    audit compares against the LIVE guild role names/ids, which a bot in no guild cannot supply, so
+    :func:`_live_scope_inputs` reports the guild cache as absent (``guild_roles is None``) and that
+    half is skipped — a headless (``no_discord``) install has no guild to supply them at all, and
+    reports the same absence; the local-scope audit compares against the SERVERS' ``managed_by``
+    values only, so it runs whenever READY has been seen, headless or not.
     """
     from .. import scope as scope_api
 
@@ -474,6 +481,8 @@ def _audit_scope_declarations(declared_by_user: dict[str, tuple[str, ...]], *,
         return
     server_values = {value for _, values in by_server for value in values}
     scope_api.audit_local_scopes(declared_by_user, server_values)
+    if guild_roles is None:
+        return
     scope_api.audit_server_managed_by(by_server, guild_roles)
 
 
@@ -485,20 +494,43 @@ def _live_scope_inputs(scope_api, bot):
     an attribute, a headless install) ends in ``(None, None)`` and a DEBUG line rather than a
     half-installed identity layer.
 
-    The readiness gate lives HERE, inside the tolerance, for the same reason: ``bot.guilds`` is
-    filled only by the gateway READY, and this audit runs while the web service is being BUILT —
-    earlier. Comparing ``managed_by`` against an empty role list reports EVERY tagged server as
-    unmatched, so an unloaded cache answers ``(None, None)`` like any other input the bot cannot
-    supply (:func:`_discord_ready`), and the ready-time run re-audits.
+    The inputs are read only once the bot has seen Discord's READY (:func:`_discord_ready`); an
+    unfinished boot has an incomplete SERVER list too, so a valid declaration could look unmatched.
+    READY with an EMPTY guild cache is a different state: the servers are known, so the tail is
+    returned with ``guild_roles`` set to ``None`` — the one signal that the ``managed_by`` half must
+    not run, because comparing against an empty role list reports EVERY tagged server as unmatched.
+    A HEADLESS install (``no_discord``) reports the same absent role list for its own reason: there
+    is no Discord guild and no role holder at all, so no ``managed_by`` value can ever match. Both
+    states keep the local-scope half, which compares SERVER names, running on the known servers.
+
+    Both facts and the inputs are obtained INSIDE the ``try``, so a bot double whose ``__getattr__``
+    raises for any name cannot propagate out of ``install_auth``/``install_shell``.
     """
     try:
         if not _discord_ready(bot):
-            log.debug("Admin web UI scope: Discord is not connected yet, so the servers' "
-                      "managed_by values are not audited now - an unloaded guild cache would "
-                      "report EVERY tagged server as unmatched. The audit runs again once the bot "
-                      "is ready (WebService._audit_scope_when_ready).")
+            log.debug("Admin web UI scope: Discord is not connected yet, so neither scope audit "
+                      "runs now - an unfinished boot has an incomplete server list and an empty "
+                      "guild cache. The audit runs again once the bot is ready "
+                      "(WebService._audit_scope_when_ready).")
             return None, None
-        return scope_api.gather_live_scope(bot)
+        servers, roles = scope_api.gather_live_scope(bot)
+        if _headless(bot):
+            log.debug("Admin web UI scope: this is a no_discord (headless) install, so there are "
+                      "no Discord roles to match a server's managed_by against and that half is "
+                      "never audited - the only roles present are the configured names, and no "
+                      "role exists to create or rename in answer. The local-scope audit still runs "
+                      "against the known servers.")
+            roles = None
+        elif not _guild_cache_loaded(bot):
+            log.debug("Admin web UI scope: the bot is ready but in no guild, so the servers' "
+                      "managed_by values are not audited now - an empty guild cache would report "
+                      "EVERY tagged server as unmatched. The local-scope audit still runs against "
+                      "the known servers. The managed_by half is not re-run when a guild appears "
+                      "later: the ready-time audit is one-shot and has already fired, so a bot "
+                      "ready in no guild and joined to one later is never audited for the life of "
+                      "this process - the next start, with the guild cached at READY, audits it.")
+            roles = None
+        return servers, roles
     except Exception as ex:
         log.debug("Admin web UI scope: the bot object could not supply the live scope inputs (%s), "
                   "so the servers' managed_by values are not audited at startup.",
@@ -507,23 +539,39 @@ def _live_scope_inputs(scope_api, bot):
 
 
 def _discord_ready(bot) -> bool:
-    """Whether *bot*'s guild cache can be trusted for the scope audit.
+    """Whether *bot* has seen Discord's READY -- the gateway handshake finished.
 
-    A bot object exists from ``login()`` on, but ``Client.guilds`` is filled only by the gateway
-    READY (``discord.state.parse_ready``) -- and this audit runs while the web service is being
-    BUILT, which is earlier. Comparing ``managed_by`` against an empty role list reports EVERY
-    tagged server as unmatched, so a cache that does not exist yet must skip the audit instead of
-    feeding it.
-
-    Two states answer "not ready": a bot that has not seen READY, and one that is in no guild at all
-    -- in the second there is no role to compare against either, and the two are indistinguishable
-    from here. A double without ``is_ready`` (the headless ``DummyBot``, a test stub) counts as
-    ready, so its install is audited exactly as before.
+    A bot object exists from ``login()`` on, but it is READY only after the gateway sends it; before
+    that neither its server list nor its guild cache is complete, so neither scope audit may run. A
+    double without ``is_ready`` (the headless ``DummyBot``, a test stub) counts as ready, so its
+    install is audited exactly as before.
     """
     is_ready = getattr(bot, "is_ready", None)
     if callable(is_ready) and not is_ready():
         return False
+    return True
+
+
+def _guild_cache_loaded(bot) -> bool:
+    """Whether *bot*'s guild cache holds at least one guild.
+
+    ``Client.guilds`` is filled by the gateway READY and is the only source of the guild role
+    names/ids the ``managed_by`` audit compares against. An empty cache has no role to compare
+    against, so the ``managed_by`` half must skip it; the local-scope half does not read it at all.
+    """
     return bool(getattr(bot, "guilds", None))
+
+
+def _headless(bot) -> bool:
+    """Whether *bot* is a ``no_discord`` (headless) install.
+
+    A headless install runs no Discord bot at all, so there is no guild and no role holder: the
+    ``managed_by`` audit would compare a server's tag against only the CONFIGURED role names and
+    report every tag as unmatched, with no role to create or rename in answer. The predicate reads
+    ``bot.locals`` tolerantly — a bot object that cannot supply ``locals`` (a strict test double) is
+    NOT headless, so nothing changes for it.
+    """
+    return bool((getattr(bot, "locals", None) or {}).get("no_discord"))
 
 
 def _console_servers(request) -> tuple:

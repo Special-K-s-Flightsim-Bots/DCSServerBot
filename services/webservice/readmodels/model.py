@@ -27,6 +27,7 @@ __all__ = [
     "STATUS_WORDS", "DEFAULT_STATUS", "RAW_LABELS",
     "raw_status", "status_view", "StatusView",
     "SourceStatus", "NodeView", "InstanceView", "ServerView", "PlayerView", "WeatherView",
+    "LaunchedPresetView",
     "ExtensionView", "LimitView", "ValuePart", "value_parts",
     "LogLine", "LogTail", "Overview",
     "NO_LIVE_REASON", "NO_SERVERS_MESSAGE", "NO_PLAYERS_MESSAGE", "NO_NODES_MESSAGE",
@@ -313,6 +314,26 @@ class LimitView:
 
 
 @dataclass(frozen=True, slots=True)
+class LaunchedPresetView:
+    """Which weather preset a running mission was LAUNCHED with, as the node recorded it.
+
+    The fact lives on the server's ``servers`` row (``launched_preset`` /
+    ``launched_preset_temporary``), written by the NODE when it applies a preset at load time — NOT
+    the mission's own reported weather (:class:`WeatherView`, which says what the sky IS, never which
+    preset was chosen). It is keyed by the NAMED server, never by the instance slot it occupies.
+    ``name`` is the preset NAME and is empty for a preset built on the spot;
+    ``temporary`` marks that case. The pair renders as a label beside the weather block, and a load
+    that applied no preset carries NO view at all (never an empty one), so the page shows nothing
+    rather than claiming a preset that was not applied.
+    """
+
+    #: the applied preset's NAME, or ``''`` for a preset built on the spot (which has none)
+    name: str = ""
+    #: whether the applied preset was built for this launch alone (nothing saved to the preset files)
+    temporary: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class ServerView:
     name: str
     node_name: str
@@ -385,6 +406,11 @@ class ServerView:
     #: the DCS build the server's node reports (``node.dcs_version``), or ``''``. Half of the embed's
     #: footer; the other half, the bot's own version, belongs to the console and is read there.
     dcs_version: str = ""
+    #: which weather preset the running mission was LAUNCHED with, or ``None`` when the load applied
+    #: none. Read off the ``servers`` record the node writes, never off the live server object;
+    #: ``None`` renders no label, so a launch nobody picked a preset for claims nothing. Defaulted for
+    #: the same reason as the other late fields.
+    launched_preset: LaunchedPresetView | None = None
 
     @property
     def running(self) -> bool:

@@ -15,10 +15,10 @@ normal state here, not an empty row.
 from __future__ import annotations
 
 from .access import attr, port_number, safe, text
-from .model import NO_INSTANCES_MESSAGE, InstanceView
+from .model import NO_INSTANCES_MESSAGE, InstanceView, LaunchedPresetView
 from .servers import server_url
 
-__all__ = ["instances", "instance_views", "bound_server_name"]
+__all__ = ["instances", "instance_views", "bound_server_name", "launched_preset_view"]
 
 #: the empty-state copy this module owns
 EMPTY_MESSAGE = NO_INSTANCES_MESSAGE
@@ -74,6 +74,23 @@ def instance_views(entries, node_name: str = "") -> list[InstanceView]:
         ))
     out.sort(key=lambda view: view.name)
     return out
+
+
+def launched_preset_view(preset, temporary) -> LaunchedPresetView | None:
+    """The launched-weather label for a server page, or ``None`` when the load applied no preset.
+
+    The record is the ``servers`` row the NODE writes at load time (``launched_preset`` /
+    ``launched_preset_temporary``) — NEVER the mission's own reported weather, which says what the sky
+    IS and cannot name the preset that was chosen. A load that applied nothing records NULL/false, and
+    this returns ``None`` so the page renders NO label rather than claiming a preset that was not
+    applied; that is what keeps the label truthful when the picker offered a NAME the instance does
+    not carry (the node ignored it and rewrote nothing).
+    """
+    name = text(preset)
+    temporary = bool(temporary)
+    if not name and not temporary:
+        return None
+    return LaunchedPresetView(name=name, temporary=temporary)
 
 
 def instances(source) -> list[InstanceView]:

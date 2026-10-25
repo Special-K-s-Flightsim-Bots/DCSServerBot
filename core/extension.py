@@ -88,7 +88,9 @@ class Extension(ABC):
     async def get_mission_file(self, filename: str) -> str:
         return filename
 
-    async def modify_mission(self, filename: str) -> tuple[str, bool]:
+    async def modify_mission(self, filename: str, *,
+                             preset: dict | list | str | None = None) -> tuple[str, bool]:
+        # ``preset`` is a per-load weather choice consumed by MizEdit; every other extension ignores it.
         return filename, False
 
     async def startup(self, *, quiet: bool = False) -> bool:

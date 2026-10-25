@@ -25,8 +25,8 @@
  * THE CONTRACT, so the markup and this file cannot drift: the card header holds ONE `[data-sel-bar]`
  * with a `[data-sel-all]` box, a `[data-sel-count]` element, the removal `[data-sel-go]` button and
  * OPTIONALLY the start `[data-sel-start]` button (present only where the viewer may activate); the
- * rows hold the `[data-sel-box]` checkboxes (the running mission's is `disabled` and is never counted
- * — it cannot be selected, and the bar's total is the number of SELECTABLE rows).
+ * rows hold the `[data-sel-box]` checkboxes — one per row, the running mission's included, so the
+ * bar's total is the number of ROWS.
  */
 (function () {
   "use strict";
@@ -48,18 +48,14 @@
     var go = bar.querySelector("[data-sel-go]");
     var startGo = bar.querySelector("[data-sel-start]");
 
-    /* The SELECTABLE rows only: a disabled box (the running mission) is not part of the total, so
-       the count can never promise a selection the form would refuse. */
-    var selectable = [];
-    for (var index = 0; index < boxes.length; index += 1) {
-      if (!boxes[index].disabled) { selectable.push(boxes[index]); }
-    }
-    var total = selectable.length;
+    /* EVERY row counts: the running mission's box is tickable too, so the total can never disagree
+       with what the operator can actually tick. */
+    var total = boxes.length;
 
     function ticked() {
       var found = 0;
-      for (var i = 0; i < selectable.length; i += 1) {
-        if (selectable[i].checked) { found += 1; }
+      for (var i = 0; i < boxes.length; i += 1) {
+        if (boxes[i].checked) { found += 1; }
       }
       return found;
     }
@@ -94,12 +90,12 @@
       }
     }
 
-    for (var b = 0; b < selectable.length; b += 1) {
-      selectable[b].addEventListener("change", refresh);
+    for (var b = 0; b < boxes.length; b += 1) {
+      boxes[b].addEventListener("change", refresh);
     }
     if (all) {
       all.addEventListener("change", function () {
-        for (var i = 0; i < selectable.length; i += 1) { selectable[i].checked = all.checked; }
+        for (var i = 0; i < boxes.length; i += 1) { boxes[i].checked = all.checked; }
         refresh();
       });
     }

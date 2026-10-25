@@ -35,14 +35,14 @@ from __future__ import annotations
 from .access import as_int, port_number, safe, text
 from .bans import (ALL_SERVERS, DGSA_BANNED_BY, NEVER, NO_BANS_MESSAGE, PERMANENT_YEAR, BanView,
                    ban_views, permanent)
-from .instances import instances
+from .instances import instances, launched_preset_view
 from .logtail import DEFAULT_LINES, log_tail, tail
 from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE,
                     NO_LIVE_REASON, NO_MISSION_MESSAGE, NO_NODES_MESSAGE, NO_NODE_INSTANCES_MESSAGE,
                     NO_PLAYERS_MESSAGE, NO_SERVERS_MESSAGE, NO_WEATHER_MESSAGE, NOT_RUNNING_MESSAGE,
-                    SCOPED_EMPTY_MESSAGE, STATUS_WORDS, InstanceView, LogLine, LogTail, NodeView,
-                    Overview, PlayerView, ServerView, SourceStatus, StatusView, WeatherView,
-                    format_duration, status_view)
+                    SCOPED_EMPTY_MESSAGE, STATUS_WORDS, InstanceView, LaunchedPresetView, LogLine,
+                    LogTail, NodeView, Overview, PlayerView, ServerView, SourceStatus, StatusView,
+                    WeatherView, format_duration, status_view)
 from .nodes import nodes
 from .overview import overview
 from .players import players_online
@@ -67,7 +67,8 @@ from .views import (Column, ColumnView, PlayerSearch, TableView, ViewParams, Vie
 __all__ = [
     # records + vocabulary
     "SourceStatus", "StatusView", "NodeView", "InstanceView", "ServerView", "PlayerView",
-    "WeatherView", "LogLine", "LogTail", "Overview", "STATUS_WORDS", "status_view", "format_duration",
+    "WeatherView", "LaunchedPresetView", "LogLine", "LogTail", "Overview", "STATUS_WORDS",
+    "status_view", "format_duration",
     # empty-state copy
     "NO_LIVE_REASON", "NO_SERVERS_MESSAGE", "NO_PLAYERS_MESSAGE", "NO_NODES_MESSAGE",
     "NO_INSTANCES_MESSAGE", "NO_NODE_INSTANCES_MESSAGE", "LOG_MISSING_MESSAGE",
@@ -81,8 +82,8 @@ __all__ = [
     "Source", "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "resolve_source",
     "console_source", "log_path_for", "declared_node_instances",
     # read models
-    "nodes", "instances", "servers", "players_online", "log_tail", "tail", "overview",
-    "DEFAULT_LINES",
+    "nodes", "instances", "launched_preset_view", "servers", "players_online", "log_tail", "tail",
+    "overview", "DEFAULT_LINES",
     # a server's read model AND the ONE encoder of its page URL (the row link and the redirect back)
     "server_url", "SERVERS_HREF_PREFIX",
     # the DCS configuration read model (the Configuration tab): its declaration and its view

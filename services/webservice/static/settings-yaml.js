@@ -24,6 +24,13 @@
  * host is `[data-cfg-yaml-editor]`; the status line is `[data-cfg-yaml-status]`; the badge is
  * `[data-cfg-yaml-badge]`; and INSIDE the form live `[data-cfg-expert]` (the companion) and
  * `[data-cfg-yaml-text]` (the text carrier) beside the `_csrf_token` field.
+ *
+ * THE TOGGLE-LESS MODE — a page that edits ONE block rather than a whole file (the preset editor) has
+ * no read-only view to enhance and no Expert Mode to offer, so it declares its carrier as the source:
+ * `data-cfg-yaml-source="textarea"` on the panel. There the `<textarea>[data-cfg-yaml-text]` holds the
+ * document, is EDITABLE with JavaScript off, and is replaced by the editor on load (the textarea stays
+ * in the form, hidden, so the value still posts). The status line, the validate call and the submit
+ * guard are the SAME ones the toggle uses — one editor behaviour in the codebase.
  */
 (function () {
   "use strict";
@@ -38,6 +45,9 @@
     return window.dcssbMsg ? window.dcssbMsg(key) : key;
   }
 
+  /* The panel value that declares the textarea as the SOURCE (see the header): the toggle-less mode. */
+  var PLAIN_SOURCE = "textarea";
+
   function start() {
     var aside = document.querySelector("[data-cfg-yaml]");
     if (!aside) { return; }
@@ -46,14 +56,24 @@
     var editorHost = aside.querySelector("[data-cfg-yaml-editor]");
     var status = aside.querySelector("[data-cfg-yaml-status]");
     var badge = aside.querySelector("[data-cfg-yaml-badge]");
-    var form = document.querySelector("form[data-async]") || document.querySelector(".cfg-form");
-    if (!toggle || !readonly || !editorHost || !status || !form) { return; }
+    /* THE FORM THE CARRIERS LIVE IN. The settings pages carry a marker (`data-async` / `.cfg-form`);
+     * a page that owns the panel inside its own form (the presets wizard, the preset editor) has
+     * neither, so the panel's own ancestor form is the last resort — `closest` is null on the settings
+     * pages (their aside sits OUTSIDE the form), so the two markers stay the first answer there. */
+    var form = document.querySelector("form[data-async]") || document.querySelector(".cfg-form")
+               || (aside.closest ? aside.closest("form") : null);
+    if (!editorHost || !status || !form) { return; }
     if (typeof CodeMirror === "undefined") { return; }
 
     var expertField = form.querySelector("[data-cfg-expert]");
     var textField = form.querySelector("[data-cfg-yaml-text]");
     var csrfField = form.querySelector("[name='_csrf_token']");
-    if (!expertField || !textField) { return; }
+    if (!textField) { return; }
+    /* THE TWO MODES. With a toggle the page offers a read-only view the operator may turn into an
+     * editor; without one the carrier IS the source and the editor is simply the better control for
+     * it. A panel that declares neither shape is left alone rather than guessed at. */
+    var plain = aside.getAttribute("data-cfg-yaml-source") === PLAIN_SOURCE;
+    if (!plain && (!toggle || !readonly || !expertField)) { return; }
 
     var validateUrl = aside.getAttribute("data-validate-url") || "";
     var readonlyBadge = badge ? badge.textContent : "";
@@ -139,20 +159,24 @@
       timer = setTimeout(check, DEBOUNCE_MS);
     }
 
+    function build(value) {
+      editorHost.hidden = false;
+      editor = CodeMirror(editorHost, {
+        value: value,
+        mode: "yaml",
+        lineNumbers: true,
+        lineWrapping: false,
+        indentUnit: 2,
+        tabSize: 2,
+      });
+      editor.on("change", onChange);
+      editor._cfgMarks = [];
+    }
+
     function enable() {
       if (!editor) {
-        editorHost.hidden = false;
         readonly.hidden = true;
-        editor = CodeMirror(editorHost, {
-          value: readonly.textContent,
-          mode: "yaml",
-          lineNumbers: true,
-          lineWrapping: false,
-          indentUnit: 2,
-          tabSize: 2,
-        });
-        editor.on("change", onChange);
-        editor._cfgMarks = [];
+        build(readonly.textContent);
       }
       textField.value = editor.getValue();
       expertField.value = "1";
@@ -182,18 +206,33 @@
       verdict = null;
     }
 
-    toggle.addEventListener("change", function () {
-      if (toggle.checked) { enable(); } else { disable(); }
-    });
+    if (plain) {
+      /* THE TOGGLE-LESS MODE: the textarea is the source and the operator's own control. The editor
+       * replaces it on screen; the textarea stays in the form (hidden) so the value posts either way.
+       * A refused submit then re-reads the SAME value, so with JavaScript off nothing below runs. */
+      build(textField.value);
+      textField.hidden = true;
+      check();
+    } else {
+      toggle.addEventListener("change", function () {
+        if (toggle.checked) { enable(); } else { disable(); }
+      });
+    }
 
     /* THE SUBMIT GUARD. The server refuses an invalid document; this only stops an OBVIOUSLY
      * unverified one from leaving early. In the CAPTURE phase, so it runs before the console's own
      * submit interceptor (`submit.js`, a bubble listener) and can veto the submit outright: with the
      * editor open, a submit whose text has changed since the last verdict (or whose last verdict was
      * a refusal) is held back and re-checked instead of posted. A submit with a clean, valid verdict
-     * is left entirely alone. */
+     * is left entirely alone. A control that does NOT post the edited document (a form with more than
+     * one action, e.g. the presets wizard's Remove) opts out with `data-cfg-expert-skip`, so the guard
+     * never holds an action the document has nothing to do with. */
     form.addEventListener("submit", function (event) {
       if (!editor) { return; }                  // expert off: the plain form is untouched
+      var submitter = event.submitter;
+      if (submitter && submitter.hasAttribute && submitter.hasAttribute("data-cfg-expert-skip")) {
+        return;                                 // this control carries no edited document
+      }
       if (dirty || !verdict) {
         event.preventDefault();
         event.stopPropagation();

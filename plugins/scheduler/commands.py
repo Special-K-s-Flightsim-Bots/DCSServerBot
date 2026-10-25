@@ -447,12 +447,14 @@ class Scheduler(Plugin[SchedulerListener]):
         filename = (await server.getMissionList())[new_mission - 1]
         preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
         presets = []
+        applied = []
         for line in rconf['settings']:
             preset = utils.get_preset(self.node, line, preset_files)
             if not preset:
                 self.log.warning(f"Preset \"{line}\" not found in presets files {preset_files}!")
                 continue
             presets.append(preset)
+            applied.append(line)
         if presets:
             new_filename = await server.modifyMission(filename, presets, use_orig=use_orig)
             if new_filename != filename:
@@ -464,17 +466,22 @@ class Scheduler(Plugin[SchedulerListener]):
             new_filename = filename
             self.log.warning("No presets provided, restarting mission (unchanged).")
 
+        # The weather this launch applied is stated to the node so the server page can name it — the
+        # same way the launch dialog states its pick. The node writes the record. A load that applied
+        # nothing states none, which clears it; a start is always stated (an empty set clears), because
+        # only a launch-driven start refreshes the record.
         # start the server again
         if server.status == Status.STOPPED:
-            await server.start()
+            await server.start(preset=applied)
         elif server.status in [Status.SHUTDOWN, Status.LOADING]:
             self.log.debug(f"{self.__cog_name__}: Starting server {server.name}")
-            await server.startup(modify_mission=False, use_orig=False)
+            await server.startup(modify_mission=False, use_orig=False, preset=applied or None)
         else:
             await server.loadMission(
                 new_filename,
                 modify_mission=False,
-                use_orig=False
+                use_orig=False,
+                preset=applied or None
             )
 
     async def _run_without_presets(self, server: Server, rconf: dict, new_mission: int):

@@ -1,0 +1,325 @@
+/* presets.css — THE PRESETS AREA's own sheet.
+ *
+ * The tabs, the confirm surface and the preset's own key chips — nothing else: shell.css already owns
+ * the palette, the TILE (the console's one card component), the chips and the type scale, and this
+ * file adds only what has no shipped equivalent. Every value it reads is a TOKEN declared in
+ * shell.css — no palette of its own — so the light theme's re-declared tokens reach these rules
+ * without a second block here.
+ */
+
+/* ================================================================ the toolbar (search + kinds) */
+.ps-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; }
+.ps-search { flex: 1 1 260px; min-width: 200px; padding: 8px 10px; font: inherit; font-size: 12.5px;
+  color: var(--text); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius-s); }
+.ps-search:hover { border-color: var(--line-hover); }
+.ps-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ps-go { padding: 8px 13px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); }
+.ps-go:hover { border-color: var(--accent); }
+.ps-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ps-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ps-chip { font-size: 12px; color: var(--text-2); text-decoration: none; padding: 5px 9px;
+  border: 1px solid var(--line-2); border-radius: 99px; background: var(--panel-2); }
+.ps-chip:hover { border-color: var(--line-hover); }
+.ps-chip.on { border-color: var(--accent); color: var(--text); }
+.ps-chip b { font-family: var(--font-mono); font-weight: 600; color: var(--text-3); }
+
+/* the page's own sentences: the empty states and a file that could not be read */
+.ps-notice { color: var(--text-2); font-size: 12.5px; margin: 4px 0; }
+
+/* ================================================================ the file tabs */
+/* One tab per discovered preset file, then "All files": the strip WRAPS rather than scrolling, so a
+ * file is never hidden off the edge. A tab label is the file's own `config/…` label — DATA, so it
+ * keeps the monospace face the rest of the console gives a path. */
+.ps-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+.ps-tab { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); text-decoration: none;
+  padding: 5px 10px; border: 1px solid var(--line-2); border-bottom-width: 2px;
+  border-radius: var(--radius-s) var(--radius-s) 0 0; background: var(--panel); }
+.ps-tab:hover { border-color: var(--line-hover); }
+.ps-tab.on { color: var(--text); border-color: var(--accent); border-bottom-color: var(--accent);
+  background: var(--panel-2); }
+.ps-tab b { font-weight: 600; color: var(--text-3); }
+
+/* the keys a preset writes — the schema's own identifiers, so they read as DATA, not prose */
+.ps-sets { display: flex; flex-wrap: wrap; gap: 5px; }
+.ps-sets span { font-family: var(--font-mono); font-size: 11px; color: var(--text-2); padding: 1px 6px;
+  border: 1px solid var(--line-2); border-radius: 99px; background: var(--panel-2); }
+.st-tile .st-note { font-size: 11.5px; color: var(--text-3); }
+/* the note that says WHY a tile carries no trash: the confirm page's own sentence, then the very
+ * reference list it draws (`.ps-refs`), so the two surfaces read as one statement. */
+.st-tile .st-note .ps-refs { margin: 3px 0 0; font-size: 11.5px; color: var(--text-3); }
+
+/* the tile's foot carries no switch, so the spacer keeps the trash and the cog at the right end */
+.st-tile.preset .st-foot { border-top: 1px solid var(--line); }
+
+/* ================================================================ the removal confirm */
+/* The one removal door: the preset's identity, the rule that explains a refusal, EVERY reference to
+ * it, and — only while nothing names it — the button that posts to the write route. */
+.ps-confirm { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+.ps-confirm-head { margin: 0; font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); }
+.ps-confirm-lead { margin: 0; font-size: 14px; color: var(--text); }
+.ps-confirm-id { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ps-confirm-id .st-name { font-size: 14px; }
+.ps-refs { margin: 0; padding-left: 20px; font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
+.ps-confirm-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.ps-confirm-act .pw-btn { cursor: pointer; }
+.ps-confirm-doc { margin: 6px 0 0; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-3); }
+
+/* the toolbar's "New preset" control — pushed to the row's right end, the way the mockup draws it */
+.ps-new { margin-left: auto; padding: 8px 14px; font-size: 12.5px; font-weight: 600; text-decoration: none;
+  color: #1a1204; background: var(--accent); border: 1px solid var(--accent-2);
+  border-radius: var(--radius-s); }
+
+/* ================================================================ the wizard (render only) */
+/* TWO columns inside the content column: the rail, then the work column (a sky banner over a panel).
+ * A three-column layout was rejected on measurement (the field column fell to ~400px and the plates
+ * collapsed to one per row), so the preview is a BANNER and the panel gets the full width. */
+.pw-wiz { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 14px; align-items: start; }
+.pw-work { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* the step rail — LINKS, not script: a step is a URL (?step=…), so a refresh keeps it */
+.pw-rail { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  padding: 8px; position: sticky; top: 14px; }
+.pw-rhead { padding: 8px 9px; color: var(--text-3); font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; }
+.pw-rstep { display: flex; gap: 9px; align-items: flex-start; padding: 9px; text-decoration: none;
+  color: var(--text-2); font-size: 13px; border-radius: var(--radius-s); }
+.pw-rstep:hover { background: var(--panel-2); }
+.pw-rstep.on { background: var(--panel-2); color: var(--text); }
+.pw-rstep .n { flex: 0 0 22px; width: 22px; height: 22px; border-radius: 99px; border: 1px solid var(--line-2);
+  display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: var(--text-3); }
+.pw-rstep.on .n { border-color: var(--accent); color: var(--accent); }
+.pw-rstep.done .n { border-color: var(--run); color: var(--run); }
+.pw-rstep small { display: block; color: var(--text-3); font-size: 11px; margin-top: 1px; }
+.pw-rfoot { border-top: 1px solid var(--line); margin: 6px 4px 0; padding: 9px; font-size: 11.5px;
+  color: var(--text-3); }
+
+/* the sky banner — the wizard's OWN reading of the values, said so in words under it */
+.pw-sky { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  overflow: hidden; display: grid; grid-template-columns: minmax(280px, 1fr) minmax(300px, 430px); }
+.pw-sky .ph { height: 100%; min-height: 200px; background: var(--ground-2);
+  border-right: 1px solid var(--line); }
+.pw-sky .ph svg { width: 100%; height: 100%; display: block; }
+.pw-sky .bd { padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; }
+.pw-sky h4 { margin: 0; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-3); }
+.pw-read { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 12.5px; margin: 0; }
+.pw-read dt { color: var(--text-3); }
+.pw-read dd { margin: 0; color: var(--text); font-family: var(--font-mono); font-size: 12px; }
+.pw-src { font-size: 11px; color: var(--text-3); border-top: 1px solid var(--line); padding-top: 9px;
+  line-height: 1.5; }
+
+/* the panel — ONE <form> whose values are the URL's; it never touches the file */
+.pw-panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.pw-panel > .hd { display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--line); background: var(--panel-2);
+  border-radius: var(--radius) var(--radius) 0 0; }
+.pw-panel > .hd h3 { margin: 0; font-size: 14px; }
+.pw-panel > .bd { padding: 14px; display: flex; flex-direction: column; gap: 16px; }
+.spacer { flex: 1 1 auto; }
+.tag { font-size: 10.5px; padding: 2px 8px; border: 1px solid var(--line-2); border-radius: 99px;
+  color: var(--text-2); background: var(--panel-2); }
+
+.pw-dest { border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--ground-2);
+  padding: 10px 12px; }
+.pw-dest-head { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 4px; }
+/* THE "New file…" CHOICE: a disclosure that reveals the ONE text input, so it needs no script. Its
+ * summary reads as the same inline row the offered-file select sits on. */
+.pw-newfile { margin-top: 8px; border-top: 1px dashed var(--line-2); padding-top: 8px; }
+.pw-newfile > summary { font-size: 12.5px; color: var(--text-2); cursor: pointer; }
+.pw-newfile > summary:hover { color: var(--text); }
+.pw-newfile[open] > .pw-note, .pw-newfile[open] > .pw-inline { margin-top: 6px; }
+/* the sentence that says nothing reads the chosen file — a note, marked so it cannot be mistaken for
+ * an error */
+.pw-unread { margin-top: 6px; }
+.pw-review-dest { margin-bottom: 14px; }
+
+
+/* A FIELD ROW: label column + control column. ONE template for every row, so every control shares ONE
+ * right edge — the row's second track ends at the panel's content edge. */
+.pw-f { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 12px;
+  align-items: start; }
+.pw-f > .lb { display: flex; flex-direction: column; gap: 2px; padding-top: 3px; }
+.pw-f > .lb .nm { font-size: 13px; color: var(--text); }
+.pw-f > .lb .kk { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.pw-f > .lb .hp { font-size: 11.5px; color: var(--text-3); line-height: 1.45; }
+.pw-f > .ct { min-width: 0; }
+
+/* the SLIDER row: the range fills, its OWN readout shows the value, the number box carries the value
+ * the form submits, and the unit is a word */
+.pw-sl { display: grid; grid-template-columns: minmax(0, 1fr) auto 92px; gap: 10px;
+  align-items: center; }
+.pw-sl input[type="range"] { width: 100%; height: 22px; margin: 0; accent-color: var(--accent); }
+.pw-sl output { font-family: var(--font-mono); font-size: 12px; color: var(--text-2);
+  text-align: right; min-width: 4ch; }
+.pw-sl input[type="number"] { grid-column: 3; width: 100%; padding: 5px 8px; text-align: right;
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.pw-sl .u { grid-column: 3; text-align: right; font-size: 11px; color: var(--text-3); margin-top: -4px; }
+
+.pw-text, .pw-sel { width: 100%; padding: 6px 9px; font-size: 13px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.pw-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.pw-inline .pw-text { flex: 1 1 180px; }
+
+/* a pill group for a small closed choice */
+.pw-pills { display: inline-flex; border: 1px solid var(--line-2); border-radius: 99px; overflow: hidden; }
+.pw-pills a { padding: 6px 13px; font-size: 12.5px; color: var(--text-2); text-decoration: none;
+  border-right: 1px solid var(--line-2); }
+.pw-pills a:last-child { border-right: 0; }
+.pw-pills a.on { background: var(--accent); color: #1a1204; font-weight: 600; }
+
+/* the shape switch: one preset, two shapes; the ordered combination list */
+.pw-shape { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pw-shape .lbl { font-size: 12px; color: var(--text-2); }
+.pw-combo-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pw-combo-list li { display: flex; align-items: center; gap: 9px; padding: 6px 9px;
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--ground-2); }
+.pw-combo-list li .n { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); }
+.pw-combo-list li .nm { font-size: 13px; color: var(--text); }
+.pw-combo-list li.bad { border-color: var(--pause); }
+.pw-combo-list li.bad .nm { color: var(--pause); }
+.pw-combo-act { margin-left: auto; display: inline-flex; gap: 6px; }
+.pw-combo-act a { font-size: 13px; color: var(--text-2); text-decoration: none; }
+.pw-combo-act a:hover { color: var(--text); }
+
+/* the cloud-preset picker: a grid of plates, each the preset's own picture from the node */
+.pw-plates { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 9px;
+  margin-bottom: 8px; }
+.pw-plate { border: 1px solid var(--line-2); border-radius: var(--radius-s); background: var(--ground-2);
+  overflow: hidden; text-decoration: none; }
+.pw-plate.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.pw-plate .p { height: 56px; display: block; }
+.pw-plate .p img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pw-plate .nm { display: block; font-size: 10.5px; color: var(--text-2); padding: 4px 6px 5px;
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pw-plate.on .nm { color: var(--text); }
+
+/* the halo entries as TEXT plates: no picture, so the label is the whole item and it wraps rather
+ * than being cut off — the entry's full name also rides in the anchor's `title`. */
+.pw-plates-text { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.pw-plates-text .pw-plate .nm { white-space: normal; padding: 7px 9px; font-size: 11.5px; }
+.pw-plates-text .pw-plate.on .nm { color: var(--text); font-weight: 600; }
+
+/* ================================================================ the fog TABLE (time-keyed rows) */
+/* ONE grid template for the header and every row, so a cell sits under its own column: three number
+ * cells and the remove control. The time cell carries the mission-start tag on a row whose time is 0. */
+.pw-ftable { display: flex; flex-direction: column; gap: 7px; }
+.pw-frow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 34px; gap: 7px;
+  align-items: center; }
+.pw-frow.hd .c { font-size: 11px; color: var(--text-3); letter-spacing: .04em; }
+.pw-frow.hd .u { color: var(--text-3); }
+.pw-frow input { width: 100%; padding: 5px 8px; text-align: right; font-family: var(--font-mono);
+  font-size: 12px; color: var(--text); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.pw-frow .c { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pw-frow .s { font-size: 10.5px; color: var(--text-3); }
+.pw-frow .x { align-items: center; }
+.pw-frow .x .pw-btn { padding: 4px 9px; }
+
+/* ================================================================ the wind DIAL */
+/* A wind row is the speed control on the LEFT and the direction DIAL on the right; the dial is the
+ * same pair (a range that never submits, wired to the named number box) drawn as a circle: the ring is
+ * the range itself, the needle follows `--angle` (0–1 of the track), and the number box sits in the
+ * middle. With JavaScript off the needle stays where the render put it and the number box is the
+ * control that posts. */
+.pw-windct { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+.pw-dial { position: relative; width: 88px; height: 88px; border-radius: 50%;
+  background: var(--ground-2); border: 1px solid var(--line-2); }
+.pw-dial-ring { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+  appearance: none; -webkit-appearance: none; background: none; border: 0; opacity: 0; cursor: ew-resize; }
+.pw-dial-rose { position: absolute; inset: 6px; border-radius: 50%;
+  background: conic-gradient(from -90deg, var(--line-2) 0 6%, transparent 6% 25%,
+    var(--line-2) 25% 31%, transparent 31% 50%, var(--line-2) 50% 56%, transparent 56% 75%,
+    var(--line-2) 75% 81%, transparent 81% 100%); opacity: .7; }
+.pw-dial-needle { position: absolute; left: 50%; top: 50%; width: 2px; height: 32px;
+  background: var(--accent); border-radius: 2px; transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(calc(var(--angle, 0) * 360deg)); }
+.pw-dial-num { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 50px; padding: 2px 4px; text-align: center; font-family: var(--font-mono); font-size: 12px;
+  color: var(--text); background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; }
+.pw-dial .u { position: absolute; left: 50%; bottom: -17px; transform: translateX(-50%);
+  font-size: 10.5px; color: var(--text-3); white-space: nowrap; }
+
+/* the time helper beside the named moments — an input[type=time], styled like the text box */
+.pw-time { padding: 6px 9px; font-size: 13px; color: var(--text); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+
+.pw-note { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+.pw-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2);
+  padding: 5px 10px; border: 1px solid var(--line-2); border-radius: 99px; background: var(--panel-2); }
+.pw-warn { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; color: var(--text-2);
+  border: 1px solid var(--line); border-left: 3px solid var(--pause); border-radius: var(--radius-s);
+  background: var(--ground-2); padding: 10px 12px; line-height: 1.5; }
+
+/* the review step: two columns, the summary beside the produced YAML */
+.pw-2col { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; align-items: start; }
+.pw-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pw-card { border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--panel);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+.pw-card > .hd h4 { margin: 0; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-3); }
+.pw-yaml { border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--well);
+  padding: 12px 14px; font-family: var(--font-mono); font-size: 12px; line-height: 1.65;
+  color: var(--text-2); white-space: pre; overflow-x: auto; margin: 0; }
+/* the YAML card's head carries the EXPERT MODE toggle at its right end. The toggle is the SAME plain
+ * checkbox the settings pages use (`.cfg-expert`, shell.css) — a real checkbox, keyboard-reachable, a
+ * switch role announced — NOT a drawn track. The panel swap below it is the no-script fallback: the
+ * card's `:has()` reads the toggle, so with no script at all ticking it reveals the plain editor and
+ * hides the read-only view. When the SHARED editor (`settings-yaml.js`) is present it builds CodeMirror
+ * in the editor host instead; that host being visible hides the fallback editor, so the two never
+ * overlap. A browser without `:has()` simply keeps the read-only panel it always had. */
+.pw-yaml-head { display: flex; align-items: center; gap: 10px; }
+.pw-yaml-edit { display: none; min-height: 220px; width: 100%; resize: vertical; }
+.pw-expert-note { display: none; }
+.pw-yaml-card:has([data-cfg-expert-toggle]:checked) .pw-yaml-readonly { display: none; }
+.pw-yaml-card:has([data-cfg-expert-toggle]:checked) .pw-yaml-edit { display: block; }
+.pw-yaml-card:has([data-cfg-expert-toggle]:checked) .pw-expert-note { display: block; }
+.pw-yaml-card:has([data-cfg-yaml-editor]:not([hidden])) .pw-yaml-edit { display: none; }
+/* the CodeMirror host is the shell's own `.cfg-editor`; sized to this panel rather than the settings
+ * page's 70vh, which would dwarf this 400px column. */
+.pw-yaml-card .cfg-editor .CodeMirror { height: 360px; }
+
+.pw-bar-write { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px;
+  border-top: 1px solid var(--line); background: var(--panel-2);
+  border-radius: 0 0 var(--radius) var(--radius); }
+.pw-bar-write .sp { margin-left: auto; }
+.pw-btn { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; font-size: 13px;
+  border-radius: var(--radius-s); border: 1px solid var(--line-2); background: var(--panel);
+  color: var(--text); text-decoration: none; cursor: pointer; font: inherit; }
+.pw-btn.pri { background: var(--accent); border-color: var(--accent-2); color: #1a1204; font-weight: 600; }
+.pw-btn.gh { background: transparent; color: var(--text-2); }
+.pw-btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* ---------------------------------------------------------------- one preset's own YAML editor
+ * The page edits ONE preset's block: its name and file, the editor, a Save and a Cancel. Nothing of
+ * the whole-file settings editor is drawn here, so none of its layout rules apply. */
+.ps-yaml-form { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.ps-yaml-id { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ps-yaml-id .st-name { font-size: 15px; }
+.ps-yaml-id .st-src { font-size: 11.5px; color: var(--text-3); }
+.ps-yaml-hint { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.ps-yaml-convert { color: var(--text); border-left: 2px solid var(--accent); padding-left: 8px; }
+
+/* THE YAML DOOR — the icon-only editor link a preset tile carries beside its cog. It is a LINK,
+ * reset to look like the cogwheel it sits beside (the shared tile component passes it optionally). */
+.st-yaml { display: inline-flex; align-items: center; justify-content: center; padding: 6px 9px;
+  color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); text-decoration: none; }
+.st-yaml:hover { border-color: var(--accent); }
+.st-yaml svg { width: 15px; height: 15px; display: block; }
+.ps-yaml { display: flex; flex-direction: column; gap: 6px; }
+.ps-yaml-text { width: 100%; min-height: 420px; resize: vertical; padding: 10px 12px;
+  font-size: 12.5px; line-height: 1.55; tab-size: 2;
+  color: var(--text); background: var(--ground-2); border: 1px solid var(--line);
+  border-radius: var(--radius); }
+.ps-yaml-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* the host the script fills; the textarea leaves the screen once the editor is built over it */
+.ps-yaml .cfg-editor .CodeMirror { height: 420px; }
+.ps-yaml-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ps-yaml-act .pw-btn { cursor: pointer; }

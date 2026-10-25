@@ -699,6 +699,89 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg-field.opt .opt-txt { display: flex; flex-direction: column; gap: 3px; }
 .dlg-field.opt label { font-size: 12.5px; color: var(--text); text-transform: none;
   letter-spacing: normal; }
+/* THE TEMPORARY PRESET, drawn in the launch dialog's BODY: the SAME weather pick's other shape. The
+ * rows keep the console's grammar (the fact on the left — label, its preset key — and its control on
+ * the right), and the controls wear the dialog's own box, so a launch reads as one form whether a
+ * preset is named above or built here. Nothing below states a colour of its own: the shell's tokens
+ * stay the one owner of the look. */
+.dlg-temp { align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
+  padding-top: 10px; border-top: 1px solid var(--line-2); }
+/* the block is a plain region the dialog's own script shows and hides (a <select multiple> cannot be
+ * gated by CSS), so it has no disclosure to click: the heading is an <h4> and the fields are simply
+ * there whenever "Create your own weather" is selected. */
+.dlg-temp-head { margin: 0; font-size: 12px; color: var(--text-2); }
+.dlg-temp-head .opt { font-size: 11px; color: var(--text-3); }
+.dlg-temp-help, .dlg-temp-note { margin: 0; font-size: 11px; color: var(--text-3); }
+/* the mission read's line: empty as rendered, it says the read is running and then names the mission it
+ * read from (or carries the read route's own sentence when the read fails). It reserves its own height
+ * so filling it does not move the rows under the pointer. */
+.dlg-temp-read { margin: 0; font-size: 11px; color: var(--text-2); min-height: 1.3em; }
+.dlg-temp-rows { display: flex; flex-direction: column; gap: 7px; }
+.dlg-wrow { display: flex; align-items: center; gap: 10px; }
+.dlg-wrow .lb { display: flex; flex-direction: column; gap: 2px; flex: 0 0 11rem; min-width: 0; }
+.dlg-wrow .nm { font-size: 11.5px; color: var(--text-2); }
+.dlg-wrow .kk { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+.dlg-wrow .ct { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.dlg-wrow input[type="number"], .dlg-wrow input[type="text"], .dlg-wrow select {
+  padding: 6px 8px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.dlg-wrow input[type="number"] { width: 6.5rem; flex: 0 0 auto; }
+.dlg-wrow input[type="text"] { flex: 1 1 auto; min-width: 0; }
+/* the slider pair: the range is the real control, wired both ways to the number box beside it by
+ * `static/weather-slider.js`; the number box is what the form submits. */
+.dlg-wrow input[type="range"] { flex: 1 1 auto; min-width: 0; accent-color: var(--accent); }
+.dlg-wrow output { font-family: var(--font-mono); font-size: 11px; color: var(--text-2);
+  flex: 0 0 auto; min-width: 3ch; text-align: right; }
+.dlg-wrow input:focus-visible, .dlg-wrow select:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 1px; }
+.dlg-wrow .u, .dlg-wrow .t { font-size: 10.5px; color: var(--text-3); flex: 0 0 auto; }
+.dlg-wrow .t { font-family: var(--font-mono); }
+
+/* The temporary preset's non-slider controls: the slider pair's range/readout/number, the direction
+ * dial, the date/time helper inline row, and the fog keyframe table. They read the shell's OWN tokens
+ * only, so a theme reaches them without a second edit. `.dlg-wct-wide` lets the fog table fill the
+ * row's control column; `.dlg-wct-dial` gives the dial its own spacing. */
+.dlg-wrow .ct.dlg-wct-wide { display: block; }
+.dlg-wsl { display: grid; grid-template-columns: minmax(0, 1fr) auto 6.5rem; gap: 8px;
+  align-items: center; flex: 1 1 auto; min-width: 0; }
+.dlg-wsl input[type="number"] { width: 100%; }
+.dlg-winline { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.dlg-wrow input[type="date"], .dlg-wrow input[type="time"] {
+  padding: 6px 8px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.dlg-wrow input[type="date"] { flex: 1 1 auto; min-width: 0; }
+.dlg-wrow input[type="time"] { flex: 0 0 auto; }
+.dlg-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text); }
+/* the direction dial: the SAME slider pair drawn round — the ring is the range, the needle follows the
+ * `--angle` the shared asset writes, and the named number box sits in the middle. */
+.dlg-wct-dial { gap: 10px; }
+.dlg-dial { position: relative; width: 84px; height: 84px; border-radius: 50%;
+  background: var(--ground-2); border: 1px solid var(--line-2); flex: 0 0 auto; }
+.dlg-dial-ring { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+  appearance: none; -webkit-appearance: none; background: none; border: 0; opacity: 0; cursor: ew-resize; }
+.dlg-dial-rose { position: absolute; inset: 6px; border-radius: 50%;
+  background: conic-gradient(from -90deg, var(--line-2) 0 6%, transparent 6% 25%,
+    var(--line-2) 25% 31%, transparent 31% 50%, var(--line-2) 50% 56%, transparent 56% 75%,
+    var(--line-2) 75% 81%, transparent 81% 100%); opacity: .7; }
+.dlg-dial-needle { position: absolute; left: 50%; top: 50%; width: 2px; height: 30px;
+  background: var(--accent); border-radius: 2px; transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(calc(var(--angle, 0) * 360deg)); }
+.dlg-dial-num { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 48px; padding: 2px 4px; text-align: center; font-family: var(--font-mono); font-size: 12px;
+  color: var(--text); background: var(--panel); border: 1px solid var(--line-2); border-radius: 4px; }
+/* the fog keyframe table: one grid template for the header and every row, so a cell sits under its own
+ * column — three number cells and the remove control. */
+.dlg-ftable { display: flex; flex-direction: column; gap: 7px; flex: 1 1 auto; min-width: 0; }
+.dlg-frow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 32px; gap: 7px;
+  align-items: center; }
+.dlg-frow.hd .c { font-size: 11px; color: var(--text-3); letter-spacing: .04em; }
+.dlg-frow .c { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dlg-frow input { width: 100%; padding: 5px 8px; text-align: right; font-family: var(--font-mono); }
+.dlg-frow .s { font-size: 10.5px; color: var(--text-3); }
+.dlg-fbtn { padding: 4px 9px; font: inherit; font-size: 12px; color: var(--text-2);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s);
+  cursor: pointer; }
+.dlg-fbtn:hover { color: var(--text); border-color: var(--accent); }
 
 /* A row whose strip does not fit a phone keeps its trigger and folds the icons into it: the same
  * POSTs, with their labels written out. Only a row that HAS a trigger folds — a row with one control
@@ -1239,16 +1322,18 @@ pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-ra
  * The Settings LANDING page: a grid of tiles in place of the old list of YAML filenames. Namespaced
  * `st-*` so nothing here can collide with the shipped sheet. See `templates/settings_tiles.html`.
  *
- * The kind tokens. Three kinds, three colours — but the kind is ALSO carried by the glyph, the word
+ * The kind tokens. Four kinds, four colours — but the kind is ALSO carried by the glyph, the word
  * and the scope line on every tile, never by colour alone. The washes are rgba() compositions of the
  * SAME hues (a token cannot yet be alpha-shaped, so they are written out). */
 :root {
   --kind-plugin: var(--accent);
   --kind-service: var(--link);
   --kind-ext: #7fd1c1;
+  --kind-preset: #b48ee8;
   --kind-plugin-wash: rgba(232, 163, 61, .10);
   --kind-service-wash: rgba(88, 166, 255, .10);
   --kind-ext-wash: rgba(127, 209, 193, .10);
+  --kind-preset-wash: rgba(180, 142, 232, .10);
 }
 .st-sect { display: flex; flex-direction: column; gap: 12px; }
 .st-sect-head { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
@@ -1266,6 +1351,7 @@ pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-ra
 .st-tile.plugin  { --k: var(--kind-plugin);  --kw: var(--kind-plugin-wash); }
 .st-tile.service { --k: var(--kind-service); --kw: var(--kind-service-wash); }
 .st-tile.ext     { --k: var(--kind-ext);     --kw: var(--kind-ext-wash); }
+.st-tile.preset  { --k: var(--kind-preset);  --kw: var(--kind-preset-wash); }
 .st-tile.off { background: var(--panel-2); }
 .st-tile.off .st-name, .st-tile.off .st-desc { color: var(--text-3); }
 .st-tile.off::before { opacity: .35; }
@@ -1490,9 +1576,11 @@ html[data-theme="light"] {
 
   /* the settings-tile kind signatures (declared in the tile block above) also flip */
   --kind-plugin: var(--accent); --kind-service: var(--link); --kind-ext: #0d7f74;
+  --kind-preset: #6b3fa0;
   --kind-plugin-wash: rgba(154, 90, 5, .09);
   --kind-service-wash: rgba(11, 95, 196, .08);
   --kind-ext-wash: rgba(13, 127, 116, .10);
+  --kind-preset-wash: rgba(107, 63, 160, .10);
 }
 
 

@@ -319,7 +319,9 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      announce: bool = False) -> None:
         raise NotImplementedError()
 
     async def send_to_dcs_sync(self, message: dict, timeout: int | None = 10) -> dict | None:
@@ -418,7 +420,14 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @performance_log()
-    async def start(self) -> bool:
+    async def start(self, *, preset: dict | list | str | None = None) -> bool:
+        """Start the server process.
+
+        ``preset`` is the weather a LAUNCH already applied before this start — the scheduler's
+        stop-then-start shape. It is recorded by the OWNING NODE (``ServerImpl.start``): this base
+        carries the value and writes nothing, and the remote path (``ServerProxy.start``) hands a stated
+        preset to the node, whose ``start`` writes the record.
+        """
         if self.status == Status.STOPPED:
             timeout = 300 if self.node.locals.get('slow_system', False) else 180
             self.status = Status.LOADING
@@ -429,7 +438,9 @@ class Server(DataObject, ABC):
         return False
 
     @abstractmethod
-    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      announce: bool = False) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -462,7 +473,9 @@ class Server(DataObject, ABC):
 
     @abstractmethod
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
-                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
+                          use_orig: bool | None = True, no_reload: bool | None = False, *,
+                          preset: dict | list | str | None = None,
+                          announce: bool = False) -> bool | None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -492,7 +505,9 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str | None:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True, *,
+                                    preset: dict | list | str | None = None,
+                                    announce: bool = False) -> str | None:
         raise NotImplementedError()
 
     @property

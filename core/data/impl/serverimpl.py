@@ -1024,7 +1024,18 @@ class ServerImpl(Server):
             )
 
     @override
-    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def start(self, *, preset: dict | list | str | None = None) -> bool:
+        # A process start changes no mission, so a start that states no preset leaves the record alone.
+        # A launch-driven start (the scheduler's stop-then-start shape) states the weather it already
+        # applied, so the page names it — and states an empty set when it applied none, which clears.
+        if preset is not None:
+            await _record_launched_preset(self, preset, bool(preset))
+        return await super().start()
+
+    @override
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      announce: bool = False) -> None:
         # A duplicate start request is one where OUR OWN DCS PROCESS IS ALREADY ALIVE, never one where the
         # status merely reads as up: the scheduler's state loop marks a server LOADING and THEN schedules the
         # launch that starts it, so a bare ``status == LOADING`` test makes the scheduler skip its own launch
@@ -1049,7 +1060,13 @@ class ServerImpl(Server):
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
-            await self.apply_mission_changes(use_orig=use_orig)
+            await self.apply_mission_changes(use_orig=use_orig, preset=preset, announce=announce)
+        else:
+            # The extensions do not run here, so this start applies no preset itself. The record
+            # follows the value the caller states: a launch that already applied the weather passes its
+            # preset names, and a start that states none clears the record — the page would otherwise
+            # name a preset this start never applied.
+            await _record_launched_preset(self, preset, bool(preset))
         await asyncio.to_thread(self.do_startup)
 
         from services.firewall import FirewallService
@@ -1170,67 +1187,97 @@ class ServerImpl(Server):
 
     @override
     @performance_log()
-    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str | None:
-        try:
-            # disable autoscan
-            if self.locals.get('autoscan', False):
-                self.disable_autoscan()
-            if not filename:
-                filename = await self.get_current_mission_file()
-                if not filename:
-                    self.log.warning("No mission found. Is your mission list empty?")
-                    return None
+    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True,
+                                    preset: dict | list | str | None = None,
+                                    announce: bool = False) -> str | None:
+        # The rewrite runs in the nested ``_rewrite`` and reports whether the per-load preset was
+        # REALLY applied — a name the instance does not carry is ignored by the extension and rewrites
+        # nothing. The record and the announcement follow THAT answer, never the request: a launch
+        # nobody picked a preset for, or one that picked a name the instance does not carry, records
+        # none and announces nothing.
+        applied = False
 
-            # select the mission file to use before creating a temp copy
-            selected_filename = filename
-            dirty = False
-            for ext in self.extensions.values():
-                if type(ext).get_mission_file != Extension.get_mission_file:
-                    new_selected_filename = await ext.get_mission_file(selected_filename)
-                    if new_selected_filename != selected_filename:
-                        self.log.info(f'  => {ext.name} selected {os.path.basename(new_selected_filename)}.')
-                        selected_filename = new_selected_filename
-                        dirty = True
-
-            source_filename = utils.get_orig_file(selected_filename) if use_orig else selected_filename
-            temp_dir = tempfile.mkdtemp(prefix='dcssb-mission-')
-            tmp_filename = os.path.join(temp_dir, os.path.basename(selected_filename))
-            new_filename = tmp_filename
-
+        async def _rewrite() -> str | None:
+            nonlocal applied
+            mission = filename
             try:
-                shutil.copy2(source_filename, tmp_filename)
+                # disable autoscan
+                if self.locals.get('autoscan', False):
+                    self.disable_autoscan()
+                if not mission:
+                    mission = await self.get_current_mission_file()
+                    if not mission:
+                        self.log.warning("No mission found. Is your mission list empty?")
+                        return None
 
-                # process all mission modifications on the temporary copy
-                dirty |= use_orig
+                # select the mission file to use before creating a temp copy
+                selected_filename = mission
+                dirty = False
                 for ext in self.extensions.values():
-                    if type(ext).modify_mission != Extension.modify_mission:
-                        new_filename, _dirty = await ext.modify_mission(new_filename)
-                        if _dirty:
-                            self.log.info(f'  => {ext.name} applied on {os.path.basename(new_filename)}.')
-                        dirty |= _dirty
+                    if type(ext).get_mission_file != Extension.get_mission_file:
+                        new_selected_filename = await ext.get_mission_file(selected_filename)
+                        if new_selected_filename != selected_filename:
+                            self.log.info(f'  => {ext.name} selected {os.path.basename(new_selected_filename)}.')
+                            selected_filename = new_selected_filename
+                            dirty = True
 
-                if not dirty:
-                    return filename
+                source_filename = utils.get_orig_file(selected_filename) if use_orig else selected_filename
+                temp_dir = tempfile.mkdtemp(prefix='dcssb-mission-')
+                tmp_filename = os.path.join(temp_dir, os.path.basename(selected_filename))
+                new_filename = tmp_filename
 
-                writable_filename = utils.create_writable_mission(selected_filename)
-                shutil.copy2(new_filename, writable_filename)
-                return writable_filename
+                try:
+                    shutil.copy2(source_filename, tmp_filename)
 
-            except Exception as ex:
-                self.log.exception(ex)
-                if use_orig:
+                    # process all mission modifications on the temporary copy
+                    dirty |= use_orig
+                    for ext in self.extensions.values():
+                        if type(ext).modify_mission != Extension.modify_mission:
+                            # a None preset is passed as no keyword at all, so an extension still on the
+                            # standalone ``modify_mission(self, filename)`` signature stays callable
+                            if preset is None:
+                                new_filename, _dirty = await ext.modify_mission(new_filename)
+                            else:
+                                new_filename, _dirty = await ext.modify_mission(new_filename, preset=preset)
+                            if _dirty:
+                                self.log.info(f'  => {ext.name} applied on {os.path.basename(new_filename)}.')
+                            dirty |= _dirty
+                            # the per-load preset is REALLY applied only when the extension that
+                            # CONSUMES it reports a change; a name it does not carry leaves the mission
+                            # untouched, so nothing is recorded and nothing is announced. The consumer is
+                            # named by its class, not imported: this module must not pull the extension
+                            # in to answer the question.
+                            if preset is not None and _dirty and type(ext).__name__ == "MizEdit":
+                                applied = True
+
+                    if not dirty:
+                        return mission
+
                     writable_filename = utils.create_writable_mission(selected_filename)
-                    orig_filename = utils.get_orig_file(selected_filename)
-                    shutil.copy2(orig_filename, writable_filename)
+                    shutil.copy2(new_filename, writable_filename)
                     return writable_filename
-                return filename
 
+                except Exception as ex:
+                    self.log.exception(ex)
+                    if use_orig:
+                        writable_filename = utils.create_writable_mission(selected_filename)
+                        orig_filename = utils.get_orig_file(selected_filename)
+                        shutil.copy2(orig_filename, writable_filename)
+                        return writable_filename
+                    return mission
+
+                finally:
+                    utils.safe_rmtree(temp_dir)
             finally:
-                utils.safe_rmtree(temp_dir)
-        finally:
-            # enable autoscan
-            if self.locals.get('autoscan', False):
-                self.enable_autoscan()
+                # enable autoscan
+                if self.locals.get('autoscan', False):
+                    self.enable_autoscan()
+
+        result = await _rewrite()
+        await _record_launched_preset(self, preset, applied)
+        if applied and announce:
+            await _announce_launched_preset(self, preset)
+        return result
 
     async def keep_alive(self):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
@@ -1326,10 +1373,15 @@ class ServerImpl(Server):
         return ret
 
     @override
-    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      announce: bool = False) -> None:
         current_mission = self._get_current_mission_file()
         if current_mission:
-            await self.loadMission(current_mission, modify_mission=modify_mission, use_orig=use_orig)
+            # ``preset`` / ``announce`` are forwarded so a restart with a weather pick applies it by
+            # the SAME path a load does — a restart whose caller states none keeps today's behaviour.
+            await self.loadMission(current_mission, modify_mission=modify_mission, use_orig=use_orig,
+                                   preset=preset, announce=announce)
         else:
             await self.stop()
             await self.start()
@@ -1344,8 +1396,10 @@ class ServerImpl(Server):
             mission_id = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
-        else:
-            self.settings['listStartIndex'] = mission_id
+        # The pointer is written in BOTH branches: the DCS command moves ``net.missionlist`` in the
+        # running process, but the bot's own cache — what ``getStartIndex`` and the mission list read
+        # — would otherwise keep the old index until a restart.
+        self.settings['listStartIndex'] = mission_id
 
     @override
     async def setPassword(self, password: str | None):
@@ -1393,6 +1447,7 @@ class ServerImpl(Server):
             mission = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
 
         missions = await self.getMissionList()
+        was_empty = not missions
         # we have this mission in the list already
         if path in missions or mission in missions:
             # if the replacement mission is in the list only, update it with the new mission
@@ -1421,12 +1476,24 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             if autostart:
                 self.settings['listStartIndex'] = missions.index(path) + 1
+        if was_empty and not autostart:
+            # the FIRST mission in an empty rotation is the only one that can start, so it takes the
+            # pointer whether or not the box was ticked. Any later mission must be ticked to become the
+            # start one: adding never moves the pointer on its own.
+            try:
+                self.settings['listStartIndex'] = self.settings['missionList'].index(path) + 1
+            except ValueError:
+                self.settings['listStartIndex'] = 1
         return self.settings['missionList']
 
     @override
     async def deleteMission(self, mission_id: int) -> list[str]:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
+        try:
+            start = int(self.settings['listStartIndex'] or 1)
+        except (KeyError, TypeError, ValueError):
+            start = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
             self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
@@ -1434,6 +1501,23 @@ class ServerImpl(Server):
             missions = self.settings['missionList']
             missions.pop(mission_id - 1)
             self.settings['missionList'] = missions
+        # THE POINTER MUST KEEP NAMING A MISSION. Every entry after the removed slot shifts down by one,
+        # so a start index BEYOND that slot still names its own mission once decremented; the removed
+        # slot itself is taken by the mission that followed it; a list that shrank under the pointer is
+        # clamped to its new length, and an empty list has no start mission at all (0).
+        count = len(self.settings['missionList'])
+        if not count:
+            new_start = 0
+        else:
+            new_start = start - 1 if mission_id < start else start
+            new_start = max(1, min(new_start, count))
+        if new_start != start:
+            if new_start and self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+                # the process owns the index in those states: move it there too, so its own copy of
+                # the list does not put the old slot back
+                await self.setStartIndex(new_start)
+            else:
+                self.settings['listStartIndex'] = new_start
         return self.settings['missionList']
 
     @override
@@ -1518,7 +1602,9 @@ class ServerImpl(Server):
 
     @override
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
-                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
+                          use_orig: bool | None = True, no_reload: bool | None = False, *,
+                          preset: dict | list | str | None = None,
+                          announce: bool = False) -> bool | None:
 
         mission_list = await self.getMissionList()
         start_index = int(self.settings.get('listStartIndex', 1))
@@ -1538,13 +1624,19 @@ class ServerImpl(Server):
             return None
 
         if modify_mission:
-            filename = await self.apply_mission_changes(mission, use_orig=use_orig)
-        elif use_orig:
-            filename = utils.create_writable_mission(mission)
-            orig_mission = utils.get_orig_file(mission)
-            shutil.copy2(orig_mission, filename)
+            filename = await self.apply_mission_changes(mission, use_orig=use_orig, preset=preset,
+                                                        announce=announce)
         else:
-            filename = mission
+            # The extensions do not run here, so this load applies no preset itself. The record follows
+            # the value the caller states: a launch that already applied the weather passes its preset
+            # names, and a load that states none clears the record.
+            await _record_launched_preset(self, preset, bool(preset))
+            if use_orig:
+                filename = utils.create_writable_mission(mission)
+                orig_mission = utils.get_orig_file(mission)
+                shutil.copy2(orig_mission, filename)
+            else:
+                filename = mission
 
         if mission == current_mission and filename != mission:
             mission_list = await self.replaceMission(current_index, filename)
@@ -1783,3 +1875,55 @@ class ServerImpl(Server):
     @override
     async def get_config(self) -> dict:
         return self.read_locals()
+
+
+async def _record_launched_preset(server, preset: dict | list | str | None, applied: bool) -> None:
+    """Write what this load was launched with to the server's ``servers`` row.
+
+    The row is the ONE home of the fact: ``launched_preset`` is the preset NAME and
+    ``launched_preset_temporary`` marks a preset built on the spot (which has no name). A load that
+    applied nothing — no preset asked for, or a NAME the server does not carry — CLEARS both, so the
+    record always describes the mission that is running now and never the previous one. The fact
+    belongs to the NAMED server (``servers`` is keyed by ``server_name`` alone), NOT to the instance
+    slot, which can be rebound from one server to the next; the row itself is created by the node when
+    the server registers (``ServerImpl.__init__``). A server with no pool (a test double, an early boot)
+    records nothing rather than raising.
+    """
+    pool = getattr(server, "apool", None)
+    server_name = getattr(server, "name", None)
+    if pool is None or not server_name:
+        return
+    name: str | None = None
+    temporary = False
+    if applied:
+        if isinstance(preset, str):
+            name = preset
+        elif isinstance(preset, list):
+            names = [entry for entry in preset if isinstance(entry, str)]
+            name = ", ".join(names) if names else None
+            temporary = not names
+        else:
+            temporary = True
+    async with pool.connection() as conn:
+        await conn.execute("""
+            UPDATE servers SET launched_preset = %s, launched_preset_temporary = %s
+            WHERE server_name = %s
+        """, (name, temporary, server_name))
+
+
+async def _announce_launched_preset(server, preset: dict | list | str | None) -> None:
+    """Tell the players on the server that its weather was changed for this mission.
+
+    Only the NODE can honestly announce: only it knows a preset was really applied, so a launch that
+    asked for a name the instance does not carry never reaches here. The message is the node's own
+    English sentence — it is delivered to DCS, not to a localised console — and a failed announcement
+    is logged, never raised: the mission must load whether or not the popup could be delivered.
+    """
+    if isinstance(preset, str) and preset:
+        message = f"New weather is in effect for this mission (preset '{preset}')."
+    else:
+        message = "New weather is in effect for this mission."
+    try:
+        await server.sendPopupMessage(Coalition.ALL, message)
+    except Exception:
+        server.log.exception("Could not announce the weather change on server \"%s\".", server.name)

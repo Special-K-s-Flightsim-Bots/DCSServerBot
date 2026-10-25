@@ -7,7 +7,8 @@
 
   * the SETTINGS landing (``settings_tiles.html``) — one tile per plugin, one per service;
   * the NODE page (``node_page.html``) — one tile per extension bound to the node or to one of its
-    instances.
+    instances;
+  * the PRESETS page (``presets.html``) — one tile per preset, with no switch.
 
   ``tile_card`` is the WHOLE card (shell + head + name + description + optional body/warning + foot):
   the SETTINGS landing's plugin tile, its service tile and the NODE page's extension tile are all
@@ -28,6 +29,14 @@
 <a class="st-cog" href="{{ url }}" title="{{ title }}"><svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M19.1 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg>{{ _(cog_label) }}</a>
 {%- endmacro %}
 
+{#-  THE YAML DOOR — an OPTIONAL second editor link a tile's foot can carry, for an item whose
+     configuration is a YAML block rather than a form (a preset). A caller that passes no URL draws
+     nothing, so every other page's tile is unchanged. ``title`` is a msgid and doubles as the
+     accessible name, so the icon-only control is never unlabelled.  -#}
+{% macro yaml_door(url, title) -%}
+<a class="st-yaml" href="{{ url }}" title="{{ _(title) }}" aria-label="{{ _(title) }}"><svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.4 7.6 4.6 12l3.8 4.4"/><path d="M15.6 7.6 19.4 12l-3.8 4.4"/><path d="M13.4 5.2 10.6 18.8"/></svg></a>
+{%- endmacro %}
+
 {#-  THE TRASHCAN — the ONE REMOVE affordance a tile's foot can carry. It is a plain LINK to the
      item's EXISTING acknowledged removal path (never a second write path: the same warning step the
      switch-off already uses, which mints the acknowledgement the confirm form posts back). ``title``
@@ -45,16 +54,20 @@
 <svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.1 19.9 7.7v8.6L12 20.9 4.1 16.3V7.7Z"/><circle cx="12" cy="12" r="2.7"/></svg>
 {%- endmacro %}
 
+{% macro glyph_preset() -%}
+<svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7.2 3.2h6.1l3.5 3.5v9.6a2 2 0 0 1-2 2H7.2a2 2 0 0 1-2-2V5.2a2 2 0 0 1 2-2Z"/><path d="M13.1 3.4v3.6h3.6"/><path d="M12 11.1l.95 1.95 2.15.31-1.55 1.51.37 2.14-1.92-1.01-1.92 1.01.37-2.14-1.55-1.51 2.15-.31Z"/></svg>
+{%- endmacro %}
+
 {% macro glyph_extension() -%}
 <svg class="k" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.2 2.8v5.4"/><path d="M14.8 2.8v5.4"/><path d="M6.2 8.2h11.6v3.4a5.8 5.8 0 0 1-11.6 0Z"/><path d="M12 17.4v3.8"/></svg>
 {%- endmacro %}
 
 {#-  THE KIND GLYPH — one glyph per kind, so a caller names its kind ONCE.  -#}
 {% macro glyph(kind) -%}
-{%- if kind == 'service' -%}{{ glyph_service() }}{%- elif kind == 'ext' -%}{{ glyph_extension() }}{%- else -%}{{ glyph_plugin() }}{%- endif -%}
+{%- if kind == 'service' -%}{{ glyph_service() }}{%- elif kind == 'ext' -%}{{ glyph_extension() }}{%- elif kind == 'preset' -%}{{ glyph_preset() }}{%- else -%}{{ glyph_plugin() }}{%- endif -%}
 {%- endmacro %}
 
-{#-  THE CARD SHELL. ``kind`` picks the rail colour (``plugin`` / ``service`` / ``ext``); ``off`` dims
+{#-  THE CARD SHELL. ``kind`` picks the rail colour (``plugin`` / ``service`` / ``ext`` / ``preset``); ``off`` dims
      the card; ``extra`` carries any further state classes. The body is the caller's block.  -#}
 {% macro tile(kind, off=false, extra='') -%}
 <article class="st-tile {{ kind }}{{ ' off' if off }}{{ (' ' ~ extra) if extra }}">{{ caller() }}</article>
@@ -103,13 +116,13 @@
 
 {#-  THE CARD FOOT — the switch, its optional cancel link, and the cogwheel that OPENS the item's own
      configuration (a destination, never an inline form). ONE foot for every kind.  -#}
-{% macro tile_foot(sw, cog_url='', cog_title='', trash_url='', trash_title='') -%}
+{% macro tile_foot(sw, cog_url='', cog_title='', trash_url='', trash_title='', yaml_url='', yaml_title='') -%}
 <div class="st-foot">
   {{ switch_control(sw) }}
   {% if sw and sw.get('cancel_url') %}<a class="st-cancel" href="{{ sw.cancel_url }}">{{ _(sw.cancel_label) }}</a>{% endif %}
   <span class="st-sp"></span>
   {% if trash_url %}{{ trash(trash_url, trash_title) }}{% endif %}
-  {% if cog_url %}{{ cog(cog_url, cog_title) }}{% endif %}
+  {% if cog_url %}{{ cog(cog_url, cog_title) }}{% endif %}{% if yaml_url %}{{ yaml_door(yaml_url, yaml_title or cog_title) }}{% endif %}
 </div>
 {%- endmacro %}
 
@@ -119,14 +132,14 @@
      extra state classes, the dim ``off`` flag, an optional ``warn`` msgid (with an optional already-
      HTML ``warn_body`` beneath it) and an optional already-HTML ``body`` (a service's source path and
      note).  -#}
-{% macro tile_card(kind, kind_word, name, description, sw, cog_url='', cog_title='', scope='', extra='', off=false, warn='', warn_body='', body='', trash_url='', trash_title='') -%}
+{% macro tile_card(kind, kind_word, name, description, sw, cog_url='', cog_title='', scope='', extra='', off=false, warn='', warn_body='', body='', trash_url='', trash_title='', yaml_url='', yaml_title='') -%}
 {% call tile(kind, off=off, extra=extra) %}
   {{ tile_head(kind_word, glyph(kind), scope) }}
   <h3 class="st-name">{{ name }}</h3>
   {% if description %}<p class="st-desc clamp2">{{ description }}</p>{% endif %}
   {% if body %}{{ body }}{% endif %}
   {% if warn %}<div class="st-warn" role="status">{{ _(warn) }}{% if warn_body %}{{ warn_body }}{% endif %}</div>{% endif %}
-  {{ tile_foot(sw, cog_url, cog_title or name, trash_url, trash_title) }}
+  {{ tile_foot(sw, cog_url, cog_title or name, trash_url, trash_title, yaml_url, yaml_title or name) }}
 {% endcall %}
 {%- endmacro %}
 

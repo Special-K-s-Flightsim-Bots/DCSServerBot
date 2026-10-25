@@ -1,0 +1,483 @@
+{#-
+  The weather wizard — ONE page whose STEP lives in the URL (?step=…), render only.
+
+  There is no write here. The form is a GET, so submitting a step puts the values in the URL and the
+  sky preview redraws from them; the save lands on the review step's own POST.
+
+  Every control is built from the field table the page module passes in (services/webservice/
+  weather_fields.py): the label, the control kind, the unit and the min/max/step come STRAIGHT from
+  the row, never typed here. The rail is a LINK rail, exactly as the mockup draws it: a step is a URL,
+  so a refresh keeps it and the page works with JavaScript off.
+
+  THE MISSION'S OWN CLOCK. The date control is a real `<input type="date">` and the start time has a
+  time helper beside its named moments, because the mission date and time ARE a date and a time — the
+  MISSION's own clock, not a real-world timestamp. The console renders real-world stamps as UTC and
+  never uses `<input type="datetime-local">`; that rule is about real-world stamps and does NOT apply
+  here, so neither control is "fixed" to UTC.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{#-  THE VENDORED EDITOR'S STYLESHEET, loaded AFTER shell.css (the base template's) exactly as the
+    settings pages load it, so the shell's own `.cfg-editor .CodeMirror` dark theme wins the tie.  -#}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+{% include "_notice.html" %}
+
+{#- A LINK'S CARRIED VALUES: a link that sets ONE key carries every OTHER value the render holds (the
+    last submitted state), so switching a step, a moment, a date shortcut or a picture never drops
+    what the URL already knew. Type into a control and press Next/Back — or a submit button — and the
+    form itself carries everything, JavaScript or not. -#}
+{% macro carried(row) -%}
+{% for entry in row.get('carry', []) %}&{{ entry.name | urlencode }}={{ entry.value | urlencode }}{% endfor %}
+{%- endmacro %}
+
+<div class="pw-wiz">
+  <aside class="pw-rail" aria-label="wizard steps">
+    <div class="pw-rhead">{{ _(rail_head) }}</div>
+    {% for item in steps %}
+    <a class="pw-rstep{{ ' on' if item.active else (' done' if item.done else '') }}" href="{{ item.url }}">
+      <span class="n">{{ loop.index }}</span>
+      <span>{{ _(item.label) }}<small>{{ _(item.blurb) }}</small></span>
+    </a>
+    {% endfor %}
+    <div class="pw-rfoot">{{ _(write_note) }}</div>
+  </aside>
+
+  <div class="pw-work">
+    <aside class="pw-sky">
+      <div class="ph">
+        <svg viewBox="0 0 400 200" preserveAspectRatio="none" role="img" aria-label="{{ _(sky_head) }}">
+          <defs><linearGradient id="pw-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="{{ sky.top }}"/>
+            <stop offset="0.55" stop-color="{{ sky.mid }}"/>
+            <stop offset="1" stop-color="{{ sky.low }}"/>
+          </linearGradient></defs>
+          <rect width="400" height="200" fill="url(#pw-sky)"/>
+          <g opacity="{{ sky.opacity }}">
+            <ellipse cx="60" cy="{{ sky.band_y }}" rx="34" ry="15" fill="#cdd8e6"/>
+            <ellipse cx="150" cy="{{ sky.band_y + 6 }}" rx="48" ry="22" fill="#cdd8e6"/>
+            <ellipse cx="250" cy="{{ sky.band_y }}" rx="42" ry="19" fill="#cdd8e6"/>
+            <ellipse cx="340" cy="{{ sky.band_y + 6 }}" rx="30" ry="14" fill="#cdd8e6"/>
+          </g>
+        </svg>
+      </div>
+      <div class="bd">
+        <h4>{{ _(page_title) }} — {{ _(sky_head) }}</h4>
+        <dl class="pw-read">
+          <dt>date</dt><dd>{{ values.date or '—' }}</dd>
+          <dt>start time</dt><dd>{{ values.start_time or '—' }}</dd>
+          <dt>cloud mode</dt><dd>{{ values.clouds or '—' }}</dd>
+          <dt>density</dt><dd>{{ values['clouds.density'] or '—' }}</dd>
+          <dt>base</dt><dd>{{ values['clouds.base'] or '—' }}{% if values['clouds.base'] %} m{% endif %}</dd>
+          <dt>wind, ground</dt><dd>{{ values['wind.atGround.speed'] or '—' }}{% if values['wind.atGround.speed'] %} m/s{% endif %}</dd>
+        </dl>
+        <div class="pw-src">{{ _(sky_note) }}</div>
+      </div>
+    </aside>
+
+    <form class="pw-panel" method="{{ form_method }}" action="{{ form_action }}">
+      <div class="hd">
+        <h3>{{ _(steps[step_number - 1].label) }}</h3>
+        <div class="spacer"></div>
+        {% if page_title %}<span class="tag">{{ page_title }}</span>{% endif %}
+      </div>
+      <div class="bd">
+        {#- THE SHAPE SWITCH: one preset, two shapes — its own values or a combination. A link keeps
+            the step and swaps the shape, so the switch is URL-driven and works with JavaScript off. -#}
+        <div class="pw-shape">
+          <span class="lbl">{{ _(shape_head) }}</span>
+          <span class="pw-pills">
+            {% for choice in shape_choices %}
+            <a class="pw-pill{{ ' on' if choice.value == shape else '' }}"
+               href="{{ base }}?step={{ step }}{% if values.name %}&name={{ values.name | urlencode }}{% endif %}{% if chosen_file %}&file={{ chosen_file | urlencode }}{% endif %}{% if new_file_value %}&{{ new_file_field }}={{ new_file_value | urlencode }}{% endif %}&{{ shape_field }}={{ choice.value }}">{{ _(choice.label) }}</a>
+            {% endfor %}
+          </span>
+        </div>
+        <div class="pw-note">{{ _(shape_note) }}</div>
+
+        {% macro combination_editor() %}
+        <section class="pw-card pw-combo">
+          <div class="hd"><h4>{{ _(combo_head) }}</h4></div>
+          <label class="pw-inline"><span>{{ _(name_label) }}</span>
+            <input class="pw-text" type="text" name="name" value="{{ values.name }}">
+          </label>
+          <div class="pw-note">{{ _(combo_note) }}</div>
+          {% if combination_empty %}
+          <div class="pw-note">{{ _(combo_empty) }}</div>
+          {% else %}
+          <div class="pw-note">{{ _(combo_order) }}</div>
+          <ol class="pw-combo-list">
+            {% for row in combination_rows %}
+            <li{{ ' class="bad"' if not row.known else '' }}>
+              <span class="n">{{ row.index + 1 }}</span>
+              <span class="nm">{{ row.name }}{% if not row.known %} — {{ _(combo_unknown) }}{% endif %}</span>
+              <span class="pw-combo-act">
+                {% if row.up_url %}<a href="{{ row.up_url }}" title="{{ _(combo_move_up) }}">↑</a>{% endif %}
+                {% if row.down_url %}<a href="{{ row.down_url }}" title="{{ _(combo_move_down) }}">↓</a>{% endif %}
+                <a href="{{ row.remove_url }}" title="{{ _(combo_remove) }}">✕</a>
+              </span>
+            </li>
+            {% endfor %}
+          </ol>
+          {% endif %}
+          <label class="pw-inline"><span>{{ _(combo_head) }}</span>
+            <input class="pw-text" type="text" name="{{ combination_field }}" value="{{ combination }}" placeholder="Summer, Morning">
+          </label>
+        </section>
+        {% if combination_candidates %}
+        <div class="pw-note">{{ _(combo_add) }}</div>
+        <div class="pw-pills">
+          {% for candidate in combination_candidates %}<a href="{{ candidate.url }}">{{ candidate.name }}</a>{% endfor %}
+        </div>
+        {% endif %}
+        <section class="pw-card">
+          <div class="hd"><h4>{{ _(effective_head) }}</h4></div>
+          <div class="pw-note">{{ _(effective_note) }}</div>
+          {% if effective_rows %}
+          <dl class="pw-read">
+            {% for row in effective_rows %}<dt>{{ row.key }}</dt><dd>{{ row.value }}</dd>{% endfor %}
+          </dl>
+          {% else %}
+          <div class="pw-note">{{ _(effective_empty) }}</div>
+          {% endif %}
+        </section>
+        {% endmacro %}
+
+        {% if step == 'review' %}
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+        <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+        <input type="hidden" name="{{ original_field }}" value="{{ original }}">
+        <input type="hidden" name="{{ file_field }}" value="{{ chosen_file }}">
+        {% if chosen_is_new %}<input type="hidden" name="{{ new_file_field }}" value="{{ new_file_value }}">{% endif %}
+        <input type="hidden" name="{{ shape_field }}" value="{{ shape }}">
+        {% for h in hidden %}<input type="hidden" name="{{ h.name }}" value="{{ h.value }}">{% endfor %}
+        {% if shape == 'combination' %}{{ combination_editor() }}{% endif %}
+        {#-  WHERE THE SAVE WRITES — stated on the review step too, so the operator sees the file name
+            (and a file the save has yet to CREATE) before pressing Save, never after.  -#}
+        <div class="pw-dest pw-review-dest">
+          <div class="pw-dest-head">{{ _(dest_head) }}</div>
+          {% if chosen_is_new %}
+          <div class="pw-note">{{ _(dest_new_one).replace('%(file)s', chosen_file) }}</div>
+          {% elif chosen_file %}
+          <div class="pw-note">{{ _(dest_one).replace('%(file)s', chosen_file) }}</div>
+          {% endif %}
+          {% if new_file_error %}<div class="pw-warn">{{ new_file_error }}</div>{% endif %}
+          {% if unread_sentence %}<div class="pw-note pw-unread">{{ unread_sentence }}</div>{% endif %}
+        </div>
+        <div class="pw-2col">
+          <div class="pw-stack">
+            {% if shape != 'combination' %}
+            <section class="pw-card">
+              <div class="hd"><h4>{{ _(review_writes) }}</h4></div>
+              <dl class="pw-read">
+                {% for row in writes %}<dt>{{ row.key }}</dt><dd>{{ row.value or '—' }}</dd>{% endfor %}
+              </dl>
+            </section>
+            {% endif %}
+            <div class="pw-warn">{{ _(review_restart) }}</div>
+          </div>
+          <div class="pw-stack">
+            {#-  THE YAML AND ITS EXPERT MODE — the SAME editor and the SAME server check the settings
+                pages use. The panel is the documented `[data-cfg-yaml]` contract, so the shared
+                `settings-yaml.js` drives it: the toggle builds a CodeMirror editor over the read-only
+                panel and every change is checked against the bot's own schema. With no script the panel
+                stays the read-only view it ships as, EXCEPT the toggle, which is the form's own control:
+                the hidden ``_expert`` companion says "0" and the visible checkbox says "1" when it is
+                ticked (the LATER field wins on the wire, so the pair reads off/on), and CSS swaps the
+                read-only panel for the plain editor. The editor's text ships PREFILLED with the review's
+                own produced YAML, so what the operator starts from is what the review shows.  -#}
+            <section class="pw-card pw-yaml-card" data-cfg-yaml data-validate-url="{{ validate_url }}">
+              <input type="hidden" name="{{ expert_field }}" value="0" data-cfg-expert>
+              <div class="hd pw-yaml-head">
+                <h4>{{ _(review_yaml) }}</h4>
+                <span class="cfg-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
+                {#-  THE EXPERT MODE TOGGLE — the SAME plain checkbox the other editors use, off by
+                    default. It carries the companion's name so the pair reads off/on with no script.  -#}
+                <label class="cfg-expert"><input type="checkbox" role="switch"
+                       name="{{ expert_field }}" value="1" data-cfg-expert-toggle> {{ _(expert_label) }}</label>
+              </div>
+              <div class="pw-note">{{ _(review_yaml_note) }}</div>
+              <div class="pw-note pw-expert-note">{{ _(expert_note) }}</div>
+              <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
+              <pre class="pw-yaml pw-yaml-readonly" data-cfg-yaml-readonly>{{ yaml }}</pre>
+              <textarea class="pw-yaml pw-yaml-edit" name="{{ yaml_field }}" data-cfg-yaml-text>{{ yaml }}</textarea>
+              <div class="cfg-editor" data-cfg-yaml-editor hidden></div>
+            </section>
+          </div>
+        </div>
+        {% else %}
+        <div class="pw-dest">
+          <div class="pw-dest-head">{{ _(dest_head) }}</div>
+          {% if destination.count == 0 %}
+          <div class="pw-note">{{ _(dest_none) }}</div>
+          {% elif destination.choose %}
+          <div class="pw-note">{{ _(dest_many) }}</div>
+          {% if destination.named %}<div class="pw-note">{{ _(dest_named) }}</div>{% endif %}
+          <label class="pw-inline"><span>{{ _(dest_select) }}</span>
+            <select name="file">
+              {% for entry in destination.entries %}<option value="{{ entry.label }}"{{ ' selected' if entry.label == chosen_file else '' }}>{{ entry.label }}{% if not entry.exists %} — {{ _(dest_not_yet) }}{% endif %}</option>{% endfor %}
+            </select>
+          </label>
+          {% else %}
+          <div class="pw-note">{{ _(dest_one).replace('%(file)s', destination.single) }}</div>
+          {% if destination.named %}<div class="pw-note">{{ _(dest_named) }}</div>{% endif %}
+          {% if destination.entries and not destination.entries[0].exists %}<div class="pw-note">{{ _(dest_not_yet) }}</div>{% endif %}
+          {% endif %}
+          {#-  THE "New file…" CHOICE — the LAST entry of the destination step, after the offered files.
+              It is a disclosure, so it reveals its ONE text input with no script and stays usable with
+              JavaScript off; the server re-reads and validates the name on the save.  -#}
+          {% if destination.entries %}
+          <details class="pw-newfile"{{ ' open' if new_file_value else '' }}>
+            <summary>{{ _(dest_new_choice) }}</summary>
+            <label class="pw-inline"><span>{{ _(dest_new_label) }}</span>
+              <input class="pw-text" type="text" name="{{ new_file_field }}" value="{{ new_file_value }}"
+                     placeholder="config/presets_night.yaml" spellcheck="false" autocomplete="off"
+                     aria-describedby="pw-newfile-help">
+            </label>
+            <div class="pw-note" id="pw-newfile-help">{{ _(dest_new_help) }}</div>
+            {% if new_file_error %}<div class="pw-warn">{{ new_file_error }}</div>{% endif %}
+          </details>
+          {% endif %}
+          {% if unread_sentence %}<div class="pw-note pw-unread">{{ unread_sentence }}</div>{% endif %}
+        </div>
+
+        <input type="hidden" name="{{ shape_field }}" value="{{ shape }}">
+        {#- THE STEP ITSELF, so a SUBMIT that is not Next/Back (the fog table's Add and Remove) keeps
+            the step it was pressed on. The bar's own buttons carry their own ``step`` value and are
+            LATER in the document, so a Next/Back press is the one that decides. -#}
+        <input type="hidden" name="step" value="{{ step }}">
+        {% for h in hidden %}<input type="hidden" name="{{ h.name }}" value="{{ h.value }}">{% endfor %}
+
+        {% if shape == 'combination' %}
+        {{ combination_editor() }}
+        {% else %}
+        {% for row in rows %}
+        <div class="pw-f">
+          <div class="lb">
+            <span class="nm">{{ _(row.label) }}</span>
+            <span class="kk">{{ row.key }}</span>
+            {% for hint in hints.get(row.key, ()) %}<div class="hp">{{ _(hint) }}</div>{% endfor %}
+            {% if row.get('dial') %}<div class="hp">{{ _(row.dial.label) }} <span class="kk">{{ row.dial.key }}</span></div>{% endif %}
+          </div>
+          <div class="ct{{ ' pw-windct' if row.get('dial') else '' }}">
+            {% if row.get('dial') %}
+            {#- SPEED LEFT, DIRECTION DIAL RIGHT: the speed is the wizard's own slider pair; the dial is
+                the SAME pair — one range that never submits, wired to the named number box — drawn as a
+                circular control, so the posted field name and the value are the table's. -#}
+            <div class="pw-sl" data-weather-pair>
+              <input type="range" aria-label="{{ _(row.label) }}"
+                     {% if row.min is not none %}min="{{ row.min }}"{% endif %}
+                     {% if row.max is not none %}max="{{ row.max }}"{% endif %}
+                     {% if row.step is not none %}step="{{ row.step }}"{% endif %}
+                     value="{{ row.value }}" style="--pct:{{ ((row.value or row.min or 0) | float - (row.min or 0)) / ((row.max or 1) - (row.min or 0)) * 100 }}%">
+              <output class="pw-slv" data-weather-readout aria-hidden="true">{{ row.value }}</output>
+              <input type="number" name="{{ row.key }}"
+                     {% if row.min is not none %}min="{{ row.min }}"{% endif %}
+                     {% if row.max is not none %}max="{{ row.max }}"{% endif %}
+                     {% if row.box_step is not none %}step="{{ row.box_step }}"{% endif %}
+                     value="{{ row.value }}">
+              <span class="u">{{ _(row.unit) }}</span>
+            </div>
+            <div class="pw-dial" data-weather-pair data-weather-dial
+                 style="--angle:{{ ((row.dial.value or row.dial.min or 0) | float - (row.dial.min or 0)) / ((row.dial.max or 1) - (row.dial.min or 0)) }}">
+              <input class="pw-dial-ring" type="range" aria-label="{{ _(row.dial.label) }}"
+                     {% if row.dial.min is not none %}min="{{ row.dial.min }}"{% endif %}
+                     {% if row.dial.max is not none %}max="{{ row.dial.max }}"{% endif %}
+                     {% if row.dial.step is not none %}step="{{ row.dial.step }}"{% endif %}
+                     value="{{ row.dial.value }}">
+              <span class="pw-dial-rose" aria-hidden="true"></span>
+              <span class="pw-dial-needle" aria-hidden="true"></span>
+              <input class="pw-dial-num" type="number" name="{{ row.dial.key }}"
+                     {% if row.dial.min is not none %}min="{{ row.dial.min }}"{% endif %}
+                     {% if row.dial.max is not none %}max="{{ row.dial.max }}"{% endif %}
+                     {% if row.dial.box_step is not none %}step="{{ row.dial.box_step }}"{% endif %}
+                     value="{{ row.dial.value }}">
+              <span class="u">{{ _(row.dial.unit) }}</span>
+            </div>
+            {% elif row.kind == 'slider' %}
+            <div class="pw-sl" data-weather-pair>
+              <input type="range" aria-label="{{ _(row.label) }}"
+                     {% if row.min is not none %}min="{{ row.min }}"{% endif %}
+                     {% if row.max is not none %}max="{{ row.max }}"{% endif %}
+                     {% if row.step is not none %}step="{{ row.step }}"{% endif %}
+                     value="{{ row.value }}" style="--pct:{{ ((row.value or row.min or 0) | float - (row.min or 0)) / ((row.max or 1) - (row.min or 0)) * 100 }}%">
+              <output class="pw-slv" data-weather-readout aria-hidden="true">{{ row.value }}</output>
+              {#- THE BOX carries its OWN step, never the slider's: a native number input refuses a value
+                  that is not a multiple of its ``step``, so a granularity emitted here becomes a rule
+                  rejecting what a person types. The range and the box step are the table's. -#}
+              <input type="number" name="{{ row.key }}"
+                     {% if row.min is not none %}min="{{ row.min }}"{% endif %}
+                     {% if row.max is not none %}max="{{ row.max }}"{% endif %}
+                     {% if row.box_step is not none %}step="{{ row.box_step }}"{% endif %}
+                     value="{{ row.value }}">
+              <span class="u">{{ _(row.unit) }}</span>
+            </div>
+            {% elif row.kind == 'number' %}
+            <input class="pw-text" type="number" name="{{ row.key }}"
+                   {% if row.min is not none %}min="{{ row.min }}"{% endif %}
+                   {% if row.max is not none %}max="{{ row.max }}"{% endif %}
+                   {% if row.box_step is not none %}step="{{ row.box_step }}"{% endif %}
+                   value="{{ row.value }}">
+            {% elif row.kind == 'select' %}
+            {% if row.get('free_text') %}
+            <input class="pw-text" type="text" name="{{ row.key }}" value="{{ row.value }}">
+            {% else %}
+            <select class="pw-sel" name="{{ row.key }}"{% if row.get('mode') %} data-pw-mode{% endif %}>
+              <option value=""></option>
+              {% for choice in row.choices %}<option value="{{ choice.value }}"{{ ' selected' if choice.value == row.value else '' }}>{{ _(choice.label) }}</option>{% endfor %}
+            </select>
+            {% if row.get('text_plates') %}
+            {#- THE HALO'S OWN ENTRIES as plate-style items: a native option cannot carry a tooltip, so
+                the entries are drawn as LINKS (which work with script off) whose ``title`` shows the
+                whole name. They are offered ONLY for a real preset — never for ``off`` or ``auto``. -#}
+            <div class="pw-plates pw-plates-text">
+              {% for plate in row.text_plates %}
+              <a class="pw-plate{{ ' on' if plate.name == row.value else '' }}" title="{{ plate.label }}"
+                 href="{{ base }}?step={{ step }}{{ carried(row) }}&{{ row.key | urlencode }}={{ plate.name | urlencode }}"><span class="nm">{{ plate.label }}</span></a>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% endif %}
+            {% elif row.kind == 'picker' %}
+            {% if row.get('free_text') %}
+            {#- THE FALLBACK: with no readable list there are no pictures, so the key is typed — the
+                one control kept beside (never instead of) the plates, said so in words under it. -#}
+            <input class="pw-text" type="text" name="{{ row.key }}" value="{{ row.value }}"
+                   placeholder="{{ _(plates_head) }}">
+            <div class="pw-note">{{ row.get('plates_notice') or _(plates_note) }}</div>
+            {% else %}
+            <div class="pw-plates">
+              {% for plate in row.get('plates', []) %}
+              <a class="pw-plate{{ ' on' if plate.name == row.value else '' }}" title="{{ plate.label }}"
+                 href="{{ base }}?step={{ step }}{{ carried(row) }}{% if plate.get('base') %}&clouds.base={{ plate.get('base') }}{% endif %}&{{ row.key | urlencode }}={{ plate.name | urlencode }}{% if row.get('mode_field') %}&{{ row.get('mode_field') | urlencode }}={{ row.get('mode_value') | urlencode }}{% endif %}">
+                <span class="p"><img src="{{ plate.url }}" alt="{{ plate.label }}" loading="lazy"></span>
+                <span class="nm">{{ plate.label }}</span>
+              </a>
+              {% endfor %}
+            </div>
+            <div class="pw-note">{{ row.plates_note or _(plates_note) }}</div>
+            <input type="hidden" name="{{ row.key }}" value="{{ row.value }}">
+            {% endif %}
+            {% elif row.kind == 'date' %}
+            <div class="pw-inline">
+              {#- a real date picker for a real date; a stored NAMED day (today/yesterday/tomorrow) is
+                  one a picker cannot hold, so it keeps the text box rather than being blanked. -#}
+              {% if row.get('iso_date') %}
+              <input class="pw-text" type="date" name="{{ row.key }}" value="{{ row.value }}">
+              {% else %}
+              <input class="pw-text" type="text" name="{{ row.key }}" value="{{ row.value }}">
+              {% endif %}
+              <span class="pw-pills">
+                <a href="{{ base }}?step={{ step }}{{ carried(row) }}&date=today">{% trans %}today{% endtrans %}</a>
+                <a href="{{ base }}?step={{ step }}{{ carried(row) }}&date=yesterday">{% trans %}yesterday{% endtrans %}</a>
+                <a href="{{ base }}?step={{ step }}{{ carried(row) }}&date=tomorrow">{% trans %}tomorrow{% endtrans %}</a>
+              </span>
+            </div>
+            {% elif row.kind == 'moment' %}
+            <div class="pw-inline">
+              <input class="pw-text" type="text" name="{{ row.key }}" value="{{ row.value }}">
+              {#- THE TIME HELPER: an addition beside the named moments, never a replacement. With
+                  JavaScript off it does nothing and the text box is the control, exactly as before;
+                  typing in the box moves the helper, and typing in the helper fills the box. -#}
+              <input class="pw-time" type="time" data-weather-time="{{ row.key }}" aria-label="{{ _(row.label) }}"
+                     value="{% if row.get('time_value') %}{{ row.time_value }}{% endif %}">
+            </div>
+            <div class="pw-inline">
+              <span class="pw-pills">
+                {% for moment in moments %}
+                <a href="{{ base }}?step={{ step }}{{ carried(row) }}&start_time={{ moment }}">{{ moment }}</a>
+                {% endfor %}
+              </span>
+            </div>
+            <div class="pw-note">{{ _(moments_note) }}</div>
+            {% elif row.kind == 'fogtable' %}
+            <div class="pw-ftable">
+              <div class="pw-frow hd">
+                {% for column in fog_columns %}
+                <span class="c">{{ _(column.label) }}{% if column.unit %} <small class="u">{{ _(column.unit) }}</small>{% endif %}</span>
+                {% endfor %}
+                <span class="c x"></span>
+              </div>
+              {% for entry in fog_table %}
+              <div class="pw-frow">
+                {% for cell in entry.cells %}
+                <span class="c">
+                  <input type="number" name="{{ cell.name }}" value="{{ cell.value }}"
+                         {% if cell.min is not none %}min="{{ cell.min }}"{% endif %}
+                         {% if cell.max is not none %}max="{{ cell.max }}"{% endif %}
+                         {% if cell.box_step is not none %}step="{{ cell.box_step }}"{% endif %}
+                         title="{{ _(cell.hint) }}">
+                  {% if cell.start %}<small class="s">{{ _(fog_start_label) }}</small>{% endif %}
+                </span>
+                {% endfor %}
+                <span class="c x">
+                  <button class="pw-btn gh" type="submit" name="{{ fog_remove_field }}" value="{{ entry.index }}"
+                          title="{{ _(fog_remove_label) }}">✕</button>
+                </span>
+              </div>
+              {% endfor %}
+              <div class="pw-inline">
+                <button class="pw-btn gh" type="submit" name="{{ fog_add_field }}" value="1">{{ _(fog_add_label) }}</button>
+              </div>
+            </div>
+            {% elif row.kind == 'chips' %}
+            <input class="pw-text" type="text" name="{{ row.key }}" value="{{ row.value }}"
+                   placeholder="Syria, Caucasus">
+            {% elif row.kind == 'toggle' %}
+            <label class="pw-chip"><input type="checkbox" name="{{ row.key }}" value="true"{{ ' checked' if row.value == 'true' else '' }}> {{ _(row.label) }}</label>
+            {% else %}
+            <input class="pw-text" type="text" name="{{ row.key }}" value="{{ row.value }}">
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endif %}
+      </div>
+      <div class="pw-bar-write">
+        {% if step == 'review' %}
+        {% if prev_url %}<a class="pw-btn gh" href="{{ prev_url }}">{{ _(back_label) }}</a>{% endif %}
+        <a class="pw-btn gh" href="{{ path }}">{{ _(cancel_label) }}</a>
+        <span class="sp"></span>
+        <span class="pw-note">{{ _(step_of).replace('%(step)d', step_number | string).replace('%(total)d', step_total | string) }}</span>
+        {% if can_save %}<button class="pw-btn pri" type="submit" name="{{ action_field }}" value="{{ action_save }}">{{ _(save_label) }}</button>{% endif %}
+        {% else %}
+        {% if prev_url %}<button class="pw-btn gh" type="submit" name="step" value="{{ steps[step_number - 2].value }}">{{ _(back_label) }}</button>{% endif %}
+        <a class="pw-btn gh" href="{{ path }}">{{ _(cancel_label) }}</a>
+        <span class="sp"></span>
+        <span class="pw-note">{{ _(step_of).replace('%(step)d', step_number | string).replace('%(total)d', step_total | string) }}</span>
+        {% if next_url %}
+        <button class="pw-btn pri" type="submit" name="step" value="{{ steps[step_number].value }}">{{ _(next_label) }}</button>
+        {% endif %}
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+{#- THE YAML PANEL'S EDITOR: the SAME vendored CodeMirror and the SAME shared script the settings
+    pages load, in the SAME order (the editor before the script that builds it, both deferred). The
+    script is driven by the documented `[data-cfg-*]` contract the panel below ships, so the wizard
+    and the settings area share ONE editor and ONE server check. -#}
+<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/settings-yaml.js" defer></script>
+{#- THE WEATHER CONTROLS' behaviour: a shipped asset of its own, because the slider pair is a CONTROL
+    rather than this page's — the launch dialog draws the same pair and loads the same file. It does
+    nothing on a page whose rows carry no `data-weather-pair` / `data-weather-time`. -#}
+<script src="/static/weather-slider.js" defer></script>
+{#- A MODE control (?clouds=, ?enable_dust=, ?fog.mode=, ?halo.preset=) gates which rows this step
+    draws, and the step's form is a GET, so a change must re-submit the step for the gate to take
+    effect. This asset submits that form on a mode control's change; with JavaScript off nothing is
+    driven and the operator's Next/Back submits the step exactly as before. -#}
+<script src="/static/presets-wizard.js" defer></script>
+{% endblock %}

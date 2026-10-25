@@ -52,9 +52,12 @@ __all__ = [
     "SETTINGS_FILE_PATH", "SETTINGS_FILE_SAVE_PATH", "SETTINGS_VALIDATE_FILE_PATH",
     "SETTINGS_MAIN_PATH", "SETTINGS_SERVICE_TOGGLE_PATH", "SETTINGS_FORM_MAX_FIELDS",
     "SETTINGS_ADD_BLOCK_PATH",
-    "KIND_MAIN", "KIND_SERVICE", "KIND_PLUGIN", "KIND_PRESET", "KIND_LABELS",
+    "KIND_MAIN", "KIND_SERVICE", "KIND_PLUGIN", "KIND_LABELS",
+    "SETTINGS_FILE_VIEW_CAPABILITY", "SETTINGS_FILE_WRITE_CAPABILITY",
+    "declare_file_capabilities", "file_capability", "require_file_capability",
     "GlobalFile",
-    "discover_files", "file_entries", "file_url", "load_file_page", "resolve_file",
+    "discover_files", "file_entries", "file_url",
+    "load_file_page", "resolve_file",
     "load_landing",
     "SETTINGS_TEMPLATE", "SETTINGS_TILES_TEMPLATE", "SETTINGS_TITLE", "SETTINGS_LEAD",
     "SETTINGS_TILES_LEAD", "CONFIG_FILE_NAME", "MAIN_SCHEMA_PATH",
@@ -86,7 +89,7 @@ SETTINGS_VALIDATE_PATH = "/actions/settings/validate"
 #: config file (a service's own file) gets its own generated page and its own save/validate, reachable
 #: from the entries list on the Settings area. The list itself is read from DISK at render time
 #: (:func:`discover_files`) — never a hard-coded table — so a new service file shows up the moment it
-#: is dropped in ``config/services/``. (The presets kind is PARKED for now — see :func:`discover_files`.)
+#: is dropped in ``config/services/``.
 SETTINGS_FILE_PATH = "/settings/{kind}/{name}"
 SETTINGS_FILE_SAVE_PATH = "/actions/settings/config/{kind}/{name}"
 SETTINGS_VALIDATE_FILE_PATH = "/actions/settings/validate/{kind}/{name}"
@@ -129,11 +132,8 @@ SETTINGS_FORM_MAX_FIELDS = 20000
 KIND_MAIN = "main"
 KIND_SERVICE = "service"
 KIND_PLUGIN = "plugin"
-KIND_PRESET = "preset"
 
 #: The chrome word the entries list shows for each kind. i18n-wrapped like every other composed word.
-#: ``KIND_PRESET`` has no label here: the presets kind is PARKED (see :func:`discover_files`), so no
-#: entry of that kind is ever listed — a different approach to presets is to be discussed later.
 KIND_LABELS: dict[str, str] = {
     KIND_MAIN: i18n._("Main"),
     KIND_SERVICE: i18n._("Service"),
@@ -146,6 +146,14 @@ FILES_LABEL = i18n._("Configuration files")
 #: the capability map can never drift.
 SETTINGS_VIEW_CAPABILITY = "settings.view"
 SETTINGS_WRITE_CAPABILITY = "settings.write"
+
+#: THE FILE ROUTES' GATE — the capabilities the PARAMETERISED file paths are declared with.
+#:
+#: ONE route serves every kind of global file this area lists, and every one of them is installation
+#: configuration edited by the same caller, so the two capabilities are the Settings area's own and
+#: each request is required to hold the matching one (:func:`file_capability`).
+SETTINGS_FILE_VIEW_CAPABILITY = "settings.file.view"
+SETTINGS_FILE_WRITE_CAPABILITY = "settings.file.write"
 
 #: the install's own configuration is ADMIN work and carries NO manager scope grant: a manager's
 #: scope is a set of SERVERS, and "one of mine runs there" must never become "let me edit main.yaml".
@@ -393,19 +401,74 @@ def declare() -> None:
 declare()
 
 
+def _audience(*capabilities: str) -> tuple[str, ...]:
+    """The roles that satisfy ANY of *capabilities*, in first-seen order."""
+    roles: list[str] = []
+    for capability in capabilities:
+        for role in (permissions.roles_for_capability(capability) or ()):
+            if role not in roles:
+                roles.append(role)
+    return tuple(roles)
+
+
+def declare_file_capabilities() -> None:
+    """Declare the two capabilities the PARAMETERISED file paths are gated with (see the constants).
+
+    Their audience is the Settings area's own: one route serves every kind of global file this area
+    lists, and all of them are installation configuration edited by the same caller. A set that is
+    already declared is left alone — registration happens on every application rebuild, and the roles
+    a caller must hold are the table's, not this call's.
+    """
+    for capability, audience in ((SETTINGS_FILE_VIEW_CAPABILITY, (SETTINGS_VIEW_CAPABILITY,)),
+                                 (SETTINGS_FILE_WRITE_CAPABILITY, (SETTINGS_WRITE_CAPABILITY,))):
+        if permissions.roles_for_capability(capability) is not None:
+            continue
+        permissions.declare_capability(capability, _audience(*audience))
+
+
+def file_capability(kind: str, *, write: bool) -> str:
+    """The capability ONE KIND of global file requires — the Settings area's own, read or write.
+
+    Every kind this area serves is installation configuration, so the decision does not vary by kind;
+    the function stays so the route and the gate keep reading ONE rule.
+    """
+    return SETTINGS_WRITE_CAPABILITY if write else SETTINGS_VIEW_CAPABILITY
+
+
+def require_file_capability(request: Request, kind: str, *, write: bool) -> None:
+    """Refuse with a 403 unless the caller holds the capability *kind* requires (:func:`file_capability`).
+
+    The decision is ``permissions.allows`` — the very predicate the access gate runs — read the same
+    way the gate reads it, so this check and the gate cannot disagree about one capability.
+    """
+    capability = file_capability(kind, write=write)
+    roles = permissions.role_names_for(request)
+    granted = permissions.allows(capability, roles)
+    if not granted and permissions.scope_grants(capability):
+        granted = permissions.allows(capability, roles, manager=permissions.manages_console(request))
+    if not granted:
+        raise HTTPException(status_code=403, detail=permissions.requirement_text(capability))
+
+
 # ------------------------------------------------------------------------------- registration
 
 def capabilities() -> dict[str, str]:
-    """The capability declaration for the paths this module registers."""
+    """The capability declaration for the paths this module registers.
+
+    The four PARAMETERISED file paths declare :data:`SETTINGS_FILE_VIEW_CAPABILITY` because they serve
+    every kind this area lists; what the caller may do with the file it names is decided per request by
+    :func:`require_file_capability`. Every fixed path keeps ``settings.*``.
+    """
     declare()
+    declare_file_capabilities()
     return {SETTINGS_PATH: SETTINGS_VIEW_CAPABILITY,
             SETTINGS_SAVE_PATH: SETTINGS_WRITE_CAPABILITY,
             SETTINGS_VALIDATE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_FILE_PATH: SETTINGS_VIEW_CAPABILITY,
-            SETTINGS_FILE_SAVE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_VALIDATE_FILE_PATH: SETTINGS_WRITE_CAPABILITY,
+            SETTINGS_FILE_PATH: SETTINGS_FILE_VIEW_CAPABILITY,
+            SETTINGS_FILE_SAVE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
+            SETTINGS_VALIDATE_FILE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
             SETTINGS_SERVICE_TOGGLE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_ADD_BLOCK_PATH: SETTINGS_WRITE_CAPABILITY}
+            SETTINGS_ADD_BLOCK_PATH: SETTINGS_FILE_WRITE_CAPABILITY}
 
 
 def nav_items() -> tuple[NavItem, ...]:
@@ -431,8 +494,9 @@ def config_path(request: Request) -> Path:
 # here is a hand-kept list: drop a new file in and it appears, drop a new kind in and only
 # ``discover_files`` grows.
 #
-# THE PRESETS KIND IS PARKED (see :func:`discover_files`): its discovery helper (:func:`_preset_schema_files`)
-# and constant (:data:`KIND_PRESET`) stay defined so re-adding the kind is a one-line change.
+# THE PRESETS PAGE IS NOT PART OF THIS LISTING: it owns presets, so :func:`discover_files` does not
+# list a preset file and no route here resolves one. A preset is ONE KEY of one of those files and is
+# edited on its own page in the Presets area — this area edits whole global files.
 
 @dataclass(frozen=True)
 class GlobalFile:
@@ -484,19 +548,6 @@ def _plugin_schema_files(name: str) -> list[str]:
     return [str(path) for path in sorted(directory.glob("*.yaml"))]
 
 
-def _preset_schema_files() -> list[str]:
-    """The schema files a weather preset file is validated against — PARKED (see :func:`discover_files`).
-
-    Kept for the day presets return: ``extensions/mizedit`` would validate presets against exactly this
-    pair — ``schemas/presets_schema.yaml`` (the primary) plus the realweather partial its
-    ``include: instance_realweather_schema`` needs — so the page would use the same set and a save
-    would be refused only for a fault the bot would also refuse.
-    """
-    candidates = [_REPO_ROOT / "schemas" / "presets_schema.yaml",
-                  _REPO_ROOT / "extensions" / "realweather" / "schemas" / "realweather_schema.yaml"]
-    return [str(path) for path in candidates if path.is_file()]
-
-
 def discover_files(config: Path) -> list[GlobalFile]:
     """Every GLOBAL config file, read from DISK — the entries the Settings area lists, main first.
 
@@ -536,25 +587,10 @@ def discover_files(config: Path) -> list[GlobalFile]:
     # and instance tabs each carry that scope's own extensions. The entries are gone from this list —
     # so no ``/settings/extension/<name>`` page is offered or resolvable.
     #
-    # PRESETS ARE PARKED: a DIFFERENT approach for presets is to be discussed, so for
-    # now the presets kind is REMOVED from the entries list — no preset file is listed or opened.
-    # The discovery code is left in place, commented, so re-enabling the kind is a one-line change.
-    # ``_preset_schema_files`` and :data:`KIND_PRESET` stay defined for the same reason.
-    #
-    # preset_paths: list[Path] = []
-    # presets_dir = config / "presets"
-    # if presets_dir.is_dir():
-    #     preset_paths.extend(sorted(presets_dir.glob("*.yaml")))
-    # preset_paths.extend(sorted(p for p in config.glob("presets*.yaml") if p not in preset_paths))
-    # seen: set[Path] = set()
-    # for path in preset_paths:
-    #     if path in seen:
-    #         continue
-    #     seen.add(path)
-    #     schemas = _preset_schema_files()
-    #     files.append(GlobalFile(kind=KIND_PRESET, name=path.stem, path=path,
-    #                             primary_schema=schemas[0] if schemas else None,
-    #                             schema_files=tuple(schemas)))
+    # PRESETS ARE NOT LISTED HERE, ON PURPOSE. The Presets page (``/presets``) is the home of
+    # presets: it reads every preset file and draws one tile per preset, and each tile's cog opens
+    # that PRESET's own one-block editor. A preset file is therefore neither listed nor resolvable
+    # here — this area edits whole global files, and a preset is one key of one of them.
     return files
 
 
@@ -571,8 +607,12 @@ def file_url(entry: GlobalFile) -> str:
 def resolve_file(request: Request, kind: str, name: str) -> GlobalFile:
     """The discovered entry a ``(kind, name)`` route names, or a 404 when nothing matches.
 
-    Resolution is against the DISK listing (:func:`discover_files`), so a name that is not an actual
-    file — including one trying to escape its directory — matches nothing and is refused with a 404.
+    Resolution is against the DISK listing, so a name that is not an actual file — including one
+    trying to escape its directory — matches nothing and is refused with a 404.
+
+    A preset FILE is not in that listing (:func:`discover_files`) and is not resolvable here either:
+    the Presets page owns presets and edits each preset's own block on its own page, so a preset file
+    has no door in this area at all.
     """
     for entry in discover_files(config_dir(request)):
         if entry.kind == kind and entry.name == name:
@@ -1856,7 +1896,12 @@ def add_routes(router: APIRouter) -> APIRouter:
         ``?node=<name>`` selects the NODE the scoped view edits (before the tabs); ``?tab=<n>`` selects
         the active scope of that node's view (DEFAULT is 0). The node rides into the save and validate
         URLs too, so a save from the page writes only that node's slice.
+
+        THE KIND'S OWN CAPABILITY is required here (:func:`require_file_capability`): the route's
+        declaration admits both audiences because one route serves every kind, and this is where the
+        kind decides which one the caller must hold.
         """
+        require_file_capability(request, kind, write=False)
         page = load_file_page(request, kind, name, tab, node)
         save_path = SETTINGS_FILE_SAVE_PATH.format(kind=kind, name=name)
         validate_path = SETTINGS_VALIDATE_FILE_PATH.format(kind=kind, name=name)
@@ -1887,6 +1932,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         back into the file on disk and checking the WHOLE — the same thing a save does — with the fault
         located in the slice's own coordinates (``?node=`` rides in on the validate URL).
         """
+        require_file_capability(request, kind, write=True)
         entry = resolve_file(request, kind, name)
         form = await request.form(max_fields=SETTINGS_FORM_MAX_FIELDS)
         text = form.get(SETTINGS_YAML_FIELD)
@@ -2049,6 +2095,7 @@ def add_routes(router: APIRouter) -> APIRouter:
     @router.post(SETTINGS_FILE_SAVE_PATH,
                  dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
     async def settings_file_save(request: Request, kind: str, name: str, node: str = ""):
+        require_file_capability(request, kind, write=True)
         entry = resolve_file(request, kind, name)
         require_node, slice_keys, forbidden = scoped_write_guard(request, entry, node)
         return await _save(request, path=entry.path, schema_files=list(entry.schema_files),
@@ -2124,6 +2171,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         block that already exists adds nothing. The label the operator reads is the same rule the tabs
         use (``<node> + <instance>`` when several nodes, else the plain name).
         """
+        require_file_capability(request, kind, write=True)
         entry = resolve_file(request, kind, name)
         redirect_to = file_url(entry)
         form = await request.form()

@@ -41,6 +41,44 @@
   {% if f.include_cycle %}<span class="st-badge">{% trans name=f.include_cycle %}include cycle: {{ name }} is included again here, so it is not expanded{% endtrans %}</span>{% endif %}
 {%- endmacro %}
 
+{#-  THE PRESET-FILE CHOICE — the ONE field that is not free text.
+
+     ``MizEdit.presets`` names the preset FILE(S) a server applies at startup
+     (``extensions/mizedit/schemas/mizedit_schema.yaml``, ``str_or_list``). Spelling a path is the trap
+     this control removes: the operator gets one CHECKBOX per preset file the console can know — the
+     files ``discover_preset_files`` finds under its config directory plus every label another
+     node/instance already names — and ONE free-text row for a path the list does not carry. A value the
+     document already holds and the list does NOT offer renders as its own checked row, so an untouched
+     save can never drop it.
+
+     WHAT A SAVE WRITES is the schema's own shapes, never a new one: ONE checked row is a STRING,
+     several are a LIST in the order shown, none REMOVES the key (which is what makes the extension read
+     ``presets.yaml`` in the instance's own config directory). The page posts them as
+     ``f.<path>.__presets`` values plus the free row's ``f.<path>.__presets_free``; the page module
+     collapses that into the field's value shape before the save reads the form.
+
+     SHOWN EVEN WHEN ABSENT: an optional field the file does not carry is normally offered by the
+     ``+ Add`` picker instead of rendered — for this one the page module removes it from both, because
+     the whole point of the control is to be seen by an operator who has not set anything yet.  -#}
+{% macro presets_choice(f, choice) %}
+  {% set lab %}<div class="nm">{{ f.key }}</div>
+    <div class="kk">{% if f.desc %}<span class="desc">{{ schema_text(f.desc) }}</span>{% endif %}<span class="ty">{{ _(f.kind_label) }}</span></div>{% endset %}
+  {% set ctl %}
+  <div class="st-presets" data-cfg-presets="{{ choice.path }}">
+    <input type="hidden" name="f.{{ choice.path }}.__presets_present" value="1">
+    {% for row in choice.rows %}
+    <label class="st-preset"><input type="checkbox" name="f.{{ choice.path }}.__presets" value="{{ row.label }}"{{ ' checked' if row.checked }}>
+      <span class="mono">{{ row.label }}</span>{% if row.who %}<span class="cfg-pkind">{% trans who=row.who %}named by {{ who }}{% endtrans %}</span>{% endif %}</label>
+    {% endfor %}
+    <label class="st-preset st-preset-free"><span class="cfg-subkey">{% trans %}Another file{% endtrans %}</span>
+      <input type="text" name="f.{{ choice.path }}.__presets_free" value="" class="st-in mono" placeholder="config/presets.yaml"></label>
+  </div>
+  <div class="st-presets-hint">{% trans %}With nothing selected, the instance reads presets.yaml in its own config directory.{% endtrans %}
+    {%- if choice.remote %} {% trans %}This node is not the master, so its files cannot be listed from here — type the path into the last row to name a file that exists only on that machine.{% endtrans %}{% endif %}</div>
+  {% endset %}
+  {{ editor.field_row('presets', lab, ctl) }}
+{% endmacro %}
+
 {#-  THE TRASHCAN — the ONE REMOVE affordance a shown, optional, already-set field or block carries
      (see the matching macro in `_config_fields.html`; the SAME markup and the SAME save path).  -#}
 {% macro remove_control(path) %}
@@ -354,7 +392,7 @@
   {% elif f.kind == 'or_map' and values.get(name) is mapping and f.element %}
     {#-  A HYBRID FIELD THE FILE FILLS WITH A BLOCK: rendered as the block the SCHEMA names, in the
          SAME collapsible panel a declared block uses. The scalar side is not offered here — the file
-         already answered the question (Frank's rule: a map is treated as a map).  -#}
+         already answered the question (a map is treated as a map).  -#}
     {% set summary %}<span class="k">{{ disp }}</span><span class="kd">{{ _(f.kind_label) }}</span>{{ info(f) }}<span class="r">{% if vid in removable %}{{ remove_control(cfg_path(f.path)) }}{% endif %}</span>{% endset %}
     {% call editor.panel(summary, open=True, field=True) %}
       {% for child in f.element.children %}

@@ -885,20 +885,9 @@ class Mission(Plugin[MissionEventListener]):
                                             _('Do you want to overwrite the existing preset "{}"?').format(name),
                                             ephemeral=ephemeral):
             return
-        presets[name] = {
-            "start_time": miz.start_time,
-            "date": miz.date.strftime('%Y-%m-%d'),
-            "temperature": miz.temperature,
-            "clouds": miz.clouds,
-            "wind": miz.wind,
-            "groundTurbulence": miz.groundTurbulence,
-            "enable_dust": miz.enable_dust,
-            "dust_density": miz.dust_density if miz.enable_dust else 0,
-            "qnh": miz.qnh,
-            "enable_fog": miz.enable_fog,
-            "fog": miz.fog if miz.enable_fog else {"thickness": 0, "visibility": 0},
-            "halo": miz.halo
-        }
+        # the mission-weather -> preset-document mapping has ONE home (``MizFile.preset_document``),
+        # shared with the console's mission-weather read so the two cannot drift.
+        presets[name] = miz.preset_document()
         with open(config_file, mode='w', encoding='utf-8') as outfile:
             new_yaml().dump(presets, outfile)
         await interaction.followup.send(_('Preset "{}" added.').format(name), ephemeral=ephemeral)

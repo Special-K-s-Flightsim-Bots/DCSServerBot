@@ -234,6 +234,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     from .pages import nodes as nodes_page
     from .pages import node_settings as node_settings_page
     from .pages import players as players_page
+    from .pages import presets as presets_page
     from .pages import server_detail as server_detail_page
     from .pages import servers as servers_page
     from .pages import settings as settings_page
@@ -262,6 +263,9 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     live_page.add_routes(router)
     # THE SETTINGS PAGE: the schema-driven config page, Admin-only.
     settings_page.add_routes(router)
+    # THE PRESETS PAGE: the MizEdit preset files this installation names. One route, one capability
+    # and one nav item, registered flat like the pages above.
+    presets_page.add_routes(router)
     capabilities = dict(auth_routes.capabilities())
     capabilities.update(i18n.capabilities())
     capabilities.update(theme.capabilities())
@@ -276,7 +280,9 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     capabilities.update(bans_page.capabilities())
     capabilities.update(live_page.capabilities())
     capabilities.update(settings_page.capabilities())
-    # THE MAIN MENU IS FIVE ITEMS: Dashboard, Servers, Nodes, Bans, Settings. Logs, Instances and
+    capabilities.update(presets_page.capabilities())
+    # THE MAIN MENU IS SIX ITEMS: Dashboard, Servers, Nodes, Bans, Presets, Settings — the ONE
+    # sidebar group ("Operations", see pages/dashboard.py) holds them all. Logs, Instances and
     # Players are still PAGES — their routes are registered above and stay reachable/linkable —
     # but they contribute NO nav entry: each one's content is already on the Dashboard (the
     # Servers/Nodes/Instances/Players tabs and the log panel with its expanded mode). A page whose
@@ -285,6 +291,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     return router, capabilities, (dashboard_page.nav_items()
                                   + servers_page.nav_items() + nodes_page.nav_items()
                                   + bans_page.nav_items()
+                                  + presets_page.nav_items()
                                   + settings_page.nav_items())
 
 

@@ -105,7 +105,8 @@ class GitHub(Extension):
             git.Repo.clone_from(self.repo, self.target)
 
     @override
-    async def modify_mission(self, filename: str) -> tuple[str, bool]:
+    async def modify_mission(self, filename: str, *,
+                             preset: dict | list | str | None = None) -> tuple[str, bool]:
         try:
             await self.update()
         except (git.NoSuchPathError, git.InvalidGitRepositoryError):

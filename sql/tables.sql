@@ -1,11 +1,13 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v3.18') ON CONFLICT (version) DO NOTHING;
+INSERT INTO version (version) VALUES ('v3.20') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS servers (
     server_name TEXT PRIMARY KEY,
     blue_password TEXT,
     red_password TEXT,
-    maintenance BOOLEAN NOT NULL DEFAULT FALSE
+    maintenance BOOLEAN NOT NULL DEFAULT FALSE,
+    launched_preset TEXT NULL,
+    launched_preset_temporary BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE TABLE IF NOT EXISTS message_persistence (
     id SERIAL PRIMARY KEY,

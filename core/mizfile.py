@@ -469,6 +469,32 @@ class MizFile:
             else:
                 self._files.append(file)
 
+    def preset_document(self) -> dict:
+        """The mission's own weather as a MizEdit preset DOCUMENT.
+
+        The ONE home for the mission-weather -> preset-document mapping: ``/mission save_preset``
+        writes this document into a preset file, and the console's mission-weather read hands the
+        SAME document to the preset reader. A second copy of the key list is the drift this method
+        exists to prevent.
+
+        Reads the file's own weather, so it may raise for a mission whose weather is absent
+        (``KeyError``) or whose values cannot be read.
+        """
+        return {
+            "start_time": self.start_time,
+            "date": self.date.strftime('%Y-%m-%d'),
+            "temperature": self.temperature,
+            "clouds": self.clouds,
+            "wind": self.wind,
+            "groundTurbulence": self.groundTurbulence,
+            "enable_dust": self.enable_dust,
+            "dust_density": self.dust_density if self.enable_dust else 0,
+            "qnh": self.qnh,
+            "enable_fog": self.enable_fog,
+            "fog": self.fog if self.enable_fog else {"thickness": 0, "visibility": 0},
+            "halo": self.halo
+        }
+
     def parse_moment(self, value: str = "morning") -> int:
         """
         Calculate the "moment" for the MizFile's theatre coordinates and date,

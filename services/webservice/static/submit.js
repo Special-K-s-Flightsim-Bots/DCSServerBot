@@ -125,7 +125,7 @@
        its stated destination but must SEE its write before navigating (the Bans lift/add/edit, whose
        returned list is the thing the write changed). Such a form takes the waiting branch below and
        lands on the same `to` only once the route has answered. */
-    var goingBack = form.getAttribute("data-back") && !form.getAttribute("data-await");
+    var goingBack = form.hasAttribute("data-back") && !form.hasAttribute("data-await");
 
     /* The SAME body, method and destination the browser would have sent — with `redirect: "manual"`
        so fetch does not follow the 303 itself. `keepalive` lets a write the person abandons by closing

@@ -91,6 +91,11 @@
   `pencil` is the Bans row's EDIT: a shaft with a squared-off point drawn on the diagonal, the
   universal "rewrite this row" mark. It is NOT `settings` (that cog is the Servers and Nodes rows'
   configuration glyph): a ban entry is edited, not configured.
+
+  `unban` is the Bans row's LIFT: an OPEN padlock (the shackle lifted clear of the body), the one
+  drawing that reads as "this restriction is released". It is deliberately NOT `unmute` (the MUTE
+  pair's loudspeaker on a player row, which says nothing about a ban), NOT `ban` (the ban itself) and
+  NOT `end_maintenance`'s check-in-circle.
 -#}
 {% set GLYPHS = {
   'startup': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
@@ -113,6 +118,7 @@
   'maintenance': '<path d="M10.1 4.8h3.8L18.6 19.2H5.4Z"/><path d="M8.3 13.6h7.4"/>',
   'delete': '<path d="M5 7h14"/><path d="M9.4 7V4.8h5.2V7"/><path d="M6.8 7l.8 13h8.8l.8-13"/><path d="M10.4 10.6v6"/><path d="M13.6 10.6v6"/>',
   'end_maintenance': '<circle cx="12" cy="12" r="8.4"/><path d="M8.2 12.3 11 15.1l5-5.6"/>',
+  'unban': '<rect x="4.6" y="10.8" width="14.8" height="9.2" rx="2"/><path d="M8.6 10.8V7.2a4.1 4.1 0 0 1 7.9-1.5"/>',
   'more': '<circle cx="12" cy="5.2" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.9" fill="currentColor" stroke="none"/>',
   'download': '<path d="M12 3.8v10.6"/><path d="M7.8 10.2 12 14.4l4.2-4.2"/><path d="M4.8 16.6v1.8a1.4 1.4 0 0 0 1.4 1.4h11.6a1.4 1.4 0 0 0 1.4-1.4v-1.8"/>',
   'view': '<path d="M6 3.6h7.4l4.6 4.6v12.2H6Z"/><path d="M13.4 3.6v4.6h4.6"/><path d="M8.8 13.2h6.4"/><path d="M8.8 16.4h4.4"/>',

@@ -40,7 +40,8 @@ class Persistence(Extension):
         self._persist()
         return super().shutdown(quiet=True)
 
-    async def modify_mission(self, filename: str) -> tuple[str, bool]:
+    async def modify_mission(self, filename: str, *,
+                             preset: dict | list | str | None = None) -> tuple[str, bool]:
         pickle_file = self.get_pickle_file(filename)
         if not pickle_file or not os.path.exists(pickle_file):
             return filename, False

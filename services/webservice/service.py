@@ -262,12 +262,14 @@ class WebService(Service):
                       f"{checked} notices checked, {templates} templates compiled in {seconds:.1f}s.")
 
     async def _audit_scope_when_ready(self) -> None:
-        """Run the per-server scope audit once the bot's guild cache exists.
+        """Run the per-server scope audit once the bot is READY.
 
         The audit compares free-text ``managed_by`` values against the LIVE guild role names and ids.
-        ``Client.guilds`` is filled by Discord's READY, which comes AFTER this service is built, so
-        the install-time audit defers (``auth.audit_scope_declarations``) and this is what finally
-        runs it — without it, the diagnostic would never fire at all. One shot, and every failure
+        Discord's READY comes AFTER this service is built, so the install-time audit defers
+        (``auth.audit_scope_declarations``) and this is what finally runs it — without it, the
+        diagnostic would never fire at all. READY is the gate, not a guild cache: the audit runs with
+        or without one, and only its ``managed_by`` half is skipped when no guild is cached (the
+        local-scope half still runs; see ``auth._live_scope_inputs``). One shot, and every failure
         contained: a console whose audit cannot run is the console we had before.
         """
         from .auth.discord_oauth import current_bot
@@ -280,6 +282,9 @@ class WebService(Service):
             from . import auth as auth_api
             auth_api.audit_scope_declarations(self.app)
         except asyncio.CancelledError:
+            # Not a rescue: cancellation propagates on its own, because ``CancelledError`` is a
+            # ``BaseException`` and the blanket ``except Exception`` below cannot catch it. This
+            # clause documents the intent for a reader, as the poller and the warm-up task do.
             raise
         except Exception:
             self.log.debug("WebService: the ready-time scope audit could not run.", exc_info=True)

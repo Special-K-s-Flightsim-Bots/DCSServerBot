@@ -11,10 +11,13 @@ import asyncio
 import logging
 import os
 import re
+import tempfile
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, TypeVar, cast
 
-from core import Coalition, Status, UploadStatus, utils, get_translation
+from core import (Coalition, MizFile, Status, UnsupportedMizFileException, UploadStatus, utils,
+                  get_translation)
 from core.actions import (
     TRANSPORT_DISCORD,
     TRANSPORT_SERVICE,
@@ -193,9 +196,35 @@ def _set_maintenance(server: Any, maintenance: bool) -> str | None:
     return None
 
 
+#: The sentence a launch that states a weather pick AND "do not run the extensions" is refused with.
+#: A weather pick is a REQUEST TO APPLY, and only a launch that runs the extensions applies one; on a
+#: ``modify_mission=False`` launch the node's ``preset`` means "this was already applied, record it"
+#: (the scheduler's statement). A pick must therefore never travel into a launch that will not apply
+#: it, or the node's record — and the label the server page renders off it — would claim weather no
+#: launch produced. The launch is refused as a whole rather than run with the pick dropped: the
+#: operator asked for two things that contradict each other, and silently honouring one of them is
+#: how the false label was produced.
+WEATHER_NEEDS_EXTENSIONS = (
+    "Not done (a weather preset was picked and the extensions are off, so nothing would apply it — "
+    "tick \"Run extensions on the mission\", or clear the weather pick)."
+)
+
+
+def states_unapplied_weather(modify_mission: bool | None, preset: Any) -> bool:
+    """Whether this launch states a weather pick that its own extensions will not apply.
+
+    The ONE predicate for the condition: the action guards on it (the backstop for direct / REST / MCP
+    callers) and the console's launch routes reach it through this public name rather than re-stating
+    the boolean — a second copy is exactly the drift this refusal exists to stop.
+    """
+    return not modify_mission and bool(preset)
+
+
 @action
 async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True,
-                         use_orig: bool = True, maintenance: bool = True) -> ServerControlResult:
+                         use_orig: bool = True, maintenance: bool = True,
+                         preset: str | dict | list | None = "",
+                         announce: bool = False) -> ServerControlResult:
     """Start up a SHUTDOWN DCS server (the DCS-level Startup; process-level Start is another action).
 
     ``modify_mission`` / ``use_orig`` mirror the arguments ``Server.startup`` takes and the Discord
@@ -204,6 +233,25 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
     ``/server startup`` does. The console's Startup dialog declares the two as its own checkboxes
     (``services/webservice/pages/actions.py``), so the operator makes the choice rather than the
     route deciding it.
+
+    ``preset`` is the launch dialog's weather pick, and there are TWO shapes of it because the pick
+    offers two ways to make ONE choice: a preset NAME (``str``) the NODE resolves against its own
+    preset file (the node, not the master, owns that file), or a temporary preset DOCUMENT
+    (``dict``/``list``) the console built from the dialog's weather fields for this launch alone.
+    ``""`` — the dialog's empty option with no field filled — is passed on as ``None``, so a launch
+    nobody picked a preset for behaves exactly as before. A name the instance does not carry is
+    logged and ignored by the extension, as it always was; a document is applied as it stands and
+    writes nothing to the node's preset file.
+
+    The pick travels ONLY into a launch that applies it: with ``modify_mission`` off the extensions
+    do not run, so the launch is REFUSED (:data:`WEATHER_NEEDS_EXTENSIONS`) instead of launching
+    with the weather silently dropped. On that path the node's ``preset`` means "already applied,
+    record it" (what the scheduler states), and a console pick sent there would be recorded as
+    weather no launch produced.
+
+    ``announce`` rides with the weather pick (the dialog's own ``announce`` box, OFF by default) and is
+    handed to ``Server.startup`` unchanged: the NODE tells the players, and only when it really applied
+    a preset. A launch that requests a NAME the instance does not carry announces nothing.
 
     ``maintenance`` mirrors ``/server startup``'s own default: a TRUE value
     CLEARS the maintenance flag on a successful start, so the server rejoins the rotation — a server
@@ -225,8 +273,24 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}, not shut down.",
             server_name=server_name,
         )
+    if states_unapplied_weather(modify_mission, preset):
+        return ServerControlResult(
+            success=False,
+            message=WEATHER_NEEDS_EXTENSIONS,
+            server_name=server_name,
+        )
+    # The pick travels ONLY into a launch that applies it: with the extensions off the node treats
+    # ``preset`` as "already applied, record it", so a pick sent there would be recorded as weather
+    # no extension produced. ``None`` is what such a launch states — it clears the record.
+    weather_pick = (preset or None) if modify_mission else None
+    # ``announce`` travels only when it is asked for: a launch nobody ticked the box on calls
+    # ``Server.startup`` exactly as it did before the box existed.
+    startup_args: dict[str, Any] = dict(modify_mission=modify_mission, use_orig=use_orig,
+                                        preset=weather_pick)
+    if announce:
+        startup_args["announce"] = True
     try:
-        await server.startup(modify_mission=modify_mission, use_orig=use_orig)
+        await server.startup(**startup_args)
     except (TimeoutError, asyncio.TimeoutError):
         return ServerControlResult(
             success=False,
@@ -250,9 +314,22 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
                          f"could not be cleared: {failure}"),
                 server_name=server_name,
             )
+    label = _server_label(server, server_name)
+    # THE MESSAGE IS THE AUDIT TEXT (``call_action`` -> ``audit_action``), so naming the preset here
+    # is the whole trail — there is no second record to write. The console cannot know whether the
+    # NODE really applied a NAME (one the instance does not carry is ignored there), so a name is
+    # reported as the launch's REQUEST, never as an applied fact; the record the node writes is the
+    # truth, and the server page renders it. A temporary preset document is applied as it stands, so
+    # it is named as applied; a launch nobody picked a preset for keeps the sentence it always had.
+    if isinstance(weather_pick, str) and weather_pick:
+        message = f"Server '{label}' started up — weather preset '{weather_pick}' requested."
+    elif weather_pick:
+        message = f"Server '{label}' started up with a temporary weather preset."
+    else:
+        message = f"Server '{label}' started up."
     return ServerControlResult(
         success=True,
-        message=f"Server '{_server_label(server, server_name)}' started up.",
+        message=message,
         server_name=server_name,
     )
 
@@ -493,6 +570,22 @@ async def rotate_mission(
         )
 
 
+def _loaded_message(mission_name: str, verb: str, preset) -> str:
+    """The load action's result sentence — and, because the result IS the audit text, the whole trail.
+
+    A weather preset picked on the Load dialog is NAMED here, exactly as ``startup_server`` names one.
+    A NAME is reported as the load's REQUEST, never as an applied fact: the console cannot know
+    whether the NODE really applied it (a name the instance does not carry is logged and ignored
+    there). A temporary preset DOCUMENT is applied as it stands, so it is named as applied. No pick
+    keeps the sentence the load has always had.
+    """
+    if isinstance(preset, str) and preset:
+        return f"Mission '{mission_name}' {verb} — weather preset '{preset}' requested."
+    if preset:
+        return f"Mission '{mission_name}' {verb} with a temporary weather preset."
+    return f"Mission '{mission_name}' {verb}."
+
+
 @action
 async def load_mission(
     ctx: Any,
@@ -501,8 +594,27 @@ async def load_mission(
     modify_mission: bool = True,
     use_orig: bool = True,
     expected_name: str = "",
+    preset: str | dict | list | None = "",
+    announce: bool = False,
 ) -> MissionLoadResult:
-    """Load a specific mission on a DCS server."""
+    """Load a specific mission on a DCS server.
+
+    ``preset`` / ``announce`` are the LAUNCH FORM the console's Load dialog carries — the SAME
+    weather pick and announce box the Startup dialog declares (``services/webservice/pages/
+    actions.py``). ``preset`` has TWO shapes because the pick offers two ways to make ONE choice: a
+    preset NAME (``str``) the NODE resolves against its own preset file, or a temporary preset
+    DOCUMENT (``dict``/``list``) the console built for this load alone; ``""`` means no pick and
+    behaves exactly as before. ``announce`` is the dialog's own box (``False`` by default) and the
+    NODE tells the players, and only when it really applied a preset. Both are threaded through BOTH
+    of the action's load paths — ``loadMission`` and the ``restart`` branch for the mission that is
+    ALREADY running — so a preset picked on Load is never silently dropped.
+
+    The pick travels ONLY into a load that applies it: with ``modify_mission`` off the extensions do
+    not run, so the load is REFUSED (:data:`WEATHER_NEEDS_EXTENSIONS`) instead of loading with the
+    weather silently dropped. On that path the node's ``preset`` means "already applied, record it"
+    (what the scheduler states), and a console pick sent there would be recorded as weather no load
+    produced.
+    """
     server = ctx.resolve_server(server_name)
     if server is None:
         return MissionLoadResult(
@@ -516,6 +628,16 @@ async def load_mission(
             message=f"Server '{_server_label(server, server_name)}' is {server.status.value}.",
             server_name=server_name,
         )
+    if states_unapplied_weather(modify_mission, preset):
+        return MissionLoadResult(
+            success=False,
+            message=WEATHER_NEEDS_EXTENSIONS,
+            server_name=server_name,
+        )
+    # The pick travels ONLY into a load that applies it: with the extensions off the node treats
+    # ``preset`` as "already applied, record it", so a pick sent there would be recorded as weather
+    # no extension produced. ``None`` is what such a load states — it clears the record.
+    weather_pick = (preset or None) if modify_mission else None
 
     # Resolve mission identifier to filename
     mission_list = await server.getMissionList()
@@ -544,10 +666,14 @@ async def load_mission(
 
     if server.current_mission and mission_file == server.current_mission.filename:
         try:
-            await server.restart(modify_mission=modify_mission)
+            # THE ALREADY-RUNNING MISSION: the load is a RESTART. ``preset`` / ``announce`` are
+            # threaded through ``restart`` too (``core/data``), so a weather pick made for the
+            # mission that is already running is APPLIED by the same path — never silently dropped.
+            await server.restart(modify_mission=modify_mission, preset=weather_pick,
+                                 announce=announce)
             return MissionLoadResult(
                 success=True,
-                message=f"Mission '{mission_name}' restarted.",
+                message=_loaded_message(mission_name, "restarted", weather_pick),
                 server_name=server_name,
                 mission_name=mission_name,
             )
@@ -564,7 +690,8 @@ async def load_mission(
         if not server.locals.get("mission_rewrite", True) and server.status != Status.STOPPED:
             await server.stop()
         success = await server.loadMission(
-            mission_file, modify_mission=modify_mission, use_orig=use_orig
+            mission_file, modify_mission=modify_mission, use_orig=use_orig,
+            preset=weather_pick, announce=announce
         )
         if not success:
             return MissionLoadResult(
@@ -575,7 +702,7 @@ async def load_mission(
             )
         return MissionLoadResult(
             success=True,
-            message=f"Mission '{mission_name}' loaded.",
+            message=_loaded_message(mission_name, "loaded", weather_pick),
             server_name=server_name,
             mission_name=mission_name,
         )
@@ -2516,7 +2643,7 @@ async def get_mission_list(ctx: Any, server_name: str) -> MissionListResult:
         configured = await server.getMissionList()
         files = await server.getAllMissionFiles()
         start = int(await server.getStartIndex() or 1)
-        current_file = await server.get_current_mission_file() or ""
+        current_file = await _running_mission_file(server)
     except Exception as ex:
         log.exception("get_mission_list failed")
         return MissionListResult(success=False, message=f"Failed to list missions: {ex}",
@@ -2561,6 +2688,205 @@ async def get_mission_list(ctx: Any, server_name: str) -> MissionListResult:
         server_name=server_name, missions=missions,
         data={"missions": missions, "listStartIndex": start, "current": current_index,
               "active": active_index, "next": next_index})
+
+
+# ── Mission WEATHER: reading the current mission's own weather ──────────────
+# The console's launch dialog reads the mission it is about to apply a preset to, so the operator
+# starts from the mission's OWN weather instead of a blank form. The read is a READ action (a sibling
+# of ``get_mission_list``): it resolves the mission against the SERVER'S OWN list, reads the bytes
+# over the node, parses them with ``MizFile`` and builds the preset document through the SAME mapping
+# ``/mission save_preset`` writes (``MizFile.preset_document``) — ONE mapping home.
+
+#: every failure is its OWN plain sentence. The node-read failures mirror the console's node-read
+#: routes (``services/webservice/pages/server_detail.py``); the action states WHAT failed and the
+#: route renders it with its own status code.
+MISSION_WEATHER_NO_MISSION = "Server '{server}' has no current mission to read."
+MISSION_WEATHER_PATH_REFUSED = ("A mission is named by index or logical name, never by a path: "
+                                "'{mission}' was refused.")
+MISSION_WEATHER_UNKNOWN = "Mission '{mission}' not found on server '{server}'."
+MISSION_WEATHER_INDEX_RANGE = "Mission index {mission} out of range (1-{last})."
+MISSION_WEATHER_MISSING = ("Mission '{mission}' was gone before it could be read "
+                           "(looked for '{path}').")
+MISSION_WEATHER_PERMISSION = "Node '{node}' could not read mission '{mission}' (permission denied)."
+MISSION_WEATHER_TIMEOUT = "Node '{node}' did not answer in time, so mission '{mission}' was not read."
+MISSION_WEATHER_RAISED = "Node '{node}' could not hand over mission '{mission}' ({error})."
+MISSION_WEATHER_FAILURE_CODE = ("Node '{node}' answered with a failure code instead of mission "
+                                "'{mission}'.")
+MISSION_WEATHER_UNSUPPORTED = ("The mission '{mission}' on server '{server}' is not a DCS mission "
+                               "file this console can read.")
+MISSION_WEATHER_UNREADABLE = ("The mission '{mission}' on server '{server}' carries no weather this "
+                              "console can read.")
+
+
+@dataclass
+class MissionWeatherResult(ActionResult):
+    """Result for the mission-weather READ (``read_mission_weather``).
+
+    ``mission_name`` is the resolved mission's FILE name (what the launch dialog's line names) and
+    ``document`` the mission's own weather as a MizEdit preset document — the SAME document
+    ``/mission save_preset`` writes. ``status`` is the HTTP status a console route answers a FAILURE
+    with, so no caller has to parse the sentence to pick one.
+    """
+    server_name: str = ""
+    mission_name: str = ""
+    document: dict[str, Any] = field(default_factory=dict)
+    status: int = 200
+
+
+def _plain_mission_name(value: str) -> bool:
+    """Whether *value* is a mission NAME and not a PATH — one leaf, no directory component.
+
+    The read names a mission by index or logical name; a value carrying either separator, an absolute
+    lead or a bare ``.``/``..`` is a PATH and is refused before anything is resolved, so nothing a
+    request states is ever joined to a directory.
+    """
+    if not value or value in (".", ".."):
+        return False
+    if "/" in value or "\\" in value:
+        return False
+    if os.path.isabs(value):
+        return False
+    return True
+
+
+def _mission_file_name(path: Any) -> str:
+    """The mission's FILE name — its basename with the ``.orig`` marker and ``.dcssb`` copy stripped."""
+    return os.path.basename(utils.logical_mission_path(str(path)))
+
+
+def _parse_mission_document(payload: bytes, node: Any) -> dict:
+    """Parse *payload* — a mission archive's bytes — into its preset document, or raise.
+
+    ``MizFile`` opens a LOCAL ``zipfile``, so the bytes are materialised to a temp file that is
+    deleted after the parse. The file's weather is read against the SERVER's own DCS version (fog
+    lives in ``fog2`` from 2.9.10 on), so ``node`` is the server's node. Raises
+    :class:`UnsupportedMizFileException` for an archive ``MizFile`` cannot open and any other error
+    for a mission whose weather cannot be read.
+    """
+    fd, tmp = tempfile.mkstemp(suffix=".miz")
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+        miz = MizFile(tmp)
+        miz.node = node
+        return miz.preset_document()
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
+@action
+async def read_mission_weather(ctx: Any, server_name: str,
+                               mission: int | str = "") -> MissionWeatherResult:
+    """The CURRENT mission's own weather, as a MizEdit preset document — a READ, never audited.
+
+    ``mission`` is the LOGICAL mission: a 1-based INDEX into the server's ``missionList`` (the
+    position :func:`_resolve_mission_id` / :func:`set_active_mission` take; a NUMERIC STRING is the
+    same index, because a route query parameter is always a string) or a NAME (the logical name or
+    its basename, with or without the ``.miz`` extension, case-insensitive), resolved against the
+    server's OWN list. Empty reads the mission ``server.get_current_mission_file()`` names. A PATH is
+    never accepted: nothing a request states is joined to a directory.
+
+    The bytes come over ``server.node.read_file`` and are materialised to a temp file for the parse,
+    which is deleted afterwards. The document is built by ``MizFile.preset_document`` — the SAME
+    mapping ``/mission save_preset`` writes — and handed to the preset reader by the caller. Every
+    failure answers a typed refusal with its own sentence, never a document of zeros or defaults.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return MissionWeatherResult(success=False, status=404,
+                                    message=f"Server '{server_name}' not found.",
+                                    server_name=server_name)
+    display = _server_label(server, server_name)
+    node = getattr(server, "node", None)
+    node_name = str(getattr(node, "name", "") or display)
+    if node is None:
+        return MissionWeatherResult(
+            success=False, status=404, server_name=server_name,
+            message=f"Node '{node_name}' is offline or unknown, so the mission cannot be read "
+                    f"from this console.")
+    try:
+        mission_list = await server.getMissionList()
+    except Exception as ex:
+        log.exception("read_mission_weather failed")
+        return MissionWeatherResult(success=False, status=502,
+                                    message=f"Failed to list missions: {ex}",
+                                    server_name=server_name)
+    if isinstance(mission, bool):
+        mission = ""
+    elif isinstance(mission, str) and mission.strip().isdigit():
+        # THE INDEX OVER HTTP: a route query parameter is ALWAYS a string, so a numeric string is the
+        # 1-based INDEX itself — without this, ``?mission=2`` would fall down the NAME path and be
+        # refused as an unknown name. ONE convention: 1-based, the one ``_resolve_mission_id`` and the
+        # Missions tab's rows carry.
+        mission = int(mission.strip())
+    if isinstance(mission, int):
+        if mission < 1 or mission > len(mission_list):
+            return MissionWeatherResult(
+                success=False, status=404, server_name=server_name,
+                message=MISSION_WEATHER_INDEX_RANGE.format(mission=mission,
+                                                           last=len(mission_list)))
+        mission_file = str(mission_list[mission - 1])
+    elif not mission:
+        current = await server.get_current_mission_file()
+        if not current:
+            return MissionWeatherResult(success=False, status=404, server_name=server_name,
+                                        message=MISSION_WEATHER_NO_MISSION.format(server=display))
+        mission_file = os.path.normpath(str(current))
+    else:
+        wanted = str(mission).strip()
+        if not _plain_mission_name(wanted):
+            return MissionWeatherResult(
+                success=False, status=400, server_name=server_name,
+                message=MISSION_WEATHER_PATH_REFUSED.format(mission=mission))
+        index = _resolve_mission_id(mission_list, wanted)
+        if index is None:
+            return MissionWeatherResult(
+                success=False, status=404, server_name=server_name,
+                message=MISSION_WEATHER_UNKNOWN.format(mission=wanted, server=display))
+        mission_file = str(mission_list[index - 1])
+    name = _mission_file_name(mission_file)
+    try:
+        content = await node.read_file(str(mission_file))
+    except FileNotFoundError:
+        return MissionWeatherResult(
+            success=False, status=404, server_name=server_name,
+            message=MISSION_WEATHER_MISSING.format(mission=name, path=mission_file))
+    except PermissionError:
+        return MissionWeatherResult(
+            success=False, status=403, server_name=server_name,
+            message=MISSION_WEATHER_PERMISSION.format(node=node_name, mission=name))
+    except (TimeoutError, asyncio.TimeoutError):
+        return MissionWeatherResult(
+            success=False, status=504, server_name=server_name,
+            message=MISSION_WEATHER_TIMEOUT.format(node=node_name, mission=name))
+    except Exception as ex:
+        log.exception("read_mission_weather failed")
+        return MissionWeatherResult(
+            success=False, status=502, server_name=server_name,
+            message=MISSION_WEATHER_RAISED.format(node=node_name, mission=name,
+                                                  error=type(ex).__name__))
+    if not isinstance(content, (bytes, bytearray)):
+        # ``read_file`` is ``bytes | int`` and an ``int`` is a FAILURE CODE, never content.
+        return MissionWeatherResult(
+            success=False, status=502, server_name=server_name,
+            message=MISSION_WEATHER_FAILURE_CODE.format(node=node_name, mission=name))
+    try:
+        document = await asyncio.to_thread(_parse_mission_document, bytes(content), node)
+    except UnsupportedMizFileException:
+        return MissionWeatherResult(
+            success=False, status=422, server_name=server_name,
+            message=MISSION_WEATHER_UNSUPPORTED.format(mission=name, server=display))
+    except Exception:
+        log.exception("read_mission_weather failed")
+        return MissionWeatherResult(
+            success=False, status=422, server_name=server_name,
+            message=MISSION_WEATHER_UNREADABLE.format(mission=name, server=display))
+    return MissionWeatherResult(
+        success=True, status=200, server_name=server_name, mission_name=name, document=document,
+        message=f"Mission '{name}' on server '{display}'.")
 
 
 # ── Mission LIST maintenance: the file picker, add, delete ──────────────────
@@ -2749,9 +3075,8 @@ async def delete_mission(ctx: Any, server_name: str, mission: int | str, *,
             return MissionListResult(success=False, message=reason, server_name=server_name,
                                      missions=missions)
     name = os.path.basename(_configured_name(filename, os.path.dirname(str(filename)) or ""))
-    if server.status in (Status.RUNNING, Status.PAUSED, Status.STOPPED) and server.current_mission \
-            and os.path.normpath(str(filename)) == os.path.normpath(
-                str(getattr(server.current_mission, "filename", "") or "")):
+    running = await _running_mission_file(server)
+    if running and os.path.normpath(str(filename)) == os.path.normpath(running):
         return MissionListResult(success=False, message="You can't delete the running mission.",
                                  server_name=server_name, missions=missions)
     try:
@@ -2903,6 +3228,22 @@ def _logical_mission(path: Any) -> str:
     return utils.logical_mission_path(str(path))
 
 
+async def _running_mission_file(server: Any) -> str:
+    """The mission the server is RUNNING right now — ``""`` when it is not running one.
+
+    ``get_current_mission_file`` alone cannot answer this: when no mission is loaded it FALLS BACK to
+    the START mission (``missionList`` at ``listStartIndex``), which is the right answer for "what
+    would start" and the wrong one for "what is running". Used as the running marker, that fallback
+    kept the last mission flagged — and therefore undeletable — on a server that was stopped.
+
+    So the STATUS gates it: only ``RUNNING`` and ``PAUSED`` have a mission loaded. ``LOADING`` has
+    none yet, ``SHUTTING_DOWN`` is losing it, and the three down states have nothing loaded at all.
+    """
+    if server.status not in (Status.RUNNING, Status.PAUSED):
+        return ""
+    return await server.get_current_mission_file() or ""
+
+
 def _mission_list_online(server: Any) -> bool:
     """Whether the DCS process is up for *server* — the states the mission-list writes refuse in."""
     return server.status in MISSION_LIST_ONLINE_STATES
@@ -2983,7 +3324,7 @@ async def delete_missions(ctx: Any, server_name: str, missions: list[int], *,
         if reason:
             return MissionListResult(success=False, message=reason, server_name=server_name,
                                      missions=current)
-    current_file = await server.get_current_mission_file()
+    current_file = await _running_mission_file(server)
     current_logical = _logical_mission(current_file) if current_file else ""
     # DESCENDING — the largest index first: removing one cannot shift the index of another still to
     # come, in the list or in the disk step (which reads its filename from the SAME snapshot).

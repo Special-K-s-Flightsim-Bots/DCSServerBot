@@ -1368,7 +1368,7 @@ msgstr "Einstellungen des benutzerdefinierten Wetteranbieters."
 #. tournament_schema:schema;element_schema.presets
 #: plugins/tournament/schemas/tournament_schema.yaml:173
 msgid "Customizations squadrons can buy, keyed by preset name."
-msgstr "Anpassungen, die Staffeln kaufen können, benannt nach Voreinstellungsname."
+msgstr "Anpassungen, die Staffeln kaufen können, benannt nach Preset-Namen."
 
 #. nodes_schema:regex;(.+).DCS.password
 #: schemas/nodes_schema.yaml:353
@@ -4773,7 +4773,7 @@ msgstr "Niederschlagsmenge für die Wolkenschicht."
 #. tournament_schema:schema;element_schema.presets.file
 #: plugins/tournament/schemas/tournament_schema.yaml:127
 msgid "Preset file that defines all tournament presets."
-msgstr "Voreinstellungsdatei, die alle Turnier-Voreinstellungen definiert."
+msgstr "Preset-Datei, die alle Turnier-Presets definiert."
 
 #. scheduler_schema:schema;action_map.presets
 #: plugins/scheduler/schemas/scheduler_schema.yaml:122
@@ -4797,27 +4797,29 @@ msgstr "Preset-Name, definiert in der eigenen presets.yaml."
 #: plugins/tournament/schemas/tournament_schema.yaml:155
 #: plugins/tournament/schemas/tournament_schema.yaml:168
 msgid "Preset name."
-msgstr "Voreinstellungsname."
+msgstr "Preset-Name."
 
 #. tournament_schema:schema;element_schema.presets
 #: plugins/tournament/schemas/tournament_schema.yaml:114
 msgid "Presets and tickets available to squadrons during a match."
-msgstr "Voreinstellungen und Tickets, die Staffeln während eines Matches zur Verfügung stehen."
+msgstr ""
+"Presets und Tickets, die Staffeln während eines Matches zur Verfügung "
+"stehen."
 
 #. tournament_schema:schema;element_schema.presets.even
 #: plugins/tournament/schemas/tournament_schema.yaml:147
 msgid "Presets applied on every even round."
-msgstr "Voreinstellungen, die in jeder geraden Runde angewendet werden."
+msgstr "Presets, die in jeder geraden Runde angewendet werden."
 
 #. tournament_schema:schema;element_schema.presets.uneven
 #: plugins/tournament/schemas/tournament_schema.yaml:160
 msgid "Presets applied on every uneven round."
-msgstr "Voreinstellungen, die in jeder ungeraden Runde angewendet werden."
+msgstr "Presets, die in jeder ungeraden Runde angewendet werden."
 
 #. tournament_schema:schema;element_schema.presets.initial
 #: plugins/tournament/schemas/tournament_schema.yaml:132
 msgid "Presets applied to every round's mission."
-msgstr "Voreinstellungen, die auf die Mission jeder Runde angewendet werden."
+msgstr "Presets, die auf die Mission jeder Runde angewendet werden."
 
 #. preset_schema:schema;preset_schema
 #: plugins/voting/schemas/preset_schema.yaml:8
@@ -5722,7 +5724,7 @@ msgstr "Konfiguration der Single-Sign-on-Header (Olympus 2.0)."
 #. presets_schema:schema;preset_map.terrain
 #: schemas/presets_schema.yaml:183
 msgid "Single terrain this preset applies to."
-msgstr "Einzelnes Terrain, für das diese Voreinstellung gilt."
+msgstr "Einzelnes Terrain, für das dieses Preset gilt."
 
 #. main_schema:chat_command_prefix
 #: schemas/main_schema.yaml:61
@@ -5929,12 +5931,12 @@ msgstr "Anbieter von Geländehöhendaten (Olympus 2.0)."
 #. presets_schema:schema;preset_map.terrains.[0]
 #: schemas/presets_schema.yaml:199
 msgid "Terrain name this preset applies to."
-msgstr "Terrain-Name, für den diese Voreinstellung gilt."
+msgstr "Terrain-Name, für den dieses Preset gilt."
 
 #. presets_schema:schema;preset_map.terrains
 #: schemas/presets_schema.yaml:188
 msgid "Terrain names this preset applies to."
-msgstr "Terrain-Namen, für die diese Voreinstellung gilt."
+msgstr "Terrain-Namen, für die dieses Preset gilt."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.remarks
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.remarks

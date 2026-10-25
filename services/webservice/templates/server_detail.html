@@ -436,10 +436,12 @@
     through the mission plugin's own ACTION — this page never writes a mission file, a `.dcssb` copy
     or `missionList`.
 
-    A control the viewer may not use is OMITTED, never drawn disabled — with ONE deliberate exception,
-    the running row's box, which is drawn disabled because its ABSENCE is what made the old numbering
-    read as a gap, and its stated reason is what earns the exception. When the read cannot answer
-    (server unreachable, missions dir missing) the card shows the ACTION's own sentence. -#}
+    A control the viewer may not use is OMITTED, never drawn disabled. The selection box is tickable
+    on EVERY row, the running one included: it is the ONLY selection, and its two bar actions treat it
+    differently — "Set as start" accepts the running mission (making the running mission the start
+    mission again is a legitimate correction), while the removal refuses just that row and removes the
+    rest, naming it. When the read cannot answer (server unreachable, missions dir missing) the card
+    shows the ACTION's own sentence. -#}
 {% if missions_write_available %}
 <div class="card">
   <div class="hd"><h3>{% trans %}Missions{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}rotation list{% endtrans %}</span>
@@ -520,11 +522,11 @@
               browser's cached copy of ``shell.css`` (a stale sheet left the name UNDER the box), and
               the 9px inset keeps the START row's 3px `.row-active` stripe off the box and the text. -#}
           <div class="m-row" style="display:grid;grid-template-columns:{{ '22px minmax(0, 1fr)' if missions_select_allowed else 'minmax(0, 1fr)' }};align-items:start;padding-left:9px">
-            {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box{% if m.current %} disabled{% endif %}></div>{% endif %}
+            {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box></div>{% endif %}
             <div class="m-fact" style="min-width:0">
               <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
               <div class="hp mono">{{ m.path }}</div>
-              {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission cannot be removed — load another mission first.{% endtrans %}</div>{% endif %}
+              {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission can be set as the start mission, but it cannot be removed.{% endtrans %}</div>{% endif %}
             </div>
           </div>
       {% endset %}
@@ -564,11 +566,14 @@
               the server is RUNNING/PAUSED — does NOT change the start index, while at STOPPED it DOES
               (the bot's ``loadMission`` sets ``listStartIndex`` and starts the server). ``Load`` stays
               on the row because it acts on the row it names. It posts the row's 1-based index and its
-              logical name in the BODY. THE LOAD TITLE IS STATE-DEPENDENT: it says what THIS
+              logical name in the BODY to the LOAD DIALOG, which re-emits both as hidden fields and
+              carries the SAME launch form Startup's does (the weather pick, the temporary fields and
+              the announce box) — so one click becomes one click plus the form the owner approved. THE
+              LOAD TITLE IS STATE-DEPENDENT: it says what THIS
               control does IN THE STATE THE ROW IS RENDERED IN (``missions_load_sets_start``), so the
               difference is stated where the operator reads it. -#}
           {% if missions_load_allowed %}
-          <form method="post" action="{{ missions_load_path }}">
+          <form method="post" action="{{ missions_load_path }}{{ missions_confirm_suffix }}">
             <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
             <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
             <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
@@ -771,6 +776,14 @@
           </div>
           {% else %}
           <p class="empty">{{ _(empty.weather) }}</p>
+          {% endif %}
+          {#- THE LAUNCHED PRESET: which preset this mission was STARTED with, as the node recorded it
+              (``servers.launched_preset``). It is NOT the weather above — that is what the sky IS;
+              this says what the launch was given, and names a preset built on the spot as temporary.
+              Absent when the load applied nothing (no preset asked for, or a name the instance does
+              not carry), so the label never claims a preset that was not applied. -#}
+          {% if server.launched_preset %}
+          <div class="sub" style="margin-top:6px">{% if server.launched_preset.name %}{% trans %}Launched with weather preset{% endtrans %} <b>{{ server.launched_preset.name }}</b>{% else %}{% trans %}Launched with a temporary weather preset{% endtrans %}{% endif %}</div>
           {% endif %}
         </section>
       </div>

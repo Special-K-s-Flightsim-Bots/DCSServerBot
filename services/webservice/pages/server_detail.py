@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import unicodedata
 from dataclasses import replace
@@ -46,6 +45,9 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
 from .. import i18n, permissions, readmodels, session
+# THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
+# route below and the cloud-preset routes in ``pages/presets`` read it from the SAME module.
+from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, preset_image_file
 # THE ONE guarded sentence renderer (``say``) the write dialogs use: the log-window JSON messages are
 # rendered for the REQUEST's language here, server-side, so the JavaScript carries no translation
 # logic (``templating.SENTENCE_GLOBAL``).
@@ -67,6 +69,7 @@ from . import actions as actions_page
 from . import dashboard as dashboard_page
 from . import logs as logs_page
 from . import nodes as nodes_page
+from . import presets as presets_page
 from . import servers as servers_page
 
 __all__ = [
@@ -85,6 +88,8 @@ __all__ = [
     "mission_download_path", "mission_rows", "add_mission_download_route",
     "add_server_status_route", "add_preset_image_route", "PRESET_IMAGE_PATH",
     "PRESET_IMAGE_MAX_BYTES", "PRESET_IMAGE_MEDIA_TYPE", "preset_image_path", "preset_image_file",
+    "MISSION_WEATHER_PATH", "mission_weather_path", "add_mission_weather_route",
+    "MISSION_WEATHER_NODE_OFFLINE",
     "schedule_view", "SCHEDULE_GLYPHS",
 ]
 
@@ -188,11 +193,17 @@ SERVER_STATUS_SECONDS = 10
 #: Registered BEFORE the page route, whose greedy ``{name:path}`` would otherwise swallow the suffix.
 PRESET_IMAGE_PATH = "/fleet/{name:path}/weather/preset.png"
 
-#: The most this console hands over as a preset thumbnail. A DCS preset picture is a small PNG (tens
-#: of KB); the cap is generous so a replaced asset still shows, and it refuses a reported file that is
-#: not a picture — never streaming an arbitrary binary out of the DCS installation.
-PRESET_IMAGE_MAX_BYTES = 4 * 1024 * 1024
-PRESET_IMAGE_MEDIA_TYPE = "image/png"
+# ``PRESET_IMAGE_MAX_BYTES`` and ``PRESET_IMAGE_MEDIA_TYPE`` are the SAME objects imported from
+# ``..dcs_install`` at the top of this module — the thumbnail route below reads them here, so a change
+# to the ONE cap in ``dcs_install`` reaches it without a second literal to keep in step.
+
+#: THE MISSION-WEATHER read route — the launch dialog's own "read the mission's weather" control. A GET
+#: answering JSON: the mission's weather as the wizard's own dotted-key values plus the mission's FILE
+#: NAME for the dialog's line. It reads a file OFF the server's node, so the MISSION is an index or a
+#: logical name the ACTION resolves against the server's own list — never a path the request states.
+#: A READ: no CSRF, no audit, nothing written. Registered BEFORE the page route, whose greedy
+#: ``{name:path}`` would otherwise swallow the suffix.
+MISSION_WEATHER_PATH = "/fleet/{name:path}/weather/mission.json"
 
 #: HOW LONG THE OVERVIEW TAB'S OWN OPTIONAL READS ARE REUSED (seconds). Each is an RPC or a plugin
 #: lookup, so each is cached rather than repeated on every render: the server's extension render
@@ -496,7 +507,11 @@ def capabilities() -> dict[str, str]:
             # THE PRESET PICTURE is a read of the server's own weather (the cloud preset the card
             # shows), so it carries the SAME predicate for the same reason — a caller who may not
             # open the page may not read its server's picture either.
-            PRESET_IMAGE_PATH: SERVER_DETAIL_CAPABILITY}
+            PRESET_IMAGE_PATH: SERVER_DETAIL_CAPABILITY,
+            # THE MISSION-WEATHER READ is a read of the server's own mission (the launch dialog's
+            # prefill), so it carries the SAME predicate for the same reason — a caller who may not
+            # open the page may not read its server's mission either.
+            MISSION_WEATHER_PATH: SERVER_DETAIL_CAPABILITY}
 
 
 def nav_items():
@@ -1373,10 +1388,6 @@ def add_server_status_route(router: APIRouter) -> APIRouter:
 # lookup, so each lives HERE (the log tab's own rule: a read model must not await) and each degrades
 # to \"nothing to show\" — a card that cannot be filled is left out, never rendered empty.
 
-#: one backslash, written as its codepoint: a reported thumbnail name may use EITHER separator, and a
-#: literal backslash in this source would read as an escape to anyone skimming the join below.
-_BACKSLASH = chr(92)
-
 
 def preset_image_path(server_name: str) -> str:
     """The URL of *server_name*'s preset thumbnail — the name as ONE percent-encoded segment.
@@ -1398,49 +1409,6 @@ def _preset_image_refuse(status_code: int, sentence: str) -> PlainTextResponse:
     """
     log.info("Preset image answered %d: %s", status_code, sentence)
     return PlainTextResponse(sentence + "\n", status_code=status_code)
-
-
-def _installation_root(node) -> str:
-    """The DCS installation directory ON *node*, or ``''``.
-
-    ``nodes.<name>.locals.DCS.installation`` is the root every DCS-relative path in this tree is
-    resolved against (``core/mizfile.py`` reads the terrains folder the same way). ``locals`` is a
-    node's own merged configuration, so this is a tolerant read: a node that has not reported one
-    yields ``''`` and the caller refuses rather than guessing a directory.
-    """
-    node_locals = getattr(node, "locals", None)
-    if not isinstance(node_locals, dict):
-        return ""
-    dcs = node_locals.get("DCS")
-    root = dcs.get("installation") if isinstance(dcs, dict) else None
-    return str(root) if root else ""
-
-
-def preset_image_file(node, thumbnail: str) -> str | None:
-    """The thumbnail's path ON *node*, or ``None`` when the reported name cannot be used.
-
-    The name comes from the MISSION (``clouds.preset.thumbnailName``), so it is operator data rather
-    than a request parameter — and it is still REFUSED rather than resolved when it is not a plain
-    relative PNG path. An absolute path, a Windows drive, a UNC share or any ``..`` component would
-    let a mission file name a file outside the DCS installation, which is what keeps this route from
-    being a general file reader; the shape test is therefore on the REPORTED name, not on a
-    normalized comparison alone.
-
-    The join writes FORWARD slashes even on Windows: the path is opened on the NODE, which may be the
-    other platform, and both Windows and POSIX accept ``/`` — while a backslash is a literal
-    character in a POSIX filename, so a name carrying one is read as a separator instead.
-    """
-    root = _installation_root(node)
-    reported = str(thumbnail or "")
-    if not root or not reported:
-        return None
-    if reported.startswith("/") or reported.startswith(_BACKSLASH) or re.match(r"^[A-Za-z]:", reported):
-        return None
-    parts = [part for part in reported.replace(_BACKSLASH, "/").split("/") if part not in ("", ".")]
-    if not parts or ".." in parts or not parts[-1].lower().endswith(".png"):
-        return None
-    install = os.path.normpath(os.path.expandvars(root)).replace(os.sep, "/").rstrip("/")
-    return f"{install}/{'/'.join(parts)}"
 
 
 def add_preset_image_route(router: APIRouter) -> APIRouter:
@@ -1497,6 +1465,68 @@ def add_preset_image_route(router: APIRouter) -> APIRouter:
                                             f"over as a thumbnail. Fetch it from the host: {path}")
         return Response(content=payload, media_type=PRESET_IMAGE_MEDIA_TYPE,
                         headers={"Cache-Control": "private, max-age=300"})
+
+    return router
+
+
+#: the sentence for a node the cluster cannot reach on the mission-weather read — the same answer for
+#: offline and unknown. Worded for a MISSION: the log route's own offline sentence names the log, which
+#: is not what this read was asked for. A plain sentence, like the node-read routes' other failures.
+MISSION_WEATHER_NODE_OFFLINE = ("Node '{node}' is offline or unknown, so its mission's weather cannot "
+                                "be read from this console.")
+
+
+def mission_weather_path(server_name: str) -> str:
+    """The URL of *server_name*'s mission-weather read — the name as ONE percent-encoded segment."""
+    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/mission.json"
+
+
+def _weather_refuse(status_code: int, sentence: str) -> PlainTextResponse:
+    """The honest refusal the mission-weather read answers with: ONE sentence in plain text.
+
+    The console's node-read shape (``_preset_image_refuse`` / ``_log_refuse``): a JSON read that
+    cannot answer carries the console's own sentence, never a document of zeros or defaults.
+    """
+    log.info("Mission weather answered %d: %s", status_code, sentence)
+    return PlainTextResponse(sentence + "\n", status_code=status_code)
+
+
+def add_mission_weather_route(router: APIRouter) -> APIRouter:
+    """Add THE mission-weather read route (``GET``) — the launch dialog's own prefill read.
+
+    A GET and only a GET: nothing changes, so there is no CSRF and no audit entry. The weather is read
+    through the ``read_mission_weather`` READ action — the console never opens a mission file, resolves
+    a ``.dcssb`` copy or parses a ``.miz`` itself. The MISSION is an index or a logical NAME (a query
+    parameter, never a path): the action resolves it against the server's own list, so a request that
+    names a PATH is refused.
+
+    It answers JSON — the mission's weather as the wizard's own dotted-key values (``values``) plus the
+    mission's FILE NAME (``name``) for the dialog's line — and every failure is its own plain sentence
+    with its own status, never a document of zeros or defaults.
+    """
+    @router.get(MISSION_WEATHER_PATH, name="mission-weather")
+    async def mission_weather(request: Request, name: str, mission: str = "") -> Response:
+        server = dashboard_page.scoped_server(request, name)
+        node = _reachable_log_node(request, server)
+        node_name = readmodels.text(attr(node, "name", None)) or readmodels.text(
+            attr(attr(server, "node", None), "name", None))
+        if node is None:
+            return _weather_refuse(404, MISSION_WEATHER_NODE_OFFLINE.format(node=node_name))
+        result = await actions_page.read_mission_weather(request, readmodels.text(name),
+                                                         readmodels.text(mission))
+        if result is None:  # pragma: no cover - the access gate refuses an unresolved identity
+            return _weather_refuse(403, "Not authorized.")
+        if not bool(getattr(result, "success", False)):
+            message = (readmodels.text(getattr(result, "message", ""))
+                       or "The mission's weather could not be read.")
+            status = int(getattr(result, "status", 0) or 0) or 502
+            return _weather_refuse(status, message)
+        # THE DOTTED-KEY VALUES come from the tree's OWN reader — the wizard's ``preset_values`` — so a
+        # second reader can never drift from what the wizard's steps draw.
+        values = presets_page.preset_values("", getattr(result, "document", None) or {}, {})
+        return JSONResponse({"values": values,
+                             "name": readmodels.text(getattr(result, "mission_name", ""))},
+                            headers={"Cache-Control": "no-store"})
 
     return router
 
@@ -1560,6 +1590,41 @@ async def _live_visibility(server) -> int:
         log.debug("Overview: no live visibility for '%s' (%s): %s",
                   readmodels.text(attr(server, "name", None)), type(ex).__name__, ex)
     return 0
+
+
+async def launched_preset_record(server) -> tuple[str, bool]:
+    """The launch record for *server*, read from the ``servers`` row the NODE wrote.
+
+    THE ONE READ OF THE RECORD. The row is written by the node that rewrites the mission, so the fact
+    is NOT on the live server object the console holds — for a remote node's server that object
+    carries nothing about it. The database is the ONE home, so this is a query, never a read off
+    ``server``. The fact is keyed by the NAMED server (``servers.server_name``), never by the instance
+    slot, so a slot rebound to another server cannot hand this one the previous server's record. The
+    pool is the in-process service bus's own (the console runs inside the bot), so no second connection
+    is opened. Any failure — no bus yet, an early boot, an unreachable database, no row for this
+    server — yields ``("", False)``: the page renders NO label rather than a guess, the same outcome as
+    a load that applied no preset.
+    """
+    try:
+        from core import ServiceRegistry
+        from services.servicebus import ServiceBus
+        bus = ServiceRegistry.get(ServiceBus)
+        pool = getattr(bus, "apool", None)
+        server_name = readmodels.text(attr(server, "name", None))
+        if pool is None or not server_name:
+            return "", False
+        async with pool.connection() as conn:
+            cursor = await conn.execute(
+                "SELECT launched_preset, launched_preset_temporary FROM servers "
+                "WHERE server_name = %s", (server_name,))
+            row = await cursor.fetchone()
+        if not row:
+            return "", False
+        return readmodels.text(row[0]), bool(row[1])
+    except Exception as ex:  # noqa: BLE001 - an unreadable record renders no label, never an error
+        log.debug("Overview: no launched preset for '%s' (%s): %s",
+                  readmodels.text(attr(server, "name", None)), type(ex).__name__, ex)
+        return "", False
 
 
 def _scheduler():
@@ -1663,6 +1728,12 @@ async def _overview_context(request: Request, server, view) -> dict:
         live = await _live_visibility(server)
         if live:
             view = replace(view, weather=replace(weather, visibility=format_visibility(float(live))))
+    # THE LAUNCH RECORD: which preset this mission was started with, as the node recorded it. Read
+    # from the ``instances`` row (the ONE home) through the read model — never off the live server
+    # object — and attached to the SAME view the weather block renders, so the label sits beside it.
+    launched = readmodels.launched_preset_view(*(await launched_preset_record(server)))
+    if launched is not None:
+        view = replace(view, launched_preset=launched)
     extensions = await _extension_views(server) if view.running else ()
     thumbnail = view.weather.thumbnail if view.weather else ""
     return {
@@ -1759,6 +1830,7 @@ def add_routes(router: APIRouter) -> APIRouter:
     add_log_download_route(router)
     add_server_status_route(router)
     add_preset_image_route(router)
+    add_mission_weather_route(router)
 
     @router.get(SERVER_DETAIL_PATH, response_class=HTMLResponse, name="page-server-detail")
     async def server_detail(request: Request, name: str):
@@ -1846,10 +1918,10 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         context.update({
             "missions_available": True,
             "missions": rows,
-            # THE SERVER-RENDERED COUNT'S OWN TOTAL: the bar counts SELECTABLE rows only —
-            # the running row's box is disabled and never counted — so with JavaScript off the number
-            # shown here and, with JavaScript on, the script's ``N of M`` mean the SAME thing.
-            "missions_selectable": sum(1 for row in rows if not row["current"]),
+            # THE SERVER-RENDERED COUNT'S OWN TOTAL: every row is selectable (the running row's box
+            # included), so this number and the script's ``N of M`` mean the SAME thing with
+            # JavaScript off.
+            "missions_selectable": len(rows),
         })
         return context
     if tab == LOG_TAB:
