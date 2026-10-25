@@ -12,7 +12,7 @@
   its key RELATIVE to the tab: no `default.x.y.z` appears anywhere.
 -#}
 {% extends "base.html" %}
-{% from "_scope_fields.html" import scope_field, picker %}
+{% from "_scope_fields.html" import scope_field, picker, presets_choice %}
 
 {% block content %}
 <div class="st-head">
@@ -98,7 +98,7 @@
           <span class="notice-msg">{% trans %}This file could not be read, so its fields cannot be shown. Fix it in Expert Mode.{% endtrans %}</span></div>
         {% elif no_schema %}
         {% else %}
-        {% for field in fields %}{% if cfg_id(field) not in hidden %}{{ scope_field(field, values, displays, rows, customs, elements, choices, sections, hidden, picks, removable) }}{% endif %}{% endfor %}
+        {% for field in fields %}{% if cfg_id(field) not in hidden %}{% if presets_control is defined and presets_control and field.name == presets_control.path %}{{ presets_choice(field, presets_control) }}{% else %}{{ scope_field(field, values, displays, rows, customs, elements, choices, sections, hidden, picks, removable) }}{% endif %}{% endif %}{% endfor %}
         {{ picker(picks.get('', []), values, displays, rows, customs, elements, choices, sections, hidden, picks, removable) }}
         {% endif %}
       </div>
