@@ -28,7 +28,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable
 
 __all__ = [
-    "WINDOW_BYTES", "MAX_SCAN_BYTES", "MAX_RETURN_BYTES", "MAX_LINE_BYTES", "MAX_REGEX_LENGTH",
+    "WINDOW_BYTES", "MAX_SCAN_BYTES", "MAX_RETURN_BYTES", "MAX_LINE_BYTES", "MAX_TERMS",
     "DEFAULT_LINES", "MAX_LINES", "LEVELS",
     "LogError", "LogNotFound", "LogRequestError",
     "LogFormat", "BOT_FORMAT", "DCS_FORMAT", "LogSource", "LogFile", "LogEntry", "LogFilter", "Cursor",
@@ -45,8 +45,8 @@ MAX_RETURN_BYTES = 1024 * 1024
 MAX_LINE_BYTES = 8 * 1024
 #: a longer entry (a huge traceback) is cut
 MAX_ENTRY_BYTES = 64 * 1024
-#: a regex filter longer than this is refused
-MAX_REGEX_LENGTH = 256
+#: the most ``contains`` terms a filter takes
+MAX_TERMS = 10
 DEFAULT_LINES = 200
 MAX_LINES = 2000
 #: how many bytes from the start of a file make its fingerprint
@@ -84,7 +84,7 @@ class LogNotFound(LogError):
 
 
 class LogRequestError(LogError):
-    """The request itself is wrong (a bad cursor, a bad regex, a bad time)."""
+    """The request itself is wrong (a bad cursor, a bad level, a bad time)."""
 
 
 @dataclass(frozen=True)
@@ -138,8 +138,14 @@ class LogEntry:
 
 @dataclass
 class LogFilter:
-    contains: str | None = None
-    regex: re.Pattern | None = None
+    """Which entries a read keeps.
+
+    There is deliberately no regular expression: Python's ``re`` has no timeout and holds the GIL, so
+    one catastrophic pattern (``(a+)+$``) on one long line freezes the whole bot, whatever the size
+    limits. Text terms cover what a diagnosis needs.
+    """
+    #: every term must appear in the entry (case-insensitive)
+    contains: tuple[str, ...] = ()
     level: int = 0
     since: datetime | None = None
     until: datetime | None = None
@@ -185,11 +191,13 @@ class LogFilter:
                 return False
         if self.contains:
             haystack = f"{entry.time} {entry.level} {entry.text}".casefold()
-            if self.contains.casefold() not in haystack:
+            if not all(term in haystack for term in self.contains):
                 return False
-        if self.regex and not self.regex.search(f"{entry.time} {entry.level} {entry.text}"):
-            return False
         return True
+
+    def keeps_headless(self) -> bool:
+        """Whether an entry without a header passes when nothing tells which entry it belongs to."""
+        return not (self.level or self.since or self.until)
 
 
 @dataclass(frozen=True)
@@ -258,7 +266,10 @@ def parse_time(value: str | None, *, now: datetime | None = None) -> datetime | 
     match = re.fullmatch(r"(\d{1,6})([smhd])", value)
     if match:
         unit = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}[match.group(2)]
-        return now - timedelta(**{unit: int(match.group(1))})
+        try:
+            return now - timedelta(**{unit: int(match.group(1))})
+        except OverflowError:
+            raise LogRequestError(f"Invalid time '{value}': too far back.") from None
     try:
         stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
@@ -266,24 +277,19 @@ def parse_time(value: str | None, *, now: datetime | None = None) -> datetime | 
     return stamp if stamp.tzinfo else stamp.replace(tzinfo=timezone.utc)
 
 
-def build_filter(*, contains: str | None = None, regex: str | None = None, level: str | None = None,
+def build_filter(*, contains: str | list[str] | None = None, level: str | None = None,
                  since: str | None = None, until: str | None = None, utc: bool = True) -> LogFilter:
     """A :class:`LogFilter` from request parameters; a bad value raises :class:`LogRequestError`."""
-    pattern = None
-    if regex:
-        if len(regex) > MAX_REGEX_LENGTH:
-            raise LogRequestError(f"The regex is longer than {MAX_REGEX_LENGTH} characters.")
-        try:
-            pattern = re.compile(regex)
-        except re.error as ex:
-            raise LogRequestError(f"Invalid regex: {ex}.") from None
+    terms = [contains] if isinstance(contains, str) else list(contains or [])
+    terms = tuple(term.casefold() for term in terms if term)
+    if len(terms) > MAX_TERMS:
+        raise LogRequestError(f"At most {MAX_TERMS} 'contains' terms.")
     rank = 0
     if level:
         rank = LEVELS.get(level.strip().lower(), -1)
         if rank < 0:
             raise LogRequestError(f"Invalid level '{level}': use one of {', '.join(LEVELS)}.")
-    return LogFilter(contains=contains or None, regex=pattern, level=rank, since=parse_time(since),
-                     until=parse_time(until), utc=utc)
+    return LogFilter(contains=terms, level=rank, since=parse_time(since), until=parse_time(until), utc=utc)
 
 
 def _fingerprint(data: bytes) -> str:
@@ -449,7 +455,7 @@ class LogReader:
         """
         head, size, identity = await self._head(path)
         offset = min(start, size)
-        kept = inherit if inherit is not None else True
+        kept = inherit if inherit is not None else flt.keeps_headless()
         current: LogEntry | None = None
         current_inherit: bool | None = inherit
         pos = offset
@@ -588,7 +594,8 @@ class LogReader:
             pos = start
         collected.reverse()
         budget.entries = collected
-        return self._result(file_name, budget, end if end is not None else size, newest_kept is not False,
+        return self._result(file_name, budget, end if end is not None else size,
+                            flt.keeps_headless() if newest_kept is None else newest_kept,
                             head, more=more)
 
     async def _follow(self, file_name: str, path: str, cursor: Cursor, flt: LogFilter,
