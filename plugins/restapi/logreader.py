@@ -251,6 +251,8 @@ class ReadResult:
     rotated: bool = False
     #: ... and the end of the old file could not be found: lines may be missing
     gap: bool = False
+    #: the index in ``entries`` of the first entry of the new file, once a rotated read reaches it
+    new_file_at: int | None = None
     #: the read stopped on a limit: there may be more matching lines (older ones for a tail read,
     #: newer ones for a forward read, which the cursor continues)
     more: bool = False
@@ -615,8 +617,10 @@ class LogReader:
             if more:
                 # the cursor stays on the old file: its fingerprint finds it again next time
                 return self._result(file_name, budget, offset, kept, old_head, rotated=True, more=True)
+        new_file_at = len(budget.entries)
         offset, kept, more, head = await self._forward(path, 0, flt, budget, inherit=None)
-        return self._result(file_name, budget, offset, kept, head, rotated=True, gap=gap, more=more)
+        return self._result(file_name, budget, offset, kept, head, rotated=True, gap=gap, more=more,
+                            new_file_at=new_file_at)
 
     @staticmethod
     def _same(head: bytes, size: int, cursor: Cursor) -> bool:

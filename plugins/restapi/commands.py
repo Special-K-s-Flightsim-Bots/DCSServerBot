@@ -1050,7 +1050,8 @@ class RestAPI(Plugin):
         return LogReadResponse(
             log=log, node=node, server_name=server_name, file=result.file, utc=result.utc,
             lines=[LogLine(time=e.time, level=e.level, text=e.text) for e in result.entries],
-            cursor=result.cursor, rotated=result.rotated, gap=result.gap, more=result.more,
+            cursor=result.cursor, rotated=result.rotated, gap=result.gap, new_file_at=result.new_file_at,
+            more=result.more,
             scanned_bytes=result.scanned_bytes
         )
 
