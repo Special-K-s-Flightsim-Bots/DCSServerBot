@@ -131,7 +131,7 @@ They are meant for diagnostic tools: why does this server not start, what did th
 * A file is chosen by node or server, then optionally by a name taken from the listing. A path is never accepted.
 * Filters: `contains` (case-insensitive text, repeat it to require several terms), `level` (minimum level), `since` and `until` (ISO 8601 or a duration such as `30m`, `2h`, `1d`), `lines` (200 by default, 2000 at most).
 * The lines that follow an entry without a timestamp of their own (a Python traceback, a multi-line Lua error) stay with that entry, so a level filter never cuts a traceback.
-* Each answer carries a `cursor`. Pass it back to get only what was written since. It survives a log rotation: the end of the old file is read first, then the new one (`rotated: true`); if the old file is gone, `gap: true` says lines may be missing.
+* Each answer carries a `cursor`. Pass it back to get only what was written since. It survives a log rotation: the end of the old file is read first, then the new one (`rotated: true`, and `new_file_at` says where the new file starts in `lines`); if the old file is gone, `gap: true` says lines may be missing.
 * Every read is bounded (16 MiB read, 1 MiB returned, lines cut at 8 KiB); `more: true` says a limit was reached.
 * Multi-node: the files of an agent are read through the node's own file window, like the WebGUI does. The endpoints were tested on a single-node setup only.
 

@@ -2226,6 +2226,8 @@ class LogReadResponse(BaseModel):
     cursor: str = Field(..., description="Pass it back as 'cursor' to get only what was written since")
     rotated: bool = Field(..., description="The file was replaced since the cursor was taken")
     gap: bool = Field(..., description="The end of the replaced file could not be found: lines may be missing")
+    new_file_at: Optional[int] = Field(None, description="After a rotation, the index in 'lines' of the first entry "
+                                                         "of the new file (the entries before it end the old file)")
     more: bool = Field(..., description="A limit was reached: there may be more matching lines (older ones for a "
                                         "tail read, newer ones for a cursor or forward read)")
     scanned_bytes: int = Field(..., description="Bytes read from the files to answer")
@@ -2245,6 +2247,7 @@ class LogReadResponse(BaseModel):
                 "cursor": "eyJ2IjoxLCJrIjoiZGNzIiwicyI6Ik15IFNlcnZlciIsIm8iOjE4MzU1NCwiaGwiOjI1NiwiaCI6IjEyMzQ1Njc4OWFiY2RlZjAiLCJtIjoxfQ",
                 "rotated": False,
                 "gap": False,
+                "new_file_at": None,
                 "more": False,
                 "scanned_bytes": 65536
             }

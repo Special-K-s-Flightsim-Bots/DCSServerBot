@@ -2082,7 +2082,7 @@ Errors: 404 if the node is unknown; 503 if it is not active.
 
 Without a cursor, the last matching entries are returned (or the first ones with `tail=false`).
 With a cursor, the entries written since the cursor was taken are returned, oldest first.
-If the file was rotated in between, the end of the old file is read first, then the new file from its start, and `rotated` is true; if the old file cannot be found any more, `gap` is true too.
+If the file was rotated in between, the end of the old file is read first, then the new file from its start, and `rotated` is true; `new_file_at` is the index in `lines` where the new file starts; if the old file cannot be found any more, `gap` is true too.
 
 Errors: 400 for a bad filter or cursor; 404 if the node or the file is unknown, or if there is no log yet; 503 if the node is not active; 422 if `lines` is out of range.
 
@@ -3153,6 +3153,7 @@ Below are the data structures and response models used across the API endpoints:
 | `cursor` | `string` | **Yes** | Pass it back as 'cursor' to get only what was written since |
 | `rotated` | `boolean` | **Yes** | The file was replaced since the cursor was taken |
 | `gap` | `boolean` | **Yes** | The end of the replaced file could not be found: lines may be missing |
+| `new_file_at` | `integer` | No | After a rotation, the index in 'lines' of the first entry of the new file (the entries before it end the old file) |
 | `more` | `boolean` | **Yes** | A limit was reached: there may be more matching lines (older ones for a tail read, newer ones for a cursor or forward read) |
 | `scanned_bytes` | `integer` | **Yes** | Bytes read from the files to answer |
 
