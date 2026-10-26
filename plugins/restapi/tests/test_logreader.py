@@ -248,7 +248,7 @@ class TestCursor:
         node.write(BOT, bot_line(100))
         result = run(reader(node).read(cursor=first.cursor))
         assert texts(result) == ["message 5", "message 100"]
-        assert (result.rotated, result.gap) == (True, False)
+        assert (result.rotated, result.gap, result.new_file_at) == (True, False, 1)
         node.append(BOT, bot_line(101))
         assert texts(run(reader(node).read(cursor=result.cursor))) == ["message 101"]
 
@@ -287,7 +287,7 @@ class TestCursor:
         node.write(BOT, bot_line(2))
         result = run(reader(node).read(cursor=first.cursor))
         assert texts(result) == ["message 2"]
-        assert (result.rotated, result.gap) == (True, True)
+        assert (result.rotated, result.gap, result.new_file_at) == (True, True, 0)
 
     def test_truncated_file_with_same_start_is_a_rotation(self):
         node = FakeNode()
@@ -306,9 +306,10 @@ class TestCursor:
         node.write(BOT, bot_line(100))
         part = run(reader(node).read(cursor=first.cursor, lines=3))
         assert texts(part) == ["message 1", "message 2", "message 3"]
-        assert part.more is True
+        assert (part.more, part.new_file_at) == (True, None)
         rest = run(reader(node).read(cursor=part.cursor, lines=10))
         assert texts(rest) == ["message 4", "message 5", "message 100"]
+        assert rest.new_file_at == 2
 
     def test_file_replaced_during_the_read(self):
         node = FakeNode()
