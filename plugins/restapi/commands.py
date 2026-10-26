@@ -1055,9 +1055,8 @@ class RestAPI(Plugin):
         )
 
     @staticmethod
-    async def _read_log(reader: LogReader, file, contains, regex, level, since, until, lines, tail, cursor):
-        flt = build_filter(contains=contains, regex=regex, level=level, since=since, until=until,
-                           utc=reader.source.utc)
+    async def _read_log(reader: LogReader, file, contains, level, since, until, lines, tail, cursor):
+        flt = build_filter(contains=contains, level=level, since=since, until=until, utc=reader.source.utc)
         return await reader.read(file, flt=flt, lines=lines, tail=tail, cursor=cursor)
 
     # List the bot log files of a node.
@@ -1077,13 +1076,13 @@ class RestAPI(Plugin):
     # Endpoint:   /node/log
     # Method:     [GET]
     # Params:     - node_name     [optional, default: the node that serves the RestAPI]
-    #             - file, contains, regex, level, since, until, lines, tail, cursor [all optional]
+    #             - file, contains, level, since, until, lines, tail, cursor [all optional]
     async def node_log(
         self,
         node_name: str | None = Query(None, description="Node (default: the node that serves the RestAPI)"),
         file: str | None = Query(None, description="A file name from /node/logs (default: the live log)"),
-        contains: str | None = Query(None, description="Keep entries that contain this text (case-insensitive)"),
-        regex: str | None = Query(None, description="Keep entries that match this regular expression"),
+        contains: list[str] | None = Query(None, description="Keep entries that contain this text "
+                                                             "(case-insensitive); repeat it to require several"),
         level: str | None = Query(None, description="Minimum level: debug, info, warning, error or critical"),
         since: str | None = Query(None, description="Keep entries from this time on: ISO 8601 or a duration "
                                                     "(30m, 2h, 1d)"),
@@ -1095,8 +1094,8 @@ class RestAPI(Plugin):
     ):
         """Read a bot log file of a node."""
         name, reader = self._bot_log_reader(node_name)
-        result = await self._log_call(self._read_log(reader, file, contains, regex, level, since, until, lines,
-                                                     tail, cursor))
+        result = await self._log_call(self._read_log(reader, file, contains, level, since, until, lines, tail,
+                                                     cursor))
         return self._log_read("bot", name, None, result)
 
     # List the DCS log files of a server.
@@ -1113,13 +1112,13 @@ class RestAPI(Plugin):
     # Endpoint:   /instance/log
     # Method:     [GET]
     # Params:     - server_name   [required]
-    #             - file, contains, regex, level, since, until, lines, tail, cursor [all optional]
+    #             - file, contains, level, since, until, lines, tail, cursor [all optional]
     async def instance_log(
         self,
         server_name: str = Query(...),
         file: str | None = Query(None, description="A file name from /instance/logs (default: dcs.log)"),
-        contains: str | None = Query(None, description="Keep entries that contain this text (case-insensitive)"),
-        regex: str | None = Query(None, description="Keep entries that match this regular expression"),
+        contains: list[str] | None = Query(None, description="Keep entries that contain this text "
+                                                             "(case-insensitive); repeat it to require several"),
         level: str | None = Query(None, description="Minimum level: debug, info, warning, error or critical"),
         since: str | None = Query(None, description="Keep entries from this time on: ISO 8601 or a duration "
                                                     "(30m, 2h, 1d)"),
@@ -1131,8 +1130,8 @@ class RestAPI(Plugin):
     ):
         """Read a DCS log file of a server."""
         server, reader = self._dcs_log_reader(server_name)
-        result = await self._log_call(self._read_log(reader, file, contains, regex, level, since, until, lines,
-                                                     tail, cursor))
+        result = await self._log_call(self._read_log(reader, file, contains, level, since, until, lines, tail,
+                                                     cursor))
         return self._log_read("dcs", server.node.name, server.name, result)
 
 

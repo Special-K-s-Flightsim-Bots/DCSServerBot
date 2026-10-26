@@ -33,7 +33,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /getuser | POST | [nick: string], [discord_id: string] | Get users by name |
 | /greenieboard | POST | [date: string | None], [server_name: string | None] | Get a greenieboard |
 | /highscore | GET | [server_name: string], [period: string], [limit: int] | Get highscore statistics for players |
-| /instance/log | GET | server_name: string, [file: string], [contains: string], [regex: string], [level: string], [since: string], [until: string], [lines: int], [tail: bool], [cursor: string] | Read a DCS log file of a server, filtered, with a cursor to get only the new lines later. |
+| /instance/log | GET | server_name: string, [file: string], [contains: string, repeatable], [level: string], [since: string], [until: string], [lines: int], [tail: bool], [cursor: string] | Read a DCS log file of a server, filtered, with a cursor to get only the new lines later. |
 | /instance/logs | GET | server_name: string | List the DCS log files of a server. |
 | /instance/mission/load | POST | server_name: string, mission_name: string | Load a mission on a given server. |
 | /instance/mission/pause | POST | server_name: string | Pause the mission on a given server. |
@@ -54,7 +54,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
 | /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |
-| /node/log | GET | [node_name: string], [file: string], [contains: string], [regex: string], [level: string], [since: string], [until: string], [lines: int], [tail: bool], [cursor: string] | Read a bot log file of a node, filtered, with a cursor to get only the new lines later. |
+| /node/log | GET | [node_name: string], [file: string], [contains: string, repeatable], [level: string], [since: string], [until: string], [lines: int], [tail: bool], [cursor: string] | Read a bot log file of a node, filtered, with a cursor to get only the new lines later. |
 | /node/logs | GET | [node_name: string] | List the bot log files of a node. |
 | /node/restart | POST | [node_name: string | None] | Restart a node, or all nodes. The bot reloads its configuration. |
 | /player_info | POST | nick: string, [date: string | None], [server_name: string | None] | Get player information |
@@ -2092,8 +2092,7 @@ Errors: 400 for a bad filter or cursor; 404 if the node or the file is unknown, 
 |------|------|----|----------|---------|-------------|
 | `node_name` | `string` | query | No | the node that serves the RestAPI | Node |
 | `file` | `string` | query | No | the live log | A file name from `/node/logs` |
-| `contains` | `string` | query | No | | Keep entries that contain this text (case-insensitive) |
-| `regex` | `string` | query | No | | Keep entries that match this regular expression (256 characters at most) |
+| `contains` | `string` | query | No | | Keep entries that contain this text (case-insensitive); repeat it to require several terms (at most 10) |
 | `level` | `string` | query | No | | Minimum level: `debug`, `info`, `warning`, `error` or `critical` |
 | `since` | `string` | query | No | | Keep entries from this time on: ISO 8601 (UTC if no offset is given) or a duration such as `30m`, `2h`, `1d` |
 | `until` | `string` | query | No | | Keep entries up to this time, same format as `since` |
@@ -2162,7 +2161,7 @@ Errors: as `/node/log`, with 404 for an unknown server.
 |------|------|----|----------|---------|-------------|
 | `server_name` | `string` | query | **Yes** | | Server name or instance name |
 | `file` | `string` | query | No | `dcs.log` | A file name from `/instance/logs` |
-| `contains`, `regex`, `level`, `since`, `until`, `lines`, `tail`, `cursor` | | query | No | | As for `/node/log` |
+| `contains`, `level`, `since`, `until`, `lines`, `tail`, `cursor` | | query | No | | As for `/node/log` |
 
 **Response:** `LogReadResponse`
 

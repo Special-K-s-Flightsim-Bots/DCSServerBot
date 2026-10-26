@@ -79,7 +79,7 @@ The following commands are available through the API. For detailed parameter def
 | /getuser                  | POST       | [nick: string], [discord_id: string]                                              | Get users by name                                                                  |
 | /greenieboard             | POST       | [date: string                                                                     | None], [server_name: string                                                        | None] | Get a greenieboard |
 | /highscore                | GET        | [server_name: string], [period: string], [limit: int]                             | Get highscore statistics for players                                               |
-| /instance/log             | GET        | server_name: string, [file], [contains], [regex], [level], [since], [until], [lines], [tail], [cursor] | Read a DCS log file of a server (see [Log endpoints](#log-endpoints)).   |
+| /instance/log             | GET        | server_name: string, [file], [contains], [level], [since], [until], [lines], [tail], [cursor] | Read a DCS log file of a server (see [Log endpoints](#log-endpoints)).   |
 | /instance/logs            | GET        | server_name: string                                                               | List the DCS log files of a server.                                                |
 | /instance/mission/load    | POST       | server_name: string, mission_name: string                                         | Load a mission on a given server.                                                  |
 | /instance/mission/pause   | POST       | server_name: string                                                               | Pause the mission on a given server.                                               |
@@ -100,7 +100,7 @@ The following commands are available through the API. For detailed parameter def
 | /mission/unit             | GET        | server_name: string, unit_name: string                                            | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload           | POST       | server_name: string, file: string, filename: string, load_after: bool             | Upload a .miz mission file to the server.                                          |
 | /modulestats              | POST       | nick: string, [date: string                                                       | None], [server_name: string                                                        | None] | Get module statistics |
-| /node/log                 | GET        | [node_name: string], [file], [contains], [regex], [level], [since], [until], [lines], [tail], [cursor] | Read a bot log file of a node (see [Log endpoints](#log-endpoints)).     |
+| /node/log                 | GET        | [node_name: string], [file], [contains], [level], [since], [until], [lines], [tail], [cursor] | Read a bot log file of a node (see [Log endpoints](#log-endpoints)).     |
 | /node/logs                | GET        | [node_name: string]                                                               | List the bot log files of a node.                                                  |
 | /node/restart             | POST       | [node_name: string]                                                               | Restart a node, or all nodes. The bot reloads its configuration.                   |
 | /player_info              | POST       | nick: string, [date: string                                                       | None], [server_name: string                                                        | None] | Get player information |
@@ -129,7 +129,7 @@ The following commands are available through the API. For detailed parameter def
 They are meant for diagnostic tools: why does this server not start, what did the bot do at 03:00, did the ED login fail.
 
 * A file is chosen by node or server, then optionally by a name taken from the listing. A path is never accepted.
-* Filters: `contains` (case-insensitive text), `regex`, `level` (minimum level), `since` and `until` (ISO 8601 or a duration such as `30m`, `2h`, `1d`), `lines` (200 by default, 2000 at most).
+* Filters: `contains` (case-insensitive text, repeat it to require several terms), `level` (minimum level), `since` and `until` (ISO 8601 or a duration such as `30m`, `2h`, `1d`), `lines` (200 by default, 2000 at most).
 * The lines that follow an entry without a timestamp of their own (a Python traceback, a multi-line Lua error) stay with that entry, so a level filter never cuts a traceback.
 * Each answer carries a `cursor`. Pass it back to get only what was written since. It survives a log rotation: the end of the old file is read first, then the new one (`rotated: true`); if the old file is gone, `gap: true` says lines may be missing.
 * Every read is bounded (16 MiB read, 1 MiB returned, lines cut at 8 KiB); `more: true` says a limit was reached.
