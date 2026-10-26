@@ -173,7 +173,7 @@ class TestRoutes:
         assert client.get("/node/log?node_name=nowhere", headers=H).status_code == 404
         assert client.get("/node/log?node_name=agent", headers=H).status_code == 503
         assert client.get("/instance/log?server_name=nope", headers=H).status_code == 404
-        assert client.get("/node/log?regex=(", headers=H).status_code == 400
+        assert client.get("/node/log?since=999999d", headers=H).status_code == 400
         assert client.get("/node/log?level=loud", headers=H).status_code == 400
         assert client.get("/node/log?since=tomorrow", headers=H).status_code == 400
         assert client.get("/node/log?cursor=nonsense", headers=H).status_code == 400

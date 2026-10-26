@@ -119,25 +119,33 @@ class TestParsing:
         assert result.entries[0].text.endswith("[...truncated]")
         assert len(result.entries[0].text) < MAX_LINE_BYTES + 100
 
-    def test_contains_regex_level(self):
+    def test_contains_and_level(self):
         node = FakeNode()
         node.write(BOT, "".join(bot_line(i, "ERROR" if i % 10 == 0 else "INFO") for i in range(1, 50)))
         assert texts(run(reader(node).read(flt=build_filter(contains="MESSAGE 4")))) == \
             ["message 4"] + [f"message {i}" for i in range(40, 50)]
-        assert texts(run(reader(node).read(flt=build_filter(regex=r"message [12]0$")))) == \
-            ["message 10", "message 20"]
+        assert texts(run(reader(node).read(flt=build_filter(contains=["message 4", "error"])))) == ["message 40"]
         assert texts(run(reader(node).read(flt=build_filter(level="error")))) == \
             [f"message {i}" for i in (10, 20, 30, 40)]
 
     def test_bad_filters_are_refused(self):
         with pytest.raises(LogRequestError):
-            build_filter(regex="(unclosed")
-        with pytest.raises(LogRequestError):
-            build_filter(regex="a" * 300)
+            build_filter(contains=[str(i) for i in range(11)])
         with pytest.raises(LogRequestError):
             build_filter(level="verbose")
         with pytest.raises(LogRequestError):
             build_filter(since="yesterday")
+        with pytest.raises(LogRequestError):
+            build_filter(since="999999d")
+
+    def test_level_filter_on_a_new_file_keeps_its_headless_first_line_out(self):
+        node = FakeNode()
+        node.write(DCS, "")
+        first = run(reader(node, DCS_SOURCE).read(flt=build_filter(level="error")))
+        node.append(DCS, "=== Log opened UTC 2026-10-18 10:00:00\n" + dcs_line(2, "ERROR"))
+        follow = run(reader(node, DCS_SOURCE).read(flt=build_filter(level="error"), cursor=first.cursor))
+        fresh = run(reader(node, DCS_SOURCE).read(flt=build_filter(level="error")))
+        assert texts(follow) == texts(fresh) == ["APP (Main): event 2"]
 
     def test_parse_time(self):
         now = datetime(2026, 10, 18, 12, 0, tzinfo=timezone.utc)
