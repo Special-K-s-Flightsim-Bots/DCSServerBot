@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import posixpath
+import re
 import secrets
 import threading
 import time
@@ -24,11 +25,6 @@ from core.actions import (AUDIT_NOT_RECORDED, TRANSPORT_WEB, ActionContext, Node
                           ServerResolution, action_available, audit_action, bound_text, call_action,
                           in_flight_targets, read_action)
 from core.data.const import Status
-# THE ONE YAML READER for a NODE's preset file: the console holds the bytes it asked the node for, so
-# it parses them with the same factory the rest of the console uses for YAML (``services/webservice/
-# service.py``). Never ``utils.get_presets`` — that globs the MASTER's config dir and is the wrong
-# install for a remote node.
-from core.utils.yaml_helper import new_yaml
 # the engine's power-off RECORD, read by :func:`node_power_states` to gate the node row's power pair
 # (the operation that took a node's servers down records what it did, so the way back can revert
 # exactly that). It is the engine's own accessor — this module neither keeps nor
@@ -70,12 +66,18 @@ __all__ = [
     "prune_screenshots", "ScreenshotCapture", "SCREENSHOT_RETENTION_SECONDS",
     "SERVER_CHAT_PATH", "SERVER_POPUP_PATH", "SERVER_MESSAGE_CAPABILITY",
     "SERVER_MESSAGE_AUDIENCE", "SERVER_MESSAGE_AUDIENCE_HELP",
-    "PRESET_FIELD", "PRESET_LABEL", "PRESET_HELP", "PRESET_NONE_LABEL", "PRESET_FREE_TEXT_HELP",
-    "PRESET_FILE_PATTERNS", "PRESET_CUSTOM_VALUE", "PRESET_CUSTOM_ID", "PRESET_CUSTOM_LABEL",
-    "PRESET_TYPED_LABEL", "PRESET_READ_LOADING", "PRESET_READ_DONE", "PRESET_READ_FAILED",
+    "PRESET_FIELD", "PRESET_NAME_PARAM", "PRESET_LABEL", "PRESET_HELP", "PRESET_NONE_LABEL",
+    "PRESET_FREE_TEXT_HELP", "PRESET_GROUP_HELP", "PRESET_CUSTOM_VALUE", "PRESET_CUSTOM_LABEL",
+    "PRESET_FILE_FIELD", "PRESET_FILE_LABEL", "PRESET_FILE_HELP", "PRESET_LIST_LABEL",
+    "PRESET_LIST_HELP", "WEATHER_MODE_FIELD", "WEATHER_MODE_LEAVE", "WEATHER_MODE_FILE",
+    "WEATHER_MODE_CUSTOM", "WEATHER_MODES", "_WeatherRefusal", "preset_file_is_safe",
+    "preset_names_of", "select_params",
+    "PRESET_READ_LOADING", "PRESET_READ_DONE", "PRESET_READ_FAILED",
     "PRESET_NO_MISSION", "current_mission_available",
     "TEMPORARY_KEYS", "TEMPORARY_HEAD", "TEMPORARY_OPTIONAL", "TEMPORARY_HELP", "TEMPORARY_NOTE",
-    "REFUSAL_WEATHER_CONFLICT", "REFUSAL_WEATHER_NEEDS_EXTENSIONS", "temporary_document",
+    "REFUSAL_WEATHER_CONFLICT", "REFUSAL_WEATHER_NEEDS_EXTENSIONS", "REFUSAL_WEATHER_NO_PICK",
+    "REFUSAL_WEATHER_UNKNOWN_PRESET", "REFUSAL_WEATHER_UNKNOWN_FILE",
+    "temporary_document",
     "temporary_stated", "launch_weather_refusal", "MODIFY_MISSION_FIELD", "MODIFY_MISSION_OPTION",
     "SERVER_MAINTENANCE_CAPABILITY", "SERVER_CLEAR_MAINTENANCE_CAPABILITY",
     "NOTICE_MAX_CHARS", "CONFIRM_SUFFIX", "CONFIRM_FIELD", "CONFIRM_TEMPLATE", "CONFIRM_MAX_PENDING",
@@ -817,42 +819,72 @@ SERVER_MESSAGE_AUDIENCE_HELP = i18n._("The choice is the audience: everyone on t
 
 #: THE LAUNCH DIALOG'S WEATHER PICK. ``field`` is BOTH the form field's name and the ACTION
 #: parameter's name (``startup_server``), one string so the route cannot post one thing and the action
-#: read another. The OPTIONS are not static — they are the preset names the SERVER'S OWN MizEdit
-#: extension will apply, read per request — so the declaration holds only the field and its copy;
-#: ``pages/actions`` draws the options for the resolved server (``_preset_field``).
+#: read another. The OPTIONS are not static — they are the preset names the resolved server's NODE
+#: carries in its preset files, read per request and grouped per file — so the declaration holds only
+#: the field and its copy; ``pages/actions`` draws the options (``_weather_fields``).
 PRESET_FIELD = "preset"
+#: The ACTION's keyword that names a preset whose ``preset`` VALUE is a document: a preset read out of
+#: a preset file carries the change itself and no name in it, so the name travels beside it. Never a
+#: form field — the route computes it from what the operator picked.
+PRESET_NAME_PARAM = "preset_name"
 PRESET_LABEL = i18n._("Weather preset")
 PRESET_HELP = i18n._("Applied to the mission when this server starts up. It replaces the instance's "
                      "configured weather for this launch.")
-#: The FIRST option and the default: the launch behaves exactly as it did before this pick existed.
+#: The FIRST choice and the default: the launch behaves exactly as it did before this pick existed.
 PRESET_NONE_LABEL = i18n._("Leave the weather alone")
-#: The fallback field's help, shown when this server's preset files cannot be read: the operator types
-#: a name rather than being refused the launch.
-PRESET_FREE_TEXT_HELP = i18n._("This server's presets could not be listed. Type a preset name, or "
-                               "leave it empty to leave the weather alone.")
-#: The globs the FALLBACK scan reads a node's config dir with: the files a preset NAME can live in
-#: anywhere under the config tree. They are NOT what the extension reads — it opens only the file(s)
-#: its own ``presets`` setting names (:func:`presets.mizedit_read_paths`) — so this set is used for
-#: exactly one answer: when no file the server names could be read at all, the pick offers the node's
-#: preset names rather than none.
-PRESET_FILE_PATTERNS = ("presets*.yaml", "presets/*.yaml")
+#: The help shown IN PLACE of the preset pick when this server's preset files cannot be read: a preset
+#: out of a file cannot be resolved at POST time then, so the mode is not offered and this says why.
+PRESET_FREE_TEXT_HELP = i18n._("This server's preset files could not be read, so a preset out of a "
+                               "file cannot be picked for this launch — create your own weather "
+                               "below instead.")
+#: THE PICK'S SECOND HELP LINE, beside :data:`PRESET_LIST_HELP`: what the entries below it are grouped
+#: by. The grouping is per preset FILE on the node, and a node carrying one preset file draws none — so
+#: the sentence states both, because the reader sees exactly one of the two shapes.
+PRESET_GROUP_HELP = i18n._("One group per preset file on this node; a node carrying a single preset "
+                           "file lists its presets without a group heading.")
 
-#: THE LAUNCH DIALOG'S "Create your own weather" ENTRY — the third thing the ONE weather pick can
-#: state, beside a preset NAME (or several) and "leave the weather alone". It is an ENTRY OF THE
-#: SELECTION rather than a field of its own, so the exclusivity is offered where the choice is made:
-#: the temporary weather fields are drawn only while this entry is SELECTED. Its VALUE cannot collide
-#: with a name the node's own preset files supply (``_node_preset_names`` reads those), which is what
-#: lets the ONE form field carry it; its ``field`` is the same string the ACTION's parameter is, so the
-#: route cannot post one thing and the action read another. The route's conflict refusal stays as the
-#: backstop for a caller with no browser (direct / REST / MCP).
+#: THE WEATHER MODE — the ONE three-way exclusive choice both launch dialogs draw ABOVE the pick:
+#: leave the weather alone, take a preset out of one of the node's preset FILES, or build a one-off
+#: preset in the temporary fields. It travels under its OWN form field, so the dialog can state a mode
+#: the pick alone cannot express and the route reads the MODE to decide how to read ``preset``.
+#: ``WEATHER_MODE_LEAVE`` is the default and the first row, so a launch nobody touched posts the same
+#: thing as a launch from before the pick existed. An ABSENT field is not a fourth mode: it is how a
+#: caller with no dialog (direct / REST / MCP) states its pick, and it keeps that caller's reading
+#: (:func:`launch_weather_params`).
+WEATHER_MODE_FIELD = "weather_mode"
+WEATHER_MODE_LEAVE = "leave"
+WEATHER_MODE_FILE = "file"
+WEATHER_MODE_CUSTOM = "custom"
+WEATHER_MODES: tuple[str, ...] = (WEATHER_MODE_LEAVE, WEATHER_MODE_FILE, WEATHER_MODE_CUSTOM)
+#: The three rows' own copy, in the order the dialog draws them.
+WEATHER_MODE_LEAVE_LABEL = PRESET_NONE_LABEL
+WEATHER_MODE_LEAVE_HELP = i18n._("The mission loads as its file stands. (default)")
+WEATHER_MODE_FILE_LABEL = i18n._("Use a preset from a file")
+WEATHER_MODE_FILE_HELP = i18n._("Pick the preset file, then the preset inside it.")
+WEATHER_MODE_CUSTOM_LABEL = i18n._("Create your own weather")
+WEATHER_MODE_CUSTOM_HELP = i18n._("Build a one-off preset in the fields below.")
+
+#: MODE 2's FILE PICK — the preset FILE the presets are taken from, drawn only when the node carries
+#: more than one (with a single file there is nothing to choose). Its VALUE is the file's own
+#: ``config/…`` LABEL, and the route accepts only a label the render listed (:func:`_weather_fields`),
+#: so a posted path is never opened.
+PRESET_FILE_FIELD = "preset_file"
+PRESET_FILE_LABEL = i18n._("Preset file")
+PRESET_FILE_HELP = i18n._("Only the preset files this server's node carries are offered.")
+#: MODE 2's name list: the pick's own label and help while the mode is "a preset out of a file".
+PRESET_LIST_LABEL = i18n._("Presets in that file")
+PRESET_LIST_HELP = i18n._("The names come from the file you pick — tick several to merge them in "
+                          "order, as the node always did. With JavaScript off the list shows every "
+                          "file's presets under their own file name.")
+
+#: THE LAUNCH DIALOG'S "Create your own weather" ENTRY — the value under which a caller with no
+#: dialog states the temporary preset instead of a named one. The dialogs no longer OFFER it (the
+#: temporary fields are their own mode); it survives as the reading :func:`preset_choice` applies to a
+#: posted entry, which is what keeps the conflict refusal reachable for direct / REST / MCP callers.
 PRESET_CUSTOM_VALUE = "__create_your_own__"
-#: the id "Create your own weather"'s OWN ``<option>`` carries in the dialog's multi select — a stable
-#: anchor for the entry the temporary fieldset belongs to, so the dialog's own script can name it once.
-PRESET_CUSTOM_ID = "preset-custom"
+#: the entry's own label, kept beside the value it belongs to because the wizard entry the value
+#: stands for still exists on the Presets page.
 PRESET_CUSTOM_LABEL = i18n._("Create your own weather")
-#: the box a node whose preset files cannot be listed still offers, so the free-text fallback keeps
-#: BOTH shapes of the choice: a typed NAME, or "Create your own weather".
-PRESET_TYPED_LABEL = i18n._("Type a preset name")
 
 #: THE MISSION READ'S OWN LINE, on the temporary block. The launch dialog reads the mission's current
 #: weather ON DEMAND — only while "Create your own weather" is selected — so the block carries one line
@@ -889,13 +921,30 @@ TEMPORARY_HEAD = i18n._("Or create a temporary preset")
 TEMPORARY_OPTIONAL = i18n._("optional")
 TEMPORARY_HELP = i18n._("Applied to this launch only. Nothing is saved to the preset files: a field "
                         "left empty leaves the mission's own value alone.")
-TEMPORARY_NOTE = i18n._("A preset above and these fields are two ways to make the same choice — pick "
-                        "one, not both.")
-#: A launch that states BOTH shapes is refused rather than having one silently preferred. It is a
-#: ROUTE refusal (it is the console's own wording, built before any action runs and shown nowhere
-#: else), so it is wrapped and reaches the page through the one-shot notice.
+TEMPORARY_NOTE = i18n._("These fields are the whole choice in this mode — a preset out of a file is "
+                        "not applied beside them.")
+#: A launch that states BOTH shapes is refused rather than having one silently preferred. The
+#: dialogs cannot produce it any more (each mode is the only one that is read), so it is the BACKSTOP
+#: for a caller with no dialog: direct / REST / MCP callers post neither a mode nor this console's
+#: fields, and a POST that states a preset entry (:data:`PRESET_CUSTOM_VALUE` or a name) AND fills a
+#: temporary control is still refused. It is a ROUTE refusal (the console's own wording, built before
+#: any action runs and shown nowhere else), so it is wrapped and reaches the page through the
+#: one-shot notice.
 REFUSAL_WEATHER_CONFLICT = i18n._("Not done (a preset was picked and the temporary weather fields "
                                   "were filled — pick one, not both).")
+#: MODE 2 was chosen and no preset was ticked: the mode states an intent the POST does not carry, so
+#: the launch is refused rather than launched applying nothing.
+REFUSAL_WEATHER_NO_PICK = i18n._("Not done (\"Use a preset from a file\" was chosen and no preset was "
+                                 "ticked — tick one, or choose \"Leave the weather alone\").")
+#: A picked preset NAME that the node's preset files no longer carry (removed or renamed between the
+#: dialog's render and the POST). The launch is refused rather than launched applying nothing.
+REFUSAL_WEATHER_UNKNOWN_PRESET = i18n._("Not done (a picked preset is not in this server's preset "
+                                        "files any more — reopen the dialog and pick it again).")
+#: The mode-2 FILE value that is not one of the labels the render listed: a path, a drive letter, a
+#: UNC share, a ``..`` component or simply a file this node does not carry. THE ONE sentence every
+#: shape gets, so no answer tells a probe which shape it sent.
+REFUSAL_WEATHER_UNKNOWN_FILE = i18n._("Not done (that is not a preset file this server's node lists — "
+                                      "reopen the dialog and pick one from the list).")
 #: The refusal a launch that states a weather pick while the extensions are OFF is given. The SAME
 #: choice the conflict guards, one box over: the pick is a request to APPLY, and a launch whose
 #: extensions do not run applies nothing — so the SAME sentence the action's own backstop carries
@@ -908,30 +957,18 @@ REFUSAL_WEATHER_NEEDS_EXTENSIONS = i18n._(
     "Not done (a weather preset was picked and the extensions are off, so nothing would apply it — "
     "tick \"Run extensions on the mission\", or clear the weather pick).")
 
-#: THE LAUNCH DIALOG'S ANNOUNCE BOX. ``field`` is BOTH the form field's name and the ACTION
-#: parameter's name (``startup_server``), one string so the route cannot post one thing and the action
-#: read another. It is a per-launch choice, never a config key: the NODE announces, and only when it
-#: really applied a preset — a name the instance does not carry announces nothing.
-ANNOUNCE_LABEL = i18n._("Tell the players the weather changed")
-ANNOUNCE_HELP = i18n._("Announces the new weather in-game, but only when a preset was really applied. "
-                       "Off by default.")
-
-#: THE SHARED LAUNCH FORM — the ONE declaration of the weather pick's SELECT and the announce BOX,
-#: drawn by BOTH dialogs that carry the launch form: the server row's Startup and the Missions tab's
-#: Load. ``field`` is BOTH the form field's name and the ACTION parameter's name (``startup_server``
-#: / ``load_mission``), one string so the route cannot post one thing and the action read another.
-#: The OPTIONS are not static — they are the named presets the SERVER'S OWN NODE carries, read per
-#: request — so the declaration states the field and its copy only and the route draws the options.
-#: An action that renders this form declares ``select=WEATHER_PRESET_SELECT``, ``weather=True`` and
-#: carries ``ANNOUNCE_OPTION`` among its ``options``; the two dialogs therefore render ONE
-#: declaration, not two copies that can drift.
-WEATHER_PRESET_SELECT = SelectField(field=PRESET_FIELD, label=PRESET_LABEL, options=(),
-                                    help=PRESET_HELP)
-#: The announce box's field name, shared with the select so a launch form's parameter names have ONE
-#: spelling.
-ANNOUNCE_FIELD = "announce"
-ANNOUNCE_OPTION = NodeOption(field=ANNOUNCE_FIELD, label=ANNOUNCE_LABEL, default=False,
-                             help=ANNOUNCE_HELP)
+#: THE SHARED LAUNCH FORM — the ONE declaration of the weather pick's SELECT, drawn by BOTH dialogs
+#: that carry the launch form: the server row's Startup and the Missions tab's Load. ``field`` is BOTH
+#: the form field's name and the ACTION parameter's name (``startup_server`` / ``load_mission``), one
+#: string so the route cannot post one thing and the action read another. The OPTIONS are not static —
+#: they are the named presets the SERVER'S OWN NODE carries, read per request — so the declaration
+#: states the field and its copy only and the route draws the options (``_weather_fields``), which is
+#: also where the mode radios and the mode-2 file pick are built.
+#:
+#: The dialog does NOT announce any more: the node's ``announce`` parameter is untouched on the actions
+#: and in the bot, and a launch from the website simply never states it.
+WEATHER_PRESET_SELECT = SelectField(field=PRESET_FIELD, label=PRESET_LIST_LABEL, options=(),
+                                    help=PRESET_LIST_HELP)
 
 #: THE LAUNCH FORM'S "run the extensions" BOX — the SAME choice on both launch dialogs (Startup and
 #: the Missions tab's Load), so the two render ONE declaration and the refusal's two inputs (this box
@@ -982,11 +1019,6 @@ SERVER_ACTIONS: tuple[WriteAction, ...] = (
                         help=i18n._("Only matters while extensions run: on (the default) they are "
                                     "applied to the uploaded file, off to the file the server is on "
                                     "now.")),
-                    # THE ANNOUNCE BOX: whether the NODE tells the players once a preset was really
-                    # applied. OFF by default, and never a config key — the choice rides with this
-                    # launch exactly like the weather choice above it. ONE declaration, shared with
-                    # the Missions tab's Load dialog (``ANNOUNCE_OPTION``).
-                    ANNOUNCE_OPTION,
                 ),
                 # THE WEATHER PICK. Its OPTIONS are the resolved server's node's own presets, drawn
                 # per request (``_dialog_inputs``), so only the field and its copy live here. Empty
@@ -1341,17 +1373,17 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
                               "asks the same two questions."),
                 go=i18n._("Remove mission"),
                 go_title=i18n._("Remove the mission from {server}'s rotation list")),
-    # LOAD gained the launch form: its dialog carries the same weather pick, temporary fields,
-    # "run the extensions" box and announce box Startup's does (``WEATHER_PRESET_SELECT`` /
-    # ``MODIFY_MISSION_OPTION`` / ``ANNOUNCE_OPTION``), drawn per request beside the row's own
-    # mission. The extensions box is what makes the launch FORMALLY state whether a pick can be
-    # applied: with it off and a pick stated the route refuses (``REFUSAL_WEATHER_NEEDS_EXTENSIONS``),
-    # exactly as Startup's does. The mission rides it as hidden fields, and — being
-    # non-destructive and only CARRYING an option — wears the OPTIONS chrome, mints no confirm token.
+    # LOAD gained the launch form: its dialog carries the same weather pick, temporary fields and
+    # "run the extensions" box Startup's does (``WEATHER_PRESET_SELECT`` / ``MODIFY_MISSION_OPTION``),
+    # drawn per request beside the row's own mission. The extensions box is what makes the launch
+    # FORMALLY state whether a pick can be applied: with it off and a pick stated the route refuses
+    # (``REFUSAL_WEATHER_NEEDS_EXTENSIONS``), exactly as Startup's does. The mission rides it as
+    # hidden fields, and — being non-destructive and only CARRYING an option — wears the OPTIONS
+    # chrome, mints no confirm token.
     WriteAction(key="mission_load", capability=MISSIONS_LOAD_CAPABILITY, qualname="load_mission",
                 path=MISSIONS_LOAD_PATH, label=i18n._("Load"),
                 statuses=("RUNNING", "PAUSED", "STOPPED"),
-                options=(MODIFY_MISSION_OPTION, ANNOUNCE_OPTION),
+                options=(MODIFY_MISSION_OPTION,),
                 select=WEATHER_PRESET_SELECT,
                 weather=True,
                 tip="Load — start this mission now on {server}",
@@ -1426,7 +1458,7 @@ MISSION_ACTIONS: tuple[WriteAction, ...] = (
 #: The mission controls reached through their DIALOG (``confirm.html``): the ADD flow, whose picker
 #: and load choices live on the dialog, the single REMOVE (its tab control is gone, but the route
 #: remains), the bulk REMOVE — whose dialog shows the LIST'S selection READ-ONLY — and LOAD, whose
-#: dialog carries the launch form (weather pick + temporary fields + announce box). All post
+#: dialog carries the launch form (weather modes + pick + temporary fields). All post
 #: through ``<path>/confirm``; the capability map declares that path (``capabilities``) and
 #: ``add_routes`` registers it. ``mission_delete`` and ``mission_delete_bulk`` also declare ``confirm``,
 #: so their own routes demand the token.
@@ -3935,7 +3967,7 @@ def _default_title(action_label: str, target: str) -> dict:
 
 def confirm_context(request: Request, action: WriteAction, name: str, players: int,
                     token: str, origin: str, tab: str = "",
-                    select_field: dict | None = None,
+                    weather_fields: tuple[dict, ...] = (),
                     temporary: dict | None = None,
                     weather_note: dict | None = None,
                     with_select: bool = True) -> dict:
@@ -3985,9 +4017,10 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         #: the fields the dialog asks for, drawn before the button, in the declaration's order: the
         #: command's own OPTION when the action declares one (Shutdown/Startup's maintenance box), the
         #: TEXT field and the SELECT a message control declares, otherwise none — the destructive trio
-        #: need no input, which is why this row exists at all. ``select_field`` is the launch dialog's
-        #: per-request weather pick, whose options are the resolved server's node's own presets.
-        "inputs": _dialog_inputs(request, action, select_field, with_select=with_select),
+        #: need no input, which is why this row exists at all. ``weather_fields`` is the launch
+        #: dialog's per-request weather control set (mode, file pick, preset pick), drawn from the
+        #: resolved server's node's own preset files.
+        "inputs": _dialog_inputs(request, action, weather_fields, with_select=with_select),
         #: THE TEMPORARY PRESET'S FIELDSET, on the SAME dialog: the weather controls the one field
         #: table declares, or ``None`` for every action that does not declare ``weather``. Its choice
         #: controls are filled by the caller from the resolved server's own node (``_temporary_fieldset``)
@@ -4310,7 +4343,7 @@ def option_inputs(action: WriteAction | NodeAction) -> tuple[dict, ...]:
 
 
 def _dialog_inputs(request: Request, action: WriteAction,
-                   select_field: dict | None = None, *, with_select: bool = True) -> tuple[dict, ...]:
+                   weather_fields: tuple[dict, ...] = (), *, with_select: bool = True) -> tuple[dict, ...]:
     """EVERY field ONE action's dialog asks for, in the declaration's order.
 
     Three shapes, each read off the declaration: the TEXT field (``field``, rendered as a textarea
@@ -4319,14 +4352,15 @@ def _dialog_inputs(request: Request, action: WriteAction,
     ``confirm.html`` renders a select option's label verbatim (the page module is the one place the
     request's language is known).
 
-    ``select_field`` is the ALREADY-BUILT select for an action whose options are not static — the
-    launch dialog's weather pick, whose options are the resolved server's node's own presets. It
-    REPLACES the declared ``select`` when given, so the caller owns the per-request draw and the
-    declaration still states the field and its copy.
+    ``weather_fields`` is the ALREADY-BUILT control set for an action whose options are not static —
+    the launch dialog's weather mode, file pick and preset pick, whose entries are the resolved
+    server's node's own preset files. It REPLACES the declared ``select`` when given, so the caller
+    owns the per-request draw and the declaration still states the field and its copy.
 
-    ``with_select`` False draws NEITHER shape: the pick is withheld entirely, which is the Startup
-    dialog's answer for a server that names no current mission — there is nothing to apply a preset to,
-    and an empty select would be a control claiming a choice it cannot offer.
+    ``with_select`` False draws NEITHER the declared select NOR the weather control set: the pick is
+    withheld entirely, which is the Startup dialog's answer for a server that names no current mission
+    — there is nothing to apply a preset to, and an empty select would be a control claiming a choice
+    it cannot offer.
     """
     fields: list[dict] = []
     if action.field:
@@ -4334,8 +4368,8 @@ def _dialog_inputs(request: Request, action: WriteAction,
                                     required=True, maximum=action.field_max,
                                     help_text=action.field_help))
     if with_select:
-        if select_field is not None:
-            fields.append(select_field)
+        if weather_fields:
+            fields.extend(weather_fields)
         else:
             select = action.select
             if select is not None:
@@ -4348,23 +4382,14 @@ def _dialog_inputs(request: Request, action: WriteAction,
     return tuple(fields)
 
 
-async def _preset_names_in(payload: Any) -> list[str]:
-    """The named presets ONE node-side preset file's BYTES carry, or ``[]`` for anything unreadable.
+def preset_names_of(document: Any) -> list[str]:
+    """The named presets ONE PARSED preset document carries, in the document's own order.
 
-    ``read_file`` answers ``bytes | int`` and an ``int`` is a FAILURE CODE, never content; a file
-    that does not parse, or that is not a map of preset names, offers nothing rather than raising.
     A name is offered when the extension could apply it — a mapping (the preset's own values or the
     expert DSL) that is not marked ``hidden``, or a LIST (a combination of other names, which
-    ``MizEdit.get_presets`` resolves by name too).
+    ``MizEdit.get_presets`` resolves by name too). Anything else carries no name: a scalar entry, or
+    a document that is not a map at all.
     """
-    if not isinstance(payload, (bytes, bytearray)):
-        # a failure code, or no content: nothing to offer
-        return []
-    try:
-        document = new_yaml().load(bytes(payload).decode("utf-8"))
-    except Exception as ex:  # noqa: BLE001 - a file that does not parse offers nothing
-        log.warning("Preset picker: a preset file did not parse (%s)", type(ex).__name__)
-        return []
     if not isinstance(document, Mapping):
         return []
     return [str(name) for name, value in document.items()
@@ -4372,169 +4397,96 @@ async def _preset_names_in(payload: Any) -> list[str]:
             and not (isinstance(value, Mapping) and value.get("hidden", False))]
 
 
-async def _node_preset_names(server: Any) -> tuple[list[str], bool]:
-    """The preset names THIS SERVER's MizEdit will apply, read LIVE from its node — and whether the
-    read worked.
+def _preset_option(value: str, label: str) -> dict:
+    """ONE entry of the launch dialog's weather pick, as ``confirm.html``'s ``pick`` branch reads it.
 
-    THE NAMES ARE THE SERVER'S OWN: the extension reads only the file(s) the server's ``presets``
-    setting names (default ``presets.yaml`` beside the node's config dir) and merges them into ONE name
-    map, so a name that lives only in a file this server does not read is a name the launch would drop
-    silently. :func:`presets.mizedit_read_paths` is the one home of that file set and
-    :func:`presets.mizedit_config` the block it is read from; this function only performs the read.
+    The value is the POST's own value — a preset NAME, which is operator data and no valid id, so the
+    entry carries no anchor.
+    """
+    return {"value": value, "label": label, "checked": False}
 
-    ``node.read_file`` hands back each file's bytes and the console parses them here — the same
-    primitive the Presets area reads a node's ``clouds.lua`` with. That is also why
-    ``utils.get_presets`` is NOT used: it globs ``presets*.yaml`` in the MASTER's config dir (never
-    ``presets/*.yaml``, and never the server's own setting), which need not be the node's.
 
-    THE THREE ANSWERS, and each is one the dialog already renders:
+#: The mode rows' own records, in the order the dialog draws them: the value, its label and the hint
+#: under it. ONE declaration, read by :func:`_weather_mode_field` and by nothing else.
+WEATHER_MODE_ROWS: tuple[tuple[str, str, str], ...] = (
+    (WEATHER_MODE_LEAVE, WEATHER_MODE_LEAVE_LABEL, WEATHER_MODE_LEAVE_HELP),
+    (WEATHER_MODE_FILE, WEATHER_MODE_FILE_LABEL, WEATHER_MODE_FILE_HELP),
+    (WEATHER_MODE_CUSTOM, WEATHER_MODE_CUSTOM_LABEL, WEATHER_MODE_CUSTOM_HELP),
+)
 
-    * a file the node does not carry contributes nothing, exactly as the extension's own
-      ``File not found!`` skip does;
-    * a file the node cannot deliver at all answers ``([], False)`` — the free-text fallback — because
-      the pick then knows nothing about this server's presets;
-    * nothing the server names could be read (every named file absent) answers with the node's own
-      preset files (:func:`_listed_preset_names`), so a server pointed at a file that is not there
-      still gets today's list rather than an empty pick.
 
-    A SUCCESSFUL read is REMEMBERED (:mod:`presets`' one node-list cache) under a key carrying the
-    NODE and the RESOLVED FILE SET, so two servers on one node that name different files cannot serve
-    each other's answer. A save through the console forgets the kind, so a name the operator has just
-    created is offered on the next open; a FAILED read is never remembered, so a node that was
-    unreachable is asked again rather than pinned.
+def _weather_mode_field(request: Request, *, file_mode: bool) -> dict:
+    """The weather MODE control — the three exclusive rows the launch dialogs draw above the pick.
+
+    One native radio per row under ONE form field (:data:`WEATHER_MODE_FIELD`), the first row CHECKED
+    (``leave``, so a launch nobody touched posts exactly what it posted before the pick existed). A
+    row is left out only when the server cannot offer it: ``file`` is dropped for a node whose preset
+    files cannot be listed, because a preset out of a file could not be resolved at POST time.
+    """
+    rows = tuple({"value": value, "id": f"{WEATHER_MODE_FIELD}-{value}",
+                  "label": i18n.translate(request, label),
+                  "help": i18n.translate(request, hint),
+                  "checked": value == WEATHER_MODE_LEAVE}
+                 for value, label, hint in WEATHER_MODE_ROWS
+                 if file_mode or value != WEATHER_MODE_FILE)
+    return _dialog_field(WEATHER_MODE_FIELD, PRESET_LABEL, kind="radio", options=rows,
+                         help_text=PRESET_HELP)
+
+
+async def _weather_fields(request: Request, server: Any) -> tuple[dict, ...]:
+    """THE LAUNCH FORM'S WEATHER CONTROLS for ONE server — mode, mode-2 file pick, mode-2 name pick.
+
+    THREE records, in the order the dialog draws them, because they are three parts of ONE choice:
+
+    1. the MODE radios (:func:`_weather_mode_field`), always drawn;
+    2. the preset FILE pick, drawn ONLY when the node carries more than one preset file (with a single
+       file there is nothing to choose, and the route falls back to that file). Its value is the
+       file's own ``config/…`` label — never a path — and the route accepts only a label this render
+       listed;
+    3. the preset NAME pick, a MULTI pick over the node's preset files, one ``<optgroup>`` per file
+       carrying the file's own label. Each group offers ITS OWN file's names and nothing else, so a
+       name two files both define appears under BOTH headings — each entry stands for its own file's
+       body. The option's value stays the bare name (the POST and direct callers read that); the
+       FILE field is what tells two such entries apart, and it is what a picked name is resolved
+       against.
+
+    The whole control set comes from ONE read (:func:`presets.node_preset_records`), the same answer
+    the POST resolves the pick against, so the files offered here are exactly the files accepted
+    there. A node carrying ONE preset file draws no heading (there is nothing to disambiguate) and
+    draws its names flat. A node whose preset files cannot be read offers no file mode at all: the
+    pick could not be resolved at POST time, so the dialog says so (:data:`PRESET_FREE_TEXT_HELP`)
+    rather than offering a choice the launch would refuse.
     """
     from . import presets as presets_page
 
     node = getattr(server, "node", None)
-    node_name = getattr(node, "name", "?")
-    config_dir = readmodels.text(readmodels.safe(lambda: getattr(node, "config_dir", ""), "") or "")
-    reader = getattr(node, "read_file", None)
-    if not config_dir or reader is None:
-        # nothing to read — the picker offers the console's own entries alone
-        return [], True
-    paths = presets_page.mizedit_read_paths(presets_page.mizedit_config(server), config_dir)
-    if not paths:
-        # the setting names no file: the extension applies no preset, so neither does the pick
-        return [], True
-    key = presets_page.preset_read_key(config_dir, paths)
-    found, remembered = presets_page.node_list_cached(presets_page.PRESET_LIST, str(node_name), key)
-    if found:
-        names, readable = remembered
-        return list(names), readable
-    names: list[str] = []
-    seen: set[str] = set()
-    read_any = False
-    for path in paths:
-        try:
-            payload = await reader(path)
-        except FileNotFoundError:
-            log.warning("Preset picker: node '%s' does not carry '%s'", node_name, path)
-            continue
-        except Exception as ex:  # noqa: BLE001 - a node that cannot deliver the file is free text
-            log.warning("Preset picker: node '%s' could not read '%s' (%s)",
-                        node_name, path, type(ex).__name__)
-            return [], False
-        if not isinstance(payload, (bytes, bytearray)):
-            log.warning("Preset picker: node '%s' answered '%s' without content", node_name, path)
-            return [], False
-        read_any = True
-        for name in await _preset_names_in(payload):
-            if name not in seen:
-                seen.add(name)
-                names.append(name)
-    if not read_any:
-        names, readable = await _listed_preset_names(node, node_name, config_dir, reader)
-        if not readable:
-            return [], False
-    presets_page.remember_node_list(presets_page.PRESET_LIST, str(node_name), key,
-                                    (tuple(names), True))
-    return names, True
-
-
-async def _listed_preset_names(node: Any, node_name: str, config_dir: str,
-                               reader: Any) -> tuple[list[str], bool]:
-    """The preset names EVERY preset file under a node's config dir carries, and whether the read
-    worked — the answer for a server whose own named file could not be read at all.
-
-    ``node.list_files`` enumerates :data:`PRESET_FILE_PATTERNS` under THAT node's config dir and each
-    file is read through the node, so this is the pick's behaviour when no file the server names could
-    be read: the node's own list, rather than none. One unreadable file does not hide the others; a
-    listing that fails answers ``([], False)`` so the caller falls back to free text.
-    """
-    lister = getattr(node, "list_files", None)
-    if lister is None:
-        return [], False
-    try:
-        entries = await lister(config_dir, pattern=list(PRESET_FILE_PATTERNS))
-    except Exception as ex:  # noqa: BLE001 - every transport failure is the free-text fallback
-        log.warning("Preset picker: node '%s' could not list '%s' (%s)",
-                    node_name, config_dir, type(ex).__name__)
-        return [], False
-    names: list[str] = []
-    seen: set[str] = set()
-    for entry in entries or []:
-        path = readmodels.text(entry[0] if isinstance(entry, (list, tuple)) and entry else entry)
-        if not path:
-            continue
-        try:
-            payload = await reader(path)
-        except Exception as ex:  # noqa: BLE001 - one unreadable file must not hide the others
-            log.warning("Preset picker: node '%s' could not read '%s' (%s)",
-                        node_name, path, type(ex).__name__)
-            continue
-        for name in await _preset_names_in(payload):
-            if name not in seen:
-                seen.add(name)
-                names.append(name)
-    return names, True
-
-
-def _preset_option(value: str, label: str, *, checked: bool = False, identifier: str = "",
-                   exclusive: bool = False, custom: bool = False) -> dict:
-    """ONE entry of the launch dialog's weather pick, as ``confirm.html``'s ``pick`` branch reads it.
-
-    ``id`` is the control's own anchor (a preset NAME gets none — it is operator data and not a valid
-    id); ``exclusive`` marks an entry the dialog's own script clears the others for; ``custom`` marks
-    the ONE entry the temporary weather fields belong to, which is what reveals them.
-    """
-    option = {"value": value, "label": label, "checked": checked, "exclusive": exclusive}
-    if identifier:
-        option["id"] = identifier
-    if custom:
-        option["custom"] = True
-    return option
-
-
-async def _preset_field(request: Request, server: Any) -> dict:
-    """The launch dialog's weather pick for ONE server, drawn from what ITS OWN MizEdit will apply.
-
-    A MULTI PICK, because the node merges a comma list of preset names into the mission: every entry
-    the operator SELECTS travels under the ONE field (:data:`PRESET_FIELD`), joined by the route, so
-    several presets can be requested in one launch. The entries come in three parts: "leave the weather
-    alone" FIRST (:data:`PRESET_NONE_LABEL`, the selected default, so a launch nobody chose a preset
-    for behaves exactly as it did before the pick existed), then "Create your own weather"
-    (:data:`PRESET_CUSTOM_VALUE`, the entry whose temporary weather fields the dialog reveals only while
-    it is selected), then the preset names the server's own MizEdit reads. A server whose preset files
-    cannot be read drops only the third part, so the pick still offers BOTH console shapes plus a box to
-    TYPE a name, rather than refusing the launch (the node resolves a name it does not carry by
-    ignoring it, exactly as it resolves a listed one).
-    """
-    names, readable = await _node_preset_names(server)
-    options: list[dict] = [_preset_option("", i18n.translate(request, PRESET_NONE_LABEL),
-                                          checked=True, exclusive=True)]
-    # "Create your own weather" sits directly BELOW "leave the weather alone" — the two console entries
-    # the operator reaches first, ahead of the node's own preset names. Its value, its exclusivity and
-    # the route's reading of it are unchanged.
-    options.append(_preset_option(PRESET_CUSTOM_VALUE,
-                                  i18n.translate(request, PRESET_CUSTOM_LABEL),
-                                  identifier=PRESET_CUSTOM_ID, exclusive=True, custom=True))
-    options.extend(_preset_option(name, name) for name in names)
-    field = _dialog_field(PRESET_FIELD, PRESET_LABEL, kind="pick", options=tuple(options),
-                          help_text=PRESET_HELP)
+    records, readable = (await presets_page.node_preset_records(node)
+                         if node is not None else ([], False))
+    groups: list[dict] = []
+    for label, _path, names, _values in records:
+        # every group is that file's OWN names: a name two files carry is drawn under both, each
+        # entry standing for its own file's body (the FILE field disambiguates the POST)
+        entries = [_preset_option(name, name) for name in names]
+        if entries:
+            groups.append({"label": label, "options": tuple(entries)})
+    grouped = len(groups) > 1
+    pick = _dialog_field(PRESET_FIELD, PRESET_LIST_LABEL, kind="pick",
+                         options=() if grouped else tuple(option for group in groups
+                                                         for option in group["options"]),
+                         groups=tuple(groups) if grouped else (),
+                         help_text=PRESET_LIST_HELP)
+    if groups:
+        pick["group_help"] = PRESET_GROUP_HELP
+    fields: list[dict] = [_weather_mode_field(request, file_mode=readable)]
+    if len(records) > 1:
+        fields.append(_dialog_field(PRESET_FILE_FIELD, PRESET_FILE_LABEL, kind="select",
+                                    options=tuple({"value": label, "label": label}
+                                                  for label, _path, _names, _values in records),
+                                    help_text=PRESET_FILE_HELP))
     if not readable:
-        field["help"] = PRESET_FREE_TEXT_HELP
-        field["text"] = {"id": f"{PRESET_FIELD}-typed", "label": PRESET_TYPED_LABEL, "help": ""}
-    return field
+        pick["help"] = PRESET_FREE_TEXT_HELP
+    fields.append(pick)
+    return tuple(fields)
 
 
 async def current_mission_available(server: Any) -> bool:
@@ -4627,10 +4579,13 @@ def temporary_stated(form) -> bool:
 
 
 class _WeatherChoiceConflict(Exception):
-    """Raised when a launch POST states BOTH shapes of the ONE weather choice.
+    """Raised when a launch POST states BOTH shapes of the ONE weather field at once.
 
-    A route turns it into its own refusal (the server route a 400, the mission route a one-shot
-    notice) — the console's own sentence (:data:`REFUSAL_WEATHER_CONFLICT`) travels with it.
+    The dialogs cannot produce it: each MODE is the only one the route reads. It is the BACKSTOP for a
+    caller with no dialog — direct / REST / MCP — whose POST states a preset entry AND fills a
+    temporary control. A route turns it into its own refusal (the server route a 400, the mission route
+    a one-shot notice), and the console's own sentence (:data:`REFUSAL_WEATHER_CONFLICT`) travels with
+    it.
     """
 
 
@@ -4666,25 +4621,187 @@ def preset_choice(form, action: WriteAction) -> tuple[list[str], bool]:
             PRESET_CUSTOM_VALUE in entries)
 
 
-def launch_weather_params(form, action: WriteAction) -> dict[str, Any]:
-    """The weather pick a launch POST states, as the ACTION's own parameters — ``{}`` for an action
-    that declares no pick.
+def select_params(form, action: WriteAction) -> dict[str, Any]:
+    """The value of an action's OWN select, read off a POST — ``{}`` for an action declaring none.
 
-    TWO shapes of the ONE choice travel under the action's select field: the NAMES the pick selected
-    (one or several — the comma list the node merges into the mission) and, when
-    "Create your own weather" is chosen, the DOCUMENT the temporary preset's weather fields build.
-    Both ride under ``PRESET_FIELD`` because they are two ways to make one choice; a POST that states
-    BOTH RAISES
-    :class:`_WeatherChoiceConflict` rather than silently preferring one. The conflict's condition is
-    read from the ONE reader (:func:`preset_choice`) and the temporary fields
-    (:func:`temporary_stated`), so the dialog's own reveal and this refusal cannot drift apart. The
-    select's field name is the DECLARATION's (``action.select.field``), so the route reads the name
+    A select-bearing dialog that declares no weather pick (``chat`` and ``popup``, whose select is the
+    coalition) carries its value here, under the DECLARATION's field name: one entry per repeated
+    value, comma-joined, which is the read the launch form's pick made of every select before it was
+    guarded on ``WriteAction.weather``.
+    """
+    if action.select is None:
+        return {}
+    values, _own = preset_choice(form, action)
+    return {action.select.field: ",".join(values)}
+
+
+class _WeatherRefusal(Exception):
+    """Raised when a launch POST states a pick that cannot be honoured, carrying the sentence.
+
+    A route turns it into its own refusal (the server route a 400, the mission route a one-shot
+    notice) — the console's own wrapped sentence (:attr:`sentence`) travels with it, exactly as
+    :class:`_WeatherChoiceConflict` carries :data:`REFUSAL_WEATHER_CONFLICT`.
+    """
+
+    def __init__(self, sentence: str):
+        super().__init__(sentence)
+        self.sentence = sentence
+
+
+#: The shape a preset FILE value must have before it is even compared with the node's own file set:
+#: no absolute path, no Windows drive letter, no UNC share, no ``..`` component. A value that passes is
+#: still only accepted when it EQUALS one of the labels the render listed — the shape test exists so a
+#: hostile value is refused as a shape rather than resolved into something else.
+_PRESET_PATH_UNSAFE = re.compile(r"^(?:[A-Za-z]:|[\\/])")
+
+
+def preset_file_is_safe(value: str) -> bool:
+    """Whether *value* is shaped like a preset file's ``config/…`` label and not like a path.
+
+    ``config/presets_winter.yaml`` passes; ``/etc/passwd``, ``C:\\presets.yaml``, ``\\\\host\\share\\x``,
+    ``../../x.yaml`` and an empty string do not. The test is on the REPORTED value, and it never
+    normalizes: a value this answers ``True`` for is still only usable when the node's own listing
+    carries it.
+    """
+    text = str(value or "").strip()
+    if not text or _PRESET_PATH_UNSAFE.match(text):
+        return False
+    parts = text.replace("\\", "/").split("/")
+    return ".." not in parts and ":" not in text
+
+
+def _preset_documents(name: str, values: Mapping[str, Any],
+                      fallback: Mapping[str, Any] | None = None, *,
+                      member: bool = False) -> list[Any] | None:
+    """The preset DOCUMENTS *name* stands for — ``None`` when the map it is read from lacks it.
+
+    A name resolves to its own value; a COMBINATION (a LIST of other names) resolves to its members'
+    documents, in the order the combination spells them — the same expansion
+    ``MizEdit.get_presets`` performs.
+
+    The name the caller ASKED for is read from *values* alone (``member=False``). A COMBINATION's
+    member is read from *values* first and then, when that file does not carry it, from *fallback* —
+    the node's merged map — so a combination spanning preset files resolves exactly as the node's own
+    merge does. A member neither map carries makes the whole name unresolvable, because the launch
+    would otherwise apply a combination with a hole in it.
+    """
+    source = values
+    if member and name not in values and fallback is not None:
+        source = fallback
+    value = source.get(name)
+    if isinstance(value, Mapping):
+        return [dict(value)]
+    if isinstance(value, (list, tuple)):
+        documents: list[Any] = []
+        for item in value:
+            if not isinstance(item, str):
+                return None
+            resolved = _preset_documents(item, values, fallback, member=True)
+            if resolved is None:
+                return None
+            documents.extend(resolved)
+        return documents or None
+    return None
+
+
+async def _stated_presets(form, action: WriteAction, server: Any) -> dict[str, Any]:
+    """MODE 2's resolution: the picked NAMES read off the node's preset files at POST time.
+
+    THE RESOLUTION RULE, as behaviour:
+
+    * a picked NAME resolves against the file the operator NAMED — the file pick's value, or the
+      node's only file when it carries one — never against another file's body, so a name two files
+      define applies the body of the file the dialog showed it under;
+    * a COMBINATION MEMBER the named file does not carry falls back to the node's MERGED map, so a
+      combination spanning files keeps working exactly as the node's own merge does;
+    * a name the named file does not carry is UNRESOLVABLE and takes the existing refusal.
+
+    The files are the ONE read :func:`presets.node_preset_records` — the same answer the dialog drew
+    its file pick and its name groups from, taken once here. The FILE value is accepted only when it
+    EQUALS one of the labels that read returned (never a path the request supplied, never an opened
+    one); a node carrying a single preset file takes an absent file value as that file.
+
+    A file the node no longer lists, a file value shaped like a path, a name the named file does not
+    carry and a POST that picked no name at all are each REFUSED (:class:`_WeatherRefusal`) rather
+    than launched applying nothing.
+    """
+    from . import presets as presets_page
+
+    names, _own = preset_choice(form, action)
+    if not names:
+        raise _WeatherRefusal(REFUSAL_WEATHER_NO_PICK)
+    node = getattr(server, "node", None)
+    records, _readable = (await presets_page.node_preset_records(node)
+                          if node is not None else ([], False))
+    labels = [label for label, _path, _names, _values in records]
+    posted = readmodels.text(form.get(PRESET_FILE_FIELD))
+    if not posted and len(labels) == 1:
+        posted = labels[0]
+    if not preset_file_is_safe(posted) or posted not in labels:
+        raise _WeatherRefusal(REFUSAL_WEATHER_UNKNOWN_FILE)
+    chosen = next(values for label, _path, _names, values in records if label == posted)
+    # the node's OWN merge order: a later file overrides an earlier one for the same name, exactly as
+    # ``MizEdit._init_presets`` merges the files it reads. It is the FALLBACK for a combination's
+    # members only; the picked name itself is read from the chosen file.
+    merged: dict[str, Any] = {}
+    for _label, _path, _names, mapping in records:
+        merged.update(mapping)
+    documents: list[Any] = []
+    for name in names:
+        if name not in chosen:
+            raise _WeatherRefusal(REFUSAL_WEATHER_UNKNOWN_PRESET)
+        resolved = _preset_documents(name, chosen, merged)
+        if resolved is None:
+            raise _WeatherRefusal(REFUSAL_WEATHER_UNKNOWN_PRESET)
+        documents.extend(resolved)
+    return {action.select.field: documents[0] if len(documents) == 1 else documents,
+            PRESET_NAME_PARAM: ",".join(names)}
+
+
+async def launch_weather_params(form, action: WriteAction,
+                                server: Any = None) -> dict[str, Any]:
+    """The weather a launch POST states, as the ACTION's own parameters — ``{}`` for an action that
+    declares no pick.
+
+    THE MODE decides how ``preset`` is read, and the mode is the POST's own field
+    (:data:`WEATHER_MODE_FIELD`):
+
+    * ``leave`` — the default row: the launch states no weather at all, and anything the form carries
+      under the pick's field or the temporary controls is ignored, because the operator said so;
+    * ``file`` — a preset out of one of the node's preset FILES: the picked names are resolved into the
+      DOCUMENT they stand for (:func:`_stated_presets`), which travels as ``preset``, and the names
+      travel beside it as ``preset_name`` so the server page can name the preset;
+    * ``custom`` — the temporary preset: the weather fields' DOCUMENT, as the wizard's own builder
+      makes it (:func:`temporary_document`).
+
+    An ABSENT mode is a caller with no dialog (direct / REST / MCP), and it keeps that caller's
+    reading: the two shapes of the ONE field, a name list and the temporary DOCUMENT, with a POST that
+    states BOTH refused through :class:`_WeatherChoiceConflict`.
+
+    The select's field name is the DECLARATION's (``action.select.field``), so the route reads the name
     the dialog actually drew. Shared by BOTH launch routes — the server's ``_handler`` and the mission
     tab's ``_mission_load_handler`` — so the two forms cannot parse differently.
+
+    The guard is the DECLARATION's ``weather`` flag, not the presence of a select: ``chat`` and
+    ``popup`` declare a coalition select and go through the same route, and a select-bearing dialog
+    must not inherit mode parsing through it.
     """
-    stated: dict[str, Any] = {}
-    if action.select is None:
-        return stated
+    if action.select is None or not action.weather:
+        return {}
+    mode = readmodels.text(form.get(WEATHER_MODE_FIELD))
+    if mode == WEATHER_MODE_LEAVE:
+        return {action.select.field: ""}
+    if mode == WEATHER_MODE_CUSTOM:
+        return {action.select.field: temporary_document(form) or ""}
+    if mode == WEATHER_MODE_FILE:
+        if server is None:
+            # the target could not be resolved, so no node could be read: the pick travels as the
+            # operator's NAMES and the launch's own refusal answers, exactly as before.
+            names, _own = preset_choice(form, action)
+            if not names:
+                raise _WeatherRefusal(REFUSAL_WEATHER_NO_PICK)
+            return {action.select.field: ",".join(names)}
+        return await _stated_presets(form, action, server)
     names, own = preset_choice(form, action)
     # A caller with no dialog (direct / REST / MCP) states "Create your own weather" by FILLING a
     # temporary control rather than by ticking the entry, so both are the same half of the conflict.
@@ -4693,8 +4810,7 @@ def launch_weather_params(form, action: WriteAction) -> dict[str, Any]:
         raise _WeatherChoiceConflict
     # a NAMED pick travels as the node reads it: ONE string, a comma list when several names were
     # ticked, which ``MizEdit`` splits back into the names it applies in order.
-    stated[action.select.field] = (temporary_document(form) or "") if own else ",".join(names)
-    return stated
+    return {action.select.field: (temporary_document(form) or "") if own else ",".join(names)}
 
 
 def launch_weather_refusal(action: WriteAction, params: Mapping[str, Any]) -> str | None:
@@ -5742,12 +5858,14 @@ def _mission_expected_name(value) -> str:
 
 
 async def _resolve_mission_write(request: Request, form, action: WriteAction):
-    """Shared prologue of the four mission writes: identity, scoped target, canonical name.
+    """Shared prologue of the mission writes: identity, scoped target, canonical name.
 
-    Returns ``(ctx, canonical)`` on success, or a ``RedirectResponse`` when the target is authorized
-    but unknown (a one-shot notice is stored first) — so every mission write refuses an out-of-scope
-    target with the console's OWN 403 (never disclosing whether the name exists, which RAISES) and an
-    unknown target with a notice + redirect, exactly like the config faces.
+    Returns ``(ctx, canonical, server)`` on success, or a ``RedirectResponse`` when the target is
+    authorized but unknown (a one-shot notice is stored first) — so every mission write refuses an
+    out-of-scope target with the console's OWN 403 (never disclosing whether the name exists, which
+    RAISES) and an unknown target with a notice + redirect, exactly like the config faces. ``server``
+    is the RESOLVED object, handed on for the reads a route makes per request (the launch dialog's
+    weather resolution reads the server's own node).
     """
     identity = _identity(request)
     if identity is None:
@@ -5765,7 +5883,7 @@ async def _resolve_mission_write(request: Request, form, action: WriteAction):
         _remember_notice(request, action, result)
         return RedirectResponse(_servers_path(), status_code=303)
     canonical = readmodels.text(readmodels.safe(lambda: getattr(resolution.server, "name", ""))) or name
-    return ctx, canonical
+    return ctx, canonical, resolution.server
 
 
 def _mission_add_handler(action: WriteAction):
@@ -5775,7 +5893,7 @@ def _mission_add_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, _server = resolved
         result = await call_action(
             action.qualname, ctx, audit_result=True, server_name=canonical,
             path=readmodels.text(form.get(MISSION_PATH_FIELD)),
@@ -5801,7 +5919,7 @@ def _mission_delete_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, _server = resolved
         target = readmodels.text(form.get(MISSION_FIELD))
         if action.confirm and not consume_confirm_token(
                 request, action.path, _mission_target(canonical, target),
@@ -5835,7 +5953,7 @@ def _mission_bulk_delete_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, _server = resolved
         if not consume_confirm_token(request, action.path, _mission_target(canonical, "bulk"),
                                      readmodels.text(form.get(CONFIRM_FIELD))):
             _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
@@ -5869,7 +5987,7 @@ def _mission_reorder_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, _server = resolved
         target = readmodels.text(form.get(MISSION_FIELD))
         mission = int(target) if target.isdigit() else target
         result = await call_action(
@@ -5904,7 +6022,7 @@ def _mission_activate_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, _server = resolved
         chosen = [readmodels.text(value) for value in form.getlist(MISSION_FIELD)
                   if readmodels.text(value)]
         if len(chosen) != 1:
@@ -5944,7 +6062,7 @@ def _mission_load_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, server = resolved
         target = readmodels.text(form.get(MISSION_FIELD))
         if target.isdigit() and int(target) < 1:
             result = await audit_action(ctx, ActionResult(
@@ -5955,13 +6073,17 @@ def _mission_load_handler(action: WriteAction):
         params: dict[str, Any] = {
             "server_name": canonical, "mission": mission,
             "expected_name": _mission_expected_name(form.get(MISSION_NAME_FIELD))}
-        # THE LAUNCH FORM the dialog carries: the weather pick (the ONE shared reader, refused when
-        # both shapes are stated) and the announce box. A row posted straight to this route — the
-        # pre-dialog path, or a crafted POST — states neither, and behaves exactly as it always did.
+        # THE LAUNCH FORM the dialog carries: the weather MODE and the pick it qualifies, parsed by
+        # the ONE shared reader both launch routes use. A row posted straight to this route — the
+        # pre-dialog path, or a crafted POST — states no mode and no pick, and behaves exactly as it
+        # always did.
         try:
-            params.update(launch_weather_params(form, action))
+            params.update(await launch_weather_params(form, action, server))
         except _WeatherChoiceConflict:
             _refusal_notice(request, action, REFUSAL_WEATHER_CONFLICT)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        except _WeatherRefusal as refusal:
+            _refusal_notice(request, action, refusal.sentence)
             return RedirectResponse(_mission_back_path(canonical), status_code=303)
         for option in dialog_options(action):
             try:
@@ -6045,7 +6167,7 @@ def _mission_upload_handler(action: WriteAction):
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
-        ctx, canonical = resolved
+        ctx, canonical, _server = resolved
         upload = form.get(MISSION_FILE_FIELD)
         is_file = upload is not None and not isinstance(upload, str)
         declared_size = getattr(upload, "size", None) if is_file else None
@@ -6219,7 +6341,7 @@ async def _mission_selection(request: Request, server_name: str, indexes: list[i
 
 async def mission_confirm_context(request: Request, action: WriteAction, server: Any,
                                   server_name: str, form, ctx: ActionContext,
-                                  select_field: dict | None = None) -> dict:
+                                  weather_fields: tuple[dict, ...] = ()) -> dict:
     """Everything a MISSION dialog's page reads — the fourth sibling of :func:`confirm_context`.
 
     Same discipline, and the differences are the whole point of these two dialogs:
@@ -6311,10 +6433,10 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
                         if running else None)
         token_target = _mission_target(server_name, "bulk")
     elif action.key == "mission_load":
-        # LOAD's dialog carries the LAUNCH FORM — the SAME weather pick, temporary fields and
-        # announce box Startup's dialog does (``WEATHER_PRESET_SELECT`` / ``ANNOUNCE_OPTION``), drawn
-        # per request beside the row's own mission. Like ADD it is non-destructive and only carries
-        # an option, so it mints no token and wears the OPTIONS chrome.
+        # LOAD's dialog carries the LAUNCH FORM — the SAME weather modes, file pick, preset pick and
+        # temporary fields Startup's dialog does (``WEATHER_PRESET_SELECT`` / ``WriteAction.weather``),
+        # drawn per request beside the row's own mission. Like ADD it is non-destructive and only
+        # carries an option, so it mints no token and wears the OPTIONS chrome.
         mission = form.get(MISSION_FIELD)
         hidden.append((MISSION_FIELD, readmodels.text(mission)))
         # THE STALE-PAGE CROSS-CHECK for LOAD: the row posts the mission's LOGICAL name beside its
@@ -6323,10 +6445,10 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         # today.
         hidden.append((MISSION_NAME_FIELD, readmodels.text(form.get(MISSION_NAME_FIELD))))
         mission_label = html.escape(await _mission_label_for(request, server_name, mission, ctx))
-        # THE LAUNCH FORM's own fields (the weather pick + the announce box) ride the FOOTER form;
-        # the temporary weather fields are a BODY fieldset (``dialog.temporary``), because its rows
-        # are several lines tall and the two ways out stay the dialog's last row.
-        inputs.extend(_dialog_inputs(request, action, select_field))
+        # THE LAUNCH FORM's own fields (the weather mode, the file pick and the preset pick) ride the
+        # FOOTER form; the temporary weather fields are a BODY fieldset (``dialog.temporary``),
+        # because its rows are several lines tall and the two ways out stay the dialog's last row.
+        inputs.extend(_dialog_inputs(request, action, weather_fields))
         heading = _sentence(i18n._("Load {mission} on {server}?"),
                             mission=mission_label or readmodels.text(mission), server=label)
         target = mission_label or readmodels.text(mission)
@@ -6429,10 +6551,10 @@ def _mission_confirm_handler(action: WriteAction):
         # its options are that node's named presets, not a declaration's static list. Only LOAD
         # declares the pick among the mission dialogs; every other dialog passes nothing and its
         # markup is unchanged.
-        select_field = await _preset_field(request, resolution.server) \
-            if action.key == "mission_load" else None
+        weather_fields = await _weather_fields(request, resolution.server) \
+            if action.key == "mission_load" else ()
         dialog = await mission_confirm_context(request, action, resolution.server, canonical, form,
-                                               ctx, select_field)
+                                               ctx, weather_fields)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
@@ -6599,16 +6721,26 @@ def _handler(action: WriteAction):
         # something else meets its typed refusal rather than this route guessing at it.
         if action.field:
             params[action.field] = readmodels.text(form.get(action.field))
-        # THE WEATHER PICK — the SAME two shapes of ONE choice the launch dialog carries (the
-        # select's NAME and the temporary fields' DOCUMENT), parsed by the ONE shared reader the
-        # Missions tab's Load route uses too. A launch that states BOTH is refused: they are two
-        # ways to make one choice, and silently preferring one would hide the other.
-        try:
-            params.update(launch_weather_params(form, action))
-        except _WeatherChoiceConflict:
-            forget_awaiting_change("server", name)
-            _refusal_notice(request, action, REFUSAL_WEATHER_CONFLICT)
-            raise HTTPException(status_code=400, detail=REFUSAL_WEATHER_CONFLICT)
+        if action.weather:
+            # THE WEATHER MODE AND THE PICK IT QUALIFIES — the ONE shared reader the Missions tab's
+            # Load route uses too, so the two dialogs cannot parse differently. A mode the POST
+            # states with a pick that cannot be resolved is REFUSED here, in the console's own
+            # sentence: it is never launched applying nothing.
+            try:
+                params.update(await launch_weather_params(form, action, resolution.server
+                                                          if resolution.is_found else None))
+            except _WeatherChoiceConflict:
+                forget_awaiting_change("server", name)
+                _refusal_notice(request, action, REFUSAL_WEATHER_CONFLICT)
+                raise HTTPException(status_code=400, detail=REFUSAL_WEATHER_CONFLICT)
+            except _WeatherRefusal as refusal:
+                forget_awaiting_change("server", name)
+                _refusal_notice(request, action, refusal.sentence)
+                raise HTTPException(status_code=400, detail=refusal.sentence)
+        else:
+            # A select-bearing dialog with NO weather pick: its select is the action's own value
+            # (``chat``/``popup`` and their coalition), read under the DECLARATION's field name.
+            params.update(select_params(form, action))
         # THE CONTROL'S OWN PARAMETERS, applied AFTER the body and never before it: the mode one of
         # the two message controls writes in is the DECLARATION's, so a crafted POST naming the other
         # one changes nothing.
@@ -6721,8 +6853,8 @@ def _confirm_handler(action: WriteAction):
         # carries the row that was picked.
         offers_weather = (action.key != "startup"
                           or await current_mission_available(resolution.server))
-        select_field = (await _preset_field(request, resolution.server)
-                        if action.key == "startup" and offers_weather else None)
+        weather_fields = (await _weather_fields(request, resolution.server)
+                          if action.key == "startup" and offers_weather else ())
         # the temporary preset's control choices come from the SAME node read the pick uses; the read's
         # three sentences are translated HERE, where the request's language is known.
         temporary = (await _temporary_fieldset(
@@ -6733,7 +6865,7 @@ def _confirm_handler(action: WriteAction):
             if offers_weather else None)
         weather_note = None if offers_weather else _sentence(PRESET_NO_MISSION)
         dialog = confirm_context(request, action, name, players_on(resolution.server), token, origin,
-                                 tab, select_field, temporary, weather_note,
+                                 tab, weather_fields, temporary, weather_note,
                                  with_select=offers_weather)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
@@ -6762,24 +6894,26 @@ _TYPED_CONFIRM_HELP = i18n._("The action is refused unless this matches the targ
 def _dialog_field(name: str, label: str, *, kind: str = "text", value: str = "",
                   required: bool = False, maximum: int = 0, help_text: str = "",
                   options: tuple[dict, ...] = (), checked: bool = False, rows: int = 0,
-                  bounds: dict | None = None, width: str = "", lookup: str = "") -> dict:
+                  bounds: dict | None = None, width: str = "", lookup: str = "",
+                  groups: tuple[dict, ...] = ()) -> dict:
     """ONE dialog field record — the shape ``confirm.html``'s ``field_input`` renders.
 
     The TEMPLATE owns the markup and this owns the meaning: a ``select`` carries its ``options``
     (``{value, label}`` pairs), a ``textarea`` its ``rows``, a ``checkbox`` its ``checked`` default,
-    everything else its own input ``type``. ``bounds`` is a NUMBER field's ``{min, max}`` — the range
-    the browser itself refuses to submit outside, which for a day count is what keeps a field meant
-    for ``14`` from taking a date. ``width`` is the field's own width class (``wide`` across the
-    dialog, ``narrow`` down to the few characters a count needs); empty keeps the shared default.
-    ``lookup`` is the URL a text field's own PROGRESSIVE ENHANCEMENT reads (``data-lookup``); empty
-    is a field the browser's plain markup alone is answerable for. One builder, so a field this
-    module adds is shaped exactly like the ones the mission dialogs already generate, and a new shape
-    is one edit in the template.
+    everything else its own input ``type``. ``groups`` is a PICK's optional ``{label, options}``
+    blocks, drawn after the field's own entries, each as one ``<optgroup>`` — empty keeps the pick a
+    flat list. ``bounds`` is a NUMBER field's ``{min, max}`` — the range the browser itself refuses to
+    submit outside, which for a day count is what keeps a field meant for ``14`` from taking a date.
+    ``width`` is the field's own width class (``wide`` across the dialog, ``narrow`` down to the few
+    characters a count needs); empty keeps the shared default. ``lookup`` is the URL a text field's own
+    PROGRESSIVE ENHANCEMENT reads (``data-lookup``); empty is a field the browser's plain markup alone
+    is answerable for. One builder, so a field this module adds is shaped exactly like the ones the
+    mission dialogs already generate, and a new shape is one edit in the template.
     """
     return {"type": kind, "name": name, "id": f"{name}-dialog" if name else "", "label": label,
             "max": maximum, "required": required, "checked": checked, "value": value,
             "help": help_text, "placeholder": "", "options": options, "rows": rows,
-            "bounds": bounds, "width": width, "lookup": lookup}
+            "bounds": bounds, "width": width, "lookup": lookup, "groups": groups}
 
 
 def typed_confirm_inputs(action: WriteAction) -> tuple[dict, ...]:

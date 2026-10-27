@@ -321,6 +321,7 @@ class Server(DataObject, ABC):
     @abstractmethod
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
+                      preset_name: str | None = None,
                       announce: bool = False) -> None:
         raise NotImplementedError()
 
@@ -440,6 +441,7 @@ class Server(DataObject, ABC):
     @abstractmethod
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
+                      preset_name: str | None = None,
                       announce: bool = False) -> None:
         raise NotImplementedError()
 
@@ -475,6 +477,7 @@ class Server(DataObject, ABC):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False, *,
                           preset: dict | list | str | None = None,
+                          preset_name: str | None = None,
                           announce: bool = False) -> bool | None:
         raise NotImplementedError()
 
@@ -507,6 +510,7 @@ class Server(DataObject, ABC):
     @abstractmethod
     async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True, *,
                                     preset: dict | list | str | None = None,
+                                    preset_name: str | None = None,
                                     announce: bool = False) -> str | None:
         raise NotImplementedError()
 

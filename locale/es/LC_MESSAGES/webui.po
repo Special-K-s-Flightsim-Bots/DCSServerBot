@@ -707,22 +707,44 @@ msgstr ""
 #: services/webservice/pages/actions.py:722
 msgid "Leave the weather alone"
 msgstr "Dejar el clima como está"
-
-#: services/webservice/pages/actions.py:725
+#: services/webservice/pages/actions.py:841
 msgid ""
-"This server's presets could not be listed. Type a preset name, or leave "
-"it empty to leave the weather alone."
+"This server's preset files could not be read, so a preset out of a file "
+"cannot be picked for this launch — create your own weather below instead."
 msgstr ""
-"No se pudieron listar los preajustes de este servidor. Escribe un nombre "
-"de preajuste o déjalo vacío para dejar el clima como está."
+"No se pudieron leer los archivos de preajustes de este servidor, así que "
+"para este arranque no se puede elegir un preajuste de un archivo: crea tu"
+" propio clima abajo."
+
+
+#: services/webservice/pages/actions.py:836
+msgid ""
+"One group per preset file on this node; a node carrying a single preset "
+"file lists its presets without a group heading."
+msgstr ""
+"Un grupo por cada archivo de preajustes en este nodo; si un nodo solo "
+"tiene un archivo de preajustes, lista sus preajustes sin encabezado de "
+"grupo."
+#: services/webservice/pages/actions.py:865
+msgid "The mission loads as its file stands. (default)"
+msgstr "La misión se carga tal como está en su archivo. (predeterminado)"
+#: services/webservice/pages/actions.py:866
+msgid "Use a preset from a file"
+msgstr "Usar un preajuste de un archivo"
+#: services/webservice/pages/actions.py:867
+msgid "Pick the preset file, then the preset inside it."
+msgstr "Elige el archivo de preajustes y luego el preajuste que contiene."
+
+
+
 
 #: services/webservice/pages/actions.py:744
 msgid "Create your own weather"
 msgstr "Crear tu propio clima"
+#: services/webservice/pages/actions.py:869
+msgid "Build a one-off preset in the fields below."
+msgstr "Crea un preajuste puntual en los campos de abajo."
 
-#: services/webservice/pages/actions.py:747
-msgid "Type a preset name"
-msgstr "Escribe el nombre de un preajuste"
 
 #: services/webservice/pages/actions.py:755
 msgid "Loading current mission …"
@@ -756,14 +778,14 @@ msgid ""
 msgstr ""
 "Se aplica solo a este arranque. No se guarda nada en los archivos de "
 "preajustes: un campo vacío deja intacto el valor propio de la misión."
-
-#: services/webservice/pages/actions.py:784
+#: services/webservice/pages/actions.py:928
 msgid ""
-"A preset above and these fields are two ways to make the same choice — "
-"pick one, not both."
+"These fields are the whole choice in this mode — a preset out of a file "
+"is not applied beside them."
 msgstr ""
-"Un preajuste arriba y estos campos son dos formas de hacer la misma "
-"elección: elige una, no ambas."
+"Estos campos son toda la elección en este modo: un preajuste de un "
+"archivo no se aplica junto a ellos."
+
 
 #: services/webservice/pages/actions.py:789
 msgid ""
@@ -772,6 +794,31 @@ msgid ""
 msgstr ""
 "No realizado (se eligió un preajuste y se rellenaron los campos de clima "
 "temporales: elige una, no ambas)."
+#: services/webservice/pages/actions.py:941
+msgid ""
+"Not done (\"Use a preset from a file\" was chosen and no preset was "
+"ticked — tick one, or choose \"Leave the weather alone\")."
+msgstr ""
+"No realizado (se eligió \"Usar un preajuste de un archivo\" y no se marcó"
+" ningún preajuste: marca uno, o elige \"Dejar el clima como está\")."
+#: services/webservice/pages/actions.py:945
+msgid ""
+"Not done (a picked preset is not in this server's preset files any more —"
+" reopen the dialog and pick it again)."
+msgstr ""
+"No realizado (un preajuste elegido ya no está en los archivos de "
+"preajustes de este servidor: vuelve a abrir el diálogo y elígelo de "
+"nuevo)."
+#: services/webservice/pages/actions.py:950
+msgid ""
+"Not done (that is not a preset file this server's node lists — reopen the"
+" dialog and pick one from the list)."
+msgstr ""
+"No realizado (ese no es un archivo de preajustes que este nodo del "
+"servidor enumere: vuelve a abrir el diálogo y elige uno de la lista)."
+
+
+
 
 #: services/webservice/pages/actions.py:800
 msgid ""
@@ -782,18 +829,6 @@ msgstr ""
 "No realizado (se eligió un preajuste de clima y las extensiones están "
 "desactivadas, así que nada lo aplicaría: marca \"Aplicar las extensiones "
 "a la misión\" o borra la selección de clima)."
-
-#: services/webservice/pages/actions.py:807
-msgid "Tell the players the weather changed"
-msgstr "Avisar a los jugadores de que el clima ha cambiado"
-
-#: services/webservice/pages/actions.py:808
-msgid ""
-"Announces the new weather in-game, but only when a preset was really "
-"applied. Off by default."
-msgstr ""
-"Anuncia el nuevo clima en el juego, pero solo cuando realmente se aplicó "
-"un preajuste. Desactivado por defecto."
 
 #: services/webservice/pages/actions.py:838
 msgid "Run extensions on the mission"
@@ -3659,6 +3694,26 @@ msgstr ""
 #: services/webservice/pages/presets.py:1190
 msgid "Preset file"
 msgstr "Archivo de preajustes"
+#: services/webservice/pages/actions.py:877
+msgid "Only the preset files this server's node carries are offered."
+msgstr ""
+"Solo se ofrecen los archivos de preajustes que este servidor tiene en su "
+"nodo."
+#: services/webservice/pages/actions.py:879
+msgid "Presets in that file"
+msgstr "Preajustes en ese archivo"
+#: services/webservice/pages/actions.py:880
+msgid ""
+"The names come from the file you pick — tick several to merge them in "
+"order, as the node always did. With JavaScript off the list shows every "
+"file's presets under their own file name."
+msgstr ""
+"Los nombres vienen del archivo que elijas: marca varios para combinarlos "
+"en orden, como siempre hizo el nodo. Sin JavaScript, la lista muestra los"
+" preajustes de cada archivo bajo su propio nombre de archivo."
+
+
+
 
 #: services/webservice/pages/presets.py:1194
 msgid ""

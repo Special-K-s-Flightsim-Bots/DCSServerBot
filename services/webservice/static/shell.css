@@ -711,6 +711,11 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg-field select { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
   background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
 .dlg-field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A PICK'S GROUPS: a heading over the entries of one preset FILE. The heading is a label and not a
+ * choice, so it is drawn quieter than the entries under it — and in its ORIGINAL case, because it is
+ * an operator's own file path and a case change would misname the file. */
+.dlg-field select optgroup { font-size: 11px; font-weight: 600; color: var(--text-2); }
+.dlg-field select optgroup option { font-size: 12.5px; font-weight: normal; color: var(--text); }
 .dlg-field .hint { font-size: 11px; color: var(--text-3); }
 /* A CHECKBOX IS NOT A TEXT FIELD. The node row's maintenance pair carries the command's own option
  * — `/node offline`'s shutdown, `/node online`'s startup — as a checkbox, and the rule above dresses
@@ -723,6 +728,11 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg-field.opt .opt-txt { display: flex; flex-direction: column; gap: 3px; }
 .dlg-field.opt label { font-size: 12.5px; color: var(--text); text-transform: none;
   letter-spacing: normal; }
+/* THE WEATHER MODE — the three exclusive rows drawn ABOVE the preset pick. Each row is the console's
+ * own option row (radio, label, hint under it), so this fieldset only stacks them and spans the
+ * dialog: one choice, read top to bottom, never a row beside a row. */
+.dlg-field.dlg-radio { align-self: stretch; gap: 6px; border: 0; padding: 0; }
+.dlg-field.dlg-radio .opt { min-width: 0; }
 /* THE TEMPORARY PRESET, drawn in the launch dialog's BODY: the SAME weather pick's other shape. The
  * rows keep the console's grammar (the fact on the left — label, its preset key — and its control on
  * the right), and the controls wear the dialog's own box, so a launch reads as one form whether a

@@ -692,20 +692,38 @@ msgstr "服务器启动时应用到任务。本次启动会替换实例中配置
 #: services/webservice/pages/actions.py:722
 msgid "Leave the weather alone"
 msgstr "保持天气不变"
-
-#: services/webservice/pages/actions.py:725
+#: services/webservice/pages/actions.py:841
 msgid ""
-"This server's presets could not be listed. Type a preset name, or leave "
-"it empty to leave the weather alone."
-msgstr "无法列出此服务器的预设。请输入预设名称，或留空以保持天气不变。"
+"This server's preset files could not be read, so a preset out of a file "
+"cannot be picked for this launch — create your own weather below instead."
+msgstr "无法读取此服务器的预设文件，因此本次启动无法选择文件中的预设——请在下方创建你自己的天气。"
+
+
+#: services/webservice/pages/actions.py:836
+msgid ""
+"One group per preset file on this node; a node carrying a single preset "
+"file lists its presets without a group heading."
+msgstr "此节点上的每个预设文件一组；节点上只有一个预设文件时，直接列出预设，不显示分组标题。"
+#: services/webservice/pages/actions.py:865
+msgid "The mission loads as its file stands. (default)"
+msgstr "任务按其文件原样加载。（默认）"
+#: services/webservice/pages/actions.py:866
+msgid "Use a preset from a file"
+msgstr "使用文件中的预设"
+#: services/webservice/pages/actions.py:867
+msgid "Pick the preset file, then the preset inside it."
+msgstr "先选择预设文件，再选择其中的预设。"
+
+
+
 
 #: services/webservice/pages/actions.py:744
 msgid "Create your own weather"
 msgstr "创建你自己的天气"
+#: services/webservice/pages/actions.py:869
+msgid "Build a one-off preset in the fields below."
+msgstr "在下方字段中构建一次性预设。"
 
-#: services/webservice/pages/actions.py:747
-msgid "Type a preset name"
-msgstr "输入预设名称"
 
 #: services/webservice/pages/actions.py:755
 msgid "Loading current mission …"
@@ -735,18 +753,36 @@ msgid ""
 "Applied to this launch only. Nothing is saved to the preset files: a "
 "field left empty leaves the mission's own value alone."
 msgstr "仅应用于本次启动。不会向预设文件写入任何内容：留空的字段会保留任务自身的值。"
-
-#: services/webservice/pages/actions.py:784
+#: services/webservice/pages/actions.py:928
 msgid ""
-"A preset above and these fields are two ways to make the same choice — "
-"pick one, not both."
-msgstr "上方的预设与这里的字段是同一个选择的两种方式——二选一，不要同时使用。"
+"These fields are the whole choice in this mode — a preset out of a file "
+"is not applied beside them."
+msgstr "在此模式下这些字段就是全部选择——不会同时应用文件中的预设。"
+
 
 #: services/webservice/pages/actions.py:789
 msgid ""
 "Not done (a preset was picked and the temporary weather fields were "
 "filled — pick one, not both)."
 msgstr "未执行（既选择了预设又填写了临时天气字段——二选一，不要同时使用）。"
+#: services/webservice/pages/actions.py:941
+msgid ""
+"Not done (\"Use a preset from a file\" was chosen and no preset was "
+"ticked — tick one, or choose \"Leave the weather alone\")."
+msgstr "未执行（选择了「使用文件中的预设」但没有勾选任何预设——请勾选一个，或选择「保持天气不变」）。"
+#: services/webservice/pages/actions.py:945
+msgid ""
+"Not done (a picked preset is not in this server's preset files any more —"
+" reopen the dialog and pick it again)."
+msgstr "未执行（所选预设已不在此服务器的预设文件中——请重新打开对话框并再次选择）。"
+#: services/webservice/pages/actions.py:950
+msgid ""
+"Not done (that is not a preset file this server's node lists — reopen the"
+" dialog and pick one from the list)."
+msgstr "未执行（这不是此服务器节点所列出的预设文件——请重新打开对话框并从列表中选择）。"
+
+
+
 
 #: services/webservice/pages/actions.py:800
 msgid ""
@@ -754,16 +790,6 @@ msgid ""
 "nothing would apply it — tick \"Run extensions on the mission\", or clear"
 " the weather pick)."
 msgstr "未执行（已选择天气预设但扩展已关闭，因此不会有任何东西应用它——请勾选「对任务运行扩展」，或清除天气选择）。"
-
-#: services/webservice/pages/actions.py:807
-msgid "Tell the players the weather changed"
-msgstr "告知玩家天气已变化"
-
-#: services/webservice/pages/actions.py:808
-msgid ""
-"Announces the new weather in-game, but only when a preset was really "
-"applied. Off by default."
-msgstr "在游戏内公告新天气，但仅在确实应用了预设时。默认关闭。"
 
 #: services/webservice/pages/actions.py:838
 msgid "Run extensions on the mission"
@@ -3282,6 +3308,21 @@ msgstr "此安装未命名任何预设文件，因此暂时无处写入新预设
 #: services/webservice/pages/presets.py:1190
 msgid "Preset file"
 msgstr "预设文件"
+#: services/webservice/pages/actions.py:877
+msgid "Only the preset files this server's node carries are offered."
+msgstr "仅提供此服务器所在节点自带的预设文件。"
+#: services/webservice/pages/actions.py:879
+msgid "Presets in that file"
+msgstr "该文件中的预设"
+#: services/webservice/pages/actions.py:880
+msgid ""
+"The names come from the file you pick — tick several to merge them in "
+"order, as the node always did. With JavaScript off the list shows every "
+"file's presets under their own file name."
+msgstr "名称来自你选择的文件——勾选多个会按顺序合并，就像节点一直做的那样。关闭 JavaScript 时，列表会在各自的文件名下显示每个文件的预设。"
+
+
+
 
 #: services/webservice/pages/presets.py:1194
 msgid ""

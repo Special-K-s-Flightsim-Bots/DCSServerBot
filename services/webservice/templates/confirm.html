@@ -89,6 +89,11 @@
 {% macro say_title(rec) -%}
 {{- say(rec) }}
 {%- endmacro %}
+{#- ONE entry of a PICK, as ``pages/actions._preset_option`` builds it. The value is the POST's own
+    value; a preset NAME is operator data and carries no anchor. -#}
+{% macro pick_option(option) -%}
+<option value="{{ option.value }}"{% if option.checked %} selected{% endif %}>{{ option.label }}</option>
+{%- endmacro %}
 {#- THE ONE FIELD RENDERER, shared by the footer form and the dialog BODY. A field is a plain record
     built by ``pages/actions``; nothing user-supplied reaches these names. FIVE SHAPES, and the order
     is the caller's: a HIDDEN field is rendered bare (it is the OFF companion of the checkbox that
@@ -132,20 +137,35 @@
 {% elif field.type == 'pick' %}
 <fieldset class="dlg-field dlg-pick" id="{{ field.id }}">
   <legend>{{ _(field.label) }}</legend>
-  {% if field.get('text') %}
-  <p class="dlg-pick-typed">
-    <label for="{{ field.text.id }}">{{ _(field.text.label) }}</label>
-    <input type="text" id="{{ field.text.id }}" name="{{ field.name }}" value=""{% if form_id %} form="{{ form_id }}"{% endif %}>
-  </p>
-  {% endif %}
-  {#- THE PICK IS ONE ``<select multiple>``, not a box per entry: the node merges a comma list of
-      preset names, so the field REPEATS exactly as the multi boxes did and the route's ``getlist``
-      reads every selected entry. ``data-exclusive`` marks an entry that clears the others, and
-      ``data-custom`` marks the ONE entry the temporary weather fields belong to; both are read by
-      the dialog's own script (a ``<select multiple>`` cannot be gated by CSS). -#}
+  {#- THE PICK IS ONE ``<select multiple>``: the node merges a comma list of preset names, so the
+      field REPEATS once per selected entry and the route's ``getlist`` reads every one of them.
+
+      ``field.groups`` is drawn as one ``<optgroup>`` per preset FILE, labelled with the file's own
+      ``config/…`` name; ``field.options`` is the flat shape a node carrying a SINGLE file draws (a
+      heading over the only group would name nothing). With JavaScript off EVERY group stays visible
+      under its own heading, and the dialog's own script is what narrows them to the chosen file. -#}
   <select class="dlg-pick-select" name="{{ field.name }}" multiple{% if form_id %} form="{{ form_id }}"{% endif %}>
-    {% for option in field.options %}<option value="{{ option.value }}"{% if option.get('id') %} id="{{ option['id'] }}"{% endif %}{% if option.checked %} selected{% endif %}{% if option.get('exclusive') %} data-exclusive{% endif %}{% if option.get('custom') %} data-custom{% endif %}>{{ option.label }}</option>{% endfor %}
+    {% for option in field.options %}{{ pick_option(option) }}{% endfor %}
+    {% for group in field.get('groups') or [] %}<optgroup label="{{ group.label }}">{% for option in group.options %}{{ pick_option(option) }}{% endfor %}</optgroup>{% endfor %}
   </select>
+  {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
+  {% if field.get('group_help') %}<span class="hint" id="{{ field.id }}-groups">{{ _(field['group_help']) }}</span>{% endif %}
+</fieldset>
+{% elif field.type == 'radio' %}
+{#- THE MODE CONTROL: native radios under ONE field, each row the console's ``.dlg-field.opt``
+    grammar (the radio, its label, the hint under it). Nothing here is scripted — the browser
+    enforces the exclusivity — and the rows the page built carry their own translated words, so they
+    are rendered verbatim (a label is never looked up as a msgid). -#}
+<fieldset class="dlg-field dlg-radio" id="{{ field.id }}">
+  <legend>{{ _(field.label) }}</legend>
+  {% for option in field.options %}
+  <p class="dlg-field opt">
+    <input type="radio" id="{{ option.id }}" name="{{ field.name }}" value="{{ option.value }}"
+           {%- if option.checked %} checked{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
+    <span class="opt-txt"><label for="{{ option.id }}">{{ option.label }}</label>
+      {% if option.help %}<span class="hint">{{ option.help }}</span>{% endif %}</span>
+  </p>
+  {% endfor %}
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </fieldset>
 {% elif field.type == 'list' %}
@@ -362,13 +382,14 @@
           Its controls belong to the footer's form — they are several lines tall, so they sit in the
           BODY and carry ``form="dlg-form"`` rather than pushing the two ways out off the last row. -#}
       {% if dialog.get('temporary') %}
-      {#- THE TEMPORARY PRESET'S FIELDS: the pick's SECOND shape, drawn only while "Create your own weather"
-          is selected — the dialog's own script toggles this block, because a ``<select
-          multiple>`` cannot be gated by CSS. It is a plain region, never a ``<details>``: nothing here
-          needs opening, so the fields cannot hide behind a collapsed disclosure. Its controls sit in
-          the DOM and stay form-associated to the footer's form (``form="dlg-form"``), so a POST made
-          while the block is hidden carries exactly what a visible one would. With JavaScript off the
-          block simply stays visible, and the route's conflict refusal is the backstop. -#}
+      {#- THE TEMPORARY PRESET'S FIELDS: the CUSTOM MODE's own block, drawn only while the weather mode
+          is "Create your own weather" — the dialog's own script toggles this block, because the mode
+          is a radio group and the block must follow it without submitting. It is a plain region, never
+          a ``<details>``: nothing here needs opening, so the fields cannot hide behind a collapsed
+          disclosure. Its controls sit in the DOM and stay form-associated to the footer's form
+          (``form="dlg-form"``), so a POST made while the block is hidden carries exactly what a visible
+          one would — and the MODE is what decides whether they are read. With JavaScript off the block
+          simply stays visible. -#}
       <div class="dlg-temp">
         <h4 class="dlg-temp-head">{{ _(dialog.temporary.head) }} <span class="opt">({{ _(dialog.temporary.optional) }})</span></h4>
         <p class="dlg-temp-help">{{ _(dialog.temporary.help) }}</p>
@@ -439,12 +460,13 @@
     pair is a CONTROL rather than this page's. It does nothing on a dialog whose rows carry no
     `data-weather-pair`. -#}
 <script src="/static/weather-slider.js" defer></script>
-{#- THE TEMPORARY PRESET'S MODE GATE — the SAME gate the wizard's step applies, driven on the client
-    because this form POSTS the launch (a mode change must never submit it). It shows/hides the
-    temporary rows by the current mode values and pre-fills the cloud base from the chosen preset. It
-    does nothing on a dialog whose rows carry no `data-gate-*`. -#}
+{#- THE WEATHER MODE'S OWN BEHAVIOUR — which blocks belong to the chosen mode, and the file pick
+    narrowing the preset list to its own file. Driven on the client because this form POSTS the
+    launch (a mode change must never submit it), and because the narrowing may not cost a second read.
+    It also applies the wizard's row gate to the temporary fields and pre-fills the cloud base from
+    the chosen preset. It does nothing on a dialog that draws no weather control. -#}
 <script src="/static/dialog-preset.js" defer></script>
-{#- THE MISSION READ — the temporary block's other half: selecting "Create your own weather" fetches
+{#- THE MISSION READ — the custom mode's other half: choosing "Create your own weather" fetches
     the mission's own weather and fills the rows with it, never submitting the launch. It reads the
     URL and the three sentences off the block's `[data-mission-line]` and does nothing on a dialog that
     draws no temporary block. -#}
@@ -473,46 +495,10 @@
   var first = cancel || items[0];
   var last = items[items.length - 1];
   first.focus();
-  /* THE WEATHER PICK. The pick is a MULTI <select> (the node merges a comma list of preset names),
-     and two of its entries are exclusive with the rest: "leave the weather alone" and
-     "Create your own weather" — the second of which is what reveals the temporary weather fields. A
-     <select multiple>
-     cannot be gated by CSS (:has(option:checked) does not track the selection), so the reveal is
-     driven here. Choosing an exclusive entry clears the others; choosing a preset NAME clears the
-     exclusive entries. This is the progressive enhancement, not the rule: with JavaScript off the
-     select is a plain control, the empty entry is ignored by the route, and a post stating a name
-     BESIDE "Create your own weather" is refused with the console's own sentence. */
-  var pick = dialog.querySelector(".dlg-pick select.dlg-pick-select");
-  if (pick) {
-    var options = Array.prototype.slice.call(pick.options);
-    var fields = dialog.querySelector(".dlg-temp");
-    var chosen = function () {
-      return options.filter(function (option) { return option.selected; });
-    };
-    var reveal = function () {
-      if (!fields) { return; }
-      var own = chosen().some(function (option) { return option.hasAttribute("data-custom"); });
-      fields.style.display = own ? "" : "none";
-    };
-    var previous = chosen();
-    pick.addEventListener("change", function () {
-      var now = chosen();
-      var added = now.filter(function (option) { return previous.indexOf(option) === -1; });
-      var lead = added.length ? added[added.length - 1] : null;
-      if (lead && lead.hasAttribute("data-exclusive")) {
-        /* an exclusive entry — "leave the weather alone" or "Create your own weather" — is the only choice */
-        now.forEach(function (option) { if (option !== lead) { option.selected = false; } });
-      } else if (lead) {
-        /* a preset NAME was picked: the exclusive entries give way */
-        now.forEach(function (option) {
-          if (option.hasAttribute("data-exclusive")) { option.selected = false; }
-        });
-      }
-      previous = chosen();
-      reveal();
-    });
-    reveal();
-  }
+  /* THE WEATHER MODE. The mode radios, the mode-2 file pick and the mode-2 preset pick, plus the
+     temporary block, are revealed by the shipped `static/dialog-preset.js` (a mode change must never
+     submit this form). With JavaScript off every block stays visible and the route reads the MODE the
+     POST states, so a mode nobody chose cannot apply a pick the operator did not ask for. */
   /* THE FOG TABLE. Its cells are plain named number boxes the form posts; ADD and REMOVE are
      progressive enhancement (a plain POST form has no GET reload to spawn a row the way the wizard's
      own step does). ADD appends a blank row by cloning the last one, REMOVE drops the row it names,

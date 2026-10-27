@@ -224,6 +224,7 @@ def states_unapplied_weather(modify_mission: bool | None, preset: Any) -> bool:
 async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True,
                          use_orig: bool = True, maintenance: bool = True,
                          preset: str | dict | list | None = "",
+                         preset_name: str | None = None,
                          announce: bool = False) -> ServerControlResult:
     """Start up a SHUTDOWN DCS server (the DCS-level Startup; process-level Start is another action).
 
@@ -242,6 +243,11 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
     nobody picked a preset for behaves exactly as before. A name the instance does not carry is
     logged and ignored by the extension, as it always was; a document is applied as it stands and
     writes nothing to the node's preset file.
+
+    ``preset_name`` names a preset whose ``preset`` VALUE is a DOCUMENT — a preset read out of a preset
+    file carries the change itself and no name in it, so the name travels beside it and the NODE's
+    record takes it (``launched_preset``) instead of recording a temporary preset. ``None`` (every
+    caller that states a name or no pick at all) derives the record from ``preset`` exactly as before.
 
     The pick travels ONLY into a launch that applies it: with ``modify_mission`` off the extensions
     do not run, so the launch is REFUSED (:data:`WEATHER_NEEDS_EXTENSIONS`) instead of launching
@@ -287,6 +293,10 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
     # ``Server.startup`` exactly as it did before the box existed.
     startup_args: dict[str, Any] = dict(modify_mission=modify_mission, use_orig=use_orig,
                                         preset=weather_pick)
+    # ``preset_name`` names a DOCUMENT, so it travels only beside a pick the launch really carries —
+    # and only when it is stated, so a launch with no name is the same call as before the keyword.
+    if preset_name is not None and weather_pick is not None:
+        startup_args["preset_name"] = preset_name
     if announce:
         startup_args["announce"] = True
     try:
@@ -321,7 +331,9 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
     # reported as the launch's REQUEST, never as an applied fact; the record the node writes is the
     # truth, and the server page renders it. A temporary preset document is applied as it stands, so
     # it is named as applied; a launch nobody picked a preset for keeps the sentence it always had.
-    if isinstance(weather_pick, str) and weather_pick:
+    if preset_name and weather_pick:
+        message = f"Server '{label}' started up — weather preset '{preset_name}' requested."
+    elif isinstance(weather_pick, str) and weather_pick:
         message = f"Server '{label}' started up — weather preset '{weather_pick}' requested."
     elif weather_pick:
         message = f"Server '{label}' started up with a temporary weather preset."
@@ -570,15 +582,18 @@ async def rotate_mission(
         )
 
 
-def _loaded_message(mission_name: str, verb: str, preset) -> str:
+def _loaded_message(mission_name: str, verb: str, preset, preset_name: str | None = None) -> str:
     """The load action's result sentence — and, because the result IS the audit text, the whole trail.
 
     A weather preset picked on the Load dialog is NAMED here, exactly as ``startup_server`` names one.
-    A NAME is reported as the load's REQUEST, never as an applied fact: the console cannot know
+    A preset NAME is reported as the load's REQUEST, never as an applied fact: the console cannot know
     whether the NODE really applied it (a name the instance does not carry is logged and ignored
-    there). A temporary preset DOCUMENT is applied as it stands, so it is named as applied. No pick
-    keeps the sentence the load has always had.
+    there). A preset DOCUMENT built on the spot (``preset_name`` absent) is applied as it stands, so
+    it is named as applied; a document read out of a preset file is NAMED by the key it came from,
+    which ``preset_name`` carries. No pick keeps the sentence the load has always had.
     """
+    if preset_name and preset:
+        return f"Mission '{mission_name}' {verb} — weather preset '{preset_name}' requested."
     if isinstance(preset, str) and preset:
         return f"Mission '{mission_name}' {verb} — weather preset '{preset}' requested."
     if preset:
@@ -595,6 +610,7 @@ async def load_mission(
     use_orig: bool = True,
     expected_name: str = "",
     preset: str | dict | list | None = "",
+    preset_name: str | None = None,
     announce: bool = False,
 ) -> MissionLoadResult:
     """Load a specific mission on a DCS server.
@@ -608,6 +624,10 @@ async def load_mission(
     NODE tells the players, and only when it really applied a preset. Both are threaded through BOTH
     of the action's load paths — ``loadMission`` and the ``restart`` branch for the mission that is
     ALREADY running — so a preset picked on Load is never silently dropped.
+
+    ``preset_name`` names a preset whose ``preset`` VALUE is a DOCUMENT: the name travels beside the
+    document so the NODE's record takes the name instead of recording a temporary preset, and it is
+    threaded through BOTH branches for the same reason ``preset`` is.
 
     The pick travels ONLY into a load that applies it: with ``modify_mission`` off the extensions do
     not run, so the load is REFUSED (:data:`WEATHER_NEEDS_EXTENSIONS`) instead of loading with the
@@ -638,6 +658,7 @@ async def load_mission(
     # ``preset`` as "already applied, record it", so a pick sent there would be recorded as weather
     # no extension produced. ``None`` is what such a load states — it clears the record.
     weather_pick = (preset or None) if modify_mission else None
+    weather_name = preset_name if weather_pick is not None else None
 
     # Resolve mission identifier to filename
     mission_list = await server.getMissionList()
@@ -666,14 +687,15 @@ async def load_mission(
 
     if server.current_mission and mission_file == server.current_mission.filename:
         try:
-            # THE ALREADY-RUNNING MISSION: the load is a RESTART. ``preset`` / ``announce`` are
-            # threaded through ``restart`` too (``core/data``), so a weather pick made for the
-            # mission that is already running is APPLIED by the same path — never silently dropped.
+            # THE ALREADY-RUNNING MISSION: the load is a RESTART. ``preset`` / ``preset_name`` /
+            # ``announce`` are threaded through ``restart`` too (``core/data``), so a weather pick
+            # made for the mission that is already running is APPLIED by the same path — never
+            # silently dropped — and its NAME reaches the record on that branch as well.
             await server.restart(modify_mission=modify_mission, preset=weather_pick,
-                                 announce=announce)
+                                 preset_name=weather_name, announce=announce)
             return MissionLoadResult(
                 success=True,
-                message=_loaded_message(mission_name, "restarted", weather_pick),
+                message=_loaded_message(mission_name, "restarted", weather_pick, weather_name),
                 server_name=server_name,
                 mission_name=mission_name,
             )
@@ -691,7 +713,7 @@ async def load_mission(
             await server.stop()
         success = await server.loadMission(
             mission_file, modify_mission=modify_mission, use_orig=use_orig,
-            preset=weather_pick, announce=announce
+            preset=weather_pick, preset_name=weather_name, announce=announce
         )
         if not success:
             return MissionLoadResult(

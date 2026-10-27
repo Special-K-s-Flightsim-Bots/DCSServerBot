@@ -1,22 +1,22 @@
 /* dialog-mission-weather.js — the launch dialog READS the mission's own weather on demand and fills
  * the temporary preset's rows with it.
  *
- * THE LAUNCH DIALOG IS A POST FORM: selecting an entry here must NEVER submit it, so the read is a
+ * THE LAUNCH DIALOG IS A POST FORM: choosing a mode here must NEVER submit it, so the read is a
  * background fetch and nothing else. Nothing is fetched while the dialog renders — the read fires
- * when, and only when, the operator selects the pick's "Create your own weather" entry, and the
- * answer only ever WRITES VALUES INTO ALREADY-RENDERED CONTROLS and a line of text.
+ * when, and only when, the operator chooses the "Create your own weather" MODE (the third radio row),
+ * and the answer only ever WRITES VALUES INTO ALREADY-RENDERED CONTROLS and a line of text.
  *
  * THE LINE is the `[data-mission-line]` element INSIDE the block: the template renders the read's URL,
  * the three sentences and the mission's name on that `<p>` (confirm.html), so every one of the five
  * attributes is read OFF THE LINE, never off the `.dlg-temp` block around it. It is empty as
- * rendered, says "Loading current mission …" the moment the entry is selected, becomes "Read from
+ * rendered, says "Loading current mission …" the moment the mode is chosen, becomes "Read from
  * <name>.miz" when the answer arrives, and carries the read route's own sentence when the read
- * fails. Selecting anything else clears the line AND every value this script filled.
+ * fails. Leaving the mode clears the line AND every value this script filled.
  *
- * THE ROWS STAY USABLE while the read runs: the fetch never blocks, and a request whose selection has
+ * THE ROWS STAY USABLE while the read runs: the fetch never blocks, and a request whose mode has
  * since changed is DISCARDED (a generation counter — an operator who changes their mind mid-read is
  * not fought by the late answer). The clearing restores what each control was RENDERED with, so a
- * value filled for the mission cannot ride along on a selection that did not ask for it.
+ * value filled for the mission cannot ride along on a mode that did not ask for it.
  *
  * EVERY VALUE IS WRITTEN IN THE SHAPE ITS CONTROL CARRIES, and the control is told it moved: the
  * route answers the shape (the wizard's own dotted-key values), and each filled control gets one
@@ -32,14 +32,16 @@
  * mission's own modes — the same gate the wizard's step applies.
  *
  * Progressive enhancement: with JavaScript off nothing is read and every row stays as it renders;
- * the route's own conflict refusal stays the backstop.
+ * the mode the POST states is what the route reads, and the temporary fields are applied only in the
+ * custom mode.
  */
 (function () {
   "use strict";
 
-  //: the pick (a `<select multiple>` — its entries are read, never gated by CSS) and the block the
-  //: temporary rows live in, with the line the mission's name is shown on.
-  var PICK = ".dlg-pick select.dlg-pick-select";
+  //: the MODE radios (`pages/actions.WEATHER_MODE_FIELD`) — the trigger is the third row, "custom".
+  var MODE = 'input[name="weather_mode"]';
+  var CUSTOM = "custom";
+  //: the block the temporary rows live in, with the line the mission's name is shown on.
   var BLOCK = ".dlg-temp";
   var LINE = "[data-mission-line]";
   //: the control whose change re-gates the rows. It is one of the mode controls the shipped gate
@@ -50,11 +52,12 @@
 
   //: what each control was RENDERED with, so clearing restores it rather than emptying it.
   var filled = [];
-  //: bumped on every pick change; an answer whose generation is stale is discarded unanswered.
+  //: bumped on every mode change; an answer whose generation is stale is discarded unanswered.
   var generation = 0;
 
-  function pick(document_) {
-    return document_.querySelector(PICK);
+  function customChosen(document_) {
+    var checked = document_.querySelector(MODE + ":checked");
+    return !!checked && String(checked.value || "") === CUSTOM;
   }
 
   function block(document_) {
@@ -63,17 +66,6 @@
 
   function line(document_) {
     return document_.querySelector(LINE);
-  }
-
-  function isCustom(pick_) {
-    var options = (pick_ && pick_.options) || [];
-    for (var index = 0; index < options.length; index += 1) {
-      if (options[index].selected && options[index].hasAttribute
-          && options[index].hasAttribute("data-custom")) {
-        return true;
-      }
-    }
-    return false;
   }
 
   function textOf(node, value) {
@@ -128,7 +120,7 @@
     }
   }
 
-  //: restore every control this script filled and empty the line — the deselect, and the failure's
+  //: restore every control this script filled and empty the line — leaving the mode, and the failure's
   //: own "nothing is prefilled" (a failure fills nothing, but a previous success may be cleared by it).
   function clear(document_) {
     for (var index = 0; index < filled.length; index += 1) {
@@ -202,9 +194,9 @@
   document.addEventListener("change", function (event) {
     var target = event && event.target;
     if (!target || typeof target.getAttribute !== "function") { return; }
-    if (target !== pick(document)) { return; }
+    if (target.getAttribute("name") !== "weather_mode") { return; }
     generation += 1;
-    if (!isCustom(target)) { clear(document); return; }
+    if (!customChosen(document)) { clear(document); return; }
     start(document);
   });
 })();

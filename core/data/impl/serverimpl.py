@@ -1035,6 +1035,7 @@ class ServerImpl(Server):
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
+                      preset_name: str | None = None,
                       announce: bool = False) -> None:
         # A duplicate start request is one where OUR OWN DCS PROCESS IS ALREADY ALIVE, never one where the
         # status merely reads as up: the scheduler's state loop marks a server LOADING and THEN schedules the
@@ -1060,13 +1061,14 @@ class ServerImpl(Server):
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
-            await self.apply_mission_changes(use_orig=use_orig, preset=preset, announce=announce)
+            await self.apply_mission_changes(use_orig=use_orig, preset=preset,
+                                             preset_name=preset_name, announce=announce)
         else:
             # The extensions do not run here, so this start applies no preset itself. The record
             # follows the value the caller states: a launch that already applied the weather passes its
             # preset names, and a start that states none clears the record — the page would otherwise
             # name a preset this start never applied.
-            await _record_launched_preset(self, preset, bool(preset))
+            await _record_launched_preset(self, preset, bool(preset), preset_name=preset_name)
         await asyncio.to_thread(self.do_startup)
 
         from services.firewall import FirewallService
@@ -1189,6 +1191,7 @@ class ServerImpl(Server):
     @performance_log()
     async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True,
                                     preset: dict | list | str | None = None,
+                                    preset_name: str | None = None,
                                     announce: bool = False) -> str | None:
         # The rewrite runs in the nested ``_rewrite`` and reports whether the per-load preset was
         # REALLY applied — a name the instance does not carry is ignored by the extension and rewrites
@@ -1274,7 +1277,7 @@ class ServerImpl(Server):
                     self.enable_autoscan()
 
         result = await _rewrite()
-        await _record_launched_preset(self, preset, applied)
+        await _record_launched_preset(self, preset, applied, preset_name=preset_name)
         if applied and announce:
             await _announce_launched_preset(self, preset)
         return result
@@ -1375,13 +1378,15 @@ class ServerImpl(Server):
     @override
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
+                      preset_name: str | None = None,
                       announce: bool = False) -> None:
         current_mission = self._get_current_mission_file()
         if current_mission:
-            # ``preset`` / ``announce`` are forwarded so a restart with a weather pick applies it by
-            # the SAME path a load does — a restart whose caller states none keeps today's behaviour.
+            # ``preset`` / ``preset_name`` / ``announce`` are forwarded so a restart with a weather
+            # pick applies it — and records its name — by the SAME path a load does: a restart whose
+            # caller states none keeps today's behaviour.
             await self.loadMission(current_mission, modify_mission=modify_mission, use_orig=use_orig,
-                                   preset=preset, announce=announce)
+                                   preset=preset, preset_name=preset_name, announce=announce)
         else:
             await self.stop()
             await self.start()
@@ -1604,6 +1609,7 @@ class ServerImpl(Server):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False, *,
                           preset: dict | list | str | None = None,
+                          preset_name: str | None = None,
                           announce: bool = False) -> bool | None:
 
         mission_list = await self.getMissionList()
@@ -1625,12 +1631,14 @@ class ServerImpl(Server):
 
         if modify_mission:
             filename = await self.apply_mission_changes(mission, use_orig=use_orig, preset=preset,
+                                                        preset_name=preset_name,
                                                         announce=announce)
         else:
             # The extensions do not run here, so this load applies no preset itself. The record follows
             # the value the caller states: a launch that already applied the weather passes its preset
-            # names, and a load that states none clears the record.
-            await _record_launched_preset(self, preset, bool(preset))
+            # names (or the document AND the name it came from), and a load that states none clears the
+            # record.
+            await _record_launched_preset(self, preset, bool(preset), preset_name)
             if use_orig:
                 filename = utils.create_writable_mission(mission)
                 orig_mission = utils.get_orig_file(mission)
@@ -1877,7 +1885,8 @@ class ServerImpl(Server):
         return self.read_locals()
 
 
-async def _record_launched_preset(server, preset: dict | list | str | None, applied: bool) -> None:
+async def _record_launched_preset(server, preset: dict | list | str | None, applied: bool,
+                                  preset_name: str | None = None) -> None:
     """Write what this load was launched with to the server's ``servers`` row.
 
     The row is the ONE home of the fact: ``launched_preset`` is the preset NAME and
@@ -1888,6 +1897,11 @@ async def _record_launched_preset(server, preset: dict | list | str | None, appl
     slot, which can be rebound from one server to the next; the row itself is created by the node when
     the server registers (``ServerImpl.__init__``). A server with no pool (a test double, an early boot)
     records nothing rather than raising.
+
+    ``preset_name`` names a preset whose VALUE is a DOCUMENT — a preset read out of a preset file,
+    which carries the change itself and no name in it. When it is stated and the preset was really
+    applied, the record takes that name and is not temporary. ``None`` (every other caller) derives
+    the record from ``preset`` alone, exactly as before.
     """
     pool = getattr(server, "apool", None)
     server_name = getattr(server, "name", None)
@@ -1896,7 +1910,9 @@ async def _record_launched_preset(server, preset: dict | list | str | None, appl
     name: str | None = None
     temporary = False
     if applied:
-        if isinstance(preset, str):
+        if preset_name is not None:
+            name = preset_name
+        elif isinstance(preset, str):
             name = preset
         elif isinstance(preset, list):
             names = [entry for entry in preset if isinstance(entry, str)]

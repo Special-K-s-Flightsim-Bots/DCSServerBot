@@ -127,17 +127,20 @@ class ServerProxy(Server):
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
+                      preset_name: str | None = None,
                       announce: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
-        # the node validates params against its own method signature, so a None preset (and a False
-        # announce, the default) must be an ABSENT key rather than a null one, or a node that predates
-        # the param rejects the call
+        # the node validates params against its own method signature, so a None preset, a None
+        # preset_name (and a False announce, the default) must be an ABSENT key rather than a null one,
+        # or a node that predates the param rejects the call
         params: dict[str, Any] = {
             "modify_mission": modify_mission,
             "use_orig": use_orig
         }
         if preset is not None:
             params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
         if announce:
             params["announce"] = announce
         await self.bus.send_to_node_sync({
@@ -215,15 +218,19 @@ class ServerProxy(Server):
     @override
     async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True, *,
                                     preset: dict | list | str | None = None,
+                                    preset_name: str | None = None,
                                     announce: bool = False) -> str | None:
         timeout = 120 if not self.node.slow_system else 240
-        # a None preset (and a False announce) travels as an absent key, not a null one (see startup)
+        # a None preset and a None preset_name (and a False announce) travel as an absent key, not a
+        # null one (see startup)
         params: dict[str, Any] = {
             "filename": filename or "",
             "use_orig": use_orig
         }
         if preset is not None:
             params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
         if announce:
             params["announce"] = announce
         return await self.bus.send_to_node_sync({
@@ -308,6 +315,7 @@ class ServerProxy(Server):
     @override
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
+                      preset_name: str | None = None,
                       announce: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
         params: dict[str, Any] = {
@@ -318,6 +326,8 @@ class ServerProxy(Server):
         # / loadMission), so a restart with no weather pick is byte-identical to the pre-change RPC.
         if preset is not None:
             params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
         if announce:
             params["announce"] = announce
         await self.bus.send_to_node_sync({
@@ -437,9 +447,10 @@ class ServerProxy(Server):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False, *,
                           preset: dict | list | str | None = None,
+                          preset_name: str | None = None,
                           announce: bool = False) -> bool | None:
         timeout = 180 if not self.node.slow_system else 300
-        # a None preset (and a False announce) travels as an absent key, not a null one (see startup)
+        # a None preset (and a False announce) travels as an ABSENT key, not a null one (see startup)
         params: dict[str, Any] = {
             "mission": mission,
             "modify_mission": modify_mission,
@@ -448,6 +459,8 @@ class ServerProxy(Server):
         }
         if preset is not None:
             params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
         if announce:
             params["announce"] = announce
         return await self.bus.send_to_node_sync({

@@ -702,22 +702,44 @@ msgstr ""
 #: services/webservice/pages/actions.py:722
 msgid "Leave the weather alone"
 msgstr "Оставить погоду без изменений"
-
-#: services/webservice/pages/actions.py:725
+#: services/webservice/pages/actions.py:841
 msgid ""
-"This server's presets could not be listed. Type a preset name, or leave "
-"it empty to leave the weather alone."
+"This server's preset files could not be read, so a preset out of a file "
+"cannot be picked for this launch — create your own weather below instead."
 msgstr ""
-"Не удалось получить список предустановок этого сервера. Введи имя "
-"предустановки или оставь поле пустым, чтобы не менять погоду."
+"Файлы предустановок этого сервера не удалось прочитать, поэтому для этого"
+" запуска нельзя выбрать предустановку из файла — создайте своё погодное "
+"условие ниже."
+
+
+#: services/webservice/pages/actions.py:836
+msgid ""
+"One group per preset file on this node; a node carrying a single preset "
+"file lists its presets without a group heading."
+msgstr ""
+"Одна группа на каждый файл предустановок на этом узле; если на узле "
+"только один файл предустановок, его предустановки показываются без "
+"заголовка группы."
+#: services/webservice/pages/actions.py:865
+msgid "The mission loads as its file stands. (default)"
+msgstr "Миссия загружается так, как записано в её файле. (по умолчанию)"
+#: services/webservice/pages/actions.py:866
+msgid "Use a preset from a file"
+msgstr "Использовать предустановку из файла"
+#: services/webservice/pages/actions.py:867
+msgid "Pick the preset file, then the preset inside it."
+msgstr "Сначала выберите файл предустановок, затем предустановку в нём."
+
+
+
 
 #: services/webservice/pages/actions.py:744
 msgid "Create your own weather"
 msgstr "Создать свою погоду"
+#: services/webservice/pages/actions.py:869
+msgid "Build a one-off preset in the fields below."
+msgstr "Соберите разовую предустановку в полях ниже."
 
-#: services/webservice/pages/actions.py:747
-msgid "Type a preset name"
-msgstr "Введите название предустановки"
 
 #: services/webservice/pages/actions.py:755
 msgid "Loading current mission …"
@@ -752,14 +774,14 @@ msgstr ""
 "Применяется только к этому запуску. В файлы предустановок ничего не "
 "записывается: пустое поле оставляет собственное значение миссии без "
 "изменений."
-
-#: services/webservice/pages/actions.py:784
+#: services/webservice/pages/actions.py:928
 msgid ""
-"A preset above and these fields are two ways to make the same choice — "
-"pick one, not both."
+"These fields are the whole choice in this mode — a preset out of a file "
+"is not applied beside them."
 msgstr ""
-"Предустановка выше и эти поля — два способа сделать один и тот же выбор: "
-"выбери одно, а не оба."
+"В этом режиме эти поля и есть весь выбор — предустановка из файла рядом с"
+" ними не применяется."
+
 
 #: services/webservice/pages/actions.py:789
 msgid ""
@@ -768,6 +790,32 @@ msgid ""
 msgstr ""
 "Не выполнено (выбрана предустановка и заполнены временные поля погоды — "
 "выбери одно, а не оба)."
+#: services/webservice/pages/actions.py:941
+msgid ""
+"Not done (\"Use a preset from a file\" was chosen and no preset was "
+"ticked — tick one, or choose \"Leave the weather alone\")."
+msgstr ""
+"Не выполнено (выбран вариант «Использовать предустановку из файла», но ни"
+" одна предустановка не отмечена — отметьте одну или выберите «Оставить "
+"погоду без изменений»)."
+#: services/webservice/pages/actions.py:945
+msgid ""
+"Not done (a picked preset is not in this server's preset files any more —"
+" reopen the dialog and pick it again)."
+msgstr ""
+"Не выполнено (выбранная предустановка больше не входит в файлы "
+"предустановок этого сервера — откройте диалог заново и выберите её "
+"снова)."
+#: services/webservice/pages/actions.py:950
+msgid ""
+"Not done (that is not a preset file this server's node lists — reopen the"
+" dialog and pick one from the list)."
+msgstr ""
+"Не выполнено (это не файл предустановок, который перечисляет узел этого "
+"сервера — откройте диалог заново и выберите файл из списка)."
+
+
+
 
 #: services/webservice/pages/actions.py:800
 msgid ""
@@ -778,18 +826,6 @@ msgstr ""
 "Не выполнено (выбрана предустановка погоды, а расширения выключены, "
 "поэтому ничто её не применит — включи «Применять расширения к миссии» или"
 " сбрось выбор погоды)."
-
-#: services/webservice/pages/actions.py:807
-msgid "Tell the players the weather changed"
-msgstr "Сообщить игрокам об изменении погоды"
-
-#: services/webservice/pages/actions.py:808
-msgid ""
-"Announces the new weather in-game, but only when a preset was really "
-"applied. Off by default."
-msgstr ""
-"Объявляет новую погоду в игре, но только если предустановка действительно"
-" была применена. По умолчанию выключено."
 
 #: services/webservice/pages/actions.py:838
 msgid "Run extensions on the mission"
@@ -3616,6 +3652,26 @@ msgstr ""
 #: services/webservice/pages/presets.py:1190
 msgid "Preset file"
 msgstr "Файл предустановок"
+#: services/webservice/pages/actions.py:877
+msgid "Only the preset files this server's node carries are offered."
+msgstr ""
+"Предлагаются только файлы предустановок, которые есть на узле этого "
+"сервера."
+#: services/webservice/pages/actions.py:879
+msgid "Presets in that file"
+msgstr "Предустановки в этом файле"
+#: services/webservice/pages/actions.py:880
+msgid ""
+"The names come from the file you pick — tick several to merge them in "
+"order, as the node always did. With JavaScript off the list shows every "
+"file's presets under their own file name."
+msgstr ""
+"Имена берутся из выбранного файла — отметьте несколько, чтобы объединить "
+"их по порядку, как узел делал всегда. Без JavaScript список показывает "
+"предустановки каждого файла под его собственным именем."
+
+
+
 
 #: services/webservice/pages/presets.py:1194
 msgid ""
