@@ -52,6 +52,7 @@ writes.
 | node   | Upgrade              | `nodes.upgrade`             | `upgrade_node`          | **yes**  |
 | node   | Take servers offline | `nodes.offline`             | `take_node_offline`     | **yes**  |
 | node   | Bring servers online | `nodes.online`              | `bring_node_online`     | no       |
+| node   | Update DCS           | `nodes.dcs_update`          | `update_dcs`            | **yes**  |
 | config (tab)   | Save          | `servers.config.dcs`        | `set_server_config`     | no       |
 | channels (tab) | Save channels | `servers.config.channels`   | `set_server_channels`   | no       |
 | coalitions (tab) | Save coalition passwords | `servers.config.coalitions` | `set_coalition_password` | no |
@@ -84,9 +85,31 @@ same role on both surfaces but the same NARROWED view as Discord: the untagged s
 naming one of its roles (`Scope.cluster`), never a server tagged with a role it does not hold. A server
 with **no** `managed_by` is **not** a manager's: the scoped source leaves it out of every page, so no
 control is built for it, and a crafted POST naming it is refused exactly like a name that does not
-exist. The **node** row is another exception and stays so: its five are declared `Admin`-only and
+exist. The **node** row is another exception and stays so: its six are declared `Admin`-only and
 **without** a scope grant (`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of
 *servers* and taking a whole node — or every server on it — out of service must never widen out of it.
+
+**Update DCS is ONE control for three words** — update, roll back, switch the branch — because the
+engine has one call for them: `Node.dcs_update(branch=…, version=…)`
+(`plugins/admin/actions.py`'s `update_dcs`). The dialog therefore asks *which branch* and *which
+version* (plus the players' warning time and whether the node announces the result), and the action
+resolves whatever it is not told exactly as `/dcs update` does: no branch is the INSTALLED one, no
+version is the newest build on the chosen branch. It is **offered always** on a node that declares a
+DCS installation — no state gate and no availability check — because a rollback happens precisely when
+nothing is "available", so a check-gated control would withdraw itself at the one moment it is needed.
+The only condition is the configuration fact `needs_dcs` (the node's `DCS:` block in `nodes.yaml`),
+read from the source with no node call.
+
+Its two picks come from two different places, and neither is a page render asking a node: the BRANCH
+list is `/dcs update`'s own rule applied to configuration and the CACHED DCS check
+(`dcs_branch_values` — `release`, plus `testing`/`nightly` only for a node with DCS credentials, all
+three `dcs_server.`-prefixed for a `dcs_server`-family installation), and the VERSION list is read **on
+demand** from `GET /nodes/{node}/dcs/versions?branch=…` (`nodes.dcs_update`'s own capability), which
+answers `{"versions": [...]}` newest first or `{"versions": [], "reason": "<one sentence>"}` — never a
+500 and never an invented entry. The branch query is VALIDATED against the same allow-list the picker
+offers, so a free-text branch is never forwarded to the node, and the node's name travels as ONE
+percent-encoded path segment (`dcs_versions_path`). The dialog is `templates/dcs_update.html`: the
+shared `confirm.html` plus the one script that fills that pick.
 
 The Configuration tab's three writes do **not** follow the server/player row rule, and their own
 roles/scope rules differ from each other (`NODE_ROLES` is `Admin` alone, `declare()` in

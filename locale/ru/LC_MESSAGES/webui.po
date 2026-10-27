@@ -2525,6 +2525,24 @@ msgstr ""
 msgid "No players match this search."
 msgstr "Ни один игрок не подходит под этот поиск."
 
+#: services/webservice/pages/dashboard.py:195
+#, python-format
+msgid ""
+"DCS update waiting on %(count)d node(s), installed on its own within "
+"the auto-update window: %(names)s"
+msgstr ""
+"Узлов с ожидающим обновлением DCS: %(count)d — автоустановка в окне "
+"автообновления: %(names)s"
+
+#: services/webservice/pages/dashboard.py:197
+#, python-format
+msgid ""
+"DCS update waiting on %(count)d node(s), auto-update is off, so a "
+"manual start is needed: %(names)s"
+msgstr ""
+"Узлов с ожидающим обновлением DCS: %(count)d — автообновление выключено, "
+"нужен запуск вручную: %(names)s"
+
 #: services/webservice/pages/dashboard.py:334
 #, python-format
 msgid "%(count)d node(s) not heartbeating: %(names)s"
@@ -4336,6 +4354,18 @@ msgstr "Погода не передана."
 #: services/webservice/readmodels/model.py:101
 msgid "This server is not running."
 msgstr "Этот сервер не запущен."
+
+#: services/webservice/readmodels/model.py:109
+msgid "DCS {version} @ {branch}"
+msgstr "DCS {version} @ {branch}"
+
+#: services/webservice/readmodels/model.py:111
+msgid "DCS {version} → {latest}"
+msgstr "DCS {version} → {latest} (обновление доступно)"
+
+#: services/webservice/readmodels/model.py:116
+msgid "no DCS on this node"
+msgstr "на этом узле нет DCS"
 
 #: services/webservice/readmodels/serverconfig.py:98
 msgid "Identity & access"
@@ -7562,3 +7592,178 @@ msgstr ""
 "Этот узел не является мастером, поэтому его файлы отсюда не перечислить —"
 " впиши путь в последнюю строку, чтобы назвать файл, который есть только "
 "на этой машине."
+
+#: services/webservice/pages/actions.py
+msgid "'{branch}' is not a branch this node offers."
+msgstr "'{branch}' — не та ветка, которую предлагает эта консоль."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"<b>Every server on {node} goes down</b> — {servers} server(s) and "
+"{players} player(s) are on it right now, and each one is warned for the "
+"warning time you set before it is stopped."
+msgstr ""
+"<b>Все серверы на {node} останавливаются</b> — сейчас на нём {servers} "
+"сервер(ов) и {players} игрок(ов), и каждый получает предупреждение за "
+"указанное время до остановки."
+
+#: services/webservice/pages/actions.py
+msgid "Announce the update on Discord"
+msgstr "Объявить обновление в Discord"
+
+#: services/webservice/pages/actions.py
+msgid "Branch"
+msgstr "Ветку"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Every server on the node is warned, then stopped, the installation is "
+"updated to the version you choose and the servers come back on it."
+msgstr ""
+"Каждый сервер на узле получает предупреждение, затем останавливается, "
+"установка обновляется до выбранной вами версии, и серверы возвращаются на"
+" ней."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"How long the players on this node are warned before their servers are "
+"stopped. 60 is the default."
+msgstr ""
+"Сколько секунд игроки на этом узле получают предупреждение до остановки "
+"их серверов. По умолчанию 60."
+
+#: services/webservice/pages/actions.py
+msgid "Installed branch (no change)"
+msgstr "Установленная ветка (без изменений)"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Installed branch: {branch} (no change)"
+msgstr "Установленная ветка: {branch} (без изменений)"
+
+#: services/webservice/pages/actions.py
+msgid "Newest build on the branch"
+msgstr "Самая свежая сборка на ветке"
+
+#: services/webservice/pages/actions.py
+msgid "Nightly"
+msgstr "Nightly"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' answered with no version for branch '{branch}' — ED may be "
+"unreachable, or this node has no DCS credentials."
+msgstr ""
+"Узел '{node}' не сообщил версию для ветки '{branch}' — возможно, ED "
+"недоступен или у этого узла нет учётных данных DCS."
+
+#: services/webservice/pages/actions.py
+msgid "Node '{node}' could not answer with its version list ({error})."
+msgstr "Узел '{node}' не смог ответить списком версий ({error})."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' declares no DCS installation, so it has no versions to "
+"offer."
+msgstr ""
+"Узел '{node}' не объявляет установку DCS, поэтому ему нечего предлагать."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' is offline or unknown, so its versions cannot be read."
+msgstr ""
+"Узел '{node}' офлайн или неизвестен, поэтому его версии прочитать нельзя."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"On by default: once the update has finished the node posts the DCS "
+"announcement configured in its nodes.yaml."
+msgstr ""
+"Включено по умолчанию: после обновления узел публикует объявление DCS, "
+"настроенное в его nodes.yaml."
+
+#: services/webservice/pages/actions.py
+msgid "Reading the versions this node offers…"
+msgstr "Читаем версии, которые предлагает этот узел…"
+
+#: services/webservice/pages/actions.py
+msgid "Release"
+msgstr "Release"
+
+#: services/webservice/pages/actions.py
+msgid "Testing"
+msgstr "Testing"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"The branch to install. Testing and Nightly are offered only when this "
+"node is configured with DCS credentials."
+msgstr ""
+"Ветка для установки. Testing и Nightly предлагаются только если у этого "
+"узла настроены учётные данные DCS."
+
+#: services/webservice/pages/actions.py
+msgid "The version list could not be read."
+msgstr "Список версий прочитать не удалось."
+
+#: services/webservice/pages/actions.py
+msgid "The version list could not be read: {reason}"
+msgstr "Список версий прочитать не удалось: {reason}"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"The version to install. A version older than the installed one is a "
+"rollback; the installed one on the same branch is refused."
+msgstr ""
+"Версия для установки. Версия старше установленной — это откат; "
+"установленная на той же ветке отклоняется."
+
+#: services/webservice/pages/actions.py
+msgid "Update DCS"
+msgstr "Обновить DCS"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Update DCS — update, roll back or switch the branch on {node}; every "
+"server on it goes down and comes back on the new version"
+msgstr ""
+"Обновить DCS — обнови, откати или переключи ветку на {node}; все серверы "
+"на нём останавливаются и возвращаются на новой версии"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Update {node} — every server on it goes down and comes back on the new "
+"version"
+msgstr ""
+"Обновить {node} — все серверы на нём останавливаются и возвращаются на "
+"новой версии"
+
+#: services/webservice/pages/actions.py
+msgid "Update, roll back or switch the DCS branch on {node}"
+msgstr "Обновить, откатить или переключить ветку DCS на {node}"
+
+#: services/webservice/pages/actions.py
+msgid "Update, roll back or switch the DCS branch on {node}?"
+msgstr "Обновить, откатить или переключить ветку DCS на {node}?"
+
+#: services/webservice/pages/actions.py
+msgid "Version"
+msgstr "Версия"
+
+#: services/webservice/pages/actions.py
+msgid "Warning time (seconds)"
+msgstr "Время предупреждения (секунды)"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"update, roll back or switch branch — every server on the node goes down"
+msgstr ""
+"обнови, откати или переключи ветку — все серверы на узле останавливаются"
+
+#: services/webservice/pages/actions.py
+msgid "{version} — installed now"
+msgstr "{version} — установлена сейчас"
+
+#: services/webservice/pages/actions.py
+msgid "{version} — newest on this branch"
+msgstr "{version} — самая свежая на этой ветке"

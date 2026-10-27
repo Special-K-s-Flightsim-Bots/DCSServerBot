@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import threading
+from collections.abc import Mapping
 
 from core.const import DEFAULT_TAG
 from core.commandline import COMMAND_LINE_ARGS
@@ -68,7 +69,36 @@ else:
     ports = getattr(sys, 'ports')
 
 
+def _dcs_blocks(data) -> dict[str, dict]:
+    """``{node: DCS block}`` for every node of *data* that DECLARES a DCS installation.
+
+    READ ONCE with the rest of ``nodes.yaml``; a node with no ``DCS:`` key is simply absent from the
+    result, which is the truthful "this node runs no DCS". The block is COPIED, so a caller may read
+    ``installation`` / ``autoupdate`` without holding the parsed document.
+
+    Never raises: a node whose own value is not a mapping (a bare ``node:``) and a ``DCS:`` value that
+    is not a mapping are both handled without an exception. A ``DCS:`` KEY that is present counts as
+    declared, even when its value is unusable — only an absent key means "no installation", and the
+    direction of that error is deliberate (a caller then polls the node, whose own answer settles it).
+    """
+    blocks: dict[str, dict] = {}
+    for node, node_config in (data or {}).items():
+        try:
+            if not isinstance(node_config, Mapping) or "DCS" not in node_config:
+                continue
+            block = node_config.get("DCS")
+            blocks[str(node)] = dict(block) if isinstance(block, Mapping) else {}
+        except Exception:  # noqa: BLE001 - a config oddity must not break the reader
+            continue
+    return blocks
+
+
 class NodeData:
+    """The parsed node configuration: node names, their instances, servers and DCS blocks.
+
+    PARSED ONCE PER PROCESS (a singleton, built on first use), so an edit of ``nodes.yaml`` while
+    the bot runs is seen on the next bot restart, never on the next read.
+    """
     _instance: ClassVar[NodeData | None] = None
     _lock = threading.Lock()  # make it thread-safe
 
@@ -97,6 +127,7 @@ class NodeData:
             for node, instances in self._instances.items():
                 for instance in instances:
                     self._all_instances[instance] = self._all_instances.get(instance, 0) + 1
+            self._dcs: dict[str, dict] = _dcs_blocks(data)
         except Exception as ex:
             raise UnknownError(error_key=ex, path='nodes.yaml')
 
@@ -122,6 +153,12 @@ class NodeData:
     @property
     def all_instances(self):
         return self._all_instances
+
+    @property
+    def dcs(self) -> dict[str, dict]:
+        """``{node: DCS block}`` for every node that declares a DCS installation (a node without one
+        is ABSENT, not empty). Read once with the rest of ``nodes.yaml`` — see :class:`NodeData`."""
+        return self._dcs
 
 
 def get_node_data() -> NodeData:

@@ -52,6 +52,8 @@ __all__ = [
     "DASHBOARD_PATH", "DASHBOARD_CAPABILITY", "DASHBOARD_ROLES", "DASHBOARD_TEMPLATE",
     "DASHBOARD_TITLE", "DASHBOARD_LEAD", "NAV_LABEL", "NAV_GROUP",
     "TABS", "DEFAULT_TAB", "LOG_BOTTOM_MAX_ROWS", "CALM_MESSAGE", "NOT_RUNNING_WORDS",
+    "TONE_CALM", "TONE_ALERT", "TONE_ADVISORY", "ADVISORY_KINDS",
+    "UPDATE_AUTO_MSGID", "UPDATE_MANUAL_MSGID",
     "capabilities", "nav_items", "add_routes", "identity_card", "identity_summary",
     "sign_out_context", "log_level", "view_params", "carry_params", "link_params", "view_state_for",
     "normalise_tab", "tab_from", "tab_capability", "allowed_tabs",
@@ -175,6 +177,25 @@ NOT_RUNNING_WORDS: tuple[str, ...] = ("RUNNING", "PAUSED")
 
 #: the players tab's no-match line (a filtered search with zero hits is NOT "nobody is online")
 NO_PLAYERS_MATCHED_MESSAGE = i18n._("No players match this search.")
+
+#: the banner TONES, derived from the classes it lists (see :func:`attention`): nothing listed,
+#: a fault, or only an advisory.
+TONE_CALM = "calm"
+TONE_ALERT = "alert"
+TONE_ADVISORY = "advisory"
+
+#: The classes that are NOT a fault. A waiting DCS update needs nobody: either the node installs it
+#: inside its window or somebody presses the control at their convenience. It is therefore listed
+#: with its own dot on the amber tone, never counted among the faults that redden the banner.
+ADVISORY_KINDS: tuple[str, ...] = ("update",)
+
+#: The waiting-update sentence, one per AUTO-UPDATE MODE, because the consequence differs: ON means
+#: the node will do it itself inside its window, OFF means a control has to be pressed. Both carry
+#: the count and the names, like every other class.
+UPDATE_AUTO_MSGID = i18n._("DCS update waiting on %(count)d node(s), installed on its own within "
+                           "the auto-update window: %(names)s")
+UPDATE_MANUAL_MSGID = i18n._("DCS update waiting on %(count)d node(s), auto-update is off, so a "
+                             "manual start is needed: %(names)s")
 
 #: The placement overrides the log header offers, in render order. The empty value is "auto".
 LOG_POSITION_LABELS: tuple[tuple[str, str], ...] = (
@@ -320,12 +341,22 @@ def _translated(msgid: str, **params) -> dict:
 
 
 def attention(state: readmodels.Overview) -> dict:
-    """What is wrong, in WORDS, derived from fields the read models already carry.
+    """What needs the reader, in WORDS, derived from fields the read models already carry.
 
-    Four checks and no new data: ``NodeView.online`` (a node not heartbeating),
+    Four FAULT checks and no new data: ``NodeView.online`` (a node not heartbeating),
     ``ServerView.status.word`` (down or paused), ``LogLine.level`` (ERROR lines in the visible
     tail). An empty list is the healthy state and renders the CALM line — the page never shows a
     colour without its word, and never asserts a problem it cannot name.
+
+    Then ONE advisory class, APPENDED LAST so it can never displace a fault line: the nodes whose
+    cached DCS answer says a newer build exists (``NodeView.dcs.available is True`` — the CACHE the
+    node row's chip reads, never a node call). It is emitted as ONE item per auto-update MODE
+    present, because the consequence differs: an auto-updating node installs the build itself inside
+    its window, while a node with the switch off waits for somebody to press the control.
+
+    ``tone`` is the box's colour and is NOT ``ok``: ``calm`` when nothing is listed, ``alert`` when
+    at least one fault is listed, ``advisory`` when the only items are advisories. ``ok`` keeps its
+    meaning — "nothing at all is listed" — so the calm line still renders exactly when it did.
     """
     items: list[dict] = []
     offline = _offline_nodes(state)
@@ -348,8 +379,24 @@ def attention(state: readmodels.Overview) -> dict:
         items.append({"kind": "log", "dot": "dead",
                       **_translated(i18n._("%(count)d ERROR line(s) in the visible log"),
                                     count=errors)})
+    # the advisory class, LAST: one item per mode, self-updating nodes first
+    waiting = _waiting_updates(state)
+    if waiting:
+        declared = readmodels.declared_node_dcs()
+        for automatic, msgid in ((True, UPDATE_AUTO_MSGID), (False, UPDATE_MANUAL_MSGID)):
+            group = [node for node in waiting if _auto_update_on(node.name, declared) is automatic]
+            if group:
+                items.append({"kind": "update", "dot": "update",
+                              **_translated(msgid, count=len(group), names=_names(group))})
+    faults = [item for item in items if item["kind"] not in ADVISORY_KINDS]
+    if not items:
+        tone = TONE_CALM
+    elif faults:
+        tone = TONE_ALERT
+    else:
+        tone = TONE_ADVISORY
     return {"alerts": items, "ok": not items, "calm": CALM_MESSAGE,
-            "count": len(items)}
+            "count": len(items), "tone": tone}
 
 
 def _tab_problem(state: readmodels.Overview, key: str):
@@ -398,6 +445,36 @@ def _broken_servers(state: readmodels.Overview) -> list:
 
 def _paused_servers(state: readmodels.Overview) -> list:
     return [server for server in state.servers if server.status.word == "PAUSED"]
+
+
+def _waiting_updates(state: readmodels.Overview) -> list:
+    """``NodeView.dcs.available is True`` — a node whose CACHE says a newer DCS build exists.
+
+    ``NodeView.dcs is None`` for a node that declares no ``DCS:`` block, and an OFFLINE node's record
+    carries no answer at all, so neither can appear here: the list holds checked, reachable nodes and
+    nothing else. ``False`` (checked, current), ``None`` (never checked, or the last check raised) and
+    an absent installation are all silent — the banner names no line, counts nothing and claims no
+    "up to date".
+    """
+    return [node for node in state.nodes
+            if node.dcs is not None and node.dcs.available is True]
+
+
+def _auto_update_on(node_name: str, declared: dict | None = None) -> bool:
+    """Whether *node_name* will install a waiting DCS update by itself.
+
+    THE MODE, read from CONFIGURATION: ``nodes.yaml``'s ``DCS.autoupdate`` for that node, the same
+    block the node row is declared from, so the banner and the row cannot disagree. The key is
+    written only when the switch is ON (``core.utils.setup_config.build_node``), so its ABSENCE is
+    OFF — the mode that waits for a control to be pressed. No node is asked, and no file is read
+    here: the map arrives already parsed (``readmodels.declared_node_dcs``).
+    """
+    blocks = readmodels.declared_node_dcs() if declared is None else declared
+    wanted = readmodels.text(node_name).casefold()
+    for name, block in (blocks or {}).items():
+        if readmodels.text(name).casefold() == wanted:
+            return bool((block or {}).get("autoupdate"))
+    return False
 
 
 def _tab_count(state: readmodels.Overview, key: str) -> int:

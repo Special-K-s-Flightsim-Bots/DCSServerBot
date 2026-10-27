@@ -2553,6 +2553,24 @@ msgstr ""
 msgid "No players match this search."
 msgstr "Ningún jugador coincide con esta búsqueda."
 
+#: services/webservice/pages/dashboard.py:195
+#, python-format
+msgid ""
+"DCS update waiting on %(count)d node(s), installed on its own within "
+"the auto-update window: %(names)s"
+msgstr ""
+"Actualización de DCS pendiente en %(count)d nodo(s), se instala sola "
+"dentro de su ventana de autoactualización: %(names)s"
+
+#: services/webservice/pages/dashboard.py:197
+#, python-format
+msgid ""
+"DCS update waiting on %(count)d node(s), auto-update is off, so a "
+"manual start is needed: %(names)s"
+msgstr ""
+"Actualización de DCS pendiente en %(count)d nodo(s), la autoactualización "
+"está desactivada, así que hay que iniciarla a mano: %(names)s"
+
 #: services/webservice/pages/dashboard.py:334
 #, python-format
 msgid "%(count)d node(s) not heartbeating: %(names)s"
@@ -4387,6 +4405,18 @@ msgstr "No se reporta clima."
 #: services/webservice/readmodels/model.py:101
 msgid "This server is not running."
 msgstr "Este servidor no está en funcionamiento."
+
+#: services/webservice/readmodels/model.py:109
+msgid "DCS {version} @ {branch}"
+msgstr "DCS {version} @ {branch}"
+
+#: services/webservice/readmodels/model.py:111
+msgid "DCS {version} → {latest}"
+msgstr "DCS {version} → {latest} (actualización disponible)"
+
+#: services/webservice/readmodels/model.py:116
+msgid "no DCS on this node"
+msgstr "no hay DCS en este nodo"
 
 #: services/webservice/readmodels/serverconfig.py:98
 msgid "Identity & access"
@@ -7649,3 +7679,181 @@ msgstr ""
 "Este nodo no es el maestro, así que sus archivos no se pueden listar "
 "desde aquí — escribe la ruta en la última fila para nombrar un archivo "
 "que solo existe en esa máquina."
+
+#: services/webservice/pages/actions.py
+msgid "'{branch}' is not a branch this node offers."
+msgstr "'{branch}' no es una rama que esta consola ofrezca."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"<b>Every server on {node} goes down</b> — {servers} server(s) and "
+"{players} player(s) are on it right now, and each one is warned for the "
+"warning time you set before it is stopped."
+msgstr ""
+"<b>Todos los servidores de {node} se detienen</b> — ahora hay {servers} "
+"servidor(es) y {players} jugador(es), y cada uno recibe el aviso durante "
+"el tiempo que indiques antes de pararse."
+
+#: services/webservice/pages/actions.py
+msgid "Announce the update on Discord"
+msgstr "Anunciar la actualización en Discord"
+
+#: services/webservice/pages/actions.py
+msgid "Branch"
+msgstr "Rama"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Every server on the node is warned, then stopped, the installation is "
+"updated to the version you choose and the servers come back on it."
+msgstr ""
+"Cada servidor del nodo recibe el aviso, se detiene, la instalación se "
+"actualiza a la versión que elijas y los servidores vuelven con ella."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"How long the players on this node are warned before their servers are "
+"stopped. 60 is the default."
+msgstr ""
+"Cuánto tiempo se avisa a los jugadores de este nodo antes de detener sus "
+"servidores. 60 es el valor por defecto."
+
+#: services/webservice/pages/actions.py
+msgid "Installed branch (no change)"
+msgstr "Rama instalada (sin cambios)"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Installed branch: {branch} (no change)"
+msgstr "Rama instalada: {branch} (sin cambios)"
+
+#: services/webservice/pages/actions.py
+msgid "Newest build on the branch"
+msgstr "Compilación más reciente de la rama"
+
+#: services/webservice/pages/actions.py
+msgid "Nightly"
+msgstr "Nightly"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' answered with no version for branch '{branch}' — ED may be "
+"unreachable, or this node has no DCS credentials."
+msgstr ""
+"El nodo '{node}' no dio ninguna versión para la rama '{branch}' — puede "
+"que ED no esté disponible o que este nodo no tenga credenciales de DCS."
+
+#: services/webservice/pages/actions.py
+msgid "Node '{node}' could not answer with its version list ({error})."
+msgstr ""
+"El nodo '{node}' no pudo responder con su lista de versiones ({error})."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' declares no DCS installation, so it has no versions to "
+"offer."
+msgstr ""
+"El nodo '{node}' no declara ninguna instalación de DCS, así que no tiene "
+"versiones que ofrecer."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' is offline or unknown, so its versions cannot be read."
+msgstr ""
+"El nodo '{node}' está desconectado o no existe, así que sus versiones no "
+"se pueden leer."
+
+#: services/webservice/pages/actions.py
+msgid ""
+"On by default: once the update has finished the node posts the DCS "
+"announcement configured in its nodes.yaml."
+msgstr ""
+"Activado por defecto: cuando la actualización termina, el nodo publica el "
+"anuncio de DCS configurado en su nodes.yaml."
+
+#: services/webservice/pages/actions.py
+msgid "Reading the versions this node offers…"
+msgstr "Leyendo las versiones que ofrece este nodo…"
+
+#: services/webservice/pages/actions.py
+msgid "Release"
+msgstr "Release"
+
+#: services/webservice/pages/actions.py
+msgid "Testing"
+msgstr "Testing"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"The branch to install. Testing and Nightly are offered only when this "
+"node is configured with DCS credentials."
+msgstr ""
+"La rama que se va a instalar. Testing y Nightly solo se ofrecen si este "
+"nodo está configurado con credenciales de DCS."
+
+#: services/webservice/pages/actions.py
+msgid "The version list could not be read."
+msgstr "No se pudo leer la lista de versiones."
+
+#: services/webservice/pages/actions.py
+msgid "The version list could not be read: {reason}"
+msgstr "No se pudo leer la lista de versiones: {reason}"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"The version to install. A version older than the installed one is a "
+"rollback; the installed one on the same branch is refused."
+msgstr ""
+"La versión que se va a instalar. Una versión más antigua que la instalada "
+"es una vuelta atrás; la instalada en la misma rama se rechaza."
+
+#: services/webservice/pages/actions.py
+msgid "Update DCS"
+msgstr "Actualizar DCS"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Update DCS — update, roll back or switch the branch on {node}; every "
+"server on it goes down and comes back on the new version"
+msgstr ""
+"Actualizar DCS — actualiza, vuelve atrás o cambia la rama en {node}; "
+"todos los servidores se detienen y vuelven con la nueva versión"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Update {node} — every server on it goes down and comes back on the new "
+"version"
+msgstr ""
+"Actualizar {node} — todos sus servidores se detienen y vuelven con la "
+"nueva versión"
+
+#: services/webservice/pages/actions.py
+msgid "Update, roll back or switch the DCS branch on {node}"
+msgstr "Actualizar, volver atrás o cambiar la rama de DCS en {node}"
+
+#: services/webservice/pages/actions.py
+msgid "Update, roll back or switch the DCS branch on {node}?"
+msgstr "¿Actualizar, volver atrás o cambiar la rama de DCS en {node}?"
+
+#: services/webservice/pages/actions.py
+msgid "Version"
+msgstr "Versión"
+
+#: services/webservice/pages/actions.py
+msgid "Warning time (seconds)"
+msgstr "Tiempo de aviso (segundos)"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"update, roll back or switch branch — every server on the node goes down"
+msgstr ""
+"actualiza, vuelve atrás o cambia de rama — todos los servidores del nodo "
+"se detienen"
+
+#: services/webservice/pages/actions.py
+msgid "{version} — installed now"
+msgstr "{version} — instalada ahora"
+
+#: services/webservice/pages/actions.py
+msgid "{version} — newest on this branch"
+msgstr "{version} — la más reciente de esta rama"

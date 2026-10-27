@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import timezone
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -54,6 +54,10 @@ from ..readmodels.servers import server_url
 # THE CACHED UPGRADE SIGNAL: the node row's Upgrade control is gated on it, and only the
 # poller in the webservice service ever calls the node. This module only READS the cache.
 from .. import upgrade as upgrade_signal
+# THE CACHED DCS SIGNAL, read for the same reason: the DCS update dialog's branch and version picks
+# are built from what the background check already learned, so opening the dialog issues no node call
+# of its own. Only the poller ever asks.
+from .. import dcs_update as dcs_update_signal
 from ..auth import Identity
 from . import dashboard as dashboard_page
 
@@ -146,6 +150,16 @@ __all__ = [
     "NODE_MOVE_ACTIONS", "node_moved_names",
     "pop_notice", "NOTICE_KEY",
     "confirm_targets", "confirm_dialog", "node_confirm_context", "node_load",
+    # the DCS update: its declaration, its two picks, its dialog fields and the on-demand version list
+    "NODE_DCS_UPDATE_CAPABILITY", "NODE_DCS_UPDATE_PATH", "DCS_UPDATE_KEY", "DCS_UPDATE_TEMPLATE",
+    "DCS_VERSIONS_PATH", "DCS_VERSIONS_QUERY", "DCS_BRANCH_FIELD", "DCS_VERSION_FIELD",
+    "DCS_WARN_TIME_FIELD", "DCS_ANNOUNCE_FIELD", "DCS_WARN_TIME_DEFAULT", "DCS_WARN_TIME_MIN",
+    "DCS_WARN_TIME_MAX",
+    "DCS_BRANCH_UNCHANGED", "DCS_VERSION_NEWEST", "DCS_BRANCH_INSTALLED_LABEL",
+    "dcs_versions_path", "dcs_branch_values",
+    "dcs_branch_options", "dcs_version_options", "node_dialog_inputs", "node_dialog_values",
+    "node_dialog_options",
+    "NodeField",
 ]
 
 log = logging.getLogger(__name__)
@@ -163,6 +177,98 @@ NODE_SHUTDOWN_CAPABILITY = "nodes.shutdown"
 NODE_UPGRADE_CAPABILITY = "nodes.upgrade"
 NODE_OFFLINE_CAPABILITY = "nodes.offline"
 NODE_ONLINE_CAPABILITY = "nodes.online"
+
+# ── the DCS UPDATE ─────────────────────────────────────────────────────────
+# ONE control for THREE operator words — update, roll back, switch the branch — because the engine has
+# ONE call for them: ``Node.dcs_update(branch=…, version=…)``. The dialog therefore asks WHICH branch
+# and WHICH version, and nothing else; there is no second control and no second action.
+#: ``nodes.*`` and ADMIN ONLY with NO scope grant, exactly like the five node writes above: this one
+#: warns the players of every server on the node, stops them all and installs a new DCS, so it takes
+#: the whole machine out of service — a manager's scope is a set of SERVERS and must never widen into
+#: that.
+NODE_DCS_UPDATE_CAPABILITY = "nodes.dcs_update"
+#: the control's own route, and the KEY the declaration is found by (the route table and the dialog
+#: both branch on it rather than on a path string).
+NODE_DCS_UPDATE_PATH = "/actions/node/dcs_update"
+DCS_UPDATE_KEY = "dcs_update"
+#: THE VERSION LIST the dialog reads ON DEMAND: the node's own
+#: ``get_available_dcs_versions(branch)``, newest first. A GET because it changes nothing, gated by
+#: the SAME capability as the control it feeds (a picker is not a lesser right than the write), and
+#: the node's name travels as ONE percent-encoded path segment (:func:`dcs_versions_path`).
+#:
+#: THE ``:path`` CONVERTER is what lets a node whose own name CONTAINS a ``/`` resolve: the encoder
+#: writes the name as one escaped segment, and the framework hands the handler the DECODED path, so a
+#: single-segment pattern would answer 404 for exactly those names. ``pages/server_detail`` carries
+#: its server routes the same way (``/fleet/{name:path}``), and the declared path is this same string,
+#: because the gate resolves a route by its OWN path (``registry.capability_for``).
+DCS_VERSIONS_PATH = "/nodes/{node:path}/dcs/versions"
+DCS_VERSIONS_QUERY = "branch"
+#: THE DIALOG the DCS update opens. Its own template because its VERSION pick is filled from that
+#: route once the page is open — ``confirm.html`` draws the fields (it renders every declared shape)
+#: but carries no script of its own to fill one, and this page needs exactly that one addition. It
+#: extends the shared template, so the dialog's markup, copy and behaviour are still the one
+#: ``confirm.html``: this file adds the read and nothing else.
+DCS_UPDATE_TEMPLATE = "dcs_update.html"
+#: the dialog's four fields, each name BOTH the form field and the ACTION's parameter.
+DCS_BRANCH_FIELD = "branch"
+DCS_VERSION_FIELD = "version"
+DCS_WARN_TIME_FIELD = "warn_time"
+DCS_ANNOUNCE_FIELD = "announce"
+#: THE EMPTY BRANCH. The picker's first entry states no branch at all, which the ACTION resolves to
+#: the INSTALLED one — the truthful default: an operator who only wants the newest build on the branch
+#: the node already runs never has to name it, and a value nothing offers is never forwarded.
+DCS_BRANCH_UNCHANGED = ""
+#: THE EMPTY VERSION, the same rule one field down: no version means "the newest build on the chosen
+#: branch", which the ACTION resolves through ``Node.get_latest_version``.
+DCS_VERSION_NEWEST = ""
+#: The warning time's default and the console's own bounds, in seconds. The DEFAULT is
+#: ``/dcs update``'s own (60); the bounds keep a mistyped box from stalling every server on the node
+#: for hours, and the ACTION re-reads whatever a crafted POST sends.
+DCS_WARN_TIME_DEFAULT = 60
+DCS_WARN_TIME_MIN = 0
+DCS_WARN_TIME_MAX = 3600
+DCS_WARN_TIME_LABEL = i18n._("Warning time (seconds)")
+DCS_WARN_TIME_HELP = i18n._("How long the players on this node are warned before their servers are "
+                            "stopped. 60 is the default.")
+DCS_BRANCH_LABEL = i18n._("Branch")
+DCS_BRANCH_HELP = i18n._("The branch to install. Testing and Nightly are offered only when this "
+                         "node is configured with DCS credentials.")
+DCS_VERSION_LABEL = i18n._("Version")
+DCS_VERSION_HELP = i18n._("The version to install. A version older than the installed one is a "
+                          "rollback; the installed one on the same branch is refused.")
+#: The picker's first entry in each field: the choices that mean "leave it to the action".
+DCS_BRANCH_UNCHANGED_LABEL = i18n._("Installed branch (no change)")
+#: The same entry once the CACHED check knows which branch is installed — the branch pick's own
+#: "installed now" marker. The WIRE VALUE stays :data:`DCS_BRANCH_UNCHANGED`.
+DCS_BRANCH_INSTALLED_LABEL = i18n._("Installed branch: {branch} (no change)")
+DCS_VERSION_NEWEST_LABEL = i18n._("Newest build on the branch")
+#: The three branch words, in ``/dcs update``'s own spelling (``plugins/admin/commands.py``'s
+#: ``get_dcs_branches``). ``dcs_server`` is not a fourth word: it is the PREFIX a node whose installed
+#: branch is a ``dcs_server`` one takes on all three.
+DCS_BRANCH_LABELS: dict[str, str] = {
+    "release": i18n._("Release"),
+    "testing": i18n._("Testing"),
+    "nightly": i18n._("Nightly"),
+}
+#: The prefix a node running a ``dcs_server``-family installation adds to every branch name.
+DCS_SERVER_PREFIX = "dcs_server."
+#: The version pick's two markers, and what the pick says while the on-demand read is running.
+DCS_VERSION_LATEST_LABEL = i18n._("{version} — newest on this branch")
+DCS_VERSION_INSTALLED_LABEL = i18n._("{version} — installed now")
+DCS_VERSIONS_READING = i18n._("Reading the versions this node offers…")
+DCS_VERSIONS_FAILED = i18n._("The version list could not be read: {reason}")
+DCS_VERSIONS_UNREADABLE = i18n._("The version list could not be read.")
+#: THE LIST ROUTE'S OWN SENTENCES — the console's chrome, translated for the request and rendered into
+#: the JSON body the dialog's script shows (see ``services/webservice/I18N.md``: a string a script
+#: SHOWS rather than looks up needs no message key). Each names the cause; NONE of them is ever a 500
+#: and none of them ever stands in for an invented list.
+DCS_VERSIONS_UNKNOWN_BRANCH = i18n._("'{branch}' is not a branch this node offers.")
+DCS_VERSIONS_NO_DCS = i18n._("Node '{node}' declares no DCS installation, so it has no versions to "
+                             "offer.")
+DCS_VERSIONS_OFFLINE = i18n._("Node '{node}' is offline or unknown, so its versions cannot be read.")
+DCS_VERSIONS_EMPTY = i18n._("Node '{node}' answered with no version for branch '{branch}' — ED may be "
+                            "unreachable, or this node has no DCS credentials.")
+DCS_VERSIONS_FAILED_BODY = i18n._("Node '{node}' could not answer with its version list ({error}).")
 # ── the SERVER CREATION pair ───────────────────────────────────────────────
 #: THE ADD SERVER capability. ``servers.*`` because the page is the fleet — and ADMIN ONLY with NO
 #: scope grant, exactly like every other node/instance write: this one CREATES an instance (its
@@ -1684,6 +1790,32 @@ BAN_ACTIONS: tuple[BanAction, ...] = (BAN_LIFT_ACTION, BAN_ADD_ACTION, BAN_EDIT_
 
 
 @dataclass(frozen=True, slots=True)
+class NodeField:
+    """ONE named input a NODE control's DIALOG asks for, besides its checkbox(es).
+
+    Its own shape rather than a third reading of :class:`SelectField`, because a node write's fields
+    are not all selects and because each KIND is also the route's READER: ``branch`` is a picker over
+    an allow-list the route re-checks, ``version`` is a picker whose options are filled ON DEMAND
+    (the server draws what the cached check knows and the dialog's own script asks for the rest), and
+    ``number`` is a bounded whole number. One string per field — ``field`` is BOTH the form field's
+    name and the ACTION's parameter's name — so the route cannot post one thing and the action read
+    another.
+
+    ``label``/``help`` are ``i18n._``-marked English translated where the dialog renders. ``default``
+    is what the control states when nothing else does, and for ``number`` it is also what the route
+    reads from a body that omits the field.
+    """
+
+    field: str
+    kind: str
+    label: str
+    help: str = ""
+    default: str = ""
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class NodeAction:
     """One write of the console that acts on a NODE row.
 
@@ -1734,6 +1866,21 @@ class NodeAction:
     #: itself is a node call and lives in the poller — a render NEVER issues it (see the module
     #: docstring of ``services/webservice/upgrade.py``).
     check: bool = False
+    #: WHETHER THIS CONTROL NEEDS A DCS INSTALLATION. Only the DCS update declares it. A node whose
+    #: ``nodes.yaml`` block declares no ``DCS:`` has nothing for the control to act on, so it is not
+    #: offered there — a CONFIGURATION fact, read from the source, never a node call. It is NOT a
+    #: gate on "is an update available": a rollback happens exactly when nothing is available, so a
+    #: node that HAS DCS is offered this control whether or not ED reports a newer build.
+    needs_dcs: bool = False
+    #: THE NAMED FIELDS this control's dialog asks for, besides its checkbox(es), in the order it
+    #: draws them (:class:`NodeField`). The SAME tuple drives the draw (:func:`node_dialog_inputs`)
+    #: and the route's read (:func:`node_dialog_values`), so a field cannot be rendered without being
+    #: read, nor read without having been offered.
+    inputs: tuple[NodeField, ...] = ()
+    #: THE DIALOG TEMPLATE, when this control's dialog is more than ``confirm.html`` can carry: the
+    #: DCS update's version pick is filled from the node ON DEMAND, so its page loads one script of
+    #: its own. Empty means the shared template, which is every other node control.
+    template: str = ""
     option: NodeOption | None = None
     heading: str = ""
     tip: str = ""
@@ -1889,6 +2036,58 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
                go=i18n._("Bring servers online"),
                go_title=i18n._("Bring {node} online — the flags its power-off set are cleared, and "
                                "the scheduler starts what it stopped")),
+    # ── the DCS UPDATE ───────────────────────────────────
+    # ONE control for three operator words — UPDATE, ROLL BACK, SWITCH THE BRANCH — because the
+    # engine has one call for them: ``Node.dcs_update(branch=…, version=…)`` names both halves, so an
+    # older version on the installed branch IS a rollback and another branch IS a switch. Three
+    # controls for one call would be three dialogs that cannot disagree with the engine and can only
+    # disagree with each other.
+    #
+    # OFFERED ALWAYS, NEVER GATED — no ``states`` and no ``check``: a reachable node that HAS DCS
+    # offers this control whether or not an update exists, because a ROLLBACK happens exactly when
+    # nothing is "available", so a check-gated control would withdraw itself at the one moment the
+    # operator needs it. The single condition is the CONFIGURATION fact that the node declares a DCS
+    # installation at all (``needs_dcs``); "is a newer build available" is a node call, and a render
+    # issues none.
+    #
+    # The dialog asks WHICH BRANCH and WHICH VERSION, how long the players are warned and whether the
+    # update is announced: the branch list is computed from configuration and the cached check (no
+    # node call at all), and the VERSION list is read on demand from ``DCS_VERSIONS_PATH`` by the
+    # dialog's own script, marking the installed version — which is what makes the older ones
+    # reachable as a rollback. TWO FIELDS ARE PER NODE (:func:`node_dialog_inputs`): the branch pick
+    # only on a node configured with DCS credentials (Testing and Nightly are authenticated builds a
+    # node without them could never fetch) and the announce box only on a node that declares a
+    # ``DCS.announce`` block (with none configured there is nothing to announce).
+    NodeAction(key=DCS_UPDATE_KEY, capability=NODE_DCS_UPDATE_CAPABILITY, qualname="update_dcs",
+               path=NODE_DCS_UPDATE_PATH, label=i18n._("Update DCS"), needs_dcs=True,
+               template=DCS_UPDATE_TEMPLATE,
+               heading=i18n._("Update, roll back or switch the DCS branch on {node}?"),
+               inputs=(NodeField(field=DCS_BRANCH_FIELD, kind="branch", label=DCS_BRANCH_LABEL,
+                                 help=DCS_BRANCH_HELP),
+                       NodeField(field=DCS_VERSION_FIELD, kind="version", label=DCS_VERSION_LABEL,
+                                 help=DCS_VERSION_HELP),
+                       NodeField(field=DCS_WARN_TIME_FIELD, kind="number",
+                                 label=DCS_WARN_TIME_LABEL, help=DCS_WARN_TIME_HELP,
+                                 default=str(DCS_WARN_TIME_DEFAULT),
+                                 minimum=DCS_WARN_TIME_MIN, maximum=DCS_WARN_TIME_MAX)),
+               option=NodeOption(field=DCS_ANNOUNCE_FIELD,
+                                 label=i18n._("Announce the update on Discord"),
+                                 default=True,
+                                 help=i18n._("On by default: once the update has finished the node "
+                                             "posts the DCS announcement configured in its "
+                                             "nodes.yaml.")),
+               tip=i18n._("Update DCS — update, roll back or switch the branch on {node}; every "
+                          "server on it goes down and comes back on the new version"),
+               aria=i18n._("Update, roll back or switch the DCS branch on {node}"),
+               hint=i18n._("update, roll back or switch branch — every server on the node goes down"),
+               warning=i18n._("<b>Every server on {node} goes down</b> — {servers} server(s) and "
+                              "{players} player(s) are on it right now, and each one is warned for "
+                              "the warning time you set before it is stopped."),
+               detail=i18n._("Every server on the node is warned, then stopped, the installation is "
+                             "updated to the version you choose and the servers come back on it."),
+               go=i18n._("Update DCS"),
+               go_title=i18n._("Update {node} — every server on it goes down and comes back on the "
+                               "new version")),
 )
 
 
@@ -2005,6 +2204,11 @@ def capabilities() -> dict[str, str]:
     capabilities_.update({action.path: action.capability for action in NODE_ACTIONS})
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
                           for action in NODE_ACTIONS})
+    # THE DCS VERSION LIST: a READ (a GET), declared with the DCS update's own capability — the list
+    # is the door to the write it feeds, so reading it is not a lesser right than the update itself.
+    # The declaration is the ROUTE's pattern, because that is what the gate resolves a request
+    # against (the node's name is a path parameter, exactly like the screenshot's token).
+    capabilities_[DCS_VERSIONS_PATH] = NODE_DCS_UPDATE_CAPABILITY
     # THE DCS CONFIG WRITE and THE CHANNELS WRITE: one path each, no dialog (each posts its whole
     # form directly).
     capabilities_.update({action.path: action.capability for action in SERVER_CONFIG_ACTIONS})
@@ -2576,7 +2780,7 @@ def _hidden_fields(origin: str, tab: str, *pairs: tuple[str, str]) -> tuple[tupl
 
 
 def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool = False,
-             *, tab: str = "") -> dict:
+             *, tab: str = "", attention: bool = False) -> dict:
     """One rendered control, as data: where it posts, its glyph, its two names, and the target.
 
     The target travels in the request BODY, never in a URL: there is no path or query
@@ -2609,6 +2813,12 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     (the title/aria are prefixed with the label), so what the sentence claims is true of the row while
     what it is ABOUT is the control the person pressed. That is the honest reading of a signal whose
     only authority knows the target: it never claims a sibling performed an operation it did not.
+
+    ``attention`` is NOT a ``WriteAction`` field, deliberately: whether something is waiting is a
+    per-ROW runtime fact (a node's cached DCS check), never a property of the declaration — a static
+    field would wear the amber on every row, including the ones where nothing waits. It defaults to
+    ``False`` because no SERVER control has a "something waits" fact; the node row's DCS control is
+    the one caller that passes it, from the cache (:func:`_dcs_attention`).
     """
     if busy:
         title = {"msgid": _BUSY_TITLE, "params": {"name": name}, "label": action.label}
@@ -2620,6 +2830,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
             "label": action.label, "icon": action.key, "title": title,
             "aria": aria, "hint": action.hint,
             "danger": action.danger, "server": name, "busy": busy,
+            "attention": bool(attention),
             "direct": not action.dialog,
             # the transitional busy control a row keeps for a pending action is DISABLED —
             # it is a statement ("this server is starting"), not an invitation to press it again. Every
@@ -2786,6 +2997,11 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
     (:func:`node_confirm_context`), which is where the consequence is read before it is chosen. The
     MAINTENANCE pair needs no such note: it stops no service, which is why it is on this row at all.
 
+    Each row's DCS control ALSO carries ``attention`` — the CACHED check saying a newer build waits
+    (:func:`_dcs_attention`) — which the strip renders as the amber mark beside the same amber chip.
+    It is a mark and never a gate: the control is offered on every node that declares DCS, because a
+    rollback is the operation a node CURRENT on its branch still needs.
+
     The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
     ONE component at two widths (``templates/_strip.html``). The node controls are a strip with no
     overflow menu: they are one equally consequential family, and folding any of them into a menu
@@ -2801,6 +3017,10 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
     # THE SETTINGS COGWHEEL's owner is the per-node settings page (it owns the route and the
     # capability); imported lazily for the same reason.
     from . import node_settings as node_settings_page
+    # THE NODES THAT DECLARE A DCS INSTALLATION, from the source's own configuration map — read once
+    # here, beside the rows it describes: a render must not ask a node whether it has DCS.
+    declared_dcs = {readmodels.text(name).casefold()
+                    for name in (getattr(source, "declared_dcs", None) or {})}
     controls: dict[str, dict] = {}
     for index, (name, node) in enumerate(
             (getattr(source, "nodes", None) or {}).items()):
@@ -2838,7 +3058,8 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
         states = node_states(source, key)
         offered = tuple(action for action in NODE_ACTIONS
                         if (not action.states or (set(action.states) & states))
-                        and _node_offered(action, key, roles, manager))
+                        and _node_offered(action, key, roles, manager,
+                                          declares_dcs=key.casefold() in declared_dcs))
         # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
         # control is NOT offered, and the row says why rather than leaving the person to guess.
         note = _upgrade_note(key, roles, manager)
@@ -2849,23 +3070,27 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
                 and page is None):
             continue
         controls[key] = _node_record(key, index, offered, note, download, settings,
-                                     view=view, token=token, origin=origin, page=page, tab=tab)
+                                     view=view, token=token, origin=origin, page=page, tab=tab,
+                                     waiting=_dcs_attention(key))
     return controls
 
 
 def _node_record(key: str, index: int, offered, note: str, download, settings,
                  *, view=None, token: str = "", origin: str = "", page: str | None = None,
-                 tab: str = "") -> dict:
+                 tab: str = "", waiting: bool = False) -> dict:
     """One NODE row's control record — the SAME shape whether the node is reachable or not.
 
     ``offered`` are the lifecycle/power actions the reachable node may render (empty for an OFFLINE
     one); ``note``/``view``/``download``/``settings`` are the row-level statement, the log VIEW, the
     log DOWNLOAD and the settings cogwheel; ``page`` is the NODE PAGE URL (``/nodes/<node>``) the
-    row's NAME links to. Kept in ONE place so the offline and online branches cannot produce two
-    different record shapes that ``_table.html`` would then have to know apart.
+    row's NAME links to. ``waiting`` is the row's CACHED DCS answer (see :func:`_dcs_attention`), and
+    it marks the DCS control alone. Kept in ONE place so the offline and online branches cannot
+    produce two different record shapes that ``_table.html`` would then have to know apart.
     """
     return {
-        "strip": tuple(_node_control(action, key, token, origin, tab=tab) for action in offered),
+        "strip": tuple(_node_control(action, key, token, origin, tab=tab,
+                                     attention=waiting and action.key == DCS_UPDATE_KEY)
+                       for action in offered),
         "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
         "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
         "menu_note": "",
@@ -2884,20 +3109,27 @@ def _node_record(key: str, index: int, offered, note: str, download, settings,
     }
 
 
-def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager: bool) -> bool:
+def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager: bool, *,
+                  declares_dcs: bool = True) -> bool:
     """Whether ONE node control may be offered on *name* — capability, availability and its gate.
 
-    Three readings of the ONE declaration, exactly like the filter it replaces: the capability
+    Four readings of the ONE declaration, exactly like the filter it replaces: the capability
     (``permissions.allows``, the predicate the access gate runs), the action's availability
-    (``action_available``), and — for a CHECK-GATED control — the
-    CACHED upgrade value. The value is read from ``services.webservice.upgrade`` and NEVER by asking
-    a node: the poller owns every call, and a render must issue none. A value that is ``False`` OR
-    UNKNOWN withholds the control ("offered only while the cached value is True"): a control whose
-    only possible answer is the action's own "no upgrade available" refusal is not offered.
+    (``action_available``), — for a CHECK-GATED control — the
+    CACHED upgrade value, and — for a control that NEEDS DCS — whether the node declares a DCS
+    installation at all. Both of the last two are read from state a render already holds and NEVER by
+    asking a node: the poller owns every call, and a render must issue none. A cached value that is
+    ``False`` OR UNKNOWN withholds a check-gated control ("offered only while the cached value is
+    True"): a control whose only possible answer is the action's own "no upgrade available" refusal
+    is not offered. *declares_dcs* comes from the source's own configuration map
+    (``declared_dcs``), so a node without a ``DCS:`` block is not offered a DCS update and nothing is
+    asked to find that out.
     """
     if not permissions.allows(action.capability, roles, manager=manager):
         return False
     if not action_available(action.qualname):
+        return False
+    if getattr(action, "needs_dcs", False) and not declares_dcs:
         return False
     if getattr(action, "check", False) and upgrade_signal.pending(name) is not True:
         return False
@@ -2944,7 +3176,266 @@ def node_load(source, node_name: str) -> tuple[int, int]:
     return servers, players
 
 
-def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab: str = "") -> dict:
+# ------------------------------------- the DCS update's own dialog fields
+# ONE reading of the branch rule and ONE of the version pick, shared by the dialog that DRAWS them and
+# the route that READS them, so a value the picker offers is exactly a value the route accepts.
+
+def dcs_versions_path(node_name: str) -> str:
+    """The URL of *node_name*'s version list — the name percent-encoded into one path segment.
+
+    ``quote(..., safe='')`` escapes every character a URL reserves, so the caller never escapes a
+    name and no character in one can add a path of its own. The route matches it with a MULTI-segment
+    converter (``DCS_VERSIONS_PATH`` is ``{node:path}``), which hands the handler the decoded name
+    once; that name is used only as a registry lookup key — never joined into a filesystem path and
+    never into a shell command — so a name carrying a ``/`` resolves while nothing it contains
+    reaches the disk or a process.
+    """
+    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/dcs/versions"
+
+
+def _declared_dcs_block(node_name: str) -> dict | None:
+    """The ``DCS`` block ``nodes.yaml`` gives *node_name* — or ``None`` when it declares none.
+
+    THE ANSWER TO "HAS THIS NODE A DCS INSTALLATION", from CONFIGURATION: the same
+    ``readmodels.declared_node_dcs`` map every node row already reads, which costs no node call (the
+    alternative, ``NodeProxy.installation``, raises on a remote node) and no per-render YAML read. A
+    node absent from that map runs no DCS; a block that is not a mapping is reported as an empty
+    declaration rather than raising. Names fold case, like every other name in this seam.
+    """
+    wanted = readmodels.text(node_name).casefold()
+    for name, block in (readmodels.declared_node_dcs() or {}).items():
+        if readmodels.text(name).casefold() == wanted:
+            return dict(block or {})
+    return None
+
+
+def _dcs_credentials_declared(node_name: str) -> bool:
+    """Whether *node_name* is configured with DCS credentials (``DCS.user`` in ``nodes.yaml``).
+
+    THE SAME CONDITION ``/dcs update`` applies to its own branch autocomplete
+    (``plugins/admin/commands.py``'s ``get_dcs_branches``): Testing and Nightly are builds the
+    publisher hands out to authenticated users only, so offering them to a node without credentials
+    would offer two branches the update could never fetch. Read from the CONFIGURATION — a node
+    without a ``DCS:`` block declares none, and no node is asked.
+    """
+    return bool((_declared_dcs_block(node_name) or {}).get("user"))
+
+
+def _dcs_announce_declared(node_name: str) -> bool:
+    """Whether *node_name* declares a DCS announcement (``DCS.announce``) in ``nodes.yaml``.
+
+    A USABLE announcement is a non-empty mapping: the node's own post reads its ``title``,
+    ``description`` and ``channel`` off that block, so an absent key, a ``false`` or an empty map
+    means the node announces nothing. Read from the CONFIGURATION, so no node is asked.
+    """
+    block = _declared_dcs_block(node_name) or {}
+    announce = block.get("announce") if isinstance(block, dict) else None
+    return isinstance(announce, dict) and bool(announce)
+
+
+def _dcs_cached(node_name: str):
+    """The CACHED DCS facts for *node_name* — the background check's record, or ``None``.
+
+    A dict lookup and nothing else: the console never asks a node for these, because the answer is a
+    file read on the node (an RPC on a remote one) and every page view would pay for it. The poller
+    owns the only calls (``services/webservice/dcs_update.py``).
+    """
+    return dcs_update_signal.entry(readmodels.text(node_name))
+
+
+def _dcs_attention(node_name: str) -> bool:
+    """Whether a DCS update is WAITING for *node_name* — ``available is True`` in the CACHE.
+
+    THE SAME CACHED ANSWER THE CHIP PRINTS (``readmodels.model.dcs_chip``'s ``warn``): one dict
+    lookup, so the amber glyph on the row's DCS control and the amber chip beside the node's name can
+    never disagree. ``False`` for UNKNOWN (no record, or a check that failed) and for a node that is
+    current — an unasked node is never amber, because amber claims an update exists.
+
+    Nothing is asked of the node: the poller owns every call (``services/webservice/dcs_update.py``).
+    """
+    record = _dcs_cached(node_name)
+    return bool(record is not None and record.available is True)
+
+
+def dcs_branch_values(node_name: str) -> tuple[str, ...]:
+    """The branch VALUES this console offers for *node_name* — the ALLOW-LIST the route re-checks.
+
+    ``/dcs update``'s own rule (``plugins/admin/commands.py``): ``release``, plus ``testing`` and
+    ``nightly`` only when the node is configured with DCS credentials — all three carrying the
+    ``dcs_server.`` prefix when the INSTALLED branch is a ``dcs_server``-family one, because that
+    family names its branches differently and switching between the two families is not the same
+    operation as picking a branch inside one.
+
+    The installed branch is read from the CACHED check, never from the node. A cache with no record
+    yet (the poller has not reached this node, or its check failed) therefore offers the plain family
+    — and because the picker's default states NO branch at all, the action still resolves the
+    INSTALLED one: an unknown cache can only hide an alternative, never pick the wrong branch.
+    """
+    record = _dcs_cached(node_name)
+    installed = readmodels.text(getattr(record, "branch", ""))
+    prefix = DCS_SERVER_PREFIX if DCS_SERVER_PREFIX in installed else ""
+    names = ["release"]
+    if _dcs_credentials_declared(node_name):
+        names.extend(["testing", "nightly"])
+    return tuple(prefix + name for name in names)
+
+
+def dcs_branch_options(request: Request, node_name: str) -> tuple[dict, ...]:
+    """The BRANCH picker's options: the empty "installed branch" entry, then the allow-list.
+
+    The empty entry comes first and is the default: it states no branch, which the ACTION resolves to
+    the installed one — so the ordinary "install the newest build on the branch I already run" needs
+    no choice at all, and a cache that has not learned the installed branch yet cannot make the pick
+    name the wrong one. Its LABEL names the installed branch from the CACHED check, the branch pick's
+    own "installed now" marker; with no cached branch it keeps the plain wording rather than inventing
+    a name. The WIRE VALUE is :data:`DCS_BRANCH_UNCHANGED` either way.
+    """
+    installed = readmodels.text(getattr(_dcs_cached(node_name), "branch", ""))
+    if installed:
+        unchanged = i18n.translate(request, DCS_BRANCH_INSTALLED_LABEL).replace("{branch}", installed)
+    else:
+        unchanged = i18n.translate(request, DCS_BRANCH_UNCHANGED_LABEL)
+    options = [{"value": DCS_BRANCH_UNCHANGED, "label": unchanged}]
+    for value in dcs_branch_values(node_name):
+        word = value[len(DCS_SERVER_PREFIX):] if value.startswith(DCS_SERVER_PREFIX) else value
+        options.append({"value": value,
+                        "label": i18n.translate(request, DCS_BRANCH_LABELS.get(word, word))})
+    return tuple(options)
+
+
+def dcs_version_options(request: Request, node_name: str) -> tuple[dict, ...]:
+    """The VERSION picker's STARTING options — what the CACHED check already knows.
+
+    Three entries at most, and the first is the empty one: the newest build on the chosen branch,
+    which the ACTION resolves through ``Node.get_latest_version`` exactly as ``/dcs update`` does with
+    no version named. The cached newest build and the installed build follow, marked as such, so the
+    dialog is a usable form with JavaScript off.
+
+    THE REST OF THE LIST IS READ ON DEMAND (``DCS_VERSIONS_PATH``) by the dialog's own script, which
+    replaces these entries with every version the node offers and keeps the installed one marked —
+    that older half is what makes a rollback reachable. It never guesses: a read that cannot answer
+    leaves these three entries in place.
+    """
+    record = _dcs_cached(node_name)
+    latest = readmodels.text(getattr(record, "latest", ""))
+    installed = readmodels.text(getattr(record, "version", ""))
+    options = [{"value": DCS_VERSION_NEWEST,
+                "label": i18n.translate(request, DCS_VERSION_NEWEST_LABEL)}]
+    if latest:
+        options.append({"value": latest,
+                        "label": i18n.translate(request, DCS_VERSION_LATEST_LABEL)
+                        .replace("{version}", latest)})
+    if installed and installed != latest:
+        options.append({"value": installed,
+                        "label": i18n.translate(request, DCS_VERSION_INSTALLED_LABEL)
+                        .replace("{version}", installed)})
+    return tuple(options)
+
+
+def node_dialog_options(action: "NodeAction", node_name: str) -> tuple[NodeOption, ...]:
+    """EVERY checkbox ONE node action's dialog draws FOR ONE NODE, in the declaration's order.
+
+    THE PER-NODE HALF of :func:`dialog_options`. The DCS update's ``announce`` box is drawn only when
+    the node declares a ``DCS.announce`` block: with no announcement configured a tickable box would
+    promise one that cannot happen. The route reads this SAME tuple, so a box the dialog did not draw
+    is never read off the body either — and its action parameter is ``False``, never the
+    declaration's default.
+    """
+    found = dialog_options(action)
+    if action.key != DCS_UPDATE_KEY:
+        return found
+    return tuple(option for option in found
+                 if option.field != DCS_ANNOUNCE_FIELD or _dcs_announce_declared(node_name))
+
+
+def node_dialog_inputs(request: Request, action: "NodeAction", node_name: str) -> tuple[dict, ...]:
+    """EVERY field ONE node action's dialog asks for FOR ONE NODE, in the declaration's order.
+
+    The NAMED inputs (:attr:`NodeAction.inputs`) first — each drawn by its own KIND, so a branch pick
+    is a picker over :func:`dcs_branch_values` and a number is a bounded box — and then the
+    checkbox(es) (:func:`node_dialog_options`). A control that declares none of either draws no field,
+    which is why the lifecycle trio's dialog is still a plain confirmation.
+
+    TWO FIELDS ARE PER NODE, and both are ABSENT rather than drawn disabled or empty: the DCS
+    update's branch pick only on a node configured with DCS credentials (``DCS.user``), and its
+    announce box only on a node that declares a ``DCS.announce`` block. A body cannot carry what the
+    dialog did not draw — the route reads the same decisions.
+    """
+    fields: list[dict] = []
+    for declared in getattr(action, "inputs", ()) or ():
+        if declared.kind == "branch":
+            if not _dcs_credentials_declared(node_name):
+                continue
+            fields.append(_dialog_field(declared.field, declared.label, kind="select",
+                                        options=dcs_branch_options(request, node_name),
+                                        help_text=declared.help))
+        elif declared.kind == "version":
+            fields.append(_dialog_field(declared.field, declared.label, kind="select",
+                                        options=dcs_version_options(request, node_name),
+                                        help_text=declared.help))
+        else:
+            number = _dialog_field(declared.field, declared.label, kind="number",
+                                   value=str(declared.default), help_text=declared.help,
+                                   required=True)
+            number["bounds"] = _number_bounds(declared)
+            fields.append(number)
+    fields.extend(_option_fields(node_dialog_options(action, node_name)))
+    return tuple(fields)
+
+
+def _number_bounds(declared: "NodeField") -> dict | None:
+    """A number field's ``{min, max}`` for the browser, or ``None`` when the declaration states none."""
+    bounds: dict = {}
+    if declared.minimum is not None:
+        bounds["min"] = declared.minimum
+    if declared.maximum is not None:
+        bounds["max"] = declared.maximum
+    return bounds or None
+
+
+def node_dialog_values(action: "NodeAction", form: Any, node_name: str) -> dict[str, Any]:
+    """The NAMED inputs ONE node action's dialog asked for, READ OFF the posted body.
+
+    The reader half of :func:`node_dialog_inputs` and the same declaration, so a field cannot be
+    drawn without being read nor read without having been offered. Every kind validates its own
+    value and raises :class:`ValueError` for anything the dialog cannot have sent — the route turns
+    that into a 400 rather than forwarding it to the node:
+
+    * ``branch`` — empty means "the installed branch" (``None`` to the action); a non-empty value
+      that is not in :func:`dcs_branch_values` is REFUSED, so a free-text branch is never forwarded;
+    * ``version`` — empty means "the newest build on the branch" (``None`` to the action); any other
+      value is passed through, because the versions a node offers change and the ACTION is where a
+      version this installation does not know is judged;
+    * ``number`` — a whole number inside the declared bounds, the declaration's default when the
+      body states none.
+    """
+    values: dict[str, Any] = {}
+    for declared in getattr(action, "inputs", ()) or ():
+        posted = readmodels.text(_last_form_value(form, declared.field))
+        if declared.kind == "branch":
+            if posted and posted not in dcs_branch_values(node_name):
+                raise ValueError(f"'{posted}' is not a branch this console offers")
+            values[declared.field] = posted or None
+        elif declared.kind == "version":
+            values[declared.field] = posted or None
+        else:
+            if not posted:
+                values[declared.field] = int(declared.default or 0)
+                continue
+            try:
+                number = int(posted)
+            except ValueError:
+                raise ValueError(f"the '{declared.field}' field was not a whole number")
+            if declared.minimum is not None and number < declared.minimum:
+                raise ValueError(f"the '{declared.field}' field is below {declared.minimum}")
+            if declared.maximum is not None and number > declared.maximum:
+                raise ValueError(f"the '{declared.field}' field is above {declared.maximum}")
+            values[declared.field] = number
+    return values
+
+
+def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab: str = "",
+                  attention: bool = False) -> dict:
     """One rendered NODE control, as data: where it posts, its glyph, its two names, its target.
 
     The target travels in the request BODY, never in a URL, under the field name the
@@ -2956,11 +3447,15 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab
     because both of its halves carry the command's own option, which is a form field and has nowhere
     else to live. ``action.confirm`` decides the other half of the difference: whether the ACTION's
     own route demands the one-shot token (offline does; online, which only clears a state, does not).
+
+    ``attention`` marks a WAITING STATE on the control (``_strip.html`` renders its class): amber for
+    the node whose cached DCS check says a newer build exists. It never decides whether the control is
+    offered — a rollback is needed exactly when nothing is available — so it is a mark, not a gate.
     """
     return {"path": action.path + CONFIRM_SUFFIX,
             "label": action.label, "icon": action.key, "title": _sentence(action.tip, node=name),
             "aria": _sentence(action.aria, node=name), "hint": action.hint,
-            "danger": action.danger, "node": name,
+            "danger": action.danger, "node": name, "attention": bool(attention),
             "direct": False,
             "hidden": _hidden_fields(origin, tab, ("node", name)),
             "csrf_field": session.CSRF_FIELD, "csrf_token": token}
@@ -4289,6 +4784,30 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
             # field the browser sent, and it is present only for a check-gated control.
             detail_notes.append(_sentence(i18n._("Last update check: {when}."),
                                           when=_checked_text(when)))
+    # THE CONTROL'S OWN PAGE FACTS, for a dialog that declares a TEMPLATE of its own. The DCS update
+    # is the one control whose version pick is filled AFTER the page is open: its page reads these off
+    # the served document — the read's URL, the two field names, the INSTALLED branch/version (so the
+    # pick can mark it and ask the right branch) and the sentences it shows. Translated HERE, where
+    # the request's language is known, because a script that SHOWS a sentence never looks one up.
+    page_facts = None
+    if action.template:
+        record = _dcs_cached(name)
+        page_facts = {
+            "versions_url": dcs_versions_path(name),
+            "branch_field": DCS_BRANCH_FIELD,
+            "version_field": DCS_VERSION_FIELD,
+            # the QUERY the route reads the branch from — its own constant, never a second spelling
+            # of the field name
+            "branch_query": DCS_VERSIONS_QUERY,
+            "installed_branch": readmodels.text(getattr(record, "branch", "")),
+            "installed_version": readmodels.text(getattr(record, "version", "")),
+            "reading": i18n.translate(request, DCS_VERSIONS_READING),
+            "failed": i18n.translate(request, DCS_VERSIONS_FAILED),
+            "unreadable": i18n.translate(request, DCS_VERSIONS_UNREADABLE),
+            "newest_label": i18n.translate(request, DCS_VERSION_NEWEST_LABEL),
+            "latest_label": i18n.translate(request, DCS_VERSION_LATEST_LABEL),
+            "installed_label": i18n.translate(request, DCS_VERSION_INSTALLED_LABEL),
+        }
     dialog = {
         "heading": (_sentence(action.heading, **values) if action.heading
                     else _default_title(action.label, label)),
@@ -4302,9 +4821,10 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         "server": label,
         "target": _sentence(i18n._("{label} (node)"), label=label),
         "hidden": _hidden_fields(origin, tab, ("node", name)),
-        # the action's own option, when it has one; otherwise the dialog asks for nothing, which is
-        # why the mockup draws the lifecycle trio as plain confirmations
-        "inputs": option_inputs(action),
+        # EVERY field the declaration asks for: its NAMED inputs first (the DCS update's branch,
+        # version and warning time) and then its checkbox(es). A control that declares neither asks
+        # for nothing, which is why the lifecycle trio's dialog is still a plain confirmation.
+        "inputs": node_dialog_inputs(request, action, name),
         "body_inputs": (),
         "confirm_field": CONFIRM_FIELD,
         "confirm_token": token,
@@ -4329,6 +4849,11 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         "pills": dashboard_page.status_pills(state),
         "back": dialog_back(request, tabbed_origin(origin, tab)),
         "dialog": dialog,
+        # THE DIALOG'S OWN TEMPLATE and the facts its page reads (see ``page_facts``): the shared
+        # ``confirm.html`` for every control that declares none, so a page cannot pick a template the
+        # declaration did not name.
+        "dialog_template": action.template or CONFIRM_TEMPLATE,
+        "page_facts": page_facts,
     }
 
 
@@ -4520,6 +5045,12 @@ def add_routes(router: APIRouter) -> APIRouter:
     # and nothing a forged request could change. Gated by the ADD's own capability (declared above).
     router.add_api_route(BAN_PLAYERS_PATH, _ban_players_handler(), methods=["GET"],
                          name="ban-players")
+    # THE DCS UPDATE'S VERSION LIST — the JSON GET the dialog's version pick reads. A GET because it
+    # changes nothing, and so WITHOUT the CSRF dependency the writes carry: there is no token to send
+    # and nothing a forged request could change. Gated by the update's own capability, declared above
+    # (``capabilities()`` registers the route's own pattern, node parameter and all).
+    router.add_api_route(DCS_VERSIONS_PATH, _dcs_versions_handler(), methods=["GET"],
+                         name="node-dcs-versions")
     for action in NODE_ACTIONS:
         router.add_api_route(action.path, _node_handler(action), methods=["POST"],
                              dependencies=[Depends(session.csrf_protect)],
@@ -6988,7 +7519,14 @@ def _node_handler(action: NodeAction):
                 detail=REFUSAL_CONFIRM_REQUIRED)
         ctx = _context(request, identity)
         params: dict[str, Any] = {"node_name": name}
+        # THE PER-NODE OPTIONS: a box the dialog did not draw on THIS node is not read off the body,
+        # and its parameter is ``False`` — never the declaration's ``default``, which would let a
+        # node with no announcement configured reach the action asking for one.
+        offered = {option.field for option in node_dialog_options(action, name)}
         for option in dialog_options(action):
+            if option.field not in offered:
+                params[option.field] = False
+                continue
             try:
                 params[option.field] = option_value(option, form)
             except ValueError as ex:
@@ -7008,6 +7546,16 @@ def _node_handler(action: NodeAction):
                                  f"node '{name}'")
             _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
             raise dashboard_page.out_of_scope_refusal()
+        # THE NAMED INPUTS (the DCS update's branch, version and warning time), read through the SAME
+        # declaration that drew them: a value the dialog cannot have sent — a free-text branch, a
+        # warning time outside the declared bounds — is refused HERE, so it is never forwarded to the
+        # node. Refused with a trail, like every other body this console will not act on, and AFTER
+        # the scope check so an out-of-view name never learns anything from a field refusal.
+        try:
+            params.update(node_dialog_values(action, form, name))
+        except ValueError as ex:
+            await _audit_refusal(ctx, action, f"invalid field ({ex})", f"node '{name}'")
+            raise HTTPException(status_code=400, detail=str(ex))
         # THE SERVERS THE OPERATION WILL MOVE, PREDICTED BEFORE THE ACTION RUNS. The
         # prediction reads the caller's own SCOPED view and — for ``online`` — the engine's power-off
         # RECORD, which the action CLEARS as part of reverting it: read it HERE, at the same moment the
@@ -7100,10 +7648,14 @@ def _node_confirm_handler(action: NodeAction):
         origin = origin_path(request, form.get(ORIGIN_FIELD), _nodes_path())
         tab = posted_tab(form.get(TAB_FIELD))
         dialog = node_confirm_context(request, action, name, resolution.node, token, origin, tab)
+        # THE TEMPLATE COMES OFF THE DECLARATION, never off the request: the control's own page when
+        # it declares one (the DCS update's version pick is filled after the page is open), the
+        # shared ``confirm.html`` for every other node control.
+        template = dialog.pop("dialog_template", CONFIRM_TEMPLATE)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
-        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+        return HTMLResponse(i18n.render(request, template, **dialog),
                             headers={"Cache-Control": "no-store"})
 
     return handle
@@ -7130,6 +7682,106 @@ def _ban_players_handler():
         # no-store: a suggestion list is a live view of who is on a server right now.
         return JSONResponse({"players": list(players or ())},
                             headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _shown_sentence(request: Request, msgid: str, **params) -> str:
+    """*msgid* in the request's language, its ``{name}`` holes filled after the translation.
+
+    The console's rule for a string a SCRIPT shows rather than looks up (``I18N.md``): translate
+    first, interpolate after, so a node name or a version never goes through a catalog. A translation
+    that lost a hole degrades to the English sentence rather than raising into a 500 — the same guard
+    the dialogs' ``say`` applies.
+    """
+    translated = i18n.translate(request, msgid)
+    try:
+        return translated.format(**params)
+    except (KeyError, IndexError, ValueError):
+        try:
+            return str(msgid).format(**params)
+        except (KeyError, IndexError, ValueError):
+            return str(msgid)
+
+
+def _dcs_versions_answer(request: Request, status_code: int, msgid: str,
+                         **params) -> JSONResponse:
+    """ONE refusal of the version list: ``{"versions": [], "reason": "<sentence>"}``.
+
+    The shape is the route's whole contract — a LIST always, empty when nothing could be read, and the
+    reason beside it. Never an invented entry, never a 500 and never an empty list without a word
+    about why: the dialog's pick states the sentence where the choices would be.
+    """
+    return JSONResponse({"versions": [],
+                         "reason": _shown_sentence(request, msgid, **params)},
+                        status_code=status_code, headers={"Cache-Control": "no-store"})
+
+
+def _dcs_versions_handler():
+    """The JSON GET the DCS update dialog's version pick reads: ``{"versions": [...]}``, newest first.
+
+    THE NODE IS ASKED AT ALL ONLY HERE — never while a page renders — which is what makes the pick
+    show the versions a node really offers (the older ones included, which is the rollback) instead of
+    whatever the console could guess from its cache.
+
+    THE GATE IS THE CONTROL'S OWN (``nodes.dcs_update``, declared in :func:`capabilities`): the list is
+    the door to the write it feeds, so it is not a lesser right.
+
+    THE THREE REFUSALS, all in the one JSON shape:
+
+    * a node outside the caller's view — the console's own out-of-scope sentence, the SAME answer a
+      name that does not exist gets, so the list cannot be used to enumerate the cluster;
+    * a node the cluster knows and cannot reach — the seam's sentence, with the node's name;
+    * a ``branch`` that is not one of :func:`dcs_branch_values` for that node. A FREE-TEXT BRANCH IS
+      NEVER FORWARDED: the picker's allow-list is the gate, so a crafted query cannot ask a node about
+      a branch the console does not offer.
+
+    A node that declares no DCS installation, one whose check raises, and one that answers with no
+    version are three DIFFERENT reasons and three different sentences — the operator learns which of
+    them happened rather than reading an empty pick.
+    """
+    async def handle(request: Request) -> JSONResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        node_name = readmodels.text(request.path_params.get("node"))
+        branch = readmodels.text(request.query_params.get(DCS_VERSIONS_QUERY))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_node(node_name)
+        if resolution.status == NodeResolution.NOT_PERMITTED:
+            return _dcs_versions_answer(request, 403, REFUSAL_OUT_OF_SCOPE)
+        if not resolution.is_found:
+            return _dcs_versions_answer(request, 404, DCS_VERSIONS_OFFLINE, node=node_name)
+        canonical = readmodels.text(getattr(resolution.node, "name", "")) or node_name
+        if branch not in dcs_branch_values(canonical):
+            return _dcs_versions_answer(request, 400, DCS_VERSIONS_UNKNOWN_BRANCH, branch=branch)
+        if _declared_dcs_block(canonical) is None:
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_NO_DCS, node=canonical)
+        reader: Any = getattr(resolution.node, "get_available_dcs_versions", None)
+        if not callable(reader):
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_FAILED_BODY, node=canonical,
+                                        error="no such method")
+        invoke: Any = reader
+        try:
+            versions = await invoke(branch)
+        except (TimeoutError, asyncio.TimeoutError):
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_FAILED_BODY, node=canonical,
+                                        error="timeout")
+        except Exception as ex:
+            log.warning("DCS versions for node '%s' on branch '%s' failed: %s", canonical, branch, ex)
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_FAILED_BODY, node=canonical,
+                                        error=type(ex).__name__)
+        # THE NODE ANSWERS OLDEST FIRST (``get_latest_version`` is ``versions[-1]``), so the list is
+        # reversed: the pick's first entry is the newest build, and the older ones follow it down.
+        ordered = [readmodels.text(version) for version in (versions or ())
+                   if readmodels.text(version)]
+        if not ordered:
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_EMPTY, node=canonical,
+                                        branch=branch)
+        ordered.reverse()
+        # no-store: what a branch offers changes with every ED release, so a cached list is a lie the
+        # next rollback would act on.
+        return JSONResponse({"versions": ordered}, headers={"Cache-Control": "no-store"})
 
     return handle
 

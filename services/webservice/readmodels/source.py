@@ -26,14 +26,14 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .access import attr, text
+from .access import attr, safe, text
 from .instances import bound_server_name
 from .model import NO_LIVE_REASON, SourceStatus
 from ..scope import server_managed_by
 
-__all__ = ["LOG_DIR", "LOG_NAME_TEMPLATE", "log_path_for", "declared_node_instances", "Source",
-           "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "console_source",
-           "resolve_source"]
+__all__ = ["LOG_DIR", "LOG_NAME_TEMPLATE", "log_path_for", "declared_node_instances",
+           "declared_node_dcs", "Source", "EmptySource", "LiveSource", "ScopedSource",
+           "scoped_source", "console_source", "resolve_source"]
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +76,33 @@ def declared_node_instances() -> dict[str, tuple[str, ...]]:
             for name, names in mapping.items()}
 
 
+def declared_node_dcs() -> dict[str, dict]:
+    """The ``DCS`` block each node DECLARES in ``nodes.yaml``, for every node that declares one.
+
+    THE ANSWER TO "HAS THIS NODE A DCS INSTALLATION", from CONFIGURATION: the same ``NodeData``
+    singleton (:func:`declared_node_instances`) now keeps each node's ``DCS`` block, so this costs
+    **no node call** — which matters because the alternative, ``NodeProxy.installation``, raises on a
+    remote node — and **no per-render YAML read**.
+
+    Guarded like every optional read in this package: a process with no readable ``nodes.yaml`` (the
+    test suite, an early start) gets ``{}`` rather than an exception, and a node with no ``DCS``
+    block is simply absent — the truthful "this node runs no DCS". A block that is not a mapping is
+    reported as ``{}`` (declared, with nothing readable in it) rather than raising.
+
+    REFRESH: read ONCE at source build; a ``nodes.yaml`` edit while the bot runs is seen on the next
+    bot restart, not on the next render — the same freshness :func:`declared_node_instances` has.
+    """
+    try:
+        from core.utils.validators import get_node_data
+        mapping = get_node_data().dcs or {}
+    except Exception:  # noqa: BLE001 - a missing/unreadable config must not break a status page
+        return {}
+    blocks: dict[str, dict] = {}
+    for name, block in mapping.items():
+        copied = safe(lambda: dict(block), {})
+        blocks[text(name)] = copied if isinstance(copied, dict) else {}
+    return blocks
+
 
 class Source:
     """What the read models need. A duck-typed contract, not a base class.
@@ -94,6 +121,11 @@ class Source:
         (:func:`declared_node_instances`). Used ONLY as the instance COUNT for a node that is
         offline/``None``; it is NOT merged into :attr:`instances`, so an offline node's declared
         instances never become Instances-table rows.
+    declared_dcs:
+        ``{node name: DCS block}`` — the nodes that DECLARE a DCS installation in ``nodes.yaml``, read
+        once at source build (:func:`declared_node_dcs`). The presence of a name here IS the answer to
+        "has this node DCS"; the values inside the block are the node's own configuration and are not
+        read by the console. A node absent from this mapping runs no DCS.
     instances, servers:
         the collections to read (iterables of objects).
     log_path:
@@ -105,6 +137,7 @@ class Source:
     status: SourceStatus
     nodes: dict
     declared_instances: dict
+    declared_dcs: dict
     instances: tuple
     servers: tuple
     log_path: Path | None
@@ -119,6 +152,7 @@ class EmptySource(Source):
         self.status = SourceStatus(live=False, reason=reason, node_name=node_name, master=master)
         self.nodes: dict = {}
         self.declared_instances: dict = {}
+        self.declared_dcs: dict = {}
         self.instances: tuple = ()
         self.servers: tuple = ()
         self.log_path = log_path
@@ -129,13 +163,15 @@ class LiveSource(Source):
     """State read from the running process. No await, no RPC, no Discord."""
 
     def __init__(self, *, servers=(), instances=(), nodes=None, node=None,
-                 declared_instances=None, log_path: Path | None = None):
+                 declared_instances=None, declared_dcs=None, log_path: Path | None = None):
         node_name = getattr(node, "name", None)
         self.status = SourceStatus(live=True, reason="", node_name=node_name,
                                    master=bool(getattr(node, "master", False)))
         self.nodes = dict(nodes or {})
         self.declared_instances = {text(name): tuple(names or ())
                                    for name, names in dict(declared_instances or {}).items()}
+        self.declared_dcs = {text(name): dict(block or {})
+                             for name, block in dict(declared_dcs or {}).items()}
         self.instances = tuple(instances or ())
         self.servers = tuple(servers or ())
         self.log_path = log_path if log_path is not None else log_path_for(node_name)
@@ -202,6 +238,12 @@ class ScopedSource(Source):
         self.declared_instances = {
             name: names
             for name, names in (getattr(source, "declared_instances", None) or {}).items()
+            if text(name) in node_names}
+        # The declared DCS blocks follow the same node filter for the same reason: a node whose row
+        # did not survive the scope must not keep its installation facts in the viewer's source.
+        self.declared_dcs = {
+            name: block
+            for name, block in (getattr(source, "declared_dcs", None) or {}).items()
             if text(name) in node_names}
         self.status = getattr(source, "status", None)
         self.log_path = getattr(source, "log_path", None)
@@ -309,5 +351,9 @@ def resolve_source(node=None, *, bot=None) -> Source:
     # per-render YAML read. It is kept BESIDE ``instances``, never merged into it: a declared
     # instance of an offline node becomes a count, not an Instances-table row.
     declared = declared_node_instances()
+    # The DCS blocks each node DECLARES, read ONCE here for the same two reasons: an offline node's
+    # row can say "this node runs DCS" without a node call, and it answers "has this node DCS" from
+    # configuration rather than from ``node.installation`` (which raises on a proxy).
+    declared_blocks = declared_node_dcs()
     return LiveSource(servers=servers, instances=instances, nodes=nodes, node=node,
-                      declared_instances=declared)
+                      declared_instances=declared, declared_dcs=declared_blocks)

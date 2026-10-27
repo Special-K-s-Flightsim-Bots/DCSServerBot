@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 
 __all__ = [
     "STATUS_WORDS", "DEFAULT_STATUS", "RAW_LABELS",
     "raw_status", "status_view", "StatusView",
-    "SourceStatus", "NodeView", "InstanceView", "ServerView", "PlayerView", "WeatherView",
+    "SourceStatus", "NodeView", "DcsView", "InstanceView", "ServerView", "PlayerView", "WeatherView",
     "LaunchedPresetView",
     "ExtensionView", "LimitView", "ValuePart", "value_parts",
     "LogLine", "LogTail", "Overview",
@@ -34,6 +35,7 @@ __all__ = [
     "NO_INSTANCES_MESSAGE", "NO_NODE_INSTANCES_MESSAGE", "LOG_MISSING_MESSAGE",
     "LOG_EMPTY_MESSAGE", "LOG_LEVEL_EMPTY_MESSAGE", "SCOPED_EMPTY_MESSAGE",
     "NO_MISSION_MESSAGE", "NO_WEATHER_MESSAGE", "NOT_RUNNING_MESSAGE",
+    "DCS_CHIP_CURRENT", "DCS_CHIP_UPDATE", "DCS_CHIP_UNCHECKED", "DCS_CHIP_ABSENT", "dcs_chip",
 ]
 
 
@@ -100,6 +102,19 @@ NO_WEATHER_MESSAGE = _("No weather is reported.")
 #: up: those facts do not exist for a server that is not running, and zeroes would read as figures
 NOT_RUNNING_MESSAGE = _("This server is not running.")
 
+# --- the node row's DCS chip: one label per state (see :func:`dcs_chip`). The version, branch and
+# latest build are OPERATOR DATA, so the msgids carry placeholders and the values are interpolated
+# at render (the row's other sentence records work the same way).
+#: checked, and the installed build is the newest on its branch
+DCS_CHIP_CURRENT = _("DCS {version} @ {branch}")
+#: checked, and a newer build exists on the installed branch (the chip wears the amber styling)
+DCS_CHIP_UPDATE = _("DCS {version} → {latest}")
+#: the cache holds no answer for this node (never checked, the last check failed, or the node is
+#: offline). The literal is ``services.webservice.upgrade.NOTE_NO_CHECK``'s — one wording, one msgid.
+DCS_CHIP_UNCHECKED = _("no update check yet")
+#: the node declares no ``DCS:`` block at all — stated plainly, with no version and no claim
+DCS_CHIP_ABSENT = _("no DCS on this node")
+
 
 # --------------------------------------------------------------------------------- status
 
@@ -147,6 +162,32 @@ class SourceStatus:
 # ----------------------------------------------------------------------------------- views
 
 @dataclass(frozen=True, slots=True)
+class DcsView:
+    """One node's DCS installation, as the CACHED poll answer knows it.
+
+    The presence of this record IS the answer to "this node runs DCS" (``NodeView.dcs is None`` when
+    it does not). Every fact inside it comes from the background poll
+    (``services/webservice/dcs_update.py``) — never from a node call made while rendering.
+
+    ``available`` is three-valued: ``True`` a newer build exists, ``False`` the node is current,
+    ``None`` UNKNOWN (never checked, or the last check failed) — so a row can tell "up to date" from
+    "not checked". A node that declares a DCS installation but has never been checked, and an offline
+    node, both carry this record with empty strings and ``available is None``: the configuration says
+    the installation exists, and no version is invented for it.
+    """
+    #: the installed branch, e.g. ``"release"``, or ``''`` while unknown
+    branch: str = ""
+    #: the installed version, e.g. ``"2.9.8.110"``, or ``''`` while unknown
+    version: str = ""
+    #: the newest version on the installed branch (the installed one when the node is current), or ``''``
+    latest: str = ""
+    #: three-valued availability — see the class docstring
+    available: bool | None = None
+    #: when the cached answer was produced (aware UTC), or ``None`` while nothing was checked
+    checked_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class NodeView:
     name: str
     master: bool
@@ -154,6 +195,38 @@ class NodeView:
     instances: int
     servers: int
     players: int
+    #: the node's DCS installation (:class:`DcsView`), or ``None`` when the node DECLARES none
+    dcs: DcsView | None = None
+
+    @property
+    def dcs_chip(self) -> dict:
+        """The DCS chip this row renders beside its name (see :func:`dcs_chip`)."""
+        return dcs_chip(self.dcs)
+
+
+def dcs_chip(dcs: DcsView | None) -> dict:
+    """The node row's ONE DCS label, as a ``say`` sentence record plus its styling flag.
+
+    Four states and no others:
+
+    * ``DCS {version} → {latest}`` with ``warn`` (``available is True``);
+    * ``DCS {version} @ {branch}`` (``available is False``);
+    * ``no update check yet`` (``available is None`` — never checked, the last check failed, or the
+      node is offline, whose record carries no version by construction);
+    * ``no DCS on this node`` (``dcs is None`` — the node declares no ``DCS:`` block).
+
+    The two checked states require a version: a cache answer without one is UNKNOWN, never a claim
+    of "up to date" with a blank figure.
+    """
+    if dcs is None:
+        return {"msgid": DCS_CHIP_ABSENT, "params": {}, "warn": False}
+    if dcs.available is True and dcs.version and dcs.latest:
+        return {"msgid": DCS_CHIP_UPDATE, "params": {"version": dcs.version, "latest": dcs.latest},
+                "warn": True}
+    if dcs.available is False and dcs.version:
+        return {"msgid": DCS_CHIP_CURRENT, "params": {"version": dcs.version, "branch": dcs.branch},
+                "warn": False}
+    return {"msgid": DCS_CHIP_UNCHECKED, "params": {}, "warn": False}
 
 
 @dataclass(frozen=True, slots=True)

@@ -21,6 +21,7 @@
     | `pause`    | RUNNING             | two bars                    |
     | `shutdown` | RUNNING, PAUSED     | the single power arc        |
     | `restart`  | RUNNING, PAUSED     | the circular arrow          |
+    | `dcs_update` | node declares DCS | two opposed vertical arrows |
     | `stop`     | RUNNING, PAUSED     | the filled square (row menu)|
 
   `startup` and `start` share the triangle safely because their states are DISJOINT: no row is ever in
@@ -96,6 +97,17 @@
   drawing that reads as "this restriction is released". It is deliberately NOT `unmute` (the MUTE
   pair's loudspeaker on a player row, which says nothing about a ban), NOT `ban` (the ban itself) and
   NOT `end_maintenance`'s check-in-circle.
+
+  `dcs_update` is the NODE row's DCS installation: two vertical arrows side by side, pointing OPPOSITE
+  ways (a swap). One control covers update, rollback and branch switch — the engine call takes a
+  branch and a version — so the drawing states the OPERATION (this build is replaced by another one)
+  and never a direction: an up arrow alone would claim "newer only" and a down arrow alone "older
+  only". It cannot be confused with its three neighbours on the same row: `upgrade` is an arrow
+  rising out of a tray (a CONTAINER plus one arrow), `download` an arrow sinking into one (the same
+  container, the other direction), and `restart` is the circular arrow — a ring, not a pair of
+  shafts. `move_up`/`move_down` are ONE full-height arrow each, on the mission rows, where this
+  drawing never appears. No container, no ring and no single arrow is used here, which is what keeps
+  it tellable apart at 16px.
 -#}
 {% set GLYPHS = {
   'startup': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
@@ -128,7 +140,8 @@
   'reveal': '<path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/><circle cx="12" cy="12" r="3.1"/>',
   'settings': '<circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.3a1.9 1.9 0 1 1-3.8 0v-.2a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a1.9 1.9 0 1 1 0-3.8h.2a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a1.9 1.9 0 1 1 3.8 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1h.3a1.9 1.9 0 1 1 0 3.8h-.2a1.7 1.7 0 0 0-1.5 1Z"/>',
   'pencil': '<path d="M4.6 19.4v-4L15.8 4.2l4 4L8.6 19.4Z"/><path d="M13.8 6.2l4 4"/>',
-  'conceal': '<path d="M2.4 12S6.2 5.6 12 5.6c1.5 0 2.9.4 4.1 1"/><path d="M20.2 8.7c.9 1.2 1.4 2.2 1.4 2.2S19 17.3 13.2 18.2"/><path d="M6.1 7.3C3.7 9.1 2.4 12 2.4 12"/>'
+  'conceal': '<path d="M2.4 12S6.2 5.6 12 5.6c1.5 0 2.9.4 4.1 1"/><path d="M20.2 8.7c.9 1.2 1.4 2.2 1.4 2.2S19 17.3 13.2 18.2"/><path d="M6.1 7.3C3.7 9.1 2.4 12 2.4 12"/>',
+  'dcs_update': '<path d="M9.2 17.2V7.6"/><path d="M6 10.8 9.2 7.6l3.2 3.2"/><path d="M14.8 6.8v9.6"/><path d="M11.6 13.2 14.8 16.4l3.2-3.2"/>'
 } %}
 {%- macro act(name) -%}
 <svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ GLYPHS.get(name, '')|safe }}</svg>

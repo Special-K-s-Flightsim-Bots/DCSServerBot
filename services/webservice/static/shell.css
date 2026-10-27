@@ -275,6 +275,8 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
 .dot.pause { background: var(--pause); box-shadow: 0 0 0 3px var(--pause-halo); }
 .dot.dead { background: var(--dead); box-shadow: 0 0 0 3px var(--dead-halo); }
 .dot.stop { background: var(--stop); }
+/* a waiting DCS update: amber, on the amber halo, never the red a fault wears */
+.dot.update { background: var(--warn-text); box-shadow: 0 0 0 3px var(--pause-halo); }
 
 /* ---------------------------------------------------------------- content */
 /* THE scrolling region of the app shell (the top bar and the sidebar are fixed around it).
@@ -473,6 +475,7 @@ body.login-page {
   font-size: 12.5px; }
 .banner.calm { color: var(--text-2); border-color: var(--ok-line); background: var(--ok-wash); }
 .banner.alert { color: var(--text); border-color: var(--bad-line); background: var(--bad-wash); }
+.banner.advisory { color: var(--text); border-color: var(--warn-line); background: var(--warn-bg); }
 .banner-calm, .banner-item { display: inline-flex; align-items: center; gap: 8px; }
 .banner-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap;
   gap: 8px 20px; }
@@ -552,12 +555,33 @@ td.acts .act-btn.cfg:focus-visible { background: var(--panel-2); border-color: v
 .act-btn svg { width: 16px; height: 16px; display: block; }
 .act-btn:hover { color: var(--text); border-color: var(--accent); }
 .act-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A WAITING STATE, not a warning and not a hover: a node whose CACHED DCS check says a newer build
+ * exists wears this, and the chip beside the node's name says the same fact in the same amber. It
+ * therefore tints the glyph AT REST (unlike `danger`, which speaks on hover) — the colour is the
+ * operator's cue that there IS something to do here. It marks the state and never gates the control:
+ * a node that is current keeps the same button in its ordinary colour. Built from the `--warn-*`
+ * family (`.tag.a`'s own tokens), so it has no literal and both themes follow.
+ * SPECIFICITY, the same trap the `danger` rule below documents: the quiet-at-rest rule
+ * `td.acts .act-strip > form > .act-btn` sets `background`/`border-color` too, so the resting mark
+ * needs that full selector. Its `:hover` rule is declared after the `danger` one, for the reason
+ * given there. */
+td.acts .act-strip > form > .act-btn.attention,
+.act-btn.attention { color: var(--warn-text); border-color: var(--warn-line); }
 /* A DESTRUCTIVE control says so on HOVER, before the click; its glyph never changes colour at rest
  * (five red glyphs in a row would make the strip unreadable). The dialog then names the
  * consequence, in the user's terms. The selector matches the quiet-at-rest rule on specificity — a
  * bare `.act-btn.danger:hover` would lose its tint to it. */
 td.acts .act-strip > form > .act-btn.danger:hover,
 .act-btn.danger:hover { color: var(--danger-text); border-color: var(--bad-line); background: var(--danger-hover); }
+/* THE MARK WINS THE HOVER, and it wins by ORDER: the DCS control is also `danger` (it stops every
+ * server on the node), so both `:hover` rules match it at equal specificity — the later one takes
+ * the property. Declared after the `danger` rule on purpose: the amber says something waits, and it
+ * has to be there while the operator commits to the press, or the state cue disappears at exactly
+ * the moment it matters. A `danger` control WITHOUT the mark is untouched: it still rests neutral
+ * and turns red under the pointer. */
+td.acts .act-strip > form > .act-btn.attention:hover,
+.act-btn.attention:hover { color: var(--warn-text); border-color: var(--warn-line);
+  background: var(--warn-bg); }
 .act-btn.more { color: var(--text-3); }
 .act-wrap:has(.menu:popover-open) .act-btn.more { color: var(--text); background: var(--panel-2);
   border-color: var(--line-2); }

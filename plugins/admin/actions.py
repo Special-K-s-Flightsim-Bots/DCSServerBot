@@ -60,9 +60,14 @@ from core.data.maintenance import (PowerOffOutcome, ServerMaintenanceManager, cl
 
 log = logging.getLogger(__name__)
 
-__all__ = ["NODE_OPERATIONS", "NODE_MAINTENANCE_OPERATIONS",
+__all__ = ["NODE_OPERATIONS", "NODE_MAINTENANCE_OPERATIONS", "DCS_UPDATE_OPERATION",
            "restart_node", "shutdown_node", "upgrade_node", "take_node_offline",
-           "bring_node_online", "add_server", "delete_server"]
+           "bring_node_online", "add_server", "delete_server", "update_dcs"]
+
+#: the ONE DCS operation's own name — the words ``/dcs update`` uses (``plugins/admin/commands.py``).
+#: Update, rollback and branch switch are ONE operation: ``Node.dcs_update`` takes a branch BESIDE a
+#: version, so an older version on the installed branch is a rollback and another branch is a switch.
+DCS_UPDATE_OPERATION = "dcs_update"
 
 #: method name -> the two wordings ONE node operation needs: how it reads in a success sentence and
 #: how it reads in a failure sentence. Declared here rather than inline so the three operations cannot
@@ -232,6 +237,218 @@ async def upgrade_node(ctx: Any, node_name: str) -> NodeControlResult:
     (an RPC for a remote one), and a page render must not issue one (``readmodels/nodes``).
     """
     return await _lifecycle(ctx, node_name, "upgrade")
+
+
+# ── the DCS UPDATE ─────────────────────────────────────────────────────────
+#
+# ONE operation, the console's ONE control: **update**, **roll back** and **switch the branch** are
+# the same call. ``Node.dcs_update(branch=…, version=…)`` names both, so a version older than the
+# installed one on the installed branch IS a rollback, and another branch IS a switch — there is no
+# second engine operation to mirror, and the console therefore has no second control.
+#
+# WHAT LIVES HERE is the pre-check ``/dcs update`` makes (``plugins/admin/commands.py``:445) and the
+# wording of its three outcomes. THE SEMANTICS are the engine's
+# (``NodeImpl.dcs_update``: warns the players, stops the servers, sets ``update_pending``, runs the
+# before/after hooks and takes the federation window lock when the installation is shared) — this
+# module calls that ONE method and never the updater itself.
+
+
+def _declared_dcs_blocks() -> dict:
+    """``{node: DCS block}`` for the nodes that declare an installation in ``nodes.yaml``.
+
+    Guarded like every optional configuration read: a process with no readable ``nodes.yaml`` (the
+    test suite, an early start) answers ``{}`` — the truthful "no node here declares DCS" — rather
+    than raising inside an action.
+    """
+    try:
+        from core.utils.validators import get_node_data
+
+        return dict(get_node_data().dcs or {})
+    except Exception:
+        return {}
+
+
+def _declares_dcs(node_name: str) -> bool:
+    """Whether *node_name* DECLARES a DCS installation — a configuration fact, never a node call.
+
+    The only answer available for a remote node: ``NodeProxy.installation`` raises, so "has this node
+    DCS" cannot be asked of the node itself. The name is matched case-insensitively, like every other
+    name in this seam.
+    """
+    wanted = str(node_name or "").strip().casefold()
+    if not wanted:
+        return False
+    return any(str(name).strip().casefold() == wanted for name in _declared_dcs_blocks())
+
+
+def _win32_message(code: Any) -> str:
+    """The OS text for an updater exit code, or ``""`` — the updater's codes are Windows codes."""
+    try:
+        from core.utils.os import get_win32_error_message
+
+        return str(get_win32_error_message(int(code)) or "")
+    except Exception:
+        return ""
+
+
+@action
+async def update_dcs(ctx: Any, node_name: str, *, branch: str | None = None,
+                     version: str | None = None, warn_time: int = 60,
+                     announce: bool = True) -> NodeControlResult:
+    """Update, roll back or switch the DCS branch of ONE node — the same operation ``/dcs update`` is.
+
+    THE FOUR VALUES the caller states are passed to ``Node.dcs_update`` UNCHANGED: *warn_time* becomes
+    ``warn_times=[warn_time]`` (the seconds the players are warned for), *announce* decides whether
+    the configured Discord announcement is posted, and *branch* / *version* are the target. A value
+    the caller leaves out is RESOLVED here, exactly as ``/dcs update`` resolves it: no *branch* is the
+    INSTALLED branch, and no *version* is ``Node.get_latest_version(branch)``.
+
+    FOUR REFUSALS, each its own sentence, none of them an engine call:
+
+    * the node declares no DCS installation (``nodes.yaml``) — there is nothing to update;
+    * the branch/version read fails, so what is installed cannot be compared with the target;
+    * ED answers NO version for the branch (``get_latest_version`` is ``None`` or empty): named with
+      its truthful causes — an unreachable ED endpoint, or a node without DCS credentials — never a
+      silent no-op and never an update attempt with an empty version;
+    * the target IS what is installed (same version AND same branch).
+
+    The last one is worded for THIS dialog, not for Discord: ``/dcs update`` says "your installed
+    version X is the latest on branch Y", which is only true when the caller named no version. Here
+    the operator may have asked for a rollback, so the sentence names both facts it compared.
+
+    THE TIMEOUT is reported as such: the operation is minutes long, it runs on the node and this
+    caller may stop waiting long before the node is done.
+
+    NOTHING HERE HOLDS THE CONSOLE: the route that calls it is a background submit
+    (``services/webservice/static/submit.js``: the dialog closes on the press and the outcome arrives
+    as the one-shot notice), and this action adds no thread of its own — ``Node.dcs_update`` is
+    awaited where every other node action awaits its call.
+    """
+    node = ctx.resolve_node(node_name)
+    if node is None:
+        # The same ONE wording as every other node action: "no such name" and "the cluster knows it
+        # and cannot reach it" are one answer.
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Node '{node_name}' is offline or unknown.", node_name=node_name))
+    canonical = str(getattr(node, "name", "") or node_name)
+    if not _declares_dcs(canonical):
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Node '{canonical}' declares no DCS installation, so there is nothing to "
+                     f"update."),
+            node_name=canonical))
+    updater: Any = getattr(node, "dcs_update", None)
+    if not callable(updater):
+        # a transport whose node object does not expose the method (an older agent, a double): a
+        # typed refusal, never an AttributeError and never a fake success.
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=f"Node '{canonical}' cannot update DCS in this installation.",
+            node_name=canonical))
+
+    try:
+        installed_branch, installed_version = await node.get_dcs_branch_and_version()
+    except (TimeoutError, asyncio.TimeoutError):
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Node '{canonical}' did not answer in time, so its installed DCS version is "
+                     f"unknown and nothing was updated."),
+            node_name=canonical))
+    except Exception as ex:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Could not read the installed DCS version of node '{canonical}', so nothing "
+                     f"was updated: {ex}"),
+            node_name=canonical))
+    installed_branch = str(installed_branch or "").strip()
+    installed_version = str(installed_version or "").strip()
+
+    target_branch = str(branch or installed_branch).strip()
+    if not target_branch:
+        # a node whose own configuration names no branch and a caller that named none either: there
+        # is no target to resolve, and guessing one would be an install of something nobody asked for
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Node '{canonical}' reports no installed DCS branch, so no target branch "
+                     f"could be resolved; name one and try again."),
+            node_name=canonical))
+    target_version = str(version or "").strip()
+    if not target_version:
+        try:
+            target_version = str(await node.get_latest_version(target_branch) or "").strip()
+        except (TimeoutError, asyncio.TimeoutError):
+            target_version = ""
+        except Exception:
+            # get_latest_version already answers None for an unreachable ED endpoint; a raise is the
+            # RPC or the login failing. Both are "no version information", said truthfully below.
+            target_version = ""
+        if not target_version:
+            return await _audited(ctx, NodeControlResult(
+                success=False,
+                message=(f"No version information for branch '{target_branch}' on node "
+                         f"'{canonical}' — ED may be unreachable, or this node has no DCS "
+                         f"credentials."),
+                node_name=canonical))
+    if target_version == installed_version and target_branch == installed_branch:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"Version {target_version} of branch '{target_branch}' is already installed "
+                     f"on node '{canonical}'."),
+            node_name=canonical))
+
+    # THE TRAIL'S FIRST LINE, the one ``/dcs update`` writes before it starts the updater: the
+    # operation is minutes long, so the trail says it STARTED before it can say how it ended.
+    await audit_action(ctx, NodeControlResult(success=True, node_name=canonical),
+                       message=f"started an update of all DCS servers on node {canonical}.")
+    invoke: Any = updater
+    try:
+        rc: Any = await invoke(warn_times=[int(warn_time)], branch=target_branch,
+                              version=target_version, announce=announce)
+    except (TimeoutError, asyncio.TimeoutError):
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"The update of DCS World on node '{canonical}' is still running — it takes "
+                     f"longer than this request waited. Check the node's log to see whether it "
+                     f"finished."),
+            node_name=canonical))
+    except Exception as ex:
+        log.exception("update_dcs failed on node '%s'", canonical)
+        return await _audited(ctx, NodeControlResult(
+            success=False, message=f"Failed to update DCS World on node '{canonical}': {ex}",
+            node_name=canonical))
+
+    if rc == 0:
+        # WHAT IS ACTUALLY INSTALLED, read back OFF THE NODE: the updater may have moved the
+        # installation somewhere other than the version that was asked for (a branch's newest build
+        # supersedes a named one), and the console must report the node, not the request.
+        new_branch, new_version = installed_branch, target_version
+        try:
+            read_branch, read_version = await node.get_dcs_branch_and_version()
+            new_branch = str(read_branch or "").strip() or new_branch
+            new_version = str(read_version or "").strip() or new_version
+        except Exception as ex:
+            log.warning("update_dcs: could not read node '%s' back after the update: %s",
+                        canonical, ex)
+        result = NodeControlResult(
+            success=True,
+            message=(f"DCS World on node '{canonical}' was updated to version {new_version} on "
+                     f"branch '{new_branch}'."),
+            node_name=canonical)
+        # THE TRAIL'S SECOND LINE, in ``/dcs update``'s own words
+        await audit_action(
+            ctx, result,
+            message=f"updated DCS from {installed_version} to {new_version} on node {canonical}.")
+        return result
+    if rc == 2:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=f"DCS World update on node '{canonical}' was aborted (check disk space)!",
+            node_name=canonical))
+    return await _audited(ctx, NodeControlResult(
+        success=False,
+        message=(f"Error while updating DCS World on node '{canonical}', code={rc}, "
+                 f"message={_win32_message(rc)}."),
+        node_name=canonical))
 
 
 # ── the NODE POWER pair ────────────────────────────────────────────────────

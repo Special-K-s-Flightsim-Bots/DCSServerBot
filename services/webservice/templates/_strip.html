@@ -47,6 +47,12 @@
       itself, `confirm.html`), and since IT hands the page back at once too — closing the modal on
       press — with a refusal delivered by the one-shot notice like every other write.
 
+  A THIRD MARK, A STATE — `control.attention` (absent on most records, so read with `.get`): the
+  control is offered AND the per-row fact it acts on says something is waiting. Only the node row's
+  DCS control carries it, and its value is the CACHED poll answer the amber chip beside the node's
+  name prints (:func:`pages/actions._dcs_attention`) — one read, so the glyph and the chip cannot
+  disagree. It marks the STATE; it never gates the control, which is offered either way.
+
   TWO SIGNALS, TWO SCOPES — and the template computes neither:
     * `control.busy` is the EXPECTATION half and belongs to ONE control: it is `True` only while the
       control THAT WAS PRESSED has a pending expectation and the observable its action moves (the
@@ -72,7 +78,7 @@
 {%- macro control_button(control) -%}
 {%- set busy = control.get('busy') -%}
 {%- set off = ' disabled' if control.get('disabled') else '' -%}
-<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ icons.act(control.icon) }}</button>
+<button class="act-btn{{ ' danger' if control.danger else '' }}{{ ' attention' if control.get('attention') else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ off|safe }} title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ icons.act(control.icon) }}</button>
 {%- endmacro -%}
 {%- macro strip_form(control) -%}
 <form method="post" action="{{ control.path }}"{{ ' data-async' if control.get('direct') else '' }}>{{ control_fields(control) }}{{ control_button(control) }}</form>

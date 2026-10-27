@@ -40,10 +40,10 @@ from .logtail import DEFAULT_LINES, log_tail, tail
 from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE,
                     NO_LIVE_REASON, NO_MISSION_MESSAGE, NO_NODES_MESSAGE, NO_NODE_INSTANCES_MESSAGE,
                     NO_PLAYERS_MESSAGE, NO_SERVERS_MESSAGE, NO_WEATHER_MESSAGE, NOT_RUNNING_MESSAGE,
-                    SCOPED_EMPTY_MESSAGE, STATUS_WORDS, InstanceView, LaunchedPresetView, LogLine,
-                    LogTail, NodeView, Overview, PlayerView, ServerView, SourceStatus, StatusView,
-                    WeatherView, format_duration, status_view)
-from .nodes import nodes
+                    SCOPED_EMPTY_MESSAGE, STATUS_WORDS, DcsView, InstanceView, LaunchedPresetView,
+                    LogLine, LogTail, NodeView, Overview, PlayerView, ServerView, SourceStatus,
+                    StatusView, WeatherView, format_duration, status_view)
+from .nodes import dcs_view, nodes
 from .overview import overview
 from .players import players_online
 from .serverconfig import (EDITABLE_FIELDS, READONLY_FIELDS, ConfigField,
@@ -59,14 +59,14 @@ from .serverconfig import (EDITABLE_FIELDS, READONLY_FIELDS, ConfigField,
                            COALITION_REFUSED_SENTENCE, WRITABLE_COALITION_RAW)
 from .servers import SERVERS_HREF_PREFIX, server_url, servers
 from .source import EmptySource, LiveSource, ScopedSource, Source, console_source, \
-    declared_node_instances, log_path_for, resolve_source, scoped_source
+    declared_node_dcs, declared_node_instances, log_path_for, resolve_source, scoped_source
 from .views import (Column, ColumnView, PlayerSearch, TableView, ViewParams, ViewState,
                     column_link, sort_rows, table_view, view_params, view_state, columns_for,
                     PAGE_COLUMNS)
 
 __all__ = [
     # records + vocabulary
-    "SourceStatus", "StatusView", "NodeView", "InstanceView", "ServerView", "PlayerView",
+    "SourceStatus", "StatusView", "NodeView", "DcsView", "InstanceView", "ServerView", "PlayerView",
     "WeatherView", "LaunchedPresetView", "LogLine", "LogTail", "Overview", "STATUS_WORDS",
     "status_view", "format_duration",
     # empty-state copy
@@ -80,9 +80,10 @@ __all__ = [
     # sources (the scope wrap is the ONE place the hoster view is applied; console_source is the
     # ONE place the application's source seam is resolved)
     "Source", "EmptySource", "LiveSource", "ScopedSource", "scoped_source", "resolve_source",
-    "console_source", "log_path_for", "declared_node_instances",
+    "console_source", "log_path_for", "declared_node_instances", "declared_node_dcs",
     # read models
-    "nodes", "instances", "launched_preset_view", "servers", "players_online", "log_tail", "tail",
+    "nodes", "dcs_view", "instances", "launched_preset_view", "servers", "players_online", "log_tail",
+    "tail",
     "overview", "DEFAULT_LINES",
     # a server's read model AND the ONE encoder of its page URL (the row link and the redirect back)
     "server_url", "SERVERS_HREF_PREFIX",

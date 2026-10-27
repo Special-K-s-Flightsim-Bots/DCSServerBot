@@ -188,6 +188,15 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def is_dcs_update_available(self) -> str | None:
+        """The newer version string when the installed DCS branch has one, otherwise ``None``.
+
+        An unreachable or failing ED endpoint is answered with ``None``, never an exception: the caller
+        reports "no update" rather than propagating a publisher outage.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
     async def dcs_repair(self, warn_times: list[int] = None, slow: bool | None = False,
                          check_extra_files: bool | None = False):
         raise NotImplementedError()

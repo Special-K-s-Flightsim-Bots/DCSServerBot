@@ -37,6 +37,8 @@ class WebService(Service):
         self.ui = None
         #: the upgrade poll's task — created in ``start()``, cancelled in ``stop()``
         self.upgrade_task = None
+        #: the DCS update poll's task — created in ``start()``, cancelled in ``stop()``
+        self.dcs_task = None
         #: the render warm-up's task — created in ``start()``, cancelled in ``stop()``
         self.warm_task = None
         #: the ready-time scope audit's task — created in ``start()``, cancelled in ``stop()``
@@ -206,6 +208,13 @@ class WebService(Service):
         # factory reads too).
         if frontend_enabled(self.get_config()):
             self.upgrade_task = asyncio.create_task(self._poll_upgrades())
+            # THE DCS UPDATE POLL: the sibling of the upgrade poll, for each node's DCS
+            # installation (branch, version, newer build on that branch) — the node's OWN API,
+            # never a page render. The four triggers live in ``services/webservice/dcs_update.py``
+            # (start = the poller's first, full sweep); a node coming online is a newcomer the
+            # sampler notices, and a re-check after an accepted update is that module's
+            # ``check_node``.
+            self.dcs_task = asyncio.create_task(self._poll_dcs_updates())
             # THE RENDER WARM-UP: the first page after a boot paid the whole schema parse (measured
             # 781 ms for a node click against 39 ms once the caches were warm). Ask for the same
             # things a page will ask for, ONCE, in a THREAD — so the FIRST click costs what the rest
@@ -235,6 +244,28 @@ class WebService(Service):
                 raise
             except Exception:
                 self.log.exception("WebService: the upgrade check sweep failed.")
+            await asyncio.sleep(poller.sample_seconds)
+
+    async def _poll_dcs_updates(self) -> None:
+        """Sample every node's DCS installation and refresh the cache the render reads.
+
+        The task lives for the service's lifetime and does NOTHING but the poll: each tick asks
+        :func:`services.webservice.dcs_update.console_nodes` for the current registry, passes the
+        CONFIGURATION's declared DCS blocks (so a node without an installation costs no call at all),
+        and lets the poller decide which nodes to check (newcomers, and every node on a due sweep).
+        Every failure is contained — a poll that raises must never take the webservice down with it,
+        and the cache simply keeps its last honest value.
+        """
+        from services.webservice import dcs_update
+
+        poller = dcs_update.DcsUpdatePoller()
+        while True:
+            try:
+                await poller.tick(dcs_update.console_nodes(), dcs_update.console_declared_dcs())
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.exception("WebService: the DCS update check sweep failed.")
             await asyncio.sleep(poller.sample_seconds)
 
     async def _warm_render_caches(self) -> None:
@@ -311,6 +342,13 @@ class WebService(Service):
             with suppress(asyncio.CancelledError):
                 await self.upgrade_task
             self.upgrade_task = None
+        if self.dcs_task:
+            # the DCS poll is the same lifetime shape: end it with the service, and wait for the
+            # cancellation so no poller keeps sampling a stopped app.
+            self.dcs_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.dcs_task
+            self.dcs_task = None
         if self.task:
             self.server.should_exit = True
             # Explicitly trigger the shutdown of the uvicorn server

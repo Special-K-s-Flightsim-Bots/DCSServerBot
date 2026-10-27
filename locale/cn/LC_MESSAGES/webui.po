@@ -2332,6 +2332,22 @@ msgstr "一切正常 — 每个节点都在发送心跳，没有服务器下线�
 msgid "No players match this search."
 msgstr "没有玩家匹配此搜索。"
 
+#: services/webservice/pages/dashboard.py:195
+#, python-format
+msgid ""
+"DCS update waiting on %(count)d node(s), installed on its own within "
+"the auto-update window: %(names)s"
+msgstr ""
+"%(count)d 个节点的 DCS 更新待处理，将在自动更新窗口内自行安装：%(names)s"
+
+#: services/webservice/pages/dashboard.py:197
+#, python-format
+msgid ""
+"DCS update waiting on %(count)d node(s), auto-update is off, so a "
+"manual start is needed: %(names)s"
+msgstr ""
+"%(count)d 个节点的 DCS 更新待处理，自动更新已关闭，需手动启动：%(names)s"
+
 #: services/webservice/pages/dashboard.py:334
 #, python-format
 msgid "%(count)d node(s) not heartbeating: %(names)s"
@@ -3926,6 +3942,18 @@ msgstr "无天气数据。"
 #: services/webservice/readmodels/model.py:101
 msgid "This server is not running."
 msgstr "此服务器未运行。"
+
+#: services/webservice/readmodels/model.py:109
+msgid "DCS {version} @ {branch}"
+msgstr "DCS {version} @ {branch}"
+
+#: services/webservice/readmodels/model.py:111
+msgid "DCS {version} → {latest}"
+msgstr "DCS {version} → {latest}（有可用更新）"
+
+#: services/webservice/readmodels/model.py:116
+msgid "no DCS on this node"
+msgstr "此节点没有 DCS"
 
 #: services/webservice/readmodels/serverconfig.py:98
 msgid "Identity & access"
@@ -6808,3 +6836,157 @@ msgid ""
 "type the path into the last row to name a file that exists only on that "
 "machine."
 msgstr "此节点不是主节点，因此无法从此处列出它的文件 — 请在最后一行输入路径，以指定仅存在于该机器上的文件。"
+
+#: services/webservice/pages/actions.py
+msgid "'{branch}' is not a branch this node offers."
+msgstr "'{branch}' 不是本控制台提供的分支。"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"<b>Every server on {node} goes down</b> — {servers} server(s) and "
+"{players} player(s) are on it right now, and each one is warned for the "
+"warning time you set before it is stopped."
+msgstr ""
+"<b>{node} 上的所有服务器都会停止</b> — 当前有 {servers} 个服务器和 {players} "
+"名玩家，每个服务器都会在你设置的预警时间内收到预警后才停止。"
+
+#: services/webservice/pages/actions.py
+msgid "Announce the update on Discord"
+msgstr "在 Discord 上公告本次更新"
+
+#: services/webservice/pages/actions.py
+msgid "Branch"
+msgstr "分支"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Every server on the node is warned, then stopped, the installation is "
+"updated to the version you choose and the servers come back on it."
+msgstr "节点上的每个服务器都会收到警告，随后停止，安装会更新为你选择的版本，然后服务器在该版本上重新启动。"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"How long the players on this node are warned before their servers are "
+"stopped. 60 is the default."
+msgstr "在停止服务器之前，对节点上的玩家预警多久（秒）。默认 60。"
+
+#: services/webservice/pages/actions.py
+msgid "Installed branch (no change)"
+msgstr "已安装的分支（不更改）"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Installed branch: {branch} (no change)"
+msgstr "已安装的分支：{branch}（不更改）"
+
+#: services/webservice/pages/actions.py
+msgid "Newest build on the branch"
+msgstr "该分支上的最新版本"
+
+#: services/webservice/pages/actions.py
+msgid "Nightly"
+msgstr "Nightly"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' answered with no version for branch '{branch}' — ED may be "
+"unreachable, or this node has no DCS credentials."
+msgstr "节点 '{node}' 没有给出分支 '{branch}' 的版本 —— ED 可能无法访问，或该节点没有 DCS 凭据。"
+
+#: services/webservice/pages/actions.py
+msgid "Node '{node}' could not answer with its version list ({error})."
+msgstr "节点 '{node}' 无法给出它的版本列表（{error}）。"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' declares no DCS installation, so it has no versions to "
+"offer."
+msgstr "节点 '{node}' 未声明 DCS 安装，因此没有版本可提供。"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Node '{node}' is offline or unknown, so its versions cannot be read."
+msgstr "节点 '{node}' 离线或未知，因此无法读取它的版本。"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"On by default: once the update has finished the node posts the DCS "
+"announcement configured in its nodes.yaml."
+msgstr "默认开启：更新完成后，节点会发布其 nodes.yaml 中配置的 DCS 公告。"
+
+#: services/webservice/pages/actions.py
+msgid "Reading the versions this node offers…"
+msgstr "正在读取该节点提供的版本…"
+
+#: services/webservice/pages/actions.py
+msgid "Release"
+msgstr "Release"
+
+#: services/webservice/pages/actions.py
+msgid "Testing"
+msgstr "Testing"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"The branch to install. Testing and Nightly are offered only when this "
+"node is configured with DCS credentials."
+msgstr "要安装的分支。只有当该节点配置了 DCS 凭据时，才会提供 Testing 和 Nightly。"
+
+#: services/webservice/pages/actions.py
+msgid "The version list could not be read."
+msgstr "无法读取版本列表。"
+
+#: services/webservice/pages/actions.py
+msgid "The version list could not be read: {reason}"
+msgstr "无法读取版本列表：{reason}"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"The version to install. A version older than the installed one is a "
+"rollback; the installed one on the same branch is refused."
+msgstr "要安装的版本。比已安装版本更旧就是回滚；同分支上已安装的那个版本会被拒绝。"
+
+#: services/webservice/pages/actions.py
+msgid "Update DCS"
+msgstr "更新 DCS"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Update DCS — update, roll back or switch the branch on {node}; every "
+"server on it goes down and comes back on the new version"
+msgstr "更新 DCS — 在 {node} 上更新、回滚或切换分支；它的所有服务器都会停止，随后在新版本上启动"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"Update {node} — every server on it goes down and comes back on the new "
+"version"
+msgstr "更新 {node} — 它的所有服务器都会停止，随后在新版本上启动"
+
+#: services/webservice/pages/actions.py
+msgid "Update, roll back or switch the DCS branch on {node}"
+msgstr "在 {node} 上更新、回滚或切换 DCS 分支"
+
+#: services/webservice/pages/actions.py
+msgid "Update, roll back or switch the DCS branch on {node}?"
+msgstr "在 {node} 上更新、回滚或切换 DCS 分支？"
+
+#: services/webservice/pages/actions.py
+msgid "Version"
+msgstr "版本"
+
+#: services/webservice/pages/actions.py
+msgid "Warning time (seconds)"
+msgstr "预警时间（秒）"
+
+#: services/webservice/pages/actions.py
+msgid ""
+"update, roll back or switch branch — every server on the node goes down"
+msgstr "更新、回滚或切换分支 —— 节点上的每个服务器都会停止"
+
+#: services/webservice/pages/actions.py
+msgid "{version} — installed now"
+msgstr "{version} — 当前已安装"
+
+#: services/webservice/pages/actions.py
+msgid "{version} — newest on this branch"
+msgstr "{version} — 该分支上最新"

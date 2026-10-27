@@ -2016,6 +2016,7 @@ class NodeImpl(Node):
         if server.is_remote:
             server.name = new_name
 
+    @override
     async def is_dcs_update_available(self) -> str | None:
         branch, old_version = await self.get_dcs_branch_and_version()
         try:

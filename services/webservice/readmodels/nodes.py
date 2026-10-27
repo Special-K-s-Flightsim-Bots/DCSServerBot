@@ -32,26 +32,63 @@ THE RULES FOR WHAT THE OFFLINE ROW STILL DOES NOT KNOW (stated, not left to the 
 * the Servers/Players figures stay ``0`` for an offline node (no live server view exists to count;
   we do not invent servers from declared instances) and the ONLINE/OFFLINE tag is unchanged;
 * a LIVE node's row is untouched: its count is its own registry's length, as before.
+
+— A NODE'S DCS FACTS ARE DECLARED + CACHED, NEVER ASKED HERE. ``NodeView.dcs`` is ``None`` for a node
+that declares no ``DCS:`` block, and otherwise a :class:`~.model.DcsView` whose presence says "this node
+runs DCS" (the configuration) and whose values come from the background poll's cache
+(``services/webservice/dcs_update.py``). This module issues no call: an offline node's record carries
+the declaration alone, with no version and ``available is None``, so an unreachable node is never
+reported as up to date.
 """
 from __future__ import annotations
 
 from .access import attr, safe, text
-from .model import NO_NODES_MESSAGE, NodeView
+from .model import NO_NODES_MESSAGE, DcsView, NodeView
 
-__all__ = ["nodes", "node_views"]
+__all__ = ["nodes", "node_views", "dcs_view"]
 
 #: the empty-state copy this module owns
 EMPTY_MESSAGE = NO_NODES_MESSAGE
 
 
-def node_views(entries, servers, declared=None) -> list[NodeView]:
+def dcs_view(name, declared, *, live: bool) -> DcsView | None:
+    """The DCS facts for *name*: ``None`` when the node declares none, else what the CACHE says.
+
+    *declared* is the map of nodes that declare a DCS installation (``source.declared_dcs``), which is
+    the CONFIGURATION answer to "has this node DCS" — never ``node.installation``, which raises on a
+    proxy. A name absent from it gets ``None``, so the row claims no installation at all.
+
+    THE VALUES COME FROM THE CACHE ONLY (``dcs_update.entry``, a dict lookup): a render must not ask a
+    node, because one slow node would stall the page. An OFFLINE node (``live is False``) is answered
+    from the declaration ALONE: it carries the record with empty strings and ``available is None``, so
+    its row states that the installation exists without inventing a version or claiming it is current.
+    """
+    if name not in (declared or {}):
+        return None
+    if not live:
+        return DcsView()
+    from .. import dcs_update   # local: readmodels stays import-light, and the cache is process state
+
+    record = safe(lambda: dcs_update.entry(name), None)
+    if record is None or not getattr(record, "has_dcs", False):
+        return DcsView()
+    return DcsView(branch=record.branch, version=record.version, latest=record.latest,
+                   available=record.available, checked_at=record.checked_at)
+
+
+def node_views(entries, servers, declared=None, dcs=None) -> list[NodeView]:
     """Build the node rows from a ``{name: node-or-None}`` mapping and the server views.
 
     *declared* is the per-node declared instance-name mapping (``source.declared_instances``): it
     backs the count ONLY for a node that is ``None`` (offline). A LIVE node's count is read from its
     own registry, unchanged.
+
+    *dcs* is the per-node DECLARED DCS map (``source.declared_dcs``): it decides whether a row carries
+    a :class:`~.model.DcsView` at all. The values inside it come from the poller's cache, never from
+    the node (see :func:`dcs_view`).
     """
     declared = declared or {}
+    declarations = dcs or {}
     by_node: dict[str, list] = {}
     for server in servers:
         by_node.setdefault(server.node_name, []).append(server)
@@ -72,6 +109,7 @@ def node_views(entries, servers, declared=None) -> list[NodeView]:
             instances=instances or 0,
             servers=len(attached),
             players=sum(server.active_players for server in attached),
+            dcs=dcs_view(key, declarations, live=node is not None),
         ))
     out.sort(key=lambda view: (not view.master, view.name))
     return out
@@ -80,7 +118,8 @@ def node_views(entries, servers, declared=None) -> list[NodeView]:
 def nodes(source) -> list[NodeView]:
     """The node rows for *source* (empty when the source is not live)."""
     return node_views(getattr(source, "nodes", None), _server_views(source),
-                      getattr(source, "declared_instances", None))
+                      getattr(source, "declared_instances", None),
+                      getattr(source, "declared_dcs", None))
 
 
 def _server_views(source) -> list:

@@ -1,0 +1,124 @@
+{#-
+  THE DCS UPDATE DIALOG — ``confirm.html`` plus ONE read.
+
+  It extends the shared dialog, so the markup, the warning, the detail, the fields the dialog
+  declares and the two ways out are still ``confirm.html``'s: this file adds the script that fills
+  the VERSION pick from the node, and nothing else. The branch pick is absent on a node without DCS
+  credentials, and the script then reads the cached installed branch instead of a pick.
+
+  THE PICK IS FILLED FROM THE NODE, ON DEMAND. The list of installable versions is the node's own
+  answer (``get_available_dcs_versions``), so it cannot be drawn with the page: it is fetched from
+  ``DCS_VERSIONS_PATH`` when the dialog opens and again when the BRANCH pick changes, and the answer
+  is ``{"versions": [...]}`` newest first. The pick therefore offers the OLDER builds too, which is
+  what a rollback is, and it marks the version installed now.
+
+  NOTHING HERE IS A PRECONDITION. The page renders a usable form without this script (the server
+  draws the empty "newest build" entry and whatever the cached check knows) and a read that fails
+  leaves those entries in place, with the route's own reason as a disabled first entry — the operator
+  then submits "the newest build on the branch", which the ACTION resolves. The strings the script
+  shows come from ``page_facts`` (the server renders them for the request's language); the script
+  carries no user-visible sentence and no translation logic of its own.
+-#}
+{% extends "confirm.html" %}
+{% block scripts %}
+{{ super() }}
+<script>
+/* The version pick's read. One request per open, one per branch change, and a stale answer is
+   dropped by aborting the request it belongs to. */
+(function () {
+  "use strict";
+  var facts = {{ page_facts|tojson }};
+  if (!facts || !facts.versions_url) { return; }
+  var form = document.getElementById("dlg-form");
+  if (!form) { return; }
+  var branch = form.querySelector('select[name="' + facts.branch_field + '"]');
+  var version = form.querySelector('select[name="' + facts.version_field + '"]');
+  if (!version) { return; }
+
+  var pending = null;
+
+  function branch_now() {
+    return (branch && branch.value) || facts.installed_branch || "";
+  }
+
+  function label_for(value, index) {
+    if (value === facts.installed_version && branch_now() === facts.installed_branch) {
+      return facts.installed_label.replace("{version}", value);
+    }
+    if (index === 0) { return facts.latest_label.replace("{version}", value); }
+    return value;
+  }
+
+  function notice_option(words) {
+    var option = document.createElement("option");
+    option.value = "";
+    option.textContent = words;
+    option.disabled = true;
+    option.selected = true;
+    option.setAttribute("data-versions-notice", "");
+    return option;
+  }
+
+  function clear_notice() {
+    var stale = version.querySelector("[data-versions-notice]");
+    if (stale) { stale.parentNode.removeChild(stale); }
+  }
+
+  function fail(words) {
+    clear_notice();
+    version.insertBefore(notice_option(words), version.firstChild);
+  }
+
+  function apply(body) {
+    var versions = (body && body.versions) || [];
+    if (!versions.length) {
+      /* the route answers an empty list WITH a reason — show it where the choices would be, and keep
+         the entries the server drew so the form still submits something honest */
+      var reason = (body && body.reason) || "";
+      fail(reason ? facts.failed.replace("{reason}", reason) : facts.unreadable);
+      return;
+    }
+    var keep = version.value;
+    while (version.options.length) { version.remove(0); }
+    var newest = document.createElement("option");
+    newest.value = "";
+    newest.textContent = facts.newest_label;
+    version.appendChild(newest);
+    for (var index = 0; index < versions.length; index += 1) {
+      var option = document.createElement("option");
+      option.value = versions[index];
+      option.textContent = label_for(versions[index], index);
+      version.appendChild(option);
+    }
+    var restored = false;
+    for (var position = 0; position < version.options.length; position += 1) {
+      if (version.options[position].value === keep) { restored = true; break; }
+    }
+    version.value = restored ? keep : "";
+    version.title = "";
+  }
+
+  function ask() {
+    var chosen = branch_now();
+    if (!chosen) { return; }
+    if (pending && pending.abort) { pending.abort(); }
+    var controller = window.AbortController ? new window.AbortController() : null;
+    pending = controller;
+    version.title = facts.reading;
+    var url = facts.versions_url + "?" + encodeURIComponent(facts.branch_query) + "=" +
+              encodeURIComponent(chosen);
+    fetch(url, {credentials: "same-origin", signal: controller ? controller.signal : undefined})
+      .then(function (response) { return response.json(); })
+      .then(function (body) { apply(body); })
+      .catch(function (error) {
+        if (error && error.name === "AbortError") { return; }
+        fail(facts.unreadable);
+      })
+      .then(function () { pending = null; });
+  }
+
+  if (branch) { branch.addEventListener("change", ask); }
+  ask();
+})();
+</script>
+{% endblock %}
