@@ -3707,24 +3707,47 @@ msgstr ""
 #: services/webservice/pages/presets.py:1190
 msgid "Preset file"
 msgstr "Preset-Datei"
-#: services/webservice/pages/actions.py:877
-msgid "Only the preset files this server's node carries are offered."
-msgstr ""
-"Angeboten werden nur die Preset-Dateien, die dieser Server auf seinem "
-"Node mitbringt."
-#: services/webservice/pages/actions.py:879
-msgid "Presets in that file"
-msgstr "Presets in dieser Datei"
-#: services/webservice/pages/actions.py:880
+
+#: services/webservice/pages/actions.py:875
+msgid "Show"
+msgstr "Anzeigen"
+
+#: services/webservice/pages/actions.py:876
 msgid ""
-"The names come from the file you pick — tick several to merge them in "
-"order, as the node always did. With JavaScript off the list shows every "
-"file's presets under their own file name."
+"Narrows the list to one preset file. A preset ticked in another file "
+"stays ticked, and is still applied."
 msgstr ""
-"Die Namen stammen aus der gewählten Datei — mehrere angehakt werden in "
-"ihrer Reihenfolge zusammengeführt, wie es der Node immer tat. Ohne "
-"JavaScript zeigt die Liste die Presets jeder Datei unter ihrem eigenen "
-"Dateinamen."
+"Grenzt die Liste auf eine Preset-Datei ein. Ein in einer anderen Datei "
+"angehaktes Preset bleibt angehakt und wird weiterhin angewendet."
+
+#: services/webservice/pages/actions.py:883
+msgid ""
+"Tick several presets to merge them in order, as the node always did. The "
+"order is the order the presets stand in their files, not the order you "
+"ticked them. A field two presets both set keeps the later one."
+msgstr ""
+"Hake mehrere Presets an, um sie in ihrer Reihenfolge zusammenzuführen, "
+"wie es der Node immer tat. Maßgeblich ist die Reihenfolge, in der die "
+"Presets in ihren Dateien stehen, nicht die Reihenfolge, in der du sie "
+"angehakt hast. Setzen zwei Presets dasselbe Feld, gilt der spätere Wert."
+
+#~ msgid "Only the preset files this server's node carries are offered."
+#~ msgstr ""
+#~ "Angeboten werden nur die Preset-Dateien, die dieser Server auf seinem "
+#~ "Node mitbringt."
+
+#~ msgid "Presets in that file"
+#~ msgstr "Presets in dieser Datei"
+
+#~ msgid ""
+#~ "The names come from the file you pick — tick several to merge them in "
+#~ "order, as the node always did. With JavaScript off the list shows every "
+#~ "file's presets under their own file name."
+#~ msgstr ""
+#~ "Die Namen stammen aus der gewählten Datei — mehrere angehakt werden in "
+#~ "ihrer Reihenfolge zusammengeführt, wie es der Node immer tat. Ohne "
+#~ "JavaScript zeigt die Liste die Presets jeder Datei unter ihrem eigenen "
+#~ "Dateinamen."
 
 
 
@@ -6778,6 +6801,21 @@ msgstr "Schließen"
 #: services/webservice/templates/confirm.html:152
 msgid "Selected missions"
 msgstr "Ausgewählte Missionen"
+
+#: services/webservice/templates/confirm.html:161
+msgid "Chosen, in this order"
+msgstr "Ausgewählt, in dieser Reihenfolge"
+
+#: services/webservice/templates/confirm.html:164
+msgid ""
+"The order is the order the presets stand in their files, not the order "
+"you ticked them. A field two presets both set keeps the later one, and "
+"the server page lists every name."
+msgstr ""
+"Maßgeblich ist die Reihenfolge, in der die Presets in ihren Dateien "
+"stehen, nicht die Reihenfolge, in der du sie angehakt hast. Setzen zwei "
+"Presets dasselbe Feld, gilt der spätere Wert, und die Serverseite listet "
+"jeden Namen auf."
 
 #: services/webservice/templates/confirm.html:336
 #, python-format

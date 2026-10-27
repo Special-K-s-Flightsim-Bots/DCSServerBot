@@ -655,3 +655,47 @@ msgstr "到期时间必须是 UTC 的日期/时间，例如 YYYY-MM-DD HH:MM:SS 
 msgid "Expires must be in the future — a past date would lift the ban. Leave it "
 "empty for a permanent ban."
 msgstr "到期时间必须在未来 — 过去的日期会解除封禁。永久封禁请留空。"
+
+#: plugins/mission/views.py
+msgid "No preset was picked, so nothing was applied."
+msgstr "未选择任何预设，因此未应用任何内容。"
+
+#: plugins/mission/views.py
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "所选预设之一指向了此节点已不再包含的文件。"
+
+#: plugins/mission/views.py
+msgid "One of the picked presets is not in its file any more."
+msgstr "所选预设之一已不在其文件中。"
+
+#: plugins/mission/views.py
+msgid "The picked presets could not be applied."
+msgstr "无法应用所选预设。"
+
+#: plugins/mission/views.py
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "未执行：已选择预设，但本次启动不运行扩展，因此没有东西会应用该预设。请运行扩展或清除预设选择。"
+
+#: plugins/mission/views.py
+msgid "There are no presets to choose from."
+msgstr "没有可选的预设。"
+
+#: plugins/mission/views.py
+msgid "Select the preset(s) you want to apply"
+msgstr "选择要应用的预设"
+
+#: plugins/mission/views.py
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "您选择了 {count} 个预设，但一次最多只能应用 {limit} 个。未应用任何内容。"
+
+#: plugins/mission/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "可供选择的预设文件（默认：所有文件）"
+
+#: plugins/mission/views.py
+msgid "Cancelled — nothing was applied."
+msgstr "已取消 — 未应用任何内容。"
+
+#: plugins/mission/views.py
+msgid "The pick timed out, so nothing was applied."
+msgstr "选择已超时，因此未应用任何内容。"

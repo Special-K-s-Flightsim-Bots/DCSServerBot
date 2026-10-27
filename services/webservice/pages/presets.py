@@ -53,6 +53,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 
 from core.utils import configwrite
+# THE PRESET RULE ITSELF: discovery, the node read and the name -> document resolution live in
+# ``core/utils/presets.py`` so a plugin reaches the same rule without importing a page module.
+from core.utils.presets import (CONFIG_LABEL, PRESET_DIR, PRESET_FILE_GLOB, PRESET_FILE_PATTERNS,
+                                PresetRead, list_preset_files, preset_file_label, preset_names_of,
+                                preset_read_key, read_preset_documents)
 
 from .. import dcs_clouds, dcs_halo, dcs_install, i18n, permissions, session, weather_fields
 from ..registry import NavItem
@@ -334,21 +339,13 @@ CRUMB_GROUP = dashboard_page.CRUMB_GROUP
 # THE BOT'S OWN DISCOVERY. ``extensions/mizedit`` reads the files a node lists (``presets.yaml`` by
 # default) and this page lists the same tree, in the same order, so the page names what the bot reads.
 
-#: the FLAT-file glob, which covers ``config/presets.yaml`` and any sibling ``config/presets_*.yaml``.
-PRESET_FILE_GLOB = "presets*.yaml"
-#: the directory form of the same thing (``config/presets/*.yaml``).
-PRESET_DIR = "presets"
-#: THE ONE PATTERN SET a NODE's config dir is listed with (:func:`node_preset_files`): both shapes
-#: of a preset file, derived from the two literals above so neither is spelled a second time. It
-#: names every file a preset NAME can live in under the config tree; it is NOT the set the extension
-#: reads, which is only what a server's own ``presets`` setting names
-#: (:func:`mizedit_read_paths`).
-PRESET_FILE_PATTERNS: tuple[str, ...] = (PRESET_FILE_GLOB, f"{PRESET_DIR}/*.yaml")
+# ``PRESET_FILE_GLOB``, ``PRESET_DIR``, ``PRESET_FILE_PATTERNS`` and ``CONFIG_LABEL`` are imported from
+# :mod:`core.utils.presets`: the page globs its own tree with the SAME two literals the node read uses,
+# and a file label is spelled once for both surfaces. The pattern set names every file a preset NAME
+# can live in under the config tree; it is NOT the set the extension reads, which is only what a
+# server's own ``presets`` setting names (:func:`mizedit_read_paths`).
 #: the preset key whose presence marks a value as the expert DSL rather than its own values.
 MODIFY_KEY = "modify"
-#: the config tree's own name for itself, as the page prints a file (``config/presets.yaml``). A file
-#: is never shown by its absolute install path: that path is not part of the console's vocabulary.
-CONFIG_LABEL = "config"
 
 # ------------------------------------ the kinds a preset can be, and the toolbar's filter values
 # ONE DECLARATION per kind: the badge word and the ``?kind=`` value are the same string, so a chip
@@ -1231,54 +1228,14 @@ def mizedit_read_paths(config: Mapping | None, config_dir: str) -> list[str]:
     return [os.path.join(config_dir, MIZEDIT_DEFAULT_FILE)]
 
 
-def preset_read_key(config_dir: str, paths: Iterable[str]) -> str:
-    """The node-list cache's ``what`` for ONE preset read: the config dir plus the file set read.
-
-    The file set is part of the key because the files that answer a read change with the node: an entry
-    can therefore only be served to a caller whose own set resolves to the same files. ``\\x1f``
-    separates the parts because a path may contain any printable character, ``|`` included. A member
-    may carry a file's VERSION beside its path (:func:`_listed_identity`), so a caller that wants a
-    file rewritten on the node to invalidate the entry spells it that way; a bare path is a key that
-    only a path set can invalidate.
-    """
-    return "\x1f".join([str(config_dir or ""), *[str(path) for path in paths]])
-
-
-def _listed_identity(path: str, size: Any, mtime: Any) -> str:
-    """One listed file as the cache's name for its current CONTENT: path, size and modification time.
-
-    ``list_files`` answers each file with its size and mtime, so a preset file edited on the node
-    outside the console is a different key and is parsed on the very next open. The values are taken
-    as the node spells them, unrounded, because the mtime's fraction is what separates two edits inside
-    one second. ``\\x1e`` is not a character a path carries on either platform the bot runs on.
-    """
-    return f"{path}\x1e{size}\x1e{mtime}"
-
-
-def preset_file_label(config_dir: Any, path: Any) -> str:
-    """A node-side preset file as the config tree names it (``config/presets_winter.yaml``).
-
-    A file is never shown by its absolute install path: that path is not part of the console's
-    vocabulary. The node answers its own absolute paths, so the config dir is stripped as a STRING
-    (forward or back slashes) rather than with a path type, and a path outside it keeps its own name.
-    """
-    base = str(config_dir or "").replace("\\", "/").rstrip("/")
-    shown = str(path or "").replace("\\", "/")
-    if base and shown.startswith(base + "/"):
-        shown = shown[len(base) + 1:]
-    else:
-        shown = shown.rsplit("/", 1)[-1]
-    return f"{CONFIG_LABEL}/{shown}"
-
-
 async def node_preset_records(
         node: Any) -> tuple[list[tuple[str, str, list[str], dict[str, Any]]], bool]:
     """THE ONE READ of a node's preset files: ``[(label, path, names, values)]`` and readability.
 
-    ``node.list_files`` enumerates :data:`PRESET_FILE_PATTERNS` under the node's OWN ``config_dir``;
-    each listed file is read through ``node.read_file`` once and parsed once. A record carries the
-    file's ``config/…`` label, its path, the names its OWN document spells, in the file's order (the
-    ONE key rule, :func:`actions.preset_names_of`), and the ``name -> value`` map behind them. Two
+    The listing and the parse are :mod:`core.utils.presets` — the rule a plugin resolves a pick with
+    — and this function adds the console's record shape and its cache. A record carries the file's
+    ``config/…`` label, its path, the names its OWN document spells, in the file's order (the ONE key
+    rule, :func:`core.utils.presets.preset_names_of`), and the ``name -> value`` map behind them. Two
     files may define the same name and nothing is merged here.
 
     BOTH halves of a launch read this answer, which is why it carries both: the dialog that draws the
@@ -1286,75 +1243,36 @@ async def node_preset_records(
     (``actions._stated_presets``). One call lists the node once, so the files the dialog offers and
     the files the POST accepts cannot be two different sets.
 
-    A file the node cannot deliver — an exception, or an ``int`` (a failure CODE) instead of bytes —
-    is skipped and marks the answer PARTIAL; it never hides the others. A file that does not parse,
-    or that is not a mapping, carries no preset: it is skipped WITHOUT marking the answer partial,
-    because the content's own version (:func:`_listed_identity`) already makes it a different cache
-    key when it is rewritten.
-
     The second answer says whether anything was read at all — ``False`` for a node with no config
-    dir, no ``list_files``/``read_file``, a listing that failed, or a listing whose every file
-    contributed nothing. The caller then offers its free-text fallback.
+    dir, no ``list_files``/``read_file``, a listing that failed, or every file failing to answer. The
+    caller then offers its free-text fallback.
 
     A COMPLETE answer is REMEMBERED (:mod:`presets`' one node-list cache) under a key carrying the
-    NODE and the versioned file set (:func:`preset_read_key` / :func:`_listed_identity`), so a second
-    read re-lists (the file set must be current) but parses nothing. The listing itself is never
-    remembered: a preset file added, removed or rewritten on the node has to reach the very next
-    read, and only the LISTING can tell. A partial answer is not remembered either, so the next read
-    asks again; a save through the console forgets the kind outright.
+    NODE and the versioned file set (:func:`preset_read_key`), so a second read re-lists (the file
+    set must be current) but parses nothing. The listing itself is never remembered: a preset file
+    added, removed or rewritten on the node has to reach the very next read, and only the LISTING can
+    tell. An incomplete answer is not remembered either, so the next read asks again; a save through
+    the console forgets the kind outright.
     """
     node_name = str(getattr(node, "name", "") or "")
     config_dir = str(getattr(node, "config_dir", "") or "")
-    lister = getattr(node, "list_files", None)
-    reader = getattr(node, "read_file", None)
-    if not config_dir or lister is None or reader is None:
+    listed, listed_ok = await list_preset_files(node)
+    if not listed_ok:
         return [], False
-    try:
-        entries = await lister(config_dir, pattern=list(PRESET_FILE_PATTERNS))
-    except Exception as ex:  # noqa: BLE001 - every transport failure is the free-text fallback
-        log.warning("Preset files: node '%s' could not list '%s' (%s)",
-                    node_name, config_dir, type(ex).__name__)
-        return [], False
-    listed: list[tuple[str, str]] = []
-    for entry in entries or []:
-        path, size, mtime = _listing_entry(entry)
-        if path:
-            listed.append((path, _listed_identity(path, size, mtime)))
-    listed.sort(key=lambda item: preset_file_label(config_dir, item[0]))
-    key = preset_read_key(config_dir, [identity for _path, identity in listed])
+    key = preset_read_key(config_dir, [version for _path, version in listed])
     found, remembered = node_list_cached(PRESET_LIST, node_name, key)
     if found:
-        return [(label, path, list(names), dict(values))
-                for label, path, names, values in remembered], True
-    records: list[tuple[str, str, tuple[str, ...], dict[str, Any]]] = []
-    failed = False
-    for path, _identity in listed:
-        try:
-            payload = await reader(path)
-        except Exception as ex:  # noqa: BLE001 - one unreadable file must not hide the others
-            log.warning("Preset files: node '%s' could not read '%s' (%s)",
-                        node_name, path, type(ex).__name__)
-            failed = True
-            continue
-        if not isinstance(payload, (bytes, bytearray)):
-            log.warning("Preset files: node '%s' answered '%s' without content", node_name, path)
-            failed = True
-            continue
-        try:
-            document = configwrite.load_config_text(bytes(payload).decode("utf-8"), path=path)
-        except configwrite.ConfigWriteError as ex:
-            log.warning("Preset files: node '%s' answered unparsable content for '%s' (%s)",
-                        node_name, path, type(ex).__name__)
-            continue
-        if not isinstance(document, Mapping):
-            continue
-        records.append((preset_file_label(config_dir, path), path,
-                        tuple(actions_page.preset_names_of(document)), dict(document)))
-    answer = [(label, path, list(names), dict(values)) for label, path, names, values in records]
-    if failed:
-        return answer, bool(records)
-    remember_node_list(PRESET_LIST, node_name, key, tuple(records))
-    return answer, True
+        return _preset_records(remembered), True
+    read = await read_preset_documents(node, [path for path, _version in listed])
+    if read.complete:
+        remember_node_list(PRESET_LIST, node_name, key, read)
+    return _preset_records(read), read.readable
+
+
+def _preset_records(read: PresetRead) -> list[tuple[str, str, list[str], dict[str, Any]]]:
+    """ONE read's answer in the console's record shape, in the read's own order."""
+    return [(label, read.paths[label], preset_names_of(document), dict(document))
+            for label, document in read.files.items()]
 
 
 async def node_preset_files(node: Any) -> tuple[list[tuple[str, str, list[str]]], bool]:
@@ -1375,20 +1293,6 @@ async def node_preset_values(node: Any) -> list[tuple[str, str, dict[str, Any]]]
     """
     records, _readable = await node_preset_records(node)
     return [(label, path, dict(values)) for label, path, _names, values in records]
-
-
-def _listing_entry(entry: Any) -> tuple[str, Any, Any]:
-    """One ``list_files`` entry as ``(path, size, mtime)``, with ``0`` for an absent size or mtime.
-
-    ``list_files`` answers ``(path, size, mtime)`` triples, and a double or an older node build may
-    answer the path alone — that file is still a preset file, so it is kept with no version.
-    """
-    if isinstance(entry, (list, tuple)):
-        path = str(entry[0]).strip() if entry else ""
-        size = entry[1] if len(entry) > 1 else 0
-        mtime = entry[2] if len(entry) > 2 else 0
-        return path, size, mtime
-    return str(entry or "").strip(), 0, 0
 
 
 async def _remembered_vendor_list(node_name: str, path: str, read) -> tuple[Any, str]:

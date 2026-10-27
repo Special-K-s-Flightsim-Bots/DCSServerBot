@@ -26,17 +26,19 @@ from openpyxl.utils import get_column_letter
 from pathlib import Path
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
-from typing import Literal, Type, cast, Callable
+from typing import Any, Literal, Type, cast, Callable
 
 from .airbase import Info
 from .const import LIQUIDS
 from .listener import MissionEventListener
 from .upload import MissionUploadHandler
-from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal, WatchModal
+from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal, WatchModal, \
+    PRESETS_NEED_EXTENSIONS, launch_presets, pick_presets, preset_file_autocomplete, \
+    picked_preset_documents, sendable_context
+from core.utils.presets import read_node_presets
 from ..userstats.filter import PeriodFilter
 
 from core.utils.yaml_helper import new_yaml
-from ruamel.yaml.error import MarkedYAMLError
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -387,7 +389,8 @@ class Mission(Plugin[MissionEventListener]):
                     "method": what,
                     "run_extensions": run_extensions,
                     "use_orig": use_orig,
-                    "user": interaction.user
+                    "user": interaction.user,
+                    "channel": interaction.channel_id
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_(what)),
@@ -436,12 +439,19 @@ class Mission(Plugin[MissionEventListener]):
                 ), ephemeral=ephemeral)
 
     async def _load(self, interaction: discord.Interaction, server: Server, mission: int | str | None = None,
-                    run_extensions: bool | None = False, use_orig: bool | None = True):
+                    run_extensions: bool | None = False, use_orig: bool | None = True,
+                    presets: bool | None = False, presets_file: str | None = None):
         ephemeral = utils.get_ephemeral(interaction)
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             await interaction.response.send_message(
                 _("Can't load mission on server {server} as it is {status}!").format(
                     server=server.display_name, status=server.status.name), ephemeral=True)
+            return
+        # A preset is a REQUEST TO APPLY, and only a load that modifies the mission applies one: a
+        # pick sent into a load with the extensions off would be recorded as weather nothing produced.
+        # The two inputs contradict each other, so the load is refused instead of honouring one half.
+        if (presets or presets_file) and not run_extensions:
+            await interaction.response.send_message(PRESETS_NEED_EXTENSIONS, ephemeral=True)
             return
         if server.restart_pending and not await utils.yn_question(
                 interaction,
@@ -477,19 +487,32 @@ class Mission(Plugin[MissionEventListener]):
         else:
             await interaction.followup.send(_('You need to provide a mission!'), ephemeral=True)
             return
+
+        # THE PICK runs before any launch work: a cancelled or refused pick leaves the mission
+        # untouched, and the picked documents plus their names travel into the load itself.
+        picked = await launch_presets(interaction, server.node, presets=presets,
+                                      presets_file=presets_file, ephemeral=ephemeral)
+        if picked is None:
+            return
+        preset_kwargs = picked.kwargs
+        picked_values = picked.values
+
         if server.current_mission and mission == server.current_mission.filename:
             if result == 'later':
                 server.on_empty = {
                     "method": "restart",
                     "run_extensions": run_extensions,
                     "use_orig": use_orig,
-                    "user": interaction.user
+                    "user": interaction.user,
+                    "channel": interaction.channel_id
                 }
+                if picked_values:
+                    server.on_empty["settings"] = picked_values
                 server.restart_pending = True
                 await interaction.followup.send(_('Mission will {}, when server is empty.').format(_('restart')),
                                                 ephemeral=ephemeral)
             else:
-                await server.restart(modify_mission=run_extensions)
+                await server.restart(modify_mission=run_extensions, **preset_kwargs)
                 await interaction.followup.send(_('Mission {}.').format(_('restarted')), ephemeral=ephemeral)
         else:
             name = os.path.basename(mission[:-4])
@@ -501,8 +524,11 @@ class Mission(Plugin[MissionEventListener]):
                     "mission_id": mission_id + 1,
                     "run_extensions": run_extensions,
                     "use_orig": use_orig,
-                    "user": interaction.user
+                    "user": interaction.user,
+                    "channel": interaction.channel_id
                 }
+                if picked_values:
+                    server.on_empty["settings"] = picked_values
                 await interaction.followup.send(
                     _('Mission {} will be loaded when server is empty or on the next restart.').format(name),
                     ephemeral=ephemeral)
@@ -512,7 +538,8 @@ class Mission(Plugin[MissionEventListener]):
                 try:
                     if not server.locals.get('mission_rewrite', True) and server.status != Status.STOPPED:
                         await server.stop()
-                    if not await server.loadMission(mission, modify_mission=run_extensions, use_orig=use_orig):
+                    if not await server.loadMission(mission, modify_mission=run_extensions, use_orig=use_orig,
+                                                    **preset_kwargs):
                         await msg.edit(content=_('Mission {} NOT loaded. '
                                                  'Check that you have installed the pre-requisites (terrains, mods).'
                                                  ).format(name))
@@ -541,17 +568,23 @@ class Mission(Plugin[MissionEventListener]):
     @app_commands.autocomplete(alt_mission=mizfile_autocomplete)
     @app_commands.describe(alt_mission="Alternate mission to load from your file system")
     @app_commands.describe(run_extensions="Apply extensions (MizEdit, RealWeather, ...)")
+    @app_commands.autocomplete(presets_file=preset_file_autocomplete)
+    @app_commands.describe(presets="Pick weather presets for this mission")
+    @app_commands.describe(presets_file=_("Presets file to pick from (default: all files)"))
     async def load(self, interaction: discord.Interaction,
                    server: app_commands.Transform[Server, utils.ServerTransformer(
                        status=[Status.STOPPED, Status.RUNNING, Status.PAUSED])],
                    mission_id: int | None = None, alt_mission: str | None = None,
-                   run_extensions: bool | None = True, use_orig: bool | None = True):
+                   run_extensions: bool | None = True, use_orig: bool | None = True,
+                   presets: bool | None = False, presets_file: str | None = None):
         await self._load(
             interaction,
             server,
             mission_id if mission_id is not None else alt_mission,
             run_extensions,
-            use_orig
+            use_orig,
+            presets,
+            presets_file
         )
 
     @mission.command(description=_('Adds a mission to the list\n'))
@@ -669,10 +702,13 @@ class Mission(Plugin[MissionEventListener]):
                 ephemeral=ephemeral)
 
     async def simulate(self, interaction: discord.Interaction, server: Server, use_orig: bool | None,
-                       presets_file: str | None, presets: list[str] | None, ephemeral: bool):
+                       presets: dict[str, Any], documents: list[Any], ephemeral: bool):
+        """Show what the picked presets would change, without writing anything.
 
-        presets = {x: utils.get_preset(self.node, x, filename=presets_file) for x in presets} if presets else None
-        if not presets:
+        ``documents`` is what the pick resolved to, applied in order; ``presets`` is the same pick
+        keyed by name (a combination by its own name), which is what the view renders.
+        """
+        if not documents:
             await interaction.followup.send("No presets provided for simulation.")
             return
 
@@ -686,13 +722,13 @@ class Mission(Plugin[MissionEventListener]):
         old_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
         new_mission: MizFile = await asyncio.to_thread(MizFile, mission_file)
 
-        for k, v in presets.items():
+        for document in documents:
             try:
-                await asyncio.to_thread(new_mission.apply_preset, v)
+                await asyncio.to_thread(new_mission.apply_preset, document)
             except Exception as ex:
                 self.log.exception(ex)
                 await interaction.followup.send(
-                    _("Error while applying preset {}: {}").format(k, ex), ephemeral=True)
+                    _("Error while applying a preset: {}").format(ex), ephemeral=True)
                 return
 
         changed = False
@@ -729,8 +765,8 @@ class Mission(Plugin[MissionEventListener]):
     @mission.command(description=_('Modify mission with a preset\n'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
-    @app_commands.autocomplete(presets_file=presets_autocomplete)
-    @app_commands.describe(presets_file=_('Chose an alternate presets file'))
+    @app_commands.autocomplete(presets_file=preset_file_autocomplete)
+    @app_commands.describe(presets_file=_('Restrict the pick to one presets file (default: all files)'))
     @app_commands.describe(use_orig="Change the mission based on the original uploaded mission file.")
     @app_commands.describe(simulate_only="This will only show you what would happen but not apply the preset")
     async def modify(self, interaction: discord.Interaction,
@@ -739,53 +775,16 @@ class Mission(Plugin[MissionEventListener]):
                      presets_file: str | None = None, use_orig: bool | None = True,
                      simulate_only: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
-
-        if presets_file is None:
-            presets_file = os.path.join(self.node.config_dir, 'presets.yaml')
-        try:
-            validation = self.node.config.get('validation', 'lazy')
-            if validation in ['strict', 'lazy']:
-                schema_files = [
-                    'schemas/presets_schema.yaml',
-                    'extensions/realweather/schemas/realweather_schema.yaml'
-                ]
-                utils.validate(presets_file, schema_files, raise_exception=(validation == 'strict'))
-
-            presets = new_yaml().load(Path(presets_file).read_text(encoding='utf-8'))
-        except MarkedYAMLError:
-            await interaction.response.send_message(
-                _("Can't load presets file {}.").format(presets_file), ephemeral=True)
-            return
-        except FileNotFoundError:
-            await interaction.response.send_message(
-                _('No presets available, please configure them in {}.').format(presets_file), ephemeral=True)
-            return
-
+        # ``presets_file`` is a FILTER over the one pick, not the only file: omitted, every preset
+        # file the node carries is offered.
+        file_label = presets_file or ""
         await interaction.response.defer(ephemeral=ephemeral)
-        try:
-            try:
-                next((x for x in presets.values() if 'terrain' in x or 'terrains' in x), None)
-                terrain = await server.get_current_mission_theatre()
-            except StopIteration:
-                terrain = ''
-            options = [
-                discord.SelectOption(label=k)
-                for k, v in presets.items()
-                if not isinstance(v, dict) or (
-                        not v.get('hidden', False)
-                        and v.get('terrain', terrain) == terrain
-                        and terrain in v.get('terrains', [terrain])
-                )
-            ]
-        except AttributeError:
+        ctx = await sendable_context(interaction)
+        read = await read_node_presets(server.node)
+        if not read.files:
             await interaction.followup.send(
-                _("There is an error in your {}. Please check the file structure.").format(presets_file),
-                ephemeral=True)
+                _('No presets available, please configure them for this node.'), ephemeral=True)
             return
-        if len(options) > 25:
-            self.log.warning("You have more than 25 presets created, you can only choose from 25!")
-        elif not options:
-            await interaction.followup.send(_("There are no presets to chose from."), ephemeral=True)
 
         if server.restart_pending and not await utils.yn_question(
                 interaction,
@@ -804,25 +803,28 @@ class Mission(Plugin[MissionEventListener]):
             if not result:
                 return
 
-        view = PresetView(options[:25])
-        msg = await interaction.followup.send(view=view, ephemeral=ephemeral)
-        try:
-            if await view.wait() or view.result is None:
-                return
-        finally:
-            await msg.delete()
+        picked = await pick_presets(ctx, read.files, file_label=file_label, ephemeral=ephemeral)
+        if picked is None:
+            return
+        answer = picked.resolution
+        documents = list(answer.documents)
+        applied = list(answer.names)
 
         if simulate_only:
-            await self.simulate(interaction, server, use_orig, presets_file, view.result, ephemeral)
+            await self.simulate(interaction, server, use_orig,
+                                picked_preset_documents(picked.values, read.files, file_label), documents,
+                                ephemeral)
             return
 
         if result == 'later':
+            # the picked entries carry the file they were ticked in, so the deferred run resolves
+            # them against the same files (:meth:`Scheduler._run_with_presets`)
             server.on_empty = {
                 "method": "restart",
-                "presets": presets_file,
-                "settings": view.result,
+                "settings": list(picked.values),
                 "use_orig": use_orig,
-                "user": interaction.user
+                "user": interaction.user,
+                "channel": interaction.channel_id
             }
             server.restart_pending = True
             await interaction.followup.send(_('Mission will be changed when server is empty.'), ephemeral=ephemeral)
@@ -836,12 +838,8 @@ class Mission(Plugin[MissionEventListener]):
                 await server.stop()
                 startup = True
             filename = await server.get_current_mission_file()
-            new_filename = await server.modifyMission(
-                filename,
-                [utils.get_preset(self.node, x, presets_file) for x in view.result],
-                use_orig=use_orig
-            )
-            message = _('The following preset were applied: {}.').format(','.join(view.result))
+            new_filename = await server.modifyMission(filename, documents, use_orig=use_orig)
+            message = _('The following preset were applied: {}.').format(','.join(applied))
             if new_filename != filename:
                 self.log.info(f"  => {message}")
                 self.log.info(f"  => New mission written: {new_filename}")
@@ -857,7 +855,7 @@ class Mission(Plugin[MissionEventListener]):
                     else:
                         await server.loadMission(new_filename, modify_mission=False, use_orig=False)
                     message += _('\nMission reloaded.')
-                    await self.bot.audit("changed preset {}".format(','.join(view.result)), server=server,
+                    await self.bot.audit("changed preset {}".format(','.join(applied)), server=server,
                                          user=interaction.user)
                 except (TimeoutError, asyncio.TimeoutError):
                     message = _("Timeout during restart of mission!\n"

@@ -1,33 +1,31 @@
-/* dialog-preset.js — the launch dialog's weather blocks FOLLOW the mode, and a chosen preset file
- * narrows the preset list.
+/* dialog-preset.js — the launch dialog's weather blocks FOLLOW the mode, the preset list is
+ * filtered by file, and the ticked presets are listed as chips.
  *
  * The dialog's form POSTS the launch, so a mode change must NEVER submit it. The wizard's step is a
- * GET form and re-renders server-side; here the gate is applied on the client instead, in two parts:
+ * GET form and re-renders server-side; here the gate is applied on the client instead, in three
+ * parts:
  *
  * 1. THE MODE (`weather_mode`): the three radios are the one weather choice, so the blocks that
- *    belong to a mode are shown only while it is chosen — the preset pick and the preset-file pick for
- *    `file`, the temporary weather fields for `custom`, and nothing extra for `leave`. Every temporary
- *    row additionally carries the wizard's own gate as `data-gate-*` attributes
- *    (`pages/presets.row_gate`), and this script shows/hides them by the CURRENT mode values, so the
- *    visible rows equal what the wizard's step would draw.
- * 2. THE FILE (`preset_file`): the pick's `<optgroup>`s are the node's preset FILES, and each group
- *    carries ITS OWN file's names — a name two files both define is drawn under BOTH headings, its
- *    value staying the bare name. Choosing a file hides and disables the other groups and clears
- *    their selections, so the list shows exactly the presets of the file the operator named. The
- *    scope of both the hiding and the clearing is the GROUP, never the option value: the duplicate
- *    entries are what keep a shared name pickable under whichever file it was ticked in.
+ *    belong to a mode are shown only while it is chosen — the preset filter, the preset pick and the
+ *    preset-file filter for `file`, the temporary weather fields for `custom`, and nothing extra for
+ *    `leave`. Every temporary row additionally carries the wizard's own gate as `data-gate-*`
+ *    attributes (`pages/presets.row_gate`), and this script shows/hides them by the CURRENT mode
+ *    values, so the visible rows equal what the wizard's step would draw.
+ * 2. THE FILE FILTER (`preset_file`): the pick's `<optgroup>`s are the node's preset FILES and every
+ *    group is drawn from the start. Choosing a file HIDES the other groups and does nothing else —
+ *    it never disables a group and never clears a selection, because a ticked preset must survive a
+ *    filter change. The filter is a view, not a scope: the tick's own value carries the file it came
+ *    from, so a tick made under a hidden group still posts and still resolves against its group.
+ * 3. THE CHOSEN BLOCK: every ticked entry, in the order the select draws it (the files' own config
+ *    order, never the click order), as a chip naming its file; a chip's Remove button unticks it.
  *
  * It also fills `clouds.base` with the chosen preset's own base (the picker option's `data-base`),
  * which is the dialog's twin of the wizard's plate link.
  *
  * Progressive enhancement: with JavaScript off every block stays visible, EVERY file's presets stay
- * visible under their own heading, and the file pick posts its first listed label. The route then
- * resolves a ticked name against THAT posted file ONLY and refuses a name the file does not carry, so
- * a name ticked under a heading other than the posted file is refused rather than taken from the
- * file that heading stands for.
- *
- * A node carrying a single preset file draws no file pick and no group headings, so there is nothing
- * here to narrow.
+ * visible under their own heading, the filter does nothing, and every ticked entry posts its own
+ * value (a grouped entry carries its file). A node carrying a single preset file draws no groups and
+ * no filter, so there is nothing here to narrow.
  */
 (function () {
   "use strict";
@@ -109,6 +107,8 @@
     if (temporary) { show(temporary, mode === MODE_CUSTOM); }
   }
 
+  //: hide the groups the filter leaves out. A hidden group keeps its ticks: the filter is a view and
+  //: the entry's own value carries its file, so nothing about it has to be unselected or disabled.
   function narrow(root) {
     if (!root) { return; }
     var pick = root.querySelector(".dlg-pick select.dlg-pick-select");
@@ -119,15 +119,57 @@
     for (var index = 0; index < groups.length; index += 1) {
       var group = groups[index];
       var match = !chosen || group.getAttribute("label") === chosen;
-      group.disabled = !match;
       group.style.display = match ? "" : "none";
-      if (match) { continue; }
-      // a hidden group that kept a selection would still POST it: clear it as well.
-      var options = group.querySelectorAll("option");
-      for (var inner = 0; inner < options.length; inner += 1) {
-        options[inner].selected = false;
-      }
     }
+  }
+
+  //: the file a pick entry came from: its own `data-file`, else its group's label.
+  function fileOfOption(option) {
+    var own = option.getAttribute("data-file");
+    if (own) { return String(own); }
+    var group = option.parentNode;
+    if (group && group.tagName === "OPTGROUP") { return String(group.getAttribute("label") || ""); }
+    return "";
+  }
+
+  function chip(text, className) {
+    var span = document.createElement("span");
+    span.className = className;
+    span.textContent = text;
+    return span;
+  }
+
+  //: paint the chosen block from the select, in the select's own order (the files' config order).
+  function chosen(root) {
+    if (!root) { return; }
+    var pick = root.querySelector(".dlg-pick select.dlg-pick-select");
+    var box = root.querySelector(".dlg-pick [data-chosen]");
+    if (!pick || !box) { return; }
+    var list = box.querySelector("[data-chosen-chips]");
+    var counter = box.querySelector("[data-chosen-count]");
+    if (!list) { return; }
+    while (list.firstChild) { list.removeChild(list.firstChild); }
+    var count = 0;
+    for (var index = 0; index < pick.options.length; index += 1) {
+      var option = pick.options[index];
+      if (!option.selected) { continue; }
+      count += 1;
+      var item = document.createElement("li");
+      item.className = "dlg-chip";
+      item.appendChild(chip(String(option.textContent || ""), "dlg-chip-name"));
+      var file = fileOfOption(option);
+      if (file) { item.appendChild(chip(file, "dlg-chip-file")); }
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "dlg-chip-x";
+      remove.setAttribute("data-chosen-remove", String(option.value));
+      remove.setAttribute("aria-label", "Remove");
+      remove.textContent = "×";
+      item.appendChild(remove);
+      list.appendChild(item);
+    }
+    if (counter) { counter.textContent = String(count); }
+    box.hidden = count === 0;
   }
 
   function prefillBase(root) {
@@ -152,13 +194,33 @@
     var name = target.getAttribute("name");
     if (name === "clouds.preset") { prefillBase(document); }
     if (isMode(name) || name === "clouds.preset") { gate(document); }
-    if (name === "weather_mode") { reveal(document); narrow(document); }
-    if (name === "preset_file") { narrow(document); }
+    if (name === "weather_mode") { reveal(document); narrow(document); chosen(document); }
+    if (name === "preset_file") { narrow(document); chosen(document); }
+    if (name === "preset") { chosen(document); }
+  });
+
+  //: a chip's Remove button unticks the entry it names; the filter's view is left alone.
+  document.addEventListener("click", function (event) {
+    var target = event && event.target;
+    if (!target || typeof target.closest !== "function") { return; }
+    var remove = target.closest("[data-chosen-remove]");
+    if (!remove) { return; }
+    event.preventDefault();
+    var pick = document.querySelector(".dlg-pick select.dlg-pick-select");
+    if (!pick) { return; }
+    var value = remove.getAttribute("data-chosen-remove");
+    for (var index = 0; index < pick.options.length; index += 1) {
+      if (String(pick.options[index].value) === value) {
+        pick.options[index].selected = false;
+      }
+    }
+    chosen(document);
   });
 
   document.addEventListener("DOMContentLoaded", function () {
     reveal(document);
     narrow(document);
+    chosen(document);
     gate(document);
   });
 })();

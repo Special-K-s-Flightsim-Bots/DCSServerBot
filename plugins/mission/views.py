@@ -6,13 +6,17 @@ import psycopg
 from contextlib import suppress
 from core import (Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side,
                   ServiceRegistry)
+from core.utils.discord import PagedSelectView
+from core.utils.presets import (REFUSAL_NO_PICK, REFUSAL_UNKNOWN_FILE, REFUSAL_UNKNOWN_PRESET,
+                                PresetResolution, list_preset_files, preset_file_label, preset_names_of,
+                                preset_option_value, read_node_presets, resolve_picked_values)
 from datetime import datetime, timezone
-from discord import SelectOption, ButtonStyle
+from discord import SelectOption, ButtonStyle, app_commands
 from discord.ui import View, Select, Button, Modal, TextInput
 from io import StringIO
 from ruamel.yaml import YAML
 from services.bot import DCSServerBot, BotService
-from typing import cast
+from typing import Any, NamedTuple, cast
 
 from services.servicebus import ServiceBus
 
@@ -179,6 +183,247 @@ class PresetView(View):
         await interaction.response.defer()
         self.result = None
         self.stop()
+
+
+#: The most presets ONE pick may tick. A paged select bounds what a PAGE accepts, so the total is
+#: checked by the pick itself (:func:`pick_presets`) before anything is applied.
+PRESET_PICK_MAX = 10
+#: Options one page of the pick holds — Discord's own limit for a single select.
+PRESET_PAGE_SIZE = 25
+#: The pick's "every file" filter: no file named, so every file a node carries is offered.
+PRESET_FILE_ALL = ""
+
+
+def preset_pages(files: dict[str, dict[str, Any]], file_label: str = "") -> list[list[SelectOption]]:
+    """The pick's options, at most :data:`PRESET_PAGE_SIZE` to a page, in the node's own order.
+
+    One option per name a file OFFERS (:func:`core.utils.presets.preset_names_of`), labelled with the
+    preset's NAME and described by the file it comes from, so a pick spanning files says where each
+    preset lives. The value carries its file (:func:`core.utils.presets.preset_option_value`), so a
+    name two files define applies the body of the file it was ticked in.
+
+    *file_label* narrows the pages to ONE file; :data:`PRESET_FILE_ALL` offers every file. The order
+    is the read's own — file label order, then the preset's order in its file — because the caller
+    merges the picked documents in the order they are returned.
+    """
+    pages: list[list[SelectOption]] = []
+    for label, document in files.items():
+        if file_label and label != file_label:
+            continue
+        for name in preset_names_of(document):
+            if not pages or len(pages[-1]) == PRESET_PAGE_SIZE:
+                pages.append([])
+            pages[-1].append(SelectOption(label=name, value=preset_option_value(label, name),
+                                          description=label))
+    return pages
+
+
+class PresetPickView(PagedSelectView):
+    """The cross-file preset pick: pages of names, ticks kept across pages.
+
+    The paged select bounds what ONE page accepts; the total is what the caller checks against
+    :data:`PRESET_PICK_MAX` once ``result`` is in.
+    """
+
+    def __init__(self, pages: list[list[SelectOption]], placeholder: str | None = None):
+        super().__init__(pages=pages, placeholder=placeholder,
+                         min_values=1, max_values=min(PRESET_PICK_MAX, PRESET_PAGE_SIZE))
+
+
+#: What a REFUSED pick tells the operator. The reasons are
+#: :mod:`core.utils.presets`'s own; the words belong to this surface.
+PRESET_REFUSAL_SENTENCES: dict[str, str] = {
+    REFUSAL_NO_PICK: _('No preset was picked, so nothing was applied.'),
+    REFUSAL_UNKNOWN_FILE: _('One of the picked presets named a file this node no longer carries.'),
+    REFUSAL_UNKNOWN_PRESET: _('One of the picked presets is not in its file any more.'),
+}
+#: The sentence a pick that resolved nothing is reported with, for a reason this surface cannot name.
+PRESET_REFUSAL_UNKNOWN = _('The picked presets could not be applied.')
+#: What a pick the operator CANCELLED is answered with.
+PRESET_PICK_CANCELLED = _('Cancelled — nothing was applied.')
+#: What a pick nobody answered inside the timeout is answered with.
+PRESET_PICK_TIMED_OUT = _('The pick timed out, so nothing was applied.')
+
+
+#: What a pick on a launch that will not run the extensions is refused with: the pick is a REQUEST
+#: TO APPLY, and only a launch that modifies the mission applies one.
+PRESETS_NEED_EXTENSIONS = _('Not done: a preset was picked, but this launch does not run the extensions, '
+                            'so nothing would apply it. Either run the extensions or clear the preset pick.')
+
+
+class PresetPick(NamedTuple):
+    """A pick that RESOLVED: the pick's own values, in list order, and the rule's answer for them.
+
+    ``values`` is what the caller shows (each entry carries the file it was ticked in) and
+    ``resolution`` is what it applies — both come from ONE resolution, so a display cannot disagree
+    with the documents.
+    """
+
+    values: list[str]
+    resolution: PresetResolution
+
+
+def launch_preset_kwargs(answer: PresetResolution) -> dict[str, Any]:
+    """The ``preset`` / ``preset_name`` keywords a launch states for a resolved pick.
+
+    EMPTY when the pick resolved nothing, so a launch nobody picked a preset for is exactly the call
+    it always was. ``preset`` is the DOCUMENT for a single picked document and a LIST of documents
+    when the pick resolves several (a combination contributes one per member), which is the shape
+    ``Server.startup`` / ``Server.loadMission`` take. ``preset_name`` is every picked name, in the
+    same order, so the node's record names each of them instead of recording a temporary preset.
+    """
+    documents = list(answer.documents)
+    if not documents:
+        return {}
+    preset: Any = documents[0] if len(documents) == 1 else documents
+    kwargs: dict[str, Any] = {'preset': preset}
+    names = list(answer.names)
+    if names:
+        kwargs['preset_name'] = names
+    return kwargs
+
+
+def picked_preset_documents(values: list[str], files: dict[str, dict[str, Any]],
+                            file_label: str = "") -> dict[str, Any]:
+    """The pick's entries as ``{picked name: document | list of documents}``, in picked order.
+
+    For a surface that SHOWS what was chosen: a combination (a name standing for several documents)
+    answers a list, a plain preset its one document. Each entry is resolved through the same rule the
+    whole pick is (:func:`core.utils.presets.resolve_picked_values`), so the display cannot disagree
+    with what is applied.
+    """
+    shown: dict[str, Any] = {}
+    for value in values:
+        one = resolve_picked_values([value], files, named_file=file_label)
+        if one.refused or not one.names:
+            continue
+        documents = list(one.documents)
+        shown[one.names[0]] = documents[0] if len(documents) == 1 else documents
+    return shown
+
+
+async def pick_presets(ctx: Any, files: dict[str, dict[str, Any]], *,
+                       file_label: str = PRESET_FILE_ALL,
+                       ephemeral: bool = False) -> PresetPick | None:
+    """Draw the preset pick over *files* and answer its resolution, or ``None`` when nothing starts.
+
+    Every way a pick can end without an answer is reported HERE, in one sentence, so no caller can
+    start a launch with a pick it never honoured: a pick the operator cancelled, a pick that timed
+    out, a pick with no tick, a pick over :data:`PRESET_PICK_MAX`, and a pick the rule refuses. The
+    first three read differently (``Cancelled — nothing was applied.`` / ``The pick timed out, so
+    nothing was applied.`` / ``No preset was picked, so nothing was applied.``), because
+    ``PagedSelectView.cancelled`` is what separates a cancel from a timeout.
+
+    *ctx* is anything that can ``send`` — a ``commands.Context``, or a double of one. The message
+    the pick was drawn on is deleted once the view closes.
+    """
+    pages = preset_pages(files, file_label)
+    if not pages:
+        await ctx.send(_('There are no presets to choose from.'), ephemeral=True)
+        return None
+    view = PresetPickView(pages, placeholder=_('Select the preset(s) you want to apply'))
+    msg = await ctx.send(view=view, ephemeral=ephemeral)
+    try:
+        await view.wait()
+    finally:
+        with suppress(discord.NotFound):
+            await msg.delete()
+    picked = view.result
+    if view.cancelled:
+        await ctx.send(PRESET_PICK_CANCELLED, ephemeral=ephemeral)
+        return None
+    if picked is None:
+        await ctx.send(PRESET_PICK_TIMED_OUT, ephemeral=ephemeral)
+        return None
+    if not picked:
+        await ctx.send(_('No preset was picked, so nothing was applied.'), ephemeral=ephemeral)
+        return None
+    if len(picked) > PRESET_PICK_MAX:
+        await ctx.send(_('You picked {count} presets, but at most {limit} can be applied at once. '
+                         'Nothing was applied.').format(count=len(picked), limit=PRESET_PICK_MAX),
+                       ephemeral=ephemeral)
+        return None
+    answer = resolve_picked_values(picked, files, named_file=file_label)
+    if answer.refused:
+        await ctx.send(PRESET_REFUSAL_SENTENCES.get(answer.reason or "", PRESET_REFUSAL_UNKNOWN),
+                       ephemeral=ephemeral)
+        return None
+    return PresetPick(list(picked), answer)
+
+
+async def sendable_context(interaction: Any) -> Any:
+    """The object a pick or a sentence is sent with: an ``Interaction`` becomes its own context.
+
+    ``get_context`` routes the send to the initial answer before a response and to the followup
+    after one, so a command can draw a pick on either side of its defer. Anything that is not an
+    ``Interaction`` is taken as the context itself, which is what a double is.
+    """
+    if isinstance(interaction, discord.Interaction):
+        return await interaction.client.get_context(interaction)
+    return interaction
+
+
+async def pick_node_presets(interaction: Any, node: Any, *,
+                            file_label: str = PRESET_FILE_ALL,
+                            ephemeral: bool = False) -> PresetPick | None:
+    """Read *node*'s preset files and draw the pick over them — the ONE entry point the commands use."""
+    ctx = await sendable_context(interaction)
+    read = await read_node_presets(node)
+    return await pick_presets(ctx, read.files, file_label=file_label, ephemeral=ephemeral)
+
+
+class LaunchPresets(NamedTuple):
+    """What a launch states for its weather: the keywords for the launch call, and the pick's raw
+    entries (each carrying the file it was ticked in, which a DEFERRED run needs to resolve again)."""
+
+    kwargs: dict[str, Any]
+    values: list[str]
+
+
+async def launch_presets(interaction: Any, node: Any, *, presets: bool | None,
+                         presets_file: str | None,
+                         ephemeral: bool = False) -> LaunchPresets | None:
+    """The preset decision a launch command makes — the ONE place it is made.
+
+    ``LaunchPresets({}, [])`` when no preset was asked for, so the launch is the call it always was.
+    ``None`` when a pick was asked for and did NOT resolve (cancelled, timed out, empty, refused,
+    or over the limit): the sentence has already been sent and NOTHING may start. Otherwise the
+    ``preset`` / ``preset_name`` keywords of the resolved pick and the entries it was made of.
+
+    A ``presets_file`` given without ``presets`` is "yes, pick from that file", the one forgiving
+    reading of the two inputs; two inputs that CONTRADICT each other (a pick beside a launch that
+    does not run the extensions) are refused by the caller before this runs.
+    """
+    if not (presets or presets_file):
+        return LaunchPresets({}, [])
+    picked = await pick_node_presets(interaction, node, file_label=presets_file or "",
+                                     ephemeral=ephemeral)
+    if picked is None:
+        return None
+    return LaunchPresets(launch_preset_kwargs(picked.resolution), list(picked.values))
+
+
+async def preset_file_autocomplete(interaction: Any, current: str) -> list[app_commands.Choice[str]]:
+    """The preset-file FILTER: every file the TARGET node carries, as its own ``config/…`` label.
+
+    Both shapes a preset file has (``presets*.yaml`` and ``presets/*.yaml``) are listed through the
+    core discovery, so the labels offered are exactly the labels a pick resolves against. Omitted,
+    the filter means every file (:data:`PRESET_FILE_ALL`).
+    """
+    if not await interaction.command._check_can_run(interaction):
+        return []
+    try:
+        server = await utils.ServerTransformer().transform(interaction, interaction.namespace.server)
+        node = getattr(server, 'node', None) or interaction.client.node
+        listed, _listed_ok = await list_preset_files(node)
+        config_dir = str(getattr(node, 'config_dir', '') or '')
+        labels = [preset_file_label(config_dir, path) for path, _version in listed]
+        return [app_commands.Choice[str](name=label, value=label)
+                for label in labels
+                if not current or current.casefold() in label.casefold()][:PRESET_PAGE_SIZE]
+    except Exception as ex:
+        interaction.client.log.exception(ex)
+        return []
 
 
 class InfoView(View):

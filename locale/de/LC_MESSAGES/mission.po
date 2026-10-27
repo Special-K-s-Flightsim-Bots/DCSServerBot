@@ -702,3 +702,47 @@ msgid "Expires must be in the future — a past date would lift the ban. Leave i
 "empty for a permanent ban."
 msgstr "Das Ablaufdatum muss in der Zukunft liegen — ein vergangenes Datum würde "
 "den Ban aufheben. Lass es für einen dauerhaften Ban leer."
+
+#: plugins/mission/views.py
+msgid "No preset was picked, so nothing was applied."
+msgstr "Es wurde kein Preset ausgewählt, daher wurde nichts angewendet."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "Eines der ausgewählten Presets nannte eine Datei, die dieser Knoten nicht mehr enthält."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets is not in its file any more."
+msgstr "Eines der ausgewählten Presets ist nicht mehr in seiner Datei enthalten."
+
+#: plugins/mission/views.py
+msgid "The picked presets could not be applied."
+msgstr "Die ausgewählten Presets konnten nicht angewendet werden."
+
+#: plugins/mission/views.py
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "Nicht ausgeführt: Es wurde ein Preset ausgewählt, aber dieser Start führt die Erweiterungen nicht aus, also würde nichts das Preset anwenden. Führe entweder die Erweiterungen aus oder entferne die Preset-Auswahl."
+
+#: plugins/mission/views.py
+msgid "There are no presets to choose from."
+msgstr "Es gibt keine Presets zur Auswahl."
+
+#: plugins/mission/views.py
+msgid "Select the preset(s) you want to apply"
+msgstr "Wähle die Preset(s), die Du anwenden möchtest"
+
+#: plugins/mission/views.py
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "Du hast {count} Presets ausgewählt, aber es können höchstens {limit} auf einmal angewendet werden. Es wurde nichts angewendet."
+
+#: plugins/mission/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Presets-Datei, aus der gewählt wird (Standard: alle Dateien)"
+
+#: plugins/mission/views.py
+msgid "Cancelled — nothing was applied."
+msgstr "Abgebrochen — es wurde nichts angewendet."
+
+#: plugins/mission/views.py
+msgid "The pick timed out, so nothing was applied."
+msgstr "Die Auswahl ist abgelaufen, daher wurde nichts angewendet."

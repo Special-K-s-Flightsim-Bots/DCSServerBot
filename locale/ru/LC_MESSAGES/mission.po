@@ -658,3 +658,47 @@ msgid "Expires must be in the future — a past date would lift the ban. Leave i
 "empty for a permanent ban."
 msgstr "Срок истечения должен быть в будущем — прошедшая дата сняла бы бан. Оставь "
 "пустым для бессрочного бана."
+
+#: plugins/mission/views.py
+msgid "No preset was picked, so nothing was applied."
+msgstr "Пресет не был выбран, поэтому ничего не применено."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "Один из выбранных пресетов указывал на файл, которого больше нет на этом узле."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets is not in its file any more."
+msgstr "Одного из выбранных пресетов больше нет в его файле."
+
+#: plugins/mission/views.py
+msgid "The picked presets could not be applied."
+msgstr "Выбранные пресеты не удалось применить."
+
+#: plugins/mission/views.py
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "Не выполнено: пресет был выбран, но этот запуск не выполняет расширения, поэтому применять его будет нечему. Либо выполните расширения, либо снимите выбор пресета."
+
+#: plugins/mission/views.py
+msgid "There are no presets to choose from."
+msgstr "Нет пресетов для выбора."
+
+#: plugins/mission/views.py
+msgid "Select the preset(s) you want to apply"
+msgstr "Выберите пресет(ы), которые хотите применить"
+
+#: plugins/mission/views.py
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "Вы выбрали {count} пресетов, но за один раз можно применить не более {limit}. Ничего не применено."
+
+#: plugins/mission/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Файл пресетов для выбора (по умолчанию: все файлы)"
+
+#: plugins/mission/views.py
+msgid "Cancelled — nothing was applied."
+msgstr "Отменено — ничего не применено."
+
+#: plugins/mission/views.py
+msgid "The pick timed out, so nothing was applied."
+msgstr "Время выбора истекло, поэтому ничего не применено."

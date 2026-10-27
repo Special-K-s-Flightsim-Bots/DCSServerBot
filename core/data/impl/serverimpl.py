@@ -1035,7 +1035,7 @@ class ServerImpl(Server):
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
-                      preset_name: str | None = None,
+                      preset_name: str | list[str] | None = None,
                       announce: bool = False) -> None:
         # A duplicate start request is one where OUR OWN DCS PROCESS IS ALREADY ALIVE, never one where the
         # status merely reads as up: the scheduler's state loop marks a server LOADING and THEN schedules the
@@ -1191,7 +1191,7 @@ class ServerImpl(Server):
     @performance_log()
     async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True,
                                     preset: dict | list | str | None = None,
-                                    preset_name: str | None = None,
+                                    preset_name: str | list[str] | None = None,
                                     announce: bool = False) -> str | None:
         # The rewrite runs in the nested ``_rewrite`` and reports whether the per-load preset was
         # REALLY applied — a name the instance does not carry is ignored by the extension and rewrites
@@ -1378,7 +1378,7 @@ class ServerImpl(Server):
     @override
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
-                      preset_name: str | None = None,
+                      preset_name: str | list[str] | None = None,
                       announce: bool = False) -> None:
         current_mission = self._get_current_mission_file()
         if current_mission:
@@ -1609,7 +1609,7 @@ class ServerImpl(Server):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False, *,
                           preset: dict | list | str | None = None,
-                          preset_name: str | None = None,
+                          preset_name: str | list[str] | None = None,
                           announce: bool = False) -> bool | None:
 
         mission_list = await self.getMissionList()
@@ -1886,7 +1886,7 @@ class ServerImpl(Server):
 
 
 async def _record_launched_preset(server, preset: dict | list | str | None, applied: bool,
-                                  preset_name: str | None = None) -> None:
+                                  preset_name: str | list[str] | None = None) -> None:
     """Write what this load was launched with to the server's ``servers`` row.
 
     The row is the ONE home of the fact: ``launched_preset`` is the preset NAME and
@@ -1900,8 +1900,10 @@ async def _record_launched_preset(server, preset: dict | list | str | None, appl
 
     ``preset_name`` names a preset whose VALUE is a DOCUMENT — a preset read out of a preset file,
     which carries the change itself and no name in it. When it is stated and the preset was really
-    applied, the record takes that name and is not temporary. ``None`` (every other caller) derives
-    the record from ``preset`` alone, exactly as before.
+    applied, the record takes that name and is not temporary. A LIST states every name the launch
+    applied and is joined in the launch's own order, each name VERBATIM (a preset name is operator
+    data looked up exactly, so a name whose file spells `` Snow `` is recorded as `` Snow ``).
+    ``None`` (every other caller) derives the record from ``preset`` alone, exactly as before.
     """
     pool = getattr(server, "apool", None)
     server_name = getattr(server, "name", None)
@@ -1911,7 +1913,10 @@ async def _record_launched_preset(server, preset: dict | list | str | None, appl
     temporary = False
     if applied:
         if preset_name is not None:
-            name = preset_name
+            if isinstance(preset_name, (list, tuple)):
+                name = ", ".join(str(entry) for entry in preset_name if entry is not None) or None
+            else:
+                name = preset_name
         elif isinstance(preset, str):
             name = preset
         elif isinstance(preset, list):

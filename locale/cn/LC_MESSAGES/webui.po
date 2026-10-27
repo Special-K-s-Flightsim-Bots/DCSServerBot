@@ -3308,18 +3308,35 @@ msgstr "此安装未命名任何预设文件，因此暂时无处写入新预设
 #: services/webservice/pages/presets.py:1190
 msgid "Preset file"
 msgstr "预设文件"
-#: services/webservice/pages/actions.py:877
-msgid "Only the preset files this server's node carries are offered."
-msgstr "仅提供此服务器所在节点自带的预设文件。"
-#: services/webservice/pages/actions.py:879
-msgid "Presets in that file"
-msgstr "该文件中的预设"
-#: services/webservice/pages/actions.py:880
+
+#: services/webservice/pages/actions.py:875
+msgid "Show"
+msgstr "显示"
+
+#: services/webservice/pages/actions.py:876
 msgid ""
-"The names come from the file you pick — tick several to merge them in "
-"order, as the node always did. With JavaScript off the list shows every "
-"file's presets under their own file name."
-msgstr "名称来自你选择的文件——勾选多个会按顺序合并，就像节点一直做的那样。关闭 JavaScript 时，列表会在各自的文件名下显示每个文件的预设。"
+"Narrows the list to one preset file. A preset ticked in another file "
+"stays ticked, and is still applied."
+msgstr "把列表限定到一个预设文件。在另一个文件中勾选的预设保持勾选，并且仍会被应用。"
+
+#: services/webservice/pages/actions.py:883
+msgid ""
+"Tick several presets to merge them in order, as the node always did. The "
+"order is the order the presets stand in their files, not the order you "
+"ticked them. A field two presets both set keeps the later one."
+msgstr "勾选多个预设即可按顺序合并，和节点一直以来的做法一样。顺序是预设在各自文件中的排列顺序，不是你勾选的顺序。两个预设都设置的字段保留后一个的值。"
+
+#~ msgid "Only the preset files this server's node carries are offered."
+#~ msgstr "仅提供此服务器所在节点自带的预设文件。"
+
+#~ msgid "Presets in that file"
+#~ msgstr "该文件中的预设"
+
+#~ msgid ""
+#~ "The names come from the file you pick — tick several to merge them in "
+#~ "order, as the node always did. With JavaScript off the list shows every "
+#~ "file's presets under their own file name."
+#~ msgstr "名称来自你选择的文件——勾选多个会按顺序合并，就像节点一直做的那样。关闭 JavaScript 时，列表会在各自的文件名下显示每个文件的预设。"
 
 
 
@@ -6021,6 +6038,17 @@ msgstr "关闭"
 #: services/webservice/templates/confirm.html:152
 msgid "Selected missions"
 msgstr "已选任务"
+
+#: services/webservice/templates/confirm.html:161
+msgid "Chosen, in this order"
+msgstr "已选，按此顺序"
+
+#: services/webservice/templates/confirm.html:164
+msgid ""
+"The order is the order the presets stand in their files, not the order "
+"you ticked them. A field two presets both set keeps the later one, and "
+"the server page lists every name."
+msgstr "顺序是预设在各自文件中的排列顺序，不是你勾选的顺序。两个预设都设置的字段保留后一个的值，服务器页面会列出每一个名称。"
 
 #: services/webservice/templates/confirm.html:336
 #, python-format

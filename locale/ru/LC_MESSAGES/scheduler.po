@@ -1,0 +1,15 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+#: plugins/scheduler/commands.py
+msgid "Pick weather presets for this launch"
+msgstr "Выберите пресеты погоды для этого запуска"
+
+#: plugins/scheduler/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Файл пресетов для выбора (по умолчанию: все файлы)"

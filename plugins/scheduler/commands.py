@@ -23,7 +23,10 @@ from zoneinfo import ZoneInfo
 from .listener import SchedulerListener
 from .views import ServerConfigView
 
+from core.utils.presets import (preset_file_label, read_node_presets, resolve_picked_values,
+                               split_preset_entry)
 from core.utils.yaml_helper import new_yaml
+from plugins.mission.views import PRESETS_NEED_EXTENSIONS, launch_presets, preset_file_autocomplete
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -251,10 +254,20 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def launch_dcs(self, server: Server, member: discord.Member | None = None, *,
                          modify_mission: bool | None = True, use_orig: bool | None = True,
+                         preset: dict | list | str | None = None,
+                         preset_name: str | list[str] | None = None,
                          ignore_exception: bool | None = False):
+        # ``preset`` / ``preset_name`` reach ``Server.startup`` ONLY when a launch states a pick, so a
+        # launch nobody picked a preset for is the same call it has always been - including on a node
+        # still on a build that does not know the keywords.
+        preset_kwargs: dict = {}
+        if preset is not None:
+            preset_kwargs['preset'] = preset
+        if preset_name:
+            preset_kwargs['preset_name'] = preset_name
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
-            await server.startup(modify_mission=modify_mission, use_orig=use_orig)
+            await server.startup(modify_mission=modify_mission, use_orig=use_orig, **preset_kwargs)
             if not member:
                 self.log.info(f'  => DCS server "{server.name}" started by '
                               f'{self.__cog_name__}.')
@@ -436,25 +449,95 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             return 0
 
+    @staticmethod
+    def _preset_file_text(config_dir: str, preset_files) -> str:
+        """The preset file(s) a deferred entry names, printed as the config tree labels them."""
+        if isinstance(preset_files, (list, tuple)):
+            return ", ".join(preset_file_label(config_dir, path) for path in preset_files)
+        return preset_file_label(config_dir, preset_files)
+
+    async def _announce_refused_pick(self, rconf: dict, refusals: list[tuple[str, str]]):
+        """State a refused deferred pick in the channel the operator requested it from.
+
+        *refusals* are ``(file label, preset name)`` pairs, in the pick's own order. Nothing is
+        announced when the deferred record carries no channel (a scheduler-config action) or the
+        channel is gone: the log lines still carry every refusal.
+        """
+        channel_id = rconf.get('channel')
+        if not channel_id:
+            return
+        channel = self.bot.get_channel(channel_id)
+        sender = getattr(channel, 'send', None)
+        if sender is None:
+            self.log.warning(f"{self.__cog_name__}: Cannot announce the refused preset pick, "
+                             f"channel {channel_id} not found.")
+            return
+        missing = ", ".join(f'"{name}" ({label})' for label, name in refusals)
+        action = {'load': _('loaded'), 'rotate': _('rotated')}.get(str(rconf.get('method')), _('restarted'))
+        try:
+            await sender(
+                _('No preset was applied: {missing} could not be found; '
+                  'the mission will be {action} unchanged.').format(missing=missing, action=action))
+        except (discord.Forbidden, discord.HTTPException) as ex:
+            self.log.warning(f"{self.__cog_name__}: Cannot announce the refused preset pick "
+                             f"in channel {channel_id}: {ex}")
+
     async def _run_with_presets(self, server: Server, rconf: dict, new_mission: int, is_running_mission: bool):
+        """Restart/load a mission with the preset pick *rconf* carries, and state what was applied.
+
+        ``rconf['settings']`` holds the pick's entries. An entry that carries its FILE
+        (``<file label>\\n<name>``) is resolved by the core rule against the node's own preset files,
+        so a pick spanning files applies each preset's own body; a BARE name keeps the configured
+        reading — it is looked up in ``rconf['presets']`` (one file by path), else in every file.
+
+        The pick is ALL OR NOTHING: every entry is resolved first, and one that refuses discards the
+        whole pick — no preset from it is applied. The mission is then loaded unchanged (the pick-less
+        path) and the refusal is announced in ``rconf['channel']``.
+        """
         # get config
         use_orig = rconf.get('use_orig', True)
+        preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
+        configured_file = self._preset_file_text(self.node.config_dir, preset_files)
+        # The node's preset files are read ONLY when an entry carries its file (a pick spanning
+        # files); the configured bare names keep their own single-file lookup and cost no read.
+        read = None
+        presets = []
+        applied = []
+        refusals: list[tuple[str, str]] = []
+        for line in rconf['settings']:
+            label, name = split_preset_entry(str(line))
+            if not name:
+                continue
+            if label:
+                if read is None:
+                    read = await read_node_presets(server.node)
+                answer = resolve_picked_values([str(line)], read.files)
+                if answer.refused:
+                    self.log.warning(f"Preset \"{name}\" not found in preset file {label}!")
+                    refusals.append((label, name))
+                    continue
+                presets.extend(answer.documents)
+                applied.append(name)
+                continue
+            preset = utils.get_preset(self.node, name, preset_files)
+            if not preset:
+                self.log.warning(f"Preset \"{name}\" not found in presets files {preset_files}!")
+                refusals.append((configured_file, name))
+                continue
+            presets.append(preset)
+            applied.append(name)
+        if refusals:
+            # no half pick: the whole pick is dropped and the mission loads exactly as it would
+            # have without a pick at all
+            await self._announce_refused_pick(rconf, refusals)
+            await self._run_without_presets(server, rconf, new_mission)
+            return
 
         # stop the server if the running mission should be changed
         if (is_running_mission and server.status in [Status.RUNNING, Status.PAUSED] and
                 not server.locals.get('mission_rewrite', True)):
             await server.stop()
         filename = (await server.getMissionList())[new_mission - 1]
-        preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
-        presets = []
-        applied = []
-        for line in rconf['settings']:
-            preset = utils.get_preset(self.node, line, preset_files)
-            if not preset:
-                self.log.warning(f"Preset \"{line}\" not found in presets files {preset_files}!")
-                continue
-            presets.append(preset)
-            applied.append(line)
         if presets:
             new_filename = await server.modifyMission(filename, presets, use_orig=use_orig)
             if new_filename != filename:
@@ -914,7 +997,9 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def _startup(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
                        msg: discord.Message = None, mission_id: int = None, maintenance: bool | None = False,
-                       run_extensions: bool = True, use_orig: bool = True, ephemeral: bool = False):
+                       run_extensions: bool = True, use_orig: bool = True, ephemeral: bool = False,
+                       preset: dict | list | str | None = None,
+                       preset_name: str | list[str] | None = None):
 
         if maintenance and not server.maintenance:
             server.maintenance = True
@@ -952,7 +1037,9 @@ class Scheduler(Plugin[SchedulerListener]):
                             server,
                             interaction.user,
                             modify_mission=run_extensions,
-                            use_orig=use_orig
+                            use_orig=use_orig,
+                            preset=preset,
+                            preset_name=preset_name
                         )
                     )
                     # wait until the server is loading
@@ -1013,10 +1100,14 @@ class Scheduler(Plugin[SchedulerListener]):
     @app_commands.rename(mission_id="mission")
     @app_commands.describe(use_orig=_("Change the mission based on the original uploaded mission file."))
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.autocomplete(presets_file=preset_file_autocomplete)
+    @app_commands.describe(presets=_("Pick weather presets for this launch"))
+    @app_commands.describe(presets_file=_("Presets file to pick from (default: all files)"))
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                       maintenance: bool = False, run_extensions: bool = True,
-                      use_orig: bool = True, mission_id: int = None):
+                      use_orig: bool = True, mission_id: int = None,
+                      presets: bool = False, presets_file: str | None = None):
 
         if server.status == Status.STOPPED:
             await interaction.response.send_message(
@@ -1041,7 +1132,19 @@ class Scheduler(Plugin[SchedulerListener]):
             return
 
         ephemeral = utils.get_ephemeral(interaction)
+        # A preset is a REQUEST TO APPLY and only a launch that runs the extensions applies one. A
+        # pick beside "do not run the extensions" is two contradictory inputs, so the launch is
+        # refused instead of silently honouring one half.
+        if (presets or presets_file) and not run_extensions:
+            await interaction.response.send_message(PRESETS_NEED_EXTENSIONS, ephemeral=True)
+            return
         await interaction.response.defer(ephemeral=ephemeral)
+
+        # THE PICK runs before any launch work starts: a cancelled or refused pick starts nothing.
+        picked = await launch_presets(interaction, server.node, presets=presets,
+                                      presets_file=presets_file, ephemeral=ephemeral)
+        if picked is None:
+            return
 
         embed = discord.Embed(
             title=_("Launching DCS Server \"{}\"").format(server.display_name),
@@ -1049,7 +1152,8 @@ class Scheduler(Plugin[SchedulerListener]):
         )
         embed.description = ""
         await self._startup(interaction, embed=embed, server=server, maintenance=maintenance, mission_id=mission_id,
-                            run_extensions=run_extensions, use_orig=use_orig, ephemeral=ephemeral)
+                            run_extensions=run_extensions, use_orig=use_orig, ephemeral=ephemeral,
+                            **picked.kwargs)
 
     async def _shutdown(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
                         msg: discord.Message = None, maintenance: bool | None = True, force: bool = False,
@@ -1163,7 +1267,8 @@ class Scheduler(Plugin[SchedulerListener]):
             elif result == 'later':
                 server.on_empty = {
                     "method": "shutdown",
-                    "user": interaction.user
+                    "user": interaction.user,
+                    "channel": interaction.channel_id
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Shutdown postponed when server is empty.'), ephemeral=ephemeral)

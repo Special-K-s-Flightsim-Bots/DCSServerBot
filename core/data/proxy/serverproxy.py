@@ -127,7 +127,7 @@ class ServerProxy(Server):
     @override
     async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
-                      preset_name: str | None = None,
+                      preset_name: str | list[str] | None = None,
                       announce: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
         # the node validates params against its own method signature, so a None preset, a None
@@ -218,7 +218,7 @@ class ServerProxy(Server):
     @override
     async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True, *,
                                     preset: dict | list | str | None = None,
-                                    preset_name: str | None = None,
+                                    preset_name: str | list[str] | None = None,
                                     announce: bool = False) -> str | None:
         timeout = 120 if not self.node.slow_system else 240
         # a None preset and a None preset_name (and a False announce) travel as an absent key, not a
@@ -315,7 +315,7 @@ class ServerProxy(Server):
     @override
     async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
                       preset: dict | list | str | None = None,
-                      preset_name: str | None = None,
+                      preset_name: str | list[str] | None = None,
                       announce: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
         params: dict[str, Any] = {
@@ -447,7 +447,7 @@ class ServerProxy(Server):
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
                           use_orig: bool | None = True, no_reload: bool | None = False, *,
                           preset: dict | list | str | None = None,
-                          preset_name: str | None = None,
+                          preset_name: str | list[str] | None = None,
                           announce: bool = False) -> bool | None:
         timeout = 180 if not self.node.slow_system else 300
         # a None preset (and a False announce) travels as an ABSENT key, not a null one (see startup)

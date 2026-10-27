@@ -90,9 +90,10 @@
 {{- say(rec) }}
 {%- endmacro %}
 {#- ONE entry of a PICK, as ``pages/actions._preset_option`` builds it. The value is the POST's own
-    value; a preset NAME is operator data and carries no anchor. -#}
+    value; a preset NAME is operator data and carries no anchor. ``data-file`` is the group's own
+    preset file, read by the dialog's script to label the chosen preset's chip. -#}
 {% macro pick_option(option) -%}
-<option value="{{ option.value }}"{% if option.checked %} selected{% endif %}>{{ option.label }}</option>
+<option value="{{ option.value }}"{% if option.get('file') %} data-file="{{ option.file }}"{% endif %}{% if option.checked %} selected{% endif %}>{{ option.label }}</option>
 {%- endmacro %}
 {#- THE ONE FIELD RENDERER, shared by the footer form and the dialog BODY. A field is a plain record
     built by ``pages/actions``; nothing user-supplied reaches these names. FIVE SHAPES, and the order
@@ -141,15 +142,27 @@
       field REPEATS once per selected entry and the route's ``getlist`` reads every one of them.
 
       ``field.groups`` is drawn as one ``<optgroup>`` per preset FILE, labelled with the file's own
-      ``config/…`` name; ``field.options`` is the flat shape a node carrying a SINGLE file draws (a
-      heading over the only group would name nothing). With JavaScript off EVERY group stays visible
-      under its own heading, and the dialog's own script is what narrows them to the chosen file. -#}
+      ``config/…`` name, EVERY group drawn and none hidden — a tick may span files. Each grouped
+      option's value carries its own file, so the entry ticked under one heading applies that file's
+      body. ``field.options`` is the flat shape a node carrying a SINGLE file draws (a heading over
+      the only group would name nothing). With JavaScript off every group stays visible and the file
+      filter does nothing; the script only hides the groups the filter leaves out, and never clears a
+      tick. -#}
   <select class="dlg-pick-select" name="{{ field.name }}" multiple{% if form_id %} form="{{ form_id }}"{% endif %}>
     {% for option in field.options %}{{ pick_option(option) }}{% endfor %}
     {% for group in field.get('groups') or [] %}<optgroup label="{{ group.label }}">{% for option in group.options %}{{ pick_option(option) }}{% endfor %}</optgroup>{% endfor %}
   </select>
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
   {% if field.get('group_help') %}<span class="hint" id="{{ field.id }}-groups">{{ _(field['group_help']) }}</span>{% endif %}
+  {#- THE CHOSEN BLOCK: what the pick carries, in the node's own config order (not the click
+      order), as removable chips naming each preset's FILE. The script fills it from the select, so
+      with JavaScript off it stays hidden and the native selection is the whole feedback. -#}
+  <div class="dlg-chosen" data-chosen hidden>
+    <p class="dlg-chosen-head">{% trans %}Chosen, in this order{% endtrans %}
+      <span class="dlg-chosen-count" data-chosen-count>0</span></p>
+    <ul class="dlg-chosen-chips" data-chosen-chips></ul>
+    <p class="dlg-chosen-note">{% trans %}The order is the order the presets stand in their files, not the order you ticked them. A field two presets both set keeps the later one, and the server page lists every name.{% endtrans %}</p>
+  </div>
 </fieldset>
 {% elif field.type == 'radio' %}
 {#- THE MODE CONTROL: native radios under ONE field, each row the console's ``.dlg-field.opt``
@@ -460,11 +473,12 @@
     pair is a CONTROL rather than this page's. It does nothing on a dialog whose rows carry no
     `data-weather-pair`. -#}
 <script src="/static/weather-slider.js" defer></script>
-{#- THE WEATHER MODE'S OWN BEHAVIOUR — which blocks belong to the chosen mode, and the file pick
-    narrowing the preset list to its own file. Driven on the client because this form POSTS the
-    launch (a mode change must never submit it), and because the narrowing may not cost a second read.
-    It also applies the wizard's row gate to the temporary fields and pre-fills the cloud base from
-    the chosen preset. It does nothing on a dialog that draws no weather control. -#}
+{#- THE WEATHER MODE'S OWN BEHAVIOUR — which blocks belong to the chosen mode, the file filter hiding
+    the groups it leaves out (never a tick), and the chosen block listing every ticked preset in the
+    files' own order. Driven on the client because this form POSTS the launch (a mode change must
+    never submit it), and because the filtering may not cost a second read. It also applies the
+    wizard's row gate to the temporary fields and pre-fills the cloud base from the chosen preset. It
+    does nothing on a dialog that draws no weather control. -#}
 <script src="/static/dialog-preset.js" defer></script>
 {#- THE MISSION READ — the custom mode's other half: choosing "Create your own weather" fetches
     the mission's own weather and fills the rows with it, never submitting the launch. It reads the

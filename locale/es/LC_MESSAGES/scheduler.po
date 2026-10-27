@@ -423,3 +423,11 @@ msgstr "La misión"
 
 msgid "in {}"
 msgstr "en {}"
+
+#: plugins/scheduler/commands.py
+msgid "Pick weather presets for this launch"
+msgstr "Elige presets de clima para este lanzamiento"
+
+#: plugins/scheduler/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Archivo de presets del que elegir (por defecto: todos los archivos)"

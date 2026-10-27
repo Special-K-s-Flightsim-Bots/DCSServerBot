@@ -3652,23 +3652,46 @@ msgstr ""
 #: services/webservice/pages/presets.py:1190
 msgid "Preset file"
 msgstr "Файл предустановок"
-#: services/webservice/pages/actions.py:877
-msgid "Only the preset files this server's node carries are offered."
-msgstr ""
-"Предлагаются только файлы предустановок, которые есть на узле этого "
-"сервера."
-#: services/webservice/pages/actions.py:879
-msgid "Presets in that file"
-msgstr "Предустановки в этом файле"
-#: services/webservice/pages/actions.py:880
+
+#: services/webservice/pages/actions.py:875
+msgid "Show"
+msgstr "Показать"
+
+#: services/webservice/pages/actions.py:876
 msgid ""
-"The names come from the file you pick — tick several to merge them in "
-"order, as the node always did. With JavaScript off the list shows every "
-"file's presets under their own file name."
+"Narrows the list to one preset file. A preset ticked in another file "
+"stays ticked, and is still applied."
 msgstr ""
-"Имена берутся из выбранного файла — отметьте несколько, чтобы объединить "
-"их по порядку, как узел делал всегда. Без JavaScript список показывает "
-"предустановки каждого файла под его собственным именем."
+"Сужает список до одного файла предустановок. Предустановка, отмеченная в "
+"другом файле, остаётся отмеченной и всё равно применяется."
+
+#: services/webservice/pages/actions.py:883
+msgid ""
+"Tick several presets to merge them in order, as the node always did. The "
+"order is the order the presets stand in their files, not the order you "
+"ticked them. A field two presets both set keeps the later one."
+msgstr ""
+"Отметьте несколько предустановок, чтобы объединить их по порядку, как "
+"узел делал всегда. Порядок — это порядок, в котором предустановки стоят в "
+"своих файлах, а не порядок, в котором вы их отметили. Если две "
+"предустановки задают одно и то же поле, берётся более позднее значение."
+
+#~ msgid "Only the preset files this server's node carries are offered."
+#~ msgstr ""
+#~ "Предлагаются только файлы предустановок, которые есть на узле этого "
+#~ "сервера."
+
+#~ msgid "Presets in that file"
+#~ msgstr "Предустановки в этом файле"
+
+#~ msgid ""
+#~ "The names come from the file you pick — tick several to merge them in "
+#~ "order, as the node always did. With JavaScript off the list shows every "
+#~ "file's presets under their own file name."
+#~ msgstr ""
+#~ "Имена берутся из выбранного файла — отметьте несколько, чтобы объединить "
+#~ "их по порядку, как узел делал всегда. Без JavaScript список показывает "
+#~ "предустановки каждого файла под его собственным именем."
 
 
 
@@ -6666,6 +6689,21 @@ msgstr "Закрыть"
 #: services/webservice/templates/confirm.html:152
 msgid "Selected missions"
 msgstr "Выбранные миссии"
+
+#: services/webservice/templates/confirm.html:161
+msgid "Chosen, in this order"
+msgstr "Выбрано, в этом порядке"
+
+#: services/webservice/templates/confirm.html:164
+msgid ""
+"The order is the order the presets stand in their files, not the order "
+"you ticked them. A field two presets both set keeps the later one, and "
+"the server page lists every name."
+msgstr ""
+"Порядок — это порядок, в котором предустановки стоят в своих файлах, а не "
+"порядок, в котором вы их отметили. Если две предустановки задают одно и "
+"то же поле, берётся более позднее значение, а страница сервера "
+"перечисляет каждое имя."
 
 #: services/webservice/templates/confirm.html:336
 #, python-format

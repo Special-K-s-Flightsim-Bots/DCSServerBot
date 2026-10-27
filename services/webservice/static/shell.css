@@ -716,6 +716,24 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
  * an operator's own file path and a case change would misname the file. */
 .dlg-field select optgroup { font-size: 11px; font-weight: 600; color: var(--text-2); }
 .dlg-field select optgroup option { font-size: 12.5px; font-weight: normal; color: var(--text); }
+/* THE CHOSEN BLOCK — what the pick carries, in the files' own order. The heading counts the entries;
+ * each chip names the preset and the preset FILE it came from and carries its own Remove button, so
+ * a combination spanning files stays legible after the filter has hidden a group. */
+.dlg-chosen { display: flex; flex-direction: column; gap: 5px; margin-top: 4px;
+  padding-top: 8px; border-top: 1px solid var(--line-2); }
+.dlg-chosen[hidden] { display: none; }
+.dlg-chosen-head { margin: 0; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.dlg-chosen-count { padding: 0 5px; font-weight: normal; color: var(--text-3); }
+.dlg-chosen-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.dlg-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 4px 2px 8px;
+  font-size: 11.5px; color: var(--text); background: var(--ground-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.dlg-chip-name { font-weight: 600; }
+.dlg-chip-file { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); }
+.dlg-chip-x { padding: 0 3px; font: inherit; font-size: 12px; line-height: 1; color: var(--text-3);
+  background: none; border: 0; cursor: pointer; }
+.dlg-chip-x:hover { color: var(--text); }
+.dlg-chosen-note { margin: 0; font-size: 11px; color: var(--text-3); }
 .dlg-field .hint { font-size: 11px; color: var(--text-3); }
 /* A CHECKBOX IS NOT A TEXT FIELD. The node row's maintenance pair carries the command's own option
  * — `/node offline`'s shutdown, `/node online`'s startup — as a checkbox, and the rule above dresses

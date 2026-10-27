@@ -8,7 +8,7 @@ msgstr ""
 
 # /server
 msgid "Commands to manage a DCS server"
-msgstr ""
+msgstr "Befehle zur Verwaltung eines DCS-Servers"
 
 # /server list
 msgid "List of all registered servers"
@@ -423,3 +423,11 @@ msgstr "Die Mission"
 
 msgid "in {}"
 msgstr "in {}"
+
+#: plugins/scheduler/commands.py
+msgid "Pick weather presets for this launch"
+msgstr "Wähle Wetter-Presets für diesen Start"
+
+#: plugins/scheduler/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Presets-Datei, aus der gewählt wird (Standard: alle Dateien)"

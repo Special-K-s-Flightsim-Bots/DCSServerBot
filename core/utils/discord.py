@@ -37,6 +37,7 @@ __all__ = [
     "wait_for_single_reaction",
     "selection_list",
     "selection",
+    "PagedSelectView",
     "yn_question",
     "populated_question",
     "check_roles",
@@ -286,6 +287,138 @@ async def selection(interaction: discord.Interaction | commands.Context, *, titl
         if msg:
             with suppress(discord.NotFound):
                 await msg.delete()
+
+
+class PagedSelectView(View):
+    """A select whose options are spread over pages, keeping every tick across page changes.
+
+    ``pages`` holds the options split into pages of at most 25 (one select's limit), listed in the
+    order the caller wants the values back in. A tick is remembered per page and re-painted with
+    ``SelectOption(default=True)`` whenever its page is drawn again, so a value ticked on page 1 is
+    still ticked after paging away and back. ``result`` is ``None`` until OK is pressed (a timeout
+    leaves it ``None``) and the picked values in LIST order after that — page order, then the
+    option's order in its page — never click order.
+
+    ``min_values``/``max_values`` bound ONE page's tick, Discord's own select semantics; a caller
+    that needs a bound on the total checks the length of ``result``. A single page draws no paging
+    row, so the common case is a plain select with Clear, OK and Cancel.
+
+    ``cancelled`` is ``False`` on construction and ``True`` only when the Cancel button was pressed;
+    a cancel stops the view at once and leaves ``result`` ``None``, exactly like a timeout, so the
+    flag is what tells the two apart. ``result`` keeps its meaning: ``None`` until OK, a list after.
+    """
+
+    #: Seconds the view accepts input for.
+    TIMEOUT = 180
+
+    def __init__(
+            self,
+            *,
+            pages: list[list[SelectOption]],
+            placeholder: str | None = None,
+            min_values: int = 1,
+            max_values: int = 1
+    ):
+        super().__init__(timeout=self.TIMEOUT)
+        if not pages:
+            raise ValueError('at least one page is required')
+        for index, page in enumerate(pages):
+            if not page:
+                raise ValueError(f'page {index + 1} is empty')
+            if len(page) > 25:
+                raise ValueError(f'page {index + 1} holds more than 25 options ({len(page)})')
+        self.result: list[str] | None = None
+        self.cancelled: bool = False
+        self._pages: list[list[SelectOption]] = [list(page) for page in pages]
+        self._page: int = 0
+        self._ticked: dict[int, set[str]] = {index: set() for index in range(len(pages))}
+        self.picks.placeholder = placeholder
+        self.picks.min_values = 1 if min_values is None else min_values
+        self.picks.max_values = 1 if max_values is None else max_values
+        if len(self._pages) == 1:
+            for item in (self.prev_page, self.page_status, self.next_page):
+                self.remove_item(item)
+        self._paint()
+
+    def chosen(self) -> list[str]:
+        """The ticked values in LIST order: page order, then each option's order in its page."""
+        chosen: list[str] = []
+        for index, page in enumerate(self._pages):
+            ticked = self._ticked[index]
+            for option in page:
+                if option.value in ticked and option.value not in chosen:
+                    chosen.append(option.value)
+        return chosen
+
+    def _paint(self) -> None:
+        """Redraw the current page and the paging row from the state the view keeps."""
+        ticked = self._ticked[self._page]
+        self.picks.options = [
+            SelectOption(label=option.label, value=option.value, description=option.description,
+                         emoji=option.emoji, default=option.value in ticked)
+            for option in self._pages[self._page]
+        ]
+        self.page_status.label = (f'page {self._page + 1}/{len(self._pages)} · '
+                                  f'{len(self.chosen())} chosen')
+        self.prev_page.disabled = self._page == 0
+        self.next_page.disabled = self._page == len(self._pages) - 1
+
+    async def _edit(self, interaction: Interaction) -> None:
+        self._paint()
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.select(row=0)
+    async def picks(self, interaction: Interaction, select: Select):
+        self._ticked[self._page] = set(select.values)
+        await self._edit(interaction)
+
+    @discord.ui.button(label='◀', style=ButtonStyle.secondary, row=1, custom_id='ps_prev')
+    async def prev_page(self, interaction: Interaction, _: Button):
+        if self._page > 0:
+            self._page -= 1
+        await self._edit(interaction)
+
+    @discord.ui.button(label='page', style=ButtonStyle.secondary, row=1, disabled=True,
+                       custom_id='ps_page')
+    async def page_status(self, interaction: Interaction, _: Button):
+        # Disabled, so this never runs: the button only shows the page number and the tick count.
+        return
+
+    @discord.ui.button(label='▶', style=ButtonStyle.secondary, row=1, custom_id='ps_next')
+    async def next_page(self, interaction: Interaction, _: Button):
+        if self._page < len(self._pages) - 1:
+            self._page += 1
+        await self._edit(interaction)
+
+    def _lock(self) -> None:
+        """Disable the select and every button, so no control can answer the pick twice."""
+        for item in self.children:
+            if isinstance(item, (Button, Select)):
+                item.disabled = True
+
+    @discord.ui.button(label='Clear', style=ButtonStyle.secondary, row=2, custom_id='ps_clear')
+    async def clear_all(self, interaction: Interaction, _: Button):
+        self._ticked = {index: set() for index in range(len(self._pages))}
+        await self._edit(interaction)
+
+    @discord.ui.button(label='OK', style=ButtonStyle.green, row=2, custom_id='ps_ok')
+    async def confirm(self, interaction: Interaction, _: Button):
+        self.result = self.chosen()
+        self._lock()
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red, row=2, custom_id='ps_cancel')
+    async def cancel(self, interaction: Interaction, _: Button):
+        self.cancelled = True
+        self._lock()
+        await interaction.response.defer()
+        self.stop()
+
+    async def on_timeout(self) -> None:
+        """Leave the pick unconfirmed (``result`` stays ``None``) and lock the controls."""
+        self.result = None
+        self._lock()
 
 
 class YNQuestionView(View):

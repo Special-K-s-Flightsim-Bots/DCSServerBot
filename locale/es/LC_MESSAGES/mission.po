@@ -654,3 +654,47 @@ msgid "Expires must be in the future — a past date would lift the ban. Leave i
 "empty for a permanent ban."
 msgstr "La caducidad debe estar en el futuro — una fecha pasada levantaría el "
 "baneo. Déjala vacía para un baneo permanente."
+
+#: plugins/mission/views.py
+msgid "No preset was picked, so nothing was applied."
+msgstr "No se seleccionó ningún preset, así que no se aplicó nada."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "Uno de los presets seleccionados nombró un archivo que este nodo ya no contiene."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets is not in its file any more."
+msgstr "Uno de los presets seleccionados ya no está en su archivo."
+
+#: plugins/mission/views.py
+msgid "The picked presets could not be applied."
+msgstr "No se pudieron aplicar los presets seleccionados."
+
+#: plugins/mission/views.py
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "No realizado: se seleccionó un preset, pero este lanzamiento no ejecuta las extensiones, así que nada aplicaría el preset. Ejecute las extensiones o borre la selección de presets."
+
+#: plugins/mission/views.py
+msgid "There are no presets to choose from."
+msgstr "No hay presets para elegir."
+
+#: plugins/mission/views.py
+msgid "Select the preset(s) you want to apply"
+msgstr "Seleccione el/los preset(s) que desea aplicar"
+
+#: plugins/mission/views.py
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "Seleccionó {count} presets, pero como máximo se pueden aplicar {limit} a la vez. No se aplicó nada."
+
+#: plugins/mission/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Archivo de presets del que elegir (por defecto: todos los archivos)"
+
+#: plugins/mission/views.py
+msgid "Cancelled — nothing was applied."
+msgstr "Cancelado — no se aplicó nada."
+
+#: plugins/mission/views.py
+msgid "The pick timed out, so nothing was applied."
+msgstr "La selección agotó el tiempo de espera, así que no se aplicó nada."

@@ -32,6 +32,11 @@ from core.data.const import Status
 # definition of "may this server's process be up" that the engine's power halves use, which is what
 # makes the node route's PREDICTION follow the operation rather than a second rule.
 from core.data.maintenance import ServerMaintenanceManager, power_record
+# THE PRESET RULE: the file label, the pick entry shape and the name -> document resolution live in
+# ``core/utils/presets.py``, so a plugin reaches them without importing a page module.
+from core.utils.presets import (PRESET_PAIR_SEPARATOR, REFUSAL_NO_PICK, REFUSAL_UNKNOWN_FILE,
+                                REFUSAL_UNKNOWN_PRESET, preset_file_is_safe, preset_names_of,
+                                preset_option_value, resolve_picked_values, split_preset_entry)
 
 from .. import i18n, permissions, readmodels, session
 # THE ONE WEATHER FIELD TABLE (``services/webservice/weather_fields.py``): the launch dialog's
@@ -69,7 +74,9 @@ __all__ = [
     "PRESET_FIELD", "PRESET_NAME_PARAM", "PRESET_LABEL", "PRESET_HELP", "PRESET_NONE_LABEL",
     "PRESET_FREE_TEXT_HELP", "PRESET_GROUP_HELP", "PRESET_CUSTOM_VALUE", "PRESET_CUSTOM_LABEL",
     "PRESET_FILE_FIELD", "PRESET_FILE_LABEL", "PRESET_FILE_HELP", "PRESET_LIST_LABEL",
-    "PRESET_LIST_HELP", "WEATHER_MODE_FIELD", "WEATHER_MODE_LEAVE", "WEATHER_MODE_FILE",
+    "PRESET_LIST_HELP", "PRESET_FILE_ALL", "PRESET_FILE_ALL_LABEL", "PRESET_PAIR_SEPARATOR",
+    "preset_option_value", "split_preset_entry", "preset_name_text",
+    "WEATHER_MODE_FIELD", "WEATHER_MODE_LEAVE", "WEATHER_MODE_FILE",
     "WEATHER_MODE_CUSTOM", "WEATHER_MODES", "_WeatherRefusal", "preset_file_is_safe",
     "preset_names_of", "select_params",
     "PRESET_READ_LOADING", "PRESET_READ_DONE", "PRESET_READ_FAILED",
@@ -864,18 +871,26 @@ WEATHER_MODE_FILE_HELP = i18n._("Pick the preset file, then the preset inside it
 WEATHER_MODE_CUSTOM_LABEL = i18n._("Create your own weather")
 WEATHER_MODE_CUSTOM_HELP = i18n._("Build a one-off preset in the fields below.")
 
-#: MODE 2's FILE PICK — the preset FILE the presets are taken from, drawn only when the node carries
-#: more than one (with a single file there is nothing to choose). Its VALUE is the file's own
-#: ``config/…`` LABEL, and the route accepts only a label the render listed (:func:`_weather_fields`),
-#: so a posted path is never opened.
+#: MODE 2's FILE FILTER — it narrows what the browser SHOWS, it never narrows what the pick can
+#: carry. Drawn only when the node carries more than one preset file (with a single file there is
+#: nothing to filter) and defaulting to the empty value, "All files". A ticked entry carries its own
+#: file, so this control takes no part in resolving a pick; the route accepts only a label the render
+#: listed (:func:`_weather_fields`), so a posted path is never opened.
 PRESET_FILE_FIELD = "preset_file"
-PRESET_FILE_LABEL = i18n._("Preset file")
-PRESET_FILE_HELP = i18n._("Only the preset files this server's node carries are offered.")
-#: MODE 2's name list: the pick's own label and help while the mode is "a preset out of a file".
-PRESET_LIST_LABEL = i18n._("Presets in that file")
-PRESET_LIST_HELP = i18n._("The names come from the file you pick — tick several to merge them in "
-                          "order, as the node always did. With JavaScript off the list shows every "
-                          "file's presets under their own file name.")
+PRESET_FILE_LABEL = i18n._("Show")
+PRESET_FILE_HELP = i18n._("Narrows the list to one preset file. A preset ticked in another file "
+                          "stays ticked, and is still applied.")
+#: the filter's first entry: the value that filters nothing.
+PRESET_FILE_ALL = ""
+PRESET_FILE_ALL_LABEL = i18n._("All files")
+#: MODE 2's name pick: the pick's own label and help while the mode is "a preset out of a file".
+PRESET_LIST_LABEL = i18n._("Presets")
+PRESET_LIST_HELP = i18n._("Tick several presets to merge them in order, as the node always did. The "
+                          "order is the order the presets stand in their files, not the order you "
+                          "ticked them. A field two presets both set keeps the later one.")
+# ``PRESET_PAIR_SEPARATOR`` and the entry shape it separates (``preset_option_value`` /
+# ``split_preset_entry``) are imported from :mod:`core.utils.presets`, the module that also owns the
+# name -> document rule, so a plugin builds and reads a pick entry exactly as this page does.
 
 #: THE LAUNCH DIALOG'S "Create your own weather" ENTRY — the value under which a caller with no
 #: dialog states the temporary preset instead of a named one. The dialogs no longer OFFER it (the
@@ -4382,28 +4397,14 @@ def _dialog_inputs(request: Request, action: WriteAction,
     return tuple(fields)
 
 
-def preset_names_of(document: Any) -> list[str]:
-    """The named presets ONE PARSED preset document carries, in the document's own order.
-
-    A name is offered when the extension could apply it — a mapping (the preset's own values or the
-    expert DSL) that is not marked ``hidden``, or a LIST (a combination of other names, which
-    ``MizEdit.get_presets`` resolves by name too). Anything else carries no name: a scalar entry, or
-    a document that is not a map at all.
-    """
-    if not isinstance(document, Mapping):
-        return []
-    return [str(name) for name, value in document.items()
-            if isinstance(value, (Mapping, list))
-            and not (isinstance(value, Mapping) and value.get("hidden", False))]
-
-
-def _preset_option(value: str, label: str) -> dict:
+def _preset_option(value: str, label: str, file: str = "") -> dict:
     """ONE entry of the launch dialog's weather pick, as ``confirm.html``'s ``pick`` branch reads it.
 
-    The value is the POST's own value — a preset NAME, which is operator data and no valid id, so the
-    entry carries no anchor.
+    The value is the POST's own value — a preset NAME (or a FILE + NAME pair), which is operator data
+    and no valid id, so the entry carries no anchor. ``file`` is the group's own label, drawn beside
+    the chip so a pick spanning files names where each preset came from.
     """
-    return {"value": value, "label": label, "checked": False}
+    return {"value": value, "label": label, "file": file, "checked": False}
 
 
 #: The mode rows' own records, in the order the dialog draws them: the value, its label and the hint
@@ -4439,23 +4440,22 @@ async def _weather_fields(request: Request, server: Any) -> tuple[dict, ...]:
     THREE records, in the order the dialog draws them, because they are three parts of ONE choice:
 
     1. the MODE radios (:func:`_weather_mode_field`), always drawn;
-    2. the preset FILE pick, drawn ONLY when the node carries more than one preset file (with a single
-       file there is nothing to choose, and the route falls back to that file). Its value is the
-       file's own ``config/…`` label — never a path — and the route accepts only a label this render
-       listed;
+    2. the FILE FILTER, drawn ONLY when the node carries more than one preset file (with a single
+       file there is nothing to filter). It narrows what the browser SHOWS; it never narrows what
+       the pick can carry, and it takes no part in resolving a pick. Its first value is empty, "All
+       files"; every other value is a file's own ``config/…`` label — never a path;
     3. the preset NAME pick, a MULTI pick over the node's preset files, one ``<optgroup>`` per file
-       carrying the file's own label. Each group offers ITS OWN file's names and nothing else, so a
-       name two files both define appears under BOTH headings — each entry stands for its own file's
-       body. The option's value stays the bare name (the POST and direct callers read that); the
-       FILE field is what tells two such entries apart, and it is what a picked name is resolved
-       against.
+       carrying the file's own label — every group drawn, none hidden until the filter asks. Each
+       group offers ITS OWN file's names and nothing else, so a name two files both define appears
+       under BOTH headings. A grouped option's value carries its own FILE and its name
+       (:func:`preset_option_value`), so the entry ticked under one heading applies THAT file's
+       body; a node drawing ONE file draws bare names and no heading.
 
     The whole control set comes from ONE read (:func:`presets.node_preset_records`), the same answer
     the POST resolves the pick against, so the files offered here are exactly the files accepted
-    there. A node carrying ONE preset file draws no heading (there is nothing to disambiguate) and
-    draws its names flat. A node whose preset files cannot be read offers no file mode at all: the
-    pick could not be resolved at POST time, so the dialog says so (:data:`PRESET_FREE_TEXT_HELP`)
-    rather than offering a choice the launch would refuse.
+    there. A node whose preset files cannot be read offers no file mode at all: the pick could not be
+    resolved at POST time, so the dialog says so (:data:`PRESET_FREE_TEXT_HELP`) rather than
+    offering a choice the launch would refuse.
     """
     from . import presets as presets_page
 
@@ -4465,24 +4465,32 @@ async def _weather_fields(request: Request, server: Any) -> tuple[dict, ...]:
     groups: list[dict] = []
     for label, _path, names, _values in records:
         # every group is that file's OWN names: a name two files carry is drawn under both, each
-        # entry standing for its own file's body (the FILE field disambiguates the POST)
-        entries = [_preset_option(name, name) for name in names]
+        # entry standing for its own file's body (the entry's value carries that file)
+        entries = [_preset_option(preset_option_value(label, name), name, label)
+                   for name in names]
         if entries:
             groups.append({"label": label, "options": tuple(entries)})
     grouped = len(groups) > 1
+    if grouped:
+        options: tuple[dict, ...] = ()
+        blocks: tuple[dict, ...] = tuple(groups)
+    else:
+        # ONE file: no heading to disambiguate, so its names are drawn flat and post bare
+        options = tuple(_preset_option(option["label"], option["label"])
+                        for group in groups for option in group["options"])
+        blocks = ()
     pick = _dialog_field(PRESET_FIELD, PRESET_LIST_LABEL, kind="pick",
-                         options=() if grouped else tuple(option for group in groups
-                                                         for option in group["options"]),
-                         groups=tuple(groups) if grouped else (),
-                         help_text=PRESET_LIST_HELP)
+                         options=options, groups=blocks, help_text=PRESET_LIST_HELP)
     if groups:
         pick["group_help"] = PRESET_GROUP_HELP
     fields: list[dict] = [_weather_mode_field(request, file_mode=readable)]
     if len(records) > 1:
-        fields.append(_dialog_field(PRESET_FILE_FIELD, PRESET_FILE_LABEL, kind="select",
-                                    options=tuple({"value": label, "label": label}
-                                                  for label, _path, _names, _values in records),
-                                    help_text=PRESET_FILE_HELP))
+        fields.append(_dialog_field(
+            PRESET_FILE_FIELD, PRESET_FILE_LABEL, kind="select",
+            options=({"value": PRESET_FILE_ALL, "label": PRESET_FILE_ALL_LABEL},
+                     *( {"value": label, "label": label}
+                        for label, _path, _names, _values in records)),
+            help_text=PRESET_FILE_HELP))
     if not readable:
         pick["help"] = PRESET_FREE_TEXT_HELP
     fields.append(pick)
@@ -4589,23 +4597,41 @@ class _WeatherChoiceConflict(Exception):
     """
 
 
+def preset_entry_text(value: Any) -> str:
+    """ONE posted pick entry, cleaned PER PART: its SHAPE is read off the value before any trimming.
+
+    An entry is ``<file label><newline><preset name>`` (:func:`preset_option_value`), so the separator
+    is what makes it a FILE + NAME pair, and it is looked for on the value exactly as it arrived —
+    trimming the value whole would eat a trailing separator and read a LABEL-ONLY entry (a file, no
+    preset) as a bare preset NAME. The label is then cleaned (it is the node's own ``config/…`` name);
+    the name is kept VERBATIM, because a preset name is operator data, is looked up exactly, and may
+    begin or end with a space. A value carrying no separator is a bare name and is cleaned whole.
+    """
+    raw = "" if value is None else str(value)
+    if PRESET_PAIR_SEPARATOR not in raw:
+        return raw.strip()
+    label, name = raw.split(PRESET_PAIR_SEPARATOR, 1)
+    return f"{label.strip()}{PRESET_PAIR_SEPARATOR}{name}"
+
+
 def posted_preset_entries(form, action: WriteAction) -> list[str]:
     """Every value a launch POST carries under the pick's field, in posted order — ``[]`` for none.
 
     A name per entry the operator selected, the empty "leave the weather alone" as ``""``, and
-    :data:`PRESET_CUSTOM_VALUE` for "Create your own weather". The pick is a MULTI pick, so the field
-    repeats and EVERY occurrence is read (``getlist``) — reading one with ``.get`` would drop the rest
-    of a rotation. A form-like double that answers only ``get`` states one value, the same way the
-    write-form-state contract reads a repeated field.
+    :data:`PRESET_CUSTOM_VALUE` for "Create your own weather". Each value keeps its own SHAPE
+    (:func:`preset_entry_text`), so an entry naming a file and no preset is still that entry. The pick
+    is a MULTI pick, so the field repeats and EVERY occurrence is read (``getlist``) — reading one with
+    ``.get`` would drop the rest of a rotation. A form-like double that answers only ``get`` states one
+    value, the same way the write-form-state contract reads a repeated field.
     """
     if action.select is None:
         return []
     getlist: Any = getattr(form, "getlist", None)
     if callable(getlist):
         raw: Any = getlist(action.select.field)
-        values = [readmodels.text(value) for value in (raw or ())]
+        values = [preset_entry_text(value) for value in (raw or ())]
     else:
-        values = [readmodels.text(form.get(action.select.field))]
+        values = [preset_entry_text(form.get(action.select.field))]
     return [value for value in values if value.strip()]
 
 
@@ -4648,114 +4674,76 @@ class _WeatherRefusal(Exception):
         self.sentence = sentence
 
 
-#: The shape a preset FILE value must have before it is even compared with the node's own file set:
-#: no absolute path, no Windows drive letter, no UNC share, no ``..`` component. A value that passes is
-#: still only accepted when it EQUALS one of the labels the render listed — the shape test exists so a
-#: hostile value is refused as a shape rather than resolved into something else.
-_PRESET_PATH_UNSAFE = re.compile(r"^(?:[A-Za-z]:|[\\/])")
+#: The console's own sentence for each reason the preset rule refuses a pick with. The REASONS come
+#: from :mod:`core.utils.presets`; the words are the console's, localised like the rest of its chrome.
+_PRESET_REFUSAL_SENTENCES: dict[str, str] = {
+    REFUSAL_NO_PICK: REFUSAL_WEATHER_NO_PICK,
+    REFUSAL_UNKNOWN_FILE: REFUSAL_WEATHER_UNKNOWN_FILE,
+    REFUSAL_UNKNOWN_PRESET: REFUSAL_WEATHER_UNKNOWN_PRESET,
+}
 
 
-def preset_file_is_safe(value: str) -> bool:
-    """Whether *value* is shaped like a preset file's ``config/…`` label and not like a path.
+def preset_name_text(value: str | list[str] | tuple[str, ...] | None) -> str | None:
+    """The ``preset_name`` parameter's value — one string, never a list.
 
-    ``config/presets_winter.yaml`` passes; ``/etc/passwd``, ``C:\\presets.yaml``, ``\\\\host\\share\\x``,
-    ``../../x.yaml`` and an empty string do not. The test is on the REPORTED value, and it never
-    normalizes: a value this answers ``True`` for is still only usable when the node's own listing
-    carries it.
+    The payload names EVERY preset the launch applies, so the field accepts a list of names and
+    joins it into the ONE comma string the action and the record take. ``None`` stays ``None``: a
+    launch that names nothing states nothing.
+
+    A LIST's entries are names ALREADY RESOLVED against the node's preset files (the resolution
+    :func:`_stated_presets` performed), so each name is operator-and-file data and is joined as it
+    stands — a name whose file spells `` Snow `` is stated as `` Snow ``, never trimmed into the
+    different preset ``Snow``. Only the joined string's own transport noise (absent entries) is
+    dropped, never an individual name's spelling. A BARE string argument keeps today's reading: it
+    is the raw form value, not a resolved name, and is read through :func:`readmodels.text`.
     """
-    text = str(value or "").strip()
-    if not text or _PRESET_PATH_UNSAFE.match(text):
-        return False
-    parts = text.replace("\\", "/").split("/")
-    return ".." not in parts and ":" not in text
-
-
-def _preset_documents(name: str, values: Mapping[str, Any],
-                      fallback: Mapping[str, Any] | None = None, *,
-                      member: bool = False) -> list[Any] | None:
-    """The preset DOCUMENTS *name* stands for — ``None`` when the map it is read from lacks it.
-
-    A name resolves to its own value; a COMBINATION (a LIST of other names) resolves to its members'
-    documents, in the order the combination spells them — the same expansion
-    ``MizEdit.get_presets`` performs.
-
-    The name the caller ASKED for is read from *values* alone (``member=False``). A COMBINATION's
-    member is read from *values* first and then, when that file does not carry it, from *fallback* —
-    the node's merged map — so a combination spanning preset files resolves exactly as the node's own
-    merge does. A member neither map carries makes the whole name unresolvable, because the launch
-    would otherwise apply a combination with a hole in it.
-    """
-    source = values
-    if member and name not in values and fallback is not None:
-        source = fallback
-    value = source.get(name)
-    if isinstance(value, Mapping):
-        return [dict(value)]
+    if value is None:
+        return None
     if isinstance(value, (list, tuple)):
-        documents: list[Any] = []
-        for item in value:
-            if not isinstance(item, str):
-                return None
-            resolved = _preset_documents(item, values, fallback, member=True)
-            if resolved is None:
-                return None
-            documents.extend(resolved)
-        return documents or None
-    return None
+        names = [str(entry) for entry in value if entry is not None]
+        joined = ",".join(name for name in names if name)
+        return joined or None
+    return readmodels.text(value) or None
 
 
 async def _stated_presets(form, action: WriteAction, server: Any) -> dict[str, Any]:
-    """MODE 2's resolution: the picked NAMES read off the node's preset files at POST time.
+    """MODE 2's payload: the picked entries resolved into the DOCUMENTS they stand for.
 
-    THE RESOLUTION RULE, as behaviour:
+    The rule is :func:`core.utils.presets.resolve_picked_values` — the same one a plugin resolves a
+    pick with — so this function reads the POST, hands the rule the node's files and turns the rule's
+    REASON into the console's own sentence:
 
-    * a picked NAME resolves against the file the operator NAMED — the file pick's value, or the
-      node's only file when it carries one — never against another file's body, so a name two files
-      define applies the body of the file the dialog showed it under;
-    * a COMBINATION MEMBER the named file does not carry falls back to the node's MERGED map, so a
-      combination spanning files keeps working exactly as the node's own merge does;
-    * a name the named file does not carry is UNRESOLVABLE and takes the existing refusal.
+    * :data:`core.utils.presets.REFUSAL_UNKNOWN_FILE` — a file value the node no longer lists, or one
+      shaped like a path (:data:`REFUSAL_WEATHER_UNKNOWN_FILE`). An empty file value is the filter's
+      "All files" and is never a refusal;
+    * :data:`core.utils.presets.REFUSAL_UNKNOWN_PRESET` — a name neither the file it was picked in
+      nor the node's merged map carries (:data:`REFUSAL_WEATHER_UNKNOWN_PRESET`);
+    * :data:`core.utils.presets.REFUSAL_NO_PICK` — a POST that resolved no name at all, including one
+      whose every entry named a file and no preset (:data:`REFUSAL_WEATHER_NO_PICK`).
 
-    The files are the ONE read :func:`presets.node_preset_records` — the same answer the dialog drew
-    its file pick and its name groups from, taken once here. The FILE value is accepted only when it
-    EQUALS one of the labels that read returned (never a path the request supplied, never an opened
-    one); a node carrying a single preset file takes an absent file value as that file.
-
-    A file the node no longer lists, a file value shaped like a path, a name the named file does not
-    carry and a POST that picked no name at all are each REFUSED (:class:`_WeatherRefusal`) rather
-    than launched applying nothing.
+    A POST that picked nothing is refused BEFORE the node is read, so an empty pick costs no
+    transport call. The files are the ONE read :func:`presets.node_preset_records` — the same answer
+    the dialog drew its groups from, taken once here.
     """
     from . import presets as presets_page
 
-    names, _own = preset_choice(form, action)
-    if not names:
+    select = action.select
+    if select is None:
+        return {}
+    entries = [entry for entry in posted_preset_entries(form, action)
+               if entry != PRESET_CUSTOM_VALUE]
+    if not entries:
         raise _WeatherRefusal(REFUSAL_WEATHER_NO_PICK)
     node = getattr(server, "node", None)
     records, _readable = (await presets_page.node_preset_records(node)
                           if node is not None else ([], False))
-    labels = [label for label, _path, _names, _values in records]
-    posted = readmodels.text(form.get(PRESET_FILE_FIELD))
-    if not posted and len(labels) == 1:
-        posted = labels[0]
-    if not preset_file_is_safe(posted) or posted not in labels:
-        raise _WeatherRefusal(REFUSAL_WEATHER_UNKNOWN_FILE)
-    chosen = next(values for label, _path, _names, values in records if label == posted)
-    # the node's OWN merge order: a later file overrides an earlier one for the same name, exactly as
-    # ``MizEdit._init_presets`` merges the files it reads. It is the FALLBACK for a combination's
-    # members only; the picked name itself is read from the chosen file.
-    merged: dict[str, Any] = {}
-    for _label, _path, _names, mapping in records:
-        merged.update(mapping)
-    documents: list[Any] = []
-    for name in names:
-        if name not in chosen:
-            raise _WeatherRefusal(REFUSAL_WEATHER_UNKNOWN_PRESET)
-        resolved = _preset_documents(name, chosen, merged)
-        if resolved is None:
-            raise _WeatherRefusal(REFUSAL_WEATHER_UNKNOWN_PRESET)
-        documents.extend(resolved)
-    return {action.select.field: documents[0] if len(documents) == 1 else documents,
-            PRESET_NAME_PARAM: ",".join(names)}
+    files = {label: values for label, _path, _names, values in records}
+    answer = resolve_picked_values(entries, files,
+                                   named_file=readmodels.text(form.get(PRESET_FILE_FIELD)) or "")
+    if answer.reason is not None:
+        raise _WeatherRefusal(_PRESET_REFUSAL_SENTENCES[answer.reason])
+    return {select.field: answer.documents[0] if len(answer.documents) == 1 else answer.documents,
+            PRESET_NAME_PARAM: preset_name_text(answer.names)}
 
 
 async def launch_weather_params(form, action: WriteAction,
@@ -4797,7 +4785,10 @@ async def launch_weather_params(form, action: WriteAction,
         if server is None:
             # the target could not be resolved, so no node could be read: the pick travels as the
             # operator's NAMES and the launch's own refusal answers, exactly as before.
-            names, _own = preset_choice(form, action)
+            entries = [entry for entry in posted_preset_entries(form, action)
+                       if entry != PRESET_CUSTOM_VALUE]
+            names = [split_preset_entry(entry)[1] for entry in entries]
+            names = [name for name in names if name]
             if not names:
                 raise _WeatherRefusal(REFUSAL_WEATHER_NO_PICK)
             return {action.select.field: ",".join(names)}
