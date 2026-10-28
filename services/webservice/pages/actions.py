@@ -2628,25 +2628,6 @@ def node_moved_names(request: Request, node_name: str,
     return seeded
 
 
-def _server_settings_link(name: str) -> dict:
-    """One server row's SETTINGS link — a cogwheel into that server's Configuration tab.
-
-    A LINK, not a form: opening a server's settings changes nothing, so there is no CSRF token and no
-    POST. The URL is built by the ONE server-page encoder (``server_url`` with the config tab's own
-    key), so a name with a space or ``&`` opens the right tab, and the target is the EXISTING
-    Configuration tab — never a second editor.
-    """
-    from . import server_detail as server_detail_page
-
-    return {
-        "path": server_url(name, tab=server_detail_page.CONFIG_TAB),
-        "label": i18n._("Configuration"),
-        "title": _sentence(i18n._("Configuration — open {server}'s own settings"),
-                           server=name),
-        "aria": _sentence(i18n._("Open the configuration of server {server}"), server=name),
-    }
-
-
 def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, dict]:
     """The row STRIP each server row may render, keyed by server name — and nothing for a row whose
     controls may not be offered.
@@ -2706,16 +2687,6 @@ def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
     token = session.get_csrf_token(request)
-    # THE SETTINGS COGWHEEL's gate: the CONFIGURATION TAB's own capability and its OWN manager fact
-    # (a restricted scope WITHOUT a cluster role), read from the page module that owns both, so the
-    # row's cogwheel and the tab it opens cannot disagree about who may open it. The cogwheel is
-    # offered on the standalone SERVERS page ONLY (``origin``): the dashboard's Servers tab keeps the
-    # layout it had, and this is scoped to the page where servers are listed.
-    from . import server_detail as server_detail_page
-    from . import servers as servers_page
-    can_open_config = (origin == servers_page.SERVERS_PATH
-                       and permissions.allows(server_detail_page.CONFIG_CAPABILITY, roles,
-                                              manager=server_detail_page.config_manager(request)))
     # the seam's own in-flight set, read ONCE for the whole table. It is consulted only
     # for a server already in ``source`` — the caller's SCOPED view — so the pulse can never be a
     # second list of busy targets that discloses a row the caller cannot see; it is a property of a
@@ -2761,11 +2732,7 @@ def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str
         # busy: the honest affordance is "this server is starting". It is DISABLED — not an
         # invitation — because a second start through the UI is meaningless while the first boots.
         stuck = _pending_row_control(pending, offered, name, token, origin, roles, manager, tab=tab)
-        # THE SETTINGS COGWHEEL — the row's link INTO this server's Configuration tab. It is a READ
-        # shortcut, gated on that tab's OWN capability (see ``can_open_config`` above): offered when
-        # the caller may open the tab, absent otherwise, and never a second editor.
-        settings = _server_settings_link(name) if can_open_config else None
-        if not offered and stuck is None and settings is None:
+        if not offered and stuck is None:
             continue
         strip = tuple(_control(action, name, token, origin, action.key == pending)
                       for action in offered if action.row == ROW_STRIP)
@@ -2779,9 +2746,7 @@ def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str
                           "menu_id": f"act-menu-{index}", "server": name,
                           "in_flight": in_flight,
                           "aria": _sentence(i18n._("More controls for {server}"), server=name),
-                          "menu_note": MENU_NOTE,
-                          # the row's SETTINGS link (a cogwheel into the Configuration tab), or None
-                          "settings": settings}
+                          "menu_note": MENU_NOTE}
     return controls
 
 
@@ -3049,6 +3014,12 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
     It is a mark and never a gate: the control is offered on every node that declares DCS, because a
     rollback is the operation a node CURRENT on its branch still needs.
 
+    The record ALSO carries ``mods`` — the row's door into that node's ROOT-MODS page
+    (``pages/mods``), or ``None``. It takes the PAGE's own capability (``mods.manage``) and not
+    ``nodes.settings``: an entry point into an editor takes the capability that owns the resource the
+    editor writes. It is a link, so it needs no reachable node, no plugin and no state — an OFFLINE
+    row keeps it, because the mods page reads its installed list from the database.
+
     The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
     ONE component at two widths (``templates/_strip.html``). The node controls are a strip with no
     overflow menu: they are one equally consequential family, and folding any of them into a menu
@@ -3061,9 +3032,12 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
     # THE LOG DOWNLOAD's owner is the nodes PAGE module (it owns the route and the capability);
     # imported here, inside the function, beside the other page imports this module makes lazily.
     from . import nodes as nodes_page
-    # THE SETTINGS COGWHEEL's owner is the per-node settings page (it owns the route and the
-    # capability); imported lazily for the same reason.
+    # THE NODE PAGE's owner is the per-node settings page (it owns the route and the capability);
+    # imported lazily for the same reason.
     from . import node_settings as node_settings_page
+    # THE MODS DOOR's owner is the mods page module (it owns the page, its URL builder and its
+    # capability); imported lazily for the same reason.
+    from . import mods as mods_page
     # THE NODES THAT DECLARE A DCS INSTALLATION, from the source's own configuration map — read once
     # here, beside the rows it describes: a render must not ask a node whether it has DCS.
     declared_dcs = {readmodels.text(name).casefold()
@@ -3074,25 +3048,36 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
         key = readmodels.text(name)
         if not key:
             continue
-        # THE ROW'S OWN LINK — the node's NAME opens its node page (``/nodes/<node>``). Offered on
+        # THE ROW'S ONLY DOOR — the node's NAME opens its node page (``/nodes/<node>``). Offered on
         # BOTH the standalone NODES list AND the Dashboard's Nodes tab (the operator reaches nodes from
         # there too), so it is NOT origin-gated. It is gated by the node page's OWN capability
         # (``node_settings_control``'s gate, ``nodes.settings``, Admin-only) so the row is never
         # offered a door the page refuses; ``None`` leaves the name as plain text.
-        settings_control = node_settings_page.node_settings_control(key, roles)
-        page = settings_control["path"] if settings_control else None
-        # THE SETTINGS COGWHEEL — the row's link INTO that node's own settings (nodes.yaml). The
-        # settings live in the MASTER's nodes.yaml, so it needs no reachable node: it is offered on
-        # EVERY row, OFFLINE ones included, gated on its own Admin-only capability and offered on the
-        # standalone NODES page ONLY (``origin``): the dashboard's Nodes tab keeps the layout it had.
-        settings = settings_control if origin == nodes_page.NODES_PATH else None
+        page_control = node_settings_page.node_settings_control(key, roles)
+        page = page_control["path"] if page_control else None
+        # THE MODS DOOR — the row's entry into that node's ROOT-MODS page, built by the page module's
+        # own URL builder so the link and the page can never be spelled two ways. Gated on the
+        # capability the PAGE declares (``mods.manage``), never on ``nodes.settings``: the page owns
+        # mod management on that machine, so an entry point into it takes the capability that owns the
+        # resource. A LINK, not a form (a page changes nothing), so it carries no CSRF token — and it
+        # is offered on an OFFLINE row too, because the installed list is a database read: the page
+        # renders (with its gate closed) while the node itself cannot be reached.
+        mods_control = ({
+            "path": mods_page.node_page_url(key),
+            "title": _sentence(i18n._("Root mods on {node} — install, change and remove the packages "
+                                      "in this node's DCS installation"), node=key),
+            "aria": _sentence(i18n._("Open the root mods of node {node}"), node=key),
+        } if permissions.allows(mods_page.MODS_MANAGE_CAPABILITY, roles) else None)
         if node is None:        # OFFLINE: the cluster knows it and cannot reach it
             # The write controls and the two log READ controls need a reachable node (they are
-            # calls), so an OFFLINE row is offered none of them — but its SETTINGS and its NAME link
-            # do not: keep the row when it has either, and render just those.
-            if settings is None and page is None:
+            # calls), so an OFFLINE row is offered none of them — but its NAME link and its MODS door
+            # do not (the mods page renders its installed list from the database): keep the row when
+            # it has either, and render just those.
+            if page is None and mods_control is None:
                 continue
-            controls[key] = _node_record(key, index, (), "", None, settings, page=page, tab=tab)
+            record = _node_record(key, index, (), "", None, page=page, tab=tab)
+            record["mods"] = mods_control
+            controls[key] = record
             continue
         # THE TWO READ CONTROLS on the row: *View log* (follow the node's own bot log) and
         # *Download log* (hand over the whole file), both offered on the LOG PANEL's own capability
@@ -3111,28 +3096,35 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
         # control is NOT offered, and the row says why rather than leaving the person to guess.
         note = _upgrade_note(key, roles, manager)
         # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, the
-        # two log read controls, or the settings cogwheel. The reads need no plugin, so an install
-        # whose ``admin`` actions are absent still follows and hands over a node's log and settings.
-        if (not offered and not note and view is None and download is None and settings is None
-                and page is None):
+        # two log read controls, the node page link or the mods door. The reads and the two page
+        # links need no plugin, so an install whose ``admin`` actions are absent still follows and
+        # hands over a node's log and mods, and names the way into its own page.
+        if (not offered and not note and view is None and download is None
+                and page is None and mods_control is None):
             continue
-        controls[key] = _node_record(key, index, offered, note, download, settings,
-                                     view=view, token=token, origin=origin, page=page, tab=tab,
-                                     waiting=_dcs_attention(key))
+        record = _node_record(key, index, offered, note, download,
+                              view=view, token=token, origin=origin, page=page, tab=tab,
+                              waiting=_dcs_attention(key))
+        # the mods door is grafted on HERE rather than passed through ``_node_record``: it is the one
+        # row link that belongs to a DIFFERENT page module, and it must be the same key in both
+        # branches (offline included) — which this ONE line guarantees.
+        record["mods"] = mods_control
+        controls[key] = record
     return controls
 
 
-def _node_record(key: str, index: int, offered, note: str, download, settings,
+def _node_record(key: str, index: int, offered, note: str, download,
                  *, view=None, token: str = "", origin: str = "", page: str | None = None,
                  tab: str = "", waiting: bool = False) -> dict:
     """One NODE row's control record — the SAME shape whether the node is reachable or not.
 
     ``offered`` are the lifecycle/power actions the reachable node may render (empty for an OFFLINE
-    one); ``note``/``view``/``download``/``settings`` are the row-level statement, the log VIEW, the
-    log DOWNLOAD and the settings cogwheel; ``page`` is the NODE PAGE URL (``/nodes/<node>``) the
-    row's NAME links to. ``waiting`` is the row's CACHED DCS answer (see :func:`_dcs_attention`), and
-    it marks the DCS control alone. Kept in ONE place so the offline and online branches cannot
-    produce two different record shapes that ``_table.html`` would then have to know apart.
+    one); ``note``/``view``/``download`` are the row-level statement, the log VIEW and the log
+    DOWNLOAD. ``page`` is the NODE PAGE URL (``/nodes/<node>``) the row's NAME links to — the row's
+    ONLY door into that page, so no second link to the same page is drawn beside it. ``waiting`` is
+    the row's CACHED DCS answer (see :func:`_dcs_attention`), and it marks the DCS control alone.
+    Kept in ONE place so the offline and online branches cannot produce two different record shapes
+    that ``_table.html`` would then have to know apart.
     """
     return {
         "strip": tuple(_node_control(action, key, token, origin, tab=tab,
@@ -3148,10 +3140,8 @@ def _node_record(key: str, index: int, offered, note: str, download, settings,
         "view": view,
         # the row's log DOWNLOAD control (``pages/nodes.log_download_control``): a LINK, or ``None``.
         "download": download,
-        # the row's SETTINGS link (a cogwheel into this node's own settings), or ``None``.
-        "settings": settings,
-        # THE NODE PAGE URL the row's NAME links to (``/nodes/<node>``), or ``None``: same URL and
-        # same gate as the cogwheel, so the row name and its cogwheel can never point apart.
+        # THE NODE PAGE URL the row's NAME links to (``/nodes/<node>``), or ``None`` — the row's ONE
+        # door into that page: the name is the link, and no second glyph points at the same URL.
         "page": page,
     }
 

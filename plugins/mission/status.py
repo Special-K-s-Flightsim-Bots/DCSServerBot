@@ -188,7 +188,9 @@ class ExtensionsInfo(report.EmbedElement):
         footer = self.embed.footer.text or ''
         for ext in extensions:
             self.add_field(name=ext['name'], value=ext['value'])
-        footer += "".join([f" | {ext['name']} v{ext['version']}" for ext in extensions if ext.get('version')])
+        footer += "".join([
+            f" | {ext['name']} v{ext['version']}" for ext in extensions if ext.get('version', 'n/a') != 'n/a'
+        ])
         self.embed.set_footer(text=footer)
         # add a ruler at the bottom
         await report.Ruler(self.env).render()

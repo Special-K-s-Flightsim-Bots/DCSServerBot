@@ -2236,16 +2236,6 @@ msgstr ""
 msgid "Configuration"
 msgstr "Konfiguration"
 
-#: services/webservice/pages/actions.py:2391
-#, python-brace-format
-msgid "Configuration — open {server}'s own settings"
-msgstr "Konfiguration — die eigenen Einstellungen von {server} öffnen"
-
-#: services/webservice/pages/actions.py:2393
-#, python-brace-format
-msgid "Open the configuration of server {server}"
-msgstr "Die Konfiguration von Server {server} öffnen"
-
 #: services/webservice/pages/actions.py:2528
 #, python-brace-format
 msgid "More controls for {server}"
@@ -7994,3 +7984,306 @@ msgstr "{version} — jetzt installiert"
 #: services/webservice/pages/actions.py
 msgid "{version} — newest on this branch"
 msgstr "{version} — neuester auf diesem Branch"
+
+#: services/webservice/pages/mods.py:1014
+msgid "'{package}' v{version} is no longer in the package folder — nothing was changed."
+msgstr ""
+"'{package}' v{version} ist nicht mehr im Paketordner — es wurde nichts "
+"geändert."
+
+#: services/webservice/pages/mods.py:701
+msgid "Change"
+msgstr "Ändern"
+
+#: services/webservice/pages/mods.py:445
+#: services/webservice/pages/mods.py:447
+msgid "Change the installed version of {package}"
+msgstr "Installierte Version von {package} ändern"
+
+#: services/webservice/pages/mods.py:696
+msgid "Change the version"
+msgstr "Version ändern"
+
+#: services/webservice/pages/mods.py:695
+msgid "Change the version of {package} on {target}"
+msgstr "Version von {package} auf {target} ändern"
+
+#: services/webservice/pages/mods.py:442
+msgid "Change version"
+msgstr "Version ändern"
+
+#: services/webservice/pages/mods.py:699
+msgid "Changing the version removes the installed one and installs the version you pick — one operation, and the bot log records both halves."
+msgstr ""
+"Beim Versionswechsel wird die installierte Version entfernt und die "
+"von dir gewählte installiert — eine Operation, und das Bot-Log hält "
+"beide Schritte fest."
+
+#: services/webservice/pages/mods.py:792
+#: services/webservice/pages/mods.py:793
+msgid "Download a package"
+msgstr "Paket herunterladen"
+
+#: services/webservice/pages/mods.py:164
+msgid "Download a package from GitHub or a URL into the package folder"
+msgstr "Ein Paket von GitHub oder einer URL in den Paketordner herunterladen"
+
+#: services/webservice/pages/mods.py:810
+msgid "Download the package into the package folder"
+msgstr "Das Paket in den Paketordner herunterladen"
+
+#: services/webservice/pages/mods.py:194
+msgid "The releases could not be read from this link — type the version."
+msgstr "Die Releases konnten aus diesem Link nicht gelesen werden — gib die Version ein."
+
+#: services/webservice/pages/mods.py:163
+msgid "Download…"
+msgstr "Herunterladen…"
+
+#: services/webservice/pages/mods.py:362
+msgid "Every server on this node is shut down — root mods can be changed."
+msgstr ""
+"Jeder Server auf diesem Knoten ist heruntergefahren — Root-Mods können "
+"geändert werden."
+
+#: services/webservice/pages/mods.py:711
+msgid "Install"
+msgstr "Installieren"
+
+#: services/webservice/pages/mods.py:705
+msgid "Install a mod"
+msgstr "Mod installieren"
+
+#: services/webservice/pages/mods.py:704
+msgid "Install a mod on {target}"
+msgstr "Mod auf {target} installieren"
+
+#: services/webservice/pages/mods.py:161
+msgid "Install a mod…"
+msgstr "Mod installieren…"
+
+#: services/webservice/pages/mods.py:162
+msgid "Install a package that is already in the package folder"
+msgstr "Ein Paket installieren, das schon im Paketordner liegt"
+
+#: services/webservice/readmodels/views.py:153
+msgid "Installed"
+msgstr "Installiert"
+
+#: services/webservice/pages/mods.py:152
+msgid "Installed into the DCS installation on this node — active in every instance on it."
+msgstr ""
+"In die DCS-Installation auf diesem Knoten installiert — in jeder "
+"Instanz darauf aktiv."
+
+#: services/webservice/pages/mods.py:154
+msgid "Installed mods (Saved Games)"
+msgstr "Installierte Mods (Saved Games)"
+
+#: services/webservice/pages/mods.py:155
+msgid "Installed root mods"
+msgstr "Installierte Root-Mods"
+
+#: services/webservice/pages/mods.py:159
+#: services/webservice/readmodels/views.py:157
+msgid "Mods"
+msgstr "Mods"
+
+#: services/webservice/readmodels/mods.py:76
+msgid "No root mods are installed on {node}."
+msgstr "Auf {node} sind keine Root-Mods installiert."
+
+#: services/webservice/pages/mods.py:1025
+msgid "Not done (no URL was given)."
+msgstr "Nicht ausgeführt (es wurde keine URL angegeben)."
+
+#: services/webservice/pages/mods.py:967
+msgid "Not done (no package was chosen)."
+msgstr "Nicht ausgeführt (es wurde kein Paket gewählt)."
+
+#: services/webservice/pages/mods.py:976
+msgid "Not done (no package was named)."
+msgstr "Nicht ausgeführt (es wurde kein Paket genannt)."
+
+#: services/webservice/pages/mods.py:896
+msgid "Not done (the form names a different target than its path)."
+msgstr "Nicht ausgeführt (das Formular nennt ein anderes Ziel als sein Pfad)."
+
+#: services/webservice/pages/mods.py:803
+msgid "Nothing is installed by this step: the package has to be installed afterwards. For a plain URL the file name decides the version and the version field is ignored; for a repository download the field selects the release, and a version with no matching release asset is refused before anything is written."
+msgstr ""
+"Dieser Schritt installiert nichts: das Paket muss danach installiert "
+"werden. Bei einer einfachen URL bestimmt der Dateiname die Version und das "
+"Versionsfeld wird ignoriert; bei einem Repository-Download wählt das Feld "
+"das Release, und eine Version ohne passendes Release-Asset wird abgelehnt, "
+"bevor etwas geschrieben wird."
+
+#: services/webservice/pages/actions.py:3104
+msgid "Open the root mods of node {node}"
+msgstr "Die Root-Mods von Knoten {node} öffnen"
+
+#: services/webservice/readmodels/views.py:152
+#: services/webservice/templates/mods_install.html:37
+msgid "Package"
+msgstr "Paket"
+
+#: services/webservice/templates/mods_install.html:38
+msgid "Package to install"
+msgstr "Zu installierendes Paket"
+
+#: services/webservice/pages/mods.py:708
+msgid "Packages found in the {folder} package folder on {node} a moment ago. Installing one unpacks it into this target and records it here and in the bot log."
+msgstr ""
+"Pakete, die eben im Paketordner {folder} auf {node} gefunden wurden. "
+"Die Installation entpackt eines in dieses Ziel und hält es hier und im "
+"Bot-Log fest."
+
+#: services/webservice/pages/mods.py:774
+msgid "Remove the package"
+msgstr "Das Paket entfernen"
+
+#: services/webservice/pages/mods.py:452
+#: services/webservice/pages/mods.py:454
+#: services/webservice/pages/mods.py:756
+msgid "Remove {package} v{version} from {target}"
+msgstr "{package} v{version} von {target} entfernen"
+
+#: services/webservice/pages/mods.py:761
+msgid "Remove {package} v{version}?"
+msgstr "{package} v{version} entfernen?"
+
+#: services/webservice/pages/mods.py:151
+msgid "Root mods"
+msgstr "Root-Mods"
+
+#: services/webservice/pages/mods.py:364
+msgid "Root mods cannot be changed while a server on this node is running."
+msgstr ""
+"Root-Mods können nicht geändert werden, solange ein Server auf diesem "
+"Knoten läuft."
+
+#: services/webservice/pages/mods.py:523
+msgid "Root mods on {node}"
+msgstr "Root-Mods auf {node}"
+
+#: services/webservice/pages/actions.py:3102
+msgid "Root mods on {node} — install, change and remove the packages in this node's DCS installation"
+msgstr ""
+"Root-Mods auf {node} — die Pakete in der DCS-Installation dieses "
+"Knotens installieren, ändern und entfernen"
+
+#: services/webservice/pages/mods.py:536
+msgid "Root mods on {node} →"
+msgstr "Root-Mods auf {node} →"
+
+#: services/webservice/pages/mods.py:1090
+msgid "Saved Games on '{target}'"
+msgstr "Saved Games auf '{target}'"
+
+#: services/webservice/pages/mods.py:345
+msgid "Server <b>{name}</b> is running on this node. Root mods are active in every instance on it, so it has to be shut down before a package can be installed or removed."
+msgstr ""
+"Server <b>{name}</b> läuft auf diesem Knoten. Root-Mods sind in jeder "
+"Instanz darauf aktiv, deshalb muss er heruntergefahren werden, bevor "
+"ein Paket installiert oder entfernt werden kann."
+
+#: services/webservice/pages/mods.py:352
+msgid "Shut down {name}"
+msgstr "{name} herunterfahren"
+
+#: services/webservice/pages/mods.py:798
+msgid "The node downloads the package itself and writes it into the package folder — <span class=\"mods-path\">{path}</span> — so a package fetched here is available to every install on that node."
+msgstr ""
+"Der Knoten lädt das Paket selbst herunter und schreibt es in den "
+"Paketordner — <span class=\"mods-path\">{path}</span> — ein hier "
+"geholtes Paket steht also jeder Installation auf diesem Knoten zur "
+"Verfügung."
+
+#: services/webservice/pages/mods.py:764
+msgid "The package is removed from {where}, and the bot log records the removal and your name."
+msgstr ""
+"Das Paket wird aus {where} entfernt, und das Bot-Log hält die "
+"Entfernung und deinen Namen fest."
+
+#: services/webservice/pages/mods.py:706
+msgid "The packages in the {folder} package folder on {node}, read when this page opened."
+msgstr ""
+"Die Pakete im Paketordner {folder} auf {node}, gelesen beim Öffnen "
+"dieser Seite."
+
+#: services/webservice/pages/mods.py:532
+msgid "The root mods of {node} could not be read."
+msgstr "Die Root-Mods von {node} konnten nicht gelesen werden."
+
+#: services/webservice/pages/mods.py:339
+msgid "The servers <b>{names}</b> are running on this node. Root mods are active in every instance on it, so every one of them has to be shut down before a package can be installed or removed."
+msgstr ""
+"Die Server <b>{names}</b> laufen auf diesem Knoten. Root-Mods sind in "
+"jeder Instanz darauf aktiv, deshalb müssen alle heruntergefahren "
+"werden, bevor ein Paket installiert oder entfernt werden kann."
+
+#: services/webservice/pages/mods.py:697
+msgid "The versions of {package} in the {folder} package folder on {node}, read when this page opened."
+msgstr ""
+"Die Versionen von {package} im Paketordner {folder} auf {node}, "
+"gelesen beim Öffnen dieser Seite."
+
+#: services/webservice/templates/mods_download.html:33
+#: services/webservice/templates/mods_download.html:35
+msgid "URL or GitHub repository"
+msgstr "URL oder GitHub-Repository"
+
+#: services/webservice/templates/mods_download.html:25
+#: services/webservice/templates/mods_install.html:27
+msgid "dialog"
+msgstr "Dialog"
+
+#: services/webservice/readmodels/mods.py:70
+msgid "installed"
+msgstr "installiert"
+
+#: services/webservice/templates/mods_body.html:72
+msgid "node-wide"
+msgstr "knotenweit"
+
+#: services/webservice/pages/mods.py:1089
+msgid "the DCS installation of node '{target}'"
+msgstr "die DCS-Installation von Knoten '{target}'"
+
+#: services/webservice/pages/mods.py:525
+msgid "{count} root mod(s) are installed on {node} — they are active in this server too, and they are changed on the node's own page."
+msgstr ""
+"{count} Root-Mod(s) sind auf {node} installiert — sie sind auch auf "
+"diesem Server aktiv und werden auf der Seite des Knotens geändert."
+
+#: services/webservice/pages/mods.py:794
+msgid "{folder} package folder on node {node}"
+msgstr "Paketordner {folder} auf Knoten {node}"
+
+#: services/webservice/readmodels/mods.py:73
+msgid "{package} — v{version} · {size} · {added}"
+msgstr "{package} — v{version} · {size} · {added}"
+
+#: services/webservice/pages/mods.py:369
+msgid "{server} is running, so its Saved Games mods cannot be changed. Shut it down first."
+msgstr ""
+"{server} läuft, deshalb können seine Saved-Games-Mods nicht geändert "
+"werden. Fahre ihn zuerst herunter."
+
+#: services/webservice/pages/mods.py:367
+msgid "{server} is shut down — its Saved Games mods can be changed."
+msgstr ""
+"{server} ist heruntergefahren — seine Saved-Games-Mods können geändert "
+"werden."
+
+#: services/webservice/readmodels/mods.py:81
+msgid "update {version}"
+msgstr "Update {version}"
+
+#: services/webservice/readmodels/mods.py:84
+msgid "Version {version} of {package} is available in the package folder; the installed version is {installed}."
+msgstr "Version {version} von {package} ist im Paketordner verfügbar; installiert ist {installed}."
+
+#: services/webservice/readmodels/mods.py:88
+msgid "Version {version} of {package} is available in its repository and has to be downloaded before it can be installed."
+msgstr "Version {version} von {package} ist im zugehörigen Repository verfügbar und muss heruntergeladen werden, bevor sie installiert werden kann."

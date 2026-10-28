@@ -21,9 +21,10 @@ capability and a declared action. The **Configuration tab** of a server's own pa
 writes**, declared the same way in the same file: the **DCS config write** (`SERVER_CONFIG_ACTIONS`)
 and the **channels write** (`SERVER_CHANNEL_ACTIONS`) — plus the **coalition write**
 (`SERVER_COALITION_ACTIONS`, described with the config tab's two below). The same page's **Missions
-tab** carries the **mission-list writes** (`MISSION_ACTIONS`, described below). The table below is the
-WHOLE write surface — the three tables' rows, the servers page's own *Add server*, and the two tabs'
-writes.
+tab** carries the **mission-list writes** (`MISSION_ACTIONS`, described below), and its **Mods tab**
+carries the **mod writes** (`pages/mods.py`, described below). The table below is the WHOLE write
+surface — the three tables' rows, the servers page's own *Add server*, the two tabs' writes and the
+mods writes.
 
 | Row    | Control              | Capability                  | Action (`__qualname__`) | Confirms |
 |--------|----------------------|-----------------------------|-------------------------|----------|
@@ -63,6 +64,14 @@ writes.
 | mission (tab)  | Upload mission       | `missions.upload`           | `upload_mission`        | no       |
 | mission (tab)  | Move                 | `missions.reorder`          | `reorder_mission`       | no       |
 | mission (tab)  | Set as start         | `missions.activate`         | `set_active_mission`    | no       |
+| mods (node)    | Install a mod…       | `mods.manage`               | `install_mod`           | **yes**  |
+| mods (node)    | Download…            | `mods.manage`               | `download_mod`          | **yes**  |
+| mods (node)    | Change version       | `mods.manage`               | `change_mod_version`    | **yes**  |
+| mods (node)    | Remove               | `mods.manage`               | `uninstall_mod`         | **yes**  |
+| mods (tab)     | Install a mod…       | `mods.manage`               | `install_mod`           | **yes**  |
+| mods (tab)     | Download…            | `mods.manage`               | `download_mod`          | **yes**  |
+| mods (tab)     | Change version       | `mods.manage`               | `change_mod_version`    | **yes**  |
+| mods (tab)     | Remove               | `mods.manage`               | `uninstall_mod`         | **yes**  |
 
 **The Control column is the declaration's own `label`** — the wording the code gives the
 control. Where the screen words one differently, the Missions tab's writes below name both
@@ -88,6 +97,14 @@ control is built for it, and a crafted POST naming it is refused exactly like a 
 exist. The **node** row is another exception and stays so: its six are declared `Admin`-only and
 **without** a scope grant (`NODE_ROLES`, `pages/actions.py`), because a manager's scope is a set of
 *servers* and taking a whole node — or every server on it — out of service must never widen out of it.
+The **mods** pair splits along the same line: `mods.view` (the Mods tab's body and its installed list)
+is `Admin` + `DCS Admin` **with** a scope grant, so a hoster reads their own instance's packages,
+while `mods.manage` (every mod write, both owners' dialogs, and the node's root-mods page) is
+`Admin`-only **without** one: a root package rewrites the game files of every instance on a machine,
+and a manager's scope is a set of servers, never a machine. The node row's mods door carries
+`mods.manage` for that reason and not `nodes.settings` — an entry point into an editor takes the
+capability that owns the resource the editor writes, so the link and the page it opens read the same
+predicate and a caller refused the page is never offered its door.
 
 **Update DCS is ONE control for three words** — update, roll back, switch the branch — because the
 engine has one call for them: `Node.dcs_update(branch=…, version=…)`
@@ -180,6 +197,29 @@ writes follow the server rows' `scope_grants` rule, so a **manager** reaches the
   two glyph buttons (up and down — each absent at the end where a move would be a no-op); there is no
   named *Move up* / *Move down* pair. It is **process-down only** — `UNREGISTERED` / `SHUTDOWN` /
   `SHUTTING_DOWN` — because a reorder made while DCS is up is reverted.
+
+**The Mods writes.** Mods are packages in one of two folders, and which folder is the OWNER, not a
+second page module: `RootFolder` is a node's DCS installation (shared by every instance on that
+machine) and `SavedGames` is one server's. So the node page (`GET /nodes/{node}/mods`, root half) and
+a server page's **Mods tab** (`SavedGames`) render ONE body, and every write lives at
+`POST /mods/{owner}/{target}/{verb}` — `install`, `download`, `change`, `remove` — with the target's
+own dialog at the same path and the write at `<path>/run`.
+
+* **Every one of them confirms**, and none uses `confirm.html`'s `<path>/confirm` shape: the DIALOG is
+  the verb's own page (the package pick, the two download fields, the version list, or the shared
+  removal confirmation), it **mints** the one-shot token for that target and verb, and `<path>/run`
+  **consumes** it — a POST that did not come through the dialog is refused with the console's 403 and
+  nothing reaches the service. That is why all eight rows above read **yes**.
+* **The gate has two halves.** The page states whether a write is possible right now — every server on
+  the node down for `RootFolder`, that one server down for `SavedGames` — read from the console's own
+  in-process state, never by asking a node; a closed gate removes the two doors, every row control and
+  the whole Actions column, and the card's chip reads `read-only`. The SERVICE re-checks it, and a
+  server that starts between the render and the POST is refused there with its own sentence.
+* **The installed list is a database read** (`list_installed_mods`), so the page renders while a node is
+  offline and asks no machine anything. The package FOLDER is a node read and happens only when a
+  dialog is requested, because its path carries variables only the node owning the disk can expand.
+* **The node row's door takes `mods.manage`**, not `nodes.settings`: the node page owns mod management on
+  that machine. The main menu is unchanged — neither surface is a place of its own on it.
 
 **Two things that look like one.** The server row's *Maintenance* / *End maintenance* is the
 MAINTENANCE FLAG (`servers.maintenance`, a persisted switch that keeps a server out of service and is
@@ -365,8 +405,10 @@ reads — does not POST its action: it POSTs to `<path>/confirm`, which renders 
 token** minted for that target. It is not only the power writes: the declarations that carry it are
 the server row's *Restart*, *Shutdown*, *Stop*, *Delete* and its *Chat*/*Popup* pair; the player
 row's *Kick*, *Ban* and its *Chat*/*Popup* pair; the node row's *Restart*, *Shut down*, *Upgrade*
-and *Take servers offline*; and the Missions tab's *Remove* and *Remove missions*. *Bring servers
-online* is the node row's one half that does NOT confirm — ending the maintenance IS the operation.
+and *Take servers offline*; the Missions tab's *Remove* and *Remove missions*; and every mod write,
+whose dialog is the verb's own page instead of `<path>/confirm` (see the Mods writes above). *Bring
+servers online* is the node row's one half that does NOT confirm — ending the maintenance IS the
+operation.
 The table's **Confirms** column and `capabilities` (which registers each confirming control's dialog
 route from the same flag) are the readings of that set, and
 `tests/test_webui_developer_controls.py` keeps the column equal to the declarations — so the column,

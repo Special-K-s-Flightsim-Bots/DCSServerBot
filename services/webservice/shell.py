@@ -231,6 +231,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     from .pages import instances as instances_page
     from .pages import live as live_page
     from .pages import logs as logs_page
+    from .pages import mods as mods_page
     from .pages import nodes as nodes_page
     from .pages import node_settings as node_settings_page
     from .pages import players as players_page
@@ -266,6 +267,9 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     # THE PRESETS PAGE: the MizEdit preset files this installation names. One route, one capability
     # and one nav item, registered flat like the pages above.
     presets_page.add_routes(router)
+    # THE MODS PAGES: a node's root mods, both owners' dialogs and their action routes. No nav item
+    # — the node page is reached from a Nodes row and the other half is a tab on the server page.
+    mods_page.add_routes(router)
     capabilities = dict(auth_routes.capabilities())
     capabilities.update(i18n.capabilities())
     capabilities.update(theme.capabilities())
@@ -281,6 +285,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     capabilities.update(live_page.capabilities())
     capabilities.update(settings_page.capabilities())
     capabilities.update(presets_page.capabilities())
+    capabilities.update(mods_page.capabilities())
     # THE MAIN MENU IS SIX ITEMS: Dashboard, Servers, Nodes, Bans, Presets, Settings — the ONE
     # sidebar group ("Operations", see pages/dashboard.py) holds them all. Logs, Instances and
     # Players are still PAGES — their routes are registered above and stay reachable/linkable —

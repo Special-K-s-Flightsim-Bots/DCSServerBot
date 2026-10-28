@@ -1,8 +1,9 @@
-"""The per-server page and its **Configuration** tab — and the **Missions** tab and download.
+"""The per-server page and its **Configuration** tab — and the **Missions** tab, the **Mods** tab and
+the mission download.
 
-A server gets its own page: Overview / Players / Missions / Log plus a Configuration tab. The module
-adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter carries a name containing
-``/``), ``GET /fleet/{name:path}/status`` (the status poll), ``GET
+A server gets its own page: Overview / Players / Missions / Mods / Log / Events plus a Configuration
+tab. The module adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter carries a name
+containing ``/``), ``GET /fleet/{name:path}/status`` (the status poll), ``GET
 /fleet/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
 routes (``.../log/window`` and ``.../log/download``) — registered FIRST so the page's greedy converter
 cannot swallow them, and reuses the shell, the sidebar, the table component and the read models rather
@@ -17,8 +18,10 @@ their own servers' missions).
 
 A capability gates the TAB and its request, not merely its markup: a viewer without ``servers.config``
 sees no Configuration tab (and a manual ``?tab=configuration`` is REFUSED with the console's own 403),
-a viewer without ``missions.view`` sees no Missions tab (and ``?tab=missions`` is REFUSED), and the
-download route carries the same ``missions.view`` the tab's link reads — never hidden-and-served.
+a viewer without ``missions.view`` sees no Missions tab (and ``?tab=missions`` is REFUSED), a viewer
+without ``mods.view`` sees no Mods tab (and ``?tab=mods`` is REFUSED — its body is the mods page
+module's own, reached only through this tab's branch), and the download route carries the same
+``missions.view`` the tab's link reads — never hidden-and-served.
 
 Only the READ lives here; the config WRITE is a single POST in ``pages/actions.py`` (the action
 ``set_server_config``), which the tab's form posts straight to. This module adds no write handler and
@@ -68,6 +71,7 @@ from core.server_config import CHANNELS_ITEM, MANAGER_DENIED
 from . import actions as actions_page
 from . import dashboard as dashboard_page
 from . import logs as logs_page
+from . import mods as mods_page
 from . import nodes as nodes_page
 from . import presets as presets_page
 from . import servers as servers_page
@@ -76,6 +80,7 @@ __all__ = [
     "CRUMB_GROUP", "SERVER_DETAIL_PATH", "SERVER_DETAIL_CAPABILITY",
     "CONFIG_CAPABILITY", "CONFIG_ROLES", "CONFIG_TAB",
     "MISSIONS_TAB", "MISSIONS_CAPABILITY", "MISSIONS_ROLES",
+    "MODS_TAB", "MODS_VIEW_CAPABILITY",
     "MISSIONS_DOWNLOAD_PATH", "MISSIONS_DOWNLOAD_MAX_BYTES", "MISSIONS_DOWNLOAD_MEDIA_TYPE",
     "LOG_TAB", "LOG_READ_CAPABILITY", "LOG_WINDOW_PATH", "log_window_path",
     "EVENTS_TAB", "LOG_DOWNLOAD_PATH", "LOG_DOWNLOAD_MAX_BYTES", "log_download_path",
@@ -132,6 +137,14 @@ MISSIONS_ROLES: tuple[str, ...] = servers_page.SERVERS_ROLES
 
 #: the tab that carries a server's mission list
 MISSIONS_TAB = "missions"
+
+#: THE MODS TAB — the server's own ``SavedGames`` packages. Its body is the mods page module's own
+#: shared template (:func:`..pages.mods.tab_context`); the tab's key, its place in the ORDER and the
+#: capability it is offered on belong to this page, which owns the tab strip. The capability is the
+#: page module's ``mods.view`` — declared there, WITH a scope grant, so a manager reaches the mods of
+#: THEIR servers and nobody else's.
+MODS_TAB = mods_page.MODS_TAB
+MODS_VIEW_CAPABILITY = mods_page.MODS_VIEW_CAPABILITY
 
 CONFIG_TEMPLATE = "server_detail.html"
 PAGE_TITLE_SUFFIX = " — DCSServerBot"
@@ -230,14 +243,19 @@ SCHEDULE_GLYPHS: dict[str, str] = {"Y": "✅", "N": "❌", "P": "☑️"}
 LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
 
 #: every tab, in render order. Overview/Players are offered to any viewer of the page; ``missions``
-#: only to a viewer holding ``missions.view``; ``log`` only to a viewer holding ``logs.view`` (the
-#: cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a viewer holding
+#: only to a viewer holding ``missions.view``; ``mods`` only to a viewer holding ``mods.view`` (the
+#: mods page module's own capability); ``log`` only to a viewer holding ``logs.view`` (the cluster log
+#: panel's own capability, ``Admin`` only); ``configuration`` only to a viewer holding
 #: ``servers.config``.
-TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
-OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, LOG_TAB, EVENTS_TAB)
+TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, MODS_TAB, LOG_TAB, EVENTS_TAB,
+                              CONFIG_TAB)
+OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, MODS_TAB, LOG_TAB,
+                                       EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
+    # the tab strip uses the mods area's OWN word, so a page name cannot be spelled two ways
+    MODS_TAB: mods_page.MODS_LABEL,
     LOG_TAB: i18n._("Log"), EVENTS_TAB: i18n._("Events"), CONFIG_TAB: i18n._("Configuration"),
 }
 
@@ -363,24 +381,30 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
     """The tabs a viewer holding *roles* (and, for a manager, the SCOPE) may be offered — and RENDER.
 
     ONE answer for the strip and for the tab in force: ``missions`` is offered exactly when
-    ``missions.view`` allows it, ``log`` exactly when ``logs.view`` (the cluster log panel's own,
-    ``Admin`` only) allows it, ``events`` exactly when ``logs.view`` allows it AND the ``debug``
-    plugin is active for the server (``debug_plugin``), and ``configuration`` exactly when
-    ``servers.config`` allows it — the SAME predicates the route's refusal reads, so a link and the
-    refusal cannot disagree.
+    ``missions.view`` allows it, ``mods`` exactly when the mods page module's ``mods.view`` allows it,
+    ``log`` exactly when ``logs.view`` (the cluster log panel's own, ``Admin`` only) allows it,
+    ``events`` exactly when ``logs.view`` allows it AND the ``debug`` plugin is active for the server
+    (``debug_plugin``), and ``configuration`` exactly when ``servers.config`` allows it — the SAME
+    predicates the route's refusal reads, so a link and the refusal cannot disagree.
 
-    TWO manager facts, because the two gated tabs declare DIFFERENT scope rules: ``missions.view``
-    carries the server page's own scope grant and admits any manager of a server (``manager``, the
-    general fact from ``permissions.manages_console``), while ``servers.config`` admits only a
-    restricted-scope viewer WITHOUT a cluster role (``config_manager`` — a server's config carries
-    secrets, so a cluster role is never a "manager ONLY"). Keeping them separate is what stops one
-    tab's rule from widening the other's. ``logs.view`` carries NO scope grant, so the log and events
-    tabs are offered on the ROLE alone.
+    TWO manager facts, because the gated tabs declare DIFFERENT scope rules: ``missions.view`` and
+    ``mods.view`` carry the server page's own scope grant and admit any manager of a server
+    (``manager``, the general fact from ``permissions.manages_console``), while ``servers.config``
+    admits only a restricted-scope viewer WITHOUT a cluster role (``config_manager`` — a server's
+    config carries secrets, so a cluster role is never a "manager ONLY"). Keeping them separate is
+    what stops one tab's rule from widening the other's. ``logs.view`` carries NO scope grant, so the
+    log and events tabs are offered on the ROLE alone.
     """
     tabs: list[str] = []
     for key in OPTIONAL_TAB_ORDER:
         if key == MISSIONS_TAB:
             if permissions.allows(MISSIONS_CAPABILITY, roles or (), manager=manager):
+                tabs.append(key)
+            continue
+        if key == MODS_TAB:
+            # the mods page module's OWN gate: ``mods.view`` carries a scope grant, so a manager of
+            # this very server is offered the tab too
+            if permissions.allows(MODS_VIEW_CAPABILITY, roles or (), manager=manager):
                 tabs.append(key)
             continue
         if key in (LOG_TAB, EVENTS_TAB):
@@ -419,6 +443,7 @@ def tab_request_refused(tab: str) -> HTTPException:
     requirement (``logs.view``, Admin-only), never the missions' or the configuration's.
     """
     capability = {CONFIG_TAB: CONFIG_CAPABILITY, MISSIONS_TAB: MISSIONS_CAPABILITY,
+                  MODS_TAB: MODS_VIEW_CAPABILITY,
                   LOG_TAB: LOG_READ_CAPABILITY, EVENTS_TAB: LOG_READ_CAPABILITY}.get(
         tab, MISSIONS_CAPABILITY)
     requirement = permissions.requirement_text(capability)
@@ -1924,6 +1949,11 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "missions_selectable": len(rows),
         })
         return context
+    if tab == MODS_TAB:
+        # THE SERVER'S OWN SavedGames MODS: the body is the mods page module's shared template, which
+        # owns the installed list, the state strip and the dialogs — this page only routes to it, so
+        # the tab and the node's root-mods page render ONE body.
+        return await mods_page.tab_context(request, server_name)
     if tab == LOG_TAB:
         # THE SERVER'S OWN DCS LOG: the config-driven path and the initial TAIL, read as a
         # BOUNDED window. Failures render their own sentence, never a blank panel.

@@ -25,11 +25,21 @@ __all__ = [
     "UploadStatus",
     "SortOrder",
     "InstallationException",
-    "FatalException"
+    "FatalException",
+    "UPDATE_STOOD_BY",
+    "UPDATE_SERVERS_UP"
 ]
 
 
 _ = get_translation('core')
+
+#: :meth:`Node.dcs_update` return codes for "the installer was never started". They are negative because no
+#: updater exit code is, so a real updater result can never be mistaken for one of them.
+#:
+#: the shared installation is being updated by another cluster, which powered its servers off; this node stood by.
+UPDATE_STOOD_BY = -2
+#: servers were still running on the shared installation when the window opened, so the installer was refused.
+UPDATE_SERVERS_UP = -3
 
 
 class UploadStatus(Enum):
@@ -185,6 +195,13 @@ class Node(ABC):
     @abstractmethod
     async def dcs_update(self, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
+        """Update DCS World on this node and return the updater's exit code.
+
+        ``0`` means the installer ran and reported success. An installation that is shared between clusters is
+        updated under a window, and the installer is NOT started when the window could not be taken
+        (:data:`UPDATE_STOOD_BY`) or when servers were still running on it (:data:`UPDATE_SERVERS_UP`) — a caller
+        that reads those as success announces an update that never happened.
+        """
         raise NotImplementedError()
 
     @abstractmethod

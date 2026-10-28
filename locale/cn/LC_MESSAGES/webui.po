@@ -2031,16 +2031,6 @@ msgstr "让 {node} 上线 — 清除其下线时设置的标记，启动它停�
 msgid "Configuration"
 msgstr "配置"
 
-#: services/webservice/pages/actions.py:2391
-#, python-brace-format
-msgid "Configuration — open {server}'s own settings"
-msgstr "配置——打开 {server} 自身的设置"
-
-#: services/webservice/pages/actions.py:2393
-#, python-brace-format
-msgid "Open the configuration of server {server}"
-msgstr "打开服务器 {server} 的配置"
-
 #: services/webservice/pages/actions.py:2528
 #, python-brace-format
 msgid "More controls for {server}"
@@ -7059,3 +7049,265 @@ msgstr "{version} — 当前已安装"
 #: services/webservice/pages/actions.py
 msgid "{version} — newest on this branch"
 msgstr "{version} — 该分支上最新"
+
+#: services/webservice/pages/mods.py:1014
+msgid "'{package}' v{version} is no longer in the package folder — nothing was changed."
+msgstr "'{package}' v{version} 已不在包目录中——没有做任何更改。"
+
+#: services/webservice/pages/mods.py:701
+msgid "Change"
+msgstr "更改"
+
+#: services/webservice/pages/mods.py:445
+#: services/webservice/pages/mods.py:447
+msgid "Change the installed version of {package}"
+msgstr "更改 {package} 已安装的版本"
+
+#: services/webservice/pages/mods.py:696
+msgid "Change the version"
+msgstr "更改版本"
+
+#: services/webservice/pages/mods.py:695
+msgid "Change the version of {package} on {target}"
+msgstr "在 {target} 上更改 {package} 的版本"
+
+#: services/webservice/pages/mods.py:442
+msgid "Change version"
+msgstr "更改版本"
+
+#: services/webservice/pages/mods.py:699
+msgid "Changing the version removes the installed one and installs the version you pick — one operation, and the bot log records both halves."
+msgstr "更改版本会移除已安装的版本并安装你选择的版本——一次操作，机器人日志会记录这两部分。"
+
+#: services/webservice/pages/mods.py:792
+#: services/webservice/pages/mods.py:793
+msgid "Download a package"
+msgstr "下载包"
+
+#: services/webservice/pages/mods.py:164
+msgid "Download a package from GitHub or a URL into the package folder"
+msgstr "从 GitHub 或 URL 下载包到包目录"
+
+#: services/webservice/pages/mods.py:810
+msgid "Download the package into the package folder"
+msgstr "将包下载到包目录"
+
+#: services/webservice/pages/mods.py:194
+msgid "The releases could not be read from this link — type the version."
+msgstr "无法从这个链接读取发布版本——请手动输入版本。"
+
+#: services/webservice/pages/mods.py:163
+msgid "Download…"
+msgstr "下载…"
+
+#: services/webservice/pages/mods.py:362
+msgid "Every server on this node is shut down — root mods can be changed."
+msgstr "本节点上所有服务器都已关闭——根模组可以更改。"
+
+#: services/webservice/pages/mods.py:711
+msgid "Install"
+msgstr "安装"
+
+#: services/webservice/pages/mods.py:705
+msgid "Install a mod"
+msgstr "安装模组"
+
+#: services/webservice/pages/mods.py:704
+msgid "Install a mod on {target}"
+msgstr "在 {target} 上安装模组"
+
+#: services/webservice/pages/mods.py:161
+msgid "Install a mod…"
+msgstr "安装模组…"
+
+#: services/webservice/pages/mods.py:162
+msgid "Install a package that is already in the package folder"
+msgstr "安装已在包目录中的包"
+
+#: services/webservice/readmodels/views.py:153
+msgid "Installed"
+msgstr "已安装"
+
+#: services/webservice/pages/mods.py:152
+msgid "Installed into the DCS installation on this node — active in every instance on it."
+msgstr "已安装到本节点的 DCS 安装目录——对该节点上的每个实例都生效。"
+
+#: services/webservice/pages/mods.py:154
+msgid "Installed mods (Saved Games)"
+msgstr "已安装的模组（Saved Games）"
+
+#: services/webservice/pages/mods.py:155
+msgid "Installed root mods"
+msgstr "已安装的根模组"
+
+#: services/webservice/pages/mods.py:159
+#: services/webservice/readmodels/views.py:157
+msgid "Mods"
+msgstr "模组"
+
+#: services/webservice/readmodels/mods.py:76
+msgid "No root mods are installed on {node}."
+msgstr "{node} 上没有安装根模组。"
+
+#: services/webservice/pages/mods.py:1025
+msgid "Not done (no URL was given)."
+msgstr "未执行（没有给出 URL）。"
+
+#: services/webservice/pages/mods.py:967
+msgid "Not done (no package was chosen)."
+msgstr "未执行（没有选择包）。"
+
+#: services/webservice/pages/mods.py:976
+msgid "Not done (no package was named)."
+msgstr "未执行（没有指定包）。"
+
+#: services/webservice/pages/mods.py:896
+msgid "Not done (the form names a different target than its path)."
+msgstr "未执行（表单指定的目标与其路径不一致）。"
+
+#: services/webservice/pages/mods.py:803
+msgid "Nothing is installed by this step: the package has to be installed afterwards. For a plain URL the file name decides the version and the version field is ignored; for a repository download the field selects the release, and a version with no matching release asset is refused before anything is written."
+msgstr "这一步不会安装任何东西：包必须之后再安装。对于普通 URL，版本由文件名决定，版本字段会被忽略；对于仓库下载，该字段选择发布版本，没有匹配发布资源的版本会在写入任何内容之前被拒绝。"
+
+#: services/webservice/pages/actions.py:3104
+msgid "Open the root mods of node {node}"
+msgstr "打开节点 {node} 的根模组"
+
+#: services/webservice/readmodels/views.py:152
+#: services/webservice/templates/mods_install.html:37
+msgid "Package"
+msgstr "包"
+
+#: services/webservice/templates/mods_install.html:38
+msgid "Package to install"
+msgstr "要安装的包"
+
+#: services/webservice/pages/mods.py:708
+msgid "Packages found in the {folder} package folder on {node} a moment ago. Installing one unpacks it into this target and records it here and in the bot log."
+msgstr "刚刚在节点 {node} 的 {folder} 包目录中找到的包。安装会把所选的包解压到该目标，并在这里和机器人日志中记录。"
+
+#: services/webservice/pages/mods.py:774
+msgid "Remove the package"
+msgstr "移除包"
+
+#: services/webservice/pages/mods.py:452
+#: services/webservice/pages/mods.py:454
+#: services/webservice/pages/mods.py:756
+msgid "Remove {package} v{version} from {target}"
+msgstr "从 {target} 移除 {package} v{version}"
+
+#: services/webservice/pages/mods.py:761
+msgid "Remove {package} v{version}?"
+msgstr "移除 {package} v{version}？"
+
+#: services/webservice/pages/mods.py:151
+msgid "Root mods"
+msgstr "根模组"
+
+#: services/webservice/pages/mods.py:364
+msgid "Root mods cannot be changed while a server on this node is running."
+msgstr "本节点上有服务器运行时无法更改根模组。"
+
+#: services/webservice/pages/mods.py:523
+msgid "Root mods on {node}"
+msgstr "节点 {node} 上的根模组"
+
+#: services/webservice/pages/actions.py:3102
+msgid "Root mods on {node} — install, change and remove the packages in this node's DCS installation"
+msgstr "节点 {node} 上的根模组——安装、更改和移除该节点 DCS 安装目录中的包"
+
+#: services/webservice/pages/mods.py:536
+msgid "Root mods on {node} →"
+msgstr "节点 {node} 上的根模组 →"
+
+#: services/webservice/pages/mods.py:1090
+msgid "Saved Games on '{target}'"
+msgstr "'{target}' 的 Saved Games"
+
+#: services/webservice/pages/mods.py:345
+msgid "Server <b>{name}</b> is running on this node. Root mods are active in every instance on it, so it has to be shut down before a package can be installed or removed."
+msgstr "服务器 <b>{name}</b> 正在本节点上运行。根模组对该节点上的每个实例都生效，因此必须先关闭它才能安装或移除包。"
+
+#: services/webservice/pages/mods.py:352
+msgid "Shut down {name}"
+msgstr "关闭 {name}"
+
+#: services/webservice/pages/mods.py:798
+msgid "The node downloads the package itself and writes it into the package folder — <span class=\"mods-path\">{path}</span> — so a package fetched here is available to every install on that node."
+msgstr ""
+"节点自己下载包并写入包目录——<span "
+"class=\"mods-path\">{path}</span>——所以在这里获取的包对该节点上的每个安装都可用。"
+
+#: services/webservice/pages/mods.py:764
+msgid "The package is removed from {where}, and the bot log records the removal and your name."
+msgstr "包将从 {where} 移除，机器人日志会记录这次移除和你的名字。"
+
+#: services/webservice/pages/mods.py:706
+msgid "The packages in the {folder} package folder on {node}, read when this page opened."
+msgstr "节点 {node} 上 {folder} 包目录中的包，在打开此页面时读取。"
+
+#: services/webservice/pages/mods.py:532
+msgid "The root mods of {node} could not be read."
+msgstr "无法读取 {node} 的根模组。"
+
+#: services/webservice/pages/mods.py:339
+msgid "The servers <b>{names}</b> are running on this node. Root mods are active in every instance on it, so every one of them has to be shut down before a package can be installed or removed."
+msgstr "服务器 <b>{names}</b> 正在本节点上运行。根模组对该节点上的每个实例都生效，因此必须先将其全部关闭才能安装或移除包。"
+
+#: services/webservice/pages/mods.py:697
+msgid "The versions of {package} in the {folder} package folder on {node}, read when this page opened."
+msgstr "节点 {node} 上 {folder} 包目录中 {package} 的版本，在打开此页面时读取。"
+
+#: services/webservice/templates/mods_download.html:33
+#: services/webservice/templates/mods_download.html:35
+msgid "URL or GitHub repository"
+msgstr "URL 或 GitHub 仓库"
+
+#: services/webservice/templates/mods_download.html:25
+#: services/webservice/templates/mods_install.html:27
+msgid "dialog"
+msgstr "对话框"
+
+#: services/webservice/readmodels/mods.py:70
+msgid "installed"
+msgstr "已安装"
+
+#: services/webservice/templates/mods_body.html:72
+msgid "node-wide"
+msgstr "全节点"
+
+#: services/webservice/pages/mods.py:1089
+msgid "the DCS installation of node '{target}'"
+msgstr "节点 '{target}' 的 DCS 安装目录"
+
+#: services/webservice/pages/mods.py:525
+msgid "{count} root mod(s) are installed on {node} — they are active in this server too, and they are changed on the node's own page."
+msgstr "{node} 上安装了 {count} 个根模组——它们在此服务器上也生效，需在节点自己的页面上更改。"
+
+#: services/webservice/pages/mods.py:794
+msgid "{folder} package folder on node {node}"
+msgstr "节点 {node} 上的 {folder} 包目录"
+
+#: services/webservice/readmodels/mods.py:73
+msgid "{package} — v{version} · {size} · {added}"
+msgstr "{package} — v{version} · {size} · {added}"
+
+#: services/webservice/pages/mods.py:369
+msgid "{server} is running, so its Saved Games mods cannot be changed. Shut it down first."
+msgstr "{server} 正在运行，因此其 Saved Games 模组无法更改。请先关闭它。"
+
+#: services/webservice/pages/mods.py:367
+msgid "{server} is shut down — its Saved Games mods can be changed."
+msgstr "{server} 已关闭——其 Saved Games 模组可以更改。"
+
+#: services/webservice/readmodels/mods.py:81
+msgid "update {version}"
+msgstr "更新 {version}"
+
+#: services/webservice/readmodels/mods.py:84
+msgid "Version {version} of {package} is available in the package folder; the installed version is {installed}."
+msgstr "{package} 的版本 {version} 已在包文件夹中可用；当前安装的是 {installed}。"
+
+#: services/webservice/readmodels/mods.py:88
+msgid "Version {version} of {package} is available in its repository and has to be downloaded before it can be installed."
+msgstr "{package} 的版本 {version} 在其仓库中可用，必须先下载才能安装。"

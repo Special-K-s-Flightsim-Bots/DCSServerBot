@@ -10,12 +10,14 @@ here — because this module owns only *which* servers and *when*; running the i
 
 Two death signals, two different jobs, deliberately not one mechanism used twice:
 
-* the **advisory lock** decides *who* runs the update. It is atomic and it dies with its session, which is what
-  ``last_seen`` cannot do: a heartbeat lags by design, so without the lock two nodes would both read "nobody holds it".
-* the holder's ``last_seen`` decides *the taker is gone*, and is the signal every follower restores on.
+* the **advisory lock** decides *who* runs the update. It is atomic and it dies with its session, which is what a
+  timestamp cannot do: a refresh lags by design, so without the lock two nodes would both read "nobody holds it".
+* the holder's **lease** decides *the taker is gone*, and is the signal every follower restores on.
 
 The row is the durable half of the lock: it names who holds the resource, what action and what scope, and it survives the
-session that wrote it — which is exactly what a member that was down while the window opened needs.
+session that wrote it — which is exactly what a member that was down while the window opened needs. It carries its own
+``refreshed`` stamp because the holder's node heartbeat is the wrong liveness signal: the same node's NEXT session writes
+that heartbeat again, so a row abandoned by a killed process would read live forever.
 """
 from __future__ import annotations
 
@@ -23,6 +25,7 @@ import asyncio
 import logging
 import time
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, NamedTuple
 
 from psycopg import AsyncConnection, sql
@@ -38,7 +41,8 @@ log = logging.getLogger(__name__)
 #: How many bytes of the resource hash become the advisory-lock key.
 LOCK_KEY_BYTES = 8
 
-#: How often a follower re-reads the window and a taker re-reads the residue while it waits.
+#: How often a follower re-reads the window and a taker re-reads the residue while it waits — and how often a taker
+#: renews its lease. Well inside the staleness grace, so a live window never reads as abandoned.
 POLL_INTERVAL = 2.0
 
 #: How long a taker waits for the other clusters to stand down before it refuses to update. Long enough for a
@@ -75,6 +79,9 @@ class ResourceWindows:
         self.node = node
         self.log = node.log
         self._held: dict[str, AsyncConnection] = {}
+        #: the lease renewal per held resource — the task that keeps the row's own liveness stamp fresh. It has to
+        #: die with the window, or a released one would keep renewing a row somebody else now owns.
+        self._renewals: dict[str, asyncio.Task] = {}
 
     @property
     def heartbeat(self) -> int:
@@ -114,12 +121,13 @@ class ResourceWindows:
             # The acks belong to one window, so the previous window's must not make this one look already answered.
             await conn.execute("DELETE FROM resource_ack WHERE resource_id = %s", (resource_id,))
             await conn.execute("""
-                INSERT INTO resource_window (resource_id, holder_guild, holder_node, action, scope)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO resource_window (resource_id, holder_guild, holder_node, action, scope, refreshed)
+                VALUES (%s, %s, %s, %s, %s, (now() AT TIME ZONE 'utc'))
                 ON CONFLICT (resource_id) DO UPDATE
                 SET holder_guild = EXCLUDED.holder_guild, holder_node = EXCLUDED.holder_node,
                     action = EXCLUDED.action, scope = EXCLUDED.scope,
-                    started = (now() AT TIME ZONE 'utc')
+                    started = (now() AT TIME ZONE 'utc'),
+                    refreshed = (now() AT TIME ZONE 'utc')
             """, (resource_id, self.node.guild_id, self.node.name, action, scope))
         except Exception:
             # Closing the session is what releases the lock. A grant followed by a failed write would otherwise leave
@@ -127,7 +135,33 @@ class ResourceWindows:
             await conn.close()
             raise
         self._held[resource_id] = conn
+        self._renewals[resource_id] = asyncio.create_task(self._renew_lease(resource_id, conn))
         return True
+
+    async def _renew_lease(self, resource_id: str, conn: AsyncConnection) -> None:
+        """Keep the window row's lease stamp fresh for as long as this process holds the session.
+
+        This is what makes a dead taker visible: nothing else writes the stamp, so a killed process leaves it frozen
+        and every other cluster reads the window as closed. Stops on cancellation (a release), on a session that has
+        gone away, and when the row is no longer ours — a replacement window must not be kept alive by the old
+        holder's task.
+        """
+        while True:
+            await asyncio.sleep(POLL_INTERVAL)
+            try:
+                cursor = await conn.execute(
+                    "UPDATE resource_window SET refreshed = (now() AT TIME ZONE 'utc') "
+                    "WHERE resource_id = %s AND holder_guild = %s AND holder_node = %s",
+                    (resource_id, self.node.guild_id, self.node.name))
+                if not getattr(cursor, 'rowcount', 1):
+                    return
+            except asyncio.CancelledError:
+                raise
+            except Exception as ex:
+                # Retried on the next tick on purpose: one failed UPDATE is not a reason to give the window up, and
+                # if it never succeeds again the row goes stale on its own — which is the honest reading of a
+                # process that can no longer prove it is there.
+                self.log.warning(f"Could not renew the window on {resource_id}: {ex}")
 
     async def release(self, resource_id: str) -> None:
         """Give the resource back: remove the row, then drop the session, which releases the lock.
@@ -136,6 +170,13 @@ class ResourceWindows:
         while a row still claims somebody holds the resource. The delete names this holder, so a confused process can
         never take away somebody else's window.
         """
+        renewal = self._renewals.pop(resource_id, None)
+        if renewal is not None:
+            # Awaited, not just cancelled: the renewal runs on THIS connection, and psycopg refuses a second command
+            # while one is in progress — a release racing its own renewal could fail and leave the row behind.
+            renewal.cancel()
+            with suppress(asyncio.CancelledError):
+                await renewal
         conn = self._held.pop(resource_id, None)
         if conn is None:
             return
@@ -150,9 +191,10 @@ class ResourceWindows:
     async def state(self, resource_id: str) -> OpenWindow | None:
         """The window that is open on *resource_id* right now, or ``None``.
 
-        ``holder_live`` is the cluster's own staleness rule applied to the holder's node row, which is what makes the
-        restore rule work: a taker that died leaves its row behind, so presence alone would keep every follower dark
-        forever.
+        ``holder_live`` is the row's own lease, aged by the cluster's staleness rule: the taker is the only writer of
+        that stamp, so a process that died — or one that was restarted and no longer holds the window — stops being
+        renewed. Presence alone would keep every follower dark forever, and the holder's node heartbeat is not a
+        substitute for the lease: the same node's next session writes it again.
 
         A follower must read this when it decides to restore, never a value it remembered — a new taker can open a new
         window while the old followers are still down, and they have to stay down.
@@ -160,14 +202,32 @@ class ResourceWindows:
         async with self._pool().connection() as conn:
             query = sql.SQL("""
                 SELECT w.holder_guild, w.holder_node, w.action, w.scope,
-                       coalesce(n.last_seen > (NOW() AT TIME ZONE 'UTC' - interval {grace}), FALSE) AS holder_live
+                       coalesce(w.refreshed > (NOW() AT TIME ZONE 'UTC' - interval {grace}), FALSE) AS holder_live
                 FROM resource_window w
-                LEFT JOIN nodes n ON n.guild_id = w.holder_guild AND n.node = w.holder_node
                 WHERE w.resource_id = %s
             """).format(grace=sql.Literal(f"{self.heartbeat} seconds"))
             cursor = await conn.execute(query, (resource_id,))
             row = await cursor.fetchone()
             return OpenWindow(*row) if row else None
+
+    async def release_own(self) -> list[tuple[str, str]]:
+        """Delete every window row naming THIS node, and name the ``(resource_id, action)`` pairs it dropped.
+
+        For boot and shutdown only — the two moments a process cannot be holding a window it took, because a
+        window's advisory lock is session-scoped and the session is gone. A row that survives its holder is residue:
+        its lease stops being renewed, but until it is deleted every cluster reading it is looking at a window that
+        nobody will ever close. Deleting one while an update is still running would take the other clusters'
+        protection away, so the shutdown call site guards it.
+
+        Only ever this node's own rows: the delete is scoped by guild and node name.
+        """
+        async with self._pool().connection() as conn:
+            cursor = await conn.execute("""
+                DELETE FROM resource_window
+                WHERE holder_guild = %s AND holder_node = %s
+                RETURNING resource_id, action
+            """, (self.node.guild_id, self.node.name))
+            return [(row[0], row[1]) async for row in cursor]
 
     async def ack(self, resource_id: str) -> None:
         """Record that this node has stepped down for the window that is open now."""
@@ -213,9 +273,9 @@ class ResourceWindows:
 def follower_action(window: OpenWindow | None, stepped_down: bool) -> str:
     """What a follower does right now, from ONE reading of the window: ``step_down`` | ``restore`` | ``idle``.
 
-    A window counts only while its holder is **alive** — the same predicate the start gate uses. A taker that died
-    leaves its row behind forever, so trusting presence alone would keep every cluster dark; and a *new* taker can open
-    a new window while the old followers are still down, which is why they re-read rather than remember.
+    A window counts only while its holder is **alive** — the same predicate the start gate uses, and "alive" is its
+    lease rather than its presence: a taker that died leaves its row behind forever. And a *new* taker can open a new
+    window while the old followers are still down, which is why they re-read rather than remember.
     """
     if window and window.holder_live:
         return 'idle' if stepped_down else 'step_down'

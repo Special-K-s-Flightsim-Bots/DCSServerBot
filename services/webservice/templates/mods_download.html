@@ -1,0 +1,243 @@
+{#-
+  THE DOWNLOAD DIALOG — put a package INTO the package folder, and install nothing.
+
+  Two typed fields (a URL or a GitHub repository, and the version to resolve), because the download
+  is the one write that is not a choice from what is already on the node. `latest` is prefilled: it
+  is what an operator means by "the current one".
+
+  THE VERSION BECOMES A PICK WHEN THE LINK CAN ANSWER. Both fields render exactly as typed fields, so
+  a URL-only download and a browser without JavaScript behave as they always did; the page's own
+  script then asks this process for the releases of a URL that parses as a GitHub repository and
+  replaces the text box with a `<select>` carrying the SAME field name, `latest` first. A link that
+  offers no list — not a repository, no release, an unreadable answer — keeps the text box and shows
+  ONE line under it. The script reads its route, its field names, its preset and its debounce off the
+  form's data attributes (rendered from `dialog.facts`), and every sentence it shows is rendered by
+  this page in the request's language: it looks nothing up and translates nothing.
+
+  THE TWO-STEP IS THE POINT, and the dialog states it: downloading only fills the folder, and
+  installing stays a separate, deliberate action — the same two steps the chat command pair takes. A
+  half-written package therefore never reaches a game file.
+
+  THE FORM POSTS THE ACTION ROUTE with the one-shot confirm token minted for THIS target.
+-#}
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/static/mods.css">{% endblock %}
+{% block title %}{{ say(dialog.page_title) }} — DCSServerBot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ say(dialog.page_title) }}</h1>
+  <div class="sub">{{ say(dialog.lead) }}</div>
+</div>
+
+<div class="dlg-back">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="hd"><h3 id="dlg-title">{{ say(dialog.heading) }}</h3><span class="tag">{% trans %}dialog{% endtrans %}</span></div>
+    <div class="bd">
+      <p class="dlg-what">{{ say(dialog.path_sentence)|safe }}</p>
+      <p class="dlg-what">{{ _(dialog.note) }}</p>
+    </div>
+    <div class="ft">
+      <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ dialog.back }}"
+            data-releases-url="{{ dialog.facts.releases_url }}"
+            data-url-query="{{ dialog.facts.url_query }}"
+            data-url-field="{{ dialog.facts.url_field }}"
+            data-version-field="{{ dialog.facts.version_field }}"
+            data-hint-id="{{ dialog.facts.hint_id }}"
+            data-latest="{{ dialog.facts.latest }}"
+            data-delay-ms="{{ dialog.facts.delay_ms }}">
+        <div class="dlg-row">
+          <div class="dlg-field wide">
+            <label for="url">{% trans %}URL or GitHub repository{% endtrans %}</label>
+            <input id="url" name="{{ dialog.url_field }}" type="text" required placeholder="https://github.com/..."
+                   aria-label="{% trans %}URL or GitHub repository{% endtrans %}">
+          </div>
+          <div class="dlg-field narrow">
+            <label for="ver">{% trans %}Version{% endtrans %}</label>
+            <input id="ver" name="{{ dialog.version_field }}" type="text" value="{{ dialog.version }}" aria-label="{% trans %}Version{% endtrans %}">
+          </div>
+        </div>
+        <p class="dlg-hint" id="{{ dialog.facts.hint_id }}" hidden>{{ _(dialog.versions_note) }}</p>
+        <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
+        {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">
+        <div class="dlg-buttons">
+          <a class="btn" href="{{ dialog.back }}" autofocus title="{% trans %}Cancel — go back without doing anything (Esc){% endtrans %}">{% trans %}Cancel{% endtrans %}</a>
+          <span class="spacer"></span>
+          <button class="btn" type="submit" title="{{ say(dialog.go_title) }}">{{ _(dialog.go) }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+/* The dialog's keyboard contract, the same one `confirm.html` states: Esc goes back without acting and
+   Tab cycles the page's controls, plus the version pick. Progressive enhancement — with JavaScript off
+   the page renders in full, Cancel is autofocused and Enter dismisses, nothing is fetched and the
+   version stays the free-text box it is. */
+(function () {
+  "use strict";
+  var dialog = document.querySelector('[role="dialog"]');
+  if (!dialog) { return; }
+  var back = {{ dialog.back|tojson }};
+  var items = dialog.querySelectorAll("button, [href], input, select, textarea");
+  if (!items.length) { return; }
+  var cancel = dialog.querySelector("a.btn[href]");
+  var first = cancel || items[0];
+  var last = items[items.length - 1];
+  first.focus();
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") { window.location.assign(back); }
+  });
+  dialog.addEventListener("keydown", function (event) {
+    if (event.key !== "Tab") { return; }
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
+
+  /* THE VERSION PICK. One request per URL — restarted by a keystroke after a pause, fired at once on
+     blur — never for a value that does not parse as a repository, and never for the URL the last
+     answer belonged to. A newer URL aborts the request in flight, and an answer is applied only while
+     the typed value is still the one it was asked for, so a list is never shown for another link. */
+  var form = document.getElementById("dlg-form");
+  if (!form) { return; }
+  var route = form.getAttribute("data-releases-url");
+  var link = form.querySelector('[name="' + form.getAttribute("data-url-field") + '"]');
+  var version_field = form.getAttribute("data-version-field");
+  var hint = document.getElementById(form.getAttribute("data-hint-id"));
+  var latest = form.getAttribute("data-latest");
+  var delay = parseInt(form.getAttribute("data-delay-ms"), 10) || 600;
+  if (!route || !link || !version_field) { return; }
+
+  var REPOSITORY = /^https?:\/\/(www\.)?github\.com\/[^\/?#\s]+\/[^\/?#\s]+\/?(?:[?#].*)?$/i;
+  var timer = null;
+  var pending = null;
+  var asked = "";
+  var answered = "";
+
+  function typed() { return link.value.replace(/^\s+|\s+$/g, ""); }
+
+  function field() { return form.querySelector('[name="' + version_field + '"]'); }
+
+  function shows(url) {
+    var control = field();
+    return !!control && control.tagName === "SELECT"
+      && control.getAttribute("data-releases-for") === url;
+  }
+
+  function clear_note() {
+    if (!hint) { return; }
+    hint.title = "";
+    hint.hidden = true;
+  }
+
+  function show_note(reason) {
+    if (!hint) { return; }
+    hint.title = reason || "";
+    hint.hidden = false;
+  }
+
+  function stop_timer() {
+    if (timer) { window.clearTimeout(timer); timer = null; }
+  }
+
+  /* back to a text box carrying the value the pick held, for a link the pick does not belong to */
+  function restore_text() {
+    var control = field();
+    if (!control || control.tagName !== "SELECT") { return; }
+    var input = document.createElement("input");
+    input.type = "text";
+    input.id = control.id;
+    input.name = control.name;
+    input.value = control.value;
+    if (control.getAttribute("aria-label")) {
+      input.setAttribute("aria-label", control.getAttribute("aria-label"));
+    }
+    control.parentNode.replaceChild(input, control);
+    answered = "";
+  }
+
+  /* the pick itself: `latest` first, then every release the link answered, newest first */
+  function swap(url, versions) {
+    var control = field();
+    if (!control) { return; }
+    var chosen = control.value;
+    var select = document.createElement("select");
+    select.id = control.id;
+    select.name = control.name;
+    if (control.getAttribute("aria-label")) {
+      select.setAttribute("aria-label", control.getAttribute("aria-label"));
+    }
+    select.setAttribute("data-releases-for", url);
+    var preset = document.createElement("option");
+    preset.value = latest;
+    preset.textContent = latest;
+    select.appendChild(preset);
+    for (var index = 0; index < versions.length; index += 1) {
+      var entry = document.createElement("option");
+      entry.value = versions[index];
+      entry.textContent = versions[index];
+      select.appendChild(entry);
+    }
+    select.value = latest;
+    for (var position = 0; position < select.options.length; position += 1) {
+      if (select.options[position].value === chosen) { select.value = chosen; break; }
+    }
+    control.parentNode.replaceChild(select, control);
+    clear_note();
+  }
+
+  function ask() {
+    var wanted = typed();
+    if (!REPOSITORY.test(wanted) || wanted === answered) { return; }
+    if (pending && pending.abort) { pending.abort(); }
+    var controller = window.AbortController ? new window.AbortController() : null;
+    pending = controller;
+    asked = wanted;
+    var url = route + "?" + encodeURIComponent(form.getAttribute("data-url-query")) + "="
+      + encodeURIComponent(wanted);
+    fetch(url, {credentials: "same-origin", signal: controller ? controller.signal : undefined})
+      .then(function (response) { return response.json(); })
+      .then(function (body) {
+        if (asked !== wanted || typed() !== wanted) { return; }
+        pending = null;
+        var versions = (body && body.versions) || [];
+        if (!versions.length) {
+          show_note((body && body.error) || "");
+          return;
+        }
+        answered = wanted;
+        swap(wanted, versions);
+      })
+      .catch(function (error) {
+        if (error && error.name === "AbortError") { return; }
+        if (asked !== wanted) { return; }
+        pending = null;
+        show_note("");
+      });
+  }
+
+  function sync(now) {
+    var wanted = typed();
+    stop_timer();
+    if (!wanted || !REPOSITORY.test(wanted)) {
+      restore_text();
+      if (wanted) { show_note(""); } else { clear_note(); }
+      return;
+    }
+    if (shows(wanted)) { clear_note(); return; }
+    restore_text();
+    if (now) { ask(); return; }
+    timer = window.setTimeout(function () { timer = null; ask(); }, delay);
+  }
+
+  link.addEventListener("input", function () { sync(false); });
+  link.addEventListener("blur", function () { sync(true); });
+  sync(false);
+})();
+</script>
+{% endblock %}

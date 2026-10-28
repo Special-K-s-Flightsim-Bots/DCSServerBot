@@ -695,6 +695,17 @@
 </div>
 {% endif %}
 
+{% elif tab == 'mods' %}
+{# ---------------------------------------------------------------- the Mods tab: this server's Saved Games #}
+{#-  THE SERVER'S OWN PACKAGES: the body is the mods page module's SHARED template — the same one the
+    node's root-mods page renders — so the doors, the state strip, the installed card and the read-only
+    root card are ONE rendering for both owners. `mods` is the tab context the page module built
+    (`pages/mods.tab_context`); the tab renders no page head, because this page already rendered one for
+    the server. A caller without `mods.view` never reaches this branch: the route refuses the request.
+    The write controls it carries post to their own DIALOGS (`/mods/<owner>/<target>/<verb>`), never to
+    an action route, and the stylesheet below is the mods delta the card's strip and folder need.  -#}
+{% include "mods_body.html" %}
+
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
 {#  THE SERVER'S OWN LOG: the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
@@ -871,7 +882,11 @@
     off the boxes still submit the selection and the dialog still asks the confirmation. Registered
     HERE, on the page that renders them, rather than in base.html: a page with none of them has no
     reason to load any.  #}
-{% block head %}<link rel="stylesheet" href="/static/settings-scope.css">{% endblock %}
+{#  THE MODS DELTA (`static/mods.css`) rides on every tab, the way the node page loads it: the Mods
+    tab's state strip and its verbatim package-folder value are the two rules the shipped sheet does not
+    own, and a tab is not a page of its own — it cannot declare a stylesheet only for itself.  #}
+{% block head %}<link rel="stylesheet" href="/static/settings-scope.css">
+<link rel="stylesheet" href="/static/mods.css">{% endblock %}
 
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>

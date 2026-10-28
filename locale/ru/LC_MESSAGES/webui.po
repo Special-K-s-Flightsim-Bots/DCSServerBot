@@ -2208,16 +2208,6 @@ msgstr ""
 msgid "Configuration"
 msgstr "Конфигурация"
 
-#: services/webservice/pages/actions.py:2391
-#, python-brace-format
-msgid "Configuration — open {server}'s own settings"
-msgstr "Конфигурация — открыть собственные настройки {server}"
-
-#: services/webservice/pages/actions.py:2393
-#, python-brace-format
-msgid "Open the configuration of server {server}"
-msgstr "Открыть конфигурацию сервера {server}"
-
 #: services/webservice/pages/actions.py:2528
 #, python-brace-format
 msgid "More controls for {server}"
@@ -7861,3 +7851,295 @@ msgstr "{version} — установлена сейчас"
 #: services/webservice/pages/actions.py
 msgid "{version} — newest on this branch"
 msgstr "{version} — самая свежая на этой ветке"
+
+#: services/webservice/pages/mods.py:1014
+msgid "'{package}' v{version} is no longer in the package folder — nothing was changed."
+msgstr ""
+"'{package}' v{version} больше нет в папке пакетов — ничего не "
+"изменено."
+
+#: services/webservice/pages/mods.py:701
+msgid "Change"
+msgstr "Изменить"
+
+#: services/webservice/pages/mods.py:445
+#: services/webservice/pages/mods.py:447
+msgid "Change the installed version of {package}"
+msgstr "Изменить установленную версию {package}"
+
+#: services/webservice/pages/mods.py:696
+msgid "Change the version"
+msgstr "Изменить версию"
+
+#: services/webservice/pages/mods.py:695
+msgid "Change the version of {package} on {target}"
+msgstr "Изменить версию {package} на {target}"
+
+#: services/webservice/pages/mods.py:442
+msgid "Change version"
+msgstr "Сменить версию"
+
+#: services/webservice/pages/mods.py:699
+msgid "Changing the version removes the installed one and installs the version you pick — one operation, and the bot log records both halves."
+msgstr ""
+"Смена версии удаляет установленную и ставит выбранную — одна операция, "
+"и лог бота фиксирует обе половины."
+
+#: services/webservice/pages/mods.py:792
+#: services/webservice/pages/mods.py:793
+msgid "Download a package"
+msgstr "Скачать пакет"
+
+#: services/webservice/pages/mods.py:164
+msgid "Download a package from GitHub or a URL into the package folder"
+msgstr "Скачать пакет с GitHub или по URL в папку пакетов"
+
+#: services/webservice/pages/mods.py:810
+msgid "Download the package into the package folder"
+msgstr "Скачать пакет в папку пакетов"
+
+#: services/webservice/pages/mods.py:194
+msgid "The releases could not be read from this link — type the version."
+msgstr "Релизы по этой ссылке прочитать не удалось — введи версию вручную."
+
+#: services/webservice/pages/mods.py:163
+msgid "Download…"
+msgstr "Скачать…"
+
+#: services/webservice/pages/mods.py:362
+msgid "Every server on this node is shut down — root mods can be changed."
+msgstr "Все серверы на этом узле выключены — корневые моды можно менять."
+
+#: services/webservice/pages/mods.py:711
+msgid "Install"
+msgstr "Установить"
+
+#: services/webservice/pages/mods.py:705
+msgid "Install a mod"
+msgstr "Установить мод"
+
+#: services/webservice/pages/mods.py:704
+msgid "Install a mod on {target}"
+msgstr "Установить мод на {target}"
+
+#: services/webservice/pages/mods.py:161
+msgid "Install a mod…"
+msgstr "Установить мод…"
+
+#: services/webservice/pages/mods.py:162
+msgid "Install a package that is already in the package folder"
+msgstr "Установить пакет, который уже лежит в папке пакетов"
+
+#: services/webservice/readmodels/views.py:153
+msgid "Installed"
+msgstr "Установлено"
+
+#: services/webservice/pages/mods.py:152
+msgid "Installed into the DCS installation on this node — active in every instance on it."
+msgstr ""
+"Установлено в DCS-установку этого узла — активно в каждом экземпляре "
+"на нём."
+
+#: services/webservice/pages/mods.py:154
+msgid "Installed mods (Saved Games)"
+msgstr "Установленные моды (Saved Games)"
+
+#: services/webservice/pages/mods.py:155
+msgid "Installed root mods"
+msgstr "Установленные корневые моды"
+
+#: services/webservice/pages/mods.py:159
+#: services/webservice/readmodels/views.py:157
+msgid "Mods"
+msgstr "Моды"
+
+#: services/webservice/readmodels/mods.py:76
+msgid "No root mods are installed on {node}."
+msgstr "На {node} корневые моды не установлены."
+
+#: services/webservice/pages/mods.py:1025
+msgid "Not done (no URL was given)."
+msgstr "Не выполнено (URL не указан)."
+
+#: services/webservice/pages/mods.py:967
+msgid "Not done (no package was chosen)."
+msgstr "Не выполнено (пакет не выбран)."
+
+#: services/webservice/pages/mods.py:976
+msgid "Not done (no package was named)."
+msgstr "Не выполнено (пакет не указан)."
+
+#: services/webservice/pages/mods.py:896
+msgid "Not done (the form names a different target than its path)."
+msgstr "Не выполнено (форма указывает другую цель, чем её путь)."
+
+#: services/webservice/pages/mods.py:803
+msgid "Nothing is installed by this step: the package has to be installed afterwards. For a plain URL the file name decides the version and the version field is ignored; for a repository download the field selects the release, and a version with no matching release asset is refused before anything is written."
+msgstr ""
+"Этот шаг ничего не устанавливает: пакет нужно установить после. Для "
+"обычного URL версию определяет имя файла, а поле версии игнорируется; при "
+"загрузке из репозитория поле выбирает релиз, и версия без подходящего "
+"релиза отклоняется до того, как что-либо будет записано."
+
+#: services/webservice/pages/actions.py:3104
+msgid "Open the root mods of node {node}"
+msgstr "Открыть корневые моды узла {node}"
+
+#: services/webservice/readmodels/views.py:152
+#: services/webservice/templates/mods_install.html:37
+msgid "Package"
+msgstr "Пакет"
+
+#: services/webservice/templates/mods_install.html:38
+msgid "Package to install"
+msgstr "Пакет для установки"
+
+#: services/webservice/pages/mods.py:708
+msgid "Packages found in the {folder} package folder on {node} a moment ago. Installing one unpacks it into this target and records it here and in the bot log."
+msgstr ""
+"Пакеты, найденные только что в папке пакетов {folder} на узле {node}. "
+"Установка распакует выбранный в эту цель и зафиксирует его здесь и в "
+"логе бота."
+
+#: services/webservice/pages/mods.py:774
+msgid "Remove the package"
+msgstr "Удалить пакет"
+
+#: services/webservice/pages/mods.py:452
+#: services/webservice/pages/mods.py:454
+#: services/webservice/pages/mods.py:756
+msgid "Remove {package} v{version} from {target}"
+msgstr "Удалить {package} v{version} из {target}"
+
+#: services/webservice/pages/mods.py:761
+msgid "Remove {package} v{version}?"
+msgstr "Удалить {package} v{version}?"
+
+#: services/webservice/pages/mods.py:151
+msgid "Root mods"
+msgstr "Корневые моды"
+
+#: services/webservice/pages/mods.py:364
+msgid "Root mods cannot be changed while a server on this node is running."
+msgstr "Корневые моды нельзя менять, пока на этом узле работает сервер."
+
+#: services/webservice/pages/mods.py:523
+msgid "Root mods on {node}"
+msgstr "Корневые моды на {node}"
+
+#: services/webservice/pages/actions.py:3102
+msgid "Root mods on {node} — install, change and remove the packages in this node's DCS installation"
+msgstr ""
+"Корневые моды на {node} — установка, смена и удаление пакетов в "
+"установке DCS этого узла"
+
+#: services/webservice/pages/mods.py:536
+msgid "Root mods on {node} →"
+msgstr "Корневые моды на {node} →"
+
+#: services/webservice/pages/mods.py:1090
+msgid "Saved Games on '{target}'"
+msgstr "Saved Games на '{target}'"
+
+#: services/webservice/pages/mods.py:345
+msgid "Server <b>{name}</b> is running on this node. Root mods are active in every instance on it, so it has to be shut down before a package can be installed or removed."
+msgstr ""
+"Сервер <b>{name}</b> работает на этом узле. Корневые моды активны в "
+"каждом экземпляре на нём, поэтому его нужно выключить, прежде чем "
+"устанавливать или удалять пакет."
+
+#: services/webservice/pages/mods.py:352
+msgid "Shut down {name}"
+msgstr "Выключить {name}"
+
+#: services/webservice/pages/mods.py:798
+msgid "The node downloads the package itself and writes it into the package folder — <span class=\"mods-path\">{path}</span> — so a package fetched here is available to every install on that node."
+msgstr ""
+"Узел сам скачивает пакет и пишет его в папку пакетов — <span "
+"class=\"mods-path\">{path}</span> — так что скачанный здесь пакет "
+"доступен каждой установке на этом узле."
+
+#: services/webservice/pages/mods.py:764
+msgid "The package is removed from {where}, and the bot log records the removal and your name."
+msgstr "Пакет удаляется из {where}, и лог бота фиксирует удаление и твоё имя."
+
+#: services/webservice/pages/mods.py:706
+msgid "The packages in the {folder} package folder on {node}, read when this page opened."
+msgstr ""
+"Пакеты в папке пакетов {folder} на узле {node}, прочитанные при "
+"открытии этой страницы."
+
+#: services/webservice/pages/mods.py:532
+msgid "The root mods of {node} could not be read."
+msgstr "Не удалось прочитать корневые моды {node}."
+
+#: services/webservice/pages/mods.py:339
+msgid "The servers <b>{names}</b> are running on this node. Root mods are active in every instance on it, so every one of them has to be shut down before a package can be installed or removed."
+msgstr ""
+"Серверы <b>{names}</b> работают на этом узле. Корневые моды активны в "
+"каждом экземпляре на нём, поэтому выключить нужно все, прежде чем "
+"устанавливать или удалять пакет."
+
+#: services/webservice/pages/mods.py:697
+msgid "The versions of {package} in the {folder} package folder on {node}, read when this page opened."
+msgstr ""
+"Версии {package} в папке пакетов {folder} на узле {node}, прочитанные "
+"при открытии этой страницы."
+
+#: services/webservice/templates/mods_download.html:33
+#: services/webservice/templates/mods_download.html:35
+msgid "URL or GitHub repository"
+msgstr "URL или репозиторий GitHub"
+
+#: services/webservice/templates/mods_download.html:25
+#: services/webservice/templates/mods_install.html:27
+msgid "dialog"
+msgstr "диалог"
+
+#: services/webservice/readmodels/mods.py:70
+msgid "installed"
+msgstr "установлен"
+
+#: services/webservice/templates/mods_body.html:72
+msgid "node-wide"
+msgstr "на весь узел"
+
+#: services/webservice/pages/mods.py:1089
+msgid "the DCS installation of node '{target}'"
+msgstr "установка DCS узла '{target}'"
+
+#: services/webservice/pages/mods.py:525
+msgid "{count} root mod(s) are installed on {node} — they are active in this server too, and they are changed on the node's own page."
+msgstr ""
+"{count} корневых мод(ов) установлено на {node} — они активны и на этом "
+"сервере, а меняются на странице самого узла."
+
+#: services/webservice/pages/mods.py:794
+msgid "{folder} package folder on node {node}"
+msgstr "папка пакетов {folder} на узле {node}"
+
+#: services/webservice/readmodels/mods.py:73
+msgid "{package} — v{version} · {size} · {added}"
+msgstr "{package} — v{version} · {size} · {added}"
+
+#: services/webservice/pages/mods.py:369
+msgid "{server} is running, so its Saved Games mods cannot be changed. Shut it down first."
+msgstr ""
+"{server} работает, поэтому его моды в Saved Games нельзя менять. "
+"Сначала выключи его."
+
+#: services/webservice/pages/mods.py:367
+msgid "{server} is shut down — its Saved Games mods can be changed."
+msgstr "{server} выключен — его моды в Saved Games можно менять."
+
+#: services/webservice/readmodels/mods.py:81
+msgid "update {version}"
+msgstr "обновить {version}"
+
+#: services/webservice/readmodels/mods.py:84
+msgid "Version {version} of {package} is available in the package folder; the installed version is {installed}."
+msgstr "Версия {version} для {package} доступна в папке пакетов; установлена версия {installed}."
+
+#: services/webservice/readmodels/mods.py:88
+msgid "Version {version} of {package} is available in its repository and has to be downloaded before it can be installed."
+msgstr "Версия {version} для {package} доступна в её репозитории; её нужно скачать, прежде чем устанавливать."

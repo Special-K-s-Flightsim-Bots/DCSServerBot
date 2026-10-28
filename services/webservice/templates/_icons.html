@@ -90,13 +90,24 @@
   state — this pair belongs to the mission rows alone.
 
   `pencil` is the Bans row's EDIT: a shaft with a squared-off point drawn on the diagonal, the
-  universal "rewrite this row" mark. It is NOT `settings` (that cog is the Servers and Nodes rows'
-  configuration glyph): a ban entry is edited, not configured.
+  universal "rewrite this row" mark. A ban entry is edited, never configured, so it takes no cog:
+  the row's own door into its page is its NAME.
+
+  THERE IS NO COG IN THIS SET, AND NO ROW DRAWS ONE. A row's NAME is the door into that entity's
+  page, so a second glyph pointing at the same page is a navigation duplicate sitting beside a strip
+  of ACTIONS. The one cog the console draws is the settings TILE's — the door into that item's own
+  editor — and it is drawn by `_tiles.html`'s `cog()` macro (`st-cog`, beside the label it carries),
+  never asked for here.
 
   `unban` is the Bans row's LIFT: an OPEN padlock (the shackle lifted clear of the body), the one
   drawing that reads as "this restriction is released". It is deliberately NOT `unmute` (the MUTE
   pair's loudspeaker on a player row, which says nothing about a ban), NOT `ban` (the ban itself) and
   NOT `end_maintenance`'s check-in-circle.
+
+  `mods` is the Nodes row's door into that node's ROOT-MODS page: a BOX with an arrow entering it —
+  packages going into an installation. It is deliberately NOT `download` (an arrow sinking into a
+  tray: handing a FILE over) and NOT `online`/`offline` (a box with a mirrored arrow, which is the
+  node's power): the box here is closed on every side and the arrow comes in from OUTSIDE it.
 
   `dcs_update` is the NODE row's DCS installation: two vertical arrows side by side, pointing OPPOSITE
   ways (a swap). One control covers update, rollback and branch switch — the engine call takes a
@@ -138,10 +149,10 @@
   'move_down': '<path d="M12 4.6v14.8"/><path d="M6.4 13.8 12 19.4l5.6-5.6"/>',
   'warn': '<path d="M12 3.6 22 20.4H2Z"/><path d="M12 9.8v4.4"/><circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none"/>',
   'reveal': '<path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/><circle cx="12" cy="12" r="3.1"/>',
-  'settings': '<circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.3a1.9 1.9 0 1 1-3.8 0v-.2a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a1.9 1.9 0 1 1 0-3.8h.2a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a1.9 1.9 0 1 1 3.8 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1h.3a1.9 1.9 0 1 1 0 3.8h-.2a1.7 1.7 0 0 0-1.5 1Z"/>',
   'pencil': '<path d="M4.6 19.4v-4L15.8 4.2l4 4L8.6 19.4Z"/><path d="M13.8 6.2l4 4"/>',
   'conceal': '<path d="M2.4 12S6.2 5.6 12 5.6c1.5 0 2.9.4 4.1 1"/><path d="M20.2 8.7c.9 1.2 1.4 2.2 1.4 2.2S19 17.3 13.2 18.2"/><path d="M6.1 7.3C3.7 9.1 2.4 12 2.4 12"/>',
-  'dcs_update': '<path d="M9.2 17.2V7.6"/><path d="M6 10.8 9.2 7.6l3.2 3.2"/><path d="M14.8 6.8v9.6"/><path d="M11.6 13.2 14.8 16.4l3.2-3.2"/>'
+  'dcs_update': '<path d="M9.2 17.2V7.6"/><path d="M6 10.8 9.2 7.6l3.2 3.2"/><path d="M14.8 6.8v9.6"/><path d="M11.6 13.2 14.8 16.4l3.2-3.2"/>',
+  'mods': '<rect x="4.6" y="4.6" width="14.8" height="14.8" rx="2.2"/><path d="M2.2 12h7.4"/><path d="M6.6 8.8 9.8 12l-3.2 3.2"/>'
 } %}
 {%- macro act(name) -%}
 <svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ GLYPHS.get(name, '')|safe }}</svg>

@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS resource_window (
     holder_node  TEXT NOT NULL,
     action       TEXT NOT NULL,            -- 'update' | 'repair' | 'module'
     scope        TEXT NOT NULL,            -- copied from resources.scope: what this window may stop
-    started      TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')
+    started      TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
+    refreshed    TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')   -- the taker's lease: only it writes this
 );
 CREATE TABLE IF NOT EXISTS resource_ack (
     resource_id TEXT NOT NULL,             -- a member's confirmation that it has stepped down

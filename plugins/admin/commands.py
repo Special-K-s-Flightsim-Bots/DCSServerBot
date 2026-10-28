@@ -11,6 +11,7 @@ from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Inst
     InstallException, InstallableExtension, ConfigView, ServerUploadHandler
 from core.actions import ActionContext, call_action
 from core.data.maintenance import ServerMaintenanceManager
+from core.data.node import UPDATE_SERVERS_UP, UPDATE_STOOD_BY
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
@@ -494,6 +495,16 @@ class Admin(Plugin[AdminEventListener]):
                                          ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
+            elif rc == UPDATE_STOOD_BY:
+                await msg.edit(
+                    content=_("DCS World on node {name} was not updated: another cluster is updating the shared "
+                              "DCS installation right now.").format(name=node.name)
+                )
+            elif rc == UPDATE_SERVERS_UP:
+                await msg.edit(
+                    content=_("DCS World on node {name} was not updated: servers on the shared DCS installation "
+                              "were still running, so the installer was not started.").format(name=node.name)
+                )
             elif rc == 2:
                 await msg.edit(
                     content=_("DCS World update on node {name} was aborted (check disk space)!").format(name=node.name)

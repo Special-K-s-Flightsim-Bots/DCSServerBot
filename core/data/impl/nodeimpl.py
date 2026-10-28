@@ -32,7 +32,8 @@ from core import utils, Status, Port, PortType
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
 from core.data.resources import ResourceRegistry, scope_of
-from core.data.resource_window import ResourceWindowProtocol, WINDOW_WAIT
+from core.data.node import UPDATE_SERVERS_UP, UPDATE_STOOD_BY
+from core.data.resource_window import ResourceWindowProtocol, ResourceWindows, WINDOW_WAIT
 from core.translations import get_translation
 from core.utils.db_setup import rebuild_url
 from datetime import datetime
@@ -243,6 +244,9 @@ class NodeImpl(Node):
         #: the resources this node uses, as ``{resource_id: scope}`` — filled by register_resources() and followed by
         #: the federation loop, which is why it is a field and not a local
         self.resources: dict[str, str] = {}
+        #: whether a DCS installer is running right now. A shared installation's window must NOT be given back while
+        #: it is: the window is what keeps the other clusters' servers down for the duration of the install.
+        self.installer_running = False
         self.pool: ConnectionPool | None = None
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
@@ -317,6 +321,7 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
         await self.init_instances()
+        await self.release_own_windows()
         await self.register_resources()
         utils.safe_start(self.federation_loop)
 
@@ -350,7 +355,43 @@ class NodeImpl(Node):
     async def __aexit__(self, _type, _value, _traceback):
         await utils.safe_cancel(self.heartbeat_loop)
         await utils.safe_cancel(self.federation_loop)
+        await self.release_windows()
         await self.close_db()
+
+    async def release_own_windows(self) -> None:
+        """Clear the window rows a PREVIOUS session of this node left behind, and say so.
+
+        A window's advisory lock is session-scoped, so a row naming this node while no session of it holds the lock
+        is residue: the process that took it is gone and will never release it. Left in place it is read as a live
+        window by every cluster sharing the installation — and by this node's own start gate, which then refuses to
+        start anything on that installation for as long as this node keeps heartbeating.
+        """
+        try:
+            released = await ResourceWindows(self).release_own()  # type: ignore[arg-type]  # a double has no cpool
+        except Exception as ex:
+            self.log.warning(f'- Could not check for leftover federation windows: {ex}')
+            return
+        for resource_id, action in released:
+            self.log.warning(f'- Released a stale {action} window on {resource_id} '
+                             f'left by a previous session of this node.')
+
+    async def release_windows(self) -> None:
+        """Give this node's windows back on a clean shutdown, so a restart does not find a lock nobody owns.
+
+        Never while an installer is running: the window is the only thing keeping the other clusters' servers down,
+        and dropping it mid-install is exactly how an installation gets corrupted. Such a window is left to expire
+        with the process instead, which the lease handles by itself.
+        """
+        if self.installer_running:
+            self.log.warning('- A DCS installer is still running: leaving its window open, it expires on its own.')
+            return
+        try:
+            released = await ResourceWindows(self).release_own()  # type: ignore[arg-type]
+        except Exception as ex:
+            self.log.warning(f'- Could not release the federation window(s) on shutdown: {ex}')
+            return
+        for resource_id, action in released:
+            self.log.info(f'- Released the {action} window on {resource_id} on shutdown.')
 
     @override
     @property
@@ -1112,12 +1153,20 @@ class NodeImpl(Node):
             proc = next(utils.find_process("DCS_updater.exe"), None)
             if proc:
                 self.log.info("- DCS Update already in progress, waiting ...")
-                while proc.is_running():
-                    await asyncio.sleep(1)
+                self.installer_running = True
+                try:
+                    while proc.is_running():
+                        await asyncio.sleep(1)
+                finally:
+                    self.installer_running = False
                 # assuming the update was a success
                 rc = 0
             else:
-                rc = await asyncio.to_thread(run_subprocess)
+                self.installer_running = True
+                try:
+                    rc = await asyncio.to_thread(run_subprocess)
+                finally:
+                    self.installer_running = False
             if branch and rc == 0:
                 # check if the branch has been changed
                 config = os.path.join(self.installation, 'autoupdate.cfg')
@@ -2057,7 +2106,7 @@ class NodeImpl(Node):
         scope = self.resources[resource_id]
         if not await protocol.windows.take(resource_id, 'update', scope):
             self.log.info(f"- Another cluster is updating {resource_id} right now, standing by.")
-            return 0
+            return UPDATE_STOOD_BY
         try:
             await protocol.step_down(resource_id, scope, warn_times or [300, 120, 60])
             residue = await protocol.wait_for_clear(resource_id, WINDOW_WAIT)
@@ -2069,7 +2118,7 @@ class NodeImpl(Node):
                             in await protocol.registry.members(resource_id) if live and servers_up]
                 self.log.error(f"- Not updating {resource_id}: {residue} server(s) are still up "
                                f"[{', '.join(still_up)}]. Stop them and the next run will proceed.")
-                return 0
+                return UPDATE_SERVERS_UP
             return await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         finally:
             # Released in this order on purpose: the window goes first, so followers can come back while this node
@@ -2129,7 +2178,13 @@ class NodeImpl(Node):
                     "params": params
                 })
         else:
-            if rc == 2:
+            if rc == UPDATE_STOOD_BY:
+                message = (f"DCS World update on node {self.name} did not run: another cluster is updating "
+                           f"the shared DCS installation.")
+            elif rc == UPDATE_SERVERS_UP:
+                message = (f"DCS World update on node {self.name} did not run: servers were still up on the "
+                           f"shared DCS installation.")
+            elif rc == 2:
                 message = f"DCS World update on node {self.name} was aborted (check disk space)!"
             elif rc in [3, 350]:
                 message = (f"DCS World has been updated to version {version} on node {self.name}.\n"

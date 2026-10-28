@@ -145,6 +145,8 @@ def migrate(node: Node, old_version: str, new_version: str) -> int:
         return migrate_3_18(node)
     elif old_version == 'v3.18' and new_version == 'v3.19':
         return migrate_3_19(node)
+    elif old_version == 'v3.20' and new_version == 'v3.21':
+        return migrate_3_21(node)
     return 0
 
 def migrate_3_11(node: Node) -> int:
@@ -371,6 +373,25 @@ def migrate_3_19(node: Node) -> int:
                 END IF;
             END;
             $$
+        """)
+    return -1
+
+
+def migrate_3_21(node: Node) -> int:
+    """The federation tables: the resources several clusters can share on one machine, and the window that takes one
+    of them down.
+
+    A frozen copy of what ``cluster.sql`` adds, deliberately not read from that file — a migration has to apply what
+    it did at the time, and reading the file would let a later edit to it change the past. Everything here is
+    ``IF NOT EXISTS`` or guarded, so running it on a cluster database that already has the tables changes nothing.
+    """
+    if not node.master:
+        return -1
+
+    c_pool_url, _ = node.get_database_urls()
+    with Connection.connect(c_pool_url, autocommit=True) as conn:
+        conn.execute("""
+            ALTER TABLE resource_window ADD COLUMN IF NOT EXISTS refreshed TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')
         """)
     return -1
 

@@ -57,6 +57,7 @@ from core.action_results import NodeControlResult
 from core.actions import audit_action, action
 from core.data.maintenance import (PowerOffOutcome, ServerMaintenanceManager, clear_power_record,
                                    power_record, process_started_at, record_power_off)
+from core.data.node import UPDATE_SERVERS_UP, UPDATE_STOOD_BY
 
 log = logging.getLogger(__name__)
 
@@ -439,6 +440,18 @@ async def update_dcs(ctx: Any, node_name: str, *, branch: str | None = None,
             ctx, result,
             message=f"updated DCS from {installed_version} to {new_version} on node {canonical}.")
         return result
+    if rc == UPDATE_STOOD_BY:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"DCS World on node '{canonical}' was not updated: another cluster is updating the "
+                     f"shared DCS installation right now. Try again once it has finished."),
+            node_name=canonical))
+    if rc == UPDATE_SERVERS_UP:
+        return await _audited(ctx, NodeControlResult(
+            success=False,
+            message=(f"DCS World on node '{canonical}' was not updated: servers on the shared DCS "
+                     f"installation were still running, so the installer was not started."),
+            node_name=canonical))
     if rc == 2:
         return await _audited(ctx, NodeControlResult(
             success=False,

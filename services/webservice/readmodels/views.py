@@ -142,10 +142,19 @@ PAGE_COLUMNS: dict[str, tuple[Column, ...]] = {
     "bans": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("reason", _("Reason")),
              Column("banned_at", _("Banned")), Column("banned_until", _("Expires")),
              Column("scope", _("Scope"))),
+    # THE MODS TABLE: one row per installed package of ONE target, a database read like the bans
+    # list — so it is a page-only table too and never a dashboard tab. ``status`` is the bookkeeping
+    # state the row carries (installed); whether a NEWER package sits in the folder is a node read
+    # and therefore not a column, because a sort key with no source is a control that lies.
+    #: the package column is keyed ``name`` like every other table's first column: the sort layer's
+    #: default key and its name tie-break are spelled once, and a table whose first column is called
+    #: something else would be the one exception to both.
+    "mods": (Column("name", _("Package")), Column("version", _("Version")),
+             Column("installed", _("Installed")), Column("status", _("Status"))),
 }
 
 #: The card heading of a PAGE-ONLY table (the dashboard's own labels are :data:`TABLE_LABELS`).
-PAGE_LABELS: dict[str, str] = {"bans": _("Bans")}
+PAGE_LABELS: dict[str, str] = {"bans": _("Bans"), "mods": _("Mods")}
 
 
 def columns_for(table: str) -> tuple[Column, ...]:
@@ -365,6 +374,15 @@ def _cell(table: str, key: str, row):
             return row.banned_until
         if key == "scope":
             return row.scope
+    elif table == "mods":
+        if key in ("name", "package"):
+            return row.package
+        if key == "version":
+            return row.version
+        if key == "installed":
+            return row.installed
+        if key == "status":
+            return row.state
     raise KeyError(f"no cell for {table}.{key}")
 
 
