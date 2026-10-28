@@ -79,6 +79,8 @@ The following commands are available through the API. For detailed parameter def
 | /getuser                  | POST       | [nick: string], [discord_id: string]                                              | Get users by name                                                                  |
 | /greenieboard             | POST       | [date: string                                                                     | None], [server_name: string                                                        | None] | Get a greenieboard |
 | /highscore                | GET        | [server_name: string], [period: string], [limit: int]                             | Get highscore statistics for players                                               |
+| /instance/log             | GET        | server_name: string, [file], [contains], [level], [since], [until], [lines], [tail], [cursor] | Read a DCS log file of a server (see [Log endpoints](#log-endpoints)).   |
+| /instance/logs            | GET        | server_name: string                                                               | List the DCS log files of a server.                                                |
 | /instance/mission/load    | POST       | server_name: string, mission_name: string                                         | Load a mission on a given server.                                                  |
 | /instance/mission/pause   | POST       | server_name: string                                                               | Pause the mission on a given server.                                               |
 | /instance/mission/restart | POST       | server_name: string, [run_extensions: bool], [use_orig: bool], [when_empty: bool] | Restart the mission on a given server.                                             |
@@ -98,6 +100,8 @@ The following commands are available through the API. For detailed parameter def
 | /mission/unit             | GET        | server_name: string, unit_name: string                                            | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload           | POST       | server_name: string, file: string, filename: string, load_after: bool             | Upload a .miz mission file to the server.                                          |
 | /modulestats              | POST       | nick: string, [date: string                                                       | None], [server_name: string                                                        | None] | Get module statistics |
+| /node/log                 | GET        | [node_name: string], [file], [contains], [level], [since], [until], [lines], [tail], [cursor] | Read a bot log file of a node (see [Log endpoints](#log-endpoints)).     |
+| /node/logs                | GET        | [node_name: string]                                                               | List the bot log files of a node.                                                  |
 | /node/restart             | POST       | [node_name: string]                                                               | Restart a node, or all nodes. The bot reloads its configuration.                   |
 | /player_info              | POST       | nick: string, [date: string                                                       | None], [server_name: string                                                        | None] | Get player information |
 | /player_squadrons         | POST       | nick: string, [date: string                                                       | None]                                                                              | List of player squadrons |
@@ -119,6 +123,42 @@ The following commands are available through the API. For detailed parameter def
 > [!NOTE]
 > To get more detailled API documentation with test options, please enable debug in your WebService config and 
 > access https://localhost:9876/docs.
+
+## Log endpoints
+`/node/logs` and `/node/log` read the bot log of a node (`logs/dcssb-<node>.log` and its rotated files), `/instance/logs` and `/instance/log` read the DCS log of a server (`dcs.log`, `dcs.log.old` and the `dcs-YYYYMMDD-HHMMSS.log` copies the bot makes at shutdown).
+They are meant for diagnostic tools: why does this server not start, what did the bot do at 03:00, did the ED login fail.
+
+* A file is chosen by node or server, then optionally by a name taken from the listing. A path is never accepted.
+* Filters: `contains` (case-insensitive text, repeat it to require several terms), `level` (minimum level), `since` and `until` (ISO 8601 or a duration such as `30m`, `2h`, `1d`), `lines` (200 by default, 2000 at most).
+* The lines that follow an entry without a timestamp of their own (a Python traceback, a multi-line Lua error) stay with that entry, so a level filter never cuts a traceback.
+* Each answer carries a `cursor`. Pass it back to get only what was written since. It survives a log rotation: the end of the old file is read first, then the new one (`rotated: true`, and `new_file_at` says where the new file starts in `lines`); if the old file is gone, `gap: true` says lines may be missing.
+* Every read is bounded (16 MiB read, 1 MiB returned, lines cut at 8 KiB); `more: true` says a limit was reached.
+* Multi-node: the files of an agent are read through the node's own file window, like the WebGUI does. The endpoints were tested on a single-node setup only.
+
+Following a log, the way a diagnostic tool does it:
+```bash
+# the last errors of a server, with a cursor
+curl -s -H "X-API-Key: $KEY" "https://bot.example.org/instance/log?server_name=my_instance&level=warning&lines=50"
+# later: only what was written since
+curl -s -H "X-API-Key: $KEY" "https://bot.example.org/instance/log?server_name=my_instance&cursor=<cursor of the previous answer>"
+# the ED logins of the last two hours
+curl -s -H "X-API-Key: $KEY" "https://bot.example.org/instance/log?server_name=my_instance&contains=ASYNCNET&since=2h"
+```
+
+> [!IMPORTANT]
+> Logs contain player names, UCIDs and IP addresses.
+> The log endpoints need at least an API key, even through the loopback interface, unless you give the endpoint its own `security` rule.
+> With the default `remote: jwt`, a client that only has the API key needs a rule like this one:
+> ```yaml
+> endpoints:
+>   instance/log:
+>     security:
+>       local: api_key
+>       trusted: api_key
+>       remote: api_key
+> ```
+> Never publish the API without HTTPS: put a reverse proxy (Caddy, nginx, IIS) in front of it.
+> A reverse proxy on the same machine must send `X-Forwarded-For` (Caddy does by default, nginx needs `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`), otherwise every request looks local and falls under your `local` rule.
 
 ## New Features
 

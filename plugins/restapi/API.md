@@ -11,6 +11,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 - [Utilities](#utilities)
 - [Instance Control](#instance-control)
 - [Node Control](#node-control)
+- [Logs](#logs)
 - [Mission Control](#mission-control)
 - [Mission](#mission)
 - [Schema Models Reference](#schema-models-reference)
@@ -32,6 +33,8 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /getuser | POST | [nick: string], [discord_id: string] | Get users by name |
 | /greenieboard | POST | [date: string | None], [server_name: string | None] | Get a greenieboard |
 | /highscore | GET | [server_name: string], [period: string], [limit: int] | Get highscore statistics for players |
+| /instance/log | GET | server_name: string, [file: string], [contains: string, repeatable], [level: string], [since: string], [until: string], [lines: int], [tail: bool], [cursor: string] | Read a DCS log file of a server, filtered, with a cursor to get only the new lines later. |
+| /instance/logs | GET | server_name: string | List the DCS log files of a server. |
 | /instance/mission/load | POST | server_name: string, mission_name: string | Load a mission on a given server. |
 | /instance/mission/pause | POST | server_name: string | Pause the mission on a given server. |
 | /instance/mission/restart | POST | server_name: string, [run_extensions: bool], [use_orig: bool], [when_empty: bool] | Restart the mission on a given server. |
@@ -51,6 +54,8 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
 | /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |
+| /node/log | GET | [node_name: string], [file: string], [contains: string, repeatable], [level: string], [since: string], [until: string], [lines: int], [tail: bool], [cursor: string] | Read a bot log file of a node, filtered, with a cursor to get only the new lines later. |
+| /node/logs | GET | [node_name: string] | List the bot log files of a node. |
 | /node/restart | POST | [node_name: string | None] | Restart a node, or all nodes. The bot reloads its configuration. |
 | /player_info | POST | nick: string, [date: string | None], [server_name: string | None] | Get player information |
 | /player_squadrons | POST | nick: string, [date: string | None] | List of player squadrons |
@@ -2026,6 +2031,162 @@ Errors: 404 if the node is unknown; 409 if it is not active.
 
 ---
 
+## Logs
+
+The log endpoints read the bot log of a node (`logs/dcssb-<node>.log` and its rotated files `.1` to `.5`) and the DCS log of a server (`dcs.log`, the `dcs.log.old` DCS keeps, and the `dcs-YYYYMMDD-HHMMSS.log` copies the bot makes at shutdown).
+
+* A log file is named by the node or the server, and optionally by a file name from the listing; a path is never accepted.
+* They need at least an API key, even on the loopback interface, unless the endpoint has its own `security` rule: logs contain player names and IP addresses.
+* Lines that follow an entry without a timestamp of their own (a Python traceback, a multi-line Lua error) belong to that entry: a level filter never cuts them off.
+* Each answer carries a `cursor`; pass it back to get only what was written since, through a log rotation too.
+* Every read is bounded: at most 16 MiB are read from the files, at most 1 MiB of text is returned, a line is cut at 8 KiB. `more` says a limit was reached.
+* A remote node is read through the node's own file window (the bot log of an agent, the DCS log of a server on an agent); this was tested on a single-node setup only.
+
+### `GET` /node/logs
+
+**Summary:** Bot log files of a node.
+
+**Description:** List the bot log files of a node, newest first: the live one and the rotated ones.
+
+Errors: 404 if the node is unknown; 503 if it is not active.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `node_name` | `string` | query | No | the node that serves the RestAPI | Node |
+
+**Response:** `LogFilesResponse`
+
+#### Response Example
+
+```json
+{
+  "files": [
+    {"live": true, "modified": "2026-10-18T10:15:02Z", "name": "dcssb-node1.log", "size": 183554},
+    {"live": false, "modified": "2026-10-18T08:02:11Z", "name": "dcssb-node1.log.1", "size": 10485790}
+  ],
+  "log": "bot",
+  "node": "node1",
+  "server_name": null
+}
+```
+
+---
+
+### `GET` /node/log
+
+**Summary:** Read a bot log.
+
+**Description:** Read a bot log file of a node, filtered, with a cursor to get only the new lines later.
+
+Without a cursor, the last matching entries are returned (or the first ones with `tail=false`).
+With a cursor, the entries written since the cursor was taken are returned, oldest first.
+If the file was rotated in between, the end of the old file is read first, then the new file from its start, and `rotated` is true; `new_file_at` is the index in `lines` where the new file starts; if the old file cannot be found any more, `gap` is true too.
+
+Errors: 400 for a bad filter or cursor; 404 if the node or the file is unknown, or if there is no log yet; 503 if the node is not active; 422 if `lines` is out of range.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `node_name` | `string` | query | No | the node that serves the RestAPI | Node |
+| `file` | `string` | query | No | the live log | A file name from `/node/logs` |
+| `contains` | `string` | query | No | | Keep entries that contain this text (case-insensitive); repeat it to require several terms (at most 10) |
+| `level` | `string` | query | No | | Minimum level: `debug`, `info`, `warning`, `error` or `critical` |
+| `since` | `string` | query | No | | Keep entries from this time on: ISO 8601 (UTC if no offset is given) or a duration such as `30m`, `2h`, `1d` |
+| `until` | `string` | query | No | | Keep entries up to this time, same format as `since` |
+| `lines` | `int` | query | No | 200 | Maximum number of entries (1 to 2000) |
+| `tail` | `bool` | query | No | true | Return the last matching entries; false returns the first ones |
+| `cursor` | `string` | query | No | | The cursor of a previous answer: return only what was written since |
+
+The filters apply to the whole entry, timestamp and level included.
+The bot log is in UTC unless `logging: utc: false` is set in `main.yaml`; `utc` in the answer says which.
+
+**Response:** `LogReadResponse`
+
+#### Response Example
+
+```json
+{
+  "cursor": "eyJ2IjoxLCJrIjoiYm90Ii...",
+  "file": "dcssb-node1.log",
+  "gap": false,
+  "lines": [
+    {"level": "ERROR", "text": "Error while loading mission\nTraceback (most recent call last):\n  ...", "time": "2026-10-18 10:15:00.123"}
+  ],
+  "log": "bot",
+  "more": false,
+  "node": "node1",
+  "rotated": false,
+  "scanned_bytes": 183554,
+  "server_name": null,
+  "utc": true
+}
+```
+
+---
+
+### `GET` /instance/logs
+
+**Summary:** DCS log files of a server.
+
+**Description:** List the DCS log files of a server, newest first.
+The live file is the LogAnalyser `log` setting of the instance if there is one, else `<instance home>/Logs/dcs.log`.
+
+Errors: 404 if the server is unknown.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | | Server name or instance name |
+
+**Response:** `LogFilesResponse`
+
+---
+
+### `GET` /instance/log
+
+**Summary:** Read a DCS log.
+
+**Description:** Read a DCS log file of a server, with the same filters, limits and cursor as `/node/log`.
+DCS writes its log in UTC.
+
+Errors: as `/node/log`, with 404 for an unknown server.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | | Server name or instance name |
+| `file` | `string` | query | No | `dcs.log` | A file name from `/instance/logs` |
+| `contains`, `level`, `since`, `until`, `lines`, `tail`, `cursor` | | query | No | | As for `/node/log` |
+
+**Response:** `LogReadResponse`
+
+#### Response Example
+
+```json
+{
+  "cursor": "eyJ2IjoxLCJrIjoiZGNzIi...",
+  "file": "dcs.log",
+  "gap": false,
+  "lines": [
+    {"level": "INFO", "text": "ASYNCNET (Main): Login success.", "time": "2026-10-18 10:15:00.123"}
+  ],
+  "log": "dcs",
+  "more": false,
+  "node": "node1",
+  "rotated": false,
+  "scanned_bytes": 65536,
+  "server_name": "My Server",
+  "utc": true
+}
+```
+
+---
+
 ## Mission Control
 
 ### `GET` /instance/missions
@@ -2952,6 +3113,49 @@ Below are the data structures and response models used across the API endpoints:
   "token": "1234"
 }
 ```
+
+### `LogFileInfo`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | **Yes** | File name, to pass as 'file' to read this file |
+| `size` | `integer` | **Yes** | Size in bytes |
+| `modified` | `string (date-time)` | **Yes** | Last modification time |
+| `live` | `boolean` | **Yes** | True for the file being written, False for a rotated or copied one |
+
+### `LogFilesResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `log` | `string` | **Yes** | 'bot' or 'dcs' |
+| `node` | `string` | **Yes** | Node the files live on |
+| `server_name` | `string` | No | Server, for a DCS log |
+| `files` | `array[LogFileInfo]` | **Yes** | The files, newest first |
+
+### `LogLine`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `time` | `string` | **Yes** | Timestamp as written in the file (empty for lines without one) |
+| `level` | `string` | **Yes** | Level as written in the file (empty for lines without one) |
+| `text` | `string` | **Yes** | Message; the lines that follow an entry (a traceback) are joined with \n |
+
+### `LogReadResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `log` | `string` | **Yes** | 'bot' or 'dcs' |
+| `node` | `string` | **Yes** | Node the file lives on |
+| `server_name` | `string` | No | Server, for a DCS log |
+| `file` | `string` | **Yes** | File that was read |
+| `utc` | `boolean` | **Yes** | True if the timestamps are UTC, False if they are the node's local time |
+| `lines` | `array[LogLine]` | **Yes** | Matching entries, oldest first |
+| `cursor` | `string` | **Yes** | Pass it back as 'cursor' to get only what was written since |
+| `rotated` | `boolean` | **Yes** | The file was replaced since the cursor was taken |
+| `gap` | `boolean` | **Yes** | The end of the replaced file could not be found: lines may be missing |
+| `new_file_at` | `integer` | No | After a rotation, the index in 'lines' of the first entry of the new file (the entries before it end the old file) |
+| `more` | `boolean` | **Yes** | A limit was reached: there may be more matching lines (older ones for a tail read, newer ones for a cursor or forward read) |
+| `scanned_bytes` | `integer` | **Yes** | Bytes read from the files to answer |
 
 ### `MissionBullseye`
 

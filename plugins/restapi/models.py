@@ -2179,3 +2179,77 @@ class MissionUnitResponse(BaseModel):
             }
         }
     }
+
+
+class LogFileInfo(BaseModel):
+    name: str = Field(..., description="File name, to pass as 'file' to read this file")
+    size: int = Field(..., description="Size in bytes")
+    modified: datetime = Field(..., description="Last modification time")
+    live: bool = Field(..., description="True for the file being written, False for a rotated or copied one")
+
+
+class LogFilesResponse(BaseModel):
+    log: str = Field(..., description="'bot' or 'dcs'")
+    node: str = Field(..., description="Node the files live on")
+    server_name: Optional[str] = Field(None, description="Server, for a DCS log")
+    files: list[LogFileInfo] = Field(..., description="The files, newest first")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "log": "dcs",
+                "node": "node1",
+                "server_name": "My Server",
+                "files": [
+                    {"name": "dcs.log", "size": 183554, "modified": "2026-10-18T10:15:02Z", "live": True},
+                    {"name": "dcs-20261018-100212.log", "size": 920114, "modified": "2026-10-18T10:02:11Z",
+                     "live": False}
+                ]
+            }
+        }
+    }
+
+
+class LogLine(BaseModel):
+    time: str = Field(..., description="Timestamp as written in the file (empty for lines without one)")
+    level: str = Field(..., description="Level as written in the file (empty for lines without one)")
+    text: str = Field(..., description="Message; the lines that follow an entry (a traceback) are joined with \n")
+
+
+class LogReadResponse(BaseModel):
+    log: str = Field(..., description="'bot' or 'dcs'")
+    node: str = Field(..., description="Node the file lives on")
+    server_name: Optional[str] = Field(None, description="Server, for a DCS log")
+    file: str = Field(..., description="File that was read")
+    utc: bool = Field(..., description="True if the timestamps are UTC, False if they are the node's local time")
+    lines: list[LogLine] = Field(..., description="Matching entries, oldest first")
+    cursor: str = Field(..., description="Pass it back as 'cursor' to get only what was written since")
+    rotated: bool = Field(..., description="The file was replaced since the cursor was taken")
+    gap: bool = Field(..., description="The end of the replaced file could not be found: lines may be missing")
+    new_file_at: Optional[int] = Field(None, description="After a rotation, the index in 'lines' of the first entry "
+                                                         "of the new file (the entries before it end the old file)")
+    more: bool = Field(..., description="A limit was reached: there may be more matching lines (older ones for a "
+                                        "tail read, newer ones for a cursor or forward read)")
+    scanned_bytes: int = Field(..., description="Bytes read from the files to answer")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "log": "dcs",
+                "node": "node1",
+                "server_name": "My Server",
+                "file": "dcs.log",
+                "utc": True,
+                "lines": [
+                    {"time": "2026-10-18 10:15:00.123", "level": "INFO",
+                     "text": "ASYNCNET (Main): Login success."}
+                ],
+                "cursor": "eyJ2IjoxLCJrIjoiZGNzIiwicyI6Ik15IFNlcnZlciIsIm8iOjE4MzU1NCwiaGwiOjI1NiwiaCI6IjEyMzQ1Njc4OWFiY2RlZjAiLCJtIjoxfQ",
+                "rotated": False,
+                "gap": False,
+                "new_file_at": None,
+                "more": False,
+                "scanned_bytes": 65536
+            }
+        }
+    }
