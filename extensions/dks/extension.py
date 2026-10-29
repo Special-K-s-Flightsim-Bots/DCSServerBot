@@ -106,7 +106,9 @@ class DKS(InstallableExtension):
             with zipfile.ZipFile(io.BytesIO(data)) as zf:
                 zf.extractall(self.server.instance.home)
         except Exception as ex:
-            self.log.error(f"  => {self.name}: Couldn't download the DKS exporter: {ex}")
+            self.log.error(f"  => {self.name}: Couldn't download the DKS exporter: {ex}. You can also download the "
+                           f"exporter ZIP from your server's page in DKS and extract it into "
+                           f"{self.server.instance.home}.")
             return False
         self.log.info(f"  => {self.name} {self.version} installed into instance {self.server.instance.name}.")
         return True
@@ -142,6 +144,13 @@ class DKS(InstallableExtension):
         return await super().prepare()
 
     def write_cfg(self):
+        values = [self.dks_url, self.config['keyId'], self.config['secret'], self.config['ownerId']]
+        if os.path.exists(self.cfg):
+            with open(self.cfg, 'r', encoding='utf-8') as f:
+                current = f.read()
+            # A cfg with this key already (e.g. from the exporter ZIP) keeps its other settings.
+            if all(lua_string(x) in current for x in values):
+                return
         lines = [
             "-- Written by DCSServerBot from nodes.yaml (extension DKS). Keep it private.",
             "DKS_TELEMETRY = {",

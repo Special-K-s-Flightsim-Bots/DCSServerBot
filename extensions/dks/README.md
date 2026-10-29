@@ -25,6 +25,8 @@ MyNode:
           secret: "..."
           ownerId: "..."
 ```
+The same values are in `Config\DKS-Telemetry.cfg` of the exporter ZIP you can download from that page.
+
 Restart the server. On its first start, DCSServerBot downloads the exporter from DKS, and from then on the exporter
 updates itself. It only installs versions signed with DKS's release key, so `autoupdate` doesn't apply.
 
