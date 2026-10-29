@@ -14,7 +14,6 @@ from core import (Plugin, Group, PluginRequiredError, utils, get_translation, Se
 from discord import app_commands
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from pathlib import Path
-from pydantic import BaseModel
 from plugins.dks.views import RegisterView
 from plugins.dks.auth import TokenBearer
 from plugins.restapi.commands import RestAPI
@@ -32,10 +31,6 @@ DKS_URL = "https://www.digitalkneeboardsimulator.com/api/register/dcssb?otp={otp
 DKS_JWKS_URL = "https://www.digitalkneeboardsimulator.com/api/pubkey"
 
 
-class InstallExporter(BaseModel):
-    server: str
-    claimUrl: str
-    code: str
 
 
 class DKS(Plugin):
@@ -192,19 +187,23 @@ class DKS(Plugin):
         restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
         return restapi.get_config().get('auth', {}).get('jwt', {}).get('key') if restapi else None
 
-    async def install_dks_exporter(self, body: InstallExporter):
+    async def install_dks_exporter(self, request: Request):
         """DKS asks to install its exporter. The install code is fetched from DKS over HTTPS with a single-use claim,
-        so it never travels through this API."""
-        server = self.bot.servers.get(body.server)
+        so it never travels through this API. The parameters are claims of DKS's signed token, never an unsigned body."""
+        payload = request.state.jwt_payload
+        server_name, claim, code = payload.get('server'), payload.get('claimUrl'), payload.get('code')
+        if not all(isinstance(x, str) and x for x in [server_name, claim, code]):
+            raise HTTPException(status_code=400, detail="server, claimUrl and code are missing")
+        server = self.bot.servers.get(server_name)
         if not server:
-            raise HTTPException(status_code=404, detail=f"Server {body.server} not found")
-        claim_url = urlparse(body.claimUrl)
+            raise HTTPException(status_code=404, detail=f"Server {server_name} not found")
+        claim_url = urlparse(claim)
         if claim_url.scheme != 'https' and claim_url.hostname not in ['localhost', '127.0.0.1']:
             raise HTTPException(status_code=400, detail="The claim URL must be https")
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                     ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
-                async with session.post(body.claimUrl, json={"code": body.code}, raise_for_status=True,
+                async with session.post(claim, json={"code": code}, raise_for_status=True,
                                         proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
                     install_code = (await response.json())['installCode']
         except Exception as ex:
