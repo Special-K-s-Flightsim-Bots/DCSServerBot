@@ -185,6 +185,12 @@ class DKS(Plugin):
         restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
         return restapi.get_config().get('auth', {}).get('jwt', {}).get('key') if restapi else None
 
+    @staticmethod
+    async def tacview_enabled(server: Server) -> bool:
+        # From nodes.yaml: list_extensions() is cached on remote nodes.
+        config = (await server.config_extension('Tacview'))['Instance']
+        return bool(config) and config.get('enabled', True)
+
     async def install_dks_exporter(self, request: Request):
         """DKS asks to install its exporter. The install code is fetched from DKS over HTTPS with a single-use claim.
         The parameters are claims of DKS's signed token, never an unsigned body. Only for servers an Admin allowed it
@@ -213,7 +219,7 @@ class DKS(Plugin):
             raise HTTPException(status_code=502, detail="The bot couldn't fetch the install code from DKS")
 
         # The extension downloads the exporter, then disables the Tacview extension (DKS replaces it).
-        tacview_before = 'Tacview' in await server.list_extensions(active=True)
+        tacview_before = await self.tacview_enabled(server)
         await server.config_extension('DKS', {"Instance": {"enabled": True, "key": install_code}})
         try:
             installed = await server.enable_extension('DKS')
@@ -223,7 +229,7 @@ class DKS(Plugin):
         if not installed:
             await server.config_extension('DKS', {"Instance": {"enabled": False}})
             raise HTTPException(status_code=500, detail="Installing the DKS exporter failed, see the bot's log")
-        tacview_after = 'Tacview' in await server.list_extensions(active=True)
+        tacview_after = await self.tacview_enabled(server)
         await self.bot.audit(f"DKS exporter installed on server {server.display_name} from DKS.")
         return {
             "tacviewDisabled": tacview_before and not tacview_after

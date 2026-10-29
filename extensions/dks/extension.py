@@ -61,8 +61,26 @@ class DKS(InstallableExtension):
                 return {k: v for k, v in decoded.items() if isinstance(v, str)}
             except (ValueError, AttributeError):
                 pass
-        self.log.error(f"  => {self.name}: The install code is not valid. Copy it again from DKS.")
         return {}
+
+    def has_identity(self) -> bool:
+        if all(self.identity.get(x) for x in ['keyId', 'secret', 'ownerId']):
+            return True
+        if self.config.get('key'):
+            self.log.error(f"  => {self.name}: The install code is not valid. Copy it again from your server's page "
+                           f"in DKS, then run /extension enable, type DKS and paste it.")
+        else:
+            self.log.error(f"  => {self.name}: No install code. The DKS extension installs the DKS exporter now: copy "
+                           f"the install code from your server's page in DKS, then run /extension enable, type DKS "
+                           f"and paste the code.")
+        return False
+
+    def server_down(self) -> bool:
+        # DCS holds the exporter's DLL while it runs.
+        if self.server.status in [Status.UNREGISTERED, Status.SHUTDOWN]:
+            return True
+        self.log.error(f"  => {self.name}: Stop the server before you disable DKS.")
+        return False
 
     @property
     def dks_url(self) -> str:
@@ -118,10 +136,7 @@ class DKS(InstallableExtension):
     @override
     async def install(self, version: str | None = None) -> bool:
         self.remove_weather_exporter()
-        if not all(self.identity.get(x) for x in ['keyId', 'secret', 'ownerId']):
-            self.log.error(f"  => {self.name}: No install code. The DKS extension installs the DKS exporter now: copy "
-                           f"the install code from your server's page in DKS, then run /extension enable, type DKS "
-                           f"and paste the code.")
+        if not self.has_identity():
             return False
         # The exporter updates itself: once it is there, nothing is downloaded again (its files may be in use).
         if not self.is_installed():
@@ -157,10 +172,16 @@ class DKS(InstallableExtension):
             zf.extractall(self.server.instance.home, members=members)
 
     @override
+    async def disable(self) -> bool:
+        # Refuse before the extension is shut down and marked disabled, not halfway.
+        if self.is_installed() and not self.server_down():
+            return False
+        return await super().disable()
+
+    @override
     async def uninstall(self) -> bool:
-        # DCS holds the exporter's DLL: removing files while it runs would leave half an exporter behind.
-        if self.server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
-            self.log.error(f"  => {self.name}: Stop the server before you disable DKS.")
+        # Removing files while DCS runs would leave half an exporter behind.
+        if not self.server_down():
             return False
         # Recordings not yet uploaded stay in Saved Games\...\DKS\telemetry.
         try:
@@ -184,8 +205,7 @@ class DKS(InstallableExtension):
         if self.tacview_enabled():
             self.log.error(f"  => {self.name}: DKS replaces Tacview. Disable the Tacview extension to use it.")
             return False
-        if not all(self.identity.get(x) for x in ['keyId', 'secret', 'ownerId']):
-            self.log.error(f"  => {self.name}: No install code. Copy it from your server's page in DKS.")
+        if not self.has_identity():
             return False
         self.remove_weather_exporter()
         self.turn_off_tacview()
@@ -256,8 +276,9 @@ class DKS(InstallableExtension):
         try:
             if os.path.exists(real_dll):
                 os.replace(real_dll, os.path.join(tacview_bin, 'tacview.dll'))
-            for file in glob.glob(os.path.join(tacview_bin, 'dks.ver')) + glob.glob(os.path.join(tacview_bin, 'dks-wx.*')):
-                os.remove(file)
+            for pattern in ['dks.ver', 'dks-wx.*', 'dks-census.txt', 'dks-event*.txt']:
+                for file in glob.glob(os.path.join(tacview_bin, pattern)):
+                    os.remove(file)
         except OSError as ex:
             # Its DLL is in use while DCS runs: the next start removes it.
             self.log.warning(f"  => {self.name}: The old DKS weather exporter will be removed at the next start: {ex}")

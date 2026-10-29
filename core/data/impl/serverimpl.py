@@ -1814,15 +1814,24 @@ class ServerImpl(Server):
     @override
     async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         ext = self.extensions.get(name)
+        old_config = None
         if not ext:
             ext = self.load_extension(name, config)
             self.extensions[name] = ext
         elif config:
             # a loaded extension is enabled with the config it was given (e.g. a key from /extension enable)
+            old_config = ext.config
             ext.config = ext.config | config.get('Node', {}) | config.get('Instance', {})
-        if ext and await ext.enable():
-            await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
-            return True
+        try:
+            if ext and await ext.enable():
+                await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
+                return True
+        except Exception:
+            if old_config is not None:
+                ext.config = old_config
+            raise
+        if old_config is not None:
+            ext.config = old_config
         return False
 
     @override

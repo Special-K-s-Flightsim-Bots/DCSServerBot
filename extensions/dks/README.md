@@ -4,7 +4,8 @@ DCS squadrons. This extension installs the DKS exporter on your instance. The ex
 (3D debriefs, LSO grades, live ATC/GCI views) and **replaces Tacview**: once it is installed, DCSServerBot disables the
 Tacview extension for that instance and turns Tacview off in its options. The exporter takes over what Tacview did
 there:
-- Tacview real-time telemetry, on Tacview's port and with its password (the firewall rule moves to this extension),
+- Tacview real-time telemetry, on Tacview's port and with its password (`/help` lists the port in the firewall script
+  under this extension),
 - Tacview files (.acmi), in Tacview's export folder.
 
 > [!WARNING]
@@ -46,7 +47,8 @@ apply.
 
 Settings set on the server's page in DKS ("Set in DKS") win over the ones carried over from Tacview.
 
-The install code holds the server's key. Keep it private. After **New key** in DKS, install again (or paste the new
+The install code holds the server's key. Keep it private. It is stored in nodes.yaml, and at log level DEBUG it shows
+up in the bot's log when a master node configures the extension on an agent. After **New key** in DKS, install again (or paste the new
 code): DCSServerBot rewrites `Config\DKS-Telemetry.cfg` from nodes.yaml at every start.
 
 ## Uninstall
