@@ -1,8 +1,11 @@
+import aiohttp
 import asyncio
 import base64
+import certifi
 import discord
 import os
 import secrets
+import ssl
 
 from asyncio import Task
 from contextlib import suppress
@@ -11,12 +14,13 @@ from core import (Plugin, Group, PluginRequiredError, utils, get_translation, Se
 from discord import app_commands
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from pathlib import Path
+from pydantic import BaseModel
 from plugins.dks.views import RegisterView
 from plugins.dks.auth import TokenBearer
 from plugins.restapi.commands import RestAPI
 from starlette.requests import Request
 from typing import cast
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from services.bot import DCSServerBot
 from services.webservice import WebService
@@ -26,6 +30,12 @@ from core.utils.yaml_helper import new_yaml
 _ = get_translation(__name__.split('.')[1])
 DKS_URL = "https://www.digitalkneeboardsimulator.com/api/register/dcssb?otp={otp}&connection_string={callback_url}"
 DKS_JWKS_URL = "https://www.digitalkneeboardsimulator.com/api/pubkey"
+
+
+class InstallExporter(BaseModel):
+    server: str
+    claimUrl: str
+    code: str
 
 
 class DKS(Plugin):
@@ -94,6 +104,16 @@ class DKS(Plugin):
             description="Register with Digital Kneeboard Simulator.",
             tags=["DKS"],
             dependencies=[Depends(TokenBearer(plugin=self, jwks_url=DKS_JWKS_URL))]
+        )
+
+        # /install_dks_exporter
+        self.router.add_api_route(
+            "/install_dks_exporter", self.install_dks_exporter,
+            methods=["POST"],
+            summary="Install the DKS exporter.",
+            description="Install the DKS exporter on a server, replacing Tacview.",
+            tags=["DKS"],
+            dependencies=[Depends(TokenBearer(plugin=self, jwks_url=DKS_JWKS_URL, linked=True))]
         )
 
         self.app.include_router(self.router)
@@ -166,6 +186,44 @@ class DKS(Plugin):
             self.log.exception(ex)
             asyncio.create_task(self.update_embed(_("Error while registering with DKS: {}!").format(ex)))
             raise HTTPException(status_code=500, detail='Error while registering.')
+
+    @property
+    def linked_key(self) -> str | None:
+        restapi = cast(RestAPI, self.bot.cogs.get('RestAPI'))
+        return restapi.get_config().get('auth', {}).get('jwt', {}).get('key') if restapi else None
+
+    async def install_dks_exporter(self, body: InstallExporter):
+        """DKS asks to install its exporter. The install code is fetched from DKS over HTTPS with a single-use claim,
+        so it never travels through this API."""
+        server = self.bot.servers.get(body.server)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server {body.server} not found")
+        claim_url = urlparse(body.claimUrl)
+        if claim_url.scheme != 'https' and claim_url.hostname not in ['localhost', '127.0.0.1']:
+            raise HTTPException(status_code=400, detail="The claim URL must be https")
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                    ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
+                async with session.post(body.claimUrl, json={"code": body.code}, raise_for_status=True,
+                                        proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                    install_code = (await response.json())['installCode']
+        except Exception as ex:
+            self.log.error(f"DKS: Couldn't fetch the install code: {ex}")
+            raise HTTPException(status_code=502, detail="The bot couldn't fetch the install code from DKS")
+
+        # The DKS exporter replaces Tacview. Changing the config only keeps Tacview's files while DCS runs.
+        tacview_disabled = 'Tacview' in await server.list_extensions(active=True)
+        if tacview_disabled:
+            await server.config_extension('Tacview', {"Instance": {"enabled": False}})
+        await server.config_extension('DKS', {"Instance": {"enabled": True, "key": install_code}})
+        if not await server.enable_extension('DKS'):
+            raise HTTPException(status_code=500, detail="Installing the DKS exporter failed, see the bot's log")
+        ext = server.extensions.get('DKS')
+        await self.bot.audit(f"DKS exporter installed on server {server.display_name} from DKS.")
+        return {
+            "tacviewDisabled": tacview_disabled,
+            "version": ext.version if ext else None
+        }
 
     dks = Group(name="dks", description=_("Commands to manage Digital Kneeboard Simulator"))
 

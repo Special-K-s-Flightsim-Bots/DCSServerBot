@@ -1,6 +1,8 @@
 import aiohttp
+import base64
 import certifi
 import io
+import json
 import os
 import shutil
 import ssl
@@ -32,29 +34,34 @@ class DKS(InstallableExtension):
     """
 
     CONFIG_DICT = {
-        "keyId": {
+        "key": {
             "type": str,
-            "label": _("Key ID"),
-            "placeholder": _("From your server's page in DKS"),
-            "required": True
-        },
-        "secret": {
-            "type": str,
-            "label": _("Secret"),
-            "placeholder": _("From your server's page in DKS"),
-            "required": True
-        },
-        "ownerId": {
-            "type": str,
-            "label": _("Server ID"),
+            "label": _("Install code"),
             "placeholder": _("From your server's page in DKS"),
             "required": True
         }
     }
 
     @property
+    def identity(self) -> dict[str, str]:
+        """dksUrl, keyId, secret and ownerId: from the install code, overridden by single settings if present."""
+        values = {}
+        code = self.config.get('key') or ''
+        if code.startswith('dks1.'):
+            data = code[len('dks1.'):]
+            try:
+                decoded = json.loads(base64.urlsafe_b64decode(data + '=' * (-len(data) % 4)))
+                values = {k: v for k, v in decoded.items() if isinstance(v, str)}
+            except (ValueError, AttributeError):
+                self.log.error(f"  => {self.name}: The install code is not valid. Copy it again from DKS.")
+        for name in ['dksUrl', 'keyId', 'secret', 'ownerId']:
+            if self.config.get(name):
+                values[name] = self.config[name]
+        return values
+
+    @property
     def dks_url(self) -> str:
-        return self.config.get('dksUrl', DKS_URL).rstrip('/')
+        return self.identity.get('dksUrl', DKS_URL).rstrip('/')
 
     @property
     def hook(self) -> str:
@@ -133,10 +140,8 @@ class DKS(InstallableExtension):
         if self.tacview_enabled():
             self.log.error(f"  => {self.name}: DKS replaces Tacview. Disable the Tacview extension to use it.")
             return False
-        missing = [x for x in ['keyId', 'secret', 'ownerId'] if not self.config.get(x)]
-        if missing:
-            self.log.error(f"  => {self.name}: {', '.join(missing)} missing. "
-                           f"Copy the DKS block from your server's page in DKS.")
+        if not all(self.identity.get(x) for x in ['keyId', 'secret', 'ownerId']):
+            self.log.error(f"  => {self.name}: No install code. Copy it from your server's page in DKS.")
             return False
         self.remove_weather_exporter()
         self.turn_off_tacview()
@@ -144,7 +149,8 @@ class DKS(InstallableExtension):
         return await super().prepare()
 
     def write_cfg(self):
-        values = [self.dks_url, self.config['keyId'], self.config['secret'], self.config['ownerId']]
+        identity = self.identity
+        values = [self.dks_url, identity['keyId'], identity['secret'], identity['ownerId']]
         if os.path.exists(self.cfg):
             with open(self.cfg, 'r', encoding='utf-8') as f:
                 current = f.read()
@@ -155,9 +161,9 @@ class DKS(InstallableExtension):
             "-- Written by DCSServerBot from nodes.yaml (extension DKS). Keep it private.",
             "DKS_TELEMETRY = {",
             f"  dksUrl = {lua_string(self.dks_url)},",
-            f"  keyId = {lua_string(self.config['keyId'])},",
-            f"  secret = {lua_string(self.config['secret'])},",
-            f"  ownerId = {lua_string(self.config['ownerId'])},",
+            f"  keyId = {lua_string(identity['keyId'])},",
+            f"  secret = {lua_string(identity['secret'])},",
+            f"  ownerId = {lua_string(identity['ownerId'])},",
             f"  serverName = {lua_string(self.server.name)},",
             "}",
             ""

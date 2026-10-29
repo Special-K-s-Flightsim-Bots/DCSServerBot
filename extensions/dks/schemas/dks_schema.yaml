@@ -7,6 +7,12 @@ schema;dks_schema:
       nullable: false
       desc: Whether the DKS exporter is installed on this instance.
       example: "true"
+    key:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: The install code from your server's page in DKS.
+      example: "dks1.eyJka3NVcmwiOi..."
     dksUrl:
       type: str
       nullable: false
@@ -15,21 +21,18 @@ schema;dks_schema:
       example: "https://www.digitalkneeboardsimulator.com"
     keyId:
       type: str
-      required: true
       nullable: false
       range: {min: 1}
-      desc: The exporter key id from your server's page in DKS.
+      desc: The exporter key id (instead of key, e.g. from Config\DKS-Telemetry.cfg).
       example: "dkt_0123456789ab"
     secret:
       type: str
-      required: true
       nullable: false
       range: {min: 1}
       desc: The exporter secret from your server's page in DKS.
       example: "..."
     ownerId:
       type: str
-      required: true
       nullable: false
       range: {min: 1}
       desc: The server id from your server's page in DKS.

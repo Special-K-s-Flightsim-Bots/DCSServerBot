@@ -46,3 +46,11 @@ The register_dks endpoint has to be reachable at this URL.
 > The OTP will expire after 5 minutes.
 > This means you have 5 minutes to register your bot on the DKS website.
 > You can re-run the registration as often as you want, if something goes wrong.
+
+## Installing the DKS exporter from DKS
+Once your bot is linked, DKS can install its exporter on one of your servers (extension
+[DKS](../../extensions/dks/README.md)): press **Install** on the server's page in DKS. DKS calls
+`install_dks_exporter`, next to `register_dks`, signed like every DKS call. The request carries a single-use code
+only. The bot redeems that code at DKS over HTTPS for the server's install code, so the exporter key never travels
+through your bot's API. The bot then enables the DKS extension for that server, turns the Tacview extension off, and
+the exporter starts with the next server start.
