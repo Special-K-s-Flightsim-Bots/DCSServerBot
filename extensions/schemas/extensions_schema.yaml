@@ -24,6 +24,8 @@ schema;instance_extensions_schema:
   mapping:
     DSMC:
       include: 'dsmc_schema'
+    DKS:
+      include: 'dks_schema'
     GitHub:
       include: 'github_schema'
     gRPC:

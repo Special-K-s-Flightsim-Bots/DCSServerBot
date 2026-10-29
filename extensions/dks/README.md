@@ -1,19 +1,16 @@
 # Extension "DKS"
-[Digital Kneeboard Simulator](https://www.digitalkneeboardsimulator.com/) is a great community solution that started 
-as a tool to create kneeboards but has a ton more features today. 
-You can also view live telemetry data from your DCS servers with it.
-DCSServerBot adds support for this awesome tool by hooking into the [tacview](../tacview/README.md) extension and by
-giving it access to the [REST-API](/plugins/restapi/README.md).
+[Digital Kneeboard Simulator](https://www.digitalkneeboardsimulator.com/) (DKS) is a planning and debrief suite for
+DCS squadrons. This extension installs the DKS exporter on your instance. The exporter records your missions for DKS
+(3D debriefs, LSO grades, live ATC/GCI views) and **replaces Tacview**: it serves Tacview real-time telemetry and can
+write Tacview files itself.
 
-> [!NOTE]
-> DKS needs Tacview being enabled on your instance to work.
+> [!IMPORTANT]
+> Disable the [Tacview](../tacview/README.md) extension on the instance first. DKS refuses to run next to it.
+> If Tacview is installed outside DCSServerBot, DKS turns it off in the instance's options.
 
 ## Configuration
-The DKS extension does not need any configuration, but you need to enable the Tacview extension for it to work.
-Please refer to the [Tacview](../tacview/README.md) configuration on how to do so and how to enable real-time telemetry.
-
-After that, you can enable it by enabling the extenion with `/extension enable` or manually adding it to your nodes.yaml
-like so:
+Open your server's page in DKS (Settings → Servers), and press **DCSServerBot** next to the exporter. Copy the block
+it shows into your nodes.yaml:
 ```yaml
 # config/nodes.yaml
 MyNode:
@@ -21,9 +18,21 @@ MyNode:
   instances:
     DCS.dcs_serverrelease:
       extensions:
-        Tacview:
-          # ... Tacview needs to be configured before DKS
         DKS:
           enabled: true
-          autoupdate: true  # enable autoupdate (default: false)
+          dksUrl: "https://www.digitalkneeboardsimulator.com"  # optional
+          keyId: "dkt_..."
+          secret: "..."
+          ownerId: "..."
 ```
+Restart the server. On its first start, DCSServerBot downloads the exporter from DKS, and from then on the exporter
+updates itself. It only installs versions signed with DKS's release key, so `autoupdate` doesn't apply.
+
+The exporter's other settings (Tacview real-time telemetry port and password, Tacview files, live overlay) are set on
+the same page in DKS. If you enable real-time telemetry there, open its port in your firewall.
+
+Keep the secret private. If it leaks, press **New key** in DKS and copy the block again.
+
+## Uninstall
+Disable the extension with `/extension disable`. Recordings that were not uploaded yet stay in
+`Saved Games\<instance>\DKS\telemetry`.

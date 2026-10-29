@@ -1,0 +1,36 @@
+schema;dks_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the DKS exporter is installed on this instance.
+      example: "true"
+    dksUrl:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: The DKS address. Defaults to https://www.digitalkneeboardsimulator.com.
+      example: "https://www.digitalkneeboardsimulator.com"
+    keyId:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: The exporter key id from your server's page in DKS.
+      example: "dkt_0123456789ab"
+    secret:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: The exporter secret from your server's page in DKS.
+      example: "..."
+    ownerId:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: The server id from your server's page in DKS.
+      example: "..."
