@@ -1,6 +1,7 @@
 import aiohttp
 import base64
 import certifi
+import glob
 import io
 import json
 import os
@@ -9,7 +10,7 @@ import shutil
 import ssl
 import zipfile
 
-from core import InstallableExtension, get_translation, Port, PortType
+from core import InstallableExtension, get_translation, Port, PortType, Status
 from typing_extensions import override
 
 _ = get_translation(__name__.split('.')[1])
@@ -119,7 +120,8 @@ class DKS(InstallableExtension):
         self.remove_weather_exporter()
         if not all(self.identity.get(x) for x in ['keyId', 'secret', 'ownerId']):
             self.log.error(f"  => {self.name}: No install code. The DKS extension installs the DKS exporter now: copy "
-                           f"the install code from your server's page in DKS.")
+                           f"the install code from your server's page in DKS, then run /extension enable, type DKS "
+                           f"and paste the code.")
             return False
         # The exporter updates itself: once it is there, nothing is downloaded again (its files may be in use).
         if not self.is_installed():
@@ -156,6 +158,10 @@ class DKS(InstallableExtension):
 
     @override
     async def uninstall(self) -> bool:
+        # DCS holds the exporter's DLL: removing files while it runs would leave half an exporter behind.
+        if self.server.status not in [Status.UNREGISTERED, Status.SHUTDOWN]:
+            self.log.error(f"  => {self.name}: Stop the server before you disable DKS.")
+            return False
         # Recordings not yet uploaded stay in Saved Games\...\DKS\telemetry.
         try:
             for file in [self.hook, self.cfg]:
@@ -244,15 +250,16 @@ class DKS(InstallableExtension):
         # The DKS weather exporter of earlier versions of this extension wrapped tacview.dll.
         tacview_bin = os.path.join(self.server.instance.home, 'Mods', 'tech', 'Tacview', 'bin')
         real_dll = os.path.join(tacview_bin, 'tacview_real.dll')
+        hook = os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DKSWeatherSampler.lua')
+        if os.path.exists(hook):
+            os.remove(hook)
         try:
             if os.path.exists(real_dll):
                 os.replace(real_dll, os.path.join(tacview_bin, 'tacview.dll'))
-            for file in [os.path.join(tacview_bin, 'dks.ver'),
-                         os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DKSWeatherSampler.lua')]:
-                if os.path.exists(file):
-                    os.remove(file)
+            for file in glob.glob(os.path.join(tacview_bin, 'dks.ver')) + glob.glob(os.path.join(tacview_bin, 'dks-wx.*')):
+                os.remove(file)
         except OSError as ex:
-            # Its files are in use while DCS runs: the next start removes it.
+            # Its DLL is in use while DCS runs: the next start removes it.
             self.log.warning(f"  => {self.name}: The old DKS weather exporter will be removed at the next start: {ex}")
 
     @override

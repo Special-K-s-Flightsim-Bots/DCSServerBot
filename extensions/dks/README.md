@@ -23,7 +23,8 @@ There are three ways. All of them need the server's install code from DKS: open 
 1. **From DKS, in one click.** If your bot is linked to DKS (plugin [DKS](../../plugins/dks/README.md)), the
    server is linked to your bot's server, and an Admin allowed it with `/dks install_permission`, press **Install**.
    DKS asks your bot to install the exporter.
-2. **In Discord.** Run `/extension enable`, pick your server and `DKS`, and paste the install code.
+2. **In Discord.** Run `/extension enable`, pick your server and `DKS`, and paste the install code. If DKS was
+   enabled before (the earlier weather exporter), it isn't offered in the list: type `DKS`.
 3. **In nodes.yaml:**
    ```yaml
    # config/nodes.yaml
@@ -49,5 +50,6 @@ The install code holds the server's key. Keep it private. After **New key** in D
 code): DCSServerBot rewrites `Config\DKS-Telemetry.cfg` from nodes.yaml at every start.
 
 ## Uninstall
-Disable the extension with `/extension disable`. Recordings that were not uploaded yet stay in
+Stop the server, then disable the extension with `/extension disable` (DCS keeps the exporter's files in use while
+it runs). Recordings that were not uploaded yet stay in
 `Saved Games\<instance>\DKS\telemetry`.

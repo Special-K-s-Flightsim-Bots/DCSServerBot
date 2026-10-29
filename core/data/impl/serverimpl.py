@@ -1817,6 +1817,9 @@ class ServerImpl(Server):
         if not ext:
             ext = self.load_extension(name, config)
             self.extensions[name] = ext
+        elif config:
+            # a loaded extension is enabled with the config it was given (e.g. a key from /extension enable)
+            ext.config = ext.config | config.get('Node', {}) | config.get('Instance', {})
         if ext and await ext.enable():
             await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
             return True
@@ -1827,8 +1830,8 @@ class ServerImpl(Server):
         if name not in self.extensions:
             raise InstallException(f"Extension '{name}' not found")
         ext = self.extensions[name]
-        await self.config_extension(name, {"Instance": {"enabled": False}})
         if await ext.disable():
+            await self.config_extension(name, {"Instance": {"enabled": False}})
             self.extensions.pop(name, None)
             return True
         return False
