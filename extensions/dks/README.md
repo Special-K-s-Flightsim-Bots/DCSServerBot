@@ -38,8 +38,6 @@ There are three ways. All of them need the server's install code from DKS: open 
              enabled: true
              key: "dks1...."   # the install code
    ```
-   Without `key`, you can also give `keyId`, `secret`, `ownerId` (and `dksUrl`) one by one, e.g. from
-   `Config\DKS-Telemetry.cfg` in the exporter ZIP you can download from that page. With `key`, they are ignored.
 
 The exporter starts with the next server start. DCSServerBot downloads it once, from DKS over https only, and from
 then on the exporter updates itself. It only installs versions signed with DKS's release key, so `autoupdate` doesn't
@@ -48,10 +46,9 @@ apply.
 Settings set on the server's page in DKS ("Set in DKS") win over the ones carried over from Tacview.
 
 The install code holds the server's key. Keep it private. It is stored in nodes.yaml, and at log level DEBUG it shows
-up in the bot's log when a master node configures the extension on an agent. After **New key** in DKS, install again (or paste the new
-code): DCSServerBot rewrites `Config\DKS-Telemetry.cfg` from nodes.yaml at every start.
+up in the bot's log when a master node configures the extension on an agent. After **New key** in DKS, install again
+(or paste the new code): DCSServerBot rewrites `Config\DKS-Telemetry.cfg` from nodes.yaml at every start.
 
 ## Uninstall
 Stop the server, then disable the extension with `/extension disable` (DCS keeps the exporter's files in use while
-it runs). Recordings that were not uploaded yet stay in
-`Saved Games\<instance>\DKS\telemetry`.
+it runs). Recordings that were not uploaded yet stay in `Saved Games\<instance>\DKS\telemetry`.

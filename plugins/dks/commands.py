@@ -205,8 +205,7 @@ class DKS(Plugin):
         if not self.get_config(server).get('allow_install', False):
             raise HTTPException(status_code=409, detail=f"Installs from DKS are off for {server_name}. An Admin can "
                                                         f"allow them with /dks install_permission in Discord.")
-        claim_url = urlparse(claim)
-        if claim_url.scheme != 'https' and claim_url.hostname not in ['localhost', '127.0.0.1']:
+        if urlparse(claim).scheme != 'https':
             raise HTTPException(status_code=400, detail="The claim URL must be https")
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(

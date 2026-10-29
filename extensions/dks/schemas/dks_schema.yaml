@@ -23,39 +23,9 @@ schema;dks_schema:
       nullable: false
       desc: Not used. The exporter updates itself (signed releases). Kept so older configurations stay valid.
       example: "false"
-    downloadUrl:
-      type: str
-      nullable: false
-      pattern: '^https://'
-      desc: Where the exporter is downloaded from. Defaults to https://www.digitalkneeboardsimulator.com.
-      example: "https://www.digitalkneeboardsimulator.com"
     key:
       type: str
       nullable: false
       range: {min: 1}
       desc: The install code from your server's page in DKS.
       example: "dks1.eyJka3NVcmwiOi..."
-    dksUrl:
-      type: str
-      nullable: false
-      range: {min: 1}
-      desc: The DKS address. Defaults to https://www.digitalkneeboardsimulator.com.
-      example: "https://www.digitalkneeboardsimulator.com"
-    keyId:
-      type: str
-      nullable: false
-      range: {min: 1}
-      desc: The exporter key id (instead of key, e.g. from Config\DKS-Telemetry.cfg).
-      example: "dkt_0123456789ab"
-    secret:
-      type: str
-      nullable: false
-      range: {min: 1}
-      desc: The exporter secret from your server's page in DKS.
-      example: "..."
-    ownerId:
-      type: str
-      nullable: false
-      range: {min: 1}
-      desc: The server id from your server's page in DKS.
-      example: "..."

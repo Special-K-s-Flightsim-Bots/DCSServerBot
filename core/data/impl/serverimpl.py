@@ -1822,17 +1822,15 @@ class ServerImpl(Server):
             # a loaded extension is enabled with the config it was given (e.g. a key from /extension enable)
             old_config = ext.config
             ext.config = ext.config | config.get('Node', {}) | config.get('Instance', {})
+        enabled = False
         try:
-            if ext and await ext.enable():
-                await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
-                return True
-        except Exception:
-            if old_config is not None:
+            enabled = bool(ext) and await ext.enable()
+        finally:
+            if not enabled and old_config is not None:
                 ext.config = old_config
-            raise
-        if old_config is not None:
-            ext.config = old_config
-        return False
+        if enabled:
+            await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
+        return enabled
 
     @override
     async def disable_extension(self, name: str) -> bool:

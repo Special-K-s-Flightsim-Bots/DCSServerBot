@@ -49,11 +49,8 @@ class DKS(InstallableExtension):
 
     @property
     def identity(self) -> dict[str, str]:
-        """dksUrl, keyId, secret and ownerId: from the install code, else from single settings."""
+        """dksUrl, keyId, secret and ownerId, from the install code."""
         code = (self.config.get('key') or '').strip().strip('"\'')
-        if not code:
-            return {name: self.config[name] for name in ['dksUrl', 'keyId', 'secret', 'ownerId']
-                    if self.config.get(name)}
         if code.startswith('dks1.'):
             data = code[len('dks1.'):]
             try:
@@ -85,12 +82,6 @@ class DKS(InstallableExtension):
     @property
     def dks_url(self) -> str:
         return self.identity.get('dksUrl', DKS_URL).rstrip('/')
-
-    @property
-    def download_url(self) -> str:
-        # Native code only ever comes from DKS over https, never from an address in an install code.
-        url = self.config.get('downloadUrl', DKS_URL)
-        return (url if url.startswith('https://') else DKS_URL).rstrip('/')
 
     @property
     def hook(self) -> str:
@@ -155,7 +146,8 @@ class DKS(InstallableExtension):
         return True
 
     async def download(self):
-        url = f"{self.download_url}{DKS_EXPORTER_PATH}?serverId={self.identity['ownerId']}"
+        # Native code only ever comes from DKS over https, never from an address in an install code.
+        url = f"{DKS_URL}{DKS_EXPORTER_PATH}?serverId={self.identity['ownerId']}"
         async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
                 ssl=ssl.create_default_context(cafile=certifi.where()))) as session:
             async with session.get(url, raise_for_status=True, proxy=self.node.proxy,
