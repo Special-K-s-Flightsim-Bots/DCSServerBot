@@ -119,7 +119,7 @@ DCSServerBot supports a lot of them already, which can add some quality of life.
 |:------------|:---------------------------------------------------------------------------------------|:---------------------------------------------|
 | Cloud       | Cloud registration and statistics uploads                                              | [README](./plugins/cloud/README.md)          |
 | DSMC        | Support for DSMC                                                                       | [README](./extensions/dsmc/README.md)        |
-| DKS         | Support for [Digital Kneeboard Simulator](https://www.digitalkneeboardsimulator.com/)  | [README](./extensions/dks/README.md)         |
+| DKS         | [Digital Kneeboard Simulator](https://www.digitalkneeboardsimulator.com/) exporter     | [README](./extensions/dks/README.md)         |
 | GitHub      | Load & update missions or scripts from GitHub                                          | [README](./extensions/github/README.md)      |
 | gRPC        | DCS-gRPC support                                                                       | [README](./extensions/grpc/README.md)        |
 | HoundTTS    | Hound Text-to-speech support                                                           | [README](./extensions/houndtts/README.md)    |

@@ -482,7 +482,7 @@ class WeatherInjector(Extension):
 | **Cloud**       | `Extension`            | Syncs server status and operational telemetry with DCSServerBot cloud services.             |
 | **LogAnalyser** | `Extension`            | Scans `dcs.log` in real-time for crashes, script errors, and mod warnings.                  |
 | **DSMC**        | `InstallableExtension` | Dynamic Server Mission Campaign state tracking and persistence.                             |
-| **DKS**         | `InstallableExtension` | DKS server utilities and mod management.                                                    |
+| **DKS**         | `InstallableExtension` | Installs the DKS exporter (recordings for DKS); replaces Tacview.                           |
 | **HoundTTS**    | `InstallableExtension` | ATIS / automated voice radio broadcast integration.                                         |
 | **Lardoon**     | `InstallableExtension` | Tactical data capture and SQLite telemetry recording.                                       |
 | **SkyEye**      | `InstallableExtension` | Automated AWACS / GCI bot integration.                                                      |
