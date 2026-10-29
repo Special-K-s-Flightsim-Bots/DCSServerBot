@@ -7,6 +7,28 @@ schema;dks_schema:
       nullable: false
       desc: Whether the DKS exporter is installed on this instance.
       example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: The name shown for the extension.
+      example: "DKS"
+    hidden:
+      type: bool
+      nullable: false
+      desc: Hide the extension in the server status.
+      example: "false"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Not used. The exporter updates itself (signed releases). Kept so older configurations stay valid.
+      example: "false"
+    downloadUrl:
+      type: str
+      nullable: false
+      pattern: '^https://'
+      desc: Where the exporter is downloaded from. Defaults to https://www.digitalkneeboardsimulator.com.
+      example: "https://www.digitalkneeboardsimulator.com"
     key:
       type: str
       nullable: false

@@ -1,20 +1,28 @@
 # Extension "DKS"
 [Digital Kneeboard Simulator](https://www.digitalkneeboardsimulator.com/) (DKS) is a planning and debrief suite for
 DCS squadrons. This extension installs the DKS exporter on your instance. The exporter records your missions for DKS
-(3D debriefs, LSO grades, live ATC/GCI views) and **replaces Tacview**: it serves Tacview real-time telemetry and can
-write Tacview files itself.
+(3D debriefs, LSO grades, live ATC/GCI views) and **replaces Tacview**: once it is installed, DCSServerBot disables the
+Tacview extension for that instance and turns Tacview off in its options. The exporter takes over what Tacview did
+there:
+- Tacview real-time telemetry, on Tacview's port and with its password (the firewall rule moves to this extension),
+- Tacview files (.acmi), in Tacview's export folder.
 
-> [!IMPORTANT]
-> Disable the [Tacview](../tacview/README.md) extension on the instance first. DKS refuses to run next to it.
-> If Tacview is installed outside DCSServerBot, DKS turns it off in the instance's options.
+> [!WARNING]
+> What the Tacview extension did on its own is gone for that instance: uploading Tacview files to a channel or folder
+> (`target`), `/tacview` commands, and the tournament plugin's Tacview handling. Tacview's files stay installed, so you
+> can switch back by disabling DKS and enabling Tacview.
+
+> [!NOTE]
+> Earlier versions of this extension installed the DKS weather exporter into Tacview. It is removed (Tacview's own
+> tacview.dll is put back), whether or not you install the new exporter. To install it, get an install code (below).
 
 ## Configuration
 There are three ways. All of them need the server's install code from DKS: open your server's page in DKS
 (Settings → Servers), and press **DCSServerBot** next to the exporter.
 
-1. **From DKS, in one click.** If your bot is linked to DKS (plugin [DKS](../../plugins/dks/README.md)) and the
-   server is linked to your bot's server, press **Install**. DKS asks your bot to install the exporter, and the bot
-   turns the Tacview extension off for that instance.
+1. **From DKS, in one click.** If your bot is linked to DKS (plugin [DKS](../../plugins/dks/README.md)), the
+   server is linked to your bot's server, and an Admin allowed it with `/dks install_permission`, press **Install**.
+   DKS asks your bot to install the exporter.
 2. **In Discord.** Run `/extension enable`, pick your server and `DKS`, and paste the install code.
 3. **In nodes.yaml:**
    ```yaml
@@ -28,16 +36,17 @@ There are three ways. All of them need the server's install code from DKS: open 
              enabled: true
              key: "dks1...."   # the install code
    ```
-   Instead of `key`, you can also give `keyId`, `secret`, `ownerId` (and `dksUrl`) one by one, e.g. from
-   `Config\DKS-Telemetry.cfg` in the exporter ZIP you can download from that page.
+   Without `key`, you can also give `keyId`, `secret`, `ownerId` (and `dksUrl`) one by one, e.g. from
+   `Config\DKS-Telemetry.cfg` in the exporter ZIP you can download from that page. With `key`, they are ignored.
 
-The exporter starts with the next server start. DCSServerBot downloads it from DKS once, and from then on the exporter
-updates itself. It only installs versions signed with DKS's release key, so `autoupdate` doesn't apply.
+The exporter starts with the next server start. DCSServerBot downloads it once, from DKS over https only, and from
+then on the exporter updates itself. It only installs versions signed with DKS's release key, so `autoupdate` doesn't
+apply.
 
-The exporter's other settings (Tacview real-time telemetry port and password, Tacview files, live overlay) are set on
-the same page in DKS. If you enable real-time telemetry there, open its port in your firewall.
+Settings set on the server's page in DKS ("Set in DKS") win over the ones carried over from Tacview.
 
-The install code holds the server's key. Keep it private. If it leaks, press **New key** in DKS and install again.
+The install code holds the server's key. Keep it private. After **New key** in DKS, install again (or paste the new
+code): DCSServerBot rewrites `Config\DKS-Telemetry.cfg` from nodes.yaml at every start.
 
 ## Uninstall
 Disable the extension with `/extension disable`. Recordings that were not uploaded yet stay in

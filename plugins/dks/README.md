@@ -48,9 +48,19 @@ The register_dks endpoint has to be reachable at this URL.
 > You can re-run the registration as often as you want, if something goes wrong.
 
 ## Installing the DKS exporter from DKS
-Once your bot is linked, DKS can install its exporter on one of your servers (extension
-[DKS](../../extensions/dks/README.md)): press **Install** on the server's page in DKS. DKS calls
-`install_dks_exporter`, next to `register_dks`, signed like every DKS call. Its parameters are claims of the
-signed token (the server, a single-use code and where to redeem it), so they can't be changed on the way. The bot redeems that code at DKS over HTTPS for the server's install code, so the exporter key never travels
-through your bot's API. The bot then enables the DKS extension for that server, turns the Tacview extension off, and
-the exporter starts with the next server start.
+Once your bot is linked, DKS can install its exporter on your servers (extension
+[DKS](../../extensions/dks/README.md)), but only on servers an Admin allowed it for:
+```
+/dks install_permission server:<server> allow:True
+```
+This writes `allow_install: true` for that instance into `config/plugins/dks.yaml`. Then press **Install** on the
+server's page in DKS. DKS calls `install_dks_exporter`, next to `register_dks`, signed like every DKS call. Its
+parameters are claims of the signed token (the server, a single-use code and where to redeem it), so they can't be
+changed on the way. The bot redeems the code at DKS over HTTPS for the server's install code, then enables the DKS
+extension for that server, which disables the Tacview extension. The exporter starts with the next server start.
+
+> [!WARNING]
+> If your WebService is plain http, someone who can read its traffic can read the single-use code and redeem it
+> before your bot does, which gives them the server's exporter key (not access to your bot or your server). If that
+> matters to you, put TLS in front of the WebService, or use the install code in `/extension enable` instead. If an
+> install fails for no reason you can see, press **New key** in DKS.

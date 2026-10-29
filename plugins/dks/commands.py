@@ -10,7 +10,7 @@ import ssl
 from asyncio import Task
 from contextlib import suppress
 from core import (Plugin, Group, PluginRequiredError, utils, get_translation, ServiceRegistry, PluginInstallationError,
-                  ServiceProxy, DEFAULT_TAG)
+                  ServiceProxy, DEFAULT_TAG, Server)
 from discord import app_commands
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from pathlib import Path
@@ -29,8 +29,6 @@ from core.utils.yaml_helper import new_yaml
 _ = get_translation(__name__.split('.')[1])
 DKS_URL = "https://www.digitalkneeboardsimulator.com/api/register/dcssb?otp={otp}&connection_string={callback_url}"
 DKS_JWKS_URL = "https://www.digitalkneeboardsimulator.com/api/pubkey"
-
-
 
 
 class DKS(Plugin):
@@ -188,8 +186,9 @@ class DKS(Plugin):
         return restapi.get_config().get('auth', {}).get('jwt', {}).get('key') if restapi else None
 
     async def install_dks_exporter(self, request: Request):
-        """DKS asks to install its exporter. The install code is fetched from DKS over HTTPS with a single-use claim,
-        so it never travels through this API. The parameters are claims of DKS's signed token, never an unsigned body."""
+        """DKS asks to install its exporter. The install code is fetched from DKS over HTTPS with a single-use claim.
+        The parameters are claims of DKS's signed token, never an unsigned body. Only for servers an Admin allowed it
+        on (/dks install_permission)."""
         payload = request.state.jwt_payload
         server_name, claim, code = payload.get('server'), payload.get('claimUrl'), payload.get('code')
         if not all(isinstance(x, str) and x for x in [server_name, claim, code]):
@@ -197,6 +196,9 @@ class DKS(Plugin):
         server = self.bot.servers.get(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server {server_name} not found")
+        if not self.get_config(server).get('allow_install', False):
+            raise HTTPException(status_code=409, detail=f"Installs from DKS are off for {server_name}. An Admin can "
+                                                        f"allow them with /dks install_permission in Discord.")
         claim_url = urlparse(claim)
         if claim_url.scheme != 'https' and claim_url.hostname not in ['localhost', '127.0.0.1']:
             raise HTTPException(status_code=400, detail="The claim URL must be https")
@@ -210,18 +212,21 @@ class DKS(Plugin):
             self.log.error(f"DKS: Couldn't fetch the install code: {ex}")
             raise HTTPException(status_code=502, detail="The bot couldn't fetch the install code from DKS")
 
-        # The DKS exporter replaces Tacview. Changing the config only keeps Tacview's files while DCS runs.
-        tacview_disabled = 'Tacview' in await server.list_extensions(active=True)
-        if tacview_disabled:
-            await server.config_extension('Tacview', {"Instance": {"enabled": False}})
+        # The extension downloads the exporter, then disables the Tacview extension (DKS replaces it).
+        tacview_before = 'Tacview' in await server.list_extensions(active=True)
         await server.config_extension('DKS', {"Instance": {"enabled": True, "key": install_code}})
-        if not await server.enable_extension('DKS'):
+        try:
+            installed = await server.enable_extension('DKS')
+        except Exception as ex:
+            self.log.exception(ex)
+            installed = False
+        if not installed:
+            await server.config_extension('DKS', {"Instance": {"enabled": False}})
             raise HTTPException(status_code=500, detail="Installing the DKS exporter failed, see the bot's log")
-        ext = server.extensions.get('DKS')
+        tacview_after = 'Tacview' in await server.list_extensions(active=True)
         await self.bot.audit(f"DKS exporter installed on server {server.display_name} from DKS.")
         return {
-            "tacviewDisabled": tacview_disabled,
-            "version": ext.version if ext else None
+            "tacviewDisabled": tacview_before and not tacview_after
         }
 
     dks = Group(name="dks", description=_("Commands to manage Digital Kneeboard Simulator"))
@@ -263,6 +268,32 @@ class DKS(Plugin):
         embed.set_thumbnail(url="https://www.digitalkneeboardsimulator.com/logo.png")
         view = RegisterView(url=url)
         self.msg = await interaction.followup.send(embed=embed, view=view)
+
+
+    @dks.command(name="install_permission", description=_("Allow DKS to install its exporter on a server"))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    async def install_permission(self, interaction: discord.Interaction,
+                                 server: app_commands.Transform[Server, utils.ServerTransformer], allow: bool):
+        config = os.path.join(self.node.config_dir, 'plugins', 'dks.yaml')
+        if os.path.exists(config):
+            data = new_yaml().load(Path(config).read_text(encoding='utf-8')) or {}
+        else:
+            data = {}
+        data.setdefault(server.instance.name, {})['allow_install'] = allow
+        tmp = Path(config).with_suffix('.yaml.tmp')
+        with tmp.open('w', encoding='utf-8') as f:
+            new_yaml().dump(data, f)
+        os.replace(tmp, config)
+        self.locals = self.read_locals()
+        self._config.clear()
+        if allow:
+            await interaction.response.send_message(
+                _("DKS can now install its exporter on {}, replacing Tacview.").format(server.display_name),
+                ephemeral=True)
+        else:
+            await interaction.response.send_message(
+                _("DKS can no longer install its exporter on {}.").format(server.display_name), ephemeral=True)
 
 
 async def setup(bot: DCSServerBot):
