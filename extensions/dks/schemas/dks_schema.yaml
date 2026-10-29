@@ -1,0 +1,31 @@
+schema;dks_schema:
+  type: map
+  nullable: false
+  mapping:
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the DKS exporter is installed on this instance.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: The name shown for the extension.
+      example: "DKS"
+    hidden:
+      type: bool
+      nullable: false
+      desc: Hide the extension in the server status.
+      example: "false"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Not used. The exporter updates itself (signed releases). Kept so older configurations stay valid.
+      example: "false"
+    key:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: The install code from your server's page in DKS.
+      example: "dks1.eyJka3NVcmwiOi..."
