@@ -424,14 +424,16 @@ SERVICE_TOGGLE_UNKNOWN = i18n._("No such service.")
 def declare() -> None:
     """Declare the Settings capabilities and the Scheduler's own three.
 
-    Idempotent for the same roles. The Settings pair stays ``Admin`` only with no scope grant; the
-    Scheduler pair is per server (the server is checked separately) and only its READ carries the
-    manager grant, so a manager can look at their own schedule and never write it.
+    Idempotent for the same roles. The Settings pair stays ``Admin`` only with no scope grant. The
+    Scheduler pair is per server (the server is checked separately) and BOTH halves carry the manager
+    grant: a customer whose scope holds a server's ``managed_by`` decides when that server runs — the
+    write is the whole point of owning it. The installation-wide door stays with the Admin, which is
+    what the expert write and the shared ``DEFAULT`` section both need.
     """
     permissions.declare_capability(SETTINGS_VIEW_CAPABILITY, SETTINGS_ROLES)
     permissions.declare_capability(SETTINGS_WRITE_CAPABILITY, SETTINGS_ROLES)
     permissions.declare_capability(SCHEDULER_VIEW_CAPABILITY, SCHEDULER_ROLES, scope_grants=True)
-    permissions.declare_capability(SCHEDULER_WRITE_CAPABILITY, SCHEDULER_ROLES)
+    permissions.declare_capability(SCHEDULER_WRITE_CAPABILITY, SCHEDULER_ROLES, scope_grants=True)
     permissions.declare_capability(SCHEDULER_EXPERT_CAPABILITY, ("Admin",))
 
 
@@ -449,6 +451,10 @@ class SchedulerAccess:
     view: bool
     write: bool
     expert: bool
+    #: whether this identity may edit the file's shared ``DEFAULT`` block. The SAME audience as
+    #: ``expert`` — both are installation-wide writes, not one server's — so the two are computed
+    #: from one capability and can never drift apart.
+    shared: bool = False
 
 
 def scheduler_access(request: Request, server=None) -> SchedulerAccess:
@@ -468,10 +474,15 @@ def scheduler_access(request: Request, server=None) -> SchedulerAccess:
     manager = permissions.manages_console(request)
     in_scope = server is None or identity_scope.server_in_scope(
         permissions.scope_for(request), server)
+    # one answer for the two INSTALLATION-WIDE writes: Expert Mode replaces a block, the shared
+    # default replaces the block every server inherits from, and both are the Admin's alone
+    installation_wide = in_scope and permissions.allows(SCHEDULER_EXPERT_CAPABILITY, roles,
+                                                        manager=manager)
     return SchedulerAccess(
         view=in_scope and permissions.allows(SCHEDULER_VIEW_CAPABILITY, roles, manager=manager),
         write=in_scope and permissions.allows(SCHEDULER_WRITE_CAPABILITY, roles, manager=manager),
-        expert=in_scope and permissions.allows(SCHEDULER_EXPERT_CAPABILITY, roles, manager=manager),
+        expert=installation_wide,
+        shared=installation_wide,
     )
 
 
@@ -558,6 +569,10 @@ SCHEDULER_SCOPE_UNKNOWN = i18n._(
     "That name is not a server this console can edit, so nothing was written.")
 SCHEDULER_SCOPE_NODE = i18n._(
     "That name is a node, not a server, so nothing was written.")
+#: the shared section's refusal: ``DEFAULT`` is every server's starting point, so the write is the
+#: Admin's and a crafted flag from any other writer writes nothing.
+SCHEDULER_SHARED_REFUSED = i18n._("Only an Admin can change the shared default, because it applies to "
+                                  "every server. Nothing was written.")
 SCHEDULER_EXPERT_REFUSED = i18n._(
     "Expert Mode is available to an Admin only, so nothing was written. Use the plan's steps "
     "instead.")
@@ -699,7 +714,7 @@ def scheduler_posted_scope(form, request: Request):
 
 
 def scheduler_candidate(entry: GlobalFile, scope: SchedulerScope, plan: dict | None = None, *,
-                        block=None):
+                        block=None, shared: bool = False):
     """The document a save would produce, built IN MEMORY — never re-read after the mutation.
 
     *block* is the Expert Mode block when the post states one: it REPLACES the server's block, so the
@@ -713,10 +728,17 @@ def scheduler_candidate(entry: GlobalFile, scope: SchedulerScope, plan: dict | N
     if document is None:
         document = configgen.read_document(entry.path)
     scheduler_plan.require_mapping(document, entry.display)
+    # A SHARED post writes the file's ``DEFAULT`` block instead of the server's: nothing is
+    # inherited above it, so its override is computed against nothing rather than against itself.
+    key = scheduler_plan.SHARED_KEY if shared else scope.key
     if block is not None:
-        scheduler_plan.apply_block(document, scope.key, block)
+        scheduler_plan.apply_block(document, key, block)
+    elif shared:
+        scheduler_plan.apply_override(
+            document, key,
+            scheduler_plan.minimal_override({}, scheduler_plan.block_at(document, key), plan or {}))
     else:
-        scheduler_plan.apply_override(document, scope.key,
+        scheduler_plan.apply_override(document, key,
                                       scheduler_override(document, scope, plan or {}))
     return document
 
@@ -2461,6 +2483,13 @@ def add_routes(router: APIRouter) -> APIRouter:
             return RedirectResponse(SCHEDULER_FALLBACK_URL, status_code=303)
         redirect_to = scheduler_redirect(scope)
         revision = readmodels.text(form.get(SETTINGS_REVISION_FIELD)) or None
+        # THE SHARED TARGET: the same steps, writing the file's ``DEFAULT`` block. The scope the guard
+        # resolved stays the PAGE's server (that is where a save returns and whose values seeded the
+        # wizard); only the block being written moves.
+        shared = scheduler_plan.shared_target(form.multi_items())
+        if shared and not scheduler_access(request, scope.server).shared:
+            _notice(request, SCHEDULER_SHARED_REFUSED, ok=False, refusal=True)
+            return RedirectResponse(redirect_to, status_code=303)
         expert = scheduler_expert_answer(form)
         if expert is not None and not scheduler_access(request, scope.server).expert:
             # THE EXPERT DOOR IS ADMIN-ONLY, checked on the resolved server before anything is
@@ -2481,9 +2510,15 @@ def add_routes(router: APIRouter) -> APIRouter:
             plan = scheduler_plan.plan_from_form(form.multi_items())
 
         def mutate(document):
+            key = scheduler_plan.SHARED_KEY if shared else scope.key
             if expert is not None:
-                scheduler_plan.apply_block(document, scope.key, expert["block"],
-                                           name=entry.display)
+                scheduler_plan.apply_block(document, key, expert["block"], name=entry.display)
+                return
+            if shared:
+                scheduler_plan.apply_override(
+                    document, key,
+                    scheduler_plan.minimal_override({}, scheduler_plan.block_at(document, key), plan),
+                    name=entry.display)
                 return
             scheduler_plan.apply_override(document, scope.key,
                                           scheduler_override(document, scope, plan),
@@ -2539,6 +2574,10 @@ def add_routes(router: APIRouter) -> APIRouter:
         except SchedulerRefusal as refusal:
             return JSONResponse(_verdict(ok=False, kind="scope",
                                          message=i18n.translate(request, refusal.message)))
+        shared = scheduler_plan.shared_target(form.multi_items())
+        if shared and not scheduler_access(request, scope.server).shared:
+            return JSONResponse(_verdict(ok=False, kind="scope",
+                                         message=i18n.translate(request, SCHEDULER_SHARED_REFUSED)))
         expert = scheduler_validate_block(form)
         if expert is not None and not scheduler_access(request, scope.server).expert:
             return JSONResponse(_verdict(ok=False, kind="scope",
@@ -2557,7 +2596,7 @@ def add_routes(router: APIRouter) -> APIRouter:
                                              message=i18n.translate(request, refusal)))
             plan = scheduler_plan.plan_from_form(form.multi_items())
         try:
-            document = scheduler_candidate(entry, scope, plan,
+            document = scheduler_candidate(entry, scope, plan, shared=shared,
                                            block=expert["block"] if expert is not None else None)
         except configwrite.ConfigWriteError as ex:
             return JSONResponse(_verdict(ok=False, kind="schema", message=str(ex)))

@@ -7703,8 +7703,8 @@ msgid "Only when a coalition wins"
 msgstr "仅在某一方获胜时"
 
 #: services/webservice/templates/scheduler_body.html:155
-msgid "Run the extensions first"
-msgstr "先运行扩展"
+msgid "Apply the extensions first"
+msgstr "先应用扩展"
 
 #: services/webservice/templates/scheduler_body.html:156
 msgid "Use the original mission file"
@@ -8355,3 +8355,47 @@ msgstr "已重新加载 %(plugin)s 插件，更改已生效。"
 #: services/webservice/config_apply.py
 msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
 msgstr "无法重新加载 %(plugin)s 插件——文件已包含更改，但正在运行的机器人没有。请重启机器人以应用更改。"
+
+#: services/webservice/scheduler_plan.py
+msgid "Stop the DCS server process"
+msgstr "停止 DCS 服务器进程"
+
+#: services/webservice/scheduler_plan.py
+msgid "The server process is stopped and started again, so the mission loads fresh. The machine itself stays on."
+msgstr "服务器进程会被停止并重新启动，任务因此重新加载。机器本身保持开机。"
+
+#: services/webservice/scheduler_plan.py
+msgid "Shared default — applies to every server"
+msgstr "共享默认值 — 适用于所有服务器"
+
+#: services/webservice/scheduler_plan.py
+msgid "You are editing the DEFAULT section: every server that does not set its own value follows it, and only an Admin can change it. Switching section discards values you have not saved."
+msgstr "你正在编辑 DEFAULT 段：所有未设置自己数值的服务器都会遵循它，且只有 Admin 可以修改。切换段会丢弃未保存的数值。"
+
+#: services/webservice/scheduler_plan.py
+msgid "Edit this server's own block instead"
+msgstr "改为编辑此服务器自己的配置块"
+
+#: services/webservice/pages/settings.py
+msgid "Only an Admin can change the shared default, because it applies to every server. Nothing was written."
+msgstr "只有 Admin 可以修改共享默认值，因为它适用于所有服务器。未写入任何内容。"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This saves to DEFAULT: every server that does not set its own value gets this. This server's own block, every other server's block, the comments and the key order of the file stay as they are."
+msgstr "此项写入 DEFAULT：所有未设置自己数值的服务器都会得到它。此服务器的配置块、其他服务器的配置块、注释以及文件的键顺序都保持不变。"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "every server without a value of its own follows it"
+msgstr "所有未设置自己数值的服务器都会遵循它"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "set"
+msgstr "已设置"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "none set"
+msgstr "未设置"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This saves to DEFAULT: every server that does not set its own value gets this."
+msgstr "此项写入 DEFAULT：所有未设置自己数值的服务器都会得到它。"

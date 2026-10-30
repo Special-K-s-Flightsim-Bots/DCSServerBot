@@ -8679,8 +8679,8 @@ msgid "Only when a coalition wins"
 msgstr "Nur wenn eine Koalition gewinnt"
 
 #: services/webservice/templates/scheduler_body.html:155
-msgid "Run the extensions first"
-msgstr "Zuerst die Extensions ausführen"
+msgid "Apply the extensions first"
+msgstr "Erweiterungen zuerst anwenden"
 
 #: services/webservice/templates/scheduler_body.html:156
 msgid "Use the original mission file"
@@ -9368,3 +9368,47 @@ msgstr "Das %(plugin)s-Plugin wurde neu geladen, die Änderung ist aktiv."
 #: services/webservice/config_apply.py
 msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
 msgstr "Das %(plugin)s-Plugin konnte NICHT neu geladen werden — die Datei enthält die Änderung, der laufende Bot nicht. Starte den Bot neu, um sie anzuwenden."
+
+#: services/webservice/scheduler_plan.py
+msgid "Stop the DCS server process"
+msgstr "DCS-Server-Prozess beenden"
+
+#: services/webservice/scheduler_plan.py
+msgid "The server process is stopped and started again, so the mission loads fresh. The machine itself stays on."
+msgstr "Der Serverprozess wird beendet und neu gestartet, damit die Mission frisch lädt. Der Rechner selbst bleibt an."
+
+#: services/webservice/scheduler_plan.py
+msgid "Shared default — applies to every server"
+msgstr "Gemeinsamer Standard — gilt für alle Server"
+
+#: services/webservice/scheduler_plan.py
+msgid "You are editing the DEFAULT section: every server that does not set its own value follows it, and only an Admin can change it. Switching section discards values you have not saved."
+msgstr "Du bearbeitest den DEFAULT-Abschnitt: jeder Server ohne eigenen Wert folgt ihm, und nur ein Admin kann ihn ändern. Ein Wechsel des Abschnitts verwirft nicht gespeicherte Werte."
+
+#: services/webservice/scheduler_plan.py
+msgid "Edit this server's own block instead"
+msgstr "Stattdessen den eigenen Block dieses Servers bearbeiten"
+
+#: services/webservice/pages/settings.py
+msgid "Only an Admin can change the shared default, because it applies to every server. Nothing was written."
+msgstr "Nur ein Admin kann den gemeinsamen Standard ändern, weil er für alle Server gilt. Es wurde nichts geschrieben."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This saves to DEFAULT: every server that does not set its own value gets this. This server's own block, every other server's block, the comments and the key order of the file stay as they are."
+msgstr "Dies speichert in DEFAULT: jeder Server ohne eigenen Wert bekommt das. Der eigene Block dieses Servers, die Blöcke aller anderen Server, die Kommentare und die Schlüsselreihenfolge der Datei bleiben unverändert."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "every server without a value of its own follows it"
+msgstr "jeder Server ohne eigenen Wert folgt ihm"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "set"
+msgstr "gesetzt"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "none set"
+msgstr "nichts gesetzt"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This saves to DEFAULT: every server that does not set its own value gets this."
+msgstr "Dies speichert in DEFAULT: jeder Server ohne eigenen Wert bekommt das."

@@ -232,7 +232,18 @@
         {% trans %}step{% endtrans %} {{ scheduler_steps | length }} {% trans %}of{% endtrans %} {{ scheduler_steps | length }}</span></div>
     <div class="t1" style="margin-top:6px"><h1>{% trans %}Review, then save{% endtrans %}</h1>
       <span class="st-kind">{% trans %}wizard{% endtrans %}</span></div>
-    <div class="st-lead" style="margin-top:4px">{% trans %}This is the block that will be written, and only this block: DEFAULT, every other server's block, the comments and the key order of the file stay as they are.{% endtrans %}</div>
+    {#- THE SHARED SAVE says which section it writes, and what that means, BEFORE the block: the
+        same press that fills a server's block would otherwise fill every server's. -#}
+    {% if scheduler_shared %}
+    <div class="sw-shared-alert" role="status">
+      <span class="ico" aria-hidden="true">!</span>
+      <div>
+        <div class="t">{{ _(wizard.shared_label) }}</div>
+        <div class="s">{% trans %}This saves to DEFAULT: every server that does not set its own value gets this.{% endtrans %}</div>
+      </div>
+    </div>
+    {% endif %}
+    <div class="st-lead" style="margin-top:4px">{% if scheduler_shared %}{% trans %}This saves to DEFAULT: every server that does not set its own value gets this. This server's own block, every other server's block, the comments and the key order of the file stay as they are.{% endtrans %}{% else %}{% trans %}This is the block that will be written, and only this block: DEFAULT, every other server's block, the comments and the key order of the file stay as they are.{% endtrans %}{% endif %}</div>
   </div>
 </div>
 
@@ -243,8 +254,11 @@
 </div>
 
 <div class="st-bar">
-  <div class="where">{% trans %}Editing{% endtrans %} <b>{{ server_name }}</b> &middot; {% trans %}its own block only — a value you leave alone stays inherited{% endtrans %}</div>
+  <div class="where">{% if scheduler_shared %}{% trans %}Editing{% endtrans %} <b>DEFAULT</b> &middot; {% trans %}every server without a value of its own follows it{% endtrans %}{% else %}{% trans %}Editing{% endtrans %} <b>{{ server_name }}</b> &middot; {% trans %}its own block only — a value you leave alone stays inherited{% endtrans %}{% endif %}</div>
   <div class="acts">
+    {% if scheduler_shared %}
+    <a class="st-btn warn" href="{{ scheduler_shared_back_url }}">{{ _(wizard.shared_back) }}</a>
+    {% endif %}
     <a class="st-btn" href="{{ scheduler_cancel_url }}">{% trans %}Cancel{% endtrans %}</a>
   </div>
 </div>
@@ -253,6 +267,7 @@
   <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
   <input type="hidden" name="{{ scheduler_scope_field }}" value="{{ scheduler_scope_name }}">
   <input type="hidden" name="{{ scheduler_revision_field }}" value="{{ scheduler_revision }}">
+  {% if scheduler_shared %}<input type="hidden" name="{{ scheduler_shared_field }}" value="1">{% endif %}
   {% for field in wizard.carried %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% endfor %}
   {% for marker in wizard.markers %}<input type="hidden" name="{{ marker.name }}" value="{{ marker.value }}">{% endfor %}
 
@@ -389,13 +404,42 @@
   </div>
 
   <div class="st-bar">
-    <div class="where">{% trans %}Editing{% endtrans %} <b>{{ server_name }}</b> &middot; {% trans %}its own block only — a value you leave alone stays inherited{% endtrans %}</div>
+    <div class="where">{% if scheduler_shared %}{% trans %}Editing{% endtrans %} <b>DEFAULT</b> &middot; {% trans %}every server without a value of its own follows it{% endtrans %}{% else %}{% trans %}Editing{% endtrans %} <b>{{ server_name }}</b> &middot; {% trans %}its own block only — a value you leave alone stays inherited{% endtrans %}{% endif %}</div>
     <div class="acts">
+      {#- THE SHARED SWITCH: one press moves the whole step from this server's block to the file's
+          DEFAULT block, or back. It is a SUBMIT, not a checkbox, because the two sections state
+          different values: switching re-seeds the plan from the section being entered, and a
+          checkbox would have carried the other section's numbers across. -#}
+      {#- the way IN is this bar; the way BACK is the alert the shared state raises, so the two never
+          stand side by side saying opposite things -#}
+      {% if wizard.shared_drawn and not scheduler_shared %}
+      <button type="submit" class="st-btn" name="{{ scheduler_shared_toggle_field }}" value="{{ wizard.shared_on }}">{{ _(wizard.shared_label) }}</button>
+      {% endif %}
       <a class="st-btn" href="{{ scheduler_cancel_url }}">{% trans %}Back to the plan{% endtrans %}</a>
       {% if index > 0 %}<button type="submit" class="st-btn" name="step" value="{{ scheduler_steps[index - 1] }}">{% trans %}Back{% endtrans %}</button>{% endif %}
       {% if index + 1 < scheduler_steps | length %}<button type="submit" class="st-btn pri" name="step" value="{{ scheduler_steps[index + 1] }}">{% trans %}Next{% endtrans %} &rsaquo;</button>{% endif %}
     </div>
   </div>
+
+  {% if scheduler_shared %}
+  {#- THE SHARED STATE, STATED LOUDLY. Editing DEFAULT is the one press here that moves servers the
+      operator is not looking at, so it gets its own alert block — a colour, a thick edge and the
+      sentence that says what happens — instead of a line of grey hint text. -#}
+  <div class="sw-shared-alert" role="status">
+    <span class="ico" aria-hidden="true">!</span>
+    <div>
+      <div class="t">{{ _(wizard.shared_label) }}</div>
+      <div class="s">{{ _(wizard.shared_hint) }}</div>
+    </div>
+    {#- the way back is drawn on EVERY step once the state is on, including step 2: its values are
+        written into DEFAULT by the same save, so an operator there is in the state too and must be
+        able to leave it -#}
+    <button type="submit" class="st-btn warn" name="{{ scheduler_shared_toggle_field }}" value="{{ wizard.shared_off }}">{{ _(wizard.shared_back) }}</button>
+  </div>
+  <input type="hidden" name="{{ scheduler_shared_field }}" value="1">
+  {% elif wizard.shared_drawn %}
+  <p class="hp">{{ _(wizard.shared_hint) }}</p>
+  {% endif %}
 
   <div class="sw-wiz">
     <div class="sw-stepcard">
@@ -720,11 +764,13 @@
           <div class="sw-field sw-checks">
             <label><input type="checkbox" name="action.{{ a.index }}.mission_end" value="true"{% if a.entry.get('mission_end') %} checked{% endif %}> {% trans %}Only when the mission ends{% endtrans %}</label>
             <label><input type="checkbox" name="action.{{ a.index }}.coalition_win" value="true"{% if a.entry.get('coalition_win') %} checked{% endif %}> {% trans %}Only when a coalition wins{% endtrans %}</label>
-            {#- ``shutdown`` is not offered: it means "stop the DCS server process first", not "power
-                the machine off". The key rides in ``a.extra`` as a hidden input, so a file that
-                carries it keeps it byte-identically through every save. -#}
+            {% if 'shutdown' in a.controls %}
+            {#- the DCS server PROCESS, not the machine: the flag belongs to a restart and a rotation,
+                the only two methods that load a mission in the same server process -#}
+            <label><input type="checkbox" name="action.{{ a.index }}.shutdown" value="true"{% if a.entry.get('shutdown') %} checked{% endif %}> {{ _(wizard.action_shutdown_label) }}</label>
+            {% endif %}
             {% if 'extras' in a.controls %}
-            <label><input type="checkbox" name="action.{{ a.index }}.run_extensions" value="true"{% if a.entry.get('run_extensions') %} checked{% endif %}> {% trans %}Run the extensions first{% endtrans %}</label>
+            <label><input type="checkbox" name="action.{{ a.index }}.run_extensions" value="true"{% if a.entry.get('run_extensions') %} checked{% endif %}> {% trans %}Apply the extensions first{% endtrans %}</label>
             <label><input type="checkbox" name="action.{{ a.index }}.use_orig" value="true"{% if a.entry.get('use_orig') %} checked{% endif %}> {% trans %}Use the original mission file{% endtrans %}</label>
             {% endif %}
             {% if 'load_only' in a.controls %}
@@ -745,6 +791,7 @@
           {% endif %}
           {#- the SAME preset pick step 2 draws, over this entry's own keys: the pick writes
               ``settings`` and ``presets`` rides in ``a.extra`` unchanged -#}
+          {% if 'shutdown' in a.controls %}<p class="hp">{{ _(wizard.action_shutdown_hint) }}</p>{% endif %}
           {% if 'presets' in a.controls %}{{ presets_field('action.' ~ a.index, a.picks, '-' ~ a.index) }}{% endif %}
           <div class="sw-field sw-entryops">
             {% set remove_word %}{% trans number=a.number %}Remove entry {{ number }}{% endtrans %}{% endset %}
@@ -762,9 +809,15 @@
       {#- THE FOUR EVENT COMMANDS, last on this step: they are the keys an entry's events run, and
           they ride hidden on every other step, so this is the only place they are edited. ONLY the
           mission start takes a delay; a value the file states on another event rides hidden and is
-          never pruned. -#}
-      <div class="card">
-        <div class="hd"><h3>{% trans %}Commands on events{% endtrans %}</h3></div>
+          never pruned. FOLDED AWAY by default: a bot command is expert material, and a hoster or a
+          customer opening this step to move a restart should not have four command fields in the
+          way. ``<details>`` keeps every field inside the form, so the values post whether the fold
+          was opened or not — the fold is presentation, never a gate. -#}
+      {% set stated_commands = wizard.commands | selectattr('command') | list | length %}
+      <details class="card sw-fold">
+        <summary class="hd"><h3>{% trans %}Commands on events{% endtrans %}
+          {% if stated_commands %}<span class="tag">{{ stated_commands }} {% trans %}set{% endtrans %}</span>
+          {% else %}<span class="tag a">{% trans %}none set{% endtrans %}</span>{% endif %}</h3></summary>
         <div class="bd">
           <p class="hp">{% trans %}Each command runs when that event happens, in the bot's own vocabulary: load:, lua:, call: or run:. Only the mission start takes a delay, in seconds, before its command runs.{% endtrans %}</p>
           {% for row in wizard.commands %}
@@ -782,7 +835,7 @@
           </div>
           {% endfor %}
         </div>
-      </div>
+      </details>
       {#- progressive enhancement, nothing more: choosing a trigger or a method submits the step's own
           GET form, so that choice's control is drawn at once. Without the script the radio/select
           posts on the next Next/Back, and the server still draws only the chosen control. The

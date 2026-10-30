@@ -54,7 +54,9 @@ __all__ = [
     "ACTION_TIME_FIELD", "ACTION_TIME_ADD_FIELD", "ACTION_TIME_REMOVE_FIELD",
     "ACTION_METHODS", "ACTION_METHOD_KEYS", "ACTION_METHOD_DROP", "ACTION_METHOD_CONTROLS",
     "ACTION_METHOD_LEAD", "ACTION_PICK_FIELD", "ACTION_PICK_LEAD",
-    "ACTION_PASSWORD_LABEL", "ACTION_PASSWORD_HINT",
+    "ACTION_PASSWORD_LABEL", "ACTION_PASSWORD_HINT", "ACTION_SHUTDOWN_LABEL", "ACTION_SHUTDOWN_HINT",
+    "SHARED_FIELD", "SHARED_TOGGLE_FIELD", "SHARED_ON", "SHARED_OFF", "SHARED_KEY", "SHARED_STEPS",
+    "SHARED_LABEL", "SHARED_HINT", "SHARED_BACK", "shared_target",
     "entry_trigger", "entry_legacy", "entry_pick", "posted_time_rows",
     # step 4's own language: the ladder rows, its row ops, the placeholder chips and the preview
     "WARN_TIME", "WARN_TEXT", "WARN_ROW_FIELDS", "WARN_ADD_FIELD", "WARN_REMOVE_FIELD",
@@ -502,13 +504,12 @@ ACTION_KEYS: tuple[str, ...] = (
 NEVER_WRITTEN: tuple[str, ...] = ("local_times", "utc_times")
 
 #: the ``action_map`` keys step 3 draws as CONTROLS: every schema key except the deprecated pair,
-#: which a form may not post, ``shutdown``, which is not offered any more (it means "stop the DCS
-#: server process first", not "power the machine off"), and ``presets``, the configured file path a
-#: bare pick name falls back to — the pick writes ``settings`` and never rewrites that path. A key
-#: outside this set is carried as a hidden input exactly as the file states it, so no save can lose it.
+#: which a form may not post, and ``presets``, the configured file path a bare pick name falls back
+#: to — the pick writes ``settings`` and never rewrites that path. A key outside this set is carried
+#: as a hidden input exactly as the file states it, so no save can lose it.
 RENDERED_ACTION_KEYS: tuple[str, ...] = tuple(
     key for key in ACTION_KEYS
-    if key not in NEVER_WRITTEN and key not in ("shutdown", "presets"))
+    if key not in NEVER_WRITTEN and key != "presets")
 
 #: the keys that make an entry fire at all. An entry that states none of them is written but never
 #: runs, which is what the step says beside a new entry.
@@ -606,8 +607,8 @@ ACTION_TIME_REMOVE_FIELD = "removetime"
 ACTION_METHODS: tuple[str, ...] = ("restart", "rotate", "load", "stop", "shutdown")
 
 ACTION_METHOD_KEYS: dict[str, tuple[str, ...]] = {
-    "restart": ("settings", "presets", "run_extensions", "use_orig", "password"),
-    "rotate": ("settings", "presets", "run_extensions", "use_orig", "password"),
+    "restart": ("settings", "presets", "run_extensions", "use_orig", "shutdown", "password"),
+    "rotate": ("settings", "presets", "run_extensions", "use_orig", "shutdown", "password"),
     "load": ("mission_id", "mission_file", "settings", "presets", "run_extensions", "use_orig",
              "no_reload", "password"),
     "stop": (),
@@ -617,19 +618,21 @@ ACTION_METHOD_KEYS: dict[str, tuple[str, ...]] = {
 #: the keys a method does NOT use. They leave the plan, so the save's prune deletes them from the
 #: file — stated here rather than derived in the template, so the four answers are readable at once.
 _METHOD_OWNED: tuple[str, ...] = ("mission_id", "mission_file", "settings", "presets",
-                                  "run_extensions", "no_reload", "use_orig", "password")
+                                  "run_extensions", "no_reload", "use_orig", "shutdown",
+                                  "password")
 ACTION_METHOD_DROP: dict[str, tuple[str, ...]] = {
     method: tuple(key for key in _METHOD_OWNED if key not in ACTION_METHOD_KEYS[method])
     for method in ACTION_METHODS
 }
 
 #: which CONTROLS a method draws: ``mission`` (the two mutually exclusive pickers), ``presets`` (the
-#: closed preset pick that writes ``settings``), ``extras`` (run_extensions, use_orig), ``load_only``
-#: (no_reload) and ``password`` (the one password field). The trigger, the two "when nobody is
-#: flying" radios and the conditions are drawn for every method.
+#: closed preset pick that writes ``settings``), ``extras`` (run_extensions, use_orig), ``shutdown``
+#: (stop the DCS server process first — a restart and a rotation only), ``load_only`` (no_reload) and
+#: ``password`` (the one password field). The trigger, the two "when nobody is flying" radios and the
+#: conditions are drawn for every method.
 ACTION_METHOD_CONTROLS: dict[str, tuple[str, ...]] = {
-    "restart": ("presets", "extras", "password"),
-    "rotate": ("presets", "extras", "password"),
+    "restart": ("presets", "extras", "shutdown", "password"),
+    "rotate": ("presets", "extras", "shutdown", "password"),
     "load": ("mission", "presets", "extras", "load_only", "password"),
     "stop": (),
     "shutdown": (),
@@ -638,6 +641,13 @@ ACTION_METHOD_CONTROLS: dict[str, tuple[str, ...]] = {
 #: the password control's label and its one-sentence hint. The sentence says WHEN the value takes
 #: effect (when the mission starts), never "restart password" — the value is the server's joiner
 #: password, and the bot sets it after the mission is loaded.
+#: the flag's label and its one-sentence hint. The flag stops the DCS server PROCESS before the
+#: restart or rotation, so the mission is loaded by a fresh process — it never powers a machine off,
+#: and the sentence says so, because the method of the same name means exactly that.
+ACTION_SHUTDOWN_LABEL = i18n._("Stop the DCS server process")
+ACTION_SHUTDOWN_HINT = i18n._("The server process is stopped and started again, so the mission "
+                              "loads fresh. The machine itself stays on.")
+
 ACTION_PASSWORD_LABEL = i18n._("Server password")
 ACTION_PASSWORD_HINT = i18n._("The server password is set when the mission starts.")
 
@@ -2219,7 +2229,8 @@ def startup_pick_kind(pairs, startup) -> str:
 
 
 def wizard_view(effective, pairs, raw=None, default=None, *, step=None, now=None,
-                missions=None, mission_files=None, presets=None) -> dict:
+                missions=None, mission_files=None, presets=None, shared_allowed=False,
+                shared=False) -> dict:
     """Everything one wizard step renders, from the plan and nothing else."""
     step = normalise_step(step)
     plan = wizard_plan(effective, pairs)
@@ -2296,6 +2307,8 @@ def wizard_view(effective, pairs, raw=None, default=None, *, step=None, now=None
         "action_methods": ACTION_METHODS,
         "action_method_lead": ACTION_METHOD_LEAD,
         "action_password_label": ACTION_PASSWORD_LABEL,
+        "action_shutdown_label": ACTION_SHUTDOWN_LABEL,
+        "action_shutdown_hint": ACTION_SHUTDOWN_HINT,
         "action_password_hint": ACTION_PASSWORD_HINT,
         "action_pick_field": ACTION_PICK_FIELD,
         "action_pick_labels": STARTUP_PICK_LABELS,
@@ -2333,6 +2346,17 @@ def wizard_view(effective, pairs, raw=None, default=None, *, step=None, now=None
         "markers": shape_markers(plan),
         "action_keys": ACTION_KEYS,
         "command_keys": COMMAND_KEYS,
+        # THE SHARED SWITCH: drawn only for an Admin, and only on the three steps whose values are
+        # worth sharing. A caller that cannot resolve a role passes nothing and gets no switch.
+        "shared": bool(shared),
+        "shared_drawn": bool(shared_allowed) and step in SHARED_STEPS,
+        "shared_field": SHARED_FIELD,
+        "shared_toggle_field": SHARED_TOGGLE_FIELD,
+        "shared_on": SHARED_ON,
+        "shared_off": SHARED_OFF,
+        "shared_label": SHARED_LABEL,
+        "shared_hint": SHARED_HINT,
+        "shared_back": SHARED_BACK,
     }
 
 
@@ -2373,7 +2397,45 @@ BLOCK_YAML_FIELD = "block_yaml"
 #: Expert Mode text (which is the block, not a plan — :func:`expert_block` reads it), step 2's two
 #: carriers — its switch and the radio that names which mission pick the start states — and step 3's
 #: two row submits. Every one of them is stated here, or a save refuses the page's own form.
+#: THE SHARED DEFAULT: the target of a save. A wizard step edits ONE server's block; the same steps
+#: can instead edit the file's ``DEFAULT`` block, which every server without a value of its own
+#: follows — a hoster's regular nightly restart, stated once. Two carriers, because the two mean
+#: different things: ``SHARED_FIELD`` RIDES (the target of a step that was already switched) while
+#: ``SHARED_TOGGLE_FIELD`` is the switch itself, a submit whose presence says "re-seed the plan from
+#: the section I just named, ignore the values this page carried" — switching target mid-edit and
+#: keeping the other section's values would write one block's numbers into another.
+SHARED_FIELD = "_shared_default"
+SHARED_TOGGLE_FIELD = "_shared_target"
+SHARED_ON = "DEFAULT"
+SHARED_OFF = "server"
+SHARED_KEY: tuple[str, ...] = ("DEFAULT",)
+
+#: the three steps that own a per-server override worth sharing: the week schedule, the actions and
+#: the warnings. Step 2 (startup) is a mission pick and its commands, which a hoster sets per server.
+SHARED_STEPS: tuple[str, ...] = ("1", "3", "4")
+
+SHARED_LABEL = i18n._("Shared default — applies to every server")
+SHARED_HINT = i18n._("You are editing the DEFAULT section: every server that does not set its own "
+                     "value follows it, and only an Admin can change it. Switching section discards "
+                     "values you have not saved.")
+SHARED_BACK = i18n._("Edit this server's own block instead")
+
+
+def shared_target(pairs) -> bool:
+    """Whether these posted pairs name ``DEFAULT`` as the section the save is for.
+
+    The SWITCH wins when it is present: it is the press that re-seeds the step from the section it
+    names. The carried flag answers on every later step, where the button is no longer pressed but
+    the target still holds. Absent both, the target is the server's own block.
+    """
+    switch = _posted(pairs, SHARED_TOGGLE_FIELD)
+    if switch is not None and switch.strip():
+        return switch.strip() == SHARED_ON
+    return (_posted(pairs, SHARED_FIELD) or "").strip() in ("1", "true", "on")
+
+
 _AUX_FIELDS = frozenset({"_scope", "_revision", "_csrf_token", "tab", "step", BLOCK_YAML_FIELD,
+                         SHARED_FIELD, SHARED_TOGGLE_FIELD,
                          STARTUP_FLAG, STARTUP_PICK, ACTION_TIME_ADD_FIELD, ACTION_TIME_REMOVE_FIELD})
 
 #: the aux names a step posts as a PREFIX (``name.<index>[.<row>]``): they carry the operator's
@@ -2383,8 +2445,7 @@ _AUX_PREFIXES = frozenset({ACTION_TRIGGER_FIELD, ACTION_TIME_FIELD, ACTION_PICK_
 
 #: the keys a save may PRUNE from an ``action`` entry: the keys the step renders, plus ``presets`` —
 #: the configured file path a bare pick name falls back to, which rides hidden but whose USE follows
-#: the method, so a method that takes no presets must be able to delete it. ``shutdown`` is therefore
-#: absent: the step carries it hidden, so the plan always states it when the file does.
+#: the method, so a method that takes no presets must be able to delete it.
 PRUNABLE_ACTION_KEYS: tuple[str, ...] = RENDERED_ACTION_KEYS + ("presets",)
 
 #: the ``startup`` block's keys the wizard renders, in the schema's order.

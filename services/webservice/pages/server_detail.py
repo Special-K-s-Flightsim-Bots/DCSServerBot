@@ -1992,14 +1992,27 @@ async def _scheduler_tab_context(request: Request, server, server_name: str) -> 
     path = scheduler_plan.block_path(document, node_name, instance_name)
     raw = scheduler_plan.raw_block(document, node_name, instance_name)
     default = scheduler_plan.default_block(document)
+    # THE SHARED SWITCH: an Admin may edit the file's ``DEFAULT`` block instead of this server's —
+    # the one place a hoster states a regular nightly restart once for every server. The section
+    # being edited moves the whole view with it: the block path, the block the file states, what is
+    # inherited (nothing at all sits above ``DEFAULT``) and the plan the steps render. A caller who
+    # is not an Admin gets no switch, whatever the query states.
+    shared_allowed = settings_page.scheduler_access(request, server).shared
+    shared = shared_allowed and scheduler_plan.shared_target(request.query_params)
+    if shared:
+        path = scheduler_plan.SHARED_KEY
+        raw = scheduler_plan.block_at(document, path)
+        default = {}
+        source = scheduler_plan.file_plan(document, path, {})
     # RIGHT AFTER A SAVE the page renders the plan the FILE states, not the plugin's cached merge.
     # The cache is the merge the plugin made when it loaded, so it still answers with the plan from
     # BEFORE the save: the review step would then compute a block from an out-of-date plan and show
     # a block the file no longer carries — and saving again would write that stale answer over the
     # file. Only a save leaves a notice with an ``applies`` story, which is what tells the two apart.
-    source = effective
-    if notice and notice.get("applies") is not None:
-        source = scheduler_plan.file_plan(document, path, default) or effective
+    if not shared:
+        source = effective
+        if notice and notice.get("applies") is not None:
+            source = scheduler_plan.file_plan(document, path, default) or effective
     view = scheduler_plan.plan_view(source, raw, default)
     # THE PICK READS: steps 2 and 3 draw CLOSED lists (the mission ids, the mission files and the
     # grouped preset picker), so those three reads happen only on those two steps — the landing and
@@ -2012,7 +2025,8 @@ async def _scheduler_tab_context(request: Request, server, server_name: str) -> 
     # plan), what each step carries, and the computed next fires.
     wizard = scheduler_plan.wizard_view(source, request.query_params, raw, default,
                                         step=context["step"], missions=missions,
-                                        mission_files=mission_files, presets=presets)
+                                        mission_files=mission_files, presets=presets,
+                                        shared_allowed=shared_allowed, shared=shared)
     # THE REVIEW STEP renders the SAME override the save writes (one producer, two readers), and the
     # form below POSTs the plan it was shown — the file's own revision rides along so a page rendered
     # before a change cannot write over it.
@@ -2023,8 +2037,12 @@ async def _scheduler_tab_context(request: Request, server, server_name: str) -> 
         # THE BLOCK THIS SAVE PRODUCES, at the path the SAVE writes it, as YAML: the override the
         # save applies, read off a copy of the document, so DEFAULT and the other servers are never
         # part of the text — and the Expert Mode text starts as exactly what a plain save writes.
-        block_yaml = scheduler_plan.block_yaml(document, settings_page.scheduler_block_key(server),
-                                               default, raw, wizard["plan"])
+        # THE SHARED SAVE prints the DEFAULT block; a per-server save prints the block at the path
+        # that save WRITES, which exists whether or not the file states one today.
+        block_yaml = scheduler_plan.block_yaml(
+            document,
+            path if shared else settings_page.scheduler_block_key(server),
+            default, raw, wizard["plan"])
     from core.utils import configwrite
 
     return context | {
@@ -2047,6 +2065,19 @@ async def _scheduler_tab_context(request: Request, server, server_name: str) -> 
         "scheduler_save_url": settings_page.SCHEDULER_SAVE_PATH,
         "scheduler_scope_field": settings_page.SCHEDULER_SCOPE_FIELD,
         "scheduler_scope_name": server_name,
+        # THE SHARED SAVE: what the page states about the section it is editing, so the header, the
+        # review lead and the hidden target carrier all read ONE answer.
+        "scheduler_shared": shared,
+        "scheduler_shared_allowed": shared_allowed,
+        "scheduler_shared_field": scheduler_plan.SHARED_FIELD,
+        "scheduler_shared_toggle_field": scheduler_plan.SHARED_TOGGLE_FIELD,
+        "scheduler_shared_on": scheduler_plan.SHARED_ON,
+        "scheduler_shared_off": scheduler_plan.SHARED_OFF,
+        "scheduler_shared_block": ".".join(scheduler_plan.SHARED_KEY),
+        # THE WAY BACK from the review step is a LINK, not a button: its form posts to the SAVE
+        # route, where a "switch section" press would be read as a save of the section it left.
+        "scheduler_shared_back_url": (readmodels.server_url(server_name, tab="scheduler")
+                                      + "&step=1"),
         "scheduler_revision_field": settings_page.SETTINGS_REVISION_FIELD,
         "scheduler_revision": configwrite.config_revision(entry.path),
         "scheduler_step_urls": _scheduler_step_urls(request, server_name),

@@ -8535,8 +8535,8 @@ msgid "Only when a coalition wins"
 msgstr "Только когда побеждает коалиция"
 
 #: services/webservice/templates/scheduler_body.html:155
-msgid "Run the extensions first"
-msgstr "Сначала выполнить расширения"
+msgid "Apply the extensions first"
+msgstr "Сначала применить расширения"
 
 #: services/webservice/templates/scheduler_body.html:156
 msgid "Use the original mission file"
@@ -9220,3 +9220,47 @@ msgstr "Плагин %(plugin)s перезагружен — изменение 
 #: services/webservice/config_apply.py
 msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
 msgstr "Плагин %(plugin)s НЕ удалось перезагрузить — изменение есть в файле, но не в работающем боте. Перезапустите бота, чтобы применить его."
+
+#: services/webservice/scheduler_plan.py
+msgid "Stop the DCS server process"
+msgstr "Остановить процесс сервера DCS"
+
+#: services/webservice/scheduler_plan.py
+msgid "The server process is stopped and started again, so the mission loads fresh. The machine itself stays on."
+msgstr "Процесс сервера останавливается и запускается заново, поэтому миссия загружается с нуля. Сам компьютер остаётся включённым."
+
+#: services/webservice/scheduler_plan.py
+msgid "Shared default — applies to every server"
+msgstr "Общее значение по умолчанию — для всех серверов"
+
+#: services/webservice/scheduler_plan.py
+msgid "You are editing the DEFAULT section: every server that does not set its own value follows it, and only an Admin can change it. Switching section discards values you have not saved."
+msgstr "Вы редактируете раздел DEFAULT: ему следуют все серверы без собственного значения, и изменить его может только Admin. Смена раздела отбросит несохранённые значения."
+
+#: services/webservice/scheduler_plan.py
+msgid "Edit this server's own block instead"
+msgstr "Вместо этого изменить собственный блок этого сервера"
+
+#: services/webservice/pages/settings.py
+msgid "Only an Admin can change the shared default, because it applies to every server. Nothing was written."
+msgstr "Изменить общее значение по умолчанию может только Admin, так как оно относится ко всем серверам. Ничего не записано."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This saves to DEFAULT: every server that does not set its own value gets this. This server's own block, every other server's block, the comments and the key order of the file stay as they are."
+msgstr "Это записывается в DEFAULT: его получает каждый сервер без собственного значения. Собственный блок этого сервера, блоки остальных серверов, комментарии и порядок ключей файла остаются как есть."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "every server without a value of its own follows it"
+msgstr "ему следуют все серверы без собственного значения"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "set"
+msgstr "задано"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "none set"
+msgstr "не задано"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This saves to DEFAULT: every server that does not set its own value gets this."
+msgstr "Это записывается в DEFAULT: его получает каждый сервер без собственного значения."

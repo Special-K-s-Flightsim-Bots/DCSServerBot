@@ -271,3 +271,32 @@
   padding: 20px; background: rgba(0, 0, 0, .55); }
 .sw-modal-back .dlg { max-height: 90vh; overflow: auto;
   box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }
+
+/* ============================================================ 9. the folded expert card
+   A card whose body is behind a summary: `Commands on events` is expert material, folded shut.
+   The marker is drawn by the browser; the cursor and the header's own shape are not. */
+.sw-fold > summary.hd { cursor: pointer; list-style: none; }
+.sw-fold > summary.hd::-webkit-details-marker { display: none; }
+.sw-fold > summary.hd::before { content: "\25B8"; margin-right: 6px; font-size: 10px; opacity: .7; }
+.sw-fold[open] > summary.hd::before { content: "\25BE"; }
+.sw-fold > summary.hd h3 { display: inline; }
+.sw-fold > summary.hd:hover { background: rgba(255, 255, 255, .04); }
+
+/* ============================================================ 10. the shared-default alert
+   Editing DEFAULT moves every server that inherits from it, so the state is stated as a WARNING
+   band rather than a hint: a warm red edge, the headline, the consequence, and the way back.
+   `.warn` on the button pairs with it, so the control that leaves the state is the same colour. */
+.sw-shared-alert {
+  display: flex; align-items: flex-start; gap: 10px; margin: 8px 0 12px;
+  padding: 10px 12px; border-radius: 6px;
+  border: 1px solid rgba(217, 83, 79, .55); border-left: 4px solid #d9534f;
+  background: rgba(217, 83, 79, .13);
+}
+.sw-shared-alert .ico {
+  flex: 0 0 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 50%;
+  background: #d9534f; color: #fff; font-weight: 700; font-size: 12px;
+}
+.sw-shared-alert .t { font-weight: 700; color: #ff9a92; letter-spacing: .2px; }
+.sw-shared-alert .s { margin-top: 2px; color: #e7c9c6; font-size: 12px; line-height: 1.45; }
+.sw-shared-alert .st-btn.warn, .st-btn.warn { margin-left: auto; border-color: #d9534f; color: #ff9a92; }
+.sw-shared-alert .st-btn.warn:hover, .st-btn.warn:hover { background: rgba(217, 83, 79, .18); }
