@@ -1,0 +1,1084 @@
+{#-
+  THE SCHEDULER TAB — one server's plan.
+
+  Every value comes from the plugin's own merged plan (``pages/server_detail._scheduler_tab_context``
+  reads it through ``get_config``), never from a YAML parse here: this page renders what the BOT
+  applies. The file is read a second time only to say WHERE each key's value came from — the server's
+  own block, or the shared ``DEFAULT`` block it inherits.
+
+  Four exclusive states, and no fifth: ``plan`` renders the plan, and ``empty`` / ``no-plugin`` /
+  ``no-file`` each render ONE sentence (`scheduler_sentence`) plus the way to Settings, because a tab
+  that cannot answer must say why instead of drawing an empty shell. The landing writes nothing; the
+  wizard's content steps are GET forms, and only its last step POSTs the save. Two facts from
+  ``scheduler_access`` shape it: ``scheduler_can_write`` hides the wizard link for a reader (the
+  steps are refused server-side), and ``scheduler_can_expert`` hides the Expert Mode panel.
+
+  The week grid is the file's own unit — one row per time range, one cell per day — because 7x24 cells
+  are unreadable at this width. No state is carried by colour alone: every cell also prints its
+  letter and its word.
+-#}
+{#-  THE SHARED BLOCK MACRO (see `_editor.html`): every optional part of this wizard is the SAME
+    native `<details class="st-block">` a config section is on the other edit pages, so the collapse
+    works with the script off and the product has one disclosure look.
+-#}
+{% import "_editor.html" as editor %}
+{#- THE THREE CLOSED PICKS, in ONE macro so steps 2 and 3 draw the same controls: the mission ids,
+    the mission files and the grouped preset picker that writes `settings`. A pick is offered only
+    when the bot's own read answered; otherwise the plain text box returns beside the sentence that
+    says why — never an empty list of choices, and never a typed value competing with a list the bot
+    produced.
+
+    `prefix` is the dotted field name the block's values live under (`startup`, `action.0`) and
+    `suffix` keeps the three controls' ids unique on a page that draws several entries.
+
+    `presets` is not offered at all. It is the configured file path a BARE pick name falls back to,
+    the pick writes `settings`, and the picker never rewrites that path: the caller carries it hidden.
+-#}
+{#- ONE chip row per text field: the three names the bot substitutes, each with the sentence that
+    says what it puts there. With the script off this IS the legend — the names and their meanings
+    are on the page either way, and the field stays the control. -#}
+{% macro warn_chips(target, chips) %}
+<div class="sw-ph" data-warn-chips data-warn-target="{{ target }}">
+  {% for chip in chips %}<span class="sw-chip" data-insert="{{ chip.name }}"><b>{{ chip.name }}</b> {{ _(chip.meaning) }}</span>{% endfor %}
+</div>
+{% endmacro %}
+{#-  A ROW'S OWN REMOVAL — the console's trashcan, worn by a submit button of the step's GET form so
+     it works with the script off. The word rides in `title` and `aria-label` only: the control shows
+     a drawing, never a sentence. The drawing is the tile foot's (`_tiles.html`'s `trash`), which a
+     test keeps equal to this one — never a second look for the same act.  -#}
+{% macro row_remove(field, value, title) -%}
+<button type="submit" class="st-trash sw-rm" name="{{ field }}" value="{{ value }}" title="{{ title }}" aria-label="{{ title }}"><svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.6 6.6h14.8"/><path d="M9.6 6.6V4.9a1.9 1.9 0 0 1 1.9-1.9h1a1.9 1.9 0 0 1 1.9 1.9v1.7"/><path d="M6.6 6.6 7.5 18.9a1.9 1.9 0 0 0 1.9 1.8h5.2a1.9 1.9 0 0 0 1.9-1.8l.9-12.3"/></svg></button>
+{%- endmacro %}
+{% macro mission_id_field(prefix, picks, suffix, disabled=False) %}
+<div class="sw-field">
+  <label class="k" for="sw-mission-id{{ suffix }}">{% trans %}Mission (id){% endtrans %}</label>
+  {% if picks.mission_id.offered %}
+  {#- the ids the plan states stand FIRST and selected, in the plan's own order: a multiple
+      select posts its options in the page's order, so drawing them first is what keeps that
+      order on the way back. The rest of the server's list follows, unselected. -#}
+  <select class="sw-inp sw-multi" id="sw-mission-id{{ suffix }}" name="{{ prefix }}.mission_id" multiple size="{{ [picks.mission_id.options | length, 8] | min }}"{% if disabled %} disabled{% endif %}>
+    {% for option in picks.mission_id.options %}
+    <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+    {% endfor %}
+  </select>
+  <p class="hp">{% trans %}Tick every mission the schedule may start: the bot picks one of the ticked missions at random each time it starts the server.{% endtrans %}</p>
+  {% else %}
+  <input class="sw-inp mono" type="text" name="{{ prefix }}.mission_id" value="{{ picks.mission_id.text }}"{% if disabled %} disabled{% endif %}>
+  <p class="hp">{{ _(picks.mission_id.reason) }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+{% macro mission_file_field(prefix, picks, suffix, disabled=False) %}
+<div class="sw-field">
+  <label class="k" for="sw-mission-file{{ suffix }}">{% trans %}Mission (file){% endtrans %}</label>
+  {% if picks.mission_file.offered %}
+  <select class="sw-inp sw-multi" id="sw-mission-file{{ suffix }}" name="{{ prefix }}.mission_file" multiple size="{{ [picks.mission_file.options | length, 8] | min }}"{% if disabled %} disabled{% endif %}>
+    {% for option in picks.mission_file.options %}
+    <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+    {% endfor %}
+  </select>
+  <p class="hp">{% trans %}The path relative to the missions directory, exactly as the bot lists it — never a full path on the server.{% endtrans %}</p>
+  {% else %}
+  <input class="sw-inp mono" type="text" name="{{ prefix }}.mission_file" value="{{ picks.mission_file.text }}"{% if disabled %} disabled{% endif %}>
+  <p class="hp">{{ _(picks.mission_file.reason) }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+{% macro presets_field(prefix, picks, suffix) %}
+<div class="sw-field" data-preset-pick data-preset-name="{{ prefix }}.settings" data-chosen-head="{% trans %}Chosen, in this order{% endtrans %}">
+  <label class="k" for="sw-settings{{ suffix }}">{% trans %}Presets to apply{% endtrans %}</label>
+  {% if picks.presets.offered %}
+  {#- ONE option per preset, one `<optgroup>` per preset FILE labelled with the file's own
+      `config/…` name. The value is the pick's own entry (`<file label>\n<name>`), which is
+      what the scheduler resolves an entry by. The order is the FILES' order — the order the
+      bot applies a pick in — never the order the boxes were ticked. -#}
+  <select class="sw-inp sw-multi" id="sw-settings{{ suffix }}" name="{{ prefix }}.settings" multiple size="8">
+    {% for group in picks.presets.groups %}
+    {#- the label is a translated heading for the group of entries the files no longer
+        carry, and a preset file's own `config/…` name otherwise — a name is not a msgid,
+        so looking it up leaves it exactly as it is -#}
+    <optgroup label="{{ _(group.label) }}">
+      {% for option in group.options %}
+      <option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+  <p class="hp">{% trans %}One group per preset file: a tick applies that file's preset. The bot applies them in the files' order, not in the order you ticked them, and one entry it cannot resolve drops the whole pick.{% endtrans %}</p>
+  {% else %}
+  <input class="sw-inp mono" type="text" name="{{ prefix }}.settings" value="{{ picks.presets.text }}">
+  <p class="hp">{{ _(picks.presets.reason) }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+{#- PROGRESSIVE ENHANCEMENT, nothing more: a pick already posts one entry per ticked preset with the
+    script off, so the native selection is the whole feedback. The script only ADDS the "chosen, in
+    this order" chips under the control — in the page's own order, which is the order the bot applies
+    the pick in — and changes nothing the form posts. ONE script serves every pick on every step that
+    draws one: the field names its own control in `data-preset-name`, and the heading's words arrive
+    translated in `data-chosen-head`, so the script carries no string of its own. -#}
+{% if step in ('2', '3') %}
+<script>
+  (function () {
+    "use strict";
+    document.querySelectorAll("[data-preset-pick]").forEach(function (field) {
+      var name = field.getAttribute("data-preset-name") || "";
+      var select = name ? field.querySelector('select[name="' + name + '"]') : null;
+      if (!select) { return; }
+      var box = document.createElement("div");
+      var head = document.createElement("p");
+      head.className = "sw-chosen-head";
+      head.textContent = field.getAttribute("data-chosen-head") || "";
+      var count = document.createElement("span");
+      count.className = "sw-chosen-count";
+      head.appendChild(document.createTextNode(" "));
+      head.appendChild(count);
+      var list = document.createElement("ul");
+      list.className = "sw-chips";
+      box.className = "sw-chosen";
+      box.appendChild(head);
+      box.appendChild(list);
+      field.appendChild(box);
+      var sync = function () {
+        var chosen = 0;
+        list.textContent = "";
+        for (var index = 0; index < select.options.length; index += 1) {
+          var option = select.options[index];
+          if (!option.selected) { continue; }
+          var chip = document.createElement("li");
+          var label = document.createElement("b");
+          label.textContent = option.textContent;
+          chip.appendChild(label);
+          var group = option.parentNode;
+          if (group && group.tagName === "OPTGROUP") {
+            var file = document.createElement("small");
+            file.textContent = group.getAttribute("label") || "";
+            chip.appendChild(document.createTextNode(" "));
+            chip.appendChild(file);
+          }
+          list.appendChild(chip);
+          chosen += 1;
+        }
+        count.textContent = String(chosen);
+      };
+      select.addEventListener("change", sync);
+      sync();
+    });
+  })();
+</script>
+{% endif %}
+{#- ONE wrapper around the tab's whole body: the page around it carries its own chrome (the sign-out
+    form, the tab strip), so the body needs a boundary a reader — and a test — can point at. -#}
+<div class="sw-body" data-tab="scheduler">
+{% include "_notice.html" %}
+{#- THE APPLY QUESTION, asked by the save itself. A save that wrote something leaves an offer; the
+    question then sits in front of the operator instead of a button near the top of a long page —
+    the one thing left to decide is whether the running bot reloads the plugin now. "Apply now" posts
+    the apply route with the offer's own one-shot token, so it is ONE press and a replayed form is
+    refused; "Not now" is a plain link, because a page render POPPED the notice: reloading is the
+    dismissal and the change simply stays in the file. -#}
+{% if notice is defined and notice and notice.get('apply') %}
+{% set apply = notice.get('apply') %}
+<div class="sw-modal-back">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="sw-apply-title">
+    <div class="hd"><h3 id="sw-apply-title">{% trans %}Apply these changes now?{% endtrans %}</h3></div>
+    <div class="bd">
+      <p>{% trans %}The schedule is saved. Reload the scheduler plugin so the running bot uses the new plan? Nothing restarts and no DCS server goes down.{% endtrans %}</p>
+      <p class="dlg-what">{% trans %}If you answer no, the change stays in the file and takes effect the next time the plugin is reloaded or the bot restarts.{% endtrans %}</p>
+    </div>
+    <div class="ft">
+      <form class="dlg-act" method="post" action="{{ apply.action }}">
+        <input type="hidden" name="{{ apply.csrf_field }}" value="{{ apply.csrf_token }}">
+        <input type="hidden" name="{{ apply.kind_field }}" value="{{ apply.kind }}">
+        <input type="hidden" name="{{ apply.name_field }}" value="{{ apply.name }}">
+        <input type="hidden" name="{{ apply.token_field }}" value="{{ apply.token }}">
+        <input type="hidden" name="{{ apply.action_field }}" value="{{ apply.action_value }}">
+        <div class="dlg-buttons">
+          {#- a LINK, not a POST: declining has nothing to record here beyond the change staying in
+              the file, and the notice was popped by this render. -#}
+          <a class="btn" href="{{ scheduler_step_urls[-1].url if scheduler_step_urls else scheduler_cancel_url }}">{% trans %}Not now{% endtrans %}</a>
+          <span class="spacer"></span>
+          <button class="btn primary" type="submit">{{ apply.label }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% if scheduler_state != 'plan' %}
+<div class="st-bar">
+  <div>
+    <div class="where"><b>{% trans %}Scheduler{% endtrans %}</b> &middot; {% trans %}this server only{% endtrans %}</div>
+    <div class="s">{% if scheduler_file_name %}<span class="mono">{{ scheduler_file_name }}</span> &middot; {% endif %}{{ _(scheduler_sentence) }}</div>
+  </div>
+  <div class="acts">
+    <a class="st-btn" href="{{ scheduler_settings_url }}">{{ _(scheduler_settings_link) }}</a>
+  </div>
+</div>
+
+{#- THE WIZARD: steps 1-4, each ONE GET form on this same page route. Every value the step does
+    not own is carried in hidden inputs, so the URL holds the whole plan and a refresh, the back
+    button and a script-less browser all keep working. A plan flattens to about 60 controls and a
+    URL of about 1.5 KB — far under the console's 1000-field form bound, which is what makes
+    state-in-the-URL safe here. NOTHING on these steps writes. -#}
+{#- THE REVIEW STEP: the override the SAVE writes, rendered from the same computation, plus the ONE
+    POST form of the whole wizard. A form cannot nest inside the GET form the other steps use, so
+    this branch draws its own rail as LINKS (same query string, different step) and its own form. -#}
+{% elif step == '5' and wizard %}
+<div class="st-head">
+  <div>
+    <div class="t1"><a class="st-back" href="{{ scheduler_cancel_url }}">&larr; {% trans %}Scheduler{% endtrans %}</a>
+      <span class="st-crumb">&rsaquo; {% trans %}Scheduler wizard{% endtrans %} &rsaquo;
+        {% trans %}step{% endtrans %} {{ scheduler_steps | length }} {% trans %}of{% endtrans %} {{ scheduler_steps | length }}</span></div>
+    <div class="t1" style="margin-top:6px"><h1>{% trans %}Review, then save{% endtrans %}</h1>
+      <span class="st-kind">{% trans %}wizard{% endtrans %}</span></div>
+    <div class="st-lead" style="margin-top:4px">{% trans %}This is the block that will be written, and only this block: DEFAULT, every other server's block, the comments and the key order of the file stay as they are.{% endtrans %}</div>
+  </div>
+</div>
+
+<div class="st-tabs">
+  {% for item in scheduler_step_urls %}
+  <a class="t{{ ' on' if item.value == step }}" href="{{ item.url }}"><span class="n">{{ loop.index }}</span>{{ _(item.label) }}<span class="n" style="font-size:10px">{{ _(item.blurb) }}</span></a>
+  {% endfor %}
+</div>
+
+<div class="st-bar">
+  <div class="where">{% trans %}Editing{% endtrans %} <b>{{ server_name }}</b> &middot; {% trans %}its own block only — a value you leave alone stays inherited{% endtrans %}</div>
+  <div class="acts">
+    <a class="st-btn" href="{{ scheduler_cancel_url }}">{% trans %}Cancel{% endtrans %}</a>
+  </div>
+</div>
+
+<form method="post" action="{{ scheduler_save_url }}" class="sw-form">
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <input type="hidden" name="{{ scheduler_scope_field }}" value="{{ scheduler_scope_name }}">
+  <input type="hidden" name="{{ scheduler_revision_field }}" value="{{ scheduler_revision }}">
+  {% for field in wizard.carried %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% endfor %}
+  {% for marker in wizard.markers %}<input type="hidden" name="{{ marker.name }}" value="{{ marker.value }}">{% endfor %}
+
+  {#- THE YAML, BESIDE THE SUMMARY. The panel holds the block THIS save produces for THIS server —
+      read off the file's own round trip, so the comments inside it survive — and the same text is
+      the Expert Mode editor's starting point. `data-cfg-yaml` is the contract `static/settings-yaml.js`
+      reads; the editor is only an enhancement, so the textarea below carries the block for a page
+      with the script off, and the toggle posts the flag either way. -#}
+  <div class="sw-grid sw-review">
+    <div class="sw-col">
+      <div class="card">
+        <div class="hd"><h3>{% trans %}What changes{% endtrans %}</h3></div>
+        <div class="bd">
+          {% if scheduler_review.changed %}
+          <div class="sw-sum">
+            {% for row in scheduler_review.set %}
+            <div class="r" data-set="{{ row.key }}"><span class="k">{{ _(row.label) }}</span><span class="v">{{ row.value }}</span></div>
+            {% endfor %}
+            {% for row in scheduler_review.delete %}
+            <div class="r" data-del="{{ row.key }}"><span class="k">{{ _(row.label) }}</span><span class="v"><span class="tag a">{% trans %}back to inherited{% endtrans %}</span></span></div>
+            {% endfor %}
+            {% for row in scheduler_review.prune %}
+            <div class="r" data-prune="{{ row.key }}"><span class="k">{{ _(row.label) }}{% if row.entry %} &middot; {% trans %}Entry{% endtrans %} {{ row.entry }}{% endif %}</span><span class="v"><span class="tag a">{% trans %}back to inherited{% endtrans %}</span>{% for name in row.subkeys %} <span class="mono">{{ name }}</span>{% endfor %}</span></div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="empty">{% trans %}This plan needs no change to the server's own block: every value it states is the inherited one. Saving writes nothing.{% endtrans %}</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="hd"><h3>{% trans %}What is not touched{% endtrans %}</h3></div>
+        <div class="bd">
+          <div class="sw-sum">
+            <div class="r"><span class="k">DEFAULT</span><span class="v">{% trans %}the shared block — edit it in Settings{% endtrans %}</span></div>
+            <div class="r"><span class="k">{% trans %}Other servers{% endtrans %}</span><span class="v">{% trans %}their blocks, byte-identical{% endtrans %}</span></div>
+            <div class="r"><span class="k">{% trans %}Comments and order{% endtrans %}</span><span class="v">{% trans %}kept by the writer's round-trip{% endtrans %}</span></div>
+            <div class="r"><span class="k">{% trans %}Startup delay{% endtrans %}</span><span class="v">{% trans %}a shared value this tab never writes{% endtrans %}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="hd"><h3>{% trans %}Saving{% endtrans %}</h3></div>
+        <div class="bd">
+          <p class="hp">{% trans %}The block is validated against the scheduler's own schema before it is written. A file that does not validate is refused and nothing is written; a .bak is kept.{% endtrans %}</p>
+          <p class="hp">{% trans %}The bot keeps the plan in memory, so the change applies after a reload of the scheduler plugin.{% endtrans %}</p>
+        </div>
+      </div>
+    </div>
+    {#- THE PANEL: the block as YAML, and the Expert Mode toggle that turns it into an editor. The
+        badge says what the panel is while the editor is off; the status line is the server's verdict.
+        The textarea below the read-only text is the SAME block: with the script off it is the editor
+        (its value posts), and the script hides it once the editor can replace it. -#}
+    <aside class="st-aside sw-yaml" data-cfg-yaml data-validate-url="{{ scheduler_validate_url }}">
+      <div class="hd">
+        <h3>{% trans %}This server's block, as YAML{% endtrans %}</h3><span class="sp"></span>
+        <span class="st-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
+        {% if scheduler_can_expert %}
+        <label class="st-expert"><input type="checkbox" name="{{ scheduler_expert_field }}" value="1" data-cfg-expert data-cfg-expert-toggle> {% trans %}Expert Mode{% endtrans %}</label>
+        {% endif %}
+      </div>
+      <div class="st-note">{% trans %}The block this save writes for this server and no other: DEFAULT and every other server's block are never part of it, and the comments inside it are kept.{% endtrans %}</div>
+      {% if scheduler_can_expert %}
+      <div class="st-note">{% trans %}In Expert Mode this text is written instead of the block the plan states, so a key you delete here leaves the file. An edit replaces the block's own comments with what you type.{% endtrans %}</div>
+      {% endif %}
+      <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
+      <pre class="st-yaml" data-cfg-yaml-readonly>{{ scheduler_block_yaml }}</pre>
+      {% if scheduler_can_expert %}
+      <div class="cfg-editor" data-cfg-yaml-editor hidden></div>
+      <label class="st-note" for="sw-block-yaml">{% trans %}Expert Mode text: this box is the editor when the script is off{% endtrans %}</label>
+      <textarea class="st-yaml sw-yaml-box mono" id="sw-block-yaml" name="{{ scheduler_block_yaml_field }}" rows="14" spellcheck="false" data-cfg-yaml-text>{{ scheduler_block_yaml }}</textarea>
+      {% endif %}
+      {% if not scheduler_block_yaml %}
+      <p class="st-note">{% trans %}This save writes no block of its own for this server: every value it states is the inherited one.{% endtrans %}</p>
+      {% endif %}
+    </aside>
+  </div>
+
+  <div class="st-bar" style="margin-top:14px">
+    <div>
+      <div class="where">{% trans %}Save this server's block{% endtrans %} &middot; <b>{{ server_name }}</b></div>
+      <div class="s"><span class="mono">{{ scheduler_file_name }}</span></div>
+    </div>
+    <div class="acts">
+      <a class="st-btn" href="{{ scheduler_cancel_url }}">{% trans %}Discard{% endtrans %}</a>
+      <button type="submit" class="st-btn pri">{% trans %}Save the schedule{% endtrans %}</button>
+    </div>
+  </div>
+</form>
+{#- THE EDITOR — the console's ONE editor script and the vendored CodeMirror YAML mode, exactly as
+    the Settings area loads them. The one thing the script cannot do for itself: the plain text box IS
+    the editor with JavaScript off, so it is hidden only once CodeMirror is actually there — the same
+    gate `static/settings-yaml.js` opens with, so a vendor file that fails to load leaves the page
+    editable instead of empty. The listener runs after the deferred scripts. -#}
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">
+<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/settings-yaml.js" defer></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (typeof CodeMirror === "undefined") { return; }
+    document.querySelectorAll("[data-cfg-yaml-text]").forEach(function (box) { box.hidden = true; });
+  });
+</script>
+
+{% elif step and step != '0' and wizard %}
+{% set index = scheduler_steps.index(step) %}
+<form method="get" action="{{ scheduler_form_action }}" class="sw-form">
+  <input type="hidden" name="tab" value="scheduler">
+  {#- the step this form EDITS: the rail and Back/Next buttons below override it (the browser posts
+      the last value of a repeated name), while a row op's own button has no step of its own and
+      therefore re-renders THIS step instead of dropping back to the landing. -#}
+  <input type="hidden" name="step" value="{{ step }}">
+  {% for field in wizard.carried %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% endfor %}
+  {% for marker in wizard.markers %}<input type="hidden" name="{{ marker.name }}" value="{{ marker.value }}">{% endfor %}
+
+  <div class="st-head">
+    <div>
+      <div class="t1"><a class="st-back" href="{{ scheduler_cancel_url }}">&larr; {% trans %}Scheduler{% endtrans %}</a>
+        <span class="st-crumb">&rsaquo; {% trans %}Scheduler wizard{% endtrans %} &rsaquo;
+          {% trans %}step{% endtrans %} {{ index + 1 }} {% trans %}of{% endtrans %} {{ scheduler_steps | length }}</span></div>
+      <div class="t1" style="margin-top:6px"><h1>{% if step == '1' %}{% trans %}When should the server run?{% endtrans %}
+        {% elif step == '2' %}{% trans %}Startup{% endtrans %}
+        {% elif step == '3' %}{% trans %}Actions (restart, rotate, etc.){% endtrans %}
+        {% else %}{% trans %}How is a restart announced?{% endtrans %}{% endif %}</h1>
+        <span class="st-kind">{% trans %}wizard{% endtrans %}</span></div>
+    </div>
+  </div>
+
+  <div class="st-tabs">
+    {% for value, label, blurb in scheduler_step_labels %}
+    <button type="submit" name="step" value="{{ value }}" class="t{{ ' on' if value == step }}"><span class="n">{{ loop.index }}</span>{{ _(label) }}<span class="n" style="font-size:10px">{{ _(blurb) }}</span></button>
+    {% endfor %}
+  </div>
+
+  <div class="st-bar">
+    <div class="where">{% trans %}Editing{% endtrans %} <b>{{ server_name }}</b> &middot; {% trans %}its own block only — a value you leave alone stays inherited{% endtrans %}</div>
+    <div class="acts">
+      <a class="st-btn" href="{{ scheduler_cancel_url }}">{% trans %}Back to the plan{% endtrans %}</a>
+      {% if index > 0 %}<button type="submit" class="st-btn" name="step" value="{{ scheduler_steps[index - 1] }}">{% trans %}Back{% endtrans %}</button>{% endif %}
+      {% if index + 1 < scheduler_steps | length %}<button type="submit" class="st-btn pri" name="step" value="{{ scheduler_steps[index + 1] }}">{% trans %}Next{% endtrans %} &rsaquo;</button>{% endif %}
+    </div>
+  </div>
+
+  <div class="sw-wiz">
+    <div class="sw-stepcard">
+
+    {% if step == '1' %}
+      {#- step 1: the timezone picker and the week editor -#}
+      <div class="card">
+        <div class="hd"><h3>{% trans %}Timezone{% endtrans %}</h3></div>
+        <div class="bd">
+          <div class="sw-field">
+            <label class="k" for="sw-timezone">{% trans %}Timezone{% endtrans %}
+              {% if wizard.state.timezone == 'own' %}<span class="tag">{% trans %}this server's block{% endtrans %}</span>
+              {% elif wizard.state.timezone == 'inherited' %}<span class="tag a">{% trans %}inherited{% endtrans %}</span>
+              {% else %}<i>{% trans %}not set{% endtrans %}</i>{% endif %}</label>
+            {#- a CLOSED list: the bot enumerates the zones, so this is a picker and nothing here
+                accepts a typed zone. The empty option is the absent key — the machine's own local
+                time, which is what the bot assumes. -#}
+            <select class="st-sel" id="sw-timezone" name="timezone">
+              {% for zone in wizard.timezone_options %}
+              <option value="{{ zone }}"{% if zone == wizard.timezone %} selected{% endif %}>{% if zone %}{{ zone }}{% else %}{% trans %}the machine's own local time{% endtrans %}{% endif %}</option>
+              {% endfor %}
+            </select>
+            <p class="hp">{% trans %}Every time in this block is read in this zone. Empty means the machine's own local time, which is what the bot assumes when the key is absent.{% endtrans %}</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="hd"><h3>{% trans %}The week{% endtrans %}</h3></div>
+        <div class="bd">
+          <p class="hp">{% trans %}One row per time range, seven letters Monday first: Y must be running, N must be offline, P stays up until the last player leaves. A row without both times is not part of the plan, and the scheduler does not touch the server then.{% endtrans %}</p>
+          {#- the day names the script writes into the buttons; translated here, so the enhancement
+              renders in the reader's language without a second catalog. -#}
+          <div class="sw-edit" data-week-days="{% for day in wizard.days %}{{ _(day) }}{% if not loop.last %}|{% endif %}{% endfor %}" data-week-words="{% for item in scheduler_legend %}{{ item.letter }}={{ _(item.word) }}{% if not loop.last %}|{% endif %}{% endfor %}">
+            {% set remove_word %}{% trans %}Remove row{% endtrans %}{% endset %}
+            {% for row in wizard.week_rows %}
+            {#- ONE row: the two times NARROW (they hold HH:MM and nothing else) and are the row's
+                ONLY statement of its range, the day control taking the space left over, and the
+                row's own removal last. Every row has the same columns in the same order, so a list
+                of rows reads as a column. The line wraps whole; the day column never shrinks below
+                its seven buttons. -#}
+            <div class="sw-wrow" data-week-row>
+              {#- the range key this row was READ from, carried so an untouched row keeps the file's
+                  own spelling: 00-12 and 00:00-12:00 are the same range and two different keys -#}
+              <input type="hidden" name="{{ wizard.week_key_field }}.{{ row.index }}" value="{{ row.key }}">
+              <label class="sw-wlab sw-time">{% trans %}From{% endtrans %}
+                <input class="sw-inp" type="time" name="{{ wizard.week_start_field }}.{{ row.index }}" value="{{ row.start }}">
+              </label>
+              <label class="sw-wlab sw-time">{% trans %}To{% endtrans %}
+                <input class="sw-inp" type="time" name="{{ wizard.week_end_field }}.{{ row.index }}" value="{{ row.end }}">
+              </label>
+              {#- the REAL field of the row: seven letters, one per day, Monday first. The script
+                  replaces it with seven buttons; with the script off it is the control the operator
+                  types and reads, so a row is never buttons-only. -#}
+              <label class="sw-wlab sw-days-col">{% trans %}Days{% endtrans %}
+                <input class="sw-inp mono" type="text" name="{{ wizard.week_days_field }}.{{ row.index }}" value="{{ row.days }}" maxlength="7" pattern="[YNP]{7}">
+              </label>
+              {{ row_remove(wizard.week_remove_field, row.index, remove_word) }}
+              {% if row.error %}<p class="sw-fire bad">{{ _('Row') }} {{ row.number }}: {{ _(row.error) }}</p>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <button type="submit" class="st-btn" name="{{ wizard.week_add_field }}" value="1">{% trans %}Add a row{% endtrans %}</button>
+          <div class="sw-legend">
+            {% for item in scheduler_legend %}<span><span class="sw-key {{ item.state }}">{{ item.letter }}</span> {{ _(item.word) }}</span>{% endfor %}
+          </div>
+        </div>
+      </div>
+      {#- PROGRESSIVE ENHANCEMENT, nothing more: each row's seven-letter field becomes seven day
+          buttons that cycle Y -> P -> N -> Y, and a hidden input carries the letters the row
+          states. With the script off the text field IS the control, so a row is never
+          buttons-only. The day names and state words arrive translated in the grid's attributes. -#}
+      <script>
+        (function () {
+          "use strict";
+          var CYCLE = ["Y", "P", "N"];
+          document.querySelectorAll("[data-week-days]").forEach(function (grid) {
+            var labels = (grid.getAttribute("data-week-days") || "").split("|");
+            var words = {};
+            (grid.getAttribute("data-week-words") || "").split("|").forEach(function (pair) {
+              var at = pair.indexOf("=");
+              if (at > 0) { words[pair.slice(0, at)] = pair.slice(at + 1); }
+            });
+            grid.querySelectorAll("[data-week-row]").forEach(function (row) {
+              var field = row.querySelector('input[name^="week_days."]');
+              if (!field || !labels.length || !labels[0]) { return; }
+              var letters = (field.value || "YYYYYYY").toUpperCase().split("");
+              while (letters.length < labels.length) { letters.push("Y"); }
+              var holder = document.createElement("span");
+              holder.className = "sw-days";
+              var carried = document.createElement("input");
+              carried.type = "hidden";
+              carried.name = field.getAttribute("name");
+              labels.forEach(function (label, index) {
+                var button = document.createElement("button");
+                button.type = "button";
+                button.className = "sw-day";
+                var paint = function () {
+                  button.className = "sw-day " + letters[index].toLowerCase();
+                  button.textContent = letters[index] + " " + label;
+                  button.title = words[letters[index]] || "";
+                  carried.value = letters.join("");
+                };
+                button.addEventListener("click", function () {
+                  var at = CYCLE.indexOf(letters[index]);
+                  letters[index] = CYCLE[(at + 1) % CYCLE.length];
+                  paint();
+                });
+                paint();
+                holder.appendChild(button);
+              });
+              holder.appendChild(carried);
+              field.parentNode.replaceChild(holder, field);
+            });
+          });
+        })();
+      </script>
+
+    {% elif step == '2' %}
+      {#- step 2: the STARTUP, and only what this server states about its start. The step is
+          OPTIONAL — ONE switch decides whether the server states anything about its start at all,
+          and everything that would say something sits under that switch. A hidden "0" BEFORE the
+          checkbox is the console's script-free boolean pair, so the step always posts the name and
+          the ROUTE decides from the post: a form that leaves it off states no `startup` block,
+          whichever fields it happens to carry. The stylesheet hides the body while the switch is
+          off (`:has()`), which is the browser's half of the same answer, never the only one. -#}
+      {% set startup = wizard.plan.get('startup', {}) %}
+      {% set pick = wizard.startup_pick %}
+      <div class="card">
+        <div class="hd"><h3>{% trans %}Mission and presets{% endtrans %}</h3></div>
+        <div class="bd">
+          <div class="sw-start">
+            <input type="hidden" name="{{ wizard.startup_flag }}" value="{{ wizard.startup_flag_off }}">
+            <label class="sw-startbox">
+              <input type="checkbox" name="{{ wizard.startup_flag }}" value="{{ wizard.startup_flag_on }}"{% if wizard.startup_on %} checked{% endif %}>
+              <span>{{ _(wizard.startup_on_label) }}</span>
+            </label>
+            <p class="hp">{{ _(wizard.startup_off_what) }}</p>
+            <p class="hp">{{ _(wizard.startup_off_deed) }}</p>
+            <div class="sw-startbody">
+              {% for field in wizard.startup_extra %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% endfor %}
+              <div class="sw-picks" data-startup-picks>
+                <div class="sw-field sw-checks">
+                  {#- the two mission picks are exclusive: one radio names the one this start
+                      states, and the other picker is drawn disabled so it posts nothing -#}
+                  {% for value, label in wizard.startup_pick_labels %}
+                  <label><input type="radio" name="{{ wizard.startup_pick_field }}" value="{{ value }}"{% if pick == value %} checked{% endif %}> {{ _(label) }}</label>
+                  {% endfor %}
+                </div>
+                <p class="hp">{{ _(wizard.startup_pick_lead) }}</p>
+                <div class="sw-pick{% if pick != 'mission_id' %} sw-pick-off{% endif %}" data-pick="mission_id">
+                  {{ mission_id_field('startup', wizard.picks, '', pick != 'mission_id') }}
+                </div>
+                <div class="sw-pick{% if pick != 'mission_file' %} sw-pick-off{% endif %}" data-pick="mission_file">
+                  {{ mission_file_field('startup', wizard.picks, '', pick != 'mission_file') }}
+                </div>
+              </div>
+              {{ presets_field('startup', wizard.picks, '') }}
+              <div class="sw-field sw-checks">
+                <label><input type="checkbox" name="startup.clear_maintenance" value="true"{% if startup.get('clear_maintenance') %} checked{% endif %}> {% trans %}Clear maintenance on start{% endtrans %}</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {#- progressive enhancement, nothing more: the pickers follow the radio, so switching costs no
+          round trip. With the script off both are drawn and only the chosen one is enabled, so a
+          radio and Next is the whole round trip — the server renders the same state either way. -#}
+      <script>
+        (function () {
+          "use strict";
+          document.querySelectorAll("[data-startup-picks]").forEach(function (holder) {
+            var radios = holder.querySelectorAll('input[name="startup_pick"]');
+            var sync = function () {
+              radios.forEach(function (radio) {
+                var target = holder.querySelector('[data-pick="' + radio.value + '"]');
+                if (!target) { return; }
+                target.classList.toggle("sw-pick-off", !radio.checked);
+                target.querySelectorAll("input, select").forEach(function (field) {
+                  field.disabled = !radio.checked;
+                });
+              });
+            };
+            radios.forEach(function (radio) { radio.addEventListener("change", sync); });
+            sync();
+          });
+        })();
+      </script>
+      {#- the chips are the SHARED script at the top of this template — one implementation for every
+          pick on every step -#}
+
+    {% elif step == '3' %}
+      {#- step 3: the action entries — one card each, in the order the plan states. An entry is added
+          and removed from HERE, both as submit buttons of this same GET form, so the round trip works
+          with the script off. Each remove button sits inside the card of the entry it names, so a
+          mis-click cannot drop a different one; a refused row op says so in one sentence and changes
+          nothing. A block that states no entry yet keeps the way to add one. -#}
+      {% if wizard.action_op_refusal %}
+      <p class="sw-fire bad">{{ _(wizard.action_op_refusal) }}</p>
+      {% endif %}
+      {% if wizard.actions %}
+      {% for a in wizard.actions %}
+      <div class="card">
+        <div class="hd"><h3>{% trans %}Entry{% endtrans %} {{ a.number }}<span class="tag">{% trans %}this step{% endtrans %}</span></h3></div>
+        <div class="bd">
+          {% for field in a.extra %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% endfor %}
+          {% if a.legacy_only %}
+          {#- READ-ONLY trigger: the entry's only trigger is the deprecated local_times/utc_times,
+              which this tab never writes. No radio and no trigger input is drawn, so a save cannot
+              add a second trigger the old key would override. -#}
+          <div class="sw-field" data-action-legacy>
+            <span class="k">{{ _(wizard.action_legacy_title) }}</span>
+            {% for legacy in a.legacy %}<p class="mono">{{ legacy.key }}: {{ legacy.value or '—' }}</p>{% endfor %}
+            <p class="hp">{{ _(wizard.action_legacy_lead) }}</p>
+            <p class="hp">{{ _(wizard.action_legacy_kept) }}</p>
+          </div>
+          {% else %}
+          {% if not a.triggered %}<p class="hp">{{ _(wizard.action_no_trigger) }}</p>
+          {% elif a.trigger_dropped %}<p class="hp">{{ _(wizard.action_trigger_dropped) }}</p>{% endif %}
+          {% set remove_time %}{% trans %}Remove this time{% endtrans %}{% endset %}
+          {#- ONE TRIGGER, chosen first: the five are radios of one name, and only the chosen one's
+              control is drawn — the SERVER decides that, so the page reads the same with the script
+              off. The radio is an aux carrier (`action_trigger.<n>`): it names a choice, never a
+              plan value. -#}
+          <div class="sw-field">
+            <span class="k">{{ _(wizard.action_trigger_question) }}</span>
+            <div class="sw-checks sw-triggers" data-action-trigger>
+              {% for trigger in wizard.action_triggers %}
+              <label><input type="radio" name="{{ wizard.action_trigger_field }}.{{ a.index }}" value="{{ trigger.kind }}"{% if a.trigger_shown == trigger.kind %} checked{% endif %}> {{ _(trigger.label) }}</label>
+              {% endfor %}
+            </div>
+            <p class="hp">{{ _(wizard.action_trigger_lead) }}</p>
+            {% if a.trigger_shown %}<p class="hp">{{ _(wizard.action_trigger_hints[a.trigger_shown]) }}</p>{% endif %}
+          </div>
+          {% if a.trigger_shown == 'times' %}
+          {#- times of day as ROWS, the language the week editor and the ladder use: one time input
+              per row, add and remove as submits of this same GET form, and each row's next fire
+              beside it. Never one delimiter-separated field. -#}
+          <div class="sw-field">
+            <span class="k">{% trans %}Times of day{% endtrans %}</span>
+            <div class="sw-times">
+              {% for row in a.time_rows %}
+              <div class="sw-trow">
+                <input class="sw-inp mono" type="time" name="{{ wizard.action_time_field }}.{{ a.index }}.{{ row.index }}" value="{{ row.value }}" aria-label="{% trans %}A time of day{% endtrans %} {{ loop.index }}">
+                {% if row.error %}<p class="sw-fire bad">{{ _('Row') }} {{ loop.index }}: {{ _(row.error) }}</p>
+                {% else %}<p class="sw-fire">{% for fire in row.fires %}<span class="mono">{{ fire }}</span>{% endfor %}</p>{% endif %}
+                {{ row_remove(wizard.action_time_remove_field, a.index ~ '.' ~ row.index, remove_time) }}
+              </div>
+              {% endfor %}
+            </div>
+            <div class="sw-entryops">
+              <button type="submit" class="st-btn" name="{{ wizard.action_time_add_field }}" value="{{ a.index }}">{% trans %}Add a time{% endtrans %}</button>
+            </div>
+          </div>
+          {% elif a.trigger_shown == 'cron' %}
+          <div class="sw-field">
+            <span class="k">{% trans %}Cron expression{% endtrans %}</span>
+            <input class="sw-inp mono" type="text" name="action.{{ a.index }}.cron" value="{{ a.entry.get('cron') or '' }}" placeholder="0 4 * * *">
+            {% if a.cron.error %}<p class="sw-fire bad">{{ _(a.cron.error) }}</p>
+            {% elif a.cron.warning %}<p class="sw-fire warn">{{ _(a.cron.warning) }}{% for fire in a.cron.fires %} <span class="mono">{{ fire }}</span>{% endfor %}</p>
+            {% elif a.cron.fires %}<p class="sw-fire">{% trans %}Next:{% endtrans %}{% for fire in a.cron.fires %} <span class="mono">{{ fire }}</span>{% endfor %}</p>{% endif %}
+          </div>
+          {% elif a.trigger_shown == 'mission_time' %}
+          <div class="sw-field">
+            <label class="k" for="sw-mt-{{ a.index }}">{% trans %}Minutes of mission time{% endtrans %}</label>
+            <input class="sw-inp" id="sw-mt-{{ a.index }}" type="number" min="1" name="action.{{ a.index }}.mission_time" value="{{ a.entry.get('mission_time') or '' }}">
+          </div>
+          {#- the hard cap belongs to the mission-time trigger: it is drawn HERE and nowhere else, so
+              a plan that does not state a mission time cannot carry one either -#}
+          <div class="sw-field">
+            <label class="k" for="sw-maxmt-{{ a.index }}">{% trans %}At most{% endtrans %}</label>
+            <input class="sw-inp" id="sw-maxmt-{{ a.index }}" type="number" min="1" name="action.{{ a.index }}.max_mission_time" value="{{ a.entry.get('max_mission_time') or '' }}">
+            <p class="hp">{% trans %}The hard cap: at that many minutes of mission time the mission restarts even with players on. The bot applies it only while this entry waits until nobody is flying.{% endtrans %}</p>
+          </div>
+          {% elif a.trigger_shown == 'real_time' %}
+          <div class="sw-field">
+            <label class="k" for="sw-rt-{{ a.index }}">{% trans %}Minutes of server runtime{% endtrans %}</label>
+            <input class="sw-inp" id="sw-rt-{{ a.index }}" type="number" min="1" name="action.{{ a.index }}.real_time" value="{{ a.entry.get('real_time') or '' }}">
+          </div>
+          {% elif a.trigger_shown == 'idle_time' %}
+          <div class="sw-field">
+            <label class="k" for="sw-it-{{ a.index }}">{% trans %}Minutes with nobody on{% endtrans %}</label>
+            <input class="sw-inp" id="sw-it-{{ a.index }}" type="number" min="1" name="action.{{ a.index }}.idle_time" value="{{ a.entry.get('idle_time') or '' }}">
+          </div>
+          {% endif %}
+          {% endif %}
+          <div class="sw-field">
+            <span class="k">{% trans %}What{% endtrans %}</span>
+            <select class="st-sel" name="action.{{ a.index }}.method" data-action-method>
+              {% for method in wizard.action_methods %}
+              <option value="{{ method }}"{% if (a.method or wizard.action_methods[0]) == method %} selected{% endif %}>{{ method }}</option>
+              {% endfor %}
+            </select>
+            <p class="hp">{{ _(wizard.action_method_lead) }}</p>
+          </div>
+          {% if 'mission' in a.controls %}
+          {#- a load names ONE mission: two radios, and the picker the radio does not name is drawn
+              ``disabled`` so it posts nothing — the value the other key carried is then pruned by
+              the save. Both pickers are drawn, so switching costs one round trip. -#}
+          <div class="sw-field" data-action-picks>
+            <span class="k">{% trans %}Mission{% endtrans %}</span>
+            <div class="sw-checks">
+              {% for value, label in wizard.action_pick_labels %}
+              <label><input type="radio" name="{{ wizard.action_pick_field }}.{{ a.index }}" value="{{ value }}"{% if a.pick == value %} checked{% endif %}> {{ _(label) }}</label>
+              {% endfor %}
+            </div>
+            <p class="hp">{{ _(wizard.action_pick_lead) }}</p>
+            <div class="sw-pick{% if a.pick != 'mission_id' %} sw-pick-off{% endif %}" data-pick="mission_id">
+              {{ mission_id_field('action.' ~ a.index, a.picks, '-' ~ a.index, a.pick != 'mission_id') }}
+            </div>
+            <div class="sw-pick{% if a.pick != 'mission_file' %} sw-pick-off{% endif %}" data-pick="mission_file">
+              {{ mission_file_field('action.' ~ a.index, a.picks, '-' ~ a.index, a.pick != 'mission_file') }}
+            </div>
+          </div>
+          {% endif %}
+          <div class="sw-field sw-checks">
+            {#- the two answers are exclusive, so they are radios of ONE name. The empty value is
+                the DEFAULT: it states no key at all, so a save writes no ``populated`` rather than
+                a ``populated: true`` the file would carry for nothing. -#}
+            <label><input type="radio" name="action.{{ a.index }}.populated" value=""{% if a.entry.get('populated') is not sameas false %} checked{% endif %}> {% trans %}Act even with players on{% endtrans %}</label>
+            <label><input type="radio" name="action.{{ a.index }}.populated" value="false"{% if a.entry.get('populated') is sameas false %} checked{% endif %}> {% trans %}Only when nobody is flying{% endtrans %}</label>
+          </div>
+          <div class="sw-field sw-checks">
+            <label><input type="checkbox" name="action.{{ a.index }}.mission_end" value="true"{% if a.entry.get('mission_end') %} checked{% endif %}> {% trans %}Only when the mission ends{% endtrans %}</label>
+            <label><input type="checkbox" name="action.{{ a.index }}.coalition_win" value="true"{% if a.entry.get('coalition_win') %} checked{% endif %}> {% trans %}Only when a coalition wins{% endtrans %}</label>
+            {#- ``shutdown`` is not offered: it means "stop the DCS server process first", not "power
+                the machine off". The key rides in ``a.extra`` as a hidden input, so a file that
+                carries it keeps it byte-identically through every save. -#}
+            {% if 'extras' in a.controls %}
+            <label><input type="checkbox" name="action.{{ a.index }}.run_extensions" value="true"{% if a.entry.get('run_extensions') %} checked{% endif %}> {% trans %}Run the extensions first{% endtrans %}</label>
+            <label><input type="checkbox" name="action.{{ a.index }}.use_orig" value="true"{% if a.entry.get('use_orig') %} checked{% endif %}> {% trans %}Use the original mission file{% endtrans %}</label>
+            {% endif %}
+            {% if 'load_only' in a.controls %}
+            <label><input type="checkbox" name="action.{{ a.index }}.no_reload" value="true"{% if a.entry.get('no_reload') %} checked{% endif %}> {% trans %}Do not reload a running mission{% endtrans %}</label>
+            {% endif %}
+          </div>
+          {% if 'password' in a.controls %}
+          {#- one password field, for the three methods that set the server password after the mission
+              is loaded. It states the FILE's value and nothing else: no read of the live server
+              settings reaches it, so opening the step never copies a running secret onto the page.
+              ``autocomplete`` off keeps a browser's stored credential out of it too. -#}
+          <div class="sw-field">
+            <label class="k" for="sw-password-{{ a.index }}">{{ _(wizard.action_password_label) }}</label>
+            <input class="sw-inp" id="sw-password-{{ a.index }}" type="text" autocomplete="off"
+                   name="action.{{ a.index }}.password" value="{{ a.entry.get('password') or '' }}">
+            <p class="hp">{{ _(wizard.action_password_hint) }}</p>
+          </div>
+          {% endif %}
+          {#- the SAME preset pick step 2 draws, over this entry's own keys: the pick writes
+              ``settings`` and ``presets`` rides in ``a.extra`` unchanged -#}
+          {% if 'presets' in a.controls %}{{ presets_field('action.' ~ a.index, a.picks, '-' ~ a.index) }}{% endif %}
+          <div class="sw-field sw-entryops">
+            {% set remove_word %}{% trans number=a.number %}Remove entry {{ number }}{% endtrans %}{% endset %}
+            {{ row_remove(wizard.action_remove_field, a.index, remove_word) }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="card"><div class="bd"><p class="empty">{% trans %}This server's plan schedules no actions yet.{% endtrans %}</p></div></div>
+      {% endif %}
+      <div class="sw-entryops">
+        <button type="submit" class="st-btn" name="{{ wizard.action_add_field }}" value="1">{% trans %}Add an entry{% endtrans %}</button>
+      </div>
+      {#- THE FOUR EVENT COMMANDS, last on this step: they are the keys an entry's events run, and
+          they ride hidden on every other step, so this is the only place they are edited. ONLY the
+          mission start takes a delay; a value the file states on another event rides hidden and is
+          never pruned. -#}
+      <div class="card">
+        <div class="hd"><h3>{% trans %}Commands on events{% endtrans %}</h3></div>
+        <div class="bd">
+          <p class="hp">{% trans %}Each command runs when that event happens, in the bot's own vocabulary: load:, lua:, call: or run:. Only the mission start takes a delay, in seconds, before its command runs.{% endtrans %}</p>
+          {% for row in wizard.commands %}
+          <div class="sw-field">
+            <span class="k">{{ _(row.label) }}</span>
+            <div class="sw-inline">
+              <input class="sw-inp mono" type="text" name="{{ row.key }}.command" value="{{ row.command }}" placeholder="load:Scripts/net/start.lua" aria-label="{{ _(row.label) }}">
+              {% if row.has_delay %}
+              <label>{% trans %}Delay before the command (seconds){% endtrans %} <input class="sw-inp" type="number" min="0" name="{{ row.key }}.sleep" value="{{ row.sleep }}"></label>
+              {% elif row.sleep %}
+              {#- a sleep the file states on an event that takes none: carried untouched, never shown -#}
+              <input type="hidden" name="{{ row.key }}.sleep" value="{{ row.sleep }}">
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {#- progressive enhancement, nothing more: choosing a trigger or a method submits the step's own
+          GET form, so that choice's control is drawn at once. Without the script the radio/select
+          posts on the next Next/Back, and the server still draws only the chosen control. The
+          mission pick is the same: the radio swaps which of the two pickers is live, and the other is
+          ``disabled`` so it posts nothing. -#}
+      <script>
+        (function () {
+          "use strict";
+          document.querySelectorAll('[data-action-trigger]').forEach(function (group) {
+            group.addEventListener('change', function (event) {
+              var form = group.closest('form');
+              if (!form || !event.target.name) { return; }
+              if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+            });
+          });
+          document.querySelectorAll('select[data-action-method]').forEach(function (select) {
+            select.addEventListener('change', function () {
+              var form = select.closest('form');
+              if (!form) { return; }
+              if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+            });
+          });
+          document.querySelectorAll('[data-action-picks]').forEach(function (holder) {
+            var radios = holder.querySelectorAll('input[name^="action_pick."]');
+            var sync = function () {
+              radios.forEach(function (radio) {
+                var target = holder.querySelector('[data-pick="' + radio.value + '"]');
+                if (!target) { return; }
+                target.classList.toggle('sw-pick-off', !radio.checked);
+                target.querySelectorAll('input, select').forEach(function (field) {
+                  field.disabled = !radio.checked;
+                });
+              });
+            };
+            radios.forEach(function (radio) { radio.addEventListener('change', sync); });
+            sync();
+          });
+        })();
+      </script>
+
+    {% elif step == '4' %}
+      {#- step 4: the warning message, its two OPTIONAL parts and the ladder. The message and the
+          countdown text share ONE placeholder legend and ONE server-rendered preview (the bot's own
+          substitution, never a second one). Sound and Countdown are the SHARED `editor.panel` block:
+          a native disclosure, so the summary IS the control with the script off, and a part the file
+          states renders OPEN so nothing it states is hidden. -#}
+      {% set warn_block = wizard.warn or {} %}
+      {% set countdown_block = warn_block.get('countdown') or {} %}
+      {% set remove_word %}{% trans %}Remove row{% endtrans %}{% endset %}
+      <div class="card">
+        <div class="hd"><h3>{% trans %}The warning message{% endtrans %}</h3></div>
+        <div class="bd">
+          <div class="sw-field">
+            <label class="k" for="sw-warn-message">{% trans %}Message{% endtrans %}
+              {% if wizard.state.warn == 'own' %}<span class="tag">{% trans %}this server's block{% endtrans %}</span>
+              {% elif wizard.state.warn == 'inherited' %}<span class="tag a">{% trans %}inherited{% endtrans %}</span>
+              {% else %}<i>{% trans %}not set{% endtrans %}</i>{% endif %}</label>
+            <input class="sw-inp" id="sw-warn-message" type="text" name="warn.message" value="{{ warn_block.get('message') or '' }}" placeholder="!!! {item} will {what} in {when} !!!">
+            {{ warn_chips('sw-warn-message', wizard.warn_placeholders) }}
+            <p class="hp">{% trans %}Shown to every player; the bot fills the three names in.{% endtrans %}</p>
+            {% if wizard.warn_message_preview %}
+            <p class="sw-prev"><span class="sw-prev-lab">{% trans %}A player reads{% endtrans %}</span>{{ wizard.warn_message_preview }}</p>
+            {% endif %}
+          </div>
+          {%- set sound_summary %}<span class="k">{% trans %}Sound{% endtrans %}</span><span class="r"><span class="tag a">{% trans %}optional{% endtrans %}</span></span>{% endset %}
+          {% call editor.panel(sound_summary, open=warn_block.get('sound')) %}
+            <div class="sw-field">
+              <input class="sw-inp mono" id="sw-warn-sound" type="text" name="warn.sound" value="{{ warn_block.get('sound') or '' }}" placeholder="alarm.ogg" aria-label="{% trans %}Sound{% endtrans %}">
+            </div>
+          {% endcall %}
+          {%- set countdown_summary %}<span class="k">{% trans %}Countdown{% endtrans %}</span><span class="r"><span class="tag a">{% trans %}optional{% endtrans %}</span></span>{% endset %}
+          {% call editor.panel(countdown_summary, open=countdown_block.get('time') or countdown_block.get('message')) %}
+            <div class="sw-field">
+              {#- ONE line: the seconds narrow, the message taking the rest — the shape a ladder row has -#}
+              <div class="sw-cdrow">
+                <label class="sw-wlab" for="sw-warn-cdtime">{% trans %}Seconds{% endtrans %}
+                  <input class="sw-inp" id="sw-warn-cdtime" type="number" min="0" name="warn.countdown.time" value="{{ countdown_block.get('time') or '' }}">
+                </label>
+                <label class="sw-wlab" for="sw-warn-cdmsg">{% trans %}Message{% endtrans %}
+                  <input class="sw-inp" id="sw-warn-cdmsg" type="text" name="warn.countdown.message" value="{{ countdown_block.get('message') or '' }}" placeholder="!!! {item} will {what} in {when} !!!">
+                </label>
+              </div>
+              {{ warn_chips('sw-warn-cdmsg', wizard.warn_placeholders) }}
+              <p class="hp">{% trans %}Shown to every player; the bot fills the three names in.{% endtrans %}</p>
+              {% if wizard.warn_countdown_preview %}
+              <p class="sw-prev"><span class="sw-prev-lab">{% trans %}A player reads{% endtrans %}</span>{{ wizard.warn_countdown_preview }}</p>
+              {% endif %}
+            </div>
+          {% endcall %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="hd"><h3>{% trans %}The ladder{% endtrans %}</h3></div>
+        <div class="bd">
+          <p class="hp">{% trans %}One row per warning: the seconds before the change, and the text shown at that moment. A row with text but no seconds is refused, and two rows cannot share the same seconds.{% endtrans %}</p>
+          <div class="sw-ladder">
+            <div class="sw-lhead"><span>{% trans %}Seconds{% endtrans %}</span><span>{% trans %}The text shown at that moment{% endtrans %}</span><span></span></div>
+            {% for row in wizard.warn_rows %}
+            <div class="sw-lrow">
+              <input class="sw-inp mono" type="number" min="1" step="1" name="{{ wizard.warn_time_field }}.{{ row.index }}" value="{{ row.seconds }}" aria-label="{% trans %}Seconds{% endtrans %} {{ row.number }}">
+              <input class="sw-inp" type="text" name="{{ wizard.warn_text_field }}.{{ row.index }}" value="{{ row.message }}" aria-label="{% trans %}The text shown at that moment{% endtrans %} {{ row.number }}">
+              {{ row_remove(wizard.warn_remove_field, row.index, remove_word) }}
+              {% if row.error %}<p class="sw-fire bad">{{ _('Row') }} {{ row.number }}: {{ _(row.error) }}</p>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <div class="sw-entryops">
+            <button type="submit" class="st-btn" name="{{ wizard.warn_add_field }}" value="1">{% trans %}Add a row{% endtrans %}</button>
+          </div>
+          <p class="hp">{{ _(wizard.warn_write_sentence) }}</p>
+        </div>
+      </div>
+      {#- PROGRESSIVE ENHANCEMENT, nothing more: a name becomes a control that inserts itself at the
+          caret of the field it belongs to. With the script off the same names are the legend the
+          field's hint already explains, and the operator types them. -#}
+      <script>
+        (function () {
+          "use strict";
+          document.querySelectorAll("[data-warn-chips]").forEach(function (holder) {
+            var field = document.getElementById(holder.getAttribute("data-warn-target"));
+            if (!field) { return; }
+            holder.querySelectorAll("[data-insert]").forEach(function (chip) {
+              chip.setAttribute("role", "button");
+              chip.setAttribute("tabindex", "0");
+              var insert = function () {
+                var token = chip.getAttribute("data-insert");
+                var at = field.selectionStart == null ? field.value.length : field.selectionStart;
+                var end = field.selectionEnd == null ? at : field.selectionEnd;
+                field.value = field.value.slice(0, at) + token + field.value.slice(end);
+                field.focus();
+                field.selectionStart = field.selectionEnd = at + token.length;
+              };
+              chip.addEventListener("click", insert);
+              chip.addEventListener("keydown", function (event) {
+                if (event.key === "Enter" || event.key === " ") { event.preventDefault(); insert(); }
+              });
+            });
+          });
+        })();
+      </script>
+
+    {% endif %}
+
+    </div>
+    <aside class="st-aside">
+      <div class="hd"><h3>{% trans %}This step writes nothing{% endtrans %}</h3></div>
+      <div class="bd">
+        <p class="hp">{% trans %}Every value on these steps travels in the address, so a refresh keeps it and the page works with JavaScript off.{% endtrans %}</p>
+        {% if step == '4' %}<p class="st-note">{% trans %}The review step and the save follow in the wizard's last step.{% endtrans %}</p>{% endif %}
+      </div>
+    </aside>
+  </div>
+</form>
+
+{% else %}
+<div class="st-bar">
+  <div>
+    <div class="where"><b>{% trans %}Scheduler{% endtrans %}</b> &middot; {% trans %}this server only{% endtrans %}</div>
+    <div class="s"><span class="mono">{{ scheduler_file_name }}</span> &rarr;
+      {#- the "no block of its own" claim needs the file to have been READ: with an unreadable file
+          the absence of a block is unknown, not observed, and the provenance card says so. -#}
+      {% if scheduler_block %}<span class="mono">{{ scheduler_block }}</span>
+      {%- elif scheduler_keys_known %}{% trans %}no block of its own: every value below is inherited{% endtrans %}{% endif %}
+      {%- if scheduler.timezone %} &middot; {% trans %}timezone{% endtrans %} <span class="mono">{{ scheduler.timezone }}</span>{% endif %}</div>
+  </div>
+  <div class="acts">
+    {% if scheduler_can_write %}
+    <a class="st-btn pri" href="{{ scheduler_wizard_url }}" data-wizard="step-1">{% trans %}Change the plan{% endtrans %}</a>
+    {% endif %}
+    <a class="st-btn" href="{{ scheduler_settings_url }}">{{ _(scheduler_settings_link) }}</a>
+  </div>
+</div>
+
+{#- 1. THE PROVENANCE: one row per schema key, so "inherited" is stated for every key rather than
+    only where a card happens to show it. A key neither block declares is "not set" — no chip claims
+    a source for a value nobody wrote. -#}
+<div class="card sw-src">
+  <div class="hd"><h3>{% trans %}Where each value comes from{% endtrans %}</h3></div>
+  <div class="bd">
+    {% if not scheduler_keys_known %}
+    <p class="st-note">{% trans %}The file could not be read a second time for provenance, so no source is claimed for any value below. The plan itself is the bot's own merge.{% endtrans %}</p>
+    {% else %}
+    <div class="sw-keys">
+      {% for row in scheduler.key_rows %}
+      <div class="sw-krow">
+        <span class="k">{{ _(row.label) }}</span>
+        <span class="v">
+          {%- if row.state == 'own' %}<span class="tag" data-own="{{ row.key }}">{% trans %}this server's block{% endtrans %}</span>
+          {%- elif row.state == 'inherited' %}<span class="tag a" data-inherited="{{ row.key }}">{% trans %}inherited{% endtrans %}</span>
+          {%- else %}<i>{% trans %}not set{% endtrans %}</i>{% endif %}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="sw-grid">
+  <div class="sw-col">
+    {#- 2. THE WEEK -#}
+    <div class="card">
+      <div class="hd"><h3>{% trans %}Availability this week{% endtrans %}</h3></div>
+      <div class="bd">
+        {% if scheduler.schedule %}
+        <div class="sw-week">
+          <div></div>{% for day in scheduler_days %}<div class="sw-dh"><b>{{ day }}</b></div>{% endfor %}
+          {% for row in scheduler.schedule %}
+          <div class="sw-rng">{{ row.period }}</div>
+          {% for cell in row.cells %}<span class="sw-cell {{ cell.state }}"><b>{{ cell.letter }}</b><small>{{ _(cell.word) }}</small></span>{% endfor %}
+          {% endfor %}
+        </div>
+        <div class="sw-legend">
+          {% for item in scheduler_legend %}<span><span class="sw-key {{ item.state }}">{{ item.letter }}</span> {{ _(item.word) }}</span>{% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">{% trans %}This server's plan carries no week schedule.{% endtrans %}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {#- 3. THE ACTION ENTRIES, one card-row each, in the file's order -#}
+    <div class="card">
+      <div class="hd"><h3>{% trans %}Scheduled actions{% endtrans %}</h3></div>
+      <div class="bd">
+        {% if scheduler.actions %}
+        {% for row in scheduler.actions %}
+        <div class="sw-arow">
+          <div class="w">
+            <span class="t1">{% if row.trigger %}{{ say(row.trigger) }}{% else %}{% trans %}no trigger stated{% endtrans %}{% endif %}</span>
+            <span class="t2">{% if row.method %}{{ _(row.method) }}{% else %}{% trans %}no method stated{% endtrans %}{% endif %}</span>
+          </div>
+          <div class="sw-flags">
+            {% for word in row.conditions %}<span class="tag">{{ _(word) }}</span>{% endfor %}
+            {% for word in row.extras %}<span class="tag">{{ _(word) }}</span>{% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="empty">{% trans %}This server's plan schedules no actions.{% endtrans %}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="sw-col">
+    {#- 4. THE WARNING LADDER — the message is the file's own text, printed verbatim -#}
+    <div class="card">
+      <div class="hd"><h3>{% trans %}Warnings before a restart{% endtrans %}</h3></div>
+      <div class="bd">
+        {% if scheduler.warn %}
+        {% if scheduler.warn.message %}<div class="sw-prev">{{ scheduler.warn.message }}</div>{% endif %}
+        {% if scheduler.warn.ladder %}
+        <div class="sw-pills">{% for step in scheduler.warn.ladder %}<span>{{ step.seconds }}{% if step.message %} &middot; {{ step.message }}{% endif %}</span>{% endfor %}</div>
+        {% endif %}
+        {% if scheduler.warn.sound or scheduler.warn.countdown %}
+        <div class="sw-sum">
+          {% if scheduler.warn.sound %}<div class="r"><span class="k">{% trans %}Sound{% endtrans %}</span><span class="v mono">{{ scheduler.warn.sound }}</span></div>{% endif %}
+          {% if scheduler.warn.countdown %}<div class="r"><span class="k">{% trans %}Countdown{% endtrans %}</span><span class="v">{{ scheduler.warn.countdown.time }} s{% if scheduler.warn.countdown.message %} &middot; {{ scheduler.warn.countdown.message }}{% endif %}</span></div>{% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="empty">{% trans %}This server's plan declares no warning ladder.{% endtrans %}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {#- 5. THE STARTUP -#}
+    <div class="card">
+      <div class="hd"><h3>{% trans %}Startup{% endtrans %}</h3></div>
+      <div class="bd">
+        {% if scheduler.startup %}
+        <div class="sw-sum">
+          {% for row in scheduler.startup %}<div class="r"><span class="k">{{ _(row.label) }}</span><span class="v">{{ row.value }}</span></div>{% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">{% trans %}This server's plan says nothing about its start.{% endtrans %}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {#- 6. THE FOUR EVENT COMMANDS — always all four rows, so an event with nothing set is READ as
+        nothing set rather than left out -#}
+    <div class="card">
+      <div class="hd"><h3>{% trans %}Commands on events{% endtrans %}</h3></div>
+      <div class="bd">
+        <div class="sw-sum">
+          {% for row in scheduler.commands %}
+          <div class="r"><span class="k">{{ _(row.label) }}</span><span class="v">{% if row.command %}<span class="mono">{{ row.command }}</span>{% if row.sleep %} &middot; {{ row.sleep }} s{% endif %}{% else %}<i>{% trans %}not set{% endtrans %}</i>{% endif %}</span></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="st-note">{% trans %}Read-only. The plan is the scheduler plugin's merged configuration for this server: the values here are what the bot applies, and changing one is a change to the file in Settings.{% endtrans %}</div>
+{% endif %}
+</div>

@@ -39,8 +39,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import (catalog, configgen, i18n, permissions, plugin_registry, readmodels, scopes, session,
-                validation)
+from .. import (catalog, config_apply, configgen, i18n, permissions, plugin_registry, readmodels,
+                scheduler_plan, scope as identity_scope, scopes, session, validation)
 from ..registry import NavItem
 from . import actions as actions_page
 from . import dashboard as dashboard_page
@@ -51,7 +51,7 @@ __all__ = [
     "SETTINGS_EXPERT_FIELD", "SETTINGS_YAML_FIELD",
     "SETTINGS_FILE_PATH", "SETTINGS_FILE_SAVE_PATH", "SETTINGS_VALIDATE_FILE_PATH",
     "SETTINGS_MAIN_PATH", "SETTINGS_SERVICE_TOGGLE_PATH", "SETTINGS_FORM_MAX_FIELDS",
-    "SETTINGS_ADD_BLOCK_PATH",
+    "SETTINGS_ADD_BLOCK_PATH", "SETTINGS_APPLY_PATH", "SETTINGS_APPLY_ASK_PATH", "KIND_NODES",
     "KIND_MAIN", "KIND_SERVICE", "KIND_PLUGIN", "KIND_LABELS",
     "SETTINGS_FILE_VIEW_CAPABILITY", "SETTINGS_FILE_WRITE_CAPABILITY",
     "declare_file_capabilities", "file_capability", "require_file_capability",
@@ -72,6 +72,15 @@ __all__ = [
     "validate_slice", "node_slice_keys", "scoped_write_guard", "scoped_context", "is_scoped",
     "REMOVE_ACK_KEY", "REMOVE_ACK_FIELD", "SAVE_REFUSED_REMOVE_ACK", "mint_remove_ack",
     "validate_remove_ack", "spend_remove_ack", "visibility_context", "removal_paths",
+    # the Scheduler wizard's ONE write door
+    "SCHEDULER_SAVE_PATH", "SCHEDULER_VALIDATE_PATH", "SCHEDULER_SCOPE_FIELD", "SCHEDULER_KIND",
+    "SCHEDULER_FILE_NAME", "SCHEDULER_FALLBACK_URL", "SCHEDULER_RESERVED_SECTIONS",
+    "SCHEDULER_VIEW_CAPABILITY", "SCHEDULER_WRITE_CAPABILITY", "SCHEDULER_EXPERT_CAPABILITY",
+    "SCHEDULER_ROLES", "SCHEDULER_EXPERT_REFUSED", "SchedulerAccess", "scheduler_access",
+    "SchedulerRefusal", "SchedulerScope", "scheduler_write_guard", "scheduler_redirect",
+    "scheduler_override", "scheduler_candidate", "scheduler_verdict",
+    "scheduler_expert_answer", "scheduler_validate_block", "scheduler_posted_scope",
+    "scheduler_block_key",
 ]
 
 log = logging.getLogger(__name__)
@@ -112,6 +121,14 @@ SETTINGS_SERVICE_TOGGLE_PATH = "/actions/settings/service/{name}"
 #: path a form save uses. It is what makes "adding a block in the UI" create that block in the YAML.
 SETTINGS_ADD_BLOCK_PATH = "/actions/settings/addblock/{kind}/{name}"
 
+#: THE APPLY DOOR's two routes (POST-only, and the ONE control a save leaves). ``ASK`` renders the
+#: confirmation, ``APPLY`` runs it; both are registered by their own module
+#: (:mod:`services.webservice.config_apply`) under its own capability declaration, and re-exported
+#: here so a page reads ONE spelling of the path.
+SETTINGS_APPLY_PATH = config_apply.APPLY_PATH
+SETTINGS_APPLY_ASK_PATH = config_apply.APPLY_ASK_PATH
+
+
 #: The field-count ceiling the Settings forms are parsed with. Starlette's default (1000) is a DoS
 #: guard, but a schema-generated page legitimately exceeds it — a service schema's DSL can walk to
 #: hundreds of fields per entry, so one file posts thousands. The Settings save/validate routes
@@ -132,6 +149,9 @@ SETTINGS_FORM_MAX_FIELDS = 20000
 KIND_MAIN = "main"
 KIND_SERVICE = "service"
 KIND_PLUGIN = "plugin"
+#: ``nodes.yaml`` is NOT a listed kind (the node page owns it), but the apply door resolves it by this
+#: name, so the mapping and the route share one spelling.
+KIND_NODES = "nodes"
 
 #: The chrome word the entries list shows for each kind. i18n-wrapped like every other composed word.
 KIND_LABELS: dict[str, str] = {
@@ -158,6 +178,15 @@ SETTINGS_FILE_WRITE_CAPABILITY = "settings.file.write"
 #: the install's own configuration is ADMIN work and carries NO manager scope grant: a manager's
 #: scope is a set of SERVERS, and "one of mine runs there" must never become "let me edit main.yaml".
 SETTINGS_ROLES: tuple[str, ...] = ("Admin",)
+
+#: THE SCHEDULER'S OWN TWO CAPABILITIES, plus the expert door. The scheduler file is one block per
+#: server, so its audience is per server: a DCS Admin reads and writes the servers its scope holds,
+#: a manager reads only (the scope grant admits it to the READ, which the per-server scope then
+#: narrows), and Expert Mode — free-hand YAML for the block — stays ``Admin`` only.
+SCHEDULER_VIEW_CAPABILITY = "scheduler.view"
+SCHEDULER_WRITE_CAPABILITY = "scheduler.write"
+SCHEDULER_EXPERT_CAPABILITY = "scheduler.expert"
+SCHEDULER_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
 
 SETTINGS_TEMPLATE = "settings.html"
 SETTINGS_TITLE = i18n._("Settings")
@@ -393,12 +422,57 @@ SERVICE_TOGGLE_UNKNOWN = i18n._("No such service.")
 
 
 def declare() -> None:
-    """Declare both capabilities. Idempotent for the same roles (and NO scope grant)."""
+    """Declare the Settings capabilities and the Scheduler's own three.
+
+    Idempotent for the same roles. The Settings pair stays ``Admin`` only with no scope grant; the
+    Scheduler pair is per server (the server is checked separately) and only its READ carries the
+    manager grant, so a manager can look at their own schedule and never write it.
+    """
     permissions.declare_capability(SETTINGS_VIEW_CAPABILITY, SETTINGS_ROLES)
     permissions.declare_capability(SETTINGS_WRITE_CAPABILITY, SETTINGS_ROLES)
+    permissions.declare_capability(SCHEDULER_VIEW_CAPABILITY, SCHEDULER_ROLES, scope_grants=True)
+    permissions.declare_capability(SCHEDULER_WRITE_CAPABILITY, SCHEDULER_ROLES)
+    permissions.declare_capability(SCHEDULER_EXPERT_CAPABILITY, ("Admin",))
 
 
 declare()
+
+
+@dataclass(frozen=True)
+class SchedulerAccess:
+    """What ONE identity may do with ONE server's schedule: read, write, and the expert door.
+
+    ``expert`` is separate from ``write`` because Expert Mode writes free-hand YAML for the block,
+    which is narrower than the plan-shaped write.
+    """
+
+    view: bool
+    write: bool
+    expert: bool
+
+
+def scheduler_access(request: Request, server=None) -> SchedulerAccess:
+    """THE Scheduler capability decision for this request and *server*.
+
+    Every reader calls this one function: the tab strip, the page route's refusal for
+    ``?tab=scheduler``, the landing read, and both POST doors. The capability check is
+    ``permissions.allows`` (the gate's own predicate); the per-server half is
+    ``scope.server_in_scope`` — the SAME rule the scoped source and the ban/action scope apply,
+    never a second spelling.
+
+    ``server=None`` answers the capability question alone (no server to scope against) and is only
+    meant for tests and for callers that have already resolved one; a real door passes its server,
+    so an out-of-scope server can never earn a grant here.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    in_scope = server is None or identity_scope.server_in_scope(
+        permissions.scope_for(request), server)
+    return SchedulerAccess(
+        view=in_scope and permissions.allows(SCHEDULER_VIEW_CAPABILITY, roles, manager=manager),
+        write=in_scope and permissions.allows(SCHEDULER_WRITE_CAPABILITY, roles, manager=manager),
+        expert=in_scope and permissions.allows(SCHEDULER_EXPERT_CAPABILITY, roles, manager=manager),
+    )
 
 
 def _audience(*capabilities: str) -> tuple[str, ...]:
@@ -450,6 +524,221 @@ def require_file_capability(request: Request, kind: str, *, write: bool) -> None
         raise HTTPException(status_code=403, detail=permissions.requirement_text(capability))
 
 
+# ------------------------------------------------------- the Scheduler wizard's one write door
+# ONE file (``config/plugins/scheduler.yaml``) whose top-level blocks are SERVER names plus three
+# reserved sections. Its scope NEVER comes from the file, from ``?node=`` or from a posted ``f.``
+# field: the tab's own ``_scope`` field names a server and :func:`dashboard_page.server_named` — the
+# console's ONE place a name becomes a server, under the caller's scope — resolves it.
+#
+# The shared :func:`scoped_write_guard` is deliberately NOT used here. For this file it answers
+# ``(False, [], frozenset(node_names))``: no allow-list at all and a deny-list of node names only, so
+# a crafted field name could reach ``DEFAULT`` or another server's block. The scheduler guard reads
+# its own reserved set and returns its own allow-list instead.
+#
+# The write is a PER-KEY override through ``configwrite.patch_config_file`` — never
+# ``save_config_file``, which replaces the document and would lose every other server's block.
+
+SCHEDULER_SAVE_PATH = "/actions/settings/scheduler"
+SCHEDULER_VALIDATE_PATH = SCHEDULER_SAVE_PATH + "/validate"
+#: the field the tab's scope travels in — its OWN name, so nothing infers it from a plan value.
+SCHEDULER_SCOPE_FIELD = "_scope"
+SCHEDULER_KIND = KIND_PLUGIN
+SCHEDULER_FILE_NAME = "scheduler"
+#: where a refusal lands when the request did not resolve to a server.
+SCHEDULER_FALLBACK_URL = readmodels.SERVERS_HREF_PREFIX
+
+#: the file's non-server sections, by EXACT name — the way its schema declares them.
+SCHEDULER_RESERVED_SECTIONS = frozenset(scheduler_plan.RESERVED_SECTIONS)
+
+SCHEDULER_SCOPE_MISSING = i18n._("No server was named for this save, so nothing was written.")
+SCHEDULER_SCOPE_RESERVED = i18n._(
+    "DEFAULT, commands and chat_commands are not server blocks — they are edited in Settings, so "
+    "nothing was written.")
+SCHEDULER_SCOPE_UNKNOWN = i18n._(
+    "That name is not a server this console can edit, so nothing was written.")
+SCHEDULER_SCOPE_NODE = i18n._(
+    "That name is a node, not a server, so nothing was written.")
+SCHEDULER_EXPERT_REFUSED = i18n._(
+    "Expert Mode is available to an Admin only, so nothing was written. Use the plan's steps "
+    "instead.")
+
+
+class SchedulerRefusal(Exception):
+    """A refusal an operator reads: ``message`` is a msgid, translated by whoever renders it."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
+@dataclass(frozen=True)
+class SchedulerScope:
+    """One resolved server's place in the scheduler file: the server, its block PATH and its label.
+
+    ``key`` is ``(instance,)``, or ``(node, instance)`` when the instance name is ambiguous across
+    nodes — the shape the bot's validator demands and ``core/plugin.py`` reads. ``label`` is the
+    SERVER's name (the page the operator came from, and where a save returns), never a path.
+    """
+
+    server: object
+    key: tuple[str, ...]
+    label: str
+
+
+def scheduler_write_guard(request: Request, posted_scope) -> tuple[GlobalFile, SchedulerScope]:
+    """Resolve ``_scope`` to ONE server block of the scheduler file, or refuse — in this order.
+
+    1. the file itself: a 404 when this installation has no scheduler file;
+    2. an empty scope: nothing to resolve, nothing to write;
+    3. the file's RESERVED sections by exact name — before any name lookup, because they are not
+       servers and must never be writable as one;
+    4. the name as a server of the caller's SCOPED view (:func:`dashboard_page.server_named`); a miss
+       covers "another server's name" and "no such server" with ONE sentence that discloses neither;
+    5. a name that is a NODE (the cluster's own node list) — refused as such;
+    6. the per-server WRITE grant (:func:`scheduler_access`); a resolved server outside the caller's
+       scope answers the SAME unknown-name sentence, so the refusal never discloses that it exists;
+    7. the block path from the RESOLVED server, never from the posting: the key is the server's
+       INSTANCE name — ``(instance,)``, or ``(node, instance)`` when that instance name occurs on
+       more than one node. ``_scope`` names a SERVER (what the page is addressed by); the file's
+       block is keyed by the instance, and the two routinely differ.
+
+    Returns the file entry and the scope. Raises :class:`HTTPException` for the missing file (404),
+    :class:`SchedulerRefusal` for the name and write refusals. The capability itself is declared on
+    the route (``scheduler.write``), so the deny-by-default gate answers a caller who holds none.
+    """
+    entry = resolve_file(request, SCHEDULER_KIND, SCHEDULER_FILE_NAME)
+    raw = readmodels.text(posted_scope).strip()
+    if not raw:
+        raise SchedulerRefusal(SCHEDULER_SCOPE_MISSING)
+    if raw in SCHEDULER_RESERVED_SECTIONS:
+        raise SchedulerRefusal(SCHEDULER_SCOPE_RESERVED)
+    server = dashboard_page.server_named(request, raw)
+    if server is None:
+        raise SchedulerRefusal(SCHEDULER_SCOPE_UNKNOWN)
+    declared = readmodels.declared_node_instances()
+    if raw in declared:
+        raise SchedulerRefusal(SCHEDULER_SCOPE_NODE)
+    if not scheduler_access(request, server).write:
+        raise SchedulerRefusal(SCHEDULER_SCOPE_UNKNOWN)
+    label = readmodels.text(getattr(server, "name", None)) or scheduler_block_key(server)[-1]
+    return entry, SchedulerScope(server=server, key=scheduler_block_key(server), label=label)
+
+
+def scheduler_block_key(server) -> tuple[str, ...]:
+    """The block path a write uses for *server*: ``(instance,)``, or ``(node, instance)``.
+
+    The key is the server's INSTANCE name — what the plugin reads — and the node is prepended ONLY
+    when that instance name occurs on more than one node, so an unambiguous name stays one level
+    deep exactly as a flat file spells it. The page renders its block at this path and the save
+    writes at this path, so the YAML the review step shows is the YAML the save produces.
+    """
+    instance = readmodels.text(getattr(getattr(server, "instance", None), "name", None)) \
+        or readmodels.text(getattr(server, "name", None))
+    node = readmodels.text(getattr(getattr(server, "node", None), "name", None))
+    declared = readmodels.declared_node_instances()
+    ambiguous = node and sum(1 for names in declared.values() if instance in names) > 1
+    return (node, instance) if ambiguous else (instance,)
+
+
+def scheduler_override(document, scope: SchedulerScope, plan: dict) -> dict:
+    """The override *plan* states for *scope*'s block of *document* — the ONE computation.
+
+    Read from the document that is being written, so the review step of an unmodified file and the
+    save of it produce the SAME ``{set, delete}``: the inherited values are the ``DEFAULT`` block as
+    the file states it, the current overrides are the server's own block at ``scope.key``.
+    """
+    return scheduler_plan.minimal_override(scheduler_plan.default_block(document),
+                                           scheduler_plan.block_at(document, scope.key),
+                                           plan)
+
+
+def scheduler_redirect(scope: SchedulerScope | None) -> str:
+    """The page a save (or its refusal) returns to: the server's Scheduler tab, review step."""
+    if scope is None:
+        return SCHEDULER_FALLBACK_URL
+    return (readmodels.server_url(scope.label, tab="scheduler")
+            + "&step=" + scheduler_plan.SCHEDULER_REVIEW_STEP)
+
+
+def scheduler_expert_answer(form):
+    """The Expert Mode block a post states, or ``None`` when the post is the plan's own form.
+
+    Two readings decide it: the posted flag, and then the block text (:func:`scheduler_plan.
+    expert_block`). The text alone cannot decide it — the review step's textarea ships the block so
+    the page is editable with JavaScript off, so an ordinary save carries it too and the flag is what
+    says whether that text is the candidate.
+    """
+    if readmodels.text(form.get(SETTINGS_EXPERT_FIELD)) != "1":
+        return None
+    return scheduler_plan.expert_block(form.get(scheduler_plan.BLOCK_YAML_FIELD))
+
+
+def scheduler_validate_block(form):
+    """The Expert Mode block a VALIDATE post states, or ``None`` when it carries none.
+
+    The editor posts its text and the token and nothing else, so here PRESENCE is the signal: a post
+    that carries the block is the expert candidate, and the verdict is the one the save would give
+    for exactly that text.
+    """
+    if scheduler_plan.BLOCK_YAML_FIELD not in form:
+        return None
+    return scheduler_plan.expert_block(form.get(scheduler_plan.BLOCK_YAML_FIELD))
+
+
+def scheduler_posted_scope(form, request: Request):
+    """The server a post names: its own field first, then the panel's validate URL.
+
+    The review step's form posts ``_scope``; the panel's editor posts the carrier and the token only,
+    so the render puts ``_scope`` in the validate URL. The field wins when both are there, so a whole
+    form's save is unaffected.
+    """
+    posted = form.get(SCHEDULER_SCOPE_FIELD)
+    if posted is None:
+        posted = request.query_params.get(SCHEDULER_SCOPE_FIELD)
+    return posted
+
+
+def scheduler_candidate(entry: GlobalFile, scope: SchedulerScope, plan: dict | None = None, *,
+                        block=None):
+    """The document a save would produce, built IN MEMORY — never re-read after the mutation.
+
+    *block* is the Expert Mode block when the post states one: it REPLACES the server's block, so the
+    keys the operator dropped leave with it. Otherwise *plan* is the wizard's plan and the per-key
+    override is applied. Both doors end in one document, which is what ``entry.schema_files``
+    validates — the very call a save makes, so the check cannot bless what the write would refuse.
+    Raises :class:`configwrite.ConfigWriteError` when the file cannot be read or the document cannot
+    be serialised.
+    """
+    document = configwrite.load_config_file(entry.path)
+    if document is None:
+        document = configgen.read_document(entry.path)
+    scheduler_plan.require_mapping(document, entry.display)
+    if block is not None:
+        scheduler_plan.apply_block(document, scope.key, block)
+    else:
+        scheduler_plan.apply_override(document, scope.key,
+                                      scheduler_override(document, scope, plan or {}))
+    return document
+
+
+def scheduler_verdict(request: Request, document, faults, path: Path) -> dict:
+    """The JSON verdict for a refused candidate: the operator's sentence plus the located detail."""
+    tokens = [token for token in (faults.error_path or "").split("/") if token]
+    found = _locate(document, tokens, path)
+    block = found["block"] or ""
+    if found["line"]:
+        message = i18n.translate(request, YAML_NOT_AGAINST_SCHEMA, line=found["line"], block=block)
+    elif block:
+        message = i18n.translate(request, YAML_NOT_AGAINST_SCHEMA_BLOCK, block=block)
+    else:
+        message = i18n.translate(request, YAML_NOT_AGAINST_SCHEMA_BLOCK, block=block or "?")
+    detail = _clean_detail(faults.errors)
+    return _verdict(ok=False, kind="schema", line=found["line"], column=found["column"],
+                    block=block, block_line=found["block_line"],
+                    block_end_line=found["block_end_line"],
+                    message=(message + " " + detail).strip())
+
+
 # ------------------------------------------------------------------------------- registration
 
 def capabilities() -> dict[str, str]:
@@ -468,7 +757,9 @@ def capabilities() -> dict[str, str]:
             SETTINGS_FILE_SAVE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
             SETTINGS_VALIDATE_FILE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
             SETTINGS_SERVICE_TOGGLE_PATH: SETTINGS_WRITE_CAPABILITY,
-            SETTINGS_ADD_BLOCK_PATH: SETTINGS_FILE_WRITE_CAPABILITY}
+            SETTINGS_ADD_BLOCK_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
+            SCHEDULER_SAVE_PATH: SCHEDULER_WRITE_CAPABILITY,
+            SCHEDULER_VALIDATE_PATH: SCHEDULER_WRITE_CAPABILITY}
 
 
 def nav_items() -> tuple[NavItem, ...]:
@@ -841,6 +1132,22 @@ def _node_names(config: Path) -> list[str]:
     """The cluster's node names — the top-level keys of ``nodes.yaml`` (a reading, never a guess)."""
     document = _document_or_none(Path(config) / NODES_YAML_NAME)
     return [str(key) for key in document] if isinstance(document, dict) else []
+
+
+def _apply_node(request: Request, entry: GlobalFile, node: str) -> str:
+    """The node a SERVICE file's change belongs to — or ``""`` for the master.
+
+    A service configuration restart targets the node whose block was edited. The page's own node
+    selector names it, so the value is ACCEPTED ONLY IF the install's ``nodes.yaml`` carries that node:
+    the mapping then still reads its target from files (the saved service file for the KIND, this
+    install's node list for the NAME) and a crafted ``?node=`` can name no other machine than one this
+    cluster already has. Every other kind names its node itself (``nodes.yaml``) or names none at all
+    (``main.yaml``, a plugin), so it answers the master.
+    """
+    if entry.kind != KIND_SERVICE:
+        return ""
+    wanted = readmodels.text(node).strip()
+    return wanted if wanted and wanted in _node_names(config_dir(request)) else ""
 
 
 def is_scoped(entry: GlobalFile) -> bool:
@@ -1604,12 +1911,20 @@ def validate_slice(request: Request, text: str, path: Path,
 # ---------------------------------------------------------------------------------- the write
 
 def _notice(request: Request, message: str, *, ok: bool, refusal: bool = False,
-            applies: str = "") -> None:
-    """Store the one-shot notice of this write — the console's OWN wording, translated at render."""
+            applies: str = "", apply: dict | None = None, pending: bool = False,
+            reload: str = "") -> None:
+    """Store the one-shot notice of this write — the console's OWN wording, translated at render.
+
+    ``apply`` is the "Apply now" control's contract (its file identity, its token and the CSRF field),
+    written by :func:`_banner` from the file that was just saved; ``None`` means the file has nothing to
+    apply and the notice offers no control at all. ``pending`` marks the notice a started apply leaves,
+    which the page renders as a state that reloads itself once.
+    """
     request.session[actions_page.NOTICE_KEY] = {
         "message": message, "ok": ok, "audit": "", "audit_warning": False,
         "action": SETTINGS_TITLE, "revert": "", "revert_omitted": "",
-        "refusal": refusal, "applies": applies,
+        "refusal": refusal, "applies": applies, "apply": apply, "pending": pending,
+        "reload": reload,
     }
 
 
@@ -1949,18 +2264,29 @@ def add_routes(router: APIRouter) -> APIRouter:
         return JSONResponse(validate_text(request, payload, entry.path,
                                           schema_files=list(entry.schema_files)))
 
-    def _banner(request: Request, result) -> None:
-        """The one-shot notice a successful save leaves, read from the primitive's own apply story."""
+    def _banner(request: Request, result, *, kind: str, name: str, node: str = "",
+                back: str = "") -> None:
+        """The one-shot notice a successful save leaves, read from the primitive's own apply story.
+
+        The "Apply now" control rides the same notice, and its target is derived HERE from the file
+        that was just written (:func:`config_apply.offer`) — never from the form. Only a save that
+        CHANGED something offers it: a file that came out identical has nothing to apply.
+        """
+        apply = None
         if result.changed:
+            apply = config_apply.offer(request, path=result.path, config_dir=config_dir(request),
+                                       kind=kind, name=name, node=node, back=back)
             message = SAVED_NOW if result.applies == configwrite.APPLIES_NOW else SAVED_RESTART
-            _notice(request, message, ok=True, refusal=True, applies=result.applies)
+            _notice(request, message, ok=True, refusal=True, applies=result.applies, apply=apply)
         else:
             _notice(request, SAVED_NO_CHANGE, ok=True, refusal=True, applies=result.applies)
 
     async def _save(request: Request, *, path, schema_files: list[str], tree,
                     redirect_to: str, slice_keys: list[str] | None = None,
                     require_node: bool = False,
-                    forbidden: frozenset[str] = frozenset()) -> RedirectResponse:
+                    forbidden: frozenset[str] = frozenset(),
+                    apply_kind: str = "", apply_name: str = "",
+                    apply_node: str = "") -> RedirectResponse:
         """The ONE save body, shared by ``main.yaml`` and every other global file.
 
         Everything that differs between the two is an ARGUMENT — the file, its schema files, its
@@ -2081,7 +2407,8 @@ def add_routes(router: APIRouter) -> APIRouter:
             _notice(request, f"{REFUSED_BANNER} {ex}", ok=False, refusal=True)
             return RedirectResponse(redirect_to, status_code=303)
 
-        _banner(request, result)
+        _banner(request, result, kind=apply_kind, name=apply_name, node=apply_node,
+                back=redirect_to)
         if removals:
             spend_remove_ack(request, str(path), revision)
         return RedirectResponse(redirect_to, status_code=303)
@@ -2090,7 +2417,8 @@ def add_routes(router: APIRouter) -> APIRouter:
                  dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
     async def settings_save(request: Request):
         return await _save(request, path=config_path(request), schema_files=_schema_files(),
-                           tree=_tree(), redirect_to=SETTINGS_PATH)
+                           tree=_tree(), redirect_to=SETTINGS_PATH,
+                           apply_kind=KIND_MAIN, apply_name="main")
 
     @router.post(SETTINGS_FILE_SAVE_PATH,
                  dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
@@ -2101,7 +2429,146 @@ def add_routes(router: APIRouter) -> APIRouter:
         return await _save(request, path=entry.path, schema_files=list(entry.schema_files),
                            tree=entry_save_tree(request, entry),
                            redirect_to=file_url(entry),
-                           slice_keys=slice_keys, require_node=require_node, forbidden=forbidden)
+                           slice_keys=slice_keys, require_node=require_node, forbidden=forbidden,
+                           apply_kind=entry.kind, apply_name=entry.name,
+                           apply_node=_apply_node(request, entry, node))
+
+    # THE SCHEDULER WIZARD'S TWO POSTS. Both live on ``/actions/`` — NOT under the greedy
+    # ``/fleet/{name:path}`` page route — so the "register a suffixed route before the page route"
+    # ordering rule (``server_detail.add_routes``) does not apply to either of them.
+    @router.post(SCHEDULER_SAVE_PATH,
+                 dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
+    async def settings_scheduler_save(request: Request):
+        """Write the review step's override into the scheduler file, through the ONE primitive.
+
+        The scope, the plan and the refusal rules are the guard's and ``scheduler_plan``'s; this
+        handler only decides the answer. Every refusal is a one-shot notice plus a 303, mirroring
+        :func:`_save`'s set: a stale revision, an invalid candidate and an unwritable file each leave
+        the file byte-identical. The write itself is PER-KEY (:func:`scheduler_override`), so no
+        other server's block, no comment and no key this tab does not own can be lost.
+
+        TWO DOORS, ONE PRIMITIVE. With the Expert flag set, the posted block REPLACES the server's
+        block (:func:`scheduler_plan.apply_block`) — the operator wrote the block, so a key they
+        dropped leaves with it. A block that does not parse, is not a mapping, or names a top-level
+        key a server's block cannot carry is refused with one sentence and nothing written. Without
+        the flag the plan is read and the per-key override is written, exactly as before.
+        """
+        form = await request.form(max_fields=SETTINGS_FORM_MAX_FIELDS)
+        try:
+            entry, scope = scheduler_write_guard(request, form.get(SCHEDULER_SCOPE_FIELD))
+        except SchedulerRefusal as refusal:
+            _notice(request, refusal.message, ok=False, refusal=True)
+            return RedirectResponse(SCHEDULER_FALLBACK_URL, status_code=303)
+        redirect_to = scheduler_redirect(scope)
+        revision = readmodels.text(form.get(SETTINGS_REVISION_FIELD)) or None
+        expert = scheduler_expert_answer(form)
+        if expert is not None and not scheduler_access(request, scope.server).expert:
+            # THE EXPERT DOOR IS ADMIN-ONLY, checked on the resolved server before anything is
+            # built: a crafted flag plus block text from any other writer writes nothing.
+            _notice(request, SCHEDULER_EXPERT_REFUSED, ok=False, refusal=True)
+            return RedirectResponse(redirect_to, status_code=303)
+        plan: dict = {}
+        if expert is not None:
+            if expert["refusal"]:
+                _notice(request, i18n.translate(request, expert["refusal"], **expert["params"]),
+                        ok=False, refusal=True)
+                return RedirectResponse(redirect_to, status_code=303)
+        else:
+            refusal = scheduler_plan.posted_key_refusal(form.multi_items())
+            if refusal:
+                _notice(request, refusal, ok=False, refusal=True)
+                return RedirectResponse(redirect_to, status_code=303)
+            plan = scheduler_plan.plan_from_form(form.multi_items())
+
+        def mutate(document):
+            if expert is not None:
+                scheduler_plan.apply_block(document, scope.key, expert["block"],
+                                           name=entry.display)
+                return
+            scheduler_plan.apply_override(document, scope.key,
+                                          scheduler_override(document, scope, plan),
+                                          name=entry.display)
+
+        try:
+            # A file the round trip reads as NO document — empty, comments only, or a bare ``null`` —
+            # states no server blocks either: ``patch_config_file`` would substitute an empty mapping
+            # for it and write into that. The shape is read here, from the file, so this save answers
+            # the refusal the validate route already answers for the same file.
+            if entry.path.is_file():
+                scheduler_plan.require_mapping(configwrite.load_config_file(entry.path),
+                                               entry.display)
+            # ``applies`` is the file's own story (``config_apply`` derives it from the path), so the
+            # notice says what really happens: a plugin configuration is live after that plugin is
+            # reloaded, which is the offer's own target — not "the next bot restart".
+            result = configwrite.patch_config_file(
+                entry.path, mutate, schemas=list(entry.schema_files), expect_revision=revision,
+                applies=configwrite.APPLIES_NOW)
+        except configwrite.StaleConfigRevision:
+            _notice(request, i18n._("This page is stale — the file changed on disk since it was "
+                                    "rendered. Reload and try again."), ok=False, refusal=True)
+            return RedirectResponse(redirect_to, status_code=303)
+        except configwrite.ConfigValidationError as ex:
+            detail = _clean_detail(ex.errors) or str(ex)
+            _notice(request, f"{REFUSED_BANNER} {detail}", ok=False, refusal=True)
+            return RedirectResponse(redirect_to, status_code=303)
+        except configwrite.ConfigWriteError as ex:
+            _notice(request, f"{REFUSED_BANNER} {ex}", ok=False, refusal=True)
+            return RedirectResponse(redirect_to, status_code=303)
+        _banner(request, result, kind=SCHEDULER_KIND, name=SCHEDULER_FILE_NAME,
+                back=redirect_to)
+        return RedirectResponse(redirect_to, status_code=303)
+
+    @router.post(SCHEDULER_VALIDATE_PATH,
+                 dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])
+    async def settings_scheduler_validate(request: Request):
+        """Check the review step's candidate WITHOUT writing: a JSON verdict, never a page.
+
+        The candidate is built in memory (:func:`scheduler_candidate`) and handed to the very call a
+        save makes, so a verdict that says "valid" is one the save would accept. The fault is located
+        in the candidate (:func:`_locate`) so the operator sees a block and a line, not a pykwalify
+        path. Nothing on disk is touched.
+
+        AN EXPERT POST wins the candidate, the same way it wins the save: the panel's editor posts its
+        text and the token only, so the block's PRESENCE is what makes this an expert check, and the
+        server rides in the validate URL (:func:`scheduler_posted_scope`). One verdict therefore
+        covers exactly the text a save would write.
+        """
+        form = await request.form(max_fields=SETTINGS_FORM_MAX_FIELDS)
+        try:
+            entry, scope = scheduler_write_guard(request, scheduler_posted_scope(form, request))
+        except SchedulerRefusal as refusal:
+            return JSONResponse(_verdict(ok=False, kind="scope",
+                                         message=i18n.translate(request, refusal.message)))
+        expert = scheduler_validate_block(form)
+        if expert is not None and not scheduler_access(request, scope.server).expert:
+            return JSONResponse(_verdict(ok=False, kind="scope",
+                                         message=i18n.translate(request,
+                                                                SCHEDULER_EXPERT_REFUSED)))
+        plan: dict = {}
+        if expert is not None:
+            if expert["refusal"]:
+                return JSONResponse(_verdict(ok=False, kind="scope",
+                                             message=i18n.translate(request, expert["refusal"],
+                                                                    **expert["params"])))
+        else:
+            refusal = scheduler_plan.posted_key_refusal(form.multi_items())
+            if refusal:
+                return JSONResponse(_verdict(ok=False, kind="scope",
+                                             message=i18n.translate(request, refusal)))
+            plan = scheduler_plan.plan_from_form(form.multi_items())
+        try:
+            document = scheduler_candidate(entry, scope, plan,
+                                           block=expert["block"] if expert is not None else None)
+        except configwrite.ConfigWriteError as ex:
+            return JSONResponse(_verdict(ok=False, kind="schema", message=str(ex)))
+        try:
+            configwrite.validate_against_schema(configwrite.dump_config(document),
+                                                list(entry.schema_files), path=entry.path)
+        except configwrite.ConfigValidationError as ex:
+            return JSONResponse(scheduler_verdict(request, document, ex, entry.path))
+        except configwrite.ConfigWriteError as ex:
+            return JSONResponse(_verdict(ok=False, kind="schema", message=str(ex)))
+        return JSONResponse(_verdict(ok=True))
 
     @router.post(SETTINGS_SERVICE_TOGGLE_PATH, dependencies=[Depends(session.csrf_protect)])
     async def settings_service_toggle(request: Request, name: str):

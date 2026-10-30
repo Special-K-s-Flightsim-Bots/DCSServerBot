@@ -79,6 +79,7 @@ __all__ = [
     "member_scope_tokens",
     "may_manage_server",
     "server_managed_by",
+    "server_in_scope",
     "gather_live_scope",
     "audit_local_scopes",
     "audit_server_managed_by",
@@ -169,6 +170,23 @@ def server_managed_by(server) -> tuple:
     if locals_ is None or not hasattr(locals_, "get"):
         return ()
     return tuple(locals_.get("managed_by") or ())
+
+
+def server_in_scope(scope: "Scope | None", server) -> bool:
+    """Whether ONE *server* lies inside *scope* — the per-server comparison, in one place.
+
+    The console's answer to "may this identity manage this server": ``Scope.allows`` fed with the
+    server's own ``managed_by``. A missing or failing scope denies (fail closed): the caller that
+    could not resolve an identity must not be granted a server by a helper default.
+    """
+    if scope is None:
+        return False
+    try:
+        return bool(scope.allows(server_managed_by(server)))
+    except Exception:
+        log.exception("Scope could not be applied to '%s', refusing.",
+                      getattr(server, "name", "?"))
+        return False
 
 
 # --------------------------------------------------------------------------- the scope value

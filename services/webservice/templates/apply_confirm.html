@@ -1,0 +1,56 @@
+{#-
+  THE APPLY CONFIRMATION — one saved change, in the operator's own terms, on its own page.
+
+  WHAT IT IS FOR. A config save writes a file; whether the running bot picks it up depends on which
+  file changed (`config_apply.resolve_target`). This page is the ASK every apply goes through: it
+  names the consequence first (a reload's "nothing restarts", or a restart's red-edged block: every
+  DCS server on that node goes down), then what will actually happen, then the two ways out.
+
+  IT IS A REAL FORM, and the two ways out are the LAST row of it: ONE `method=post` form whose two
+  SUBMIT buttons differ in their `name`/`value` (`apply_action`), so it works with JavaScript off and
+  needs no second form. "Not now" writes the "still owed" notice and starts nothing; the primary
+  button applies. Cancel is deliberately NOT a link here (unlike `confirm.html`): declining has an
+  outcome to record — a written change that is not live — and a link could not record it.
+
+  IT CARRIES THE CONFIRMATION'S OWN TOKEN. The token was minted when the file was saved and stored
+  with the offer (`config_apply.offer`); this page only renders it, and the apply route spends it, so
+  a replayed form is refused. The page is served `no-store` (see `pages.settings`), because a cached
+  copy would be exactly that replay.
+
+  EVERY WORD IS COMPOSED BY THE PAGE MODULE in the request's language, so nothing here needs a
+  catalog entry of its own beyond the labels: the target (a plugin name, a node name) is operator data
+  and is printed verbatim.
+-#}
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ dialog.heading }} — DCSServerBot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ dialog.heading }}</h1>
+  <div class="sub">{{ page_title }}</div>
+</div>
+
+<div class="dlg-back">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="hd">{% if dialog.warning %}{{ icons.act('warn') }}{% endif %}<h3 id="dlg-title">{{ dialog.heading }}</h3></div>
+    <div class="bd">
+      {% if dialog.warning %}<div class="dlg-warn">{{ icons.act('warn') }}<span>{{ dialog.warning|safe }}</span></div>{% endif %}
+      <p class="dlg-what">{{ dialog.detail }}</p>
+      <p class="dlg-what">{% trans %}Target:{% endtrans %} <span class="target">{{ dialog.target }}</span></p>
+      {% if dialog.note %}<p class="dlg-temp-note">{{ dialog.note }}</p>{% endif %}
+    </div>
+    <div class="ft">
+      <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}">
+        <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
+        <input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">
+        {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <div class="dlg-buttons">
+          <button class="btn" type="submit" name="apply_action" value="decline" autofocus>{{ dialog.decline }}</button>
+          <span class="spacer"></span>
+          <button class="btn danger" type="submit" name="apply_action" value="apply">{{ dialog.go }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -8287,3 +8287,1084 @@ msgstr "Version {version} von {package} ist im Paketordner verfügbar; installie
 #: services/webservice/readmodels/mods.py:88
 msgid "Version {version} of {package} is available in its repository and has to be downloaded before it can be installed."
 msgstr "Version {version} von {package} ist im zugehörigen Repository verfügbar und muss heruntergeladen werden, bevor sie installiert werden kann."
+
+#: services/webservice/scheduler_plan.py:48
+msgid "Timezone"
+msgstr "Zeitzone"
+
+#: services/webservice/scheduler_plan.py:49
+msgid "Startup delay"
+msgstr "Startverzögerung"
+
+#: services/webservice/scheduler_plan.py:50
+#: services/webservice/templates/scheduler_body.html:121
+msgid "Warnings before a restart"
+msgstr "Warnungen vor einem Neustart"
+
+#: services/webservice/scheduler_plan.py:51
+msgid "Schedule (the week)"
+msgstr "Zeitplan (die Woche)"
+
+#: services/webservice/scheduler_plan.py:53
+#: services/webservice/templates/scheduler_body.html:96
+msgid "Scheduled actions"
+msgstr "Geplante Aktionen"
+
+#: services/webservice/scheduler_plan.py:54
+msgid "On mission start"
+msgstr "Bei Missionsstart"
+
+#: services/webservice/scheduler_plan.py:55
+msgid "On mission stop"
+msgstr "Bei Missionsstopp"
+
+#: services/webservice/scheduler_plan.py:56
+msgid "On mission end"
+msgstr "Bei Missionsende"
+
+#: services/webservice/scheduler_plan.py:57
+msgid "On server shutdown"
+msgstr "Beim Herunterfahren des Servers"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Mon"
+msgstr "Mo"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Tue"
+msgstr "Di"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Wed"
+msgstr "Mi"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Thu"
+msgstr "Do"
+
+#: services/webservice/scheduler_plan.py:68
+msgid "Fri"
+msgstr "Fr"
+
+#: services/webservice/scheduler_plan.py:68
+msgid "Sat"
+msgstr "Sa"
+
+#: services/webservice/scheduler_plan.py:68
+msgid "Sun"
+msgstr "So"
+
+#: services/webservice/scheduler_plan.py:72
+msgid "must run"
+msgstr "muss laufen"
+
+#: services/webservice/scheduler_plan.py:73
+msgid "must be off"
+msgstr "muss aus sein"
+
+#: services/webservice/scheduler_plan.py:74
+msgid "stays up until the last player leaves"
+msgstr "bleibt oben, bis der letzte Spieler geht"
+
+#: services/webservice/scheduler_plan.py:82
+msgid "on the cron schedule {value}"
+msgstr "nach dem Cron-Zeitplan {value}"
+
+#: services/webservice/scheduler_plan.py:83
+msgid "at {value}"
+msgstr "um {value}"
+
+#: services/webservice/scheduler_plan.py:84
+msgid "after {value} minutes of mission time"
+msgstr "nach {value} Minuten Missionszeit"
+
+#: services/webservice/scheduler_plan.py:85
+msgid "at most {value} minutes of mission time"
+msgstr "spätestens nach {value} Minuten Missionszeit"
+
+#: services/webservice/scheduler_plan.py:86
+msgid "after {value} minutes of server runtime"
+msgstr "nach {value} Minuten Server-Laufzeit"
+
+#: services/webservice/scheduler_plan.py:87
+msgid "after {value} minutes with nobody on the server"
+msgstr "nach {value} Minuten ohne Spieler auf dem Server"
+
+#: services/webservice/scheduler_plan.py:92
+msgid "Restart the mission"
+msgstr "Mission neu starten"
+
+#: services/webservice/scheduler_plan.py:93
+msgid "Rotate to the next mission"
+msgstr "Zur nächsten Mission wechseln"
+
+#: services/webservice/scheduler_plan.py:94
+msgid "Load a mission"
+msgstr "Mission laden"
+
+#: services/webservice/scheduler_plan.py:95
+msgid "Stop the server"
+msgstr "Server stoppen"
+
+#: services/webservice/scheduler_plan.py:96
+msgid "Shut the computer down"
+msgstr "Rechner herunterfahren"
+
+#: services/webservice/scheduler_plan.py:101
+msgid "only when nobody is flying"
+msgstr "nur wenn niemand fliegt"
+
+#: services/webservice/scheduler_plan.py:102
+msgid "only when the mission ends"
+msgstr "nur wenn die Mission endet"
+
+#: services/webservice/scheduler_plan.py:103
+msgid "only when a coalition wins"
+msgstr "nur wenn eine Koalition gewinnt"
+
+#: services/webservice/scheduler_plan.py:108
+msgid "shut the computer down afterwards"
+msgstr "danach den Rechner herunterfahren"
+
+#: services/webservice/scheduler_plan.py:109
+msgid "run the extensions"
+msgstr "die Erweiterungen ausführen"
+
+#: services/webservice/scheduler_plan.py:110
+msgid "use the original mission file"
+msgstr "die ursprüngliche Missionsdatei verwenden"
+
+#: services/webservice/scheduler_plan.py:111
+msgid "do not reload the mission"
+msgstr "die Mission nicht neu laden"
+
+#: services/webservice/scheduler_plan.py:116
+msgid "Mission (id)"
+msgstr "Mission (ID)"
+
+#: services/webservice/scheduler_plan.py:117
+msgid "Mission (file)"
+msgstr "Mission (Datei)"
+
+#: services/webservice/scheduler_plan.py:119
+msgid "Settings to apply"
+msgstr "Anzuwendende Einstellungen"
+
+#: services/webservice/scheduler_plan.py:120
+msgid "Clear maintenance on start"
+msgstr "Wartung beim Start zurücksetzen"
+
+#: services/webservice/scheduler_plan.py:325
+msgid "yes"
+msgstr "ja"
+
+#: services/webservice/pages/server_detail.py:183
+msgid "The scheduler plugin is not loaded in this process, so this server's plan cannot be read here. The file itself is still readable and editable in Settings."
+msgstr "Das Scheduler-Plugin ist in diesem Prozess nicht geladen, daher kann der Plan dieses Servers hier nicht gelesen werden. Die Datei selbst ist weiterhin in den Einstellungen lesbar und bearbeitbar."
+
+#: services/webservice/pages/server_detail.py:186
+msgid "This installation has no scheduler configuration file, so there is no plan to show. Create it in Settings, or install the scheduler plugin."
+msgstr "Diese Installation hat keine Scheduler-Konfigurationsdatei, es gibt also keinen Plan zu zeigen. Erstelle sie in den Einstellungen oder installiere das Scheduler-Plugin."
+
+#: services/webservice/pages/server_detail.py:188
+msgid "The scheduler configuration carries nothing for this server, so nothing is scheduled for it."
+msgstr "Die Scheduler-Konfiguration enthält nichts für diesen Server, es ist also nichts für ihn geplant."
+
+#: services/webservice/pages/server_detail.py:190
+msgid "The scheduler plugin could not answer for this server, so there is no plan to show here. The file itself is still readable and editable in Settings."
+msgstr "Das Scheduler-Plugin konnte für diesen Server nicht antworten, daher gibt es hier keinen Plan. Die Datei selbst ist weiterhin in den Einstellungen lesbar und bearbeitbar."
+
+#: services/webservice/pages/server_detail.py:193
+msgid "Open in Settings"
+msgstr "In den Einstellungen öffnen"
+
+#: services/webservice/pages/server_detail.py:301
+#: services/webservice/templates/scheduler_body.html:24
+#: services/webservice/templates/scheduler_body.html:35
+msgid "Scheduler"
+msgstr "Scheduler"
+
+#: services/webservice/templates/scheduler_body.html:24
+#: services/webservice/templates/scheduler_body.html:35
+msgid "this server only"
+msgstr "nur dieser Server"
+
+#: services/webservice/templates/scheduler_body.html:38
+msgid "no block of its own: every value below is inherited"
+msgstr "kein eigener Block: jeder Wert unten ist geerbt"
+
+#: services/webservice/templates/scheduler_body.html:39
+msgid "timezone"
+msgstr "Zeitzone"
+
+#: services/webservice/templates/scheduler_body.html:50
+msgid "Where each value comes from"
+msgstr "Woher die einzelnen Werte kommen"
+
+#: services/webservice/templates/scheduler_body.html:53
+msgid "The file could not be read a second time for provenance, so no source is claimed for any value below. The plan itself is the bot's own merge."
+msgstr "Die Datei konnte kein zweites Mal für die Herkunft gelesen werden, daher wird für keinen Wert unten eine Quelle angegeben. Der Plan selbst ist die Zusammenführung des Bots."
+
+#: services/webservice/templates/scheduler_body.html:60
+msgid "this server's block"
+msgstr "Block dieses Servers"
+
+#: services/webservice/templates/scheduler_body.html:61
+msgid "inherited"
+msgstr "geerbt"
+
+#: services/webservice/templates/scheduler_body.html:62
+#: services/webservice/templates/scheduler_body.html:159
+msgid "not set"
+msgstr "nicht gesetzt"
+
+#: services/webservice/templates/scheduler_body.html:75
+msgid "Availability this week"
+msgstr "Verfügbarkeit diese Woche"
+
+#: services/webservice/templates/scheduler_body.html:89
+msgid "This server's plan carries no week schedule."
+msgstr "Der Plan dieses Servers enthält keinen Wochen-Zeitplan."
+
+#: services/webservice/templates/scheduler_body.html:102
+msgid "no trigger stated"
+msgstr "kein Auslöser angegeben"
+
+#: services/webservice/templates/scheduler_body.html:103
+msgid "no method stated"
+msgstr "keine Methode angegeben"
+
+#: services/webservice/templates/scheduler_body.html:112
+msgid "This server's plan schedules no actions."
+msgstr "Der Plan dieses Servers plant keine Aktionen."
+
+#: services/webservice/templates/scheduler_body.html:129
+msgid "Sound"
+msgstr "Ton"
+
+#: services/webservice/templates/scheduler_body.html:130
+msgid "Countdown"
+msgstr "Countdown"
+
+#: services/webservice/templates/scheduler_body.html:133
+msgid "This server's plan declares no warning ladder."
+msgstr "Der Plan dieses Servers deklariert keine Warnstufen."
+
+#: services/webservice/templates/scheduler_body.html:147
+msgid "This server's plan says nothing about its start."
+msgstr "Der Plan dieses Servers sagt nichts über seinen Start."
+
+#: services/webservice/templates/scheduler_body.html:155
+msgid "Commands on events"
+msgstr "Befehle bei Ereignissen"
+
+#: services/webservice/templates/scheduler_body.html:167
+msgid "Read-only. The plan is the scheduler plugin's merged configuration for this server: the values here are what the bot applies, and changing one is a change to the file in Settings."
+msgstr "Nur lesen. Der Plan ist die zusammengeführte Konfiguration des Scheduler-Plugins für diesen Server: die Werte hier sind die, die der Bot anwendet, und eine Änderung ist eine Änderung an der Datei in den Einstellungen."
+
+#: services/webservice/scheduler_plan.py:468
+msgid "This is not a cron expression — it needs 5 to 7 fields."
+msgstr "Das ist kein Cron-Ausdruck — er braucht 5 bis 7 Felder."
+
+#: services/webservice/scheduler_plan.py:469
+msgid "This expression is valid but never fires — there is no 30 February."
+msgstr "Dieser Ausdruck ist gültig, feuert aber nie — es gibt keinen 30. Februar."
+
+#: services/webservice/scheduler_plan.py:470
+msgid "This expression has more than 5 fields: the sixth field is SECONDS, so it fires more often than the five fields suggest. That is accepted, not refused — check it is what you meant."
+msgstr "Dieser Ausdruck hat mehr als 5 Felder: Das sechste Feld sind SEKUNDEN, deshalb feuert er öfter als die fünf Felder vermuten lassen. Das wird akzeptiert, nicht abgelehnt — prüfe, ob es so gemeint ist."
+
+#: services/webservice/scheduler_plan.py:473
+msgid "A time of day is HH:MM, between 00:00 and 24:00."
+msgstr "Eine Tageszeit ist HH:MM, zwischen 00:00 und 24:00."
+
+#: services/webservice/scheduler_plan.py:474
+msgid "That timezone is not a known IANA zone, so times cannot be read in it."
+msgstr "Diese Zeitzone ist keine bekannte IANA-Zone, deshalb lassen sich Zeiten darin nicht lesen."
+
+#: services/webservice/pages/server_detail.py:173
+msgid "When it runs"
+msgstr "Wann er läuft"
+
+#: services/webservice/pages/server_detail.py:173
+msgid "the week"
+msgstr "die Woche"
+
+#: services/webservice/pages/server_detail.py:175
+msgid "Warnings"
+msgstr "Warnungen"
+
+#: services/webservice/pages/server_detail.py:175
+msgid "the countdown before"
+msgstr "der Countdown davor"
+
+#: services/webservice/templates/scheduler_body.html:47
+msgid "Scheduler wizard"
+msgstr "Scheduler-Assistent"
+
+#: services/webservice/templates/scheduler_body.html:48
+msgid "step"
+msgstr "Schritt"
+
+#: services/webservice/templates/scheduler_body.html:48
+msgid "of"
+msgstr "von"
+
+#: services/webservice/templates/scheduler_body.html:49
+msgid "When should the server run?"
+msgstr "Wann soll der Server laufen?"
+
+#: services/webservice/templates/scheduler_body.html:51
+msgid "How is a restart announced?"
+msgstr "Wie wird ein Neustart angekündigt?"
+
+#: services/webservice/templates/scheduler_body.html:53
+msgid "wizard"
+msgstr "Assistent"
+
+#: services/webservice/templates/scheduler_body.html:64
+msgid "Editing"
+msgstr "Bearbeiten"
+
+#: services/webservice/templates/scheduler_body.html:64
+msgid "its own block only — a value you leave alone stays inherited"
+msgstr "nur sein eigener Block — ein Wert, den du in Ruhe lässt, bleibt geerbt"
+
+#: services/webservice/templates/scheduler_body.html:66
+msgid "Back to the plan"
+msgstr "Zurück zum Plan"
+
+#: services/webservice/templates/scheduler_body.html:86
+msgid "Every time in this block is read in this zone. Empty means the machine's own local time, which is what the bot assumes when the key is absent."
+msgstr "Jede Zeit in diesem Block wird in dieser Zone gelesen. Leer bedeutet die lokale Zeit des Rechners, die der Bot annimmt, wenn der Schlüssel fehlt."
+
+#: services/webservice/templates/scheduler_body.html:91
+msgid "The week"
+msgstr "Die Woche"
+
+#: services/webservice/templates/scheduler_body.html:113
+msgid "Entry"
+msgstr "Eintrag"
+
+#: services/webservice/templates/scheduler_body.html:113
+msgid "this step"
+msgstr "dieser Schritt"
+
+#: services/webservice/templates/scheduler_body.html:131
+msgid "Next:"
+msgstr "Nächste:"
+
+#: services/webservice/templates/scheduler_body.html:137
+msgid "At most"
+msgstr "Höchstens"
+
+#: services/webservice/templates/scheduler_body.html:143
+msgid "What"
+msgstr "Was"
+
+#: services/webservice/templates/scheduler_body.html:300
+msgid "Act even with players on"
+msgstr "Auch ausführen, wenn Spieler fliegen"
+
+#: services/webservice/templates/scheduler_body.html:301
+msgid "Only when nobody is flying"
+msgstr "Nur wenn niemand fliegt"
+
+#: services/webservice/templates/scheduler_body.html:152
+msgid "Only when the mission ends"
+msgstr "Nur wenn die Mission endet"
+
+#: services/webservice/templates/scheduler_body.html:153
+msgid "Only when a coalition wins"
+msgstr "Nur wenn eine Koalition gewinnt"
+
+#: services/webservice/templates/scheduler_body.html:155
+msgid "Run the extensions first"
+msgstr "Zuerst die Extensions ausführen"
+
+#: services/webservice/templates/scheduler_body.html:156
+msgid "Use the original mission file"
+msgstr "Die ursprüngliche Missionsdatei verwenden"
+
+#: services/webservice/templates/scheduler_body.html:157
+msgid "Do not reload a running mission"
+msgstr "Eine laufende Mission nicht neu laden"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Add an entry"
+msgstr "Einen Eintrag hinzufügen"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Remove entry %(number)s"
+msgstr "Eintrag %(number)s entfernen"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This server's plan schedules no actions yet."
+msgstr "Der Plan dieses Servers plant noch keine Aktionen."
+
+#: services/webservice/scheduler_plan.py
+msgid "Nothing happens for this entry until a trigger is stated: times of day, a cron expression, minutes of mission time, minutes of server runtime, or minutes with nobody on the server."
+msgstr "Für diesen Eintrag passiert nichts, bis ein Auslöser gesetzt ist: Uhrzeiten, ein Cron-Ausdruck, Minuten an Missionszeit, Minuten an Serverlaufzeit oder Minuten ohne Spieler."
+
+#: services/webservice/scheduler_plan.py
+msgid "A removal must name an entry by its position number, so nothing was removed."
+msgstr "Ein Entfernen muss einen Eintrag über seine Positionsnummer nennen, deshalb wurde nichts entfernt."
+
+#: services/webservice/scheduler_plan.py
+msgid "This plan has no entry at that position, so nothing was removed."
+msgstr "Dieser Plan hat an dieser Position keinen Eintrag, deshalb wurde nichts entfernt."
+
+#: services/webservice/templates/scheduler_body.html:179
+msgid "The warning message"
+msgstr "Die Warnnachricht"
+
+#: services/webservice/templates/scheduler_body.html:196
+msgid "Seconds"
+msgstr "Sekunden"
+
+#: services/webservice/templates/scheduler_body.html:203
+msgid "The ladder"
+msgstr "Die Leiter"
+
+#: services/webservice/templates/scheduler_body.html:271
+msgid "This step writes nothing"
+msgstr "Dieser Schritt schreibt nichts"
+
+#: services/webservice/templates/scheduler_body.html:273
+msgid "Every value on these steps travels in the address, so a refresh keeps it and the page works with JavaScript off."
+msgstr "Jeder Wert dieser Schritte steckt in der Adresse, deshalb überlebt er ein Neuladen und die Seite funktioniert ohne JavaScript."
+
+#: services/webservice/templates/scheduler_body.html:274
+msgid "The review step and the save follow in the wizard's last step."
+msgstr "Die Prüf- und Speicherstufe folgt im letzten Schritt des Assistenten."
+
+#: services/webservice/templates/scheduler_body.html:292
+msgid "Change the plan"
+msgstr "Plan ändern"
+
+#: services/webservice/scheduler_plan.py:965
+msgid ""
+"The startup delay is one value shared by every server, so this tab does "
+"not write it. Nothing was written."
+msgstr ""
+"Die Startverzögerung ist ein für alle Server gemeinsamer Wert, daher "
+"schreibt dieser Tab sie nicht. Es wurde nichts geschrieben."
+
+#: services/webservice/scheduler_plan.py:967
+msgid ""
+"local_times and utc_times are deprecated; this tab refuses to write "
+"either of them. Nothing was written."
+msgstr ""
+"local_times und utc_times sind veraltet; dieser Tab weigert sich, eines "
+"davon zu schreiben. Es wurde nichts geschrieben."
+
+#: services/webservice/scheduler_plan.py:969
+msgid ""
+"That request names a value this tab does not write, so nothing was "
+"written."
+msgstr ""
+"Diese Anfrage nennt einen Wert, den dieser Tab nicht schreibt, daher "
+"wurde nichts geschrieben."
+
+#: services/webservice/pages/server_detail.py:177
+msgid "Review & save"
+msgstr "Prüfen & speichern"
+
+#: services/webservice/pages/server_detail.py:178
+msgid "the block and the write"
+msgstr "der Block und das Schreiben"
+
+#: services/webservice/pages/settings.py:484
+msgid "No server was named for this save, so nothing was written."
+msgstr ""
+"Für dieses Speichern wurde kein Server benannt, daher wurde nichts "
+"geschrieben."
+
+#: services/webservice/pages/settings.py:486
+msgid ""
+"DEFAULT, commands and chat_commands are not server blocks — they are "
+"edited in Settings, so nothing was written."
+msgstr ""
+"DEFAULT, commands und chat_commands sind keine Serverblöcke — sie werden "
+"in den Einstellungen bearbeitet, daher wurde nichts geschrieben."
+
+#: services/webservice/pages/settings.py:489
+msgid "That name is not a server this console can edit, so nothing was written."
+msgstr ""
+"Dieser Name ist kein Server, den diese Konsole bearbeiten kann, daher "
+"wurde nichts geschrieben."
+
+#: services/webservice/pages/settings.py:491
+msgid "That name is a node, not a server, so nothing was written."
+msgstr "Dieser Name ist ein Node, kein Server, daher wurde nichts geschrieben."
+
+#: services/webservice/pages/settings.py:562
+msgid "Expert Mode is available to an Admin only, so nothing was written. Use the plan's steps instead."
+msgstr "Der Expertenmodus ist nur für Admins verfügbar, daher wurde nichts geschrieben. Verwende stattdessen die Schritte des Plans."
+
+#: services/webservice/templates/scheduler_body.html:46
+msgid "Review, then save"
+msgstr "Prüfen, dann speichern"
+
+#: services/webservice/templates/scheduler_body.html:48
+msgid ""
+"This is the block that will be written, and only this block: DEFAULT, "
+"every other server's block, the comments and the key order of the file "
+"stay as they are."
+msgstr ""
+"Dies ist der Block, der geschrieben wird — und nur dieser: DEFAULT, die "
+"Blöcke aller anderen Server, die Kommentare und die Schlüsselreihenfolge "
+"der Datei bleiben, wie sie sind."
+
+#: services/webservice/templates/scheduler_body.html:75
+msgid "What changes"
+msgstr "Was sich ändert"
+
+#: services/webservice/templates/scheduler_body.html:83
+msgid "back to inherited"
+msgstr "zurück auf geerbt"
+
+#: services/webservice/templates/scheduler_body.html:87
+msgid ""
+"This plan needs no change to the server's own block: every value it "
+"states is the inherited one. Saving writes nothing."
+msgstr ""
+"Dieser Plan ändert den eigenen Block des Servers nicht: jeder genannte "
+"Wert ist der geerbte. Speichern schreibt nichts."
+
+#: services/webservice/templates/scheduler_body.html:94
+msgid "What is not touched"
+msgstr "Was nicht angefasst wird"
+
+#: services/webservice/templates/scheduler_body.html:97
+msgid "the shared block — edit it in Settings"
+msgstr "der gemeinsame Block — in den Einstellungen bearbeiten"
+
+#: services/webservice/templates/scheduler_body.html:98
+msgid "Other servers"
+msgstr "Andere Server"
+
+#: services/webservice/templates/scheduler_body.html:98
+msgid "their blocks, byte-identical"
+msgstr "ihre Blöcke, byte-identisch"
+
+#: services/webservice/templates/scheduler_body.html:99
+msgid "Comments and order"
+msgstr "Kommentare und Reihenfolge"
+
+#: services/webservice/templates/scheduler_body.html:99
+msgid "kept by the writer's round-trip"
+msgstr "vom Round-Trip des Schreibers erhalten"
+
+#: services/webservice/templates/scheduler_body.html:100
+msgid "a shared value this tab never writes"
+msgstr "ein gemeinsamer Wert, den dieser Tab nie schreibt"
+
+#: services/webservice/templates/scheduler_body.html:105
+msgid "Saving"
+msgstr "Speichern"
+
+#: services/webservice/templates/scheduler_body.html:107
+msgid ""
+"The block is validated against the scheduler's own schema before it is "
+"written. A file that does not validate is refused and nothing is written;"
+" a .bak is kept."
+msgstr ""
+"Der Block wird vor dem Schreiben gegen das eigene Schema des Schedulers "
+"geprüft. Eine Datei, die nicht validiert, wird abgelehnt und nichts wird "
+"geschrieben; eine .bak wird behalten."
+
+#: services/webservice/templates/scheduler_body.html:108
+msgid ""
+"The bot keeps the plan in memory, so the change applies after a reload of"
+" the scheduler plugin."
+msgstr ""
+"Der Bot hält den Plan im Speicher, daher greift die Änderung nach einem "
+"Reload des Scheduler-Plugins."
+
+#: services/webservice/templates/scheduler_body.html:116
+msgid "Save this server's block"
+msgstr "Diesen Serverblock speichern"
+
+#: services/webservice/templates/scheduler_body.html:120
+msgid "Discard"
+msgstr "Verwerfen"
+
+#: services/webservice/templates/scheduler_body.html:121
+msgid "Save the schedule"
+msgstr "Zeitplan speichern"
+
+#: services/webservice/templates/scheduler_body.html:187
+msgid "the machine's own local time"
+msgstr "die eigene Ortszeit des Rechners"
+
+#: services/webservice/templates/scheduler_body.html:204
+msgid "From"
+msgstr "Von"
+
+#: services/webservice/templates/scheduler_body.html:207
+msgid "To"
+msgstr "Bis"
+
+#: services/webservice/templates/scheduler_body.html:213
+msgid "Days"
+msgstr "Tage"
+
+#: services/webservice/templates/scheduler_body.html:216
+msgid "Remove row"
+msgstr "Zeile entfernen"
+
+#: services/webservice/templates/scheduler_body.html:217
+msgid "Row"
+msgstr "Zeile"
+
+#: services/webservice/scheduler_plan.py:509
+msgid "The start must be before the end, or the range covers no time."
+msgstr "Der Beginn muss vor dem Ende liegen, sonst deckt der Zeitraum keine Zeit ab."
+
+#: services/webservice/scheduler_plan.py:510
+msgid "This range overlaps an earlier row, so the week would be ambiguous."
+msgstr "Dieser Zeitraum überschneidet sich mit einer früheren Zeile, die Woche wäre also nicht eindeutig."
+
+#: services/webservice/scheduler_plan.py:511
+msgid "The seven days must be seven letters, each Y, N or P."
+msgstr "Die sieben Tage müssen sieben Buchstaben sein, jeweils Y, N oder P."
+
+#: services/webservice/templates/scheduler_body.html:197
+msgid "One row per time range, seven letters Monday first: Y must be running, N must be offline, P stays up until the last player leaves. A row without both times is not part of the plan, and the scheduler does not touch the server then."
+msgstr "Eine Zeile pro Zeitraum, sieben Buchstaben, Montag zuerst: Y muss laufen, N muss aus sein, P bleibt oben, bis der letzte Spieler geht. Eine Zeile ohne beide Zeiten gehört nicht zum Plan, und der Scheduler fasst den Server dann nicht an."
+
+#: services/webservice/scheduler_plan.py:504
+msgid "The mission list could not be read, so the missions are not offered here. Type the value instead."
+msgstr "Die Missionsliste konnte nicht gelesen werden, deshalb stehen die Missionen hier nicht zur Auswahl. Trage den Wert stattdessen ein."
+
+#: services/webservice/scheduler_plan.py:506
+msgid "The preset files could not be read, so the presets are not offered here. Type the entries instead."
+msgstr "Die Preset-Dateien konnten nicht gelesen werden, deshalb stehen die Presets hier nicht zur Auswahl. Trage die Einträge stattdessen ein."
+
+#: services/webservice/scheduler_plan.py:511
+msgid "not in these files any more"
+msgstr "nicht mehr in diesen Dateien"
+
+#: services/webservice/templates/scheduler_body.html:305
+msgid "Tick every mission the schedule may start: the bot picks one of the ticked missions at random each time it starts the server."
+msgstr "Wähle jede Mission aus, die der Zeitplan starten darf: Der Bot nimmt bei jedem Serverstart eine der ausgewählten Missionen zufällig."
+
+#: services/webservice/templates/scheduler_body.html:319
+msgid "The path relative to the missions directory, exactly as the bot lists it — never a full path on the server."
+msgstr "Der Pfad relativ zum Missionsverzeichnis, genau so, wie der Bot ihn auflistet — niemals ein vollständiger Pfad auf dem Server."
+
+#: services/webservice/templates/scheduler_body.html:326
+msgid "Presets to apply"
+msgstr "Anzuwendende Presets"
+
+#: services/webservice/templates/scheduler_body.html:341
+msgid "One group per preset file: a tick applies that file's preset. The bot applies them in the files' order, not in the order you ticked them, and one entry it cannot resolve drops the whole pick."
+msgstr "Eine Gruppe pro Preset-Datei: Ein Haken wendet das Preset dieser Datei an. Der Bot wendet sie in der Reihenfolge der Dateien an, nicht in der Reihenfolge deiner Haken, und ein Eintrag, den er nicht auflösen kann, verwirft die ganze Auswahl."
+
+#: services/webservice/templates/scheduler_body.html:582
+msgid "Shown to every player; the bot fills the three names in."
+msgstr "Wird jedem Spieler gezeigt; der Bot setzt die drei Namen ein."
+
+#: services/webservice/templates/scheduler_body.html:584
+msgid "A player reads"
+msgstr "Ein Spieler liest"
+
+#: services/webservice/templates/scheduler_body.html:604
+msgid "The text shown at that moment"
+msgstr "Der Text, der in diesem Moment erscheint"
+
+#: services/webservice/templates/scheduler_body.html:603
+msgid "One row per warning: the seconds before the change, and the text shown at that moment. A row with text but no seconds is refused, and two rows cannot share the same seconds."
+msgstr "Eine Zeile pro Warnung: die Sekunden vor der Änderung und der Text, der dann erscheint. Eine Zeile mit Text, aber ohne Sekunden wird abgelehnt, und zwei Zeilen können nicht dieselben Sekunden haben."
+
+#: services/webservice/scheduler_plan.py:518
+msgid "either server or mission, whichever the change touches"
+msgstr "entweder Server oder Mission, je nachdem, was die Änderung betrifft"
+
+#: services/webservice/scheduler_plan.py:519
+msgid "what happens: restart, shutdown or rotate"
+msgstr "was passiert: restart, shutdown oder rotate"
+
+#: services/webservice/scheduler_plan.py:520
+msgid "how long is left, such as 10 minutes"
+msgstr "wie viel Zeit bleibt, etwa 10 Minuten"
+
+#: services/webservice/scheduler_plan.py:524
+msgid "server"
+msgstr "Server"
+
+#: services/webservice/scheduler_plan.py:525
+msgid "restart"
+msgstr "Neustart"
+
+#: services/webservice/scheduler_plan.py:526
+msgid "10 minutes"
+msgstr "10 Minuten"
+
+#: services/webservice/scheduler_plan.py:531
+msgid "A warning time must be a whole number of seconds greater than zero, so this row is not written."
+msgstr "Eine Warnzeit muss eine ganze Zahl von Sekunden größer als null sein, deshalb wird diese Zeile nicht geschrieben."
+
+#: services/webservice/scheduler_plan.py:533
+msgid "Another row already states these seconds, and a ladder holds one text per moment, so this row is not written."
+msgstr "Eine andere Zeile nennt bereits diese Sekunden, und eine Leiter hat einen Text pro Moment, deshalb wird diese Zeile nicht geschrieben."
+
+#: services/webservice/scheduler_plan.py:535
+msgid "This row states a text but no seconds, so there is no moment to show it at: state the seconds or clear the row."
+msgstr "Diese Zeile nennt einen Text, aber keine Sekunden, es gibt also keinen Moment, in dem er erscheinen könnte: Trage die Sekunden ein oder leere die Zeile."
+
+#: services/webservice/scheduler_plan.py:541
+msgid "The review step writes this ladder as a map: each number of seconds to the text shown at that moment."
+msgstr "Der Prüfschritt schreibt diese Leiter als Map: jede Anzahl Sekunden auf den Text, der in diesem Moment erscheint."
+
+#: services/webservice/scheduler_plan.py:543
+msgid "The review step writes this ladder as a list of seconds, with the shared message at every moment."
+msgstr "Der Prüfschritt schreibt diese Leiter als Liste von Sekunden, mit der gemeinsamen Nachricht in jedem Moment."
+
+#: services/webservice/scheduler_plan.py:544
+msgid "This ladder states nothing, so the bot shows no warning before the change."
+msgstr "Diese Leiter nennt nichts, der Bot zeigt also keine Warnung vor der Änderung."
+
+#: services/webservice/scheduler_plan.py:2076
+msgid "That text is not valid YAML, so nothing was written."
+msgstr "Dieser Text ist kein gültiges YAML, deshalb wurde nichts geschrieben."
+
+#: services/webservice/scheduler_plan.py:2078
+msgid ""
+"A server's block is a set of keys and values, and that text is not "
+"one, so nothing was written."
+msgstr ""
+"Der Block eines Servers ist eine Menge von Schlüsseln und Werten, und "
+"dieser Text ist keine, deshalb wurde nichts geschrieben."
+
+#: services/webservice/scheduler_plan.py:2082
+msgid ""
+"That text states the key '%(key)s', which is not part of a server's "
+"own block, so nothing was written."
+msgstr ""
+"Dieser Text nennt den Schlüssel '%(key)s', der nicht zum eigenen Block "
+"eines Servers gehört, deshalb wurde nichts geschrieben."
+
+#: services/webservice/templates/scheduler_body.html:259
+msgid "This server's block, as YAML"
+msgstr "Der Block dieses Servers, als YAML"
+
+#: services/webservice/templates/scheduler_body.html:263
+msgid ""
+"The block this save writes for this server and no other: DEFAULT and "
+"every other server's block are never part of it, and the comments "
+"inside it are kept."
+msgstr ""
+"Der Block, den dieses Speichern für diesen Server und keinen anderen "
+"schreibt: DEFAULT und der Block jedes anderen Servers sind nie Teil "
+"davon, und die Kommentare darin bleiben erhalten."
+
+#: services/webservice/templates/scheduler_body.html:264
+msgid ""
+"In Expert Mode this text is written instead of the block the plan "
+"states, so a key you delete here leaves the file. An edit replaces the "
+"block's own comments with what you type."
+msgstr ""
+"Im Expertenmodus wird dieser Text statt des aus dem Plan stammenden "
+"Blocks geschrieben, ein hier gelöschter Schlüssel verlässt also die "
+"Datei. Eine Bearbeitung ersetzt die eigenen Kommentare des Blocks "
+"durch das, was du tippst."
+
+#: services/webservice/templates/scheduler_body.html:268
+msgid "Expert Mode text: this box is the editor when the script is off"
+msgstr ""
+"Expertenmodus-Text: dieses Feld ist der Editor, wenn das Skript aus "
+"ist"
+
+#: services/webservice/templates/scheduler_body.html:271
+msgid ""
+"This save writes no block of its own for this server: every value it "
+"states is the inherited one."
+msgstr ""
+"Dieses Speichern schreibt keinen eigenen Block für diesen Server: "
+"jeder Wert, den es nennt, ist der geerbte."
+
+#: services/webservice/scheduler_plan.py:641
+msgid "Start a fixed mission every time this server starts"
+msgstr "Starte bei jedem Start dieses Servers eine feste Mission"
+
+#: services/webservice/scheduler_plan.py:642
+msgid "Left off, the server starts the mission that ran last."
+msgstr "Bleibt der Haken aus, startet der Server die Mission, die zuletzt lief."
+
+#: services/webservice/scheduler_plan.py:643
+msgid "Saving with this off removes the startup keys this server's block states, so the server follows DEFAULT again."
+msgstr "Beim Speichern mit ausgeschaltetem Haken werden die Startup-Schlüssel im Block dieses Servers entfernt, sodass der Server wieder DEFAULT folgt."
+
+#: services/webservice/scheduler_plan.py:655
+msgid "by mission ID"
+msgstr "über die Missions-ID"
+
+#: services/webservice/scheduler_plan.py:656
+msgid "by mission file"
+msgstr "über die Missionsdatei"
+
+#: services/webservice/scheduler_plan.py:658
+msgid "A start names its mission one of the two ways, never both: the save removes the value the other key carried."
+msgstr "Ein Start nennt seine Mission auf eine der beiden Arten, nie auf beide: das Speichern entfernt den Wert, den der andere Schlüssel trug."
+
+#: services/webservice/pages/server_detail.py:174
+msgid "mission, presets"
+msgstr "Mission, Presets"
+
+#: services/webservice/templates/scheduler_body.html:484
+msgid "Mission and presets"
+msgstr "Mission und Presets"
+
+#: services/webservice/templates/scheduler_body.html:650
+#: services/webservice/templates/scheduler_body.html
+msgid "Each command runs when that event happens, in the bot's own vocabulary: load:, lua:, call: or run:. Only the mission start takes a delay, in seconds, before its command runs."
+msgstr "Jeder Befehl läuft, wenn dieses Ereignis eintritt, in der Sprache des Bots: load:, lua:, call: oder run:. Nur der Missionsstart hat eine Verzögerung in Sekunden, bevor sein Befehl läuft."
+#: services/webservice/templates/scheduler_body.html:332
+msgid "Actions (restart, rotate, etc.)"
+msgstr "Aktionen (Neustart, Rotation usw.)"
+
+#: services/webservice/pages/server_detail.py:175
+msgid "one trigger, options by method"
+msgstr "ein Auslöser, Optionen je Methode"
+
+#: services/webservice/scheduler_plan.py:566
+msgid "When does this run?"
+msgstr "Wann läuft das?"
+
+#: services/webservice/scheduler_plan.py:549
+msgid "Times of day"
+msgstr "Tageszeiten"
+
+#: services/webservice/scheduler_plan.py:550
+msgid "Minutes of mission time"
+msgstr "Minuten Missionszeit"
+
+#: services/webservice/scheduler_plan.py:551
+msgid "Minutes of server runtime"
+msgstr "Minuten Serverlaufzeit"
+
+#: services/webservice/scheduler_plan.py:552
+msgid "Minutes with nobody on"
+msgstr "Minuten ohne Spieler"
+
+#: services/webservice/scheduler_plan.py:553
+msgid "Cron expression"
+msgstr "Cron-Ausdruck"
+
+#: services/webservice/scheduler_plan.py:558
+msgid "One row per time of day, read in this block's timezone. A row with no time states nothing."
+msgstr "Eine Zeile pro Tageszeit, gelesen in der Zeitzone dieses Blocks. Eine Zeile ohne Zeit sagt nichts aus."
+
+#: services/webservice/scheduler_plan.py:560
+msgid "Applied once the mission has run this many minutes."
+msgstr "Wird angewendet, sobald die Mission so viele Minuten gelaufen ist."
+
+#: services/webservice/scheduler_plan.py:561
+msgid "Applied once the server has run this many minutes."
+msgstr "Wird angewendet, sobald der Server so viele Minuten läuft."
+
+#: services/webservice/scheduler_plan.py:562
+msgid "Applied after this many minutes with nobody on the server."
+msgstr "Wird angewendet, nachdem so viele Minuten niemand auf dem Server war."
+
+#: services/webservice/scheduler_plan.py:563
+msgid "5 to 7 fields. The next three fires are shown under the field."
+msgstr "5 bis 7 Felder. Die nächsten drei Auslösungen stehen unter dem Feld."
+
+#: services/webservice/scheduler_plan.py:567
+msgid "An entry states ONE of these. Choosing another removes the others from the plan, and the save deletes them from the file."
+msgstr "Ein Eintrag nennt GENAU EINES davon. Eine andere Wahl entfernt die übrigen aus dem Plan, und das Speichern löscht sie aus der Datei."
+
+#: services/webservice/scheduler_plan.py:569
+msgid "This entry states more than one trigger. Only the one shown is kept: the bot reads times of day first, then mission time, then server runtime, then idle time, and cron last — so the others are removed from the plan and deleted from the file on save."
+msgstr "Dieser Eintrag nennt mehr als einen Auslöser. Nur der gezeigte bleibt: der Bot liest zuerst Tageszeiten, dann Missionszeit, dann Serverlaufzeit, dann Leerlaufzeit und zuletzt Cron — die übrigen werden daher aus dem Plan entfernt und beim Speichern aus der Datei gelöscht."
+
+#: services/webservice/scheduler_plan.py:578
+msgid "This entry's trigger is a deprecated key"
+msgstr "Der Auslöser dieses Eintrags ist ein veralteter Schlüssel"
+
+#: services/webservice/scheduler_plan.py:579
+msgid "This key is deprecated and this tab does not write it, so this entry cannot be retriggered here."
+msgstr "Dieser Schlüssel ist veraltet und dieser Tab schreibt ihn nicht, daher kann dieser Eintrag hier nicht neu ausgelöst werden."
+
+#: services/webservice/scheduler_plan.py:581
+msgid "Everything else about this entry stays editable — its method, its conditions and its mission picks — and a save leaves the key exactly as the file states it."
+msgstr "Alles andere an diesem Eintrag bleibt bearbeitbar — seine Methode, seine Bedingungen und seine Missionsauswahl — und ein Speichern lässt den Schlüssel genau so, wie die Datei ihn nennt."
+
+#: services/webservice/scheduler_plan.py:616
+msgid "The options below follow this choice: a load names its mission, a restart or rotate changes the presets, and stop or shutdown names no mission at all."
+msgstr "Die Optionen unten folgen dieser Wahl: ein Load nennt seine Mission, ein Restart oder Rotate ändert die Presets, und Stop oder Shutdown nennt gar keine Mission."
+
+#: services/webservice/scheduler_plan.py:624
+msgid "A load names its mission one of the two ways, never both: the save removes the value the other key carried."
+msgstr "Ein Load nennt seine Mission auf eine der beiden Arten, nie auf beide: das Speichern entfernt den Wert, den der andere Schlüssel trug."
+
+#: services/webservice/templates/scheduler_body.html:559
+msgid "Remove this time"
+msgstr "Diese Zeit entfernen"
+
+#: services/webservice/scheduler_plan.py:778
+msgid "A time of day"
+msgstr "Eine Tageszeit"
+
+#: services/webservice/templates/scheduler_body.html:591
+msgid "Add a time"
+msgstr "Zeit hinzufügen"
+
+#: services/webservice/templates/scheduler_body.html:612
+msgid "The hard cap: at that many minutes of mission time the mission restarts even with players on. The bot applies it only while this entry waits until nobody is flying."
+msgstr "Die harte Obergrenze: bei so vielen Minuten Missionszeit startet die Mission neu, auch mit Spielern darauf. Der Bot wendet sie nur an, solange dieser Eintrag wartet, bis niemand mehr fliegt."
+
+#: services/webservice/config_apply.py:105
+msgid "Apply now"
+msgstr "Jetzt anwenden"
+
+#: services/webservice/config_apply.py:106
+msgid "Apply the change"
+msgstr "Änderung anwenden"
+
+#: services/webservice/config_apply.py:107
+msgid "Apply the change now"
+msgstr "Änderung jetzt anwenden"
+
+#: services/webservice/config_apply.py:108
+msgid "Not now"
+msgstr "Jetzt nicht"
+
+#: services/webservice/config_apply.py:109
+#: services/webservice/templates/_notice.html:43
+msgid "Reload this page"
+msgstr "Diese Seite neu laden"
+
+#: services/webservice/config_apply.py:111
+msgid "Reload the %(plugin)s plugin now?"
+msgstr "Das Plugin %(plugin)s jetzt neu laden?"
+
+#: services/webservice/config_apply.py:113
+msgid "The plugin is unloaded and loaded again, and it reads its configuration file as it starts. Nothing restarts and no DCS server goes down."
+msgstr "Das Plugin wird entladen und neu geladen und liest beim Start seine Konfigurationsdatei. Nichts startet neu, und kein DCS-Server geht dabei herunter."
+
+#: services/webservice/config_apply.py:115
+msgid "Reload the %(plugin)s plugin"
+msgstr "Plugin %(plugin)s neu laden"
+
+#: services/webservice/config_apply.py:117
+msgid "Restart the bot on node %(node)s now?"
+msgstr "Den Bot auf dem Knoten %(node)s jetzt neu starten?"
+
+#: services/webservice/config_apply.py:119
+msgid "Every DCS server on %(node)s goes down with it. Nothing starts them again by itself: the launcher on that machine brings the bot back, and the servers with it."
+msgstr "Jeder DCS-Server auf %(node)s geht dabei herunter. Nichts startet sie von selbst wieder: der Launcher auf dieser Maschine bringt den Bot und mit ihm die Server zurück."
+
+#: services/webservice/config_apply.py:122
+msgid "The bot process ends and the launcher starts it again, so this change is read at boot."
+msgstr "Der Bot-Prozess endet, und der Launcher startet ihn erneut, sodass diese Änderung beim Start gelesen wird."
+
+#: services/webservice/config_apply.py:123
+msgid "Restart the bot on node %(node)s"
+msgstr "Den Bot auf Knoten %(node)s neu starten"
+
+#: services/webservice/config_apply.py:124
+msgid "the master node"
+msgstr "den Master-Knoten"
+
+#: services/webservice/config_apply.py:127
+msgid "The change is in the file and takes effect after the %(plugin)s plugin is reloaded."
+msgstr "Die Änderung steht in der Datei und wirkt, sobald das Plugin %(plugin)s neu geladen ist."
+
+#: services/webservice/config_apply.py:129
+msgid "The change is in the file and takes effect after a bot restart on %(node)s."
+msgstr "Die Änderung steht in der Datei und wirkt nach einem Bot-Neustart auf %(node)s."
+
+#: services/webservice/config_apply.py:130
+msgid "The change is in the file and takes effect when the next mission is prepared — nothing is reloaded for it."
+msgstr "Die Änderung steht in der Datei und wirkt, wenn die nächste Mission vorbereitet wird — dafür wird nichts neu geladen."
+
+#: services/webservice/config_apply.py:134
+msgid "Reloading the %(plugin)s plugin — this page reloads once now."
+msgstr "Das Plugin %(plugin)s wird neu geladen — diese Seite lädt sich jetzt einmal neu."
+
+#: services/webservice/config_apply.py:136
+msgid "Restarting the bot on %(node)s — its DCS servers go down with it. This page reloads once now; if the console does not answer yet, reload it again in a moment."
+msgstr "Der Bot auf %(node)s wird neu gestartet — seine DCS-Server gehen dabei herunter. Diese Seite lädt sich jetzt einmal neu; antwortet die Konsole noch nicht, lade sie gleich noch einmal."
+
+#: services/webservice/config_apply.py:140
+msgid "Nothing was applied: this confirmation is no longer valid. Save the change again and apply the fresh one."
+msgstr "Nichts wurde angewendet: diese Bestätigung gilt nicht mehr. Speichere die Änderung erneut und wende die frische an."
+
+#: services/webservice/config_apply.py:142
+msgid "Nothing was reloaded or restarted: the bot process cannot be reached from here."
+msgstr "Nichts wurde neu geladen oder gestartet: der Bot-Prozess ist von hier aus nicht erreichbar."
+
+#: services/webservice/config_apply.py:145
+msgid "Nothing was reloaded: the %(plugin)s plugin is not loaded in this process. Restart the bot to apply the change."
+msgstr "Nichts wurde neu geladen: das Plugin %(plugin)s ist in diesem Prozess nicht geladen. Starte den Bot neu, um die Änderung anzuwenden."
+
+#: services/webservice/config_apply.py:147
+msgid "Nothing was restarted: this installation knows no node named %(node)s."
+msgstr "Nichts wurde neu gestartet: diese Installation kennt keinen Knoten namens %(node)s."
+
+#: services/webservice/config_apply.py:149
+msgid "Nothing was restarted: a restart of %(node)s is already in flight."
+msgstr "Nichts wurde neu gestartet: ein Neustart von %(node)s läuft bereits."
+
+#: services/webservice/config_apply.py:150
+msgid "Nothing was applied: this file is read when a mission is prepared, so it applies at the next launch."
+msgstr "Nichts wurde angewendet: diese Datei wird beim Vorbereiten einer Mission gelesen, sie wirkt also beim nächsten Start."
+
+#: services/webservice/config_apply.py:152
+msgid "Nothing was applied: no apply action is defined for this file."
+msgstr "Nichts wurde angewendet: für diese Datei ist keine Aktion zum Anwenden definiert."
+
+#: services/webservice/templates/apply_confirm.html:39
+msgid "Target:"
+msgstr "Ziel:"
+
+#: services/webservice/config_apply.py:156
+msgid "This action is not recorded in the audit log on this install."
+msgstr "Diese Aktion wird in dieser Installation nicht im Audit-Log erfasst."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Delay before the command (seconds)"
+msgstr "Verzögerung vor dem Befehl (Sekunden)"
+#: services/webservice/scheduler_plan.py
+msgid "The missions directory could not be read, so the mission files are not offered here. Type the path instead."
+msgstr "Das Missionsverzeichnis konnte nicht gelesen werden, deshalb stehen die Missionsdateien hier nicht zur Auswahl. Trage den Pfad stattdessen ein."
+
+#: services/webservice/scheduler_plan.py
+msgid "Server password"
+msgstr "Server-Passwort"
+
+#: services/webservice/scheduler_plan.py
+msgid "The server password is set when the mission starts."
+msgstr "Das Server-Passwort wird gesetzt, sobald die Mission startet."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Apply these changes now?"
+msgstr "Diese Änderungen jetzt anwenden?"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "The schedule is saved. Reload the scheduler plugin so the running bot uses the new plan? Nothing restarts and no DCS server goes down."
+msgstr "Der Zeitplan ist gespeichert. Das Scheduler-Plugin neu laden, damit der laufende Bot den neuen Plan verwendet? Es startet nichts neu und kein DCS-Server geht down."
+
+#: services/webservice/templates/scheduler_body.html
+msgid "If you answer no, the change stays in the file and takes effect the next time the plugin is reloaded or the bot restarts."
+msgstr "Wenn du nein sagst, bleibt die Änderung in der Datei und wirkt, sobald das Plugin das nächste Mal neu geladen oder der Bot neu gestartet wird."
+
+#: services/webservice/config_apply.py
+msgid "Nothing was reloaded: the bot cannot be reached from here — %(reason)s."
+msgstr "Nichts wurde neu geladen: der Bot ist von hier aus nicht erreichbar — %(reason)s."
+
+#: services/webservice/config_apply.py
+msgid "Nothing was restarted: this console cannot restart a node — the node operation it needs is not available in this process."
+msgstr "Nichts wurde neu gestartet: diese Konsole kann keinen Node neu starten — die dafür nötige Node-Operation steht in diesem Prozess nicht zur Verfügung."
+
+#: services/webservice/config_apply.py
+msgid "The %(plugin)s plugin was reloaded, so the change is live."
+msgstr "Das %(plugin)s-Plugin wurde neu geladen, die Änderung ist aktiv."
+
+#: services/webservice/config_apply.py
+msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
+msgstr "Das %(plugin)s-Plugin konnte NICHT neu geladen werden — die Datei enthält die Änderung, der laufende Bot nicht. Starte den Bot neu, um sie anzuwenden."

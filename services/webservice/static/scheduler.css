@@ -1,0 +1,273 @@
+/* scheduler.css — THE SCHEDULER TAB'S OWN RULES, and nothing else.
+ *
+ * `shell.css` and `settings-scope.css` (both loaded before this sheet) own the palette, the cards,
+ * the bars, the tags and the field rows; this file adds only what the tab introduces, every selector
+ * namespaced `sw-`. WHAT IT ADDS:
+ *   1. the two-column landing grid
+ *   2. the WEEK GRID — the schedule block as a 7-day x time-range table, plus its legend
+ *   3. the key-source rows (which value is the server's own and which is inherited)
+ *   4. an action row, its flags, the warning preview and the summary rows
+ *   5. the wizard's steps, its editable rows and the closed picks
+ *   6. the warning ladder's row table and the placeholder chips
+ *   7. the review step's YAML panel (the block a save writes, and its Expert Mode box)
+ *   8. step 3's trigger radios and its times-of-day row list
+ *
+ * Rule followed throughout: NO STATE IS CARRIED BY COLOUR ALONE. Every cell and chip also carries a
+ * letter, a glyph or a word.
+ */
+
+/* ============================================================== 1. the landing layout */
+.sw-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px;
+  margin-top: 16px; }
+.sw-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sw-src { margin-top: 16px; }
+@media (max-width: 1100px) { .sw-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ============================================================== 2. the week grid */
+.sw-week { display: grid; grid-template-columns: 92px repeat(7, minmax(0, 1fr)); gap: 5px; }
+.sw-week .sw-dh { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-3); text-align: center; padding-bottom: 2px; }
+.sw-week .sw-dh b { display: block; font-size: 12px; letter-spacing: 0; color: var(--text-2);
+  text-transform: none; }
+.sw-week .sw-rng { font-family: var(--font-mono); font-size: 12px; color: var(--text-2);
+  display: flex; align-items: center; }
+.sw-cell { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius-s);
+  background: var(--ground-2); color: var(--text-3); }
+.sw-cell b { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+.sw-cell small { font-size: 9.5px; letter-spacing: .04em; text-transform: uppercase;
+  text-align: center; line-height: 1.2; }
+.sw-cell.y { background: var(--ok-wash); border-color: var(--ok-line); color: var(--run); }
+.sw-cell.p { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-text); }
+.sw-cell.n { background: var(--bad-wash); border-color: var(--bad-line); color: var(--danger-text); }
+.sw-cell.x { border-style: dashed; }
+.sw-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 11px; font-size: 11.5px;
+  color: var(--text-3); }
+.sw-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw-legend .sw-key { font-family: var(--font-mono); font-weight: 700; width: 16px; text-align: center; }
+.sw-legend .sw-key.y { color: var(--run); }
+.sw-legend .sw-key.p { color: var(--warn-text); }
+.sw-legend .sw-key.n { color: var(--danger-text); }
+
+/* ============================================================== 3. the key-source rows */
+.sw-keys { display: flex; flex-direction: column; }
+.sw-krow { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 12px;
+  align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+.sw-krow:first-child { border-top: 0; }
+.sw-krow .k { color: var(--text-2); }
+.sw-krow .v { display: flex; justify-content: flex-end; }
+.sw-krow .v i { font-style: normal; color: var(--text-3); }
+
+/* ============================================================== 4. an action row + summary */
+.sw-arow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
+  align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+.sw-arow:first-of-type { border-top: 0; }
+.sw-arow .t1 { display: block; font-size: 12.5px; color: var(--text); }
+.sw-arow .t2 { display: block; font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+.sw-flags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.sw-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 9px; }
+.sw-pills span { font-family: var(--font-mono); font-size: 11px; color: var(--text-2);
+  background: var(--ground-2); border: 1px solid var(--line); border-radius: var(--radius-s);
+  padding: 2px 6px; }
+.sw-prev { border: 1px solid var(--line-2); border-left: 3px solid var(--accent);
+  border-radius: var(--radius-s); background: var(--ground-2); padding: 9px 12px; font-size: 12.5px;
+  color: var(--text); max-width: 100%; margin-bottom: 9px; overflow-wrap: anywhere; }
+.sw-sum { display: flex; flex-direction: column; }
+.sw-sum .r { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(0, 1.2fr); gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+.sw-sum .r:first-child { border-top: 0; }
+.sw-sum .r .k { color: var(--text-3); }
+.sw-sum .r .v { color: var(--text); overflow-wrap: anywhere; }
+.sw-sum .r .v i { font-style: normal; color: var(--text-3); }
+
+/* ============================================================== 5. the wizard's steps */
+/* ONE GET form on the tab's own page route: the rail and the Back/Next controls are submit buttons,
+   so the step is a URL and the whole wizard works with the script off. */
+.sw-wiz { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 300px); gap: 14px;
+  margin-top: 16px; align-items: start; }
+@media (max-width: 1100px) { .sw-wiz { grid-template-columns: minmax(0, 1fr); } }
+.sw-stepcard { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sw-stepcard .card + .card { margin-top: 0; }
+
+/* the step rail: the shipped `.st-tabs` look, on buttons instead of links */
+.st-tabs button.t { border: 0; background: none; font: inherit; cursor: pointer;
+  text-align: left; color: inherit; }
+.st-tabs button.t:hover { color: var(--text); }
+.st-tabs button.t:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* one control row: its label, its input and the hint under it */
+.sw-field { display: flex; flex-direction: column; gap: 6px; padding: 9px 0;
+  border-top: 1px solid var(--line); }
+.sw-field:first-child { border-top: 0; padding-top: 2px; }
+.sw-field .k { font-size: 12.5px; color: var(--text-2); display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; }
+.sw-field .k i { font-style: normal; color: var(--text-3); }
+.sw-field .hp, .sw-wiz .hp { margin: 0; font-size: 11.5px; color: var(--text-3); line-height: 1.5; }
+.sw-wiz .empty { margin: 0; color: var(--text-3); font-size: 12.5px; }
+.sw-inp { width: 100%; padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.sw-inp:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sw-inp.mono { font-family: var(--font-mono); letter-spacing: .06em; }
+.sw-wiz .st-sel { width: auto; min-width: 180px; }
+
+/* a CLOSED pick: one multiple <select> (the rows it posts) plus, once the script has run, the chips
+   naming what is chosen. The chips repeat the preset's own name and its file, so nothing is carried
+   by the highlight alone — and with the script off the native selection is the whole feedback. */
+/* the SELECTED row's own styling is `shell.css`'s (`option:checked`), so nothing is re-declared here */
+.sw-multi { padding: 4px 0; font-size: 12.5px; line-height: 1.5; }
+.sw-multi option { padding: 2px 8px; }
+.sw-multi optgroup { font-size: 11.5px; color: var(--text-3); font-style: normal; }
+.sw-chosen { margin-top: 4px; }
+.sw-chosen-head { margin: 0 0 6px; font-size: 11.5px; color: var(--text-3); }
+.sw-chosen-count { font-family: var(--font-mono); color: var(--text-2); }
+.sw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sw-chips li { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11.5px;
+  color: var(--text-2); background: var(--ground-2); border: 1px solid var(--line);
+  border-radius: var(--radius-s); padding: 2px 7px; }
+.sw-chips li b { font-weight: 600; color: var(--text); }
+.sw-chips li small { font-size: 10.5px; color: var(--text-3); }
+
+/* step 3's ONE trigger: the five are a radio row, and the server draws only the chosen trigger's
+   control — the page is the same with the script off. */
+.sw-triggers { padding-top: 2px; }
+/* the times-of-day rows: one time per row with its next fire beside it, and the row's own removal */
+.sw-times { display: flex; flex-direction: column; margin-bottom: 9px; }
+.sw-trow { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 8px;
+  align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.sw-trow:first-child { border-top: 0; }
+.sw-trow .sw-fire { margin: 0; }
+@media (max-width: 760px) { .sw-trow { grid-template-columns: minmax(0, 1fr) auto; }
+  .sw-trow .sw-fire { grid-column: 1 / -1; } }
+
+/* a row of labelled controls on one line */
+.sw-inline { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw-inline label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px;
+  color: var(--text-3); min-width: 130px; flex: 1 1 130px; }
+
+/* the flag row: every box carries its own word, so nothing is a colour-only state */
+.sw-checks { flex-direction: row; flex-wrap: wrap; gap: 8px 16px; }
+.sw-checks label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+  color: var(--text-2); }
+
+/* step 2's ONE switch: the startup is OPTIONAL, so everything that would state something sits
+   under this checkbox. The rule below is the browser's half of the answer and hides the body while
+   the box is off; the ROUTE's reading of the posted flag is the other half and the one that decides
+   what is written, because a hidden field still submits its value. A browser without `:has()` shows
+   the body — the safe way round, since the switch itself is a plain field of the step's GET form. */
+.sw-startbox { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px;
+  color: var(--text); cursor: pointer; }
+.sw-startbox input { margin: 2px 0 0; flex: 0 0 auto; }
+.sw-start .sw-startbox + .hp { margin-top: 4px; }
+.sw-startbody { margin-top: 10px; }
+.sw-start:not(:has(.sw-startbox input:checked)) .sw-startbody { display: none; }
+/* the mission pick the radio does not name: drawn, marked off, and never submitted */
+.sw-pick-off { display: none; }
+
+/* the week's editable rows and the warn ladder's rows */
+.sw-edit { display: flex; flex-direction: column; gap: 8px; margin-bottom: 11px; }
+
+/* ONE week row: the two times NARROW (they hold HH:MM and nothing else) and are the row's only
+   statement of its range, the day control in the space that is left, and the row's own removal
+   last. Every row carries the same columns in the same order, so the list reads as a column. The
+   line wraps as a WHOLE — the removal may move to its own line — but the seven day buttons never
+   split: the day column keeps the width its buttons need and `.sw-days` does not wrap. */
+.sw-wrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; padding: 8px 0;
+  border-top: 1px solid var(--line); }
+.sw-wrow:first-child { border-top: 0; }
+.sw-wrow .sw-time { flex: 0 0 84px; }
+.sw-wrow .sw-days-col { flex: 1 1 280px; min-width: 280px; }
+.sw-wrow .sw-fire { flex-basis: 100%; margin-top: 0; }
+.sw-wlab { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-3);
+  min-width: 0; }
+.sw-wlab .sw-inp { font-size: 12px; }
+
+/* a row's own removal: the console's trashcan (`.st-trash`, shell.css) on a BUTTON, so it needs only
+   the button's own font and pointer reset — the frame, the colour and the hover state are shared. */
+.sw-rm { font: inherit; cursor: pointer; }
+
+/* an entry's own row ops: the remove button inside the card of the entry it names, and the add
+   control under the list. Both are submits of the step's ONE GET form, so both work with the
+   script off; the remove control is pushed right so it cannot be mistaken for the card's hint. */
+.sw-entryops { display: flex; justify-content: flex-end; padding-top: 9px; margin-top: 4px;
+  border-top: 1px solid var(--line); }
+.sw-stepcard > .sw-entryops { border-top: 0; padding-top: 0; justify-content: flex-start; }
+
+/* the seven day buttons the script builds. Every state is ALSO the letter in the label, so no
+   state is carried by colour alone. */
+.sw-days { display: flex; flex-wrap: nowrap; gap: 4px; }
+.sw-day { font-family: var(--font-mono); font-size: 11px; line-height: 1; padding: 6px 5px;
+  border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--ground-2);
+  color: var(--text-2); cursor: pointer; }
+.sw-day:hover { border-color: var(--line-2); }
+.sw-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sw-day.y { background: var(--ok-wash); border-color: var(--ok-line); color: var(--run); }
+.sw-day.p { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-text); }
+.sw-day.n { background: var(--bad-wash); border-color: var(--bad-line); color: var(--danger-text); }
+
+/* a computed next fire, and the two sentences that can stand in for it */
+.sw-fire { margin: 2px 0 0; font-size: 11.5px; color: var(--text-3); display: flex;
+  flex-wrap: wrap; gap: 8px; }
+.sw-fire .mono { color: var(--text-2); }
+.sw-fire.bad { color: var(--danger-text); }
+.sw-fire.warn { color: var(--warn-text); }
+
+/* ============================================================== 6. the warning ladder */
+/* ONE row per warning: a number of seconds and the text shown at that moment. The header row is
+   part of the server's own markup, so the table reads as a table with the script off. */
+.sw-ladder { display: flex; flex-direction: column; margin-bottom: 11px; }
+.sw-lhead, .sw-lrow { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto;
+  gap: 8px; align-items: center; }
+.sw-lhead { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-3); padding-bottom: 4px; }
+.sw-lrow { padding: 6px 0; border-top: 1px solid var(--line); }
+.sw-lrow .sw-fire { grid-column: 1 / -1; margin-top: 0; }
+@media (max-width: 760px) { .sw-lhead { display: none; }
+  .sw-lrow { grid-template-columns: minmax(0, 1fr); align-items: stretch; } }
+
+/* the three names the bot substitutes: a plain legend with the script off, a set of insert
+   controls once the script has run. Both carry the name AND its meaning as text. */
+.sw-ph { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw-chip { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11px;
+  color: var(--text-3); background: var(--ground-2); border: 1px solid var(--line);
+  border-radius: var(--radius-s); padding: 3px 7px; }
+.sw-chip b { font-family: var(--font-mono); font-weight: 600; color: var(--text-2); }
+.sw-chip[role="button"] { cursor: pointer; }
+.sw-chip[role="button"]:hover { border-color: var(--line-2); color: var(--text-2); }
+.sw-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* the preview line's own label, so the sentence a player will read is not mistaken for the field's
+   value */
+.sw-prev-lab { display: block; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 3px; }
+
+/* the countdown is ONE line: the seconds narrow (a small number), the message taking the rest — the
+   same shape a ladder row has. */
+.sw-cdrow { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px;
+  align-items: end; }
+@media (max-width: 760px) { .sw-cdrow { grid-template-columns: minmax(0, 1fr); } }
+
+/* ============================================================== 7. the review step's YAML panel */
+/* The block a save writes, beside the summary: one wide column for the cards and a fixed panel for
+   the YAML, which is the shape the Settings area's own editor sits in. The panel reuses `.st-aside`
+   (settings-scope.css) for its frame and adds only the text box the no-script page edits. */
+.sw-review { grid-template-columns: minmax(0, 1fr) 400px; }
+.sw-yaml .st-badge { font-family: var(--font-mono); font-size: 10px; padding: 1px 7px;
+  border-radius: 99px; border: 1px solid var(--line-2); color: var(--text-3);
+  background: var(--ground-2); }
+.sw-yaml .st-yaml { max-height: 420px; }
+/* the plain text box: the editor with the script off, so it keeps the same face as the read-only
+   text above it and grows to whatever the operator types. */
+.sw-yaml-box { width: 100%; resize: vertical; min-height: 160px; }
+@media (max-width: 1150px) { .sw-review { grid-template-columns: minmax(0, 1fr); }
+  .sw-yaml { position: static; } }
+
+/* ============================================== 8. the apply question a save puts in front of you */
+/* The save wrote the block; the only thing left is whether the running bot reloads it now. The
+   question is a dialog CENTRED over the page — `.dlg` is the console's own dialog box, so the two
+   buttons and their sizes are the ones every other confirmation uses. It is drawn without any
+   script: it is part of the page the save returns to, and it disappears with the one-shot notice
+   that produced it (a reload pops nothing and renders no dialog). */
+.sw-modal-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  padding: 20px; background: rgba(0, 0, 0, .55); }
+.sw-modal-back .dlg { max-height: 90vh; overflow: auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45); }

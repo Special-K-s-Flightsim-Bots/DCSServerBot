@@ -29,7 +29,7 @@ from pathlib import Path
 from .access import attr, safe, text
 from .instances import bound_server_name
 from .model import NO_LIVE_REASON, SourceStatus
-from ..scope import server_managed_by
+from ..scope import server_in_scope
 
 __all__ = ["LOG_DIR", "LOG_NAME_TEMPLATE", "log_path_for", "declared_node_instances",
            "declared_node_dcs", "Source", "EmptySource", "LiveSource", "ScopedSource",
@@ -222,7 +222,7 @@ class ScopedSource(Source):
         self._source = source
         self.scope = scope
         self.servers = tuple(server for server in (getattr(source, "servers", ()) or ())
-                             if scope.allows(server_managed_by(server)))
+                             if server_in_scope(scope, server))
         served = {text(attr(server, "name", None)) for server in self.servers}
         served.discard("")
         self.instances = tuple(instance for instance in (getattr(source, "instances", ()) or ())

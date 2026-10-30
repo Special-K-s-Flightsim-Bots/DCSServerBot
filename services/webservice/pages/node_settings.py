@@ -52,8 +52,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import (catalog, configgen, i18n, permissions, plugin_registry, readmodels, scopes, session,
-                validation)
+from .. import (catalog, config_apply, configgen, i18n, permissions, plugin_registry, readmodels,
+                scopes, session, validation)
 from . import actions as actions_page
 from . import dashboard as dashboard_page
 from . import nodes as nodes_page
@@ -256,12 +256,16 @@ def visible_nodes(request: Request) -> list[str]:
     return [readmodels.text(name) for name in entries]
 
 
-def _notice(request: Request, message: str, *, ok: bool) -> None:
-    """Store the one-shot notice of a save — the console's own wording, translated at render."""
+def _notice(request: Request, message: str, *, ok: bool, apply: dict | None = None) -> None:
+    """Store the one-shot notice of a save — the console's own wording, translated at render.
+
+    ``apply`` is the "Apply now" control's contract for the file just written (``config_apply``), or
+    ``None`` for a save that changed nothing and has nothing to apply.
+    """
     request.session[actions_page.NOTICE_KEY] = {
         "message": message, "ok": ok, "audit": "", "audit_warning": False,
         "action": NODE_SETTINGS_TITLE, "revert": "", "revert_omitted": "",
-        "refusal": True, "applies": "",
+        "refusal": True, "applies": "", "apply": apply, "pending": False,
     }
 
 
@@ -1575,9 +1579,15 @@ async def save_node(request: Request, doc_key: str, redirect_to: str) -> Redirec
     if result.changed:
         message = (settings_page.SAVED_NOW if result.applies == configwrite.APPLIES_NOW
                    else settings_page.SAVED_RESTART)
+        # the change belongs to THIS node's block: the offer names it, so the door restarts that node
+        # and never a node a request could name.
+        apply = config_apply.offer(request, path=path, config_dir=settings_page.config_dir(request),
+                                   kind=settings_page.KIND_NODES, name=NODES_YAML_NAME,
+                                   node=doc_key or "", back=redirect_to)
     else:
         message = settings_page.SAVED_NO_CHANGE
-    _notice(request, message, ok=True)
+        apply = None
+    _notice(request, message, ok=True, apply=apply)
     return RedirectResponse(redirect_to, status_code=303)
 
 
@@ -2012,9 +2022,13 @@ async def save_extension(request: Request, node_name: str, ext_name: str,
     if result.changed:
         message = (settings_page.SAVED_NOW if result.applies == configwrite.APPLIES_NOW
                    else settings_page.SAVED_RESTART)
+        apply = config_apply.offer(request, path=path, config_dir=settings_page.config_dir(request),
+                                   kind=settings_page.KIND_NODES, name=NODES_YAML_NAME,
+                                   node=doc_key or "", back=redirect_to)
     else:
         message = settings_page.SAVED_NO_CHANGE
-    _notice(request, message, ok=True)
+        apply = None
+    _notice(request, message, ok=True, apply=apply)
     return RedirectResponse(redirect_to, status_code=303)
 
 

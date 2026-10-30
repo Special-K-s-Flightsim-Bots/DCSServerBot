@@ -7311,3 +7311,1047 @@ msgstr "{package} 的版本 {version} 已在包文件夹中可用；当前安装
 #: services/webservice/readmodels/mods.py:88
 msgid "Version {version} of {package} is available in its repository and has to be downloaded before it can be installed."
 msgstr "{package} 的版本 {version} 在其仓库中可用，必须先下载才能安装。"
+
+#: services/webservice/scheduler_plan.py:48
+msgid "Timezone"
+msgstr "时区"
+
+#: services/webservice/scheduler_plan.py:49
+msgid "Startup delay"
+msgstr "启动延迟"
+
+#: services/webservice/scheduler_plan.py:50
+#: services/webservice/templates/scheduler_body.html:121
+msgid "Warnings before a restart"
+msgstr "重启前的警告"
+
+#: services/webservice/scheduler_plan.py:51
+msgid "Schedule (the week)"
+msgstr "时间表（一周）"
+
+#: services/webservice/scheduler_plan.py:53
+#: services/webservice/templates/scheduler_body.html:96
+msgid "Scheduled actions"
+msgstr "计划动作"
+
+#: services/webservice/scheduler_plan.py:54
+msgid "On mission start"
+msgstr "任务开始时"
+
+#: services/webservice/scheduler_plan.py:55
+msgid "On mission stop"
+msgstr "任务停止时"
+
+#: services/webservice/scheduler_plan.py:56
+msgid "On mission end"
+msgstr "任务结束时"
+
+#: services/webservice/scheduler_plan.py:57
+msgid "On server shutdown"
+msgstr "服务器关闭时"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Mon"
+msgstr "周一"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Tue"
+msgstr "周二"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Wed"
+msgstr "周三"
+
+#: services/webservice/scheduler_plan.py:67
+msgid "Thu"
+msgstr "周四"
+
+#: services/webservice/scheduler_plan.py:68
+msgid "Fri"
+msgstr "周五"
+
+#: services/webservice/scheduler_plan.py:68
+msgid "Sat"
+msgstr "周六"
+
+#: services/webservice/scheduler_plan.py:68
+msgid "Sun"
+msgstr "周日"
+
+#: services/webservice/scheduler_plan.py:72
+msgid "must run"
+msgstr "必须运行"
+
+#: services/webservice/scheduler_plan.py:73
+msgid "must be off"
+msgstr "必须关闭"
+
+#: services/webservice/scheduler_plan.py:74
+msgid "stays up until the last player leaves"
+msgstr "保持运行直到最后一名玩家离开"
+
+#: services/webservice/scheduler_plan.py:82
+msgid "on the cron schedule {value}"
+msgstr "按 cron 计划 {value}"
+
+#: services/webservice/scheduler_plan.py:83
+msgid "at {value}"
+msgstr "在 {value}"
+
+#: services/webservice/scheduler_plan.py:84
+msgid "after {value} minutes of mission time"
+msgstr "在 {value} 分钟任务时间后"
+
+#: services/webservice/scheduler_plan.py:85
+msgid "at most {value} minutes of mission time"
+msgstr "最迟在 {value} 分钟任务时间后"
+
+#: services/webservice/scheduler_plan.py:86
+msgid "after {value} minutes of server runtime"
+msgstr "在 {value} 分钟服务器运行时间后"
+
+#: services/webservice/scheduler_plan.py:87
+msgid "after {value} minutes with nobody on the server"
+msgstr "在服务器无人 {value} 分钟后"
+
+#: services/webservice/scheduler_plan.py:92
+msgid "Restart the mission"
+msgstr "重启任务"
+
+#: services/webservice/scheduler_plan.py:93
+msgid "Rotate to the next mission"
+msgstr "轮换到下一个任务"
+
+#: services/webservice/scheduler_plan.py:94
+msgid "Load a mission"
+msgstr "加载任务"
+
+#: services/webservice/scheduler_plan.py:95
+msgid "Stop the server"
+msgstr "停止服务器"
+
+#: services/webservice/scheduler_plan.py:96
+msgid "Shut the computer down"
+msgstr "关闭计算机"
+
+#: services/webservice/scheduler_plan.py:101
+msgid "only when nobody is flying"
+msgstr "仅在无人飞行时"
+
+#: services/webservice/scheduler_plan.py:102
+msgid "only when the mission ends"
+msgstr "仅在任务结束时"
+
+#: services/webservice/scheduler_plan.py:103
+msgid "only when a coalition wins"
+msgstr "仅在某一方获胜时"
+
+#: services/webservice/scheduler_plan.py:108
+msgid "shut the computer down afterwards"
+msgstr "之后关闭计算机"
+
+#: services/webservice/scheduler_plan.py:109
+msgid "run the extensions"
+msgstr "运行扩展"
+
+#: services/webservice/scheduler_plan.py:110
+msgid "use the original mission file"
+msgstr "使用原始任务文件"
+
+#: services/webservice/scheduler_plan.py:111
+msgid "do not reload the mission"
+msgstr "不重新加载任务"
+
+#: services/webservice/scheduler_plan.py:116
+msgid "Mission (id)"
+msgstr "任务（编号）"
+
+#: services/webservice/scheduler_plan.py:117
+msgid "Mission (file)"
+msgstr "任务（文件）"
+
+#: services/webservice/scheduler_plan.py:119
+msgid "Settings to apply"
+msgstr "要应用的设置"
+
+#: services/webservice/scheduler_plan.py:120
+msgid "Clear maintenance on start"
+msgstr "启动时清除维护状态"
+
+#: services/webservice/scheduler_plan.py:325
+msgid "yes"
+msgstr "是"
+
+#: services/webservice/pages/server_detail.py:183
+msgid "The scheduler plugin is not loaded in this process, so this server's plan cannot be read here. The file itself is still readable and editable in Settings."
+msgstr "调度器插件未在此进程中加载，因此无法在此读取该服务器的计划。该文件仍可在设置中读取和编辑。"
+
+#: services/webservice/pages/server_detail.py:186
+msgid "This installation has no scheduler configuration file, so there is no plan to show. Create it in Settings, or install the scheduler plugin."
+msgstr "此安装没有调度器配置文件，因此没有可显示的计划。请在设置中创建它，或安装调度器插件。"
+
+#: services/webservice/pages/server_detail.py:188
+msgid "The scheduler configuration carries nothing for this server, so nothing is scheduled for it."
+msgstr "调度器配置中没有针对此服务器的内容，因此没有为它计划任何事项。"
+
+#: services/webservice/pages/server_detail.py:190
+msgid "The scheduler plugin could not answer for this server, so there is no plan to show here. The file itself is still readable and editable in Settings."
+msgstr "调度器插件无法为此服务器给出答案，因此这里没有可显示的计划。该文件仍可在设置中读取和编辑。"
+
+#: services/webservice/pages/server_detail.py:193
+msgid "Open in Settings"
+msgstr "在设置中打开"
+
+#: services/webservice/pages/server_detail.py:301
+#: services/webservice/templates/scheduler_body.html:24
+#: services/webservice/templates/scheduler_body.html:35
+msgid "Scheduler"
+msgstr "调度器"
+
+#: services/webservice/templates/scheduler_body.html:24
+#: services/webservice/templates/scheduler_body.html:35
+msgid "this server only"
+msgstr "仅此服务器"
+
+#: services/webservice/templates/scheduler_body.html:38
+msgid "no block of its own: every value below is inherited"
+msgstr "没有自己的配置块：下面的值都是继承的"
+
+#: services/webservice/templates/scheduler_body.html:39
+msgid "timezone"
+msgstr "时区"
+
+#: services/webservice/templates/scheduler_body.html:50
+msgid "Where each value comes from"
+msgstr "每个值的来源"
+
+#: services/webservice/templates/scheduler_body.html:53
+msgid "The file could not be read a second time for provenance, so no source is claimed for any value below. The plan itself is the bot's own merge."
+msgstr "无法再次读取该文件以确定来源，因此下面任何值都不标注来源。计划本身来自机器人的合并结果。"
+
+#: services/webservice/templates/scheduler_body.html:60
+msgid "this server's block"
+msgstr "此服务器的配置块"
+
+#: services/webservice/templates/scheduler_body.html:61
+msgid "inherited"
+msgstr "继承"
+
+#: services/webservice/templates/scheduler_body.html:62
+#: services/webservice/templates/scheduler_body.html:159
+msgid "not set"
+msgstr "未设置"
+
+#: services/webservice/templates/scheduler_body.html:75
+msgid "Availability this week"
+msgstr "本周可用时间"
+
+#: services/webservice/templates/scheduler_body.html:89
+msgid "This server's plan carries no week schedule."
+msgstr "此服务器的计划没有周时间表。"
+
+#: services/webservice/templates/scheduler_body.html:102
+msgid "no trigger stated"
+msgstr "未指定触发条件"
+
+#: services/webservice/templates/scheduler_body.html:103
+msgid "no method stated"
+msgstr "未指定方式"
+
+#: services/webservice/templates/scheduler_body.html:112
+msgid "This server's plan schedules no actions."
+msgstr "此服务器的计划没有安排任何动作。"
+
+#: services/webservice/templates/scheduler_body.html:129
+msgid "Sound"
+msgstr "声音"
+
+#: services/webservice/templates/scheduler_body.html:130
+msgid "Countdown"
+msgstr "倒计时"
+
+#: services/webservice/templates/scheduler_body.html:133
+msgid "This server's plan declares no warning ladder."
+msgstr "此服务器的计划未声明任何警告等级。"
+
+#: services/webservice/templates/scheduler_body.html:147
+msgid "This server's plan says nothing about its start."
+msgstr "此服务器的计划没有说明其启动方式。"
+
+#: services/webservice/templates/scheduler_body.html:155
+msgid "Commands on events"
+msgstr "事件命令"
+
+#: services/webservice/templates/scheduler_body.html:167
+msgid "Read-only. The plan is the scheduler plugin's merged configuration for this server: the values here are what the bot applies, and changing one is a change to the file in Settings."
+msgstr "只读。该计划是调度器插件为此服务器合并后的配置：这里的值就是机器人所应用的值，修改它等于修改设置中的文件。"
+
+#: services/webservice/scheduler_plan.py:468
+msgid "This is not a cron expression — it needs 5 to 7 fields."
+msgstr "这不是 cron 表达式——它需要 5 到 7 个字段。"
+
+#: services/webservice/scheduler_plan.py:469
+msgid "This expression is valid but never fires — there is no 30 February."
+msgstr "该表达式有效，但永远不会触发——不存在 2 月 30 日。"
+
+#: services/webservice/scheduler_plan.py:470
+msgid "This expression has more than 5 fields: the sixth field is SECONDS, so it fires more often than the five fields suggest. That is accepted, not refused — check it is what you meant."
+msgstr "该表达式超过 5 个字段：第六个字段是秒，因此触发频率比五个字段所暗示的更高。这会被接受而不会被拒绝——请确认这是你的本意。"
+
+#: services/webservice/scheduler_plan.py:473
+msgid "A time of day is HH:MM, between 00:00 and 24:00."
+msgstr "一天中的时间格式为 HH:MM，介于 00:00 和 24:00 之间。"
+
+#: services/webservice/scheduler_plan.py:474
+msgid "That timezone is not a known IANA zone, so times cannot be read in it."
+msgstr "该时区不是已知的 IANA 时区，因此无法按此时区读取时间。"
+
+#: services/webservice/pages/server_detail.py:173
+msgid "When it runs"
+msgstr "运行时间"
+
+#: services/webservice/pages/server_detail.py:173
+msgid "the week"
+msgstr "一周"
+
+#: services/webservice/pages/server_detail.py:175
+msgid "Warnings"
+msgstr "警告"
+
+#: services/webservice/pages/server_detail.py:175
+msgid "the countdown before"
+msgstr "之前的倒计时"
+
+#: services/webservice/templates/scheduler_body.html:47
+msgid "Scheduler wizard"
+msgstr "调度向导"
+
+#: services/webservice/templates/scheduler_body.html:48
+msgid "step"
+msgstr "步骤"
+
+#: services/webservice/templates/scheduler_body.html:48
+msgid "of"
+msgstr "共"
+
+#: services/webservice/templates/scheduler_body.html:49
+msgid "When should the server run?"
+msgstr "服务器应该在什么时候运行？"
+
+#: services/webservice/templates/scheduler_body.html:51
+msgid "How is a restart announced?"
+msgstr "重启如何通知？"
+
+#: services/webservice/templates/scheduler_body.html:53
+msgid "wizard"
+msgstr "向导"
+
+#: services/webservice/templates/scheduler_body.html:64
+msgid "Editing"
+msgstr "正在编辑"
+
+#: services/webservice/templates/scheduler_body.html:64
+msgid "its own block only — a value you leave alone stays inherited"
+msgstr "仅其自身块——未改动的值保持继承"
+
+#: services/webservice/templates/scheduler_body.html:66
+msgid "Back to the plan"
+msgstr "返回计划"
+
+#: services/webservice/templates/scheduler_body.html:86
+msgid "Every time in this block is read in this zone. Empty means the machine's own local time, which is what the bot assumes when the key is absent."
+msgstr "此块中的每个时间都按此时区读取。留空表示机器自身的本地时间，这也是键缺失时机器人所采用的时间。"
+
+#: services/webservice/templates/scheduler_body.html:91
+msgid "The week"
+msgstr "一周"
+
+#: services/webservice/templates/scheduler_body.html:113
+msgid "Entry"
+msgstr "条目"
+
+#: services/webservice/templates/scheduler_body.html:113
+msgid "this step"
+msgstr "此步骤"
+
+#: services/webservice/templates/scheduler_body.html:131
+msgid "Next:"
+msgstr "接下来："
+
+#: services/webservice/templates/scheduler_body.html:137
+msgid "At most"
+msgstr "最多"
+
+#: services/webservice/templates/scheduler_body.html:143
+msgid "What"
+msgstr "动作"
+
+#: services/webservice/templates/scheduler_body.html:300
+msgid "Act even with players on"
+msgstr "即使有玩家在线也执行"
+
+#: services/webservice/templates/scheduler_body.html:301
+msgid "Only when nobody is flying"
+msgstr "仅在无人飞行时"
+
+#: services/webservice/templates/scheduler_body.html:152
+msgid "Only when the mission ends"
+msgstr "仅在任务结束时"
+
+#: services/webservice/templates/scheduler_body.html:153
+msgid "Only when a coalition wins"
+msgstr "仅在某一方获胜时"
+
+#: services/webservice/templates/scheduler_body.html:155
+msgid "Run the extensions first"
+msgstr "先运行扩展"
+
+#: services/webservice/templates/scheduler_body.html:156
+msgid "Use the original mission file"
+msgstr "使用原始任务文件"
+
+#: services/webservice/templates/scheduler_body.html:157
+msgid "Do not reload a running mission"
+msgstr "不重新加载正在运行的任务"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Add an entry"
+msgstr "添加条目"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Remove entry %(number)s"
+msgstr "删除条目 %(number)s"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "This server's plan schedules no actions yet."
+msgstr "此服务器的计划尚未安排任何操作。"
+
+#: services/webservice/scheduler_plan.py
+msgid "Nothing happens for this entry until a trigger is stated: times of day, a cron expression, minutes of mission time, minutes of server runtime, or minutes with nobody on the server."
+msgstr "在设置触发器之前，此条目不会执行任何操作：每天的时间、cron 表达式、任务时间分钟数、服务器运行分钟数或无人在线的分钟数。"
+
+#: services/webservice/scheduler_plan.py
+msgid "A removal must name an entry by its position number, so nothing was removed."
+msgstr "删除必须按位置编号指定条目，因此未删除任何内容。"
+
+#: services/webservice/scheduler_plan.py
+msgid "This plan has no entry at that position, so nothing was removed."
+msgstr "此计划在该位置没有条目，因此未删除任何内容。"
+
+#: services/webservice/templates/scheduler_body.html:179
+msgid "The warning message"
+msgstr "警告消息"
+
+#: services/webservice/templates/scheduler_body.html:196
+msgid "Seconds"
+msgstr "秒"
+
+#: services/webservice/templates/scheduler_body.html:203
+msgid "The ladder"
+msgstr "阶梯"
+
+#: services/webservice/templates/scheduler_body.html:271
+msgid "This step writes nothing"
+msgstr "此步骤不写入任何内容"
+
+#: services/webservice/templates/scheduler_body.html:273
+msgid "Every value on these steps travels in the address, so a refresh keeps it and the page works with JavaScript off."
+msgstr "这些步骤中的每个值都保存在地址中，因此刷新不会丢失，页面在关闭 JavaScript 时也能正常工作。"
+
+#: services/webservice/templates/scheduler_body.html:274
+msgid "The review step and the save follow in the wizard's last step."
+msgstr "检查与保存位于向导的最后一步。"
+
+#: services/webservice/templates/scheduler_body.html:292
+msgid "Change the plan"
+msgstr "修改计划"
+
+#: services/webservice/scheduler_plan.py:965
+msgid ""
+"The startup delay is one value shared by every server, so this tab does "
+"not write it. Nothing was written."
+msgstr "启动延迟是所有服务器共用的值，因此此选项卡不会写入它。未写入任何内容。"
+
+#: services/webservice/scheduler_plan.py:967
+msgid ""
+"local_times and utc_times are deprecated; this tab refuses to write "
+"either of them. Nothing was written."
+msgstr "local_times 和 utc_times 已弃用；此选项卡拒绝写入其中任何一个。未写入任何内容。"
+
+#: services/webservice/scheduler_plan.py:969
+msgid ""
+"That request names a value this tab does not write, so nothing was "
+"written."
+msgstr "该请求指定了此选项卡不会写入的值，因此未写入任何内容。"
+
+#: services/webservice/pages/server_detail.py:177
+msgid "Review & save"
+msgstr "检查并保存"
+
+#: services/webservice/pages/server_detail.py:178
+msgid "the block and the write"
+msgstr "配置块与写入"
+
+#: services/webservice/pages/settings.py:484
+msgid "No server was named for this save, so nothing was written."
+msgstr "本次保存未指定服务器，因此未写入任何内容。"
+
+#: services/webservice/pages/settings.py:486
+msgid ""
+"DEFAULT, commands and chat_commands are not server blocks — they are "
+"edited in Settings, so nothing was written."
+msgstr "DEFAULT、commands 和 chat_commands 不是服务器配置块——它们在设置中编辑，因此未写入任何内容。"
+
+#: services/webservice/pages/settings.py:489
+msgid "That name is not a server this console can edit, so nothing was written."
+msgstr "该名称不是此控制台可编辑的服务器，因此未写入任何内容。"
+
+#: services/webservice/pages/settings.py:491
+msgid "That name is a node, not a server, so nothing was written."
+msgstr "该名称是节点而非服务器，因此未写入任何内容。"
+
+#: services/webservice/pages/settings.py:562
+msgid "Expert Mode is available to an Admin only, so nothing was written. Use the plan's steps instead."
+msgstr "专家模式仅限管理员使用，因此未写入任何内容。请改用计划的各个步骤。"
+
+#: services/webservice/templates/scheduler_body.html:46
+msgid "Review, then save"
+msgstr "先检查，再保存"
+
+#: services/webservice/templates/scheduler_body.html:48
+msgid ""
+"This is the block that will be written, and only this block: DEFAULT, "
+"every other server's block, the comments and the key order of the file "
+"stay as they are."
+msgstr "这是将要写入的配置块，且仅此块：DEFAULT、其他所有服务器的配置块、注释以及文件中的键顺序均保持不变。"
+
+#: services/webservice/templates/scheduler_body.html:75
+msgid "What changes"
+msgstr "更改内容"
+
+#: services/webservice/templates/scheduler_body.html:83
+msgid "back to inherited"
+msgstr "恢复为继承"
+
+#: services/webservice/templates/scheduler_body.html:87
+msgid ""
+"This plan needs no change to the server's own block: every value it "
+"states is the inherited one. Saving writes nothing."
+msgstr "此计划无需更改服务器自身的配置块：其中每个值都是继承值。保存不会写入任何内容。"
+
+#: services/webservice/templates/scheduler_body.html:94
+msgid "What is not touched"
+msgstr "未改动的内容"
+
+#: services/webservice/templates/scheduler_body.html:97
+msgid "the shared block — edit it in Settings"
+msgstr "共享配置块——在设置中编辑"
+
+#: services/webservice/templates/scheduler_body.html:98
+msgid "Other servers"
+msgstr "其他服务器"
+
+#: services/webservice/templates/scheduler_body.html:98
+msgid "their blocks, byte-identical"
+msgstr "它们的配置块，字节完全一致"
+
+#: services/webservice/templates/scheduler_body.html:99
+msgid "Comments and order"
+msgstr "注释与顺序"
+
+#: services/webservice/templates/scheduler_body.html:99
+msgid "kept by the writer's round-trip"
+msgstr "由写入器的往返转换保留"
+
+#: services/webservice/templates/scheduler_body.html:100
+msgid "a shared value this tab never writes"
+msgstr "此选项卡从不写入的共享值"
+
+#: services/webservice/templates/scheduler_body.html:105
+msgid "Saving"
+msgstr "保存"
+
+#: services/webservice/templates/scheduler_body.html:107
+msgid ""
+"The block is validated against the scheduler's own schema before it is "
+"written. A file that does not validate is refused and nothing is written;"
+" a .bak is kept."
+msgstr "写入前会依据调度器自身的模式校验该配置块。未通过校验的文件将被拒绝，不写入任何内容；并保留 .bak。"
+
+#: services/webservice/templates/scheduler_body.html:108
+msgid ""
+"The bot keeps the plan in memory, so the change applies after a reload of"
+" the scheduler plugin."
+msgstr "机器人在内存中保留该计划，因此在重新加载调度器插件后生效。"
+
+#: services/webservice/templates/scheduler_body.html:116
+msgid "Save this server's block"
+msgstr "保存此服务器的配置块"
+
+#: services/webservice/templates/scheduler_body.html:120
+msgid "Discard"
+msgstr "放弃"
+
+#: services/webservice/templates/scheduler_body.html:121
+msgid "Save the schedule"
+msgstr "保存计划"
+
+#: services/webservice/templates/scheduler_body.html:187
+msgid "the machine's own local time"
+msgstr "机器自身的本地时间"
+
+#: services/webservice/templates/scheduler_body.html:204
+msgid "From"
+msgstr "从"
+
+#: services/webservice/templates/scheduler_body.html:207
+msgid "To"
+msgstr "到"
+
+#: services/webservice/templates/scheduler_body.html:213
+msgid "Days"
+msgstr "星期"
+
+#: services/webservice/templates/scheduler_body.html:216
+msgid "Remove row"
+msgstr "删除该行"
+
+#: services/webservice/templates/scheduler_body.html:217
+msgid "Row"
+msgstr "行"
+
+#: services/webservice/scheduler_plan.py:509
+msgid "The start must be before the end, or the range covers no time."
+msgstr "开始时间必须早于结束时间，否则该时段不覆盖任何时间。"
+
+#: services/webservice/scheduler_plan.py:510
+msgid "This range overlaps an earlier row, so the week would be ambiguous."
+msgstr "该时段与前面的行重叠，这一周将无法确定。"
+
+#: services/webservice/scheduler_plan.py:511
+msgid "The seven days must be seven letters, each Y, N or P."
+msgstr "七天必须是七个字母，每个为 Y、N 或 P。"
+
+#: services/webservice/templates/scheduler_body.html:197
+msgid "One row per time range, seven letters Monday first: Y must be running, N must be offline, P stays up until the last player leaves. A row without both times is not part of the plan, and the scheduler does not touch the server then."
+msgstr "每个时段一行，七个字母，周一在前：Y 必须运行，N 必须关闭，P 保持在线直到最后一名玩家离开。缺少开始或结束时间的行不属于计划，调度器此时不会动服务器。"
+
+#: services/webservice/scheduler_plan.py:504
+msgid "The mission list could not be read, so the missions are not offered here. Type the value instead."
+msgstr "无法读取任务列表，因此这里不提供任务选择。请直接输入数值。"
+
+#: services/webservice/scheduler_plan.py:506
+msgid "The preset files could not be read, so the presets are not offered here. Type the entries instead."
+msgstr "无法读取预设文件，因此这里不提供预设选择。请直接输入条目。"
+
+#: services/webservice/scheduler_plan.py:511
+msgid "not in these files any more"
+msgstr "已不在这些文件中"
+
+#: services/webservice/templates/scheduler_body.html:305
+msgid "Tick every mission the schedule may start: the bot picks one of the ticked missions at random each time it starts the server."
+msgstr "勾选日程可以启动的每个任务：机器人每次启动服务器会从中随机选择一个。"
+
+#: services/webservice/templates/scheduler_body.html:319
+msgid "The path relative to the missions directory, exactly as the bot lists it — never a full path on the server."
+msgstr "相对于任务目录的路径，与机器人列出的完全一致——绝不是服务器上的完整路径。"
+
+#: services/webservice/templates/scheduler_body.html:326
+msgid "Presets to apply"
+msgstr "要应用的预设"
+
+#: services/webservice/templates/scheduler_body.html:341
+msgid "One group per preset file: a tick applies that file's preset. The bot applies them in the files' order, not in the order you ticked them, and one entry it cannot resolve drops the whole pick."
+msgstr "每个预设文件一组：勾选即应用该文件的预设。机器人按文件的顺序应用，而不是你勾选的顺序；只要有一个条目无法解析，整个选择都会被丢弃。"
+
+#: services/webservice/templates/scheduler_body.html:582
+msgid "Shown to every player; the bot fills the three names in."
+msgstr "会显示给每位玩家；机器人会把三个名称填进去。"
+
+#: services/webservice/templates/scheduler_body.html:584
+msgid "A player reads"
+msgstr "玩家看到的文字"
+
+#: services/webservice/templates/scheduler_body.html:604
+msgid "The text shown at that moment"
+msgstr "那一刻显示的文本"
+
+#: services/webservice/templates/scheduler_body.html:603
+msgid "One row per warning: the seconds before the change, and the text shown at that moment. A row with text but no seconds is refused, and two rows cannot share the same seconds."
+msgstr "每条警告一行：变更前的秒数，以及那一刻显示的文本。有文本但没有秒数的行会被拒绝，两行不能使用相同的秒数。"
+
+#: services/webservice/scheduler_plan.py:518
+msgid "either server or mission, whichever the change touches"
+msgstr "服务器或任务，取决于变更影响的是哪个"
+
+#: services/webservice/scheduler_plan.py:519
+msgid "what happens: restart, shutdown or rotate"
+msgstr "发生了什么：restart、shutdown 或 rotate"
+
+#: services/webservice/scheduler_plan.py:520
+msgid "how long is left, such as 10 minutes"
+msgstr "还剩多少时间，例如 10 分钟"
+
+#: services/webservice/scheduler_plan.py:524
+msgid "server"
+msgstr "服务器"
+
+#: services/webservice/scheduler_plan.py:525
+msgid "restart"
+msgstr "重启"
+
+#: services/webservice/scheduler_plan.py:526
+msgid "10 minutes"
+msgstr "10 分钟"
+
+#: services/webservice/scheduler_plan.py:531
+msgid "A warning time must be a whole number of seconds greater than zero, so this row is not written."
+msgstr "警告时间必须是大于零的整数秒数，因此这一行不会被写入。"
+
+#: services/webservice/scheduler_plan.py:533
+msgid "Another row already states these seconds, and a ladder holds one text per moment, so this row is not written."
+msgstr "另一行已经使用这些秒数，而阶梯每个时刻只能有一个文本，因此这一行不会被写入。"
+
+#: services/webservice/scheduler_plan.py:535
+msgid "This row states a text but no seconds, so there is no moment to show it at: state the seconds or clear the row."
+msgstr "这一行有文本但没有秒数，没有可以显示它的时刻：请填写秒数或清空这一行。"
+
+#: services/webservice/scheduler_plan.py:541
+msgid "The review step writes this ladder as a map: each number of seconds to the text shown at that moment."
+msgstr "复核步骤会把这条阶梯写成一个映射：每个秒数对应那一刻显示的文本。"
+
+#: services/webservice/scheduler_plan.py:543
+msgid "The review step writes this ladder as a list of seconds, with the shared message at every moment."
+msgstr "复核步骤会把这条阶梯写成秒数列表，每个时刻都使用共享的文本。"
+
+#: services/webservice/scheduler_plan.py:544
+msgid "This ladder states nothing, so the bot shows no warning before the change."
+msgstr "这条阶梯没有任何内容，因此机器人不会在变更前显示警告。"
+
+#: services/webservice/scheduler_plan.py:2076
+msgid "That text is not valid YAML, so nothing was written."
+msgstr "这段文本不是有效的 YAML，因此没有写入任何内容。"
+
+#: services/webservice/scheduler_plan.py:2078
+msgid ""
+"A server's block is a set of keys and values, and that text is not "
+"one, so nothing was written."
+msgstr "服务器区块是一组键和值，而这段文本不是，因此没有写入任何内容。"
+
+#: services/webservice/scheduler_plan.py:2082
+msgid ""
+"That text states the key '%(key)s', which is not part of a server's "
+"own block, so nothing was written."
+msgstr "这段文本声明了键 '%(key)s'，它不属于服务器自身的区块，因此没有写入任何内容。"
+
+#: services/webservice/templates/scheduler_body.html:259
+msgid "This server's block, as YAML"
+msgstr "此服务器的区块（YAML）"
+
+#: services/webservice/templates/scheduler_body.html:263
+msgid ""
+"The block this save writes for this server and no other: DEFAULT and "
+"every other server's block are never part of it, and the comments "
+"inside it are kept."
+msgstr "此次保存只为这个服务器写入的区块：DEFAULT 和其他任何服务器的区块都不在其中，其中的注释会被保留。"
+
+#: services/webservice/templates/scheduler_body.html:264
+msgid ""
+"In Expert Mode this text is written instead of the block the plan "
+"states, so a key you delete here leaves the file. An edit replaces the "
+"block's own comments with what you type."
+msgstr "在专家模式下，写入的是这段文本而不是计划所声明的区块，因此在这里删除的键会从文件中移除。编辑会用你输入的内容替换区块自身的注释。"
+
+#: services/webservice/templates/scheduler_body.html:268
+msgid "Expert Mode text: this box is the editor when the script is off"
+msgstr "专家模式文本：脚本关闭时，此框就是编辑器"
+
+#: services/webservice/templates/scheduler_body.html:271
+msgid ""
+"This save writes no block of its own for this server: every value it "
+"states is the inherited one."
+msgstr "此次保存不会为这个服务器写入自己的区块：它声明的每个值都是继承来的。"
+
+#: services/webservice/scheduler_plan.py:641
+msgid "Start a fixed mission every time this server starts"
+msgstr "每次此服务器启动时都启动一个固定任务"
+
+#: services/webservice/scheduler_plan.py:642
+msgid "Left off, the server starts the mission that ran last."
+msgstr "不勾选时，服务器启动上次运行过的任务。"
+
+#: services/webservice/scheduler_plan.py:643
+msgid "Saving with this off removes the startup keys this server's block states, so the server follows DEFAULT again."
+msgstr "在未勾选的情况下保存会删除此服务器块中声明的启动键，服务器将重新遵循 DEFAULT。"
+
+#: services/webservice/scheduler_plan.py:655
+msgid "by mission ID"
+msgstr "按任务 ID"
+
+#: services/webservice/scheduler_plan.py:656
+msgid "by mission file"
+msgstr "按任务文件"
+
+#: services/webservice/scheduler_plan.py:658
+msgid "A start names its mission one of the two ways, never both: the save removes the value the other key carried."
+msgstr "一次启动只用两种方式之一指定任务，从不同时使用：保存时会删除另一个键所携带的值。"
+
+#: services/webservice/pages/server_detail.py:174
+msgid "mission, presets"
+msgstr "任务、预设"
+
+#: services/webservice/templates/scheduler_body.html:484
+msgid "Mission and presets"
+msgstr "任务与预设"
+
+#: services/webservice/templates/scheduler_body.html:650
+#: services/webservice/templates/scheduler_body.html
+msgid "Each command runs when that event happens, in the bot's own vocabulary: load:, lua:, call: or run:. Only the mission start takes a delay, in seconds, before its command runs."
+msgstr "每个命令在该事件发生时运行，使用机器人自己的写法：load:、lua:、call: 或 run:。只有任务开始带有延迟（秒），在该命令运行之前生效。"
+#: services/webservice/templates/scheduler_body.html:332
+msgid "Actions (restart, rotate, etc.)"
+msgstr "操作（重启、轮换等）"
+
+#: services/webservice/pages/server_detail.py:175
+msgid "one trigger, options by method"
+msgstr "一个触发器，选项随方法"
+
+#: services/webservice/scheduler_plan.py:566
+msgid "When does this run?"
+msgstr "什么时候执行？"
+
+#: services/webservice/scheduler_plan.py:549
+msgid "Times of day"
+msgstr "一天中的时刻"
+
+#: services/webservice/scheduler_plan.py:550
+msgid "Minutes of mission time"
+msgstr "任务时间（分钟）"
+
+#: services/webservice/scheduler_plan.py:551
+msgid "Minutes of server runtime"
+msgstr "服务器运行时间（分钟）"
+
+#: services/webservice/scheduler_plan.py:552
+msgid "Minutes with nobody on"
+msgstr "无玩家在线（分钟）"
+
+#: services/webservice/scheduler_plan.py:553
+msgid "Cron expression"
+msgstr "Cron 表达式"
+
+#: services/webservice/scheduler_plan.py:558
+msgid "One row per time of day, read in this block's timezone. A row with no time states nothing."
+msgstr "每行一个时刻，按此块的时区读取。没有时刻的行不表示任何内容。"
+
+#: services/webservice/scheduler_plan.py:560
+msgid "Applied once the mission has run this many minutes."
+msgstr "任务运行这么多分钟后执行。"
+
+#: services/webservice/scheduler_plan.py:561
+msgid "Applied once the server has run this many minutes."
+msgstr "服务器运行这么多分钟后执行。"
+
+#: services/webservice/scheduler_plan.py:562
+msgid "Applied after this many minutes with nobody on the server."
+msgstr "服务器无人这么多分钟后执行。"
+
+#: services/webservice/scheduler_plan.py:563
+msgid "5 to 7 fields. The next three fires are shown under the field."
+msgstr "5 到 7 个字段。字段下方显示接下来的三次触发。"
+
+#: services/webservice/scheduler_plan.py:567
+msgid "An entry states ONE of these. Choosing another removes the others from the plan, and the save deletes them from the file."
+msgstr "一个条目只声明其中之一。选择另一个会把其余的从计划中移除，保存时再从文件中删除。"
+
+#: services/webservice/scheduler_plan.py:569
+msgid "This entry states more than one trigger. Only the one shown is kept: the bot reads times of day first, then mission time, then server runtime, then idle time, and cron last — so the others are removed from the plan and deleted from the file on save."
+msgstr "此条目声明了多个触发器。只保留显示的那个：机器人先读一天中的时刻，再读任务时间、服务器运行时间、空闲时间，最后是 cron——因此其余的会从计划中移除，并在保存时从文件中删除。"
+
+#: services/webservice/scheduler_plan.py:578
+msgid "This entry's trigger is a deprecated key"
+msgstr "此条目的触发器是一个已弃用的键"
+
+#: services/webservice/scheduler_plan.py:579
+msgid "This key is deprecated and this tab does not write it, so this entry cannot be retriggered here."
+msgstr "此键已弃用，本选项卡不会写入它，因此无法在这里重新触发此条目。"
+
+#: services/webservice/scheduler_plan.py:581
+msgid "Everything else about this entry stays editable — its method, its conditions and its mission picks — and a save leaves the key exactly as the file states it."
+msgstr "此条目的其他部分仍可编辑——方法、条件和任务选择——保存时该键会完全保持文件中的原样。"
+
+#: services/webservice/scheduler_plan.py:616
+msgid "The options below follow this choice: a load names its mission, a restart or rotate changes the presets, and stop or shutdown names no mission at all."
+msgstr "下面的选项随此选择而定：load 指定任务，restart 或 rotate 更改预设，stop 或 shutdown 完全不涉及任务。"
+
+#: services/webservice/scheduler_plan.py:624
+msgid "A load names its mission one of the two ways, never both: the save removes the value the other key carried."
+msgstr "load 用两种方式之一指定任务，绝不两种都用：保存时会删除另一个键携带的值。"
+
+#: services/webservice/templates/scheduler_body.html:559
+msgid "Remove this time"
+msgstr "删除这个时刻"
+
+#: services/webservice/scheduler_plan.py:778
+msgid "A time of day"
+msgstr "一天中的时刻"
+
+#: services/webservice/templates/scheduler_body.html:591
+msgid "Add a time"
+msgstr "添加时刻"
+
+#: services/webservice/templates/scheduler_body.html:612
+msgid "The hard cap: at that many minutes of mission time the mission restarts even with players on. The bot applies it only while this entry waits until nobody is flying."
+msgstr "硬性上限：任务时间达到这么多分钟时，即使有玩家也会重启任务。机器人只在此条目等待无人飞行时应用它。"
+
+#: services/webservice/config_apply.py:105
+msgid "Apply now"
+msgstr "立即应用"
+
+#: services/webservice/config_apply.py:106
+msgid "Apply the change"
+msgstr "应用更改"
+
+#: services/webservice/config_apply.py:107
+msgid "Apply the change now"
+msgstr "立即应用更改"
+
+#: services/webservice/config_apply.py:108
+msgid "Not now"
+msgstr "暂时不"
+
+#: services/webservice/config_apply.py:109
+#: services/webservice/templates/_notice.html:43
+msgid "Reload this page"
+msgstr "重新加载此页"
+
+#: services/webservice/config_apply.py:111
+msgid "Reload the %(plugin)s plugin now?"
+msgstr "现在重新加载插件 %(plugin)s？"
+
+#: services/webservice/config_apply.py:113
+msgid "The plugin is unloaded and loaded again, and it reads its configuration file as it starts. Nothing restarts and no DCS server goes down."
+msgstr "该插件会被卸载并重新加载，启动时读取它的配置文件。不会有任何东西重启，也不会有 DCS 服务器下线。"
+
+#: services/webservice/config_apply.py:115
+msgid "Reload the %(plugin)s plugin"
+msgstr "重新加载插件 %(plugin)s"
+
+#: services/webservice/config_apply.py:117
+msgid "Restart the bot on node %(node)s now?"
+msgstr "现在在节点 %(node)s 上重启机器人？"
+
+#: services/webservice/config_apply.py:119
+msgid "Every DCS server on %(node)s goes down with it. Nothing starts them again by itself: the launcher on that machine brings the bot back, and the servers with it."
+msgstr "%(node)s 上的每个 DCS 服务器都会随之下线。它们不会自己重新启动：那台机器上的启动器会把机器人带回来，服务器也随之回来。"
+
+#: services/webservice/config_apply.py:122
+msgid "The bot process ends and the launcher starts it again, so this change is read at boot."
+msgstr "机器人进程结束，启动器会重新启动它，因此这项更改在启动时读取。"
+
+#: services/webservice/config_apply.py:123
+msgid "Restart the bot on node %(node)s"
+msgstr "在节点 %(node)s 上重启机器人"
+
+#: services/webservice/config_apply.py:124
+msgid "the master node"
+msgstr "主节点"
+
+#: services/webservice/config_apply.py:127
+msgid "The change is in the file and takes effect after the %(plugin)s plugin is reloaded."
+msgstr "更改已写入文件，重新加载插件 %(plugin)s 后生效。"
+
+#: services/webservice/config_apply.py:129
+msgid "The change is in the file and takes effect after a bot restart on %(node)s."
+msgstr "更改已写入文件，%(node)s 上重启机器人后生效。"
+
+#: services/webservice/config_apply.py:130
+msgid "The change is in the file and takes effect when the next mission is prepared — nothing is reloaded for it."
+msgstr "更改已写入文件，在准备下一个任务时生效——为此不会重新加载任何内容。"
+
+#: services/webservice/config_apply.py:134
+msgid "Reloading the %(plugin)s plugin — this page reloads once now."
+msgstr "正在重新加载插件 %(plugin)s——此页现在会刷新一次。"
+
+#: services/webservice/config_apply.py:136
+msgid "Restarting the bot on %(node)s — its DCS servers go down with it. This page reloads once now; if the console does not answer yet, reload it again in a moment."
+msgstr "正在重启 %(node)s 上的机器人——它的 DCS 服务器会随之下线。此页现在会刷新一次；如果控制台还没有响应，请稍后再刷新一次。"
+
+#: services/webservice/config_apply.py:140
+msgid "Nothing was applied: this confirmation is no longer valid. Save the change again and apply the fresh one."
+msgstr "没有应用任何内容：此确认已失效。请重新保存更改，然后应用新的确认。"
+
+#: services/webservice/config_apply.py:142
+msgid "Nothing was reloaded or restarted: the bot process cannot be reached from here."
+msgstr "没有重新加载或重启任何内容：从这里无法连接到机器人进程。"
+
+#: services/webservice/config_apply.py:145
+msgid "Nothing was reloaded: the %(plugin)s plugin is not loaded in this process. Restart the bot to apply the change."
+msgstr "没有重新加载任何内容：插件 %(plugin)s 没有在此进程中加载。请重启机器人以应用更改。"
+
+#: services/webservice/config_apply.py:147
+msgid "Nothing was restarted: this installation knows no node named %(node)s."
+msgstr "没有重启任何内容：此安装中没有名为 %(node)s 的节点。"
+
+#: services/webservice/config_apply.py:149
+msgid "Nothing was restarted: a restart of %(node)s is already in flight."
+msgstr "没有重启任何内容：%(node)s 的重启已在进行中。"
+
+#: services/webservice/config_apply.py:150
+msgid "Nothing was applied: this file is read when a mission is prepared, so it applies at the next launch."
+msgstr "没有应用任何内容：此文件在准备任务时读取，因此会在下次启动时生效。"
+
+#: services/webservice/config_apply.py:152
+msgid "Nothing was applied: no apply action is defined for this file."
+msgstr "没有应用任何内容：此文件未定义任何应用操作。"
+
+#: services/webservice/templates/apply_confirm.html:39
+msgid "Target:"
+msgstr "目标："
+
+#: services/webservice/config_apply.py:156
+msgid "This action is not recorded in the audit log on this install."
+msgstr "此安装在审计日志中不会记录此操作。"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Delay before the command (seconds)"
+msgstr "命令执行前的延迟（秒）"
+#: services/webservice/scheduler_plan.py
+msgid "The missions directory could not be read, so the mission files are not offered here. Type the path instead."
+msgstr "无法读取任务目录，因此此处不提供任务文件。请改为手动输入路径。"
+
+#: services/webservice/scheduler_plan.py
+msgid "Server password"
+msgstr "服务器密码"
+
+#: services/webservice/scheduler_plan.py
+msgid "The server password is set when the mission starts."
+msgstr "服务器密码会在任务开始时设置。"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "Apply these changes now?"
+msgstr "现在应用这些更改？"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "The schedule is saved. Reload the scheduler plugin so the running bot uses the new plan? Nothing restarts and no DCS server goes down."
+msgstr "计划已保存。重新加载调度插件，让正在运行的机器人使用新计划？不会重启任何内容，也不会有 DCS 服务器下线。"
+
+#: services/webservice/templates/scheduler_body.html
+msgid "If you answer no, the change stays in the file and takes effect the next time the plugin is reloaded or the bot restarts."
+msgstr "如果选择否，更改会保留在文件中，并在下次重新加载插件或重启机器人时生效。"
+
+#: services/webservice/config_apply.py
+msgid "Nothing was reloaded: the bot cannot be reached from here — %(reason)s."
+msgstr "未重新加载任何内容：无法从此处访问机器人 — %(reason)s。"
+
+#: services/webservice/config_apply.py
+msgid "Nothing was restarted: this console cannot restart a node — the node operation it needs is not available in this process."
+msgstr "未重启任何内容：此控制台无法重启节点——所需的节点操作在此进程中不可用。"
+
+#: services/webservice/config_apply.py
+msgid "The %(plugin)s plugin was reloaded, so the change is live."
+msgstr "已重新加载 %(plugin)s 插件，更改已生效。"
+
+#: services/webservice/config_apply.py
+msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
+msgstr "无法重新加载 %(plugin)s 插件——文件已包含更改，但正在运行的机器人没有。请重启机器人以应用更改。"

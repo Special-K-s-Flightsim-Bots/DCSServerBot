@@ -29,6 +29,11 @@
       `.brand img.brand-logo` in shell.css for why the pages never serve the 2.1 MB master.  #}
   <link rel="icon" type="image/png" href="/static/logo-256.png">
   <link rel="stylesheet" href="/static/shell.css">
+  {#  THE STARTED APPLY'S ONE SELF-RELOAD: the notice a started reload/restart leaves carries
+      `pending`, and the page it lands on reloads ONCE so the operator sees the fresh state. It is a
+      META REFRESH rather than a script, so it works with JavaScript off; the notice block also offers
+      the same thing as a link (`_notice.html`) for a browser that dropped the reload.  #}
+  {% if notice is defined and notice and notice.get('pending') %}<meta http-equiv="refresh" content="3">{% endif %}
   {% block head %}{% endblock %}
 </head>
 <body class="shell">

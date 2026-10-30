@@ -133,6 +133,11 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
     # shell's pages so a path collision is refused loudly here rather than silently winning later.
     from .pages import actions as actions_page
     actions_page.register(registrar)
+    # THE APPLY DOOR (see config_apply.py): the ONE control a config save leaves, under its own
+    # owner. Registered here, beside the other write surface, so the capability it declares and the
+    # two paths it serves exist before any page renders the control that opens it.
+    from . import config_apply as apply_module
+    apply_module.register(registrar)
     # THE ACTION REGISTRY, also populated here as a belt-and-braces fallback for a shell installed
     # WITHOUT the bot's own plugin load (core/plugin_manager.py::PluginManager._discover_actions):
     # a test stub, or a web process whose plugin list never reached load_plugins. Without it

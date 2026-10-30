@@ -51,7 +51,7 @@ from . import configgen
 
 __all__ = [
     "DEFAULT_TAG", "override_container", "element_fields", "rebase", "display_name",
-    "document_blocks", "build_scopes", "ScopeView", "scope_view", "add_target",
+    "literal_names", "document_blocks", "build_scopes", "ScopeView", "scope_view", "add_target",
     "extension_schema_parts", "extension_save_tree", "extension_blocks", "build_extension_scopes",
     "node_options", "scopes_for_node", "scope_keys", "document_slice", "merge_slice",
 ]
@@ -131,15 +131,54 @@ def display_name(field: configgen.Field, base: tuple) -> str:
     return field.name
 
 
-def document_blocks(document, node_names) -> list[dict]:
+def literal_names(tree: configgen.Field) -> list[str]:
+    """The root keys the SCHEMA declares as NAMED LITERAL SECTIONS — never a node/instance block.
+
+    A schema's root ``mapping`` may carry keys with a CONCRETE name beside ``DEFAULT`` and the
+    unbounded ``regex;(.+)`` override container: ``commands`` and ``chat_commands`` in a plugin schema
+    are one fixed section of the file each, not a key the operator invents per server. A document key
+    of that name IS that section, so it must never be read as a node or an instance.
+
+    The names are READ from the schema — no per-file list — so the next config file whose schema
+    declares a literal section is right by construction. The override container and ``DEFAULT`` are
+    excluded by IDENTITY, so a schema that names them differently is still read correctly.
+
+    A FLAT schema (``main_schema.yaml``, a ``bot``/``backup`` schema) declares no override container,
+    so it has no blocks for a key to be confused with: every key is the one DEFAULT scope, and the
+    answer there is the empty list.
+    """
+    container = override_container(tree)
+    if container is None:
+        return []
+    default_child = next((child for child in tree.children if child.key == DEFAULT_TAG), None)
+    names: list[str] = []
+    for child in tree.children:
+        if child is container or child is default_child:
+            continue
+        # a regex container is the OPEN key, and a chooser is not a document key at all.
+        if child.kind in (configgen.KIND_REGEX, configgen.KIND_CHOICE):
+            continue
+        if not child.path or child.path[0] in ("*", DEFAULT_TAG):
+            continue
+        names.append(str(child.path[0]))
+    return names
+
+
+def document_blocks(document, node_names, literal_keys=()) -> list[dict]:
     """Every override block the DOCUMENT carries, in file order — a reading, never a wish-list.
 
-    For each top-level key ``K`` (other than ``DEFAULT`` and the file's own literal keys):
+    For each top-level key ``K`` (other than ``DEFAULT`` and the schema's named literal sections):
 
     * when ``K`` is one of the cluster's *node_names*, its value is a node's block — a mapping of
       instance name to element block — and each instance key becomes its own ``node`` block;
     * otherwise ``K`` is an INSTANCE name (the single-node reading): ``K`` becomes an ``instance``
       block whose value is the element directly.
+
+    *literal_keys* are the root keys the SCHEMA declares with a concrete name
+    (:func:`literal_names`). Such a key is that fixed section of the file, whatever the document puts
+    under it, so it yields no block: the section is rendered as a field of the DEFAULT tab instead.
+    The schema decides what a key MEANS, so a server cannot be named like a literal section — the
+    reading of such a key is the literal, exactly as the file's own validator reads it.
 
     The node names are what decide the reading; with no node knowledge every key is read as an
     instance, which is the honest answer for a bare web test. Returns ``[{kind, node, instance,
@@ -148,11 +187,11 @@ def document_blocks(document, node_names) -> list[dict]:
     if not isinstance(document, dict):
         return []
     known = {str(name) for name in (node_names or ())}
-    multiple = len(known) > 1
+    literal = {str(name) for name in (literal_keys or ())}
     blocks: list[dict] = []
     for key in document:
         name = str(key)
-        if name == DEFAULT_TAG:
+        if name == DEFAULT_TAG or name in literal:
             continue
         value = document[key]
         if name in known and isinstance(value, dict):
@@ -180,6 +219,9 @@ def build_scopes(tree: configgen.Field, document, node_names=()) -> list[dict]:
     which the mockup shows inside the DEFAULT tab) and then one scope per node/instance block the
     document carries. Each override scope's fields are the element shape REBASED to that block, so no
     field name ever reads ``default.x.y.z``.
+
+    A literal section appears ONCE: it is a field of the DEFAULT scope, and the document key of its
+    name yields no tab (:func:`literal_names`).
 
     A scope produced for a schema with NO override container carries ``plain`` = True: its ``fields``
     are the WHOLE file (there is no node/instance block to switch between), so the page can say so
@@ -210,7 +252,9 @@ def build_scopes(tree: configgen.Field, document, node_names=()) -> list[dict]:
     element = element_fields(container)
     known = {str(name) for name in (node_names or ())}
     multiple = len(known) > 1
-    for block in document_blocks(document, node_names):
+    # the root keys the SCHEMA names are literals, so they are shown ONCE — on the DEFAULT tab above —
+    # and never again as an override tab of their own.
+    for block in document_blocks(document, node_names, literal_names(tree)):
         fields = [rebase(field, block["base"]) for field in element]
         scopes.append({
             "label": _label(block["kind"], block["node"], block["instance"], multiple),

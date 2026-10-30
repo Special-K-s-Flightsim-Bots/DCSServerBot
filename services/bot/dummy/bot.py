@@ -95,6 +95,28 @@ class DummyBot:
             self.log.error(f"No 'setup' function in {plugin_name}")
             return False
 
+    @property
+    def extensions(self) -> dict[str, Any]:
+        """The loaded plugins under the names the Discord bot gives them.
+
+        A caller that asks whether an extension is loaded — the console's apply door asks exactly
+        that before it reloads anything — gets the same answer on a headless install.
+        """
+        return {f"plugins.{name.lower()}.commands": cog for name, cog in self.cogs.items()}
+
+    async def unload_plugin(self, plugin: str) -> bool:
+        """Unload ONE plugin: its cog's own ``cog_unload``, then forget it."""
+        for name in [name for name in self.cogs if name.lower() == plugin.lower()]:
+            await self.cogs.pop(name).cog_unload()
+            return True
+        return False
+
+    async def reload_plugin(self, plugin: str) -> bool:
+        """Unload and load ONE plugin, the way the Discord bot does."""
+        if await self.unload_plugin(plugin):
+            return await self.load_plugin(plugin.lower())
+        return False
+
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
         for plugin in self.plugins:

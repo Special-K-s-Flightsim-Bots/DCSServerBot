@@ -706,6 +706,15 @@
     an action route, and the stylesheet below is the mods delta the card's strip and folder need.  -#}
 {% include "mods_body.html" %}
 
+{% elif tab == 'scheduler' %}
+{# ---------------------------------------------------------------- the Scheduler tab: this server's plan #}
+{#-  THE SERVER'S OWN PLAN, READ-ONLY: the body is `scheduler_body.html`, which renders the scheduler
+    plugin's merged configuration plus, per key, whether the value is the server's own or inherited
+    from `DEFAULT`. The page module owns the reading (`_scheduler_tab_context`); the branch renders no
+    page head, because this page already rendered one for the server. A caller without `settings.view`
+    never reaches this branch: the route refuses the request.  -#}
+{% include "scheduler_body.html" %}
+
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
 {#  THE SERVER'S OWN LOG: the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
@@ -885,8 +894,12 @@
 {#  THE MODS DELTA (`static/mods.css`) rides on every tab, the way the node page loads it: the Mods
     tab's state strip and its verbatim package-folder value are the two rules the shipped sheet does not
     own, and a tab is not a page of its own — it cannot declare a stylesheet only for itself.  #}
+{#  THE SCHEDULER DELTA (`static/scheduler.css`) ships with the page for the same reason: its week
+    grid, action rows and key-source rows are rules no other sheet owns, and a tab cannot declare a
+    stylesheet only for itself.  #}
 {% block head %}<link rel="stylesheet" href="/static/settings-scope.css">
-<link rel="stylesheet" href="/static/mods.css">{% endblock %}
+<link rel="stylesheet" href="/static/mods.css">
+<link rel="stylesheet" href="/static/scheduler.css">{% endblock %}
 
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>

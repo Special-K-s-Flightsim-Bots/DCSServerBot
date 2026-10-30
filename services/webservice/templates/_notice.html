@@ -12,14 +12,34 @@
   says so IN WORDS — a green banner over a lost audit entry is the one combination that must never
   be silent.
 
+  `notice.apply` IS THE "APPLY NOW" CONTROL, and it is DATA rather than a second write path: a save
+  fills it with the file's identity, the session's CSRF token and the one-shot token its confirmation
+  needs (`config_apply.offer`). A notice without it — a refused save, a save that changed nothing, a
+  file read at the next launch — renders no control at all. It is a plain POST form, so it works with
+  JavaScript off, and it opens the CONFIRMATION instead of applying anything.
+
+  `notice.pending` marks the notice a STARTED apply leaves: the page then reloads itself once
+  (`base.html`'s head reads the same flag) and this block offers the same thing as a link, so an
+  operator whose browser dropped the reload still has a way to ask again.
+
   Absent when there is nothing to say: `notice` is undefined on a page that has no write, and `None`
   when nothing just happened. No empty box, no placeholder — a console that reports nothing is the
   healthy state.
 -#}
 {% if notice is defined and notice %}
+{% set apply = notice.get('apply') %}
 <div class="notice {{ 'ok' if notice.ok else 'bad' }}" role="status">
   <span class="dot {{ 'run' if notice.ok else 'dead' }}" aria-hidden="true"></span>
   <span class="notice-msg">{{ _(notice.message) if notice.refusal else notice.message }}</span>
   {% if notice.audit_warning %}<span class="notice-warn">{% trans %}The audit entry for this action could not be recorded — see the bot log.{% endtrans %}</span>{% endif %}
+  {% if apply %}
+  <form class="notice-apply" method="post" action="{{ apply.get('ask_action') or apply.action }}">
+    <input type="hidden" name="{{ apply.csrf_field }}" value="{{ apply.csrf_token }}">
+    <input type="hidden" name="{{ apply.kind_field }}" value="{{ apply.kind }}">
+    <input type="hidden" name="{{ apply.name_field }}" value="{{ apply.name }}">
+    <button class="btn" type="submit">{{ _(apply.label) }}</button>
+  </form>
+  {% endif %}
+  {% if notice.get('pending') and notice.get('reload') %}<a class="notice-link" href="{{ notice.get('reload') }}">{% trans %}Reload this page{% endtrans %}</a>{% endif %}
 </div>
 {% endif %}

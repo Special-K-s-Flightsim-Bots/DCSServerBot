@@ -1,9 +1,9 @@
-"""The per-server page and its **Configuration** tab — and the **Missions** tab, the **Mods** tab and
-the mission download.
+"""The per-server page and its **Configuration** tab — and the **Missions** tab, the **Scheduler** tab,
+the **Mods** tab and the mission download.
 
-A server gets its own page: Overview / Players / Missions / Mods / Log / Events plus a Configuration
-tab. The module adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter carries a name
-containing ``/``), ``GET /fleet/{name:path}/status`` (the status poll), ``GET
+A server gets its own page: Overview / Players / Missions / Scheduler / Mods / Log / Events plus a
+Configuration tab. The module adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter
+carries a name containing ``/``), ``GET /fleet/{name:path}/status`` (the status poll), ``GET
 /fleet/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
 routes (``.../log/window`` and ``.../log/download``) — registered FIRST so the page's greedy converter
 cannot swallow them, and reuses the shell, the sidebar, the table component and the read models rather
@@ -19,7 +19,10 @@ their own servers' missions).
 A capability gates the TAB and its request, not merely its markup: a viewer without ``servers.config``
 sees no Configuration tab (and a manual ``?tab=configuration`` is REFUSED with the console's own 403),
 a viewer without ``missions.view`` sees no Missions tab (and ``?tab=missions`` is REFUSED), a viewer
-without ``mods.view`` sees no Mods tab (and ``?tab=mods`` is REFUSED — its body is the mods page
+without ``scheduler.view`` for THIS server sees no Scheduler tab (and ``?tab=scheduler`` is REFUSED
+with that requirement; the wizard's steps additionally need ``scheduler.write`` for this server, so a
+reader is never shown a disabled control), a
+viewer without ``mods.view`` sees no Mods tab (and ``?tab=mods`` is REFUSED — its body is the mods page
 module's own, reached only through this tab's branch), and the download route carries the same
 ``missions.view`` the tab's link reads — never hidden-and-served.
 
@@ -38,7 +41,7 @@ import unicodedata
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 # THE CACHED-RPC decorator the bot itself uses for the same two reads (``status.get_visibility``):
 # an Overview card's optional data is reused for a window instead of asked for on every render.
@@ -47,7 +50,7 @@ from core.utils import cache_with_expiration
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from .. import i18n, permissions, readmodels, session
+from .. import i18n, permissions, readmodels, scheduler_plan, session
 # THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
 # route below and the cloud-preset routes in ``pages/presets`` read it from the SAME module.
 from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, preset_image_file
@@ -67,6 +70,7 @@ from ..scope import CLUSTER_ROLES
 # THE MANAGER DENY-LIST: the ONE declaration (``core.server_config``) the write actions also read, so
 # the rows this page OMITS and the keys the action refuses cannot disagree. Imported here — a page
 # module — and never in a read model, which stays free of ``core``.
+from core.actions import read_action
 from core.server_config import CHANNELS_ITEM, MANAGER_DENIED
 from . import actions as actions_page
 from . import dashboard as dashboard_page
@@ -75,11 +79,20 @@ from . import mods as mods_page
 from . import nodes as nodes_page
 from . import presets as presets_page
 from . import servers as servers_page
+# THE SCHEDULER TAB'S OWN RESOURCE: the Settings area owns the file, its reader and its capability,
+# so the tab reads the capability from that module rather than re-spelling ``settings.view``. There
+# is no cycle — ``settings`` imports no page module that imports this one.
+from . import settings as settings_page
 
 __all__ = [
     "CRUMB_GROUP", "SERVER_DETAIL_PATH", "SERVER_DETAIL_CAPABILITY",
     "CONFIG_CAPABILITY", "CONFIG_ROLES", "CONFIG_TAB",
     "MISSIONS_TAB", "MISSIONS_CAPABILITY", "MISSIONS_ROLES",
+    "SCHEDULER_TAB", "SCHEDULER_CAPABILITY", "SCHEDULER_WRITE_CAPABILITY",
+    "SCHEDULER_FILE_KIND", "SCHEDULER_FILE_NAME", "scheduler_write_refused",
+    "SCHEDULER_STATE_PLAN", "SCHEDULER_STATE_EMPTY", "SCHEDULER_STATE_NO_PLUGIN",
+    "SCHEDULER_STATE_NO_FILE", "SCHEDULER_NO_PLUGIN", "SCHEDULER_NO_FILE", "SCHEDULER_NO_PLAN",
+    "SCHEDULER_EMPTY", "SCHEDULER_SETTINGS_LINK", "scheduler_file",
     "MODS_TAB", "MODS_VIEW_CAPABILITY",
     "MISSIONS_DOWNLOAD_PATH", "MISSIONS_DOWNLOAD_MAX_BYTES", "MISSIONS_DOWNLOAD_MEDIA_TYPE",
     "LOG_TAB", "LOG_READ_CAPABILITY", "LOG_WINDOW_PATH", "log_window_path",
@@ -148,6 +161,52 @@ MODS_VIEW_CAPABILITY = mods_page.MODS_VIEW_CAPABILITY
 
 CONFIG_TEMPLATE = "server_detail.html"
 PAGE_TITLE_SUFFIX = " — DCSServerBot"
+
+#: THE SCHEDULER TAB — one server's plan (``config/plugins/scheduler.yaml``). Its READ takes the
+#: scheduler's own ``scheduler.view`` (``Admin``/``DCS Admin`` by role, a manager by scope grant),
+#: and its WRITE takes ``scheduler.write``; both are then narrowed to the server in hand by
+#: :func:`settings.scheduler_access` — the ONE per-server decision the strip, the tab refusal, the
+#: landing and both POST doors read. Expert Mode stays ``Admin`` only (``scheduler.expert``).
+SCHEDULER_TAB = "scheduler"
+SCHEDULER_CAPABILITY = settings_page.SCHEDULER_VIEW_CAPABILITY
+SCHEDULER_WRITE_CAPABILITY = settings_page.SCHEDULER_WRITE_CAPABILITY
+
+#: the wizard's step rail: one entry per step, ``(value, label, blurb)``. The value is what the URL
+#: carries, so it is the same string ``scheduler_plan.normalise_step`` validates against.
+SCHEDULER_STEP_LABELS: tuple[tuple[str, str, str], ...] = (
+    ("1", i18n._("When it runs"), i18n._("the week")),
+    ("2", i18n._("Startup"), i18n._("mission, presets")),
+    ("3", i18n._("Actions (restart, rotate, etc.)"), i18n._("one trigger, options by method")),
+    ("4", i18n._("Warnings"), i18n._("the countdown before")),
+    (scheduler_plan.SCHEDULER_REVIEW_STEP, i18n._("Review & save"),
+     i18n._("the block and the write")),
+)
+
+#: the scheduler file the tab reads, in the Settings area's own vocabulary (a plugin's global config)
+SCHEDULER_FILE_KIND = settings_page.KIND_PLUGIN
+SCHEDULER_FILE_NAME = "scheduler"
+
+#: what the tab has to say about itself, as four exclusive states. ``plan`` is the only one that
+#: renders a plan; the other three each render their own sentence and a way to Settings, because a
+#: tab that cannot answer must say why rather than draw an empty shell.
+SCHEDULER_STATE_PLAN = "plan"
+SCHEDULER_STATE_EMPTY = "empty"
+SCHEDULER_STATE_NO_PLUGIN = "no-plugin"
+SCHEDULER_STATE_NO_FILE = "no-file"
+
+#: each state's own sentence. Every one of them names what is MISSING and points at Settings, because
+#: the file is read and written there and a tab that cannot answer must not draw an empty shell.
+SCHEDULER_NO_PLUGIN = i18n._("The scheduler plugin is not loaded in this process, so this server's "
+                             "plan cannot be read here. The file itself is still readable and "
+                             "editable in Settings.")
+SCHEDULER_NO_FILE = i18n._("This installation has no scheduler configuration file, so there is no "
+                           "plan to show. Create it in Settings, or install the scheduler plugin.")
+SCHEDULER_EMPTY = i18n._("The scheduler configuration carries nothing for this server, so nothing "
+                         "is scheduled for it.")
+SCHEDULER_NO_PLAN = i18n._("The scheduler plugin could not answer for this server, so there is no "
+                           "plan to show here. The file itself is still readable and editable in "
+                           "Settings.")
+SCHEDULER_SETTINGS_LINK = i18n._("Open in Settings")
 
 #: the tab that carries the DCS configuration
 CONFIG_TAB = "configuration"
@@ -243,17 +302,19 @@ SCHEDULE_GLYPHS: dict[str, str] = {"Y": "✅", "N": "❌", "P": "☑️"}
 LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
 
 #: every tab, in render order. Overview/Players are offered to any viewer of the page; ``missions``
-#: only to a viewer holding ``missions.view``; ``mods`` only to a viewer holding ``mods.view`` (the
-#: mods page module's own capability); ``log`` only to a viewer holding ``logs.view`` (the cluster log
-#: panel's own capability, ``Admin`` only); ``configuration`` only to a viewer holding
-#: ``servers.config``.
-TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, MODS_TAB, LOG_TAB, EVENTS_TAB,
-                              CONFIG_TAB)
-OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, MODS_TAB, LOG_TAB,
-                                       EVENTS_TAB)
+#: only to a viewer holding ``missions.view``; ``scheduler`` only to a viewer holding
+#: ``scheduler.view`` for THIS server (``scheduler_access``); ``mods`` only to a viewer holding
+#: ``mods.view`` (the mods page module's own capability); ``log`` only to a viewer holding
+#: ``logs.view`` (the cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a
+#: viewer holding ``servers.config``.
+TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, SCHEDULER_TAB, MODS_TAB, LOG_TAB,
+                              EVENTS_TAB, CONFIG_TAB)
+OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, SCHEDULER_TAB, MODS_TAB,
+                                       LOG_TAB, EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
+    SCHEDULER_TAB: i18n._("Scheduler"),
     # the tab strip uses the mods area's OWN word, so a page name cannot be spelled two ways
     MODS_TAB: mods_page.MODS_LABEL,
     LOG_TAB: i18n._("Log"), EVENTS_TAB: i18n._("Events"), CONFIG_TAB: i18n._("Configuration"),
@@ -377,28 +438,39 @@ def normalise_tab(value) -> str:
 
 
 def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
-             debug_plugin: bool = False) -> tuple[str, ...]:
+             debug_plugin: bool = False, scheduler_view: bool = False) -> tuple[str, ...]:
     """The tabs a viewer holding *roles* (and, for a manager, the SCOPE) may be offered — and RENDER.
 
     ONE answer for the strip and for the tab in force: ``missions`` is offered exactly when
-    ``missions.view`` allows it, ``mods`` exactly when the mods page module's ``mods.view`` allows it,
-    ``log`` exactly when ``logs.view`` (the cluster log panel's own, ``Admin`` only) allows it,
-    ``events`` exactly when ``logs.view`` allows it AND the ``debug`` plugin is active for the server
-    (``debug_plugin``), and ``configuration`` exactly when ``servers.config`` allows it — the SAME
-    predicates the route's refusal reads, so a link and the refusal cannot disagree.
+    ``missions.view`` allows it, ``scheduler`` exactly when :func:`settings.scheduler_access` says
+    this identity may READ this server (``scheduler_view``), ``mods`` exactly when the mods page
+    module's ``mods.view`` allows it, ``log`` exactly when ``logs.view`` (the cluster log panel's own,
+    ``Admin`` only) allows it, ``events`` exactly when ``logs.view`` allows it AND the ``debug``
+    plugin is active for the server (``debug_plugin``), and ``configuration`` exactly when
+    ``servers.config`` allows it — the SAME predicates the route's refusal reads, so a link and the
+    refusal cannot disagree.
 
-    TWO manager facts, because the gated tabs declare DIFFERENT scope rules: ``missions.view`` and
+    THREE manager facts, because the gated tabs declare DIFFERENT scope rules: ``missions.view`` and
     ``mods.view`` carry the server page's own scope grant and admit any manager of a server
     (``manager``, the general fact from ``permissions.manages_console``), while ``servers.config``
     admits only a restricted-scope viewer WITHOUT a cluster role (``config_manager`` — a server's
-    config carries secrets, so a cluster role is never a "manager ONLY"). Keeping them separate is
-    what stops one tab's rule from widening the other's. ``logs.view`` carries NO scope grant, so the
-    log and events tabs are offered on the ROLE alone.
+    config carries secrets, so a cluster role is never a "manager ONLY"), and ``scheduler.view`` is
+    per SERVER (``scheduler_view``, from the one access function, because a DCS Admin's read is
+    narrowed by ``managed_by`` while a manager's is narrowed to an allow-list). Keeping them separate
+    is what stops one tab's rule from widening the other's. ``logs.view`` carries NO scope grant, so
+    the log and events tabs are offered on the ROLE alone.
     """
     tabs: list[str] = []
     for key in OPTIONAL_TAB_ORDER:
         if key == MISSIONS_TAB:
             if permissions.allows(MISSIONS_CAPABILITY, roles or (), manager=manager):
+                tabs.append(key)
+            continue
+        if key == SCHEDULER_TAB:
+            # THE SCHEDULER'S OWN per-server decision, computed once by ``scheduler_access`` — a
+            # viewer who cannot read this server's plan gets no tab (and the crafted request below
+            # is refused with the same requirement).
+            if scheduler_view:
                 tabs.append(key)
             continue
         if key == MODS_TAB:
@@ -437,16 +509,30 @@ def config_request_refused() -> HTTPException:
 def tab_request_refused(tab: str) -> HTTPException:
     """The refusal a request for a GATED tab this viewer may not open gets — naming that tab's rule.
 
-    ONLY a gated tab (``missions`` / ``log`` / ``configuration``) can reach here: every other tab is
-    offered to any viewer of the page. The requirement text is the refused tab's OWN capability, so
-    the sentence a person reads names the right rule — a crafted ``?tab=log`` answers the log
-    requirement (``logs.view``, Admin-only), never the missions' or the configuration's.
+    ONLY a gated tab (``missions`` / ``scheduler`` / ``mods`` / ``log`` / ``events`` /
+    ``configuration``) can reach here: every other tab is offered to any viewer of the page. The
+    requirement text is the refused tab's OWN capability, so the sentence a person reads names the
+    right rule — a crafted ``?tab=log`` answers the log requirement (``logs.view``, Admin-only),
+    never the missions' or the configuration's, and a crafted ``?tab=scheduler`` answers
+    ``settings.view``.
     """
     capability = {CONFIG_TAB: CONFIG_CAPABILITY, MISSIONS_TAB: MISSIONS_CAPABILITY,
+                  SCHEDULER_TAB: SCHEDULER_CAPABILITY,
                   MODS_TAB: MODS_VIEW_CAPABILITY,
                   LOG_TAB: LOG_READ_CAPABILITY, EVENTS_TAB: LOG_READ_CAPABILITY}.get(
         tab, MISSIONS_CAPABILITY)
     requirement = permissions.requirement_text(capability)
+    return HTTPException(status_code=403,
+                         detail=f"Not authorized (needs one of: {requirement}).")
+
+
+def scheduler_write_refused() -> HTTPException:
+    """The refusal a request for the Scheduler WIZARD without ``scheduler.write`` gets (``403``).
+
+    The steps are GET forms, but they exist to carry a save: a viewer who may read a plan and not
+    write it gets the plan and no wizard — never read-only controls.
+    """
+    requirement = permissions.requirement_text(SCHEDULER_WRITE_CAPABILITY)
     return HTTPException(status_code=403,
                          detail=f"Not authorized (needs one of: {requirement}).")
 
@@ -1720,6 +1806,257 @@ def schedule_view(server) -> dict | None:
     return {"offset": _schedule_offset(config), "rows": rows}
 
 
+def scheduler_file(request: Request):
+    """The scheduler's global config entry, or ``None`` when this installation has no such file.
+
+    Resolved through the Settings area's OWN discovery (``resolve_file``), so the tab and the
+    Settings page can never disagree about which file they mean, and a name that is not an actual
+    file is a miss here rather than a 404 raised into the tab.
+    """
+    try:
+        return settings_page.resolve_file(request, SCHEDULER_FILE_KIND, SCHEDULER_FILE_NAME)
+    except HTTPException:
+        return None
+
+
+def _scheduler_document(entry) -> dict:
+    """The scheduler file's document with its comments, or ``{}`` when it cannot be read.
+
+    The round-trip reader the writer uses, so the block the tab calls the server's own is the block a
+    save would edit. An unreadable or unparsable file yields ``{}``: the plan still renders (the
+    plugin's merge is a different read), and the page says its provenance is unknown.
+    """
+    try:
+        from core.utils import configwrite
+        document = configwrite.load_config_file(entry.path)
+    except Exception as ex:  # noqa: BLE001 - an unreadable file must not blank the whole tab
+        log.debug("Scheduler tab: %s could not be read for provenance (%s): %s",
+                  entry.path, type(ex).__name__, ex)
+        return {}
+    return document if isinstance(document, dict) else {}
+
+
+def _scheduler_step_urls(request: Request, server_name: str) -> list[dict]:
+    """The step rail's links: the CURRENT plan stays in the address, only the step changes.
+
+    The review step's form POSTs, so its rail cannot be submit buttons (they would fire the save).
+    Links carry the same query string the page was opened with, minus ``tab``/``step``, so following
+    one keeps every value the wizard already collected — the same state-in-the-URL rule the GET steps
+    follow.
+    """
+    carried = [(name, value) for name, value in request.query_params.multi_items()
+               if name not in ("tab", "step")]
+    query = urlencode(carried)
+    base = server_url(server_name, tab=SCHEDULER_TAB)
+    return [{"value": value, "label": label, "blurb": blurb,
+             "url": f"{base}&step={value}" + (f"&{query}" if query else "")}
+            for value, label, blurb in SCHEDULER_STEP_LABELS]
+
+
+async def mission_scan(request: Request, server_name: str):
+    """Every mission FILE under *server_name*'s missions directory, through ``list_missions``.
+
+    The action scans the directory recursively and answers the missions-directory-relative ``path``
+    of each ``.miz`` / ``.sav`` — including files the DCS mission list does not carry. The caller
+    reads it as a ``MissionListResult``; a refusal is ``None`` at the pick, never a 500.
+    """
+    return await read_action("list_missions", actions_page.context_for(request),
+                             server_name=server_name)
+
+
+def mission_file_rows(result) -> list[dict]:
+    """The rows the file pick is built from: each scanned file's relative ``path``."""
+    entries = getattr(result, "missions", None)
+    if entries is None:
+        data = getattr(result, "data", None)
+        entries = data.get("missions") if isinstance(data, dict) else None
+    rows: list[dict] = []
+    for entry in entries or ():
+        if not isinstance(entry, dict):
+            continue
+        path = readmodels.text(entry.get("path"))
+        if path:
+            rows.append({"path": path})
+    return rows
+
+
+async def _scheduler_pick_reads(request: Request, server, server_name: str):
+    """The three reads the closed picks are built from: the DCS mission list, the mission files and
+    the node's preset files.
+
+    THREE reads, each independent: the ``get_mission_list`` ACTION (the indexed list the Missions tab
+    shows), the ``list_missions`` ACTION (the recursive directory scan, which also finds files the
+    DCS list does not carry) and ``pages/presets.node_preset_files``. Steps 2 and 3 draw the SAME
+    picks (the ``startup`` block and one entry of the ``action`` list state the same keys), so both
+    steps make these reads. Each answer is ``None`` when it could not be made, and that pick then
+    draws its text box beside the sentence that says why — one failed read never blanks another.
+    """
+    missions = None
+    try:
+        result = await actions_page.mission_list(request, server_name)
+    except Exception as ex:  # noqa: BLE001 - a pick without a list is a text box, never a 500
+        log.debug("Scheduler step 2: no mission list for '%s' (%s): %s",
+                  server_name, type(ex).__name__, ex)
+        result = None
+    if result is not None and bool(getattr(result, "success", False)):
+        data = getattr(result, "data", None)
+        rows = mission_rows(data if isinstance(data, dict) else {}, server_name)
+        missions = [{"index": row["index"], "name": row["name"], "path": row["path"]}
+                    for row in rows if row["index"] is not None]
+    mission_files = None
+    try:
+        scanned = await mission_scan(request, server_name)
+    except Exception as ex:  # noqa: BLE001 - the same rule as the mission list
+        log.debug("Scheduler step 2: no mission files for '%s' (%s): %s",
+                  server_name, type(ex).__name__, ex)
+        scanned = None
+    if scanned is not None and bool(getattr(scanned, "success", False)):
+        mission_files = mission_file_rows(scanned)
+    presets: list | None = None
+    try:
+        records = await presets_page.node_preset_files(attr(server, "node", None))
+    except Exception as ex:  # noqa: BLE001 - the same rule as the mission read
+        log.debug("Scheduler step 2: no preset files for '%s' (%s): %s",
+                  server_name, type(ex).__name__, ex)
+        records = ([], False)
+    presets = [(label, path, list(names)) for label, path, names in records[0] if names]
+    return missions, mission_files, presets or None
+
+
+async def _scheduler_tab_context(request: Request, server, server_name: str) -> dict:
+    """The Scheduler tab's data: the server's plan READ-ONLY, or why it cannot be shown.
+
+    TWO reads, never a third merge. The EFFECTIVE plan comes from the plugin's own ``get_config``
+    (``core/plugin.py``), which is the merge the bot applies; the RAW blocks come from the file, and
+    exist only to say which keys the server inherits from ``DEFAULT``. Nothing here writes, and the
+    tab offers no control that could.
+
+    Four exclusive states, each with its own sentence: ``plan`` (the effective plan), ``empty`` (the
+    plugin merged nothing for this server — or could not answer), ``no-plugin`` (the scheduler is not
+    in this process) and ``no-file`` (this installation has no scheduler configuration at all). The
+    last three link to Settings, because that is where the file is read and written.
+    """
+    access = settings_page.scheduler_access(request, server)
+    # THE ONE-SHOT NOTICE of a write is popped HERE, before anything is computed: a save's outcome
+    # decides whether the page renders the file's plan or the plugin's (see below).
+    notice = actions_page.pop_notice(request)
+    context: dict = {
+        "scheduler_state": SCHEDULER_STATE_NO_FILE,
+        "scheduler_sentence": SCHEDULER_NO_FILE,
+        # WHAT THIS VIEWER MAY DO WITH THIS SERVER'S BLOCK, from the ONE access function: the
+        # landing hides the wizard link (and the review step the expert panel) on these two facts.
+        "scheduler_can_write": access.write,
+        "scheduler_can_expert": access.expert,
+        "scheduler_settings_url": settings_page.SETTINGS_PATH,
+        "scheduler_settings_link": SCHEDULER_SETTINGS_LINK,
+        "scheduler_file_name": "",
+        "scheduler_block": "",
+        "scheduler": None,
+        "scheduler_keys_known": False,
+        "scheduler_days": scheduler_plan.WEEKDAYS,
+        "scheduler_legend": scheduler_plan.legend(),
+        # THE STEP: absent is the landing, an unusable value is the first step — one normalisation,
+        # beside the tab's own. Every step is a GET on this same page route.
+        "step": scheduler_plan.normalise_step(request.query_params.get("step")),
+        "scheduler_form_action": server_url(server_name),
+        "scheduler_cancel_url": server_url(server_name, tab=SCHEDULER_TAB),
+        "scheduler_wizard_url": (server_url(server_name, tab=SCHEDULER_TAB)
+                                 + "&step=" + scheduler_plan.SCHEDULER_STEPS[0]),
+        "scheduler_steps": scheduler_plan.SCHEDULER_STEPS,
+        "scheduler_step_labels": SCHEDULER_STEP_LABELS,
+    }
+    entry = scheduler_file(request)
+    if entry is None:
+        return context
+    context["scheduler_settings_url"] = settings_page.file_url(entry)
+    context["scheduler_file_name"] = entry.display
+
+    scheduler = _scheduler()
+    if scheduler is None:
+        return context | {"scheduler_state": SCHEDULER_STATE_NO_PLUGIN,
+                          "scheduler_sentence": SCHEDULER_NO_PLUGIN}
+    try:
+        effective = scheduler.get_config(server)
+    except Exception as ex:  # noqa: BLE001 - a plugin that cannot answer is an empty state, not a 500
+        log.debug("Scheduler tab: no plan for '%s' (%s): %s",
+                  server_name, type(ex).__name__, ex)
+        return context | {"scheduler_state": SCHEDULER_STATE_EMPTY,
+                          "scheduler_sentence": SCHEDULER_NO_PLAN}
+    if not scheduler_plan.has_plan(effective):
+        return context | {"scheduler_state": SCHEDULER_STATE_EMPTY,
+                          "scheduler_sentence": SCHEDULER_EMPTY}
+
+    node_name = readmodels.text(attr(attr(server, "node", None), "name", None))
+    instance_name = readmodels.text(attr(attr(server, "instance", None), "name", None)) or server_name
+    document = _scheduler_document(entry)
+    path = scheduler_plan.block_path(document, node_name, instance_name)
+    raw = scheduler_plan.raw_block(document, node_name, instance_name)
+    default = scheduler_plan.default_block(document)
+    # RIGHT AFTER A SAVE the page renders the plan the FILE states, not the plugin's cached merge.
+    # The cache is the merge the plugin made when it loaded, so it still answers with the plan from
+    # BEFORE the save: the review step would then compute a block from an out-of-date plan and show
+    # a block the file no longer carries — and saving again would write that stale answer over the
+    # file. Only a save leaves a notice with an ``applies`` story, which is what tells the two apart.
+    source = effective
+    if notice and notice.get("applies") is not None:
+        source = scheduler_plan.file_plan(document, path, default) or effective
+    view = scheduler_plan.plan_view(source, raw, default)
+    # THE PICK READS: steps 2 and 3 draw CLOSED lists (the mission ids, the mission files and the
+    # grouped preset picker), so those three reads happen only on those two steps — the landing and
+    # the other steps cost no RPC, and a pick with no read behind it renders its text box instead.
+    missions = mission_files = presets = None
+    if context["step"] in ("2", "3"):
+        missions, mission_files, presets = await _scheduler_pick_reads(request, server,
+                                                                       server_name)
+    # THE WIZARD'S OWN VIEW: the plan the steps render (this step's posted values over the effective
+    # plan), what each step carries, and the computed next fires.
+    wizard = scheduler_plan.wizard_view(source, request.query_params, raw, default,
+                                        step=context["step"], missions=missions,
+                                        mission_files=mission_files, presets=presets)
+    # THE REVIEW STEP renders the SAME override the save writes (one producer, two readers), and the
+    # form below POSTs the plan it was shown — the file's own revision rides along so a page rendered
+    # before a change cannot write over it.
+    review = None
+    block_yaml = ""
+    if context["step"] == scheduler_plan.SCHEDULER_REVIEW_STEP:
+        review = scheduler_plan.review_view(default, raw, wizard["plan"])
+        # THE BLOCK THIS SAVE PRODUCES, at the path the SAVE writes it, as YAML: the override the
+        # save applies, read off a copy of the document, so DEFAULT and the other servers are never
+        # part of the text — and the Expert Mode text starts as exactly what a plain save writes.
+        block_yaml = scheduler_plan.block_yaml(document, settings_page.scheduler_block_key(server),
+                                               default, raw, wizard["plan"])
+    from core.utils import configwrite
+
+    return context | {
+        "scheduler_state": SCHEDULER_STATE_PLAN,
+        "scheduler_sentence": "",
+        "scheduler": view,
+        "scheduler_keys_known": bool(document),
+        # the block this server's OWN values live at, as the file spells it — empty when it has none
+        "scheduler_block": ".".join(path),
+        "wizard": wizard,
+        "scheduler_review": review,
+        # THE REVIEW STEP'S YAML PANEL: the block the save produces, the two carriers an Expert Mode
+        # post rides in, and the panel's validate URL — the wizard's OWN route, with the server in the
+        # query because the editor posts the block and the token and nothing else.
+        "scheduler_block_yaml": block_yaml,
+        "scheduler_block_yaml_field": scheduler_plan.BLOCK_YAML_FIELD,
+        "scheduler_expert_field": settings_page.SETTINGS_EXPERT_FIELD,
+        "scheduler_validate_url": (settings_page.SCHEDULER_VALIDATE_PATH + "?"
+                                   + urlencode({settings_page.SCHEDULER_SCOPE_FIELD: server_name})),
+        "scheduler_save_url": settings_page.SCHEDULER_SAVE_PATH,
+        "scheduler_scope_field": settings_page.SCHEDULER_SCOPE_FIELD,
+        "scheduler_scope_name": server_name,
+        "scheduler_revision_field": settings_page.SETTINGS_REVISION_FIELD,
+        "scheduler_revision": configwrite.config_revision(entry.path),
+        "scheduler_step_urls": _scheduler_step_urls(request, server_name),
+        # the save's outcome (or its refusal) is shown ONCE on the step it returns to
+        "notice": notice,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+
+
 def _bot_version() -> str:
     """The console's own DCSServerBot version, or ``''`` — the embed footer's other half.
 
@@ -1800,7 +2137,8 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     events_offered = debug_plugin_active(_reachable_log_node(request, server)
                                          or attr(server, "node", None))
     allowed_tabs = tabs_for(roles, manager=manager, config_manager=config_viewer,
-                            debug_plugin=events_offered)
+                            debug_plugin=events_offered,
+                            scheduler_view=settings_page.scheduler_access(request, server).view)
     tab = normalise_tab(request.query_params.get("tab"))
     if tab not in allowed_tabs:
         # the tab exists but this viewer may not open it: REFUSE the request, naming ITS OWN
@@ -1809,6 +2147,13 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
         if tab == EVENTS_TAB and permissions.allows(LOG_READ_CAPABILITY, roles):
             raise events_request_refused()
         raise tab_request_refused(tab)
+    if tab == SCHEDULER_TAB:
+        # THE WIZARD IS THE WRITE: a viewer who may read this server's plan and not write it is
+        # served the landing (read-only) and refused every step, so no disabled control exists.
+        step = scheduler_plan.normalise_step(request.query_params.get("step"))
+        if step != scheduler_plan.SCHEDULER_LANDING and not \
+                settings_page.scheduler_access(request, server).write:
+            raise scheduler_write_refused()
 
     context = {
         "title": server_name,
@@ -1909,6 +2254,10 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "csrf_field": session.CSRF_FIELD,
             "csrf_token": session.get_csrf_token(request),
         }
+    if tab == SCHEDULER_TAB:
+        # THE SERVER'S PLAN, READ-ONLY: the plugin's own merged plan plus the file's raw blocks for
+        # provenance. No write, no wizard — the tab exists to be looked at.
+        return await _scheduler_tab_context(request, server, server_name)
     if tab == "players":
         rows = player_views(server_name, attr(server, "players", {}) or {})
         view = readmodels.view_state(
