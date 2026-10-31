@@ -36,6 +36,8 @@ numbers — never a second query, and never a second reading of the same series 
 from __future__ import annotations
 
 import logging
+import math
+import re
 from typing import Any, Mapping
 from urllib.parse import urlencode
 
@@ -334,25 +336,126 @@ def kpi_tiles(data: Mapping, server: str | None) -> list[dict]:
     ]
 
 
-def daily_rows(unique_users: Any) -> dict:
-    """Players per day as stacked returning+new rows, each row's two shares of its own total.
+#: The daily column chart's geometry, in SVG user units. The viewBox is fixed and the SVG stretches
+#: with the card, so these are proportions rather than pixels on screen.
+DAILY_WIDTH = 760
+DAILY_HEIGHT = 250
+DAILY_LEFT = 46
+DAILY_RIGHT = 10
+DAILY_TOP = 24
+DAILY_BOTTOM = 54
+DAILY_BAR_SHARE = 0.62
+DAILY_BAR_MAX = 44.0
 
-    ``unique_users`` carries ``total_players`` and ``new_players`` per day; the returning share is
-    the difference, which is what makes a row's two segments add up to the total it is scaled to.
+#: Above this many columns the axis is DENSE: the labels turn 45° and the type steps down, because a
+#: full date no longer fits under the bar it belongs to.
+DAILY_DENSE_AFTER = 14
+
+
+def _axis(peak: float) -> tuple[float, float]:
+    """A y axis for *peak*: ``(top, step)`` with about four steps from 1/2/5 × 10ⁿ.
+
+    A reader divides these in the head — 0/20/40/60/80, never 0/17.3/34.6 — and the top is the first
+    step multiple at or above the peak, so the tallest column never touches the frame.
+    """
+    peak = max(1.0, float(peak))
+    target = peak / 4.0
+    magnitude = 10.0 ** max(0, len(str(int(target))) - 1)
+    step = 10.0 * magnitude
+    for factor in (1, 2, 2.5, 5, 10):
+        candidate = factor * magnitude
+        # a fractional step would print an axis of 2.5s: only carry the factor that stays whole
+        if target <= candidate and candidate == int(candidate):
+            step = float(candidate)
+            break
+    return step * math.ceil(peak / step), step
+
+
+def _axis_label(label: str) -> str:
+    """A bucket label as the x axis prints it: ``MM-DD`` for a day, ``W41`` for a week.
+
+    The grain the read states decides the shape, and the payload's own label decides nothing else —
+    the year is in the card's period, so repeating it under every bar spends the room the count
+    above the bar needs.
+    """
+    day = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", label)
+    if day:
+        return f"{day.group(2)}-{day.group(3)}"
+    week = re.fullmatch(r"\d{4}-W(\d{1,2})", label)
+    if week:
+        return f"W{week.group(1)}"
+    return label
+
+
+def daily_chart(unique_users: Any) -> dict:
+    """Players per bucket as a COLUMN chart: one column per day (or week), stacked returning + new.
+
+    The HEIGHT is the count. Every column is scaled against the same axis, so the busiest bucket is
+    the tallest bar — a bar scaled to its own total would be the same width for every day and say
+    nothing. ``unique_users`` carries ``total_players`` and ``new_players`` per bucket; the returning
+    share is the difference, so a column's two segments add up to the total it is drawn to.
+
+    A bucket with no session draws a zero-height column and a ``0`` above it: for a count, "nobody
+    flew" is data, not a gap. The total is printed above every column, so the chart is readable
+    without measuring against the axis.
     """
     entries = _rows(unique_users)
-    ceiling = max((_integer(row.get("total_players")) for row in entries), default=0)
-    rows = []
+    series = []
     for row in entries:
         total = _integer(row.get("total_players"))
         new = min(total, _integer(row.get("new_players")))
         returning = max(0, total - new)
-        rows.append({"label": _text(row.get("date")), "total": _count(total), "new": _count(new),
-                     "returning": _count(returning),
-                     "title": _sentence(DAILY_ROW, returning=_count(returning), new=_count(new),
-                                        total=_count(total)),
-                     "new_width": _width(new, total), "returning_width": _width(returning, total)})
-    return {"rows": rows, "ceiling": _count(ceiling)}
+        label = _text(row.get("date"))
+        series.append({"label": label, "axis": _axis_label(label), "total": total, "new": new,
+                       "returning": returning,
+                       "title": _sentence(DAILY_ROW, returning=_count(returning), new=_count(new),
+                                          total=_count(total))})
+
+    peak = max((entry["total"] for entry in series), default=0)
+    top, step = _axis(peak)
+    plot_width = DAILY_WIDTH - DAILY_LEFT - DAILY_RIGHT
+    plot_height = DAILY_HEIGHT - DAILY_TOP - DAILY_BOTTOM
+    baseline = DAILY_TOP + plot_height
+    count = len(series)
+    slot = plot_width / count if count else plot_width
+    bar = min(DAILY_BAR_MAX, max(6.0, slot * DAILY_BAR_SHARE))
+    dense = count > DAILY_DENSE_AFTER
+    font = 9.0 if dense else 10.5
+
+    columns, totals, labels = [], [], []
+    for index, entry in enumerate(series):
+        x = DAILY_LEFT + slot * (index + 0.5) - bar / 2
+        centre = x + bar / 2
+        total_height = plot_height * entry["total"] / top
+        new_height = plot_height * entry["new"] / top
+        returning_height = total_height - new_height
+        columns.append({
+            "x": f"{x:.1f}", "width": f"{bar:.1f}", "title": entry["title"],
+            "label": entry["label"],
+            # returning sits ON the axis, new is stacked on top of it
+            "returning_y": f"{baseline - returning_height:.1f}",
+            "returning_height": f"{returning_height:.1f}",
+            "new_y": f"{baseline - total_height:.1f}", "new_height": f"{new_height:.1f}",
+        })
+        totals.append({"x": f"{centre:.1f}", "y": f"{baseline - total_height - 6:.1f}",
+                       "text": _count(entry["total"]), "font_size": f"{font:.1f}"})
+        labels.append({"x": f"{centre:.1f}", "y": f"{baseline + 13:.1f}",
+                       "text": entry["axis"], "rotate": dense, "font_size": f"{font:.1f}"})
+
+    grid, axis = [], []
+    value = 0.0
+    while value <= top:
+        y = baseline - plot_height * value / top
+        grid.append({"y": f"{y:.1f}", "x1": DAILY_LEFT, "x2": DAILY_WIDTH - DAILY_RIGHT,
+                     "zero": value == 0})
+        axis.append({"x": DAILY_LEFT - 8, "y": f"{y:.1f}", "text_y": f"{y + 3.4:.1f}",
+                     "text": _count(value)})
+        value += step
+
+    return {"width": DAILY_WIDTH, "height": DAILY_HEIGHT, "left": DAILY_LEFT,
+            "right": DAILY_WIDTH - DAILY_RIGHT, "top": DAILY_TOP, "baseline": baseline,
+            "grid": grid, "axis": axis, "columns": columns, "totals": totals, "labels": labels,
+            "ceiling": _count(peak), "count": count, "dense": dense}
 
 
 def retention_rows(retention: Any) -> list[dict]:
@@ -530,7 +633,7 @@ async def statistics_body(request: Request, *, server: str | None, period: str, 
     day_time = day_time_rows(data.get("day_time"))
     context.update({
         "kpis": kpi_tiles(data, server),
-        "daily": daily_rows(data.get("unique_users")),
+        "daily": daily_chart(data.get("unique_users")),
         "retention": retention_rows(data.get("retention")),
         "frequency": frequency_rows(data.get("frequency")),
         "day_time": day_time,

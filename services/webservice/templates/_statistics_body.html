@@ -32,18 +32,33 @@
     </span>
   </div>
   <div class="bd">
-    {% if daily.rows %}
-    <div class="stt-days">
-      {% for row in daily.rows %}
-      <div class="stt-day">
-        <span class="stt-when">{{ row.label }}</span>
-        <span class="stt-stack" role="img" aria-label="{{ say(row.title) }}" title="{{ say(row.title) }}">
-          <i class="ret" style="width:{{ row.returning_width }}%"></i><i class="new" style="width:{{ row.new_width }}%"></i>
-        </span>
-        <span class="stt-num">{{ row.total }}</span>
-      </div>
+    {% if daily.columns %}
+    <svg class="stt-svg" viewBox="0 0 {{ daily.width }} {{ daily.height }}" role="img"
+         aria-label="{{ _(cards.daily.title) }}">
+      {% for line in daily.grid %}
+      <line x1="{{ daily.left }}" y1="{{ line.y }}" x2="{{ line.x2 }}" y2="{{ line.y }}" class="stt-grid{{ ' zero' if line.zero else '' }}"></line>
       {% endfor %}
-    </div>
+      {% for tick in daily.axis %}
+      <text x="{{ tick.x }}" y="{{ tick.text_y }}" class="stt-axis" text-anchor="end">{{ tick.text }}</text>
+      {% endfor %}
+      {% for column in daily.columns %}
+      <g><title>{{ column.label }} — {{ say(column.title) }}</title>
+        <rect x="{{ column.x }}" y="{{ column.returning_y }}" width="{{ column.width }}" height="{{ column.returning_height }}" class="stt-ret"></rect>
+        <rect x="{{ column.x }}" y="{{ column.new_y }}" width="{{ column.width }}" height="{{ column.new_height }}" class="stt-new"></rect>
+      </g>
+      {% endfor %}
+      {% for value in daily.totals %}
+      <text x="{{ value.x }}" y="{{ value.y }}" class="stt-val" font-size="{{ value.font_size }}" text-anchor="middle">{{ value.text }}</text>
+      {% endfor %}
+      {% for label in daily.labels %}
+      {% if label.rotate %}
+      <text x="{{ label.x }}" y="{{ label.y }}" class="stt-axis" font-size="{{ label.font_size }}" text-anchor="end"
+            transform="rotate(-45 {{ label.x }} {{ label.y }})">{{ label.text }}</text>
+      {% else %}
+      <text x="{{ label.x }}" y="{{ label.y }}" class="stt-axis" font-size="{{ label.font_size }}" text-anchor="middle">{{ label.text }}</text>
+      {% endif %}
+      {% endfor %}
+    </svg>
     {% else %}
     <p class="empty">{{ _(labels.empty_series) }}</p>
     {% endif %}

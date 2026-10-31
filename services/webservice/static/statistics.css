@@ -1,7 +1,8 @@
 /* STATISTICS — the strategic page's own delta sheet.
  *
- * Only what the shell's shared classes cannot carry: the two-segment (returning + new) day track,
- * the 24-hour strip, and the thin bar that sits inside a table cell. Everything else on the page
+ * Only what the shell's shared classes cannot carry: the players-per-day COLUMN chart (server-drawn
+ * SVG, one stacked column per bucket), the 24-hour strip, and the thin bar that sits in a table
+ * cell. Everything else on the page
  * uses shell.css as it stands (`.card`, `.grid`, `.g-2`, `.player-figs`, `.player-bars`, `.tabs`,
  * `.empty`), so a change to those still reaches this page.
  *
@@ -19,21 +20,19 @@
 /* ------------------------------------------------------------------ the KPI band */
 .stt-kpis { margin: 14px 0; }
 
-/* ------------------------------------------------------------------ the day bars */
-.stt-days { display: grid; gap: 6px; font-size: 12.5px; }
-.stt-day { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center;
-  gap: 10px; }
-.stt-when { color: var(--text-2); font-family: var(--font-mono); font-size: 11.5px; }
-.stt-num { color: var(--text-2); font-variant-numeric: tabular-nums; font-size: 11.5px;
-  min-width: 3ch; text-align: right; }
-
-/* the two-segment track: returning (accent) then new (the preset kind colour), so the row's total
-   is the whole bar and its split is visible in one glance */
-.stt-stack { display: flex; height: 8px; border-radius: 99px; overflow: hidden;
-  background: var(--well); border: 1px solid var(--line); }
-.stt-stack i { display: block; height: 100%; }
-.stt-stack i.ret { background: var(--accent); }
-.stt-stack i.new { background: var(--kind-preset); }
+/* ------------------------------------------------------------------ the day columns */
+/* the chart is server-drawn SVG: a fixed viewBox that stretches with the card, so the bar heights
+   stay proportional at any width */
+.stt-svg { display: block; width: 100%; height: auto; }
+.stt-grid { stroke: var(--line); stroke-width: 1; }
+.stt-grid.zero { stroke: var(--line-2); }
+.stt-axis { fill: var(--text-3); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.stt-val { fill: var(--text-2); font-variant-numeric: tabular-nums; font-weight: 500; }
+/* returning (accent) sits on the axis, new (the preset kind colour) is stacked on top of it, so a
+   column's total height is the bucket's count and its split is visible in one glance */
+.stt-ret { fill: var(--accent); }
+.stt-new { fill: var(--kind-preset); }
+.stt-svg g:hover rect { opacity: .8; }
 
 .stt-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
   color: var(--text-3); }

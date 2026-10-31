@@ -596,6 +596,17 @@ same clause every other read takes — and builds its date series from its own r
 `unique_users_grain`, which is what lets the card change from "Players per day" to "Players per
 week" instead of drawing a year of bars.
 
+**The player card is a COLUMN chart, and the height is the count.** `daily_chart` draws one column
+per bucket, stacked returning (on the axis) under new, all against ONE y axis — the axis tops out at
+the first 1/2/5 × 10ⁿ multiple above the peak, so the busiest bucket is the tallest bar and the
+gridlines are numbers a reader divides in the head. The bucket's total is printed ABOVE every
+column, so the card is readable without measuring against the axis, and a bucket with no session
+draws a zero column rather than a gap: for a count, "nobody flew" is data. Past
+`DAILY_DENSE_AFTER` columns the x labels turn 45° and shorten to `MM-DD` (`W41` for the weekly
+grain) — a full date does not fit under a 24 px column — and the full label stays in each column's
+tooltip. The geometry is computed here and printed by `_statistics_body.html`; no charting library
+ships.
+
 | Page | Route | Capability | Roles | Read |
 |------|-------|------------|-------|------|
 | Statistics | `GET /statistics` | `statistics.view` | `Admin` | `get_server_statistics` (action, `plugins/monitoring/actions.py`) |
