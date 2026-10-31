@@ -358,8 +358,14 @@ def page_context(request: Request) -> dict | None:
     # same decision, so asking the resolver twice could only produce two answers).
     roles = permissions.role_names_for(request)
     params = dashboard_page.view_params(request)
-    query = urlencode({**dashboard_page.carry_params(request, roles),
-                       **params.carry(table=dashboard_page.tab_from(request, roles))})
+    carried = {**dashboard_page.carry_params(request, roles),
+               **params.carry(table=dashboard_page.tab_from(request, roles))}
+    # THE LOAD TAB'S OWN STATE rides too, for the reason the level does: the panel's scale, scope
+    # and graph arrive in the page URL, so a stream URL that dropped them would re-render the panel
+    # at their defaults one tick later — the reader's choice would appear to do nothing. The values
+    # are the ones the page itself RESOLVED (``dashboard.load_context``), never raw parameters.
+    carried.update(getattr(request.state, "load_params", None) or {})
+    query = urlencode(carried)
     return {"stream": f"{DASHBOARD_STREAM_PATH}?{query}",
             "fragments": f"{DASHBOARD_FRAGMENTS_PATH}?{query}"}
 

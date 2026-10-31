@@ -660,6 +660,11 @@ LOAD_GAUGES = ("players", "cpu", "mem_ram", "mem_paged", "read", "write", "sent"
 LOAD_GRAPH_PARAM = "graph"
 LOAD_GRAPH_DEFAULT = "players"
 
+#: The longest scope token accepted — a ``server:``/``node:`` prefix plus a whole server name. NOT
+#: the sort-column cap: a name cut to 32 characters never equals the name the selector offered, so a
+#: reader clicking a long-named server from this very page was refused a scope they do hold.
+MAX_SCOPE_TOKEN = 256
+
 #: The big chart's graphs, by name: the pair of series each draws and the card words it wears.
 #: ``right`` is a second axis' unit and top — only the players/CPU graph has one, because a player
 #: count and a percentage are not the same quantity; every other graph draws both series on ONE
@@ -727,9 +732,12 @@ def load_scope(request: Request, state: readmodels.Overview) -> dict:
     nodes = _visible_names(getattr(state, "nodes", ()) or ())
     servers = _visible_names(getattr(state, "servers", ()) or ())
     unrestricted = permissions.scope_for(request).unrestricted
-    raw = _clean_word(request.query_params.get(LOAD_SCOPE_PARAM))
+    raw = _clean_word(request.query_params.get(LOAD_SCOPE_PARAM), limit=MAX_SCOPE_TOKEN)
 
     def refused() -> HTTPException:
+        # The refusal names what arrived: a value the page itself rendered that lands here is a
+        # mismatch to fix, and the log line is the only trace of what the browser actually sent.
+        log.warning("Load scope %r refused for roles %s", raw, permissions.role_names_for(request))
         return out_of_scope_refusal()
 
     if not unrestricted:
@@ -1207,6 +1215,13 @@ async def load_context(request: Request, state: readmodels.Overview) -> dict:
     scale = load_scale_from(request.query_params.get(LOAD_SCALE_PARAM))
     graph = load_graph_from(request.query_params.get(LOAD_GRAPH_PARAM))
     scope = load_scope(request, state)
+    # THE STATE THE LIVE STREAM MUST CARRY. The stream (and the polling fallback) fetches its
+    # fragments from a SEPARATE request, so a URL that does not state the scale, the scope and the
+    # graph re-renders the panel at their defaults — the reader's choice reverts one tick later.
+    # The values stored here are the RESOLVED ones, and ``live.page_context`` puts them on the
+    # stream URL, so the stream asks for exactly what the page rendered.
+    request.state.load_params = {LOAD_SCALE_PARAM: scale, LOAD_SCOPE_PARAM: scope["token"],
+                                 LOAD_GRAPH_PARAM: graph}
     groups = load_scope_groups(request, state, scope)
     masters = {readmodels.text(readmodels.safe(lambda entry=entry: getattr(entry, "name", None)))
                for entry in getattr(state, "nodes", ()) or ()
