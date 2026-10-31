@@ -79,6 +79,7 @@ from . import mods as mods_page
 from . import nodes as nodes_page
 from . import presets as presets_page
 from . import servers as servers_page
+from . import statistics as statistics_page
 # THE SCHEDULER TAB'S OWN RESOURCE: the Settings area owns the file, its reader and its capability,
 # so the tab reads the capability from that module rather than re-spelling ``settings.view``. There
 # is no cycle — ``settings`` imports no page module that imports this one.
@@ -100,7 +101,8 @@ __all__ = [
     "SERVER_STATUS_PATH", "SERVER_STATUS_SECONDS", "server_status_path",
     "log_artifacts", "debug_plugin_active",
     "EMBED_BUILDER_PATH", "EMBED_FIELD_COVERAGE", "EMBED_FIELDS_NOT_COVERED", "embed_field_selection",
-    "TAB_ORDER", "OPTIONAL_TAB_ORDER", "TAB_LABELS", "DEFAULT_TAB", "CONFIG_TEMPLATE",
+    "TAB_ORDER", "OPTIONAL_TAB_ORDER", "TAB_LABELS", "STATISTICS_TAB", "DEFAULT_TAB",
+    "CONFIG_TEMPLATE",
     "PAGE_TITLE_SUFFIX", "capabilities", "nav_items", "add_routes",
     "normalise_tab", "tabs_for", "tab_views", "config_request_refused", "tab_request_refused",
     "mission_download_path", "mission_rows", "add_mission_download_route",
@@ -150,6 +152,14 @@ MISSIONS_ROLES: tuple[str, ...] = servers_page.SERVERS_ROLES
 
 #: the tab that carries a server's mission list
 MISSIONS_TAB = "missions"
+
+#: THE STATISTICS TAB — the strategic, period-based figures for THIS server, the same body the
+#: Admin-only Statistics page renders for the whole installation (``pages.statistics``). It declares
+#: no capability and no scope of its own: the server page already resolved this server through the
+#: scoped source, so a viewer who may open the page may read the figures of the server they opened,
+#: and nobody reaches this tab for a server outside their scope. The page stays Admin-only because an
+#: UNNAMED read is installation-wide, which this tab never is.
+STATISTICS_TAB = statistics_page.TAB_KEY
 
 #: THE MODS TAB — the server's own ``SavedGames`` packages. Its body is the mods page module's own
 #: shared template (:func:`..pages.mods.tab_context`); the tab's key, its place in the ORDER and the
@@ -301,19 +311,22 @@ SCHEDULE_GLYPHS: dict[str, str] = {"Y": "✅", "N": "❌", "P": "☑️"}
 #: through the database.
 LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
 
-#: every tab, in render order. Overview/Players are offered to any viewer of the page; ``missions``
+#: every tab, in render order. Overview/Players/Statistics are offered to any viewer of the page
+#: (the page's own scoped resolution already decided WHICH servers they can open); ``missions``
 #: only to a viewer holding ``missions.view``; ``scheduler`` only to a viewer holding
 #: ``scheduler.view`` for THIS server (``scheduler_access``); ``mods`` only to a viewer holding
 #: ``mods.view`` (the mods page module's own capability); ``log`` only to a viewer holding
 #: ``logs.view`` (the cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a
 #: viewer holding ``servers.config``.
-TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, SCHEDULER_TAB, MODS_TAB, LOG_TAB,
-                              EVENTS_TAB, CONFIG_TAB)
-OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", MISSIONS_TAB, SCHEDULER_TAB, MODS_TAB,
-                                       LOG_TAB, EVENTS_TAB)
+TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB, SCHEDULER_TAB,
+                              MODS_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
+OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB,
+                                       SCHEDULER_TAB, MODS_TAB, LOG_TAB, EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
+    # the tab wears the Statistics page's OWN word, so the product spells the area one way
+    STATISTICS_TAB: statistics_page.NAV_LABEL,
     SCHEDULER_TAB: i18n._("Scheduler"),
     # the tab strip uses the mods area's OWN word, so a page name cannot be spelled two ways
     MODS_TAB: mods_page.MODS_LABEL,
@@ -448,7 +461,8 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
     ``Admin`` only) allows it, ``events`` exactly when ``logs.view`` allows it AND the ``debug``
     plugin is active for the server (``debug_plugin``), and ``configuration`` exactly when
     ``servers.config`` allows it — the SAME predicates the route's refusal reads, so a link and the
-    refusal cannot disagree.
+    refusal cannot disagree. ``overview``, ``players`` and ``statistics`` carry no gate of their own:
+    they are read-only views of the server this page already resolved inside the caller's scope.
 
     THREE manager facts, because the gated tabs declare DIFFERENT scope rules: ``missions.view`` and
     ``mods.view`` carry the server page's own scope grant and admit any manager of a server
@@ -2305,6 +2319,12 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "empty": {"players": readmodels.NO_PLAYERS_MESSAGE,
                       "players_matched": i18n._("No players match this search.")},
         }
+    if tab == STATISTICS_TAB:
+        # THE SAME BODY the Admin-only Statistics page renders, read for THIS server. The server name
+        # is the one this page resolved through the scoped source, so the tab inherits the page's
+        # access decision and adds none of its own.
+        return {**await statistics_page.tab_context(request, server_name),
+                "style": statistics_page.STATISTICS_STYLE}
     if tab == MISSIONS_TAB:
         # THE MISSIONS LIST — read through the READ action, never off ``server.settings``. A refused
         # result (the action absent, the server unreachable, the missions dir missing) renders an

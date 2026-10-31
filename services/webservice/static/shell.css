@@ -1636,3 +1636,123 @@ html[data-theme="light"] {
 }
 
 
+
+/* ----------------------------------------------------------------------------------------------
+   THE PLAYER PAGE's own primitives (`.player-*`), all namespaced under this one prefix so they
+   cannot reach any other surface. There is no per-page stylesheet in this console, so the block
+   lives here rather than in a second file: a fact grid, a moderation state strip and its one-entry-
+   per-record blocks, a figure row, a labelled bar, the period segment and the session list. The
+   cards, tabs, tables, chips, glyph buttons and the page head's spacing are the sheet's own.
+   ---------------------------------------------------------------------------------------------- */
+
+/* the page head: the initials chip beside the name and the one line under it */
+.page-head.player-head { display: flex; flex-direction: row; align-items: center; gap: 12px; flex-wrap: wrap; }
+.player-head .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--panel-2); border: 1px solid var(--line-2); font-size: 12px; font-weight: 700;
+  color: var(--text-2); flex: 0 0 auto; }
+.player-head .names { min-width: 0; }
+.player-head .names h1 { font-size: 19px; }
+.player-head .sub a { color: var(--link); }
+
+/* the moderation state strip: one per restriction, ban first */
+.player-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0;
+  padding: 10px 14px; border: 1px solid var(--line-2); border-left-width: 3px;
+  border-radius: var(--radius-s); background: var(--panel); font-size: 12.5px; color: var(--text-2); }
+.player-state .dot { flex: 0 0 auto; }
+.player-state b { color: var(--text); font-weight: 600; }
+.player-state.clean { border-left-color: var(--run); }
+.player-state.watch { border-color: var(--warn-line); border-left-color: var(--warn-text);
+  background: var(--warn-bg); color: var(--warn-text); }
+.player-state.banned { border-color: var(--bad-line); border-left-color: var(--danger-text);
+  background: var(--bad-wash); color: var(--danger-text); }
+.player-state .spacer { flex: 1; }
+.player-state .mono { color: inherit; }
+.player-state + .player-state { margin-top: -8px; }
+
+/* the moderation entries: one block per RECORD, each with its own facts and its own controls */
+.player-entries { display: flex; flex-direction: column; gap: 12px; }
+.player-entry { padding: 10px 12px 12px; border: 1px solid var(--line-2); border-left-width: 3px;
+  border-radius: var(--radius-s); background: var(--panel-2); }
+.player-entry.ban { border-left-color: var(--danger-text); }
+.player-entry.watch { border-left-color: var(--warn-text); }
+.player-entry-hd { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-bottom: 9px;
+  font-size: 12.5px; }
+.player-entry-hd > .tag { flex: 0 0 auto; }
+.player-entry-hd b { flex: 1 1 auto; min-width: 0; color: var(--text); font-weight: 600; }
+.player-entry .act-strip { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.player-entry .act-strip > form { display: inline-flex; margin: 0; }
+.player-entry .act-strip .act-btn { width: 26px; height: 26px; }
+.player-entry .act-strip .act-btn svg { width: 15px; height: 15px; }
+.player-entry .player-facts { font-size: 12px; }
+.player-entry .player-facts dt { font-size: 11px; }
+
+/* the two-column fact grid every /info-style field lands in */
+.player-facts { display: grid; grid-template-columns: minmax(132px, max-content) minmax(0, 1fr);
+  gap: 7px 18px; margin: 0; font-size: 12.5px; }
+.player-facts dt { color: var(--text-3); font-size: 11.5px; padding-top: 1px; }
+.player-facts dd { margin: 0; color: var(--text); min-width: 0; word-break: break-word; }
+.player-facts dd.mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-2); }
+.player-facts .empty-val { color: var(--text-3); }
+.player-gap { height: 12px; }
+.player-note { margin: 0; }
+
+/* the statistics figure row: each number stated once, in one row above its breakdown */
+.player-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 0;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+  overflow: hidden; }
+.player-fig { padding: 12px 14px; border-left: 1px solid var(--line); min-width: 0; }
+.player-fig:first-child { border-left: 0; }
+.player-fig .k { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.player-fig .v { font-size: 21px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums;
+  line-height: 1.25; }
+.player-fig .sub2 { font-size: 11px; color: var(--text-3); }
+
+/* the labelled bar: the label, the value, then the track whose length carries the comparison */
+.player-bars { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px;
+  align-items: center; font-size: 12.5px; }
+.player-bars .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-2); }
+.player-bars .lbl b { color: var(--text); font-weight: 600; }
+.player-bars .val { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2);
+  font-variant-numeric: tabular-nums; text-align: right; }
+.player-bars .trk { grid-column: 1 / -1; height: 6px; border-radius: 99px; background: var(--well);
+  border: 1px solid var(--line); overflow: hidden; margin-top: -4px; }
+.player-bars .trk i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.player-bars .trk.t2 i { background: var(--kind-preset); }
+.player-bars .trk.t3 i { background: var(--kind-service); }
+.player-bars .trk.t4 i { background: var(--kind-ext); }
+.player-bars .trk.t5 i { background: var(--kind-plugin); }
+
+/* the period switch: LINKS, not a form, so a period is linkable and works with JavaScript off */
+.player-seg { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line);
+  align-items: center; }
+.player-seg .lbl { font-size: 11.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em;
+  margin-right: 4px; }
+.player-seg a { font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line-2);
+  color: var(--text-2); background: var(--panel-2); }
+.player-seg a:hover { border-color: var(--accent); color: var(--text); }
+.player-seg a.on { color: var(--text); background: var(--panel); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* the last sessions: when, where and what they flew, how long */
+.player-sessions { display: flex; flex-direction: column; }
+.player-sessions .row { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto; gap: 10px;
+  padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; align-items: baseline; }
+.player-sessions .row:first-child { border-top: 0; }
+.player-sessions .t { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); }
+.player-sessions .w { color: var(--text); min-width: 0; }
+.player-sessions .w small { display: block; color: var(--text-3); font-size: 11px; }
+.player-sessions .d { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); }
+
+/* the infractions tab's three read-only lists: one compact row per record — the stamp, the event and
+   the figure — so the page states a list without a second copy of the table markup */
+.player-list { display: flex; flex-direction: column; }
+.player-list .row { display: grid; grid-template-columns: 148px minmax(0, 1fr) auto; gap: 10px;
+  padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; align-items: baseline; }
+.player-list .row:first-child { border-top: 0; }
+.player-list .t { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3); }
+.player-list .w { color: var(--text); min-width: 0; }
+.player-list .d { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); text-align: right; }
+.player-list .row.hd { border-top: 0; padding: 0 0 6px; color: var(--text-3); text-transform: uppercase;
+  font-size: 10.5px; letter-spacing: .06em; }
+.player-list .row.hd .t, .player-list .row.hd .w, .player-list .row.hd .d { font-family: inherit;
+  font-size: inherit; color: inherit; }

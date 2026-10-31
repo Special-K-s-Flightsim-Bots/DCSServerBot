@@ -1,0 +1,333 @@
+{#-
+  ONE PLAYER — Overview / Infractions / Statistics, a real URL per tab.
+
+  The page is READ-ONLY and computes nothing: the head, the strips, the entries, the figures, the
+  bars and the session list are DATA from `pages/player_detail.py` (the value to render) and
+  `readmodels/players.py` (the formatting), and every control is a `pages/actions` declaration the
+  page module already filtered by capability, scope and availability.
+
+  THE MODERATION CARD CARRIES ONE ENTRY PER RECORD. A ban and a watch entry expire by different
+  rules, so each entry states its own facts and wears its own two controls — never one merged state.
+
+  An unusable control is ABSENT, never rendered disabled: the page head offers the UCID-keyed pair
+  (Ban, Add to watchlist) whether or not the player is flying, and the four session controls
+  (Message, Popup, Kick, Screenshot) only while they hold a slot.
+-#}
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{% if not_found is defined and not_found %}{{ _(title) }}{% else %}{{ head.name }}{% endif %} — DCSServerBot{% endblock %}
+{% block content %}
+
+{% if not_found is defined and not_found %}
+{#- A UCID with no player: a well-formed 404 — the shell, one sentence and the way back. -#}
+<div class="page-head">
+  <h1>{{ _(title) }}</h1>
+  <div class="sub">{{ _(not_found_note) }}</div>
+</div>
+<p><a href="{{ not_found_href }}">{{ _(not_found_back) }}</a></p>
+
+{% else %}
+
+<div class="page-head player-head">
+  <div class="av">{{ head.initials }}</div>
+  <div class="names">
+    <h1>{{ head.name }}</h1>
+    <div class="sub">
+      {%- if head.linked %}{% trans %}linked to{% endtrans %} <span class="mono">{{ head.member or head.discord_id }}</span>
+      {%- else %}{% trans %}not linked to a Discord member{% endtrans %}{% endif -%}
+      {%- if head.last_seen %} · {% trans %}last seen{% endtrans %} <span class="stamp">{{ head.last_seen }}</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if controls %}
+<div class="page-actions">
+  {% for control in controls %}
+  <form method="post" action="{{ control.path }}">
+    <input type="hidden" name="{{ control.csrf_field }}" value="{{ control.csrf_token }}">
+    {% for name, value in control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <button type="submit" title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ _(control.label) }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% for strip in strips %}
+<div class="player-state {{ strip.kind }}">
+  <span class="dot {{ strip.dot }}" aria-hidden="true"></span>
+  <b>{{ _(strip.word) }}</b>
+  <span>
+    {%- if strip.kind == 'banned' -%}
+      {%- if strip.permanent %} · {{ _(labels.ban_never) }}
+      {%- else %} · {{ _(labels.ban_ends) }} <span class="mono">{{ strip.until }}</span>{% endif -%}
+    {%- elif strip.kind == 'watch' -%} · {{ _(labels.watch_never) }}
+    {%- else %} {{ _(labels.clean_detail) }}{% endif -%}
+  </span>
+  <span class="spacer"></span>
+  {% if strip.tag %}<span class="tag a">{{ _(strip.tag) }}</span>{% endif %}
+</div>
+{% endfor %}
+
+<nav class="tabs" aria-label="{% trans %}Player{% endtrans %}">
+  {% for entry_tab in tabs %}<a class="tab{{ ' on' if entry_tab.active else '' }}" href="{{ entry_tab.href }}"{% if entry_tab.active %} aria-current="page"{% endif %}>{{ _(entry_tab.label) }}</a>{% endfor %}
+</nav>
+
+{% if tab == 'overview' %}
+
+<div class="grid g-2">
+<div class="card">
+  <div class="hd"><h3>{{ _(labels.identity) }}</h3><div class="spacer"></div></div>
+  <div class="bd"><dl class="player-facts">
+    <dt>{% trans %}DCS name{% endtrans %}</dt><dd>{{ head.name }}</dd>
+    <dt>{% trans %}UCID{% endtrans %}</dt><dd class="mono">{{ ucid }}</dd>
+    <dt>{% trans %}Validated{% endtrans %}</dt><dd>{% if head.manual %}<span class="tag">{% trans %}Approved{% endtrans %}</span>{% else %}<span class="tag">{% trans %}Not approved{% endtrans %}</span>{% endif %}</dd>
+    <dt>{% trans %}Discord{% endtrans %}</dt><dd>{% if head.member %}{{ head.member }}{% elif head.linked %}<span class="empty-val">{% trans %}not available{% endtrans %}</span>{% else %}<span class="empty-val">{% trans %}not linked{% endtrans %}</span>{% endif %}</dd>
+    <dt>{% trans %}Discord ID{% endtrans %}</dt><dd class="mono">{{ head.discord_id or '—' }}</dd>
+    <dt>{% trans %}VIP{% endtrans %}</dt><dd>{% if head.vip %}{% trans %}Yes{% endtrans %}{% else %}{% trans %}No{% endtrans %}{% endif %}</dd>
+    <dt>{% trans %}IP hash{% endtrans %}</dt><dd class="mono">{{ activity.ip_hash or '—' }}</dd>
+  </dl>
+  {% if not head.linked %}<div class="player-gap"></div><p class="empty">{{ _(no_link) }}</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd"><h3>{{ _(labels.moderation) }}</h3><div class="spacer"></div>
+    {% if moderation.ban_visible %}<span class="tag a">{{ _(labels.entry_ban) }}</span>{% endif %}
+    {% if moderation.watch_visible %}<span class="tag a">{{ _(labels.entry_watch) }}</span>{% endif %}</div>
+  <div class="bd">
+    {% if moderation.ban_visible or moderation.watch_visible %}
+    <div class="player-entries">
+      {% if moderation.ban_visible %}
+      <div class="player-entry ban">
+        <div class="player-entry-hd"><span class="tag a">{{ _(labels.entry_ban) }}</span>
+          <b>{% if moderation.ban.permanent %}{% trans %}Permanent · no expiry{% endtrans %}{% else %}{% trans until=moderation.ban.banned_until %}Temporary · expires {{ until }}{% endtrans %}{% endif %}</b>
+          {% if moderation.ban_controls %}{% set strip = moderation.ban_controls %}{% include "_strip.html" %}{% endif %}
+        </div>
+        <dl class="player-facts">
+          <dt>{{ _(labels.reason) }}</dt><dd>{{ moderation.ban.reason or '—' }}</dd>
+          <dt>{{ _(labels.banned_by) }}</dt><dd>{{ moderation.ban.banned_by or '—' }}{% if moderation.ban.banned_at %}, {{ moderation.ban.banned_at }}{% endif %}</dd>
+          <dt>{{ _(labels.scope) }}</dt><dd>{{ _(moderation.ban.scope) }}</dd>
+        </dl>
+      </div>
+      {% endif %}
+      {% if moderation.watch_visible %}
+      <div class="player-entry watch">
+        <div class="player-entry-hd"><span class="tag a">{{ _(labels.entry_watch) }}</span>
+          <b>{% trans at=moderation.watch.created_at %}Added {{ at }} · no expiry{% endtrans %}</b>
+          {% if moderation.watch_controls %}{% set strip = moderation.watch_controls %}{% include "_strip.html" %}{% endif %}
+        </div>
+        <dl class="player-facts">
+          <dt>{{ _(labels.reason) }}</dt><dd>{{ moderation.watch.reason or '—' }}</dd>
+          <dt>{{ _(labels.added_by) }}</dt><dd>{{ moderation.watch.created_by or '—' }}</dd>
+        </dl>
+      </div>
+      {% endif %}
+    </div>
+    <div class="player-gap"></div>
+    <p class="sub player-note">{{ _(labels.two_records) }}</p>
+    <div class="player-gap"></div>
+    {% endif %}
+    <dl class="player-facts">
+      <dt>{{ _(labels.points) }}</dt><dd>{{ moderation.points or '0.00' }} — <a href="{{ tabs[1].href }}">{% trans %}see the log{% endtrans %}</a></dd>
+      <dt>{{ _(labels.bans_all) }}</dt><dd>{{ moderation.bans }}</dd>
+    </dl>
+  </div>
+</div>
+</div>
+
+<div class="grid g-2">
+<div class="card">
+  <div class="hd"><h3>{{ _(labels.activity) }}</h3><div class="spacer"></div>{% if activity.online %}<span class="tag">{% trans %}LIVE{% endtrans %}</span>{% endif %}</div>
+  <div class="bd">
+    {% if activity.online %}
+    <dl class="player-facts">
+      <dt>{% trans %}Server{% endtrans %}</dt><dd>{{ activity.server }}</dd>
+      <dt>{% trans %}Side{% endtrans %}</dt><dd>{{ activity.side or '—' }}</dd>
+      <dt>{% trans %}Slot{% endtrans %}</dt><dd>{{ activity.slot or '—' }}</dd>
+      <dt>{% trans %}Module{% endtrans %}</dt><dd>{{ activity.module or '—' }}</dd>
+      <dt>{% trans %}Radios{% endtrans %}</dt><dd class="mono">{% if activity.radios %}{% for radio in activity.radios %}{{ radio }}{% if not loop.last %}<br>{% endif %}{% endfor %}{% else %}—{% endif %}</dd>
+    </dl>
+    {% else %}
+    <p class="empty">{{ _(not_on_server) }}</p>
+    {% endif %}
+  </div>
+</div>
+<div class="card">
+  <div class="hd"><h3>{% trans %}Presence{% endtrans %}</h3><div class="spacer"></div>{% if player.vip %}<span class="tag">{% trans %}VIP{% endtrans %}</span>{% endif %}</div>
+  <div class="bd"><dl class="player-facts">
+    <dt>{% trans %}First seen{% endtrans %}</dt><dd class="stamp">{{ player.first_seen or '—' }}</dd>
+    <dt>{% trans %}Last seen{% endtrans %}</dt><dd class="stamp">{{ player.last_seen or '—' }}</dd>
+    <dt>{% trans %}Playtime{% endtrans %}</dt><dd>{{ player.playtime or '—' }}</dd>
+    <dt>{% trans %}Sessions{% endtrans %}</dt><dd>{{ player.sessions if player.sessions is not none else '—' }}</dd>
+  </dl></div>
+</div>
+</div>
+
+{% elif tab == 'infractions' %}
+
+<div class="card">
+  <div class="hd"><h3>{% trans %}Friendly fire and teamkills{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}most recent{% endtrans %}</span></div>
+  <p class="sub search-state">{% trans %}Every event where this player hit or killed someone on their OWN side (shot, hit, kill — grouped per event and minute).{% endtrans %}</p>
+  <div class="player-list">
+    <div class="row hd"><span class="t">{% trans %}Time (UTC){% endtrans %}</span><span class="w">{% trans %}Infraction{% endtrans %}</span><span class="d">{% trans %}Count{% endtrans %}</span></div>
+    {% for row in infractions.infractions %}
+    <div class="row"><span class="t">{{ row.time }}</span><span class="w">{{ row.infraction }}</span><span class="d">{{ row.count }}</span></div>
+    {% endfor %}
+  </div>
+  {% if not infractions.infractions %}<div class="bd"><p class="empty">{{ _(empty.infractions) }}</p></div>{% endif %}
+</div>
+
+<div class="grid g-2">
+<div class="card">
+  <div class="hd"><h3>{{ _(labels.points) }}</h3><div class="spacer"></div></div>
+  <div class="bd">
+    <dl class="player-facts">
+      <dt>{% trans %}Total{% endtrans %}</dt><dd>{{ infractions.points_total or '0.00' }}</dd>
+    </dl>
+    <div class="player-gap"></div>
+    <p class="sub player-note">{% trans %}Points decay over time, so this total is today's value.{% endtrans %}</p>
+    <div class="player-gap"></div>
+    {% if infractions.penalties %}
+    <div class="player-list">
+      <div class="row hd"><span class="t">{% trans %}Time (UTC){% endtrans %}</span><span class="w">{% trans %}Event{% endtrans %}</span><span class="d">{% trans %}Points{% endtrans %}</span></div>
+      {% for row in infractions.penalties %}
+      <div class="row"><span class="t">{{ row.time }}</span><span class="w">{{ _(row.event) }}</span><span class="d">{{ row.points }}</span></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="empty">{{ _(empty.penalties) }}</p>{% endif %}
+  </div>
+</div>
+<div class="card">
+  <div class="hd"><h3>{% trans %}Ban history{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd">
+    {% if infractions.ban_history %}
+    <div class="player-list">
+      <div class="row hd"><span class="t">{% trans %}Timeframe{% endtrans %}</span><span class="w">{{ _(labels.reason) }}</span><span class="d">{% trans %}Status{% endtrans %}</span></div>
+      {% for row in infractions.ban_history %}
+      <div class="row"><span class="t">{{ row.timeframe }}</span><span class="w">{{ row.reason }}</span><span class="d"><span class="tag">{{ _(row.status) }}</span></span></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="empty">{{ _(empty.bans) }}</p>{% endif %}
+  </div>
+</div>
+</div>
+
+{% elif tab == 'statistics' %}
+
+<div class="player-seg"><span class="lbl">{% trans %}Period{% endtrans %}</span>
+  {% for period in periods %}<a class="{{ 'on' if period.active else '' }}" href="{{ period.href }}"{% if period.active %} aria-current="true"{% endif %}>{{ _(period.label) }}</a>{% endfor %}
+</div>
+
+{% if not statistics.has_sessions %}
+<div class="card"><div class="bd"><p class="empty">{{ _(empty.sessions) }}</p></div></div>
+{% else %}
+
+<div class="player-figs">
+  <div class="player-fig">
+    <div class="k">{% trans %}Playtime{% endtrans %}</div>
+    <div class="v">{{ statistics.playtime }}</div>
+    <div class="sub2">{{ statistics.sessions }} {% trans %}sessions{% endtrans %}</div>
+  </div>
+  <div class="player-fig">
+    <div class="k">{% trans %}Kills{% endtrans %}</div>
+    <div class="v">{{ statistics.kills }}</div>
+    <div class="sub2">{% trans ai=statistics.ai_kills, players=statistics.player_kills %}{{ ai }} AI · {{ players }} players{% endtrans %}</div>
+  </div>
+  <div class="player-fig">
+    <div class="k">{% trans %}Deaths{% endtrans %}</div>
+    <div class="v">{{ statistics.deaths }}</div>
+    <div class="sub2">{% trans ai=statistics.deaths_ai, players=statistics.deaths_player, own=statistics.selfkills %}{{ ai }} AI · {{ players }} players · {{ own }} self{% endtrans %}</div>
+  </div>
+  <div class="player-fig">
+    <div class="k">{% trans %}K/D{% endtrans %}</div>
+    <div class="v">{{ statistics.kd or '—' }}</div>
+    <div class="sub2">{% trans %}players only:{% endtrans %} {{ statistics.kd_players or '—' }}</div>
+  </div>
+  <div class="player-fig">
+    <div class="k">{% trans %}Teamkills{% endtrans %}</div>
+    <div class="v">{{ statistics.teamkills }}</div>
+  </div>
+</div>
+
+<div class="grid g-2">
+<div class="card">
+  <div class="hd"><h3>{% trans %}Playtime per module{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><div class="player-bars">
+    {% for row in statistics.per_module %}
+    <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.playtime }}</span>
+    <span class="trk"><i style="width:{{ row.share }}%"></i></span>
+    {% endfor %}
+  </div></div>
+</div>
+<div class="card">
+  <div class="hd"><h3>{% trans %}Flight performance{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><dl class="player-facts">
+    <dt>{% trans %}Takeoffs{% endtrans %}</dt><dd>{{ statistics.takeoffs }}</dd>
+    <dt>{% trans %}Landings{% endtrans %}</dt><dd>{{ statistics.landings }}</dd>
+    <dt>{% trans %}Ejections{% endtrans %}</dt><dd>{{ statistics.ejections }}</dd>
+    <dt>{% trans %}Crashes (pilot dead){% endtrans %}</dt><dd>{{ statistics.crashes }}</dd>
+    <dt>{% trans %}Landing rate{% endtrans %}</dt><dd>{{ statistics.landing_rate or '—' }}</dd>
+  </dl></div>
+</div>
+</div>
+
+<div class="grid g-3">
+<div class="card">
+  <div class="hd"><h3>{% trans %}Playtime per server{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><div class="player-bars">
+    {% for row in statistics.per_server %}
+    <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.playtime }}</span>
+    <span class="trk t2"><i style="width:{{ row.share }}%"></i></span>
+    {% endfor %}
+  </div></div>
+</div>
+<div class="card">
+  <div class="hd"><h3>{% trans %}Playtime per map{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><div class="player-bars">
+    {% for row in statistics.per_map %}
+    <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.playtime }}</span>
+    <span class="trk t3"><i style="width:{{ row.share }}%"></i></span>
+    {% endfor %}
+  </div></div>
+</div>
+<div class="card">
+  <div class="hd"><h3>{% trans %}Kills by target type{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><div class="player-bars">
+    {% for row in kill_types %}
+    <span class="lbl"><b>{{ _(row.label) }}</b></span><span class="val">{{ row.count }}</span>
+    <span class="trk t4"><i style="width:{{ row.share }}%"></i></span>
+    {% endfor %}
+  </div></div>
+</div>
+</div>
+
+<div class="grid g-2">
+<div class="card">
+  <div class="hd"><h3>{% trans %}Deaths by cause{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><div class="player-bars">
+    {% for row in statistics.deaths_by_cause %}
+    <span class="lbl"><b>{{ _(row.label) }}</b></span><span class="val">{{ row.count }}</span>
+    <span class="trk t5"><i style="width:{{ row.share }}%"></i></span>
+    {% endfor %}
+  </div></div>
+</div>
+<div class="card">
+  <div class="hd"><h3>{% trans %}Recent sessions{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><div class="player-sessions">
+    {% for row in statistics.recent %}
+    <div class="row">
+      <span class="t">{{ row.started }}</span>
+      <span class="w">{{ row.server }}<small>{{ row.slot }}{% if row.map %} · {{ row.map }}{% endif %}</small></span>
+      <span class="d">{{ row.playtime }}</span>
+    </div>
+    {% endfor %}
+  </div></div>
+</div>
+</div>
+
+{% endif %}
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

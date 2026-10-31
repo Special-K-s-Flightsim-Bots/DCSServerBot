@@ -1,0 +1,137 @@
+{#-
+  THE LOAD TAB — the operational view: a live window, node health and the technical series.
+
+  A partial because the same markup is rendered by the initial page (via `_state.html`) and by the
+  live stream's `load-panel` target (`pages/live.py`). EVERY VALUE comes from `load` — the page
+  module's own context (`pages/dashboard.load_view`) — and the template computes nothing: the chart
+  geometry, the axis labels and every figure are already numbers or strings by the time they arrive.
+  No charting library is loaded and no SVG element is built here from data the module did not shape.
+
+  THE CONTROLS ARE A PLAIN GET FORM AND PLAIN LINKS (scale chips), so the tab works with JavaScript
+  off. The scope is a `<select>` because the design groups Cluster / Node / Server; it is submitted,
+  never submitted on change, because a control that fires without the reader asking is a control
+  that can be triggered by a stray key.
+-#}
+<div class="ld-bar">
+  <span class="ld-chips">
+    {% for chip in load.chips %}<a class="ld-chip{{ ' on' if chip.active else '' }}" href="{{ chip.url }}"
+      {% if chip.active %}aria-current="page"{% endif %}>{{ _(chip.label) }}</a>{% endfor %}
+  </span>
+  <form class="ld-scope" method="get" action="{{ load.path }}">
+    <input type="hidden" name="tab" value="{{ load.tab }}">
+    <input type="hidden" name="{{ load.scale_param }}" value="{{ load.scale }}">
+    <label><span>{{ _(load.labels.scope) }}</span>
+      <select name="{{ load.scope_param }}">
+        {% for group in load.groups %}
+        {% if group.label %}<optgroup label="{{ _(group.label) }}">{% endif %}
+        {% for option in group.options %}
+        <option value="{{ option.value }}"{% if option.active %} selected{% endif %}>{% if option.suffix %}{{ option.name }} {{ _(option.suffix) }}{% elif option.name %}{{ option.name }}{% else %}{{ _(option.label) }}{% endif %}</option>
+        {% endfor %}
+        {% if group.label %}</optgroup>{% endif %}
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">{{ _(load.labels.apply) }}</button>
+  </form>
+  <span class="spacer"></span>
+  <span class="ld-live"><i></i>{{ say(load.live) }}</span>
+</div>
+
+{% if not load.has_data %}
+<p class="ld-empty">{{ _(load.empty) }}</p>
+{% else %}
+<div class="ld-kpis">
+  {% for kpi in load.kpis %}
+  <div class="ld-kpi">
+    <div class="ld-kpi-l">{{ _(kpi.label) }}</div>
+    <div class="ld-kpi-v">{{ kpi.value }}{% if kpi.unit %} <small>{{ _(kpi.unit) }}</small>{% endif %}</div>
+    <div class="ld-kpi-n">{{ say(kpi.note) }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<article class="ld-card">
+  <div class="ld-hd"><h3>{{ _(load.card.title) }}</h3><span class="ld-meta">{{ say(load.card.meta) }}</span>
+    <span class="spacer"></span>
+    <span class="ld-legend"><i class="ld-sw total"></i>{{ _(load.legend.players) }} <i class="ld-sw cpu"></i>{{ _(load.legend.cpu) }}</span>
+  </div>
+  <div class="ld-bd">
+    <svg class="ld-svg" viewBox="0 0 {{ load.chart.width }} {{ load.chart.height }}" role="img" aria-label="{{ _(load.card.title) }}">
+      <defs><linearGradient id="{{ load.chart.gradient }}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#58a6ff" stop-opacity=".55"></stop>
+        <stop offset="1" stop-color="#58a6ff" stop-opacity=".04"></stop></linearGradient></defs>
+      {% for row in load.chart.grid %}<line x1="{{ row.x1 }}" y1="{{ row.y }}" x2="{{ row.x2 }}" y2="{{ row.y }}" class="ld-grid"></line>
+      {% endfor %}
+      {% for label in load.chart.axis.left %}<text x="{{ label.x }}" y="{{ label.ty }}" class="ld-axis" text-anchor="end">{{ label.text }}</text>
+      {% endfor %}
+      {% for label in load.chart.axis.right %}<text x="{{ label.x }}" y="{{ label.ty }}" class="ld-axis">{{ label.text }}</text>
+      {% endfor %}
+      {% for area in load.chart.areas %}<polygon points="{{ area }}" fill="url(#{{ load.chart.gradient }})"></polygon>
+      {% endfor %}
+      {% for line in load.chart.players %}<polyline points="{{ line }}" fill="none" class="ld-total"></polyline>
+      {% endfor %}
+      {% for line in load.chart.cpu %}<polyline points="{{ line }}" fill="none" class="ld-cpu"></polyline>
+      {% endfor %}
+      <line x1="{{ load.chart.now.x }}" y1="{{ load.chart.now.top }}" x2="{{ load.chart.now.x }}" y2="{{ load.chart.now.bottom }}" class="ld-now"></line>
+      <text x="{{ load.chart.now.x }}" y="{{ load.chart.now.top }}" class="ld-axis" text-anchor="end">{{ _(load.legend.now) }}</text>
+      {% for label in load.chart.x_labels %}<text x="{{ label.x }}" y="{{ label.y }}" class="ld-axis" text-anchor="middle">{{ label.label }}</text>
+      {% endfor %}
+    </svg>
+  </div>
+</article>
+{% endif %}
+
+{% if load.nodes %}
+<article class="ld-card">
+  <div class="ld-hd"><h3>{{ _(load.nodes_card.title) }}</h3><span class="ld-meta">{{ _(load.nodes_card.meta) }}</span></div>
+  <div class="ld-bd">
+    {#- An ARIA grid rather than a `<table>`: the console's ONE table markup is `_table.html`, and
+        this card is a fixed health board (no sort links, no pager), so it states its own roles. #}
+    <div class="ld-tbl" role="table" aria-label="{{ _(load.nodes_card.title) }}">
+      <div class="ld-tr ld-th" role="row">
+        <span role="columnheader">{{ _(load.node_labels.node) }}</span>
+        <span role="columnheader">{{ _(load.node_labels.state) }}</span>
+        <span role="columnheader" class="num">{{ _(load.node_labels.pool) }}</span>
+        <span role="columnheader" class="num">{{ _(load.node_labels.queued) }}</span>
+        <span role="columnheader" class="num">{{ _(load.node_labels.wait) }}</span>
+        <span role="columnheader" class="num">{{ _(load.node_labels.dcs_queue) }}</span>
+        <span role="columnheader" class="num">{{ _(load.node_labels.asyncio_queue) }}</span>
+        <span role="columnheader">{{ _(load.node_labels.last_hour) }}</span>
+      </div>
+      {% for node in load.nodes %}
+      <div class="ld-tr{{ ' ld-row-on' if node.online else ' ld-row-off' }}" role="row">
+        <span role="cell"><b>{{ node.name }}</b>{% if node.master %} <span class="ld-tag">{{ _(load.nodes_card.master) }}</span>{% endif %}</span>
+        <span role="cell"><span class="ld-state {{ 'on' if node.online else 'off' }}"><i></i>{{ _(node.state) }}</span></span>
+        <span role="cell" class="num">{{ node.pool }}</span>
+        <span role="cell" class="num">{{ node.queued }}</span>
+        <span role="cell" class="num">{{ node.wait }}</span>
+        <span role="cell" class="num">{{ node.dcs_queue }}</span>
+        <span role="cell" class="num">{{ node.asyncio_queue }}</span>
+        <span role="cell">{% if node.spark %}<svg class="ld-spark" viewBox="0 0 118 26" aria-hidden="true" focusable="false">{% for line in node.spark %}<polyline points="{{ line }}" fill="none" class="ld-total"></polyline>{% endfor %}</svg>{% else %}<span class="ld-none">{{ load.no_value }}</span>{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</article>
+{% endif %}
+
+{% if load.minis %}
+<div class="ld-minis">
+  {% for mini in load.minis %}
+  <article class="ld-card">
+    <div class="ld-hd"><h3>{{ _(mini.title) }}</h3><span class="ld-meta">{{ _(mini.meta) }}</span></div>
+    <div class="ld-bd">
+      <svg class="ld-svg" viewBox="0 0 {{ mini.chart.width }} {{ mini.chart.height }}" role="img" aria-label="{{ _(mini.title) }}">
+        {% for row in mini.chart.grid %}<line x1="{{ row.x1 }}" y1="{{ row.y }}" x2="{{ row.x2 }}" y2="{{ row.y }}" class="ld-grid"></line>
+        <text x="{{ row.x }}" y="{{ row.ty }}" class="ld-axis" text-anchor="end">{{ row.text }}</text>
+        {% endfor %}
+        {% for line in mini.chart.series %}<polyline points="{{ line.points | join(' ') }}" fill="none" class="ld-{{ line.colour }}"></polyline>
+        {% endfor %}
+        {% for label in mini.chart.x_labels %}<text x="{{ label.x }}" y="{{ label.y }}" class="ld-axis" text-anchor="middle">{{ label.label }}</text>
+        {% endfor %}
+      </svg>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}

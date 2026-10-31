@@ -8,10 +8,12 @@ wrap into their response formats.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
 import tempfile
+import types
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable, TypeVar, cast
@@ -1729,6 +1731,789 @@ async def list_bans(ctx: Any) -> ActionResult:
                                             "servers": tuple(servers)})
 
 
+# ── The player reads: the directory, one player, one player's statistics ──
+#
+# All three are CONSOLE-TRANSPORT ONLY, for the reason the ban reads are: their scope rule is
+# ``ctx._scope`` (through :func:`_caller_ban_targets` / :func:`_caller_ban_unrestricted`), and a
+# transport that carries no scope — REST, MCP — would read as GLOBAL, i.e. every player of the
+# installation. They refuse such a caller instead of guessing, and the refusal is typed.
+#
+# A PLAYER IS A DISCORD LINK, NOT A UCID: ``players`` holds one row per UCID, and every UCID the
+# same ``discord_id`` names is the same person (an unlinked UCID, ``discord_id = -1``, is its own).
+# The rows are grouped in the SAME statement that paginates them, so "one row per player" and "50
+# rows a page" cannot disagree — the total comes back with the page (``count(*) OVER ()``).
+#
+# SCOPE. ``players`` carries no server column, so the only reading of "a player of mine" the schema
+# can express is "seen on a server of my set" — the ``statistics`` rows joined to ``missions``. That
+# is the same presence bound the console's player search is held to, and it is a WHERE term, never a
+# filter applied after the read. A narrowed caller whose own set is EMPTY therefore reads nothing
+# (``servers = []``), which is what tells it apart from an unscoped caller (``servers = None``).
+
+#: The refusal a non-console caller of a player read meets. Untranslated on purpose: a msgid with no
+#: catalog entry would read as English anyway, and this module's catalogs are not this read's to
+#: extend.
+PLAYERS_CONSOLE_ONLY = "The player list is only available in the web console."
+
+#: The refusal when this process has no connection pool to read from.
+PLAYERS_UNAVAILABLE = "The player list is not available in this installation."
+
+#: How many players one directory page holds. The console's view layer publishes the same number for
+#: its pager (``readmodels.views.PLAYER_DIRECTORY_PAGE_SIZE``); a test pins the two equal rather than
+#: letting one move without the other.
+PLAYER_DIRECTORY_PAGE_SIZE = 50
+
+#: How many of a player's last sessions the statistics read returns.
+PLAYER_RECENT_SESSIONS = 10
+
+#: How many of a player's most recent infraction events the infractions read returns — the report's
+#: own ``limit`` input, and the same ten its Discord render draws.
+PLAYER_INFRACTION_EVENTS = 10
+
+#: The SHAPE of a UCID: 32 hexadecimal characters, which is what every player key is. Checked before
+#: a UCID reaches a statement, and the only shape the console's player page accepts either.
+_PLAYER_UCID_SHAPE = re.compile(r"[0-9a-f]{32}")
+
+#: The directory table's own key in the console's view layer (``readmodels.views.PAGE_COLUMNS``).
+_DIRECTORY_TABLE = "player_directory"
+
+#: The directory's ORDER BY, keyed by the SORTABLE COLUMN KEYS of ``_DIRECTORY_TABLE``. The value is
+#: the closed lookup: a ``?sort=`` that is not one of these keys never reaches the statement (the
+#: read normalises it against the SAME allow-list first, and the fallback here is the default column).
+_DIRECTORY_ORDER: dict[str, str] = {
+    "name": "lower((g.names)[1])",
+    "ucid": "lower((g.ucids)[1])",
+    "discord": "g.discord_id",
+    "last_seen": "g.last_seen",
+    "playtime": "g.playtime",
+    "state": "lower(g.state)",
+}
+
+#: The directory page. Parameterised everywhere except the ORDER BY, whose expression comes from
+#: :data:`_DIRECTORY_ORDER` and whose direction is ``ASC``/``DESC`` from the validated pair.
+#
+# The playtime aggregate runs over ``statistics`` ONCE, grouped per UCID, and is summed per player by
+# the grouping CTE — the same aggregate answers the column, and nothing re-queries per row. A player
+# with no statistics row keeps a NULL playtime (never ``0``), so the page can render an empty cell.
+_DIRECTORY_SQL = """
+WITH playtime AS (
+    SELECT s.player_ucid AS ucid,
+           SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))
+               ::bigint AS seconds
+      FROM statistics s
+     GROUP BY s.player_ucid
+),
+scoped AS (
+    SELECT DISTINCT s.player_ucid AS ucid
+      FROM statistics s
+      JOIN missions m ON m.id = s.mission_id
+     WHERE m.server_name = ANY(%(servers)s::text[])
+),
+per_ucid AS (
+    SELECT p.ucid, p.name, p.discord_id, p.first_seen, p.last_seen, p.vip,
+           pt.seconds AS playtime,
+           EXISTS (SELECT 1 FROM bans b
+                    WHERE b.ucid = p.ucid
+                      AND b.banned_until >= (now() AT TIME ZONE 'utc')
+                      AND (%(servers)s::text[] IS NULL
+                           OR b.server_name = ANY(%(servers)s::text[]))) AS banned,
+           EXISTS (SELECT 1 FROM watchlist w WHERE w.player_ucid = p.ucid) AS watched
+      FROM players p
+      LEFT OUTER JOIN playtime pt ON pt.ucid = p.ucid
+     WHERE %(servers)s::text[] IS NULL OR p.ucid IN (SELECT ucid FROM scoped)
+),
+grouped AS (
+    SELECT COALESCE(NULLIF(discord_id, -1)::text, ucid) AS player_key,
+           array_agg(name ORDER BY last_seen DESC NULLS LAST) AS names,
+           array_agg(DISTINCT ucid) AS ucids,
+           MAX(discord_id) AS discord_id,
+           MIN(first_seen) AS first_seen,
+           MAX(last_seen) AS last_seen,
+           bool_or(vip) AS vip,
+           bool_or(banned) AS banned,
+           bool_or(watched) AS watched,
+           SUM(playtime) AS playtime,
+           concat_ws(' ', CASE WHEN bool_or(banned) THEN 'banned' END,
+                          CASE WHEN bool_or(watched) THEN 'watched' END,
+                          CASE WHEN bool_or(vip) THEN 'vip' END) AS state
+      FROM per_ucid
+     GROUP BY 1
+)
+SELECT g.player_key, g.names, g.ucids, g.discord_id, g.first_seen, g.last_seen,
+       g.vip, g.banned, g.watched, g.playtime, g.state,
+       count(*) OVER () AS total
+  FROM grouped g
+ WHERE (%(needle)s = ''
+    OR EXISTS (SELECT 1 FROM unnest(g.ucids) AS u WHERE u ILIKE %(pattern)s ESCAPE '\\')
+    OR EXISTS (SELECT 1 FROM unnest(g.names) AS n WHERE n ILIKE %(pattern)s ESCAPE '\\'))
+{state} ORDER BY {order}
+ LIMIT %(limit)s OFFSET %(offset)s
+"""
+
+#: The directory's STATE views, keyed by the ``?show=`` vocabulary the console serves. The
+#: value is the predicate ADDED to the statement's WHERE, BEFORE the page is cut, so the rows,
+#: the total, the count sentence and the pager all describe the FILTERED set. ``all`` adds
+#: nothing, i.e. the whole directory; a key outside this allow-list never reaches the SQL.
+_DIRECTORY_STATES: dict[str, str] = {
+    "all": "",
+    "banned": "   AND g.banned\n",
+    "watched": "   AND g.watched\n",
+}
+
+#: The player's own row, by the ucid the page asked for.
+_PLAYER_SQL = """
+SELECT ucid, name, discord_id, manual, first_seen, last_seen, vip
+  FROM players
+ WHERE ucid = %(ucid)s
+"""
+
+#: Every UCID of ONE Discord link, most recently seen first — the identity list of a player page.
+_PLAYER_UCIDS_SQL = """
+SELECT ucid, name, manual
+  FROM players
+ WHERE discord_id = %(discord_id)s
+ ORDER BY last_seen DESC NULLS LAST, ucid
+"""
+
+#: The presence bound, for a NARROWED caller: is any UCID of this player seen on a server of the set?
+_PLAYER_SCOPE_SQL = """
+SELECT EXISTS (
+    SELECT 1
+      FROM statistics s
+      JOIN missions m ON m.id = s.mission_id
+     WHERE s.player_ucid = ANY(%(ucids)s::text[])
+       AND m.server_name = ANY(%(servers)s::text[])
+) AS present
+"""
+
+#: A player's playtime and session count over every UCID of the link.
+_PLAYER_TOTALS_SQL = """
+SELECT SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))
+           ::bigint AS playtime,
+       COUNT(*) AS sessions
+  FROM statistics s
+ WHERE s.player_ucid = ANY(%(ucids)s::text[])
+"""
+
+#: The player's watchlist entry — one row per UCID, so the newest of the link's rows is the entry.
+_WATCH_SQL = """
+SELECT player_ucid AS ucid, reason, created_by, created_at
+  FROM watchlist
+ WHERE player_ucid = ANY(%(ucids)s::text[])
+ ORDER BY created_at DESC NULLS LAST
+ LIMIT 1
+"""
+
+# ── the player's infractions ────────────────────────────────────────────────
+#
+# THE DEFINITIONS ARE THE PUNISHMENT PLUGIN'S, NOT THIS MODULE'S. "An infraction" is the report the
+# plugin renders (``plugins/punishment/reports/events.json``) and "a penalty point" is the row the
+# ``/penalty`` command lists (``plugins/punishment/commands.py``). Both are read from their own
+# owners and only FORMATTED here, so the website cannot drift from Discord about what counts:
+#
+# * the friendly-fire and the ban-history statements are the report file's OWN SQL strings, loaded
+#   where the bot's report loader looks for them (a deployment's ``reports/punishment/`` override
+#   first, the shipped file second) and formatted with the same two placeholders the report fills;
+# * the penalty statement is the ``/penalty`` command's query, verbatim.
+#
+# The report's colour escapes are Discord EMBED presentation (``ansi_colors``), so they are stripped
+# where the rows reach the console.
+
+#: The punishment plugin's report that defines the infractions, and its shipped location.
+_PUNISHMENT_REPORT_PLUGIN = "punishment"
+_PUNISHMENT_REPORT_FILE = "events.json"
+
+#: Which statement of that report answers which list, keyed by a fragment every one of its bodies
+#: carries. The report's own element ORDER is what the lookup walks, so a reordered file still
+#: resolves to the same two readings.
+_REPORT_MARKERS: tuple[tuple[str, str], ...] = (("infractions", "missionstats"),
+                                                ("ban_history", " FROM bans "))
+
+#: The ``/penalty`` command's query, verbatim: one row per decayed event, newest first.
+_PENALTY_SQL = """
+SELECT event, points, time
+  FROM pu_events
+ WHERE init_id = %(ucid)s
+ ORDER BY time DESC
+"""
+
+#: Discord's ANSI colouring, as the report's SQL builds it — an escape sequence, an embed concern.
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _punishment_report() -> dict:
+    """The punishment plugin's infraction report, parsed.
+
+    Read the way the bot's own report loader resolves a report: a deployment's
+    ``reports/<plugin>/<file>`` override wins over the shipped ``plugins/<plugin>/reports/<file>``,
+    and the source tree is the last resort (so a console started from another working directory
+    still finds the file it ships with). Raises for a file that is absent or not JSON — the caller
+    turns that into a failed read, never into a page that invents infractions.
+    """
+    from pathlib import Path
+
+    candidates = (Path("reports") / _PUNISHMENT_REPORT_PLUGIN / _PUNISHMENT_REPORT_FILE,
+                  Path("plugins") / _PUNISHMENT_REPORT_PLUGIN / "reports" / _PUNISHMENT_REPORT_FILE,
+                  Path(__file__).resolve().parents[2] / "plugins" / _PUNISHMENT_REPORT_PLUGIN
+                  / "reports" / _PUNISHMENT_REPORT_FILE)
+    for candidate in candidates:
+        if candidate.is_file():
+            with candidate.open(encoding="utf-8") as handle:
+                return json.load(handle)
+    raise FileNotFoundError(_PUNISHMENT_REPORT_FILE)
+
+
+def report_statements(report: dict) -> dict[str, str]:
+    """The report's two player statements, keyed ``infractions`` / ``ban_history``.
+
+    Every ``SQLTable`` element of the report is a candidate and the marker decides which list it
+    answers, so the two readings are found by what their SQL is ABOUT rather than by an index a
+    report edit would move.
+    """
+    found: dict[str, str] = {}
+    for element in report.get("elements") or ():
+        if not isinstance(element, dict) or element.get("type") != "SQLTable":
+            continue
+        sql = str((element.get("params") or {}).get("sql") or "")
+        for name, marker in _REPORT_MARKERS:
+            if marker in sql:
+                found.setdefault(name, sql)
+    missing = [name for name, _ in _REPORT_MARKERS if name not in found]
+    if missing:
+        raise ValueError(f"the infraction report carries no {', '.join(missing)} statement")
+    return found
+
+#: The statistics totals. Every figure is the bot's own definition (``plugins/userstats``): the AI
+#: and player kill/death split, and ``selfkills`` as the deaths no listed cause explains.
+_STATS_TOTALS_SQL = """
+SELECT SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))
+           ::bigint AS playtime,
+       COUNT(*) AS sessions,
+       COALESCE(SUM(s.kills), 0) AS kills,
+       COALESCE(SUM(s.pvp), 0) AS pvp,
+       COALESCE(SUM(s.deaths), 0) AS deaths,
+       COALESCE(SUM(s.ejections), 0) AS ejections,
+       COALESCE(SUM(s.crashes), 0) AS crashes,
+       COALESCE(SUM(s.takeoffs), 0) AS takeoffs,
+       COALESCE(SUM(s.landings), 0) AS landings,
+       COALESCE(SUM(s.teamkills), 0) AS teamkills,
+       COALESCE(SUM(s.deaths_planes + s.deaths_helicopters + s.deaths_ships + s.deaths_sams
+                    + s.deaths_ground - s.deaths_pvp), 0) AS deaths_ai,
+       COALESCE(SUM(s.deaths_pvp), 0) AS deaths_pvp,
+       COALESCE(SUM(GREATEST(s.deaths, s.crashes) - s.deaths_planes - s.deaths_helicopters
+                    - s.deaths_ships - s.deaths_sams - s.deaths_ground), 0) AS selfkills
+  FROM statistics s
+  JOIN missions m ON m.id = s.mission_id
+ WHERE s.player_ucid = ANY(%(ucids)s::text[]) AND {period}
+"""
+
+#: Kills by the TYPE of the target, as the Discord chart groups them.
+_STATS_KILL_TYPES_SQL = """
+SELECT COALESCE(SUM(s.kills_planes), 0) AS planes,
+       COALESCE(SUM(s.kills_helicopters), 0) AS helicopters,
+       COALESCE(SUM(s.kills_ships), 0) AS ships,
+       COALESCE(SUM(s.kills_sams), 0) AS sams,
+       COALESCE(SUM(s.kills_ground), 0) AS ground
+  FROM statistics s
+  JOIN missions m ON m.id = s.mission_id
+ WHERE s.player_ucid = ANY(%(ucids)s::text[]) AND {period}
+"""
+
+#: One playtime breakdown. ``{column}`` is ONE of the three closed group-by expressions below, never
+#: a value from the request.
+_STATS_PLAYTIME_SQL = """
+SELECT {column} AS label,
+       SUM(EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on)))
+           ::bigint AS playtime
+  FROM statistics s
+  JOIN missions m ON m.id = s.mission_id
+ WHERE s.player_ucid = ANY(%(ucids)s::text[]) AND {period}
+ GROUP BY 1
+ ORDER BY 2 DESC NULLS LAST, 1
+"""
+
+#: The closed set of breakdown columns, keyed by the name the action reports them under.
+_STATS_BREAKDOWNS: dict[str, str] = {"per_module": "s.slot", "per_server": "m.server_name",
+                                     "per_map": "m.mission_theatre"}
+
+#: The player's last sessions, newest first.
+_STATS_RECENT_SQL = """
+SELECT s.hop_on, s.hop_off, s.slot, m.server_name, m.mission_theatre,
+       EXTRACT(EPOCH FROM (COALESCE(s.hop_off, (now() AT TIME ZONE 'utc')) - s.hop_on))::bigint
+           AS playtime
+  FROM statistics s
+  JOIN missions m ON m.id = s.mission_id
+ WHERE s.player_ucid = ANY(%(ucids)s::text[]) AND {period}
+ ORDER BY s.hop_on DESC
+ LIMIT %(limit)s
+"""
+
+
+def _like_escape(value: str) -> str:
+    """*value* with the LIKE metacharacters escaped, for a BOUND ``ILIKE`` parameter.
+
+    The statement declares ``ESCAPE '\\'``, so a search for ``%`` or ``_`` matches those characters
+    instead of acting as a wildcard. Escaping is a formatting concern of the PATTERN, not of the
+    value: the value itself still travels as a bound parameter.
+    """
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _directory_order(key: str, direction: str) -> str:
+    """The directory's ORDER BY clause: a closed-lookup expression and a validated direction.
+
+    Nothing from the request is interpolated: *key* is already normalised against the table's column
+    allow-list and *direction* is one of ``asc``/``desc``, so the clause can only be one this module
+    wrote. The player key is the tie-break, so paging cannot repeat or skip a row.
+    """
+    expression = _DIRECTORY_ORDER.get(key) or _DIRECTORY_ORDER["name"]
+    return f"{expression} {direction.upper()} NULLS LAST, g.player_key"
+
+
+def _directory_state(value: Any) -> str:
+    """The directory's state view in force: a key of :data:`_DIRECTORY_STATES`.
+
+    A closed vocabulary like the sort keys: a value the console does not serve is the whole
+    directory, so no request text ever reaches the statement.
+    """
+    wanted = str(value or "").strip().lower()
+    return wanted if wanted in _DIRECTORY_STATES else "all"
+
+
+async def _fetch_all(conn: Any, statement: str, params: Any) -> list[dict]:
+    """Every row of *statement* as a plain dict (the read models must not see driver row objects)."""
+    from psycopg.rows import dict_row
+
+    async with conn.cursor(row_factory=dict_row) as cursor:
+        await cursor.execute(statement, params)
+        return [dict(row) async for row in cursor]
+
+
+async def _fetch_one(conn: Any, statement: str, params: Any) -> dict:
+    """The first row of *statement* as a dict, or ``{}`` when it answered none."""
+    rows = await _fetch_all(conn, statement, params)
+    return rows[0] if rows else {}
+
+
+def _player_pool(ctx: Any) -> Any:
+    """The pool the player reads run on: this process node's ``apool``, or ``None``."""
+    return getattr(getattr(ctx, "node", None), "apool", None)
+
+
+async def _member_names(ctx: Any, discord_ids: Iterable[Any], fetch: bool = False) -> dict[int, str]:
+    """The Discord member names for *discord_ids*, keyed by id.
+
+    The value is the member's SHOWN name (nickname, else global name, else username). Names are UI,
+    not data: a member this process cannot resolve is an ABSENT entry, never an error, so a caller
+    without a Discord connection renders the same page with the id alone.
+
+    ``fetch`` True allows a bounded REST lookup for ids the cache does not hold; it is for reads of
+    ONE player. A list keeps it False so a page render never becomes a burst of API calls.
+    """
+    from services.webservice.readmodels.serverconfig import live_bot
+
+    wanted: set[int] = set()
+    for item in discord_ids:
+        try:
+            value = int(item)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            wanted.add(value)
+    if not wanted:
+        return {}
+    bot = live_bot()
+    if bot is None:
+        return {}
+    try:
+        members = await bot.get_members(wanted, fetch=fetch)
+    except Exception:
+        log.exception("player read: the linked members could not be read")
+        return {}
+    return {int(user_id): str(getattr(member, "display_name", "") or "")
+            for user_id, member in (members or {}).items() if member is not None}
+
+
+def _player_servers(ctx: Any) -> list[str] | None:
+    """The server names a player read is bound to: ``None`` for an unscoped caller, else the set."""
+    return None if _caller_ban_unrestricted(ctx) else _caller_ban_targets(ctx)
+
+
+async def _player_ucids(conn: Any, row: dict) -> list[dict]:
+    """Every UCID of the player *row* names, most recently seen first (the row itself if unlinked)."""
+    try:
+        discord_id = int(row.get("discord_id"))
+    except (TypeError, ValueError):
+        discord_id = -1
+    if discord_id <= 0:
+        return [{"ucid": row.get("ucid"), "name": row.get("name"), "manual": row.get("manual")}]
+    linked = await _fetch_all(conn, _PLAYER_UCIDS_SQL, {"discord_id": discord_id})
+    if not any(entry.get("ucid") == row.get("ucid") for entry in linked):
+        linked.insert(0, {"ucid": row.get("ucid"), "name": row.get("name"),
+                          "manual": row.get("manual")})
+    return linked
+
+
+async def _player_in_scope(conn: Any, ucids: list[str], servers: list[str] | None) -> bool:
+    """Whether a player the caller may see: always for an unscoped caller, presence-bound otherwise.
+
+    ``players`` carries no server column, so the bound is the player's ``statistics`` rows joined to
+    ``missions`` — the same reading of "a player of mine" the directory uses. A narrowed caller whose
+    set is empty reaches nobody.
+    """
+    if servers is None:
+        return True
+    if not servers or not ucids:
+        return False
+    found = await _fetch_one(conn, _PLAYER_SCOPE_SQL, {"ucids": ucids, "servers": servers})
+    return bool(found.get("present"))
+
+
+def _period_filter(node: Any, period: str) -> Any:
+    """The bot's OWN period filter for *period*, and the period name it resolved to.
+
+    ``StatisticsFilter.detect`` is the bot's one definition of a period, so the console reads it
+    rather than inventing a second one. Only the PLAIN period vocabulary is accepted here (the names
+    ``PeriodFilter.list()`` publishes): a mission/campaign/month/theatre name would need the bot's
+    pools and would mean something different from what the page's switch offers, so anything detect
+    answers with a non-period filter — or with a name outside the vocabulary — is the ``all`` period.
+
+    Returns ``(filter, name)``.
+    """
+    from plugins.userstats.filter import PeriodFilter, StatisticsFilter
+
+    wanted = (period or "").strip().lower()
+    known = PeriodFilter.list(node)
+    if wanted not in known:
+        wanted = "all"
+    try:
+        # the adapter is what ``detect`` expects of a bot: a ``node`` (some filters read its pools).
+        # A context that cannot answer that raises nothing out of this function — the plain period
+        # filter is the same answer for every name this action accepts.
+        detected = StatisticsFilter.detect(cast(Any, types.SimpleNamespace(node=node)), wanted)
+    except Exception:
+        log.warning("player statistics: the period filter could not be detected, using '%s'", wanted)
+        detected = None
+    if type(detected) is not PeriodFilter or detected.period != wanted:
+        detected = PeriodFilter(wanted)
+    return detected, wanted
+
+
+@action
+async def list_player_directory(ctx: Any, q: str = "", page: str | int | None = None,
+                                sort: str = "", direction: str = "",
+                                state: str = "all") -> ActionResult:
+    """One row per PLAYER of the caller's scope, one PAGE at a time — the directory's read.
+
+    *q* is the ONE search box: it matches a DCS name or a UCID, trimmed and capped by the console's
+    own ``readmodels.views.normalise_query`` (never a second trimming rule) and matched as a BOUND
+    parameter. *page* is resolved by ``readmodels.views.normalise_page``: a non-numeric, negative or
+    past-the-end value is page 1, and the answer states the page it actually served.
+
+    *sort*/*direction* are validated against the ``player_directory`` table's own column allow-list,
+    and the ORDER BY is a closed lookup on that allow-list — the request never reaches the statement.
+
+    *state* is the restriction view in force (``all``/``banned``/``watched``), a closed lookup of
+    predicates ADDED to the same statement, so a restricted page is cut from the restricted set:
+    the rows, the total and the page count all describe what the view shows.
+
+    The answer carries the page's rows AND the total behind them (``total``, ``pages``,
+    ``per_page``), so the page can state "50 of 1,284" without a second read, and every row carries
+    the moderation state the row's chips are drawn from.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return ActionResult(success=False, message=PLAYERS_CONSOLE_ONLY)
+    try:
+        from services.webservice.readmodels import views as view_layer
+    except Exception as ex:
+        log.exception("list_player_directory: the console's view layer could not be imported")
+        return ActionResult(success=False, message=f"The player list could not be read: {ex}")
+    query = view_layer.normalise_query(q)
+    key = view_layer.normalise_sort(_DIRECTORY_TABLE, sort)
+    wanted_direction = view_layer.normalise_direction(direction)
+    requested = view_layer.normalise_page(page)
+    pool = _player_pool(ctx)
+    if pool is None:
+        return ActionResult(success=False, message=PLAYERS_UNAVAILABLE)
+
+    servers = _player_servers(ctx)
+    wanted_state = _directory_state(state)
+    statement = _DIRECTORY_SQL.format(order=_directory_order(key, wanted_direction),
+                                      state=_DIRECTORY_STATES[wanted_state])
+    params = {"needle": query,
+              "pattern": f"%{_like_escape(query)}%" if query else "%",
+              "servers": servers, "limit": PLAYER_DIRECTORY_PAGE_SIZE}
+    served = requested
+    rows: list[dict] = []
+    total = 0
+    try:
+        async with pool.connection() as conn:
+            # the CLOSED RANGE: a page past the end is answered with the first one, so the reader is
+            # never handed an empty table for a number they typed. Only that case costs a second
+            # statement.
+            for attempt in dict.fromkeys((requested, 1)):
+                page_rows = await _fetch_all(conn, statement,
+                                             {**params, "offset": (attempt - 1) * PLAYER_DIRECTORY_PAGE_SIZE})
+                served = attempt
+                if page_rows:
+                    rows, total = page_rows, int(page_rows[0].get("total") or 0)
+                    break
+    except Exception as ex:
+        log.exception("list_player_directory failed")
+        return ActionResult(success=False, message=f"The player list could not be read: {ex}")
+
+    for row in rows:
+        row.pop("total", None)
+        row["ucid"] = (row.get("ucids") or [""])[0]
+    pages = max((total + PLAYER_DIRECTORY_PAGE_SIZE - 1) // PLAYER_DIRECTORY_PAGE_SIZE, 1)
+    return ActionResult(success=True, data={
+        "rows": rows, "total": total, "page": served, "pages": pages,
+        "per_page": PLAYER_DIRECTORY_PAGE_SIZE, "query": query,
+        "sort": key, "direction": wanted_direction, "state": wanted_state})
+
+
+@action
+async def get_player_detail(ctx: Any, ucid: str) -> ActionResult:
+    """ONE player by UCID: identity, link, presence, totals, and both moderation states.
+
+    The ucids the player's Discord link groups are read together, so a player with two UCIDs answers
+    with both (identity list, playtime summed, bans and watch searched over all of them).
+
+    The ACTIVE ban is the entry ``ServiceBus.bans`` already groups — its ``server_name`` is the list
+    of servers the ban covers, or ``None`` for a bot-wide one — and the ban read is SCOPED the way
+    the Bans page's is, so a manager sees the bans of their own servers and no others. The watch
+    entry is the newest ``watchlist`` row of the link (the table holds one per UCID and no expiry).
+
+    A player who is not found, or is outside a narrowed caller's scope, answers ``found`` False with
+    the SAME keys as a found one: the page renders one shape for every state, and a name outside the
+    caller's scope is not disclosed either way.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return ActionResult(success=False, message=PLAYERS_CONSOLE_ONLY)
+    wanted = (ucid or "").strip()
+    if not wanted:
+        return ActionResult(success=False, message="A UCID is required.")
+    pool = _player_pool(ctx)
+    if pool is None:
+        return ActionResult(success=False, message=PLAYERS_UNAVAILABLE)
+
+    empty = {"ucid": wanted, "found": False, "identity": [], "name": "", "discord_id": -1,
+             "member": "", "vip": False, "first_seen": None, "last_seen": None,
+             "playtime": None, "sessions": None, "ban": None, "watch": None}
+    try:
+        async with pool.connection() as conn:
+            row = await _fetch_one(conn, _PLAYER_SQL, {"ucid": wanted})
+            if not row:
+                return ActionResult(success=True, data=empty)
+            identity = await _player_ucids(conn, row)
+            ucids = [entry["ucid"] for entry in identity if entry.get("ucid")]
+            servers = _player_servers(ctx)
+            if not await _player_in_scope(conn, ucids, servers):
+                return ActionResult(success=True, data=empty)
+            totals = await _fetch_one(conn, _PLAYER_TOTALS_SQL, {"ucids": ucids})
+            watch = await _fetch_one(conn, _WATCH_SQL, {"ucids": ucids})
+    except Exception as ex:
+        log.exception("get_player_detail failed")
+        return ActionResult(success=False, message=f"The player could not be read: {ex}")
+
+    ban = await _active_ban(ctx, ucids, servers)
+    names = await _member_names(ctx, [row.get("discord_id")], fetch=True)
+    return ActionResult(success=True, data={
+        "ucid": wanted,
+        "found": True,
+        "identity": identity,
+        "name": (identity[0].get("name") if identity else "") or row.get("name") or "",
+        "discord_id": row.get("discord_id", -1),
+        "member": names.get(int(row.get("discord_id") or -1), ""),
+        "vip": bool(row.get("vip")),
+        "first_seen": row.get("first_seen"),
+        "last_seen": row.get("last_seen"),
+        "playtime": totals.get("playtime"),
+        "sessions": totals.get("sessions"),
+        "ban": ban,
+        "watch": watch or None,
+    })
+
+
+async def _active_ban(ctx: Any, ucids: list[str], servers: list[str] | None) -> dict | None:
+    """The player's ACTIVE ban entry, grouped and scoped by the bus — ``None`` when there is none.
+
+    The ban list itself is the bus's own read, so the grouping of a ban's rows into one entry (its
+    ``server_name`` as a list, or ``None`` for a bot-wide ban) is not restated here. A ban list this
+    process cannot reach is an ABSENT ban, never a failed player page.
+    """
+    service = _ban_service(ctx)
+    if service is None:
+        return None
+    try:
+        entries = await service.bans(servers=tuple(servers) if servers is not None else None)
+    except Exception:
+        log.exception("get_player_detail: the ban list could not be read")
+        return None
+    mine = [entry for entry in entries if _entry_field(entry, "ucid") in ucids]
+    if not mine:
+        return None
+    return max(mine, key=lambda entry: _entry_field(entry, "banned_at") or datetime.min)
+
+
+@action
+async def get_player_statistics(ctx: Any, ucid: str, period: str = "all") -> ActionResult:
+    """The ``/statistics`` numbers of ONE player for ONE period — the statistics tab's read.
+
+    A SEPARATE action from :func:`get_player_detail` on purpose: the period re-reads on every switch,
+    so it must not drag the identity, the link and the moderation reads along with it.
+
+    *period* accepts exactly the names :meth:`plugins.userstats.filter.PeriodFilter.list` publishes
+    (``all``, ``today``, ``yesterday``, ``day``, ``week``, ``month``, ``quarter``, ``halfyear``,
+    ``year``) and ANYTHING else is ``all``; the filter itself is the bot's own
+    :func:`_period_filter`, so the console has no second definition of "a period".
+
+    Every figure is the bot's own (``plugins/userstats``): kills and the AI/player split, deaths by
+    AI/player/self, teamkills, the flight figures, kills by target type, the playtime breakdowns by
+    module/server/map, and the last ``PLAYER_RECENT_SESSIONS`` sessions.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return ActionResult(success=False, message=PLAYERS_CONSOLE_ONLY)
+    wanted = (ucid or "").strip()
+    if not wanted:
+        return ActionResult(success=False, message="A UCID is required.")
+    pool = _player_pool(ctx)
+    if pool is None:
+        return ActionResult(success=False, message=PLAYERS_UNAVAILABLE)
+
+    node = getattr(ctx, "node", None)
+    flt, resolved = _period_filter(node, period)
+    clause = flt.filter(node)
+    try:
+        async with pool.connection() as conn:
+            row = await _fetch_one(conn, _PLAYER_SQL, {"ucid": wanted})
+            if not row:
+                return ActionResult(success=True, data={"ucid": wanted, "period": resolved,
+                                                        "totals": {}, "found": False})
+            identity = await _player_ucids(conn, row)
+            ucids = [entry["ucid"] for entry in identity if entry.get("ucid")]
+            if not await _player_in_scope(conn, ucids, _player_servers(ctx)):
+                return ActionResult(success=True, data={"ucid": wanted, "period": resolved,
+                                                        "totals": {}, "found": False})
+            params = {"ucids": ucids}
+            totals = await _fetch_one(conn, _STATS_TOTALS_SQL.format(period=clause), params)
+            kill_types = await _fetch_one(conn, _STATS_KILL_TYPES_SQL.format(period=clause), params)
+            breakdowns = {}
+            for name, column in _STATS_BREAKDOWNS.items():
+                breakdowns[name] = await _fetch_all(
+                    conn, _STATS_PLAYTIME_SQL.format(column=column, period=clause), params)
+            recent = await _fetch_all(conn, _STATS_RECENT_SQL.format(period=clause),
+                                      {**params, "limit": PLAYER_RECENT_SESSIONS})
+    except Exception as ex:
+        log.exception("get_player_statistics failed")
+        return ActionResult(success=False, message=f"The statistics could not be read: {ex}")
+
+    kills = int(totals.get("kills") or 0)
+    pvp = int(totals.get("pvp") or 0)
+    crashes = int(totals.get("crashes") or 0)
+    ejections = int(totals.get("ejections") or 0)
+    figures = {
+        "playtime": totals.get("playtime"),
+        "sessions": int(totals.get("sessions") or 0),
+        "kills": kills,
+        "ai_kills": kills - pvp,
+        "player_kills": pvp,
+        "deaths": int(totals.get("deaths") or 0),
+        "deaths_ai": int(totals.get("deaths_ai") or 0),
+        "deaths_player": int(totals.get("deaths_pvp") or 0),
+        "selfkills": int(totals.get("selfkills") or 0),
+        "teamkills": int(totals.get("teamkills") or 0),
+        "takeoffs": int(totals.get("takeoffs") or 0),
+        "landings": int(totals.get("landings") or 0),
+        "ejections": ejections,
+        # the pilot-dead count the Discord embed draws: a crash that never left the aircraft
+        "crashes": max(crashes - ejections, 0),
+    }
+    return ActionResult(success=True, data={
+        "ucid": wanted, "period": resolved, "found": True, "totals": figures,
+        "kills_by_type": [{"label": label, "count": int(kill_types.get(label) or 0)}
+                          for label in ("planes", "helicopters", "ships", "sams", "ground")],
+        **breakdowns,
+        "recent": recent,
+    })
+
+
+@action
+async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
+    """ONE player's infractions: the friendly-fire events, the penalty log and the ban history.
+
+    THE THREE LISTS COME FROM THE PUNISHMENT PLUGIN'S OWN DEFINITIONS — the report file for the
+    events and the ban history, the ``/penalty`` command's statement for the points (see the module
+    constants above), so the console and Discord cannot disagree about what an infraction is.
+
+    The report reads ONE UCID (``init_id``), so this reads the page's UCID and nothing wider: a
+    player's other UCIDs are other rows in every one of these tables.
+
+    The scope is the player read's own bound (``_player_in_scope``): a player outside a narrowed
+    caller's servers answers the same empty answer a UCID nothing knows does, so infractions are not
+    a way around the directory's scope.
+
+    ``penalty_total`` is the SUM of the log's own rows, exactly as ``/penalty`` computes it — the
+    points decay over time, so the total is today's value and the page says so.
+    """
+    if ctx.transport != TRANSPORT_WEB:
+        return ActionResult(success=False, message=PLAYERS_CONSOLE_ONLY)
+    wanted = (ucid or "").strip().lower()
+    if not _PLAYER_UCID_SHAPE.fullmatch(wanted):
+        return ActionResult(success=False, message="A UCID is 32 hexadecimal characters.")
+    pool = _player_pool(ctx)
+    if pool is None:
+        return ActionResult(success=False, message=PLAYERS_UNAVAILABLE)
+    empty = {"ucid": wanted, "found": False, "infractions": [], "penalties": [],
+             "penalty_total": 0.0, "ban_history": []}
+    try:
+        statements = report_statements(_punishment_report())
+        infractions_sql = statements["infractions"].format(ucid=wanted,
+                                                           limit=PLAYER_INFRACTION_EVENTS)
+        history_sql = statements["ban_history"].format(ucid=wanted)
+        async with pool.connection() as conn:
+            row = await _fetch_one(conn, _PLAYER_SQL, {"ucid": wanted})
+            if not row:
+                return ActionResult(success=True, data=empty)
+            identity = await _player_ucids(conn, row)
+            ucids = [entry["ucid"] for entry in identity if entry.get("ucid")]
+            if not await _player_in_scope(conn, ucids, _player_servers(ctx)):
+                return ActionResult(success=True, data=empty)
+            events = await _fetch_all(conn, infractions_sql, None)
+            penalties = await _fetch_all(conn, _PENALTY_SQL, {"ucid": wanted})
+            history = await _fetch_all(conn, history_sql, None)
+    except Exception as ex:
+        log.exception("get_player_infractions failed")
+        return ActionResult(success=False, message=f"The infractions could not be read: {ex}")
+
+    total = 0.0
+    for penalty in penalties:
+        try:
+            total += float(penalty.get("points") or 0)
+        except (TypeError, ValueError):
+            continue
+    return ActionResult(success=True, data={
+        "ucid": wanted,
+        "found": True,
+        "infractions": [{"time": item.get("Time"), "infraction": _plain(item.get("Infraction")),
+                         "count": item.get("Count")} for item in events],
+        "penalties": [{"time": item.get("time"), "event": _plain(item.get("event")),
+                       "points": item.get("points")} for item in penalties],
+        "penalty_total": total,
+        "ban_history": [{"timeframe": _plain(item.get("Timeframe")),
+                         "reason": _plain(item.get("Reason")),
+                         "status": _plain(item.get("Status"))} for item in history],
+    })
+
+
+def _plain(value: Any) -> str:
+    """One report cell as the console renders it: Discord's colour escapes removed, whitespace folded.
+
+    The report's SQL paints its columns for a Discord embed; the console's tables are plain text, so
+    the escapes are dropped here rather than in a second copy of the query.
+    """
+    return " ".join(_ANSI.sub("", str(value or "")).split())
+
+
 def _active_players(server: Any) -> list[Any]:
     """The players SITTING IN A SLOT on *server*, or ``[]`` when nothing can be read.
 
@@ -1948,6 +2733,208 @@ async def edit_ban(ctx: Any, ucid: str, banned_at: str, reason: str,
         result = PlayerActionResult(success=False, message=_("Failed to edit the ban: {}").format(ex),
                                     ucid=value)
     return await _audited(ctx, result)
+
+
+# ── The watchlist writes ────────────────────────────────────────────────────
+#
+# A watch ENTRY is ONE row per UCID (``plugins/mission/db/tables.sql``): ``reason``, ``created_by``,
+# ``created_at`` — and NO expiry, so no write here states one. The trio mirrors the ban entry's
+# add/lift/edit: the ADD inserts the row, the REMOVE deletes it, and the EDIT rewrites ``reason``
+# alone, because ``created_by``/``created_at`` record who watched the player and when (re-stamping
+# them on an edit would rewrite that history).
+#
+# NONE OF THEM needs a server or a live session: a watch entry is a bot-wide fact keyed on the UCID,
+# so all three work for a player who is OFFLINE.
+#
+# BOTH TRANSPORTS: the console's three controls and the Discord ``watch`` group call these SAME
+# functions (``plugins/mission/views.py``), so one write path serves both surfaces and the one that
+# needs no Discord at all is not the poorer one.
+
+#: The longest watch REASON a write accepts — the limit the Discord modal's own field carries
+#: (``plugins/mission/views.py``), so a typed reason and a posted one are bounded alike.
+MAX_WATCH_REASON_LENGTH = 80
+
+#: The statement the REMOVE and the EDIT refusals share: an entry that does not exist, a player
+#: outside the caller's scope and a crafted UCID must be indistinguishable, or the capability becomes
+#: a probe.
+_WATCH_NO_ENTRY = "No watch entry for {} in your scope."
+
+
+async def _watch_scope_refusal(conn: Any, ctx: Any, ucid: str, refusal: str = "") -> str:
+    """The refusal for a watch write *ctx* may not make, or ``""`` when it may run.
+
+    An UNSCOPED caller passes unconditionally — it may watch a player this installation has never
+    seen, which is the case the ADD exists for. A NARROWED one is bound to the players seen on the
+    servers of its own view (:func:`_player_in_scope`): ``players`` carries no server column, so
+    presence is the only reading of "a player of mine" the schema can express.
+
+    *refusal* is the sentence this write answers when the player is unknown or outside the scope;
+    empty means the REMOVE/EDIT wording, which is the same for both so a holder of the capability
+    cannot probe what exists.
+    """
+    servers = _player_servers(ctx)
+    if servers is None:
+        return ""
+    message = refusal or _(_WATCH_NO_ENTRY).format(ucid)
+    row = await _fetch_one(conn, _PLAYER_SQL, {"ucid": ucid})
+    if not row:
+        return message
+    ucids = [entry["ucid"] for entry in await _player_ucids(conn, row) if entry.get("ucid")]
+    if not await _player_in_scope(conn, ucids, servers):
+        return message
+    return ""
+
+
+@action
+async def watch_player(ctx: Any, ucid: str, reason: str, sender: str = "") -> PlayerActionResult:
+    """Put ONE player on the watchlist — the console's Add and Discord's ``watch add``.
+
+    The CREATE path, and the only one: the INSERT is a single statement with
+    ``ON CONFLICT (player_ucid) DO NOTHING``, so its affected-row count IS the answer to "was this
+    player already on the list" — no read-then-write window, and no ``UniqueViolation`` for a caller
+    to catch. A UCID that already holds an entry is refused with a sentence and nothing is rewritten.
+
+    ``created_by`` records who watched the player and when the row is stamped: the acting person's
+    shown name (*sender*, read off the request's identity on the console and never from the body), or
+    the transport's own audit actor when the caller states none.
+    """
+    value = (ucid or "").strip()
+    body = (reason or "").strip()
+    if not value:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("A UCID is required."), ucid=value))
+    if not body:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("A reason is required to put a player on the watchlist."), ucid=value))
+    if len(body) > MAX_WATCH_REASON_LENGTH:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("The watch reason is longer than {} characters.")
+                        .format(MAX_WATCH_REASON_LENGTH),
+            ucid=value))
+    pool = _player_pool(ctx)
+    if pool is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=PLAYERS_UNAVAILABLE, ucid=value))
+    created_by = (sender or "").strip() or ctx.audit_actor
+    try:
+        async with pool.connection() as conn:
+            refusal = await _watch_scope_refusal(
+                conn, ctx, value, _("Player {} is not one of your players.").format(value))
+            if refusal:
+                return await _audited(ctx, PlayerActionResult(
+                    success=False, message=refusal, ucid=value))
+            cursor = await conn.execute(
+                "INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s) "
+                "ON CONFLICT (player_ucid) DO NOTHING",
+                (value, body, created_by))
+            added = cursor.rowcount or 0
+    except Exception as ex:
+        log.exception("watch_player failed")
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The watchlist could not be written: {}").format(ex),
+            ucid=value))
+    if not added:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("Player {} was already on the watchlist.").format(value), ucid=value))
+    return await _audited(ctx, PlayerActionResult(
+        success=True, message=_("Player {} is now on the watchlist.").format(value), ucid=value))
+
+
+@action
+async def unwatch_player(ctx: Any, ucid: str) -> PlayerActionResult:
+    """Remove ONE player's watchlist entry — the console's Remove and Discord's watch removal.
+
+    ONE row per UCID, so the delete names the clicked UCID and leaves the player's other UCIDs
+    untouched. A caller bound to its own servers may only change an entry of a player it may see
+    (:func:`_watch_scope_refusal`).
+
+    A refusal writes NOTHING: an empty UCID, a player this caller may not see, and a UCID holding no
+    watch entry all answer the same sentence, and every outcome — refusals included — leaves exactly
+    one audit entry.
+    """
+    value = (ucid or "").strip()
+    pool = _player_pool(ctx)
+    if not value:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("A UCID is required."), ucid=value))
+    if pool is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=PLAYERS_UNAVAILABLE, ucid=value))
+    try:
+        async with pool.connection() as conn:
+            refusal = await _watch_scope_refusal(conn, ctx, value)
+            if refusal:
+                return await _audited(ctx, PlayerActionResult(
+                    success=False, message=refusal, ucid=value))
+            cursor = await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (value,))
+            removed = cursor.rowcount or 0
+    except Exception as ex:
+        log.exception("unwatch_player failed")
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The watchlist could not be written: {}").format(ex),
+            ucid=value))
+    if not removed:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_(_WATCH_NO_ENTRY).format(value), ucid=value))
+    return await _audited(ctx, PlayerActionResult(
+        success=True, message=_("Watch entry for {} removed.").format(value), ucid=value))
+
+
+@action
+async def edit_watch(ctx: Any, ucid: str, reason: str) -> PlayerActionResult:
+    """Change ONE watch entry's REASON — the console's Edit and Discord's ``watch edit``.
+
+    ``reason`` travels as a BOUND parameter and the statement names the ``reason`` column alone, so
+    ``created_by``, ``created_at`` and the entry's UCID come out of the write byte-identical: an edit
+    corrects what the watchlist says, never who watched the player or when.
+
+    An EMPTY reason is refused rather than written: an empty watch entry is not an edit, it is a
+    removal, and the sentence says so. Everything else refuses the way :func:`unwatch_player` does —
+    same sentence for a missing entry and a player outside the caller's scope, nothing written, one
+    audit entry per outcome.
+    """
+    value = (ucid or "").strip()
+    body = (reason or "").strip()
+    if not value:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("A UCID is required."), ucid=value))
+    if not body:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("An empty reason is not an edit — remove the watch entry instead."),
+            ucid=value))
+    if len(body) > MAX_WATCH_REASON_LENGTH:
+        return await _audited(ctx, PlayerActionResult(
+            success=False,
+            message=_("The watch reason is longer than {} characters.")
+                        .format(MAX_WATCH_REASON_LENGTH),
+            ucid=value))
+    pool = _player_pool(ctx)
+    if pool is None:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=PLAYERS_UNAVAILABLE, ucid=value))
+    try:
+        async with pool.connection() as conn:
+            refusal = await _watch_scope_refusal(conn, ctx, value)
+            if refusal:
+                return await _audited(ctx, PlayerActionResult(
+                    success=False, message=refusal, ucid=value))
+            cursor = await conn.execute(
+                "UPDATE watchlist SET reason = %s WHERE player_ucid = %s", (body, value))
+            changed = cursor.rowcount or 0
+    except Exception as ex:
+        log.exception("edit_watch failed")
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_("The watchlist could not be written: {}").format(ex),
+            ucid=value))
+    if not changed:
+        return await _audited(ctx, PlayerActionResult(
+            success=False, message=_(_WATCH_NO_ENTRY).format(value), ucid=value))
+    return await _audited(ctx, PlayerActionResult(
+        success=True, message=_("The watch reason for {} was updated.").format(value), ucid=value))
 
 
 async def _set_muted(ctx: Any, server_name: str, ucid: str, mute: bool) -> PlayerActionResult:

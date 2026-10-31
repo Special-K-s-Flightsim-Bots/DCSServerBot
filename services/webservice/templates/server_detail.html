@@ -405,6 +405,22 @@
 {% set search_hidden = search_hidden %}
 {% include "_table.html" %}
 
+{% elif tab == 'statistics' %}
+{# ---------------------------------------------------------------- the Statistics tab #}
+{#- THE SAME BODY the Admin-only Statistics page renders, read for THIS server only (see
+    `_statistics_body.html`). The PERIOD CHIPS are the tab's own, because a chip's link has to stay on
+    this tab; the per-server comparison card is the page's, since it compares servers. -#}
+<div class="stt-bar">
+  <span class="stt-group">
+    <span class="stt-lbl">{{ _(labels.period) }}</span>
+    <span class="tabs">
+      {% for chip in chips %}<a class="tab{{ ' on' if chip.active else '' }}" href="{{ chip.url }}"
+        {% if chip.active %}aria-current="page"{% endif %}>{{ _(chip.label) }}</a>{% endfor %}
+    </span>
+  </span>
+</div>
+{% include "_statistics_body.html" %}
+
 {% elif tab == 'missions' %}
 {# ---------------------------------------------------------------- the Missions tab #}
 {#- THE LIST is the CONFIGURED ``missionList`` — one row per configured entry, in the order the bot
@@ -897,9 +913,13 @@
 {#  THE SCHEDULER DELTA (`static/scheduler.css`) ships with the page for the same reason: its week
     grid, action rows and key-source rows are rules no other sheet owns, and a tab cannot declare a
     stylesheet only for itself.  #}
+{#  THE STATISTICS SHEET (`static/statistics.css`) is the Statistics PAGE's own, so the tab borrows it
+    only while that tab is in force: `style` is in the context for this tab alone, which is what makes
+    the condition safe. Every other tab loads exactly what it loaded before.  #}
 {% block head %}<link rel="stylesheet" href="/static/settings-scope.css">
 <link rel="stylesheet" href="/static/mods.css">
-<link rel="stylesheet" href="/static/scheduler.css">{% endblock %}
+<link rel="stylesheet" href="/static/scheduler.css">
+{% if tab == 'statistics' %}<link rel="stylesheet" href="/static/{{ style }}">{% endif %}{% endblock %}
 
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>

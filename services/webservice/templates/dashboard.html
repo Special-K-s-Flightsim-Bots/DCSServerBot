@@ -29,6 +29,9 @@
 -#}
 {% extends "base.html" %}
 {% block title %}{{ title }} — DCSServerBot{% endblock %}
+{# THE LOAD TAB'S OWN STYLESHEET, on that tab only: the chart's classes are not used anywhere else,
+   so every other tab keeps loading exactly the shell's own sheet. #}
+{% block head %}{% if console.tab == 'load' %}<link rel="stylesheet" href="/static/load.css">{% endif %}{% endblock %}
 {% block content %}
 
 <div class="page-head">

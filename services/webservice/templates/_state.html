@@ -21,12 +21,19 @@
 {% include "_banner.html" %}
 
 <nav class="tabs" aria-label="{% trans %}Cluster{% endtrans %}">
-  {% for tab in console.tabs %}<a class="tab{{ ' on' if tab.active else '' }}" href="{{ tab.link }}"{% if tab.active %} aria-current="page"{% endif %}>{{ _(tab.label) }} <span class="badge{{ ' bad' if tab.problem else '' }}"{% if tab.problem %} title="{{ say(tab.problem_text) }}"{% endif %}>{{ tab.count }}</span>{% if tab.problem %}<span class="pdot" title="{{ say(tab.problem_text) }}" aria-label="{{ say(tab.problem_text) }}"></span>{% endif %}</a>
+  {% for tab in console.tabs %}<a class="tab{{ ' on' if tab.active else '' }}" href="{{ tab.link }}"{% if tab.active %} aria-current="page"{% endif %}>{{ _(tab.label) }}{% if tab.count is not none %} <span class="badge{{ ' bad' if tab.problem else '' }}"{% if tab.problem %} title="{{ say(tab.problem_text) }}"{% endif %}>{{ tab.count }}</span>{% endif %}{% if tab.problem %}<span class="pdot" title="{{ say(tab.problem_text) }}" aria-label="{{ say(tab.problem_text) }}"></span>{% endif %}</a>
   {% endfor %}
 </nav>
 
+{% if console.tab == 'load' %}
+{# THE ONE TAB THAT RENDERS NO TABLE: the load panel is its own partial, and it is the fragment the
+   live stream swaps (`live.LOAD_TARGET`) on the 60 s tick. `load` is the page module's own context;
+   the branch is on the KEY, so a table tab can never render a chart and a chart tab never a table. #}
+{% include "_load_panel.html" %}
+{% else %}
 {% set table = view.tables[console.tab] %}
 {% set search_action = console.search_action %}
 {% set search_clear = console.search_clear %}
 {% set search_hidden = console.search_hidden %}
 {% include "_table.html" %}
+{% endif %}

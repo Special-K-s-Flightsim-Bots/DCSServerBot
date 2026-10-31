@@ -702,3 +702,53 @@ msgstr "Отменено — ничего не применено."
 #: plugins/mission/views.py
 msgid "The pick timed out, so nothing was applied."
 msgstr "Время выбора истекло, поэтому ничего не применено."
+
+#: plugins/mission/actions.py
+msgid "A UCID is required."
+msgstr "Требуется UCID."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "No watch entry for {} in your scope."
+msgstr "Нет записи наблюдения для {} в вашей области."
+
+#: plugins/mission/actions.py
+msgid "An empty reason is not an edit — remove the watch entry instead."
+msgstr "Пустая причина — это не изменение: удалите запись наблюдения."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason is longer than {} characters."
+msgstr "Причина наблюдения длиннее {} символов."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Watch entry for {} removed."
+msgstr "Запись наблюдения для {} удалена."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason for {} was updated."
+msgstr "Причина наблюдения для {} обновлена."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watchlist could not be written: {}"
+msgstr "Не удалось записать список наблюдения: {}"
+
+#: plugins/mission/views.py
+msgid "Edit the watch reason"
+msgstr "Изменить причину наблюдения"
+
+#: plugins/mission/commands.py
+msgid "Edits the reason of a watchlist entry"
+msgstr "Изменяет причину записи наблюдения"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to put a player on the watchlist."
+msgstr "Чтобы поставить игрока в список наблюдения, нужна причина."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Player {} is not one of your players."
+msgstr "Игрок {} не относится к вашим игрокам."

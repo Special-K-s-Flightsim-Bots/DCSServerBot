@@ -34,7 +34,7 @@ from .listener import MissionEventListener
 from .upload import MissionUploadHandler
 from .views import ServerView, PresetView, InfoView, ModifyView, AirbaseView, BanModal, WatchModal, \
     PRESETS_NEED_EXTENSIONS, launch_presets, pick_presets, preset_file_autocomplete, \
-    picked_preset_documents, sendable_context
+    picked_preset_documents, sendable_context, remove_watch_entry
 from core.utils.presets import read_node_presets
 from ..userstats.filter import PeriodFilter
 
@@ -1813,12 +1813,31 @@ class Mission(Plugin[MissionEventListener]):
                 return
         else:
             ucid = user
+        # The remove is the ACTION's write: it deletes the row, bounds the caller to the players it
+        # may see and audits the outcome, and its own sentence says which of those happened.
+        message = await remove_watch_entry(interaction, ucid)
+        await interaction.response.send_message(message, ephemeral=utils.get_ephemeral(interaction))
+
+    @watch.command(name='edit', description=_('Edits the reason of a watchlist entry'))
+    @app_commands.guild_only()
+    @utils.app_has_role('DCS Admin')
+    async def _edit(self, interaction: discord.Interaction,
+                    user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
+                        sel_type=PlayerType.PLAYER, watchlist=True)]):
+        if isinstance(user, discord.Member):
+            ucid = await self.bot.get_ucid_by_member(user)
+            if not ucid:
+                await interaction.response.send_message(_("Member {} is not linked!").format(user.mention),
+                                                        ephemeral=True)
+                return
+        else:
+            ucid = user
+        # The modal PRE-FILLS the entry's current reason; a player with no entry gets an empty field
+        # and the ``edit_watch`` action refuses the submit with its own sentence.
         async with self.apool.connection() as conn:
-            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid, ))
-        await interaction.response.send_message(
-            _("Player {} removed from the watchlist.").format(
-                user.display_name if isinstance(user, discord.Member) else user),
-            ephemeral=utils.get_ephemeral(interaction))
+            cursor = await conn.execute("SELECT reason FROM watchlist WHERE player_ucid = %s", (ucid,))
+            row = await cursor.fetchone()
+        await interaction.response.send_modal(WatchModal(ucid, existing=row[0] if row else ""))
 
     @watch.command(name='list', description=_('Shows the watchlist'))
     @app_commands.guild_only()

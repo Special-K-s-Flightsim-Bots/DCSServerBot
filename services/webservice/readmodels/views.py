@@ -41,11 +41,11 @@ from urllib.parse import urlencode
 
 __all__ = [
     "MAX_QUERY_LENGTH", "MAX_SORT_LENGTH", "SORT_PARAM", "DIRECTION_PARAM", "SORT_DIRECTIONS",
-    "DEFAULT_SORT", "DEFAULT_DIRECTION",
+    "DEFAULT_SORT", "DEFAULT_DIRECTION", "PAGE_PARAM", "PLAYER_DIRECTORY_PAGE_SIZE",
     "LOG_POSITIONS", "TEXT", "NUM", "Column", "ColumnView", "TableView", "PlayerSearch",
     "ViewParams", "ViewState", "TABLE_COLUMNS", "TABLE_LABELS", "PAGE_COLUMNS", "PAGE_LABELS",
     "ALL_COLUMN_KEYS", "columns_for",
-    "column_keys", "normalise_sort", "normalise_direction", "normalise_query",
+    "column_keys", "normalise_sort", "normalise_direction", "normalise_query", "normalise_page",
     "normalise_position", "opposite_direction", "natural_direction",
     "sort_rows", "search_players", "column_link", "table_view", "view_state", "view_params",
 ]
@@ -75,6 +75,14 @@ MAX_SORT_LENGTH = 32
 #: here moves every reader with it instead of silently desyncing the ones that typed the literal.
 SORT_PARAM = "sort"
 DIRECTION_PARAM = "dir"
+
+#: The PAGE parameter of a paged table (``?page=``) — the directory's own, validated here so the
+#: page and the read that answers it cannot disagree about what a page number is.
+PAGE_PARAM = "page"
+
+#: How many rows a paged table shows at once. The directory's own number: 50 rows fill the card
+#: without turning one page into a scroll hunt, and the read's ``LIMIT`` uses the same value.
+PLAYER_DIRECTORY_PAGE_SIZE = 50
 
 #: the two directions, and the one in force when the URL says nothing
 SORT_DIRECTIONS: tuple[str, ...] = ("asc", "desc")
@@ -151,10 +159,21 @@ PAGE_COLUMNS: dict[str, tuple[Column, ...]] = {
     #: something else would be the one exception to both.
     "mods": (Column("name", _("Package")), Column("version", _("Version")),
              Column("installed", _("Installed")), Column("status", _("Status"))),
+    # THE PLAYER DIRECTORY: one row per PLAYER (a Discord link groups its UCIDs), a Postgres read
+    # with its own ``LIMIT``/``OFFSET`` and its own empty-state-able page. It is deliberately NOT the
+    # dashboard's ``players`` table: that one is the live roster, rebuilt from the in-memory source on
+    # every live tick, and it must not grow a database column. ``playtime`` compares as a number of
+    # SECONDS so ``9 h`` sorts before ``10 h``; ``state`` compares the ban/watch/VIP tokens.
+    "player_directory": (Column("online", _("Status")), Column("name", _("Player")),
+                         Column("ucid", _("UCID")),
+                         Column("discord", _("Discord"), NUM),
+                         Column("last_seen", _("Last seen")), Column("playtime", _("Playtime"), NUM),
+                         Column("state", _("State"))),
 }
 
 #: The card heading of a PAGE-ONLY table (the dashboard's own labels are :data:`TABLE_LABELS`).
-PAGE_LABELS: dict[str, str] = {"bans": _("Bans"), "mods": _("Mods")}
+PAGE_LABELS: dict[str, str] = {"bans": _("Bans"), "mods": _("Mods"),
+                               "player_directory": _("Players")}
 
 
 def columns_for(table: str) -> tuple[Column, ...]:
@@ -207,6 +226,27 @@ def normalise_direction(value) -> str:
 def normalise_query(value) -> str:
     """The search text as it may be echoed and matched: trimmed, control-free, capped."""
     return _clean(value, MAX_QUERY_LENGTH)
+
+
+def normalise_page(value, pages: int | None = None) -> int:
+    """The 1-based page number *value* names, or 1 when it names none of this table's pages.
+
+    The CLOSED RANGE is ``1..pages``: a non-numeric, blank, negative or zero value is page 1, and so
+    is a value past the last page — a page number is not an error the page can show, it is a view
+    nobody can serve, so the reader is handed the first page instead of an empty table. ``pages=None``
+    is the before-the-read case (the caller does not know yet how many pages exist): the answer is
+    then any value ``>= 1``, and the read's own fallback handles a page past the end.
+    """
+    key = _clean(value, MAX_SORT_LENGTH)
+    try:
+        page = int(key)
+    except (TypeError, ValueError):
+        return 1
+    if page < 1:
+        return 1
+    if pages is not None and page > max(int(pages), 1):
+        return 1
+    return page
 
 
 def normalise_position(value) -> str | None:
@@ -382,6 +422,25 @@ def _cell(table: str, key: str, row):
         if key == "installed":
             return row.installed
         if key == "status":
+            return row.state
+    elif table == "player_directory":
+        if key == "online":
+            # the live marker as a sortable word: ``online`` sorts after ``offline`` ascending, so
+            # the players in a slot are first when the column is read descending.
+            return "online" if row.online else "offline"
+        if key == "name":
+            return row.name
+        if key == "ucid":
+            return row.ucid
+        if key == "discord":
+            # the number the LINK is, never the member's name: a name changes, an id does not, and an
+            # unlinked player's ``-1`` is the one value that sorts them together.
+            return row.discord_id
+        if key == "last_seen":
+            return row.last_seen_at
+        if key == "playtime":
+            return row.playtime_seconds
+        if key == "state":
             return row.state
     raise KeyError(f"no cell for {table}.{key}")
 

@@ -1,0 +1,163 @@
+{#-
+  THE STATISTICS BODY — the figures, shared by TWO surfaces: the Statistics page
+  (`statistics.html`) and the server page's Statistics tab. Every word and every figure arrives
+  from `pages/statistics.py`; this file computes nothing and types no number, so the page and the
+  tab cannot disagree about a card or a calculation.
+
+  The PERIOD CHIPS are NOT here: each surface draws its own bar, because a chip's link belongs to
+  the surface the reader is on (`?period=` on the page, `?tab=statistics&period=` in the tab).
+
+  The per-server comparison card is NOT here either: it compares servers, and the tab is already one
+  server. `statistics.html` renders it after this include.
+-#}
+{% if kpis %}
+<div class="player-figs stt-kpis">
+  {% for kpi in kpis %}
+  <div class="player-fig">
+    <div class="k">{{ _(kpi.label) }}</div>
+    <div class="v">{{ kpi.value }}{% if kpi.unit %} {{ _(kpi.unit) }}{% endif %}</div>
+    <div class="sub2">{{ say(kpi.note) }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<article class="card">
+  <div class="hd">
+    <h3>{{ _(cards.daily.title) }}</h3>
+    <span class="meta">{{ say(cards.daily.meta) }}</span>
+    <span class="spacer"></span>
+    <span class="stt-legend">
+      <i class="stt-sw ret" aria-hidden="true"></i>{{ _(labels.legend_returning) }}
+      <i class="stt-sw new" aria-hidden="true"></i>{{ _(labels.legend_new) }}
+    </span>
+  </div>
+  <div class="bd">
+    {% if daily.rows %}
+    <div class="stt-days">
+      {% for row in daily.rows %}
+      <div class="stt-day">
+        <span class="stt-when">{{ row.label }}</span>
+        <span class="stt-stack" role="img" aria-label="{{ say(row.title) }}" title="{{ say(row.title) }}">
+          <i class="ret" style="width:{{ row.returning_width }}%"></i><i class="new" style="width:{{ row.new_width }}%"></i>
+        </span>
+        <span class="stt-num">{{ row.total }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">{{ _(labels.empty_series) }}</p>
+    {% endif %}
+  </div>
+</article>
+
+<div class="grid g-2">
+  <article class="card">
+    <div class="hd"><h3>{{ _(cards.retention.title) }}</h3>
+      <span class="meta">{{ say(cards.retention.meta) }}</span></div>
+    <div class="bd">
+      {% if retention %}
+      <div class="player-bars">
+        {% for row in retention %}
+        <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.share }}</span>
+        <span class="trk"><i style="width:{{ row.width }}%"></i></span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(labels.empty_series) }}</p>
+      {% endif %}
+    </div>
+  </article>
+  <article class="card">
+    <div class="hd"><h3>{{ _(cards.frequency.title) }}</h3>
+      <span class="meta">{{ say(cards.frequency.meta) }}</span></div>
+    <div class="bd">
+      {% if frequency %}
+      <div class="player-bars">
+        {% for row in frequency %}
+        <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.value }}{% if row.unit %} {{ _(row.unit) }}{% endif %}</span>
+        <span class="trk t2"><i style="width:{{ row.width }}%"></i></span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(labels.empty_series) }}</p>
+      {% endif %}
+    </div>
+  </article>
+</div>
+
+<div class="grid g-2">
+  <article class="card">
+    <div class="hd"><h3>{{ _(cards.day_time.title) }}</h3>
+      <span class="meta">{{ say(cards.day_time.meta) }}</span>
+      {% if peak %}<span class="spacer"></span><span class="meta">{{ say(peak) }}</span>{% endif %}</div>
+    <div class="bd">
+      {% if peak %}
+      <div class="stt-hours">
+        {% for row in day_time.rows %}
+        <span class="stt-hour" title="{{ row.label }} · {{ row.players }}">
+          <i style="height:{{ row.width }}%"></i><b>{{ row.label }}</b>
+        </span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(labels.empty_series) }}</p>
+      {% endif %}
+    </div>
+  </article>
+  <article class="card">
+    <div class="hd"><h3>{{ _(cards.theatres.title) }}</h3>
+      <span class="meta">{{ say(cards.theatres.meta) }}</span></div>
+    <div class="bd">
+      {% if theatres %}
+      <div class="player-bars">
+        {% for row in theatres %}
+        <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.value }}{% if row.unit %} {{ _(row.unit) }}{% endif %}</span>
+        <span class="trk"><i style="width:{{ row.width }}%"></i></span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(labels.empty_series) }}</p>
+      {% endif %}
+    </div>
+  </article>
+</div>
+
+<div class="grid g-2">
+  <article class="card">
+    <div class="hd"><h3>{{ _(cards.missions.title) }}</h3>
+      <span class="meta">{{ say(cards.missions.meta) }}</span></div>
+    <div class="bd">
+      {% if missions %}
+      <div class="player-bars">
+        {% for row in missions %}
+        <span class="lbl"><b>{{ row.label }}</b></span><span class="val">{{ row.value }}{% if row.unit %} {{ _(row.unit) }}{% endif %}</span>
+        <span class="trk t2"><i style="width:{{ row.width }}%"></i></span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(labels.empty_series) }}</p>
+      {% endif %}
+    </div>
+  </article>
+  <article class="card">
+    <div class="hd"><h3>{{ _(cards.modules.title) }}</h3>
+      <span class="meta">{{ say(cards.modules.meta) }}</span></div>
+    <div class="bd">
+      {% if modules %}
+      <div class="player-bars">
+        {% for row in modules %}
+        <span class="lbl"><b class="mono">{{ row.label }}</b>
+          <span class="stt-dim">{{ row.players }} {{ _(labels.col_players) }}</span></span>
+        <span class="val">{{ row.value }}{% if row.unit %} {{ _(row.unit) }}{% endif %}</span>
+        <span class="trk t3"><i style="width:{{ row.width }}%"></i></span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty">{{ _(labels.empty_series) }}</p>
+      {% endif %}
+    </div>
+  </article>
+</div>
+{% else %}
+<p class="empty">{{ _(empty) }}</p>
+{% endif %}

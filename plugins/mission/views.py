@@ -1,11 +1,11 @@
 import asyncio
 import discord
 import os
-import psycopg
 
 from contextlib import suppress
 from core import (Server, Report, Status, ReportEnv, Player, Member, DataObjectFactory, utils, get_translation, Side,
                   ServiceRegistry)
+from core.actions import ActionContext, call_action
 from core.utils.discord import PagedSelectView
 from core.utils.presets import (REFUSAL_NO_PICK, REFUSAL_UNKNOWN_FILE, REFUSAL_UNKNOWN_PRESET,
                                 PresetResolution, list_preset_files, preset_file_label, preset_names_of,
@@ -604,15 +604,8 @@ class InfoView(View):
 
     async def on_unwatch(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        async with self.bot.apool.connection() as conn:
-            await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (self.ucid, ))
-        await interaction.followup.send("User removed from the watchlist.", ephemeral=self.ephemeral)
-        name = self.player.name if self.player else self.member.display_name if isinstance(self.member, discord.Member) else self.member
-        message = f'removed player {name} '
-        if not utils.is_ucid(name):
-            message += '(ucid={self.ucid}) '
-        message += 'from the watchlist'
-        await self.bot.audit(message, user=interaction.user)
+        message = await remove_watch_entry(interaction, self.ucid)
+        await interaction.followup.send(message, ephemeral=self.ephemeral)
         self.stop()
 
 
@@ -807,32 +800,40 @@ class BanModal(Modal):
                              (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
 
 
+async def remove_watch_entry(interaction: discord.Interaction, ucid: str) -> str:
+    """Remove ONE player's watch entry through the ``unwatch_player`` action.
+
+    Returns the action's OWN sentence: the success text when a row was removed, and the refusal when
+    the UCID holds no entry or names a player outside the caller's scope. Holds no SQL, no audit and
+    no success sentence of its own — the write, its refusals and its audit entry belong to the action,
+    which is the only place the row is deleted from.
+    """
+    ctx = ActionContext.from_interaction(interaction)
+    result = await call_action("unwatch_player", ctx, ucid=ucid)
+    return result.message
+
+
 class WatchModal(Modal):
+    """The watch REASON form — the CREATE of an entry and the EDIT of its reason.
+
+    ``existing`` is the entry's current reason. Empty means the player has no entry, so the submit
+    calls the ``watch_player`` action (the create path); a non-empty value PRE-FILLS the field and the
+    submit calls ``edit_watch``. Both are the SAME functions the console's controls call: this modal
+    holds no SQL and catches no database error of its own, because the write — and its refusals — live
+    in the action.
+    """
     reason = TextInput(label=_("Reason"), max_length=80, required=True)
 
-    def __init__(self, ucid: str):
-        super().__init__(title=_("Watch Details"))
+    def __init__(self, ucid: str, existing: str = ""):
+        super().__init__(title=_("Watch Details") if not existing else _("Edit the watch reason"))
         self.ucid = ucid
-        self.bot: BotService = cast(BotService, ServiceRegistry.get(BotService))
+        self.existing = existing
+        if existing:
+            self.reason.default = existing
 
     async def on_submit(self, interaction: discord.Interaction):
-        name = await self.bot.bot.get_member_or_name_by_ucid(self.ucid)
-        if isinstance(name, discord.Member):
-            name = name.display_name
-        elif not name:
-            name = '<unknown>'
-        try:
-            async with self.bot.apool.connection() as conn:
-                await conn.execute("INSERT INTO watchlist (player_ucid, reason, created_by) VALUES (%s, %s, %s)",
-                                   (self.ucid, self.reason.value, interaction.user.display_name))
-            await interaction.response.send_message(_("Player {} is now on the watchlist.").format(name),
-                ephemeral=utils.get_ephemeral(interaction))
-            await self.bot.audit(
-                f'added player {name} (ucid={self.ucid} with reason "{self.reason.value}" to the watchlist',
-                user=interaction.user
-            )
-        except psycopg.errors.UniqueViolation:
-            await interaction.response.send_message(
-                _("Player {} was already on the watchlist.").format(name),
-                ephemeral=utils.get_ephemeral(interaction)
-            )
+        ctx = ActionContext.from_interaction(interaction)
+        result = await call_action("edit_watch" if self.existing else "watch_player", ctx,
+                                   ucid=self.ucid, reason=self.reason.value)
+        await interaction.response.send_message(
+            result.message, ephemeral=utils.get_ephemeral(interaction))

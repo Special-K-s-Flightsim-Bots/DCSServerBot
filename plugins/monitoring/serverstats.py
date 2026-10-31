@@ -6,7 +6,8 @@ import warnings
 
 from core import const, report, EmbedElement, utils
 from plugins.userstats.filter import StatisticsFilter
-from psycopg.rows import dict_row
+
+from . import stats_read
 
 # ignore pandas warnings (log scale et al.)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -16,31 +17,16 @@ class ServerUsage(report.EmbedElement):
 
     async def render(self, server_name: str | None, period: StatisticsFilter):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            SELECT trim(regexp_replace(m.server_name, '{self.bot.filter['server_name']}', '', 'g')) AS server_name, 
-                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime, 
-                   COUNT(DISTINCT s.player_ucid) AS players, 
-                   COUNT(DISTINCT p.discord_id) AS members 
-            FROM missions m, statistics s, players p 
-            WHERE m.id = s.mission_id 
-            AND s.player_ucid = p.ucid 
-            AND s.hop_off IS NOT NULL
-            {where_clause}
-            AND {period.filter(self.env.bot)}
-            GROUP BY 1 
-            ORDER BY 2 DESC
-        """
+        rows = await stats_read.server_usage(
+            self.apool, server_name=server_name, period_clause=period.filter(self.env.bot),
+            server_filter=self.bot.filter['server_name'])
 
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                servers = playtimes = players = members = ''
-                await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    servers += utils.escape_string(row['server_name'])[:30] + '\n'
-                    playtimes += '{:.0f}\n'.format(row['playtime'])
-                    players += '{:.0f}\n'.format(row['players'])
-                    members += '{:.0f}\n'.format(row['members'])
+        servers = playtimes = players = members = ''
+        for row in rows:
+            servers += utils.escape_string(row['server_name'])[:30] + '\n'
+            playtimes += '{:.0f}\n'.format(row['playtime'])
+            players += '{:.0f}\n'.format(row['players'])
+            members += '{:.0f}\n'.format(row['members'])
 
         if len(servers) > 0:
             if not server_name:
@@ -55,25 +41,13 @@ class TopTheatresPerServer(report.EmbedElement):
 
     async def render(self, server_name: str | None, period: StatisticsFilter):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            SELECT m.mission_theatre, 
-                   COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600), 0) AS playtime 
-            FROM missions m, statistics s
-            WHERE m.id = s.mission_id
-            {where_clause}
-            AND {period.filter(self.env.bot)}
-            GROUP BY 1
-            ORDER BY 2 DESC
-        """
+        rows = await stats_read.top_theatres(
+            self.apool, server_name=server_name, period_clause=period.filter(self.env.bot))
 
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                theatres = playtimes = ''
-                await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    theatres += utils.escape_string(row['mission_theatre'])[:20] + '\n'
-                    playtimes += '{:.0f}\n'.format(row['playtime'])
+        theatres = playtimes = ''
+        for row in rows:
+            theatres += utils.escape_string(row['mission_theatre'])[:20] + '\n'
+            playtimes += '{:.0f}\n'.format(row['playtime'])
 
         if len(theatres) > 0:
             self.add_field(name='TOP Theatre' if not server_name else f"TOP Theatres", value=theatres)
@@ -85,27 +59,14 @@ class TopMissionPerServer(report.EmbedElement):
 
     async def render(self, server_name: str | None, period: StatisticsFilter, limit: int):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            SELECT trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
-                   ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime 
-            FROM missions m, statistics s 
-            WHERE m.id = s.mission_id 
-            AND s.hop_off IS NOT NULL
-            {where_clause}
-            AND {period.filter(self.env.bot)}
-            GROUP BY 1
-            ORDER BY 2 DESC
-            LIMIT {limit}
-        """
+        rows = await stats_read.top_missions(
+            self.apool, server_name=server_name, period_clause=period.filter(self.env.bot),
+            limit=limit, mission_filter=self.bot.filter['mission_name'])
 
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                missions = playtimes = ''
-                await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    missions += row['mission_name'][:20] + '\n'
-                    playtimes += '{:.0f}\n'.format(row['playtime'])
+        missions = playtimes = ''
+        for row in rows:
+            missions += row['mission_name'][:20] + '\n'
+            playtimes += '{:.0f}\n'.format(row['playtime'])
 
         if len(missions) > 0:
             self.add_field(name='TOP Mission' if not server_name else f"TOP {limit} Missions", value=missions)
@@ -117,28 +78,15 @@ class TopModulesPerServer(report.EmbedElement):
 
     async def render(self, server_name: str | None, period: StatisticsFilter, limit: int):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            SELECT s.slot, COUNT(s.slot) AS num_usage, 
-                   COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600),0) AS playtime, 
-                   COUNT(DISTINCT s.player_ucid) AS players 
-            FROM missions m, statistics s 
-            WHERE m.id = s.mission_id
-            {where_clause}
-            AND {period.filter(self.env.bot)}
-            GROUP BY s.slot 
-            ORDER BY 3 DESC 
-            LIMIT {limit}
-        """
+        rows = await stats_read.top_modules(
+            self.apool, server_name=server_name, period_clause=period.filter(self.env.bot),
+            limit=limit)
 
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                modules = playtimes = players = ''
-                await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    modules += row['slot'] + '\n'
-                    playtimes += '{:.0f}\n'.format(row['playtime'])
-                    players += '{:.0f} ({:.0f})\n'.format(row['players'], row['num_usage'])
+        modules = playtimes = players = ''
+        for row in rows:
+            modules += row['slot'] + '\n'
+            playtimes += '{:.0f}\n'.format(row['playtime'])
+            players += '{:.0f} ({:.0f})\n'.format(row['players'], row['num_usage'])
 
         if len(modules) > 0:
             self.add_field(name=f"TOP {limit} Modules", value=modules)
@@ -148,49 +96,18 @@ class TopModulesPerServer(report.EmbedElement):
 
 class UniqueUsers(report.GraphElement):
 
-    async def render(self, server_name: str | None, interval: str | None = "1 month"):
+    async def render(self, server_name: str | None, period):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            WITH players_join AS (
-                SELECT 
-                    player_ucid,
-                    MIN(DATE(hop_on)) AS join_date
-                FROM statistics
-                GROUP BY player_ucid
-            ),
-            date_series AS (
-                SELECT 
-                    generate_series(DATE(NOW()) - INTERVAL '{interval}', DATE(NOW()), INTERVAL '1 day')::DATE AS date
-            )
-            SELECT 
-                ds.date AS date, 
-                COALESCE(COUNT(DISTINCT s.player_ucid), 0) AS total_players,
-                COALESCE(COUNT(DISTINCT 
-                    CASE WHEN pj.join_date = ds.date THEN s.player_ucid ELSE NULL END), 0) AS new_players
-            FROM 
-                date_series ds
-                LEFT JOIN (
-                    SELECT s.*, m.id AS mission_id
-                    FROM statistics s
-                    INNER JOIN missions m ON s.mission_id = m.id {where_clause}
-                ) s ON ds.date BETWEEN DATE(s.hop_on) AND DATE(s.hop_off)
-                LEFT JOIN players_join pj ON s.player_ucid = pj.player_ucid
-            GROUP BY ds.date
-            ORDER BY ds.date
-        """
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"server_name": server_name})
-                data = await cursor.fetchall()
+        data = await stats_read.unique_users(
+            self.apool, server_name=server_name, period_clause=period.filter(self.env.bot),
+            grain=stats_read.unique_users_grain(period.period))
 
         dates = [row['date'] for row in data]
         total_players = [row['total_players'] for row in data]
         new_players = [row['new_players'] for row in data]
 
-        self.axes.set_title('Unique Players | past {}'.format(interval.replace('1', '').strip()),
-                            color='white', fontsize=25)
+        self.axes.set_title('Unique Players | {}'.format(
+            period.format(self.env.bot).strip()), color='white', fontsize=25)
         if not dates:
             self.axes.text(0.5, 0.5, 'No data available.', ha='center', va='center', fontsize=15, color='white')
             self.axes.set_xticks([])
@@ -244,45 +161,8 @@ class UserRetention(report.GraphElement):
 
     async def render(self, server_name: str | None, interval: str | None = "1 month"):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            WITH date_series AS (
-                SELECT 
-                    generate_series(DATE(NOW()) - INTERVAL '{interval}', DATE(NOW()), INTERVAL '1 day') AS date
-            ),
-            first_visit AS (
-                SELECT 
-                    player_ucid, 
-                    MIN(DATE(hop_on)) AS first_date
-                FROM statistics s 
-                JOIN missions m ON s.mission_id = m.id {where_clause}
-                GROUP BY player_ucid
-                HAVING MIN(DATE(hop_on)) >= DATE(NOW()) - INTERVAL '{interval}'
-            ),
-            activity AS (
-                SELECT 
-                    fv.player_ucid, 
-                    fv.first_date, 
-                    DATE(hop_on) AS activity_date
-                FROM first_visit fv
-                JOIN statistics s ON fv.player_ucid = s.player_ucid
-                JOIN missions m ON s.mission_id = m.id {where_clause}
-            )
-            SELECT 
-                ds.date AS first_date, 
-                COALESCE(COUNT(DISTINCT fv.player_ucid), 0) AS new_users,
-                COALESCE(COUNT(DISTINCT CASE WHEN a.activity_date > fv.first_date THEN a.player_ucid ELSE NULL END), 0) AS retained_users
-            FROM date_series ds
-            LEFT JOIN first_visit fv ON ds.date = fv.first_date
-            LEFT JOIN activity a ON fv.player_ucid = a.player_ucid
-            GROUP BY ds.date
-            ORDER BY ds.date
-        """
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"server_name": server_name})
-                data = await cursor.fetchall()
+        data = await stats_read.user_retention(self.apool, server_name=server_name,
+                                               interval=interval)
 
         first_dates = [row['first_date'] for row in data]
         retained_users = [row['retained_users'] for row in data]
@@ -346,56 +226,8 @@ class UserRetention(report.GraphElement):
 class UserEngagement(report.GraphElement):
 
     async def render(self, server_name: str | None, interval: str | None = "1 month"):
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            WITH first_seen AS (
-                SELECT 
-                    s.player_ucid,
-                    MIN(s.hop_on) AS first_seen
-                FROM 
-                    statistics s
-                GROUP BY s.player_ucid
-            ),
-            player_days AS (
-                SELECT 
-                    s.player_ucid,
-                    COUNT(DISTINCT DATE(s.hop_on)) AS days_present,
-                    CASE WHEN f.first_seen >= (NOW() AT TIME ZONE 'UTC') - INTERVAL '{interval}' THEN true ELSE false END AS is_new
-                FROM 
-                    statistics s
-                    LEFT JOIN missions m ON s.mission_id = m.id
-                    LEFT JOIN first_seen f ON s.player_ucid = f.player_ucid
-                WHERE s.hop_on >= NOW() - INTERVAL '{interval}'
-                {where_clause}
-                GROUP BY s.player_ucid, f.first_seen
-            ),
-            retention AS (
-                SELECT
-                    days_present,
-                    COUNT(player_ucid) FILTER (WHERE is_new) AS new_player_count,
-                    COUNT(player_ucid) FILTER (WHERE NOT is_new) AS returning_player_count
-                FROM player_days
-                GROUP BY days_present
-            ),
-            date_series AS (
-                SELECT generate_series(1, (
-                    SELECT DATE_PART('day', (NOW() AT TIME ZONE 'UTC') - ((NOW() AT TIME ZONE 'UTC') - INTERVAL '{interval}'))::INTEGER)
-                ) AS date
-            )
-            SELECT
-                ds.date AS days_present,
-                COALESCE(r.new_player_count, 0) AS new_player_count,
-                COALESCE(r.returning_player_count, 0) AS returning_player_count
-            FROM
-                date_series ds
-                LEFT JOIN retention r ON r.days_present = ds.date
-            ORDER BY ds.date
-         """
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"server_name": server_name})
-                data = await cursor.fetchall()
+        data = await stats_read.user_engagement(self.apool, server_name=server_name,
+                                                interval=interval)
 
         if not data:
             self.axes.set_title('No Data Available', color='white', fontsize=25)
@@ -464,24 +296,12 @@ class UsersPerDayTime(report.GraphElement):
 
     async def render(self, server_name: str | None, interval: str | None = '1 month'):
 
-        where_clause = "AND m.server_name = %(server_name)s" if server_name else ""
-        sql = f"""
-            SELECT to_char(s.hop_on, 'ID') as weekday, to_char(h.time, 'HH24') AS hour, 
-                   COUNT(DISTINCT s.player_ucid) AS players 
-            FROM statistics s, missions m, generate_series(current_date, current_date + 1, INTERVAL '1 hour') h 
-            WHERE date_part('hour', h.time) BETWEEN date_part('hour', s.hop_on) AND date_part('hour', s.hop_off)
-            AND s.hop_on > (NOW() at time zone 'UTC') - interval '{interval}' 
-            AND s.mission_id = m.id
-            {where_clause}
-            GROUP BY 1, 2
-        """
+        rows = await stats_read.users_per_day_time(self.apool, server_name=server_name,
+                                                   interval=interval)
 
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                values = np.zeros((24, 7))
-                await cursor.execute(sql, {"server_name": server_name})
-                async for row in cursor:
-                    values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
+        values = np.zeros((24, 7))
+        for row in rows:
+            values[int(row['hour'])][int(row['weekday']) - 1] = row['players']
 
         sns.heatmap(values, cmap='viridis', cbar=False, annot=False,
                     yticklabels=[f'{i:02d}h' for i in range(24)],
@@ -504,25 +324,8 @@ class UsersPerMissionTime(report.GraphElement):
             interval (str | None): The time interval for filtering mission times (default is '1 month').
 
         """
-        where_clause = "AND server_name = %(server_name)s" if server_name else ""
-        inner_sql = f"""
-            SELECT mission_time / 3600 AS time, users 
-            FROM serverstats
-            WHERE mission_time IS NOT NULL
-            AND time > (now() at time zone 'UTC') - interval '{interval}'
-            {where_clause}
-        """
-        sql = f"""
-            SELECT time::INTEGER, avg(users)::DECIMAL AS users FROM (
-                {inner_sql}
-            ) s
-            GROUP BY 1 ORDER BY 1
-        """
-
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"server_name": server_name})
-                query_results = await cursor.fetchall()
+        query_results = await stats_read.users_per_mission_time(
+            self.apool, server_name=server_name, interval=interval)
 
         if query_results:
             df = pd.DataFrame.from_records(query_results)
@@ -580,51 +383,17 @@ class ServerLoad(report.MultiGraphElement):
     async def render(self, node: str, period: StatisticsFilter, server_name: str | None = None):
 
         self.env.embed.title = f"Server Load ({period.period.title()})"
-        inner_sql = f"""
-            SELECT date_trunc('minute', time) AS time, AVG(users) AS users, AVG(cpu) AS cpu, 
-                   AVG(CASE WHEN mem_total-mem_ram < 0 THEN 0 ELSE mem_total-mem_ram END)/(1024*1024) AS mem_paged,  
-                   AVG(mem_ram)/(1024*1024) AS mem_ram, 
-                   SUM(read_bytes)/1024 AS read, 
-                   SUM(write_bytes)/1024 AS write, 
-                   ROUND(AVG(bytes_sent)) AS sent, 
-                   ROUND(AVG(bytes_recv)) AS recv, 
-                   ROUND(AVG(fps), 2) AS fps, 
-                   ROUND(AVG(ping), 2) AS ping 
-            FROM serverstats 
-            WHERE {period.filter(self.env.bot)}
-            and time < (now() at time zone 'UTC')
-        """
-        if node:
-            inner_sql += "AND node = %(node)s"
-        if server_name:
-            sql = f"""
-                {inner_sql}
-                AND server_name = %(server_name)s 
-                GROUP BY 1 ORDER BY 1
-            """
-        else:
-            sql = f"""
-                SELECT time, SUM(users) AS users, SUM(cpu) AS cpu, SUM(mem_paged) AS mem_paged, SUM(mem_ram) AS mem_ram, 
-                             SUM(read) AS read, SUM(write) AS write, ROUND(AVG(sent)) AS sent, ROUND(AVG(recv)) AS recv, 
-                             ROUND(AVG(fps), 2) AS fps, ROUND(AVG(ping), 2) AS ping        
-                FROM (
-                    {inner_sql} 
-                    GROUP BY 1, server_name
-                ) x
-                GROUP BY 1 ORDER BY 1
-            """
-        async with self.apool.connection() as conn:
-            async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(sql, {"node": node, "server_name": server_name})
-                if cursor.rowcount == 0:
-                    for i in range(0, 4):
-                        self.axes[i].bar([], [])
-                        self.axes[i].set_xticks([])
-                        self.axes[i].set_yticks([])
-                        self.axes[i].text(0, 0, 'No data available.', ha='center', va='center', size=20)
-                    return
-                else:
-                    series = pd.DataFrame.from_dict(await cursor.fetchall())
+        rows = await stats_read.server_load(
+            self.apool, node=node, period_clause=period.filter(self.env.bot),
+            server_name=server_name)
+        if not rows:
+            for i in range(0, 4):
+                self.axes[i].bar([], [])
+                self.axes[i].set_xticks([])
+                self.axes[i].set_yticks([])
+                self.axes[i].text(0, 0, 'No data available.', ha='center', va='center', size=20)
+            return
+        series = pd.DataFrame(rows)
 
         series.columns = ['time', 'Users', 'CPU', 'Memory (paged)', 'Memory (RAM)', 'Read', 'Write', 'Sent',
                           'Recv', 'FPS', 'Ping']

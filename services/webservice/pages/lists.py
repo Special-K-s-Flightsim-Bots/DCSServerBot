@@ -21,14 +21,15 @@ NO CAP HERE, and that is the point of the page: the read models hand over every 
 the table renders all of them. The dashboard's tab is the same list; the difference is that the
 dashboard also has to share its width with a log column and a tab strip.
 
-READ-ONLY EXCEPT THE SERVERS AND PLAYERS PAGES. The route here is a GET, no other method exists on
-it, and the markup it renders writes nothing — but since the pause pilot the Servers page
-carries the console's write controls, and the Players page carries the Message control:
-``writes=True`` on a page's spec makes :func:`page_context` hand the table the per-row control DATA
-(``pages/actions``, asked for BY TABLE so one page can never be handed another's) plus the one-shot
-notice of the last write, and ``_table.html`` renders each one as a POST form. The other two list
-pages pass neither, so nothing about them changed. The forms a signed-in visitor meets elsewhere are
-the shell's Sign out control and the Players page's search form, which is a GET and mutates nothing.
+READ-ONLY EXCEPT THE SERVERS PAGE. The route here is a GET, no other method exists on it, and the
+markup it renders writes nothing — but since the pause pilot the Servers page carries the console's
+write controls: ``writes=True`` on a page's spec makes :func:`page_context` hand the table the
+per-row control DATA (``pages/actions``, asked for BY TABLE so one page can never be handed
+another's) plus the one-shot notice of the last write, and ``_table.html`` renders each one as a
+POST form. The other two list pages pass neither, so nothing about them changed — the Players page
+included: it renders the database directory, and a player's row there is a DOOR (its name opens the
+player's page), never a place to act from. The forms a signed-in visitor meets elsewhere are the
+shell's Sign out control and the Players page's search form, which is a GET and mutates nothing.
 """
 from __future__ import annotations
 

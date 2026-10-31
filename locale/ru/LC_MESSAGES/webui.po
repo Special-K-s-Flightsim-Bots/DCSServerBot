@@ -3058,14 +3058,13 @@ msgstr "Время работы"
 msgid "Players"
 msgstr "Игроки"
 
-#: services/webservice/pages/players.py:32
-msgid ""
-"Everyone online right now, across every server. Search by name or UCID. A"
-" row you may act on offers Message: an in-game popup or a chat line."
-msgstr ""
-"Все, кто сейчас онлайн, на всех серверах. Поиск по имени или UCID. "
-"Строка, на которой ты можешь действовать, предлагает Сообщение: "
-"всплывающее окно в игре или строку чата."
+#~ msgid ""
+#~ "Everyone online right now, across every server. Search by name or UCID. A"
+#~ " row you may act on offers Message: an in-game popup or a chat line."
+#~ msgstr ""
+#~ "Все, кто сейчас онлайн, на всех серверах. Поиск по имени или UCID. "
+#~ "Строка, на которой ты можешь действовать, предлагает Сообщение: "
+#~ "всплывающее окно в игре или строку чата."
 
 #: services/webservice/pages/presets.py:122
 msgid "Remove preset"
@@ -9264,3 +9263,862 @@ msgstr "не задано"
 #: services/webservice/templates/scheduler_body.html
 msgid "This saves to DEFAULT: every server that does not set its own value gets this."
 msgstr "Это записывается в DEFAULT: его получает каждый сервер без собственного значения."
+
+#: services/webservice/readmodels/views.py:168
+msgid "Discord"
+msgstr "Discord"
+
+#: services/webservice/readmodels/views.py:169
+msgid "Last seen"
+msgstr "Последний раз виден"
+
+#: services/webservice/readmodels/views.py:169
+msgid "Playtime"
+msgstr "Наигранное время"
+
+#: services/webservice/pages/players.py
+msgid ""
+"Every player this installation knows, from the database — not only the "
+"ones online now. A name opens that player's page."
+msgstr ""
+"Все игроки, известные этой установке, из базы данных — не только те, кто "
+"сейчас онлайн. Имя открывает страницу этого игрока."
+
+#: services/webservice/pages/players.py
+msgid "Online now"
+msgstr "Сейчас онлайн"
+
+#: services/webservice/pages/players.py
+msgid "No player is known to this installation yet."
+msgstr "Эта установка пока не знает ни одного игрока."
+
+#: services/webservice/pages/players.py
+msgid "No player matches this search."
+msgstr "Ни один игрок не соответствует этому поиску."
+
+#: services/webservice/pages/players.py
+msgid "No player on this page matches this view."
+msgstr "Ни один игрок на этой странице не соответствует этому виду."
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "%(count)s player known"
+msgid_plural "%(count)s players known"
+msgstr[0] "%(count)s игрок известен"
+msgstr[1] "%(count)s игрока известно"
+msgstr[2] "%(count)s игроков известно"
+
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Filter: name or UCID contains %(query)s · %(total)s players"
+msgstr "Фильтр: имя или UCID содержит %(query)s · %(total)s игроков"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "%(shown)s on this page"
+msgstr "%(shown)s на этой странице"
+
+#: services/webservice/templates/_table.html
+msgid "not linked"
+msgstr "не привязан"
+
+#: services/webservice/templates/_table.html
+msgid "VIP"
+msgstr "VIP"
+
+#: services/webservice/templates/_table.html
+#, python-format
+msgid "Page %(page)s of %(pages)s"
+msgstr "Страница %(page)s из %(pages)s"
+
+#: services/webservice/templates/_table.html
+msgid "Previous"
+msgstr "Назад"
+
+#: services/webservice/pages/players.py
+msgid "Watched"
+msgstr "Наблюдение"
+
+#: services/webservice/pages/actions.py
+msgid "Remove from watchlist"
+msgstr "Убрать из списка наблюдения"
+
+#: services/webservice/pages/actions.py
+msgid "Remove from watchlist — drop this watch entry"
+msgstr "Убрать из списка наблюдения — удалить эту запись"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Remove {player} from the watchlist"
+msgstr "Убрать {player} из списка наблюдения"
+
+#: services/webservice/pages/actions.py
+msgid "the watch entry and its reason are gone"
+msgstr "запись наблюдения и её причина будут удалены"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "<b>{player} leaves the watchlist.</b> The reason is lost with the entry, and the player is not unbanned by this."
+msgstr "<b>{player} покидает список наблюдения.</b> Причина теряется вместе с записью, и бан с игрока этим не снимается."
+
+#: services/webservice/pages/actions.py
+msgid "Only the watch entry is removed. A ban on this player is a different list and is unaffected."
+msgstr "Удаляется только запись наблюдения. Бан на этого игрока — другой список, он не затрагивается."
+
+#: services/webservice/pages/actions.py
+msgid "Edit the watch reason"
+msgstr "Изменить причину наблюдения"
+
+#: services/webservice/pages/actions.py
+msgid "Kept on the watchlist."
+msgstr "Хранится в списке наблюдения."
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Edit the watch reason of {player}"
+msgstr "Изменить причину наблюдения игрока {player}"
+
+#: services/webservice/pages/actions.py
+msgid "only the reason changes; who watched and when stay as they are"
+msgstr "меняется только причина; кто и когда поставил наблюдение, остаётся как было"
+
+#: services/webservice/pages/actions.py
+msgid "Only the reason changes: who watched the player and when are history and stay as they are."
+msgstr "Меняется только причина: кто поставил игрока под наблюдение и когда — это история, она остаётся как было."
+
+#: services/webservice/pages/actions.py
+msgid "Save the reason"
+msgstr "Сохранить причину"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Save the watch reason of {player}"
+msgstr "Сохранить причину наблюдения игрока {player}"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Watched by {by} on {at} — reason: {reason}"
+msgstr "Наблюдение поставил {by}, {at} — причина: {reason}"
+
+#: services/webservice/pages/actions.py
+msgid "Add to watchlist"
+msgstr "Добавить в список наблюдения"
+
+#: services/webservice/pages/actions.py
+msgid "Add to watchlist…"
+msgstr "Добавить в список наблюдения…"
+
+#: services/webservice/pages/actions.py
+msgid "Add to watchlist — put this player on the list"
+msgstr "Добавить в список наблюдения — поставить этого игрока в список"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Put {player} on the watchlist"
+msgstr "Поставить {player} в список наблюдения"
+
+#: services/webservice/pages/actions.py
+msgid "the moderators are alerted when they join"
+msgstr "модераторы получают уведомление при входе"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "<b>{player} is put on the watchlist.</b> The moderators are alerted every time they join a server, and nothing blocks them from playing."
+msgstr "<b>{player} попадает в список наблюдения.</b> Модераторы получают уведомление при каждом входе на сервер, и ничто не мешает игроку играть."
+
+#: services/webservice/pages/actions.py
+msgid "The entry carries a reason and who wrote it. It is a note for the moderators, not a ban: nothing about the player's access changes."
+msgstr "Запись содержит причину и того, кто её создал. Это заметка для модераторов, а не бан: доступ игрока не меняется."
+
+#: services/webservice/templates/_table.html
+msgid "Online"
+msgstr "Онлайн"
+
+#: services/webservice/templates/_table.html
+msgid "Offline"
+msgstr "Офлайн"
+
+#: services/webservice/pages/actions.py
+#, python-brace-format
+msgid "Ban {player}"
+msgstr "Забанить {player}"
+
+#: services/webservice/pages/player_detail.py
+#, python-brace-format
+msgid "%(ai)s AI · %(players)s players"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+#, python-brace-format
+msgid "%(ai)s AI · %(players)s players · %(own)s self"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "1 active ban"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "1 watch entry"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Active"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+#, python-brace-format
+msgid "Added %(at)s · no expiry"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Added by"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Aircraft"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "All time"
+msgstr "За всё время"
+
+#: services/webservice/pages/player_detail.py
+msgid "Approved"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Auto-Unbanned"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Back to the players directory"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Ban history"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Banned by"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Bans, all time"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Count"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Crash / own fault"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Crashes (pilot dead)"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Current activity"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "DCS name"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Deaths"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Deaths by cause"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Discord ID"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Ejections"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Event"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Every event where this player hit or killed someone on their OWN side (shot, hit, kill — grouped per event and minute)."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "First seen"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Flight performance"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Forgiven"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Friendly fire and teamkills"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Ground units"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Helicopters"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "IP hash"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Identity & link"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Infraction"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Infractions"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "K/D"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Killed by AI"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Killed by a player"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Kills"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Kills by target type"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "LIVE"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Landing rate"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Landings"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Lifting one leaves the other untouched: lifting the ban keeps the watch entry, and removing the watch keeps the ban running until it expires."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Moderation"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Module"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "No"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "No Discord member is linked to this UCID. Linking happens in Discord, so this page states the fact and offers no control for it."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "No ban"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "No player on this installation carries this UCID. It may have been removed, or the link may be mistyped."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "No session has been recorded for this player, so there is nothing to chart."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "No such player"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Not approved"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Not on a server right now."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Period"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Permanent · no expiry"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Playtime per map"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Playtime per module"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Playtime per server"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Points"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Points decay over time, so this total is today's value."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Presence"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Radios"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Recent sessions"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "SAM sites"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Sessions"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Ships"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Side"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Statistics"
+msgstr "Статистика"
+
+#: services/webservice/pages/player_detail.py
+msgid "Takeoffs"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Teamkills"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+#, python-brace-format
+msgid "Temporary · expires %(until)s"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "There are no bans logged for this player."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "There are no infractions of this player logged."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "This month"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "This player has no penalty points."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "This quarter"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "This year"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Time (UTC)"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Timeframe"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Total"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Validated"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "Watch"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "and not on the watchlist · nothing is waiting here."
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "last seen"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "linked to"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "most recent"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "no expiry"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "not linked to a Discord member"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "players only:"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "see the log"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "sessions"
+msgstr ""
+
+#: services/webservice/pages/player_detail.py
+msgid "the ban ends"
+msgstr ""
+
+
+#: services/webservice/pages/statistics.py
+msgid "30 days"
+msgstr "30 дней"
+
+#: services/webservice/pages/statistics.py
+msgid "7 days"
+msgstr "7 дней"
+
+#: services/webservice/pages/statistics.py
+msgid "90 days"
+msgstr "90 дней"
+
+#: services/webservice/pages/statistics.py
+msgid "All servers"
+msgstr "Все серверы"
+
+#: services/webservice/pages/statistics.py
+msgid "Distinct is not summable: the unique-player total counts each player once across the whole scope, so the per-server column adds up to more than it."
+msgstr "Уникальные не суммируются: общее число игроков считает каждого игрока один раз в пределах всей области, поэтому сумма по серверам получается больше."
+
+#: services/webservice/pages/statistics.py
+msgid "Do new players stay?"
+msgstr "Остаются ли новые игроки?"
+
+#: services/webservice/pages/statistics.py
+msgid "How often they fly"
+msgstr "Как часто они летают"
+
+#: services/webservice/pages/statistics.py
+msgid "How the community develops: playtime, new and returning players, the hours they fly and the missions they pick. Read-only."
+msgstr "Как развивается сообщество: игровое время, новые и вернувшиеся игроки, часы полётов и выбранные миссии. Только чтение."
+
+#: services/webservice/pages/statistics.py
+msgid "Most flown theatre"
+msgstr "Самый популярный театр"
+
+#: services/webservice/pages/statistics.py
+msgid "New"
+msgstr "Новые"
+
+#: services/webservice/pages/statistics.py
+msgid "New players"
+msgstr "Новые игроки"
+
+#: services/webservice/pages/statistics.py
+msgid "No statistics are available for this period yet: either the installation has no sessions recorded in it, or the statistics read could not be reached."
+msgstr "Статистики за этот период пока нет: либо в нём не записано ни одной сессии, либо статистику не удалось прочитать."
+
+#: services/webservice/pages/statistics.py
+msgid "Nothing recorded in this window."
+msgstr "В этом окне ничего не записано."
+
+#: services/webservice/pages/statistics.py
+msgid "Players per day"
+msgstr "Игроки в день"
+
+#: services/webservice/pages/statistics.py
+msgid "Returning"
+msgstr "Вернувшиеся"
+
+#: services/webservice/pages/statistics.py
+msgid "Returning rate"
+msgstr "Доля вернувшихся"
+
+#: services/webservice/pages/statistics.py
+msgid "Theatres"
+msgstr "Театры"
+
+#: services/webservice/pages/statistics.py
+msgid "Top missions"
+msgstr "Топ миссий"
+
+#: services/webservice/pages/statistics.py
+msgid "Top modules"
+msgstr "Топ модулей"
+
+#: services/webservice/pages/statistics.py
+msgid "Unique players"
+msgstr "Уникальные игроки"
+
+#: services/webservice/pages/statistics.py
+msgid "When they fly"
+msgstr "Когда они летают"
+
+#: services/webservice/pages/statistics.py
+msgid "average session {value}"
+msgstr "средняя сессия {value}"
+
+#: services/webservice/pages/statistics.py
+msgid "by playtime"
+msgstr "по игровому времени"
+
+#: services/webservice/pages/statistics.py
+msgid "distinct across all servers"
+msgstr "уникальных на всех серверах"
+
+#: services/webservice/pages/statistics.py
+msgid "distinct on this server"
+msgstr "уникальных на этом сервере"
+
+#: services/webservice/pages/statistics.py
+msgid "distinct players"
+msgstr "уникальных игроков"
+
+#: services/webservice/pages/statistics.py
+msgid "first seen in this period"
+msgstr "впервые замечены в этом периоде"
+
+#: services/webservice/pages/statistics.py
+msgid "h"
+msgstr "ч"
+
+#: services/webservice/pages/statistics.py
+msgid "of the period's players were not new"
+msgstr "игроков периода не были новыми"
+
+#: services/webservice/pages/statistics.py
+msgid "peak {hour}:00 UTC"
+msgstr "пик {hour}:00 UTC"
+
+#: services/webservice/pages/statistics.py
+msgid "players a day · UTC · returning and new"
+msgstr "игроков в день · UTC · вернувшиеся и новые"
+
+#: services/webservice/pages/statistics.py
+msgid "players per hour of day · UTC · last {weeks} weeks"
+msgstr "игроков в час суток · UTC · последние {weeks} недель"
+
+#: services/webservice/pages/statistics.py
+msgid "server rows added up"
+msgstr "сумма строк серверов"
+
+#: services/webservice/pages/statistics.py
+msgid "sessions per active player per week · last {weeks} weeks"
+msgstr "сессий на активного игрока в неделю · последние {weeks} недель"
+
+#: services/webservice/pages/statistics.py
+msgid "share of a week's new players that came back · last {weeks} weeks"
+msgstr "доля новых игроков недели, которые вернулись · последние {weeks} недель"
+
+#: services/webservice/pages/statistics.py
+msgid "share of playtime"
+msgstr "доля игрового времени"
+
+#: services/webservice/pages/statistics.py
+msgid "the period's totals, one row each"
+msgstr "итоги периода, по строке на сервер"
+
+#: services/webservice/pages/statistics.py
+msgid "returning {returning} · new {new} · total {total}"
+msgstr "вернувшиеся {returning} · новые {new} · всего {total}"
+
+msgid "(node)"
+msgstr "(узел)"
+
+msgid "1 h"
+msgstr "1 ч"
+
+msgid "6 h"
+msgstr "6 ч"
+
+msgid "24 h"
+msgstr "24 ч"
+
+msgid "7 d"
+msgstr "7 д"
+
+msgid "30 d"
+msgstr "30 д"
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "CPU %"
+msgstr "CPU %"
+
+msgid "Cluster (all servers)"
+msgstr "Кластер (все серверы)"
+
+msgid "DCS queue"
+msgstr "Очередь DCS"
+
+msgid "Disk"
+msgstr "Диск"
+
+msgid "FPS"
+msgstr "FPS"
+
+msgid "FPS / Ping"
+msgstr "FPS / пинг"
+
+msgid "KB/s read (blue) · write (orange)"
+msgstr "КБ/с чтение (синий) · запись (оранжевый)"
+
+msgid "KB/s sent (blue) · recv (green)"
+msgstr "КБ/с отправлено (синий) · получено (зелёный)"
+
+msgid "Last hour"
+msgstr "Последний час"
+
+msgid "Memory"
+msgstr "Память"
+
+msgid "Network"
+msgstr "Сеть"
+
+msgid "No load samples were written in this window yet."
+msgstr "В этом окне ещё нет записанных значений нагрузки."
+
+msgid "Ping"
+msgstr "Пинг"
+
+msgid "Players now"
+msgstr "Игроков сейчас"
+
+msgid "Pool"
+msgstr "Пул"
+
+msgid "Queued"
+msgstr "В очереди"
+
+msgid "RAM + paged, MB"
+msgstr "ОЗУ + подкачка, МБ"
+
+msgid "Server load"
+msgstr "Нагрузка сервера"
+
+msgid "Wait"
+msgstr "Ожидание"
+
+msgid "all servers, summed · last {window} · {bucket} buckets"
+msgstr "все серверы, суммарно · последние {window} · интервалы по {bucket}"
+
+msgid "asyncio queue"
+msgstr "Очередь asyncio"
+
+msgid "average"
+msgstr "в среднем"
+
+msgid "average across instances"
+msgstr "в среднем по инстансам"
+
+msgid "last hour, average"
+msgstr "последний час, в среднем"
+
+msgid "ms"
+msgstr "мс"
+
+msgid "now"
+msgstr "сейчас"
+
+msgid "peak {peak} in this window"
+msgstr "пик {peak} в этом окне"
+
+msgid "pool, queues and wait-time · now"
+msgstr "пул, очереди и время ожидания · сейчас"
+
+msgid "window ends {time} · a sample every minute"
+msgstr "окно заканчивается {time} · один замер в минуту"
+
+msgid "{node}, summed · last {window} · {bucket} buckets"
+msgstr "{node}, суммарно · последние {window} · интервалы по {bucket}"
+
+msgid "{server} · last {window} · {bucket} buckets"
+msgstr "{server} · последние {window} · интервалы по {bucket}"
+
+#: services/webservice/pages/statistics.py
+msgid "Today"
+msgstr "Сегодня"
+
+#: services/webservice/pages/statistics.py
+msgid "Yesterday"
+msgstr "Вчера"
+
+#: services/webservice/pages/statistics.py
+msgid "24 hours"
+msgstr "24 часа"
+
+#: services/webservice/pages/statistics.py
+msgid "6 months"
+msgstr "6 месяцев"
+
+#: services/webservice/pages/statistics.py
+msgid "12 months"
+msgstr "12 месяцев"
+
+#: services/webservice/pages/statistics.py
+msgid "Players per week"
+msgstr "Игроки за неделю"
+
+#: services/webservice/pages/statistics.py
+msgid "players a week · UTC · returning and new"
+msgstr "игроков в неделю · UTC · возвращающиеся и новые"

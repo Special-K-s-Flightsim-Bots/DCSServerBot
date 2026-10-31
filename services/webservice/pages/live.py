@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import time
@@ -52,8 +53,8 @@ from . import dashboard as dashboard_page
 
 __all__ = [
     "DASHBOARD_STREAM_PATH", "DASHBOARD_FRAGMENTS_PATH",
-    "LOG_TARGET", "STATE_TARGET", "PILLS_TARGET", "NOTICE_TARGET",
-    "LOG_TEMPLATE", "STATE_TEMPLATE", "PILLS_TEMPLATE", "NOTICE_TEMPLATE",
+    "LOG_TARGET", "STATE_TARGET", "PILLS_TARGET", "NOTICE_TARGET", "LOAD_TARGET",
+    "LOG_TEMPLATE", "STATE_TEMPLATE", "PILLS_TEMPLATE", "NOTICE_TEMPLATE", "LOAD_TEMPLATE",
     "SNAPSHOT_EVENT", "LOG_EVENT", "STATE_EVENT", "HEARTBEAT_FRAME",
     "DEFAULT_REFRESH_SECONDS", "DEFAULT_STREAM_CLIENTS", "HEARTBEAT_SECONDS",
     "LiveConfig", "LiveRegistry", "live_config", "dashboard_config", "get_registry",
@@ -74,6 +75,11 @@ DASHBOARD_FRAGMENTS_PATH = "/api/dashboard/fragments"
 LOG_TARGET = "log-panel"
 STATE_TARGET = "state-panel"
 PILLS_TARGET = "status-pills"
+#: THE LOAD TAB'S CHART — one more swap target, re-rendered on the 60 s tick
+#: (``dashboard.LOAD_REFRESH_SECONDS``). It is present only while the Load tab is in force: its
+#: payload is cached for a minute on the server, so every frame in between hashes the same and
+#: nothing is sent, and the chart moves exactly as often as the bot writes a row.
+LOAD_TARGET = "load-panel"
 #: the ONE-SHOT NOTICE of a write, carried on the live path too. A strip control submits in
 #: the background and the page is handed over to a fresh render at once, so that render happens
 #: BEFORE the route has stored the outcome; the live path is what delivers it afterwards — the same
@@ -88,6 +94,7 @@ LOG_TEMPLATE = "_log_panel.html"
 STATE_TEMPLATE = "_state.html"
 PILLS_TEMPLATE = "_pills.html"
 NOTICE_TEMPLATE = "_notice.html"
+LOAD_TEMPLATE = "_load_panel.html"
 
 SNAPSHOT_EVENT = "snapshot"
 LOG_EVENT = "log"
@@ -217,7 +224,7 @@ def get_registry(app, config: LiveConfig) -> LiveRegistry:
 # ------------------------------------------------------------------------------- the fragments
 
 def fragments(environment, state: readmodels.Overview, view=None, console=None,
-              row_controls=None, include_log: bool = True, notice=None) -> dict[str, str]:
+              row_controls=None, include_log: bool = True, notice=None, load=None) -> dict[str, str]:
     """The fragments, rendered by the page's own partials. One render path for page + stream.
 
     An empty mapping key would be a broken swap, so every target is always present in the result
@@ -253,12 +260,16 @@ def fragments(environment, state: readmodels.Overview, view=None, console=None,
             # the tab's own controls: the strip on a server row. Passed through so a refreshed
             # table carries the SAME controls its initial render did — the stream and the page read
             # one map (``pages/dashboard.row_controls_for``).
-            row_controls=row_controls or {}),
+            row_controls=row_controls or {}, load=load),
         PILLS_TARGET: environment.get_template(PILLS_TEMPLATE).render(
             pills=dashboard_page.status_pills(state)),
     }
     if include_log:
         targets[LOG_TARGET] = environment.get_template(LOG_TEMPLATE).render(state=state)
+    if load is not None:
+        # ONE more target, and only while the Load tab is in force: the chart is a fragment like any
+        # other, so its markup is the same one the page rendered and no charting library ships.
+        targets[LOAD_TARGET] = environment.get_template(LOAD_TEMPLATE).render(load=load)
     if notice:
         targets[NOTICE_TARGET] = environment.get_template(NOTICE_TEMPLATE).render(notice=notice)
     return targets
@@ -273,16 +284,25 @@ def _frame(event: str, targets: dict[str, str]) -> str:
     return f"event: {event}\ndata: {json.dumps({'targets': targets})}\n\n"
 
 
-async def stream_frames(*, render: Callable[[], dict[str, str]], config: LiveConfig,
+async def _render_once(render):
+    """One tick's fragments: ``render`` is sync (a harness) or async (a real read-bearing render)."""
+    current = render()
+    if inspect.isawaitable(current):
+        current = await current
+    return current
+
+
+async def stream_frames(*, render, config: LiveConfig,
                         registry: LiveRegistry, sleep=asyncio.sleep, monotonic=time.monotonic):
     """Yield the SSE frames of one connection.
 
-    ``render`` returns the current fragments; ``sleep`` and ``monotonic`` are injectable so a test
-    drives ticks without waiting on the wall clock.
+    ``render`` returns the current fragments — or an awaitable of them, which is what the load
+    tab's read needs; ``sleep`` and ``monotonic`` are injectable so a test drives ticks without
+    waiting on the wall clock.
     """
     acquired = registry.try_acquire() if config.enabled else False
     try:
-        current = render()
+        current = await _render_once(render)
         yield _frame(SNAPSHOT_EVENT, current)
         if not config.enabled or not acquired:
             # over the cap (or live updates are off): the client got its snapshot, and the stream
@@ -296,7 +316,7 @@ async def stream_frames(*, render: Callable[[], dict[str, str]], config: LiveCon
             if now - last_beat >= config.heartbeat_seconds:
                 yield HEARTBEAT_FRAME
                 last_beat = now
-            current = render()
+            current = await _render_once(render)
             log_changed: dict[str, str] = {}
             state_changed: dict[str, str] = {}
             for name, html in current.items():
@@ -399,8 +419,8 @@ def _viewer(request: Request) -> tuple[readmodels.Overview, bool]:
     return state, allowed
 
 
-def render_for(request: Request) -> Callable[[], dict[str, str]]:
-    """The fragment renderer for ONE connection.
+def render_for(request: Request) -> Callable:
+    """The fragment renderer for ONE connection (an async callable: the load read is awaited).
 
     The level and the view (``?sort=``/``?dir=``/``?q=``) are resolved from THIS request (see
     :func:`~services.webservice.pages.dashboard.log_level` and
@@ -422,13 +442,18 @@ def render_for(request: Request) -> Callable[[], dict[str, str]]:
     """
     environment = _environment(request)
 
-    def render() -> dict[str, str]:
+    async def render() -> dict[str, str]:
         state, allowed = _viewer(request)
         view = dashboard_page.view_state_for(request, state)
         console = dashboard_page.console_context(state, request, view, log_allowed=allowed)
+        # the load chart is read ONLY while its tab is in force, and the read itself is cached for
+        # a minute — so an idle frame renders the identical fragment and the hash comparison sends
+        # nothing. That is where the 60 s tick lives for the streamed page.
+        load = (await dashboard_page.load_context(request, state)
+                if console["tab"] == dashboard_page.LOAD_TAB else None)
         return fragments(environment, state, view, console,
                          row_controls=dashboard_page.row_controls_for(request, console["tab"]),
-                         include_log=allowed, notice=write_notice(request))
+                         include_log=allowed, notice=write_notice(request), load=load)
 
     return render
 
@@ -494,9 +519,15 @@ def add_routes(router: APIRouter) -> APIRouter:
         # Actions column would rebuild every row WITHOUT its controls about two seconds after the
         # page loaded — and the origin a write returns to is part of that column, so the
         # fallback would also lose which page the control came from.
+        #
+        # THE LOAD CHART IS THE SAME FRAGMENT THE STREAM CARRIES, from the same cached read, so a
+        # page on the polling fallback moves at the 60 s cadence exactly like a streamed one.
+        load = (await dashboard_page.load_context(request, state)
+                if console["tab"] == dashboard_page.LOAD_TAB else None)
         return JSONResponse(fragments(environment, state, view, console,
                                       row_controls=dashboard_page.row_controls_for(request,
                                                                                   console["tab"]),
-                                      include_log=allowed, notice=write_notice(request)))
+                                      include_log=allowed, notice=write_notice(request),
+                                      load=load))
 
     return router

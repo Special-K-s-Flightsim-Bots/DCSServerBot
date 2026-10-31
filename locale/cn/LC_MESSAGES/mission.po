@@ -699,3 +699,53 @@ msgstr "已取消 — 未应用任何内容。"
 #: plugins/mission/views.py
 msgid "The pick timed out, so nothing was applied."
 msgstr "选择已超时，因此未应用任何内容。"
+
+#: plugins/mission/actions.py
+msgid "A UCID is required."
+msgstr "需要 UCID。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "No watch entry for {} in your scope."
+msgstr "你的范围内没有 {} 的观察记录。"
+
+#: plugins/mission/actions.py
+msgid "An empty reason is not an edit — remove the watch entry instead."
+msgstr "原因为空不算编辑 — 请改为删除观察记录。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason is longer than {} characters."
+msgstr "观察原因超过 {} 个字符。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Watch entry for {} removed."
+msgstr "已删除 {} 的观察记录。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason for {} was updated."
+msgstr "已更新 {} 的观察原因。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watchlist could not be written: {}"
+msgstr "无法写入观察名单：{}"
+
+#: plugins/mission/views.py
+msgid "Edit the watch reason"
+msgstr "编辑观察原因"
+
+#: plugins/mission/commands.py
+msgid "Edits the reason of a watchlist entry"
+msgstr "编辑观察名单记录的原因"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to put a player on the watchlist."
+msgstr "将玩家加入观察名单需要原因。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Player {} is not one of your players."
+msgstr "玩家 {} 不属于你的玩家。"

@@ -1,0 +1,96 @@
+/* LOAD — the dashboard's Load tab, its own delta sheet.
+ *
+ * Only what the shell's shared classes cannot carry: the scale chips, the scope form, the KPI
+ * band, the SVG charts and the node table. Everything else (`card`, banner, tabs) is shell.css,
+ * so a change there still reaches this tab.
+ *
+ * Every rule is prefixed `ld-` (the tab's namespace), so nothing here can restyle another page.
+ */
+
+/* ------------------------------------------------------------------ the control bar */
+.ld-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin: 14px 0 0; }
+.ld-chips { display: inline-flex; align-items: center; gap: 6px; }
+.ld-chip { padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--radius-s);
+  color: var(--text-2); text-decoration: none; font-size: 12px; }
+.ld-chip.on { border-color: var(--accent); color: var(--text-1); background: var(--well); }
+.ld-scope { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
+.ld-scope label { display: inline-flex; align-items: center; gap: 8px; }
+.ld-scope span { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); }
+.ld-scope select, .ld-scope button { font: inherit; color: var(--text-1); background: var(--well);
+  border: 1px solid var(--line); border-radius: var(--radius-s); padding: 4px 8px; }
+.ld-live { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px;
+  color: var(--text-3); }
+.ld-live i { width: 7px; height: 7px; border-radius: 99px; background: var(--ok, #3fb950);
+  display: inline-block; }
+
+/* ------------------------------------------------------------------ the KPI band */
+.ld-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
+  margin: 14px 0; }
+.ld-kpi { border: 1px solid var(--line); border-radius: var(--radius-m, 8px); padding: 12px 14px;
+  background: var(--well); }
+.ld-kpi-l { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); }
+.ld-kpi-v { font-size: 26px; font-variant-numeric: tabular-nums; color: var(--text-1);
+  line-height: 1.3; }
+.ld-kpi-v small { font-size: 12px; color: var(--text-3); }
+.ld-kpi-n { font-size: 11.5px; color: var(--text-3); }
+
+/* ------------------------------------------------------------------ the cards */
+.ld-card { border: 1px solid var(--line); border-radius: var(--radius-m, 8px); margin: 0 0 14px;
+  background: var(--panel, transparent); }
+.ld-hd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 10px 14px;
+  border-bottom: 1px solid var(--line); }
+.ld-hd h3 { margin: 0; font-size: 13px; }
+.ld-meta { font-size: 11.5px; color: var(--text-3); }
+.ld-bd { padding: 10px 14px; }
+.ld-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
+  color: var(--text-3); }
+.ld-sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.ld-sw.total { background: var(--accent); }
+.ld-sw.cpu { background: #e8a33d; margin-left: 8px; }
+
+/* ------------------------------------------------------------------ the charts */
+.ld-svg { display: block; width: 100%; height: auto; }
+.ld-grid { stroke: var(--line); stroke-width: 1; }
+.ld-axis { fill: var(--text-3); font-size: 10px; font-family: var(--font-mono); }
+.ld-total { stroke: var(--accent); stroke-width: 1.6; }
+.ld-cpu { stroke: #e8a33d; stroke-width: 1.3; stroke-dasharray: 4 3; }
+.ld-red { stroke: #f85149; stroke-width: 1.5; }
+.ld-orange { stroke: #e8a33d; stroke-width: 1.5; }
+.ld-green { stroke: #3fb950; stroke-width: 1.5; }
+.ld-blue { stroke: #58a6ff; stroke-width: 1.5; }
+.ld-now { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 2 3; }
+.ld-spark { display: block; width: 118px; height: 26px; }
+.ld-none { color: var(--text-3); }
+
+/* ------------------------------------------------------------------ the node table
+ * An ARIA grid (role=row/columnheader/cell), not a `<table>`: the console's one table markup is
+ * `_table.html` and this card is a fixed health board with no sort links and no pager.
+ */
+.ld-tbl { display: grid; }
+.ld-tr { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .8fr) repeat(5, minmax(0, .6fr)) minmax(0, 1fr);
+  gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line);
+  font-size: 12.5px; }
+.ld-tr:last-child { border-bottom: 0; }
+.ld-th { padding-top: 0; font-size: 10.5px; font-weight: 400; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-3); }
+.ld-th span { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.ld-tr .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ld-row-off { color: var(--text-3); }
+.ld-tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em;
+  border: 1px solid var(--line); border-radius: 99px; padding: 1px 6px; color: var(--text-3); }
+.ld-state { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; }
+.ld-state i { width: 7px; height: 7px; border-radius: 99px; display: inline-block;
+  background: var(--text-3); }
+.ld-state.on i { background: var(--ok, #3fb950); }
+.ld-state.off i { background: #f85149; }
+
+/* ------------------------------------------------------------------ the mini charts */
+.ld-minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ld-minis .ld-card { margin: 0; }
+.ld-empty { margin: 18px 0; font-size: 12.5px; color: var(--text-3); }
+
+@media (max-width: 1100px) {
+  .ld-kpis, .ld-minis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

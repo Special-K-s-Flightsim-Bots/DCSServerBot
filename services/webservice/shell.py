@@ -239,11 +239,13 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     from .pages import mods as mods_page
     from .pages import nodes as nodes_page
     from .pages import node_settings as node_settings_page
+    from .pages import player_detail as player_detail_page
     from .pages import players as players_page
     from .pages import presets as presets_page
     from .pages import server_detail as server_detail_page
     from .pages import servers as servers_page
     from .pages import settings as settings_page
+    from .pages import statistics as statistics_page
 
     router = APIRouter()
     auth_routes.add_routes(router)
@@ -259,10 +261,15 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     # the PER-SERVER page and its Configuration tab: one route, no nav item (reached from a row).
     server_detail_page.add_routes(router)
     nodes_page.add_routes(router)
+    # THE STATISTICS PAGE: the strategic, period-based view. One route, one capability and one nav
+    # item, Admin-only — the read it renders is installation-wide and carries no scope.
+    statistics_page.add_routes(router)
     # THE PER-NODE SETTINGS PAGE: one route, no nav item (reached from a Node row's cogwheel).
     node_settings_page.add_routes(router)
     instances_page.add_routes(router)
     players_page.add_routes(router)
+    # THE PER-PLAYER page and its two tabs: three routes, no nav item (reached from a directory row).
+    player_detail_page.add_routes(router)
     # THE BANS PAGE: the console's scoped ban list and its LIFT. One route, one capability and one
     # nav item, registered flat like the pages above.
     bans_page.add_routes(router)
@@ -283,23 +290,28 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     capabilities.update(servers_page.capabilities())
     capabilities.update(server_detail_page.capabilities())
     capabilities.update(nodes_page.capabilities())
+    capabilities.update(statistics_page.capabilities())
     capabilities.update(node_settings_page.capabilities())
     capabilities.update(instances_page.capabilities())
     capabilities.update(players_page.capabilities())
+    capabilities.update(player_detail_page.capabilities())
     capabilities.update(bans_page.capabilities())
     capabilities.update(live_page.capabilities())
     capabilities.update(settings_page.capabilities())
     capabilities.update(presets_page.capabilities())
     capabilities.update(mods_page.capabilities())
-    # THE MAIN MENU IS SIX ITEMS: Dashboard, Servers, Nodes, Bans, Presets, Settings — the ONE
-    # sidebar group ("Operations", see pages/dashboard.py) holds them all. Logs, Instances and
-    # Players are still PAGES — their routes are registered above and stay reachable/linkable —
-    # but they contribute NO nav entry: each one's content is already on the Dashboard (the
-    # Servers/Nodes/Instances/Players tabs and the log panel with its expanded mode). A page whose
+    # THE MAIN MENU IS EIGHT ITEMS: Dashboard, Servers, Nodes, Statistics, Players, Bans, Presets,
+    # Settings — the ONE sidebar group ("Operations", see pages/dashboard.py) holds them all. Logs
+    # and Instances are still PAGES — their routes are registered above and stay reachable/linkable —
+    # but they contribute NO nav entry: their content is already on the Dashboard (the
+    # Servers/Nodes/Instances tabs and the log panel with its expanded mode). The Players page IS an
+    # entry: it is the database's player directory, not the Dashboard's live roster tab. A page whose
     # module declares no nav item is simply not a menu entry; it is reached the way the Dashboard
-    # presents it. See pages/instances.py, pages/players.py and pages/logs.py.
+    # presents it. See pages/instances.py and pages/logs.py.
     return router, capabilities, (dashboard_page.nav_items()
                                   + servers_page.nav_items() + nodes_page.nav_items()
+                                  + statistics_page.nav_items()
+                                  + players_page.nav_items()
                                   + bans_page.nav_items()
                                   + presets_page.nav_items()
                                   + settings_page.nav_items())

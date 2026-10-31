@@ -45,7 +45,9 @@ from .model import (LOG_EMPTY_MESSAGE, LOG_MISSING_MESSAGE, NO_INSTANCES_MESSAGE
                     StatusView, WeatherView, format_duration, status_view)
 from .nodes import dcs_view, nodes
 from .overview import overview
-from .players import players_online
+from .players import (DirectoryRow, DirectoryView, PlayerDetailView, PlayerStatisticsView,
+                      directory_view, player_detail, player_statistics, playtime_text,
+                      players_online)
 from .serverconfig import (EDITABLE_FIELDS, READONLY_FIELDS, ConfigField,
                            ConfigGroup, FieldView, ServerConfigView, server_config_view,
                            bound_text, editable_keys, readonly_keys, STOP_FIRST_SENTENCE,

@@ -45,7 +45,7 @@
   var streamUrl = script.getAttribute("data-stream");
   var fragmentsUrl = script.getAttribute("data-fragments");
   var statusEl = document.getElementById("live-status");
-  var TARGETS = ["log-panel", "state-panel", "status-pills", "notice"];
+  var TARGETS = ["log-panel", "state-panel", "status-pills", "notice", "load-panel"];
   var RETRY_MS = 10000;
   /* A 503 means the identity could not be VERIFIED RIGHT NOW (the bot is restarting, it has no
      member list): that passes. Stopping would be wrong — the server KEPT the session — so the
@@ -181,9 +181,29 @@
      document stays alive, and the park is the only case the leak fix needs. */
   function suspend(event) {
     if (event && event.persisted !== true) { return; }
+    teardown();
+  }
+
+  /* THE OTHER WAY A PAGE IS "NOT LOOKED AT": the reader switched to another browser tab. The
+     document stays alive (so the connection would live on and keep asking for fragments), and on a
+     console left open in the background that is a stream nobody reads. Close it when the tab is
+     hidden and reopen it when it is shown — the snapshot a fresh connection receives carries the
+     WHOLE window again, so the chart is redrawn from a full read rather than resumed from stale
+     points. */
+  function teardown() {
     if (source) { source.close(); source = null; }
     if (poll) { clearInterval(poll); poll = null; }
   }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden || document.visibilityState === "hidden") {
+      teardown();
+      return;
+    }
+    if (source) { return; }
+    if (poll) { clearInterval(poll); poll = null; }
+    connect();
+  });
 
   window.addEventListener("pagehide", suspend);
 

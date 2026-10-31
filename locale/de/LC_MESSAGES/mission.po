@@ -746,3 +746,53 @@ msgstr "Abgebrochen — es wurde nichts angewendet."
 #: plugins/mission/views.py
 msgid "The pick timed out, so nothing was applied."
 msgstr "Die Auswahl ist abgelaufen, daher wurde nichts angewendet."
+
+#: plugins/mission/actions.py
+msgid "A UCID is required."
+msgstr "Eine UCID ist erforderlich."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "No watch entry for {} in your scope."
+msgstr "Kein Watchlisten-Eintrag für {} in deinem Bereich."
+
+#: plugins/mission/actions.py
+msgid "An empty reason is not an edit — remove the watch entry instead."
+msgstr "Ein leerer Grund ist keine Bearbeitung — entferne stattdessen den Watchlisten-Eintrag."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason is longer than {} characters."
+msgstr "Der Watch-Grund ist länger als {} Zeichen."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Watch entry for {} removed."
+msgstr "Watchlisten-Eintrag für {} entfernt."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason for {} was updated."
+msgstr "Watch-Grund für {} aktualisiert."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watchlist could not be written: {}"
+msgstr "Die Watchliste konnte nicht geschrieben werden: {}"
+
+#: plugins/mission/views.py
+msgid "Edit the watch reason"
+msgstr "Watch-Grund bearbeiten"
+
+#: plugins/mission/commands.py
+msgid "Edits the reason of a watchlist entry"
+msgstr "Bearbeitet den Grund eines Watchlisten-Eintrags"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to put a player on the watchlist."
+msgstr "Für die Watchliste ist ein Grund erforderlich."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Player {} is not one of your players."
+msgstr "Spieler {} gehört nicht zu deinen Spielern."

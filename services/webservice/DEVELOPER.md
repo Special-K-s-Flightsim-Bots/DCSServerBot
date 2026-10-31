@@ -48,6 +48,9 @@ mods writes.
 | player | Mute                 | `players.mute`              | `mute_player`           | no       |
 | player | Unmute               | `players.mute`              | `unmute_player`         | no       |
 | player | Screenshot           | `players.screenshot`        | `screenshot_player`     | no       |
+| player (watch) | Add to watchlist…    | `players.watch`      | `watch_player`          | no       |
+| player (watch) | Remove from watchlist | `players.watch`      | `unwatch_player`        | **yes**  |
+| player (watch) | Edit the watch reason | `players.watch`      | `edit_watch`            | no       |
 | node   | Restart              | `nodes.restart`             | `restart_node`          | **yes**  |
 | node   | Shut down            | `nodes.shutdown`            | `shutdown_node`         | **yes**  |
 | node   | Upgrade              | `nodes.upgrade`             | `upgrade_node`          | **yes**  |
@@ -576,3 +579,106 @@ KEY is free text and a rename is not a typed operation; a `type: any` layout cho
 shapes and the server picks the one whose fields were posted. Anything the generator cannot give a
 faithful widget falls back to an editable value flagged **validate on save**, and the schema
 validation on the write is the final word.
+
+---
+
+## The Statistics page (GET /statistics)
+
+The console's period view: is the community growing, do new players stay, when do they fly, which
+missions, theatres and modules do they pick. The period chips are the bot's own `PeriodFilter`
+vocabulary (all time, today, yesterday, 24 hours, 7/30/90 days, 6 months, 12 months), so the page
+can never offer a period the read does not understand.
+
+**The player series follows the chosen period.** `unique_users` takes the filter's WHERE clause — the
+same clause every other read takes — and builds its date series from its own rows, so `today` and
+`yesterday` are the filter's calendar days rather than an interval guessed at the page. Past
+`UNIQUE_USERS_WEEKLY_AFTER_DAYS` (90 days, and for `all`) the read buckets by WEEK and returns
+`unique_users_grain`, which is what lets the card change from "Players per day" to "Players per
+week" instead of drawing a year of bars.
+
+| Page | Route | Capability | Roles | Read |
+|------|-------|------------|-------|------|
+| Statistics | `GET /statistics` | `statistics.view` | `Admin` | `get_server_statistics` (action, `plugins/monitoring/actions.py`) |
+
+**One read, one definition of every number.** The page renders the same `get_server_statistics`
+action the Discord `/serverstats` report draws from, so the console and the report cannot disagree
+about a figure. The page opens no query of its own; the two figures it DERIVES (sessions per active
+player per week, the per-week retention share) plus the two formatting helpers are computed once, in
+`pages/statistics.py`, from the payload's own numbers.
+
+**Admin-only, and no scope of its own.** `/serverstats` is Admin-only and installation-wide, so the
+page is too: the action applies no scope, and a filter added at the page would still have counted
+rows the caller may not see. A non-Admin door has to be scoped where the server NAME is resolved,
+never by filtering this payload.
+
+**The non-Admin door is the server page's Statistics tab** (`GET /fleet/<server>?tab=statistics`).
+It renders the same body for ONE server, and the name it passes is the one the server page already
+resolved through the scoped source — so the tab adds no capability and no scope rule: whoever may
+open the page may read the figures of the server they opened, and it never reads installation-wide.
+The body is shared (`pages/statistics.statistics_body`, `templates/_statistics_body.html`), so a
+card added for the page appears in the tab with no second edit. The per-server comparison table and
+the scope selector stay on the page: one compares servers, the other picks one, and the tab is
+already a single server.
+
+**Distinct is not summable.** The KPI's unique-player figure is a `COUNT(DISTINCT …)` over the whole
+scope; the per-server table counts each player once PER SERVER. The page states the difference in
+one sentence beside the table and the KPI's qualifier carries the word "distinct".
+
+**What it deliberately does not carry.** No live figure (players online, a mission's runtime) and no
+node fact (queue depth, pool health): those answer "what is happening now" and belong to the
+dashboard and its Load tab. The page's test pins their absence.
+
+**Window.** The period chips (`All time` / `Today` / `Yesterday` / `24 hours` / `7 days` /
+`30 days` / `90 days` / `6 months` / `12 months`) are the bot's own `PeriodFilter` names (`all` /
+`today` / `yesterday` / `day` / `week` / `month` / `quarter` / `halfyear` / `year`), so the page
+offers exactly the periods the read understands. The three windowed cards (retention, sessions per
+player, hour-of-day profile) read a fixed twelve-week window (`window_days=84`), which each card
+states in its own meta line — a short period changes the period reads, not that window.
+
+**Controls are links.** Period and scope are GET parameters (`?period=`, `?server=`), so the page
+works with JavaScript off. A CSV export is not part of this page yet.
+
+## The dashboard's Load tab (`/?tab=load`)
+
+The console's operational view: how the servers are running RIGHT NOW — a fixed-width live window,
+node health, and the technical series. Nothing period-based lives here; that is `/statistics`.
+
+| Tab | Route | Capability | Read |
+|-----|-------|------------|------|
+| Load | `GET /?tab=load` | `dashboard.view` (the console's own) | `get_load_statistics` (action, `plugins/monitoring/actions.py`) |
+
+**Load is the one tab that is not a table.** The strip's other keys are read-model table names
+(`pages/dashboard.TABS` is `TABLE_COLUMNS` plus `LOAD_TAB`). Load has no table, so `tab_capability`
+returns the console's own capability for it, `_tab_count` answers `None` (the template omits the
+badge rather than printing `0`) and `_tab_problem` stays empty (no dot). `_state.html` branches on
+the key: `_load_panel.html` instead of `_table.html`. No table spec is faked.
+
+**One row per server per minute.** `services/monitoring/service.py` writes `serverstats` once a
+minute per server, so a node's series is the SUM of its servers' rows and the chart can move no
+faster than the write. The window is fixed width with its right edge on "now": 1 h = 60 × 1 min,
+6 h = 72 × 5 min, 24 h = 288 × 5 min, 7 d = 168 × 1 h, 30 d = 720 × 1 h. The buckets are
+`date_trunc`/`AVG`/`SUM` in SQL (`plugins/monitoring/stats_read.py:load_series`), never in the
+browser, and a bucket with no rows answers `None` — a gap in the line, never a zero.
+
+**The 60 s tick is the only cadence.** `pages/dashboard.LOAD_REFRESH_SECONDS` (60) governs a
+server-side cache of the payload, keyed by (scale, node, server). The live stream re-renders every
+couple of seconds while the tab is open; inside one minute every render gets the SAME payload, so the
+fragment hashes the same and `pages/live.py` sends nothing. A new sample is one frame per minute.
+
+**The chart is one more swap target.** `pages/live.py:LOAD_TARGET` (`load-panel`) carries
+`_load_panel.html`, rendered only while the Load tab is in force, by both the SSE stream and the
+polling fallback. No charting library ships: the geometry is computed in `pages/dashboard.py` and the
+template prints it. Ids inside the SVG are `zlib.crc32`-derived (`_svg_id`) — `hash()` is salted per
+process, and a gradient id that changed between two renders would resolve to nothing.
+
+**A hidden tab keeps no stream.** `static/shell.js` closes the EventSource on `visibilitychange`
+(hidden) and reopens it when the tab is shown, so a console left in the background does not hold one
+of the browser's six connections per origin. A page restored from the back/forward cache reconnects
+through `pageshow` and receives a full snapshot — which is the whole window again, read fresh. If
+the stream is unavailable the script falls back to polling `/api/dashboard/fragments`, and says so
+in words.
+
+**Scope is bounded on the ROUTE, not in the action.** The selector offers Cluster / Node / Server
+from the caller's own scoped source; a named node or server outside it is refused with the console's
+403. A RESTRICTED caller is offered SERVER scope only: a node's series sums every server on that
+node, so node (or cluster) scope would read rows they may not see.

@@ -1,0 +1,77 @@
+/* STATISTICS — the strategic page's own delta sheet.
+ *
+ * Only what the shell's shared classes cannot carry: the two-segment (returning + new) day track,
+ * the 24-hour strip, and the thin bar that sits inside a table cell. Everything else on the page
+ * uses shell.css as it stands (`.card`, `.grid`, `.g-2`, `.player-figs`, `.player-bars`, `.tabs`,
+ * `.empty`), so a change to those still reaches this page.
+ *
+ * Every rule is prefixed `stt-` (the page's namespace), so nothing here can restyle another page.
+ */
+
+/* ------------------------------------------------------------------ the control bar */
+.stt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin: 14px 0 0; }
+.stt-group { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.stt-lbl { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+/* the period and scope links are the shell's tab chips; on this page they sit in a row rather than
+   on a card's edge, so the tab's top-only radius becomes a plain chip */
+.stt-bar .tabs .tab { border-radius: var(--radius-s); }
+
+/* ------------------------------------------------------------------ the KPI band */
+.stt-kpis { margin: 14px 0; }
+
+/* ------------------------------------------------------------------ the day bars */
+.stt-days { display: grid; gap: 6px; font-size: 12.5px; }
+.stt-day { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center;
+  gap: 10px; }
+.stt-when { color: var(--text-2); font-family: var(--font-mono); font-size: 11.5px; }
+.stt-num { color: var(--text-2); font-variant-numeric: tabular-nums; font-size: 11.5px;
+  min-width: 3ch; text-align: right; }
+
+/* the two-segment track: returning (accent) then new (the preset kind colour), so the row's total
+   is the whole bar and its split is visible in one glance */
+.stt-stack { display: flex; height: 8px; border-radius: 99px; overflow: hidden;
+  background: var(--well); border: 1px solid var(--line); }
+.stt-stack i { display: block; height: 100%; }
+.stt-stack i.ret { background: var(--accent); }
+.stt-stack i.new { background: var(--kind-preset); }
+
+.stt-legend { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
+  color: var(--text-3); }
+.stt-sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.stt-sw.ret { background: var(--accent); }
+.stt-sw.new { background: var(--kind-preset); margin-left: 8px; }
+
+/* ------------------------------------------------------------------ the 24-hour strip */
+.stt-hours { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px;
+  align-items: end; height: 128px; }
+.stt-hour { display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+  gap: 4px; height: 100%; min-width: 0; }
+.stt-hour i { display: block; width: 100%; border-radius: 2px 2px 0 0; background: var(--accent);
+  opacity: .75; min-height: 1px; }
+.stt-hour b { font-size: 9.5px; font-weight: 400; color: var(--text-3); }
+
+/* ------------------------------------------------------------------ the in-cell bar */
+.stt-inline { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.stt-mini { display: block; width: 64px; height: 6px; border-radius: 99px; background: var(--well);
+  border: 1px solid var(--line); overflow: hidden; }
+.stt-mini i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+
+/* ------------------------------------------------------------------ the table's footnote */
+.stt-note { margin: 12px 0 0; font-size: 11.5px; color: var(--text-3); line-height: 1.55; }
+.stt-dim { color: var(--text-3); }
+
+/* ------------------------------------------------------------ the per-server comparison
+ * An ARIA grid rather than the console's `_table.html`: that component renders a sortable
+ * TableView (headers as links, "Sorted by" tag, pager) and this card is a fixed comparison whose
+ * playtime cell carries a bar. The roles give the same row/column semantics to a reader.
+ */
+.stt-table { display: grid; }
+.stt-tr { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.3fr) minmax(0, .8fr)
+  minmax(0, .7fr) minmax(0, 1.2fr); gap: 10px; align-items: center; padding: 8px 0;
+  border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.stt-tr:last-child { border-bottom: 0; }
+.stt-tr.stt-th { padding-top: 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-3); }
+.stt-tr.stt-th span { border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.stt-r { text-align: right; font-variant-numeric: tabular-nums; }
+.stt-r .stt-inline { justify-content: flex-end; }

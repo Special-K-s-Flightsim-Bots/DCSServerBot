@@ -17,10 +17,17 @@
   the column tooltip — are composed here from the same translated atoms with Jinja's `{% trans %}`.
   English stays the msgid, so a wrapped-but-untranslated string renders exactly as before.
 
-  THE SEARCH IS A GET FORM (the players table only): it filters server-side on `?q=`, so it works
-  with JavaScript off, is linkable and mutates nothing. `search_action`/`search_clear`/
+  THE SEARCH IS A GET FORM (the players roster and the player directory): it filters server-side on
+  `?q=`, so it works with JavaScript off, is linkable and mutates nothing. `search_action`/`search_clear`/
   `search_hidden` are passed by the renderer, because the dashboard's search posts back to `/?tab=…`
   and the standalone page's posts back to `/players`.
+
+  THE PLAYERS DIRECTORY is a branch of its own (`table.name == 'player_directory'`): one row per
+  PLAYER of the database, drawn from the page's own records (`pages/players.py` — the Show switch,
+  the pager and the count sentence are DATA it passes, never computed here). Its first cell is the
+  live marker and its last the moderation strip (Ban/Lift ban, Watch/Unwatch) — the four writes that
+  key on the UCID and need no live session. The roster table (`players`) keeps its own branch and its
+  controls; Message / Popup / Kick / Screenshot stay on the player page, where the slot facts are.
 
   THE WRITE CONTROLS (`pages/actions.py`) are rendered by the servers and players branches below, as
   FORMS — a POST per control, carrying the session's CSRF token and the target in the BODY — and only
@@ -37,21 +44,44 @@
   INSTANCE table has no write at all.
 -#}
 {% import "_icons.html" as icons %}
+{%- set directory_table = table.name == 'player_directory' %}
+{#- the search box's echoed text: the directory's own query, or the roster's. A page without a
+    search context (the mods table) supplies neither, so the value stays empty rather than raising. -#}
+{%- set query_text = directory.query if directory_table and directory is defined and directory
+                     else (view.search.query if view is defined else '') %}
 <div class="card">
   <div class="hd"><h3>{{ _(table.label) }}</h3><div class="spacer"></div>
     {%- set active_column = table.columns | selectattr('active') | first %}
     <span class="tag">{% trans label=_(active_column.label), direction=_(('descending' if table.direction == 'desc' else 'ascending')) %}Sorted by {{ label }}, {{ direction }}{% endtrans %}</span>
     <span class="tag">{% if row_controls is defined and row_controls %}{% trans %}actions{% endtrans %}{% else %}{% trans %}read-only{% endtrans %}{% endif %}</span></div>
 
-  {% if table.name == 'players' %}
+  {% if view_options is defined and view_options %}
+  {#- THE SHOW SWITCH: a GET parameter on this page's path, rendered as LINKS for the same reason the
+      Bans page's DGSA option is — it works with JavaScript off and can be bookmarked. Every link
+      carries the validated search and order, so switching the view never throws the filter away. -#}
+  <p class="sub search-state"><span>{{ _(view_options.heading) }}</span>
+    {%- for option in view_options.options %}
+    <a class="tag{{ ' a' if option.active }}" href="{{ option.link }}"{% if option.active %} aria-current="true"{% endif %}>{{ _(option.label) }}</a>
+    {%- endfor %}
+  </p>
+  {% endif %}
+
+  {% if table.name == 'players' or directory_table %}
   <form class="search" method="get" action="{{ search_action }}" role="search">
     <label for="q">{% trans %}Search players{% endtrans %}</label>
-    <input type="search" id="q" name="q" value="{{ view.search.query }}" placeholder="{% trans %}name or UCID, e.g. Viper-1 or 4b1f9c22{% endtrans %}">
+    <input type="search" id="q" name="q" value="{{ query_text }}" placeholder="{% trans %}name or UCID, e.g. Viper-1 or 4b1f9c22{% endtrans %}">
     {% for key, value in search_hidden.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
     <button type="submit">{% trans %}Search{% endtrans %}</button>
     <a href="{{ search_clear }}">{% trans %}Clear{% endtrans %}</a>
   </form>
+  {% if directory_table %}
+  {#- the DIRECTORY's count sentence: how many players the read holds, and — while a restriction
+      view is in force — how many of the page's rows that view keeps. A view that rendered fewer rows
+      without saying so would read as a smaller database. -#}
+  <p class="sub search-state">{% if directory.query %}{% trans query=directory.query, total=directory.total %}Filter: name or UCID contains {{ query }} · {{ total }} players{% endtrans %}{% else %}{% trans count=directory.total %}{{ count }} player known{% pluralize %}{{ count }} players known{% endtrans %}{% endif %}{% if directory.filtered %} · {% trans shown=directory.shown %}{{ shown }} on this page{% endtrans %}{% endif %}</p>
+  {% else %}
   <p class="sub search-state">{% if view.search.active %}{% trans query=view.search.query, filtered=view.search.filtered, total=view.search.total %}Filter: name or UCID contains {{ query }} · {{ filtered }} of {{ total }} players{% endtrans %} · <a href="{{ search_clear }}">{% trans %}clear{% endtrans %}</a>{% else %}{% trans count=view.search.total %}{{ count }} player(s) online{% endtrans %}{% endif %}</p>
+  {% endif %}
   {% elif table.name == 'bans' %}
   {#- THE DGSA VIEW OPTION, in the players search's own slot: a LINK, not a form. The option is a GET
       parameter on this page's path, so the hidden state states how many rows were withheld with the
@@ -94,6 +124,21 @@
       {% elif table.name == 'players' %}
         {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name }}{% endif %}</td><td>{{ row.slot or '—' }}</td><td>{{ row.coalition or '—' }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
+      {% elif table.name == 'player_directory' %}
+        {#- A DIRECTORY ROW: one PLAYER of the database. The STATUS cell leads — the console's own dot+word
+            pair, green for a player in a slot and GREY for one who is not (a player offline is the
+            normal case, never the fault colour) — and the word carries the state, so the colour is
+            never the only signal. The name is the door to that player's page; the UCID is the player's
+            KEY, so the row shows exactly one and carries no count of them. The Discord cell states the
+            linked member when this process could read it, the id when it could not, and "not linked"
+            for a player with no link (never a blank); the State cell draws EVERY restriction the row
+            holds, ban before watch, so the list answers "who is restricted, and how" without opening a
+            page. A value the read does not have is a dash, never a made-up figure. The two glyphs are
+            the moderation strip (Ban/Lift ban, Watch/Unwatch) built by ``pages/actions`` from the SAME
+            scoped rows — a control the caller may not use, or that does not apply to the row, is
+            ABSENT and the strip simply holds fewer. -#}
+        {% for row in table.rows %}<tr><td><span class="dot {{ 'run' if row.online else 'stop' }}" aria-hidden="true"></span> <span class="tag">{% if row.online %}{% trans %}Online{% endtrans %}{% else %}{% trans %}Offline{% endtrans %}{% endif %}</span></td><td><b><a class="srv-name" href="{{ directory.detail_prefix }}{{ row.ucid }}">{{ row.name }}</a></b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.discord %}<span class="mono">{{ row.discord }}</span>{% else %}<span class="sub">{% trans %}not linked{% endtrans %}</span>{% endif %}</td><td class="mono"><span class="stamp">{{ row.last_seen or '—' }}</span></td><td class="num">{{ row.playtime or '—' }}</td><td>{% if row.banned %}<span class="tag a">{% trans %}Banned{% endtrans %}</span> {% endif %}{% if row.watched %}<span class="tag a">{% trans %}Watched{% endtrans %}</span> {% endif %}{% if row.vip %}<span class="tag">{% trans %}VIP{% endtrans %}</span>{% endif %}{% if not row.banned and not row.watched and not row.vip %}—{% endif %}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.ucid) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
+        {% endfor %}
       {% elif table.name == 'mods' %}
         {#- AN INSTALLED MOD: the bookkeeping's own facts, one row per (package, version) of ONE
             target. The two controls are the SAME glyph strip every other row renders
@@ -125,7 +170,12 @@
       </tbody>
     </table>
   </div>
+  {% if directory is defined and directory and directory.paging.pages > 1 %}
+  {#- THE PAGER: plain links, each carrying the view in force and the validated search/order, so
+      turning a page neither drops the filter nor asks the browser for anything scripted. -#}
+  <div class="bd"><p class="sub">{% trans page=directory.paging.page, pages=directory.paging.pages %}Page {{ page }} of {{ pages }}{% endtrans %}{% if directory.paging.prev %} · <a href="{{ directory.paging.prev }}">{% trans %}Previous{% endtrans %}</a>{% endif %}{% if directory.paging.next %} · <a href="{{ directory.paging.next }}">{% trans %}Next{% endtrans %}</a>{% endif %}</p></div>
+  {% endif %}
   {% else %}
-  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ _(empty.players_matched) }}{% else %}{{ _(empty[table.name]) }}{% endif %}</p></div>
+  <div class="bd"><p class="empty">{% if table.name == 'players' and view.search.active %}{{ _(empty.players_matched) }}{% elif table.name == 'player_directory' and directory.query %}{{ _(directory.empty_matched) }}{% elif table.name == 'player_directory' and directory.filtered %}{{ _(directory.empty_view) }}{% else %}{{ _(empty[table.name]) }}{% endif %}</p></div>
   {% endif %}
 </div>

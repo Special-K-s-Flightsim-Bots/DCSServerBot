@@ -114,9 +114,15 @@ __all__ = [
     "ban_edit_dialog_context",
     "ban_scope_options",
     "BanScope",
+    # the WATCH-ENTRY writes: one capability, the add, the edit and the remove
+    "WatchAction", "WATCH_ACTIONS", "WATCH_ENTRY_ACTIONS", "WATCH_ADD_ACTION", "WATCH_EDIT_ACTION",
+    "WATCH_REMOVE_ACTION", "WATCH_CAPABILITY", "WATCH_ADD_PATH", "WATCH_REMOVE_PATH",
+    "WATCH_EDIT_PATH", "watch_controls", "watch_add_control", "watch_add_dialog_context",
+    "watch_remove_dialog_context", "watch_edit_dialog_context",
     "page_controls", "add_dialog_context", "empty_instances", "installable_nodes",
     "declare", "capabilities", "register", "add_routes",
     "server_controls", "player_controls", "node_controls", "ban_controls", "controls_for", "state_of",
+    "directory_controls", "DIRECTORY_GLYPHS",
     "context_for",
     "node_state",
     "node_states", "node_power_states",
@@ -1836,6 +1842,128 @@ BAN_EDIT_ACTION = BanAction(
 BAN_ACTIONS: tuple[BanAction, ...] = (BAN_LIFT_ACTION, BAN_ADD_ACTION, BAN_EDIT_ACTION)
 
 
+#: THE WATCH-ENTRY writes' ONE capability. Adding, editing and removing a watch entry are ONE rule —
+#: who may change what the watchlist says about a player — and splitting them would let an operator
+#: add a watch entry he cannot remove again, which is the trap the ban pair's three capabilities
+#: avoid on purpose.
+WATCH_CAPABILITY = "players.watch"
+WATCH_ADD_PATH = "/actions/watch/add"
+WATCH_REMOVE_PATH = "/actions/watch/remove"
+WATCH_EDIT_PATH = "/actions/watch/edit"
+
+
+@dataclass(frozen=True, slots=True)
+class WatchAction:
+    """One write of the console that acts on a watch ENTRY.
+
+    Its own record rather than a :class:`BanAction` with half its fields empty: a watch entry has no
+    expiry, no server scope and no DGSA half, so the ban record's ``dgsa_*`` copy and its absolute
+    expiration read as knobs that could never be set here. The shared shape (``path``, ``capability``,
+    ``qualname``, the glyph and its two names, ``confirm``/``form``) is read by the SAME route and
+    control machinery the ban records feed, so the two entry kinds cannot drift apart.
+
+    ``confirm`` is the one-shot gate: the REMOVE spends a token bound to the entry's UCID, so a POST
+    that never rendered the warning cannot delete anything. The EDIT is a FORM — the dialog IS the
+    write — because a reason can be corrected again from the same page.
+
+    ``sender`` is the ban ADD's own knob, reused here: the acting person's shown name, read off the
+    request's identity and never from the body, so an entry's ``created_by`` cannot be signed with
+    somebody else's name. Only the ADD sets it — the REMOVE deletes the row and the EDIT deliberately
+    leaves ``created_by``/``created_at`` exactly as they are.
+    """
+
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    icon: str = ""
+    danger: bool = True
+    confirm: bool = True
+    form: bool = False
+    audit_refusals: bool = False
+    sender: bool = False
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    field_width: str = ""
+    field_kind: str = "text"
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    detail: str = ""
+    go: str = ""
+    go_title: str = ""
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG (see :attr:`BanAction.dialog`)."""
+        return bool(self.confirm or self.form)
+
+
+#: The watch ENTRY's two controls, in the mockup's order (the EDIT glyph, then the REMOVE one).
+#:
+#: BOTH are controls OF an entry — an entry that does not exist renders neither, so the pair is only
+#: ever offered where there is something to change. The REMOVE is destructive and says what it costs:
+#: the REASON is lost with the row and the player is NOT unbanned. The EDIT is a form whose one field
+#: is the reason, pre-filled from the entry.
+WATCH_REMOVE_ACTION = WatchAction(
+    key="unwatch", capability=WATCH_CAPABILITY, qualname="unwatch_player",
+    path=WATCH_REMOVE_PATH, label=i18n._("Remove from watchlist"), icon="conceal",
+    danger=True, confirm=True, audit_refusals=True,
+    tip=i18n._("Remove from watchlist — drop this watch entry"),
+    aria=i18n._("Remove {player} from the watchlist"),
+    hint=i18n._("the watch entry and its reason are gone"),
+    warning=i18n._("<b>{player} leaves the watchlist.</b> The reason is lost with the entry, and "
+                   "the player is not unbanned by this."),
+    detail=i18n._("Only the watch entry is removed. A ban on this player is a different list and "
+                  "is unaffected."),
+    go=i18n._("Remove from watchlist"),
+    go_title=i18n._("Remove {player} from the watchlist"))
+
+WATCH_EDIT_ACTION = WatchAction(
+    key="edit_watch", capability=WATCH_CAPABILITY, qualname="edit_watch",
+    path=WATCH_EDIT_PATH, label=i18n._("Edit the watch reason"), icon="pencil",
+    danger=False, confirm=False, form=True, audit_refusals=True,
+    field="reason", field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the watchlist."),
+    tip=i18n._("Edit the watch reason of {player}"),
+    aria=i18n._("Edit the watch reason of {player}"),
+    hint=i18n._("only the reason changes; who watched and when stay as they are"),
+    detail=i18n._("Only the reason changes: who watched the player and when are history and stay "
+                  "as they are."),
+    go=i18n._("Save the reason"),
+    go_title=i18n._("Save the watch reason of {player}"))
+
+#: THE ADD: the one watch control that acts on a player who is NOT on the list — a form whose dialog
+#: IS the write (no one-shot token). ``sender`` says the acting person's shown name is written as
+#: ``created_by``, read off the identity and never from the body, exactly like the ban ADD's
+#: ``banned_by``. Offered where there is no entry to edit or remove, so the three controls of this
+#: capability never appear together.
+WATCH_ADD_ACTION = WatchAction(
+    key="watch", capability=WATCH_CAPABILITY, qualname="watch_player", path=WATCH_ADD_PATH,
+    label=i18n._("Add to watchlist…"), icon="warn",
+    danger=False, confirm=False, form=True, audit_refusals=True, sender=True,
+    field="reason", field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the watchlist."),
+    tip=i18n._("Add to watchlist — put this player on the list"),
+    aria=i18n._("Put {player} on the watchlist"),
+    hint=i18n._("the moderators are alerted when they join"),
+    warning=i18n._("<b>{player} is put on the watchlist.</b> The moderators are alerted every "
+                   "time they join a server, and nothing blocks them from playing."),
+    detail=i18n._("The entry carries a reason and who wrote it. It is a note for the moderators, "
+                  "not a ban: nothing about the player's access changes."),
+    go=i18n._("Add to watchlist"),
+    go_title=i18n._("Put {player} on the watchlist"))
+
+#: The three watch controls. The two ENTRY controls are the pair an existing entry renders; the ADD
+#: is offered where there is no entry, so a page never draws it beside them.
+WATCH_ENTRY_ACTIONS: tuple[WatchAction, ...] = (WATCH_EDIT_ACTION, WATCH_REMOVE_ACTION)
+WATCH_ACTIONS: tuple[WatchAction, ...] = (WATCH_ADD_ACTION,) + WATCH_ENTRY_ACTIONS
+
+
 @dataclass(frozen=True, slots=True)
 class NodeField:
     """ONE named input a NODE control's DIALOG asks for, besides its checkbox(es).
@@ -2182,6 +2310,12 @@ def declare() -> None:
     # ``players.ban`` — adding a ban is ONE concept, whether it is aimed at a player row or a ucid.
     for action in BAN_ACTIONS:
         permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE WATCH-ENTRY WRITES: ONE capability, the console's player-row rule — ``WRITE_ROLES`` WITH a
+    # manager scope grant, so a manager changes the watch entries of THEIR OWN players and nobody
+    # else's. The bound is applied inside the actions (the same presence rule the player read uses),
+    # which is what a capability without a server in its path needs.
+    for action in WATCH_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
     # the node writes: Admin only, and NO scope grant — see NODE_ROLES for why (a manager's scope is
     # a set of servers, and "one of mine runs there" must not become "let me stop that machine").
     for action in NODE_ACTIONS:
@@ -2240,6 +2374,12 @@ def capabilities() -> dict[str, str]:
     # THE ADD'S PLAYER SEARCH: a READ (a GET), declared with the ADD's own capability — the search is
     # the door to the write it feeds, so opening it is not a lesser right than the ban itself.
     capabilities_[BAN_PLAYERS_PATH] = BAN_ADD_CAPABILITY
+    # THE WATCH-ENTRY WRITES: the REMOVE confirms and the EDIT is a form, so each contributes its own
+    # POST and its dialog's POST, both gated by the ONE capability — opening a dialog is not a lesser
+    # right than performing the write.
+    capabilities_.update({action.path: action.capability for action in WATCH_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in WATCH_ACTIONS if action.dialog})
     # THE SHORT-LIVED IMAGE URL carries the SCREENSHOT's own capability: it is the glyph's answer, so
     # whoever may ask for a capture may load it, and nobody else — a token is not a second door. The
     # declaration is the ROUTE's pattern, because that is what the gate resolves a request against.
@@ -3528,6 +3668,12 @@ def controls_for(request: Request, table: str, origin: str, *, tab: str = "") ->
         # ``request.state`` (``pages/bans``) and the control is shaped here — the same one map every
         # other table's controls come from, asked BY TABLE.
         return ban_controls(request, getattr(request.state, "bans_rows", ()) or (), origin)
+    if table == "player_directory":
+        # The directory's rows are a DATABASE read the page fetched before this module was asked, and
+        # it stashes them on ``request.state`` (``pages/players``) for the same reason: the control is
+        # built from the SAME scoped rows the table renders, never from a second read.
+        return directory_controls(
+            request, getattr(request.state, "player_directory_rows", ()) or (), origin)
     return {}
 
 
@@ -3863,6 +4009,168 @@ def _ban_control(action: BanAction, row, token: str, origin: str,
                                  ("ucid", readmodels.text(getattr(row, "ucid", ""))),
                                  ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
                                  *carry),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
+#: The directory row's own glyph per ban/watch action key — the mockup's two pairs: Ban / Lift ban,
+#: Watch / Unwatch. The ACTIONS are the console's ban and watch writes, declared once each; only the
+#: drawing differs from the page-level controls, which spell their verb beside an empty field.
+DIRECTORY_GLYPHS: dict[str, str] = {"add": "ban", "lift": "unban", "watch": "reveal",
+                                    "unwatch": "conceal"}
+
+#: The ban ADD's ROW wording. Its page-level copy names no player, because there the operator types
+#: the UCID into the dialog; a row already knows whose ban it would add.
+DIRECTORY_BAN_SENTENCE = i18n._("Ban {player}")
+
+
+def directory_controls(request: Request, rows, origin: str) -> dict[str, dict]:
+    """The Ban/Watch controls a PLAYER-DIRECTORY row may render, keyed by the row's UCID.
+
+    The rows are the SAME scoped :class:`~services.webservice.pages.players.DirectoryRowView` records
+    the table renders (the page stashed them for :func:`controls_for`), so ``controls ⊆ rows`` holds
+    by construction: a player outside the caller's scope is not in the rows at all, and a crafted
+    POST naming one is refused by the action layer exactly like a UCID nothing answers to.
+
+    Both pairs key on the UCID and need no live session — the ban ADD resolves no server and looks no
+    player up, and the watch trio is the same shape — which is why they are row controls here while
+    Message / Popup / Kick / Screenshot stay on the player page.
+
+    EACH control is gated on its OWN capability (``permissions.allows``, the predicate the gate runs)
+    and its own action (``action_available``), and on the ROW's state: a banned row offers the LIFT
+    and never the ADD, a watched row the REMOVE and never the ADD. A control the caller may not use,
+    or that does not apply to the row, is ABSENT — never rendered disabled.
+
+    The shape is the row strip's (``templates/_strip.html``): ``{"strip": (control, …), "wide":
+    False}``, so a directory row draws the same component every other row does. A row nothing applies
+    to gets no entry at all, and its Actions cell renders nothing.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+
+    def offered(action) -> bool:
+        return (permissions.allows(action.capability, roles, manager=manager)
+                and action_available(action.qualname))
+
+    ban = tuple(action for action in (BAN_ADD_ACTION, BAN_LIFT_ACTION) if offered(action))
+    watch = tuple(action for action in (WATCH_ADD_ACTION, WATCH_REMOVE_ACTION) if offered(action))
+    if not ban and not watch:
+        return {}
+    token = session.get_csrf_token(request)
+    controls: dict[str, dict] = {}
+    for row in rows:
+        ucid = readmodels.text(getattr(row, "ucid", ""))
+        if not ucid:
+            continue
+        banned = bool(getattr(row, "banned", False))
+        watched = bool(getattr(row, "watched", False))
+        name = readmodels.text(getattr(row, "name", "")) or ucid
+        applicable = (tuple(action for action in ban if (action.key == BAN_LIFT_ACTION.key) == banned)
+                      + tuple(action for action in watch
+                              if (action.key == WATCH_REMOVE_ACTION.key) == watched))
+        if applicable:
+            controls[ucid] = {"strip": tuple(_directory_control(action, ucid, name, token, origin)
+                                             for action in applicable),
+                              "wide": False}
+    return controls
+
+
+def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: str, token: str,
+                       origin: str) -> dict:
+    """One rendered directory control, as the strip's control record.
+
+    The target is the row's UCID and travels in the request BODY — there is no URL a person can edit
+    to point the write at another player — beside the page that rendered it and the session's CSRF
+    token. A ROW IS GLYPHS ONLY, so the word lives in the native tooltip and the accessible name and
+    both name the player (a directory row has no resolved server to name as well).
+    """
+    values = {"player": player_name}
+    sentence = DIRECTORY_BAN_SENTENCE if action.key == BAN_ADD_ACTION.key else action.aria
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "label": action.label, "icon": DIRECTORY_GLYPHS[action.key],
+        "title": _sentence(sentence, **values), "aria": _sentence(sentence, **values),
+        "danger": bool(action.danger),
+        "key": ucid,
+        "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
+def watch_controls(request: Request, detail, origin: str, tab: str = "") -> dict | None:
+    """The EDIT and REMOVE controls a player's WATCH ENTRY renders — ``None`` when there is none.
+
+    *detail* is the player page's own read (``readmodels.players.PlayerDetailView``), so the entry the
+    controls name is the SAME record the page renders: an entry that is not there renders NO control
+    at all (an unusable control is absent, never drawn disabled), and the UCID each control posts is
+    the entry's own, never a value the browser sent.
+
+    EACH control is gated on its OWN action availability plus the ONE capability the pair shares,
+    through the very predicate the gate runs (``permissions.allows``), so a caller holding
+    ``players.watch`` sees the pair and everybody else sees nothing. The shape is the row strip's
+    (``templates/_strip.html``): ``{"strip": (control, …), "wide": False}``.
+    """
+    watch = getattr(detail, "watch", None)
+    if watch is None or not getattr(watch, "active", False):
+        return None
+    ucid = readmodels.text(getattr(watch, "ucid", ""))
+    if not ucid:
+        return None
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    offered = tuple(action for action in WATCH_ENTRY_ACTIONS
+                    if permissions.allows(action.capability, roles, manager=manager)
+                    and action_available(action.qualname))
+    if not offered:
+        return None
+    token = session.get_csrf_token(request)
+    label = readmodels.text(getattr(detail, "name", "")) or ucid
+    return {"strip": tuple(_watch_control(action, ucid, label, token, origin, tab)
+                           for action in offered),
+            "wide": False}
+
+
+def watch_add_control(request: Request, detail, origin: str, tab: str = "") -> dict | None:
+    """The ADD control a player's page renders when it has NO watch entry — else ``None``.
+
+    The twin of :func:`watch_controls` for the other state: the three controls of ``players.watch``
+    are never drawn together, because an entry that exists is edited or removed and a player without
+    one is added. A page-level control (it creates the entry no row can be drawn from), so its record
+    is the strip's own single-control shape.
+    """
+    watch = getattr(detail, "watch", None)
+    if watch is not None and getattr(watch, "active", False):
+        return None
+    ucid = readmodels.text(getattr(detail, "ucid", ""))
+    if not ucid:
+        return None
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    action = WATCH_ADD_ACTION
+    if not (permissions.allows(action.capability, roles, manager=manager)
+            and action_available(action.qualname)):
+        return None
+    label = readmodels.text(getattr(detail, "name", "")) or ucid
+    return _watch_control(action, ucid, label, session.get_csrf_token(request), origin, tab)
+
+
+def _watch_control(action: WatchAction, ucid: str, player_name: str, token: str, origin: str,
+                   tab: str = "") -> dict:
+    """One rendered watch control, as the strip's control record.
+
+    The entry's UCID travels in the request BODY, so there is no URL a person can edit to point a
+    write at another entry, and the ORIGIN travels beside it (the page the control was rendered on).
+    A control whose answer is a DIALOG posts to that dialog's path, so the action's own route can
+    refuse a POST that skipped it.
+    """
+    values = {"player": player_name}
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "label": action.label, "icon": action.icon,
+        "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
+        "hint": action.hint, "danger": bool(action.danger),
+        "key": ucid,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
         "csrf_field": session.CSRF_FIELD, "csrf_token": token,
     }
 
@@ -4956,7 +5264,8 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
 
 # ------------------------------------------------------------------------------- the notice
 
-def _remember_notice(request: Request, action: WriteAction | PlayerAction | NodeAction | BanAction,
+def _remember_notice(request: Request,
+                     action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction,
                      result: ActionResult, *, revert: str = "", revert_omitted: str = "",
                      refusal: bool = False) -> None:
     """Store the outcome of one write as a ONE-SHOT notice, for the page the redirect lands on.
@@ -5036,7 +5345,8 @@ REFUSAL_NAME_MISMATCH = i18n._("Not done (the typed name does not match the targ
 BAN_EDIT_DGSA_REFUSAL = i18n._("A DGSA ban cannot be edited — it can only be lifted here.")
 
 
-def _refusal_notice(request: Request, action: WriteAction | PlayerAction | NodeAction | BanAction,
+def _refusal_notice(request: Request,
+                    action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction,
                     message: str) -> None:
     """Store the ONE-SHOT refusal *message* for the page the person lands on.
 
@@ -5142,6 +5452,25 @@ def add_routes(router: APIRouter) -> APIRouter:
     # and nothing a forged request could change. Gated by the ADD's own capability (declared above).
     router.add_api_route(BAN_PLAYERS_PATH, _ban_players_handler(), methods=["GET"],
                          name="ban-players")
+    # THE WATCH-ENTRY WRITES: the ADD and the EDIT are FORMS (the dialog IS the write, no token) and
+    # the REMOVE confirms (its dialog mints the one-shot token its route spends). All three are
+    # registered through the same loop shape the ban writes use, so a new watch write is one
+    # declaration.
+    _watch_handlers = {
+        WATCH_ADD_ACTION.key: (_watch_add_handler, _watch_add_confirm_handler),
+        WATCH_REMOVE_ACTION.key: (_watch_remove_handler, _watch_remove_confirm_handler),
+        WATCH_EDIT_ACTION.key: (_watch_edit_handler, _watch_edit_confirm_handler),
+    }
+    for action in WATCH_ACTIONS:
+        handler_factory, dialog_factory = _watch_handlers[action.key]
+        router.add_api_route(action.path, handler_factory(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-watch-{action.key}")
+        if action.dialog:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, dialog_factory(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-watch-{action.key}-confirm")
     # THE DCS UPDATE'S VERSION LIST — the JSON GET the dialog's version pick reads. A GET because it
     # changes nothing, and so WITHOUT the CSRF dependency the writes carry: there is no token to send
     # and nothing a forged request could change. Gated by the update's own capability, declared above
@@ -7030,17 +7359,23 @@ def ban_scope_options(request: Request, scope: BanScope) -> tuple[dict, ...]:
             *({"value": name, "label": name} for name in scope.servers))
 
 
-def ban_add_inputs(request: Request, action: BanAction, scope: BanScope) -> tuple[dict, ...]:
+def ban_add_inputs(request: Request, action: BanAction, scope: BanScope,
+                   ucid: str = "") -> tuple[dict, ...]:
     """The ADD dialog's fields, in the mockup's order: the UCID, the reason, the duration, the scope.
 
     The ucid is REQUIRED — nothing else can name whom the ban is for — and the reason and the
     duration are the SAME records the player-row Ban dialog draws (:func:`ban_dialog_fields`). The
     ucid field is the ONE field that carries a ``lookup`` (``BAN_ADD_UCID_LOOKUP``): its own
     progressive enhancement turns the name the operator knows into the UCID it has to type.
+
+    *ucid* fills the field when a control already named its target (a player directory row's Ban),
+    so the operator confirms the player instead of retyping the id; it stays an editable input, and a
+    page-level ADD that named nothing arrives empty.
     """
-    ucid = _dialog_field(BAN_ADD_UCID_FIELD, BAN_ADD_UCID_LABEL, required=True, maximum=64,
-                         width="wide", help_text=BAN_ADD_UCID_HELP, lookup=BAN_ADD_UCID_LOOKUP)
-    return (ucid,
+    field = _dialog_field(BAN_ADD_UCID_FIELD, BAN_ADD_UCID_LABEL, required=True, maximum=64,
+                          value=readmodels.text(ucid), width="wide", help_text=BAN_ADD_UCID_HELP,
+                          lookup=BAN_ADD_UCID_LOOKUP)
+    return (field,
             *ban_dialog_fields(action),
             _dialog_field(BAN_SCOPE_FIELD, BAN_SCOPE_LABEL, kind="select",
                           options=ban_scope_options(request, scope), help_text=BAN_SCOPE_HELP))
@@ -7048,6 +7383,7 @@ def ban_add_inputs(request: Request, action: BanAction, scope: BanScope) -> tupl
 
 def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab: str = "",
                            scope: BanScope = BanScope(servers=(), scoped=False),
+                           ucid: str = "",
                            carry: tuple[tuple[str, str], ...] = ()) -> dict:
     """Everything the ADD ban dialog's page reads — the sixth sibling of :func:`confirm_context`.
 
@@ -7055,7 +7391,8 @@ def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab
     was clicked and nothing was resolved — the ucid is typed into the form, the reason and the
     duration are the records the player-row Ban dialog draws, and the scope picker offers the
     bot-wide value followed by the servers the caller may name (*scope*, read through the scoped
-    action, never off the request).
+    action, never off the request). *ucid* is the target a ROW's control already named, so the field
+    arrives filled; the ADD at the page head names none and arrives empty.
 
     NO ONE-SHOT TOKEN (``action.form``, ``action.confirm`` False): adding a ban is not a step that
     cannot be undone from here — the row it writes carries a Lift — so nothing this route could
@@ -7081,7 +7418,7 @@ def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab
         "server": "",
         "target": {"msgid": BAN_ADD_TARGET, "params": {}},
         "hidden": _hidden_fields(origin, tab, *carry),
-        "inputs": ban_add_inputs(request, action, scope),
+        "inputs": ban_add_inputs(request, action, scope, ucid),
         "body_inputs": (),
         # THE ADD WAITS FOR ITS WRITE (``data-await``): the returned list is read AFTER the ban is
         # written, so the operator lands on a list that already holds it.
@@ -7199,6 +7536,213 @@ def ban_edit_dialog_context(request: Request, action: BanAction, row, origin: st
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
         "back": dialog_back(request, _bans_url(origin, tab, carry)),
+        "dialog": dialog,
+    }
+
+
+#: The watch dialogs' ONE facts line: who put the player on the list, when, and the entry's reason.
+#: Rendered as a NOTE under the declaration's own ``detail``, so the operator sees what the write is
+#: about without the dialog inventing a second layout for it.
+WATCH_ENTRY_NOTE = i18n._("Watched by {by} on {at} — reason: {reason}")
+
+
+async def player_detail_view(request: Request, ucid: str):
+    """The player *ucid* names, read through the console's own detail action — or ``None``.
+
+    The name, the UCIDs and the moderation states in a dialog are therefore the same values the
+    player page renders and never a field the browser sent. A player outside the caller's scope
+    answers ``found`` False there and is indistinguishable from one this installation never saw.
+    """
+    result = await read_action("get_player_detail", context_for(request), ucid=ucid)
+    data = getattr(result, "data", None)
+    if not getattr(result, "success", False) or not isinstance(data, Mapping):
+        return None
+    detail = readmodels.player_detail(data)
+    return detail if detail.found else None
+
+
+async def watch_entry_detail(request: Request, ucid: str):
+    """The player *ucid* names, with its watch entry — or ``None`` when there is no entry."""
+    detail = await player_detail_view(request, ucid)
+    if detail is None or not detail.watch.active:
+        return None
+    return detail
+
+
+def _watch_note(watch) -> tuple[dict, ...]:
+    """The entry's own facts as ONE note record, escaped like every other dialog value."""
+    return (_sentence(WATCH_ENTRY_NOTE,
+                      by=html.escape(readmodels.text(getattr(watch, "created_by", "")) or "?"),
+                      at=html.escape(readmodels.text(getattr(watch, "created_at", "")) or "?"),
+                      reason=html.escape(readmodels.text(getattr(watch, "reason", "")) or "—")),)
+
+
+def watch_add_dialog_context(request: Request, action: WatchAction, detail, origin: str,
+                             tab: str = "") -> dict:
+    """Everything the ADD watch-entry dialog's page reads.
+
+    A FORM with ONE field — the reason — empty, because there is no entry yet. NO one-shot token
+    (``action.form``, ``action.confirm`` False): adding a watch is reversible from the same page, the
+    entry it writes carrying its own Remove. The target is the RESOLVED player, named by the entry the
+    route already re-read, never by a field the browser sent.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = readmodels.text(getattr(detail, "name", "")) or readmodels.text(
+        getattr(detail, "ucid", ""))
+    ucid = readmodels.text(getattr(detail, "ucid", ""))
+    reason = _dialog_field(action.field, action.field_label or action.label,
+                           kind=action.field_kind, required=True, maximum=action.field_max,
+                           help_text=action.field_help, width=action.field_width)
+    values = {"player": html.escape(label)}
+    dialog = {
+        "heading": _default_title(action.label, html.escape(label)),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "inputs": (reason,),
+        "body_inputs": (),
+        # the add waits for its write, so the page it returns to already shows the new entry.
+        "await": True,
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Add to watchlist')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def watch_remove_dialog_context(request: Request, action: WatchAction, detail, token: str,
+                                origin: str, tab: str = "") -> dict:
+    """Everything the REMOVE watch-entry dialog's page reads — the ban lift dialog's twin.
+
+    It asks for NOTHING (the entry's UCID is the whole identity) and carries the one-shot token the
+    action's route spends, so a POST that never rendered the warning cannot delete the entry. The
+    warning names the player and states what the removal costs: the reason goes with the row, and the
+    player is not unbanned by it.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    watch = detail.watch
+    ucid = readmodels.text(getattr(watch, "ucid", ""))
+    label = html.escape(readmodels.text(getattr(detail, "name", "")) or ucid)
+    values = {"player": label}
+    dialog = {
+        "heading": _default_title(action.label, label),
+        "warning": _sentence(action.warning, **values),
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": _watch_note(watch),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "inputs": (),
+        "body_inputs": (),
+        # the removal waits for its write, so the page it returns to already shows the entry gone.
+        "await": True,
+        "tag": i18n._("confirm"),
+        "irreversible": True,
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('confirm')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def watch_edit_dialog_context(request: Request, action: WatchAction, detail, origin: str,
+                              tab: str = "") -> dict:
+    """Everything the EDIT watch-reason dialog's page reads.
+
+    A FORM with ONE field — the reason — PRE-FILLED from the entry, because a watch entry has no
+    expiry to state and no second value an edit may change. No one-shot token: a reason can be
+    corrected again from the same page, so nothing here could refuse a later POST.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    watch = detail.watch
+    ucid = readmodels.text(getattr(watch, "ucid", ""))
+    label = readmodels.text(getattr(detail, "name", "")) or ucid
+    reason = _dialog_field(action.field, action.field_label or action.label,
+                           kind=action.field_kind, required=True, maximum=action.field_max,
+                           help_text=action.field_help, width=action.field_width)
+    reason["value"] = readmodels.text(getattr(watch, "reason", ""))
+    dialog = {
+        "heading": _default_title(action.label, html.escape(label)),
+        "warning": None,
+        "warning_note": None,
+        "detail": _sentence(action.detail),
+        "detail_notes": _watch_note(watch),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, player=html.escape(label)),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "inputs": (reason,),
+        "body_inputs": (),
+        # the edit waits for its write, so the page it returns to already shows the new reason.
+        "await": True,
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Edit the watch reason')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
         "dialog": dialog,
     }
 
@@ -7520,7 +8064,8 @@ def _delete_server_handler(action: WriteAction):
     return handle
 
 
-async def _audit_refusal(ctx: ActionContext, action: WriteAction | PlayerAction | NodeAction | BanAction,
+async def _audit_refusal(ctx: ActionContext,
+                         action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction,
                          why: str, target: str) -> None:
     """Record ONE audit entry for an attempt the ROUTE refused before any action ran.
 
@@ -7950,6 +8495,7 @@ def _ban_add_confirm_handler(action: BanAction):
         origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
         tab = posted_tab(form.get(TAB_FIELD))
         dialog = ban_add_dialog_context(request, action, origin, tab, await _ban_scope(request),
+                                        ucid=readmodels.text(form.get(BAN_ADD_UCID_FIELD)),
                                         carry=_dgsa_carry(form))
         # no-store: the dialog is a console page too (see ``_confirm_handler``).
         return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
@@ -8009,11 +8555,16 @@ def _ban_confirm_handler(action: BanAction):
         ucid = readmodels.text(form.get("ucid"))
         banned_at = readmodels.text(form.get("banned_at"))
         ctx = _context(request, identity)
+        # ``banned_at`` is omitted by a row that knows only the UCID (the player directory): the
+        # player's own entry is then the target, and an entry this caller cannot see answers the
+        # same 404 as a UCID nothing answers to.
         row = next((candidate for candidate in await _ban_rows(ctx)
-                    if candidate.ucid == ucid and candidate.banned_at_key == banned_at), None)
+                    if candidate.ucid == ucid
+                    and (not banned_at or candidate.banned_at_key == banned_at)), None)
         if row is None:
             raise HTTPException(status_code=404, detail=f"No ban for ucid '{ucid}'.")
-        token = mint_confirm_token(request, action.path, _ban_target(ucid, banned_at))
+        token = mint_confirm_token(request, action.path,
+                                   _ban_target(ucid, readmodels.text(getattr(row, "banned_at_key", ""))))
         origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
         tab = posted_tab(form.get(TAB_FIELD))
         dialog = ban_confirm_context(request, action, row, token, origin, tab, _dgsa_carry(form))
@@ -8079,6 +8630,169 @@ def _ban_edit_confirm_handler(action: BanAction):
         origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
         tab = posted_tab(form.get(TAB_FIELD))
         dialog = ban_edit_dialog_context(request, action, row, origin, tab, _dgsa_carry(form))
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _watch_add_handler(action: WatchAction):
+    """The route for the watch entry's ADD — the dialog's own POST.
+
+    No token is spent (the write is reversible from the same page): the UCID, the reason and the
+    actor's shown name ride the declaration's OWN field names, and ``sender`` is read off the
+    identity, never from the body, so nobody can sign another person's name onto an entry.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the add-watch control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {"ucid": readmodels.text(form.get("ucid")),
+                                  action.field: readmodels.text(form.get(action.field))}
+        if action.sender:
+            params["sender"] = _sender(identity)
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _watch_add_confirm_handler(action: WatchAction):
+    """The route that RENDERS the ADD dialog. It changes nothing and mints no token.
+
+    The player is RE-READ here through the console's own detail action, so the dialog names a resolved
+    player and never a field the browser sent. A UCID with no player answer the console's bare 404;
+    so does a player who IS watched, because the ADD is the control of the entry-less state and this
+    is the door behind that omission.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await player_detail_view(request, ucid)
+        if detail is None or detail.watch.active:
+            raise HTTPException(status_code=404, detail=f"No such player for ucid '{ucid}'.")
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = watch_add_dialog_context(request, action, detail, origin, tab)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _watch_remove_handler(action: WatchAction):
+    """The route for the watch entry's REMOVE — the dialog's own POST.
+
+    The entry's UCID travels in the BODY and the one-shot token is keyed on it, so a POST that never
+    rendered the warning carries no token and is refused. The scope is applied INSIDE the action (the
+    player read's own presence bound), so this route names no server and cannot widen it.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        if not consume_confirm_token(request, action.path, ucid,
+                                     readmodels.text(form.get(CONFIRM_FIELD))):
+            # The row's control posts to the DIALOG, the dialog's form carries the token minted for
+            # THIS entry, and a caller who skips the dialog has none. That refusal IS the gate.
+            await _audit_refusal(ctx, action, "not confirmed through its dialog",
+                                 f"ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        result = await call_action(action.qualname, ctx, ucid=ucid)
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _watch_remove_confirm_handler(action: WatchAction):
+    """The route that RENDERS the REMOVE dialog. It changes nothing.
+
+    The entry is RE-READ here through the console's own detail action, so the name, the reason and
+    the watcher in the dialog come from the entry — never from a field the browser sent. A UCID with
+    no entry the caller can see answers the console's bare 404, the SAME answer as a UCID nothing
+    answers to; the token is minted on the ENTRY's own UCID, which is what the dialog posts back.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await watch_entry_detail(request, ucid)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"No watch entry for ucid '{ucid}'.")
+        entry_ucid = readmodels.text(getattr(detail.watch, "ucid", "")) or ucid
+        token = mint_confirm_token(request, action.path, entry_ucid)
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = watch_remove_dialog_context(request, action, detail, token, origin, tab)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _watch_edit_handler(action: WatchAction):
+    """The route for the watch entry's EDIT — the dialog's own POST.
+
+    No token is spent (an edit is reversible from the same page): the UCID and the reason ride the
+    declaration's OWN field names, so the route cannot post one thing and the action read another.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the edit-watch control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {"ucid": readmodels.text(form.get("ucid")),
+                                  action.field: readmodels.text(form.get(action.field))}
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _watch_edit_confirm_handler(action: WatchAction):
+    """The route that RENDERS the EDIT dialog. It changes nothing and mints no token.
+
+    The entry is RE-READ here, so the reason the field PRE-FILLS is the entry's own; a UCID with no
+    entry the caller can see answers the console's bare 404.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await watch_entry_detail(request, ucid)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"No watch entry for ucid '{ucid}'.")
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = watch_edit_dialog_context(request, action, detail, origin, tab)
         return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 
