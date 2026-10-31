@@ -51,16 +51,24 @@ class Info(report.EmbedElement):
             return
 
         if len(weapons_by_qty) == 1:
+            num = next(iter(weapons_by_qty))
+            if len(weapons_by_qty[num]) > 9:
+                value = "items of each"
+            else:
+                value = ', '.join(weapons_by_qty[num])
             embed.add_field(
                 name=_('Weapons'),
-                value="```" + _('{} items each').format(next(iter(weapons_by_qty))) + "```",
+                value="```" + _('{}: {}').format(num, value) + "```",
                 inline=False
             )
             return
 
         # Use the most common quantity as default (mode), not max().
         qty_counts = Counter(raw_weapons.values())
-        default_qty = max(qty_counts.items(), key=lambda kv: (kv[1], kv[0]))[0]
+        if len(qty_counts) > 9:
+            default_qty = max(qty_counts.items(), key=lambda kv: (kv[1], kv[0]))[0]
+        else:
+            default_qty = -1
 
         default_types: list[str] = []
         custom_by_qty: dict[int, list[str]] = {}
@@ -145,7 +153,10 @@ class Info(report.EmbedElement):
 
         # Use the most common quantity as "default" (robust against one-offs above/below).
         qty_counts = Counter(raw_aircraft.values())
-        default_qty = max(qty_counts.items(), key=lambda kv: (kv[1], kv[0]))[0]
+        if len(qty_counts) > 9:
+            default_qty = max(qty_counts.items(), key=lambda kv: (kv[1], kv[0]))[0]
+        else:
+            default_qty = -1
 
         # Split into "default" and "custom" quantities
         default_types: list[str] = []
@@ -160,7 +171,7 @@ class Info(report.EmbedElement):
         if not custom_by_qty:
             embed.add_field(
                 name=_('Aircraft'),
-                value="```" + _('{} items each').format(default_qty) + "```",
+                value="```" + _('{} items each').format(default_qty if default_qty <= 100 else "unlimited") + "```",
                 inline=False
             )
             return
@@ -176,7 +187,11 @@ class Info(report.EmbedElement):
         # Then list custom quantities (show "above default" early too).
         custom_keys = sorted(custom_by_qty.keys(), key=lambda q: (0 if q > default_qty else 1, q))
         for qty in custom_keys:
-            lines.append(f"{qty:3d}: {', '.join(custom_by_qty[qty])}")
+            if qty > 100:
+                num = "unlimited"
+            else:
+                num = f"{qty:3d}"
+            lines.append(f"{num}: {', '.join(custom_by_qty[qty])}")
 
         # Keep within Discord's field value limit (1024). We wrap in ```...```, so budget a bit.
         budget = 1018

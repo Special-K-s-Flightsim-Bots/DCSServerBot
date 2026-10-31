@@ -51,12 +51,7 @@
       <text x="{{ value.x }}" y="{{ value.y }}" class="stt-val" font-size="{{ value.font_size }}" text-anchor="middle">{{ value.text }}</text>
       {% endfor %}
       {% for label in daily.labels %}
-      {% if label.rotate %}
-      <text x="{{ label.x }}" y="{{ label.y }}" class="stt-axis" font-size="{{ label.font_size }}" text-anchor="end"
-            transform="rotate(-45 {{ label.x }} {{ label.y }})">{{ label.text }}</text>
-      {% else %}
       <text x="{{ label.x }}" y="{{ label.y }}" class="stt-axis" font-size="{{ label.font_size }}" text-anchor="middle">{{ label.text }}</text>
-      {% endif %}
       {% endfor %}
     </svg>
     {% else %}

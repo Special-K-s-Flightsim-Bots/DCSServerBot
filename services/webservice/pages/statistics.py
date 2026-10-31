@@ -347,9 +347,30 @@ DAILY_BOTTOM = 54
 DAILY_BAR_SHARE = 0.62
 DAILY_BAR_MAX = 44.0
 
-#: Above this many columns the axis is DENSE: the labels turn 45° and the type steps down, because a
-#: full date no longer fits under the bar it belongs to.
-DAILY_DENSE_AFTER = 14
+#: What one `MM-DD` date needs across the axis, in viewBox units, with air on both sides. The axis
+#: prints as many dates as the width holds at this pitch and THINS the rest (every 2nd, 5th, 6th bar)
+#: instead of turning them: a date under every bar of a 90-day series is a wall of text, and each bar
+#: keeps its full label in its tooltip either way.
+DATE_PITCH = 46.0
+#: What a three-digit count needs above a bar. Counts thin at their own rate, because a number is
+#: narrower than a date: past this many bars some of them would touch.
+COUNT_PITCH = 16.0
+
+
+def _label_plan(count: int, plot_width: float) -> tuple[int, int]:
+    """``(date_step, count_step)`` for *count* bars across *plot_width*.
+
+    One rhythm per axis, each at the pitch its own text needs: dates are capped by how many fit
+    across at :data:`DATE_PITCH`, counts only by :data:`COUNT_PITCH` — so a 30-day series keeps a
+    number over every bar while still printing only every second date.
+    """
+    if count <= 0:
+        return 1, 1
+    pitch = plot_width / count
+    fitting = max(1, int(plot_width // DATE_PITCH))
+    date_step = max(1, -(-count // fitting))              # ceil(count / fitting), integer maths
+    count_step = max(1, math.ceil(COUNT_PITCH / pitch)) if pitch else 1
+    return date_step, count_step
 
 
 def _axis(peak: float) -> tuple[float, float]:
@@ -419,8 +440,8 @@ def daily_chart(unique_users: Any) -> dict:
     count = len(series)
     slot = plot_width / count if count else plot_width
     bar = min(DAILY_BAR_MAX, max(6.0, slot * DAILY_BAR_SHARE))
-    dense = count > DAILY_DENSE_AFTER
-    font = 9.0 if dense else 10.5
+    date_step, count_step = _label_plan(count, plot_width)
+    font = 10.5
 
     columns, totals, labels = [], [], []
     for index, entry in enumerate(series):
@@ -437,10 +458,14 @@ def daily_chart(unique_users: Any) -> dict:
             "returning_height": f"{returning_height:.1f}",
             "new_y": f"{baseline - total_height:.1f}", "new_height": f"{new_height:.1f}",
         })
-        totals.append({"x": f"{centre:.1f}", "y": f"{baseline - total_height - 6:.1f}",
-                       "text": _count(entry["total"]), "font_size": f"{font:.1f}"})
-        labels.append({"x": f"{centre:.1f}", "y": f"{baseline + 13:.1f}",
-                       "text": entry["axis"], "rotate": dense, "font_size": f"{font:.1f}"})
+        # the two axes are thinned on their own rhythms (see _label_plan); every bar keeps both
+        # figures in its tooltip, so nothing printed here is the only place a value lives
+        if index % count_step == 0:
+            totals.append({"x": f"{centre:.1f}", "y": f"{baseline - total_height - 6:.1f}",
+                           "text": _count(entry["total"]), "font_size": f"{font:.1f}"})
+        if index % date_step == 0:
+            labels.append({"x": f"{centre:.1f}", "y": f"{baseline + 14:.1f}",
+                           "text": entry["axis"], "font_size": f"{font:.1f}"})
 
     grid, axis = [], []
     value = 0.0
@@ -455,7 +480,7 @@ def daily_chart(unique_users: Any) -> dict:
     return {"width": DAILY_WIDTH, "height": DAILY_HEIGHT, "left": DAILY_LEFT,
             "right": DAILY_WIDTH - DAILY_RIGHT, "top": DAILY_TOP, "baseline": baseline,
             "grid": grid, "axis": axis, "columns": columns, "totals": totals, "labels": labels,
-            "ceiling": _count(peak), "count": count, "dense": dense}
+            "ceiling": _count(peak), "count": count}
 
 
 def retention_rows(retention: Any) -> list[dict]:
