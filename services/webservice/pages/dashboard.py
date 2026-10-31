@@ -47,7 +47,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from core.actions import read_action
+from core.actions import action_registry, read_action
 
 from .. import i18n, permissions, readmodels, session
 from ..auth import routes as auth_routes
@@ -65,7 +65,8 @@ __all__ = [
     "LOAD_GRAPH_PARAM", "LOAD_GRAPH_DEFAULT", "LOAD_GRAPHS",
     "load_scale_from", "load_graph_from", "load_scope", "load_scope_groups", "load_chips",
     "load_payload",
-    "load_chart", "load_mini", "load_node_rows", "load_kpis", "load_view", "load_context",
+    "load_chart", "load_mini", "load_minis", "load_node_rows", "load_kpis", "load_view",
+    "load_context", "load_tab_available", "MAX_SCOPE_TOKEN", "LOAD_MINI_SLOTS",
     "reset_load_cache",
     "TONE_CALM", "TONE_ALERT", "TONE_ADVISORY", "ADVISORY_KINDS",
     "UPDATE_AUTO_MSGID", "UPDATE_MANUAL_MSGID",
@@ -170,6 +171,16 @@ def tab_capability(key: str) -> str | None:
     }.get(key)
 
 
+def load_tab_available() -> bool:
+    """Whether this installation can feed the Load tab — its read is registered, or it is not.
+
+    ``get_load_statistics`` belongs to the optional monitoring plugin. Without it the tab could
+    only render "the load statistics could not be read", so a tab that cannot be fed is not offered
+    at all: what a tab can SHOW is decided where the tabs are decided.
+    """
+    return "get_load_statistics" in action_registry()
+
+
 def allowed_tabs(roles, *, manager: bool = False) -> tuple[str, ...]:
     """The tabs a viewer holding *roles* (and *manager*) may be offered — and may RENDER.
 
@@ -184,11 +195,18 @@ def allowed_tabs(roles, *, manager: bool = False) -> tuple[str, ...]:
     offered exactly those tabs. It defaults to ``False`` (the stricter answer) so a standalone
     render cannot widen anything.
     """
-    if roles is None:
-        return TABS
-    return tuple(key for key in TABS
-                 if (capability := tab_capability(key)) is None
-                 or permissions.allows(capability, roles, manager=manager))
+    offered = []
+    for key in TABS:
+        # a tab whose read is not deployed is not a tab this installation HAS
+        if key == LOAD_TAB and not load_tab_available():
+            continue
+        if roles is None:
+            offered.append(key)
+            continue
+        capability = tab_capability(key)
+        if capability is None or permissions.allows(capability, roles, manager=manager):
+            offered.append(key)
+    return tuple(offered)
 
 #: the longest list that still fits above a BOTTOM log panel (see log_placement). One named
 #: constant, printed on the page, so raising it is one edit and never a magic number in a template.
@@ -672,16 +690,23 @@ MAX_SCOPE_TOKEN = 256
 #: exactly as ``load_mini`` does, so the big chart and the mini card cannot disagree.
 LOAD_GRAPHS: dict[str, dict] = {
     "players": {"title": LOAD_CARD, "meta": None, "right": ("%", 100.0),
-                "series": (("players", 1.0), ("cpu", 1.0))},
+                "series": (("players", 1.0), ("cpu", 1.0)), "colours": ("blue", "orange")},
     "fps": {"title": MINI_FPS, "meta": MINI_FPS_META,
-            "series": (("fps", 1.0), ("ping", 1.0))},
+            "series": (("fps", 1.0), ("ping", 1.0)), "colours": ("blue", "red")},
     "memory": {"title": MINI_MEMORY, "meta": MINI_MEMORY_META,
-               "series": (("mem_ram", 1.0), ("mem_paged", 1.0))},
+               "series": (("mem_ram", 1.0), ("mem_paged", 1.0)), "colours": ("blue", "orange")},
     "disk": {"title": MINI_DISK, "meta": MINI_DISK_META,
-             "series": (("read", 1.0), ("write", 1.0))},
+             "series": (("read", 1.0), ("write", 1.0)), "colours": ("blue", "orange")},
     "network": {"title": MINI_NETWORK, "meta": MINI_NETWORK_META,
-                "series": (("sent", 1 / 1024), ("recv", 1 / 1024))},
+                "series": (("sent", 1 / 1024), ("recv", 1 / 1024)), "colours": ("blue", "green")},
 }
+
+#: The four mini cards, in render order. A card shows ITS OWN graph, except the card whose graph is
+#: the one the big chart is drawing — that card shows the default (players/CPU) pair instead. The
+#: five graphs therefore appear exactly once across the big chart and the cards, and picking a card
+#: is a SWAP: the pair that leaves the big chart lands in the card just picked, so nothing is lost
+#: and nothing needs a reload to be brought back.
+LOAD_MINI_SLOTS: tuple[str, ...] = ("fps", "memory", "disk", "network")
 
 
 def load_scale_from(value) -> str:
@@ -1137,6 +1162,27 @@ def _graph_url(scope: dict, window: Mapping, graph: str) -> str:
     return f"{DASHBOARD_PATH}?{urlencode(query)}"
 
 
+def load_minis(rows: list[Mapping], window: Mapping, key: str, scope: dict,
+               graph: str) -> list[dict]:
+    """The four cards: each shows its own graph, except the one the big chart is drawing — that
+    card shows the default pair, which makes picking a card a SWAP rather than a one-way trip.
+
+    Each card's link names the graph the card is SHOWING, so clicking it puts exactly that pair in
+    the big chart and hands this card the pair that just left it.
+    """
+    cards = []
+    for slot in LOAD_MINI_SLOTS:
+        shown = LOAD_GRAPH_DEFAULT if slot == graph else slot
+        spec = LOAD_GRAPHS[shown]
+        series = tuple((name, colour, factor) for (name, factor), colour
+                       in zip(spec["series"], spec["colours"]))
+        cards.append({"name": shown, "title": spec["title"], "meta": spec["meta"],
+                      "url": _graph_url(scope, window, shown),
+                      "chart": load_mini(rows, window, key, title=shown, meta=spec["meta"],
+                                         series=series)})
+    return cards
+
+
 def load_view(payload: Mapping | None, *, scale: str, scope: dict, groups: list[dict],
               masters: set[str], graph: str = LOAD_GRAPH_DEFAULT) -> dict:
     """Everything ``_load_panel.html`` reads: chips, selector, KPIs, charts and node table.
@@ -1185,24 +1231,8 @@ def load_view(payload: Mapping | None, *, scale: str, scope: dict, groups: list[
                         "queued": COL_QUEUED, "wait": COL_WAIT, "dcs_queue": COL_DCS_QUEUE,
                         "asyncio_queue": COL_ASYNCIO_QUEUE, "last_hour": COL_LAST_HOUR},
         "no_value": NO_VALUE,
-        "minis": ([
-            {"name": "fps", "title": MINI_FPS, "meta": MINI_FPS_META,
-             "url": _graph_url(scope, window, "fps"), "active": graph == "fps",
-             "chart": load_mini(rows, window, key, title="fps", meta=MINI_FPS_META,
-                                series=(("fps", "blue", 1.0), ("ping", "red", 1.0)))},
-            {"name": "memory", "title": MINI_MEMORY, "meta": MINI_MEMORY_META,
-             "url": _graph_url(scope, window, "memory"), "active": graph == "memory",
-             "chart": load_mini(rows, window, key, title="memory", meta=MINI_MEMORY_META,
-                                series=(("mem_ram", "blue", 1.0), ("mem_paged", "orange", 1.0)))},
-            {"name": "disk", "title": MINI_DISK, "meta": MINI_DISK_META,
-             "url": _graph_url(scope, window, "disk"), "active": graph == "disk",
-             "chart": load_mini(rows, window, key, title="disk", meta=MINI_DISK_META,
-                                series=(("read", "blue", 1.0), ("write", "orange", 1.0)))},
-            {"name": "network", "title": MINI_NETWORK, "meta": MINI_NETWORK_META,
-             "url": _graph_url(scope, window, "network"), "active": graph == "network",
-             "chart": load_mini(rows, window, key, title="network", meta=MINI_NETWORK_META,
-                                series=(("sent", "blue", 1 / 1024), ("recv", "green", 1 / 1024)))},
-        ] if has_data and rows else []),
+        "minis": (load_minis(rows, window, key, scope, graph)
+                  if has_data and rows else []),
         "empty": LOAD_EMPTY,
         "has_data": has_data,
         "bucket_seconds": bucket_seconds,

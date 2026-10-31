@@ -96,7 +96,6 @@
 .ld-pick article { display: block; }
 .ld-pick:hover, .ld-pick:focus-visible { border-color: var(--line-2); }
 .ld-pick:hover h3, .ld-pick:focus-visible h3 { color: var(--accent); }
-.ld-pick.on { border-color: var(--accent); }
 .ld-back { font-size: 11.5px; color: var(--text-3); margin-left: 6px; }
 .ld-back:hover { color: var(--accent); }
 .ld-empty { margin: 18px 0; font-size: 12.5px; color: var(--text-3); }

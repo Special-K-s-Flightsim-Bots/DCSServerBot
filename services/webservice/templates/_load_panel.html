@@ -119,10 +119,9 @@
 {% if load.minis %}
 <div class="ld-minis">
   {% for mini in load.minis %}
-  <a class="ld-card ld-pick{{ ' on' if mini.active else '' }}" href="{{ mini.url }}"
-     {% if mini.active %}aria-current="true"{% endif %} aria-label="{{ _(mini.title) }}">
+  <a class="ld-card ld-pick" href="{{ mini.url }}" aria-label="{{ _(mini.title) }}">
   <article>
-    <div class="ld-hd"><h3>{{ _(mini.title) }}</h3><span class="ld-meta">{{ _(mini.meta) }}</span></div>
+    <div class="ld-hd"><h3>{{ _(mini.title) }}</h3>{% if mini.meta %}<span class="ld-meta">{{ _(mini.meta) }}</span>{% endif %}</div>
     <div class="ld-bd">
       <svg class="ld-svg" viewBox="0 0 {{ mini.chart.width }} {{ mini.chart.height }}" role="img" aria-label="{{ _(mini.title) }}">
         {% for row in mini.chart.grid %}<line x1="{{ row.x1 }}" y1="{{ row.y }}" x2="{{ row.x2 }}" y2="{{ row.y }}" class="ld-grid"></line>

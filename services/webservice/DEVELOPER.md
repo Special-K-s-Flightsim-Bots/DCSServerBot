@@ -681,4 +681,21 @@ in words.
 **Scope is bounded on the ROUTE, not in the action.** The selector offers Cluster / Node / Server
 from the caller's own scoped source; a named node or server outside it is refused with the console's
 403. A RESTRICTED caller is offered SERVER scope only: a node's series sums every server on that
-node, so node (or cluster) scope would read rows they may not see.
+node, so node (or cluster) scope would read rows they may not see. The scope TOKEN is cleaned with
+`MAX_SCOPE_TOKEN` and not with the sort-column cap: a server name is longer than a sort key, and a
+truncated name matches nothing — which reads to the reader as a 403 for a server they just picked.
+
+**Picking a card SWAPS the chart.** The big chart draws one pair of series; the four cards draw the
+other four, so a card whose graph is currently big shows the default (players/CPU) pair instead
+(`LOAD_MINI_SLOTS`, `load_minis`). Every graph is on the page exactly once, and the pair that leaves
+the big chart lands in the card just picked, so nothing has to be reloaded to get it back.
+
+**No monitoring plugin, no tab.** The tab's read (`get_load_statistics`) ships with the optional
+monitoring plugin, so `allowed_tabs` drops the tab when that action is not registered — the strip
+and the render read the same answer, and `?tab=load` falls back to the default tab rather than
+drawing a panel nothing can feed (`load_tab_available`).
+
+**The panel's own state rides on the stream URL.** The stream and the polling fallback ask for their
+fragments in a SEPARATE request, so `load_context` stores the RESOLVED scale, scope and graph on the
+request and `live.page_context` puts them on the stream URL. A URL without them re-renders the panel
+at the defaults one tick later, which makes every control look dead.
