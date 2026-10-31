@@ -32,6 +32,9 @@
 {# THE LOAD TAB'S OWN STYLESHEET, on that tab only: the chart's classes are not used anywhere else,
    so every other tab keeps loading exactly the shell's own sheet. #}
 {% block head %}{% if console.tab == 'load' %}<link rel="stylesheet" href="/static/load.css">{% endif %}{% endblock %}
+{# The scope selector applies on change (an enhancement: the Show button stays for a browser that
+   does not run this file). Loaded on the tab that owns the control, on no other. #}
+{% block scripts %}{% if console.tab == 'load' %}<script src="/static/load-scope.js" defer></script>{% endif %}{% endblock %}
 {% block content %}
 
 <div class="page-head">

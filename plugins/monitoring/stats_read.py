@@ -650,6 +650,7 @@ async def load_series(pool: Any, *, node: str | None = None, server_name: str | 
               "start": start, "end": end}
     scope = _load_scope(params["node"], params["server_name"])
     node_filter = "\n        AND node = %(node)s" if params["node"] else ""
+    node_where = "\n        WHERE node = %(node)s" if params["node"] else ""
 
     series_sql = f"""
         WITH grid AS (
@@ -694,7 +695,7 @@ async def load_series(pool: Any, *, node: str | None = None, server_name: str | 
     nodes_sql = f"""
         WITH roster AS (
             SELECT DISTINCT node FROM nodestats
-            {node_filter}
+            {node_where}
         ),
         win AS (
             SELECT node,
@@ -719,7 +720,7 @@ async def load_series(pool: Any, *, node: str | None = None, server_name: str | 
     spark_sql = f"""
         WITH roster AS (
             SELECT DISTINCT node FROM nodestats
-            {node_filter}
+            {node_where}
         ),
         last_minute AS (
             SELECT {now_bucket} AS m

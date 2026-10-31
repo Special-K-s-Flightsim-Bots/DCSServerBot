@@ -7,10 +7,10 @@
   geometry, the axis labels and every figure are already numbers or strings by the time they arrive.
   No charting library is loaded and no SVG element is built here from data the module did not shape.
 
-  THE CONTROLS ARE A PLAIN GET FORM AND PLAIN LINKS (scale chips), so the tab works with JavaScript
-  off. The scope is a `<select>` because the design groups Cluster / Node / Server; it is submitted,
-  never submitted on change, because a control that fires without the reader asking is a control
-  that can be triggered by a stray key.
+  THE CONTROLS ARE A PLAIN GET FORM AND PLAIN LINKS (scale chips, graph cards), so the tab works
+  with JavaScript off. The scope is a `<select>` because the design groups Cluster / Node / Server;
+  with `load-scope.js` loaded it applies on change, and the Show button stays for a browser without
+  that file — either way the navigation is a GET that reads nothing.
 -#}
 <div class="ld-bar">
   <span class="ld-chips">
@@ -20,6 +20,7 @@
   <form class="ld-scope" method="get" action="{{ load.path }}">
     <input type="hidden" name="tab" value="{{ load.tab }}">
     <input type="hidden" name="{{ load.scale_param }}" value="{{ load.scale }}">
+    <input type="hidden" name="{{ load.graph_param }}" value="{{ load.graph }}">
     <label><span>{{ _(load.labels.scope) }}</span>
       <select name="{{ load.scope_param }}">
         {% for group in load.groups %}
@@ -51,9 +52,9 @@
 </div>
 
 <article class="ld-card">
-  <div class="ld-hd"><h3>{{ _(load.card.title) }}</h3><span class="ld-meta">{{ say(load.card.meta) }}</span>
+  <div class="ld-hd"><h3>{{ _(load.card.title) }}</h3>{% if load.graph != 'players' %}<a class="ld-back" href="{{ load.players_url }}">&larr; {{ _(load.back) }}</a>{% endif %}<span class="ld-meta">{{ say(load.card.meta) }}{% if load.card.series %} · {{ _(load.card.series) }}{% endif %}</span>
     <span class="spacer"></span>
-    <span class="ld-legend"><i class="ld-sw total"></i>{{ _(load.legend.players) }} <i class="ld-sw cpu"></i>{{ _(load.legend.cpu) }}</span>
+    {% if load.legend.on %}<span class="ld-legend"><i class="ld-sw total"></i>{{ _(load.legend.players) }} <i class="ld-sw cpu"></i>{{ _(load.legend.cpu) }}</span>{% endif %}
   </div>
   <div class="ld-bd">
     <svg class="ld-svg" viewBox="0 0 {{ load.chart.width }} {{ load.chart.height }}" role="img" aria-label="{{ _(load.card.title) }}">
@@ -118,7 +119,9 @@
 {% if load.minis %}
 <div class="ld-minis">
   {% for mini in load.minis %}
-  <article class="ld-card">
+  <a class="ld-card ld-pick{{ ' on' if mini.active else '' }}" href="{{ mini.url }}"
+     {% if mini.active %}aria-current="true"{% endif %} aria-label="{{ _(mini.title) }}">
+  <article>
     <div class="ld-hd"><h3>{{ _(mini.title) }}</h3><span class="ld-meta">{{ _(mini.meta) }}</span></div>
     <div class="ld-bd">
       <svg class="ld-svg" viewBox="0 0 {{ mini.chart.width }} {{ mini.chart.height }}" role="img" aria-label="{{ _(mini.title) }}">
@@ -132,6 +135,7 @@
       </svg>
     </div>
   </article>
+  </a>
   {% endfor %}
 </div>
 {% endif %}

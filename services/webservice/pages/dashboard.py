@@ -62,7 +62,9 @@ __all__ = [
     "TABS", "DEFAULT_TAB", "LOG_BOTTOM_MAX_ROWS", "CALM_MESSAGE", "NOT_RUNNING_WORDS",
     "LOAD_TAB", "LOAD_LABEL", "LOAD_SCALES", "LOAD_DEFAULT_SCALE", "LOAD_SCALE_PARAM",
     "LOAD_SCOPE_PARAM", "LOAD_REFRESH_SECONDS", "LOAD_GAUGES",
-    "load_scale_from", "load_scope", "load_scope_groups", "load_chips", "load_payload",
+    "LOAD_GRAPH_PARAM", "LOAD_GRAPH_DEFAULT", "LOAD_GRAPHS",
+    "load_scale_from", "load_graph_from", "load_scope", "load_scope_groups", "load_chips",
+    "load_payload",
     "load_chart", "load_mini", "load_node_rows", "load_kpis", "load_view", "load_context",
     "reset_load_cache",
     "TONE_CALM", "TONE_ALERT", "TONE_ADVISORY", "ADVISORY_KINDS",
@@ -653,11 +655,40 @@ MINI_NETWORK_META = i18n._("KB/s sent (blue) \u00b7 recv (green)")
 LOAD_GAUGES = ("players", "cpu", "mem_ram", "mem_paged", "read", "write", "sent", "recv", "fps",
                "ping")
 
+#: the graph the big chart draws. The default is the players/CPU pair; the four mini cards carry
+#: the other names, so picking one swaps it into the big chart.
+LOAD_GRAPH_PARAM = "graph"
+LOAD_GRAPH_DEFAULT = "players"
+
+#: The big chart's graphs, by name: the pair of series each draws and the card words it wears.
+#: ``right`` is a second axis' unit and top — only the players/CPU graph has one, because a player
+#: count and a percentage are not the same quantity; every other graph draws both series on ONE
+#: scale. ``factor`` converts a stored figure into the unit the card states (bytes/s -> KB/s),
+#: exactly as ``load_mini`` does, so the big chart and the mini card cannot disagree.
+LOAD_GRAPHS: dict[str, dict] = {
+    "players": {"title": LOAD_CARD, "meta": None, "right": ("%", 100.0),
+                "series": (("players", 1.0), ("cpu", 1.0))},
+    "fps": {"title": MINI_FPS, "meta": MINI_FPS_META,
+            "series": (("fps", 1.0), ("ping", 1.0))},
+    "memory": {"title": MINI_MEMORY, "meta": MINI_MEMORY_META,
+               "series": (("mem_ram", 1.0), ("mem_paged", 1.0))},
+    "disk": {"title": MINI_DISK, "meta": MINI_DISK_META,
+             "series": (("read", 1.0), ("write", 1.0))},
+    "network": {"title": MINI_NETWORK, "meta": MINI_NETWORK_META,
+                "series": (("sent", 1 / 1024), ("recv", 1 / 1024))},
+}
+
 
 def load_scale_from(value) -> str:
     """The scale a request names, or :data:`LOAD_DEFAULT_SCALE` for anything the read does not publish."""
     wanted = _clean_word(value).lower()
     return wanted if wanted in {name for name, _label in LOAD_SCALES} else LOAD_DEFAULT_SCALE
+
+
+def load_graph_from(value) -> str:
+    """The graph a request names, or :data:`LOAD_GRAPH_DEFAULT` for anything the page does not draw."""
+    wanted = _clean_word(value).lower()
+    return wanted if wanted in LOAD_GRAPHS else LOAD_GRAPH_DEFAULT
 
 
 def _visible_names(entries) -> list[str]:
@@ -755,13 +786,15 @@ def load_scope_groups(request: Request, state: readmodels.Overview, scope: dict)
     return groups
 
 
-def load_chips(scale: str, scope: dict) -> list[dict]:
-    """The scale chips as links, the scale in force marked active, the scope carried."""
+def load_chips(scale: str, scope: dict, graph: str = LOAD_GRAPH_DEFAULT) -> list[dict]:
+    """The scale chips as links, the scale in force marked active, the scope and graph carried."""
     chips = []
     for name, label in LOAD_SCALES:
         query = {"tab": LOAD_TAB, LOAD_SCALE_PARAM: name}
         if scope["token"]:
             query[LOAD_SCOPE_PARAM] = scope["token"]
+        if graph != LOAD_GRAPH_DEFAULT:
+            query[LOAD_GRAPH_PARAM] = graph
         chips.append({"label": label, "active": name == scale,
                       "url": f"{DASHBOARD_PATH}?{urlencode(query)}"})
     return chips
@@ -930,39 +963,59 @@ def _bucket_word(bucket_seconds: int) -> str:
     return f"{bucket_seconds // 60} min" if bucket_seconds < 3600 else f"{bucket_seconds // 3600} h"
 
 
-def load_chart(rows: list[Mapping], window: Mapping, key: str) -> dict:
-    """The main chart: players as an area on the left axis, CPU % dashed on the right, a now edge."""
+def _scaled(value: Any, factor: float) -> float | None:
+    """A payload figure times the graph's own factor — the unit the card states — or ``None``."""
+    number = _value(value)
+    return None if number is None else number * factor
+
+
+def load_chart(rows: list[Mapping], window: Mapping, key: str,
+               graph: str = LOAD_GRAPH_DEFAULT) -> dict:
+    """The main chart: the selected graph's two series, drawn over the window with a now edge.
+
+    The players graph is the one with TWO axes: players as a filled area on a count axis and CPU %
+    dashed on a percentage axis, because a count and a percentage are not the same quantity. Every
+    other graph — the mini cards' own names — draws its pair on ONE scale with the same factor the
+    mini uses, so the big chart says exactly what the card said.
+    """
+    spec = LOAD_GRAPHS.get(graph) or LOAD_GRAPHS[LOAD_GRAPH_DEFAULT]
+    (first_key, first_factor), (second_key, second_factor) = spec["series"]
     times = [row.get("time") for row in rows]
-    players = [row.get("players") for row in rows]
-    cpu = [row.get("cpu") for row in rows]
+    first = [_scaled(row.get(first_key), first_factor) for row in rows]
+    second = [_scaled(row.get(second_key), second_factor) for row in rows]
     bucket_seconds = int(window.get("bucket_seconds") or 60)
-    players_max = _nice_maximum(players, minimum=4)
-    runs = _segments(players, left=LOAD_CHART_LEFT, right=LOAD_CHART_RIGHT, top=LOAD_CHART_TOP,
-                     bottom=LOAD_CHART_BOTTOM, maximum=players_max)
-    cpu_runs = _segments(cpu, left=LOAD_CHART_LEFT, right=LOAD_CHART_RIGHT, top=LOAD_CHART_TOP,
-                         bottom=LOAD_CHART_BOTTOM, maximum=100.0)
+    right = spec.get("right")
+    if right:
+        first_max = _nice_maximum(first, minimum=4)
+        second_max = float(right[1])
+    else:
+        first_max = second_max = _nice_maximum(list(first) + list(second), minimum=1.0)
+    runs = _segments(first, left=LOAD_CHART_LEFT, right=LOAD_CHART_RIGHT, top=LOAD_CHART_TOP,
+                     bottom=LOAD_CHART_BOTTOM, maximum=first_max)
+    second_runs = _segments(second, left=LOAD_CHART_LEFT, right=LOAD_CHART_RIGHT,
+                            top=LOAD_CHART_TOP, bottom=LOAD_CHART_BOTTOM, maximum=second_max)
     grid = []
     for fraction in (0.0, 0.25, 0.5, 0.75, 1.0):
         y = LOAD_CHART_BOTTOM - (LOAD_CHART_BOTTOM - LOAD_CHART_TOP) * fraction
         grid.append({"y": f"{y:.1f}", "ty": f"{y + 3.4:.1f}", "x1": LOAD_CHART_LEFT,
-                     "x2": LOAD_CHART_RIGHT, "left": f"{round(players_max * fraction)}",
-                     "right": f"{round(100 * fraction)} %"})
+                     "x2": LOAD_CHART_RIGHT, "left": f"{round(first_max * fraction)}",
+                     "right": (f"{round(second_max * fraction)} {right[0]}" if right else "")})
     return {
-        "id": _svg_id(key, "load"),
-        "gradient": _svg_id(key, "area"),
+        "id": _svg_id(key, graph, "load"),
+        "gradient": _svg_id(key, graph, "area"),
         "width": LOAD_CHART_WIDTH,
         "height": LOAD_CHART_HEIGHT,
         "grid": grid,
         "areas": _areas(runs, baseline=LOAD_CHART_BOTTOM),
         "players": [_points(run) for run in runs],
-        "cpu": [_points(run) for run in cpu_runs],
+        "cpu": [_points(run) for run in second_runs],
         "now": {"x": LOAD_CHART_RIGHT, "top": LOAD_CHART_TOP, "bottom": LOAD_CHART_BOTTOM},
         "x_labels": _x_labels(times, bucket_seconds, left=LOAD_CHART_LEFT, right=LOAD_CHART_RIGHT,
                               baseline=LOAD_CHART_BOTTOM),
         "axis": {"left": [{"x": LOAD_CHART_LEFT - 7, "y": row["y"], "ty": row["ty"],
                            "text": row["left"]} for row in grid],
                  "right": [{"x": LOAD_CHART_RIGHT + 8, "y": row["y"], "ty": row["ty"],
-                            "text": row["right"]} for row in grid]},
+                            "text": row["right"]} for row in grid] if right else []},
     }
 
 
@@ -1066,19 +1119,34 @@ def _meta_sentence(scope: dict, window: Mapping) -> dict:
     return {"msgid": LOAD_META_CLUSTER, "params": params}
 
 
+def _graph_url(scope: dict, window: Mapping, graph: str) -> str:
+    """The link that redraws the big chart as *graph*, carrying the scale and the scope."""
+    query = {"tab": LOAD_TAB, LOAD_SCALE_PARAM: window.get("scale") or LOAD_DEFAULT_SCALE}
+    if scope["token"]:
+        query[LOAD_SCOPE_PARAM] = scope["token"]
+    if graph != LOAD_GRAPH_DEFAULT:
+        query[LOAD_GRAPH_PARAM] = graph
+    return f"{DASHBOARD_PATH}?{urlencode(query)}"
+
+
 def load_view(payload: Mapping | None, *, scale: str, scope: dict, groups: list[dict],
-              masters: set[str]) -> dict:
+              masters: set[str], graph: str = LOAD_GRAPH_DEFAULT) -> dict:
     """Everything ``_load_panel.html`` reads: chips, selector, KPIs, charts and node table.
 
     A missing payload renders ONE sentence and no chart: a chart with no series is the "designed
     but nothing feeds it" shape, and reading it as "an idle cluster" would be a lie.
+
+    *graph* is which pair the big chart draws. The default (players/CPU) keeps the card's own title
+    and the two-legend; any other graph wears the mini card's title and colour note, because it is
+    the same pair of series at a larger size.
     """
     window = dict((payload or {}).get("window") or {})
     rows = [row for row in ((payload or {}).get("series") or []) if isinstance(row, Mapping)]
     window["scale"] = (payload or {}).get("scale") or scale
     bucket_seconds = int(window.get("bucket_seconds") or 60)
     has_data = any(_value(row.get("players")) is not None for row in rows)
-    key = f"{scope['token']}|{window['scale']}"
+    spec = LOAD_GRAPHS.get(graph) or LOAD_GRAPHS[LOAD_GRAPH_DEFAULT]
+    key = f"{scope['token']}|{window['scale']}|{graph}"
     nodes = load_node_rows((payload or {}).get("nodes"), scope)
     for row in nodes:
         row["master"] = row["name"] in masters
@@ -1088,16 +1156,21 @@ def load_view(payload: Mapping | None, *, scale: str, scope: dict, groups: list[
         "tab": LOAD_TAB,
         "scale_param": LOAD_SCALE_PARAM,
         "scope_param": LOAD_SCOPE_PARAM,
-        "chips": load_chips(scale, scope),
+        "graph_param": LOAD_GRAPH_PARAM,
+        "graph": graph,
+        "back": LOAD_CARD,
+        "chips": load_chips(scale, scope, graph),
         "scope": scope,
         "groups": groups,
         "labels": {"scope": LOAD_SCOPE_LABEL, "apply": SCOPE_APPLY},
         "live": {"msgid": LOAD_LIVE,
                  "params": {"time": _clock(window.get("end"), 0) or NO_VALUE}},
-        "card": {"title": LOAD_CARD, "meta": _meta_sentence(scope, window)},
-        "legend": {"players": LOAD_LEGEND_PLAYERS, "cpu": LOAD_LEGEND_CPU, "now": LOAD_NOW},
+        "card": {"title": spec["title"], "meta": _meta_sentence(scope, window),
+                 "series": spec.get("meta")},
+        "legend": {"on": bool(spec.get("right")), "players": LOAD_LEGEND_PLAYERS,
+                   "cpu": LOAD_LEGEND_CPU, "now": LOAD_NOW},
         "kpis": load_kpis(rows, window) if rows else [],
-        "chart": load_chart(rows, window, key) if rows else None,
+        "chart": load_chart(rows, window, key, graph) if rows else None,
         "nodes": nodes,
         "nodes_card": {"title": NODES_CARD, "meta": NODES_META, "master": MASTER_TAG},
         "node_labels": {"node": COL_NODE, "state": COL_STATE, "pool": COL_POOL,
@@ -1105,28 +1178,34 @@ def load_view(payload: Mapping | None, *, scale: str, scope: dict, groups: list[
                         "asyncio_queue": COL_ASYNCIO_QUEUE, "last_hour": COL_LAST_HOUR},
         "no_value": NO_VALUE,
         "minis": ([
-            {"title": MINI_FPS, "meta": MINI_FPS_META,
+            {"name": "fps", "title": MINI_FPS, "meta": MINI_FPS_META,
+             "url": _graph_url(scope, window, "fps"), "active": graph == "fps",
              "chart": load_mini(rows, window, key, title="fps", meta=MINI_FPS_META,
                                 series=(("fps", "blue", 1.0), ("ping", "red", 1.0)))},
-            {"title": MINI_MEMORY, "meta": MINI_MEMORY_META,
+            {"name": "memory", "title": MINI_MEMORY, "meta": MINI_MEMORY_META,
+             "url": _graph_url(scope, window, "memory"), "active": graph == "memory",
              "chart": load_mini(rows, window, key, title="memory", meta=MINI_MEMORY_META,
                                 series=(("mem_ram", "blue", 1.0), ("mem_paged", "orange", 1.0)))},
-            {"title": MINI_DISK, "meta": MINI_DISK_META,
+            {"name": "disk", "title": MINI_DISK, "meta": MINI_DISK_META,
+             "url": _graph_url(scope, window, "disk"), "active": graph == "disk",
              "chart": load_mini(rows, window, key, title="disk", meta=MINI_DISK_META,
                                 series=(("read", "blue", 1.0), ("write", "orange", 1.0)))},
-            {"title": MINI_NETWORK, "meta": MINI_NETWORK_META,
+            {"name": "network", "title": MINI_NETWORK, "meta": MINI_NETWORK_META,
+             "url": _graph_url(scope, window, "network"), "active": graph == "network",
              "chart": load_mini(rows, window, key, title="network", meta=MINI_NETWORK_META,
                                 series=(("sent", "blue", 1 / 1024), ("recv", "green", 1 / 1024)))},
         ] if has_data and rows else []),
         "empty": LOAD_EMPTY,
         "has_data": has_data,
         "bucket_seconds": bucket_seconds,
+        "players_url": _graph_url(scope, window, LOAD_GRAPH_DEFAULT),
     }
 
 
 async def load_context(request: Request, state: readmodels.Overview) -> dict:
     """The Load tab's whole state for THIS request: the scope it may read and the read's payload."""
     scale = load_scale_from(request.query_params.get(LOAD_SCALE_PARAM))
+    graph = load_graph_from(request.query_params.get(LOAD_GRAPH_PARAM))
     scope = load_scope(request, state)
     groups = load_scope_groups(request, state, scope)
     masters = {readmodels.text(readmodels.safe(lambda entry=entry: getattr(entry, "name", None)))
@@ -1135,7 +1214,8 @@ async def load_context(request: Request, state: readmodels.Overview) -> dict:
     payload = None
     if scope["kind"] != "none":
         payload = await load_payload(request, scale, scope)
-    return load_view(payload, scale=scale, scope=scope, groups=groups, masters=masters)
+    return load_view(payload, scale=scale, scope=scope, groups=groups, masters=masters,
+                     graph=graph)
 
 
 # ------------------------------------------------------------------------- the adaptive log
