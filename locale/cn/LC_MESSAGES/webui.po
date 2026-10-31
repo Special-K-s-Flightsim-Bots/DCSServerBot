@@ -8801,7 +8801,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Penalty points"
-msgstr ""
+msgstr "罚分"
 
 #: services/webservice/pages/player_detail.py
 msgid "Period"
@@ -8825,7 +8825,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Points"
-msgstr ""
+msgstr "分数"
 
 #: services/webservice/pages/player_detail.py
 msgid "Points decay over time, so this total is today's value."
@@ -8910,7 +8910,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Total"
-msgstr ""
+msgstr "总计"
 
 #: services/webservice/pages/player_detail.py
 msgid "Validated"
@@ -9254,3 +9254,107 @@ msgstr "每周玩家"
 #: services/webservice/pages/statistics.py
 msgid "players a week · UTC · returning and new"
 msgstr "每周玩家 · UTC · 回归与新玩家"
+
+#: services/webservice/pages/actions.py
+msgid "<b>Every penalty entry of {player} is deleted and the bot's own ban is lifted.</b> A ban a human added elsewhere is not the bot's to lift and stays."
+msgstr "<b>{player} 的所有处罚记录都会被删除，机器人自己施加的封禁会被解除。</b>由人工在其他地方添加的封禁不属于机器人，仍然保留。"
+
+#: services/webservice/pages/actions.py
+msgid "<b>The points are taken back</b> as one negative entry in the penalty log, and the ladder is re-evaluated for the lower total."
+msgstr "<b>这些分数会被扣回</b>，在处罚日志中记为一条负数记录，处罚阶梯会按较低的总额重新计算。"
+
+#: services/webservice/pages/actions.py
+msgid "<b>The points are written to the penalty log</b> and the punishment ladder runs at once, so a kick or a ban can follow from the new total."
+msgstr "<b>这些分数会写入处罚日志</b>，处罚阶梯立即执行，新的总额可能触发踢出或封禁。"
+
+#: services/webservice/pages/actions.py
+msgid "A whole number from 1 to 1000."
+msgstr "1 到 1000 之间的整数。"
+
+#: services/webservice/pages/actions.py
+msgid "Add penalty points to {player}"
+msgstr "给 {player} 增加处罚分"
+
+#: services/webservice/pages/actions.py
+msgid "Add points"
+msgstr "增加分数"
+
+#: services/webservice/pages/actions.py
+msgid "Add points — increase this player's penalty total"
+msgstr "增加分数 — 提高该玩家的处罚总分"
+
+#: services/webservice/pages/actions.py
+msgid "Add the points to {player}'s total"
+msgstr "把分数加到 {player} 的总分上"
+
+#: services/webservice/pages/actions.py
+msgid "Delete every penalty entry of {player} and lift the bot's ban"
+msgstr "删除 {player} 的所有处罚记录并解除机器人的封禁"
+
+#: services/webservice/pages/actions.py
+msgid "Enter the magnitude to remove: 5 takes five points off. The entry stays in the log with a negative value, so the history is kept."
+msgstr "输入要扣减的数量：5 表示扣掉五分。记录以负值保留在日志中，历史得以保存。"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all"
+msgstr "全部赦免"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all penalty points of {player}"
+msgstr "赦免 {player} 的所有处罚分"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all — delete every penalty entry and lift the bot's ban"
+msgstr "全部赦免 — 删除所有处罚记录并解除机器人的封禁"
+
+#: services/webservice/pages/actions.py
+msgid "Kept in the penalty log as the event's name."
+msgstr "作为事件名称保留在处罚日志中。"
+
+#: services/webservice/templates/player_detail.html
+msgid "Penalty log"
+msgstr "处罚日志"
+
+#: services/webservice/pages/actions.py
+msgid "Points to remove"
+msgstr "要扣减的分数"
+
+#: services/webservice/pages/actions.py
+msgid "Remove penalty points from {player}"
+msgstr "从 {player} 扣除处罚分"
+
+#: services/webservice/pages/actions.py
+msgid "Remove points"
+msgstr "扣除分数"
+
+#: services/webservice/pages/actions.py
+msgid "Remove points — take back penalty points this player was given"
+msgstr "扣除分数 — 收回此前给该玩家的处罚分"
+
+#: services/webservice/pages/actions.py
+msgid "Remove the points from {player}'s total"
+msgstr "从 {player} 的总分中扣除这些分数"
+
+#: services/webservice/pages/actions.py
+msgid "The change is one entry in the penalty log; the ladder decides what the total means."
+msgstr "这次更改是处罚日志中的一条记录；处罚阶梯决定总额意味着什么。"
+
+#: services/webservice/pages/actions.py
+msgid "The delete covers every UCID of this player's Discord link, because the link is what the page groups them by. The ban lifted is the bot's own, bot-wide: a ban a human added elsewhere stays."
+msgstr "删除范围包括该玩家 Discord 关联的每个 UCID，因为页面按关联分组。只解除机器人自身的封禁，且为全局范围：由人工在别处添加的封禁仍然保留。"
+
+#: services/webservice/templates/player_detail.html
+msgid "These controls change the points of the whole fleet, not of one server."
+msgstr "这些控件更改整个机队的分数，而不是单个服务器的分数。"
+
+#: services/webservice/pages/actions.py
+msgid "a negative entry in the same penalty log"
+msgstr "同一处罚日志中的一条负数记录"
+
+#: services/webservice/pages/actions.py
+msgid "every entry deleted, the bot's own ban lifted"
+msgstr "删除所有记录，解除机器人自己的封禁"
+
+#: services/webservice/pages/actions.py
+msgid "the points are logged and the ladder runs"
+msgstr "分数写入日志，阶梯随即执行"

@@ -10269,3 +10269,107 @@ msgstr "Spieler pro Woche"
 #: services/webservice/pages/statistics.py
 msgid "players a week · UTC · returning and new"
 msgstr "Spieler pro Woche · UTC · wiederkehrend und neu"
+
+#: services/webservice/pages/actions.py
+msgid "<b>Every penalty entry of {player} is deleted and the bot's own ban is lifted.</b> A ban a human added elsewhere is not the bot's to lift and stays."
+msgstr "<b>Jeder Strafpunkte-Eintrag von {player} wird gelöscht und der eigene Bann des Bots aufgehoben.</b> Ein Bann, den ein Mensch anderswo gesetzt hat, gehört nicht dem Bot und bleibt bestehen."
+
+#: services/webservice/pages/actions.py
+msgid "<b>The points are taken back</b> as one negative entry in the penalty log, and the ladder is re-evaluated for the lower total."
+msgstr "<b>Die Punkte werden zurückgenommen</b> — als ein negativer Eintrag im Strafpunkte-Log, und die Stufen werden für den niedrigeren Stand neu ausgewertet."
+
+#: services/webservice/pages/actions.py
+msgid "<b>The points are written to the penalty log</b> and the punishment ladder runs at once, so a kick or a ban can follow from the new total."
+msgstr "<b>Die Punkte werden ins Strafpunkte-Log geschrieben</b> und die Strafstufen laufen sofort — aus dem neuen Stand kann ein Kick oder ein Bann folgen."
+
+#: services/webservice/pages/actions.py
+msgid "A whole number from 1 to 1000."
+msgstr "Eine ganze Zahl von 1 bis 1000."
+
+#: services/webservice/pages/actions.py
+msgid "Add penalty points to {player}"
+msgstr "Strafpunkte zu {player} hinzufügen"
+
+#: services/webservice/pages/actions.py
+msgid "Add points"
+msgstr "Punkte hinzufügen"
+
+#: services/webservice/pages/actions.py
+msgid "Add points — increase this player's penalty total"
+msgstr "Punkte hinzufügen — den Strafpunkte-Stand dieses Spielers erhöhen"
+
+#: services/webservice/pages/actions.py
+msgid "Add the points to {player}'s total"
+msgstr "Die Punkte zum Stand von {player} hinzufügen"
+
+#: services/webservice/pages/actions.py
+msgid "Delete every penalty entry of {player} and lift the bot's ban"
+msgstr "Alle Strafpunkte-Einträge von {player} löschen und den Bann des Bots aufheben"
+
+#: services/webservice/pages/actions.py
+msgid "Enter the magnitude to remove: 5 takes five points off. The entry stays in the log with a negative value, so the history is kept."
+msgstr "Gib die Menge zum Abziehen ein: 5 nimmt fünf Punkte weg. Der Eintrag bleibt mit negativem Wert im Log, damit die Historie erhalten bleibt."
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all"
+msgstr "Alle verzeihen"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all penalty points of {player}"
+msgstr "Alle Strafpunkte von {player} verzeihen"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all — delete every penalty entry and lift the bot's ban"
+msgstr "Alle verzeihen — jeden Strafpunkte-Eintrag löschen und den Bann des Bots aufheben"
+
+#: services/webservice/pages/actions.py
+msgid "Kept in the penalty log as the event's name."
+msgstr "Wird als Name des Ereignisses im Strafpunkte-Log geführt."
+
+#: services/webservice/templates/player_detail.html
+msgid "Penalty log"
+msgstr "Strafpunkte-Log"
+
+#: services/webservice/pages/actions.py
+msgid "Points to remove"
+msgstr "Abzuziehende Punkte"
+
+#: services/webservice/pages/actions.py
+msgid "Remove penalty points from {player}"
+msgstr "Strafpunkte von {player} abziehen"
+
+#: services/webservice/pages/actions.py
+msgid "Remove points"
+msgstr "Punkte abziehen"
+
+#: services/webservice/pages/actions.py
+msgid "Remove points — take back penalty points this player was given"
+msgstr "Punkte abziehen — Strafpunkte zurücknehmen, die dieser Spieler bekommen hat"
+
+#: services/webservice/pages/actions.py
+msgid "Remove the points from {player}'s total"
+msgstr "Die Punkte vom Stand von {player} abziehen"
+
+#: services/webservice/pages/actions.py
+msgid "The change is one entry in the penalty log; the ladder decides what the total means."
+msgstr "Die Änderung ist ein Eintrag im Strafpunkte-Log; die Stufen entscheiden, was der Stand bedeutet."
+
+#: services/webservice/pages/actions.py
+msgid "The delete covers every UCID of this player's Discord link, because the link is what the page groups them by. The ban lifted is the bot's own, bot-wide: a ban a human added elsewhere stays."
+msgstr "Das Löschen umfasst jede UCID der Discord-Verknüpfung dieses Spielers, weil die Seite danach gruppiert. Aufgehoben wird nur der eigene Bann des Bots, botweit: ein Bann, den ein Mensch anderswo gesetzt hat, bleibt."
+
+#: services/webservice/templates/player_detail.html
+msgid "These controls change the points of the whole fleet, not of one server."
+msgstr "Diese Steuerungen ändern die Punkte der gesamten Flotte, nicht eines einzelnen Servers."
+
+#: services/webservice/pages/actions.py
+msgid "a negative entry in the same penalty log"
+msgstr "ein negativer Eintrag im selben Strafpunkte-Log"
+
+#: services/webservice/pages/actions.py
+msgid "every entry deleted, the bot's own ban lifted"
+msgstr "jeder Eintrag gelöscht, der eigene Bann des Bots aufgehoben"
+
+#: services/webservice/pages/actions.py
+msgid "the points are logged and the ladder runs"
+msgstr "die Punkte werden geloggt und die Stufen laufen"

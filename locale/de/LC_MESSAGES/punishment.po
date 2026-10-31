@@ -156,3 +156,58 @@ msgstr "Du hast Dich entschieden, {} für die Verfehlung zu vergeben."
 msgid "displays your penalty points"
 msgstr "zeigt Deine Strafpunkte"
 
+#: plugins/punishment/actions.py
+msgid "Penalty points can only be changed from the website."
+msgstr "Strafpunkte können nur über die Website geändert werden."
+
+#: plugins/punishment/actions.py
+msgid "You need the DCS Admin role to change penalty points."
+msgstr "Du brauchst die Rolle DCS Admin, um Strafpunkte zu ändern."
+
+#: plugins/punishment/actions.py
+msgid "Penalty points must be a whole number between {minimum} and {maximum}."
+msgstr "Strafpunkte müssen eine ganze Zahl zwischen {minimum} und {maximum} sein."
+
+#: plugins/punishment/actions.py
+msgid "A penalty change of 0 does nothing."
+msgstr "Eine Änderung um 0 Punkte bewirkt nichts."
+
+#: plugins/punishment/actions.py
+msgid "A UCID is 32 hexadecimal characters."
+msgstr "Eine UCID besteht aus 32 Hexadezimalzeichen."
+
+#: plugins/punishment/actions.py
+msgid "The database is not available."
+msgstr "Die Datenbank ist nicht verfügbar."
+
+#: plugins/punishment/actions.py
+msgid "The punishment plugin is not running, so the points cannot be applied."
+msgstr "Das Punishment-Plugin läuft nicht, daher können die Punkte nicht angewendet werden."
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be recorded: {error}"
+msgstr "Die Strafpunkte konnten nicht gespeichert werden: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The points were recorded, but the punishment could not be applied: {error}"
+msgstr "Die Punkte wurden gespeichert, aber die Strafe konnte nicht angewendet werden: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be deleted: {error}"
+msgstr "Die Strafpunkte konnten nicht gelöscht werden: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points were deleted, but the ban could not be lifted: {error}"
+msgstr "Die Strafpunkte wurden gelöscht, aber der Bann konnte nicht aufgehoben werden: {error}"
+
+#: plugins/punishment/actions.py
+msgid "This installation runs no server yet."
+msgstr "Diese Installation betreibt noch keinen Server."
+
+#: plugins/punishment/actions.py
+msgid "The users punishment points have been reduced by {} points."
+msgstr "Die Strafpunkte des Benutzers wurden um {} Punkte reduziert."
+
+#: plugins/punishment/actions.py
+msgid "changed punishment points of user {ucid} by {points} points."
+msgstr "änderte die Strafpunkte von Benutzer {ucid} um {points} Punkte."

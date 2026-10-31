@@ -155,3 +155,59 @@ msgstr "Has decidido perdonar a {} por sus acciones."
 # -penalty
 msgid "displays your penalty points"
 msgstr "muestra tus puntos de sanción"
+
+#: plugins/punishment/actions.py
+msgid "Penalty points can only be changed from the website."
+msgstr "Los puntos de penalización solo se pueden cambiar desde el sitio web."
+
+#: plugins/punishment/actions.py
+msgid "You need the DCS Admin role to change penalty points."
+msgstr "Necesitas el rol DCS Admin para cambiar puntos de penalización."
+
+#: plugins/punishment/actions.py
+msgid "Penalty points must be a whole number between {minimum} and {maximum}."
+msgstr "Los puntos de penalización deben ser un número entero entre {minimum} y {maximum}."
+
+#: plugins/punishment/actions.py
+msgid "A penalty change of 0 does nothing."
+msgstr "Un cambio de 0 puntos no hace nada."
+
+#: plugins/punishment/actions.py
+msgid "A UCID is 32 hexadecimal characters."
+msgstr "Un UCID son 32 caracteres hexadecimales."
+
+#: plugins/punishment/actions.py
+msgid "The database is not available."
+msgstr "La base de datos no está disponible."
+
+#: plugins/punishment/actions.py
+msgid "The punishment plugin is not running, so the points cannot be applied."
+msgstr "El plugin punishment no está en ejecución, así que los puntos no se pueden aplicar."
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be recorded: {error}"
+msgstr "No se pudieron registrar los puntos de penalización: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The points were recorded, but the punishment could not be applied: {error}"
+msgstr "Los puntos se registraron, pero no se pudo aplicar la sanción: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be deleted: {error}"
+msgstr "No se pudieron eliminar los puntos de penalización: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points were deleted, but the ban could not be lifted: {error}"
+msgstr "Se eliminaron los puntos de penalización, pero no se pudo levantar el baneo: {error}"
+
+#: plugins/punishment/actions.py
+msgid "This installation runs no server yet."
+msgstr "Esta instalación aún no ejecuta ningún servidor."
+
+#: plugins/punishment/actions.py
+msgid "The users punishment points have been reduced by {} points."
+msgstr "Los puntos de penalización del usuario se han reducido en {} puntos."
+
+#: plugins/punishment/actions.py
+msgid "changed punishment points of user {ucid} by {points} points."
+msgstr "cambió los puntos de penalización del usuario {ucid} en {points} puntos."

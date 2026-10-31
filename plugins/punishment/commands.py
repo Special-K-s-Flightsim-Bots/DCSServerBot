@@ -10,28 +10,14 @@ from discord import app_commands
 from discord.app_commands import Range
 from discord.ext import tasks
 from psycopg.rows import dict_row
-from psycopg.types.json import Json
 from services.bot import DCSServerBot
 from typing import Type, cast
 
 from .listener import PunishmentEventListener
+from .writes import _ban_targets, record_event
 from ..creditsystem.player import CreditPlayer
 
 _ = get_translation(__name__.split('.')[1])
-
-
-def _ban_targets(server: Server, servers: dict) -> list[str]:
-    """The servers a ban raised on *server* covers.
-
-    Every server whose ``managed_by`` names one of *server*'s own; an empty list means *server*
-    declares no ``managed_by`` and the ban is bot-wide.
-    """
-    managed_by = server.locals.get('managed_by') or []
-    if not managed_by:
-        return []
-    return [name for name, srv in servers.items()
-            if (srv.locals.get('managed_by') or [])
-            and not set(srv.locals['managed_by']).isdisjoint(managed_by)]
 
 
 class Punishment(Plugin[PunishmentEventListener]):
@@ -224,21 +210,8 @@ class Punishment(Plugin[PunishmentEventListener]):
             await interaction.response.send_message(_("The UCID provided is invalid."), ephemeral=True)
             return
 
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                INSERT INTO pu_events (init_id, server_name, event, points)
-                VALUES (%s, %s, %s, %s) 
-            """, (ucid, server.name, reason, points))
-        await self.trigger.publish({
-            "guild_id": self.node.guild_id,
-            "node": "Master",
-            "data": Json({
-                'init_id': ucid,
-                'server_name': server.name,
-                'event': reason,
-                'points': points
-            })
-        })
+        await record_event(self.apool, self.trigger.publish, ucid=ucid, server_name=server.name,
+                           event=reason or 'admin', points=points, guild_id=self.node.guild_id)
 
         if points >= 0:
             message = _('User punished with {} points.').format(points)

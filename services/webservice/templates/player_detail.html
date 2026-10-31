@@ -52,6 +52,8 @@
 </div>
 {% endif %}
 
+{% include "_notice.html" %}
+
 {% for strip in strips %}
 <div class="player-state {{ strip.kind }}">
   <span class="dot {{ strip.dot }}" aria-hidden="true"></span>
@@ -177,16 +179,34 @@
   {% if not infractions.infractions %}<div class="bd"><p class="empty">{{ _(empty.infractions) }}</p></div>{% endif %}
 </div>
 
-<div class="grid g-2">
 <div class="card">
   <div class="hd"><h3>{{ _(labels.points) }}</h3><div class="spacer"></div></div>
   <div class="bd">
     <dl class="player-facts">
-      <dt>{% trans %}Total{% endtrans %}</dt><dd>{{ infractions.points_total or '0.00' }}</dd>
+      <dt>{% trans %}Total{% endtrans %}</dt><dd>{{ penalty.points or '0.00' }}</dd>
     </dl>
     <div class="player-gap"></div>
     <p class="sub player-note">{% trans %}Points decay over time, so this total is today's value.{% endtrans %}</p>
+    {% if penalty.controls %}
+    <p class="sub player-note">{% trans %}These controls change the points of the whole fleet, not of one server.{% endtrans %}</p>
     <div class="player-gap"></div>
+    <div class="page-actions">
+      {% for control in penalty.controls %}
+      <form method="post" action="{{ control.path }}">
+        <input type="hidden" name="{{ control.csrf_field }}" value="{{ control.csrf_token }}">
+        {% for name, value in control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <button type="submit" title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ _(control.label) }}</button>
+      </form>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid g-2">
+<div class="card">
+  <div class="hd"><h3>{{ _(labels.penalty_log) }}</h3><div class="spacer"></div></div>
+  <div class="bd">
     {% if infractions.penalties %}
     <div class="player-list">
       <div class="row hd"><span class="t">{% trans %}Time (UTC){% endtrans %}</span><span class="w">{% trans %}Event{% endtrans %}</span><span class="d">{% trans %}Points{% endtrans %}</span></div>

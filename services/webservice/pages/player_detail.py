@@ -1,10 +1,14 @@
 """One player's page: **Overview**, **Infractions** and **Statistics** — one real URL per tab.
 
 A player is reached from the directory's own NAME link (`pages/players.PLAYERS_DETAIL_PREFIX`), so
-this module's routes make an already-emitted link resolve; it contributes NO navigation entry. The
-page is READ-ONLY: every control it renders is a declaration of `pages/actions` (the ban and watch
-entries, the player session writes), posted through the same routes and dialogs the directory and the
-dashboard use. Nothing here writes.
+this module's routes make an already-emitted link resolve; it contributes NO navigation entry. Every
+control it renders is a declaration of `pages/actions` (the ban, watch and penalty-point entries, the
+player session writes), posted through the same routes and dialogs the directory and the dashboard
+use. Nothing here writes.
+
+THE PENALTY-POINT CARD is FLEET-WIDE: its three controls change the points of the whole
+installation, so none of them asks for a server and the card is offered to every caller who holds
+the capability — the reference server a penalty row needs is resolved inside the action.
 
 THE UCID IS THE KEY, so it is the page's own path segment and the shape is checked before anything
 runs: a 32-hex UCID is the only value this page accepts, and a malformed one is refused without a
@@ -148,6 +152,7 @@ LABEL_BANNED_BY = i18n._("Banned by")
 LABEL_ADDED_BY = i18n._("Added by")
 LABEL_SCOPE = i18n._("Scope")
 LABEL_POINTS = i18n._("Penalty points")
+LABEL_PENALTY_LOG = i18n._("Penalty log")
 LABEL_BANS_ALL = i18n._("Bans, all time")
 
 #: the empty-state sentences this page owns
@@ -415,6 +420,24 @@ def _moderation(request: Request, detail: player_model.PlayerDetailView, data: M
     }
 
 
+def _penalty_card(request: Request, detail: player_model.PlayerDetailView,
+                  infractions: player_model.PlayerInfractionsView) -> dict:
+    """The penalty-point card: the current total and the controls this caller may use.
+
+    The three controls are the console's penalty declarations, offered when the caller holds the
+    capability AND the action is installed. The change is FLEET-WIDE, so no server is asked for and
+    nothing here depends on the caller's scope: an installation that runs no server is refused by
+    the action with its own sentence. An unusable control is ABSENT, never disabled.
+    """
+    from . import actions as actions_page
+
+    name = detail.name or detail.ucid
+    controls = tuple(_page_control(request, action, detail.ucid, name, action.label)
+                     for action in actions_page.PENALTY_ACTIONS
+                     if _allowed(request, action))
+    return {"controls": controls, "points": infractions.points_total}
+
+
 def _page_controls(request: Request, detail: player_model.PlayerDetailView,
                    activity: player_model.ActivityView) -> tuple:
     """The page-head controls, in the mockup's order: the three session writes, the UCID pair, the
@@ -473,6 +496,8 @@ async def player_context(request: Request, ucid: str, tab: str) -> dict:
     # the Moderation card resolves what the caller may read ONCE, and the strips follow the same
     # answer — resolving it twice could draw a strip for a block the card withheld
     moderation = _moderation(request, detail, data, infractions)
+    from . import actions as actions_page
+
     context = {
         "title": detail.name or ucid,
         "page_title": PAGE_TITLE,
@@ -492,6 +517,8 @@ async def player_context(request: Request, ucid: str, tab: str) -> dict:
         "tabs": tab_views(ucid, tab),
         "controls": _page_controls(request, detail, activity),
         "moderation": moderation,
+        "penalty": _penalty_card(request, detail, infractions),
+        "notice": actions_page.pop_notice(request),
         "tab": tab,
         "no_link": NO_LINK,
         "not_on_server": NOT_ON_SERVER,
@@ -500,6 +527,7 @@ async def player_context(request: Request, ucid: str, tab: str) -> dict:
                    "entry_watch": ENTRY_WATCH, "reason": LABEL_REASON,
                    "banned_by": LABEL_BANNED_BY, "added_by": LABEL_ADDED_BY,
                    "scope": LABEL_SCOPE, "points": LABEL_POINTS, "bans_all": LABEL_BANS_ALL,
+                   "penalty_log": LABEL_PENALTY_LOG,
                    "ban_ends": BAN_ENDS, "ban_never": BAN_NEVER, "watch_never": WATCH_NEVER,
                    "clean_detail": CLEAN_DETAIL, "two_records": TWO_RECORDS},
         "infractions": None,

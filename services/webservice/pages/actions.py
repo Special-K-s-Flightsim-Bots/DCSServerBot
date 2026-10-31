@@ -119,6 +119,11 @@ __all__ = [
     "WATCH_REMOVE_ACTION", "WATCH_CAPABILITY", "WATCH_ADD_PATH", "WATCH_REMOVE_PATH",
     "WATCH_EDIT_PATH", "watch_controls", "watch_add_control", "watch_add_dialog_context",
     "watch_remove_dialog_context", "watch_edit_dialog_context",
+    # the PENALTY-POINT writes: one capability, the add, the remove and the forgive
+    "PenaltyAction", "PENALTY_ACTIONS", "PENALTY_ADD_ACTION", "PENALTY_REMOVE_ACTION",
+    "PENALTY_FORGIVE_ACTION", "PENALTY_CAPABILITY", "PENALTY_ADD_PATH", "PENALTY_REMOVE_PATH",
+    "PENALTY_FORGIVE_PATH", "PENALTY_POINTS_FIELD", "PENALTY_REASON_FIELD",
+    "penalty_inputs", "penalty_dialog_context",
     "page_controls", "add_dialog_context", "empty_instances", "installable_nodes",
     "declare", "capabilities", "register", "add_routes",
     "server_controls", "player_controls", "node_controls", "ban_controls", "controls_for", "state_of",
@@ -1964,6 +1969,113 @@ WATCH_ENTRY_ACTIONS: tuple[WatchAction, ...] = (WATCH_EDIT_ACTION, WATCH_REMOVE_
 WATCH_ACTIONS: tuple[WatchAction, ...] = (WATCH_ADD_ACTION,) + WATCH_ENTRY_ACTIONS
 
 
+#: THE PENALTY-POINT writes' ONE capability. Adding and removing points, and forgiving them, are ONE
+#: rule — who may move a player's penalty total — and the plugin's actions re-check the same rule
+#: server-side, because a REST/MCP caller has no console route in front of it.
+PENALTY_CAPABILITY = "players.punish"
+PENALTY_ADD_PATH = "/actions/penalty/add"
+PENALTY_REMOVE_PATH = "/actions/penalty/remove"
+PENALTY_FORGIVE_PATH = "/actions/penalty/forgive"
+
+#: The write dialog's own fields. ``value`` names both the form field and the ACTION's parameter,
+#: so the route cannot post one thing and the action read another. There is no server field: the
+#: change is fleet-wide and the action resolves its own reference server.
+PENALTY_POINTS_FIELD = "points"
+PENALTY_REASON_FIELD = "reason"
+
+#: The console's human-scale bound on ONE change. The form states it and the ACTION re-checks it.
+PENALTY_POINTS_MIN = 1
+PENALTY_POINTS_MAX = 1000
+
+PENALTY_POINTS_LABEL = i18n._("Points")
+PENALTY_POINTS_REMOVE_LABEL = i18n._("Points to remove")
+PENALTY_POINTS_HELP = i18n._("A whole number from 1 to 1000.")
+PENALTY_REASON_LABEL = i18n._("Reason")
+PENALTY_REASON_HELP = i18n._("Kept in the penalty log as the event's name.")
+
+
+@dataclass(frozen=True, slots=True)
+class PenaltyAction:
+    """One write of the console that moves a player's penalty points.
+
+    Its own record rather than a :class:`WatchAction`, because the target is a UCID and the write is
+    FLEET-WIDE: no server is picked, and the reference server the row needs is resolved inside the
+    action (``plugins.punishment.actions._reference_server``).
+
+    ``points`` says the dialog asks for a magnitude and a reason; the FORGIVE asks for neither
+    (``confirm`` is its one-shot gate). Every control of this surface is reached through its dialog
+    (``dialog`` is always True): the consequences belong there, never on the card.
+    """
+
+    key: str
+    qualname: str
+    path: str
+    label: str
+    danger: bool = False
+    confirm: bool = False
+    points: bool = False
+    warning: str = ""
+    detail: str = ""
+    go: str = ""
+    go_title: str = ""
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    capability: str = PENALTY_CAPABILITY
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG — always, for this surface."""
+        return True
+
+
+#: The three penalty writes, in the card's order: add, remove, forgive. The two point controls are
+#: forms whose dialog IS the write (no one-shot token — a typed row can be taken back from the same
+#: page); the forgive confirms, because it deletes every row and lifts the bot's ban.
+PENALTY_ADD_ACTION = PenaltyAction(
+    key="add_points", qualname="punish_player", path=PENALTY_ADD_PATH,
+    label=i18n._("Add points"), points=True,
+    tip=i18n._("Add points — increase this player's penalty total"),
+    aria=i18n._("Add penalty points to {player}"),
+    hint=i18n._("the points are logged and the ladder runs"),
+    warning=i18n._("<b>The points are written to the penalty log</b> and the punishment ladder runs "
+                   "at once, so a kick or a ban can follow from the new total."),
+    detail=i18n._("The change is one entry in the penalty log; the ladder decides what the total "
+                  "means."),
+    go=i18n._("Add points"),
+    go_title=i18n._("Add the points to {player}'s total"))
+
+PENALTY_REMOVE_ACTION = PenaltyAction(
+    key="remove_points", qualname="punish_player", path=PENALTY_REMOVE_PATH,
+    label=i18n._("Remove points"), points=True,
+    tip=i18n._("Remove points — take back penalty points this player was given"),
+    aria=i18n._("Remove penalty points from {player}"),
+    hint=i18n._("a negative entry in the same penalty log"),
+    warning=i18n._("<b>The points are taken back</b> as one negative entry in the penalty log, "
+                   "and the ladder is re-evaluated for the lower total."),
+    detail=i18n._("Enter the magnitude to remove: 5 takes five points off. The entry stays in the "
+                  "log with a negative value, so the history is kept."),
+    go=i18n._("Remove points"),
+    go_title=i18n._("Remove the points from {player}'s total"))
+
+PENALTY_FORGIVE_ACTION = PenaltyAction(
+    key="forgive", qualname="forgive_player", path=PENALTY_FORGIVE_PATH,
+    label=i18n._("Forgive all"), danger=True, confirm=True,
+    tip=i18n._("Forgive all — delete every penalty entry and lift the bot's ban"),
+    aria=i18n._("Forgive all penalty points of {player}"),
+    hint=i18n._("every entry deleted, the bot's own ban lifted"),
+    warning=i18n._("<b>Every penalty entry of {player} is deleted and the bot's own ban is "
+                   "lifted.</b> A ban a human added elsewhere is not the bot's to lift and stays."),
+    detail=i18n._("The delete covers every UCID of this player's Discord link, because the link is "
+                  "what the page groups them by. The ban lifted is the bot's own, bot-wide: a ban "
+                  "a human added elsewhere stays."),
+    go=i18n._("Forgive all"),
+    go_title=i18n._("Delete every penalty entry of {player} and lift the bot's ban"))
+
+PENALTY_ACTIONS: tuple[PenaltyAction, ...] = (PENALTY_ADD_ACTION, PENALTY_REMOVE_ACTION,
+                                             PENALTY_FORGIVE_ACTION)
+
+
 @dataclass(frozen=True, slots=True)
 class NodeField:
     """ONE named input a NODE control's DIALOG asks for, besides its checkbox(es).
@@ -2316,6 +2428,14 @@ def declare() -> None:
     # which is what a capability without a server in its path needs.
     for action in WATCH_ACTIONS:
         permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE PENALTY-POINT WRITES: ``WRITE_ROLES`` WITH a manager scope grant, so a manager of at least
+    # one server reaches the surface — the same grant the player and watch surfaces carry. The write
+    # itself is FLEET-WIDE: it changes the points of the whole installation, no server is picked, and
+    # each action resolves its OWN reference server (``plugins.punishment.actions._reference_server``)
+    # for the NOT NULL ``pu_events.server_name`` and the ladder it reads. The trap: the scope does NOT
+    # narrow the change, so a manager of one server moves points across every tenant boundary.
+    for action in PENALTY_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
     # the node writes: Admin only, and NO scope grant — see NODE_ROLES for why (a manager's scope is
     # a set of servers, and "one of mine runs there" must not become "let me stop that machine").
     for action in NODE_ACTIONS:
@@ -2380,6 +2500,11 @@ def capabilities() -> dict[str, str]:
     capabilities_.update({action.path: action.capability for action in WATCH_ACTIONS})
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
                           for action in WATCH_ACTIONS if action.dialog})
+    # THE PENALTY-POINT WRITES: every control is reached through its dialog, so both POSTs of each
+    # one carry the SAME capability — opening a dialog is not a lesser right than the write.
+    capabilities_.update({action.path: action.capability for action in PENALTY_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in PENALTY_ACTIONS})
     # THE SHORT-LIVED IMAGE URL carries the SCREENSHOT's own capability: it is the glyph's answer, so
     # whoever may ask for a capture may load it, and nobody else — a token is not a second door. The
     # declaration is the ROUTE's pattern, because that is what the gate resolves a request against.
@@ -5265,7 +5390,8 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
 # ------------------------------------------------------------------------------- the notice
 
 def _remember_notice(request: Request,
-                     action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction,
+                     action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction
+                     | PenaltyAction,
                      result: ActionResult, *, revert: str = "", revert_omitted: str = "",
                      refusal: bool = False) -> None:
     """Store the outcome of one write as a ONE-SHOT notice, for the page the redirect lands on.
@@ -5346,7 +5472,8 @@ BAN_EDIT_DGSA_REFUSAL = i18n._("A DGSA ban cannot be edited — it can only be l
 
 
 def _refusal_notice(request: Request,
-                    action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction,
+                    action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction
+                     | PenaltyAction,
                     message: str) -> None:
     """Store the ONE-SHOT refusal *message* for the page the person lands on.
 
@@ -5471,6 +5598,16 @@ def add_routes(router: APIRouter) -> APIRouter:
                                  methods=["POST"],
                                  dependencies=[Depends(session.csrf_protect)],
                                  name=f"action-watch-{action.key}-confirm")
+    # THE PENALTY-POINT WRITES: every one of them is reached through its dialog (the consequence
+    # lives there), so each contributes two POSTs gated by the same capability.
+    for action in PENALTY_ACTIONS:
+        router.add_api_route(action.path, _penalty_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-penalty-{action.key}")
+        router.add_api_route(action.path + CONFIRM_SUFFIX, _penalty_confirm_handler(action),
+                             methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-penalty-{action.key}-confirm")
     # THE DCS UPDATE'S VERSION LIST — the JSON GET the dialog's version pick reads. A GET because it
     # changes nothing, and so WITHOUT the CSRF dependency the writes carry: there is no token to send
     # and nothing a forged request could change. Gated by the update's own capability, declared above
@@ -7747,6 +7884,79 @@ def watch_edit_dialog_context(request: Request, action: WatchAction, detail, ori
     }
 
 
+# ── the penalty-point dialogs ────────────────────────────────────────────────
+
+
+def penalty_inputs(action: PenaltyAction) -> tuple[dict, ...]:
+    """The write dialog's fields: for a point change the points and the reason, else none.
+
+    There is NO server field: the change is fleet-wide and the action resolves the reference server
+    itself. The magnitude is a bounded number, and the reason is the event text the penalty log
+    keeps; the FORGIVE asks for neither.
+    """
+    fields: list[dict] = []
+    if action.points:
+        label = PENALTY_POINTS_REMOVE_LABEL if action.key == PENALTY_REMOVE_ACTION.key \
+            else PENALTY_POINTS_LABEL
+        fields.append(_dialog_field(PENALTY_POINTS_FIELD, label, kind="number", required=True,
+                                    value="1", maximum=4, width="narrow",
+                                    bounds=dict(min=PENALTY_POINTS_MIN, max=PENALTY_POINTS_MAX),
+                                    help_text=PENALTY_POINTS_HELP))
+        fields.append(_dialog_field(PENALTY_REASON_FIELD, PENALTY_REASON_LABEL, required=True,
+                                    value="admin", maximum=80, width="wide",
+                                    help_text=PENALTY_REASON_HELP))
+    return tuple(fields)
+
+
+def penalty_dialog_context(request: Request, action: PenaltyAction, ucid: str, label: str,
+                           token: str = "", origin: str = "") -> dict:
+    """Everything a penalty dialog's page reads — the sibling of :func:`player_confirm_context`.
+
+    The player's label is the page's RESOLVED name, never a browser field, and the dialog asks for
+    no server: the write is fleet-wide. The FORGIVE carries the one-shot token its route spends; the
+    two point controls are forms (no token — a typed row can be taken back from the same page).
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    values = {"player": html.escape(label)}
+    dialog = {
+        "heading": _default_title(action.label, label),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": html.escape(label),
+        "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
+        "inputs": penalty_inputs(action),
+        "body_inputs": (),
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Penalty points')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin or _players_path(),
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, origin or _players_path()),
+        "dialog": dialog,
+    }
+
+
 def installable_nodes(request: Request) -> tuple[dict, ...]:
     """The nodes a NEW instance may be created on, as SELECT options, in name order.
 
@@ -8065,7 +8275,8 @@ def _delete_server_handler(action: WriteAction):
 
 
 async def _audit_refusal(ctx: ActionContext,
-                         action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction,
+                         action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction
+                     | PenaltyAction,
                          why: str, target: str) -> None:
     """Record ONE audit entry for an attempt the ROUTE refused before any action ran.
 
@@ -8793,6 +9004,103 @@ def _watch_edit_confirm_handler(action: WatchAction):
         origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
         tab = posted_tab(form.get(TAB_FIELD))
         dialog = watch_edit_dialog_context(request, action, detail, origin, tab)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _penalty_back(ucid: str) -> str:
+    """The page a penalty write returns to: the player's INFRACTIONS tab — where the card lives."""
+    from . import player_detail as player_page
+
+    return player_page.player_path(ucid, "infractions") if ucid else _players_path()
+
+
+def _penalty_points_value(action: PenaltyAction, raw: Any) -> int | None:
+    """The figure the action receives: the typed magnitude, or the negative of it for a removal.
+
+    The two controls have two contracts, both bounded by :data:`PENALTY_POINTS_MIN` …
+    :data:`PENALTY_POINTS_MAX` — a bound the ROUTE applies, because the form's own bounds are never
+    the authority:
+
+    * the REMOVE control takes a MAGNITUDE, and its sign is applied here and only here, so the row it
+      writes is the negative one;
+    * the ADD control takes a positive figure, so a typed minus is not a value it can honour.
+
+    ``None`` for anything else — a value outside the bound or one that does not parse — which the
+    ACTION refuses with its own sentence (:data:`plugins.punishment.actions.POINTS_REFUSAL`) and
+    writes nothing. The console therefore carries no second wording of its own for this refusal.
+    """
+    try:
+        typed = int(readmodels.text(raw))
+    except (TypeError, ValueError):
+        return None
+    if action.key == PENALTY_REMOVE_ACTION.key:
+        magnitude = abs(typed)
+        return -magnitude if PENALTY_POINTS_MIN <= magnitude <= PENALTY_POINTS_MAX else None
+    return typed if PENALTY_POINTS_MIN <= typed <= PENALTY_POINTS_MAX else None
+
+
+def _penalty_handler(action: PenaltyAction):
+    """The route for one PENALTY write — the dialog's own POST.
+
+    The FORGIVE spends the one-shot token its dialog minted; the two point controls are forms whose
+    dialog IS the write, so they carry none. The write is FLEET-WIDE: the route reads no server
+    field (there is none) and passes none — the action resolves its own reference server.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        if action.confirm and not consume_confirm_token(
+                request, action.path, ucid,
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            await _audit_refusal(ctx, action, "not confirmed through its dialog",
+                                 f"ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        if action.points:
+            result = await call_action(
+                action.qualname, ctx, ucid=ucid,
+                points=_penalty_points_value(action, form.get(PENALTY_POINTS_FIELD)),
+                reason=readmodels.text(form.get(PENALTY_REASON_FIELD)))
+        else:
+            result = await call_action(action.qualname, ctx, ucid=ucid)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_penalty_back(ucid), status_code=303)
+
+    return handle
+
+
+def _penalty_confirm_handler(action: PenaltyAction):
+    """The route that RENDERS one penalty dialog. It changes nothing.
+
+    The player is RE-READ here through the console's own detail action, so the dialog names a
+    resolved player and never a field the browser sent. The dialog asks for no server: the write is
+    fleet-wide, and an installation that runs no server is refused by the ACTION with its own
+    sentence. The FORGIVE mints the one-shot token its route spends, keyed on the UCID.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await player_detail_view(request, ucid)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"No such player for ucid '{ucid}'.")
+        token = ""
+        if action.confirm:
+            # the FORGIVE's target is the player's UCID group, which is the whole token key
+            token = mint_confirm_token(request, action.path, ucid)
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        label = detail.name or ucid
+        dialog = penalty_dialog_context(request, action, ucid, label, token, origin)
         return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
                             headers={"Cache-Control": "no-store"})
 

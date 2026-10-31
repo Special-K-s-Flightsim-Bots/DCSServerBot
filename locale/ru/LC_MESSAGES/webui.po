@@ -9669,7 +9669,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Penalty points"
-msgstr ""
+msgstr "Штрафные очки"
 
 #: services/webservice/pages/player_detail.py
 msgid "Period"
@@ -9693,7 +9693,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Points"
-msgstr ""
+msgstr "Очки"
 
 #: services/webservice/pages/player_detail.py
 msgid "Points decay over time, so this total is today's value."
@@ -9778,7 +9778,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Total"
-msgstr ""
+msgstr "Всего"
 
 #: services/webservice/pages/player_detail.py
 msgid "Validated"
@@ -10122,3 +10122,107 @@ msgstr "Игроки за неделю"
 #: services/webservice/pages/statistics.py
 msgid "players a week · UTC · returning and new"
 msgstr "игроков в неделю · UTC · возвращающиеся и новые"
+
+#: services/webservice/pages/actions.py
+msgid "<b>Every penalty entry of {player} is deleted and the bot's own ban is lifted.</b> A ban a human added elsewhere is not the bot's to lift and stays."
+msgstr "<b>Все записи штрафных баллов {player} удаляются, а бан, выданный ботом, снимается.</b> Бан, выданный человеком в другом месте, боту не принадлежит и остаётся."
+
+#: services/webservice/pages/actions.py
+msgid "<b>The points are taken back</b> as one negative entry in the penalty log, and the ladder is re-evaluated for the lower total."
+msgstr "<b>Баллы снимаются</b> одной отрицательной записью в журнале штрафов, и шкала пересчитывается для меньшей суммы."
+
+#: services/webservice/pages/actions.py
+msgid "<b>The points are written to the penalty log</b> and the punishment ladder runs at once, so a kick or a ban can follow from the new total."
+msgstr "<b>Баллы записываются в журнал штрафов</b>, и шкала наказаний применяется сразу — из новой суммы может последовать кик или бан."
+
+#: services/webservice/pages/actions.py
+msgid "A whole number from 1 to 1000."
+msgstr "Целое число от 1 до 1000."
+
+#: services/webservice/pages/actions.py
+msgid "Add penalty points to {player}"
+msgstr "Добавить штрафные баллы {player}"
+
+#: services/webservice/pages/actions.py
+msgid "Add points"
+msgstr "Добавить баллы"
+
+#: services/webservice/pages/actions.py
+msgid "Add points — increase this player's penalty total"
+msgstr "Добавить баллы — увеличить сумму штрафных баллов этого игрока"
+
+#: services/webservice/pages/actions.py
+msgid "Add the points to {player}'s total"
+msgstr "Добавить баллы к сумме {player}"
+
+#: services/webservice/pages/actions.py
+msgid "Delete every penalty entry of {player} and lift the bot's ban"
+msgstr "Удалить все записи штрафов {player} и снять бан бота"
+
+#: services/webservice/pages/actions.py
+msgid "Enter the magnitude to remove: 5 takes five points off. The entry stays in the log with a negative value, so the history is kept."
+msgstr "Укажите величину для снятия: 5 снимает пять баллов. Запись остаётся в журнале с отрицательным значением, чтобы сохранить историю."
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all"
+msgstr "Простить всё"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all penalty points of {player}"
+msgstr "Простить все штрафные баллы {player}"
+
+#: services/webservice/pages/actions.py
+msgid "Forgive all — delete every penalty entry and lift the bot's ban"
+msgstr "Простить всё — удалить все записи штрафов и снять бан бота"
+
+#: services/webservice/pages/actions.py
+msgid "Kept in the penalty log as the event's name."
+msgstr "Сохраняется в журнале штрафов как название события."
+
+#: services/webservice/templates/player_detail.html
+msgid "Penalty log"
+msgstr "Журнал штрафов"
+
+#: services/webservice/pages/actions.py
+msgid "Points to remove"
+msgstr "Баллы к снятию"
+
+#: services/webservice/pages/actions.py
+msgid "Remove penalty points from {player}"
+msgstr "Снять штрафные баллы с {player}"
+
+#: services/webservice/pages/actions.py
+msgid "Remove points"
+msgstr "Снять баллы"
+
+#: services/webservice/pages/actions.py
+msgid "Remove points — take back penalty points this player was given"
+msgstr "Снять баллы — забрать штрафные баллы, выданные этому игроку"
+
+#: services/webservice/pages/actions.py
+msgid "Remove the points from {player}'s total"
+msgstr "Снять баллы из суммы {player}"
+
+#: services/webservice/pages/actions.py
+msgid "The change is one entry in the penalty log; the ladder decides what the total means."
+msgstr "Изменение — это одна запись в журнале штрафов; шкала решает, что означает эта сумма."
+
+#: services/webservice/pages/actions.py
+msgid "The delete covers every UCID of this player's Discord link, because the link is what the page groups them by. The ban lifted is the bot's own, bot-wide: a ban a human added elsewhere stays."
+msgstr "Удаление охватывает каждый UCID привязки этого игрока к Discord, потому что страница группирует их по ней. Снимается только собственный бан бота, в масштабе всего парка: бан, добавленный человеком в другом месте, остаётся."
+
+#: services/webservice/templates/player_detail.html
+msgid "These controls change the points of the whole fleet, not of one server."
+msgstr "Эти элементы меняют баллы всего парка, а не одного сервера."
+
+#: services/webservice/pages/actions.py
+msgid "a negative entry in the same penalty log"
+msgstr "отрицательная запись в том же журнале штрафов"
+
+#: services/webservice/pages/actions.py
+msgid "every entry deleted, the bot's own ban lifted"
+msgstr "все записи удалены, бан бота снят"
+
+#: services/webservice/pages/actions.py
+msgid "the points are logged and the ladder runs"
+msgstr "баллы записываются в журнал, и шкала применяется"
