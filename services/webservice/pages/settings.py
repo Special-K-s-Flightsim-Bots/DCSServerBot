@@ -786,7 +786,8 @@ def capabilities() -> dict[str, str]:
 
 def nav_items() -> tuple[NavItem, ...]:
     """The sidebar entry this page contributes — data, not markup."""
-    return (NavItem(label=NAV_LABEL, url=SETTINGS_PATH, capability=SETTINGS_VIEW_CAPABILITY),)
+    return (NavItem(label=NAV_LABEL, url=SETTINGS_PATH, capability=SETTINGS_VIEW_CAPABILITY,
+                    group="Administration", glyph="cog"),)
 
 
 def config_dir(request: Request) -> Path:

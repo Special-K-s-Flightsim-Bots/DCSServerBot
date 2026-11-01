@@ -1,0 +1,185 @@
+{#-
+  ONE PLAYLIST — the editor: the library (source) beside the playlist (destination), two cards and
+  no third column.
+
+  The left card is ONE browser: the folder rail INSIDE the card and the selected folder's tracks
+  beside it, so the tree is never drawn twice. The right card is the playlist in playback order; a
+  row carries a remove glyph and a focusable grip, and `static/reorder.js` enhances the table into a
+  drag driven by `data-reorder` alone — the grip also answers Alt+ArrowUp / Alt+ArrowDown, so the
+  order stays reachable from the keyboard without a second control.
+
+  Every control posts a form with the session's CSRF token in the body; nothing is written by a GET.
+  The page computes nothing: figures, labels and URLs all arrive from `pages/music.py`.
+-#}
+{% extends "base.html" %}
+{% import "_strip.html" as strip %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ playlist }} — DCSServerBot{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">{% endblock %}
+{% block content %}
+
+<div class="page-head mus-head">
+  <div>
+    <h1>{{ playlist }} <span class="tag">{% if draft %}{% trans %}draft{% endtrans %}{% else %}{% trans %}playlist{% endtrans %}{% endif %}</span></h1>
+    <div class="mus-facts">
+      <span>{{ labels.tracks }}</span>
+      <span>{{ labels.total }}</span>
+      {% if missing %}<span class="mus-missing">{{ labels.missing }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="page-actions">
+    {% if can_rename %}<form method="post" action="{{ rename_path }}"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}"><button type="submit">{{ _(labels.rename) }}</button></form>{% endif %}
+    {% if can_duplicate %}<form method="post" action="{{ duplicate_path }}"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}"><button type="submit">{{ _(labels.duplicate) }}</button></form>{% endif %}
+    {% if can_delete %}<form method="post" action="{{ delete_path }}"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}"><button type="submit">{{ _(labels.delete) }}</button></form>{% endif %}
+    {% if play_path %}<form method="post" action="{{ play_path }}"><input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}"><button type="submit">{{ _(labels.play) }}</button></form>{% elif play_offline %}<span class="mus-note">{{ play_offline }}</span>{% endif %}
+  </div>
+</div>
+
+{% include "_notice.html" %}
+{% if failure %}<p class="mus-note" role="status">{{ failure }}</p>{% endif %}
+{% if draft %}<p class="mus-note" role="status">{{ _(labels.draft) }}</p>{% endif %}
+
+<div class="mus-panes">
+
+  <section class="card mus-browser-card"{% if can_upload %} data-upload data-upload-url="{{ upload_path }}" data-upload-folder="{{ selected_folder }}" data-upload-node="{{ node }}" data-upload-token="{{ csrf_token }}" data-upload-token-field="{{ csrf_field }}" data-upload-folder-field="{{ folder_field }}" data-upload-node-field="{{ node_field }}" data-upload-file-field="{{ file_field }}" data-upload-page="{{ page_path }}" data-upload-refused="{% trans %}Not uploaded: the file could not be sent.{% endtrans %}"{% endif %}>
+    <div class="hd">
+      <h3>{{ _(labels.browser) }}</h3>
+      <span class="spacer"></span>
+      {% if node %}<span class="tag mono">{{ node }}</span>{% endif %}
+      <a class="mus-chip" href="{{ page_path }}?{{ query_field }}={{ query|urlencode }}&amp;refresh=1">{{ _(labels.rescan) }}</a>
+      {% if can_upload %}
+      {#- ONE DOOR, beside Rescan: the SAME route the drop target posts to. The button submits the
+          input beside it, so with JavaScript off a file picked here goes into the folder on screen
+          exactly as a drop does. -#}
+      <form class="mus-upload" method="post" enctype="multipart/form-data" action="{{ upload_path }}" title="{{ _(labels.upload_hint) }}">
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+        <input type="hidden" name="{{ node_field }}" value="{{ node }}">
+        <input type="hidden" name="{{ folder_field }}" value="{{ selected_folder }}">
+        <input class="mus-upload-file" type="file" name="{{ file_field }}" accept=".mp3,.ogg" aria-label="{{ _(labels.upload) }}" required>
+        <button class="mus-chip" type="submit" title="{{ _(labels.upload_hint) }}">{{ _(labels.upload) }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if can_upload %}<p class="mus-note mus-upload-note" role="status" hidden></p>{% endif %}
+    <form class="search mus-search" method="get" action="{{ page_path }}">
+      <input type="hidden" name="{{ folder_field }}" value="{{ selected_folder }}">
+      <input type="search" name="{{ query_field }}" value="{{ query }}" placeholder="{% trans %}Filter by title, artist, album or file…{% endtrans %}" aria-label="{% trans %}Filter by title, artist, album or file…{% endtrans %}">
+      <button type="submit">{% trans %}Filter{% endtrans %}</button>
+    </form>
+    {% if library_message %}<p class="mus-note" role="status">{{ library_message }}</p>{% endif %}
+    <div class="mus-browser">
+      <nav class="mus-tree" aria-label="{{ _(labels.browser) }}">
+        {% for folder in folders %}
+        <a class="mus-folder{{ ' on' if folder.active else '' }}" href="{{ folder.url }}" style="{{ folder.style }}" data-folder="{{ folder.path }}">
+          <span class="nm mono">{{ folder.label }}</span><span class="c">{{ folder.count }}</span>
+        </a>
+        {% endfor %}
+      </nav>
+      <div class="mus-lib">
+        <table class="mus-table mus-files">
+          <thead>
+            <tr>
+              <th class="cb" scope="col"><span class="mus-vh">{% trans %}Select{% endtrans %}</span></th>
+              <th scope="col">{% trans %}Title{% endtrans %}</th>
+              <th scope="col">{% trans %}Length{% endtrans %}</th>
+              <th class="acts" scope="col"><span class="mus-vh">{% trans %}Actions{% endtrans %}</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for file in files %}
+            <tr>
+              <td class="cb">{% if can_add %}<input type="checkbox" name="{{ file_field }}" value="{{ file.file }}" form="mus-add-many" aria-label="{{ file.title }}">{% endif %}</td>
+              <td><div class="mus-title">{{ file.title }}</div><div class="mus-sub">{{ file.artist }}{% if file.album %} · {{ file.album }}{% endif %}</div></td>
+              <td class="mono">{{ file.length or '—' }}</td>
+              <td class="acts">{% if can_add %}
+                <form method="post" action="{{ add_path }}">
+                  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+                  <input type="hidden" name="{{ node_field }}" value="{{ node }}">
+                  <input type="hidden" name="{{ file_field }}" value="{{ file.file }}">
+                  <button class="act-btn" type="submit" title="{{ _(labels.add) }}" aria-label="{{ _(labels.add) }}: {{ file.title }}">{{ icons.act('startup') }}</button>
+                </form>
+              {% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="mus-note">{{ _(labels.no_files) if not query else _(labels.no_match) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% if can_add %}
+    <div class="mus-toolbar">
+      <span class="meta">{{ labels.folder }}</span>
+      <form method="post" action="{{ add_path }}">
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+        <input type="hidden" name="{{ node_field }}" value="{{ node }}">
+        <input type="hidden" name="{{ folder_field }}" value="{{ selected_folder }}">
+        <input type="hidden" name="{{ all_field }}" value="1">
+        <button class="mus-chip" type="submit"{% if not selected_folder_count %} disabled{% endif %}>{{ labels.add_all }}</button>
+      </form>
+      <span class="spacer"></span>
+      <span class="meta" data-selected-count data-selected-template="{{ labels.selected_template }}">{{ labels.selected }}</span>
+      <button class="mus-chip" type="submit" form="mus-add-many">{{ _(labels.add) }}</button>
+    </div>
+    <form id="mus-add-many" method="post" action="{{ add_path }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="card mus-track-card">
+    <div class="mus-toolbar">
+      <span class="tag">{{ labels.tracks }} · {{ labels.total }}</span>
+      <span class="spacer"></span>
+      {% if can_order and tracks %}<span class="meta">{{ _(labels.drag) }}</span>{% endif %}
+      {% if can_remove and missing %}
+      <form method="post" action="{{ remove_path }}">
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+        {% for song_id in missing %}<input type="hidden" name="{{ song_field }}" value="{{ song_id }}">{% endfor %}
+        <button class="mus-chip danger" type="submit">{{ labels.remove_missing }}</button>
+      </form>
+      {% endif %}
+    </div>
+    <table class="mus-table mus-tracks"
+           {% if can_order and tracks %}data-reorder data-reorder-url="{{ reorder_path }}" data-reorder-field="{{ reorder_field }}" data-reorder-token="{{ csrf_token }}" data-reorder-token-field="{{ csrf_field }}" data-reorder-refused="{% trans %}Not saved: the order was refused. Reload the page.{% endtrans %}" data-reorder-offline="{% trans %}Not saved: the new order could not be sent.{% endtrans %}"{% endif %}>
+      <thead>
+        <tr>
+          <th class="grip" scope="col"><span class="mus-vh">{% trans %}Order{% endtrans %}</span></th>
+          <th class="num" scope="col">#</th>
+          <th scope="col">{% trans %}Title{% endtrans %}</th>
+          <th scope="col">{% trans %}Length{% endtrans %}</th>
+          <th class="acts" scope="col"><span class="mus-vh">{% trans %}Actions{% endtrans %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tracks %}
+        <tr data-reorder-row data-reorder-id="{{ row.song_id }}"{% if not row.present %} class="mus-gone"{% endif %}>
+          <td class="grip"{% if can_order and tracks %} data-reorder-handle tabindex="0" title="{% trans %}Drag to reorder{% endtrans %}" aria-label="{% trans %}Drag to reorder, or press Alt+Up or Alt+Down{% endtrans %}"{% endif %}>{% if can_order and tracks %}⠿{% endif %}</td>
+          <td class="num">{{ row.number }}</td>
+          <td>
+            <div class="mus-title">{{ row.title }}</div>
+            <div class="mus-sub">{% if row.present %}{{ row.artist }}{% if row.album %} · {{ row.album }}{% endif %}{% else %}{% trans %}missing on the node{% endtrans %}{% endif %}</div>
+          </td>
+          <td class="mono">{{ row.length or '—' }}</td>
+          <td class="acts">
+            {% if row.controls %}<span class="act-strip">{% for control in row.controls %}{{ strip.strip_form(control) }}{% endfor %}</span>
+            {% elif not row.present %}<span class="mus-missing">{% trans %}missing{% endtrans %}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="mus-note">{{ _(labels.no_tracks) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+{% endblock %}
+{% block scripts %}
+{#- THE SHIPPED ASSETS, no inline script: the shared row drag (which enhances every table carrying
+    `data-reorder`), this page's selection count, and the library card's drop target. -#}
+{% if can_add %}<script src="/static/music-select.js" defer></script>{% endif %}
+{% if can_upload %}<script src="/static/{{ upload_script }}" defer></script>{% endif %}
+{% if can_order and tracks %}<script src="/static/{{ reorder_script }}" defer></script>{% endif %}
+{% endblock %}

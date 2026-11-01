@@ -1,9 +1,9 @@
-/* The dashboard's live updates: swap server-rendered fragments, with a polling fallback.
+/* The console's live updates: swap server-rendered fragments, with a polling fallback.
  *
  * Loaded by base.html only when the page passes a `live` context (the dashboard, with
- * `dashboard.live` on). It is a PROGRESSIVE ENHANCEMENT: the initial page already contains the log
- * entries and the server rows, so with JavaScript disabled nothing is missing — the page is simply
- * not live.
+ * `dashboard.live` on, and the music pages, whose stream re-renders their two sections). It is a
+ * PROGRESSIVE ENHANCEMENT: the initial page already contains the log entries, the server rows and
+ * the radio cards, so with JavaScript disabled nothing is missing — the page is simply not live.
  *
  * The transport is Server-Sent Events. The server sends HTML fragments rendered by the SAME Jinja
  * partials the page uses, as one line of JSON per frame:
@@ -45,7 +45,14 @@
   var streamUrl = script.getAttribute("data-stream");
   var fragmentsUrl = script.getAttribute("data-fragments");
   var statusEl = document.getElementById("live-status");
-  var TARGETS = ["log-panel", "state-panel", "status-pills", "notice", "load-panel"];
+  /* Every id a frame may carry. A frame is `{"targets": {id: html}}` and an id absent from it is
+     skipped, so a page that does not draw one of these is simply never touched. The music page
+     swaps its own two sections through the SAME list — a second client or a second timer for it
+     would be a second place to get the transport wrong. `list-tbody` is the Servers page's table
+     body: its rows carry state a write moves (the busy marker, the state a boot settles on), so the
+     list re-renders them on the console's own tick. */
+  var TARGETS = ["log-panel", "state-panel", "status-pills", "notice", "load-panel",
+                 "mus-radios", "mus-playlists", "mus-tab-players", "list-tbody"];
   var RETRY_MS = 10000;
   /* A 503 means the identity could not be VERIFIED RIGHT NOW (the bot is restarting, it has no
      member list): that passes. Stopping would be wrong — the server KEPT the session — so the

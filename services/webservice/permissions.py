@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING, Callable, Iterable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable, Iterable, Mapping, Sequence
 
 from fastapi import HTTPException, Request
 from starlette.routing import Mount
@@ -41,7 +42,20 @@ __all__ = [
     "PUBLIC",
     "CAPABILITIES",
     "SCOPE_GRANTS",
+    "BASE_CAPABILITIES",
+    "BASE_SCOPE_GRANTS",
+    "APPLIED_OVERRIDES",
+    "MANAGER_SCOPE_NEVER",
+    "OverrideRefusal",
     "declare_capability",
+    "declared_capabilities",
+    "base_declaration",
+    "manager_scope_allowed",
+    "candidate_from_entries",
+    "validate_candidate",
+    "apply_role_overrides",
+    "reset_role_overrides",
+    "reset_to_declared_bases",
     "roles_for_capability",
     "scope_grants",
     "requirement_text",
@@ -97,12 +111,32 @@ CAPABILITIES: dict[str, tuple[str, ...]] = {
 #: (the Admin-only bot log) stays exactly as declared, and only the console's own pages opt in.
 SCOPE_GRANTS: dict[str, bool] = {}
 
+#: capability name -> the roles the CODE declared for it, recorded at the first declaration and never
+#: written again. It is the base a configured OVERRIDE is computed from: an override extends and
+#: narrows this pair, and recomputing one always starts from here, so a second apply replaces the
+#: first instead of stacking on it.
+BASE_CAPABILITIES: dict[str, tuple[str, ...]] = {}
+
+#: capability name -> the scope rule the CODE declared for it (the second axis of
+#: :data:`BASE_CAPABILITIES`, kept apart for the same reason the effective pair is).
+BASE_SCOPE_GRANTS: dict[str, bool] = {}
+
+#: capability name -> the effective pair an OVERRIDE installed, i.e. what :data:`CAPABILITIES` and
+#: :data:`SCOPE_GRANTS` hold because of an override rather than because of a declaration. A value
+#: that is neither the base nor this is somebody else's declaration, and applying over it is refused.
+APPLIED_OVERRIDES: dict[str, tuple[tuple[str, ...], bool]] = {}
+
 
 def declare_capability(name: str, roles: Iterable[str] = (), *,
                        scope_grants: bool = False) -> None:
     """Declare a capability. Called from module import of a feature (shell or plugin), never per
     request. Re-declaring with a different role set — or a different scope rule — is refused loudly:
-    two declarations of one capability means the pair has already diverged."""
+    two declarations of one capability means the pair has already diverged.
+
+    The FIRST declaration of a name is also its BASE (:data:`BASE_CAPABILITIES`): the shipped
+    behaviour an override layers on top of, recorded once so a later apply can always recompute from
+    it.
+    """
     existing = CAPABILITIES.get(name)
     new_roles = tuple(roles)
     new_grants = bool(scope_grants)
@@ -112,6 +146,8 @@ def declare_capability(name: str, roles: Iterable[str] = (), *,
                          f"it with {new_roles} (scope_grants={new_grants})")
     CAPABILITIES[name] = new_roles
     SCOPE_GRANTS[name] = new_grants
+    BASE_CAPABILITIES.setdefault(name, new_roles)
+    BASE_SCOPE_GRANTS.setdefault(name, new_grants)
 
 
 def roles_for_capability(name: str) -> tuple[str, ...] | None:
@@ -122,6 +158,324 @@ def roles_for_capability(name: str) -> tuple[str, ...] | None:
 def scope_grants(name: str) -> bool:
     """Whether a MANAGING SCOPE is a second way into *capability* (undeclared -> ``False``)."""
     return bool(SCOPE_GRANTS.get(name, False))
+
+
+def base_declaration(capability: str) -> tuple[tuple[str, ...], bool] | None:
+    """The pair the CODE declared for *capability* (roles, scope grant), or ``None`` when undeclared.
+
+    Read by everything that has to tell an override from the shipped behaviour: the Access page's
+    matrix (a cell counts as changed only when it differs from this), and the override engine itself
+    (an apply always recomputes from here).
+    """
+    roles = BASE_CAPABILITIES.get(capability)
+    if roles is None:
+        return None
+    return roles, bool(BASE_SCOPE_GRANTS.get(capability, False))
+
+
+def declared_capabilities() -> tuple[str, ...]:
+    """Every declared capability name except :data:`PUBLIC`, in declaration order.
+
+    The enumeration the Access page renders and a save is checked against — read off the registry, so
+    a page added later appears there without a second table to keep in step.
+    """
+    return tuple(name for name in CAPABILITIES if name != PUBLIC)
+
+
+# ---------------------------------------------------------------------------------------------
+# the configured OVERRIDE of the declarations (the Access page's stored edits)
+# ---------------------------------------------------------------------------------------------
+#
+# A capability's requirement can be edited in the console instead of in code: the stored block
+# EXTENDS and NARROWS the declared pair and is applied to a copy of it. Three rules hold the shape:
+#
+# * the BASE is never written — an apply recomputes every effective pair from the base, so applying
+#   the same block twice lands the same values (nothing stacks);
+# * ``Admin`` is never removed from a capability, and a ``managed_by`` scope grant is never enabled
+#   for a capability that is machine- or installation-wide (:data:`MANAGER_SCOPE_NEVER`) — those two
+#   are the cells no edit may produce;
+# * the WEBSITE is the only reader. The bot's Discord commands keep their own role decorators, so
+#   nothing below is reachable from a decorator path.
+
+#: Capabilities a ``managed_by`` scope grant may never be enabled for, as DATA: an exact name, or a
+#: family prefix ending in ``.``. A scope is a set of SERVER names, so a machine (``nodes.*``), an
+#: installation-wide setting or report (``settings.*``, ``presets.*``, ``logs.view``,
+#: ``statistics.view``), a server's CREATION or REMOVAL (``servers.add``/``servers.delete``), a
+#: node's root mods (``mods.manage``), one server's Discord channels (``servers.config.channels``) and
+#: this page's own pair have no server for it to narrow.
+MANAGER_SCOPE_NEVER: tuple[str, ...] = (
+    "nodes.",
+    "settings.",
+    "presets.",
+    "mods.manage",
+    "logs.view",
+    "statistics.view",
+    "servers.add",
+    "servers.delete",
+    "servers.config.channels",
+    "access.view",
+    "access.write",
+)
+
+#: the refusal kinds :func:`validate_candidate` reports. The WORDING of each sentence belongs to the
+#: Access page (it is chrome, translated at render); this module names the rule that was broken.
+UNKNOWN_CAPABILITY = "unknown_capability"
+UNKNOWN_ROLE = "unknown_role"
+LOCKOUT = "lockout"
+STRUCTURAL = "structural"
+ADMIN_LOCKED = "admin_locked"
+MANAGER_LOCKED = "manager_locked"
+
+
+@dataclass(frozen=True, slots=True)
+class OverrideRefusal:
+    """One refused edit: the rule that was broken, and what it was about.
+
+    ``capability`` and ``role`` are the values the edit named (either may be empty). The caller turns
+    a refusal into a sentence — the Access page for a save's one-shot notice, the loader for its
+    logged startup error — so the two describe one rule with one vocabulary.
+    """
+
+    kind: str
+    capability: str = ""
+    role: str = ""
+
+
+def manager_scope_allowed(capability: str) -> bool:
+    """Whether a ``managed_by`` scope grant may exist for *capability* (:data:`MANAGER_SCOPE_NEVER`).
+
+    An exact match, or a match on a family prefix (``nodes.`` covers every ``nodes.*`` name).
+    """
+    for denied in MANAGER_SCOPE_NEVER:
+        if denied.endswith("."):
+            if capability.startswith(denied):
+                return False
+        elif capability == denied:
+            return False
+    return True
+
+
+def _role_list(value: object) -> list[object]:
+    """One entry part as a list: a YAML sequence, a single value, or nothing at all.
+
+    A hand-written block may state one role without the brackets (``remove: DCS Admin``); reading
+    that as a list of characters would grant nothing and refuse nothing, so the shape is normalised
+    here rather than silently misread.
+    """
+    if value is None:
+        return []
+    if isinstance(value, (str, bytes)):
+        return [value]
+    if isinstance(value, Iterable):
+        return list(value)
+    return [value]
+
+
+def candidate_from_entries(entries: Mapping[str, Mapping[str, object]], *,
+                           roles_known: Iterable[str]) -> tuple[
+                               dict[str, tuple[tuple[str, ...], bool]], list[OverrideRefusal]]:
+    """The effective pair of EVERY declared capability after *entries*, plus the refused edits.
+
+    ``entries`` is the stored block, one key per capability, every part optional::
+
+        music.write: {add: [Media Manager], remove: [DCS Admin]}
+        music.control: {manager: true}
+
+    The result is a full candidate — a capability the block does not name keeps its base — because
+    an apply installs the whole map (that is what makes a second apply replace the first). A
+    capability or a role the installation does not know is REFUSED here and left at its base: a typo
+    must never silently grant nothing.
+    """
+    known_roles = set(roles_known)
+    candidate: dict[str, tuple[tuple[str, ...], bool]] = {}
+    refusals: list[OverrideRefusal] = []
+    for name in declared_capabilities():
+        base = base_declaration(name)
+        if base is None:                                  # pragma: no cover - declared by definition
+            continue
+        roles = list(base[0])
+        grants = base[1]
+        entry = entries.get(name) or {}
+        for role in _role_list(entry.get("add")):
+            role = str(role)
+            if role not in known_roles:
+                refusals.append(OverrideRefusal(UNKNOWN_ROLE, name, role))
+            elif role not in roles:
+                roles.append(role)
+        for role in _role_list(entry.get("remove")):
+            role = str(role)
+            if role not in known_roles:
+                refusals.append(OverrideRefusal(UNKNOWN_ROLE, name, role))
+            elif role in roles:
+                roles.remove(role)
+        manager = entry.get("manager")
+        if manager is not None:
+            grants = bool(manager)
+        candidate[name] = (tuple(roles), grants)
+    for name in entries:
+        if name not in CAPABILITIES or name == PUBLIC:
+            refusals.append(OverrideRefusal(UNKNOWN_CAPABILITY, str(name)))
+    return candidate, refusals
+
+
+def validate_candidate(candidate: Mapping[str, tuple[Iterable[str], bool]], *,
+                       roles_known: Iterable[str], locked: Sequence[str] = (),
+                       page: str = "") -> list[OverrideRefusal]:
+    """Every rule a candidate matrix has to satisfy, as :class:`OverrideRefusal` values.
+
+    Checked in this order, and the first non-empty answer is what a caller reports:
+
+    1. names the installation does not know — a capability that is not declared, a role that is not
+       in the bot's role model;
+    2. LOCKOUT — no role able to open the Access page (*page*), which is the one outcome a save must
+       never produce, asked before any cell rule so that a matrix that empties the page is reported
+       as what it is;
+    3. a STRUCTURAL capability (*locked*) whose pair was changed at all;
+    4. ``Admin`` removed from a capability;
+    5. a ``managed_by`` change on a capability whose scope axis is structural
+       (:data:`MANAGER_SCOPE_NEVER`) — it can neither be enabled nor removed there.
+
+    Rules 3-5 are per capability over the whole matrix, so a caller reports every offending
+    capability rather than the first one it happens to walk into.
+    """
+    known_roles = set(roles_known)
+    unknown: list[OverrideRefusal] = []
+    for name, (roles, _manager) in candidate.items():
+        if name not in BASE_CAPABILITIES or name == PUBLIC:
+            unknown.append(OverrideRefusal(UNKNOWN_CAPABILITY, name))
+            continue
+        for role in roles:
+            if str(role) not in known_roles:
+                unknown.append(OverrideRefusal(UNKNOWN_ROLE, name, str(role)))
+    if unknown:
+        return unknown
+
+    if page:
+        reachable = candidate.get(page)
+        if reachable is None or not (set(reachable[0]) & known_roles):
+            return [OverrideRefusal(LOCKOUT, page)]
+
+    refusals: list[OverrideRefusal] = []
+    for name, (roles, manager) in candidate.items():
+        base = base_declaration(name)
+        if base is None:                                  # pragma: no cover - checked above
+            continue
+        pair = (tuple(roles), bool(manager))
+        if name in locked and pair != base:
+            refusals.append(OverrideRefusal(STRUCTURAL, name))
+            continue
+        if "Admin" not in pair[0] and "Admin" in base[0]:
+            refusals.append(OverrideRefusal(ADMIN_LOCKED, name))
+            continue
+        if pair[1] != base[1] and not manager_scope_allowed(name):
+            refusals.append(OverrideRefusal(MANAGER_LOCKED, name))
+    return refusals
+
+
+def _replacement_refused(name: str, target: tuple[tuple[str, ...], bool]) -> str | None:
+    """Why *name* cannot hold *target*, or ``None`` when it can.
+
+    The value currently held must be either the base, an earlier application of this engine, or the
+    target itself — anything else is a DECLARATION this module did not make, and it is refused
+    instead of being overwritten (the same failure ``declare_capability`` refuses: one capability,
+    two pairs). Pure: it reads the tables and changes nothing.
+    """
+    base = base_declaration(name)
+    if base is None:
+        return f"capability '{name}' is not declared; nothing can override it"
+    current = (CAPABILITIES.get(name), bool(SCOPE_GRANTS.get(name, False)))
+    if current == target or current == base or current == APPLIED_OVERRIDES.get(name):
+        return None
+    return (f"capability '{name}' holds {current}, which is neither its declaration {base} nor an "
+            f"applied override; refusing to replace it")
+
+
+def _install_effective(name: str, target: tuple[tuple[str, ...], bool]) -> None:
+    """Install one effective pair, leaving the base untouched. Cannot raise once checked.
+
+    Only called after every member of an apply has passed :func:`_replacement_refused`, which is what
+    makes the whole apply atomic: this function has no refusing branch left.
+    """
+    base = base_declaration(name)
+    if base is None:                                      # pragma: no cover - checked by the caller
+        raise ValueError(f"capability '{name}' is not declared; nothing can override it")
+    if (CAPABILITIES.get(name), bool(SCOPE_GRANTS.get(name, False))) == target:
+        return
+    # the entry is dropped before the re-declaration so ``declare_capability`` sees a FRESH name: it
+    # refuses a differing re-declaration by construction, and the declaration is restored first here
+    CAPABILITIES.pop(name, None)
+    SCOPE_GRANTS.pop(name, None)
+    declare_capability(name, target[0], scope_grants=target[1])
+    if target == base:
+        APPLIED_OVERRIDES.pop(name, None)
+    else:
+        APPLIED_OVERRIDES[name] = target
+
+
+def apply_role_overrides(candidate: Mapping[str, tuple[Iterable[str], bool]]) -> dict[
+        str, tuple[tuple[str, ...], bool]]:
+    """Install the effective declarations a candidate matrix describes; return what actually differs.
+
+    The WHOLE matrix is applied, not only the names the stored block mentions: a capability the
+    candidate leaves at its base is RESTORED to it, which is what makes a save that drops an entry
+    take effect, and what makes applying the same block twice land the same values instead of
+    stacking.
+
+    ALL-OR-NOTHING: every target is computed and checked first (:func:`_replacement_refused`), and
+    only then installed. A refusal therefore raises with the matrix exactly as it was — no
+    capability is left holding an override the caller was told did not land.
+
+    Applied on the next request by construction — :func:`allows`, the gate, the sidebar and the tab
+    strips read :data:`CAPABILITIES` per call, so nothing is cached anywhere that would need clearing.
+    """
+    targets: dict[str, tuple[tuple[str, ...], bool]] = {}
+    bases: dict[str, tuple[tuple[str, ...], bool]] = {}
+    for name in declared_capabilities():
+        base = base_declaration(name)
+        if base is None:                                  # pragma: no cover - a name that vanished
+            continue
+        target = candidate.get(name, base)
+        target = (tuple(target[0]), bool(target[1]))
+        refused = _replacement_refused(name, target)
+        if refused is not None:
+            raise ValueError(refused)
+        targets[name] = target
+        bases[name] = base
+    applied: dict[str, tuple[tuple[str, ...], bool]] = {}
+    for name, target in targets.items():
+        _install_effective(name, target)
+        if target != bases[name]:
+            applied[name] = target
+    return applied
+
+
+def reset_role_overrides() -> dict[str, tuple[tuple[str, ...], bool]]:
+    """Drop every override: every capability back to its declared pair. Returns what was reset."""
+    applied = dict(APPLIED_OVERRIDES)
+    bases = {name: base_declaration(name) for name in declared_capabilities()}
+    apply_role_overrides({name: pair for name, pair in bases.items() if pair is not None})
+    return applied
+
+
+def reset_to_declared_bases() -> dict[str, tuple[tuple[str, ...], bool]]:
+    """Return every declared capability to the pair the CODE declared, and drop the overrides.
+
+    The three tables are PROCESS state while an APPLICATION is not: ``WebService.stop()`` drops the
+    app and ``start()`` builds a new one in the same process (the master/agent switch), so the
+    second install re-declares what the first one already holds. With an override still applied, that
+    re-declaration looks like two declarations of one capability and :func:`declare_capability`
+    refuses it — the rebuild then raises out of the install and the service does not start. Restoring
+    the bases first makes declare-then-redeclare idempotent; the stored block is applied again after
+    the pages have declared, so the rebuilt app lands on the same matrix.
+
+    Returns what was dropped, for the caller's log line.
+    """
+    dropped = dict(APPLIED_OVERRIDES)
+    for name, roles in BASE_CAPABILITIES.items():
+        CAPABILITIES[name] = roles
+        SCOPE_GRANTS[name] = bool(BASE_SCOPE_GRANTS.get(name, False))
+    APPLIED_OVERRIDES.clear()
+    return dropped
 
 
 def requirement_text(capability: str) -> str:

@@ -46,7 +46,7 @@ from psycopg import sql
 from psycopg.errors import ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Awaitable, Callable, Any, NamedTuple, cast
+from typing import Awaitable, Callable, Any, Literal, NamedTuple, cast
 from typing_extensions import override
 from urllib.parse import urlparse, quote, unquote
 from version import __version__
@@ -72,6 +72,27 @@ __all__ = [
     "NodeImpl",
     "DEFAULT_PLUGINS"
 ]
+
+
+def _write_mode(overwrite: bool) -> Literal["wb", "xb"]:
+    """The ``open`` mode of one write: ``'xb'`` (create, never replace) unless *overwrite*."""
+    return "wb" if overwrite else "xb"
+
+
+def _discard_own_file(path: str, log: Any) -> None:
+    """Remove a file THIS call created exclusively and then failed to fill.
+
+    Only the create-owner may call it: a name that answered ``FileExistsError`` belongs to another
+    writer and is never removed. A removal that itself fails is logged, never raised — the caller is
+    already returning ``WRITE_ERROR`` for the original failure.
+    """
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError as ex:
+        log.error("Could not remove the partial file %s: %s", path, ex)
+
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
 LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
@@ -1950,6 +1971,18 @@ class NodeImpl(Node):
 
     @override
     async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
+        """Write one file to *target* from a path, a URL or a staged ``files`` row.
+
+        ``overwrite=False`` — the default every caller inherits — is an EXCLUSIVE CREATE: the
+        destination is opened ``O_CREAT|O_EXCL``, so a file that appeared after any caller-side check
+        is refused (:attr:`UploadStatus.FILE_EXISTS`) instead of truncated by the second writer. The
+        existence check that follows is the early answer, never the guarantee. ``overwrite=True``
+        keeps replacing the file, as it always did.
+
+        A write that FAILS after the create removes the file this call created (never one it found),
+        so the name stays free for a retry. A staged row is read, then consumed only after the bytes
+        are on disk; a failed write keeps the row so the caller can retry with it.
+        """
         if os.path.exists(target) and not overwrite:
             return UploadStatus.FILE_EXISTS
 
@@ -1958,23 +1991,41 @@ class NodeImpl(Node):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(source, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
                         if response.status == 200:
+                            created = False
                             try:
                                 # make sure the directory exists
                                 os.makedirs(os.path.dirname(target), exist_ok=True)
-                                async with aiofiles.open(target, mode='wb') as outfile:
+                                async with aiofiles.open(target, mode=_write_mode(overwrite)) as outfile:
+                                    created = not overwrite
                                     await outfile.write(await response.read())
                                     return UploadStatus.OK
+                            except FileExistsError:
+                                return UploadStatus.FILE_EXISTS
                             except Exception as ex:
                                 self.log.error(ex)
+                                if created:
+                                    _discard_own_file(target, self.log)
                                 return UploadStatus.WRITE_ERROR
                         else:
                             return UploadStatus.READ_ERROR
             elif self.node.master:
+                created = False
                 try:
-                    shutil.copy2(source, target)
+                    if overwrite:
+                        shutil.copy2(source, target)
+                    else:
+                        # O_EXCL: the copy refuses an occupied destination instead of replacing it
+                        with open(target, 'xb') as out, open(source, 'rb') as src:
+                            created = True
+                            shutil.copyfileobj(src, out)
+                        shutil.copystat(source, target)
                     return UploadStatus.OK
+                except FileExistsError:
+                    return UploadStatus.FILE_EXISTS
                 except Exception as ex:
                     self.log.error(ex)
+                    if created:
+                        _discard_own_file(target, self.log)
                     return UploadStatus.WRITE_ERROR
             else:
                 self.log.warning("Trying to write a file from an Agent to the Master node. This is not supported.")
@@ -1983,14 +2034,25 @@ class NodeImpl(Node):
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (source,), binary=True)
                 data = (await cursor.fetchone())[0]
+                created = False
+                try:
+                    async with aiofiles.open(target, mode=_write_mode(overwrite)) as out:
+                        created = not overwrite
+                        await out.write(data)
+                except FileExistsError:
+                    # the name is another writer's: the staged bytes cannot land under it, so the
+                    # row is discarded exactly as a completed write discards it
+                    await conn.execute("DELETE FROM files WHERE id = %s", (source,))
+                    return UploadStatus.FILE_EXISTS
+                except Exception as ex:
+                    # the row STAYS: the bytes are still the caller's to retry with
+                    self.log.error(ex)
+                    if created:
+                        _discard_own_file(target, self.log)
+                    return UploadStatus.WRITE_ERROR
+                # consume the staged row only AFTER the bytes are on disk
                 await conn.execute("DELETE FROM files WHERE id = %s", (source,))
-            try:
-                async with aiofiles.open(target, mode='wb') as out:
-                    await out.write(data)
-                return UploadStatus.OK
-            except Exception as ex:
-                self.log.error(ex)
-                return UploadStatus.WRITE_ERROR
+            return UploadStatus.OK
 
     @override
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',

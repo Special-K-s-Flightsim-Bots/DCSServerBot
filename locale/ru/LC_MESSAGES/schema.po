@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-13 14:07+0200\n"
+"POT-Creation-Date: 2026-10-31 18:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -84,12 +84,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Секретный ключ доступа AWS для Amazon Polly."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:200
+#: services/webservice/schemas/webservice_schema.yaml:242
 msgid "Account name of the local console user."
 msgstr "Имя учётной записи локального пользователя консоли."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:189
+#: services/webservice/schemas/webservice_schema.yaml:231
 msgid "Accounts that may sign in with a username and password."
 msgstr "Учётные записи, которые могут войти по имени пользователя и паролю."
 
@@ -131,13 +131,13 @@ msgid "Add the current METAR to the mission briefing."
 msgstr "Добавлять текущий METAR в брифинг миссии."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers
-#: extensions/olympus/schemas/olympus_schema.yaml:287
+#: extensions/olympus/schemas/olympus_schema.yaml:289
 msgid "Additional map layer providers (Olympus 2.0)."
 msgstr "Дополнительные провайдеры слоёв карты (Olympus 2.0)."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.adminPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.adminPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:68 extensions/olympus/schemas/olympus_schema.yaml:215
+#: extensions/olympus/schemas/olympus_schema.yaml:68 extensions/olympus/schemas/olympus_schema.yaml:216
 msgid "Admin password (Olympus 2.0 and later)."
 msgstr "Пароль администратора (Olympus 2.0 и новее)."
 
@@ -313,7 +313,7 @@ msgid "Alternative directory holding the Tacview files."
 msgstr "Альтернативный каталог с файлами Tacview."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapMirrors
-#: extensions/olympus/schemas/olympus_schema.yaml:320
+#: extensions/olympus/schemas/olympus_schema.yaml:322
 msgid "Alternative map tile sources (Olympus 2.0)."
 msgstr "Альтернативные источники тайлов карты (Olympus 2.0)."
 
@@ -499,7 +499,7 @@ msgid "Arguments passed to the command; supports placeholders."
 msgstr "Аргументы, передаваемые команде; поддерживает плейсхолдеры."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).attribution
-#: extensions/olympus/schemas/olympus_schema.yaml:315
+#: extensions/olympus/schemas/olympus_schema.yaml:317
 msgid "Attribution text displayed on this map layer."
 msgstr "Текст атрибуции, отображаемый на этом слое карты."
 
@@ -572,7 +572,7 @@ msgid "Auto-complete an active plan on landing at the destination."
 msgstr "Автоматически завершать активный план при посадке в пункте назначения."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).autoconnectWhenLocal
-#: extensions/olympus/schemas/olympus_schema.yaml:328
+#: extensions/olympus/schemas/olympus_schema.yaml:330
 msgid "Auto-connect the client when it runs on the same host."
 msgstr "Автоматически подключать клиент, если он работает на том же хосте."
 
@@ -787,7 +787,7 @@ msgid "Battery level (%) that warns the players."
 msgstr "Уровень заряда батареи (%), при котором игроки получают предупреждение."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).address
-#: extensions/olympus/schemas/olympus_schema.yaml:171
+#: extensions/olympus/schemas/olympus_schema.yaml:172
 msgid "Bind address for the Olympus backend service."
 msgstr "Адрес привязки для backend-службы Olympus."
 
@@ -1061,7 +1061,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Снимать любую отметку обслуживания при запуске сервера."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:260
+#: services/webservice/schemas/webservice_schema.yaml:302
 msgid "Client id of your Discord application."
 msgstr "ID клиента твоего приложения Discord."
 
@@ -1446,6 +1446,11 @@ msgstr "Дней, на которые игрок банится по голос�
 msgid "Days after which this decay weight applies."
 msgstr "Дни, после которых применяется этот вес затухания."
 
+#. webservice_schema:DEFAULT.access.regex;(.+).remove
+#: services/webservice/schemas/webservice_schema.yaml:180
+msgid "Declared roles that lose this capability on the website."
+msgstr ""
+
 #. grpc_schema:schema;grpc_schema.tts.provider.aws.defaultVoice
 #: extensions/grpc/schemas/grpc_schema.yaml:94
 msgid "Default AWS Polly voice used for text-to-speech."
@@ -1728,7 +1733,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "Отбрасывать полёты короче этого числа минут."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:245
+#: services/webservice/schemas/webservice_schema.yaml:287
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Вход через Discord OAuth; вторая дверь в консоль."
 
@@ -2103,7 +2108,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Настройки провайдера синтеза речи ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:293
+#: services/webservice/schemas/webservice_schema.yaml:335
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Экстренные учётные данные администратора при нерабочем провайдере идентификации."
 
@@ -2148,7 +2153,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "Включить обнаружение DDoS (требуется NPCAP в Windows)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:255
+#: services/webservice/schemas/webservice_schema.yaml:297
 msgid "Enable Discord OAuth login."
 msgstr "Включить вход через Discord OAuth."
 
@@ -2171,7 +2176,7 @@ msgid "Enable automatic CPU affinity for this node."
 msgstr "Включить автоматическую привязку к CPU для этого узла."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.enabled
-#: extensions/olympus/schemas/olympus_schema.yaml:248
+#: extensions/olympus/schemas/olympus_schema.yaml:250
 msgid "Enable custom authentication headers."
 msgstr "Включить пользовательские заголовки аутентификации."
 
@@ -2288,7 +2293,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Включить плагин competitive для этого сервера."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:303
+#: services/webservice/schemas/webservice_schema.yaml:345
 msgid "Enable the emergency Admin credential."
 msgstr "Включить экстренные учётные данные администратора."
 
@@ -2318,7 +2323,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Включить функции турнира на этом серверном инстансе."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:184
+#: services/webservice/schemas/webservice_schema.yaml:226
 msgid "Enable username/password login for the console."
 msgstr "Включить вход по имени пользователя и паролю для консоли."
 
@@ -2733,7 +2738,7 @@ msgid "Group name or Lua pattern that this restriction matches."
 msgstr "Имя группы или Lua-шаблон, которому соответствует это ограничение."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.group
-#: extensions/olympus/schemas/olympus_schema.yaml:260
+#: extensions/olympus/schemas/olympus_schema.yaml:262
 msgid "Group sent in the authentication header."
 msgstr "Группа, отправляемая в заголовке аутентификации."
 
@@ -2743,7 +2748,7 @@ msgid "Grow a process only above this load per assigned core."
 msgstr "Расширять процесс только выше этой нагрузки на назначенное ядро."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).proxyHeader
-#: extensions/olympus/schemas/olympus_schema.yaml:334
+#: extensions/olympus/schemas/olympus_schema.yaml:336
 msgid "HTTP header used to detect the client behind a proxy."
 msgstr "HTTP-заголовок для определения клиента за прокси."
 
@@ -2782,6 +2787,12 @@ msgstr "Текст справки, показываемый для этого п
 msgid "Hex color used to color this grade on the board."
 msgstr "Hex-цвет для окраски этой оценки в таблице."
 
+#. dks_schema:schema;dks_schema.hidden
+#: extensions/dks/schemas/dks_schema.yaml:19
+#, fuzzy
+msgid "Hide the extension in the server status."
+msgstr "Имя, показываемое для расширения LotAtc в embed статуса сервера."
+
 #. admin_schema:schema;downloads.[0].restricted
 #: plugins/admin/schemas/admin_schema.yaml:48
 msgid "Hide this entry on nodes that restrict commands."
@@ -2798,7 +2809,7 @@ msgid "Highest wind direction in degrees."
 msgstr "Максимальное направление ветра в градусах."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).maxZoom
-#: extensions/olympus/schemas/olympus_schema.yaml:309
+#: extensions/olympus/schemas/olympus_schema.yaml:311
 msgid "Highest zoom level this map layer is shown at."
 msgstr "Максимальный уровень зума, на котором показывается этот слой карты."
 
@@ -2910,7 +2921,7 @@ msgid "IPs always allowed through during firewall blocks."
 msgstr "IP, всегда пропускаемые при блокировках брандмауэра."
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:153
+#: services/webservice/schemas/webservice_schema.yaml:195
 msgid "Identity layer of the admin web UI; optional."
 msgstr "Слой идентификации веб-интерфейса администратора; необязательно."
 
@@ -2935,7 +2946,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "Внедрять реальную погоду в миссию."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:267
+#: services/webservice/schemas/webservice_schema.yaml:309
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "Встроенный секрет клиента Discord; используется, если ключ не задан."
 
@@ -3156,7 +3167,7 @@ msgid "Lowest wind direction in degrees."
 msgstr "Минимальное направление ветра в градусах."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).minZoom
-#: extensions/olympus/schemas/olympus_schema.yaml:304
+#: extensions/olympus/schemas/olympus_schema.yaml:306
 msgid "Lowest zoom level this map layer is shown at."
 msgstr "Минимальный уровень зума, на котором показывается этот слой карты."
 
@@ -3938,6 +3949,11 @@ msgstr "Новый пароль миссии, обычно задаваемый 
 msgid "Normal ticks in a row needed to confirm DDoS end."
 msgstr "Обычные тики подряд, нужные для подтверждения окончания DDoS."
 
+#. dks_schema:schema;dks_schema.autoupdate
+#: extensions/dks/schemas/dks_schema.yaml:24
+msgid "Not used. The exporter updates itself (signed releases). Kept so older configurations stay valid."
+msgstr ""
+
 #. slotblocking_schema:schema;element_schema.VIP.audit
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:33
 msgid "Notify the VIP group when one of its members joins a server."
@@ -4048,7 +4064,7 @@ msgid "Obsolete: the SRS path is taken from the SRS extension."
 msgstr "Устарело: путь SRS берётся из расширения SRS."
 
 #. olympus_schema:schema;instance_olympus_schema.audio.SRSPort
-#: extensions/olympus/schemas/olympus_schema.yaml:348
+#: extensions/olympus/schemas/olympus_schema.yaml:350
 msgid "Obsolete: the SRS port is filled in from the SRS extension."
 msgstr "Устарело: порт SRS берётся из расширения SRS."
 
@@ -4258,12 +4274,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "Ограничение исходящей пропускной способности на клиента в байтах/с."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:207
+#: services/webservice/schemas/webservice_schema.yaml:249
 msgid "PBKDF2 hash of the account's password."
 msgstr "Хеш PBKDF2 пароля учётной записи."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:313
+#: services/webservice/schemas/webservice_schema.yaml:355
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Хеш PBKDF2 аварийного пароля."
 
@@ -4289,19 +4305,19 @@ msgstr "Параметры, которые принимает эта коман�
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.blueCommanderPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.blueCommanderPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:55 extensions/olympus/schemas/olympus_schema.yaml:202
+#: extensions/olympus/schemas/olympus_schema.yaml:55 extensions/olympus/schemas/olympus_schema.yaml:203
 msgid "Password for the Blue Tactical Commander role."
 msgstr "Пароль для роли Blue Tactical Commander."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.gameMasterPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.gameMasterPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:48 extensions/olympus/schemas/olympus_schema.yaml:195
+#: extensions/olympus/schemas/olympus_schema.yaml:48 extensions/olympus/schemas/olympus_schema.yaml:196
 msgid "Password for the Game Master role."
 msgstr "Пароль для роли Game Master."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.redCommanderPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.redCommanderPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:62 extensions/olympus/schemas/olympus_schema.yaml:209
+#: extensions/olympus/schemas/olympus_schema.yaml:62 extensions/olympus/schemas/olympus_schema.yaml:210
 msgid "Password for the Red Tactical Commander role."
 msgstr "Пароль для роли Red Tactical Commander."
 
@@ -4312,7 +4328,7 @@ msgid "Password for the Tacview remote control."
 msgstr "Пароль для удалённого управления Tacview."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.password
-#: extensions/olympus/schemas/olympus_schema.yaml:282
+#: extensions/olympus/schemas/olympus_schema.yaml:284
 msgid "Password for the elevation provider, if required."
 msgstr "Пароль для провайдера высот, если требуется."
 
@@ -4349,7 +4365,7 @@ msgstr "Пароль для аутентификации на прокси."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication
 #. olympus_schema:schema;node_olympus_schema.authentication
-#: extensions/olympus/schemas/olympus_schema.yaml:37 extensions/olympus/schemas/olympus_schema.yaml:183
+#: extensions/olympus/schemas/olympus_schema.yaml:37 extensions/olympus/schemas/olympus_schema.yaml:184
 msgid "Passwords that guard the Olympus roles."
 msgstr "Пароли, защищающие роли Olympus."
 
@@ -4369,7 +4385,7 @@ msgid "Path to the Lardoon executable."
 msgstr "Путь к исполняемому файлу Lardoon."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).path
-#: extensions/olympus/schemas/olympus_schema.yaml:228
+#: extensions/olympus/schemas/olympus_schema.yaml:230
 msgid "Path to the Olympus frontend installation."
 msgstr "Путь к установке фронтенда Olympus."
 
@@ -4454,6 +4470,11 @@ msgstr "Штрафные очки, начисляемые за тип событ
 #: plugins/punishment/schemas/punishment_schema.yaml:132
 msgid "Penalty points that trigger this punishment."
 msgstr "Штрафные очки, запускающие это наказание."
+
+#. webservice_schema:DEFAULT.access
+#: services/webservice/schemas/webservice_schema.yaml:157
+msgid "Per-capability role overrides of the console."
+msgstr ""
 
 #. srs_schema:schema;element_schema.atc_frequencies
 #: plugins/srs/schemas/srs_schema.yaml:40
@@ -4680,7 +4701,7 @@ msgid "Port of the NUT server."
 msgstr "Порт сервера NUT."
 
 #. olympus_schema:schema;instance_olympus_schema.audio.WSPort
-#: extensions/olympus/schemas/olympus_schema.yaml:354
+#: extensions/olympus/schemas/olympus_schema.yaml:356
 msgid "Port of the Olympus audio backend WebSocket."
 msgstr "Порт WebSocket аудио-бэкенда Olympus."
 
@@ -4860,7 +4881,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "Публичный URL, показываемый игрокам вместо IP сервера."
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:165
+#: services/webservice/schemas/webservice_schema.yaml:207
 msgid "Public origin the console is reachable at."
 msgstr "Публичный origin, по которому доступна консоль."
 
@@ -5136,7 +5157,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "Роль, упоминаемая в приветственном сообщении."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:214
+#: services/webservice/schemas/webservice_schema.yaml:256
 msgid "Role names granted to this account, validated at startup."
 msgstr "Имена ролей, выданных этой учётной записи, проверяются при запуске."
 
@@ -5201,6 +5222,11 @@ msgstr "Роли, которым разрешено загружать мисс�
 msgid "Roles allowed to vote (all players by default)."
 msgstr "Роли, которым разрешено голосовать (по умолчанию все игроки)."
 
+#. webservice_schema:DEFAULT.access.regex;(.+).add
+#: services/webservice/schemas/webservice_schema.yaml:172
+msgid "Roles granted this capability in addition to the declared ones."
+msgstr ""
+
 #. srs_schema:schema;node_srs_schema.announce.mention
 #: extensions/srs/schemas/srs_schema.yaml:92
 msgid "Roles or users mentioned in the announcement."
@@ -5262,7 +5288,7 @@ msgid "Runway elevation in meters, used for the QNH."
 msgstr "Высота ВПП в метрах, используется для QNH."
 
 #. olympus_schema:schema;instance_olympus_schema.audio
-#: extensions/olympus/schemas/olympus_schema.yaml:339
+#: extensions/olympus/schemas/olympus_schema.yaml:341
 msgid "SRS audio settings for the Olympus web client (Olympus 2.0)."
 msgstr "Настройки SRS-аудио для веб-клиента Olympus (Olympus 2.0)."
 
@@ -5307,7 +5333,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Секунды работы сервера с ПАУЗОЙ при старте до повторной паузы."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:286
+#: services/webservice/schemas/webservice_schema.yaml:328
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Секунды кэширования разрешения участника без intent."
 
@@ -5476,7 +5502,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Секунды без игрока-противника, которые выигрывают матч."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:275
+#: services/webservice/schemas/webservice_schema.yaml:317
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Ключ хранилища секретов с секретом клиента; приоритетнее встроенного."
 
@@ -5714,7 +5740,7 @@ msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "Сторона, к которой применяется ограничение: 0 обе, 1 красная, 2 синяя."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
-#: extensions/olympus/schemas/olympus_schema.yaml:239
+#: extensions/olympus/schemas/olympus_schema.yaml:241
 msgid "Single sign-on header configuration (Olympus 2.0)."
 msgstr "Настройка заголовков единого входа (Olympus 2.0)."
 
@@ -5921,7 +5947,7 @@ msgid "Temperature generation."
 msgstr "Генерация температуры."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider
-#: extensions/olympus/schemas/olympus_schema.yaml:265
+#: extensions/olympus/schemas/olympus_schema.yaml:267
 msgid "Terrain elevation data provider (Olympus 2.0)."
 msgstr "Провайдер данных о рельефе (Olympus 2.0)."
 
@@ -5976,6 +6002,17 @@ msgstr "Действие для выполнения и его параметр�
 #: services/backup/schemas/backup_schema.yaml:18
 msgid "The database, servers and bot backup jobs."
 msgstr "Задачи резервного копирования базы данных, серверов и бота."
+
+#. dks_schema:schema;dks_schema.key
+#: extensions/dks/schemas/dks_schema.yaml:30
+msgid "The install code from your server's page in DKS."
+msgstr ""
+
+#. dks_schema:schema;dks_schema.name
+#: extensions/dks/schemas/dks_schema.yaml:14
+#, fuzzy
+msgid "The name shown for the extension."
+msgstr "Текст справки, показываемый для этого параметра."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6106,22 +6143,22 @@ msgid "URL or slug of the GoFundMe campaign."
 msgstr "URL или slug кампании GoFundMe."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.provider
-#: extensions/olympus/schemas/olympus_schema.yaml:274
+#: extensions/olympus/schemas/olympus_schema.yaml:276
 msgid "URL template of the elevation data source."
 msgstr "Шаблон URL источника данных высот."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).urlTemplate
-#: extensions/olympus/schemas/olympus_schema.yaml:299
+#: extensions/olympus/schemas/olympus_schema.yaml:301
 msgid "URL template of this map layer's tiles."
 msgstr "Шаблон URL тайлов этого слоя карты."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
-#: extensions/olympus/schemas/olympus_schema.yaml:177
+#: extensions/olympus/schemas/olympus_schema.yaml:178
 msgid "Unique TCP port for Olympus internal communication."
 msgstr "Уникальный TCP-порт для внутренней связи Olympus."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).port
-#: extensions/olympus/schemas/olympus_schema.yaml:234
+#: extensions/olympus/schemas/olympus_schema.yaml:236
 msgid "Unique TCP port the Olympus web client connects to."
 msgstr "Уникальный TCP-порт, к которому подключается веб-клиент Olympus."
 
@@ -6265,12 +6302,12 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "Пользователь для входа на сервер NUT (необязательно)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:170
+#: services/webservice/schemas/webservice_schema.yaml:212
 msgid "Username and password login for the console."
 msgstr "Вход по имени пользователя и паролю для консоли."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.username
-#: extensions/olympus/schemas/olympus_schema.yaml:278
+#: extensions/olympus/schemas/olympus_schema.yaml:280
 msgid "Username for the elevation provider, if required."
 msgstr "Имя пользователя для провайдера высот, если требуется."
 
@@ -6280,12 +6317,12 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Имя пользователя для прокси, если требуется аутентификация."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:308
+#: services/webservice/schemas/webservice_schema.yaml:350
 msgid "Username of the emergency Admin account."
 msgstr "Имя пользователя экстренной учётной записи администратора."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.username
-#: extensions/olympus/schemas/olympus_schema.yaml:254
+#: extensions/olympus/schemas/olympus_schema.yaml:256
 msgid "Username sent in the authentication header."
 msgstr "Имя пользователя, отправляемое в заголовке аутентификации."
 
@@ -6444,7 +6481,7 @@ msgid "Web service settings applied to every node."
 msgstr "Настройки веб-службы, применяемые к каждому узлу."
 
 #. olympus_schema:schema;instance_olympus_schema.audio.WSEndpoint
-#: extensions/olympus/schemas/olympus_schema.yaml:360
+#: extensions/olympus/schemas/olympus_schema.yaml:362
 msgid "WebSocket endpoint exposed through a reverse proxy."
 msgstr "Эндпоинт WebSocket, доступный через обратный прокси."
 
@@ -6499,6 +6536,11 @@ msgstr "Куда отправляются файлы, например путь 
 msgid "Where the package is installed to on the server."
 msgstr "Куда устанавливается пакет на сервере."
 
+#. webservice_schema:DEFAULT.access.regex;(.+).manager
+#: services/webservice/schemas/webservice_schema.yaml:188
+msgid "Whether a managing scope (managed_by) satisfies this capability."
+msgstr ""
+
 #. main_schema:logging.utc
 #: schemas/main_schema.yaml:145
 msgid "Whether log timestamps should be written in UTC."
@@ -6508,6 +6550,12 @@ msgstr "Записывать ли временные метки журнала �
 #: extensions/grpc/schemas/grpc_schema.yaml:9
 msgid "Whether the DCS-gRPC extension is enabled."
 msgstr "Включено ли расширение DCS-gRPC."
+
+#. dks_schema:schema;dks_schema.enabled
+#: extensions/dks/schemas/dks_schema.yaml:8
+#, fuzzy
+msgid "Whether the DKS exporter is installed on this instance."
+msgstr "Включено ли расширение Olympus на этом инстансе."
 
 #. dsmc_schema:schema;dsmc_schema.enabled
 #: extensions/dsmc/schemas/dsmc_schema.yaml:8
@@ -6695,7 +6743,7 @@ msgid "Z-score above which traffic counts as anomalous."
 msgstr "Z-оценка, выше которой трафик считается аномальным."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:230
+#: services/webservice/schemas/webservice_schema.yaml:272
 msgid "managed_by values this account may see and act on."
 msgstr "Значения managed_by, которые эта учётная запись может видеть и изменять."
 

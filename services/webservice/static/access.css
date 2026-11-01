@@ -1,0 +1,96 @@
+/* ACCESS — the role → capability matrix of the website.
+ *
+ * Page-level components only: the shell owns the layout, the top bar, the card grammar and the
+ * notice. Everything here is namespaced under `.acc-` or scoped to the matrix table, so a rule
+ * cannot land on another page's table.
+ *
+ * The cell boxes are REAL CHECKBOXES drawn as boxes (`appearance: none`), never spans beside hidden
+ * inputs: the control that is drawn is the control that posts, which is what makes the matrix work
+ * with a script disabled. A locked cell is a span — there is nothing to post and nothing to press.
+ */
+
+.acc-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.acc-title { display: flex; flex-direction: column; }
+.acc-head h1 { margin: 0; }
+.acc-sub { color: var(--text-3); font-size: 12.5px; margin-top: 3px; max-width: 62ch; }
+.acc-acts { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.acc-search { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--panel-2, #0d131b); color: var(--text-3);
+  font-size: 12.5px; min-width: 260px; }
+.acc-search input { all: unset; flex: 1; color: var(--text); font-size: 12.5px; }
+
+.acc-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 12px;
+  color: var(--text-2); cursor: pointer; padding: 7px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--panel-2, #0d131b); }
+.acc-toggle input { accent-color: var(--accent); }
+
+.acc-banner { border-left: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent);
+  padding: 10px 12px; border-radius: 0 6px 6px 0; color: var(--text-2); font-size: 12.5px;
+  line-height: 1.55; margin-bottom: 12px; }
+.acc-banner b { color: var(--text); }
+.acc-banner .mono { font-family: var(--mono, ui-monospace, monospace); }
+.acc-banner.acc-warn { border-left-color: var(--bad-line); background: var(--bad-wash);
+  color: var(--text); }
+.acc-banner .acc-ignored { margin: 6px 0 0; padding-left: 18px; }
+.acc-banner .acc-ignored li { margin: 2px 0; }
+
+.acc-legend { display: flex; gap: 14px; color: var(--text-3); font-size: 11.5px; flex-wrap: wrap;
+  align-items: center; margin-bottom: 10px; }
+.acc-legend span { display: inline-flex; gap: 6px; align-items: center; }
+
+.acc-empty { color: var(--text-3); font-size: 12.5px; padding: 18px 2px; }
+
+.acc-card { overflow: visible; }
+.acc-card .matrix { width: 100%; border-collapse: separate; border-spacing: 0; }
+.matrix th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-3); text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line);
+  background: var(--hd2, #151c26); position: sticky; top: 0; z-index: 1; }
+.matrix th.c, .matrix td.c { text-align: center; width: 104px; }
+.matrix th.lockcol { color: var(--text-3); }
+.matrix td { padding: 7px 10px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.matrix tr:last-child td { border-bottom: 0; }
+.matrix tbody tr.acc-row:hover { background: var(--row-hover, #161e29); }
+.matrix tr.grp td { background: var(--panel-2, #101720); color: var(--text-3); font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .1em; padding: 7px 10px;
+  border-bottom: 1px solid var(--line); }
+.matrix .cap { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; color: var(--text); }
+.matrix .why { color: var(--text-3); font-size: 11px; margin-top: 1px; }
+.matrix tr.chg td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+/* the cell box — one control, drawn and posted */
+.box, .acc-box { display: inline-grid; place-items: center; width: 16px; height: 16px;
+  border-radius: 4px; border: 1px solid var(--line); background: var(--panel-2, #0d131b);
+  font-size: 11px; line-height: 1; vertical-align: middle; }
+.box.on { background: var(--accent); border-color: var(--accent); color: #1a1204; }
+.box.lock { background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
+.box.no { background: transparent; border-color: var(--line); color: var(--text-3); }
+
+input.acc-box[type="checkbox"] { appearance: none; -webkit-appearance: none; cursor: pointer;
+  margin: 0; padding: 0; }
+input.acc-box[type="checkbox"]::after { content: ""; font-size: 11px; line-height: 1; }
+input.acc-box[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+input.acc-box[type="checkbox"]:checked::after { content: "✓"; color: #1a1204; }
+input.acc-box[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input.acc-box[type="checkbox"]:hover { border-color: var(--accent); }
+
+.acc-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px; border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, #121924, #0d131b); border-radius: 0 0 var(--radius) var(--radius); }
+.acc-bar .spacer { flex: 1; }
+.acc-meta { color: var(--text-3); font-size: 11.5px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.acc-line .mono { font-family: var(--mono, ui-monospace, monospace); color: var(--text-2); }
+
+.tag { font-size: 10.5px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line);
+  color: var(--text-2); background: var(--panel-2, #101720); font-variant-numeric: tabular-nums; }
+.tag.a { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+.acc-btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--panel-2, #101720); color: var(--text-2);
+  font: inherit; font-size: 12.5px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.acc-btn:hover { color: var(--text); border-color: var(--accent); }
+.acc-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.acc-btn.pri { background: var(--accent); border-color: var(--accent); color: #1a1204; }
+.acc-btn[disabled] { opacity: .45; cursor: not-allowed; }

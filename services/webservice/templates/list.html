@@ -11,10 +11,17 @@
   `_table.html` — the SAME partial the dashboard's state panel includes, so the sort links, the
   header arrows, the players search and the empty states are one rendering rather than two.
 
-  NO JAVASCRIPT. The page is complete when it arrives: no stream URL is handed to the browser, so
-  there is nothing to fall back from. The only form the page carries is the players search (a GET)
-  plus, on the Servers page, one POST form per write control it renders (Pause / Unpause, each with
-  the session's CSRF token) and the shell's Sign out control.
+  NO SECOND CLIENT. The page is complete when it arrives — every row is in the server-rendered
+  HTML. A page whose rows carry state a WRITE moves (the Servers table: the busy marker of a press,
+  the state a boot settles on) passes `live`, and then `base.html` loads the console's own
+  `static/shell.js`; the table body is the swap target (`_table.html` draws its id), so an update
+  replaces the rows and nothing else. A page that passes no `live` loads no script and opens no
+  connection. The only form the page carries is the players search (a GET) plus, on the Servers page,
+  one POST form per write control it renders (Pause / Unpause, each with the session's CSRF token)
+  and the shell's Sign out control.
+
+  THE LIVE STATE INDICATOR states which transport is running, in words (`shell.js` fills it), and is
+  drawn only on a page that streams: a static page has nothing to say about a stream it never opens.
 
   THE ONE-SHOT NOTICE of a write is included ABOVE the table on the page a write redirects back to
   (`_notice.html`): it is `notice` from the context — `None` for every page that has no write, so
@@ -27,23 +34,12 @@
 <div class="page-head">
   <h1>{{ _(page_title) }}</h1>
   <div class="sub">{{ _(lead) }}</div>
+  {% if live %}<span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span>{% endif %}
 </div>
 
-{#- THE PAGE-LEVEL CONTROL — the Servers page's "Add server". A PLAIN POST form: its answer IS the
-    dialog page, so it is never intercepted (the same rule the row strip applies to a control that
-    opens a dialog, `_strip.html`). The control is DATA (`add_control` from `pages/actions`): absent
-    for a page whose table has none, so this renders nothing on the other three list pages. -#}
-{% if add_control %}
-<div class="page-actions">
-  <form method="post" action="{{ add_control.path }}">
-    <input type="hidden" name="{{ add_control.csrf_field }}" value="{{ add_control.csrf_token }}">
-    <input type="hidden" name="{{ add_control.origin_field }}" value="{{ add_control.origin }}">
-    {% for name, value in add_control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-    <button type="submit" title="{{ say(add_control.title) }}" aria-label="{{ say(add_control.aria) }}">{{ _(add_control.label) }}</button>
-  </form>
-</div>
-{% endif %}
-
+{#- THE PAGE-LEVEL CONTROL is not here: the Servers page's "Add server" acts on the table below it,
+    so it renders in that table's card header (`_table.html`, `card_action`) — the way the music
+    area puts New Playlist in its card header. The page head carries the title and the lead only. -#}
 {% include "_notice.html" %}
 {% include "_table.html" %}
 

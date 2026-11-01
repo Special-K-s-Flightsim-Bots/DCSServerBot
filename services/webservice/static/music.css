@@ -1,0 +1,395 @@
+/* The music pages — the playlist list and the playlist editor.
+ *
+ * Page-scoped rules only: every selector is namespaced under `.mus-` or reads the shared
+ * `reorder-` state classes the drag script writes, and nothing here re-declares the shell's own
+ * selectors (`.card`, `.tbl`, `.act-strip`, `.btn`, `.tag` all come from shell.css).
+ */
+
+.mus-vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mus-note {
+  margin: 0;
+  padding: 10px 0 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.mus-h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.mus-section {
+  padding: 14px 0 0;
+}
+
+/* ------------------------------------------------------------------ the on-air cards */
+.mus-radios {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.mus-track {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0 8px;
+}
+
+.mus-track b {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mus-track small,
+.mus-sub {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+.mus-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+
+/* The card's state tag: the on-air word beside the console's running dot, the idle word as a plain
+   tag (both are the shell's own components — nothing here re-declares their look). */
+.mus-state {
+  margin-top: -4px;
+}
+
+/* The transport strip inside a card: one form per verb, wrapping rather than overflowing the
+   card. The buttons are the shell's `.sel-bar` control, so the strip is the same control the
+   server's Music tab draws, not a look-alike. */
+.mus-transport {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mus-transport form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ the tables in their cards */
+.mus-card {
+  margin-top: 14px;
+}
+
+.mus-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.mus-table th,
+.mus-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.mus-table th {
+  color: var(--text-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mus-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.mus-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mus-table .acts {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* A playlist's name is a LINK, and it is drawn as one: no colour here, so the shell's own `a` rule
+   paints it like every other link on the console. Only the weight is the row's. */
+.mus-name {
+  font-weight: 600;
+}
+
+.mus-name:hover {
+  color: var(--accent);
+}
+
+.mus-missing {
+  color: var(--warn-text);
+  font-size: 11.5px;
+}
+
+.mus-air {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+/* ------------------------------------------------------------------ the editor's two panes */
+.mus-head {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.mus-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .mus-panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mus-search {
+  border-bottom: 1px solid var(--line);
+}
+
+.mus-browser {
+  display: grid;
+  grid-template-columns: minmax(120px, 34%) minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+
+.mus-tree {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  border-right: 1px solid var(--line);
+  max-height: calc(100vh - 420px);
+  overflow: auto;
+}
+
+.mus-folder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.mus-folder .nm {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mus-folder .c {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.mus-folder:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.mus-folder.on {
+  color: var(--text);
+  background: var(--panel-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.mus-lib {
+  min-width: 0;
+  max-height: calc(100vh - 420px);
+  overflow: auto;
+}
+
+.mus-files td {
+  vertical-align: top;
+}
+
+.mus-files .cb {
+  width: 1%;
+}
+
+.mus-files .acts,
+.mus-tracks .acts {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.mus-title {
+  color: var(--text);
+}
+
+/* the selected folder's footer: the folder figure, its one bulk control, the selection count */
+.mus-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mus-toolbar .spacer {
+  flex: 1 1 auto;
+}
+
+.mus-browser-card > .mus-toolbar {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.mus-chip {
+  padding: 6px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.mus-chip:hover {
+  border-color: var(--accent);
+}
+
+.mus-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mus-chip[disabled] {
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+
+.mus-chip.danger {
+  color: var(--warn-text);
+  border-color: var(--warn-line);
+}
+
+/* ------------------------------------------------------------------ the playlist rows */
+.mus-tracks .grip {
+  width: 1%;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.mus-tracks [data-reorder-handle] {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+/* the grip is the row's keyboard route too (Alt+Up / Alt+Down): a tab stop must show where it is */
+.mus-tracks [data-reorder-handle]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-s);
+}
+
+.mus-tracks tr.reorder-dragging {
+  opacity: .55;
+  background: var(--panel-2);
+}
+
+body.reorder-active {
+  cursor: grabbing;
+}
+
+.mus-gone .mus-title {
+  color: var(--text-3);
+}
+
+/* ------------------------------------------------------------------ the library card's upload */
+/* The header's form: the card's own header line, beside Rescan — the input and the button travel
+   together so the button always acts on the file next to it. */
+.mus-upload {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mus-upload-file {
+  min-width: 0;
+  max-width: 190px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.mus-upload-file::file-selector-button {
+  margin-right: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+
+.mus-upload-note {
+  padding: 8px 14px 0;
+}
+
+/* The card while a file hovers over it, and the rail row a drop would land in. */
+.mus-drop {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.mus-folder.mus-drop {
+  color: var(--text);
+  background: var(--panel-2);
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.mus-browser-card[aria-busy="true"] {
+  opacity: .7;
+}

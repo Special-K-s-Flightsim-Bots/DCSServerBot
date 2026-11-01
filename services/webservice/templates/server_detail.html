@@ -521,23 +521,45 @@
     <div class="sub">{{ missions_offline_reason }}</div>
     {% endif %}
     <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
+    {% if missions_drag_allowed %}
+    {#- THE ROW DRAG (``static/reorder.js``): the SAME script the music playlist uses, pointed at this
+        row container instead of a table body. It enhances only an OPT-IN list — ``data-reorder``
+        alone says so — and draws no control of its own: the GRIP each row carries below is the
+        handle, and the script neither adds nor removes it. One POST per drop, carrying the WHOLE new
+        order. The process-down gate is the write's own — a drop accepted while DCS is up would be
+        reverted — and the two sentences it can show arrive here, in the request's language. -#}
+    <div class="cfg-form" data-reorder data-reorder-body
+         data-reorder-url="{{ missions_reorder_path }}"
+         data-reorder-field="{{ missions_order_field }}"
+         data-reorder-params="server={{ missions_server|urlencode }}"
+         data-reorder-token="{{ csrf_token }}"
+         data-reorder-token-field="{{ csrf_field }}"
+         data-reorder-refused="{% trans %}Not saved: the new order was refused. Reload the page and try again.{% endtrans %}"
+         data-reorder-offline="{% trans %}Not saved: the new order could not be sent.{% endtrans %}">
+    {% else %}
     <div class="cfg-form">
+    {% endif %}
       {% for m in missions %}
       {% set m_lab %}
-          {#- ONE ROW, ONE FACT, ONE BOX: the box is SELECTION only — it sits in its OWN column
-              (``.m-box``) and belongs to the ONE selection form above (``form="missions-form"``), so
-              the name and the ``.miz`` path below it both start to the box's RIGHT and line up with
-              each other. The RUNNING mission's box is the single deliberate exception to
-              omit-never-disable: it is drawn DISABLED, with the row's own line saying why, because a
-              box's absence is what made the old numbering read as a gap. The START marker (amber
-              ``.tag.a``) names the mission the server loads when it starts; the live ``.dot.run``
-              beside the name names the mission it is running NOW — two different facts. No ``#N`` and
-              no primary/secondary copy tag: the ``.miz`` path names the file.
+          {#- ONE ROW, ONE FACT, ONE BOX, ONE GRIP: the grip is the row's order control, the box is
+              SELECTION only. Each owns its OWN column — the grip first, then ``.m-box`` — and the
+              name and the ``.miz`` path start to the RIGHT of both and line up with each other, so
+              neither the grip nor the box can land the name under itself. The RUNNING mission's box
+              is the single deliberate exception to omit-never-disable: it is drawn DISABLED, with the
+              row's own line saying why, because a box's absence is what made the old numbering read
+              as a gap. The START marker (amber ``.tag.a``) names the mission the server loads when it
+              starts; the live ``.dot.run`` beside the name names the mission it is running NOW — two
+              different facts. No ``#N`` and no primary/secondary copy tag: the ``.miz`` path names
+              the file.
 
               THE ROW'S COLUMNS ARE SET INLINE, deliberately: the layout must not depend on a
               browser's cached copy of ``shell.css`` (a stale sheet left the name UNDER the box), and
-              the 9px inset keeps the START row's 3px `.row-active` stripe off the box and the text. -#}
-          <div class="m-row" style="display:grid;grid-template-columns:{{ '22px minmax(0, 1fr)' if missions_select_allowed else 'minmax(0, 1fr)' }};align-items:start;padding-left:9px">
+              the 9px inset keeps the START row's 3px `.row-active` stripe off the grip and the text.
+              The grip exists only where the row may be dragged: its column is conditional too, so a
+              row without one does not carry an empty gutter. -#}
+          {% set m_cols %}{% if missions_drag_allowed %}16px {% endif %}{% if missions_select_allowed %}22px {% endif %}minmax(0, 1fr){% endset %}
+          <div class="m-row" style="display:grid;grid-template-columns:{{ m_cols }};align-items:start;padding-left:9px">
+            {% if missions_drag_allowed %}<span class="grip" style="padding-top:2px" data-reorder-handle tabindex="0" title="{% trans %}Drag to reorder{% endtrans %}" aria-label="{% trans %}Drag to reorder, or press Alt+Up or Alt+Down{% endtrans %}">⠿</span>{% endif %}
             {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box></div>{% endif %}
             <div class="m-fact" style="min-width:0">
               <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
@@ -547,32 +569,15 @@
           </div>
       {% endset %}
       {% set m_ctl %}
-          {#- THE MOVE PAIR: reorder this row in the rotation list. Offered only while the DCS
-              process is DOWN (a write made while it is up is reverted); the FIRST row's up and the
-              LAST row's down are ABSENT rather than drawn dead, because a move off the end is a
-              no-op. Each posts the 1-based index and the direction in the BODY (never a URL). -#}
-          {% if missions_reorder_allowed %}
-          {% if not loop.first %}
-          <form method="post" action="{{ missions_reorder_path }}">
-            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
-            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
-            <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
-            <input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">
-            <input type="hidden" name="{{ missions_direction_field }}" value="up">
-            <button class="act-btn" type="submit" title="{% trans name=m.name %}Move {{ name }} up in the rotation list{% endtrans %}" aria-label="{% trans name=m.name %}Move mission {{ name }} up{% endtrans %}">{{ icons.act('move_up') }}</button>
-          </form>
-          {% endif %}
-          {% if not loop.last %}
-          <form method="post" action="{{ missions_reorder_path }}">
-            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
-            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
-            <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
-            <input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">
-            <input type="hidden" name="{{ missions_direction_field }}" value="down">
-            <button class="act-btn" type="submit" title="{% trans name=m.name %}Move {{ name }} down in the rotation list{% endtrans %}" aria-label="{% trans name=m.name %}Move mission {{ name }} down{% endtrans %}">{{ icons.act('move_down') }}</button>
-          </form>
-          {% endif %}
-          {% endif %}
+          {#- THE ROW'S CONTROLS: Download and Load only. The ORDER control is the GRIP the row's own
+              label carries (above) — one order affordance per row, never a second drawn one — and the
+              drop it starts posts the WHOLE new order to the same path the old pair posted to.
+              ``Load`` posts the row's 1-based index and its logical name in the BODY to the LOAD
+              DIALOG, which re-emits both as hidden fields and carries the SAME launch form Startup's
+              does (the weather pick, the temporary fields and the announce box) — so one click becomes
+              one click plus the form the owner approved. THE LOAD TITLE IS STATE-DEPENDENT: it says
+              what THIS control does IN THE STATE THE ROW IS RENDERED IN
+              (``missions_load_sets_start``), so the difference is stated where the operator reads it. -#}
           <a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>
           {#- THE ONE ROW WRITE: ``Load`` is the ONLY per-row write left. ``Set as start`` — the
               rotation pointer (``set_active_mission``) — MOVED to the selection bar, where it acts on
@@ -598,7 +603,8 @@
           </form>
           {% endif %}
       {% endset %}
-      {{ editor.field_row('', m_lab, m_ctl, cls='row-active' if m.active else '') }}
+      {% set m_attrs %}{% if missions_drag_allowed %}data-reorder-row data-reorder-id="{{ m.name }}"{% endif %}{% endset %}
+      {{ editor.field_row('', m_lab, m_ctl, cls='row-active' if m.active else '', attrs=m_attrs) }}
       {% endfor %}
     </div>
     {% else %}
@@ -730,6 +736,16 @@
     page head, because this page already rendered one for the server. A caller without `settings.view`
     never reaches this branch: the route refuses the request.  -#}
 {% include "scheduler_body.html" %}
+
+{% elif tab == 'music' %}
+{# ---------------------------------------------------------------- the Music tab: this server's radios #}
+{#-  THE SERVER'S OWN RADIOS: the body is `music_body.html`, one card per radio with what it is set
+    to, whether it is on air, the track it is playing and the three writes the music plugin's actions
+    offer (transport, playlist assignment, settings). The page module owns the reading
+    (`_music_tab_context`); this branch renders no page head, because this page already rendered one
+    for the server. A server the file configures no radio for never reaches this branch — the route
+    refuses `?tab=music` with the same predicate that withholds the link. -#}
+{% include "music_body.html" %}
 
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
@@ -924,6 +940,11 @@
 {% block scripts %}<script src="/static/reveal.js" defer></script>
 <script src="/static/filepick.js" defer></script>
 <script src="/static/mission-select.js" defer></script>
+{#  THE MISSIONS ROW DRAG (``static/reorder.js``): the shared pointer reorder, loaded only when the
+    tab's rows are draggable (the offline-only gate plus the reorder capability). The rows carry no
+    drawn order control beside it: with JavaScript off the grip does nothing and the LIST ITSELF is
+    unchanged — reading, downloading and loading a mission never depended on the order control.  #}
+{% if tab == 'missions' and missions_drag_allowed %}<script src="/static/reorder.js" defer></script>{% endif %}
 {#  THE SERVER LOG's follow + page-back: a progressive enhancement. With JavaScript off the tail
     the page rendered is all there is — the page is not live and "Load older" does nothing.  #}
 <script src="/static/server-log.js" defer></script>

@@ -33,13 +33,21 @@ NAV_LABEL = i18n._("Servers")
 
 PAGE = lists_page.ListPage(table=SERVERS_TABLE, path=SERVERS_PATH, capability=SERVERS_CAPABILITY,
                            roles=SERVERS_ROLES, title=SERVERS_TITLE, lead=SERVERS_LEAD,
-                           nav_label=NAV_LABEL, scope_grants=True, writes=True)
+                           nav_label=NAV_LABEL, group="Operations", glyph="server",
+                           scope_grants=True, writes=True, live=True)
 
 
 def capabilities() -> dict[str, str]:
-    """The capability declaration for the paths this module registers."""
+    """The capability declaration for the paths this module registers.
+
+    The two live paths carry the PAGE's own ``servers.view``: "may open the page" and "may stream
+    its rows" are one declaration, so the stream cannot outlive a revocation of the page.
+    """
     PAGE.declare()
-    return {SERVERS_PATH: SERVERS_CAPABILITY}
+    declared = {SERVERS_PATH: SERVERS_CAPABILITY}
+    for path in lists_page.stream_paths(PAGE):
+        declared[path] = SERVERS_CAPABILITY
+    return declared
 
 
 def nav_items():

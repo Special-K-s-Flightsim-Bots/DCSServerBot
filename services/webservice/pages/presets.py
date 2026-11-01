@@ -52,7 +52,7 @@ from urllib.parse import quote, urlencode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 
-from core.utils import configwrite
+from core.utils import configwrite, resolve_within
 # THE PRESET RULE ITSELF: discovery, the node read and the name -> document resolution live in
 # ``core/utils/presets.py`` so a plugin reaches the same rule without importing a page module.
 from core.utils.presets import (CONFIG_LABEL, PRESET_DIR, PRESET_FILE_GLOB, PRESET_FILE_PATTERNS,
@@ -1942,7 +1942,9 @@ def preset_new_file(config: Path, text: str) -> tuple[Path | None, str, dict]:
     *text* is the name as typed, read as a path RELATIVE to the config directory in the form the page
     prints its files (``config/presets.yaml``). It answers ``(path, "", {})`` for a name the save may
     CREATE — the file itself is not created here — and ``(None, msgid, params)`` for one it must
-    refuse, where *msgid* is the refusal's own sentence and *params* carry the text verbatim.
+    refuse, where *msgid* is the refusal's own sentence and *params* carry the text verbatim. *path* is
+    the RESOLVED destination and is the value the save hands to the writer, so the write cannot follow
+    a route other than the one judged here.
 
     The checks, in the order that names the FIRST real defect:
     the name is not blank (a blank name is no request — the route writes the offered destination
@@ -1973,16 +1975,14 @@ def preset_new_file(config: Path, text: str) -> tuple[Path | None, str, dict]:
         return None, PRESETS_REFUSED_NEW_FILE_SHAPE, {"file": name}
     config = Path(config)
     path = config / relative
-    try:
-        root = config.resolve()
-        resolved = path.resolve()
-    except OSError:
+    # one rule for the check AND for the value handed on: ``resolve_within`` answers the RESOLVED
+    # path, so the writer below cannot follow a link that changed after this line was judged
+    resolved = resolve_within(config, path)
+    if resolved is None:
         return None, PRESETS_REFUSED_NEW_FILE_ESCAPE, {"file": name}
-    if not resolved.is_relative_to(root):
-        return None, PRESETS_REFUSED_NEW_FILE_ESCAPE, {"file": name}
-    if path.exists():
+    if Path(resolved).exists():
         return None, PRESETS_REFUSED_NEW_FILE_EXISTS, {"file": name}
-    return path, "", {}
+    return Path(resolved), "", {}
 
 
 def find_preset_file(config: Path, name: str) -> tuple[Path, str, str] | None:
@@ -3270,7 +3270,9 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
             new_file_error = i18n.translate(request, refusal, **params)
         else:
             chosen_path = target
-            chosen_file = display_path(config, target)
+            # the label stays the name AS TYPED: the path is resolved, so deriving the label from it
+            # would print the link's target instead of the file the tree names
+            chosen_file = new_file_value
             chosen_is_new = True
     else:
         chosen_file = (posted_file if posted_file in files
@@ -3561,7 +3563,8 @@ def capabilities() -> dict[str, str]:
 def nav_items():
     """The sidebar entry for this page — the capability's own name, never a second spelling."""
     declare()
-    return (NavItem(label=PRESETS_TITLE, url=PRESETS_PATH, capability=PRESETS_CAPABILITY),)
+    return (NavItem(label=PRESETS_TITLE, url=PRESETS_PATH, capability=PRESETS_CAPABILITY,
+                    group="Data", glyph="sliders"),)
 
 
 def add_routes(router: APIRouter) -> APIRouter:
@@ -4106,7 +4109,8 @@ def add_routes(router: APIRouter) -> APIRouter:
                     select = urlencode({PRESETS_FILE_FIELD: posted_new})
                     return _refuse_write(request, refusal, f"{PRESETS_NEW_PATH}?{select}", **params)
                 return _refuse_write(request, refusal, PRESETS_NEW_PATH, **params)
-            return path, display_path(config, path)
+            # the label stays the name AS TYPED, exactly as it read before the path was resolved
+            return path, posted_new
         files = {entry: Path(config) / entry[len(CONFIG_LABEL) + 1:]
                  for entry in destination["files"] if entry.startswith(f"{CONFIG_LABEL}/")}
         posted_file = _text(form.get(PRESETS_FILE_FIELD))

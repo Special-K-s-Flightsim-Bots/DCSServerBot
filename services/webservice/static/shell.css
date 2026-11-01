@@ -182,14 +182,32 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
 .brand small { display: block; color: var(--text-3); font-size: 11px; margin-top: 1px; }
 
 .nav { padding: 10px 8px; overflow: auto; flex: 1; }
-.nav .grp { color: var(--text-3); font-size: 10.5px; text-transform: uppercase;
-  letter-spacing: .11em; padding: 14px 10px 6px; }
+.nav .grp { display: flex; align-items: center; gap: 10px; color: var(--text-3);
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .11em;
+  padding: 14px 10px 6px; }
 .nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
   border-radius: var(--radius-s); color: var(--text-2); }
-.nav a .ic { width: 18px; text-align: center; opacity: .9; }
+/* THE ICON COLUMN — one fixed 18px column for a heading's glyph and for an entry's glyph, so every
+ * label in the rail starts on the same x whichever group it is in, and an entry whose glyph name is
+ * unknown keeps its label aligned on an EMPTY column (`_icons.html` emits the span, not a broken
+ * image). The drawing itself is 15px inside it, in `currentColor`, so it follows the hover colour and
+ * the active row; a heading's glyph is drawn at 12px and dimmed a step, so the headings read as
+ * structure rather than as two more links. */
+.nav a .ic, .nav .grp .g { width: 18px; height: 18px; display: grid; place-items: center;
+  flex: 0 0 auto; }
+.nav a .ic { opacity: .9; }
+.nav .grp .g { opacity: .55; }
+.nav .nav-ic { width: 15px; height: 15px; display: block; fill: none; stroke: currentColor;
+  stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav .grp .nav-ic { width: 12px; height: 12px; stroke-width: 1.5; }
+/* the sprite's own container: defined once per document, drawing nothing and taking no space */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .nav a:hover { background: var(--panel); color: var(--text); }
 .nav a.on { background: linear-gradient(90deg, var(--nav-active), var(--nav-active-2));
   color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+/* the active row's glyph wears the accent with the row (the inset bar alone would leave the icon in
+ * the body colour, and the icon is 15px of the row's 18px column) */
+.nav a.on .ic { opacity: 1; color: var(--accent); }
 
 /* The user chip — IN THE TOP BAR (top right, beside the status pills), never in the sidebar
  * footer: the signed-in state belongs next to the status it qualifies, and the sidebar is brand +
@@ -609,6 +627,16 @@ td.acts .act-strip > form > .act-btn.attention:hover,
   .act-btn.busy, .mi.busy, .btn.busy { animation: none; }
 }
 
+/* THE MUSIC PLAYER'S LOADING DOT. The state dot becomes a ring that turns while a transport press
+ * is in flight, so the press reads as pending before any track exists. The turn is decoration: the
+ * state word says Loading…, the disabled Play/Skip carry the why-text, and Stop stays live. A load
+ * has no measurable fraction, so nothing here measures one. */
+@keyframes dot-spin { to { transform: rotate(360deg); } }
+.dot.spin { width: 8px; height: 8px; box-sizing: border-box; background: transparent;
+  border: 2px solid var(--line-2); border-top-color: var(--accent);
+  animation: dot-spin .7s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .dot.spin { animation: none; } }
+
 /* THE ROW-LEVEL MARKER. The action seam's in-flight set keys the TARGET, not the
  * operation, so it cannot say WHICH control is running: that fact belongs to the ROW and is rendered
  * as a class on the strip container (``templates/_strip.html``), never as a pulsing glyph — a glyph
@@ -644,6 +672,65 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .menu .mnote { padding: 6px 8px 4px; font-size: 11px; color: var(--text-3);
   border-top: 1px solid var(--line); margin-top: 4px; }
 
+/* ---------------------------------------------------------------- the button language
+ * ONE control shape for the whole surface, stated once. It used to live INSIDE the dialog
+ * (`.dlg .btn`), which is why every page-level action either fell back to the engine's grey default
+ * or restated the look in a rule of its own. The CONTAINERS that own a button — a page's action band,
+ * the players search, a selection bar — join this selector list instead of restating it, so a page
+ * cannot drift from a dialog and there is one place to change a button.
+ *
+ * `.primary` is the accent fill: the ONE action a surface exists for (add a server, a panel's Save).
+ * Its ink is `--ground` — near-black against the amber in the dark palette, near-white against the
+ * brown in the light one — so the fill keeps its contrast in both themes from the palette alone and a
+ * second ink token is not needed.
+ *
+ * A DISABLED BUTTON KEEPS ITS SHAPE: third text tone, inert border, not-allowed cursor. The console
+ * draws an unavailable control dimmed rather than letting it vanish, so nothing it offers moves under
+ * the pointer. The exception is a control the CAPABILITY MODEL withholds — that one is omitted by its
+ * template and never reaches this rule at all.
+ */
+.btn, .page-actions button, .search button, .sel-bar button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 14px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  border-radius: var(--radius-s); border: 1px solid var(--line-2); color: var(--text);
+  background: var(--panel-2); text-decoration: none; }
+.btn:hover, .page-actions button:hover, .search button:hover, .sel-bar button:hover {
+  border-color: var(--accent); }
+.btn:focus-visible, .page-actions button:focus-visible, .search button:focus-visible,
+.sel-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled, .btn[disabled], .page-actions button:disabled, .search button:disabled,
+.sel-bar button:disabled { color: var(--text-3); border-color: var(--line); cursor: not-allowed; }
+.btn.primary, .page-actions button.primary, .search button.primary, .sel-bar button.primary {
+  background: var(--accent); color: var(--ground); border-color: var(--accent-2); }
+.btn.primary:hover, .page-actions button.primary:hover, .search button.primary:hover,
+.sel-bar button.primary:hover { background: var(--accent-2); border-color: var(--accent); }
+.btn.primary:disabled, .btn.primary[disabled], .page-actions button.primary:disabled,
+.search button.primary:disabled, .sel-bar button.primary:disabled {
+  background: var(--panel-2); color: var(--text-3); border-color: var(--line); }
+/* A destructive control is filled from the danger tokens, never from a raw colour: the light theme
+ * re-declares the trio (`--danger-btn-*`) and the button follows without a second rule. */
+.btn.danger { color: var(--danger-btn-text); border-color: var(--danger-btn-line);
+  background: linear-gradient(180deg, var(--danger-btn-top), var(--danger)); }
+
+/* ---------------------------------------------------------------- the field language
+ * ONE box for every input, select and textarea outside a dialog — the dialog's own field, promoted.
+ * TWO SHAPES ADDRESS IT, because a control's surroundings differ: `class="field"` on the control
+ * itself (a settings row puts its control in a fixed column and has nowhere to wrap it), or an
+ * input/select/textarea inside a `.field` wrapper. The dialog keeps `.dlg-field` as its wrapper,
+ * because the label-under-box column lives there — the BOX comes from this one declaration whichever
+ * shape carries it, so a form outside a dialog cannot drift from one inside it.
+ */
+input.field, textarea.field, select.field,
+.field input, .field textarea, .field select,
+.dlg-field input, .dlg-field textarea, .dlg-field select {
+  padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--ground-2); border: 1px solid var(--line-2);
+  border-radius: var(--radius-s); }
+input.field:focus-visible, textarea.field:focus-visible, select.field:focus-visible,
+.field input:focus-visible, .field textarea:focus-visible, .field select:focus-visible,
+.dlg-field input:focus-visible, .dlg-field textarea:focus-visible,
+.dlg-field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 /* ---------------------------------------------------------------- the confirm dialog */
 .dlg-back { display: grid; place-items: start center; padding: 20px 0 0; }
 /* THE SCREENSHOT MODAL: the same card, opened OVER the page the glyph was pressed on (the confirm
@@ -674,13 +761,9 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg > .ft { display: block; padding: 12px 14px;
   border-top: 1px solid var(--line); background: var(--ground-2); }
 .dlg > .ft .spacer { flex: 1; }
-.dlg .btn { padding: 8px 14px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  border-radius: var(--radius-s); border: 1px solid var(--line-2); color: var(--text);
-  background: var(--panel-2); }
-.dlg .btn:hover { border-color: var(--accent); }
-.dlg .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.dlg .btn.danger { color: var(--danger-btn-text); border-color: var(--danger-btn-line);
-  background: linear-gradient(180deg, var(--danger-btn-top), var(--danger)); }
+/* THE DIALOG'S BUTTONS ARE `.btn` — the section above, with no copy here: a dialog's Cancel and its
+ * primary action are the same two shapes every other surface draws, and a second definition of the
+ * look inside `.dlg` is what would let the two drift. */
 .dlg .target { font-family: var(--font-mono); color: var(--text-2); }
 /* THE DIALOG'S FIELDS. Kick and ban need a REASON (the ban a duration too) and a message is typed
  * into a box, so the dialog's own form carries them — beside the warning that explains the
@@ -699,18 +782,14 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
 .dlg-field.narrow { align-self: flex-end; min-width: 0; width: 8.5rem; }
 .dlg-field label { font-size: 10.5px; color: var(--text-3); text-transform: uppercase;
   letter-spacing: .04em; }
-.dlg-field input, .dlg-field textarea { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
-  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.dlg-field input:focus-visible, .dlg-field textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* THE BOX ITSELF IS THE SHARED FIELD LANGUAGE (see `.field` above): the dialog states the COLUMN —
+ * label under box, the two widths — and nothing about the box's padding, border or focus ring. */
 /* A TEXTAREA IS A TEXT FIELD THAT HOLDS SEVERAL LINES: it wears the box above, keeps its own resize
  * handle (vertical only — a dialog is a column and cannot afford a horizontal one) and starts tall
  * enough that a message of a few lines is visible without scrolling inside it. */
 .dlg-field textarea { min-height: 92px; resize: vertical; }
 /* A SELECT IS A FIELD TOO — the Missions tab's ADD dialog chooses the mission file with one, so it
- * wears the same box the text fields do. */
-.dlg-field select { padding: 7px 9px; font: inherit; font-size: 12.5px; color: var(--text);
-  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.dlg-field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+ * wears the same box the text fields do (stated once, above). */
 /* A PICK'S GROUPS: a heading over the entries of one preset FILE. The heading is a label and not a
  * choice, so it is drawn quieter than the entries under it — and in its ORIGINAL case, because it is
  * an operator's own file path and a case change would misname the file. */
@@ -992,14 +1071,8 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
   accent-color: var(--accent); }
 .sel-bar .cnt { color: var(--text-3); font-variant-numeric: tabular-nums; }
 .sel-bar .sel-clear { color: var(--link); }
-/* the bar's ONE action wears the shell's chip, like every other `.cfg-widget` button — it simply is
- * not in a `.cfg-widget`, so the chip is stated here. */
-.sel-bar button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; color: var(--text); background: var(--panel-2);
-  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.sel-bar button:hover { border-color: var(--accent); }
-.sel-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.sel-bar button:disabled { color: var(--text-3); border-color: var(--line); cursor: not-allowed; }
+/* the bar's ONE action wears the shared `.btn` (see `the button language`, above) — the band lays it
+ * out and nothing more, so the selection bar and a dialog's footer draw the same control */
 
 /* THE START ROW'S MARKER: the shell's own "this is the live one" idiom — the `.nav a.on` amber wash
  * and the `.tabs .tab.on` inset edge, turned on the row's left. No new colour, and the rest of the
@@ -1018,6 +1091,29 @@ td.acts .act-strip.busy { background: var(--panel-2); border-radius: var(--radiu
  * then the fact column) is set inline on `.m-row` in the template, so the alignment cannot depend on
  * a browser's cached copy of THIS file — a stale `shell.css` once landed the name UNDER the box, and
  * the START row's inset stripe (`.row-active`) then ran through the text as well as the box. */
+
+/* THE ROW DRAG (`static/reorder.js`, the shared pointer reorder): the handle is the row's GRIP, and
+ * the row being moved is dimmed while the pointer carries it. The drag is an ENHANCEMENT — a list
+ * reads, downloads and loads without the script. */
+[data-reorder-handle] { cursor: grab; }
+/* THE MISSION ROW'S GRIP: the music playlist's `⠿` in its own 16px column before the box. It is the
+ * row's ONLY order control, so it must read as one: dimmed until the row is touched, and a tab stop
+ * (the row's Alt+Up/Alt+Down route) that shows where the focus is. The column itself is set inline on
+ * `.m-row` beside the box's, for the same reason as the rest of that grid. */
+.m-row .grip { color: var(--text-3); cursor: grab; line-height: 1.5; text-align: center;
+  user-select: none; touch-action: none; }
+.m-row .grip:hover { color: var(--text); }
+.m-row .grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px;
+  border-radius: var(--radius-s); color: var(--text); }
+[data-reorder-handle]:active { cursor: grabbing; }
+body.reorder-active { user-select: none; -webkit-user-select: none; }
+[data-reorder-row].reorder-dragging { opacity: .5; }
+/* THE SHARED ROW-DRAG STATUS LINE: the sentence static/reorder.js writes into a list's
+ * card after a drop. One rule for every consumer of the script (the music playlist, the
+ * missions list), matching the note line the music pages draw themselves. */
+.reorder-note { margin: 0; padding: 10px 0 0; color: var(--text-3); font-size: 12.5px; }
+.cfg-form [data-reorder-status] { margin: 6px 0 0; font-size: 12.5px; color: var(--text-2); }
+[data-reorder-status]:empty { display: none; }
 
 /* THE DIALOG'S READ-ONLY SELECTION LIST: the missions a bulk removal will act on, one name per line,
  * unnumbered and without boxes — the selection was made in the list. It scrolls rather than growing
@@ -1084,45 +1180,26 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
 .logpos a:focus-visible, .tabs .tab:focus-visible, .sort:focus-visible, .pdot:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px; }
 /* THE PAGE-LEVEL CONTROL — the Servers page's "Add server" (one POST form in the page head, its
- * answer IS the dialog page). `.btn` is styled only inside `.dlg`, so this chip is stated here for a
- * control that lives outside one, mirroring the log card's footer control. */
+ * answer IS the dialog page). The BUTTON is the shared `.btn` (`the button language`, above) and the
+ * band only lays its controls out; the page's own action wears `.primary` in the template, so the
+ * accent comes from the one place the look is declared. */
 .page-actions { display: flex; gap: 10px; padding: 12px 0 0; }
-.page-actions button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; color: var(--text); background: var(--panel-2);
-  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.page-actions button:hover { border-color: var(--accent); }
-.page-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.search button { padding: 7px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
-  color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);
-  border-radius: var(--radius-s); }
+/* the search band's ONE submit is the shared `.btn`; only its own state line is stated here */
 .search-state { padding: 8px 14px 0; }
 
 /* ---------------------------------------------------------------- the log card */
 .log-card > .ft { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 9px 14px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 11.5px; }
-/* THE LOG CARD'S OWN FOOTER CONTROL — the server Log / Events tab's "Load older".
- * It rendered as the engine's grey default because `.btn` is styled only INSIDE `.dlg`). It wears the
- * SAME chip the shell's other controls wear, stated here because a `.log-card > .ft` is not a
- * `.cfg-widget`; the disabled state keeps the chip's dim shape and the not-allowed cursor. */
-.log-card > .ft button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; color: var(--text); background: var(--panel-2);
-  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.log-card > .ft button:hover { border-color: var(--accent); }
-.log-card > .ft button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.log-card > .ft button:disabled { color: var(--text-3); border-color: var(--line);
-  cursor: not-allowed; }
+/* THE LOG CARD'S OWN FOOTER CONTROL — the server Log / Events tab's "Load older" — and the download
+ * picker's "Download" below are plain `.btn`s: the container states no look, so the footer control, the
+ * picker's submit and a dialog's Cancel are the same button. */
 .logpos { display: inline-flex; gap: 4px; }
 .col-log > .log-card { margin: 0; }
 
-/* THE LOG CARD'S DOWNLOAD PICKER — the server Log / Events tab's one `<select>` plus its one
- * Download control, in place of the old per-file link list. The chip mirrors the footer control
- * above; the select already wears the `.cfg-widget` control styling (it lives in a `.cfg-widget`). */
-.log-picker button { padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; color: var(--text); background: var(--panel-2);
-  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
-.log-picker button:hover { border-color: var(--accent); }
-.log-picker button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* THE LOG CARD'S DOWNLOAD PICKER — the server Log / Events tab's one `<select>` plus its one Download
+ * control, in place of the old per-file link list. The select wears `.cfg-input` (it lives in a
+ * `.cfg-form` row) and the button is the shared `.btn`. */
 
 /* ================================================================ one scrollbar, both axes
  *
@@ -1417,6 +1494,50 @@ pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-ra
 .st-kind svg { width: 13px; height: 13px; display: block; }
 .st-scope { margin-left: auto; font-size: 10.5px; color: var(--text-3); text-align: right; }
 .st-scope b { color: var(--text-2); font-weight: 600; }
+
+/* ============================================================================= THE MUSIC PLAYER
+ * ONE card for one radio, drawn by the /music overview AND by the Servers > Music tab from
+ * `templates/_music_player.html` — so its look lives in THIS sheet, the one both surfaces load,
+ * never in a page's own. Namespaced `pl-`; nothing else in the console owns that prefix.
+ *
+ * THE ROWS ARE LEFT-ALIGNED and no value hangs off the right edge. The one right-hand fact is the
+ * track's LENGTH, and it rides the track line alone (`.pl-dur`): the radio read carries a duration
+ * and NO progress, so a bar here would draw a measurement nobody made.
+ *
+ * THE TRANSPORT IS GLYPH BUTTONS, not word buttons: a 44px hit area around an 18px drawing, one
+ * visible focus ring, and the verb lives in the control's own `title`/`aria-label`.
+ */
+.pl-list { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.pl { gap: 8px; }
+.pl-live { padding: 0 0 10px; }
+.pl-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.pl-name { font-size: 14px; font-weight: 700; color: var(--text); font-family: var(--font-mono); }
+.pl-dname { font-size: 12px; color: var(--text-3); }
+.pl-tune { font-size: 11px; color: var(--text-2); padding: 2px 7px; border-radius: 99px;
+  border: 1px solid var(--line-2); background: var(--panel-2); }
+.pl-now { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.pl-lbl { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.pl-title { font-size: 15px; font-weight: 600; color: var(--text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-dur { margin-left: auto; font-size: 11.5px; color: var(--text-3); padding-left: 8px; }
+.pl-meta { font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.pl-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: auto;
+  padding-top: 10px; border-top: 1px solid var(--line); }
+.pl-form { display: inline-flex; margin: 0; }
+.pl-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px;
+  height: 44px; padding: 0; cursor: pointer; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.pl-btn svg { width: 18px; height: 18px; display: block; }
+.pl-btn:hover { color: var(--accent); border-color: var(--accent); }
+.pl-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pl-btn:disabled, .pl-btn[disabled] { color: var(--text-3); border-color: var(--line);
+  background: transparent; cursor: not-allowed; }
+.pl-pl { display: inline-flex; align-items: baseline; gap: 6px; margin-left: 6px; font-size: 12px;
+  min-width: 0; }
+.pl-pl a { color: var(--link); text-decoration: none; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.pl-pl a:hover { text-decoration: underline; }
 
 .st-name { font-size: 14px; font-weight: 600; font-family: var(--font-mono); color: var(--text);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }

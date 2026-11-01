@@ -1968,20 +1968,16 @@ This documentation is automatically generated from the RestAPI plugin definition
 
 **Summary:** Shut down a server instance.
 
-**Description:** Shut a server down (terminates the DCS process), like `/server shutdown`. Unlike `/instance/stop`, which only stops the mission, the DCS process ends: DCS reads its mission list and the bot rewrites `serverSettings.lua` on the next start.
-
-With `when_empty=true` and players connected, nothing is shut down at once: the shutdown runs when the last player leaves (needs the Scheduler plugin, like "later" in `/server shutdown`) and the response status is `pending`.
-
-Errors: 404 if the server is unknown; 409 if it is already shut down, if it is in a transient state (`UNREGISTERED`, `LOADING`, `SHUTTING_DOWN`) without `force`, or if an action is already pending with `when_empty`; 504 on timeout.
+**Description:** Shut a server down (terminates the DCS process).
 
 #### Parameters
 
 | Name | Type | In | Required | Default | Description |
 |------|------|----|----------|---------|-------------|
 | `server_name` | `string` | query | **Yes** | - | Server Name |
-| `force` | `boolean` | query | No | `false` | Kill the DCS process instead of a graceful shutdown (a shutdown deferred by `when_empty` is always graceful) |
-| `maintenance` | `boolean` | query | No | `true` | Set the maintenance flag, so the Scheduler does not start the server again |
-| `when_empty` | `boolean` | query | No | `false` | If players are connected, shut down once the server is empty |
+| `force` | `bool` | query | No | `False` | Kill the DCS process instead of a graceful shutdown (a shutdown deferred by when_empty is always graceful) |
+| `maintenance` | `bool` | query | No | `True` | Set the maintenance flag, so the Scheduler does not start the server again |
+| `when_empty` | `bool` | query | No | `False` | If players are connected, shut down once the server is empty |
 
 **Response:** `ServerShutdownResponse`
 
@@ -2002,15 +1998,13 @@ Errors: 404 if the server is unknown; 409 if it is already shut down, if it is i
 
 **Summary:** Restart a node.
 
-**Description:** Restart a node, or all nodes, like `/node restart`. The bot reloads its configuration. The response is sent before the node that serves the RestAPI restarts, so the API is unavailable for a moment afterwards.
-
-Errors: 404 if the node is unknown; 409 if it is not active.
+**Description:** Restart a node, or all nodes. The bot reloads its configuration.
 
 #### Parameters
 
 | Name | Type | In | Required | Default | Description |
 |------|------|----|----------|---------|-------------|
-| `node_name` | `string` | query | No | all nodes | Node to restart |
+| `node_name` | `string | None` | query | No | - | Node to restart (default: all nodes) |
 
 **Response:** `NodeRestartResponse`
 
@@ -2019,7 +2013,9 @@ Errors: 404 if the node is unknown; 409 if it is not active.
 ```json
 {
   "message": "Node(s) node1 restarting.",
-  "nodes": ["node1"],
+  "nodes": [
+    "node1"
+  ],
   "status": "success"
 }
 ```
@@ -3611,14 +3607,16 @@ Below are the data structures and response models used across the API endpoints:
 |----------|------|----------|-------------|
 | `status` | `string` | **Yes** | Status of the operation |
 | `message` | `string` | **Yes** | Status message |
-| `nodes` | `array[string]` | **Yes** | Nodes that are restarting |
+| `nodes` | `list[string]` | **Yes** | Nodes that are restarting |
 
 #### Example
 
 ```json
 {
   "message": "Node(s) node1 restarting.",
-  "nodes": ["node1"],
+  "nodes": [
+    "node1"
+  ],
   "status": "success"
 }
 ```

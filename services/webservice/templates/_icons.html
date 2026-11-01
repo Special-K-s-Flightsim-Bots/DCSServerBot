@@ -69,6 +69,14 @@
   * `end_maintenance` — the same idea RELEASED: a check inside a circle ("all clear"), which also
     reads as the opposite of `ban` (a circle with a diagonal).
 
+  THE TRANSPORT GLYPHS are `play`, `stop`, `skip`, `repeat` and `shuffle`, drawn for the music player
+  (`_music_player.html`). `play` wears the SAME bare triangle as `startup`/`start` — the drawing means
+  "start it", and a transport strip is never drawn on a row that also offers Startup or Start, so the
+  invariant above holds for the three names together. `stop` is the row menu's own filled square, and
+  there is NO PAUSE DRAWING in the strip: the radio transport is play / stop / skip / mode, where Stop
+  IS the pause, so `pause` (the two bars) belongs to the server row alone. The mode button draws the
+  mode IN FORCE — `repeat` or `shuffle` — and posts the other one.
+
   `title` and `aria-label` are NOT drawn here: they belong to the CONTROL (one per button, naming
   its target), never to a bare glyph.
 
@@ -82,12 +90,6 @@
   action). A drawing is kept by having a CONTROL, never by being available: with no reader left it is
   gone, exactly as the old Startup ring was DELETED when its own control changed. `ban` is untouched
   (it belongs to the player row), and the set now carries no delete glyph because no surface deletes.
-
-  `move_up` / `move_down` are the Missions tab's per-row REORDER pair: one plain arrow each,
-  pointing the way the mission moves. Deliberately NOT `upgrade` (an arrow rising out of a tray:
-  update-and-restart, a NODE row word) nor `online` / `offline` (a box with a mirrored arrow): those
-  carry the node rows' meanings, and the invariant above forbids a second copy of a drawing in one
-  state — this pair belongs to the mission rows alone.
 
   `pencil` is the Bans row's EDIT: a shaft with a squared-off point drawn on the diagonal, the
   universal "rewrite this row" mark. A ban entry is edited, never configured, so it takes no cog:
@@ -116,9 +118,13 @@
   only". It cannot be confused with its three neighbours on the same row: `upgrade` is an arrow
   rising out of a tray (a CONTAINER plus one arrow), `download` an arrow sinking into one (the same
   container, the other direction), and `restart` is the circular arrow — a ring, not a pair of
-  shafts. `move_up`/`move_down` are ONE full-height arrow each, on the mission rows, where this
-  drawing never appears. No container, no ring and no single arrow is used here, which is what keeps
+  shafts. No container, no ring and no single full-height arrow is used here, which is what keeps
   it tellable apart at 16px.
+
+  THE SIDEBAR'S TWELVE SYMBOLS ARE A SECOND, SEPARATE TABLE (`NAV_GLYPHS`, at the end of this file):
+  chrome beside a word, never a control's drawing, with its own reader (`base.html`'s rail) and its
+  own rule (an unknown name draws NOTHING). The row set above and the nav set below do not share
+  names except `ban`, which draws the same mark in both.
 -#}
 {% set GLYPHS = {
   'startup': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
@@ -145,15 +151,75 @@
   'more': '<circle cx="12" cy="5.2" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="18.8" r="1.9" fill="currentColor" stroke="none"/>',
   'download': '<path d="M12 3.8v10.6"/><path d="M7.8 10.2 12 14.4l4.2-4.2"/><path d="M4.8 16.6v1.8a1.4 1.4 0 0 0 1.4 1.4h11.6a1.4 1.4 0 0 0 1.4-1.4v-1.8"/>',
   'view': '<path d="M6 3.6h7.4l4.6 4.6v12.2H6Z"/><path d="M13.4 3.6v4.6h4.6"/><path d="M8.8 13.2h6.4"/><path d="M8.8 16.4h4.4"/>',
-  'move_up': '<path d="M12 19.4V4.6"/><path d="M6.4 10.2 12 4.6l5.6 5.6"/>',
-  'move_down': '<path d="M12 4.6v14.8"/><path d="M6.4 13.8 12 19.4l5.6-5.6"/>',
   'warn': '<path d="M12 3.6 22 20.4H2Z"/><path d="M12 9.8v4.4"/><circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none"/>',
   'reveal': '<path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/><circle cx="12" cy="12" r="3.1"/>',
   'pencil': '<path d="M4.6 19.4v-4L15.8 4.2l4 4L8.6 19.4Z"/><path d="M13.8 6.2l4 4"/>',
   'conceal': '<path d="M2.4 12S6.2 5.6 12 5.6c1.5 0 2.9.4 4.1 1"/><path d="M20.2 8.7c.9 1.2 1.4 2.2 1.4 2.2S19 17.3 13.2 18.2"/><path d="M6.1 7.3C3.7 9.1 2.4 12 2.4 12"/>',
   'dcs_update': '<path d="M9.2 17.2V7.6"/><path d="M6 10.8 9.2 7.6l3.2 3.2"/><path d="M14.8 6.8v9.6"/><path d="M11.6 13.2 14.8 16.4l3.2-3.2"/>',
-  'mods': '<rect x="4.6" y="4.6" width="14.8" height="14.8" rx="2.2"/><path d="M2.2 12h7.4"/><path d="M6.6 8.8 9.8 12l-3.2 3.2"/>'
+  'mods': '<rect x="4.6" y="4.6" width="14.8" height="14.8" rx="2.2"/><path d="M2.2 12h7.4"/><path d="M6.6 8.8 9.8 12l-3.2 3.2"/>',
+  'play': '<path d="M7.6 4.8 19.6 12 7.6 19.2Z" fill="currentColor" stroke="none"/>',
+  'skip': '<path d="M5.8 5.2 14.4 12 5.8 18.8Z" fill="currentColor" stroke="none"/><path d="M18.4 5.4v13.2"/>',
+  'repeat': '<path d="M16.6 3.2 20.6 7.2 16.6 11.2"/><path d="M3.4 11.2V10a3 3 0 0 1 3-3h14.2"/><path d="M7.4 20.8 3.4 16.8 7.4 12.8"/><path d="M20.6 12.8v1.2a3 3 0 0 1-3 3H3.4"/>',
+  'shuffle': '<path d="M3.2 17.8h1.6c1.4 0 2.7-.7 3.5-1.9l6-8.4c.8-1.2 2.1-1.9 3.5-1.9h2.8"/><path d="M17.4 2.8l3 3-3 3"/><path d="M3.2 5.6h2.1c1.5 0 2.9.8 3.7 2.1"/><path d="M20.6 17.8h-2.8c-1.4 0-2.7-.7-3.5-1.9l-.6-.8"/><path d="M17.4 14.8l3 3-3 3"/>'
 } %}
 {%- macro act(name) -%}
 <svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ GLYPHS.get(name, '')|safe }}</svg>
+{%- endmacro -%}
+
+{#-
+  THE NAV SET — the twelve symbols the SIDEBAR draws, one per group heading and one per entry.
+
+  A second, separate table from the control glyphs above, because its readers and its rules differ:
+  this set is CHROME. A heading's glyph and an entry's glyph are decoration beside a word, so every
+  one of them is `aria-hidden` and the entry is read by its label.
+
+  EACH ENTRY DRAWS IN `currentColor` AT 15px, so the same symbol follows the palette, the hover colour
+  and the active row's accent. A GROUP glyph is drawn at 12px and dimmed (`.nav .grp .g` in shell.css),
+  so a heading reads as structure rather than as two more links.
+
+  AN UNKNOWN NAME DRAWS NOTHING. `nav_glyph` asks this table first and emits an EMPTY `<span class="ic">`
+  when the name is missing — never a dangling `<use>`, never a broken image, never a tofu box, and never
+  an exception: a page added before its drawing exists still renders, it just draws nothing.
+
+  WHICH NAME DRAWS WHAT (the mockup is `mockups/webui-nav/06b-nav-icons.html`):
+
+    | group          | glyph   | entries                      | their glyphs          |
+    |----------------|---------|------------------------------|-----------------------|
+    | Operations     | grid    | Dashboard, Servers, Players, Bans | grid, server, users, ban |
+    | Media          | note    | Music                        | note                  |
+    | Cluster        | hex     | Nodes                        | hex                   |
+    | Data           | chart   | Statistics, Presets          | chart, sliders        |
+    | Administration | cog     | Settings                     | cog                   |
+
+  `layers`, `lines` and `key` are the set's remaining three: the shapes the rail names for Instances,
+  Logs and Access. Access (`/access`, the role → capability matrix) wears `key`; Instances and Logs
+  contribute no nav ENTRY (their content is on the Dashboard), so no entry wears those two — they stay
+  in the twelve the design fixes, so a page that names one draws the right shape instead of an empty
+  span.
+
+  `ban` draws the ROW set's own ban mark (`GLYPHS` above) rather than a second, slightly different
+  circle-and-slash: one console, one ban drawing.
+-#}
+{% set NAV_GLYPHS = {
+  'grid': '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+  'server': '<rect x="3.5" y="4" width="17" height="6.5" rx="2"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="2"/><path d="M7 7.2h.01M7 16.7h.01"/>',
+  'users': '<circle cx="9" cy="8" r="3.2"/><path d="M3.6 19.5c0-3.1 2.4-5 5.4-5s5.4 1.9 5.4 5"/><path d="M16.4 5.4a3 3 0 0 1 0 5.3"/><path d="M17.6 14.9c1.8.5 2.9 2 2.9 4.6"/>',
+  'ban': '<circle cx="12" cy="12" r="8.6"/><path d="M6 18 18 6"/>',
+  'note': '<circle cx="7.5" cy="17" r="2.8"/><circle cx="17.5" cy="14.5" r="2.8"/><path d="M10.3 17V6.6l10-2v9.9"/>',
+  'hex': '<path d="M12 3.2 19.4 7.6v8.8L12 20.8 4.6 16.4V7.6z"/>',
+  'layers': '<path d="M12 3.4 20.4 8 12 12.6 3.6 8z"/><path d="M3.6 12.4 12 17l8.4-4.6"/><path d="M3.6 16.6 12 21.2l8.4-4.6"/>',
+  'chart': '<path d="M3.5 20.5h17"/><path d="M7 20.5V12"/><path d="M12 20.5V5"/><path d="M17 20.5v-6"/>',
+  'lines': '<path d="M4.5 6.5h15"/><path d="M4.5 12h15"/><path d="M4.5 17.5h9"/>',
+  'sliders': '<path d="M4 8.5h16"/><circle cx="9" cy="8.5" r="2.2"/><path d="M4 15.5h16"/><circle cx="15" cy="15.5" r="2.2"/>',
+  'key': '<circle cx="8" cy="12" r="3.4"/><path d="M11.4 12H20.5"/><path d="M17 12v3.2"/><path d="M20 12v2.4"/>',
+  'cog': '<circle cx="12" cy="12" r="3.2"/><path d="M12 3.2v2.6M12 18.2v2.6M3.2 12h2.6M18.2 12h2.6M5.8 5.8l1.9 1.9M16.3 16.3l1.9 1.9M18.2 5.8l-1.9 1.9M7.7 16.3l-1.9 1.9"/>'
+} %}
+{%- macro nav_sprite() -%}
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">{% for name in NAV_GLYPHS %}<symbol id="i-{{ name }}" viewBox="0 0 24 24">{{ NAV_GLYPHS[name]|safe }}</symbol>{% endfor %}</svg>
+{%- endmacro -%}
+{%- macro nav_glyph(name) -%}
+<span class="ic">{% if name in NAV_GLYPHS %}<svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"/></svg>{% endif %}</span>
+{%- endmacro -%}
+{%- macro nav_group_glyph(name) -%}
+<span class="g">{% if name in NAV_GLYPHS %}<svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-{{ name }}"/></svg>{% endif %}</span>
 {%- endmacro -%}

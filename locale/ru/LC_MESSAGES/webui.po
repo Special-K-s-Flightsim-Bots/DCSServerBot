@@ -2273,6 +2273,10 @@ msgstr "Не авторизовано (это действие нужно под
 msgid "Not done (the typed name does not match the target)."
 msgstr "Не выполнено (введённое имя не совпадает с целью)."
 
+#: services/webservice/pages/music.py
+msgid "Not duplicated: a playlist named '%(name)s' already exists. Choose another name."
+msgstr "Не скопировано: плейлист с именем '%(name)s' уже существует. Выбери другое имя."
+
 #: services/webservice/pages/actions.py:4357
 msgid "A DGSA ban cannot be edited — it can only be lifted here."
 msgstr "Бан DGSA нельзя изменить — его можно только снять здесь."
@@ -2539,6 +2543,18 @@ msgstr "Операции"
 #: services/webservice/templates/overview.html:34
 msgid "Cluster"
 msgstr "Кластер"
+
+#: services/webservice/registry.py:101
+msgid "Media"
+msgstr "Медиа"
+
+#: services/webservice/registry.py:103
+msgid "Data"
+msgstr "Данные"
+
+#: services/webservice/registry.py:104
+msgid "Administration"
+msgstr "Администрирование"
 
 #: services/webservice/pages/dashboard.py:170
 msgid "Nothing needs you — every node is heartbeating and no server is down."
@@ -7231,26 +7247,6 @@ msgid ""
 "removed."
 msgstr "Запущенную миссию можно сделать стартовой, но удалить её нельзя."
 
-#: services/webservice/templates/server_detail.html:546
-#, python-format
-msgid "Move %(name)s up in the rotation list"
-msgstr "Переместить %(name)s вверх в списке ротации"
-
-#: services/webservice/templates/server_detail.html:546
-#, python-format
-msgid "Move mission %(name)s up"
-msgstr "Переместить миссию %(name)s вверх"
-
-#: services/webservice/templates/server_detail.html:556
-#, python-format
-msgid "Move %(name)s down in the rotation list"
-msgstr "Переместить %(name)s вниз в списке ротации"
-
-#: services/webservice/templates/server_detail.html:556
-#, python-format
-msgid "Move mission %(name)s down"
-msgstr "Переместить миссию %(name)s вниз"
-
 #: services/webservice/templates/server_detail.html:560
 #: services/webservice/templates/server_detail.html:687
 #, python-format
@@ -9705,7 +9701,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Radios"
-msgstr ""
+msgstr "Радио"
 
 #: services/webservice/pages/player_detail.py
 msgid "Recent sessions"
@@ -10226,3 +10222,910 @@ msgstr "все записи удалены, бан бота снят"
 #: services/webservice/pages/actions.py
 msgid "the points are logged and the ladder runs"
 msgstr "баллы записываются в журнал, и шкала применяется"
+
+#: services/webservice/pages/music.py:140, services/webservice/pages/music.py:141, services/webservice/pages/server_detail.py:359
+msgid "Music"
+msgstr "Музыка"
+
+#: services/webservice/pages/music.py:200, services/webservice/templates/music_body.html:24
+msgid "Radio"
+msgstr "Радио"
+
+#: services/webservice/templates/music_body.html:154
+msgid "Radio settings"
+msgstr "Настройки радио"
+
+#: services/webservice/templates/music_body.html:41
+msgid "Set to"
+msgstr "Настроено на"
+
+#: services/webservice/templates/music_body.html:61
+msgid "Now playing"
+msgstr "Сейчас играет"
+
+#: services/webservice/templates/music_body.html:69
+msgid "Nothing is playing on this radio."
+msgstr "На этом радио ничего не играет."
+
+#: services/webservice/templates/music_body.html:53
+msgid "No playlist is assigned to this radio."
+msgstr "Этому радио не назначен плейлист."
+
+#: services/webservice/templates/music_body.html:51
+msgid "%(count)s track(s) loaded"
+msgstr "Загружено треков: %(count)s"
+
+#: services/webservice/pages/music.py:203, services/webservice/templates/music_body.html:90
+msgid "Play"
+msgstr "Включить"
+
+#: services/webservice/templates/music_body.html:104
+msgid "Skip"
+msgstr "Пропустить"
+
+#: services/webservice/templates/music_body.html:90
+msgid "This radio is already on air."
+msgstr "Это радио уже в эфире."
+
+#: services/webservice/templates/music_body.html:97, services/webservice/templates/music_body.html:104
+msgid "This radio is not on air."
+msgstr "Это радио не в эфире."
+
+#: services/webservice/pages/music.py
+msgid "A track is loading."
+msgstr "Трек загружается."
+
+#: services/webservice/pages/music.py
+msgid "Loading…"
+msgstr "Загружается…"
+
+#: services/webservice/pages/music.py:142, services/webservice/pages/music.py:152, services/webservice/templates/music_body.html:127
+msgid "Playlist"
+msgstr "Плейлист"
+
+#: services/webservice/templates/music_body.html:128
+msgid ""
+""
+"The list this radio plays. The pick is written and the radio re-reads its"
+" tracks at once."
+msgstr ""
+""
+"Список, который играет это радио. Выбор записывается, и радио сразу "
+"перечитывает свои треки."
+
+#: services/webservice/templates/music_body.html:137
+msgid "Assign a playlist"
+msgstr "Назначить плейлист"
+
+#: services/webservice/templates/music_body.html:141
+msgid "Assign"
+msgstr "Назначить"
+
+#: services/webservice/templates/music_body.html:145
+msgid "A saved edit is not audible at once."
+msgstr "Сохранённая правка слышна не сразу."
+
+#: services/webservice/templates/music_body.html:145
+msgid ""
+""
+"An edit made in the playlist editor does not reach a radio that is "
+"already on air: the radio reads its tracks when the playlist is assigned "
+"here again or the radio is restarted."
+msgstr ""
+""
+"Правка, сделанная в редакторе плейлистов, не доходит до радио, которое "
+"уже в эфире: радио перечитывает треки, когда плейлист назначают здесь "
+"заново или радио перезапускают."
+
+#: services/webservice/templates/music_body.html:160
+msgid "Frequency"
+msgstr "Частота"
+
+#: services/webservice/templates/music_body.html:164
+msgid "Modulation"
+msgstr "Модуляция"
+
+#: services/webservice/templates/music_body.html:180
+msgid "0 to 1"
+msgstr "от 0 до 1"
+
+#: services/webservice/templates/music_body.html:172
+msgid "1 = red, 2 = blue"
+msgstr "1 = красные, 2 = синие"
+
+#: services/webservice/templates/music_body.html:42, services/webservice/templates/music_body.html:180
+msgid "Volume"
+msgstr "Громкость"
+
+#: services/webservice/templates/music_body.html:184
+msgid "Display name"
+msgstr "Отображаемое имя"
+
+#: services/webservice/templates/music_body.html:184
+msgid "The name this radio wears in game"
+msgstr "Имя, под которым это радио видно в игре"
+
+#: services/webservice/templates/music_body.html:189
+msgid ""
+""
+"A field left empty keeps the value the file states — only the values "
+"carrying text are written. The save patches config/services/music.yaml "
+"and applies the result to the running radio."
+msgstr ""
+""
+"Пустое поле сохраняет значение из файла — записываются только заполненные"
+" значения. Сохранение правит config/services/music.yaml и применяет "
+"результат к работающему радио."
+
+#: services/webservice/templates/music_body.html:190
+msgid "Save settings"
+msgstr "Сохранить настройки"
+
+#: services/webservice/pages/server_detail.py:191
+msgid ""
+""
+"The music plugin is not loaded in this process, so this server's radios "
+"cannot be read or changed here."
+msgstr ""
+""
+"Плагин музыки не загружен в этом процессе, поэтому радио этого сервера "
+"здесь нельзя прочитать или изменить."
+
+#: services/webservice/pages/server_detail.py:193
+msgid ""
+""
+"This installation configures no radio for this server, so there is "
+"nothing to show. A radio is a block under 'radios:' in this server's own "
+"section of config/services/music.yaml, or in the DEFAULT section it "
+"inherits."
+msgstr ""
+""
+"В этой установке для этого сервера не настроено ни одного радио, поэтому "
+"показывать нечего. Радио — это блок под 'radios:' в собственном разделе "
+"этого сервера в config/services/music.yaml или в разделе DEFAULT, который"
+" он наследует."
+
+#: services/webservice/pages/server_detail.py:2554
+msgid "The radios of this server could not be read."
+msgstr "Не удалось прочитать радио этого сервера."
+
+#: services/webservice/pages/music.py
+#: services/webservice/pages/server_detail.py:2560
+msgid "The playlists could not be read."
+msgstr "Не удалось прочитать плейлисты."
+
+#: services/webservice/templates/music_body.html:196
+msgid ""
+""
+"You may read this server's radios but not change them: the transport, the"
+" playlist and the settings need the music control right."
+msgstr ""
+""
+"Ты можешь читать радио этого сервера, но не менять их: для транспорта, "
+"плейлиста и настроек нужно право управления музыкой."
+
+#: services/webservice/pages/music.py
+msgid "%(count)s file(s) missing on the node"
+msgstr "На узле отсутствует файлов: %(count)s"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s selected"
+msgstr "Выбрано: %(count)s"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s track(s)"
+msgstr "Треков: %(count)s"
+
+#: services/webservice/pages/music.py
+msgid "%(folder)s · %(count)s track(s)"
+msgstr "%(folder)s · треков: %(count)s"
+
+#: services/webservice/pages/music.py
+msgid "A copy of this playlist's tracks under a new name."
+msgstr "Копия треков этого плейлиста под новым именем."
+
+#: services/webservice/pages/music.py
+msgid "Add"
+msgstr "Добавить"
+
+#: services/webservice/pages/music.py
+msgid "Add all %(count)s in this folder"
+msgstr "Добавить все %(count)s в этой папке"
+
+#: services/webservice/pages/music.py
+msgid "Create"
+msgstr "Создать"
+
+#: services/webservice/pages/music.py
+msgid "Delete the playlist"
+msgstr "Удалить плейлист"
+
+#: services/webservice/pages/music.py
+msgid "Delete the playlist '{name}'"
+msgstr "Удалить плейлист '{name}'"
+
+#: services/webservice/pages/music.py
+msgid "Deleting a playlist cannot be undone from here."
+msgstr "Удаление плейлиста нельзя отменить отсюда."
+
+#: services/webservice/pages/music.py
+msgid "Drag to reorder"
+msgstr "Перетащи, чтобы изменить порядок"
+
+#: services/webservice/pages/music.py
+msgid "Duplicate"
+msgstr "Дублировать"
+
+#: services/webservice/pages/music.py
+msgid "Duplicate the playlist"
+msgstr "Дублировать плейлист"
+
+#: services/webservice/pages/music.py
+msgid "Filter by title, artist, album or file…"
+msgstr "Фильтр по названию, исполнителю, альбому или файлу…"
+
+#: services/webservice/pages/music.py
+msgid "Length"
+msgstr "Длительность"
+
+#: services/webservice/pages/music.py
+msgid "Library"
+msgstr "Библиотека"
+
+#: services/webservice/pages/music.py
+msgid "Library · per node"
+msgstr "Библиотека · по узлам"
+
+#: services/webservice/pages/music.py
+msgid "Name"
+msgstr "Название"
+
+#: services/webservice/pages/music.py
+msgid "New playlist"
+msgstr "Новый плейлист"
+
+#: services/webservice/pages/music.py
+msgid "No playlist exists yet."
+msgstr "Плейлистов пока нет."
+
+#: services/webservice/pages/music.py
+msgid "No radio is configured on this installation."
+msgstr "В этой установке не настроено ни одного радио."
+
+#: services/webservice/pages/music.py
+msgid "No server is running, so no radio is shown."
+msgstr "Ни один сервер не запущен, поэтому ни одно радио не показано."
+
+#: services/webservice/pages/music.py
+msgid "No track in this folder."
+msgstr "В этой папке нет треков."
+
+#: services/webservice/pages/music.py
+msgid "No track matches the filter."
+msgstr "Ни один трек не соответствует фильтру."
+
+#: services/webservice/pages/music.py
+msgid ""
+"None of the servers your roles manage are in this view, so no radio is "
+"shown."
+msgstr "Ни один из серверов, которыми управляют твои роли, не входит в это представление, поэтому ни одно радио не показано."
+
+#: services/webservice/pages/music.py
+msgid "Not saved: the new order could not be sent."
+msgstr "Не сохранено: новый порядок не удалось отправить."
+
+#: services/webservice/pages/music.py
+msgid "Not saved: the order was refused. Reload the page."
+msgstr "Не сохранено: порядок отклонён. Перезагрузи страницу."
+
+#: services/webservice/templates/server_detail.html:535
+msgid "Not saved: the new order was refused. Reload the page and try again."
+msgstr "Не сохранено: новый порядок отклонён. Перезагрузи страницу и попробуй ещё раз."
+
+#: services/webservice/pages/music.py
+msgid "Open"
+msgstr "Открыть"
+
+#: services/webservice/pages/music.py
+msgid "Order"
+msgstr "Порядок"
+
+#: services/webservice/pages/music.py
+msgid "Play on a radio"
+msgstr "Воспроизвести на радио"
+
+#: services/webservice/pages/music.py
+msgid "Play on…"
+msgstr "Воспроизвести на…"
+
+#: services/webservice/pages/music.py
+msgid "Play the playlist '{name}' on a radio"
+msgstr "Воспроизвести плейлист '{name}' на радио"
+
+#: services/webservice/pages/music.py
+msgid "Play the playlist on a radio"
+msgstr "Воспроизвести плейлист на радио"
+
+#: services/webservice/pages/music.py
+msgid "Playlists"
+msgstr "Плейлисты"
+
+#: services/webservice/pages/music.py
+msgid "Playlists, the library on each node, and what every radio is playing right now."
+msgstr "Плейлисты, библиотека на каждом узле и то, что сейчас играет каждое радио."
+
+#: services/webservice/pages/music.py
+msgid "Remove %(count)s missing"
+msgstr "Удалить отсутствующие: %(count)s"
+
+#: services/webservice/pages/music.py
+msgid "Rename"
+msgstr "Переименовать"
+
+#: services/webservice/pages/music.py
+msgid "Rename the playlist"
+msgstr "Переименовать плейлист"
+
+#: services/webservice/pages/music.py
+msgid "Rescan"
+msgstr "Пересканировать"
+
+#: services/webservice/pages/music.py
+msgid "Scanned"
+msgstr "Сканировано"
+
+#: services/webservice/pages/music.py
+msgid "The music actions are not available in this process, so this page is read-only."
+msgstr "Действия музыки недоступны в этом процессе, поэтому страница доступна только для чтения."
+
+#: services/webservice/pages/music.py
+msgid "The music folder could not be read."
+msgstr "Не удалось прочитать папку музыки."
+
+#: services/webservice/pages/music.py
+msgid "The playlist and the radio assignments that name it are removed."
+msgstr "Плейлист и назначения радио, которые его указывают, удаляются."
+
+#: services/webservice/pages/music.py
+msgid "The playlist exists once it holds its first track. Nothing is written by this step."
+msgstr "Плейлист существует, как только в нём есть первый трек. Этот шаг ничего не записывает."
+
+#: services/webservice/pages/music.py
+msgid "The radio is reassigned and restarted on this playlist."
+msgstr "Радио переназначается и перезапускается с этим плейлистом."
+
+#: services/webservice/pages/music.py
+msgid "The radios that play it move with the name."
+msgstr "Радио, которые его играют, переходят вместе с именем."
+
+#: services/webservice/pages/music.py
+msgid "This playlist does not exist yet. Adding a track creates it."
+msgstr "Этот плейлист ещё не существует. Добавление трека создаст его."
+
+#: services/webservice/pages/music.py
+msgid "This playlist holds no track yet."
+msgstr "В этом плейлисте пока нет треков."
+
+#: services/webservice/pages/music.py
+msgid "Title"
+msgstr "Название"
+
+#: services/webservice/pages/music.py
+msgid "Total length"
+msgstr "Общая длительность"
+
+#: services/webservice/pages/music.py
+msgid "Tracks"
+msgstr "Треки"
+
+#: services/webservice/pages/music.py
+msgid "Used by"
+msgstr "Используется"
+
+#: services/webservice/pages/music.py
+msgid "draft"
+msgstr "черновик"
+
+#: services/webservice/pages/music.py
+msgid "drag to reorder"
+msgstr "перетащи, чтобы изменить порядок"
+
+#: services/webservice/pages/music.py
+msgid "idle"
+msgstr "не в эфире"
+
+#: services/webservice/pages/music.py
+msgid "missing on the node"
+msgstr "отсутствует на узле"
+
+#: services/webservice/pages/music.py
+msgid "on air"
+msgstr "в эфире"
+
+#: services/webservice/pages/music.py
+msgid "playlist"
+msgstr "плейлист"
+
+#: services/webservice/pages/music.py
+msgid "total %(length)s"
+msgstr "всего %(length)s"
+
+#: services/webservice/pages/music.py
+msgid "A playlist name is required."
+msgstr "Требуется название плейлиста."
+
+#: services/webservice/pages/music.py
+msgid "That is not a track of this playlist."
+msgstr "Это не трек этого плейлиста."
+
+#: services/webservice/pages/access.py:688
+msgid "%(count)s unsaved change(s)"
+msgstr "%(count)s несохранённых изменений"
+
+#: services/webservice/pages/access.py:261
+msgid "%(role)s added"
+msgstr "%(role)s добавлен"
+
+#: services/webservice/pages/access.py:262
+msgid "%(role)s removed"
+msgstr "%(role)s убран"
+
+#: services/webservice/pages/access.py:99
+msgid "Access"
+msgstr "Доступ"
+
+#: services/webservice/pages/access.py:771
+msgid "Access matrix updated: %(detail)s"
+msgstr "Матрица доступа обновлена: %(detail)s"
+#: services/webservice/pages/access.py:293
+msgid "Access matrix save refused: %(detail)s"
+msgstr "Сохранение матрицы доступа отклонено: %(detail)s"
+
+
+#: services/webservice/pages/access.py:333
+#, python-format
+msgid "Ignored: '%(key)s' is not a mapping, so no override was applied."
+msgstr "Проигнорировано: '%(key)s' не является отображением, поэтому переопределение не применено."
+
+#: services/webservice/pages/access.py:335
+#, python-format
+msgid "Ignored: the entry for '%(key)s' is not a mapping, so that capability keeps its declared roles."
+msgstr "Проигнорировано: запись для '%(key)s' не является отображением, поэтому эта возможность сохраняет объявленные роли."
+
+#: services/webservice/pages/access.py:338
+#, python-format
+msgid "Ignored: '%(key)s' is not a key this page reads, in the entry for '%(capability)s'."
+msgstr "Проигнорировано: '%(key)s' — не ключ, который читает эта страница, в записи для '%(capability)s'."
+
+#: services/webservice/pages/access.py:340
+#, python-format
+msgid "Ignored: '%(key)s' does not carry a readable value in the entry for '%(capability)s'."
+msgstr "Проигнорировано: '%(key)s' не содержит читаемого значения в записи для '%(capability)s'."
+
+#: services/webservice/pages/access.py:344
+msgid "Some parts of the stored access block could not be read and were skipped — the capabilities they name keep their declared values:"
+msgstr "Некоторые части сохранённого блока доступа не удалось прочитать, они пропущены — названные в них возможности сохраняют объявленные значения:"
+
+#: services/webservice/pages/access.py:363
+#, python-format
+msgid "Access updated — %(count)s change(s), in effect now."
+msgstr "Доступ обновлён — %(count)s изменений, действует сразу."
+
+#: services/webservice/templates/access.html:86
+msgid "Admin"
+msgstr "Admin"
+
+#: services/webservice/templates/access.html:67
+msgid "Admin — always on"
+msgstr "Admin — всегда включён"
+
+#: services/webservice/templates/access.html:178
+msgid "Applied immediately, no restart."
+msgstr "Применяется сразу, перезапуск не нужен."
+
+#: services/webservice/templates/access.html:85
+msgid "Control"
+msgstr "Разрешение"
+
+#: services/webservice/pages/access.py:170
+msgid "Expert Mode and the shared scheduler default"
+msgstr "Экспертный режим и общий стандарт планировщика"
+
+#: services/webservice/templates/access.html:38
+msgid "Filter a control…"
+msgstr "Фильтр по разрешению…"
+
+#: services/webservice/pages/access.py:268
+msgid "No change: the matrix is exactly what is stored."
+msgstr "Без изменений: матрица в точности соответствует сохранённой."
+
+#: services/webservice/templates/access.html:74
+msgid "No control matches this filter."
+msgstr "Ни одно разрешение не подходит под этот фильтр."
+
+#: services/webservice/pages/access.py:685
+msgid "No overrides — every capability keeps its declared defaults."
+msgstr "Отклонений нет — каждое разрешение сохраняет объявленные значения."
+
+#: services/webservice/pages/access.py:251
+msgid "Nothing was saved: %(capability)s belongs to this page and cannot be edited."
+msgstr "Ничего не сохранено: %(capability)s относится к этой странице и не подлежит изменению."
+
+#: services/webservice/pages/access.py:255
+msgid "Nothing was saved: %(capability)s is machine- or installation-wide, so it cannot carry a managed_by grant."
+msgstr "Ничего не сохранено: %(capability)s относится к машине или всей установке и не может нести разрешение managed_by."
+
+#: services/webservice/pages/access.py:245
+msgid "Nothing was saved: %(capability)s is not a capability this console declares."
+msgstr "Ничего не сохранено: %(capability)s — не разрешение, объявленное этой консолью."
+
+#: services/webservice/pages/access.py:720
+msgid "Nothing was saved: %(reason)s"
+msgstr "Ничего не сохранено: %(reason)s"
+
+#: services/webservice/pages/access.py:247
+msgid "Nothing was saved: %(role)s is not a role of this bot's role model."
+msgstr "Ничего не сохранено: %(role)s — не роль из модели ролей этого бота."
+
+#: services/webservice/pages/access.py:253
+msgid "Nothing was saved: Admin cannot be removed from %(capability)s."
+msgstr "Ничего не сохранено: Admin нельзя убрать из %(capability)s."
+
+#: services/webservice/pages/access.py:249
+msgid "Nothing was saved: it would leave no role able to open this page."
+msgstr "Ничего не сохранено: после этого ни одна роль не сможет открыть эту страницу."
+#: services/webservice/pages/access.py:280
+msgid "Nothing was saved: the page was loaded before the configuration changed on disk. Reload it and apply your change again."
+msgstr "Ничего не сохранено: страница была загружена до того, как конфигурация изменилась на диске. Перезагрузите её и повторите изменение."
+
+
+#: services/webservice/pages/access.py:116
+msgid "Other"
+msgstr "Прочее"
+
+#: services/webservice/templates/access.html:43
+msgid "Show changes only"
+msgstr "Показывать только изменения"
+
+#: services/webservice/templates/access.html:61
+msgid "The bot's own Discord commands keep their roles, so a role you narrow here can still act in Discord."
+msgstr "Discord-команды бота сохраняют свои роли — роль, ограниченная здесь, по-прежнему может действовать в Discord."
+
+#: services/webservice/templates/access.html:161
+msgid "The decision is read per request, so a save takes effect immediately — and is refused if it would leave no role able to open this page."
+msgstr "Решение читается при каждом запросе, поэтому сохранение действует сразу — и отклоняется, если ни одна роль не сможет открыть эту страницу."
+
+#: services/webservice/templates/access.html:60
+msgid "This matrix decides the website only."
+msgstr "Эта матрица определяет только веб-сайт."
+
+#: services/webservice/templates/access.html:55
+msgid "This page could not read the service configuration, so it shows the declared values only — nothing here is stored yet."
+msgstr "Этой странице не удалось прочитать конфигурацию сервиса, поэтому показаны только объявленные значения — здесь пока ничего не сохранено."
+
+#: services/webservice/pages/access.py:101
+msgid "Which role reaches which control on the website. Admin keeps everything and cannot be reduced here."
+msgstr "Какая роль какой доступ на сайте получает. Admin сохраняет всё, и здесь его нельзя урезать."
+
+#: services/webservice/pages/access.py:168
+msgid "a server's schedule"
+msgstr "расписание сервера"
+
+#: services/webservice/pages/access.py:173
+msgid "activate a mission and restart the server into it"
+msgstr "активировать миссию и перезапустить сервер в неё"
+
+#: services/webservice/pages/access.py:176
+msgid "add a mission from the library"
+msgstr "добавить миссию из библиотеки"
+
+#: services/webservice/pages/access.py:183
+msgid "ban a player on the servers you hold"
+msgstr "забанить игрока на своих серверах"
+
+#: services/webservice/pages/access.py:195
+msgid "bring a node back online"
+msgstr "вернуть узел в сеть"
+
+#: services/webservice/templates/access.html:70
+msgid "cannot be granted here"
+msgstr "здесь не выдаётся"
+
+#: services/webservice/pages/access.py:214
+msgid "changes on this page"
+msgstr "изменения на этой странице"
+
+#: services/webservice/pages/access.py:161
+msgid "chat and popup to the players of a server"
+msgstr "чат и всплывающее сообщение игрокам сервера"
+
+#: services/webservice/pages/access.py:160
+msgid "clear a server's maintenance flag"
+msgstr "снять отметку обслуживания сервера"
+
+#: services/webservice/pages/access.py:166
+msgid "coalition passwords and slots"
+msgstr "пароли и слоты коалиций"
+
+#: services/webservice/pages/access.py:162
+msgid "create a new server instance"
+msgstr "создать новый экземпляр сервера"
+
+#: services/webservice/pages/access.py:169
+msgid "create and edit a server's schedule"
+msgstr "создавать и редактировать расписание сервера"
+
+#: services/webservice/pages/access.py:192
+msgid "create, edit, reorder and delete playlists"
+msgstr "создавать, изменять, сортировать и удалять плейлисты"
+
+#: services/webservice/pages/access.py:178
+msgid "delete a mission"
+msgstr "удалить миссию"
+
+#: services/webservice/pages/access.py:184
+msgid "edit an existing ban"
+msgstr "изменить существующий бан"
+
+#: services/webservice/pages/access.py:212
+msgid "edit the MizEdit presets"
+msgstr "редактировать пресеты MizEdit"
+
+#: services/webservice/pages/access.py:208
+msgid "edit the bot's own configuration"
+msgstr "редактировать собственную конфигурацию бота"
+
+#: services/webservice/pages/access.py:210
+msgid "edit the global configuration files"
+msgstr "редактировать глобальные файлы конфигурации"
+
+#: services/webservice/pages/access.py:159
+msgid "flag a server for maintenance"
+msgstr "пометить сервер на обслуживание"
+
+#: services/webservice/pages/access.py:187
+msgid "give penalty points"
+msgstr "начислять штрафные баллы"
+
+#: services/webservice/templates/access.html:68
+msgid "granted"
+msgstr "выдано"
+
+#: services/webservice/pages/access.py:204
+msgid "install and remove the root mods of a node"
+msgstr "устанавливать и удалять корневые моды узла"
+
+#: services/webservice/templates/access.html:63
+msgid "is the scope of a server: a manager acts on the servers their scope names, never anywhere else."
+msgstr "— это область сервера: управляющий действует на серверах, указанных в его области, и нигде больше."
+
+#: services/webservice/pages/access.py:186
+msgid "keep a player on the watch list"
+msgstr "держать игрока в списке наблюдения"
+
+#: services/webservice/pages/access.py:181
+msgid "kick a player right now"
+msgstr "кикнуть игрока прямо сейчас"
+
+#: services/webservice/pages/access.py:185
+msgid "lift a ban"
+msgstr "снять бан"
+
+#: services/webservice/pages/access.py:172
+msgid "load a mission onto a server"
+msgstr "загрузить миссию на сервер"
+
+#: services/webservice/templates/access.html:113
+msgid "locked"
+msgstr "заблокировано"
+
+#: services/webservice/pages/access.py:263
+msgid "managed_by granted"
+msgstr "managed_by выдан"
+
+#: services/webservice/pages/access.py:264
+msgid "managed_by removed"
+msgstr "managed_by убран"
+
+#: services/webservice/pages/access.py:188
+msgid "message a player on Discord"
+msgstr "написать игроку в Discord"
+
+#: services/webservice/pages/access.py:182
+msgid "mute a player right now"
+msgstr "заглушить игрока прямо сейчас"
+
+#: services/webservice/templates/access.html:69
+msgid "not granted"
+msgstr "не выдано"
+
+#: services/webservice/pages/access.py:174
+msgid "pause the running mission"
+msgstr "поставить текущую миссию на паузу"
+
+#: services/webservice/pages/access.py:193
+msgid "play, stop, skip, mode and frequency of a running radio"
+msgstr "воспроизведение, стоп, пропуск, режим и частота работающего радио"
+
+#: services/webservice/pages/access.py:191
+msgid "playlists, the library and this server's radios"
+msgstr "плейлисты, библиотека и радио этого сервера"
+
+#: services/webservice/pages/access.py:163
+msgid "remove a server instance"
+msgstr "удалить экземпляр сервера"
+
+#: services/webservice/pages/access.py:179
+msgid "reorder a server's mission list"
+msgstr "сортировать список миссий сервера"
+
+#: services/webservice/pages/access.py:157
+msgid "restart a server — players are dropped"
+msgstr "перезапустить сервер — игроки будут отключены"
+
+#: services/webservice/pages/access.py:197
+msgid "restart the bot on a node"
+msgstr "перезапустить бота на узле"
+
+#: services/webservice/pages/access.py:198
+msgid "shut a node's machine down"
+msgstr "выключить машину узла"
+
+#: services/webservice/pages/access.py:154
+msgid "start a server, including its dependent instances"
+msgstr "запустить сервер вместе с зависимыми экземплярами"
+
+#: services/webservice/pages/access.py:155
+msgid "start a stopped server"
+msgstr "запустить остановленный сервер"
+
+#: services/webservice/pages/access.py:156
+msgid "stop a running server"
+msgstr "остановить работающий сервер"
+
+#: services/webservice/pages/access.py:196
+msgid "take a node offline"
+msgstr "вывести узел из сети"
+
+#: services/webservice/pages/access.py:189
+msgid "take a screenshot on a server"
+msgstr "сделать снимок экрана на сервере"
+
+#: services/webservice/pages/access.py:158
+msgid "take a server down and keep it down"
+msgstr "выключить сервер и держать его выключенным"
+
+#: services/webservice/pages/access.py:211
+msgid "the MizEdit presets"
+msgstr "пресеты MizEdit"
+
+#: services/webservice/pages/access.py:206
+msgid "the bot log"
+msgstr "журнал бота"
+
+#: services/webservice/pages/access.py:207
+msgid "the bot's own configuration"
+msgstr "собственная конфигурация бота"
+
+#: services/webservice/pages/access.py:190
+msgid "the console's ban list"
+msgstr "список банов консоли"
+
+#: services/webservice/pages/access.py:152
+msgid "the dashboard: live servers, load and the log panel"
+msgstr "панель: серверы в реальном времени, нагрузка и журнал"
+
+#: services/webservice/pages/access.py:209
+msgid "the global configuration files"
+msgstr "глобальные файлы конфигурации"
+
+#: services/webservice/pages/access.py:205
+msgid "the installation-wide statistics"
+msgstr "статистика всей установки"
+
+#: services/webservice/pages/access.py:202
+msgid "the instance list"
+msgstr "список экземпляров"
+
+#: services/webservice/pages/access.py:171
+msgid "the mission list of a server"
+msgstr "список миссий сервера"
+
+#: services/webservice/pages/access.py:203
+msgid "the mods of a server or a node"
+msgstr "моды сервера или узла"
+
+#: services/webservice/pages/access.py:194
+msgid "the node list and one node's page"
+msgstr "список узлов и страница узла"
+#: services/webservice/pages/access.py:295
+msgid "the page was stale — the file changed on disk"
+msgstr "страница устарела — файл изменился на диске"
+
+
+#: services/webservice/pages/access.py:201
+msgid "the per-node settings page"
+msgstr "страница настроек узла"
+
+#: services/webservice/pages/access.py:180
+msgid "the player directory and one player's page"
+msgstr "каталог игроков и страница игрока"
+
+#: services/webservice/pages/access.py:153
+msgid "the server list and one server's page"
+msgstr "список серверов и страница сервера"
+
+#: services/webservice/pages/access.py:164
+msgid "the server's Configuration tab"
+msgstr "вкладка «Конфигурация» сервера"
+
+#: services/webservice/pages/access.py:167
+msgid "the server's Discord channels"
+msgstr "каналы Discord сервера"
+
+#: services/webservice/pages/access.py:165
+msgid "the server's own DCS settings"
+msgstr "собственные настройки DCS сервера"
+
+#: services/webservice/pages/access.py:213
+msgid "this page"
+msgstr "эта страница"
+
+#: services/webservice/pages/access.py:175
+msgid "unpause the running mission"
+msgstr "снять текущую миссию с паузы"
+
+#: services/webservice/pages/access.py:200
+msgid "update, roll back or switch the DCS branch of a node"
+msgstr "обновить, откатить или переключить ветку DCS узла"
+
+#: services/webservice/pages/access.py:199
+msgid "upgrade the bot on a node"
+msgstr "обновить бота на узле"
+
+#: services/webservice/pages/access.py:177
+msgid "upload a mission file"
+msgstr "загрузить файл миссии"
+
+#: services/webservice/pages/music.py
+#: services/webservice/templates/music_playlist.html
+msgid "Upload"
+msgstr "Загрузить"
+
+#: services/webservice/pages/music.py
+#: services/webservice/templates/music_playlist.html
+msgid "Upload into this folder, or drop .mp3 and .ogg files here or on a folder in the rail."
+msgstr "Загрузите в эту папку или перетащите файлы .mp3 и .ogg сюда либо на папку в боковой панели."
+
+#: services/webservice/pages/access.py
+msgid "write files into the music directory"
+msgstr "записывать файлы в каталог музыки"
+
+#: services/webservice/templates/music_playlist.html
+msgid "Not uploaded: the file could not be sent."
+msgstr "Не загружено: файл не удалось отправить."
+
+#: services/webservice/pages/access.py
+msgid "Access saved — %(count)s change(s), written to the configuration. This process could not install them; the next start applies the block."
+msgstr "Доступ сохранён — %(count)s изменений записаны в конфигурацию. Этот процесс не смог их применить; блок применится при следующем запуске."
+
+#: services/webservice/pages/music.py
+msgid "Edit the playlist '{name}'"
+msgstr "Изменить плейлист '{name}'"
+
+#: services/webservice/pages/music.py
+msgid "No server is running, so this playlist cannot be played."
+msgstr "Ни один сервер не запущен, поэтому этот плейлист нельзя воспроизвести."
+
+#: services/webservice/templates/music_playlist.html
+msgid "Drag to reorder, or press Alt+Up or Alt+Down"
+msgstr "Перетащи, чтобы изменить порядок, или нажми Alt+Вверх или Alt+Вниз"
+
+
+#: services/webservice/pages/music.py
+msgid "Repeat is on — press to switch to shuffle"
+msgstr "Повтор включён — нажмите, чтобы переключиться на перемешивание"
+
+#: services/webservice/pages/music.py
+msgid "Shuffle is on — press to switch to repeat"
+msgstr "Перемешивание включено — нажмите, чтобы переключиться на повтор"

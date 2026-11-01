@@ -37,6 +37,11 @@
   {% block head %}{% endblock %}
 </head>
 <body class="shell">
+  {% import "_icons.html" as icons %}
+  {#  THE NAV SPRITE, ONCE PER DOCUMENT: the twelve symbols the sidebar draws (a group heading's and an
+      entry's glyph), defined at the top of the body so every `<use href="#i-…">` below resolves against
+      this one copy. It is zero-sized and `aria-hidden` — it draws nothing itself.  #}
+  {{ icons.nav_sprite() }}
   <aside class="side">
     <div class="brand">
       {#  THE BRAND MARK IS THE PROJECT'S OWN LOGO, referenced as a plain static request (never inline
@@ -52,10 +57,15 @@
       <div><b>DCSServerBot</b><small>{% trans %}Admin Console{% endtrans %}</small></div>
     </div>
     <nav class="nav">
+      {#  THE RAIL: the shell's group order, each heading over its own visible entries. The glyph is
+          DECORATION and every one is `aria-hidden`; the word is the name, and a heading left with no
+          entry is never passed here at all (`pages.dashboard.nav_groups` drops it). A glyph name the
+          sprite does not carry renders an empty icon column, so an entry added before its drawing
+          exists still renders with its label aligned.  #}
       {% for group in (nav_groups if nav_groups is defined else []) %}
-      <div class="grp">{{ _(group.label) }}</div>
+      <div class="grp">{{ icons.nav_group_glyph(group.glyph if group.glyph is defined else '') }}{{ _(group.label) }}</div>
       {% for item in group.links %}
-      <a class="{{ 'on' if item.active else '' }}" href="{{ item.url }}"><span class="ic">▣</span>{{ _(item.label) }}</a>
+      <a class="{{ 'on' if item.active else '' }}" href="{{ item.url }}">{{ icons.nav_glyph(item.glyph if item.glyph is defined else '') }}{{ _(item.label) }}</a>
       {% endfor %}
       {% endfor %}
     </nav>

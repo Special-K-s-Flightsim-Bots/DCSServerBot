@@ -4196,6 +4196,12 @@ MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is
 MISSION_LIST_CHANGED = ("The mission list has changed since this page was loaded. "
                         "Reload the page and try again.")
 
+#: The refusal a dropped FULL order is answered with when it is not a PERMUTATION of the fresh
+#: snapshot — a member missing, an extra member, or a member named twice. The specific cause travels
+#: in the sentence after this clause, so the operator reads WHY rather than only that it failed.
+MISSION_ORDER_NOT_A_PERMUTATION = ("Not moved: the new order must name every mission in the list "
+                                   "exactly once.")
+
 
 async def _stale_mission_refusal(server: Any, configured: str, wanted: Any) -> str:
     """The :data:`MISSION_LIST_CHANGED` sentence when *wanted* no longer names the mission the FRESH
@@ -4397,20 +4403,29 @@ async def delete_missions(ctx: Any, server_name: str, missions: list[int], *,
 
 
 @action
-async def reorder_mission(ctx: Any, server_name: str, mission: int | str,
-                          direction: str, expected_name: str = "") -> MissionListResult:
-    """Move ONE mission up or down the ``missionList`` — the offline-only reorder.
+async def reorder_mission(ctx: Any, server_name: str, mission: int | str | None = None,
+                          direction: str = "", expected_name: str = "",
+                          order: list[int | str] | None = None) -> MissionListResult:
+    """Reorder the ``missionList`` — one step by direction, or a whole new order in one write.
 
-    ``mission`` is the 1-based ``missionList`` index (or its logical name); ``direction`` is ``"up"``
-    or ``"down"``. The action takes ONE snapshot, resolves the mission, and builds the PERMUTED list
-    (same members, new order) which it hands to ``Server.setMissionList`` — so the rotation pointer
-    follows the mission, computed by path inside the writer.
+    THE TWO FORMS, one writer. ``order`` is the FULL new order the row drag posted: identifiers read
+    exactly as ``mission`` is (a 1-based index or the logical name), and they must be a PERMUTATION of
+    the FRESH snapshot — every mission once, nothing added, nothing missing, no duplicate. A set that
+    no longer matches the list (a mission added or removed meanwhile) is REFUSED with
+    :data:`MISSION_ORDER_NOT_A_PERMUTATION` and the reason, never written partially. One snapshot, one
+    ``Server.setMissionList``, one audit entry.
+
+    ``mission`` + ``direction`` is the single-step form (``"up"`` / ``"down"``) — the keyboard /
+    no-JavaScript path. The action takes ONE snapshot, resolves the mission, and builds the PERMUTED
+    list (same members, new order) which it hands to ``Server.setMissionList`` — so the rotation
+    pointer follows the mission, computed by path inside the writer.
 
     An ``up`` on the first row and a ``down`` on the last are NO-OPS, not errors. A WRITE, so it
     writes its own audit entry.
 
     ``expected_name`` is the row's LOGICAL name the console posts beside its index: a mismatch against
-    the FRESH snapshot refuses the move with :data:`MISSION_LIST_CHANGED`. Empty → no such check.
+    the FRESH snapshot refuses the move with :data:`MISSION_LIST_CHANGED`. Empty → no such check. It
+    guards the SINGLE-STEP form only: a full order names its members itself.
     """
     server = ctx.resolve_server(server_name)
     if server is None:
@@ -4426,6 +4441,16 @@ async def reorder_mission(ctx: Any, server_name: str, mission: int | str,
         log.exception("reorder_mission failed")
         return MissionListResult(success=False, message=f"Failed to list missions: {ex}",
                                  server_name=server_name)
+    if order is not None:
+        # THE FULL-ORDER FORM: the dropped rows ARE the intent, so the permutation check is the
+        # stale-page guard — a set that no longer matches the fresh snapshot is refused whole.
+        reordered = _mission_order(current, order)
+        if isinstance(reordered, str):
+            return MissionListResult(success=False, message=reordered, server_name=server_name,
+                                     missions=current)
+        return await _write_mission_order(
+            server, server_name, current, reordered,
+            f"Reordered {len(reordered)} mission(s) on server '{display}'.")
     index = _resolve_mission_id(current, mission)
     if index is None:
         return MissionListResult(success=False,
@@ -4453,6 +4478,46 @@ async def reorder_mission(ctx: Any, server_name: str, mission: int | str,
                                  data={"missions": current, "index": index})
     reordered = list(current)
     reordered.insert(target - 1, reordered.pop(index - 1))
+    return await _write_mission_order(server, server_name, current, reordered,
+                                      f"Moved '{name}' {move}.")
+
+
+def _mission_order(current: list[str], order: Any) -> list[str] | str:
+    """The permuted list *order* names, or the refusal sentence when it is not a permutation.
+
+    *order* names its members the way ``mission`` does — a 1-based index or the logical name — and
+    must name EVERY mission of *current* EXACTLY once: a member that resolves to nothing, a count that
+    differs, or a member named twice is refused (:data:`MISSION_ORDER_NOT_A_PERMUTATION` plus the
+    cause). Nothing is written on a refusal, so a dropped set that no longer matches the list can never
+    produce a partial write.
+    """
+    if not isinstance(order, (list, tuple)) or not order:
+        return f"{MISSION_ORDER_NOT_A_PERMUTATION} The order is empty."
+    positions: list[int] = []
+    for entry in order:
+        index = _resolve_mission_id(current, entry)
+        if index is None:
+            return f"{MISSION_ORDER_NOT_A_PERMUTATION} '{entry}' is not in the list."
+        positions.append(index)
+    if len(positions) != len(current):
+        return (f"{MISSION_ORDER_NOT_A_PERMUTATION} The order names {len(positions)} mission(s), "
+                f"the list has {len(current)}.")
+    seen: set[int] = set()
+    for index in positions:
+        if index in seen:
+            return (f"{MISSION_ORDER_NOT_A_PERMUTATION} "
+                    f"'{os.path.basename(_logical_mission(current[index - 1]))}' is named twice.")
+        seen.add(index)
+    return [current[index - 1] for index in positions]
+
+
+async def _write_mission_order(server: Any, server_name: str, current: list[str],
+                               reordered: list[str], message: str) -> MissionListResult:
+    """Hand ONE already-permuted list to ``Server.setMissionList`` — the single write of both forms.
+
+    ``message`` is the SUCCESS sentence the form owns; the failure paths are shared, so neither form
+    can report a write the other would have refused.
+    """
     try:
         result_list = await server.setMissionList(reordered)
     except AttributeError as ex:
@@ -4466,9 +4531,9 @@ async def reorder_mission(ctx: Any, server_name: str, mission: int | str,
     except Exception as ex:
         log.exception("reorder_mission failed")
         return MissionListResult(success=False,
-                                 message=f"Failed to move mission '{name}': {ex}",
+                                 message=f"Failed to reorder the missions: {ex}",
                                  server_name=server_name)
     return MissionListResult(
-        success=True, message=f"Moved '{name}' {move}.", server_name=server_name,
-        missions=result_list, data={"missions": result_list, "index": target})
+        success=True, message=message, server_name=server_name,
+        missions=result_list, data={"missions": result_list, "order": reordered})
 

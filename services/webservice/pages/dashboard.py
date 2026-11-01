@@ -14,8 +14,8 @@ had to change this claim rather than leave it standing):
   from a row the caller's scope contains. They are POSTs to another module's routes, with the
   session's CSRF token and the target in the body, and nothing about them is owned here: this module
   asks ``actions.controls_for`` for the ROW controls of the tab it is about to render (data, markup
-  in ``templates/_table.html``) and ``actions.page_controls`` for that tab's PAGE control (markup in
-  this page's own head) — one reading, so the dashboard and the list pages offer one set of controls;
+  in ``templates/_table.html``) and ``actions.page_controls`` for the PAGE control a LIST page puts
+  in its table card header — one reading, so a page and its table offer one set of controls;
 * the players' Message/Kick/Ban and the node verbs are **omitted, not disabled** — a greyed-out
   control still tells a reader "this console can do that", and a control the viewer may not use is
   absent from the markup entirely. The player and node rows arrive in their own cards;
@@ -54,11 +54,11 @@ from ..auth import routes as auth_routes
 from ..auth import safe_avatar_url
 from ..readmodels import logtail
 from ..readmodels import views as view_layer
-from ..registry import NavItem
+from ..registry import NAV_GROUPS, NavItem
 
 __all__ = [
     "DASHBOARD_PATH", "DASHBOARD_CAPABILITY", "DASHBOARD_ROLES", "DASHBOARD_TEMPLATE",
-    "DASHBOARD_TITLE", "DASHBOARD_LEAD", "NAV_LABEL", "NAV_GROUP",
+    "DASHBOARD_TITLE", "DASHBOARD_LEAD", "NAV_LABEL", "NAV_GROUP", "NAV_GLYPH",
     "TABS", "DEFAULT_TAB", "LOG_BOTTOM_MAX_ROWS", "CALM_MESSAGE", "NOT_RUNNING_WORDS",
     "LOAD_TAB", "LOAD_LABEL", "LOAD_SCALES", "LOAD_DEFAULT_SCALE", "LOAD_SCALE_PARAM",
     "LOAD_SCOPE_PARAM", "LOAD_REFRESH_SECONDS", "LOAD_GAUGES",
@@ -100,6 +100,8 @@ DASHBOARD_LEAD = i18n._("Live state of every node, instance and server in the cl
                         "row you may operate carries its own controls.")
 NAV_LABEL = i18n._("Dashboard")
 NAV_GROUP = i18n._("Operations")
+#: the glyph the page's entry wears, and a name in the nav sprite (``templates/_icons.html``)
+NAV_GLYPH = "grid"
 
 #: rendered in the top bar's breadcrumb (chrome; the page name itself comes from DASHBOARD_TITLE)
 CRUMB_GROUP = i18n._("Cluster")
@@ -1437,7 +1439,8 @@ def capabilities() -> dict[str, str]:
 
 def nav_items() -> tuple[NavItem, ...]:
     """The sidebar entries this page contributes — data, not markup."""
-    return (NavItem(label=NAV_LABEL, url=DASHBOARD_PATH, capability=DASHBOARD_CAPABILITY),)
+    return (NavItem(label=NAV_LABEL, url=DASHBOARD_PATH, capability=DASHBOARD_CAPABILITY,
+                    group=NAV_GROUP, glyph=NAV_GLYPH),)
 
 
 def add_routes(router: APIRouter) -> APIRouter:
@@ -1488,14 +1491,9 @@ def add_routes(router: APIRouter) -> APIRouter:
             notice=notice,
             # the tab's OWN controls — the strip on a server row, nothing for a table with no
             # write; the same call the live stream makes on every tick, so a refreshed table cannot
-            # lose the column the initial page drew.
+            # lose the column the initial page drew. No PAGE-LEVEL control is passed: creating a
+            # server is the Servers page's action and renders in that page's card header.
             row_controls=row_controls_for(request, console["tab"]),
-            # the PAGE-LEVEL control of the tab in force (the fleet's "Add server"): the SAME call
-            # the Servers page makes, asked BY TABLE, so the tab whose table is `servers` offers it
-            # and every other tab renders none. It lives in the page head, OUTSIDE the swap targets,
-            # because the tab only changes by navigation (its links are plain `href`s), never on a
-            # stream tick.
-            add_control=actions_page.page_controls(request, console["tab"], DASHBOARD_PATH),
             nav_groups=nav_groups(registrar, roles, current=DASHBOARD_PATH, manager=manager),
             user=identity_summary(request),
             env=environment_marker(state),
@@ -1718,28 +1716,63 @@ def empty_messages(state: readmodels.Overview | None = None) -> dict[str, str]:
     return messages
 
 
-def nav_groups(registrar, roles, *, current: str, manager: bool = False) -> list[dict]:
-    """The sidebar, filtered by capability, as plain data for the template.
+def _nav_offered(item) -> bool:
+    """Whether *item* is available in this process — its optional ``available`` test answers true.
 
-    Grouped because the mockups' sidebar is grouped; with one page there is one group, and the
-    group's label is chrome while its ITEMS are data (``registrar.nav``).
+    An entry with no test is offered (the default). A test that RAISES drops the entry: the sidebar
+    must render even when a product's own state check fails, and an entry whose feature cannot be
+    confirmed present is not advertised.
+    """
+    test = getattr(item, "available", None)
+    if test is None:
+        return True
+    try:
+        return bool(test())
+    except Exception:
+        log.exception("Admin web UI: the availability test of nav item '%s' (%s) raised; the "
+                      "entry is dropped.", getattr(item, "label", "?"), getattr(item, "url", "?"))
+        return False
+
+
+def nav_groups(registrar, roles, *, current: str, manager: bool = False) -> list[dict]:
+    """The sidebar, filtered by capability and availability, as plain data for the template.
+
+    ONE filter (:func:`services.webservice.permissions.visible_nav`, the very predicate the access
+    gate uses), then the declarations are sorted into the shell's own group order
+    (:data:`services.webservice.registry.NAV_GROUPS`). Each page supplies its group and its glyph on
+    its own nav item, so nothing here maps a page to a heading: this function only walks the order.
+
+    An item whose ``available()`` answers False is dropped exactly like an unauthorised one. The test
+    runs HERE, per request, because the routes and capabilities are registered once at boot while the
+    plugin/service state the test reads is only reliable later.
+
+    A group left with NOTHING visible is DROPPED rather than rendered empty — a heading over an empty
+    list advertises a door that opens on nothing, and the entries a viewer may not open are already
+    absent one level down (that is the whole point of filtering first).
 
     ``manager`` is the third kind of identity, and it is passed in rather than resolved here because
     the caller holds the request (whose own resolution is memoized — see
     :func:`services.webservice.permissions.manages_console`). It defaults to ``False``: a caller that
     cannot say who the viewer is gets the sidebar a roleless, scopeless viewer gets.
     """
-    items = permissions.visible_nav(getattr(registrar, "nav", ()) or (), roles, manager=manager)
+    visible = permissions.visible_nav(getattr(registrar, "nav", ()) or (), roles, manager=manager)
+    items = [item for item in visible if _nav_offered(item)]
     if not items:
         return []
-    return [{
-        "label": NAV_GROUP,
+    groups: list[dict] = []
+    for group in NAV_GROUPS:
         # NOTE the key is `links`, not `items`: in Jinja, `group.items` resolves to the dict
         # METHOD (attribute lookup wins over item lookup) and iterating it is a TypeError, not an
         # empty loop. A dict key named `items`/`keys`/`values` is a trap in this template engine.
-        "links": [{"label": item.label, "url": item.url, "active": item.url == current}
-                  for item in items],
-    }]
+        links = [{"label": item.label, "url": item.url, "glyph": item.glyph,
+                  "active": item.url == current}
+                 for item in items if item.group == group.name]
+        if not links:
+            continue
+        # `label` is the group's ENGLISH msgid: `base.html` translates it at render, exactly as it
+        # translates an entry's label (the group names are chrome, and every catalog owns their words)
+        groups.append({"label": group.name, "glyph": group.glyph, "links": links})
+    return groups
 
 
 def identity_summary(request: Request) -> dict | None:

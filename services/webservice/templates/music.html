@@ -1,0 +1,59 @@
+{#-
+  MUSIC — the playlist list: what every radio of an active server is doing, every playlist, and the
+  library on each node.
+
+  Every figure and every word on this page comes from `pages/music.py`; the template computes
+  nothing. The radio cards use the console's ONE tile component (`_tiles.html`), the tables use the
+  console's `.card` shell, and the row controls are `_strip.html`'s glyph forms — no local look-alike
+  of any of them.
+
+  THE TWO LIVE FRAGMENTS. `#mus-radios` and `#mus-playlists` are the swap targets of the console's
+  SSE stream (`pages/live`, `static/shell.js`): each wrapper owns only the id, and its INNER content
+  is the partial the stream re-renders. A frame replaces that inner html, so the ids must stay on
+  these wrappers and nowhere inside the partials.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ _(page_title) }} — DCSServerBot{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+  {% if live %}<span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span>{% endif %}
+</div>
+
+{% include "_notice.html" %}
+{% if missing %}<p class="mus-note" role="status">{{ missing }}</p>{% endif %}
+
+<div id="{{ radios_target }}">{% include "_music_radios.html" %}</div>
+
+<div id="{{ playlists_target }}">{% include "_music_playlists.html" %}</div>
+
+<section class="card mus-card">
+  <div class="hd"><h3>{{ _(labels.library) }}</h3></div>
+  <div class="tbl">
+    <table class="mus-table">
+      <thead>
+        <tr>
+          <th>{% trans %}Node{% endtrans %}</th>
+          <th class="num">{% trans %}Tracks{% endtrans %}</th>
+          <th>{% trans %}Scanned{% endtrans %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in libraries %}
+        <tr>
+          <td class="mono">{{ row.node }}</td>
+          <td class="num mono">{{ row.files if row.files is not none else '—' }}</td>
+          <td class="meta">{% if row.failure %}{{ row.failure }}{% else %}{{ row.scanned or '—' }}{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="mus-note">{{ _(labels.no_library) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}

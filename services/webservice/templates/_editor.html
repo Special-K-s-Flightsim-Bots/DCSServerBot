@@ -36,10 +36,11 @@
   `lab` and `ctl` are PRE-RENDERED markup: a label's inner content (its `.nm`/`.kk`/`.hp`) legitimately
   differs per surface (a schema KEY is not a DCS label), and the control's KIND is format-specific —
   only the row is shared. `kind` becomes `data-cfg-kind` (the same hook the schema editor's row
-  carries); `cls` appends extra classes (e.g. the Missions list's `row-active`).
+  carries); `cls` appends extra classes (e.g. the Missions list's `row-active`), and `attrs` rides the
+  row's opening tag verbatim (the Missions list's `data-reorder-row` / `data-reorder-id` hooks).
 -#}
-{% macro field_row(kind, lab, ctl, cls='') -%}
-<div class="st-row{% if cls %} {{ cls }}{% endif %}" data-cfg-field{% if kind %} data-cfg-kind="{{ kind }}"{% endif %}>
+{% macro field_row(kind, lab, ctl, cls='', attrs='') -%}
+<div class="st-row{% if cls %} {{ cls }}{% endif %}" data-cfg-field{% if kind %} data-cfg-kind="{{ kind }}"{% endif %}{% if attrs %} {{ attrs|safe }}{% endif %}>
   <div class="st-lab">{{ lab }}</div>
   <div class="st-w">{{ ctl }}</div>
 </div>

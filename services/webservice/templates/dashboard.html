@@ -21,11 +21,13 @@
   viewport — a bottom panel while the longest list is short, the right column once the list is the
   thing being read, and `?log=expanded` hands it the whole content area. No media query decides it.
 
-  NO CONTROL IS RENDERED DISABLED. A server row's strip (`row_controls`) and the page head's
-  Add-server control (`add_control`) are the controls a viewer may ACTUALLY use: each is ABSENT —
-  never greyed out — when the capability, the availability check or the tab's table refuses it, so a
-  control on this page always names something the viewer can do. Nothing here writes by itself; every
-  form posts to `pages/actions`' own routes.
+  NO CONTROL IS RENDERED DISABLED. A server row's strip (`row_controls`) is the controls a viewer may
+  ACTUALLY use: it is ABSENT — never greyed — when the capability, the availability check or the
+  tab's table refuses it, so a control on this page always names something the viewer can do.
+  Nothing here writes by itself; every form posts to `pages/actions`' own routes.
+
+  NO PAGE-LEVEL CONTROL. Creating a server is the Servers page's own action, so it lives in THAT
+  page's table card header (`_table.html`, `card_action`) and not here.
 -#}
 {% extends "base.html" %}
 {% block title %}{{ title }} — DCSServerBot{% endblock %}
@@ -42,25 +44,6 @@
   <div class="sub">{{ _(lead) }}</div>
   <span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span>
 </div>
-
-{#- THE PAGE-LEVEL CONTROL — the fleet's "Add server", for the tab whose table is `servers` (the
-    SAME `page_controls` reading the Servers page renders, handed in as `add_control` data). Absent
-    for every other tab and for a caller the capability or the action refuses, so a table with no
-    page control renders nothing. It is a PLAIN POST form: its answer IS the dialog page, so it is
-    never intercepted (the same rule `list.html` applies). It sits in the page head, OUTSIDE every
-    swap target (`#state-panel`, `#log-panel`, `#notice`), because the tab changes only by
-    navigation — the tab links are plain `href`s — and the stream's `state` event re-renders the
-    panel, never the head, so no tick can drop it. -#}
-{% if add_control %}
-<div class="page-actions">
-  <form method="post" action="{{ add_control.path }}">
-    <input type="hidden" name="{{ add_control.csrf_field }}" value="{{ add_control.csrf_token }}">
-    <input type="hidden" name="{{ add_control.origin_field }}" value="{{ add_control.origin }}">
-    {% for name, value in add_control.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
-    <button type="submit" title="{{ say(add_control.title) }}" aria-label="{{ say(add_control.aria) }}">{{ _(add_control.label) }}</button>
-  </form>
-</div>
-{% endif %}
 
 {# THE ONE-SHOT NOTICE of a write — the same partial the list pages include. A write pressed on a
    server/player/node row here redirects back to this page (the origin fix), so its outcome

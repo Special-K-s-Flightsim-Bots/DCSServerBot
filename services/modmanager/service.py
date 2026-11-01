@@ -8,6 +8,7 @@ import zipfile
 from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
 from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy, Node, Instance
+from core.utils import resolve_within
 from enum import Enum
 from filecmp import cmp
 from functools import total_ordering
@@ -31,6 +32,15 @@ __all__ = [
 ENCODING = 'utf-8'
 
 
+#: the names Windows answers as a DEVICE instead of as a file: a write to one targets the device, so the
+#: file it would leave behind is never a file and cannot be removed as one
+_RESERVED_DEVICE_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"COM{number}" for number in range(1, 10)}
+    | {f"LPT{number}" for number in range(1, 10)}
+)
+
+
 def _leaf_name(value: object) -> str | None:
     """The one leaf name *value* is, or ``None`` when it names a LOCATION instead.
 
@@ -38,8 +48,10 @@ def _leaf_name(value: object) -> str | None:
     both are read through this: the answer is the value the join has to use. Surrounding whitespace is
     dropped here, so the string that was validated is the string that reaches the filesystem.
 
-    Refused: an empty value, a NUL, a path separator, ``.``/``..`` and every absolute form. Everything
-    else is accepted — the enumerator decides what a package is called.
+    Refused: an empty value, a NUL, a path separator, ``.``/``..``, every absolute form and a Windows
+    device name — ``CON``, ``PRN``, ``AUX``, ``NUL``, ``CONIN$``, ``CONOUT$``, ``COM1``-``COM9`` and
+    ``LPT1``-``LPT9``, with or without an extension. Everything else is accepted — the enumerator
+    decides what a package is called.
     """
     text = str(value or "").strip()
     if not text or "\x00" in text:
@@ -49,6 +61,8 @@ def _leaf_name(value: object) -> str | None:
     if text in (".", ".."):
         return None
     if len(text) > 1 and text[1] == ":" and text[0].isalpha():
+        return None
+    if text.split(".")[0].strip().upper() in _RESERVED_DEVICE_NAMES:
         return None
     return text
 
@@ -61,35 +75,30 @@ class _EscapingArchiveEntry(Exception):
         self.entry = entry
 
 
-def _inside(base: object, candidate: object) -> bool:
-    """True when *candidate* names an entry strictly BELOW *base*, never *base* itself and never outside.
+def _resolved_below(base: object, name: object) -> str | None:
+    """The RESOLVED path *name* may be written to or read from below *base*, or ``None``.
 
     An archive entry name and an ``install.log`` line are content, not a caller's identity: both are
-    joined onto a target, so both are read through this before the join is built. A separator is a
-    separator in either direction — Windows spells it ``\\`` where POSIX reads an ordinary character —
-    so both sides are folded to ``/`` first. A rooted path, a drive-qualified path and a NUL are outside
-    by definition; a different drive on Windows has no common path and is outside too.
+    joined onto a tree, so both are decided here before the join is used. A separator is a separator
+    in either direction — Windows spells it ``\\`` where POSIX reads an ordinary character — so the
+    name is folded to ``/`` and joined segment by segment. An empty name, a NUL, a rooted name and a
+    drive-qualified name never name a place below a tree.
+
+    The decision is :func:`core.utils.resolve_within`'s, taken on the RESOLVED pair: a folder below
+    *base* that is a link or a junction pointing out of it is refused, where a lexical ``abspath`` +
+    ``commonpath`` pair accepts the joined string. The value answered is the resolved one, so a caller
+    that hands it to a writer follows the route that was checked and no second one.
     """
-    if not base or candidate is None:
-        return False
-    base_text = str(base).strip()
-    text = str(candidate).strip()
+    base_text = str(base or "").strip()
+    text = str(name if name is not None else "").strip()
     if not base_text or not text or "\x00" in text:
-        return False
+        return None
     folded = text.replace("\\", "/")
     if folded.startswith("/"):
-        return False
+        return None
     if len(folded) > 1 and folded[1] == ":" and folded[0].isalpha():
-        return False
-    base_norm = os.path.normpath(base_text).replace("\\", "/").rstrip("/") or "/"
-    joined = os.path.normpath(base_norm + "/" + folded).replace("\\", "/")
-    try:
-        common = os.path.commonpath([base_norm, joined])
-    except ValueError:
-        return False
-    if os.path.normcase(common) != os.path.normcase(base_norm):
-        return False
-    return os.path.normcase(joined) != os.path.normcase(base_norm)
+        return None
+    return resolve_within(base_text, os.path.join(base_text, *folded.split("/")))
 
 
 @total_ordering
@@ -302,15 +311,15 @@ class ModManagerService(Service):
         """``(package, version)`` as the identity this call may join onto a path, or ``None``.
 
         The returned pair is the only form a caller-supplied name and version reach a glob, a path or a
-        row through, so a value naming a location is refused here — with a warning line, never a raise —
-        before any join is built.
+        row through, so a value naming a location — or a Windows device — is refused here, with a
+        warning line and never a raise, before any join is built.
         """
         package = _leaf_name(package_name)
         _version = _leaf_name(version)
         if package is None or _version is None:
             self.log.warning(
                 f"- {package_name!r} v{version!r} is not a package identity, refused: a package name "
-                f"and a version are one entry each, not a path.")
+                f"and a version are one entry each, not a path and not a device name.")
             return None
         return package, _version
 
@@ -412,8 +421,15 @@ class ModManagerService(Service):
             filename = os.path.basename(url)[:-4]
         if version and version not in filename:
             filename += f'_v{version}.zip'
-        # the written name is ONE leaf of the package folder, whatever the URL or the version spells
-        outpath = os.path.join(path, os.path.basename(filename))
+        # the written name is ONE leaf of the package folder, whatever the URL or the version spells;
+        # the leaf is decided on the RESOLVED path, so the writer takes the route that was checked
+        leaf = os.path.basename(filename)
+        outpath = _resolved_below(path, leaf)
+        if outpath is None:
+            self.log.warning(
+                f"- ModManager: nothing was downloaded from {url}: the file name {leaf!r} does not "
+                f"name a file in {path}.")
+            raise ValueError(f"the file name {leaf!r} of {url} does not name a file in {path}")
         self.log.info(f"  => ModManager: Downloading {folder.value}/{filename} ...")
         async with ClientSession() as session:
             async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
@@ -613,14 +629,17 @@ class ModManagerService(Service):
                 for name in zfile.namelist():
                     if os.path.basename(name).lower() == 'thumbs.db':
                         continue
-                    # an archive name may only be replayed against the trees it stays below
-                    if not _inside(target, name) or not _inside(packages_path, name):
+                    # an archive name may only be replayed against the trees it stays below, judged on
+                    # its resolved form so a link below either tree cannot carry it out
+                    if _resolved_below(target, name) is None or \
+                            _resolved_below(packages_path, name) is None:
                         self.log.warning(
                             f"- install.log recreation for {package_name}_v{version} left out the "
                             f"archive entry {name!r}, it names a place outside {target}.")
                         continue
                     if name.endswith('/'):
-                        name.rstrip('/')
+                        # a directory entry is logged as the tree walk logs it: one path, no separator
+                        name = name.rstrip('/')
                     else:
                         dirname = os.path.dirname(name)
                         if dirname not in created_dirs:
@@ -688,17 +707,18 @@ class ModManagerService(Service):
                         continue
                     # an entry name is archive content: it may only name a place below both trees, and
                     # the whole archive is read before anything is written, so a refusal leaves the
-                    # installation untouched instead of half-written
-                    if not _inside(target, _name) or not _inside(packages_path, _name):
+                    # installation untouched instead of half-written. Both joints are decided on the
+                    # RESOLVED path and that value is what the write below uses
+                    written = _resolved_below(target, _name)
+                    backup = _resolved_below(packages_path, _name)
+                    if written is None or backup is None:
                         raise _EscapingArchiveEntry(name)
-                    entries.append((name, _name))
-                for name, _name in entries:
-                    orig = os.path.join(target, _name)
+                    entries.append((name, _name, written, backup))
+                for name, _name, orig, dest in entries:
                     parent = os.path.dirname(orig)
 
                     if os.path.exists(orig) and os.path.isfile(orig):
                         log_entries.append(f"x {_name}\n")
-                        dest = os.path.join(packages_path, _name)
                         dest_parent = os.path.dirname(dest)
                         if dest_parent not in create_dirs:
                             os.makedirs(dest_parent, exist_ok=True)
@@ -733,15 +753,18 @@ class ModManagerService(Service):
                     if len(_dir):
                         name = os.path.join(_dir, name)
                     # a tree entry is walked from the package itself, but the log only carries names that
-                    # stay below both trees; anything else is left out of the installation and the log
-                    if not _inside(target, name) or not _inside(packages_path, name):
+                    # stay below both trees — judged on the RESOLVED path, so a link below either tree
+                    # cannot carry an entry out — and anything else is left out of the installation
+                    written = _resolved_below(target, name)
+                    backup = _resolved_below(packages_path, name)
+                    if written is None or backup is None:
                         skipped.append(name)
                         ignore_list.append(os.path.basename(name))
                         continue
-                    orig = os.path.join(target, name)
+                    orig = written
                     if os.path.exists(orig) and os.path.isfile(orig) and not cmp(source, orig):
                         log_entries.append("x {}\n".format(name.replace('\\', '/')))
-                        dest = os.path.join(packages_path, name)
+                        dest = backup
                         dest_parent = os.path.dirname(dest)
                         if dest_parent not in created_dirs:
                             os.makedirs(dest_parent, exist_ok=True)
@@ -930,19 +953,24 @@ class ModManagerService(Service):
         def _apply_actions() -> int:
             skipped = 0
             for action, filename in reversed(actions):
-                # a log line is content: a name resolving outside the target is never removed or
-                # overwritten, and a backup is only read from below the package folder
-                if not _inside(target, filename):
+                # a log line is content: a name leaving either tree is never removed or overwritten.
+                # The joints are decided on the RESOLVED path, and the resolved value is what the
+                # removal, the directory prune and the restore below act on
+                file = _resolved_below(target, filename)
+                if file is None:
                     skipped += 1
                     self.log.warning(
                         f"- install.log entry {filename!r} names a place outside {target}, skipped.")
                     continue
-                if action == 'x' and not _inside(packages_path, filename):
-                    skipped += 1
-                    self.log.warning(
-                        f"- install.log entry {filename!r} names a place outside {packages_path}, skipped.")
-                    continue
-                file = os.path.normpath(os.path.join(target, filename))
+                source = None
+                if action == 'x':
+                    source = _resolved_below(packages_path, filename)
+                    if source is None:
+                        skipped += 1
+                        self.log.warning(
+                            f"- install.log entry {filename!r} names a place outside "
+                            f"{packages_path}, skipped.")
+                        continue
                 if action == 'w':
                     if os.path.isfile(file):
                         os.remove(file)
@@ -951,9 +979,9 @@ class ModManagerService(Service):
                             # avoid loading the full directory listing when only emptiness matters
                             if next(os.scandir(file), None) is None:
                                 os.removedirs(file)
-                elif action == 'x':
+                elif action == 'x' and source is not None:
                     try:
-                        shutil.copy(os.path.join(packages_path, filename), file)
+                        shutil.copy(source, file)
                     except FileNotFoundError:
                         if folder == Folder.RootFolder:
                             self.log.warning(

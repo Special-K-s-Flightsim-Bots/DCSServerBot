@@ -1,0 +1,54 @@
+{#-
+  ONE MUSIC DIALOG — the name a playlist is created, renamed or duplicated under, the radio it is
+  played on, or the confirmation of its removal.
+
+  A REAL FORM: the primary button posts to the write route with the session's CSRF token in the body,
+  and Cancel is a plain link back to where the dialog was opened. The page carries no script: with
+  JavaScript off it renders in full and the browser's own form handling is the whole behaviour.
+-#}
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{% block title %}{{ _(page_title) }} — DCSServerBot{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(heading) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+<div class="dlg-back">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="hd">{% if danger %}{{ icons.act('warn') }}{% endif %}<h3 id="dlg-title">{{ _(heading) }}</h3>{% if playlist %}<span class="tag">{{ playlist }}</span>{% endif %}</div>
+    <div class="bd">
+      {% if warning %}<div class="dlg-warn">{{ icons.act('warn') }}<span>{{ _(warning) }}</span></div>{% endif %}
+      <form id="dlg-form" method="post" action="{{ path }}">
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+        {% if needs_name %}
+        <p class="dlg-field">
+          <label for="mus-name">{{ _(labels.name) }}</label>
+          <input type="text" id="mus-name" name="{{ field }}" value="{{ name_value }}" required autocomplete="off">
+        </p>
+        {% elif verb == '' %}
+        {% if choices %}
+        <p class="dlg-field">
+          <label for="mus-radio">{{ _(radio_label) }}</label>
+          <select id="mus-radio" name="{{ radio_field }}" required>
+            {% for choice in choices %}<option value="{{ choice.value }}"{% if choice.checked %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}
+          </select>
+        </p>
+        {% else %}
+        <p class="dlg-what" role="status">{{ _(no_radios) }}</p>
+        {% endif %}
+        {% endif %}
+        <div class="dlg-buttons">
+          <a class="btn" href="{{ back }}" autofocus>{% trans %}Cancel{% endtrans %}</a>
+          <span class="spacer"></span>
+          <button class="btn{{ ' danger' if danger else '' }}" type="submit"{% if verb == '' and not choices %} disabled{% endif %}>{{ _(go) }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

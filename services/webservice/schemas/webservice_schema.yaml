@@ -145,6 +145,48 @@ mapping:
             enum: [lax, strict, none]
             desc: Cookie SameSite policy; keep 'lax' for OAuth logins.
             example: "lax"
+      # Role -> capability overrides of the admin web UI (services/webservice/pages/access.py), the
+      # block the console's Access page edits. One entry per capability, every part optional; the
+      # block EXTENDS and NARROWS the roles the code declares and can grant the `managed_by` column.
+      # It decides the WEBSITE only: the bot's Discord commands keep their own role decorators.
+      # An unknown capability or role name is refused at startup (logged, the whole block ignored)
+      # and refused as a save on the page, so a typo never silently grants nothing.
+      access:
+        type: map
+        nullable: true
+        desc: Per-capability role overrides of the console.
+        example: |
+          music.write:
+            add: [Media Manager]
+            remove: [DCS Admin]
+          music.control:
+            manager: true
+        mapping:
+          regex;(.+):
+            type: map
+            nullable: false
+            mapping:
+              add:
+                type: seq
+                nullable: true
+                desc: Roles granted this capability in addition to the declared ones.
+                example: |
+                  - Media Manager
+                sequence:
+                  - type: str
+              remove:
+                type: seq
+                nullable: true
+                desc: Declared roles that lose this capability on the website.
+                example: |
+                  - DCS Admin
+                sequence:
+                  - type: str
+              manager:
+                type: bool
+                nullable: true
+                desc: Whether a managing scope (managed_by) satisfies this capability.
+                example: "true"
       # The identity layer of the admin web UI (services/webservice/auth/). Optional: without it
       # every non-public page is refused (deny by default), which is the safe direction.
       auth:

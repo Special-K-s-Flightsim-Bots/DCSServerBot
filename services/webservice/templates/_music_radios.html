@@ -1,0 +1,23 @@
+{#-
+  THE RADIOS SECTION — one player per radio of every ACTIVE server (its state not in
+  `pages.actions.MISSION_LIST_OFFLINE_STATES`), on air AND idle.
+
+  Rendered by `pages/music.sections_context` for BOTH the page (inside `#mus-radios`) and the live
+  stream, so a streamed card cannot differ from the one the initial page drew. THE PARTIAL CARRIES NO
+  ID: the wrapper in `music.html` owns it, and a frame replaces this partial's html as the wrapper's
+  inner content.
+
+  THE CARD IS NOT DRAWN HERE. Every radio is `_music_player.html`, the SAME partial the Servers >
+  Music tab renders, fed the card `pages/music.radio_cards` builds — so the overview and the tab show
+  one player, and a control added to it lands on both.
+-#}
+<section class="mus-section">
+  <h2 class="mus-h2">{{ _(labels.radios) }}</h2>
+  {% if radios %}
+  <div class="mus-radios">
+    {% for card in radios %}{% include "_music_player.html" %}{% endfor %}
+  </div>
+  {% else %}
+  <p class="mus-note">{{ _(radios_empty) }}</p>
+  {% endif %}
+</section>

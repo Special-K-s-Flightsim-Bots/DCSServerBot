@@ -1,8 +1,11 @@
 """The per-server page and its **Configuration** tab — and the **Missions** tab, the **Scheduler** tab,
-the **Mods** tab and the mission download.
+the **Mods** tab, the **Music** tab and the mission download.
 
-A server gets its own page: Overview / Players / Missions / Scheduler / Mods / Log / Events plus a
-Configuration tab. The module adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter
+A server gets its own page: Overview / Players / Statistics / Missions / Scheduler / Mods / Music /
+Log / Events plus a Configuration tab. The Music tab carries the radios
+``config/services/music.yaml`` configures for THIS server; it declares no capability of its own and
+is offered on one computed predicate (:func:`music_tab_gate`) that the tab strip, the tab in force
+and the crafted request all read. The module adds four routes — ``GET /fleet/{name:path}`` (the ``:path`` converter
 carries a name containing ``/``), ``GET /fleet/{name:path}/status`` (the status poll), ``GET
 /fleet/{name:path}/missions/download`` (the Missions tab's one read control) and the two log
 routes (``.../log/window`` and ``.../log/download``) — registered FIRST so the page's greedy converter
@@ -48,7 +51,8 @@ from urllib.parse import quote, urlencode
 from core.utils import cache_with_expiration
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, \
+    StreamingResponse
 
 from .. import i18n, permissions, readmodels, scheduler_plan, session
 # THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
@@ -70,10 +74,11 @@ from ..scope import CLUSTER_ROLES
 # THE MANAGER DENY-LIST: the ONE declaration (``core.server_config``) the write actions also read, so
 # the rows this page OMITS and the keys the action refuses cannot disagree. Imported here — a page
 # module — and never in a read model, which stays free of ``core``.
-from core.actions import read_action
+from core.actions import action_available, read_action
 from core.server_config import CHANNELS_ITEM, MANAGER_DENIED
 from . import actions as actions_page
 from . import dashboard as dashboard_page
+from . import live as live_page
 from . import logs as logs_page
 from . import mods as mods_page
 from . import nodes as nodes_page
@@ -95,6 +100,13 @@ __all__ = [
     "SCHEDULER_STATE_NO_FILE", "SCHEDULER_NO_PLUGIN", "SCHEDULER_NO_FILE", "SCHEDULER_NO_PLAN",
     "SCHEDULER_EMPTY", "SCHEDULER_SETTINGS_LINK", "scheduler_file",
     "MODS_TAB", "MODS_VIEW_CAPABILITY",
+    "MUSIC_TAB", "MUSIC_READ_ACTION", "MUSIC_NO_ACTIONS", "MUSIC_NO_RADIOS",
+    "music_service", "music_radios_declared", "music_tab_gate", "music_request_refused",
+    "music_playlist_url", "music_view_allowed", "music_page_module", "music_vocabulary",
+    "MUSIC_TAB_TARGET", "MUSIC_TAB_STREAM_PATH", "MUSIC_TAB_FRAGMENTS_PATH",
+    "music_tab_stream_path", "music_tab_fragments_path", "music_tab_fragment",
+    "music_tab_render_for", "music_tab_event_stream", "music_tab_live", "refuse_without_music_view",
+    "add_music_tab_stream_routes",
     "MISSIONS_DOWNLOAD_PATH", "MISSIONS_DOWNLOAD_MAX_BYTES", "MISSIONS_DOWNLOAD_MEDIA_TYPE",
     "LOG_TAB", "LOG_READ_CAPABILITY", "LOG_WINDOW_PATH", "log_window_path",
     "EVENTS_TAB", "LOG_DOWNLOAD_PATH", "LOG_DOWNLOAD_MAX_BYTES", "log_download_path",
@@ -168,6 +180,40 @@ STATISTICS_TAB = statistics_page.TAB_KEY
 #: THEIR servers and nobody else's.
 MODS_TAB = mods_page.MODS_TAB
 MODS_VIEW_CAPABILITY = mods_page.MODS_VIEW_CAPABILITY
+
+#: THE MUSIC TAB — the radios ``config/services/music.yaml`` configures for THIS server. It declares
+#: NO capability of its own: the page already resolved this server through the scoped source, so
+#: whoever may open the page may read the radios of the server they opened. Its three writes DO take
+#: one (``music.control``, declared with the other write routes in ``pages/actions.py``), which is
+#: what keeps a reader a reader.
+MUSIC_TAB = "music"
+
+#: the READ the tab consumes: the music plugin's own action names a server's radios. The tab is
+#: offered only while it is registered (:func:`music_tab_gate`), so an installation without the
+#: plugin draws no tab and a crafted ``?tab=music`` is refused rather than served empty.
+MUSIC_READ_ACTION = "get_music_radios"
+
+#: THE SECOND GATE FACT: the radios the service states for this server, read MASTER-SIDE through the
+#: service's own ``get_config`` — the process's copy of ``config/services/music.yaml``, with the
+#: server's own block merged over ``DEFAULT``. Music may be enabled cluster-wide and configured for
+#: two servers out of six, so "the plugin is loaded" alone must never draw the tab.
+MUSIC_NO_ACTIONS = i18n._("The music plugin is not loaded in this process, so this server's radios "
+                          "cannot be read or changed here.")
+MUSIC_NO_RADIOS = i18n._("This installation configures no radio for this server, so there is nothing "
+                         "to show. A radio is a block under 'radios:' in this server's own section of "
+                         "config/services/music.yaml, or in the DEFAULT section it inherits.")
+
+#: THE MUSIC TAB'S LIVE PLAYER. The tab's player region is one swap target, re-rendered by the
+#: console's own stream (``pages/live.stream_frames`` + ``static/shell.js``) at the music page's
+#: cadence, so a Skip pressed on the tab shows the new track without a reload. The id is the contract
+#: between this module, ``music_body.html`` and ``static/shell.js``; the fragment is the INNER html, so
+#: the wrapper owns the id.
+MUSIC_TAB_TARGET = "mus-tab-players"
+#: the two ``/api`` paths of the server-scoped stream. Under ``/api`` so an EventSource is answered
+#: with a status and a JSON body, never with a redirect it cannot follow. ``{name:path}`` for the same
+#: reason the page route uses it: a server name may contain slashes.
+MUSIC_TAB_STREAM_PATH = "/api/server/{name:path}/music/stream"
+MUSIC_TAB_FRAGMENTS_PATH = "/api/server/{name:path}/music/fragments"
 
 CONFIG_TEMPLATE = "server_detail.html"
 PAGE_TITLE_SUFFIX = " — DCSServerBot"
@@ -319,9 +365,9 @@ LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
 #: ``logs.view`` (the cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a
 #: viewer holding ``servers.config``.
 TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB, SCHEDULER_TAB,
-                              MODS_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
+                              MODS_TAB, MUSIC_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
 OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB,
-                                       SCHEDULER_TAB, MODS_TAB, LOG_TAB, EVENTS_TAB)
+                                       SCHEDULER_TAB, MODS_TAB, MUSIC_TAB, LOG_TAB, EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
@@ -330,6 +376,8 @@ TAB_LABELS: dict[str, str] = {
     SCHEDULER_TAB: i18n._("Scheduler"),
     # the tab strip uses the mods area's OWN word, so a page name cannot be spelled two ways
     MODS_TAB: mods_page.MODS_LABEL,
+    # the music area's own word, for the same reason: the tab and the music pages name one area
+    MUSIC_TAB: i18n._("Music"),
     LOG_TAB: i18n._("Log"), EVENTS_TAB: i18n._("Events"), CONFIG_TAB: i18n._("Configuration"),
 }
 
@@ -444,6 +492,120 @@ def _clean_word(value, limit: int = 40) -> str:
     return cleaned.strip()[:limit]
 
 
+def music_service():
+    """The process's ``MusicService``, or ``None`` when the plugin is not enabled in this process.
+
+    Function-local import for the reason the mods page states: the service module pulls the bot's
+    audio, HTTP and database stack, and a page that could not import it must still serve every other
+    tab — it simply offers no music tab.
+    """
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.music import MusicService
+
+        return ServiceRegistry.get(MusicService)
+    except Exception:  # noqa: BLE001 - a service that cannot be reached offers no tab
+        log.debug("Server page: the music service is not available in this process.")
+        return None
+
+
+def music_radios_declared(server) -> dict:
+    """The radio blocks ``config/services/music.yaml`` states for *server*, read MASTER-SIDE.
+
+    Through the service's own ``radios_declared`` (i.e. its ``get_config(server)``, with the server's
+    block merged over ``DEFAULT``), so the tab is drawn on what the FILE says and never on what a node
+    answers. A service that cannot answer, a server it does not know or a file without ``radios:``
+    all yield ``{}`` — the tab is not offered rather than drawn empty.
+    """
+    service = music_service()
+    if service is None:
+        return {}
+    try:
+        return dict(service.radios_declared(server) or {})
+    except Exception:  # noqa: BLE001 - a config the service cannot read offers no tab
+        log.warning("Server page: the music configuration could not be read.", exc_info=True)
+        return {}
+
+
+def music_tab_gate(server) -> tuple[bool, str]:
+    """``(offered, reason)`` for the Music tab of *server* — THE ONE predicate of the two facts.
+
+    The tab is offered exactly when BOTH hold: the music plugin's read action is registered in this
+    process (``action_available`` — an installation without the plugin draws no tab) AND
+    ``config/services/music.yaml`` states at least one radio for this server
+    (:func:`music_radios_declared`). The reason is the sentence a refused request reads, so the strip
+    and the refusal are one decision and not two spellings of a rule.
+    """
+    if not action_available(MUSIC_READ_ACTION):
+        return False, MUSIC_NO_ACTIONS
+    if not music_radios_declared(server):
+        return False, MUSIC_NO_RADIOS
+    return True, ""
+
+
+def music_request_refused(reason: str) -> HTTPException:
+    """The refusal a request for the Music tab this server may not show gets (``403``).
+
+    Not an authorization failure: the page's own scoped resolution already decided WHO may open the
+    server. The tab's facts are missing instead — the plugin is not loaded, or the file configures no
+    radio for this server — so the refusal carries the gate's OWN sentence rather than a capability
+    requirement, and the request is refused rather than served as an empty shell.
+    """
+    return HTTPException(status_code=403, detail=reason or MUSIC_NO_RADIOS)
+
+
+def music_page_module():
+    """The music area's own page module — the ONE home of the editor's URL and of its capability.
+
+    Imported function-locally so this page module keeps importing without it (a music area that
+    cannot be imported costs the tab's LINK, never the server page), and so the two modules cannot
+    form an import cycle over the tab key.
+    """
+    from . import music as music_page
+
+    return music_page
+
+
+def music_playlist_url(name: str) -> str:
+    """The URL of the playlist EDITOR for *name*, built by the music area's OWN encoder.
+
+    A playlist name is operator text and may hold a space, ``&`` or ``/``; the music module encodes it
+    as ONE path segment, which is what makes the link open the playlist it names.
+    """
+    return music_page_module().playlist_url(readmodels.text(name))
+
+
+def music_view_allowed(roles) -> bool:
+    """Whether a viewer holding *roles* may open a playlist's editor — the music area's ``music.view``.
+
+    The tab's LINK is offered on it, because the editor is a page of the music area: a viewer who may
+    read this server's radios has no reason to be handed a link their own capability refuses.
+    """
+    return permissions.allows(music_page_module().CAPABILITY_VIEW, roles or ())
+
+
+def music_vocabulary() -> dict[str, tuple]:
+    """The value sets the radio forms offer, read from the music plugin's own action module.
+
+    ONE home: the sets the action validates against are the sets the form draws, so a modulation or a
+    mode the action refuses can never be offered. Empty values when the plugin cannot be imported —
+    the card then draws no pick rather than a list the action would refuse.
+
+    THE IMPORT IS A CACHE HIT WHERE IT RUNS: this function is only reached for a tab the gate already
+    offered, and :func:`music_tab_gate`'s first fact is ``action_available(get_music_radios)`` —
+    discovery has imported this module, so its decorators have already run and nothing is registered
+    while the page renders.
+    """
+    try:
+        from plugins.music import actions as music_actions
+    except Exception:  # noqa: BLE001 - an unimportable plugin offers no picks
+        log.warning("Server page: the music vocabulary could not be read.", exc_info=True)
+        return {"controls": (), "modes": (), "modulations": (), "coalitions": ()}
+    return {"controls": tuple(music_actions.CONTROLS), "modes": tuple(music_actions.MODES),
+            "modulations": tuple(music_actions.MODULATIONS),
+            "coalitions": tuple(music_actions.COALITIONS)}
+
+
 def normalise_tab(value) -> str:
     """The tab key in force: one of :data:`TAB_ORDER`, else :data:`DEFAULT_TAB`. Nothing else passes."""
     key = _clean_word(value).lower()
@@ -451,7 +613,8 @@ def normalise_tab(value) -> str:
 
 
 def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
-             debug_plugin: bool = False, scheduler_view: bool = False) -> tuple[str, ...]:
+             debug_plugin: bool = False, scheduler_view: bool = False,
+             music: bool = False) -> tuple[str, ...]:
     """The tabs a viewer holding *roles* (and, for a manager, the SCOPE) may be offered — and RENDER.
 
     ONE answer for the strip and for the tab in force: ``missions`` is offered exactly when
@@ -459,7 +622,9 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
     this identity may READ this server (``scheduler_view``), ``mods`` exactly when the mods page
     module's ``mods.view`` allows it, ``log`` exactly when ``logs.view`` (the cluster log panel's own,
     ``Admin`` only) allows it, ``events`` exactly when ``logs.view`` allows it AND the ``debug``
-    plugin is active for the server (``debug_plugin``), and ``configuration`` exactly when
+    plugin is active for the server (``debug_plugin``), ``music`` exactly when its own gate says so
+    (``music``, from :func:`music_tab_gate` — the action is registered AND the file configures a radio
+    for this server), and ``configuration`` exactly when
     ``servers.config`` allows it — the SAME predicates the route's refusal reads, so a link and the
     refusal cannot disagree. ``overview``, ``players`` and ``statistics`` carry no gate of their own:
     they are read-only views of the server this page already resolved inside the caller's scope.
@@ -491,6 +656,13 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
             # the mods page module's OWN gate: ``mods.view`` carries a scope grant, so a manager of
             # this very server is offered the tab too
             if permissions.allows(MODS_VIEW_CAPABILITY, roles or (), manager=manager):
+                tabs.append(key)
+            continue
+        if key == MUSIC_TAB:
+            # THE MUSIC TAB'S OWN two-fact decision, computed once by ``music_tab_gate``: a server
+            # the file configures no radio for gets no tab, and the crafted request below meets the
+            # same answer with the gate's own sentence.
+            if music:
                 tabs.append(key)
             continue
         if key in (LOG_TAB, EVENTS_TAB):
@@ -621,10 +793,16 @@ def capabilities() -> dict[str, str]:
     permissions.declare_capability(CONFIG_CAPABILITY, CONFIG_ROLES, scope_grants=True)
     permissions.declare_capability(MISSIONS_CAPABILITY, MISSIONS_ROLES, scope_grants=True)
     logs_page.declare()
+    music_page_module().declare()
     return {SERVER_DETAIL_PATH: SERVER_DETAIL_CAPABILITY,
             MISSIONS_DOWNLOAD_PATH: MISSIONS_CAPABILITY,
             LOG_WINDOW_PATH: LOG_READ_CAPABILITY,
             LOG_DOWNLOAD_PATH: LOG_READ_CAPABILITY,
+            # THE MUSIC TAB'S TWO LIVE DOORS carry the MUSIC AREA's own read capability, not the
+            # page's: the stream outlives the render that resolved the server, so it re-checks the
+            # capability a playlist editor is opened on AND the server's own scope, in the route.
+            MUSIC_TAB_STREAM_PATH: music_page_module().CAPABILITY_VIEW,
+            MUSIC_TAB_FRAGMENTS_PATH: music_page_module().CAPABILITY_VIEW,
             # THE STATUS POLL is a READ of the server page's own data (the status the page head and
             # the Overview card render), so it carries the PAGE's capability and its scope — the same
             # predicate the page route is gated with, never a new one.
@@ -2181,16 +2359,24 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     # server's own node — so the Events tab is offered exactly when it can serve (never a dead tab).
     events_offered = debug_plugin_active(_reachable_log_node(request, server)
                                          or attr(server, "node", None))
+    # THE MUSIC TAB'S TWO FACTS, decided ONCE: the action is registered here AND the file configures
+    # a radio for THIS server. The strip and the refusal read this one answer.
+    music_offered, music_reason = music_tab_gate(server)
     allowed_tabs = tabs_for(roles, manager=manager, config_manager=config_viewer,
                             debug_plugin=events_offered,
-                            scheduler_view=settings_page.scheduler_access(request, server).view)
+                            scheduler_view=settings_page.scheduler_access(request, server).view,
+                            music=music_offered)
     tab = normalise_tab(request.query_params.get("tab"))
     if tab not in allowed_tabs:
         # the tab exists but this viewer may not open it: REFUSE the request, naming ITS OWN
         # requirement — never serve it hidden. The Events tab is its own case: a viewer who HOLDS
-        # ``logs.view`` is refused because the plugin is off, not for lack of a capability.
+        # ``logs.view`` is refused because the plugin is off, not for lack of a capability. The
+        # Music tab's is the same class: the page is open to them, the radios are what is missing,
+        # so the refusal carries the gate's own sentence.
         if tab == EVENTS_TAB and permissions.allows(LOG_READ_CAPABILITY, roles):
             raise events_request_refused()
+        if tab == MUSIC_TAB:
+            raise music_request_refused(music_reason)
         raise tab_request_refused(tab)
     if tab == SCHEDULER_TAB:
         # THE WIZARD IS THE WRITE: a viewer who may read this server's plan and not write it is
@@ -2246,6 +2432,7 @@ def add_routes(router: APIRouter) -> APIRouter:
     add_server_status_route(router)
     add_preset_image_route(router)
     add_mission_weather_route(router)
+    add_music_tab_stream_routes(router)
 
     @router.get(SERVER_DETAIL_PATH, response_class=HTMLResponse, name="page-server-detail")
     async def server_detail(request: Request, name: str):
@@ -2354,6 +2541,11 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         # owns the installed list, the state strip and the dialogs — this page only routes to it, so
         # the tab and the node's root-mods page render ONE body.
         return await mods_page.tab_context(request, server_name)
+    if tab == MUSIC_TAB:
+        # THE SERVER'S OWN RADIOS: read through the music plugin's ACTION (never off the file here —
+        # the service is the ONE reader of its own configuration), with the writes declared in
+        # ``pages/actions.py`` posting to their own routes.
+        return await _music_tab_context(request, server_name)
     if tab == LOG_TAB:
         # THE SERVER'S OWN DCS LOG: the config-driven path and the initial TAIL, read as a
         # BOUNDED window. Failures render their own sentence, never a blank panel.
@@ -2366,6 +2558,188 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
     # reads, plus the three reads that are NOT in it (the extension render, the live fog reading and
     # the scheduler's plan) and the honest empty-state copy.
     return await _overview_context(request, server, server_view(server))
+
+
+async def _music_tab_context(request: Request, server_name: str) -> dict:
+    """The Music tab's data: this server's radios and the playlists a radio can be pointed at.
+
+    ONE read per fact, both through the music plugin's own ACTIONS (``get_music_radios`` for the
+    radios — settings, state and current track, the state and the track read off the live radio
+    object and the track's tags out of the node's library — and ``list_music_playlists`` for the
+    assignment's choices). A refused read renders its own sentence rather than a broken card, and a
+    playlist list that cannot be read simply offers no pick: the page never invents a playlist name.
+
+    THE PLAYERS ARE THE OVERVIEW'S OWN CARDS: every radio goes through
+    :func:`pages.music.radio_cards`, i.e. the ONE builder whose output ``_music_player.html`` draws, so
+    the tab and ``/music`` cannot show two different players. The tab adds the two facts that are its
+    own: no origin field (the tab IS the transport write's default destination) and the playlist link
+    only for a viewer who may open the editor.
+
+    The WRITE fact is one predicate (``music.control``), the SAME one the three routes are gated with,
+    so a viewer who may not drive a radio is shown the players and no control at all.
+    """
+    ctx = actions_page.context_for(request)
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    result = await read_action(MUSIC_READ_ACTION, ctx, server_name=server_name)
+    playlists = await read_action(actions_page.MUSIC_PLAYLIST_ACTION, ctx)
+    radios = [dict(entry, server=server_name)
+              for entry in ((getattr(result, "data", None) or {}).get("radios") or [])
+              if isinstance(entry, dict)]
+    listed = list((getattr(playlists, "data", None) or {}).get("playlists") or [])
+    playlists_ok = bool(getattr(playlists, "success", False))
+    vocabulary = music_vocabulary()
+    music_page = music_page_module()
+    available = bool(getattr(result, "success", False))
+    may_control = (permissions.allows(actions_page.MUSIC_CONTROL_CAPABILITY, roles, manager=manager)
+                   and action_available("control_radio"))
+    return {
+        "music_available": available,
+        "music_message": readmodels.text(getattr(result, "message", "")) or i18n._(
+            "The radios of this server could not be read."),
+        "music_radios": music_page.radio_cards(
+            radios, token=session.get_csrf_token(request), may_control=may_control,
+            origin="", may_open_playlist=music_view_allowed(roles)),
+        # THE LIVE PLAYER: the swap target, and the stream only while it can actually be watched —
+        # a failed read leaves a page complete on load, and a viewer without ``music.view`` may not
+        # open the stream its own rights do not cover.
+        "music_target": MUSIC_TAB_TARGET,
+        "live": (music_tab_live(request, server_name)
+                 if available and music_view_allowed(roles) else None),
+        "music_playlists": [readmodels.text(row.get("name")) for row in listed
+                            if readmodels.text(row.get("name"))] if playlists_ok else [],
+        "music_playlists_message": "" if playlists_ok else (
+            readmodels.text(getattr(playlists, "message", ""))
+            or i18n._("The playlists could not be read.")),
+        "music_can_control": may_control,
+        "music_server_name": server_name,
+        "music_playlist_path": actions_page.MUSIC_PLAYLIST_PATH,
+        "music_settings_path": actions_page.MUSIC_SETTINGS_PATH,
+        "music_server_field": actions_page.SERVER_CONFIG_FIELD,
+        "music_radio_field": actions_page.MUSIC_RADIO_FIELD,
+        "music_playlist_field": actions_page.MUSIC_PLAYLIST_FIELD,
+        "music_modulations": vocabulary["modulations"],
+        "music_coalitions": vocabulary["coalitions"],
+        "music_playlist_url": music_playlist_url,
+        "music_can_edit": music_view_allowed(roles),
+        "notice": actions_page.pop_notice(request),
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+
+
+# ── the Music tab's live player ───────────────────────────────────────────
+
+def music_tab_stream_path(server_name: str) -> str:
+    """The URL of *server_name*'s music stream — the name as ONE percent-encoded segment."""
+    return f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/stream"
+
+
+def music_tab_fragments_path(server_name: str) -> str:
+    """The URL of *server_name*'s music fragments — the polling fallback of the same region."""
+    return f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/fragments"
+
+
+def music_tab_live(request: Request, server_name: str) -> dict | None:
+    """The ``live`` context ``base.html`` reads, or ``None`` when this tab cannot be live.
+
+    ``None`` while the console's live updates are off: the tab is then complete on load and loads no
+    script. The switch and the client cap are the console's own (one place decides whether the console
+    streams at all); only the interval is the music page's.
+    """
+    if not live_page.dashboard_config(request.app).enabled:
+        return None
+    return {"stream": music_tab_stream_path(server_name),
+            "fragments": music_tab_fragments_path(server_name)}
+
+
+def refuse_without_music_view(request: Request) -> None:
+    """Refuse a caller without ``music.view`` BEFORE any generator exists.
+
+    A refusal raised inside a ``StreamingResponse`` body arrives AFTER the headers, i.e. as a broken
+    stream instead of the 403 the caller can read — and an EventSource would retry forever. The
+    wording is the access gate's own, so a crafted call and a refused page say one sentence.
+    """
+    music_page_module().refuse_without_view(request)
+
+
+async def music_tab_fragment(request: Request, server_name: str) -> dict[str, str]:
+    """The player region of ONE tab render: the cards, from the ONE builder and the ONE partial.
+
+    An EMPTY mapping when the radios cannot be read: a tick that has nothing to say sends no target, so
+    the page keeps the cards it drew rather than having them blanked by a failed read.
+    """
+    ctx = actions_page.context_for(request)
+    result = await read_action(MUSIC_READ_ACTION, ctx, server_name=server_name)
+    if not getattr(result, "success", False):
+        log.debug("Music tab of '%s': the radios could not be read (%s)", server_name,
+                  readmodels.text(getattr(result, "message", "")))
+        return {}
+    roles = permissions.role_names_for(request)
+    radios = [dict(entry, server=server_name)
+              for entry in ((getattr(result, "data", None) or {}).get("radios") or [])
+              if isinstance(entry, dict)]
+    cards = music_page_module().radio_cards(
+        radios, token=session.get_csrf_token(request),
+        may_control=(permissions.allows(actions_page.MUSIC_CONTROL_CAPABILITY, roles,
+                                        manager=permissions.manages_console(request))
+                     and action_available("control_radio")),
+        origin="", may_open_playlist=music_view_allowed(roles))
+    return {MUSIC_TAB_TARGET: "".join(
+        i18n.render_fragment(request, music_page_module().PLAYER_TEMPLATE, card=card)
+        for card in cards)}
+
+
+def music_tab_render_for(request: Request, server_name: str):
+    """The fragment renderer of ONE connection: the player region, rebuilt from scratch per tick.
+
+    Rebuilt, so a tick re-reads the radios and re-decides every control from the caller's own rights —
+    a viewer whose ``music.control`` is revoked mid-stream loses the strip at the next tick.
+    """
+    async def render() -> dict[str, str]:
+        return await music_tab_fragment(request, server_name)
+
+    return render
+
+
+def music_tab_event_stream(request: Request, server_name: str):
+    """The SSE generator of one connection: the player region, at the music cadence.
+
+    BOTH gates run before the generator exists: ``music.view`` (the access gate's own sentence) and
+    the SERVER'S OWN SCOPE, resolved through the scoped source the page rendered from — so a name the
+    caller cannot see cannot be streamed, and the refusal is the console's 403/404 rather than a
+    stream that dies on its first frame.
+    """
+    refuse_without_music_view(request)
+    dashboard_page.scoped_server(request, server_name)
+    return live_page.stream_frames(render=music_tab_render_for(request, server_name),
+                                   config=music_page_module().music_live_config(request.app),
+                                   registry=live_page.get_registry(
+                                       request.app, live_page.dashboard_config(request.app)))
+
+
+def add_music_tab_stream_routes(router: APIRouter) -> APIRouter:
+    """Add the Music tab's two live endpoints (``GET``), each gated as the tab itself is.
+
+    The tab declares no capability of its own — the page already resolved this server through the
+    scoped source — but a STREAM outlives that render, so the two doors re-run both halves: the music
+    area's ``music.view`` and the server's own scope, before anything is generated.
+    """
+    @router.get(MUSIC_TAB_STREAM_PATH, name="music-tab-stream", response_class=StreamingResponse)
+    async def music_tab_stream(request: Request, name: str):
+        return StreamingResponse(music_tab_event_stream(request, name),
+                                 media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache",
+                                          "X-Accel-Buffering": "no"})
+
+    @router.get(MUSIC_TAB_FRAGMENTS_PATH, name="music-tab-fragments")
+    async def music_tab_fragments(request: Request, name: str):
+        refuse_without_music_view(request)
+        dashboard_page.scoped_server(request, name)
+        return JSONResponse(await music_tab_fragment(request, name),
+                            headers={"Cache-Control": "no-store"})
+
+    return router
 
 
 async def _missions_write_context(request: Request, server, server_name: str) -> dict:
@@ -2446,15 +2820,17 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         #: a second copy of the rule written in JavaScript.
         "missions_activate_why": actions_page.MISSIONS_ACTIVATE_SELECTION_REFUSAL,
         "missions_upload_allowed": upload_allowed,
-        # THE OFFLINE-ONLY MOVE PAIR: its gate is the offline one; the reason is carried so the
-        # tab can state it where it omits the pair.
+        # THE ORDER CONTROL: the row's grip. Its path is the one the drop posts to, and its gate is
+        # the offline one — a write made while DCS is up is reverted — so ``missions_drag_allowed``
+        # carries capability + process down, and the tab states the reason where the grip is absent.
         "missions_reorder_path": actions_page.MISSIONS_REORDER_PATH,
-        "missions_direction_field": actions_page.MISSION_DIRECTION_FIELD,
+        #: THE DROP'S FIELD: the whole new order, one value per row.
+        "missions_order_field": actions_page.MISSION_ORDER_FIELD,
+        "missions_drag_allowed": reorder_capable and offline,
         # THE STALE-PAGE COMPANION: the field each row posts beside its 1-based index, carrying the
         # row's LOGICAL name ("<index>=<name>") so a write whose list changed since render is refused.
         "missions_name_field": actions_page.MISSION_NAME_FIELD,
         "missions_reorder_capable": reorder_capable,
-        "missions_reorder_allowed": reorder_capable and offline,
         "missions_delete_bulk_path": actions_page.MISSIONS_BULK_DELETE_PATH,
         "missions_delete_bulk_dialog": (actions_page.MISSIONS_BULK_DELETE_PATH
                                         + actions_page.CONFIRM_SUFFIX),

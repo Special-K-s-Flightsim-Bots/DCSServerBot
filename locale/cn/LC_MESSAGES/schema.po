@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-13 14:07+0200\n"
+"POT-Creation-Date: 2026-10-31 18:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -82,12 +82,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "用于 Amazon Polly 的 AWS 私有访问密钥。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:200
+#: services/webservice/schemas/webservice_schema.yaml:242
 msgid "Account name of the local console user."
 msgstr "本地控制台用户的账户名称。"
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:189
+#: services/webservice/schemas/webservice_schema.yaml:231
 msgid "Accounts that may sign in with a username and password."
 msgstr "可以使用用户名和密码登录的账户。"
 
@@ -129,13 +129,13 @@ msgid "Add the current METAR to the mission briefing."
 msgstr "将当前 METAR 添加到任务简报中。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers
-#: extensions/olympus/schemas/olympus_schema.yaml:287
+#: extensions/olympus/schemas/olympus_schema.yaml:289
 msgid "Additional map layer providers (Olympus 2.0)."
 msgstr "附加的地图图层提供商（Olympus 2.0）。"
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.adminPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.adminPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:68 extensions/olympus/schemas/olympus_schema.yaml:215
+#: extensions/olympus/schemas/olympus_schema.yaml:68 extensions/olympus/schemas/olympus_schema.yaml:216
 msgid "Admin password (Olympus 2.0 and later)."
 msgstr "管理员密码（Olympus 2.0 及更高版本）。"
 
@@ -311,7 +311,7 @@ msgid "Alternative directory holding the Tacview files."
 msgstr "存放 Tacview 文件的备用目录。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapMirrors
-#: extensions/olympus/schemas/olympus_schema.yaml:320
+#: extensions/olympus/schemas/olympus_schema.yaml:322
 msgid "Alternative map tile sources (Olympus 2.0)."
 msgstr "备用的地图瓦片源（Olympus 2.0）。"
 
@@ -497,7 +497,7 @@ msgid "Arguments passed to the command; supports placeholders."
 msgstr "传递给命令的参数；支持占位符。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).attribution
-#: extensions/olympus/schemas/olympus_schema.yaml:315
+#: extensions/olympus/schemas/olympus_schema.yaml:317
 msgid "Attribution text displayed on this map layer."
 msgstr "在此地图图层上显示的归属文本。"
 
@@ -570,7 +570,7 @@ msgid "Auto-complete an active plan on landing at the destination."
 msgstr "在目的地降落时自动完成活动计划。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).autoconnectWhenLocal
-#: extensions/olympus/schemas/olympus_schema.yaml:328
+#: extensions/olympus/schemas/olympus_schema.yaml:330
 msgid "Auto-connect the client when it runs on the same host."
 msgstr "当客户端在同一主机上运行时自动连接。"
 
@@ -785,7 +785,7 @@ msgid "Battery level (%) that warns the players."
 msgstr "向玩家发出警告的电量 (%)。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).address
-#: extensions/olympus/schemas/olympus_schema.yaml:171
+#: extensions/olympus/schemas/olympus_schema.yaml:172
 msgid "Bind address for the Olympus backend service."
 msgstr "Olympus 后端服务的绑定地址。"
 
@@ -1059,7 +1059,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "服务器启动时清除所有维护标记。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:260
+#: services/webservice/schemas/webservice_schema.yaml:302
 msgid "Client id of your Discord application."
 msgstr "你的 Discord 应用程序的客户端 ID。"
 
@@ -1442,6 +1442,11 @@ msgstr "投票将玩家封禁的天数。"
 msgid "Days after which this decay weight applies."
 msgstr "此衰减权重生效的天数。"
 
+#. webservice_schema:DEFAULT.access.regex;(.+).remove
+#: services/webservice/schemas/webservice_schema.yaml:180
+msgid "Declared roles that lose this capability on the website."
+msgstr ""
+
 #. grpc_schema:schema;grpc_schema.tts.provider.aws.defaultVoice
 #: extensions/grpc/schemas/grpc_schema.yaml:94
 msgid "Default AWS Polly voice used for text-to-speech."
@@ -1724,7 +1729,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "丢弃短于该分钟数的飞行。"
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:245
+#: services/webservice/schemas/webservice_schema.yaml:287
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord OAuth 登录；进入控制台的第二道门。"
 
@@ -2099,7 +2104,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "ElevenLabs 文本转语音提供商设置。"
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:293
+#: services/webservice/schemas/webservice_schema.yaml:335
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "身份提供商损坏时使用的应急管理员凭据。"
 
@@ -2144,7 +2149,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "启用 DDoS 检测（Windows 上需要 NPCAP）。"
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:255
+#: services/webservice/schemas/webservice_schema.yaml:297
 msgid "Enable Discord OAuth login."
 msgstr "启用 Discord OAuth 登录。"
 
@@ -2167,7 +2172,7 @@ msgid "Enable automatic CPU affinity for this node."
 msgstr "为此节点启用自动 CPU 亲和性。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.enabled
-#: extensions/olympus/schemas/olympus_schema.yaml:248
+#: extensions/olympus/schemas/olympus_schema.yaml:250
 msgid "Enable custom authentication headers."
 msgstr "启用自定义认证请求头。"
 
@@ -2284,7 +2289,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "为此服务器启用 competitive 插件。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:303
+#: services/webservice/schemas/webservice_schema.yaml:345
 msgid "Enable the emergency Admin credential."
 msgstr "启用应急管理员凭据。"
 
@@ -2314,7 +2319,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "在此服务器实例上启用锦标赛功能。"
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:184
+#: services/webservice/schemas/webservice_schema.yaml:226
 msgid "Enable username/password login for the console."
 msgstr "为控制台启用用户名/密码登录。"
 
@@ -2729,7 +2734,7 @@ msgid "Group name or Lua pattern that this restriction matches."
 msgstr "此限制匹配的组名或 Lua 模式。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.group
-#: extensions/olympus/schemas/olympus_schema.yaml:260
+#: extensions/olympus/schemas/olympus_schema.yaml:262
 msgid "Group sent in the authentication header."
 msgstr "在认证请求头中发送的组。"
 
@@ -2739,7 +2744,7 @@ msgid "Grow a process only above this load per assigned core."
 msgstr "仅在每分配核心负载高于此值时扩展进程。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).proxyHeader
-#: extensions/olympus/schemas/olympus_schema.yaml:334
+#: extensions/olympus/schemas/olympus_schema.yaml:336
 msgid "HTTP header used to detect the client behind a proxy."
 msgstr "用于检测代理背后客户端的 HTTP 请求头。"
 
@@ -2778,6 +2783,12 @@ msgstr "为此参数显示的帮助文本。"
 msgid "Hex color used to color this grade on the board."
 msgstr "用于在榜单上为此评分着色的十六进制颜色。"
 
+#. dks_schema:schema;dks_schema.hidden
+#: extensions/dks/schemas/dks_schema.yaml:19
+#, fuzzy
+msgid "Hide the extension in the server status."
+msgstr "服务器状态嵌入中 LotAtc 扩展显示的名称。"
+
 #. admin_schema:schema;downloads.[0].restricted
 #: plugins/admin/schemas/admin_schema.yaml:48
 msgid "Hide this entry on nodes that restrict commands."
@@ -2794,7 +2805,7 @@ msgid "Highest wind direction in degrees."
 msgstr "最高风向（度）。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).maxZoom
-#: extensions/olympus/schemas/olympus_schema.yaml:309
+#: extensions/olympus/schemas/olympus_schema.yaml:311
 msgid "Highest zoom level this map layer is shown at."
 msgstr "显示此地图图层的最高缩放级别。"
 
@@ -2906,7 +2917,7 @@ msgid "IPs always allowed through during firewall blocks."
 msgstr "防火墙封禁期间始终放行的 IP。"
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:153
+#: services/webservice/schemas/webservice_schema.yaml:195
 msgid "Identity layer of the admin web UI; optional."
 msgstr "管理 Web UI 的身份层；可选。"
 
@@ -2931,7 +2942,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "将真实世界天气注入任务。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:267
+#: services/webservice/schemas/webservice_schema.yaml:309
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "内联的 Discord 客户端密钥；未设置密钥时使用。"
 
@@ -3152,7 +3163,7 @@ msgid "Lowest wind direction in degrees."
 msgstr "最低风向（度）。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).minZoom
-#: extensions/olympus/schemas/olympus_schema.yaml:304
+#: extensions/olympus/schemas/olympus_schema.yaml:306
 msgid "Lowest zoom level this map layer is shown at."
 msgstr "显示此地图图层的最低缩放级别。"
 
@@ -3932,6 +3943,11 @@ msgstr "要设置的新任务密码，通常配合 cron 使用。"
 msgid "Normal ticks in a row needed to confirm DDoS end."
 msgstr "确认 DDoS 结束所需的连续正常 tick 数。"
 
+#. dks_schema:schema;dks_schema.autoupdate
+#: extensions/dks/schemas/dks_schema.yaml:24
+msgid "Not used. The exporter updates itself (signed releases). Kept so older configurations stay valid."
+msgstr ""
+
 #. slotblocking_schema:schema;element_schema.VIP.audit
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:33
 msgid "Notify the VIP group when one of its members joins a server."
@@ -4042,7 +4058,7 @@ msgid "Obsolete: the SRS path is taken from the SRS extension."
 msgstr "已过时：SRS 路径取自 SRS 扩展。"
 
 #. olympus_schema:schema;instance_olympus_schema.audio.SRSPort
-#: extensions/olympus/schemas/olympus_schema.yaml:348
+#: extensions/olympus/schemas/olympus_schema.yaml:350
 msgid "Obsolete: the SRS port is filled in from the SRS extension."
 msgstr "已废弃：SRS 端口从 SRS 扩展中填充。"
 
@@ -4252,12 +4268,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "每个客户端的出站网络带宽限制，单位为字节/秒。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:207
+#: services/webservice/schemas/webservice_schema.yaml:249
 msgid "PBKDF2 hash of the account's password."
 msgstr "账户密码的 PBKDF2 哈希。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:313
+#: services/webservice/schemas/webservice_schema.yaml:355
 msgid "PBKDF2 hash of the emergency password."
 msgstr "应急密码的 PBKDF2 哈希。"
 
@@ -4283,19 +4299,19 @@ msgstr "此命令接受的参数，以名称为键。"
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.blueCommanderPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.blueCommanderPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:55 extensions/olympus/schemas/olympus_schema.yaml:202
+#: extensions/olympus/schemas/olympus_schema.yaml:55 extensions/olympus/schemas/olympus_schema.yaml:203
 msgid "Password for the Blue Tactical Commander role."
 msgstr "Blue Tactical Commander 角色的密码。"
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.gameMasterPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.gameMasterPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:48 extensions/olympus/schemas/olympus_schema.yaml:195
+#: extensions/olympus/schemas/olympus_schema.yaml:48 extensions/olympus/schemas/olympus_schema.yaml:196
 msgid "Password for the Game Master role."
 msgstr "Game Master 角色的密码。"
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.redCommanderPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.redCommanderPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:62 extensions/olympus/schemas/olympus_schema.yaml:209
+#: extensions/olympus/schemas/olympus_schema.yaml:62 extensions/olympus/schemas/olympus_schema.yaml:210
 msgid "Password for the Red Tactical Commander role."
 msgstr "Red Tactical Commander 角色的密码。"
 
@@ -4306,7 +4322,7 @@ msgid "Password for the Tacview remote control."
 msgstr "Tacview 远程控制的密码。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.password
-#: extensions/olympus/schemas/olympus_schema.yaml:282
+#: extensions/olympus/schemas/olympus_schema.yaml:284
 msgid "Password for the elevation provider, if required."
 msgstr "高程提供商的密码，如需要。"
 
@@ -4343,7 +4359,7 @@ msgstr "用于向代理进行身份验证的密码。"
 
 #. olympus_schema:schema;instance_olympus_schema.authentication
 #. olympus_schema:schema;node_olympus_schema.authentication
-#: extensions/olympus/schemas/olympus_schema.yaml:37 extensions/olympus/schemas/olympus_schema.yaml:183
+#: extensions/olympus/schemas/olympus_schema.yaml:37 extensions/olympus/schemas/olympus_schema.yaml:184
 msgid "Passwords that guard the Olympus roles."
 msgstr "保护 Olympus 角色的密码。"
 
@@ -4363,7 +4379,7 @@ msgid "Path to the Lardoon executable."
 msgstr "Lardoon 可执行文件的路径。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).path
-#: extensions/olympus/schemas/olympus_schema.yaml:228
+#: extensions/olympus/schemas/olympus_schema.yaml:230
 msgid "Path to the Olympus frontend installation."
 msgstr "Olympus 前端安装的路径。"
 
@@ -4448,6 +4464,11 @@ msgstr "每种事件类型给予的罚分。"
 #: plugins/punishment/schemas/punishment_schema.yaml:132
 msgid "Penalty points that trigger this punishment."
 msgstr "触发此处罚的罚分。"
+
+#. webservice_schema:DEFAULT.access
+#: services/webservice/schemas/webservice_schema.yaml:157
+msgid "Per-capability role overrides of the console."
+msgstr ""
 
 #. srs_schema:schema;element_schema.atc_frequencies
 #: plugins/srs/schemas/srs_schema.yaml:40
@@ -4674,7 +4695,7 @@ msgid "Port of the NUT server."
 msgstr "NUT 服务器的端口。"
 
 #. olympus_schema:schema;instance_olympus_schema.audio.WSPort
-#: extensions/olympus/schemas/olympus_schema.yaml:354
+#: extensions/olympus/schemas/olympus_schema.yaml:356
 msgid "Port of the Olympus audio backend WebSocket."
 msgstr "Olympus 音频后端 WebSocket 的端口。"
 
@@ -4854,7 +4875,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "向玩家显示的公共 URL，替代服务器 IP。"
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:165
+#: services/webservice/schemas/webservice_schema.yaml:207
 msgid "Public origin the console is reachable at."
 msgstr "控制台可供访问的公共源。"
 
@@ -5130,7 +5151,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "欢迎消息中提及的角色。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:214
+#: services/webservice/schemas/webservice_schema.yaml:256
 msgid "Role names granted to this account, validated at startup."
 msgstr "授予此账户的角色名称，启动时校验。"
 
@@ -5195,6 +5216,11 @@ msgstr "允许上传任务的角色。"
 msgid "Roles allowed to vote (all players by default)."
 msgstr "允许投票的角色（默认所有玩家）。"
 
+#. webservice_schema:DEFAULT.access.regex;(.+).add
+#: services/webservice/schemas/webservice_schema.yaml:172
+msgid "Roles granted this capability in addition to the declared ones."
+msgstr ""
+
 #. srs_schema:schema;node_srs_schema.announce.mention
 #: extensions/srs/schemas/srs_schema.yaml:92
 msgid "Roles or users mentioned in the announcement."
@@ -5256,7 +5282,7 @@ msgid "Runway elevation in meters, used for the QNH."
 msgstr "跑道标高（米），用于 QNH。"
 
 #. olympus_schema:schema;instance_olympus_schema.audio
-#: extensions/olympus/schemas/olympus_schema.yaml:339
+#: extensions/olympus/schemas/olympus_schema.yaml:341
 msgid "SRS audio settings for the Olympus web client (Olympus 2.0)."
 msgstr "Olympus Web 客户端的 SRS 音频设置（Olympus 2.0）。"
 
@@ -5301,7 +5327,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "启动即暂停的服务器再次暂停前运行的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:286
+#: services/webservice/schemas/webservice_schema.yaml:328
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "未启用 intent 时成员解析的缓存秒数。"
 
@@ -5470,7 +5496,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "没有对手玩家并赢得比赛的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:275
+#: services/webservice/schemas/webservice_schema.yaml:317
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "保存客户端密钥的密钥库键；优先于内联值。"
 
@@ -5708,7 +5734,7 @@ msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "此限制适用的阵营：0 双方，1 红方，2 蓝方。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
-#: extensions/olympus/schemas/olympus_schema.yaml:239
+#: extensions/olympus/schemas/olympus_schema.yaml:241
 msgid "Single sign-on header configuration (Olympus 2.0)."
 msgstr "单点登录请求头配置（Olympus 2.0）。"
 
@@ -5915,7 +5941,7 @@ msgid "Temperature generation."
 msgstr "温度生成。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider
-#: extensions/olympus/schemas/olympus_schema.yaml:265
+#: extensions/olympus/schemas/olympus_schema.yaml:267
 msgid "Terrain elevation data provider (Olympus 2.0)."
 msgstr "地形高程数据提供商（Olympus 2.0）。"
 
@@ -5970,6 +5996,17 @@ msgstr "要运行的操作及其参数。"
 #: services/backup/schemas/backup_schema.yaml:18
 msgid "The database, servers and bot backup jobs."
 msgstr "数据库、服务器和机器人的备份任务。"
+
+#. dks_schema:schema;dks_schema.key
+#: extensions/dks/schemas/dks_schema.yaml:30
+msgid "The install code from your server's page in DKS."
+msgstr ""
+
+#. dks_schema:schema;dks_schema.name
+#: extensions/dks/schemas/dks_schema.yaml:14
+#, fuzzy
+msgid "The name shown for the extension."
+msgstr "为此参数显示的帮助文本。"
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6100,22 +6137,22 @@ msgid "URL or slug of the GoFundMe campaign."
 msgstr "GoFundMe 活动的 URL 或别名。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.provider
-#: extensions/olympus/schemas/olympus_schema.yaml:274
+#: extensions/olympus/schemas/olympus_schema.yaml:276
 msgid "URL template of the elevation data source."
 msgstr "高程数据源的 URL 模板。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).urlTemplate
-#: extensions/olympus/schemas/olympus_schema.yaml:299
+#: extensions/olympus/schemas/olympus_schema.yaml:301
 msgid "URL template of this map layer's tiles."
 msgstr "此地图图层瓦片的 URL 模板。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
-#: extensions/olympus/schemas/olympus_schema.yaml:177
+#: extensions/olympus/schemas/olympus_schema.yaml:178
 msgid "Unique TCP port for Olympus internal communication."
 msgstr "用于 Olympus 内部通信的唯一 TCP 端口。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).port
-#: extensions/olympus/schemas/olympus_schema.yaml:234
+#: extensions/olympus/schemas/olympus_schema.yaml:236
 msgid "Unique TCP port the Olympus web client connects to."
 msgstr "Olympus Web 客户端连接的唯一 TCP 端口。"
 
@@ -6259,12 +6296,12 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "登录 NUT 服务器的用户（可选）。"
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:170
+#: services/webservice/schemas/webservice_schema.yaml:212
 msgid "Username and password login for the console."
 msgstr "控制台的用户名和密码登录。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.username
-#: extensions/olympus/schemas/olympus_schema.yaml:278
+#: extensions/olympus/schemas/olympus_schema.yaml:280
 msgid "Username for the elevation provider, if required."
 msgstr "高程提供商的用户名，如需要。"
 
@@ -6274,12 +6311,12 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "代理的用户名（若需要身份验证）。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:308
+#: services/webservice/schemas/webservice_schema.yaml:350
 msgid "Username of the emergency Admin account."
 msgstr "应急管理员账户的用户名。"
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.username
-#: extensions/olympus/schemas/olympus_schema.yaml:254
+#: extensions/olympus/schemas/olympus_schema.yaml:256
 msgid "Username sent in the authentication header."
 msgstr "在认证请求头中发送的用户名。"
 
@@ -6438,7 +6475,7 @@ msgid "Web service settings applied to every node."
 msgstr "应用于每个节点的 Web 服务设置。"
 
 #. olympus_schema:schema;instance_olympus_schema.audio.WSEndpoint
-#: extensions/olympus/schemas/olympus_schema.yaml:360
+#: extensions/olympus/schemas/olympus_schema.yaml:362
 msgid "WebSocket endpoint exposed through a reverse proxy."
 msgstr "通过反向代理暴露的 WebSocket 端点。"
 
@@ -6493,6 +6530,11 @@ msgstr "文件发送的位置，例如路径或频道 ID。"
 msgid "Where the package is installed to on the server."
 msgstr "包在服务器上的安装位置。"
 
+#. webservice_schema:DEFAULT.access.regex;(.+).manager
+#: services/webservice/schemas/webservice_schema.yaml:188
+msgid "Whether a managing scope (managed_by) satisfies this capability."
+msgstr ""
+
 #. main_schema:logging.utc
 #: schemas/main_schema.yaml:145
 msgid "Whether log timestamps should be written in UTC."
@@ -6502,6 +6544,12 @@ msgstr "日志时间戳是否应以 UTC 写入。"
 #: extensions/grpc/schemas/grpc_schema.yaml:9
 msgid "Whether the DCS-gRPC extension is enabled."
 msgstr "DCS-gRPC 扩展是否已启用。"
+
+#. dks_schema:schema;dks_schema.enabled
+#: extensions/dks/schemas/dks_schema.yaml:8
+#, fuzzy
+msgid "Whether the DKS exporter is installed on this instance."
+msgstr "是否在此实例上启用 Olympus 扩展。"
 
 #. dsmc_schema:schema;dsmc_schema.enabled
 #: extensions/dsmc/schemas/dsmc_schema.yaml:8
@@ -6689,7 +6737,7 @@ msgid "Z-score above which traffic counts as anomalous."
 msgstr "高于该 Z 分数的流量即视为异常。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:230
+#: services/webservice/schemas/webservice_schema.yaml:272
 msgid "managed_by values this account may see and act on."
 msgstr "此账户可查看和操作的 managed_by 值。"
 

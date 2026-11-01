@@ -90,7 +90,8 @@ PLAYERS_EMPTY_VIEW = i18n._("No player on this page matches this view.")
 
 PAGE = lists_page.ListPage(table=PLAYERS_TABLE, path=PLAYERS_PATH, capability=PLAYERS_CAPABILITY,
                            roles=PLAYERS_ROLES, title=PLAYERS_TITLE, lead=PLAYERS_LEAD,
-                           nav_label=PLAYERS_TITLE, scope_grants=True, writes=True)
+                           nav_label=PLAYERS_TITLE, group="Operations", glyph="users",
+                           scope_grants=True, writes=True)
 
 
 @dataclass(frozen=True, slots=True)

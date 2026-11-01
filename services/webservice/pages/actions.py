@@ -124,6 +124,10 @@ __all__ = [
     "PENALTY_FORGIVE_ACTION", "PENALTY_CAPABILITY", "PENALTY_ADD_PATH", "PENALTY_REMOVE_PATH",
     "PENALTY_FORGIVE_PATH", "PENALTY_POINTS_FIELD", "PENALTY_REASON_FIELD",
     "penalty_inputs", "penalty_dialog_context",
+    # the radio writes: the Music tab's transport, its playlist select and its settings form
+    "MUSIC_ACTIONS", "MUSIC_CONTROL_CAPABILITY", "MUSIC_CONTROL_PATH", "MUSIC_PLAYLIST_PATH",
+    "MUSIC_SETTINGS_PATH", "MUSIC_RADIO_FIELD", "MUSIC_CONTROL_FIELD", "MUSIC_MODE_FIELD",
+    "MUSIC_PLAYLIST_FIELD", "MUSIC_SETTING_FIELDS",
     "page_controls", "add_dialog_context", "empty_instances", "installable_nodes",
     "declare", "capabilities", "register", "add_routes",
     "server_controls", "player_controls", "node_controls", "ban_controls", "controls_for", "state_of",
@@ -157,6 +161,7 @@ __all__ = [
     "MISSIONS_ACTIVATE_CAPABILITY", "MISSIONS_ACTIVATE_PATH", "MISSIONS_ACTIVATE_STATES",
     "MISSION_ACTIVE_LOADING_REFUSAL", "MISSIONS_ACTIVATE_SELECTION_REFUSAL",
     "MISSION_DIRECTION_FIELD", "MISSION_LIST_OFFLINE_STATES", "MISSION_LIST_OFFLINE_ONLY",
+    "MISSION_ORDER_FIELD",
     "MISSION_FIELD", "MISSION_NAME_FIELD", "MISSION_PATH_FIELD", "MISSION_FILE_FIELD",
     "MISSION_AUTOSTART_FIELD", "MISSION_LOAD_FIELD", "MISSION_DISK_FIELD",
     "MISSIONS_UPLOAD_MAX_BYTES", "mission_index_required",
@@ -461,6 +466,11 @@ MISSIONS_ACTIVATE_CAPABILITY = "missions.activate"
 MISSIONS_ACTIVATE_PATH = "/actions/server/missions/activate"
 #: The form field the reorder control posts (``up`` / ``down``).
 MISSION_DIRECTION_FIELD = "direction"
+#: The form field a row DRAG posts: the WHOLE new order, one repeated value per row (the row's
+#: logical name, in the order dropped). Its presence is what tells the ONE reorder route that the
+#: request is a drop and answers JSON (``static/reorder.js``) rather than the redirect the up/down
+#: buttons take.
+MISSION_ORDER_FIELD = "order"
 #: The states a mission-list write is ACCEPTED in — the file-write states, i.e. the DCS process is
 #: DOWN. ``STOPPED`` is NOT one of them (DCS is up in ``{LOADING, STOPPED, PAUSED, RUNNING}`` and owns
 #: ``net.missionlist`` in memory): a write made then is reverted (`plugins/mission/actions.py`). This
@@ -1492,6 +1502,58 @@ MISSION_DIALOG_KEYS: frozenset[str] = frozenset(
     {"mission_add", "mission_delete", "mission_delete_bulk", "mission_load"})
 
 
+#: THE MUSIC TAB'S RADIO WRITES — three declarations of their own, NOT ``SERVER_ACTIONS`` rows: their
+#: controls live on one card per radio of the server, not on a server row. Same discipline as the
+#: mission writes: the route table (``add_routes``), the capability map (``capabilities``) and the
+#: tab's control are three readings of ONE declaration.
+#:
+#: ``music.control`` is the name the music plugin's own action module states
+#: (``plugins.music.actions.CAPABILITY_CONTROL``); it is spelled here as a literal because the
+#: console may not import a plugin at import time. It carries the console's SERVER-write rule —
+#: :data:`WRITE_ROLES` WITH a manager scope grant — so a manager of THIS server drives their own
+#: radios. The scope itself is applied inside the action (``resolve_scoped_server``), which refuses a
+#: server outside the caller's scope; both halves together are what keeps a manager out of a foreign
+#: server's radios.
+#:
+#: ``statuses`` is EMPTY for all three: a radio is configured and driven whether or not its DCS
+#: server is up — a stopped server's radio reads as idle and refuses a transport command with its own
+#: sentence — so no process state describes the control's applicability.
+MUSIC_CONTROL_CAPABILITY = "music.control"
+MUSIC_CONTROL_PATH = "/actions/server/music/control"
+MUSIC_PLAYLIST_PATH = "/actions/server/music/playlist"
+MUSIC_SETTINGS_PATH = "/actions/server/music/settings"
+
+#: the fields the three radio writes read. ``radio`` names the radio inside this server's block of
+#: ``config/services/music.yaml``; ``control`` / ``mode`` are the action's own words, and the five
+#: settings are the keys ``set_radio_config`` writes — the SAME names as its parameters, so a form
+#: field cannot come to mean something other than the parameter it feeds.
+MUSIC_RADIO_FIELD = "radio"
+MUSIC_CONTROL_FIELD = "control"
+MUSIC_MODE_FIELD = "mode"
+MUSIC_PLAYLIST_FIELD = "playlist"
+MUSIC_SETTING_FIELDS: tuple[str, ...] = ("frequency", "modulation", "coalition", "volume",
+                                         "display_name")
+
+#: the READ the tab makes for the playlist select's choices — the music plugin's own playlist list,
+#: with the radios that use each one. Read through the action so the console never queries the
+#: playlists itself and never invents a name the action would refuse.
+MUSIC_PLAYLIST_ACTION = "list_music_playlists"
+
+MUSIC_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key="music_control", capability=MUSIC_CONTROL_CAPABILITY,
+                qualname="control_radio", path=MUSIC_CONTROL_PATH, label="Radio", statuses=(),
+                tip="the transport strip of one radio", aria="Control a radio of {server}"),
+    WriteAction(key="music_playlist", capability=MUSIC_CONTROL_CAPABILITY,
+                qualname="set_radio_playlist", path=MUSIC_PLAYLIST_PATH, label="Playlist",
+                statuses=(), tip="assign a playlist to one radio and reload it",
+                aria="Assign a playlist to a radio of {server}"),
+    WriteAction(key="music_settings", capability=MUSIC_CONTROL_CAPABILITY,
+                qualname="set_radio_config", path=MUSIC_SETTINGS_PATH, label="Settings",
+                statuses=(), tip="write one radio's settings and apply them",
+                aria="Change the settings of a radio of {server}"),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class PlayerAction:
     """One write of the console that acts on a PLAYER row.
@@ -2461,6 +2523,11 @@ def declare() -> None:
     # so a manager adds / removes / loads / uploads missions on THEIR OWN servers and nobody else's.
     for action in MISSION_ACTIONS:
         permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE RADIO WRITES: ``WRITE_ROLES`` WITH a scope grant, the same server-write rule as the mission
+    # writes — a manager drives the radios of THEIR OWN servers and nobody else's, and the scope is
+    # applied inside the action (``resolve_scoped_server``) as well as by the gate.
+    for action in MUSIC_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
 
 
 declare()
@@ -2532,6 +2599,8 @@ def capabilities() -> dict[str, str]:
     capabilities_.update({action.path: action.capability for action in MISSION_ACTIONS})
     capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
                           for action in MISSION_ACTIONS if action.key in MISSION_DIALOG_KEYS})
+    # THE RADIO WRITES: one path each, no dialog — the card's whole form is the input.
+    capabilities_.update({action.path: action.capability for action in MUSIC_ACTIONS})
     return capabilities_
 
 
@@ -5498,6 +5567,103 @@ def _refusal_notice(request: Request,
 
 # ------------------------------------------------------------------------------- the routes
 
+# ------------------------------------------------------------------------ the radio writes (Music tab)
+# The Music tab's three writes: one radio's transport (play / stop / skip / mode), its playlist
+# assignment and its settings. Same shape as the mission writes — identity, scoped target, action,
+# one-shot notice, 303 back to the tab — with ONE difference: the radio actions AUDIT THEMSELVES
+# (``plugins.music.actions._audited`` writes the trail for every attempt, success or refusal), so no
+# route here passes ``audit_result`` and no entry is written twice.
+
+
+def _music_back_path(name: str) -> str:
+    """The Music tab of *name* — the ONE encoder, so a redirect and the tab's own URL agree."""
+    return server_url(name, tab="music")
+
+
+def _music_control_handler(action: WriteAction):
+    """The route for ``control_radio`` — the transport strip and the mode pick, posted directly.
+
+    The VERB rides the body (``play`` / ``stop`` / ``skip`` / ``mode``), so one button can never be
+    pointed at another operation by editing a URL, and the action refuses a word outside its own
+    ``CONTROLS``. ``mode`` is stated by the mode form alone; the action reads it only for that verb.
+    A radio whose server is not up is refused by the action with its own sentence.
+
+    THE ANSWER GOES BACK TO THE PAGE THAT PRESSED IT: the origin rides the body
+    (:data:`ORIGIN_FIELD`) and is resolved against the registry (:func:`origin_url`), so a control
+    drawn on ``/music`` returns there — where the read re-renders the card with the state the write
+    produced — while a control on the server's Music tab names no origin and keeps the tab as the
+    default. Neither the path nor the tab is ever taken from the request unfiltered.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        result = await call_action(
+            action.qualname, ctx, server_name=canonical,
+            radio_name=readmodels.text(form.get(MUSIC_RADIO_FIELD)),
+            control=readmodels.text(form.get(MUSIC_CONTROL_FIELD)),
+            mode=readmodels.text(form.get(MUSIC_MODE_FIELD)))
+        _remember_notice(request, action, result)
+        back = origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD),
+                          _music_back_path(canonical))
+        return RedirectResponse(back, status_code=303)
+
+    return handle
+
+
+def _music_playlist_handler(action: WriteAction):
+    """The route for ``set_radio_playlist`` — the card's playlist select, posted directly.
+
+    The playlist's NAME rides the body; the action resolves it against the playlists that exist and
+    then reassigns through the radio's own setter, which re-reads the song list (stop, assign, start).
+    An edit made in the playlist editor reaches a playing radio only through THIS write or a restart,
+    which is what the card says beside the select.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        result = await call_action(
+            action.qualname, ctx, server_name=canonical,
+            radio_name=readmodels.text(form.get(MUSIC_RADIO_FIELD)),
+            playlist=readmodels.text(form.get(MUSIC_PLAYLIST_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_music_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _music_settings_handler(action: WriteAction):
+    """The route for ``set_radio_config`` — one radio's settings form, posted directly.
+
+    Every field is passed as stated, an EMPTY one included: the action writes only the values that
+    carry text, so an emptied box leaves the configured value alone rather than clearing it, and each
+    stated value is validated against the action's own accepted set before
+    ``config/services/music.yaml`` is patched — a refusal writes nothing.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        stated = {field: readmodels.text(form.get(field)) for field in MUSIC_SETTING_FIELDS}
+        result = await call_action(
+            action.qualname, ctx, server_name=canonical,
+            radio_name=readmodels.text(form.get(MUSIC_RADIO_FIELD)),
+            frequency=stated["frequency"], modulation=stated["modulation"],
+            coalition=stated["coalition"], volume=stated["volume"],
+            display_name=stated["display_name"])
+        _remember_notice(request, action, result)
+        return RedirectResponse(_music_back_path(canonical), status_code=303)
+
+    return handle
+
+
 def add_routes(router: APIRouter) -> APIRouter:
     """Add one POST route per write, each with the session's CSRF dependency.
 
@@ -5662,6 +5828,16 @@ def add_routes(router: APIRouter) -> APIRouter:
                                  methods=["POST"],
                                  dependencies=[Depends(session.csrf_protect)],
                                  name=f"action-{action.key}-confirm")
+    # THE RADIO WRITES: one POST each, no dialog — the card's whole form is the input.
+    _music_handlers = {
+        "music_control": _music_control_handler,
+        "music_playlist": _music_playlist_handler,
+        "music_settings": _music_settings_handler,
+    }
+    for action in MUSIC_ACTIONS:
+        router.add_api_route(action.path, _music_handlers[action.key](action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
     return router
 
 
@@ -6423,18 +6599,35 @@ def _mission_bulk_delete_handler(action: WriteAction):
 
 
 def _mission_reorder_handler(action: WriteAction):
-    """The route for ``reorder_mission`` — one row's up/down button, posted directly.
+    """The route for ``reorder_mission`` — the row drag and the up/down buttons, one write.
+
+    TWO SHAPES ON ONE PATH. A request carrying the WHOLE new order (:data:`MISSION_ORDER_FIELD`, one
+    repeated value per row, sent by ``static/reorder.js`` on a drop) is answered as JSON so the script
+    can keep or restore the DOM it drew; a request carrying one index and a direction (the up/down
+    buttons) is answered with the redirect every other form takes. Both carry the session's CSRF token
+    in the body — the route's dependency refuses a crafted POST without one.
 
     The 1-based ``missionList`` index rides the body beside the direction (``up`` / ``down``), both
     under their own field names, so a control can never be pointed at another mission by editing a
-    URL. The action owns the bounds (an up on the first row is a no-op) and the offline-only gate.
+    URL. The action owns the bounds (an up on the first row is a no-op), the offline-only gate and the
+    permutation check of a dropped order.
     """
-    async def handle(request: Request) -> RedirectResponse:
+    async def handle(request: Request):
         form = await request.form()
         resolved = await _resolve_mission_write(request, form, action)
         if isinstance(resolved, RedirectResponse):
             return resolved
         ctx, canonical, _server = resolved
+        order = [readmodels.text(value) for value in form.getlist(MISSION_ORDER_FIELD)
+                 if readmodels.text(value)]
+        if order:
+            result = await call_action(action.qualname, ctx, audit_result=True,
+                                       server_name=canonical, order=order)
+            _remember_notice(request, action, result)
+            return JSONResponse(
+                {"ok": bool(getattr(result, "success", False)),
+                 "message": readmodels.text(getattr(result, "message", ""))},
+                status_code=200, headers={"Cache-Control": "no-store"})
         target = readmodels.text(form.get(MISSION_FIELD))
         mission = int(target) if target.isdigit() else target
         result = await call_action(

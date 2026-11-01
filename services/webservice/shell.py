@@ -106,6 +106,16 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
         log.debug("Admin web shell already installed on this application, reusing its registrar.")
         return existing
 
+    # The capability tables are PROCESS state and this application is not: a stop()/start() or a
+    # master/agent switch builds a NEW app in the same process, which re-declares every capability
+    # the previous install already declared. With an override still applied that re-declaration is
+    # two declarations of one name and ``declare_capability`` refuses it, so the rebuild has to start
+    # from the DECLARATIONS — the stored block is applied again below, after every page declared.
+    dropped = permissions.reset_to_declared_bases()
+    if dropped:
+        log.debug("Admin web shell install: restored %d capability(ies) to their declarations before "
+                  "the rebuild re-declares them: %s.", len(dropped), ", ".join(sorted(dropped)))
+
     registrar = Registrar(app)
     # The service's own config, where a PAGE can read it. The log panel's default level lives in
     # webservice.yaml, and a route has no other way to reach it: the constructor argument is not
@@ -149,6 +159,13 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
     # after the plugin load) gets a fresh, EMPTY registrar: replay the plugin pages that were
     # recorded when the plugins loaded, or every one of them is silently missing.
     contributors.replay(registrar)
+    # THE CONFIGURED ACCESS OVERRIDE, applied ONCE here — after every page has declared (the shell's
+    # own above, the plugins' through ``replay``) and before the first request can be answered. It
+    # recomputes each effective requirement from its declared base, so a rebuilt application (a
+    # takeover, a stop/start) lands on the same matrix instead of stacking a second application.
+    # A block this installation cannot honour is refused AS A WHOLE and logged: the declarations stay
+    # exactly as shipped rather than half-applied.
+    _apply_access_override(app)
     # An ungated surface cannot be seen by the gate or by a route-table test, so say it out loud.
     permissions.audit_mounts(app, context="shell install")
 
@@ -161,6 +178,23 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
              "asset path '%s'.", summary["routes"], summary["capabilities"],
              ", ".join(summary["owners"]) or "-", SHELL_ASSET_PATH)
     return registrar
+
+
+def _apply_access_override(app: FastAPI) -> None:
+    """Apply the configured role → capability override, from ``pages/access``.
+
+    Imported INSIDE the call and never at module import: ``pages.access`` reads this module's pages to
+    build its matrix, so a top-level import would be a cycle. The import cannot fail in practice (the
+    install above already imported the page), and if it somehow did, the honest answer is the shipped
+    declarations — never a half-applied override — so the failure is logged and swallowed.
+    """
+    try:
+        from .pages import access as access_page
+
+        access_page.apply_from_config(app)
+    except Exception:
+        log.exception("Admin web shell: the access override could not be applied; every capability "
+                      "keeps its declared roles.")
 
 
 def _discover_actions(node=None) -> None:
@@ -231,12 +265,14 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     over, which is what keeps "one owner per page" true while the shell stays the single place that
     knows what the reserved surface consists of.
     """
+    from .pages import access as access_page
     from .pages import dashboard as dashboard_page
     from .pages import bans as bans_page
     from .pages import instances as instances_page
     from .pages import live as live_page
     from .pages import logs as logs_page
     from .pages import mods as mods_page
+    from .pages import music as music_page
     from .pages import nodes as nodes_page
     from .pages import node_settings as node_settings_page
     from .pages import player_detail as player_detail_page
@@ -282,6 +318,13 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     # THE MODS PAGES: a node's root mods, both owners' dialogs and their action routes. No nav item
     # — the node page is reached from a Nodes row and the other half is a tab on the server page.
     mods_page.add_routes(router)
+    # THE MUSIC PAGES: the playlist list and one playlist's editor, with their dialogs and writes.
+    # One route each and one nav item, registered flat like the pages above.
+    music_page.add_routes(router)
+    # THE ACCESS PAGE: the role → capability matrix. Registered LAST among the pages that join the
+    # sidebar, and it must be, because the page it renders is every OTHER page's capability — it
+    # reads the declaration, so it can only be whole once everything else has declared.
+    access_page.add_routes(router)
     capabilities = dict(auth_routes.capabilities())
     capabilities.update(i18n.capabilities())
     capabilities.update(theme.capabilities())
@@ -300,8 +343,13 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     capabilities.update(settings_page.capabilities())
     capabilities.update(presets_page.capabilities())
     capabilities.update(mods_page.capabilities())
-    # THE MAIN MENU IS EIGHT ITEMS: Dashboard, Servers, Nodes, Statistics, Players, Bans, Presets,
-    # Settings — the ONE sidebar group ("Operations", see pages/dashboard.py) holds them all. Logs
+    capabilities.update(music_page.capabilities())
+    capabilities.update(access_page.capabilities())
+    # EACH ENTRY DECLARES ITS OWN GROUP AND GLYPH on its own nav item; the shell only says which pages
+    # join the sidebar, never which heading a page belongs under (``registry.NAV_GROUPS`` fixes the
+    # headings and their order, and a class of wrong grouping is refused when the item is built). The
+    # order below is the order WITHIN a heading, so a group reads the way the rail draws it: Access
+    # before Settings, as the mockup's Administration heading has them. Logs
     # and Instances are still PAGES — their routes are registered above and stay reachable/linkable —
     # but they contribute NO nav entry: their content is already on the Dashboard (the
     # Servers/Nodes/Instances tabs and the log panel with its expanded mode). The Players page IS an
@@ -312,8 +360,10 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
                                   + servers_page.nav_items() + nodes_page.nav_items()
                                   + statistics_page.nav_items()
                                   + players_page.nav_items()
+                                  + music_page.nav_items()
                                   + bans_page.nav_items()
                                   + presets_page.nav_items()
+                                  + access_page.nav_items()
                                   + settings_page.nav_items())
 
 

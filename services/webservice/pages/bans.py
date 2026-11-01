@@ -64,7 +64,8 @@ BANS_DGSA_SHOWN = i18n._("DGSA bans shown")
 
 PAGE = lists_page.ListPage(table=BANS_TABLE, path=BANS_PATH, capability=BANS_CAPABILITY,
                            roles=BANS_ROLES, title=BANS_TITLE, lead=BANS_LEAD,
-                           nav_label=BANS_TITLE, scope_grants=True, writes=True)
+                           nav_label=BANS_TITLE, group="Operations", glyph="ban",
+                           scope_grants=True, writes=True)
 
 
 def capabilities() -> dict[str, str]:

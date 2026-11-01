@@ -1,18 +1,9 @@
 from __future__ import annotations
 
-import eyed3
-
 from core import ServiceRegistry
-from eyed3.id3 import Tag
-from functools import lru_cache
+from services.music.tags import get_tag
 
-
-@lru_cache(maxsize=None)
-def get_tag(file) -> Tag:
-    audio = eyed3.load(file)
-    if not audio or not audio.tag:
-        return Tag()
-    return audio.tag
+__all__ = ["get_tag", "Playlist"]
 
 
 class Playlist:
@@ -50,13 +41,22 @@ class Playlist:
     def size(self) -> int:
         return len(self._items)
 
-    async def add(self, item: str) -> None:
+    async def add(self, item: str) -> bool:
+        """Add *item* unless the playlist already holds it; ``True`` when a row was written.
+
+        The table's ``(name, song_file)`` constraint is what decides: ``ON CONFLICT DO NOTHING``
+        makes a second add of one file a no-op the caller can report in words, not a driver error.
+        """
         async with self.apool.connection() as conn:
-            await conn.execute("""
+            cursor = await conn.execute("""
                 INSERT INTO music_playlists (name, song_id, song_file) 
                 VALUES (%s, nextval('music_song_id_seq'), %s)
+                ON CONFLICT (name, song_file) DO NOTHING
             """, (self.playlist, item))
+            if not cursor.rowcount:
+                return False
             self._items.append(item)
+        return True
 
     async def remove(self, item: str) -> None:
         async with self.apool.connection() as conn:

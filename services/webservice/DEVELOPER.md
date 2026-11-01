@@ -109,6 +109,35 @@ and a manager's scope is a set of servers, never a machine. The node row's mods 
 capability that owns the resource the editor writes, so the link and the page it opens read the same
 predicate and a caller refused the page is never offered its door.
 
+**The Access page (`/access`, `access.view` / `access.write`) edits the WEBSITE's role model without a
+code change.** It renders one row per declared capability and one column per role of the bot's role
+model (`bot.yaml`'s `roles:` keys plus the built-in names), Admin's column locked and a `managed_by`
+column beside the roles, and stores its edits as ONE block of `services/webservice.yaml`
+(`DEFAULT.access`, `add` / `remove` / `manager` per capability). The block EXTENDS and NARROWS the
+declaration: `permissions.apply_role_overrides` recomputes every effective pair from
+`BASE_CAPABILITIES` — the pair the code declared — so a second apply lands the same values instead of
+stacking, and the code keeps declaring the shipped behaviour. `Admin` cannot be removed, this page's
+own pair is structural, and a `managed_by` grant exists only where a server can be named
+(`permissions.MANAGER_SCOPE_NEVER`). A save is live on the next request (the gate, the sidebar and the
+tab strips all read `permissions.allows`, which reads the table per call).
+
+**The block is applied to ONE process, at install and on every save.** `install_shell` restores every
+declared capability to its base (`permissions.reset_to_declared_bases`) before the pages declare and
+then applies the stored block after they have — a rebuilt application (`WebService.stop()`/`start()`,
+the master/agent switch) must start from the DECLARATIONS, or its re-declaration of a base meets the
+previous install's applied override and `declare_capability` refuses it. Two consequences worth
+knowing before adding a capability: a capability a plugin declares **after** `install_shell` in the
+same process (a plugin that registers once the bot is ready) keeps its fresh declaration until the
+next install — no hook re-applies the block to a late declaration — and a capability that is applied
+then re-declared is idempotent only because of that restore, never because `declare_capability`
+tolerates a second pair. A `DEFAULT.access` block that is malformed (not a mapping, an entry that is
+not a mapping, an unknown key inside one, a value it cannot read) is applied as far as it can be read
+and each skipped key is logged at ERROR and listed on the page: unknown NAMES were always refused
+loudly, and unknown SHAPES are now refused the same way.
+
+It decides the website ONLY: the bot's commands keep their own decorators (`core/utils/discord.py`
+reads `bot.roles`, never the capability table), so a role narrowed here can still act in Discord.
+
 **Update DCS is ONE control for three words** — update, roll back, switch the branch — because the
 engine has one call for them: `Node.dcs_update(branch=…, version=…)`
 (`plugins/admin/actions.py`'s `update_dcs`). The dialog therefore asks *which branch* and *which

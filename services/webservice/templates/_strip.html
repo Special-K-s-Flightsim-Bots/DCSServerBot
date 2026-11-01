@@ -87,7 +87,9 @@
 {%- set busy = control.get('busy') -%}
 <form method="post" action="{{ control.path }}"{{ ' data-async' if control.get('direct') else '' }}>{{ control_fields(control) }}<button class="mi{{ ' danger' if control.danger else '' }}{{ ' busy' if busy else '' }}" type="submit"{{ ' aria-busy="true"'|safe if busy else '' }}{{ ' disabled'|safe if control.get('disabled') else '' }} title="{{ say(control.title) }}" aria-label="{{ say(control.aria) }}">{{ icons.act(control.icon) }}<span><span class="lbl">{{ _(control.label) }}</span><span class="hint">{{ _(control.hint) }}</span></span></button></form>
 {%- endmacro -%}
-{% if strip.strip or strip.menu %}
+{#- guard for an IMPORTED use: a page that only wants the macros below imports this file, and
+the module body then runs without a `strip` record — an absent one draws nothing. -#}
+{% if strip is defined and strip and (strip.strip or strip.menu) %}
 {%- set in_flight = strip.get('in_flight') -%}
 <span class="act-strip{{ ' wide' if strip.wide else '' }}{{ ' busy' if in_flight else '' }}"{{ ' data-busy="true"'|safe if in_flight else '' }}>
   {% for control in strip.strip %}{{ strip_form(control) }}{% endfor %}

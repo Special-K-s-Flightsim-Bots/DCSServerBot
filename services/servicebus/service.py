@@ -12,6 +12,7 @@ from copy import deepcopy
 from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
+from core.data.file_staging import sweep_staged_uploads
 from core.data.impl.instanceimpl import InstanceImpl
 from core.data.impl.serverimpl import ServerImpl, RenameError
 from core.data.proxy.serverproxy import ServerProxy
@@ -98,13 +99,8 @@ class ServiceBus(Service):
             # clean up the intercom and broadcast channels
             await self.intercom_channel.clear()
             await self.broadcasts_channel.clear()
-            # clean up the files
-            async with self.node.cpool.connection() as conn:
-                await conn.execute("""
-                    DELETE FROM files 
-                    WHERE guild_id = %s 
-                      AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
-                """, (self.node.guild_id, ))
+            # clean up the files: the staged upload rows a killed process left behind
+            await sweep_staged_uploads(self.node.apool, guild_id=self.node.guild_id)
 
             # subscribe to the intercom and broadcast channels
             self.intercom_subscribe_task = self.intercom_channel.observe_task(asyncio.create_task(

@@ -50,7 +50,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, TYPE_CHECKING
+from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 from fastapi import APIRouter, FastAPI
 
@@ -59,8 +59,8 @@ from . import permissions
 if TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Environment
 
-__all__ = ["NavItem", "Registration", "RegistrationError", "Registrar",
-           "RESERVED_PATHS", "RESERVED_PREFIXES"]
+__all__ = ["NavItem", "NavGroup", "NAV_GROUPS", "NAV_GROUPS_BY_NAME", "Registration",
+           "RegistrationError", "Registrar", "RESERVED_PATHS", "RESERVED_PREFIXES"]
 
 log = logging.getLogger(__name__)
 
@@ -79,13 +79,73 @@ class RegistrationError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class NavGroup:
+    """One heading of the sidebar: its name and the glyph it wears.
+
+    ``name`` is the ENGLISH msgid — the group names are chrome, so every catalog owns their words
+    (``base.html`` translates it at render). ``glyph`` is a name in the nav sprite
+    (``templates/_icons.html``); it is drawn one step dimmer and smaller than an entry's glyph, so a
+    heading reads as structure rather than as one more link.
+    """
+    name: str
+    glyph: str
+
+
+#: THE GROUP ORDER — one constant, because the order and the set are a decision of the console's own
+#: chrome rather than of any page. A page names one of these on its own nav item; :class:`NavItem`
+#: refuses a name that is not here, so an unknown group cannot silently create a sixth heading, and
+#: ``pages/dashboard.nav_groups`` renders the headings in exactly this order (and drops the ones left
+#: with nothing visible under them).
+NAV_GROUPS: tuple[NavGroup, ...] = (
+    NavGroup(name="Operations", glyph="grid"),
+    NavGroup(name="Media", glyph="note"),
+    NavGroup(name="Cluster", glyph="hex"),
+    NavGroup(name="Data", glyph="chart"),
+    NavGroup(name="Administration", glyph="cog"),
+)
+
+#: group name -> its declaration, for the one lookup a refusal and a grouping need
+NAV_GROUPS_BY_NAME: dict[str, NavGroup] = {group.name: group for group in NAV_GROUPS}
+
+
+@dataclass(frozen=True)
 class NavItem:
     """One navigation entry. ``capability`` is the capability a viewer needs to be offered it —
     the nav is rendered from the same declaration the route is gated by, so a page can never
-    advertise a door that answers 403."""
+    advertise a door that answers 403.
+
+    ``group`` and ``glyph`` are declared HERE, by the page that owns the entry, and never looked up
+    in a table the shell keeps: one declaration per page cannot drift from the pages it describes.
+
+    * ``group`` must be one of :data:`NAV_GROUPS` — checked at construction, which is the first
+      moment a page names a group, so a wrong name fails at import instead of rendering a heading
+      nobody declared;
+    * ``glyph`` is a name in the nav sprite. An UNKNOWN name is not refused (a page added before its
+      drawing exists still renders — it draws nothing), but an EMPTY one is: an entry that can never
+      draw anything is a declaration mistake, not a missing drawing.
+
+    ``available`` is an optional test of whether the product behind the entry exists in THIS process
+    (its service/plugin is active), as opposed to ``capability``, which is a right. ``None`` means
+    always available, so every entry that does not declare it is unchanged. It is evaluated PER
+    REQUEST by the sidebar, never at registration: routes and capabilities are registered once at
+    boot, while the state a test reads is only reliable later.
+    """
     label: str
     url: str
     capability: str
+    group: str
+    glyph: str
+    available: Callable[[], bool] | None = None
+
+    def __post_init__(self) -> None:
+        if self.group not in NAV_GROUPS_BY_NAME:
+            raise ValueError(
+                f"nav item '{self.label}' ({self.url}) names the group '{self.group}', which the "
+                f"console does not have (declared: {', '.join(NAV_GROUPS_BY_NAME)})")
+        if not str(self.glyph or "").strip():
+            raise ValueError(
+                f"nav item '{self.label}' ({self.url}) declares no glyph; every entry names a "
+                f"drawing of the nav sprite")
 
 
 @dataclass

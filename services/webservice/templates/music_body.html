@@ -1,0 +1,145 @@
+{#-
+  THE MUSIC TAB — the radios ``config/services/music.yaml`` configures for THIS server.
+
+  TWO REGIONS, and the split is what makes the tab live without churning a form:
+
+  * the PLAYER region (``#{{ music_target }}``) is the SAME partial the /music overview draws, one card
+    per radio, and it is the console's live swap target: the three-second tick re-renders exactly this
+    inner html — so a Skip pressed here shows the new track without a reload — while every control below
+    it stays untouched, because a tick that replaced a box the operator is typing into would wipe what
+    they typed;
+  * the SETTINGS cards below it, one per radio, carry the writes that are not the transport: the values
+    the radio is set to, the playlist assignment with the warning that a saved edit is not audible yet,
+    and the settings form (``config/services/music.yaml``).
+
+  The page renders what the ACTIONS returned: ``get_music_radios`` for the cards and
+  ``list_music_playlists`` for the select's choices. A refused read renders its own sentence, and a
+  viewer without ``music.control`` sees the players with NO control at all — omitted, never drawn
+  disabled, which is the console's rule for every write.
+
+  THE LOOK IS THE CONSOLE'S, NEVER THIS TAB'S: the settings rows are the shared ``.card``/``.st-row``,
+  every control carries ``.field``, every button is the shared ``.btn``, and the player's own styles
+  live in shell.css beside the rest of the component language.
+-#}
+{% import "_editor.html" as editor %}
+{% include "_notice.html" %}
+
+{% if not music_available %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Radio{% endtrans %}</h3><div class="spacer"></div></div>
+  <div class="bd"><p class="empty">{{ _(music_message) }}</p></div>
+</div>
+{% else %}
+{% if live %}<div class="pl-live"><span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span></div>{% endif %}
+
+<div id="{{ music_target }}" class="pl-list">
+  {% for card in music_radios %}{% include "_music_player.html" %}{% endfor %}
+</div>
+
+{% if music_can_control %}
+{% for r in music_radios %}
+<div class="card">
+  <div class="hd">
+    <h3>{{ r.name }}</h3>
+    {% if r.display_name and r.display_name != r.name %}<span class="sub">{{ r.display_name }}</span>{% endif %}
+    <div class="spacer"></div>
+    <span class="sub mono">{{ r.frequency }} {{ r.modulation }}</span>
+  </div>
+  <div class="bd">
+    <div class="cfg-form">
+      {#- WHAT THE RADIO IS SET TO: the values ``music.yaml`` carries, printed as the file states
+          them. ``1`` / ``2`` are SRS's own sides, so the sentence beside them names both. -#}
+      {% set set_lab %}
+        <div class="nm">{% trans %}Set to{% endtrans %}</div>
+        <div class="hp mono">{{ r.frequency }} MHz · {{ r.modulation }} · {% trans %}Coalition{% endtrans %} {{ r.coalition }} · {% trans %}Volume{% endtrans %} {{ r.volume }}</div>
+      {% endset %}
+      {% set set_ctl %}
+        {% if r.playlist %}
+        <span class="tag">{{ r.playlist }}</span>
+        {% elif r.tracks %}
+        <span class="sub">{% trans count=r.tracks %}{{ count }} track(s) loaded{% endtrans %}</span>
+        {% else %}
+        <span class="sub">{% trans %}No playlist is assigned to this radio.{% endtrans %}</span>
+        {% endif %}
+      {% endset %}
+      {{ editor.field_row('', set_lab, set_ctl) }}
+
+      {#- THE PLAYLIST: a pick among the playlists that EXIST, then the write that reassigns and
+          reloads the radio. THE WARNING lives here, where the choice is made — an edit saved in the
+          editor is not audible until this write or a restart. -#}
+      {% set pl_lab %}
+        <div class="nm">{% trans %}Playlist{% endtrans %}</div>
+        <div class="hp">{% trans %}The list this radio plays. The pick is written and the radio re-reads its tracks at once.{% endtrans %}</div>
+      {% endset %}
+      {% set pl_ctl %}
+        {% if music_playlists_message %}<span class="sub">{{ _(music_playlists_message) }}</span>{% endif %}
+        {% if music_playlists %}
+        <form method="post" action="{{ music_playlist_path }}" class="sel-bar">
+          <input type="hidden" name="{{ music_server_field }}" value="{{ music_server_name }}">
+          <input type="hidden" name="{{ music_radio_field }}" value="{{ r.name }}">
+          <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+          <label class="k" for="music-playlist-{{ loop.index }}">{% trans %}Assign a playlist{% endtrans %}</label>
+          <select class="field" id="music-playlist-{{ loop.index }}" name="{{ music_playlist_field }}">
+            {% for name in music_playlists %}<option value="{{ name }}"{% if name == r.playlist %} selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="btn">{% trans %}Assign{% endtrans %}</button>
+        </form>
+        {% endif %}
+        <div class="notice">
+          <div class="sub"><b>{% trans %}A saved edit is not audible at once.{% endtrans %}</b> {% trans %}An edit made in the playlist editor does not reach a radio that is already on air: the radio reads its tracks when the playlist is assigned here again or the radio is restarted.{% endtrans %}</div>
+        </div>
+      {% endset %}
+      {{ editor.field_row('', pl_lab, pl_ctl) }}
+    </div>
+
+    {#- THE SETTINGS: the five values ``music.yaml`` carries for this radio, saved through the one
+        action that patches the file and applies the result to the running radio. Drawn in the shared
+        disclosure block, so the card stays readable. -#}
+    {% call editor.panel(_('Radio settings'), open=False) %}
+      <form method="post" action="{{ music_settings_path }}">
+        <input type="hidden" name="{{ music_server_field }}" value="{{ music_server_name }}">
+        <input type="hidden" name="{{ music_radio_field }}" value="{{ r.name }}">
+        <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+        <div class="cfg-form">
+          {% set f_lab %}<div class="nm">{% trans %}Frequency{% endtrans %}</div><div class="hp mono">MHz</div>{% endset %}
+          {% set f_ctl %}<input type="text" class="field" name="frequency" value="{{ r.frequency }}" inputmode="decimal">{% endset %}
+          {{ editor.field_row('text', f_lab, f_ctl) }}
+
+          {% set m_lab %}<div class="nm">{% trans %}Modulation{% endtrans %}</div>{% endset %}
+          {% set m_ctl %}
+          <select class="field" name="modulation">
+            {% for word in music_modulations %}<option value="{{ word }}"{% if word == r.modulation %} selected{% endif %}>{{ word }}</option>{% endfor %}
+          </select>
+          {% endset %}
+          {{ editor.field_row('text', m_lab, m_ctl) }}
+
+          {% set c_lab %}<div class="nm">{% trans %}Coalition{% endtrans %}</div><div class="hp">{% trans %}1 = red, 2 = blue{% endtrans %}</div>{% endset %}
+          {% set c_ctl %}
+          <select class="field" name="coalition">
+            {% for word in music_coalitions %}<option value="{{ word }}"{% if word == r.coalition %} selected{% endif %}>{{ word }}</option>{% endfor %}
+          </select>
+          {% endset %}
+          {{ editor.field_row('text', c_lab, c_ctl) }}
+
+          {% set v_lab %}<div class="nm">{% trans %}Volume{% endtrans %}</div><div class="hp">{% trans %}0 to 1{% endtrans %}</div>{% endset %}
+          {% set v_ctl %}<input type="text" class="field" name="volume" value="{{ r.volume }}" inputmode="decimal">{% endset %}
+          {{ editor.field_row('text', v_lab, v_ctl) }}
+
+          {% set n_lab %}<div class="nm">{% trans %}Display name{% endtrans %}</div><div class="hp">{% trans %}The name this radio wears in game{% endtrans %}</div>{% endset %}
+          {% set n_ctl %}<input type="text" class="field" name="display_name" value="{{ r.display_name }}">{% endset %}
+          {{ editor.field_row('text', n_lab, n_ctl) }}
+        </div>
+        <div class="notice">
+          <div class="sub">{% trans %}A field left empty keeps the value the file states — only the values carrying text are written. The save patches config/services/music.yaml and applies the result to the running radio.{% endtrans %}</div>
+          <button type="submit" class="btn primary">{% trans %}Save settings{% endtrans %}</button>
+        </div>
+      </form>
+    {% endcall %}
+  </div>
+</div>
+{% endfor %}
+{% else %}
+{#- A READER: the same facts, no control. Omitted, never drawn disabled. -#}
+<p class="sub">{% trans %}You may read this server's radios but not change them: the transport, the playlist and the settings need the music control right.{% endtrans %}</p>
+{% endif %}
+{% endif %}

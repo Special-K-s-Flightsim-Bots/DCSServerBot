@@ -45,10 +45,16 @@ class MusicPlayer(View):
                                _("Blue") if self.config['coalition'] == 2 else
                                _("Neutral")))
         embed.title = _("Music Player")
+        # THE TAGS COME FROM THE FILE, NOT FROM THE TITLE. `get_current_song` answers the display
+        # title, so handing it to the tag reader asked it to open a file named after the song and
+        # logged "the tags of <title> could not be read" — and the embed then showed the title's
+        # first characters minus four as a fallback.
         current = await self.service.get_current_song(self.server, self.radio_name)
-        if current:
-            tag = get_tag(current)
-            title = utils.escape_string(tag.title[:255] if tag.title else os.path.basename(current)[:-4])
+        current_file = await self.service.get_current_file(self.server, self.radio_name)
+        if current and current_file:
+            tag = get_tag(os.path.join(await self.service.get_music_dir(), current_file))
+            title = utils.escape_string(tag.title[:255] if tag.title
+                                        else os.path.basename(current_file)[:-4])
             artist = utils.escape_string(tag.artist[:255] if tag.artist else _('n/a'))
             album = utils.escape_string(tag.album[:255] if tag.album else _('n/a'))
             embed.add_field(name=utils.print_ruler(header=_(" Now Playing "), ruler_length=32),

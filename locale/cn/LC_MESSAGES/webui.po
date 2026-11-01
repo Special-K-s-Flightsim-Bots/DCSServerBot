@@ -2096,6 +2096,10 @@ msgstr "未授权（此操作必须通过其对话框确认）。"
 msgid "Not done (the typed name does not match the target)."
 msgstr "未执行（输入的名称与目标不一致）。"
 
+#: services/webservice/pages/music.py
+msgid "Not duplicated: a playlist named '%(name)s' already exists. Choose another name."
+msgstr "未复制：名为“%(name)s”的播放列表已存在。请选择其他名称。"
+
 #: services/webservice/pages/actions.py:4357
 msgid "A DGSA ban cannot be edited — it can only be lifted here."
 msgstr "DGSA 封禁无法编辑——只能在此解除。"
@@ -2338,6 +2342,18 @@ msgstr "运维"
 #: services/webservice/templates/overview.html:34
 msgid "Cluster"
 msgstr "集群"
+
+#: services/webservice/registry.py:101
+msgid "Media"
+msgstr "媒体"
+
+#: services/webservice/registry.py:103
+msgid "Data"
+msgstr "数据"
+
+#: services/webservice/registry.py:104
+msgid "Administration"
+msgstr "管理"
 
 #: services/webservice/pages/dashboard.py:170
 msgid "Nothing needs you — every node is heartbeating and no server is down."
@@ -6516,26 +6532,6 @@ msgid ""
 "removed."
 msgstr "正在运行的任务可以设为起始任务，但无法删除。"
 
-#: services/webservice/templates/server_detail.html:546
-#, python-format
-msgid "Move %(name)s up in the rotation list"
-msgstr "在轮换列表中将 %(name)s 上移"
-
-#: services/webservice/templates/server_detail.html:546
-#, python-format
-msgid "Move mission %(name)s up"
-msgstr "将任务 %(name)s 上移"
-
-#: services/webservice/templates/server_detail.html:556
-#, python-format
-msgid "Move %(name)s down in the rotation list"
-msgstr "在轮换列表中将 %(name)s 下移"
-
-#: services/webservice/templates/server_detail.html:556
-#, python-format
-msgid "Move mission %(name)s down"
-msgstr "将任务 %(name)s 下移"
-
 #: services/webservice/templates/server_detail.html:560
 #: services/webservice/templates/server_detail.html:687
 #, python-format
@@ -8837,7 +8833,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Radios"
-msgstr ""
+msgstr "电台"
 
 #: services/webservice/pages/player_detail.py
 msgid "Recent sessions"
@@ -9358,3 +9354,894 @@ msgstr "删除所有记录，解除机器人自己的封禁"
 #: services/webservice/pages/actions.py
 msgid "the points are logged and the ladder runs"
 msgstr "分数写入日志，阶梯随即执行"
+
+#: services/webservice/pages/music.py:140, services/webservice/pages/music.py:141, services/webservice/pages/server_detail.py:359
+msgid "Music"
+msgstr "音乐"
+
+#: services/webservice/pages/music.py:200, services/webservice/templates/music_body.html:24
+msgid "Radio"
+msgstr "电台"
+
+#: services/webservice/templates/music_body.html:154
+msgid "Radio settings"
+msgstr "电台设置"
+
+#: services/webservice/templates/music_body.html:41
+msgid "Set to"
+msgstr "设定为"
+
+#: services/webservice/templates/music_body.html:61
+msgid "Now playing"
+msgstr "正在播放"
+
+#: services/webservice/templates/music_body.html:69
+msgid "Nothing is playing on this radio."
+msgstr "此电台没有播放任何内容。"
+
+#: services/webservice/templates/music_body.html:53
+msgid "No playlist is assigned to this radio."
+msgstr "此电台没有分配播放列表。"
+
+#: services/webservice/templates/music_body.html:51
+msgid "%(count)s track(s) loaded"
+msgstr "已加载 %(count)s 首曲目"
+
+#: services/webservice/pages/music.py:203, services/webservice/templates/music_body.html:90
+msgid "Play"
+msgstr "播放"
+
+#: services/webservice/templates/music_body.html:104
+msgid "Skip"
+msgstr "跳过"
+
+#: services/webservice/templates/music_body.html:90
+msgid "This radio is already on air."
+msgstr "此电台已在播音。"
+
+#: services/webservice/templates/music_body.html:97, services/webservice/templates/music_body.html:104
+msgid "This radio is not on air."
+msgstr "此电台未在播音。"
+
+#: services/webservice/pages/music.py
+msgid "A track is loading."
+msgstr "正在加载曲目。"
+
+#: services/webservice/pages/music.py
+msgid "Loading…"
+msgstr "加载中…"
+
+#: services/webservice/pages/music.py:142, services/webservice/pages/music.py:152, services/webservice/templates/music_body.html:127
+msgid "Playlist"
+msgstr "播放列表"
+
+#: services/webservice/templates/music_body.html:128
+msgid ""
+""
+"The list this radio plays. The pick is written and the radio re-reads its"
+" tracks at once."
+msgstr "此电台播放的列表。选择会被写入，电台会立即重新读取曲目。"
+
+#: services/webservice/templates/music_body.html:137
+msgid "Assign a playlist"
+msgstr "分配播放列表"
+
+#: services/webservice/templates/music_body.html:141
+msgid "Assign"
+msgstr "分配"
+
+#: services/webservice/templates/music_body.html:145
+msgid "A saved edit is not audible at once."
+msgstr "保存的修改不会立即播出。"
+
+#: services/webservice/templates/music_body.html:145
+msgid ""
+""
+"An edit made in the playlist editor does not reach a radio that is "
+"already on air: the radio reads its tracks when the playlist is assigned "
+"here again or the radio is restarted."
+msgstr "在播放列表编辑器中做的修改不会到达已经在播音的电台：只有在这里重新分配列表或重启电台时，电台才会重新读取曲目。"
+
+#: services/webservice/templates/music_body.html:160
+msgid "Frequency"
+msgstr "频率"
+
+#: services/webservice/templates/music_body.html:164
+msgid "Modulation"
+msgstr "调制"
+
+#: services/webservice/templates/music_body.html:180
+msgid "0 to 1"
+msgstr "0 到 1"
+
+#: services/webservice/templates/music_body.html:172
+msgid "1 = red, 2 = blue"
+msgstr "1 = 红方，2 = 蓝方"
+
+#: services/webservice/templates/music_body.html:42, services/webservice/templates/music_body.html:180
+msgid "Volume"
+msgstr "音量"
+
+#: services/webservice/templates/music_body.html:184
+msgid "Display name"
+msgstr "显示名称"
+
+#: services/webservice/templates/music_body.html:184
+msgid "The name this radio wears in game"
+msgstr "此电台在游戏中显示的名称"
+
+#: services/webservice/templates/music_body.html:189
+msgid ""
+""
+"A field left empty keeps the value the file states — only the values "
+"carrying text are written. The save patches config/services/music.yaml "
+"and applies the result to the running radio."
+msgstr ""
+""
+"留空的字段会保留文件中的值——只有带文本的值会被写入。保存会修补 "
+"config/services/music.yaml，并将结果应用到正在运行的电台。"
+
+#: services/webservice/templates/music_body.html:190
+msgid "Save settings"
+msgstr "保存设置"
+
+#: services/webservice/pages/server_detail.py:191
+msgid ""
+""
+"The music plugin is not loaded in this process, so this server's radios "
+"cannot be read or changed here."
+msgstr "此进程未加载音乐插件，因此无法在此读取或更改此服务器的电台。"
+
+#: services/webservice/pages/server_detail.py:193
+msgid ""
+""
+"This installation configures no radio for this server, so there is "
+"nothing to show. A radio is a block under 'radios:' in this server's own "
+"section of config/services/music.yaml, or in the DEFAULT section it "
+"inherits."
+msgstr ""
+""
+"此安装没有为此服务器配置任何电台，因此没有可显示的内容。电台是 config/services/music.yaml "
+"中此服务器自己的部分或它继承的 DEFAULT 部分里 'radios:' 下的一个块。"
+
+#: services/webservice/pages/server_detail.py:2554
+msgid "The radios of this server could not be read."
+msgstr "无法读取此服务器的电台。"
+
+#: services/webservice/pages/music.py
+#: services/webservice/pages/server_detail.py:2560
+msgid "The playlists could not be read."
+msgstr "无法读取播放列表。"
+
+#: services/webservice/templates/music_body.html:196
+msgid ""
+""
+"You may read this server's radios but not change them: the transport, the"
+" playlist and the settings need the music control right."
+msgstr "你可以读取此服务器的电台，但不能更改：播放控制、播放列表和设置需要音乐控制权限。"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s file(s) missing on the node"
+msgstr "节点上缺少 %(count)s 个文件"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s selected"
+msgstr "已选 %(count)s 项"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s track(s)"
+msgstr "%(count)s 首曲目"
+
+#: services/webservice/pages/music.py
+msgid "%(folder)s · %(count)s track(s)"
+msgstr "%(folder)s · %(count)s 首曲目"
+
+#: services/webservice/pages/music.py
+msgid "A copy of this playlist's tracks under a new name."
+msgstr "以新名称复制此播放列表的曲目。"
+
+#: services/webservice/pages/music.py
+msgid "Add"
+msgstr "添加"
+
+#: services/webservice/pages/music.py
+msgid "Add all %(count)s in this folder"
+msgstr "添加此文件夹中的全部 %(count)s 首"
+
+#: services/webservice/pages/music.py
+msgid "Create"
+msgstr "创建"
+
+#: services/webservice/pages/music.py
+msgid "Delete the playlist"
+msgstr "删除播放列表"
+
+#: services/webservice/pages/music.py
+msgid "Delete the playlist '{name}'"
+msgstr "删除播放列表 '{name}'"
+
+#: services/webservice/pages/music.py
+msgid "Deleting a playlist cannot be undone from here."
+msgstr "从此处删除播放列表无法撤销。"
+
+#: services/webservice/pages/music.py
+msgid "Drag to reorder"
+msgstr "拖动以重新排序"
+
+#: services/webservice/pages/music.py
+msgid "Duplicate"
+msgstr "复制"
+
+#: services/webservice/pages/music.py
+msgid "Duplicate the playlist"
+msgstr "复制播放列表"
+
+#: services/webservice/pages/music.py
+msgid "Filter by title, artist, album or file…"
+msgstr "按标题、艺术家、专辑或文件筛选…"
+
+#: services/webservice/pages/music.py
+msgid "Length"
+msgstr "时长"
+
+#: services/webservice/pages/music.py
+msgid "Library"
+msgstr "媒体库"
+
+#: services/webservice/pages/music.py
+msgid "Library · per node"
+msgstr "媒体库 · 按节点"
+
+#: services/webservice/pages/music.py
+msgid "Name"
+msgstr "名称"
+
+#: services/webservice/pages/music.py
+msgid "New playlist"
+msgstr "新建播放列表"
+
+#: services/webservice/pages/music.py
+msgid "No playlist exists yet."
+msgstr "尚无播放列表。"
+
+#: services/webservice/pages/music.py
+msgid "No radio is configured on this installation."
+msgstr "此安装未配置任何电台。"
+
+#: services/webservice/pages/music.py
+msgid "No server is running, so no radio is shown."
+msgstr "没有服务器在运行，因此不显示任何电台。"
+
+#: services/webservice/pages/music.py
+msgid "No track in this folder."
+msgstr "此文件夹中没有曲目。"
+
+#: services/webservice/pages/music.py
+msgid "No track matches the filter."
+msgstr "没有曲目符合筛选条件。"
+
+#: services/webservice/pages/music.py
+msgid ""
+"None of the servers your roles manage are in this view, so no radio is "
+"shown."
+msgstr "你的角色管理的服务器均不在此视图中，因此不显示任何电台。"
+
+#: services/webservice/pages/music.py
+msgid "Not saved: the new order could not be sent."
+msgstr "未保存：无法发送新顺序。"
+
+#: services/webservice/pages/music.py
+msgid "Not saved: the order was refused. Reload the page."
+msgstr "未保存：顺序被拒绝，请重新加载页面。"
+
+#: services/webservice/templates/server_detail.html:535
+msgid "Not saved: the new order was refused. Reload the page and try again."
+msgstr "未保存：新的顺序被拒绝。请重新加载页面并重试。"
+
+#: services/webservice/pages/music.py
+msgid "Open"
+msgstr "打开"
+
+#: services/webservice/pages/music.py
+msgid "Order"
+msgstr "顺序"
+
+#: services/webservice/pages/music.py
+msgid "Play on a radio"
+msgstr "在电台上播放"
+
+#: services/webservice/pages/music.py
+msgid "Play on…"
+msgstr "播放于…"
+
+#: services/webservice/pages/music.py
+msgid "Play the playlist '{name}' on a radio"
+msgstr "在电台上播放播放列表 '{name}'"
+
+#: services/webservice/pages/music.py
+msgid "Play the playlist on a radio"
+msgstr "在电台上播放播放列表"
+
+#: services/webservice/pages/music.py
+msgid "Playlists"
+msgstr "播放列表"
+
+#: services/webservice/pages/music.py
+msgid "Playlists, the library on each node, and what every radio is playing right now."
+msgstr "播放列表、各节点的媒体库，以及每个电台当前播放的内容。"
+
+#: services/webservice/pages/music.py
+msgid "Remove %(count)s missing"
+msgstr "移除 %(count)s 个缺失项"
+
+#: services/webservice/pages/music.py
+msgid "Rename"
+msgstr "重命名"
+
+#: services/webservice/pages/music.py
+msgid "Rename the playlist"
+msgstr "重命名播放列表"
+
+#: services/webservice/pages/music.py
+msgid "Rescan"
+msgstr "重新扫描"
+
+#: services/webservice/pages/music.py
+msgid "Scanned"
+msgstr "扫描时间"
+
+#: services/webservice/pages/music.py
+msgid "The music actions are not available in this process, so this page is read-only."
+msgstr "此进程中没有可用的音乐操作，因此本页面为只读。"
+
+#: services/webservice/pages/music.py
+msgid "The music folder could not be read."
+msgstr "无法读取音乐文件夹。"
+
+#: services/webservice/pages/music.py
+msgid "The playlist and the radio assignments that name it are removed."
+msgstr "播放列表以及引用它的电台分配都会被移除。"
+
+#: services/webservice/pages/music.py
+msgid "The playlist exists once it holds its first track. Nothing is written by this step."
+msgstr "播放列表在包含第一首曲目后才存在。此步骤不会写入任何内容。"
+
+#: services/webservice/pages/music.py
+msgid "The radio is reassigned and restarted on this playlist."
+msgstr "电台将重新分配并以此播放列表重启。"
+
+#: services/webservice/pages/music.py
+msgid "The radios that play it move with the name."
+msgstr "播放它的电台会随名称一起迁移。"
+
+#: services/webservice/pages/music.py
+msgid "This playlist does not exist yet. Adding a track creates it."
+msgstr "此播放列表尚不存在。添加曲目即可创建。"
+
+#: services/webservice/pages/music.py
+msgid "This playlist holds no track yet."
+msgstr "此播放列表还没有曲目。"
+
+#: services/webservice/pages/music.py
+msgid "Title"
+msgstr "标题"
+
+#: services/webservice/pages/music.py
+msgid "Total length"
+msgstr "总时长"
+
+#: services/webservice/pages/music.py
+msgid "Tracks"
+msgstr "曲目"
+
+#: services/webservice/pages/music.py
+msgid "Used by"
+msgstr "使用者"
+
+#: services/webservice/pages/music.py
+msgid "draft"
+msgstr "草稿"
+
+#: services/webservice/pages/music.py
+msgid "drag to reorder"
+msgstr "拖动以重新排序"
+
+#: services/webservice/pages/music.py
+msgid "idle"
+msgstr "空闲"
+
+#: services/webservice/pages/music.py
+msgid "missing on the node"
+msgstr "节点上缺失"
+
+#: services/webservice/pages/music.py
+msgid "on air"
+msgstr "播放中"
+
+#: services/webservice/pages/music.py
+msgid "playlist"
+msgstr "播放列表"
+
+#: services/webservice/pages/music.py
+msgid "total %(length)s"
+msgstr "共 %(length)s"
+
+#: services/webservice/pages/music.py
+msgid "A playlist name is required."
+msgstr "需要播放列表名称。"
+
+#: services/webservice/pages/music.py
+msgid "That is not a track of this playlist."
+msgstr "这不是此播放列表中的曲目。"
+
+#: services/webservice/pages/access.py:688
+msgid "%(count)s unsaved change(s)"
+msgstr "%(count)s 项未保存的更改"
+
+#: services/webservice/pages/access.py:261
+msgid "%(role)s added"
+msgstr "已添加 %(role)s"
+
+#: services/webservice/pages/access.py:262
+msgid "%(role)s removed"
+msgstr "已移除 %(role)s"
+
+#: services/webservice/pages/access.py:99
+msgid "Access"
+msgstr "访问权限"
+
+#: services/webservice/pages/access.py:771
+msgid "Access matrix updated: %(detail)s"
+msgstr "访问权限表已更新：%(detail)s"
+#: services/webservice/pages/access.py:293
+msgid "Access matrix save refused: %(detail)s"
+msgstr "访问矩阵保存被拒绝：%(detail)s"
+
+
+#: services/webservice/pages/access.py:333
+#, python-format
+msgid "Ignored: '%(key)s' is not a mapping, so no override was applied."
+msgstr "已忽略：'%(key)s' 不是映射，因此未应用任何覆盖。"
+
+#: services/webservice/pages/access.py:335
+#, python-format
+msgid "Ignored: the entry for '%(key)s' is not a mapping, so that capability keeps its declared roles."
+msgstr "已忽略：'%(key)s' 的条目不是映射，因此该能力保留其声明的角色。"
+
+#: services/webservice/pages/access.py:338
+#, python-format
+msgid "Ignored: '%(key)s' is not a key this page reads, in the entry for '%(capability)s'."
+msgstr "已忽略：'%(key)s' 不是本页读取的键，位置在 '%(capability)s' 的条目中。"
+
+#: services/webservice/pages/access.py:340
+#, python-format
+msgid "Ignored: '%(key)s' does not carry a readable value in the entry for '%(capability)s'."
+msgstr "已忽略：'%(key)s' 在 '%(capability)s' 的条目中没有可读取的值。"
+
+#: services/webservice/pages/access.py:344
+msgid "Some parts of the stored access block could not be read and were skipped — the capabilities they name keep their declared values:"
+msgstr "存储的访问块中有部分内容无法读取，已被跳过——其中提到的能力保留其声明的值："
+
+#: services/webservice/pages/access.py:363
+#, python-format
+msgid "Access updated — %(count)s change(s), in effect now."
+msgstr "访问权限已更新 — %(count)s 项更改，立即生效。"
+
+#: services/webservice/templates/access.html:86
+msgid "Admin"
+msgstr "Admin"
+
+#: services/webservice/templates/access.html:67
+msgid "Admin — always on"
+msgstr "Admin — 始终开启"
+
+#: services/webservice/templates/access.html:178
+msgid "Applied immediately, no restart."
+msgstr "立即生效，无需重启。"
+
+#: services/webservice/templates/access.html:85
+msgid "Control"
+msgstr "权限项"
+
+#: services/webservice/pages/access.py:170
+msgid "Expert Mode and the shared scheduler default"
+msgstr "专家模式和共享的调度默认值"
+
+#: services/webservice/templates/access.html:38
+msgid "Filter a control…"
+msgstr "筛选权限项…"
+
+#: services/webservice/pages/access.py:268
+msgid "No change: the matrix is exactly what is stored."
+msgstr "没有更改：访问权限表与已保存的内容完全一致。"
+
+#: services/webservice/templates/access.html:74
+msgid "No control matches this filter."
+msgstr "没有权限项匹配此筛选。"
+
+#: services/webservice/pages/access.py:685
+msgid "No overrides — every capability keeps its declared defaults."
+msgstr "没有覆盖 — 每个权限项都保持其声明的默认值。"
+
+#: services/webservice/pages/access.py:251
+msgid "Nothing was saved: %(capability)s belongs to this page and cannot be edited."
+msgstr "未保存：%(capability)s 属于本页面，不能编辑。"
+
+#: services/webservice/pages/access.py:255
+msgid "Nothing was saved: %(capability)s is machine- or installation-wide, so it cannot carry a managed_by grant."
+msgstr "未保存：%(capability)s 是整机或整个安装范围的，不能带有 managed_by 授权。"
+
+#: services/webservice/pages/access.py:245
+msgid "Nothing was saved: %(capability)s is not a capability this console declares."
+msgstr "未保存：%(capability)s 不是本控制台声明的权限项。"
+
+#: services/webservice/pages/access.py:720
+msgid "Nothing was saved: %(reason)s"
+msgstr "未保存：%(reason)s"
+
+#: services/webservice/pages/access.py:247
+msgid "Nothing was saved: %(role)s is not a role of this bot's role model."
+msgstr "未保存：%(role)s 不是此机器人角色模型中的角色。"
+
+#: services/webservice/pages/access.py:253
+msgid "Nothing was saved: Admin cannot be removed from %(capability)s."
+msgstr "未保存：不能从 %(capability)s 中移除 Admin。"
+
+#: services/webservice/pages/access.py:249
+msgid "Nothing was saved: it would leave no role able to open this page."
+msgstr "未保存：这样将没有任何角色能打开此页面。"
+#: services/webservice/pages/access.py:280
+msgid "Nothing was saved: the page was loaded before the configuration changed on disk. Reload it and apply your change again."
+msgstr "未保存任何内容：页面的加载时间早于磁盘上配置的更改。请重新加载页面并再次应用更改。"
+
+
+#: services/webservice/pages/access.py:116
+msgid "Other"
+msgstr "其他"
+
+#: services/webservice/templates/access.html:43
+msgid "Show changes only"
+msgstr "仅显示更改"
+
+#: services/webservice/templates/access.html:61
+msgid "The bot's own Discord commands keep their roles, so a role you narrow here can still act in Discord."
+msgstr "机器人的 Discord 命令保留各自的角色，因此你在这里收窄的角色仍可在 Discord 中操作。"
+
+#: services/webservice/templates/access.html:161
+msgid "The decision is read per request, so a save takes effect immediately — and is refused if it would leave no role able to open this page."
+msgstr "权限判定在每次请求时读取，因此保存立即生效 — 但如果保存后没有任何角色能打开此页面，则会被拒绝。"
+
+#: services/webservice/templates/access.html:60
+msgid "This matrix decides the website only."
+msgstr "此表只决定网站上的权限。"
+
+#: services/webservice/templates/access.html:55
+msgid "This page could not read the service configuration, so it shows the declared values only — nothing here is stored yet."
+msgstr "此页面无法读取服务配置，因此只显示声明的值 — 这里尚未保存任何内容。"
+
+#: services/webservice/pages/access.py:101
+msgid "Which role reaches which control on the website. Admin keeps everything and cannot be reduced here."
+msgstr "哪个角色能在网站上访问哪个权限项。Admin 保留全部权限，且不能在此缩减。"
+
+#: services/webservice/pages/access.py:168
+msgid "a server's schedule"
+msgstr "服务器的调度"
+
+#: services/webservice/pages/access.py:173
+msgid "activate a mission and restart the server into it"
+msgstr "激活任务并让服务器重启进入该任务"
+
+#: services/webservice/pages/access.py:176
+msgid "add a mission from the library"
+msgstr "从库中添加任务"
+
+#: services/webservice/pages/access.py:183
+msgid "ban a player on the servers you hold"
+msgstr "在你持有的服务器上封禁玩家"
+
+#: services/webservice/pages/access.py:195
+msgid "bring a node back online"
+msgstr "让节点重新上线"
+
+#: services/webservice/templates/access.html:70
+msgid "cannot be granted here"
+msgstr "此处无法授权"
+
+#: services/webservice/pages/access.py:214
+msgid "changes on this page"
+msgstr "在此页面上的更改"
+
+#: services/webservice/pages/access.py:161
+msgid "chat and popup to the players of a server"
+msgstr "向服务器玩家发送聊天和弹窗"
+
+#: services/webservice/pages/access.py:160
+msgid "clear a server's maintenance flag"
+msgstr "清除服务器的维护标记"
+
+#: services/webservice/pages/access.py:166
+msgid "coalition passwords and slots"
+msgstr "阵营密码和槽位"
+
+#: services/webservice/pages/access.py:162
+msgid "create a new server instance"
+msgstr "创建新的服务器实例"
+
+#: services/webservice/pages/access.py:169
+msgid "create and edit a server's schedule"
+msgstr "创建和编辑服务器的调度"
+
+#: services/webservice/pages/access.py:192
+msgid "create, edit, reorder and delete playlists"
+msgstr "创建、编辑、排序和删除播放列表"
+
+#: services/webservice/pages/access.py:178
+msgid "delete a mission"
+msgstr "删除任务"
+
+#: services/webservice/pages/access.py:184
+msgid "edit an existing ban"
+msgstr "编辑现有的封禁"
+
+#: services/webservice/pages/access.py:212
+msgid "edit the MizEdit presets"
+msgstr "编辑 MizEdit 预设"
+
+#: services/webservice/pages/access.py:208
+msgid "edit the bot's own configuration"
+msgstr "编辑机器人自身的配置"
+
+#: services/webservice/pages/access.py:210
+msgid "edit the global configuration files"
+msgstr "编辑全局配置文件"
+
+#: services/webservice/pages/access.py:159
+msgid "flag a server for maintenance"
+msgstr "将服务器标记为维护"
+
+#: services/webservice/pages/access.py:187
+msgid "give penalty points"
+msgstr "给予惩罚分"
+
+#: services/webservice/templates/access.html:68
+msgid "granted"
+msgstr "已授权"
+
+#: services/webservice/pages/access.py:204
+msgid "install and remove the root mods of a node"
+msgstr "安装和移除节点的根模组"
+
+#: services/webservice/templates/access.html:63
+msgid "is the scope of a server: a manager acts on the servers their scope names, never anywhere else."
+msgstr "是服务器的范围：管理者只能在其范围所指的服务器上操作，绝不在其他地方。"
+
+#: services/webservice/pages/access.py:186
+msgid "keep a player on the watch list"
+msgstr "将玩家加入监视列表"
+
+#: services/webservice/pages/access.py:181
+msgid "kick a player right now"
+msgstr "立即踢出玩家"
+
+#: services/webservice/pages/access.py:185
+msgid "lift a ban"
+msgstr "解除封禁"
+
+#: services/webservice/pages/access.py:172
+msgid "load a mission onto a server"
+msgstr "将任务加载到服务器"
+
+#: services/webservice/templates/access.html:113
+msgid "locked"
+msgstr "已锁定"
+
+#: services/webservice/pages/access.py:263
+msgid "managed_by granted"
+msgstr "已授权 managed_by"
+
+#: services/webservice/pages/access.py:264
+msgid "managed_by removed"
+msgstr "已移除 managed_by"
+
+#: services/webservice/pages/access.py:188
+msgid "message a player on Discord"
+msgstr "在 Discord 上给玩家发消息"
+
+#: services/webservice/pages/access.py:182
+msgid "mute a player right now"
+msgstr "立即禁言玩家"
+
+#: services/webservice/templates/access.html:69
+msgid "not granted"
+msgstr "未授权"
+
+#: services/webservice/pages/access.py:174
+msgid "pause the running mission"
+msgstr "暂停正在运行的任务"
+
+#: services/webservice/pages/access.py:193
+msgid "play, stop, skip, mode and frequency of a running radio"
+msgstr "运行中电台的播放、停止、跳过、模式和频率"
+
+#: services/webservice/pages/access.py:191
+msgid "playlists, the library and this server's radios"
+msgstr "播放列表、音乐库和此服务器的电台"
+
+#: services/webservice/pages/access.py:163
+msgid "remove a server instance"
+msgstr "移除服务器实例"
+
+#: services/webservice/pages/access.py:179
+msgid "reorder a server's mission list"
+msgstr "重新排序服务器的任务列表"
+
+#: services/webservice/pages/access.py:157
+msgid "restart a server — players are dropped"
+msgstr "重启服务器 — 玩家会被断开"
+
+#: services/webservice/pages/access.py:197
+msgid "restart the bot on a node"
+msgstr "重启节点上的机器人"
+
+#: services/webservice/pages/access.py:198
+msgid "shut a node's machine down"
+msgstr "关闭节点的机器"
+
+#: services/webservice/pages/access.py:154
+msgid "start a server, including its dependent instances"
+msgstr "启动服务器及其依赖的实例"
+
+#: services/webservice/pages/access.py:155
+msgid "start a stopped server"
+msgstr "启动已停止的服务器"
+
+#: services/webservice/pages/access.py:156
+msgid "stop a running server"
+msgstr "停止正在运行的服务器"
+
+#: services/webservice/pages/access.py:196
+msgid "take a node offline"
+msgstr "让节点离线"
+
+#: services/webservice/pages/access.py:189
+msgid "take a screenshot on a server"
+msgstr "在服务器上截图"
+
+#: services/webservice/pages/access.py:158
+msgid "take a server down and keep it down"
+msgstr "关闭服务器并保持关闭"
+
+#: services/webservice/pages/access.py:211
+msgid "the MizEdit presets"
+msgstr "MizEdit 预设"
+
+#: services/webservice/pages/access.py:206
+msgid "the bot log"
+msgstr "机器人日志"
+
+#: services/webservice/pages/access.py:207
+msgid "the bot's own configuration"
+msgstr "机器人自身的配置"
+
+#: services/webservice/pages/access.py:190
+msgid "the console's ban list"
+msgstr "控制台的封禁列表"
+
+#: services/webservice/pages/access.py:152
+msgid "the dashboard: live servers, load and the log panel"
+msgstr "仪表板：实时服务器、负载和日志面板"
+
+#: services/webservice/pages/access.py:209
+msgid "the global configuration files"
+msgstr "全局配置文件"
+
+#: services/webservice/pages/access.py:205
+msgid "the installation-wide statistics"
+msgstr "整个安装范围的统计"
+
+#: services/webservice/pages/access.py:202
+msgid "the instance list"
+msgstr "实例列表"
+
+#: services/webservice/pages/access.py:171
+msgid "the mission list of a server"
+msgstr "服务器的任务列表"
+
+#: services/webservice/pages/access.py:203
+msgid "the mods of a server or a node"
+msgstr "服务器或节点的模组"
+
+#: services/webservice/pages/access.py:194
+msgid "the node list and one node's page"
+msgstr "节点列表和单个节点的页面"
+#: services/webservice/pages/access.py:295
+msgid "the page was stale — the file changed on disk"
+msgstr "页面已过期 — 磁盘上的文件已更改"
+
+
+#: services/webservice/pages/access.py:201
+msgid "the per-node settings page"
+msgstr "节点的设置页面"
+
+#: services/webservice/pages/access.py:180
+msgid "the player directory and one player's page"
+msgstr "玩家目录和单个玩家的页面"
+
+#: services/webservice/pages/access.py:153
+msgid "the server list and one server's page"
+msgstr "服务器列表和单个服务器的页面"
+
+#: services/webservice/pages/access.py:164
+msgid "the server's Configuration tab"
+msgstr "服务器的“配置”标签页"
+
+#: services/webservice/pages/access.py:167
+msgid "the server's Discord channels"
+msgstr "服务器的 Discord 频道"
+
+#: services/webservice/pages/access.py:165
+msgid "the server's own DCS settings"
+msgstr "服务器自身的 DCS 设置"
+
+#: services/webservice/pages/access.py:213
+msgid "this page"
+msgstr "此页面"
+
+#: services/webservice/pages/access.py:175
+msgid "unpause the running mission"
+msgstr "恢复正在运行的任务"
+
+#: services/webservice/pages/access.py:200
+msgid "update, roll back or switch the DCS branch of a node"
+msgstr "更新、回滚或切换节点的 DCS 分支"
+
+#: services/webservice/pages/access.py:199
+msgid "upgrade the bot on a node"
+msgstr "升级节点上的机器人"
+
+#: services/webservice/pages/access.py:177
+msgid "upload a mission file"
+msgstr "上传任务文件"
+
+#: services/webservice/pages/music.py
+#: services/webservice/templates/music_playlist.html
+msgid "Upload"
+msgstr "上传"
+
+#: services/webservice/pages/music.py
+#: services/webservice/templates/music_playlist.html
+msgid "Upload into this folder, or drop .mp3 and .ogg files here or on a folder in the rail."
+msgstr "上传到此文件夹，或将 .mp3 和 .ogg 文件拖到此处或侧栏中的文件夹。"
+
+#: services/webservice/pages/access.py
+msgid "write files into the music directory"
+msgstr "将文件写入音乐目录"
+
+#: services/webservice/templates/music_playlist.html
+msgid "Not uploaded: the file could not be sent."
+msgstr "未上传：文件无法发送。"
+
+#: services/webservice/pages/access.py
+msgid "Access saved — %(count)s change(s), written to the configuration. This process could not install them; the next start applies the block."
+msgstr "访问权限已保存 — %(count)s 项更改已写入配置。本进程无法应用它们；下次启动时会应用该配置块。"
+
+#: services/webservice/pages/music.py
+msgid "Edit the playlist '{name}'"
+msgstr "编辑播放列表 '{name}'"
+
+#: services/webservice/pages/music.py
+msgid "No server is running, so this playlist cannot be played."
+msgstr "没有服务器在运行，因此无法播放此播放列表。"
+
+#: services/webservice/templates/music_playlist.html
+msgid "Drag to reorder, or press Alt+Up or Alt+Down"
+msgstr "拖动以重新排序，或按 Alt+上 或 Alt+下"
+
+
+#: services/webservice/pages/music.py
+msgid "Repeat is on — press to switch to shuffle"
+msgstr "循环已开启 — 点击切换到随机"
+
+#: services/webservice/pages/music.py
+msgid "Shuffle is on — press to switch to repeat"
+msgstr "随机已开启 — 点击切换到循环"

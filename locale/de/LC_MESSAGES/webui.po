@@ -2301,6 +2301,10 @@ msgstr "Nicht autorisiert (diese Aktion muss über ihren Dialog bestätigt werde
 msgid "Not done (the typed name does not match the target)."
 msgstr "Nicht ausgeführt (der eingegebene Name stimmt nicht mit dem Ziel überein)."
 
+#: services/webservice/pages/music.py
+msgid "Not duplicated: a playlist named '%(name)s' already exists. Choose another name."
+msgstr "Nicht dupliziert: eine Playlist namens '%(name)s' existiert bereits. Wähle einen anderen Namen."
+
 #: services/webservice/pages/actions.py:4357
 msgid "A DGSA ban cannot be edited — it can only be lifted here."
 msgstr ""
@@ -2570,6 +2574,18 @@ msgstr "Betrieb"
 #: services/webservice/templates/overview.html:34
 msgid "Cluster"
 msgstr "Cluster"
+
+#: services/webservice/registry.py:101
+msgid "Media"
+msgstr "Medien"
+
+#: services/webservice/registry.py:103
+msgid "Data"
+msgstr "Daten"
+
+#: services/webservice/registry.py:104
+msgid "Administration"
+msgstr "Verwaltung"
 
 #: services/webservice/pages/dashboard.py:170
 msgid "Nothing needs you — every node is heartbeating and no server is down."
@@ -7348,26 +7364,6 @@ msgid ""
 "removed."
 msgstr "Die laufende Mission kann als Startmission gesetzt, aber nicht entfernt werden."
 
-#: services/webservice/templates/server_detail.html:546
-#, python-format
-msgid "Move %(name)s up in the rotation list"
-msgstr "%(name)s in der Rotationsliste nach oben verschieben"
-
-#: services/webservice/templates/server_detail.html:546
-#, python-format
-msgid "Move mission %(name)s up"
-msgstr "Mission %(name)s nach oben verschieben"
-
-#: services/webservice/templates/server_detail.html:556
-#, python-format
-msgid "Move %(name)s down in the rotation list"
-msgstr "%(name)s in der Rotationsliste nach unten verschieben"
-
-#: services/webservice/templates/server_detail.html:556
-#, python-format
-msgid "Move mission %(name)s down"
-msgstr "Mission %(name)s nach unten verschieben"
-
 #: services/webservice/templates/server_detail.html:560
 #: services/webservice/templates/server_detail.html:687
 #, python-format
@@ -10373,3 +10369,910 @@ msgstr "jeder Eintrag gelöscht, der eigene Bann des Bots aufgehoben"
 #: services/webservice/pages/actions.py
 msgid "the points are logged and the ladder runs"
 msgstr "die Punkte werden geloggt und die Stufen laufen"
+
+#: services/webservice/pages/music.py:140, services/webservice/pages/music.py:141, services/webservice/pages/server_detail.py:359
+msgid "Music"
+msgstr "Musik"
+
+#: services/webservice/pages/music.py:200, services/webservice/templates/music_body.html:24
+msgid "Radio"
+msgstr "Radio"
+
+#: services/webservice/templates/music_body.html:154
+msgid "Radio settings"
+msgstr "Radio-Einstellungen"
+
+#: services/webservice/templates/music_body.html:41
+msgid "Set to"
+msgstr "Eingestellt auf"
+
+#: services/webservice/templates/music_body.html:61
+msgid "Now playing"
+msgstr "Läuft gerade"
+
+#: services/webservice/templates/music_body.html:69
+msgid "Nothing is playing on this radio."
+msgstr "Auf diesem Radio läuft nichts."
+
+#: services/webservice/templates/music_body.html:53
+msgid "No playlist is assigned to this radio."
+msgstr "Diesem Radio ist keine Playlist zugewiesen."
+
+#: services/webservice/templates/music_body.html:51
+msgid "%(count)s track(s) loaded"
+msgstr "%(count)s Titel geladen"
+
+#: services/webservice/pages/music.py:203, services/webservice/templates/music_body.html:90
+msgid "Play"
+msgstr "Abspielen"
+
+#: services/webservice/templates/music_body.html:104
+msgid "Skip"
+msgstr "Überspringen"
+
+#: services/webservice/templates/music_body.html:90
+msgid "This radio is already on air."
+msgstr "Dieses Radio ist bereits auf Sendung."
+
+#: services/webservice/templates/music_body.html:97, services/webservice/templates/music_body.html:104
+msgid "This radio is not on air."
+msgstr "Dieses Radio ist nicht auf Sendung."
+
+#: services/webservice/pages/music.py
+msgid "A track is loading."
+msgstr "Ein Titel wird geladen."
+
+#: services/webservice/pages/music.py
+msgid "Loading…"
+msgstr "Lädt…"
+
+#: services/webservice/pages/music.py:142, services/webservice/pages/music.py:152, services/webservice/templates/music_body.html:127
+msgid "Playlist"
+msgstr "Playlist"
+
+#: services/webservice/templates/music_body.html:128
+msgid ""
+""
+"The list this radio plays. The pick is written and the radio re-reads its"
+" tracks at once."
+msgstr ""
+""
+"Die Liste, die dieses Radio spielt. Die Auswahl wird geschrieben und das "
+"Radio liest seine Titel sofort neu ein."
+
+#: services/webservice/templates/music_body.html:137
+msgid "Assign a playlist"
+msgstr "Playlist zuweisen"
+
+#: services/webservice/templates/music_body.html:141
+msgid "Assign"
+msgstr "Zuweisen"
+
+#: services/webservice/templates/music_body.html:145
+msgid "A saved edit is not audible at once."
+msgstr "Eine gespeicherte Änderung ist nicht sofort hörbar."
+
+#: services/webservice/templates/music_body.html:145
+msgid ""
+""
+"An edit made in the playlist editor does not reach a radio that is "
+"already on air: the radio reads its tracks when the playlist is assigned "
+"here again or the radio is restarted."
+msgstr ""
+""
+"Eine im Playlist-Editor gespeicherte Änderung erreicht ein bereits "
+"laufendes Radio nicht: das Radio liest seine Titel erst, wenn die "
+"Playlist hier erneut zugewiesen oder das Radio neu gestartet wird."
+
+#: services/webservice/templates/music_body.html:160
+msgid "Frequency"
+msgstr "Frequenz"
+
+#: services/webservice/templates/music_body.html:164
+msgid "Modulation"
+msgstr "Modulation"
+
+#: services/webservice/templates/music_body.html:180
+msgid "0 to 1"
+msgstr "0 bis 1"
+
+#: services/webservice/templates/music_body.html:172
+msgid "1 = red, 2 = blue"
+msgstr "1 = rot, 2 = blau"
+
+#: services/webservice/templates/music_body.html:42, services/webservice/templates/music_body.html:180
+msgid "Volume"
+msgstr "Lautstärke"
+
+#: services/webservice/templates/music_body.html:184
+msgid "Display name"
+msgstr "Anzeigename"
+
+#: services/webservice/templates/music_body.html:184
+msgid "The name this radio wears in game"
+msgstr "Der Name, den dieses Radio im Spiel trägt"
+
+#: services/webservice/templates/music_body.html:189
+msgid ""
+""
+"A field left empty keeps the value the file states — only the values "
+"carrying text are written. The save patches config/services/music.yaml "
+"and applies the result to the running radio."
+msgstr ""
+""
+"Ein leeres Feld behält den Wert aus der Datei — nur Felder mit Text "
+"werden geschrieben. Das Speichern patcht config/services/music.yaml und "
+"wendet das Ergebnis auf das laufende Radio an."
+
+#: services/webservice/templates/music_body.html:190
+msgid "Save settings"
+msgstr "Einstellungen speichern"
+
+#: services/webservice/pages/server_detail.py:191
+msgid ""
+""
+"The music plugin is not loaded in this process, so this server's radios "
+"cannot be read or changed here."
+msgstr ""
+""
+"Das Musik-Plugin ist in diesem Prozess nicht geladen, daher können die "
+"Radios dieses Servers hier nicht gelesen oder geändert werden."
+
+#: services/webservice/pages/server_detail.py:193
+msgid ""
+""
+"This installation configures no radio for this server, so there is "
+"nothing to show. A radio is a block under 'radios:' in this server's own "
+"section of config/services/music.yaml, or in the DEFAULT section it "
+"inherits."
+msgstr ""
+""
+"Diese Installation konfiguriert kein Radio für diesen Server, es gibt "
+"also nichts anzuzeigen. Ein Radio ist ein Block unter 'radios:' im "
+"eigenen Abschnitt dieses Servers in config/services/music.yaml oder in "
+"dem DEFAULT-Abschnitt, den er erbt."
+
+#: services/webservice/pages/server_detail.py:2554
+msgid "The radios of this server could not be read."
+msgstr "Die Radios dieses Servers konnten nicht gelesen werden."
+
+#: services/webservice/pages/music.py
+#: services/webservice/pages/server_detail.py:2560
+msgid "The playlists could not be read."
+msgstr "Die Playlists konnten nicht gelesen werden."
+
+#: services/webservice/templates/music_body.html:196
+msgid ""
+""
+"You may read this server's radios but not change them: the transport, the"
+" playlist and the settings need the music control right."
+msgstr ""
+""
+"Du darfst die Radios dieses Servers lesen, aber nicht ändern: Transport, "
+"Playlist und Einstellungen brauchen das Musik-Steuerrecht."
+
+#: services/webservice/pages/music.py
+msgid "%(count)s file(s) missing on the node"
+msgstr "%(count)s Datei(en) fehlen auf dem Knoten"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s selected"
+msgstr "%(count)s ausgewählt"
+
+#: services/webservice/pages/music.py
+msgid "%(count)s track(s)"
+msgstr "%(count)s Titel"
+
+#: services/webservice/pages/music.py
+msgid "%(folder)s · %(count)s track(s)"
+msgstr "%(folder)s · %(count)s Titel"
+
+#: services/webservice/pages/music.py
+msgid "A copy of this playlist's tracks under a new name."
+msgstr "Eine Kopie der Titel dieser Playlist unter einem neuen Namen."
+
+#: services/webservice/pages/music.py
+msgid "Add"
+msgstr "Hinzufügen"
+
+#: services/webservice/pages/music.py
+msgid "Add all %(count)s in this folder"
+msgstr "Alle %(count)s in diesem Ordner hinzufügen"
+
+#: services/webservice/pages/music.py
+msgid "Create"
+msgstr "Anlegen"
+
+#: services/webservice/pages/music.py
+msgid "Delete the playlist"
+msgstr "Playlist löschen"
+
+#: services/webservice/pages/music.py
+msgid "Delete the playlist '{name}'"
+msgstr "Playlist '{name}' löschen"
+
+#: services/webservice/pages/music.py
+msgid "Deleting a playlist cannot be undone from here."
+msgstr "Das Löschen einer Playlist lässt sich hier nicht rückgängig machen."
+
+#: services/webservice/pages/music.py
+msgid "Drag to reorder"
+msgstr "Zum Umsortieren ziehen"
+
+#: services/webservice/pages/music.py
+msgid "Duplicate"
+msgstr "Duplizieren"
+
+#: services/webservice/pages/music.py
+msgid "Duplicate the playlist"
+msgstr "Playlist duplizieren"
+
+#: services/webservice/pages/music.py
+msgid "Filter by title, artist, album or file…"
+msgstr "Nach Titel, Interpret, Album oder Datei filtern…"
+
+#: services/webservice/pages/music.py
+msgid "Length"
+msgstr "Länge"
+
+#: services/webservice/pages/music.py
+msgid "Library"
+msgstr "Bibliothek"
+
+#: services/webservice/pages/music.py
+msgid "Library · per node"
+msgstr "Bibliothek · pro Knoten"
+
+#: services/webservice/pages/music.py
+msgid "Name"
+msgstr "Name"
+
+#: services/webservice/pages/music.py
+msgid "New playlist"
+msgstr "Neue Playlist"
+
+#: services/webservice/pages/music.py
+msgid "No playlist exists yet."
+msgstr "Es gibt noch keine Playlist."
+
+#: services/webservice/pages/music.py
+msgid "No radio is configured on this installation."
+msgstr "In dieser Installation ist kein Radio konfiguriert."
+
+#: services/webservice/pages/music.py
+msgid "No server is running, so no radio is shown."
+msgstr "Kein Server läuft, deshalb wird kein Radio angezeigt."
+
+#: services/webservice/pages/music.py
+msgid "No track in this folder."
+msgstr "In diesem Ordner liegt kein Titel."
+
+#: services/webservice/pages/music.py
+msgid "No track matches the filter."
+msgstr "Kein Titel passt zum Filter."
+
+#: services/webservice/pages/music.py
+msgid ""
+"None of the servers your roles manage are in this view, so no radio is "
+"shown."
+msgstr "Keiner der Server, die deine Rollen verwalten, ist in dieser Ansicht, deshalb wird kein Radio angezeigt."
+
+#: services/webservice/pages/music.py
+msgid "Not saved: the new order could not be sent."
+msgstr "Nicht gespeichert: die neue Reihenfolge konnte nicht gesendet werden."
+
+#: services/webservice/pages/music.py
+msgid "Not saved: the order was refused. Reload the page."
+msgstr "Nicht gespeichert: die Reihenfolge wurde abgelehnt. Lade die Seite neu."
+
+#: services/webservice/templates/server_detail.html:535
+msgid "Not saved: the new order was refused. Reload the page and try again."
+msgstr "Nicht gespeichert: die neue Reihenfolge wurde abgelehnt. Lade die Seite neu und versuche es erneut."
+
+#: services/webservice/pages/music.py
+msgid "Open"
+msgstr "Öffnen"
+
+#: services/webservice/pages/music.py
+msgid "Order"
+msgstr "Reihenfolge"
+
+#: services/webservice/pages/music.py
+msgid "Play on a radio"
+msgstr "Auf einem Radio abspielen"
+
+#: services/webservice/pages/music.py
+msgid "Play on…"
+msgstr "Abspielen auf…"
+
+#: services/webservice/pages/music.py
+msgid "Play the playlist '{name}' on a radio"
+msgstr "Playlist '{name}' auf einem Radio abspielen"
+
+#: services/webservice/pages/music.py
+msgid "Play the playlist on a radio"
+msgstr "Playlist auf einem Radio abspielen"
+
+#: services/webservice/pages/music.py
+msgid "Playlists"
+msgstr "Playlists"
+
+#: services/webservice/pages/music.py
+msgid "Playlists, the library on each node, and what every radio is playing right now."
+msgstr "Playlists, die Bibliothek auf jedem Knoten und was jedes Radio gerade spielt."
+
+#: services/webservice/pages/music.py
+msgid "Remove %(count)s missing"
+msgstr "%(count)s fehlende entfernen"
+
+#: services/webservice/pages/music.py
+msgid "Rename"
+msgstr "Umbenennen"
+
+#: services/webservice/pages/music.py
+msgid "Rename the playlist"
+msgstr "Playlist umbenennen"
+
+#: services/webservice/pages/music.py
+msgid "Rescan"
+msgstr "Neu einlesen"
+
+#: services/webservice/pages/music.py
+msgid "Scanned"
+msgstr "Eingelesen"
+
+#: services/webservice/pages/music.py
+msgid "The music actions are not available in this process, so this page is read-only."
+msgstr "Die Musik-Aktionen sind in diesem Prozess nicht verfügbar, daher ist diese Seite schreibgeschützt."
+
+#: services/webservice/pages/music.py
+msgid "The music folder could not be read."
+msgstr "Der Musikordner konnte nicht gelesen werden."
+
+#: services/webservice/pages/music.py
+msgid "The playlist and the radio assignments that name it are removed."
+msgstr "Die Playlist und die Radio-Zuweisungen, die sie nennen, werden entfernt."
+
+#: services/webservice/pages/music.py
+msgid "The playlist exists once it holds its first track. Nothing is written by this step."
+msgstr "Die Playlist existiert, sobald sie ihren ersten Titel enthält. Dieser Schritt schreibt nichts."
+
+#: services/webservice/pages/music.py
+msgid "The radio is reassigned and restarted on this playlist."
+msgstr "Das Radio wird neu zugewiesen und mit dieser Playlist neu gestartet."
+
+#: services/webservice/pages/music.py
+msgid "The radios that play it move with the name."
+msgstr "Die Radios, die sie spielen, ziehen mit dem Namen mit."
+
+#: services/webservice/pages/music.py
+msgid "This playlist does not exist yet. Adding a track creates it."
+msgstr "Diese Playlist existiert noch nicht. Der erste Titel legt sie an."
+
+#: services/webservice/pages/music.py
+msgid "This playlist holds no track yet."
+msgstr "Diese Playlist enthält noch keinen Titel."
+
+#: services/webservice/pages/music.py
+msgid "Title"
+msgstr "Titel"
+
+#: services/webservice/pages/music.py
+msgid "Total length"
+msgstr "Gesamtlänge"
+
+#: services/webservice/pages/music.py
+msgid "Tracks"
+msgstr "Titel"
+
+#: services/webservice/pages/music.py
+msgid "Used by"
+msgstr "Verwendet von"
+
+#: services/webservice/pages/music.py
+msgid "draft"
+msgstr "Entwurf"
+
+#: services/webservice/pages/music.py
+msgid "drag to reorder"
+msgstr "zum Umsortieren ziehen"
+
+#: services/webservice/pages/music.py
+msgid "idle"
+msgstr "inaktiv"
+
+#: services/webservice/pages/music.py
+msgid "missing on the node"
+msgstr "fehlt auf dem Knoten"
+
+#: services/webservice/pages/music.py
+msgid "on air"
+msgstr "auf Sendung"
+
+#: services/webservice/pages/music.py
+msgid "playlist"
+msgstr "Playlist"
+
+#: services/webservice/pages/music.py
+msgid "total %(length)s"
+msgstr "gesamt %(length)s"
+
+#: services/webservice/pages/music.py
+msgid "A playlist name is required."
+msgstr "Ein Playlist-Name ist erforderlich."
+
+#: services/webservice/pages/music.py
+msgid "That is not a track of this playlist."
+msgstr "Das ist kein Titel dieser Playlist."
+
+#: services/webservice/pages/access.py:688
+msgid "%(count)s unsaved change(s)"
+msgstr "%(count)s ungespeicherte Änderung(en)"
+
+#: services/webservice/pages/access.py:261
+msgid "%(role)s added"
+msgstr "%(role)s hinzugefügt"
+
+#: services/webservice/pages/access.py:262
+msgid "%(role)s removed"
+msgstr "%(role)s entfernt"
+
+#: services/webservice/pages/access.py:99
+msgid "Access"
+msgstr "Zugriff"
+
+#: services/webservice/pages/access.py:771
+msgid "Access matrix updated: %(detail)s"
+msgstr "Zugriffsmatrix aktualisiert: %(detail)s"
+#: services/webservice/pages/access.py:293
+msgid "Access matrix save refused: %(detail)s"
+msgstr "Zugriffsmatrix-Speicherung abgelehnt: %(detail)s"
+
+
+#: services/webservice/pages/access.py:333
+#, python-format
+msgid "Ignored: '%(key)s' is not a mapping, so no override was applied."
+msgstr "Ignoriert: '%(key)s' ist keine Zuordnung, daher wurde keine Überschreibung angewendet."
+
+#: services/webservice/pages/access.py:335
+#, python-format
+msgid "Ignored: the entry for '%(key)s' is not a mapping, so that capability keeps its declared roles."
+msgstr "Ignoriert: der Eintrag für '%(key)s' ist keine Zuordnung, daher behält diese Fähigkeit ihre deklarierten Rollen."
+
+#: services/webservice/pages/access.py:338
+#, python-format
+msgid "Ignored: '%(key)s' is not a key this page reads, in the entry for '%(capability)s'."
+msgstr "Ignoriert: '%(key)s' ist kein Schlüssel, den diese Seite liest — im Eintrag für '%(capability)s'."
+
+#: services/webservice/pages/access.py:340
+#, python-format
+msgid "Ignored: '%(key)s' does not carry a readable value in the entry for '%(capability)s'."
+msgstr "Ignoriert: '%(key)s' trägt keinen lesbaren Wert im Eintrag für '%(capability)s'."
+
+#: services/webservice/pages/access.py:344
+msgid "Some parts of the stored access block could not be read and were skipped — the capabilities they name keep their declared values:"
+msgstr "Einige Teile des gespeicherten Zugriffsblocks konnten nicht gelesen werden und wurden übersprungen — die dort genannten Fähigkeiten behalten ihre deklarierten Werte:"
+
+#: services/webservice/pages/access.py:363
+#, python-format
+msgid "Access updated — %(count)s change(s), in effect now."
+msgstr "Zugriff aktualisiert — %(count)s Änderung(en), jetzt wirksam."
+
+#: services/webservice/templates/access.html:86
+msgid "Admin"
+msgstr "Admin"
+
+#: services/webservice/templates/access.html:67
+msgid "Admin — always on"
+msgstr "Admin — immer aktiv"
+
+#: services/webservice/templates/access.html:178
+msgid "Applied immediately, no restart."
+msgstr "Sofort wirksam, kein Neustart."
+
+#: services/webservice/templates/access.html:85
+msgid "Control"
+msgstr "Berechtigung"
+
+#: services/webservice/pages/access.py:170
+msgid "Expert Mode and the shared scheduler default"
+msgstr "Expertenmodus und der gemeinsame Scheduler-Standard"
+
+#: services/webservice/templates/access.html:38
+msgid "Filter a control…"
+msgstr "Berechtigung filtern…"
+
+#: services/webservice/pages/access.py:268
+msgid "No change: the matrix is exactly what is stored."
+msgstr "Keine Änderung: die Matrix entspricht genau dem Gespeicherten."
+
+#: services/webservice/templates/access.html:74
+msgid "No control matches this filter."
+msgstr "Keine Berechtigung passt zu diesem Filter."
+
+#: services/webservice/pages/access.py:685
+msgid "No overrides — every capability keeps its declared defaults."
+msgstr "Keine Abweichungen — jede Berechtigung behält ihre deklarierten Standardwerte."
+
+#: services/webservice/pages/access.py:251
+msgid "Nothing was saved: %(capability)s belongs to this page and cannot be edited."
+msgstr "Nichts gespeichert: %(capability)s gehört zu dieser Seite und kann nicht bearbeitet werden."
+
+#: services/webservice/pages/access.py:255
+msgid "Nothing was saved: %(capability)s is machine- or installation-wide, so it cannot carry a managed_by grant."
+msgstr "Nichts gespeichert: %(capability)s gilt maschinen- oder installationsweit und kann daher keine managed_by-Freigabe tragen."
+
+#: services/webservice/pages/access.py:245
+msgid "Nothing was saved: %(capability)s is not a capability this console declares."
+msgstr "Nichts gespeichert: %(capability)s ist keine Berechtigung, die diese Konsole kennt."
+
+#: services/webservice/pages/access.py:720
+msgid "Nothing was saved: %(reason)s"
+msgstr "Nichts gespeichert: %(reason)s"
+
+#: services/webservice/pages/access.py:247
+msgid "Nothing was saved: %(role)s is not a role of this bot's role model."
+msgstr "Nichts gespeichert: %(role)s ist keine Rolle des Rollenmodells dieses Bots."
+
+#: services/webservice/pages/access.py:253
+msgid "Nothing was saved: Admin cannot be removed from %(capability)s."
+msgstr "Nichts gespeichert: Admin kann nicht von %(capability)s entfernt werden."
+
+#: services/webservice/pages/access.py:249
+msgid "Nothing was saved: it would leave no role able to open this page."
+msgstr "Nichts gespeichert: danach könnte keine Rolle diese Seite mehr öffnen."
+#: services/webservice/pages/access.py:280
+msgid "Nothing was saved: the page was loaded before the configuration changed on disk. Reload it and apply your change again."
+msgstr "Nichts gespeichert: die Seite wurde geladen, bevor sich die Konfiguration auf der Festplatte geändert hat. Laden Sie sie neu und wenden Sie die Änderung erneut an."
+
+
+#: services/webservice/pages/access.py:116
+msgid "Other"
+msgstr "Sonstiges"
+
+#: services/webservice/templates/access.html:43
+msgid "Show changes only"
+msgstr "Nur Änderungen zeigen"
+
+#: services/webservice/templates/access.html:61
+msgid "The bot's own Discord commands keep their roles, so a role you narrow here can still act in Discord."
+msgstr "Die Discord-Befehle des Bots behalten ihre Rollen — eine hier eingeschränkte Rolle kann in Discord weiterhin handeln."
+
+#: services/webservice/templates/access.html:161
+msgid "The decision is read per request, so a save takes effect immediately — and is refused if it would leave no role able to open this page."
+msgstr "Die Entscheidung wird bei jeder Anfrage gelesen, ein Speichern wirkt also sofort — und wird abgelehnt, wenn danach keine Rolle diese Seite mehr öffnen könnte."
+
+#: services/webservice/templates/access.html:60
+msgid "This matrix decides the website only."
+msgstr "Diese Matrix entscheidet nur über die Website."
+
+#: services/webservice/templates/access.html:55
+msgid "This page could not read the service configuration, so it shows the declared values only — nothing here is stored yet."
+msgstr "Diese Seite konnte die Dienstkonfiguration nicht lesen und zeigt daher nur die deklarierten Werte — hier ist noch nichts gespeichert."
+
+#: services/webservice/pages/access.py:101
+msgid "Which role reaches which control on the website. Admin keeps everything and cannot be reduced here."
+msgstr "Welche Rolle welche Berechtigung auf der Website erreicht. Admin behält alles und kann hier nicht reduziert werden."
+
+#: services/webservice/pages/access.py:168
+msgid "a server's schedule"
+msgstr "der Zeitplan eines Servers"
+
+#: services/webservice/pages/access.py:173
+msgid "activate a mission and restart the server into it"
+msgstr "eine Mission aktivieren und den Server darin neu starten"
+
+#: services/webservice/pages/access.py:176
+msgid "add a mission from the library"
+msgstr "eine Mission aus der Bibliothek hinzufügen"
+
+#: services/webservice/pages/access.py:183
+msgid "ban a player on the servers you hold"
+msgstr "einen Spieler auf deinen Servern bannen"
+
+#: services/webservice/pages/access.py:195
+msgid "bring a node back online"
+msgstr "einen Node wieder online bringen"
+
+#: services/webservice/templates/access.html:70
+msgid "cannot be granted here"
+msgstr "hier nicht vergebbar"
+
+#: services/webservice/pages/access.py:214
+msgid "changes on this page"
+msgstr "Änderungen auf dieser Seite"
+
+#: services/webservice/pages/access.py:161
+msgid "chat and popup to the players of a server"
+msgstr "Chat und Popup an die Spieler eines Servers"
+
+#: services/webservice/pages/access.py:160
+msgid "clear a server's maintenance flag"
+msgstr "die Wartungsmarkierung eines Servers aufheben"
+
+#: services/webservice/pages/access.py:166
+msgid "coalition passwords and slots"
+msgstr "Koalitions-Passwörter und Slots"
+
+#: services/webservice/pages/access.py:162
+msgid "create a new server instance"
+msgstr "eine neue Server-Instanz anlegen"
+
+#: services/webservice/pages/access.py:169
+msgid "create and edit a server's schedule"
+msgstr "den Zeitplan eines Servers anlegen und bearbeiten"
+
+#: services/webservice/pages/access.py:192
+msgid "create, edit, reorder and delete playlists"
+msgstr "Playlists anlegen, bearbeiten, sortieren und löschen"
+
+#: services/webservice/pages/access.py:178
+msgid "delete a mission"
+msgstr "eine Mission löschen"
+
+#: services/webservice/pages/access.py:184
+msgid "edit an existing ban"
+msgstr "einen bestehenden Bann bearbeiten"
+
+#: services/webservice/pages/access.py:212
+msgid "edit the MizEdit presets"
+msgstr "die MizEdit-Presets bearbeiten"
+
+#: services/webservice/pages/access.py:208
+msgid "edit the bot's own configuration"
+msgstr "die eigene Konfiguration des Bots bearbeiten"
+
+#: services/webservice/pages/access.py:210
+msgid "edit the global configuration files"
+msgstr "die globalen Konfigurationsdateien bearbeiten"
+
+#: services/webservice/pages/access.py:159
+msgid "flag a server for maintenance"
+msgstr "einen Server für Wartung markieren"
+
+#: services/webservice/pages/access.py:187
+msgid "give penalty points"
+msgstr "Strafpunkte vergeben"
+
+#: services/webservice/templates/access.html:68
+msgid "granted"
+msgstr "vergeben"
+
+#: services/webservice/pages/access.py:204
+msgid "install and remove the root mods of a node"
+msgstr "die Root-Mods eines Nodes installieren und entfernen"
+
+#: services/webservice/templates/access.html:63
+msgid "is the scope of a server: a manager acts on the servers their scope names, never anywhere else."
+msgstr "ist der Bereich eines Servers: ein Verwalter handelt auf den Servern, die sein Bereich nennt, und nirgends sonst."
+
+#: services/webservice/pages/access.py:186
+msgid "keep a player on the watch list"
+msgstr "einen Spieler auf der Beobachtungsliste führen"
+
+#: services/webservice/pages/access.py:181
+msgid "kick a player right now"
+msgstr "einen Spieler sofort kicken"
+
+#: services/webservice/pages/access.py:185
+msgid "lift a ban"
+msgstr "einen Bann aufheben"
+
+#: services/webservice/pages/access.py:172
+msgid "load a mission onto a server"
+msgstr "eine Mission auf einen Server laden"
+
+#: services/webservice/templates/access.html:113
+msgid "locked"
+msgstr "gesperrt"
+
+#: services/webservice/pages/access.py:263
+msgid "managed_by granted"
+msgstr "managed_by vergeben"
+
+#: services/webservice/pages/access.py:264
+msgid "managed_by removed"
+msgstr "managed_by entfernt"
+
+#: services/webservice/pages/access.py:188
+msgid "message a player on Discord"
+msgstr "einem Spieler auf Discord schreiben"
+
+#: services/webservice/pages/access.py:182
+msgid "mute a player right now"
+msgstr "einen Spieler sofort stummschalten"
+
+#: services/webservice/templates/access.html:69
+msgid "not granted"
+msgstr "nicht vergeben"
+
+#: services/webservice/pages/access.py:174
+msgid "pause the running mission"
+msgstr "die laufende Mission pausieren"
+
+#: services/webservice/pages/access.py:193
+msgid "play, stop, skip, mode and frequency of a running radio"
+msgstr "Play, Stop, Skip, Modus und Frequenz eines laufenden Radios"
+
+#: services/webservice/pages/access.py:191
+msgid "playlists, the library and this server's radios"
+msgstr "Playlists, die Bibliothek und die Radios dieses Servers"
+
+#: services/webservice/pages/access.py:163
+msgid "remove a server instance"
+msgstr "eine Server-Instanz entfernen"
+
+#: services/webservice/pages/access.py:179
+msgid "reorder a server's mission list"
+msgstr "die Missionsliste eines Servers sortieren"
+
+#: services/webservice/pages/access.py:157
+msgid "restart a server — players are dropped"
+msgstr "einen Server neu starten — Spieler werden getrennt"
+
+#: services/webservice/pages/access.py:197
+msgid "restart the bot on a node"
+msgstr "den Bot auf einem Node neu starten"
+
+#: services/webservice/pages/access.py:198
+msgid "shut a node's machine down"
+msgstr "die Maschine eines Nodes herunterfahren"
+
+#: services/webservice/pages/access.py:154
+msgid "start a server, including its dependent instances"
+msgstr "einen Server starten, samt seiner abhängigen Instanzen"
+
+#: services/webservice/pages/access.py:155
+msgid "start a stopped server"
+msgstr "einen gestoppten Server starten"
+
+#: services/webservice/pages/access.py:156
+msgid "stop a running server"
+msgstr "einen laufenden Server stoppen"
+
+#: services/webservice/pages/access.py:196
+msgid "take a node offline"
+msgstr "einen Node offline nehmen"
+
+#: services/webservice/pages/access.py:189
+msgid "take a screenshot on a server"
+msgstr "einen Screenshot auf einem Server aufnehmen"
+
+#: services/webservice/pages/access.py:158
+msgid "take a server down and keep it down"
+msgstr "einen Server herunterfahren und unten halten"
+
+#: services/webservice/pages/access.py:211
+msgid "the MizEdit presets"
+msgstr "die MizEdit-Presets"
+
+#: services/webservice/pages/access.py:206
+msgid "the bot log"
+msgstr "das Bot-Log"
+
+#: services/webservice/pages/access.py:207
+msgid "the bot's own configuration"
+msgstr "die eigene Konfiguration des Bots"
+
+#: services/webservice/pages/access.py:190
+msgid "the console's ban list"
+msgstr "die Bannliste der Konsole"
+
+#: services/webservice/pages/access.py:152
+msgid "the dashboard: live servers, load and the log panel"
+msgstr "das Dashboard: Server live, Last und das Log-Panel"
+
+#: services/webservice/pages/access.py:209
+msgid "the global configuration files"
+msgstr "die globalen Konfigurationsdateien"
+
+#: services/webservice/pages/access.py:205
+msgid "the installation-wide statistics"
+msgstr "die installationsweite Statistik"
+
+#: services/webservice/pages/access.py:202
+msgid "the instance list"
+msgstr "die Instanzliste"
+
+#: services/webservice/pages/access.py:171
+msgid "the mission list of a server"
+msgstr "die Missionsliste eines Servers"
+
+#: services/webservice/pages/access.py:203
+msgid "the mods of a server or a node"
+msgstr "die Mods eines Servers oder eines Nodes"
+
+#: services/webservice/pages/access.py:194
+msgid "the node list and one node's page"
+msgstr "die Node-Liste und die Seite eines Nodes"
+#: services/webservice/pages/access.py:295
+msgid "the page was stale — the file changed on disk"
+msgstr "die Seite war veraltet — die Datei hat sich auf der Festplatte geändert"
+
+
+#: services/webservice/pages/access.py:201
+msgid "the per-node settings page"
+msgstr "die Einstellungsseite eines Nodes"
+
+#: services/webservice/pages/access.py:180
+msgid "the player directory and one player's page"
+msgstr "das Spielerverzeichnis und die Seite eines Spielers"
+
+#: services/webservice/pages/access.py:153
+msgid "the server list and one server's page"
+msgstr "die Serverliste und die Seite eines Servers"
+
+#: services/webservice/pages/access.py:164
+msgid "the server's Configuration tab"
+msgstr "der Konfigurations-Tab eines Servers"
+
+#: services/webservice/pages/access.py:167
+msgid "the server's Discord channels"
+msgstr "die Discord-Kanäle eines Servers"
+
+#: services/webservice/pages/access.py:165
+msgid "the server's own DCS settings"
+msgstr "die eigenen DCS-Einstellungen eines Servers"
+
+#: services/webservice/pages/access.py:213
+msgid "this page"
+msgstr "diese Seite"
+
+#: services/webservice/pages/access.py:175
+msgid "unpause the running mission"
+msgstr "die laufende Mission fortsetzen"
+
+#: services/webservice/pages/access.py:200
+msgid "update, roll back or switch the DCS branch of a node"
+msgstr "den DCS-Branch eines Nodes aktualisieren, zurückrollen oder wechseln"
+
+#: services/webservice/pages/access.py:199
+msgid "upgrade the bot on a node"
+msgstr "den Bot auf einem Node aktualisieren"
+
+#: services/webservice/pages/access.py:177
+msgid "upload a mission file"
+msgstr "eine Missionsdatei hochladen"
+
+#: services/webservice/pages/music.py
+#: services/webservice/templates/music_playlist.html
+msgid "Upload"
+msgstr "Hochladen"
+
+#: services/webservice/pages/music.py
+#: services/webservice/templates/music_playlist.html
+msgid "Upload into this folder, or drop .mp3 and .ogg files here or on a folder in the rail."
+msgstr "In diesen Ordner hochladen — oder .mp3- und .ogg-Dateien hierher oder auf einen Ordner in der Leiste ziehen."
+
+#: services/webservice/pages/access.py
+msgid "write files into the music directory"
+msgstr "Dateien in das Musikverzeichnis schreiben"
+
+#: services/webservice/templates/music_playlist.html
+msgid "Not uploaded: the file could not be sent."
+msgstr "Nicht hochgeladen: die Datei konnte nicht gesendet werden."
+
+#: services/webservice/pages/access.py
+msgid "Access saved — %(count)s change(s), written to the configuration. This process could not install them; the next start applies the block."
+msgstr "Zugriff gespeichert — %(count)s Änderung(en) in die Konfiguration geschrieben. Dieser Prozess konnte sie nicht übernehmen; der nächste Start wendet den Block an."
+
+#: services/webservice/pages/music.py
+msgid "Edit the playlist '{name}'"
+msgstr "Playlist '{name}' bearbeiten"
+
+#: services/webservice/pages/music.py
+msgid "No server is running, so this playlist cannot be played."
+msgstr "Es läuft kein Server, daher kann diese Playlist nicht abgespielt werden."
+
+#: services/webservice/templates/music_playlist.html
+msgid "Drag to reorder, or press Alt+Up or Alt+Down"
+msgstr "Zum Umsortieren ziehen oder Alt+Auf bzw. Alt+Ab drücken"
+
+
+#: services/webservice/pages/music.py
+msgid "Repeat is on — press to switch to shuffle"
+msgstr "Wiederholen ist an — zum Umschalten auf Zufall drücken"
+
+#: services/webservice/pages/music.py
+msgid "Shuffle is on — press to switch to repeat"
+msgstr "Zufall ist an — zum Umschalten auf Wiederholen drücken"

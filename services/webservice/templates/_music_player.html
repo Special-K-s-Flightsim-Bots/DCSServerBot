@@ -1,0 +1,70 @@
+{#-
+  THE MUSIC PLAYER — one radio, drawn by the /music overview AND by the Servers > Music tab.
+
+  `pages/music.radio_cards` builds every field this partial reads, and both surfaces render THIS
+  template, so the two players cannot drift: one edit lands on the overview and on the server's tab.
+  The partial reads ONE name (`card`) and carries no id — its wrapper owns the swap target.
+
+  FOUR ROWS, LEFT-ALIGNED: the radio (its state dot, its name, the name it wears in game, its state
+  word and its tuning), the track playing, that track's artist and album, and the transport beside the
+  playlist it plays. The only right-aligned value is the track's LENGTH, and it sits on the track's own
+  line: the radio read carries a duration and NO progress, so an elapsed bar or counter would measure
+  something the console does not have. An idle radio draws no track line at all and states its one
+  sentence instead.
+
+  THE TRANSPORT IS FOUR GLYPH BUTTONS — play, stop, skip and the mode toggle. STOP IS THE PAUSE: the
+  action accepts play/stop/skip/mode, so no pause verb is drawn. The mode button draws the mode IN
+  FORCE and posts the other one. A verb the radio's state makes meaningless is drawn DISABLED with the
+  sentence that says why; a caller without `music.control` gets no strip at all — omitted, never drawn
+  disabled — and keeps the facts.
+
+  A LOAD IN FLIGHT — `card.loading`, from the same read that carries `card.on_air` — is the third
+  state: the dot turns, the tag says Loading…, and Play/Skip are disabled so a second press cannot
+  stack. Stop stays enabled: it is what cancels a load that never lands. No bar and no percentage —
+  a load has no measurable fraction.
+-#}
+{% import "_icons.html" as icons %}
+<article class="st-tile service pl" data-music-player>
+  <div class="st-top">
+    <span class="st-kind">{% trans %}Radio{% endtrans %}</span>
+    <span class="st-scope">{{ card.server }}</span>
+  </div>
+  <div class="pl-top">
+    <span class="dot {{ 'spin' if card.loading else ('run' if card.on_air else 'stop') }}" aria-hidden="true"></span>
+    <b class="pl-name">{{ card.name }}</b>
+    {% if card.display_name and card.display_name != card.name %}<span class="pl-dname">{{ card.display_name }}</span>{% endif %}
+    <span class="tag{{ ' a' if card.on_air }}">{{ _(card.state_word) }}</span>
+    <span class="pl-tune mono" title="{% trans %}Frequency{% endtrans %}">{{ card.frequency }} {{ card.modulation }}</span>
+  </div>
+  {% if card.title %}
+  <div class="pl-now">
+    <span class="pl-lbl">{% trans %}Now playing{% endtrans %}:</span>
+    <b class="pl-title">{{ card.title }}</b>
+    {% if card.duration %}<span class="pl-dur mono">{{ card.duration }}</span>{% endif %}
+  </div>
+  {% if card.artist or card.album %}
+  <div class="pl-meta">{{ card.artist }}{% if card.artist and card.album %} · {% endif %}{{ card.album }}</div>
+  {% endif %}
+  {% else %}
+  <div class="pl-meta">{{ _(card.no_track) }}</div>
+  {% endif %}
+  <div class="pl-bar">
+    {% if card.controls %}
+    {% for form in card.controls.verbs %}
+    <form method="post" action="{{ form.path }}" class="pl-form">
+      {% for name, value in form.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+      <input type="hidden" name="{{ form.csrf_field }}" value="{{ form.csrf_token }}">
+      <button type="submit" class="pl-btn" aria-label="{{ _(form.label) }}" title="{{ _(form.why) if form.disabled else _(form.label) }}"{% if form.disabled %} disabled{% endif %}>{{ icons.act(form.glyph) }}</button>
+    </form>
+    {% endfor %}
+    <form method="post" action="{{ card.controls.mode.path }}" class="pl-form">
+      {% for name, value in card.controls.mode.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+      <input type="hidden" name="{{ card.controls.mode.csrf_field }}" value="{{ card.controls.mode.csrf_token }}">
+      <button type="submit" class="pl-btn" aria-label="{{ _(card.controls.mode.label) }}" title="{{ _(card.controls.mode.label) }}">{{ icons.act(card.controls.mode.glyph) }}</button>
+    </form>
+    {% endif %}
+    {% if card.playlist %}
+    <span class="pl-pl"><span class="pl-lbl">{% trans %}Playlist{% endtrans %}</span>{% if card.playlist_href %}<a href="{{ card.playlist_href }}">{{ card.playlist }}</a>{% else %}<span class="mono">{{ card.playlist }}</span>{% endif %}</span>
+    {% endif %}
+  </div>
+</article>

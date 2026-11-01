@@ -10,7 +10,7 @@ from . import dashboard as dashboard_page
 
 __all__ = [
     "LOGS_PATH", "LOGS_CAPABILITY", "LOGS_ROLES", "LOGS_TEMPLATE", "LOGS_TITLE", "LOGS_LEAD",
-    "NAV_GROUP", "capabilities", "add_routes", "console_for",
+    "capabilities", "add_routes", "console_for",
 ]
 
 log = logging.getLogger(__name__)
@@ -29,7 +29,6 @@ LOGS_TEMPLATE = "logs.html"
 LOGS_TITLE = i18n._("Logs")
 LOGS_LEAD = i18n._("The bot log, full width, with the same level filter and placement as the "
                    "dashboard.")
-NAV_GROUP = dashboard_page.NAV_GROUP
 CRUMB_GROUP = dashboard_page.CRUMB_GROUP
 
 

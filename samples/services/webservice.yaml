@@ -31,6 +31,23 @@ DEFAULT:
                                #   (or leave it empty) and it is derived from `listen`: loopback-only may
                                #   skip Secure, anything reachable from the network must not.
     # same_site: lax             # Optional: lax (default) | strict | none. Leave it at lax - strict breaks the OAuth callback
+  # Role -> capability overrides of the admin web console, edited on its Access page (/access) and
+  # stored here. One entry per capability, every part optional: `add` grants a role the capability
+  # in addition to the declared ones, `remove` takes it away on the WEBSITE, and `manager` decides
+  # whether a managing scope (`managed_by`) satisfies it. The block EXTENDS and NARROWS what the
+  # code declares and never replaces it; `Admin` cannot be removed, and a machine- or
+  # installation-wide capability (nodes.*, settings.*, presets.*, logs.view, statistics.view,
+  # servers.add, servers.delete, servers.config.channels, mods.manage, access.*) cannot carry a
+  # `managed_by` grant at all. An unknown capability or role name is refused at startup (logged, and
+  # the whole block ignored) and refused as a save on the page.
+  #   The WEBSITE only: the bot's Discord commands keep their own role decorators, so a role narrowed
+  #   here can still act in Discord. Applied on the next request, no restart.
+  # access:
+  #   music.write:
+  #     add: [Media Manager]
+  #     remove: [DCS Admin]
+  #   music.control:
+  #     manager: true
   # The identity layer of the admin web UI. Optional: without it every non-public page answers 403
   # (deny by default).
   auth:

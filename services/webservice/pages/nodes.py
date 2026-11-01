@@ -128,7 +128,8 @@ NAV_LABEL = i18n._("Nodes")
 
 PAGE = lists_page.ListPage(table=NODES_TABLE, path=NODES_PATH, capability=NODES_CAPABILITY,
                            roles=NODES_ROLES, title=NODES_TITLE, lead=NODES_LEAD,
-                           nav_label=NAV_LABEL, scope_grants=True, writes=True)
+                           nav_label=NAV_LABEL, group="Cluster", glyph="hex",
+                           scope_grants=True, writes=True)
 
 #: THE NODE LOG DOWNLOAD's route — one literal TEMPLATE path (``{node}`` is one path segment, the
 #: node's own name). It is not the page path and not a page: it answers GET, it renders no chrome,

@@ -192,7 +192,8 @@ def capabilities() -> dict[str, str]:
 
 def nav_items():
     """The sidebar entry this page contributes — data, not markup."""
-    return (NavItem(label=NAV_LABEL, url=STATISTICS_PATH, capability=STATISTICS_CAPABILITY),)
+    return (NavItem(label=NAV_LABEL, url=STATISTICS_PATH, capability=STATISTICS_CAPABILITY,
+                    group="Data", glyph="chart"),)
 
 
 def _sentence(msgid: str, **params: Any) -> dict:
