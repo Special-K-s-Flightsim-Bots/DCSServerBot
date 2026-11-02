@@ -49,6 +49,14 @@
             ABSENT and the strip simply holds fewer. -#}
         {% for row in table.rows %}<tr><td><span class="dot {{ 'run' if row.online else 'stop' }}" aria-hidden="true"></span> <span class="tag">{% if row.online %}{% trans %}Online{% endtrans %}{% else %}{% trans %}Offline{% endtrans %}{% endif %}</span></td><td><b><a class="srv-name" href="{{ directory.detail_prefix }}{{ row.ucid }}">{{ row.name }}</a></b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.discord %}<span class="mono">{{ row.discord }}</span>{% else %}<span class="sub">{% trans %}not linked{% endtrans %}</span>{% endif %}</td><td class="mono"><span class="stamp">{{ row.last_seen or '—' }}</span></td><td class="num">{{ row.playtime or '—' }}</td><td>{% if row.banned %}<span class="tag a">{% trans %}Banned{% endtrans %}</span> {% endif %}{% if row.watched %}<span class="tag a">{% trans %}Watched{% endtrans %}</span> {% endif %}{% if row.vip %}<span class="tag">{% trans %}VIP{% endtrans %}</span>{% endif %}{% if not row.banned and not row.watched and not row.vip %}—{% endif %}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.ucid) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
+      {% elif table.name == 'audit' %}
+        {#- AN AUDIT ROW: one recorded operation, in the trail's own order. The stamp and the node come
+            first — who and where — then the actor that made the attempt, the server it touched and the
+            sentence the bot wrote. The actor cell is a dash for an entry written BEFORE the column
+            existed: the actor is unrecoverable from those rows, and guessing it out of the event text
+            would be a fact the trail does not hold. No control is offered: the trail is read-only. -#}
+        {% for row in table.rows %}<tr><td class="mono when">{{ row.time }}</td><td class="col-node">{{ row.node }}</td><td class="col-actor">{% if row.actor %}<span class="mono">{{ row.actor }}</span>{% else %}—{% endif %}</td><td>{{ row.server }}</td><td>{{ row.event }}</td></tr>
+        {% endfor %}
       {% elif table.name == 'mods' %}
         {#- AN INSTALLED MOD: the bookkeeping's own facts, one row per (package, version) of ONE
             target. The two controls are the SAME glyph strip every other row renders

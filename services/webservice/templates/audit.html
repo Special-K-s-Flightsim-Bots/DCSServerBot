@@ -1,0 +1,85 @@
+{#-
+  The Audit page: the cluster's trail, read-only.
+
+  Thin on purpose, like every other list page. The card, the table, the sort links and the empty
+  state are `_table.html`'s — the SAME component the dashboard's tabs and the other list pages render,
+  so a column cannot land here and miss them. The FILTER BAND is this template's own because no other
+  page narrows by four fields and a range: the console's other filters are one search box or a closed
+  set of view links.
+
+  THE CONTROLS ARE THE CONSOLE'S OWN FIELD LANGUAGE — `class="field"` on each input and select, the
+  box the settings forms and the dialogs use (`.search` lays them out and states the uppercase label).
+  Node and Server are SELECTS over the names the cluster is actually carrying, so a filter cannot be
+  typed wrong; the current value stays a choice even when the list no longer holds it, so a rename
+  cannot silently widen the view. From and Through are real `<input type="date">` pickers — the same
+  control the mission presets' clock uses — and a date on its own means the whole day.
+
+  THE FORM IS A GET, never a POST: it changes what is READ and nothing else, so it is linkable,
+  bookmarkable and works with JavaScript off. Every field shows the filter in force. Clear is a plain
+  link back to the page, which is what makes every filter fall away at once.
+
+  THE PAGER AND THE SORT LINKS ARE DATA (`pages/audit._paging` and the column links): each carries
+  the filters in force, so ordering the trail or turning a page neither drops a filter nor asks the
+  browser for anything scripted.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+<div class="bd">
+  <form class="search" method="get" action="{{ audit.path }}" role="search" data-autofilter>
+    <label for="audit-node">{{ _(audit.labels.node) }}</label>
+    <select class="field" id="audit-node" name="node">
+      <option value="">{{ _(audit.any_node) }}</option>
+      {% for name in audit.nodes %}<option value="{{ name }}"{% if audit.filters.get('node') == name %} selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="audit-server">{{ _(audit.labels.server) }}</label>
+    <select class="field" id="audit-server" name="server">
+      <option value="">{{ _(audit.any_server) }}</option>
+      {% for name in audit.servers %}<option value="{{ name }}"{% if audit.filters.get('server') == name %} selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="audit-actor">{{ _(audit.labels.actor) }}</label>
+    <input class="field" id="audit-actor" type="text" name="actor" size="14"
+           value="{{ audit.filters.get('actor', '') }}" autocomplete="off">
+
+    <label for="audit-q">{{ _(audit.labels.q) }}</label>
+    <input class="field" id="audit-q" type="search" name="q" size="24"
+           value="{{ audit.filters.get('q', '') }}" autocomplete="off">
+
+    <label for="audit-since">{{ _(audit.labels.since) }}</label>
+    <input class="field" id="audit-since" type="date" name="since"
+           value="{{ audit.filters.get('since', '') }}">
+
+    <label for="audit-until">{{ _(audit.labels.until) }}</label>
+    <input class="field" id="audit-until" type="date" name="until"
+           value="{{ audit.filters.get('until', '') }}">
+
+    <button type="submit" class="btn">{{ _(audit.apply) }}</button>
+    <a href="{{ audit.clear_link }}">{{ _(audit.clear_label) }}</a>
+    <span class="sub">{{ _(audit.hint) }}</span>
+  </form>
+</div>
+
+{% if table.rows %}
+<p class="sub search-state">{{ _(audit.summary) }}</p>
+{% endif %}
+{% if audit.error %}<p class="sub search-state">{{ _(audit.error) }}</p>{% endif %}
+
+{% include "_table.html" %}
+
+{% if table.rows and audit.paging.pages > 1 %}
+<div class="bd"><p class="sub">{% trans page=audit.paging.page, pages=audit.paging.pages %}Page {{ page }} of {{ pages }}{% endtrans %}{% if audit.paging.prev %} · <a href="{{ audit.paging.prev }}">{% trans %}Previous{% endtrans %}</a>{% endif %}{% if audit.paging.next %} · <a href="{{ audit.paging.next }}">{% trans %}Next{% endtrans %}</a>{% endif %}</p></div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}<script src="/static/audit-filter.js" defer></script>{% endblock %}

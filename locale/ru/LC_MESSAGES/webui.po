@@ -11129,3 +11129,75 @@ msgstr "Повтор включён — нажмите, чтобы перекл�
 #: services/webservice/pages/music.py
 msgid "Shuffle is on — press to switch to repeat"
 msgstr "Перемешивание включено — нажмите, чтобы переключиться на повтор"
+
+#: services/webservice/readmodels/audit.py
+msgid "Entries: %(total)s"
+msgstr "Записей: %(total)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "Entries: %(total)s · %(narrowed)s"
+msgstr "Записей: %(total)s · %(narrowed)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "filtered"
+msgstr "с фильтром"
+
+#: services/webservice/readmodels/audit.py
+msgid "from %(since)s through %(until)s"
+msgstr "с %(since)s по %(until)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "since %(since)s"
+msgstr "с %(since)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "through %(until)s"
+msgstr "по %(until)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "No audit entry matches this view."
+msgstr "Ни одна запись журнала не соответствует этому представлению."
+
+#: services/webservice/pages/audit.py
+msgid "A date on its own means the whole day. Times are UTC."
+msgstr "Одна дата означает весь день. Время указано в UTC."
+
+#: services/webservice/pages/audit.py
+msgid "Actor"
+msgstr "Исполнитель"
+
+#: services/webservice/pages/audit.py
+msgid "Audit"
+msgstr "Аудит"
+
+#: services/webservice/pages/audit.py
+msgid "Every operation this cluster recorded — who did it, to what, and when. Read-only: the trail is written by the bot, never from here."
+msgstr "Каждая операция, записанная этим кластером: кто, что и когда. Только чтение: журнал пишет бот, никогда эта страница."
+
+#: services/webservice/pages/audit.py
+msgid "The audit trail could not be read."
+msgstr "Не удалось прочитать журнал аудита."
+
+#: services/webservice/pages/audit.py
+msgid "The audit trail is not reachable from this process yet."
+msgstr "Журнал аудита пока недоступен из этого процесса."
+
+#: services/webservice/pages/audit.py
+msgid "Through"
+msgstr "По"
+
+#: services/webservice/pages/audit.py
+msgid "When"
+msgstr "Когда"
+
+#: services/webservice/pages/access.py
+msgid "the cluster's audit trail"
+msgstr "журнал аудита кластера"
+
+#: services/webservice/pages/audit.py
+msgid "any node"
+msgstr "любой узел"
+
+#: services/webservice/pages/audit.py
+msgid "any server"
+msgstr "любой сервер"

@@ -11230,3 +11230,75 @@ msgstr "Repetir está activo — pulsa para cambiar a aleatorio"
 #: services/webservice/pages/music.py
 msgid "Shuffle is on — press to switch to repeat"
 msgstr "Aleatorio está activo — pulsa para cambiar a repetir"
+
+#: services/webservice/readmodels/audit.py
+msgid "Entries: %(total)s"
+msgstr "Entradas: %(total)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "Entries: %(total)s · %(narrowed)s"
+msgstr "Entradas: %(total)s · %(narrowed)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "filtered"
+msgstr "filtrado"
+
+#: services/webservice/readmodels/audit.py
+msgid "from %(since)s through %(until)s"
+msgstr "desde %(since)s hasta %(until)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "since %(since)s"
+msgstr "desde %(since)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "through %(until)s"
+msgstr "hasta %(until)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "No audit entry matches this view."
+msgstr "Ninguna entrada de auditoría coincide con esta vista."
+
+#: services/webservice/pages/audit.py
+msgid "A date on its own means the whole day. Times are UTC."
+msgstr "Una fecha sola significa el día completo. Las horas son UTC."
+
+#: services/webservice/pages/audit.py
+msgid "Actor"
+msgstr "Actor"
+
+#: services/webservice/pages/audit.py
+msgid "Audit"
+msgstr "Auditoría"
+
+#: services/webservice/pages/audit.py
+msgid "Every operation this cluster recorded — who did it, to what, and when. Read-only: the trail is written by the bot, never from here."
+msgstr "Cada operación que registró este clúster: quién la hizo, sobre qué y cuándo. Solo lectura: el registro lo escribe el bot, nunca esta página."
+
+#: services/webservice/pages/audit.py
+msgid "The audit trail could not be read."
+msgstr "No se pudo leer el registro de auditoría."
+
+#: services/webservice/pages/audit.py
+msgid "The audit trail is not reachable from this process yet."
+msgstr "El registro de auditoría aún no es accesible desde este proceso."
+
+#: services/webservice/pages/audit.py
+msgid "Through"
+msgstr "Hasta"
+
+#: services/webservice/pages/audit.py
+msgid "When"
+msgstr "Cuándo"
+
+#: services/webservice/pages/access.py
+msgid "the cluster's audit trail"
+msgstr "el registro de auditoría del clúster"
+
+#: services/webservice/pages/audit.py
+msgid "any node"
+msgstr "cualquier nodo"
+
+#: services/webservice/pages/audit.py
+msgid "any server"
+msgstr "cualquier servidor"

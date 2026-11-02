@@ -169,11 +169,17 @@ PAGE_COLUMNS: dict[str, tuple[Column, ...]] = {
                          Column("discord", _("Discord"), NUM),
                          Column("last_seen", _("Last seen")), Column("playtime", _("Playtime"), NUM),
                          Column("state", _("State"))),
+    # THE AUDIT TRAIL: one row per recorded operation, a Postgres read with its own ``LIMIT`` and its
+    # own paged view. ``server`` is the row's ``server_name`` (a column key has no ``_name`` suffix
+    # here, because the URL is read by an operator); ``time`` sorts lexicographically as the UTC stamp
+    # it renders, which is the same order the column holds.
+    "audit": (Column("time", _("When")), Column("node", _("Node")), Column("actor", _("Actor")),
+              Column("server", _("Server")), Column("event", _("Event"))),
 }
 
 #: The card heading of a PAGE-ONLY table (the dashboard's own labels are :data:`TABLE_LABELS`).
 PAGE_LABELS: dict[str, str] = {"bans": _("Bans"), "mods": _("Mods"),
-                               "player_directory": _("Players")}
+                               "player_directory": _("Players"), "audit": _("Audit")}
 
 
 def columns_for(table: str) -> tuple[Column, ...]:
@@ -211,10 +217,21 @@ def _clean(value, limit: int) -> str:
     return cleaned.strip()[:limit]
 
 
+def default_sort(table: str) -> str:
+    """The column *table* sorts by when the URL states none.
+
+    :data:`DEFAULT_SORT` when the table has it, else the table's FIRST column — a page-only table
+    whose leading column is not ``name`` (the audit trail leads with ``time``) must not resolve to a
+    key it does not have.
+    """
+    keys = column_keys(table)
+    return DEFAULT_SORT if DEFAULT_SORT in keys else (keys[0] if keys else DEFAULT_SORT)
+
+
 def normalise_sort(table: str, value) -> str:
-    """A column key of *table*, or :data:`DEFAULT_SORT`. Nothing else is ever passed on."""
+    """A column key of *table*, or its default. Nothing else is ever passed on."""
     key = _clean(value, MAX_SORT_LENGTH)
-    return key if key in column_keys(table) else DEFAULT_SORT
+    return key if key in column_keys(table) else default_sort(table)
 
 
 def normalise_direction(value) -> str:
@@ -442,6 +459,17 @@ def _cell(table: str, key: str, row):
             return row.playtime_seconds
         if key == "state":
             return row.state
+    elif table == "audit":
+        if key == "time":
+            return row.time
+        if key == "node":
+            return row.node
+        if key == "actor":
+            return row.actor
+        if key == "server":
+            return row.server
+        if key == "event":
+            return row.event
     raise KeyError(f"no cell for {table}.{key}")
 
 
@@ -461,18 +489,20 @@ def sort_rows(table: str, rows: Sequence, sort: str = DEFAULT_SORT,
               direction: str = DEFAULT_DIRECTION) -> list:
     """*rows* ordered by the validated column and direction. Never raises on input, never mutates.
 
-    THE SECONDARY KEY IS THE NAME, ASCENDING IN BOTH DIRECTIONS. The list is first ordered by name
-    (the stable, complete tie-breaker — every table has a name) and then by the requested column,
-    using a STABLE sort. Sorting by the primary in reverse therefore cannot shuffle the ties: equal
-    keys always come out in name order, whichever way the primary runs, and the result never
+    THE SECONDARY KEY IS THE TABLE'S TIE-BREAKER, ASCENDING IN BOTH DIRECTIONS. The list is first
+    ordered by that key (a stable, complete tie-breaker — ``name`` for every table that has one, else
+    the table's default column, as the audit trail has) and then by the requested column, using a
+    STABLE sort. Sorting by the primary in reverse therefore cannot shuffle the ties: equal
+    keys always come out in tie-break order, whichever way the primary runs, and the result never
     depends on the order the read model happened to hand the rows over in.
     """
     key = normalise_sort(table, sort)
     direction = normalise_direction(direction)
     kind = _column(table, key).kind
+    tiebreak = "name" if "name" in column_keys(table) else default_sort(table)
 
     def name_key(row):
-        return _text(_cell(table, "name", row)).casefold()
+        return _text(_cell(table, tiebreak, row)).casefold()
 
     def primary_key(row):
         value = _cell(table, key, row)

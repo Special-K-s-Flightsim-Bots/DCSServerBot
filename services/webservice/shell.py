@@ -266,6 +266,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     knows what the reserved surface consists of.
     """
     from .pages import access as access_page
+    from .pages import audit as audit_page
     from .pages import dashboard as dashboard_page
     from .pages import bans as bans_page
     from .pages import instances as instances_page
@@ -309,6 +310,9 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     # THE BANS PAGE: the console's scoped ban list and its LIFT. One route, one capability and one
     # nav item, registered flat like the pages above.
     bans_page.add_routes(router)
+    # THE AUDIT PAGE: the cluster's own trail, read-only and Admin-only. One route, one capability
+    # and one nav item, in the Cluster group — the table it reads is per cluster.
+    audit_page.add_routes(router)
     live_page.add_routes(router)
     # THE SETTINGS PAGE: the schema-driven config page, Admin-only.
     settings_page.add_routes(router)
@@ -339,6 +343,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     capabilities.update(players_page.capabilities())
     capabilities.update(player_detail_page.capabilities())
     capabilities.update(bans_page.capabilities())
+    capabilities.update(audit_page.capabilities())
     capabilities.update(live_page.capabilities())
     capabilities.update(settings_page.capabilities())
     capabilities.update(presets_page.capabilities())
@@ -362,6 +367,7 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
                                   + players_page.nav_items()
                                   + music_page.nav_items()
                                   + bans_page.nav_items()
+                                  + audit_page.nav_items()
                                   + presets_page.nav_items()
                                   + access_page.nav_items()
                                   + settings_page.nav_items())

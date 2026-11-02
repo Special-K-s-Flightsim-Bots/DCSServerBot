@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v3.22') ON CONFLICT (version) DO NOTHING;
+INSERT INTO version (version) VALUES ('v3.23') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS servers (
     server_name TEXT PRIMARY KEY,
@@ -41,3 +41,6 @@ CREATE TABLE IF NOT EXISTS audit(
     time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
+-- The console's Audit page reads the trail newest first, one page at a time, so the order the page
+-- always asks for is the one index it needs.
+CREATE INDEX IF NOT EXISTS idx_audit_time ON audit (time DESC);

@@ -161,7 +161,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (i18n._("Cluster"), (
         "nodes.view", "nodes.online", "nodes.offline", "nodes.restart", "nodes.shutdown",
         "nodes.upgrade", "nodes.dcs_update", "nodes.settings", "instances.view",
-        "mods.view", "mods.manage",
+        "mods.view", "mods.manage", "audit.view",
     )),
     (i18n._("Data"), (
         "statistics.view", "logs.view", "presets.view", "presets.write",
@@ -229,6 +229,7 @@ DESCRIPTIONS: dict[str, str] = {
     "instances.view": i18n._("the instance list"),
     "mods.view": i18n._("the mods of a server or a node"),
     "mods.manage": i18n._("install and remove the root mods of a node"),
+    "audit.view": i18n._("the cluster's audit trail"),
     "statistics.view": i18n._("the installation-wide statistics"),
     "logs.view": i18n._("the bot log"),
     "settings.view": i18n._("the bot's own configuration"),

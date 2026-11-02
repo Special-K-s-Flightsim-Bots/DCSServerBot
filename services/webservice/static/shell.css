@@ -363,6 +363,14 @@ td { padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px;
 tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--row-hover); }
 .mono { font-family: var(--font-mono); color: var(--text-2); }
+/* A STAMP COLUMN — the audit trail's `when`, and any table that grows one — is ONE LINE and never the
+ * column that gives way: the timestamp keeps its own width, and the sentence beside it wraps instead.
+ * The width is stated as the minimum so the browser cannot shrink it, which lets the remaining columns
+ * sit as close together as their own content allows. */
+td.when, th.when { white-space: nowrap; width: 1%; }
+/* The NAME and the ACTOR of a trail row are short tokens, never prose: they stay on one line beside
+ * the stamp, so the sentence alone is what wraps. */
+td.col-node, td.col-actor, th.col-node, th.col-actor { white-space: nowrap; }
 
 .log { font-family: var(--font-mono); font-size: 11.5px; background: var(--well);
   border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px;
@@ -1158,7 +1166,9 @@ body.reorder-active { user-select: none; -webkit-user-select: none; }
 
 /* ---------------------------------------------------------------- the table inside its card */
 .tbl { overflow: auto; max-height: calc(100vh - 420px); }
-.sort { color: inherit; }
+/* A SORT HEADER IS ONE LINE: the label and the glyph that says which way it sorts are one control, so
+ * the glyph never drops below the word it belongs to — in a narrow column that reads as a stray mark. */
+.sort { color: inherit; white-space: nowrap; }
 th a.sort:hover { color: var(--text); }
 th[aria-sort="ascending"] a.sort, th[aria-sort="descending"] a.sort { color: var(--accent); }
 th .ar { font-size: 9px; opacity: .85; margin-left: 2px; }

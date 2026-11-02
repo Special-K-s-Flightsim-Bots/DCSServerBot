@@ -10245,3 +10245,75 @@ msgstr "循环已开启 — 点击切换到随机"
 #: services/webservice/pages/music.py
 msgid "Shuffle is on — press to switch to repeat"
 msgstr "随机已开启 — 点击切换到循环"
+
+#: services/webservice/readmodels/audit.py
+msgid "Entries: %(total)s"
+msgstr "记录: %(total)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "Entries: %(total)s · %(narrowed)s"
+msgstr "记录: %(total)s · %(narrowed)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "filtered"
+msgstr "已筛选"
+
+#: services/webservice/readmodels/audit.py
+msgid "from %(since)s through %(until)s"
+msgstr "从 %(since)s 至 %(until)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "since %(since)s"
+msgstr "自 %(since)s 起"
+
+#: services/webservice/readmodels/audit.py
+msgid "through %(until)s"
+msgstr "至 %(until)s"
+
+#: services/webservice/readmodels/audit.py
+msgid "No audit entry matches this view."
+msgstr "没有与此视图匹配的审计记录。"
+
+#: services/webservice/pages/audit.py
+msgid "A date on its own means the whole day. Times are UTC."
+msgstr "只有日期表示一整天。时间为 UTC。"
+
+#: services/webservice/pages/audit.py
+msgid "Actor"
+msgstr "操作者"
+
+#: services/webservice/pages/audit.py
+msgid "Audit"
+msgstr "审计"
+
+#: services/webservice/pages/audit.py
+msgid "Every operation this cluster recorded — who did it, to what, and when. Read-only: the trail is written by the bot, never from here."
+msgstr "此集群记录的每一项操作：谁、对什么、何时。只读：日志由机器人写入，绝不来自此页面。"
+
+#: services/webservice/pages/audit.py
+msgid "The audit trail could not be read."
+msgstr "无法读取审计日志。"
+
+#: services/webservice/pages/audit.py
+msgid "The audit trail is not reachable from this process yet."
+msgstr "此进程尚无法访问审计日志。"
+
+#: services/webservice/pages/audit.py
+msgid "Through"
+msgstr "至"
+
+#: services/webservice/pages/audit.py
+msgid "When"
+msgstr "时间"
+
+#: services/webservice/pages/access.py
+msgid "the cluster's audit trail"
+msgstr "集群的审计日志"
+
+#: services/webservice/pages/audit.py
+msgid "any node"
+msgstr "所有节点"
+
+#: services/webservice/pages/audit.py
+msgid "any server"
+msgstr "所有服务器"
