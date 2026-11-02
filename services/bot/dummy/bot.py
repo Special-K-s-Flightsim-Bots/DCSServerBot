@@ -8,6 +8,36 @@ from typing import Any, Iterable
 from services.bot.dummy import DummyGuild, DummyMember, DummyRole
 
 
+class DummyIntents:
+    """Every intent reported as disabled: there is no gateway to receive events from."""
+
+    def __getattr__(self, item: str) -> bool:
+        return False
+
+
+class DummyCommandTree:
+    """The command registry discord.py keeps, without a Discord to sync it to."""
+
+    def __init__(self):
+        self._commands: dict[str, Any] = {}
+
+    def add_command(self, command: Any, /, **kwargs) -> None:
+        name = getattr(command, 'name', None)
+        if name:
+            self._commands[name] = command
+
+    def remove_command(self, name: str, /, **kwargs) -> Any:
+        return self._commands.pop(name, None)
+
+    def get_command(self, command: Any, /) -> Any:
+        name = command if isinstance(command, str) else getattr(command, 'name', None)
+        return self._commands.get(name) if name else None
+
+    async def fetch_commands(self, *, guild: Any = None, **kwargs) -> list[Any]:
+        """Nothing was ever synced to Discord, so there is nothing to list."""
+        return []
+
+
 class DummyBot:
 
     def __init__(self, version: int, sub_version: int, node: NodeImpl, locals: dict):
@@ -33,6 +63,10 @@ class DummyBot:
         self.owner_id = -1
         self.latency = 0
         self.member = DummyMember("1", name="DCSServerBot")
+        self.user = self.member
+        self.audit_channel = None
+        self.intents = DummyIntents()
+        self.tree = DummyCommandTree()
 
     async def start(self):
         self.log.warning("This installation does not use a Discord bot!")
@@ -117,6 +151,13 @@ class DummyBot:
             return await self.load_plugin(plugin.lower())
         return False
 
+    async def reload(self, plugin: str | None = None) -> bool:
+        """Reload one plugin, or every loaded one when no name is given."""
+        if plugin:
+            return await self.reload_plugin(plugin)
+        results = [await self.reload_plugin(name) for name in list(self.cogs)]
+        return all(results) if results else True
+
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
         for plugin in self.plugins:
@@ -186,6 +227,10 @@ class DummyBot:
     def get_server(self, ctx: Any, *, admin_only: bool | None = False) -> None:
         ...
 
+    def get_servers(self, manager: Any = None) -> dict[str, Server]:
+        """Every server of this node; there are no role-based scopes without Discord."""
+        return dict(self.servers)
+
     async def setEmbed(self, *, embed_name: str, embed: Any, channel_id: Any, file: Any, server: Any):
         ...
 
@@ -193,6 +238,41 @@ class DummyBot:
         return self.guilds[0]._roles[role]
 
     def get_channel(self, channel_id: int) -> None:
+        ...
+
+    def get_all_channels(self) -> Iterable[Any]:
+        """No channels exist without Discord."""
+        return iter(())
+
+    def get_all_members(self) -> Iterable[DummyMember]:
+        """The members a role mapping in ``bot.yaml`` names; there is no member cache otherwise."""
+        return iter(self.guilds[0].members)
+
+    def get_user(self, user_id: int) -> DummyMember | None:
+        """Cache-only lookup: without Discord there is nobody to ask for an unknown id."""
+        try:
+            return self.guilds[0].get_member(int(user_id))
+        except (TypeError, ValueError):
+            return None
+
+    def get_cog(self, name: str, default: Any = None) -> Plugin | Any:
+        """A loaded plugin by its class name, the way discord.py's ``Bot.get_cog`` answers."""
+        return self.cogs.get(name, default)
+
+    def check_channel(self, channel_id: int, permissions: Iterable[str] | None = None) -> bool:
+        """There are no channels and no permissions to verify without Discord."""
+        return True
+
+    def mention_admin(self, server: Server | None = None) -> str:
+        """Nobody to mention: the answer is the empty mention string, never ``None``."""
+        return ''
+
+    async def fetch_embed(self, embed_name: str, channel: Any, server: Server | None = None) -> None:
+        """No persisted message to fetch: a caller renders a fresh embed."""
+        return None
+
+    async def change_presence(self, **kwargs) -> None:
+        """No presence to set without a gateway connection."""
         ...
 
     async def fetch_user(self, ucid: str) -> DummyMember | None:

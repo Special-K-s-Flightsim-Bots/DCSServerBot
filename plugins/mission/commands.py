@@ -2510,6 +2510,9 @@ class Mission(Plugin[MissionEventListener]):
                 channel = self.bot.get_channel(channel_id)
                 if not channel:
                     channel = await self.bot.fetch_channel(server.channels[Channel.STATUS])
+                if not channel:
+                    # no channel to rename (an install without Discord has none at all)
+                    continue
                 # name changes of the status channel will only happen with the correct permission
                 if not channel.permissions_for(self.bot.member).manage_channels:
                     return
