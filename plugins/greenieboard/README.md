@@ -2,6 +2,8 @@
 This plugin allows you to have a (optional: persistent) greenieboard for the top x (default: 10) players and to give 
 players the opportunity to analyse their carrier landings.
 
+![The greenieboard](../../docs/assets/images/greenieboard.webp)
+
 > [!NOTE]
 > The landing quality marks will only be generated for landings\* on the DCS Super Carrier module unless you use MOOSE 
 > AIRBOSS (see below).</br>
