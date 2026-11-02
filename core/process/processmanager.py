@@ -8,11 +8,9 @@ from io import BytesIO
 from typing import Any
 
 if sys.platform == 'win32':
-    from .win32.cpu import (get_cpu_set_information, get_e_core_affinity, get_cache_info,
-                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity, get_die_info)
+    from .win32.cpu import (get_cpu_set_information, get_cache_info, get_cpu_name, get_die_info)
 else:
-    from .linux.cpu import (get_cpu_set_information, get_e_core_affinity, get_cache_info,
-                            get_cpu_name, get_p_core_affinity, get_cpus_from_affinity, get_die_info)
+    from .linux.cpu import (get_cpu_set_information, get_cache_info, get_cpu_name, get_die_info)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +41,7 @@ class ProcessManager:
 
             self.auto_affinity = auto_affinity
             self.excluded_cores = self._parse_cores(excluded_cores)
+            self.core_rank = self._get_core_ranks()
             self.topology = self._get_physical_topology()
             self.scheduling_classes = self._get_scheduling_classes()
             self.p_e_core_cpu = len(self.scheduling_classes) > 1
@@ -157,11 +156,11 @@ class ProcessManager:
         }
 
     def _get_scheduling_classes(self) -> list[int]:
-        """Returns the scheduling classes found in the discovered topology.
+        """Returns the core classes (performance tiers) found in the discovered topology.
 
         This treats heterogeneous CPUs as a generic tiered system instead of assuming
-        a strict Intel-style P-core/E-core split. On symmetric CPUs this is usually
-        a single class.
+        a strict Intel-style P-core/E-core split. On symmetric CPUs this is a single
+        class, which is what turns every P/E-core behaviour off.
         """
         classes = {
             int(sched)
@@ -210,8 +209,25 @@ class ProcessManager:
         return f"C{sched}-"
 
     @staticmethod
+    def _get_core_ranks() -> dict[int, int]:
+        """``{logical CPU: rank}`` - the potential the OS attributes to each core, higher first.
+
+        The rank only ORDERS candidates, so a high rank is claimed by the most demanding process
+        first and a low rank is handed out to background work; it never reserves or excludes a
+        core. On a system that reports no ranking every core ranks equal and this changes nothing.
+        """
+        return {int(cpu["Logical Processor Index"]): int(cpu.get("Core Rank", 0))
+                for cpu in get_cpu_set_information()}
+
+    @staticmethod
     def _get_physical_topology() -> dict[int, dict[tuple[int, int], dict[int, list[int]]]]:
-        """Groups logical processors by Numa Node, (Scheduling Class, LLC Index), and Physical Core Index."""
+        """Groups logical processors by Numa Node, (Core Class, LLC Index), and Physical Core Index.
+
+        The class key is the performance tier reported for the logical processor: every logical
+        processor of a symmetric CPU carries the same value, so a symmetric CPU yields one class.
+        The OS ranking of the cores is not a tier and never appears here - it only orders
+        candidates (``_get_core_ranks``), while a class decides which cores a process may use.
+        """
         cpu_sets = get_cpu_set_information()
         try:
             cache_info = get_cache_info()
@@ -255,7 +271,8 @@ class ProcessManager:
         topo = {}
         for cpu in cpu_sets:
             l_idx = cpu["Logical Processor Index"]
-            sched = cpu["Scheduling Class"]
+            # fall back to the OS value only for a caller that reports no tier at all
+            sched = int(cpu.get("Core Class", cpu.get("Scheduling Class", 0)))
             c_idx = cpu["Core Index"]
             n_idx = cpu.get("Numa Node Index", 0)
 
@@ -378,6 +395,11 @@ class ProcessManager:
         else:
             class_penalty = 0
 
+        # A demanding process takes the most capable core it can get, background work the least
+        # capable one - so a rank is spent where it buys something.
+        rank = self.core_rank.get(logical, 0)
+        rank_score = -rank if quality > 0 else rank
+
         numa_penalty = 0 if not current_numas or n_idx in current_numas else 10
         llc_penalty = 0 if not current_llcs or llc_idx in current_llcs else 5
         sched_penalty = 0 if not current_scheds or sched in current_scheds else 3
@@ -400,6 +422,7 @@ class ProcessManager:
             llc_penalty,
             sched_penalty,
             -int(sched),
+            rank_score,
             logical
         )
 
@@ -496,6 +519,83 @@ class ProcessManager:
             if added:
                 logger.info("Shared affinity backfill: %s reused core(s) %s", process_name, sorted(added))
 
+    def _rank_preference(self, quality: int):
+        """Sort key over logical CPUs: demanding work wants the most capable core, background the least."""
+        if quality > 0:
+            return lambda logical: self.core_rank.get(logical, 0)
+        return lambda logical: -self.core_rank.get(logical, 0)
+
+    def _may_hold(self, logical: int, quality: int, logical_to_unit: dict) -> bool:
+        """Whether a process of *quality* may be assigned *logical* at all."""
+        unit = logical_to_unit.get(logical)
+        if unit is None:
+            return False
+        if not self.p_e_core_cpu:
+            return True
+        return self._is_performance_class(unit[1]) if quality > 0 else self._is_efficiency_class(unit[1])
+
+    def _apply_rank_priority(self, sorted_pids: list[int], logical_to_unit: dict,
+                             assignments: dict[int, list[int]]) -> None:
+        """Gives every process the best-ranked cores its quality entitles it to.
+
+        A rank is only an ordering, so it is spent by exchanging one core with a
+        process of lower quality: both keep the same number of cores (no minimum has
+        to be re-satisfied) and the exchange stays inside one NUMA node and one core
+        class, so it cannot undo locality or the class split. A core shared by
+        minimum backfill is never exchanged.
+        """
+        core_owners = self._build_core_owners(assignments)
+        for pid in sorted_pids:
+            info = self.managed_processes[pid]
+            quality = int(info['quality'])
+            if quality == 0 or not assignments.get(pid):
+                continue
+
+            preference = self._rank_preference(quality)
+            for _ in range(len(assignments[pid])):
+                held = [l for l in assignments[pid]
+                        if len(core_owners.get(l, [])) == 1
+                        and self._may_hold(l, quality, logical_to_unit)]
+                if not held:
+                    break
+                worst = min(held, key=preference)
+                worst_numa = logical_to_unit[worst][0]
+
+                upgrade = None
+                for other_pid in sorted_pids:
+                    if other_pid == pid:
+                        continue
+                    other_quality = int(self.managed_processes[other_pid]['quality'])
+                    if other_quality >= quality:
+                        continue
+                    for l in assignments.get(other_pid, []):
+                        if l not in logical_to_unit or logical_to_unit[l][0] != worst_numa:
+                            continue
+                        if len(core_owners.get(l, [])) != 1:
+                            continue
+                        if not self._may_hold(l, quality, logical_to_unit):
+                            continue
+                        if not self._may_hold(worst, other_quality, logical_to_unit):
+                            continue
+                        if preference(l) <= preference(worst):
+                            continue
+                        if upgrade is None or preference(l) > preference(upgrade):
+                            upgrade = l
+
+                if upgrade is None:
+                    break
+
+                victim_pid = core_owners[upgrade][0]
+                assignments[pid].remove(worst)
+                assignments[pid].append(upgrade)
+                assignments[victim_pid].remove(upgrade)
+                assignments[victim_pid].append(worst)
+                core_owners[upgrade] = [pid]
+                core_owners[worst] = [victim_pid]
+                logger.debug(
+                    "Rank priority: %s took core %s from %s for core %s",
+                    getattr(info['process'], 'name_tag', pid), upgrade, victim_pid, worst)
+
     def _usage_labels(self) -> dict[int, list[str]]:
         """Returns {logical_cpu: [process labels...]} for visualization."""
         usage_map: dict[int, list[str]] = defaultdict(list)
@@ -552,6 +652,8 @@ class ProcessManager:
                             'c_idx': c_idx,
                             'logical': logical,
                             'is_p': self._is_performance_class(sched),
+                            # the rank of the most capable logical CPU of this physical core
+                            'rank': max(self.core_rank.get(l, 0) for l in logical),
                             'owners': current_owners
                         })
 
@@ -587,7 +689,7 @@ class ProcessManager:
 
             # We try to find cores in the best scheduling class
             tier_units = [u for u in temp_units if int(u['sched']) == max_available_sched]
-            tier_units.sort(key=lambda x: x['sched'], reverse=True)
+            tier_units.sort(key=lambda x: (x['sched'], x['rank']), reverse=True)
 
             # 1. Try to fulfill from truly free cores in our target class first
             # We must not count ourselves in the current_owner_map
@@ -600,33 +702,38 @@ class ProcessManager:
                     unit['logical'].remove(l)
                     needed -= 1
 
-            # 2. If still needed, displace lower-quality processes
+            # 2. If still needed, take the most capable remaining cores from the
+            # allowed classes - free ones first, then cores held by a process of
+            # lower quality, which are released and re-satisfied further down.
             if needed > 0:
                 min_allowed_sched = 1 if self.p_e_core_cpu and info['quality'] > 0 else 0
-                # Strictly greater is intentional here: this displacement step may only
-                # steal from classes above the protected floor. Sharing/reuse of the
-                # protected floor belongs to the future core-reuse oversubscription phase.
-                tier_units = [u for u in temp_units if int(u['sched']) > min_allowed_sched]
-                tier_units.sort(key=lambda x: x['sched'], reverse=True)
+                # demanding work claims the most capable core first, background the least
+                rank_key = (lambda l: -self.core_rank.get(l, 0)) if info['quality'] > 0 \
+                    else (lambda l: self.core_rank.get(l, 0))
 
-                for unit in tier_units:
-                    if needed <= 0: break
-
-                    # Find cores in this unit owned by someone with lower quality
-                    displaceable = []
+                candidates: list[tuple[int, int, dict, int, int | None]] = []
+                for unit in temp_units:
+                    sched = int(unit['sched'])
+                    if sched < min_allowed_sched:
+                        continue
+                    if self.p_e_core_cpu and info['quality'] > 0 and not self._is_performance_class(sched):
+                        continue
                     for l in unit['logical']:
                         owner_pid = current_owner_map.get(l)
-                        if owner_pid and self.managed_processes[owner_pid]['quality'] < info['quality']:
-                            displaceable.append(l)
+                        if owner_pid and self.managed_processes[owner_pid]['quality'] >= info['quality']:
+                            continue
+                        # a free core wins a tie against a core that has to be taken away
+                        candidates.append((rank_key(l), 1 if owner_pid is None else 0, unit, l, owner_pid))
 
-                    if displaceable:
-                        take = min(len(displaceable), needed)
-                        for l in displaceable[:take]:
-                            owner_pid = current_owner_map[l]
-                            pids_to_reset.add(owner_pid)
-                            del current_owner_map[l]
-                            unit['logical'].remove(l)
-                            needed -= 1
+                candidates.sort(key=lambda candidate: (candidate[0], -candidate[1]))
+                for _, _, unit, l, owner_pid in candidates:
+                    if needed <= 0:
+                        break
+                    if owner_pid is not None:
+                        pids_to_reset.add(owner_pid)
+                        del current_owner_map[l]
+                    unit['logical'].remove(l)
+                    needed -= 1
 
         # Reset state for displaced processes
         assignments = {pid: [] for pid in self.managed_processes}
@@ -652,13 +759,16 @@ class ProcessManager:
             else:
                 eligible = [x for x in all_physical_units if x['is_p'] is (info['quality'] > 0)]
             # NUMA awareness: Prefer cores on the same NUMA node as existing assignments
+            # background work is given the least capable core first, everything else the most
+            rank_key = (lambda x: -x['rank']) if info['quality'] > 0 else (lambda x: x['rank'])
             if current_cores:
                 u_info = logical_to_unit[current_cores[0]]
                 current_numa = u_info[0]
                 current_llc = u_info[3]
-                eligible.sort(key=lambda x: (x['n_idx'] != current_numa, x['llc_idx'] != current_llc, -x['sched']))
+                eligible.sort(key=lambda x: (x['n_idx'] != current_numa, x['llc_idx'] != current_llc,
+                                             -x['sched'], rank_key(x)))
             else:
-                eligible.sort(key=lambda x: -x['sched'])
+                eligible.sort(key=lambda x: (-x['sched'], rank_key(x)))
 
             # Step A: Physical Consolidation
             # Try to complete units we already touch or take fresh clean units.
@@ -685,10 +795,15 @@ class ProcessManager:
         # exclusive free cores to avoid turning oversubscription into normal operation.
         self._backfill_shared_minimums(sorted_pids, all_physical_units, logical_to_unit, assignments)
 
+        # 5. PHASE 1b: RANK PRIORITY
+        # A core of the preferred rank belongs to the process with the higher quality,
+        # whatever order the processes were launched in.
+        self._apply_rank_priority(sorted_pids, logical_to_unit, assignments)
+
         # only re-arrange in cooperative mode
         if cooperative:
 
-            # 5. PHASE 3: DEFRAGMENTATION
+            # 6. PHASE 3: DEFRAGMENTATION
             for pid in sorted_pids:
                 info = self.managed_processes[pid]
                 current_cores = assignments[pid]
@@ -816,7 +931,7 @@ class ProcessManager:
                     if not available: continue
 
                     # Filter available units to prefer the same NUMA node AND highest scheduling class
-                    available.sort(key=lambda x: (x['n_idx'] != target_nidx, -x['sched']))
+                    available.sort(key=lambda x: (x['n_idx'] != target_nidx, -x['sched'], -x['rank']))
                     preferred_available = [u for u in available if u['sched'] == available[0]['sched']]
 
                     # Atomic growth: finish the current physical unit or take a fresh one
@@ -1152,9 +1267,13 @@ class ProcessManager:
         # to maintain the same physical distance.
         dynamic_offset = -0.25 / (total_rows * 0.5) if total_rows > 0 else -0.20
 
+        # a symmetric CPU has one core type, so it gets one core entry in the legend
         legend_elements = [
-            patches.Patch(facecolor=p_color, label='P-Core (Idle)'),
-            patches.Patch(facecolor=e_color, label='E-Core (Idle)'),
+            patches.Patch(facecolor=p_color, label='P-Core (Idle)' if self.p_e_core_cpu else 'Core (Idle)'),
+        ]
+        if self.p_e_core_cpu:
+            legend_elements.append(patches.Patch(facecolor=e_color, label='E-Core (Idle)'))
+        legend_elements += [
             patches.Patch(facecolor=active_color, label='Managed Process'),
             patches.Patch(facecolor=shared_color, label='Shared Core'),
             patches.Patch(facecolor=excl_color, label='System Reserved')
@@ -1190,12 +1309,9 @@ class ProcessManager:
             if size >= 1024: return f"{size / 1024:.0f}K"
             return f"{size}B"
 
-        p_mask = get_p_core_affinity()
-        e_mask = get_e_core_affinity()
-        p_cores_raw = get_cpus_from_affinity(p_mask)
-        e_cores_raw = get_cpus_from_affinity(e_mask)
-
-        # Order cores by topology to ensure SMT threads are adjacent and follow physical CCDs
+        # Every core of the discovered topology is drawn, split by class. The topology is the only
+        # source here: crossing it with a second, independently queried core mask drops cores from
+        # the picture whenever the two disagree or one of them comes back empty.
         p_cores, e_cores = [], []
         for n_idx in sorted(self.topology.keys()):
             for (sched, llc_idx) in sorted(
@@ -1205,11 +1321,7 @@ class ProcessManager:
                 is_p = self._is_performance_class(sched)
                 target = p_cores if is_p else e_cores
                 for c_idx in sorted(self.topology[n_idx][(sched, llc_idx)].keys()):
-                    for l_idx in self.topology[n_idx][(sched, llc_idx)][c_idx]:
-                        if is_p and l_idx in p_cores_raw:
-                            target.append(l_idx)
-                        elif not is_p and l_idx in e_cores_raw:
-                            target.append(l_idx)
+                    target.extend(self.topology[n_idx][(sched, llc_idx)][c_idx])
 
         cache_info = get_cache_info()
 
@@ -1292,7 +1404,8 @@ class ProcessManager:
             y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
             
             ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=p_core_color, edgecolor='white', linewidth=0.5))
-            ax.text(x + core_width / 2, y + core_height / 2, f"P{core}", ha='center', va='center', color=text_color, fontsize=8)
+            label = f"{self._core_class_prefix(core_to_sched.get(core, 0))}{core}"
+            ax.text(x + core_width / 2, y + core_height / 2, label, ha='center', va='center', color=text_color, fontsize=8)
             if p_unique_sched:
                 ax.text(x + core_width - 0.05, y + core_height - 0.05, f"{core_to_sched.get(core, 0)}",
                         ha='right', va='top', color='#CCCCCC', fontsize=5)
@@ -1326,7 +1439,8 @@ class ProcessManager:
             row, x = i // e_cores_per_row, (i % e_cores_per_row) * x_spacing + e_section_start
             y = sum(y_spacing * 3 + (l3_spacing if r in rows_with_l3 else 0) for r in range(row))
             ax.add_patch(patches.Rectangle((x, y), core_width, core_height, facecolor=e_core_color, edgecolor='white', linewidth=0.5))
-            ax.text(x + core_width / 2, y + core_height / 2, f"E{core}", ha='center', va='center', color=text_color, fontsize=8)
+            label = f"{self._core_class_prefix(core_to_sched.get(core, 0))}{core}"
+            ax.text(x + core_width / 2, y + core_height / 2, label, ha='center', va='center', color=text_color, fontsize=8)
             if e_unique_sched:
                 ax.text(x + core_width - 0.05, y + core_height - 0.05, f"{core_to_sched.get(core, 0)}",
                         ha='right', va='top', color='#CCCCCC', fontsize=5)

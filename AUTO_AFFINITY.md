@@ -119,6 +119,16 @@ On hybrid CPUs, such as systems with performance and efficiency cores, the manag
 
 On non-hybrid CPUs, all cores are treated as suitable, but NUMA/cache locality is still considered.
 
+A higher `quality` also owns the better-ranked cores of its class, regardless of the order the
+processes were started in: when two processes compete for cores of the same class and node, the
+lower-quality process keeps the same number of cores but is moved off the better-ranked ones. On
+hosts that report no per-core ranking, the cores are handed out in the order they are found.
+
+When every core of a class is already in use, a higher-quality process takes the cores it needs
+from a lower-quality process instead of being limited to what is left. The lower-quality process
+keeps its configured `min_cores`: the cores it lost are handed back to it from the pool, or, when
+nothing is free, shared with the process that took them (with `reuse_cores` enabled).
+
 ---
 
 #### Excluding cores

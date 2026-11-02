@@ -19,6 +19,8 @@ def get_cpu_set_information() -> list[dict]:
         - Logical Processor Index
         - Core Index
         - Efficiency Class  (set to 0 – not available on Linux)
+        - Core Class        (performance tier: 0 for E-cores, 1 for P-cores, 0 on a symmetric CPU)
+        - Core Rank         (order cores by potential, higher first; 0 = no ranking read)
         - Scheduling Class  (Hybrid aware: 0 for E-core, P-cores > 0)
         - Numa Node Index   (NUMA node ID)
         - Last Level Cache Index (L3 cache ID or Die ID)
@@ -65,12 +67,15 @@ def get_cpu_set_information() -> list[dict]:
             except Exception:
                 pass
 
-            # Hybrid aware Scheduling Class
+            # Hybrid aware Scheduling Class. Core Class is the tier callers group by: a
+            # symmetric CPU reports one value for every core, whatever the package layout is.
             if has_hybrid:
                 is_e = (e_mask & (1 << cpu_num)) != 0
                 sched_class = 0 if is_e else (pkg_id + 1)
+                core_class = 0 if is_e else 1
             else:
                 sched_class = pkg_id
+                core_class = 0
 
             # L3 Cache / Die detection
             llc_id = _read_int(os.path.join(sysfs_root, entry, "cache/index3/id"))
@@ -85,6 +90,8 @@ def get_cpu_set_information() -> list[dict]:
                     "Logical Processor Index": cpu_num,
                     "Core Index": core_id,
                     "Efficiency Class": 0,          # not exposed on Linux
+                    "Core Class": core_class,
+                    "Core Rank": 0,                 # no per-core ranking is read on Linux
                     "Scheduling Class": sched_class,
                     "Numa Node Index": numa_node,
                     "Last Level Cache Index": llc_id
@@ -110,8 +117,10 @@ def get_cpu_set_information() -> list[dict]:
                         if has_hybrid:
                             is_e = (e_mask & (1 << cpu_num)) != 0
                             sched_class = 0 if is_e else (pkg_id + 1)
+                            core_class = 0 if is_e else 1
                         else:
                             sched_class = pkg_id
+                            core_class = 0
 
                         cpu_info_list.append(
                             {
@@ -119,6 +128,8 @@ def get_cpu_set_information() -> list[dict]:
                                 "Logical Processor Index": cpu_num,
                                 "Core Index": core_id,
                                 "Efficiency Class": 0,
+                                "Core Class": core_class,
+                                "Core Rank": 0,
                                 "Scheduling Class": sched_class,
                                 "Numa Node Index": 0, # Harder to get from cpuinfo accurately
                                 "Last Level Cache Index": pkg_id # Fallback
@@ -141,8 +152,10 @@ def get_cpu_set_information() -> list[dict]:
                 if has_hybrid:
                     is_e = (e_mask & (1 << cpu_num)) != 0
                     sched_class = 0 if is_e else (pkg_id + 1)
+                    core_class = 0 if is_e else 1
                 else:
                     sched_class = pkg_id
+                    core_class = 0
 
                 cpu_info_list.append(
                     {
@@ -150,6 +163,8 @@ def get_cpu_set_information() -> list[dict]:
                         "Logical Processor Index": cpu_num,
                         "Core Index": core_id,
                         "Efficiency Class": 0,
+                        "Core Class": core_class,
+                        "Core Rank": 0,
                         "Scheduling Class": sched_class,
                         "Numa Node Index": 0,
                         "Last Level Cache Index": pkg_id
