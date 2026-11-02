@@ -657,10 +657,15 @@ class TrapEntry(BaseModel):
     comment: str = Field(..., description="Landing comment")
     place: str = Field(..., description="Landing location")
     trapcase: int = Field(..., description="Trap case number")
-    wire: int | None = Field(..., description="Arresting wire number")
+    wire: int | None = Field(None, description="Arresting wire number")
     night: bool = Field(..., description="Whether landing was at night")
     points: int = Field(..., description="Points awarded for the trap")
     time: datetime = Field(..., description="Time of the trap")
+    trapdata: dict | None = Field(None, description="Detailled trap data")
+    tgroove: float | None = Field(None, description="Time in the Goove")
+    landingdist: int | None = Field(None, description="Landing distance")
+    wind: int | None = Field(None, description="Wind")
+
 
     model_config = {
         "json_encoders": {
@@ -677,7 +682,16 @@ class TrapEntry(BaseModel):
                 "wire": 3,
                 "night": False,
                 "points": 100,
-                "time": "2025-08-07T12:00:00"
+                "time": "2025-08-07T12:00:00",
+                "trapdata": {
+                    "X": [1200.0, 1100.0, 1000.0, 900.0, 800.0],
+                    "Z": [-12.5, -10.8, -8.3, -5.2, -2.1],
+                    "AoA": [8.1, 8.0, 8.2, 8.3, 8.1],
+                    "Alt": [185.0, 165.0, 145.0, 125.0, 105.0]
+                },
+                "tgroove": 15.7,
+                "landingdist": -86,
+                "wind": 25
             }
         }
     }

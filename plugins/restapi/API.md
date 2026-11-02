@@ -1353,12 +1353,45 @@ This documentation is automatically generated from the RestAPI plugin definition
     "comment": "Good pass",
     "grade": "OK",
     "id": 1,
+    "landingdist": -86,
     "night": false,
     "place": "CVN-73",
     "points": 100,
+    "tgroove": 15.7,
     "time": "2025-08-07T12:00:00",
     "trapcase": 3,
+    "trapdata": {
+      "Alt": [
+        185.0,
+        165.0,
+        145.0,
+        125.0,
+        105.0
+      ],
+      "AoA": [
+        8.1,
+        8.0,
+        8.2,
+        8.3,
+        8.1
+      ],
+      "X": [
+        1200.0,
+        1100.0,
+        1000.0,
+        900.0,
+        800.0
+      ],
+      "Z": [
+        -12.5,
+        -10.8,
+        -8.3,
+        -5.2,
+        -2.1
+      ]
+    },
     "unit_type": "F/A-18C",
+    "wind": 25,
     "wire": 3
   }
 ]
@@ -4335,10 +4368,14 @@ Below are the data structures and response models used across the API endpoints:
 | `comment` | `string` | **Yes** | Landing comment |
 | `place` | `string` | **Yes** | Landing location |
 | `trapcase` | `int` | **Yes** | Trap case number |
-| `wire` | `int | None` | **Yes** | Arresting wire number |
+| `wire` | `int | None` | No | Arresting wire number |
 | `night` | `bool` | **Yes** | Whether landing was at night |
 | `points` | `int` | **Yes** | Points awarded for the trap |
 | `time` | `datetime` | **Yes** | Time of the trap |
+| `trapdata` | `object | None` | No | Detailled trap data |
+| `tgroove` | `float | None` | No | Time in the Goove |
+| `landingdist` | `int | None` | No | Landing distance |
+| `wind` | `int | None` | No | Wind |
 
 #### Example
 
@@ -4347,12 +4384,45 @@ Below are the data structures and response models used across the API endpoints:
   "comment": "Good pass",
   "grade": "OK",
   "id": 1,
+  "landingdist": -86,
   "night": false,
   "place": "CVN-73",
   "points": 100,
+  "tgroove": 15.7,
   "time": "2025-08-07T12:00:00",
   "trapcase": 3,
+  "trapdata": {
+    "Alt": [
+      185.0,
+      165.0,
+      145.0,
+      125.0,
+      105.0
+    ],
+    "AoA": [
+      8.1,
+      8.0,
+      8.2,
+      8.3,
+      8.1
+    ],
+    "X": [
+      1200.0,
+      1100.0,
+      1000.0,
+      900.0,
+      800.0
+    ],
+    "Z": [
+      -12.5,
+      -10.8,
+      -8.3,
+      -5.2,
+      -2.1
+    ]
+  },
   "unit_type": "F/A-18C",
+  "wind": 25,
   "wire": 3
 }
 ```

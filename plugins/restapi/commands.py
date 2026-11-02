@@ -2690,7 +2690,8 @@ class RestAPI(Plugin):
                         join = ""
                         where = "WHERE t.player_ucid = %(ucid)s"
                     await cursor.execute(f"""
-                        SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
+                        SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, 
+                               t.time, t.trapdata, t.tgroove, t.landingdist, t.wind
                         FROM traps t
                         {join}
                         {where}

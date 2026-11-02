@@ -177,10 +177,11 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
 
             await conn.execute("""
                 INSERT INTO traps (mission_id, player_ucid, unit_type, grade, comment, place, trapcase, wire, 
-                                   night, points, trapsheet) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   night, points, trapsheet, trapdata, tgroove, landingdist, wind) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
-                  data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet'))))
+                  data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet')),
+                  data.get('trapdata', {}), data.get('Tgroove'), data.get('landingdist'), data.get('wind')))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> str | None:
@@ -237,6 +238,8 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
                 f"Can't process FunkMan event as FunkMan is not configured in your {self.plugin_name}.yaml!")
             return
         try:
+            # save trap data
+            data['trapdata'] = data.get('trapsheet', {}).copy()
             fig, _ = self.funkplot.PlotTrapSheet(data)
             buf = io.BytesIO()
             fig.savefig(buf, bbox_inches='tight', facecolor='#2C2F33')
