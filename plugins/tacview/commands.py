@@ -49,12 +49,12 @@ async def get_tacview_files(interaction: discord.Interaction, server: Server) ->
         if not row:
             return []
         path, files = await server.node.list_directory(
-            os.path.join(path, utils.slugify(row[0])), pattern='*.acmi', is_dir=False
+            os.path.join(path, utils.slugify(row[0])), pattern='*.zip.acmi', is_dir=False
         )
         # make the files relative to the export path, not the player directory
         path = os.path.dirname(path)
     else:
-        path, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False, traverse=True)
+        path, files = await server.node.list_directory(path, pattern='*.zip.acmi', is_dir=False, traverse=True)
     return [os.path.relpath(x, path) for x in files]
 
 
