@@ -29,12 +29,12 @@ async def list_tacview_files(interaction: discord.Interaction, current: str) -> 
                     if row:
                         name = utils.slugify(row[0])
                 path, files = await server.node.list_directory(
-                    os.path.join(path, name), pattern='*.acmi', is_dir=False
+                    os.path.join(path, name), pattern='*.zip.acmi', is_dir=False
                 )
             else:
                 files = []
         else:
-            path, files = await server.node.list_directory(path, pattern='*.acmi', is_dir=False, traverse=True)
+            path, files = await server.node.list_directory(path, pattern='*.zip.acmi', is_dir=False, traverse=True)
 
         # file per session
         choices = [
