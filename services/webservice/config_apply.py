@@ -42,7 +42,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
 from core.action_results import ActionResult
-from core.actions import HEADLESS_BOT_MODULE, action_available, audit_action, call_action
+from core.actions import HEADLESS_BOT_MODULE, action_available, audit_action, call_action, \
+    can_record_audit
 from core.utils import configwrite
 
 from . import i18n, permissions, session
@@ -173,8 +174,9 @@ REFUSED_LAUNCH_ONLY = i18n._("Nothing was applied: this file is read when a miss
                              "it applies at the next launch.")
 REFUSED_UNCLASSIFIED = i18n._("Nothing was applied: no apply action is defined for this file.")
 
-#: the audit hole a ``no_discord`` install has (the headless bot's ``audit`` is a no-op), disclosed
-#: rather than silent.
+#: the disclosure for a process that holds NO bot at all (an agent node, a service without a bot):
+#: there is nothing to write the entry with, so it is said out loud rather than dropped silently.
+#: An install without Discord is NOT this case — its bot writes the row to the audit table.
 AUDIT_NOT_RECORDED_NOTE = i18n._("This action is not recorded in the audit log on this install.")
 
 
@@ -495,11 +497,13 @@ def _bot_diagnosis() -> tuple[Any, str]:
 
 
 def audit_available(bot: Any = None) -> bool:
-    """Whether this process can POSITIVELY record an audit entry (a headless bot cannot)."""
+    """Whether this process can POSITIVELY record an audit entry.
+
+    A headless install records the row into the cluster's audit table; it only lacks the channel
+    announcement, which is not what this door asks about. A process with no bot at all cannot.
+    """
     bot = bot if bot is not None else _bot()
-    if bot is None:
-        return False
-    return not (getattr(type(bot), "__module__", "") or "").startswith(HEADLESS_BOT_MODULE)
+    return can_record_audit(bot)
 
 
 def _loaded_extensions(bot) -> dict:

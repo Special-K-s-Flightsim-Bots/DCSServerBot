@@ -3,6 +3,7 @@ import importlib
 import importlib.util
 
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Plugin, PluginError
+from core.utils.audit import record_audit
 from typing import Any, Iterable
 
 from services.bot.dummy import DummyGuild, DummyMember, DummyRole
@@ -174,8 +175,32 @@ class DummyBot:
             self.bus.servers.pop(key)
         self.setup.set()
 
-    async def audit(self, message, *, user: Any = None, server: Server | None = None, **kwargs):
-        ...
+    async def audit(self, message, *, user: Any = None, server: Server | None = None,
+                    node: NodeImpl | None = None, mention: Any = None,
+                    actor: str | None = None, **kwargs) -> None:
+        """Record ONE entry in the cluster's audit table.
+
+        This is the whole of the audit on an install without Discord: there is no channel to
+        announce it in, so only the ledger row is written. ``mention``, ``server``'s channel and the
+        embed fields exist for the Discord bot and have no counterpart here.
+        """
+        discord_id: int | None = None
+        ucid: str | None = None
+        if isinstance(user, int):
+            discord_id = user
+        elif isinstance(user, str):
+            ucid = user
+        elif user is not None:
+            # a DummyMember carries a ucid as its id, a numeric id is a Discord id
+            member_id = getattr(user, 'id', None)
+            if isinstance(member_id, int):
+                discord_id = member_id
+            elif member_id:
+                ucid = str(member_id)
+        await record_audit(
+            self.apool, node=(node or self.node).name, event=message,
+            server_name=server.name if server else None,
+            actor=actor, discord_id=discord_id, ucid=ucid)
 
     def get_admin_channel(self, server: Server) -> None:
         ...

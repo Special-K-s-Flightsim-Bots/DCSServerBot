@@ -9,6 +9,7 @@ from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANN
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
+from core.utils.audit import record_audit
 from datetime import datetime, timezone
 from discord import Thread, PrivilegedIntentsRequired
 from discord.abc import PrivateChannel, GuildChannel
@@ -494,7 +495,8 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
 
     async def audit(self, message, *, user: discord.Member | str | None = None,
                     server: "Server | None" = None, node: Node | None = None,
-                    mention: discord.Role | list[discord.Role] | None = None, **kwargs):
+                    mention: discord.Role | list[discord.Role] | None = None,
+                    actor: str | None = None, **kwargs):
         # init node if not set
         if not node:
             node = self.node
@@ -521,17 +523,20 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
                 member = await self.get_member_by_ucid(user) if utils.is_ucid(user) else None
             else:
                 member = user
+            # the actor lives in the entry's own column; a web action's author IS the bot in the
+            # channel, so the render puts the token back in front of the sentence
+            display = f'{actor} {message}' if actor else message
             embed = discord.Embed(color=discord.Color.blue())
             if member:
                 embed.set_author(name=member.display_name, icon_url=member.avatar)
                 if 'error' in kwargs:
                     embed.set_thumbnail(url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
                 if member != self.member:
-                    embed.description = f'<@{member.id}> ' + message
+                    embed.description = f'<@{member.id}> ' + display
                 else:
-                    embed.description = message
+                    embed.description = display
             else:
-                embed.description = message
+                embed.description = display
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
             if server:
@@ -557,13 +562,12 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
             except ClientError:
                 self.log.warning("Audit message discarded due to connection issue: " + message)
 
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                INSERT INTO audit (node, event, server_name, discord_id, ucid)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (node.name, message, server.name if server else None,
-                  user.id if isinstance(user, discord.Member) else None,
-                  user if isinstance(user, str) else None))
+        await record_audit(
+            self.apool, node=node.name, event=message,
+            server_name=server.name if server else None,
+            actor=actor,
+            discord_id=user.id if isinstance(user, discord.Member) else None,
+            ucid=user if isinstance(user, str) else None)
 
     def get_admin_channel(self, server: "Server | None" = None) -> discord.TextChannel | None:
         admin_channel = self.locals.get('channels', {}).get('admin')

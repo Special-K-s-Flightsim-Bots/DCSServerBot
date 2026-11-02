@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v3.21') ON CONFLICT (version) DO NOTHING;
+INSERT INTO version (version) VALUES ('v3.22') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS servers (
     server_name TEXT PRIMARY KEY,
@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS audit(
     node TEXT NOT NULL,
     event TEXT NOT NULL,
     server_name TEXT,
+    actor TEXT,
     discord_id BIGINT,
     ucid TEXT,
     time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),

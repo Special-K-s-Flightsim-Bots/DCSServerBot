@@ -468,17 +468,17 @@ def _records_an_audit(result: ActionResult) -> bool:
 # (``services/bot/dcsserverbot.py:473-546``, ``sql/tables.sql:31-40``). The logbook plugin CONSUMES
 # it and stores none of it, so logbook-absent changes nothing here — do not build a logbook adapter.
 #
-# The actor: the ``audit`` row holds ``discord_id`` and ``ucid`` and nothing else, so a web caller
-# is named by the declared ``[web:backend/subject]`` PREFIX in the event text (greppable:
-# ``WHERE event LIKE '[web:%'``) — NEVER by passing a display name (it would land in ``ucid`` and
-# corrupt player data) and never as a ucid.
+# The actor: the ``audit`` row holds an ``actor`` column beside ``discord_id`` and ``ucid``, and the
+# declared ``[web:backend/subject]`` token is also written at the head of the event text (the write
+# surface's tests pin it, and it is what the audit channel shows) — NEVER a display name (it would
+# land in ``ucid`` and corrupt player data) and never as a ucid.
 
 #: what ``ActionResult.data["audit"]`` carries, on the one outcome that matters to the page
 AUDIT_RECORDED = "recorded"
 AUDIT_NOT_RECORDED = "not-recorded"
 
-#: the module of the HEADLESS bot: its ``audit()`` is a no-op that returns normally, so "the entry
-#: was recorded" cannot be confirmed by the call returning.
+#: the module of the HEADLESS bot. The console's apply door names it to tell an operator that this
+#: install runs without Discord (its own sentence, not a fault) instead of "no reload available".
 HEADLESS_BOT_MODULE = "services.bot.dummy.bot"
 
 #: The most characters of an action's OUTCOME the AUDIT event will ever carry. The event text is
@@ -508,12 +508,13 @@ def bound_text(value: Any, limit: int = AUDIT_EVENT_MAX_CHARS) -> str:
 
 
 def _audit_token(value) -> str:
-    """A value safe to sit inside the ``[web:backend/subject]`` prefix: ONE line, no brackets.
+    """A value safe to sit inside the ``[web:backend/subject]`` actor token: ONE line, no brackets.
 
-    The prefix is the greppable actor token (``WHERE event LIKE '[web:%'``), so anything in it that
-    can close the token early or break the line it is written on defeats the whole point — a subject
-    carrying ``]`` could forge a second ``[web:…]`` prefix and a newline could mangle the event it
-    prefixes (review M-2). The subjects are operator/Discord-controlled today, so this is hygiene
+    The token is stored in the entry's ``actor`` column and leads the event text, so anything in it
+    that can close the token early or break the line it is written on defeats the whole point — a
+    subject carrying ``]`` could forge a second ``[web:…]`` token and a newline could mangle the
+    event it prefixes (review M-2). The subjects are
+    operator/Discord-controlled today, so this is hygiene
     rather than exploitability; the value is NEUTRALISED here rather than refused, because a mangled
     actor is visible in the trail while a refused identity is an outage.
 
@@ -526,12 +527,14 @@ def _audit_token(value) -> str:
     return cleaned.strip()
 
 
-def _can_confirm_audit(bot) -> bool:
-    """Whether *bot* can POSITIVELY record an entry — a bot that is present and is not headless."""
-    if bot is None:
-        return False
-    module = getattr(type(bot), "__module__", "") or ""
-    return not module.startswith(HEADLESS_BOT_MODULE)
+def can_record_audit(bot) -> bool:
+    """Whether *bot* can POSITIVELY record an entry: it must expose an audit sink.
+
+    A headless bot raises no error on the write path — it appends the row to the cluster's audit
+    table and skips only the channel announcement — so it qualifies exactly like a Discord bot.
+    What does not is a process with no bot at all (an agent node, a service without a bot).
+    """
+    return bot is not None and callable(getattr(bot, "audit", None))
 
 
 def _resolve_bot(ctx) -> Any:
@@ -561,21 +564,21 @@ async def audit_action(ctx: ActionContext, result: ActionResult, *, server: Any 
 
     The event text is BOUNDED (:data:`AUDIT_EVENT_MAX_CHARS`) before it reaches the bot, because the
     refusal it carries can quote a caller-supplied name (``Server '<name>' not found.``) and a
-    crafted name must not grow the audit table without limit. The actor prefix leads
-    the text, so clipping the tail never loses who made the attempt.
+    crafted name must not grow the audit table without limit. The actor does NOT lead the text: it
+    travels beside it into the entry's own ``actor`` column, which clipping cannot lose.
     """
-    event = bound_text(f"{ctx.audit_actor} {message or result.message or ''}".strip())
+    event = bound_text((message or result.message or '').strip())
     target = bot if bot is not None else _resolve_bot(ctx)
     if not isinstance(getattr(result, "data", None), dict):
         result.data = {}
-    if not _can_confirm_audit(target):
+    if not can_record_audit(target):
         log.error("Audit entry NOT recorded (actor %s, server %s): %s - no bot that can record it "
                   "is available in this process.", ctx.audit_actor or "unknown",
                   getattr(server, "name", None) or "-", event)
         result.data["audit"] = AUDIT_NOT_RECORDED
         return result
     try:
-        await target.audit(event, server=server)
+        await target.audit(event, server=server, actor=ctx.audit_actor or None)
     except Exception:
         log.exception("Audit entry NOT recorded (actor %s, server %s): %s - the audit write "
                       "raised.", ctx.audit_actor or "unknown",
@@ -750,8 +753,8 @@ class ActionContext:
         """The actor token the audit records: the declared web prefix, else the transport's label.
 
         ``[web:local/specialk]`` (or ``[web:discord/<id>]``, ``[web:breakglass/<user>]``) for a web
-        caller — greppable and needing no schema change — and the display-name label for Discord,
-        MCP and the REST surface, exactly as before.
+        caller — greppable, and stored in the entry's own ``actor`` column — and the display-name
+        label for Discord, MCP and the REST surface, exactly as before.
         """
         if self._audit_backend:
             return f"[web:{self._audit_backend}/{self._audit_subject}]"
