@@ -628,6 +628,13 @@ msgstr ""
 "Error al iniciar sesión. Comprueba tu usuario y tu contraseña e inténtalo"
 " de nuevo."
 
+#: services/webservice/auth/routes.py:83
+#, python-brace-format
+msgid "Too many failed sign-in attempts. Wait {seconds} seconds and try again."
+msgstr ""
+"Demasiados intentos de inicio de sesión fallidos. Espera {seconds} "
+"segundos y vuelve a intentarlo."
+
 #: services/webservice/auth/routes.py:113
 msgid "Discord and local sign-in enabled"
 msgstr "Inicio de sesión con Discord y local habilitados"

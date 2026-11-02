@@ -447,9 +447,9 @@ def _strip_sentence(owner: str, target: str, *, ok: bool) -> dict:
                                 "running."), "params": {}}
     if ok:
         return {"msgid": i18n._("{server} is shut down — its Saved Games mods can be changed."),
-                "params": {"server": target}}
+                "params": {"server": escape(target)}}
     return {"msgid": i18n._("{server} is running, so its Saved Games mods cannot be changed. Shut it "
-                            "down first."), "params": {"server": target}}
+                            "down first."), "params": {"server": escape(target)}}
 
 
 def _gate(owner: str, target: str, views, *, online: bool = True) -> dict:
@@ -867,6 +867,10 @@ def _pick_dialog(request: Request, *, owner: str, target: str, node_name: str, r
         go = i18n._("Install")
         verb = INSTALL
     params = {"target": target, "package": package, "folder": folder, "node": node_name}
+    # The `what` sentences carry markup in their msgid and are rendered with |safe, so their values
+    # are escaped here. The title, lead and heading share the same values and are autoescaped by the
+    # template, so they keep them raw (escaping those would print the entity form of a name).
+    safe_params = {key: escape(value) for key, value in params.items()}
     return {
         "owner": owner,
         "target": target,
@@ -874,7 +878,7 @@ def _pick_dialog(request: Request, *, owner: str, target: str, node_name: str, r
         "page_title": _sentence(title, **params),
         "heading": _sentence(heading, **params),
         "lead": _sentence(lead, **params),
-        "what": [_sentence(message, **params) for message in what],
+        "what": [_sentence(message, **safe_params) for message in what],
         "options": options,
         "message": "" if options else readmodels.text(getattr(result, "message", "")),
         "path": run_url(owner, target, verb),

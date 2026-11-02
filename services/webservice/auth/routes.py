@@ -27,12 +27,15 @@ value that is authenticated after the victim signs in: session fixation.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import unicodedata
+import weakref
 
 from dataclasses import dataclass
 from urllib.parse import quote
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -45,6 +48,24 @@ __all__ = ["LOGIN_PATH", "LOGOUT_PATH", "LOGIN_TEMPLATE", "FAILED_LOGIN_MESSAGE"
 
 log = logging.getLogger(__name__)
 
+#: How many password checks may run at once. The KDF is CPU-bound and the service runs a single
+#: worker, so an unbounded thread pool would let a burst of sign-ins saturate every core; two keeps
+#: one sign-in snappy while the rest queue behind the limiter.
+MAX_CONCURRENT_PASSWORD_CHECKS = 2
+
+#: One semaphore per event loop, created on first use: the app is rebuilt on a takeover and each
+#: loop owns its own primitives, so a module-level one would be bound to a loop that may be gone.
+_PASSWORD_CHECK_LIMITS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+
+
+def _password_check_limit() -> asyncio.Semaphore:
+    """The running loop's semaphore bounding concurrent (threaded) password checks."""
+    loop = asyncio.get_running_loop()
+    limit = _PASSWORD_CHECK_LIMITS.get(loop)
+    if limit is None:
+        limit = _PASSWORD_CHECK_LIMITS[loop] = asyncio.Semaphore(MAX_CONCURRENT_PASSWORD_CHECKS)
+    return limit
+
 #: absolute, constant, shared by the route, the form and the tests (never a config prefix)
 LOGIN_PATH = "/auth/login"
 LOGOUT_PATH = "/auth/logout"
@@ -55,6 +76,11 @@ LOGIN_TEMPLATE = "login.html"
 #: the one sentence a refused login shows. It names no mechanism and no reason. Wrapped for
 #: translation (the marker is an identity, so the runtime value is still this English sentence).
 FAILED_LOGIN_MESSAGE = i18n._("Sign-in failed. Check your username and password and try again.")
+
+#: the sentence a client sees once its address has spent the failed-attempt budget. It states the
+#: wait, never whether a username exists — the same rule as the refusal above.
+THROTTLED_LOGIN_MESSAGE = i18n._(
+    "Too many failed sign-in attempts. Wait {seconds} seconds and try again.")
 
 #: what a direct POST to the password door is refused with when no username/password backend is
 #: enabled. A REFUSAL, not a login attempt: the door is off, so the request never reaches a
@@ -210,13 +236,34 @@ def add_routes(router: APIRouter) -> APIRouter:
         password = str(form.get("password") or "")
         next_url = _safe_next(form.get("next"))
 
-        identity = manager.login(request, username, password)
+        # THE THROTTLE ANSWERS BEFORE A CREDENTIAL IS LOOKED AT. The password check is expensive by
+        # design (PBKDF2, 600 000 iterations), so an address that has spent its budget is refused
+        # without paying for it — which is also what stops a scripted flood from burning the CPU.
+        from . import login_throttle
+        throttle = login_throttle(request)
+        client = request.client.host if request.client else None
+        if throttle.is_locked(client):
+            seconds = throttle.seconds_left(client)
+            log.warning("auth: refusing %s %s - this client is locked out for another %s second(s) "
+                        "after too many failed sign-ins", request.method, request.url.path, seconds)
+            response = _render_login(request, next_url=next_url,
+                                     error=THROTTLED_LOGIN_MESSAGE.format(seconds=seconds),
+                                     status_code=429)
+            response.headers["Retry-After"] = str(seconds)
+            return response
+
+        # The KDF runs OFF the event loop and only a couple at a time: it is CPU-bound, so on the
+        # single worker a dozen concurrent sign-ins would otherwise stall every other request.
+        async with _password_check_limit():
+            identity = await anyio.to_thread.run_sync(manager.login, request, username, password)
         if identity is None:
             # the reason is already in the log, twice: the backend names it, and nothing here
             # echoes it back
+            throttle.record_failure(client)
             log.info("auth: login refused for %s %s", request.method, request.url.path)
             return _render_login(request, next_url=next_url, error=FAILED_LOGIN_MESSAGE,
                                  status_code=401)
+        throttle.reset(client)
 
         from . import set_session_identity
         # SESSION FIXATION: nothing the browser carried BEFORE the login may survive into the

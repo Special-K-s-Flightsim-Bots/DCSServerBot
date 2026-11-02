@@ -626,6 +626,11 @@ msgstr "Войти через Discord"
 msgid "Sign-in failed. Check your username and password and try again."
 msgstr "Не удалось войти. Проверь имя пользователя и пароль и попробуй снова."
 
+#: services/webservice/auth/routes.py:83
+#, python-brace-format
+msgid "Too many failed sign-in attempts. Wait {seconds} seconds and try again."
+msgstr "Слишком много неудачных попыток входа. Подожди {seconds} секунд и попробуй снова."
+
 #: services/webservice/auth/routes.py:113
 msgid "Discord and local sign-in enabled"
 msgstr "Включён вход через Discord и локальный вход"

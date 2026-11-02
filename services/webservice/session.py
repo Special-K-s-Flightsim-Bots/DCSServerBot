@@ -39,9 +39,9 @@ import secrets
 from fastapi import HTTPException, Request
 from starlette.middleware.sessions import SessionMiddleware
 
-__all__ = ["SESSION_COOKIE", "CSRF_FIELD", "CSRF_HEADER", "DEFAULT_LISTEN", "session_settings",
-           "install_session_middleware", "get_csrf_token", "validate_csrf_token", "csrf_protect",
-           "csrf_protect_with"]
+__all__ = ["SESSION_COOKIE", "CSRF_FIELD", "CSRF_HEADER", "DEFAULT_LISTEN", "MIN_SECRET_LENGTH",
+           "session_settings", "install_session_middleware", "get_csrf_token", "validate_csrf_token",
+           "csrf_protect", "csrf_protect_with"]
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +73,12 @@ DEFAULTS: dict = {
     "same_site": "lax",
     "secret": None,
 }
+
+#: Shortest accepted ``session.secret``. The cookie is SIGNED, not encrypted and carries only
+#: base64 JSON, so the key's entropy IS its integrity: a guessable value lets anyone mint any
+#: identity reference the backends resolve. A shorter configured value is refused at startup
+#: rather than warned about.
+MIN_SECRET_LENGTH = 32
 
 
 def _listen_host(listen) -> str:
@@ -223,6 +229,15 @@ def session_settings(config: dict | None) -> dict:
         settings["secret"] = secrets.token_urlsafe(48)
         log.warning("Web UI session: no session.secret configured in services/webservice.yaml - "
                     "using an ephemeral key. Sessions are invalidated on every restart.")
+    else:
+        secret = str(settings["secret"])
+        if len(secret) < MIN_SECRET_LENGTH:
+            raise ValueError(
+                f"session.secret must be at least {MIN_SECRET_LENGTH} characters, but is "
+                f"{len(secret)}. It signs the session cookie, and a guessable key lets anyone mint "
+                f"any identity. Generate one with: "
+                f"python -c \"import secrets; print(secrets.token_urlsafe(48))\"")
+        settings["secret"] = secret
     return settings
 
 

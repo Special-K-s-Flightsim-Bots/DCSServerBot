@@ -39,6 +39,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from markupsafe import escape
 from starlette.background import BackgroundTask
 
 from core.action_results import ActionResult
@@ -363,8 +364,10 @@ def describe(request, target: ApplyTarget) -> dict:
                 "target": target.plugin}
     name = node_label(request, target.node or master_name())
     values = {"node": name}
+    # the warning is rendered with |safe (its msgid carries no markup, but the template trusts it),
+    # so its value is escaped here; heading and go are autoescaped and keep the raw name
     return {"heading": _say(request, RESTART_HEADING, **values),
-            "warning": _say(request, RESTART_WARNING, **values),
+            "warning": _say(request, RESTART_WARNING, node=escape(name)),
             "detail": _say(request, RESTART_DETAIL), "go": _say(request, RESTART_GO, **values),
             "target": name}
 

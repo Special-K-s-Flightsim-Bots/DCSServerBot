@@ -630,6 +630,13 @@ msgstr ""
 "Anmeldung fehlgeschlagen. Prüfe deinen Benutzernamen und dein Passwort "
 "und versuch es erneut."
 
+#: services/webservice/auth/routes.py:83
+#, python-brace-format
+msgid "Too many failed sign-in attempts. Wait {seconds} seconds and try again."
+msgstr ""
+"Zu viele fehlgeschlagene Anmeldeversuche. Warte {seconds} Sekunden "
+"und versuche es erneut."
+
 #: services/webservice/auth/routes.py:113
 msgid "Discord and local sign-in enabled"
 msgstr "Discord- und lokale Anmeldung aktiviert"

@@ -622,6 +622,11 @@ msgstr "使用 Discord 登录"
 msgid "Sign-in failed. Check your username and password and try again."
 msgstr "登录失败。请检查你的用户名和密码后重试。"
 
+#: services/webservice/auth/routes.py:83
+#, python-brace-format
+msgid "Too many failed sign-in attempts. Wait {seconds} seconds and try again."
+msgstr "登录失败次数过多。请等待 {seconds} 秒后重试。"
+
 #: services/webservice/auth/routes.py:113
 msgid "Discord and local sign-in enabled"
 msgstr "已启用 Discord 和本地登录"

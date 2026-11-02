@@ -99,15 +99,19 @@ mapping:
         nullable: false
         desc: Session cookie settings of the admin web UI.
         example: |
-          secret: SECRET_SESSION_KEY
+          secret: <at least 32 random characters>
           cookie_name: dcssb_session
           max_age: 86400
         mapping:
           # signing key of the session cookie. Unset = a random key per process start (sessions
-          # do not survive a restart), which is logged as a warning at startup.
+          # do not survive a restart), which is logged as a warning at startup. A configured value
+          # shorter than 32 characters is refused at startup: the cookie is signed, not encrypted,
+          # so the key's entropy is what keeps an identity reference unforgeable.
           secret:
             type: str
             nullable: true
+            range:
+              min: 32
             desc: Key that signs the session cookie; unset picks a random one.
             example: "***"
           cookie_name:

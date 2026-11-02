@@ -21,7 +21,10 @@ DEFAULT:
   # Session cookie of the admin web UI. Every value is explicit: nothing is derived from a request,
   # so the cookie behaves the same behind a reverse proxy as it does on localhost.
   session:
-    secret: SECRET_SESSION_KEY   # Optional: signs the session cookie. Unset = a random key per start (sessions die on restart)
+    # secret: <at least 32 random characters>   # Optional: signs the session cookie. Unset = a random
+    #   key per start (sessions die on restart). Generate one with:
+    #     python -c "import secrets; print(secrets.token_urlsafe(48))"
+    #   A configured value shorter than 32 characters is refused at startup.
     # cookie_name: dcssb_session # Optional: the cookie name (default: dcssb_session)
     # max_age: 86400             # Optional: session lifetime in seconds (default: 86400)
     https_only: false          # The Secure flag on the session cookie. There is NO silent default: this

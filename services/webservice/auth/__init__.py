@@ -53,6 +53,7 @@ from .. import permissions
 # venv) and CONSUMES the one shared rule instead of keeping a second copy. The direction is pinned
 # by ``tests/test_layering_direction.py``.
 from ..scope import ADMIN_ROLE, CLUSTER_ROLES, Scope
+from .throttle import LoginThrottle
 
 __all__ = [
     "SESSION_IDENTITY_KEY",
@@ -67,6 +68,7 @@ __all__ = [
     "session_identity_ref",
     "set_session_identity",
     "clear_session_identity",
+    "login_throttle",
 ]
 
 log = logging.getLogger(__name__)
@@ -80,6 +82,9 @@ _STATE_ATTR = "webui_auth"
 #: ``install_auth`` records them so the ready-time audit (``audit_scope_declarations``) derives
 #: nothing a second time.
 _SCOPE_DECLARATIONS_ATTR = "webui_scope_declarations"
+
+#: the app-state attribute holding the failed-login throttle (see :func:`login_throttle`)
+_LOGIN_THROTTLE_ATTR = "webui_login_throttle"
 
 #: the label for a RESOLVED identity that carries no display name. Never the subject: a Discord
 #: subject is a numeric id, and the id is precisely what the console stopped showing. Never empty
@@ -166,6 +171,22 @@ def set_session_identity(request: Request, identity: Identity) -> None:
 
 def clear_session_identity(request: Request) -> None:
     request.session.pop(SESSION_IDENTITY_KEY, None)
+
+
+def login_throttle(source) -> "LoginThrottle":
+    """The application's failed-login throttle, created on first need.
+
+    *source* is the request (``request.app``) or the application itself, so the route and the install
+    share one accessor. It is stored per APPLICATION: a rebuilt app (a takeover, a stop/start) starts
+    from a clean count instead of inheriting another app's lockouts.
+    """
+    app = getattr(source, "app", None) or source
+    state = app.state
+    throttle = getattr(state, _LOGIN_THROTTLE_ATTR, None)
+    if throttle is None:
+        throttle = LoginThrottle()
+        setattr(state, _LOGIN_THROTTLE_ATTR, throttle)
+    return throttle
 
 
 # ------------------------------------------------------------------------------- the backend
@@ -406,6 +427,8 @@ def install_auth(app, node=None, config: dict | None = None, *,
     # whole identity — and so no page can answer the question for itself.
     permissions.set_manager_resolver(manager.manages_any_server)
     setattr(app.state, _STATE_ATTR, manager)
+    # the failed-login throttle, created with the identity layer so the login route always finds one
+    login_throttle(app)
 
     log.info("Admin web UI auth: backend(s) %s, password backend(s) %s, config dir '%s', "
              "public base url '%s'.", ", ".join(manager.describe()["backends"]) or "-",
