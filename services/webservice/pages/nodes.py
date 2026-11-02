@@ -129,7 +129,7 @@ NAV_LABEL = i18n._("Nodes")
 PAGE = lists_page.ListPage(table=NODES_TABLE, path=NODES_PATH, capability=NODES_CAPABILITY,
                            roles=NODES_ROLES, title=NODES_TITLE, lead=NODES_LEAD,
                            nav_label=NAV_LABEL, group="Cluster", glyph="hex",
-                           scope_grants=True, writes=True)
+                           scope_grants=True, writes=True, live=True)
 
 #: THE NODE LOG DOWNLOAD's route — one literal TEMPLATE path (``{node}`` is one path segment, the
 #: node's own name). It is not the page path and not a page: it answers GET, it renders no chrome,
@@ -258,11 +258,18 @@ def log_view_control(node_name: str, roles, manager: bool = False) -> dict | Non
 
 
 def capabilities() -> dict[str, str]:
-    """The capability declaration for the paths this module registers."""
+    """The capability declaration for the paths this module registers.
+
+    The two live paths carry the PAGE's own ``nodes.view``: "may open the page" and "may stream its
+    rows" are one declaration, so the stream cannot outlive a revocation of the page.
+    """
     PAGE.declare()
-    return {NODES_PATH: NODES_CAPABILITY, NODES_LOG_PATH: LOG_DOWNLOAD_CAPABILITY,
-            NODE_LOG_VIEW_PATH: LOG_DOWNLOAD_CAPABILITY,
-            NODE_LOG_WINDOW_PATH: LOG_DOWNLOAD_CAPABILITY}
+    declared = {NODES_PATH: NODES_CAPABILITY, NODES_LOG_PATH: LOG_DOWNLOAD_CAPABILITY,
+                NODE_LOG_VIEW_PATH: LOG_DOWNLOAD_CAPABILITY,
+                NODE_LOG_WINDOW_PATH: LOG_DOWNLOAD_CAPABILITY}
+    for path in lists_page.stream_paths(PAGE):
+        declared[path] = NODES_CAPABILITY
+    return declared
 
 
 def nav_items():

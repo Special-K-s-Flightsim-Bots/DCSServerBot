@@ -31,14 +31,17 @@ included: it renders the database directory, and a player's row there is a DOOR 
 player's page), never a place to act from. The forms a signed-in visitor meets elsewhere are the
 shell's Sign out control and the Players page's search form, which is a GET and mutates nothing.
 
-THE SERVERS ROWS ARE LIVE (``live=True`` on the page spec). A row carries state a write moves on the
-server, not on the page: the busy marker a press raises, and the state the boot settles on. Rendered
-once at the write's redirect, those can be one step behind the truth, so the SERVERS table body is a
-stream target, re-rendered every tick by :func:`render_rows` from :func:`page_context` — the SAME
-builder the page used — and delivered by the console's own transport (``pages/live.stream_frames``,
-``LiveRegistry``, ``static/shell.js``). The capability and the scope are re-resolved per tick, so a
-revoked role loses the rows at the next frame and a scoped manager keeps seeing their own. The other
-three pages pass ``live`` false: their rows carry no state a write moves, and a stream would only
+THE SERVERS AND NODES ROWS ARE LIVE (``live=True`` on the page spec). A row carries state a write
+moves on the server, not on the page: the busy marker a press raises, and the state the boot settles
+on. Rendered once at the write's redirect, those can be one step behind the truth, so the table body
+is a stream target, re-rendered every tick by :func:`render_rows` from :func:`page_context` — the
+SAME builder the page used — and delivered by the console's own transport
+(``pages/live.stream_frames``, ``LiveRegistry``, ``static/shell.js``). The capability and the scope
+are re-resolved per tick, so a revoked role loses the rows at the next frame and a scoped manager
+keeps seeing their own. A node row needs it for the same reason plus one of its own: its DCS chip and
+the mark on its DCS control are read from the console's cached update check, which a completed update
+refreshes, and a page that never re-renders would keep showing the update the node just installed. The
+other two pages pass ``live`` false: their rows carry no state a write moves, and a stream would only
 re-render markup that cannot change.
 """
 from __future__ import annotations

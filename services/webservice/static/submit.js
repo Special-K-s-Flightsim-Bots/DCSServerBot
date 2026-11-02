@@ -38,7 +38,9 @@
  *    (`redirect: "manual"` resolves when the server's answer is on the wire, i.e. AFTER the route has run
  *    the action and committed it). That is the delete-button rule: the fresh render such a write returns
  *    to reads the state the action CHANGED, not the pre-write state it was rendered from. The `data-await`
- *    dialog above lands here too, on its own stated page.
+ *    dialog above lands here too, on its own stated page. WHERE it returns is the page it is on UNLESS
+ *    the route names another: `{"redirect": "…"}` in a JSON answer wins (a rename moves the page), and
+ *    a `manual` 303 cannot be read, which is why that answer exists.
  *
  * A REFUSAL IS NEVER LOST. Every refusal is decided by a ROUTE (or refused by the console's access gate)
  * and reaches the person through the ONE-SHOT NOTICE, rendered where they land and on the live path —
@@ -159,10 +161,27 @@
        one-shot notice explains it, and a NETWORK failure is an honest no-op (the write was attempted
        once and never retried). */
     busy(control);
-    function leave() {
+    function leave(target) {
       settled(control);
-      window.location.assign(to);
+      window.location.assign(target || to);
     }
-    reply.then(leave, leave);
+    /* WHERE THE WRITE LANDED. A write can MOVE the page it was pressed on — a rename changes the
+       server's own URL — and the route's 303 cannot be read here: `redirect: "manual"` hands `fetch`
+       an OPAQUE response. A route that can land elsewhere states it as JSON instead
+       (`{"redirect": "…"}`), and that destination wins over the page the form was on; every other
+       answer keeps the page it is on, exactly as before. */
+    function answer(response) {
+      if (!response || !response.ok || !response.headers
+          || typeof response.headers.get !== "function"
+          || (response.headers.get("content-type") || "").indexOf("application/json") < 0
+          || typeof response.json !== "function") {
+        leave(null);
+        return;
+      }
+      response.json().then(function (body) {
+        leave(body && typeof body.redirect === "string" && body.redirect ? body.redirect : null);
+      }, function () { leave(null); });
+    }
+    reply.then(answer, function () { leave(null); });
   });
 })();

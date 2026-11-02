@@ -27,8 +27,9 @@ WHAT IS POLLED, AND WHEN (the poller's four triggers):
   live object is a NEWCOMER, and only newcomers are checked on an ordinary tick;
 * **every 6 hours** — a full sweep re-checks every node, so a node that stays up still learns about a
   release published after its last check;
-* **immediately after a DCS update is accepted** — :func:`check_node` re-checks that ONE node once the
-  action has succeeded, so the cache does not wait for the next tick.
+* **as soon as a DCS update has RETURNED** — the node action's route re-checks that ONE node once the
+  updater has exited (that call is minutes long and no tick can observe it), so the cache does not
+  wait for the next sweep.
 
 THE FAILURE RULE, stated here because it is a choice, not an accident. A check that RAISES means
 **UNKNOWN** (``available is None``), never "up to date" and never "update available". Logging is ONCE
@@ -306,16 +307,24 @@ def mark_absent(node_name: str) -> DcsCheck:
     return CHECKS.mark_absent(node_name)
 
 
-async def check_node(node) -> bool | None:
-    """Check ONE node now — the "immediately after a DCS update is accepted" trigger's entry point.
+async def check_node(node, *, declared: bool | None = None) -> bool | None:
+    """Check ONE node now — the "an accepted DCS update has returned" trigger's entry point.
 
     Also the seam a page route uses for that trigger, so the route never reaches into the store's
     internals and the poller's own rules (the failure handling above) apply to it unchanged. Whether
     the node declares a DCS installation is answered by the CONFIGURATION (``console_declared_dcs``),
     exactly as on a sweep.
+
+    ``declared`` states that fact for a caller that already knows it: the route calls this only after
+    a DCS operation on the node has SUCCEEDED, which the action can only do on a node that declares an
+    installation. Left ``None`` it is read from the configuration, and a configuration that cannot be
+    read makes every node "declares none" — the wrong answer for a node just updated through this
+    process.
     """
     name = _node_name(node)
-    return await CHECKS.check(node, declared=bool(name) and name in console_declared_dcs())
+    if declared is None:
+        declared = bool(name) and name in console_declared_dcs()
+    return await CHECKS.check(node, declared=bool(declared))
 
 
 def console_nodes() -> dict:

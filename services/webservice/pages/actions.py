@@ -138,6 +138,7 @@ __all__ = [
     "target_key", "target_is_busy",
     "AWAIT_CHANGE_SECONDS", "AWAIT_MAX_PENDING",
     "AWAIT_OBSERVABLE_STATUS", "AWAIT_OBSERVABLE_MAINTENANCE", "AWAIT_OBSERVABLE_CONFIG",
+    "AWAIT_OBSERVABLE_DCS", "DCS_PULSE_SECONDS",
     "SERVER_CONFIG_ACTIONS", "SERVER_CONFIG_ACTION_KEY", "SERVER_CONFIG_PATH",
     "SERVER_CONFIG_CAPABILITY", "SERVER_CONFIG_FIELD", "SERVER_CONFIG_CLEAR_FIELD",
     "SERVER_CONFIG_REVERT_FIELD", "config_values_from_form",
@@ -570,6 +571,16 @@ AWAIT_OBSERVABLE_CONFIG = "config"
 #: that already finished — the declaration says ``none`` and the route records no expectation, which
 #: is exactly "there is nothing to wait for".
 AWAIT_OBSERVABLE_NONE = "none"
+#: THE FIFTH observable, and the one a NODE control declares: the console's cached DCS check
+#: (``services/webservice/dcs_update.py``). Its value is that record's ``checked_at`` stamp, so the
+#: pulse ends when the check has been REFRESHED — which the route does once the update has returned —
+#: and never on a render that merely re-reads the old record.
+AWAIT_OBSERVABLE_DCS = "dcs"
+
+#: HOW LONG a DCS update's pulse may last. The operation warns and stops every server on the node and
+#: then downloads and installs a full DCS build, so the ceiling is tens of minutes; it only bounds a
+#: pulse whose check never landed (a node that went away mid-update).
+DCS_PULSE_SECONDS = 45 * 60
 
 CONFIRM_SUFFIX = "/confirm"
 CONFIRM_FIELD = "_confirm_token"
@@ -2221,6 +2232,18 @@ class NodeAction:
     #: gate on "is an update available": a rollback happens exactly when nothing is available, so a
     #: node that HAS DCS is offered this control whether or not ED reports a newer build.
     needs_dcs: bool = False
+    #: WHICH observable ENDS the pulse this control starts (see :class:`WriteAction`'s field of the same
+    #: name). ``AWAIT_OBSERVABLE_NONE`` — the default — records NO expectation, so a node control that
+    #: declares nothing never pulses; the DCS update declares :data:`AWAIT_OBSERVABLE_DCS`, whose signal
+    #: is the console's cached DCS check.
+    observable: str = AWAIT_OBSERVABLE_NONE
+    #: how long this control's pulse may last, in seconds — ``0`` keeps
+    #: :data:`AWAIT_CHANGE_SECONDS`. Only an operation measured in tens of minutes needs its own.
+    ceiling: float = 0.0
+    #: WHETHER a successful run RE-READS this node's cached DCS facts. The DCS update declares it: the
+    #: console's chip and the row's mark are read from that cache, and without this they would keep
+    #: reporting the update the node has just installed until the next background sweep.
+    refresh_dcs: bool = False
     #: THE NAMED FIELDS this control's dialog asks for, besides its checkbox(es), in the order it
     #: draws them (:class:`NodeField`). The SAME tuple drives the draw (:func:`node_dialog_inputs`)
     #: and the route's read (:func:`node_dialog_values`), so a field cannot be rendered without being
@@ -2410,6 +2433,9 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
     NodeAction(key=DCS_UPDATE_KEY, capability=NODE_DCS_UPDATE_CAPABILITY, qualname="update_dcs",
                path=NODE_DCS_UPDATE_PATH, label=i18n._("Update DCS"), needs_dcs=True,
                template=DCS_UPDATE_TEMPLATE,
+               # the pulse: it starts on the press and ends when the check has been refreshed, so it
+               # lasts as long as the update does rather than the default two minutes
+               observable=AWAIT_OBSERVABLE_DCS, ceiling=DCS_PULSE_SECONDS, refresh_dcs=True,
                heading=i18n._("Update, roll back or switch the DCS branch on {node}?"),
                inputs=(NodeField(field=DCS_BRANCH_FIELD, kind="branch", label=DCS_BRANCH_LABEL,
                                  help=DCS_BRANCH_HELP),
@@ -2688,7 +2714,8 @@ def reset_awaiting_changes() -> None:
         _AWAIT.clear()
 
 
-def _observable_value(action: WriteAction, state: str, flagged: bool, revision: str = "") -> Any:
+def _observable_value(action: WriteAction | NodeAction, state: str, flagged: bool,
+                      revision: str = "") -> Any:
     """The current value of the observable *action* MOVES — the signal whose move ends its pulse.
 
     The ONE translation from the declaration's ``observable`` to a value a later render can compare:
@@ -2700,12 +2727,12 @@ def _observable_value(action: WriteAction, state: str, flagged: bool, revision: 
     observable = getattr(action, "observable", AWAIT_OBSERVABLE_STATUS)
     if observable == AWAIT_OBSERVABLE_MAINTENANCE:
         return bool(flagged)
-    if observable == AWAIT_OBSERVABLE_CONFIG:
+    if observable in (AWAIT_OBSERVABLE_CONFIG, AWAIT_OBSERVABLE_DCS):
         return str(revision)
     return str(state)
 
 
-def remember_awaiting_change(kind: str, name: str | None, action: WriteAction,
+def remember_awaiting_change(kind: str, name: str | None, action: WriteAction | NodeAction,
                              state: str, flagged: bool, *, revision: str = "") -> None:
     """Record that *action*'s write on ``(kind, name)`` is ON ITS WAY, and what its observable read.
 
@@ -2745,6 +2772,9 @@ def remember_awaiting_change(kind: str, name: str | None, action: WriteAction,
              # Empty for an action that names no target state ("any change" ends it).
              "settled": tuple(getattr(action, "settled", ()) or ()),
              "departed": False,
+             # how long THIS action's pulse may last: an operation that takes tens of minutes declares
+             # its own ceiling, and an action that declares none keeps the default.
+             "ceiling": float(getattr(action, "ceiling", 0.0) or AWAIT_CHANGE_SECONDS),
              "at": time.monotonic()}
     with _AWAIT_LOCK:
         _AWAIT[key] = entry
@@ -2787,9 +2817,10 @@ def _evaluate(entry: dict, state: str, flagged: bool, revision: str = "") -> str
     """
     if entry.get("observable") == AWAIT_OBSERVABLE_MAINTENANCE:
         return "end" if bool(flagged) != entry.get("value") else "pending"
-    if entry.get("observable") == AWAIT_OBSERVABLE_CONFIG:
-        # the CONFIG REVISION moved (the settings write and/or the servers.yaml override landed):
-        # the pulse is SPENT. A revision that has not moved keeps waiting, under the ceiling.
+    if entry.get("observable") in (AWAIT_OBSERVABLE_CONFIG, AWAIT_OBSERVABLE_DCS):
+        # the CONFIG REVISION moved (the settings write and/or the servers.yaml override landed), or
+        # the cached DCS check was REFRESHED (its ``checked_at`` moved): the pulse is SPENT. A value
+        # that has not moved keeps waiting, under the ceiling.
         return "end" if str(revision) != str(entry.get("value")) else "pending"
     now_state = str(state)
     settled = tuple(entry.get("settled") or ())
@@ -2821,11 +2852,12 @@ def _pending_key_locked(key: str, state: str, flagged: bool, now: float | None,
         return None
     try:
         stamped = float(entry.get("at", 0.0))
+        ceiling = float(entry.get("ceiling") or AWAIT_CHANGE_SECONDS)
     except (TypeError, ValueError):
         _AWAIT.pop(key, None)
         return None
     moment = time.monotonic() if now is None else now
-    if (moment - stamped) >= AWAIT_CHANGE_SECONDS:
+    if (moment - stamped) >= ceiling:
         _AWAIT.pop(key, None)     # the ceiling: a start that never came up must not pulse forever
         return None
     return str(entry.get("action") or "") or None
@@ -3438,7 +3470,7 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
             continue
         record = _node_record(key, index, offered, note, download,
                               view=view, token=token, origin=origin, page=page, tab=tab,
-                              waiting=_dcs_attention(key))
+                              waiting=_dcs_attention(key), pulsing=_dcs_pulse(key))
         # the mods door is grafted on HERE rather than passed through ``_node_record``: it is the one
         # row link that belongs to a DIFFERENT page module, and it must be the same key in both
         # branches (offline included) — which this ONE line guarantees.
@@ -3449,20 +3481,24 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
 
 def _node_record(key: str, index: int, offered, note: str, download,
                  *, view=None, token: str = "", origin: str = "", page: str | None = None,
-                 tab: str = "", waiting: bool = False) -> dict:
+                 tab: str = "", waiting: bool = False, pulsing: bool = False) -> dict:
     """One NODE row's control record — the SAME shape whether the node is reachable or not.
 
     ``offered`` are the lifecycle/power actions the reachable node may render (empty for an OFFLINE
     one); ``note``/``view``/``download`` are the row-level statement, the log VIEW and the log
     DOWNLOAD. ``page`` is the NODE PAGE URL (``/nodes/<node>``) the row's NAME links to — the row's
     ONLY door into that page, so no second link to the same page is drawn beside it. ``waiting`` is
-    the row's CACHED DCS answer (see :func:`_dcs_attention`), and it marks the DCS control alone.
+    the row's CACHED DCS answer (see :func:`_dcs_attention`), and it marks the DCS control alone;
+    ``pulsing`` is the pending expectation of a DCS update pressed through the console
+    (:func:`_dcs_pulse`) and marks that same control alone, so no neighbour's glyph blinks for a
+    write it did not start.
     Kept in ONE place so the offline and online branches cannot produce two different record shapes
     that ``_table.html`` would then have to know apart.
     """
     return {
         "strip": tuple(_node_control(action, key, token, origin, tab=tab,
-                                     attention=waiting and action.key == DCS_UPDATE_KEY)
+                                     attention=waiting and action.key == DCS_UPDATE_KEY,
+                                     busy=pulsing and action.key == DCS_UPDATE_KEY)
                        for action in offered),
         "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
         "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
@@ -3626,6 +3662,28 @@ def _dcs_attention(node_name: str) -> bool:
     """
     record = _dcs_cached(node_name)
     return bool(record is not None and record.available is True)
+
+
+def _dcs_checked_stamp(node_name: str) -> str:
+    """When *node_name*'s cached DCS answer was last PRODUCED, as text — ``''`` while there is none.
+
+    The value the DCS pulse compares against (:data:`AWAIT_OBSERVABLE_DCS`): it moves exactly when the
+    console has re-read the node, which is what the route does once an update has returned.
+    """
+    record = _dcs_cached(node_name)
+    stamp = getattr(record, "checked_at", None) if record is not None else None
+    return stamp.isoformat() if stamp is not None else ""
+
+
+def _dcs_pulse(node_name: str) -> bool:
+    """Whether a DCS update pressed on *node_name* through THIS console is still waiting for its check.
+
+    ``True`` while the expectation recorded by the node action's route (:func:`remember_awaiting_change`)
+    has not ended, and only for the DCS control it names. It is the row's own fact, read at render like
+    every other control record, and it asks the node nothing: the cache is the only source.
+    """
+    return awaiting_change("node", node_name, DCS_UPDATE_KEY, "", False,
+                           revision=_dcs_checked_stamp(node_name))
 
 
 def dcs_branch_values(node_name: str) -> tuple[str, ...]:
@@ -3806,7 +3864,7 @@ def node_dialog_values(action: "NodeAction", form: Any, node_name: str) -> dict[
 
 
 def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab: str = "",
-                  attention: bool = False) -> dict:
+                  attention: bool = False, busy: bool = False) -> dict:
     """One rendered NODE control, as data: where it posts, its glyph, its two names, its target.
 
     The target travels in the request BODY, never in a URL, under the field name the
@@ -3822,11 +3880,14 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab
     ``attention`` marks a WAITING STATE on the control (``_strip.html`` renders its class): amber for
     the node whose cached DCS check says a newer build exists. It never decides whether the control is
     offered — a rollback is needed exactly when nothing is available — so it is a mark, not a gate.
+    ``busy`` marks a write THIS control started and is still waiting for (the strip animates it); it
+    is a per-row, per-control fact like ``attention``, never a declaration field.
     """
     return {"path": action.path + CONFIRM_SUFFIX,
             "label": action.label, "icon": action.key, "title": _sentence(action.tip, node=name),
             "aria": _sentence(action.aria, node=name), "hint": action.hint,
             "danger": action.danger, "node": name, "attention": bool(attention),
+            "busy": bool(busy),
             "direct": False,
             "hidden": _hidden_fields(origin, tab, ("node", name)),
             "csrf_field": session.CSRF_FIELD, "csrf_token": token}
@@ -6114,6 +6175,28 @@ def _post_write_name(result, server, canonical: str) -> str:
     return readmodels.text(readmodels.safe(lambda: getattr(server, "name", ""))) or canonical
 
 
+def _wants_json(request: Request) -> bool:
+    """Whether the caller is the console's own background submit, which states it accepts JSON.
+
+    The no-JavaScript path is a plain form post: no ``Accept`` at all, or ``text/html``. Both keep the
+    303 the browser follows natively, so nothing changes for a caller without the interceptor.
+    """
+    return "application/json" in request.headers.get("accept", "").lower()
+
+
+def _redirect_or_json(request: Request, target: str):
+    """Answer a write with its destination: a 303, or the URL itself for the background submit.
+
+    ``submit.js`` posts with ``fetch(redirect: "manual")``, which hands the script an OPAQUE response —
+    a 303's ``Location`` is unreadable — so a write that lands on a DIFFERENT page than the one it was
+    pressed on (a rename moves the server's own page) would send the browser back to where it was. The
+    interceptor states ``Accept: application/json``; answering the destination lets it go there.
+    """
+    if _wants_json(request):
+        return JSONResponse({"redirect": target}, status_code=200)
+    return RedirectResponse(target, status_code=303)
+
+
 def config_write_available() -> bool:
     """Whether the ONE config action is registered in THIS process (the ``action_available`` rule).
 
@@ -6137,7 +6220,7 @@ def _config_handler(action: WriteAction):
     No ``audit_result``: the config action writes its OWN trail, once, for every outcome
     (``plugins/scheduler/actions.py``). A refusal or a failure forgets the expectation at once.
     """
-    async def handle(request: Request) -> RedirectResponse:
+    async def handle(request: Request) -> Response:
         identity = _identity(request)
         if identity is None:
             _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
@@ -6156,7 +6239,7 @@ def _config_handler(action: WriteAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
             _remember_notice(request, action, result)
-            return RedirectResponse(_servers_path(), status_code=303)
+            return _redirect_or_json(request, _servers_path())
         server = resolution.server
         canonical = readmodels.text(readmodels.safe(lambda: getattr(server, "name", ""))) or name
         revert = readmodels.text(form.get(SERVER_CONFIG_REVERT_FIELD))
@@ -6176,9 +6259,9 @@ def _config_handler(action: WriteAction):
         if not bool(getattr(result, "success", False)):
             forget_awaiting_change("server", canonical)
         # THE REDIRECT NAMES THE SERVER AS IT IS **AFTER** THE WRITE: a rename moves the name, so the
-        # pre-action name would be a 404 — and the notice and Revert ride this redirect.
-        return RedirectResponse(_config_back_path(_post_write_name(result, server, canonical)),
-                                status_code=303)
+        # pre-action name would be a 404 — and the notice and Revert ride this redirect. The background
+        # submit cannot read that 303, so it is handed the destination instead (:func:`_redirect_or_json`).
+        return _redirect_or_json(request, _config_back_path(_post_write_name(result, server, canonical)))
 
     return handle
 
@@ -8630,6 +8713,14 @@ def _node_handler(action: NodeAction):
             if resolution.is_found else ""
         predicted_record = power_record(canonical) \
             if resolution.is_found and action.key == "online" else None
+        # THE PULSE'S EXPECTATION, recorded BEFORE the action runs: the dialog closes on the press and
+        # the page is rendered again at once, so the row the person lands on must already find it. The
+        # observable is the cached DCS check's stamp, and the action that declares one is the DCS
+        # update — its pulse lasts as long as the update does (``action.ceiling``).
+        if resolution.is_found \
+                and getattr(action, "observable", AWAIT_OBSERVABLE_NONE) == AWAIT_OBSERVABLE_DCS:
+            remember_awaiting_change("node", canonical, action, "", False,
+                                     revision=_dcs_checked_stamp(canonical))
         if resolution.is_found:
             # No ``audit_result``: every node action writes its own trail, once, for every outcome
             # — including the refusals it produces itself.
@@ -8641,6 +8732,10 @@ def _node_handler(action: NodeAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
+        # A REFUSED OR FAILED write drops the expectation it recorded, so its glyph stops pulsing
+        # while the notice beside it says the operation did not happen.
+        if not bool(getattr(result, "success", False)):
+            forget_awaiting_change("node", canonical)
         # AN ACCEPTED node POWER write seeds the per-server expectation on the servers it started or
         # stopped, so their rows pulse on the servers page and the dashboard exactly as a per-server
         # write's do — and end by the identical rules (settled state / failure / ceiling). A refused or
@@ -8657,6 +8752,17 @@ def _node_handler(action: NodeAction):
         if resolution.is_found and bool(getattr(result, "success", False)) \
                 and getattr(action, "check", False):
             asyncio.create_task(upgrade_signal.check_node(resolution.node))
+        # THE DCS UPDATE'S OWN RE-READ, and it is placed HERE because only now is the updater done:
+        # this route awaits the action, and the action awaits ``Node.dcs_update`` to its exit. The
+        # cached answer the row's chip and mark read is therefore refreshed against what is actually
+        # installed, instead of surviving until the next six-hour sweep. It is FIRE-AND-FORGET like
+        # the upgrade check above (an RPC plus an ED request must not delay the redirect), and a check
+        # that cannot answer keeps the node's last known value by the poller's own failure rule.
+        if resolution.is_found and bool(getattr(result, "success", False)) \
+                and getattr(action, "refresh_dcs", False):
+            # declared=True: a successful DCS operation proves the node declares an installation, so
+            # the re-read does not depend on re-reading the configuration map.
+            asyncio.create_task(dcs_update_signal.check_node(resolution.node, declared=True))
         # 303 back to the PAGE the control was rendered on — the Dashboard's
         # Nodes tab and /nodes render the same row strip, so the write must not re-orient the person,
         # and the tab in force is re-attached so a node write pressed on the Nodes tab lands back on

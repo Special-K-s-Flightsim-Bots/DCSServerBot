@@ -1851,7 +1851,12 @@ class ServerImpl(Server):
     @override
     async def getAllMissionFiles(self) -> list[tuple[str, str]]:
         result = []
-        base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir, pattern="*.miz",
+        # A PERSISTENT MISSION IS A ``.sav`` FILE: ``/mission persistence`` renames it and points
+        # ``missionList`` at it, so both kinds are missions here — the same pair every other listing
+        # in the bot asks for. Listing only ``*.miz`` left a configured ``.sav`` unresolved, which the
+        # tab read as ``missing`` and the download refused as "not found".
+        base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir,
+                                                                pattern=["*.miz", "*.sav"],
                                                                 ignore=['.dcssb', 'Scripts', 'Saves'], traverse=True)
         for mission in all_missions:
             orig = utils.get_orig_file(mission, create_file=False)

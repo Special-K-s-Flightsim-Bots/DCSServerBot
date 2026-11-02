@@ -9,7 +9,13 @@
 
   Every name it reads (`table`, `view`, `row_controls`, `empty`, `search_*`) is the context the page
   passed; this file derives nothing.
-#}
+
+  THE GLYPH SET IS IMPORTED HERE, because this file is also rendered ALONE by the live stream
+  (`pages/lists.render_rows`): `_strip.html` draws every control with `icons.act(...)` and relies on
+  the importing template to provide `icons`, which `_table.html` does for the page render. Without
+  this line a streamed frame whose row carries controls raises `UndefinedError: 'icons' is undefined`.
+-#}
+{% import "_icons.html" as icons %}
       {% if table.name == 'servers' %}
         {% for row in table.rows %}<tr><td><b>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</b><div class="meta">{% trans %}node{% endtrans %} {{ row.node_name }}{% if row.instance_name %} · {% trans %}instance{% endtrans %} {{ row.instance_name }}{% endif %}{% if row.port %} ·:{{ row.port }}{% endif %}</div></td><td>{{ row.node_name }}</td><td><span class="dot {{ row.status.dot }}" title="{{ row.status.raw }}" aria-hidden="true"></span> <span class="tag">{{ _(row.status.word) }}</span>{% if row.maintenance %} <span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}</td><td>{{ row.mission_name or '—' }}</td><td class="num">{{ row.mission_label }}</td><td class="num">{% trans count=row.active_players %}{{ count }} player(s){% endtrans %}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get(row.name) %}{% if strip %}{% include "_strip.html" %}{% if strip.get('note') %}<span class="act-note">{{ _(strip.get('note')) }}</span>{% endif %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
