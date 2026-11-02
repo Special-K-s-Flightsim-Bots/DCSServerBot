@@ -2,7 +2,7 @@ import discord
 import hashlib
 import os
 
-from core import Plugin, get_translation, Group, Server, utils, Status
+from core import Plugin, get_translation, Group, Server, utils, Status, DISCORD_FILE_SIZE_LIMIT
 from datetime import datetime, timezone
 from discord import app_commands
 from extensions.tacview import TACVIEW_DEFAULT_DIR
@@ -104,6 +104,10 @@ class Tacview(Plugin):
                 await interaction.followup.send(_("Tacview file not found."), ephemeral=True)
                 return
         file_data = await self.node.read_file(os.path.join(path, file))
+        if len(file_data) > DISCORD_FILE_SIZE_LIMIT:
+            await interaction.followup.send(_("The file exceeds the maximum allowed size on Discord. Aborted."),
+                                            ephemeral=True)
+            return
         try:
             if config.get('upload', {}).get('channel'):
                 channel_id = config['upload']['channel']
