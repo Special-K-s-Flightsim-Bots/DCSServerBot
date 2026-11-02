@@ -3,7 +3,7 @@ import importlib
 import importlib.util
 
 from core import NodeImpl, ServiceRegistry, EventListener, Server, Plugin, PluginError
-from typing import Any
+from typing import Any, Iterable
 
 from services.bot.dummy import DummyGuild, DummyMember, DummyRole
 
@@ -138,6 +138,38 @@ class DummyBot:
 
     def get_admin_channel(self, server: Server) -> None:
         ...
+
+    async def get_member(self, user_id: int, fetch: bool = True) -> DummyMember | None:
+        """Resolve ONE member by Discord id.
+
+        A headless install has no Discord to ask, so the only members that can be resolved are
+        the ones a role mapping in ``bot.yaml`` already names.
+        """
+        if user_id in (-1, None):
+            return None
+        try:
+            return self.guilds[0].get_member(int(user_id))
+        except (TypeError, ValueError):
+            return None
+
+    async def get_members(self, user_ids: Iterable[int], fetch: bool = True,
+                          concurrency: int = 5, budget: int | None = None) -> dict[int, DummyMember]:
+        """Resolve several members at once, from the local role map only.
+
+        Mirrors the Discord bot's contract: the answer is keyed by the numeric id and holds just
+        the ids that resolved, so a caller falls back to the stored name for the rest.
+        """
+        members: dict[int, DummyMember] = {}
+        for user_id in user_ids:
+            try:
+                _id = int(user_id) if user_id is not None else 0
+            except (TypeError, ValueError):
+                continue
+            if _id <= 0 or _id in members:
+                continue
+            if (member := self.guilds[0].get_member(_id)) is not None:
+                members[_id] = member
+        return members
 
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> DummyMember | None:
         return await self.get_member_by_ucid(ucid, verified)

@@ -6,12 +6,13 @@ import re
 import string
 import sys
 
+from contextlib import suppress
 from core import EventListener, Server, Player, Channel, Side, PersistentReport, event, get_translation, utils
 from matplotlib import pyplot as plt
 from pathlib import Path
 from plugins.creditsystem.player import CreditPlayer
 from plugins.greenieboard import get_element, GRADES
-from contextlib import suppress
+from psycopg.types.json import Jsonb
 from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -181,7 +182,7 @@ class GreenieBoardEventListener(EventListener["GreenieBoard"]):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (server.mission_id, player.ucid, player.unit_type, data['grade'].strip(), data['details'],
                   data['place']['name'], case, wire, night, points, psycopg.Binary(data.get('trapsheet')),
-                  data.get('trapdata', {}), data.get('Tgroove'), data.get('landingdist'), data.get('wind')))
+                  Jsonb(data.get('trapdata', {})), data.get('Tgroove'), data.get('landingdist'), data.get('wind')))
 
     @staticmethod
     def normalize_airboss_lso_rating(grade: str) -> str | None:

@@ -39,6 +39,7 @@ class Cloud(Plugin[CloudListener]):
         self.base_url = None
         self._session = None
         self.guild_bans = []
+        self._discord_ban_warned = False
         self.troublemakers = ThreadSafeDict()
 
     @property
@@ -378,28 +379,13 @@ class Cloud(Plugin[CloudListener]):
                     for ucid in watches - to_ban:
                         await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
             if self.config.get('discord-ban', False):
-                global_bans: dict = await self.get('discord-bans')
-                global_ban_ids = {x['discord_id'] for x in global_bans}
-                if not self.guild_bans:
-                    self.guild_bans = [
-                        x.user async for x in self.bot.guilds[0].bans(limit=None)
-                        if x.reason and x.reason.startswith('DGSA:')
-                    ]
-                banned_users = {x.id for x in self.guild_bans}
-
-                guild = self.bot.guilds[0]
-                # unban users that should not be banned anymore
-                for user_id in banned_users - global_ban_ids:
-                    user = await self.bot.fetch_user(user_id)
-                    await guild.unban(user, reason='DGSA: ban revoked.')
-                    self.guild_bans.remove(user)
-
-                # ban users that were not banned yet (omit the owner, in case they are on the global banlist)
-                for user_id in global_ban_ids - banned_users - {self.bot.owner_id}:
-                    user = await self.bot.fetch_user(user_id)
-                    reason = next(x['reason'] for x in global_bans if x['discord_id'] == user.id)
-                    await guild.ban(user, reason='DGSA: ' + reason)
-                    self.guild_bans.append(user)
+                if isinstance(self.bot, DummyBot):
+                    if not self._discord_ban_warned:
+                        self.log.warning('discord-ban is configured, but this installation runs without Discord: '
+                                         'Discord bans cannot be synchronised.')
+                        self._discord_ban_warned = True
+                else:
+                    await self.sync_discord_bans()
             # read the list of potential troublemakers
             self.troublemakers = {x['ucid']: x for x in await self.get('troublemakers')}
         except aiohttp.ClientError as ex:
@@ -408,6 +394,30 @@ class Cloud(Plugin[CloudListener]):
             self.log.error('DCSServerBot needs the "Ban Members" permission.')
         except Exception as ex:
             self.log.exception(ex)
+
+    async def sync_discord_bans(self) -> None:
+        global_bans: dict = await self.get('discord-bans')
+        global_ban_ids = {x['discord_id'] for x in global_bans}
+        if not self.guild_bans:
+            self.guild_bans = [
+                x.user async for x in self.bot.guilds[0].bans(limit=None)
+                if x.reason and x.reason.startswith('DGSA:')
+            ]
+        banned_users = {x.id for x in self.guild_bans}
+
+        guild = self.bot.guilds[0]
+        # unban users that should not be banned anymore
+        for user_id in banned_users - global_ban_ids:
+            user = await self.bot.fetch_user(user_id)
+            await guild.unban(user, reason='DGSA: ban revoked.')
+            self.guild_bans.remove(user)
+
+        # ban users that were not banned yet (omit the owner, in case they are on the global banlist)
+        for user_id in global_ban_ids - banned_users - {self.bot.owner_id}:
+            user = await self.bot.fetch_user(user_id)
+            reason = next(x['reason'] for x in global_bans if x['discord_id'] == user.id)
+            await guild.ban(user, reason='DGSA: ' + reason)
+            self.guild_bans.append(user)
 
     @cloud_bans.before_loop
     async def before_cloud_bans(self):
