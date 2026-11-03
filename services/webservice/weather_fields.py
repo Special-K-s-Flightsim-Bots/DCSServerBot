@@ -7,10 +7,14 @@ SAME entries, so a control cannot carry a number the table does not state.
 
 The numbers are a CURATION. ``schemas/presets_schema.yaml`` carries TYPES and no ranges — its only
 ``range:`` is on a combination preset's name — so every slider limit here is either the schema's own
-prose (``density``/``dust_density``: "0 (clear) to 10 (overcast)"), the schema's own ``desc``
+prose (``density``: "0 (clear) to 10 (overcast)"), the schema's own ``desc``
 (``atmosphere_type``: "0 standard, 1 tropical"), a figure the operator supplied from the DCS Mission
 Editor, or a value read out of the node's ``clouds.lua``. The ``source`` string on each row states
 WHICH, so a curation is never mistaken for a DCS limit.
+
+``dust_density`` is the one row whose schema prose was WRONG: the mission file stores a VISIBILITY in
+metres (10 000 ft is ``dust_density = 3048``), and the Mission Editor's own dust control spans
+984..65 617 ft — 300..20 000 m. The row carries that range, and the schema's ``desc`` says the same.
 
 A ROW'S RANGE MUST ADMIT EVERY VALUE ITS OWN VENDOR DATA CARRIES. The Mission Editor's widget limits
 are one half — ``MissionEditor/modules/dialogs/me_weather_panel.dlg`` declares each control's
@@ -30,21 +34,28 @@ emitted on a box turns a slider's granularity into a validation rule. A box's ``
 is the contract :func:`out_of_range` enforces on the write route, so the browser and the route refuse
 the same values.
 
-The units are the schema's own and are NOT converted to the Mission Editor's feet/knots/inchHg: a
-preset stores ``qnh`` in mmHg, a cloud base and thickness and the fog figures in metres, and a wind
-speed in m/s. The REST API is what converts to the ME's units when it reads a preset
-(``plugins/restapi/commands.py``), so the wizard must not.
+The units are the schema's own: a preset stores ``qnh`` in mmHg, a cloud base and thickness and the
+fog and dust figures in metres, and a wind speed in m/s. The REST API is what converts to the ME's
+units when it reads a preset (``plugins/restapi/commands.py``), so the FILE is metric and stays metric.
+
+DISPLAY may differ, and only for DISTANCE. The Mission Editor shows a distance in feet, and English is
+the language whose operators expect that, so a render in English shows every distance control in feet
+(cloud base, cloud thickness, dust visibility, fog thickness, fog visibility) and the form posts feet.
+One pair — :func:`display_value` / :func:`stored_value` — does the conversion at the boundary, so every
+other module keeps working in metres: validation, the written document and the review's YAML never see
+a foot. ``FT_PER_M`` is exact (the international foot is 0.3048 m), and a stored value is rounded to
+the whole metre, so a fetch-and-save round trip changes nothing.
 
 Three facts the table carries, not argues with. ``clouds.iprecptns`` is an int the REST API reads as
 ``0=none, 1=rain, 2=thunderstorm, 3=snow`` (``plugins/restapi/models.py``), so it is a SELECT and
-never a slider. The fog mode is a SELECT (``auto`` builds DCS's own fog, ``manual`` uses the
-``fog.rows`` table). And ``enable_dust`` is MUTUALLY EXCLUSIVE with ``enable_fog`` — DCS applies one
-or the other — so ONE either-or control (:data:`DUST_OR_FOG`) picks which, and the write derives both
-keys from it: neither can be posted, so neither can be set beside the other.
+never a slider. The fog mode is a SELECT (``off`` writes no fog, ``auto`` lets DCS build it,
+``manual`` uses the ``fog.rows`` table). And dust and fog are TWO INDEPENDENT switches — DCS renders
+them as separate effects and the mission file carries ``enable_dust`` and ``enable_fog`` side by side
+— so each has its own control and neither clears the other.
 
-Two preset keys share ONE control. ``enable_dust`` carries the either-or choice itself (its value is
-a MODE word, not a flag); the fog table's ``fog.rows`` is a wizard key that exists so the table's
-control has an identity to be carried under, and the rows it draws are written into the ``fog`` map.
+Two preset keys share ONE control. ``enable_dust`` carries the dust switch itself; the fog table's
+``fog.rows`` is a wizard key that exists so the table's control has an identity to be carried under,
+and the rows it draws are written into the ``fog`` map.
 
 The ORDER of :data:`FIELDS` is the order a step presents its controls, so ``temperature`` sits first
 on the air/wind step — the value people amend most — ahead of the wind layers.
@@ -64,8 +75,11 @@ __all__ = [
     "SOURCE_CURATED", "SOURCE_CLOUDS_LUA",
     "SOURCE_RESTAPI", "Field", "FIELDS", "FIELDS_BY_KEY", "field", "moments", "MOMENTS_ADDED",
     "CLOUD_MODES", "FOG_MODES", "HALO_OFF", "HALO_AUTO", "HALO_MODES", "DUST_OR_FOG",
-    "PRECIPITATION",
     "MUTUALLY_EXCLUSIVE",
+    "PRECIPITATION",
+    "DISTANCE_KEYS", "FT_PER_M", "FOOT_LANGUAGES", "uses_feet", "floored", "display_unit",
+    "display_value",
+    "display_bounds", "stored_value",
     "FOG_ROWS_KEY", "FOG_COLUMNS", "FOG_HINTS", "FOG_MODE_KEY", "HAZE_KEY", "DUST_DENSITY_NAME",
     "FOG_ROW_PREFIX", "fog_row_field", "fog_row_cell",
 ]
@@ -135,6 +149,11 @@ class Field:
     choices: tuple[tuple[str, str], ...] = ()
     #: the ``step`` a typed-in number box carries — never the slider's ``step`` (see the module doc).
     box_step: str | None = None
+    #: the value a control STARTS at when the preset states none, in the table's own unit. Empty when
+    #: the control's empty box is meaningful (``""``: nothing set, nothing written). It exists for a
+    #: range whose own floor is above zero: an empty box there would read as 0, a value the range
+    #: does not contain, and the first nudge of its slider would jump to the floor.
+    default: float | None = None
 
 
 # ------------------------------------------------------------------- the closed sets
@@ -146,7 +165,8 @@ CLOUD_MODES: tuple[tuple[str, str], ...] = (
     ("clear", i18n._("clear")),
 )
 
-#: the fog modes (``fog.mode``): DCS's own automatic build, or the keyframes.
+#: the fog modes (``fog.mode``): DCS's own automatic build, or the keyframes. ``off`` is NOT here —
+#: it belongs to the either-or control below, because no fog and no dust is ONE state of that control.
 FOG_MODES: tuple[tuple[str, str], ...] = (
     ("auto", i18n._("auto")),
     ("manual", i18n._("manual")),
@@ -189,6 +209,106 @@ MUTUALLY_EXCLUSIVE: tuple[tuple[str, str], ...] = (("enable_dust", "enable_fog")
 #: the key the either-or control rides on, and the fog mode's key.
 HAZE_KEY = "enable_dust"
 FOG_MODE_KEY = "fog.mode"
+
+# ------------------------------------------------------------------- display units
+#: the ONE conversion between a preset's own unit (metres) and the Mission Editor's (feet). The
+#: international foot is exactly 0.3048 m, so the two directions agree to the millimetre.
+FT_PER_M = 1 / 0.3048
+
+#: the languages whose operators read the Mission Editor's feet. English is the source language and
+#: the only one whose weather vocabulary is stated in feet; every other renders metres.
+FOOT_LANGUAGES: frozenset[str] = frozenset({"en"})
+
+#: every control whose value is a DISTANCE in metres — the rows :func:`display_value` converts. The
+#: keys are the table's own: three preset keys, and the fog table's two distance cells.
+DISTANCE_KEYS: frozenset[str] = frozenset(
+    {"clouds.base", "clouds.thickness", "dust_density", "thickness", "visibility"})
+
+
+def uses_feet(language: str) -> bool:
+    """Whether a render in *language* states distances in feet."""
+    return str(language or "").strip().lower().split("-")[0] in FOOT_LANGUAGES
+
+
+def floored(key: str, value: Any) -> Any:
+    """*value* raised to the control's own floor where the control states one (see ``Field.default``).
+
+    A range that starts above zero cannot state a value below it. An EMPTY box would read as 0, and a
+    stored 0 (dust switched off in a mission that still carries the key) is outside the range — both
+    would leave the slider at the floor and the box at a number the range does not contain. Both state
+    the floor instead. A non-numeric value is left exactly as it came.
+    """
+    entry = FIELDS_BY_KEY.get(key)
+    if entry is None or entry.default is None:
+        return value
+    text = str(value).strip()
+    if text == "":
+        return entry.default
+    try:
+        number = float(text)
+    except ValueError:
+        return value
+    return entry.default if number < (entry.min or 0) else value
+
+
+def display_unit(key: str, unit: str) -> str:
+    """The unit word *key*'s control shows: the table's own, or feet for a distance control.
+
+    The caller states *unit* from the row it is drawing, so this helper holds no second copy of the
+    table: it only swaps the WORD when the control is a distance.
+    """
+    return i18n._("feet") if key in DISTANCE_KEYS else unit
+
+
+def display_value(key: str, value: Any) -> Any:
+    """*value* (a stored metres figure) as the control shows it — feet for a distance key.
+
+    A distance is rounded to the whole foot: the ME's own controls are whole feet. A value that is
+    empty, or not a number, is returned untouched, so a blank box and a text value pass through.
+    """
+    if key not in DISTANCE_KEYS:
+        return value
+    if value is None or isinstance(value, bool):
+        return value
+    text = str(value).strip()
+    if text == "":
+        return value
+    try:
+        return int(round(float(text) * FT_PER_M))
+    except (TypeError, ValueError):
+        return value
+
+
+def stored_value(key: str, text: Any) -> str:
+    """The metres figure a form's *text* states — feet read back for a distance key.
+
+    Answers TEXT: the write path coerces it to the schema's type afterwards, so one rounding rule
+    lives here. A blank or unparseable value comes back unchanged for the caller's own checks.
+    """
+    if key not in DISTANCE_KEYS:
+        return str(text if text is not None else "")
+    stated = str(text if text is not None else "").strip()
+    if stated == "":
+        return ""
+    try:
+        return str(int(round(float(stated) * 0.3048)))
+    except (TypeError, ValueError):
+        return stated
+
+
+def display_bounds(entry: Field) -> tuple[float | None, float | None, float | None]:
+    """``(min, max, step)`` of *entry*'s control as it is DRAWN — converted for a distance key.
+
+    The conversion is the inverse of :func:`display_value`, so a slider's own limits are whole feet
+    and a value it produces converts back inside the stored range.
+    """
+    if entry.key not in DISTANCE_KEYS:
+        return entry.min, entry.max, entry.step
+
+    def feet(value: float | None) -> float | None:
+        return None if value is None else int(round(value * FT_PER_M))
+
+    return feet(entry.min), feet(entry.max), feet(entry.step)
 
 #: the wizard key the fog TABLE's control has, so its rows have an identity to be carried under.
 FOG_ROWS_KEY = "fog.rows"
@@ -298,9 +418,10 @@ FIELDS: tuple[Field, ...] = (
 
     Field(HAZE_KEY, i18n._("Dust or fog"), KIND_SELECT, choices=DUST_OR_FOG),
     #: the mission's field is NAMED ``dust_density`` and its meaning is the VISIBILITY, so the label
-    #: says what the number is; the key is what the preset stores.
-    Field("dust_density", i18n._("Visibility"), KIND_SLIDER, min=0, max=10, step=1,
-          source=SOURCE_SCHEMA_PROSE, box_step=BOX_STEP_WHOLE),
+    #: says what the number is; the key is what the preset stores. The range is the Mission Editor's
+    #: dust control: 984..65 617 ft, i.e. 300..20 000 m (10 000 ft stores ``dust_density = 3048``).
+    Field("dust_density", i18n._("Dust visibility"), KIND_SLIDER, unit=i18n._("metres"), min=300,
+          max=20000, step=10, source=SOURCE_ME, box_step=BOX_STEP_WHOLE, default=300),
     Field(FOG_MODE_KEY, i18n._("Fog"), KIND_SELECT, choices=FOG_MODES),
     Field(FOG_ROWS_KEY, i18n._("Fog keyframes"), KIND_FOGTABLE),
 )
@@ -313,12 +434,15 @@ NUMERIC_KEYS: tuple[str, ...] = tuple(entry.key for entry in FIELDS
                                      if entry.kind in (KIND_SLIDER, KIND_NUMBER, KIND_DIAL))
 
 
-def out_of_range(key: str, text: Any) -> tuple[Field, float] | None:
+def out_of_range(key: str, text: Any, *, feet: bool = False) -> tuple[Field, float] | None:
     """The control *key* and the number *text* states, when that number is outside the row's range.
 
     ``None`` when the value is inside the range, when the control is not a number (or the table does
     not carry the key), when *text* is empty, or when it is not a number at all — a value no number
     parse reaches is left to the schema's own type check, which names the type it wanted.
+
+    ``feet`` compares a DISTANCE control against the limits its own render states: the check runs on
+    the value AS POSTED, before it is read back to metres.
 
     The cell keys of the fog table are looked up the same way, so a fog keyframe's own limits are
     enforced by the same function as every other control's.
@@ -326,6 +450,9 @@ def out_of_range(key: str, text: Any) -> tuple[Field, float] | None:
     entry = FIELDS_BY_KEY.get(key) or FOG_COLUMNS_BY_NAME.get(key)
     if entry is None or entry.min is None or entry.max is None:
         return None
+    low, high = entry.min, entry.max
+    if feet and key in DISTANCE_KEYS:
+        low, high = display_bounds(entry)[:2]  # type: ignore[assignment]
     stated = str(text if text is not None else "").strip()
     if stated == "":
         return None
@@ -333,7 +460,7 @@ def out_of_range(key: str, text: Any) -> tuple[Field, float] | None:
         value = float(stated)
     except ValueError:
         return None
-    if not (value < entry.min or value > entry.max):
+    if low is None or high is None or not (value < low or value > high):
         return None
     return entry, value
 

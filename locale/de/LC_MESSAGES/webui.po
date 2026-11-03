@@ -3572,12 +3572,8 @@ msgstr ""
 "DCS wendet Staub oder Nebel an, nicht beides: Aktivieren des einen "
 "schaltet das andere ab."
 
-#: services/webservice/pages/presets.py:1147
-msgid "Dust haze is a separate switch with its own density."
 msgstr "Dunst ist ein eigener Schalter mit eigener Dichte."
 
-#: services/webservice/pages/presets.py:1148
-msgid "0 is none, 10 is thick."
 msgstr "0 ist keiner, 10 ist dicht."
 
 #: services/webservice/pages/presets.py:1149
@@ -11545,3 +11541,15 @@ msgstr "Erstellte Saved-Games-Instanzen: keine"
 #: services/webservice/setup/review.py
 msgid "{instance}: the instance folder could not be created ({ex})"
 msgstr "{instance}: der Instanzordner konnte nicht erstellt werden ({ex})"
+
+#: services/webservice/weather_fields.py
+msgid "feet"
+msgstr "Fuß"
+
+#: services/webservice/weather_fields.py
+msgid "Dust visibility"
+msgstr "Staubsichtweite"
+
+#: services/webservice/pages/presets.py
+msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
+msgstr "Wie dicht der Staubnebel ist, nach der Skala des Staub-Reglers im Missionseditor: 984 bis 65 617 ft, 300 bis 20 000 m."

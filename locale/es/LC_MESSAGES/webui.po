@@ -3559,12 +3559,8 @@ msgstr "El ajuste barométrico, en mmHg."
 msgid "DCS applies dust or fog, not both: enabling one turns the other off."
 msgstr "DCS aplica polvo o niebla, no ambos: activar uno desactiva el otro."
 
-#: services/webservice/pages/presets.py:1147
-msgid "Dust haze is a separate switch with its own density."
 msgstr "La calima es un interruptor aparte con su propia densidad."
 
-#: services/webservice/pages/presets.py:1148
-msgid "0 is none, 10 is thick."
 msgstr "0 es nada, 10 es densa."
 
 #: services/webservice/pages/presets.py:1149
@@ -11495,3 +11491,15 @@ msgstr "Instancias de Saved Games creadas: ninguna"
 #: services/webservice/setup/review.py
 msgid "{instance}: the instance folder could not be created ({ex})"
 msgstr "{instance}: no se pudo crear la carpeta de la instancia ({ex})"
+
+#: services/webservice/weather_fields.py
+msgid "feet"
+msgstr "pies"
+
+#: services/webservice/weather_fields.py
+msgid "Dust visibility"
+msgstr "Visibilidad del polvo"
+
+#: services/webservice/pages/presets.py
+msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
+msgstr "Grosor de la calima de polvo, según el control de polvo del editor de misiones: 984 a 65 617 ft, 300 a 20 000 m."

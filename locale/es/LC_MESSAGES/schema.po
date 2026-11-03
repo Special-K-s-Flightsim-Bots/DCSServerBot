@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-31 18:06+0100\n"
+"POT-Creation-Date: 2026-11-03 22:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -83,12 +83,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Clave de acceso secreta de AWS usada para Amazon Polly."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:242
+#: services/webservice/schemas/webservice_schema.yaml:246
 msgid "Account name of the local console user."
 msgstr "Nombre de cuenta del usuario local de la consola."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:231
+#: services/webservice/schemas/webservice_schema.yaml:235
 msgid "Accounts that may sign in with a username and password."
 msgstr "Cuentas que pueden iniciar sesión con nombre de usuario y contraseña."
 
@@ -1060,7 +1060,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Borrar cualquier marca de mantenimiento cuando arranca el servidor."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:302
+#: services/webservice/schemas/webservice_schema.yaml:306
 msgid "Client id of your Discord application."
 msgstr "ID de cliente de tu aplicación de Discord."
 
@@ -1218,7 +1218,7 @@ msgid "Consecutive high-load checks needed before stealing cores."
 msgstr "Comprobaciones consecutivas de alta carga antes de robar núcleos."
 
 #. webservice_schema:DEFAULT.session.same_site
-#: services/webservice/schemas/webservice_schema.yaml:146
+#: services/webservice/schemas/webservice_schema.yaml:150
 msgid "Cookie SameSite policy; keep 'lax' for OAuth logins."
 msgstr "Política SameSite de cookies; mantén 'lax' para los inicios de sesión OAuth."
 
@@ -1446,7 +1446,7 @@ msgid "Days after which this decay weight applies."
 msgstr "Días tras los cuales se aplica este peso de decaimiento."
 
 #. webservice_schema:DEFAULT.access.regex;(.+).remove
-#: services/webservice/schemas/webservice_schema.yaml:180
+#: services/webservice/schemas/webservice_schema.yaml:184
 msgid "Declared roles that lose this capability on the website."
 msgstr ""
 
@@ -1732,7 +1732,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "Descartar los vuelos más cortos que estos minutos."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:287
+#: services/webservice/schemas/webservice_schema.yaml:291
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Inicio de sesión OAuth con Discord; la segunda puerta hacia la consola."
 
@@ -2088,8 +2088,8 @@ msgstr "Generación de polvo."
 
 #. presets_schema:schema;preset_map.dust_density
 #: schemas/presets_schema.yaml:294
-msgid "Dust haze density from 0 (none) to 10 (thick)."
-msgstr "Densidad de calima de 0 (ninguna) a 10 (densa)."
+msgid "Dust visibility in metres, 300 (984 ft) to 20000 (65617 ft); 10000 ft is 3048."
+msgstr ""
 
 #. houndtts_schema:schema;houndtts_schema.provider.ElevenLabs.api_key
 #: extensions/houndtts/schemas/houndtts_schema.yaml:127
@@ -2107,7 +2107,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Ajustes del proveedor de texto a voz ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:335
+#: services/webservice/schemas/webservice_schema.yaml:339
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Credencial de administrador de emergencia para un proveedor de identidad averiado."
 
@@ -2152,7 +2152,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "Activar la detección de DDoS (requiere NPCAP en Windows)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:297
+#: services/webservice/schemas/webservice_schema.yaml:301
 msgid "Enable Discord OAuth login."
 msgstr "Habilitar el inicio de sesión OAuth con Discord."
 
@@ -2292,7 +2292,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Habilitar el plugin competitive para este servidor."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:345
+#: services/webservice/schemas/webservice_schema.yaml:349
 msgid "Enable the emergency Admin credential."
 msgstr "Habilitar la credencial de administrador de emergencia."
 
@@ -2322,7 +2322,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Activar las funciones del torneo en esta instancia de servidor."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:226
+#: services/webservice/schemas/webservice_schema.yaml:230
 msgid "Enable username/password login for the console."
 msgstr "Habilitar el inicio de sesión con usuario/contraseña para la consola."
 
@@ -2920,7 +2920,7 @@ msgid "IPs always allowed through during firewall blocks."
 msgstr "IP que siempre se permiten durante los bloqueos del firewall."
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:195
+#: services/webservice/schemas/webservice_schema.yaml:199
 msgid "Identity layer of the admin web UI; optional."
 msgstr "Capa de identidad de la interfaz web de administración; opcional."
 
@@ -2945,7 +2945,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "Inyectar el clima del mundo real en la misión."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:309
+#: services/webservice/schemas/webservice_schema.yaml:313
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "Secreto de cliente de Discord incorporado; se usa cuando no hay clave definida."
 
@@ -3019,7 +3019,7 @@ msgid "Keeps the number of blue and red players balanced."
 msgstr "Mantiene equilibrado el número de jugadores azules y rojos."
 
 #. webservice_schema:DEFAULT.session.secret
-#: services/webservice/schemas/webservice_schema.yaml:111
+#: services/webservice/schemas/webservice_schema.yaml:115
 msgid "Key that signs the session cookie; unset picks a random one."
 msgstr "Clave que firma la cookie de sesión; si no se define, se elige una aleatoria."
 
@@ -3909,7 +3909,7 @@ msgid "Name of the server's first technical user."
 msgstr "Nombre del primer usuario técnico del servidor."
 
 #. webservice_schema:DEFAULT.session.cookie_name
-#: services/webservice/schemas/webservice_schema.yaml:117
+#: services/webservice/schemas/webservice_schema.yaml:121
 msgid "Name of the session cookie."
 msgstr "Nombre de la cookie de sesión."
 
@@ -4274,12 +4274,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "Límite de ancho de banda de red saliente por cliente en bytes/s."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:249
+#: services/webservice/schemas/webservice_schema.yaml:253
 msgid "PBKDF2 hash of the account's password."
 msgstr "Hash PBKDF2 de la contraseña de la cuenta."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:355
+#: services/webservice/schemas/webservice_schema.yaml:359
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Hash PBKDF2 de la contraseña de emergencia."
 
@@ -4472,7 +4472,7 @@ msgid "Penalty points that trigger this punishment."
 msgstr "Puntos de penalización que activan este castigo."
 
 #. webservice_schema:DEFAULT.access
-#: services/webservice/schemas/webservice_schema.yaml:157
+#: services/webservice/schemas/webservice_schema.yaml:161
 msgid "Per-capability role overrides of the console."
 msgstr ""
 
@@ -4883,7 +4883,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "URL pública mostrada a los jugadores en lugar de la IP del servidor."
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:207
+#: services/webservice/schemas/webservice_schema.yaml:211
 msgid "Public origin the console is reachable at."
 msgstr "Origen público en el que es accesible la consola."
 
@@ -5159,7 +5159,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "Rol mencionado en el mensaje de bienvenida."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:256
+#: services/webservice/schemas/webservice_schema.yaml:260
 msgid "Role names granted to this account, validated at startup."
 msgstr "Nombres de rol concedidos a esta cuenta, validados al iniciar."
 
@@ -5225,7 +5225,7 @@ msgid "Roles allowed to vote (all players by default)."
 msgstr "Roles permitidos para votar (todos los jugadores por defecto)."
 
 #. webservice_schema:DEFAULT.access.regex;(.+).add
-#: services/webservice/schemas/webservice_schema.yaml:172
+#: services/webservice/schemas/webservice_schema.yaml:176
 msgid "Roles granted this capability in addition to the declared ones."
 msgstr ""
 
@@ -5335,7 +5335,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Segundos que un servidor con PAUSA al arrancar funciona antes de pausarse de nuevo."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:328
+#: services/webservice/schemas/webservice_schema.yaml:332
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Segundos que se cachea una resolución de miembro sin el intent."
 
@@ -5504,7 +5504,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Segundos sin un jugador contrario que ganan la partida."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:317
+#: services/webservice/schemas/webservice_schema.yaml:321
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Clave del almacén de secretos que contiene el secreto de cliente; prevalece sobre el inline."
 
@@ -5567,7 +5567,7 @@ msgid "Session cookie settings of the admin web UI."
 msgstr "Ajustes de la cookie de sesión de la interfaz web de administración."
 
 #. webservice_schema:DEFAULT.session.max_age
-#: services/webservice/schemas/webservice_schema.yaml:126
+#: services/webservice/schemas/webservice_schema.yaml:130
 msgid "Session lifetime in seconds."
 msgstr "Duración de la sesión en segundos."
 
@@ -5582,7 +5582,7 @@ msgid "Set on slower hosts to reduce CPU-heavy background work."
 msgstr "Actívalo en hosts lentos para reducir el trabajo en segundo plano que consume CPU."
 
 #. webservice_schema:DEFAULT.session.https_only
-#: services/webservice/schemas/webservice_schema.yaml:136
+#: services/webservice/schemas/webservice_schema.yaml:140
 msgid "Set the Secure flag on the session cookie."
 msgstr "Establecer el indicador Secure en la cookie de sesión."
 
@@ -6304,7 +6304,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "Usuario para iniciar sesión en el servidor NUT (opcional)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:212
+#: services/webservice/schemas/webservice_schema.yaml:216
 msgid "Username and password login for the console."
 msgstr "Inicio de sesión con usuario y contraseña para la consola."
 
@@ -6319,7 +6319,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Nombre de usuario para el proxy, si necesita autenticación."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:350
+#: services/webservice/schemas/webservice_schema.yaml:354
 msgid "Username of the emergency Admin account."
 msgstr "Nombre de usuario de la cuenta de administrador de emergencia."
 
@@ -6539,7 +6539,7 @@ msgid "Where the package is installed to on the server."
 msgstr "Adónde se instala el paquete en el servidor."
 
 #. webservice_schema:DEFAULT.access.regex;(.+).manager
-#: services/webservice/schemas/webservice_schema.yaml:188
+#: services/webservice/schemas/webservice_schema.yaml:192
 msgid "Whether a managing scope (managed_by) satisfies this capability."
 msgstr ""
 
@@ -6745,7 +6745,10 @@ msgid "Z-score above which traffic counts as anomalous."
 msgstr "Puntuación Z por encima de la cual el tráfico se considera anómalo."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:272
+#: services/webservice/schemas/webservice_schema.yaml:276
 msgid "managed_by values this account may see and act on."
 msgstr "Valores de managed_by que esta cuenta puede ver y sobre los que puede actuar."
+
+#~ msgid "Dust haze density from 0 (none) to 10 (thick)."
+#~ msgstr "Densidad de calima de 0 (ninguna) a 10 (densa)."
 

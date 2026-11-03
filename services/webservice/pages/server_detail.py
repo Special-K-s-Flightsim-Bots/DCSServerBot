@@ -54,7 +54,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, \
     StreamingResponse
 
-from .. import i18n, permissions, readmodels, scheduler_plan, session
+from .. import i18n, permissions, readmodels, scheduler_plan, session, weather_fields
 # THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
 # route below and the cloud-preset routes in ``pages/presets`` read it from the SAME module.
 from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, preset_image_file
@@ -1827,6 +1827,9 @@ def add_mission_weather_route(router: APIRouter) -> APIRouter:
         # THE DOTTED-KEY VALUES come from the tree's OWN reader — the wizard's ``preset_values`` — so a
         # second reader can never drift from what the wizard's steps draw.
         values = presets_page.preset_values("", getattr(result, "document", None) or {}, {})
+        # …stated in the unit the dialog's own boxes hold: the read fills CONTROLS, not the file.
+        values = presets_page.display_values(
+            values, feet=weather_fields.uses_feet(i18n.resolve_language(request)))
         return JSONResponse({"values": values,
                              "name": readmodels.text(getattr(result, "mission_name", ""))},
                             headers={"Cache-Control": "no-store"})

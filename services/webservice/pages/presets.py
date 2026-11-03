@@ -97,8 +97,10 @@ __all__ = ["PRESETS_PATH", "PRESETS_CAPABILITY", "PRESETS_WRITE_CAPABILITY", "PR
            "preset_read_key", "PRESET_FILE_PATTERNS", "preset_file_label", "node_preset_records",
            "node_preset_files", "node_preset_values",
            "parse_fog_rows", "serialize_fog_rows", "fog_rows_from_document", "fog_rows_from_form",
-           "haze_choice", "fog_table_rows", "FOG_ADD_FIELD", "FOG_REMOVE_FIELD",
+           "haze_choice", "fog_mode_choice", "fog_columns", "fog_table_rows",
+           "FOG_ADD_FIELD", "FOG_REMOVE_FIELD", "UNITS_FIELD", "UNITS_FEET", "UNITS_METRES",
            "out_of_range_value", "PRESETS_REFUSED_OUT_OF_RANGE",
+           "stored_values", "stored_fog_rows", "display_values",
            "HALO_OFF_PRESET", "HALO_AUTO_PRESET", "MODE_KEYS", "is_real_halo",
            "WIZARD_FOG_ADD", "WIZARD_CRYSTALS_NOTE", "WIZARD_HALO_FALLBACK",
            "PRESETS_REFUSED_FOG_TIME",
@@ -483,15 +485,25 @@ def picker_choices(entries: Iterable[Any]) -> list[dict]:
     return [{"value": preset.name, "label": preset.label} for preset in entries]
 
 
-def cloud_picker_choices(entries: Iterable[Any]) -> list[dict]:
+def cloud_picker_choices(entries: Iterable[Any], feet: bool = False) -> list[dict]:
     """A cloud picker's options: the node's preset names, each with its OWN base in metres.
 
     The base is what the launch dialog pre-fills into ``clouds.base`` when a preset is chosen — the
     dialog's twin of the wizard's plate link, which carries the same figure. An entry with no layer
     altitude carries an empty base, so no number is invented.
+
+    ``feet`` states that base in the unit the control is drawn in, so the pre-filled number is one the
+    box accepts and means what the preset says.
     """
-    return [{"value": preset.name, "label": preset.label, "base": _plain_number(preset.base)}
-            for preset in entries]
+    choices: list[dict] = []
+    for preset in entries:
+        base = preset.base
+        if feet and base is not None:
+            stated: Any = weather_fields.display_value("clouds.base", base)
+        else:
+            stated = _plain_number(base)
+        choices.append({"value": preset.name, "label": preset.label, "base": stated})
+    return choices
 
 
 async def read_node_choice_lists(node: Any) -> dict:
@@ -1519,6 +1531,34 @@ FOG_ROW_KEYS: tuple[str, ...] = (weather_fields.FOG_ROWS_KEY,)
 FOG_ADD_FIELD = "fog_add"
 FOG_REMOVE_FIELD = "fog_remove"
 
+#: the launch dialog's UNIT field. The dialog is one POST form, and the route that reads it has no
+#: request of its own, so the render states in a hidden control which unit its distance boxes hold.
+UNITS_FIELD = "units"
+UNITS_FEET = "ft"
+UNITS_METRES = "m"
+
+
+def fog_columns(feet: bool = False) -> list[dict]:
+    """The fog table's COLUMNS as the renderer draws them: one dict per table cell.
+
+    Each column carries its own limits, box step, unit and hint, read from
+    :data:`weather_fields.FOG_COLUMNS`. ``feet`` converts the two DISTANCE cells (thickness and
+    visibility) to the Mission Editor's unit, so a header, a box's ``min``/``max`` and the value typed
+    into it all state the same unit.
+    """
+    columns: list[dict] = []
+    for column in weather_fields.FOG_COLUMNS:
+        low, high, step = (weather_fields.display_bounds(column) if feet
+                           else (column.min, column.max, column.step))
+        columns.append({
+            "key": column.key,
+            "label": column.label,
+            "unit": weather_fields.display_unit(column.key, column.unit) if feet else column.unit,
+            "min": low, "max": high, "step": step, "box_step": column.box_step,
+            "hint": weather_fields.FOG_HINTS.get(column.key, ""),
+        })
+    return columns
+
 
 def row_gate(key: str, *, plates_readable: bool = True) -> dict:
     """The gate for *key* as DATA — the ONE gate the wizard's step and the launch dialog both read.
@@ -1527,8 +1567,7 @@ def row_gate(key: str, *, plates_readable: bool = True) -> dict:
 
     * ``cloud`` — the cloud modes that offer a cloud value (empty = every mode). A key the current
       mode does not name is not offered;
-    * ``haze`` — the dust-or-fog values a key follows (``dust_density`` under ``dust``; ``fog.mode``
-      and ``fog.rows`` under ``fog``);
+    * ``haze`` — the dust values a key follows (``dust_density`` under ``on``);
     * ``fog_mode`` — the fog mode a key follows (``fog.rows`` under ``manual`` only);
     * ``halo_real`` — offered only for a real halo preset, never for ``off`` or ``auto``.
 
@@ -1546,11 +1585,11 @@ def row_gate(key: str, *, plates_readable: bool = True) -> dict:
         gate["halo_real"] = True
     elif key == "dust_density":
         gate["haze"] = ("dust",)
-    elif key == "fog.mode":
-        gate["haze"] = ("fog",)
-    elif key == "fog.rows":
+    elif key == weather_fields.FOG_ROWS_KEY:
         gate["haze"] = ("fog",)
         gate["fog_mode"] = ("manual",)
+    elif key == weather_fields.FOG_MODE_KEY:
+        gate["haze"] = ("fog",)
     return gate
 
 
@@ -1618,10 +1657,10 @@ FIELD_HINTS: dict[str, tuple[str, ...]] = {
     "groundTurbulence": (i18n._("How rough the air is near the ground."),),
     "temperature": (i18n._("The ambient air temperature."),),
     "qnh": (i18n._("The barometric setting, in mmHg."),),
-    #: the either-or control STATES the exclusivity; the visibility's own line explains the scale.
+    #: the either-or control STATES the exclusivity; the visibility's own line explains what it is.
     "enable_dust": (i18n._("DCS applies dust or fog, not both: enabling one turns the other off."),),
-    "dust_density": (i18n._("Dust haze is a separate switch with its own density."),
-                     i18n._("0 is none, 10 is thick.")),
+    "dust_density": (i18n._("How thick the dust haze is, as the Mission Editor's own dust control "
+                            "states it: 984 to 65 617 ft, 300 to 20 000 m."),),
     "fog.mode": (i18n._("auto lets DCS build the fog from the mission's own time; manual uses the "
                         "keyframes below."),),
     "fog.rows": (i18n._("One row per time offset, in seconds from the mission's start."),),
@@ -2545,11 +2584,55 @@ def fog_keyframes(fog: Any) -> list[tuple[Any, Any]]:
     return sorted(rows, key=lambda pair: int(str(pair[0])))
 
 
-def preset_values(name: str, document: Any, query: Mapping[str, str]) -> dict[str, str]:
+def stored_values(values: Mapping[str, Any], *, feet: bool) -> dict[str, Any]:
+    """*values* with every DISTANCE read back to the metres a preset stores.
+
+    A form rendered in feet posts feet, so this is the ONE place a read converts them back before
+    validation and the write see them. ``feet`` False answers the mapping unchanged (a copy), and a
+    key that is not a distance is never touched.
+    """
+    if not feet:
+        return dict(values)
+    return {key: (weather_fields.stored_value(key, value)
+                  if key in weather_fields.DISTANCE_KEYS else value)
+            for key, value in values.items()}
+
+
+def display_values(values: Mapping[str, Any], *, feet: bool) -> dict[str, Any]:
+    """*values* as the CONTROLS a render of *feet* draws can hold them.
+
+    The mirror of :func:`stored_values`, for a read that feeds a control rather than the file: the
+    mission-weather prefill answers numbers the dialog's own boxes can hold, so a distance is stated in
+    the render's unit and never below its control's floor (a mission carrying ``dust_density: 0`` must
+    not put 0 in a box whose range starts at 984).
+    """
+    out: dict[str, Any] = {}
+    for key, value in values.items():
+        if key in weather_fields.DISTANCE_KEYS:
+            value = weather_fields.floored(key, value)
+            if feet:
+                value = weather_fields.display_value(key, value)
+        out[key] = value
+    return out
+
+
+def stored_fog_rows(text: Any, *, feet: bool) -> str:
+    """The ``fog.rows`` TEXT with its thickness and visibility read back to metres."""
+    if not feet:
+        return str(text or "")
+    return serialize_fog_rows(
+        [(time, weather_fields.stored_value("thickness", thickness),
+          weather_fields.stored_value("visibility", visibility))
+         for time, thickness, visibility in parse_fog_rows(text)])
+
+
+def preset_values(name: str, document: Any, query: Mapping[str, str], *,
+                  feet: bool = False) -> dict[str, str]:
     """The wizard's current values: the preset's own, overridden by what the form submitted.
 
     ``document`` is the preset's value (a map for its own values; a list for a combination). The
-    submitted ``query`` wins for any key it names, so a step keeps its edits as the URL carries them.
+    submitted ``query`` wins for any key it names, so a step keeps its edits as the URL carries them —
+    read back to metres, because a render in feet posts feet.
     """
     values: dict[str, str] = {key: "" for key in WIZARD_KEYS}
     if isinstance(document, Mapping):
@@ -2574,19 +2657,17 @@ def preset_values(name: str, document: Any, query: Mapping[str, str]) -> dict[st
                 values["clouds.preset"] = str(clouds["preset"])
             else:
                 values["clouds"] = "dynamic" if clouds else "clear"
-        # the dust-or-fog CHOICE is derived from the PAIR (ONE control writes two keys), and the fog
-        # table is read back from the preset's own time-keyed rows. A fog map with no mode but
-        # time-keyed rows is read as manual, so those rows are carried through instead of dropped.
+        # ONE either-or value, and the fog mode beside it: dust and fog are exclusive, so the control
+        # states which of the two the preset carries rather than two switches that could both be set.
         values[weather_fields.HAZE_KEY] = haze_choice(document)
-        fog = document.get("fog")
-        if isinstance(fog, Mapping) and not values.get(weather_fields.FOG_MODE_KEY):
-            values[weather_fields.FOG_MODE_KEY] = "manual" if fog_keyframes(fog) else ""
+        values[weather_fields.FOG_MODE_KEY] = fog_mode_choice(document)
         values[weather_fields.FOG_ROWS_KEY] = serialize_fog_rows(fog_rows_from_document(document))
     if name:
         values["name"] = name
     for key, value in query.items():
         if key in values:
-            values[key] = value
+            values[key] = (weather_fields.stored_value(key, value)
+                           if feet and key in weather_fields.DISTANCE_KEYS else value)
     return values
 
 
@@ -2701,6 +2782,24 @@ def haze_choice(document: Any) -> str:
     return "off"
 
 
+def fog_mode_choice(document: Any) -> str:
+    """The fog mode a preset's own value states: ``auto`` or ``manual``.
+
+    A fog map with no mode and time-keyed rows is read as ``manual``, so the rows it carries stay
+    reachable instead of being dropped by a mode the file does not spell.
+    """
+    if not isinstance(document, Mapping):
+        return ""
+    fog = document.get("fog")
+    if isinstance(fog, Mapping):
+        mode = str(fog.get("mode") or "").strip().lower()
+        if mode in ("auto", "manual"):
+            return mode
+        if fog_keyframes(fog):
+            return "manual"
+    return "manual"
+
+
 def preset_map_from_values(values: Mapping[str, str], existing: Any = None, *,
                            fog_rows_stated: bool = False) -> dict:
     """The preset's OWN map built from the wizard's values — only the keys that are set.
@@ -2709,6 +2808,9 @@ def preset_map_from_values(values: Mapping[str, str], existing: Any = None, *,
     left empty is not written (so MizEdit leaves it as the mission author wrote it). Every value is
     coerced to the schema's type by :func:`_coerce_value`, so a numeric control writes a number and a
     toggle writes a boolean — never the string the form posted.
+
+    ``values`` is METRIC throughout: a form that stated feet was read back to metres before it got
+    here (:func:`stored_values`), so this builder never converts a unit.
 
     ``existing`` is the preset's value as the file carries it. ``fog_rows_stated`` says whether the
     form CARRIED the fog table's control (its ``fog.rows`` value, or the table's own indexed cells):
@@ -2780,6 +2882,8 @@ def preset_map_from_values(values: Mapping[str, str], existing: Any = None, *,
     elif haze == "fog":
         document["enable_fog"] = True
         fog_mode = values.get(weather_fields.FOG_MODE_KEY, "") or "manual"
+        if fog_mode not in ("auto", "manual"):
+            fog_mode = "manual"
         fog: dict = {"mode": fog_mode}
         # ``auto`` is DCS's own build and carries NO rows (``core/mizfile.py`` writes the ``fog2``
         # mode with no values) — the table belongs to ``manual``.
@@ -2826,7 +2930,8 @@ def produced_yaml(name: str, values: Mapping[str, str], *, shape: str = SHAPE_OW
         return f"# {ex}"
 
 
-def wizard_rows(keys: tuple[str, ...], values: Mapping[str, str]) -> list[dict]:
+def wizard_rows(keys: tuple[str, ...], values: Mapping[str, str], *,
+                feet: bool = False) -> list[dict]:
     """The field rows for *keys* — every number READ FROM THE TABLE, never typed here.
 
     Each row is ``{key, label, kind, unit, min, max, step, box_step, source, choices, value}``. The
@@ -2834,22 +2939,29 @@ def wizard_rows(keys: tuple[str, ...], values: Mapping[str, str]) -> list[dict]:
     :mod:`services.webservice.weather_fields`, so a control cannot carry a number the table does not
     state. ``step`` is the SLIDER's granularity and ``box_step`` the typed-in box's — never the same
     figure, because a step emitted onto a box refuses a value a person typed.
+
+    ``feet`` renders the DISTANCE controls in the Mission Editor's unit: their limits, their unit word
+    and their value are converted from the table's metres here, so the browser's own ``min``/``max``
+    and the value it posts are whole feet.
     """
     rows: list[dict] = []
     for key in keys:
         entry = weather_fields.field(key)
+        low, high, step = (weather_fields.display_bounds(entry) if feet
+                           else (entry.min, entry.max, entry.step))
+        value = weather_fields.floored(key, values.get(key, ""))
         rows.append({
             "key": entry.key,
             "label": entry.label,
             "kind": entry.kind,
-            "unit": entry.unit,
-            "min": entry.min,
-            "max": entry.max,
-            "step": entry.step,
+            "unit": weather_fields.display_unit(entry.key, entry.unit) if feet else entry.unit,
+            "min": low,
+            "max": high,
+            "step": step,
             "box_step": entry.box_step,
             "source": entry.source,
-            "choices": [{"value": value, "label": label} for value, label in entry.choices],
-            "value": values.get(key, ""),
+            "choices": [{"value": value_, "label": label} for value_, label in entry.choices],
+            "value": weather_fields.display_value(entry.key, value) if feet else value,
         })
     return rows
 
@@ -2861,7 +2973,8 @@ NAMED_DAYS: tuple[str, ...] = ("today", "yesterday", "tomorrow")
 
 
 def dialog_rows(keys: tuple[str, ...], values: Mapping[str, str], *, clouds: Iterable[Any] = (),
-                halo: Iterable[Any] = (), crystals: Iterable[Any] = ()) -> list[dict]:
+                halo: Iterable[Any] = (), crystals: Iterable[Any] = (),
+                feet: bool = False) -> list[dict]:
     """The launch dialog's temporary rows: the table's rows with the node's own choice lists filled in.
 
     The SAME row builder (:func:`wizard_rows`) and the SAME choice builders the wizard's own step uses,
@@ -2878,10 +2991,10 @@ def dialog_rows(keys: tuple[str, ...], values: Mapping[str, str], *, clouds: Ite
     the CURRENT mode values, so the rows follow the mode exactly as the wizard's step does; with no
     script every row stays visible and the route's own resolution is the backstop (never a second list).
     """
-    rows = wizard_rows(keys, values)
+    rows = wizard_rows(keys, values, feet=feet)
     choices = {
         "halo.preset": halo_row_choices(halo),
-        "clouds.preset": cloud_picker_choices(clouds),
+        "clouds.preset": cloud_picker_choices(clouds, feet),
         "halo.crystalsPreset": picker_choices(crystals),
     }
     # the gate the dialog's rows carry as DATA: the ONE gate (:func:`row_gate`) the wizard's step
@@ -2901,17 +3014,17 @@ def dialog_rows(keys: tuple[str, ...], values: Mapping[str, str], *, clouds: Ite
             row["time_value"] = _time_of(row["value"])
             row["moments"] = weather_fields.moments()
         elif row["kind"] == weather_fields.KIND_FOGTABLE:
-            table = fog_table_rows(values, {})
+            table = fog_table_rows(values, {}, feet=feet)
             if not table:
                 table = [{"index": 0, "cells": [
-                    {"name": weather_fields.fog_row_field(0, column.key), "value": "",
-                     "min": column.min, "max": column.max, "step": column.step,
-                     "box_step": column.box_step,
-                     "hint": weather_fields.FOG_HINTS.get(column.key, ""),
+                    {"name": weather_fields.fog_row_field(0, column["key"]), "value": "",
+                     "min": column["min"], "max": column["max"], "step": column["step"],
+                     "box_step": column["box_step"],
+                     "hint": column["hint"],
                      "start": False}
-                    for column in weather_fields.FOG_COLUMNS]}]
+                    for column in fog_columns(feet)]}]
             row["fog_table"] = table
-            row["fog_columns"] = weather_fields.FOG_COLUMNS
+            row["fog_columns"] = fog_columns(feet)
             row["fog_add_field"] = FOG_ADD_FIELD
             row["fog_remove_field"] = FOG_REMOVE_FIELD
             row["fog_add_label"] = WIZARD_FOG_ADD
@@ -2971,7 +3084,8 @@ def _wizard_steps(current: str, base: str, query: Mapping[str, str]) -> list[dic
     return steps
 
 
-def out_of_range_value(values: Mapping[str, Any], rows: Iterable[tuple[str, str, str]]) -> tuple[Any, str] | None:
+def out_of_range_value(values: Mapping[str, Any], rows: Iterable[tuple[str, str, str]],
+                       *, feet: bool = False) -> tuple[Any, str] | None:
     """The first numeric control whose posted value falls outside its own range, with that text.
 
     ONE home for the range: every limit is read from the field table
@@ -2980,11 +3094,15 @@ def out_of_range_value(values: Mapping[str, Any], rows: Iterable[tuple[str, str,
     visibility cells. The value comes back as the TEXT the form posted, so a refusal can quote the
     value verbatim. ``None`` when every value is inside its range.
 
+    ``feet`` judges a DISTANCE CONTROL by the feet limits its own render states — the check runs on the
+    values as posted, before they are read back to metres. A FOG KEYFRAME cell is always METRIC here:
+    the caller reads a posted cell back to metres before it reaches this function.
+
     A combination's form writes no weather value, so its weather controls are not checked at all.
     """
     for key in weather_fields.NUMERIC_KEYS:
         text = str(values.get(key, "") or "")
-        offence = weather_fields.out_of_range(key, text)
+        offence = weather_fields.out_of_range(key, text, feet=feet)
         if offence is not None:
             return offence[0], text.strip()
     for _time, thickness, visibility in rows:
@@ -3180,18 +3298,23 @@ def _pair_wind_rows(rows: list[dict]) -> list[dict]:
     return folded
 
 
-def fog_table_rows(values: Mapping[str, str], query: Mapping[str, Any]) -> list[dict]:
+def fog_table_rows(values: Mapping[str, str], query: Mapping[str, Any], *,
+                   feet: bool = False) -> list[dict]:
     """The fog table's rows for ONE render, as ``{index, cells}`` with a cell per column.
 
     The rows come from the form's own INDEXED cells when the step posted them (so a typed edit is not
     lost), else from the carried ``fog.rows`` value — the preset's own rows, or the hidden field the
     review step holds. ``fog_add`` appends one empty row and ``fog_remove`` drops the row it names;
     both are SUBMIT buttons on the step's GET form, so the table is edited WITHOUT script.
+
+    ``feet`` renders the two distance cells in the Mission Editor's unit, limits and values alike.
     """
     posted = fog_rows_from_form(query) if any(
         weather_fields.fog_row_cell(str(key)) for key in query) else None
     rows = posted if posted is not None else parse_fog_rows(
         values.get(weather_fields.FOG_ROWS_KEY, ""))
+    # a POSTED cell is already in the unit the form stated; a row carried in ``fog.rows`` is metres.
+    convert = feet and posted is None
     if query.get(FOG_ADD_FIELD):
         rows.append(("", "", ""))
     removal = query.get(FOG_REMOVE_FIELD)
@@ -3199,15 +3322,17 @@ def fog_table_rows(values: Mapping[str, str], query: Mapping[str, Any]) -> list[
         index = int(str(removal).strip())
         if 0 <= index < len(rows):
             del rows[index]
+    columns = fog_columns(feet)
     return [{
         "index": index,
-        "cells": [{"name": weather_fields.fog_row_field(index, column.key),
-                   "value": row[position],
-                   "min": column.min, "max": column.max, "step": column.step,
-                   "box_step": column.box_step,
-                   "hint": weather_fields.FOG_HINTS.get(column.key, ""),
-                   "start": column.key == "time" and row[0].strip() == "0"}
-                  for position, column in enumerate(weather_fields.FOG_COLUMNS)],
+        "cells": [{"name": weather_fields.fog_row_field(index, column["key"]),
+                   "value": (weather_fields.display_value(column["key"], row[position])
+                             if convert else row[position]),
+                   "min": column["min"], "max": column["max"], "step": column["step"],
+                   "box_step": column["box_step"],
+                   "hint": column["hint"],
+                   "start": column["key"] == "time" and row[0].strip() == "0"}
+                  for position, column in enumerate(columns)],
     } for index, row in enumerate(rows)]
 
 
@@ -3216,7 +3341,7 @@ def _write_rows(values: Mapping[str, str]) -> list[dict]:
 
     A control that writes a TABLE (the fog rows) prints the key the file gets (``fog``) with the
     table's own spelling of its rows, so the panel never names the control's own key in place of a
-    key the preset carries.
+    key the preset carries. The values are the metric ones the document holds.
     """
     rows: list[dict] = []
     for entry in weather_fields.FIELDS:
@@ -3239,7 +3364,10 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
     written.
     """
     query = dict(request.query_params)
-    values = preset_values(name, document, query)
+    # THE DISPLAY UNIT: English states distances in the Mission Editor's feet, every other language in
+    # the preset's own metres. Decided ONCE per render and handed to every builder below.
+    feet = weather_fields.uses_feet(i18n.resolve_language(request))
+    values = preset_values(name, document, query, feet=feet)
     base = wizard_base(name)
     steps = _wizard_steps(step, base, query)
 
@@ -3247,9 +3375,13 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
     # which is what a typed edit carries), and ADD/REMOVE are SUBMIT buttons on this step's own GET
     # form — so the table is edited WITHOUT script. Its value is re-composed HERE, once, so every step
     # carries the same text and the review can post it on.
-    table = fog_table_rows(values, query)
+    table = fog_table_rows(values, query, feet=feet)
+    # the carried value stays METRIC whatever the form stated, so the next step and the save read the
+    # same numbers the file will hold.
+    columns = fog_columns(feet)
     values[weather_fields.FOG_ROWS_KEY] = serialize_fog_rows(
-        [tuple(cell["value"] for cell in entry["cells"]) for entry in table])
+        [tuple(weather_fields.stored_value(column["key"], cell["value"]) if feet else cell["value"]
+               for column, cell in zip(columns, entry["cells"])) for entry in table])
 
     # THE DESTINATION FILE. One file: it is the single one stated. Several: the operator's own choice
     # rides in the URL (``file=``) and is carried here; when none was posted the first is the default.
@@ -3334,7 +3466,8 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
                 else:
                     plates = [{"name": preset.name, "label": preset.label,
                                "url": cloud_image_path(node_name, preset.name),
-                               "base": _plain_number(preset.base)}
+                               "base": (weather_fields.display_value("clouds.base", preset.base)
+                                        if feet else _plain_number(preset.base))}
                               for preset in presets]
                 try:
                     halo, crystal_entries, _halo_path = await _read_halo_presets(reachable, node_name)
@@ -3359,7 +3492,7 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
     # preset decides whether the crystal grid is offered at all. A key a mode does not offer is NOT
     # drawn — it rides as a hidden field instead, so no step loses a value the URL held.
     rendered = step_controls(step, values, plates_readable=bool(plates), halo_readable=bool(halo_choices))
-    rows = wizard_rows(rendered, values)
+    rows = wizard_rows(rendered, values, feet=feet)
     carry_all = [{"name": key, "value": values.get(key, "")} for key in WIZARD_KEYS]
     for row in rows:
         key = row["key"]
@@ -3446,10 +3579,7 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
         # THE FOG TABLE, as data: one row per entry with a cell per column, and the two controls that
         # add and remove a row. The columns carry the table's own min/max/step and unit.
         "fog_table": table,
-        "fog_columns": [{"key": column.key, "label": column.label, "unit": column.unit,
-                         "min": column.min, "max": column.max, "step": column.step,
-                         "hint": weather_fields.FOG_HINTS.get(column.key, "")}
-                        for column in weather_fields.FOG_COLUMNS],
+        "fog_columns": fog_columns(feet),
         "fog_add_field": FOG_ADD_FIELD,
         "fog_remove_field": FOG_REMOVE_FIELD,
         "fog_add_label": WIZARD_FOG_ADD,
@@ -4292,12 +4422,18 @@ def add_routes(router: APIRouter) -> APIRouter:
                 and _text(form.get(PRESETS_ACTION_FIELD)) != PRESETS_ACTION_REMOVE):
             return await _save_expert(request, config, schemas, form)
         values = {key: _text(form.get(key)) for key in WIZARD_KEYS}
+        # THE FORM'S UNIT: a render in English states distances in feet, so the posted numbers are
+        # read back to metres at the one boundary that writes the document.
+        feet = weather_fields.uses_feet(i18n.resolve_language(request))
         # THE FOG TABLE the form states. The review step posts the table's VALUE; a form that carries
         # the table's INDEXED cells instead (a direct POST) is read the same way, so both spellings
         # reach one row list.
         posted_fog = fog_rows_from_form(form)
         if posted_fog:
-            values[weather_fields.FOG_ROWS_KEY] = serialize_fog_rows(posted_fog)
+            # a POSTED cell is in the unit the form stated: read back to metres at once, so the time
+            # check, the range check and the write all see the preset's own figures.
+            values[weather_fields.FOG_ROWS_KEY] = stored_fog_rows(
+                serialize_fog_rows(posted_fog), feet=feet)
         fog_rows_stated = bool(posted_fog) or weather_fields.FOG_ROWS_KEY in form
         # A fog row is keyed by SECONDS, so a time that is not a whole number cannot become one: it is
         # refused in plain words rather than silently dropped (which would lose the row).
@@ -4359,13 +4495,19 @@ def add_routes(router: APIRouter) -> APIRouter:
         # so neither is checked. The limits are the field table's (``weather_fields.out_of_range``).
         if action != PRESETS_ACTION_REMOVE and shape != SHAPE_COMBINATION:
             offence = out_of_range_value(values, parse_fog_rows(
-                values.get(weather_fields.FOG_ROWS_KEY, "")))
+                values.get(weather_fields.FOG_ROWS_KEY, "")), feet=feet)
             if offence is not None:
                 entry, stated = offence
+                low, high = (weather_fields.display_bounds(entry)[:2] if feet
+                             else (entry.min, entry.max))
                 return _refuse_write(
                     request, PRESETS_REFUSED_OUT_OF_RANGE, redirect,
                     label=i18n.translate(request, entry.label),
-                    min=_plain_number(entry.min), max=_plain_number(entry.max), value=stated)
+                    min=_plain_number(low), max=_plain_number(high), value=stated)
+
+        # READ THE CONTROLS BACK TO METRES once, now that every posted value has been judged in the
+        # unit it was typed in: the document, the schema and the guards all work in the preset's metres.
+        values = stored_values(values, feet=feet)
 
         # A form that carries no revision cannot be checked against the file it was rendered from: it
         # is refused, so a POST that omits the field can never write after the file moved. Only a file

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-31 18:06+0100\n"
+"POT-Creation-Date: 2026-11-03 22:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -82,12 +82,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "用于 Amazon Polly 的 AWS 私有访问密钥。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:242
+#: services/webservice/schemas/webservice_schema.yaml:246
 msgid "Account name of the local console user."
 msgstr "本地控制台用户的账户名称。"
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:231
+#: services/webservice/schemas/webservice_schema.yaml:235
 msgid "Accounts that may sign in with a username and password."
 msgstr "可以使用用户名和密码登录的账户。"
 
@@ -1059,7 +1059,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "服务器启动时清除所有维护标记。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:302
+#: services/webservice/schemas/webservice_schema.yaml:306
 msgid "Client id of your Discord application."
 msgstr "你的 Discord 应用程序的客户端 ID。"
 
@@ -1215,7 +1215,7 @@ msgid "Consecutive high-load checks needed before stealing cores."
 msgstr "窃取核心前所需的连续高负载检测次数。"
 
 #. webservice_schema:DEFAULT.session.same_site
-#: services/webservice/schemas/webservice_schema.yaml:146
+#: services/webservice/schemas/webservice_schema.yaml:150
 msgid "Cookie SameSite policy; keep 'lax' for OAuth logins."
 msgstr "Cookie 的 SameSite 策略；OAuth 登录请保持 'lax'。"
 
@@ -1443,7 +1443,7 @@ msgid "Days after which this decay weight applies."
 msgstr "此衰减权重生效的天数。"
 
 #. webservice_schema:DEFAULT.access.regex;(.+).remove
-#: services/webservice/schemas/webservice_schema.yaml:180
+#: services/webservice/schemas/webservice_schema.yaml:184
 msgid "Declared roles that lose this capability on the website."
 msgstr ""
 
@@ -1729,7 +1729,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "丢弃短于该分钟数的飞行。"
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:287
+#: services/webservice/schemas/webservice_schema.yaml:291
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord OAuth 登录；进入控制台的第二道门。"
 
@@ -2085,8 +2085,8 @@ msgstr "沙尘生成。"
 
 #. presets_schema:schema;preset_map.dust_density
 #: schemas/presets_schema.yaml:294
-msgid "Dust haze density from 0 (none) to 10 (thick)."
-msgstr "沙尘霾密度，从 0（无）到 10（浓）。"
+msgid "Dust visibility in metres, 300 (984 ft) to 20000 (65617 ft); 10000 ft is 3048."
+msgstr ""
 
 #. houndtts_schema:schema;houndtts_schema.provider.ElevenLabs.api_key
 #: extensions/houndtts/schemas/houndtts_schema.yaml:127
@@ -2104,7 +2104,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "ElevenLabs 文本转语音提供商设置。"
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:335
+#: services/webservice/schemas/webservice_schema.yaml:339
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "身份提供商损坏时使用的应急管理员凭据。"
 
@@ -2149,7 +2149,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "启用 DDoS 检测（Windows 上需要 NPCAP）。"
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:297
+#: services/webservice/schemas/webservice_schema.yaml:301
 msgid "Enable Discord OAuth login."
 msgstr "启用 Discord OAuth 登录。"
 
@@ -2289,7 +2289,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "为此服务器启用 competitive 插件。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:345
+#: services/webservice/schemas/webservice_schema.yaml:349
 msgid "Enable the emergency Admin credential."
 msgstr "启用应急管理员凭据。"
 
@@ -2319,7 +2319,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "在此服务器实例上启用锦标赛功能。"
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:226
+#: services/webservice/schemas/webservice_schema.yaml:230
 msgid "Enable username/password login for the console."
 msgstr "为控制台启用用户名/密码登录。"
 
@@ -2917,7 +2917,7 @@ msgid "IPs always allowed through during firewall blocks."
 msgstr "防火墙封禁期间始终放行的 IP。"
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:195
+#: services/webservice/schemas/webservice_schema.yaml:199
 msgid "Identity layer of the admin web UI; optional."
 msgstr "管理 Web UI 的身份层；可选。"
 
@@ -2942,7 +2942,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "将真实世界天气注入任务。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:309
+#: services/webservice/schemas/webservice_schema.yaml:313
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "内联的 Discord 客户端密钥；未设置密钥时使用。"
 
@@ -3016,7 +3016,7 @@ msgid "Keeps the number of blue and red players balanced."
 msgstr "保持蓝方和红方玩家人数的平衡。"
 
 #. webservice_schema:DEFAULT.session.secret
-#: services/webservice/schemas/webservice_schema.yaml:111
+#: services/webservice/schemas/webservice_schema.yaml:115
 msgid "Key that signs the session cookie; unset picks a random one."
 msgstr "用于签署会话 Cookie 的密钥；未设置时随机选择。"
 
@@ -3903,7 +3903,7 @@ msgid "Name of the server's first technical user."
 msgstr "服务器第一个技术用户的名称。"
 
 #. webservice_schema:DEFAULT.session.cookie_name
-#: services/webservice/schemas/webservice_schema.yaml:117
+#: services/webservice/schemas/webservice_schema.yaml:121
 msgid "Name of the session cookie."
 msgstr "会话 Cookie 的名称。"
 
@@ -4268,12 +4268,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "每个客户端的出站网络带宽限制，单位为字节/秒。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:249
+#: services/webservice/schemas/webservice_schema.yaml:253
 msgid "PBKDF2 hash of the account's password."
 msgstr "账户密码的 PBKDF2 哈希。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:355
+#: services/webservice/schemas/webservice_schema.yaml:359
 msgid "PBKDF2 hash of the emergency password."
 msgstr "应急密码的 PBKDF2 哈希。"
 
@@ -4466,7 +4466,7 @@ msgid "Penalty points that trigger this punishment."
 msgstr "触发此处罚的罚分。"
 
 #. webservice_schema:DEFAULT.access
-#: services/webservice/schemas/webservice_schema.yaml:157
+#: services/webservice/schemas/webservice_schema.yaml:161
 msgid "Per-capability role overrides of the console."
 msgstr ""
 
@@ -4875,7 +4875,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "向玩家显示的公共 URL，替代服务器 IP。"
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:207
+#: services/webservice/schemas/webservice_schema.yaml:211
 msgid "Public origin the console is reachable at."
 msgstr "控制台可供访问的公共源。"
 
@@ -5151,7 +5151,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "欢迎消息中提及的角色。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:256
+#: services/webservice/schemas/webservice_schema.yaml:260
 msgid "Role names granted to this account, validated at startup."
 msgstr "授予此账户的角色名称，启动时校验。"
 
@@ -5217,7 +5217,7 @@ msgid "Roles allowed to vote (all players by default)."
 msgstr "允许投票的角色（默认所有玩家）。"
 
 #. webservice_schema:DEFAULT.access.regex;(.+).add
-#: services/webservice/schemas/webservice_schema.yaml:172
+#: services/webservice/schemas/webservice_schema.yaml:176
 msgid "Roles granted this capability in addition to the declared ones."
 msgstr ""
 
@@ -5327,7 +5327,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "启动即暂停的服务器再次暂停前运行的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:328
+#: services/webservice/schemas/webservice_schema.yaml:332
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "未启用 intent 时成员解析的缓存秒数。"
 
@@ -5496,7 +5496,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "没有对手玩家并赢得比赛的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:317
+#: services/webservice/schemas/webservice_schema.yaml:321
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "保存客户端密钥的密钥库键；优先于内联值。"
 
@@ -5559,7 +5559,7 @@ msgid "Session cookie settings of the admin web UI."
 msgstr "管理 Web UI 的会话 Cookie 设置。"
 
 #. webservice_schema:DEFAULT.session.max_age
-#: services/webservice/schemas/webservice_schema.yaml:126
+#: services/webservice/schemas/webservice_schema.yaml:130
 msgid "Session lifetime in seconds."
 msgstr "会话生存时间，以秒为单位。"
 
@@ -5574,7 +5574,7 @@ msgid "Set on slower hosts to reduce CPU-heavy background work."
 msgstr "在较慢的主机上设置，以减少占用 CPU 的后台工作。"
 
 #. webservice_schema:DEFAULT.session.https_only
-#: services/webservice/schemas/webservice_schema.yaml:136
+#: services/webservice/schemas/webservice_schema.yaml:140
 msgid "Set the Secure flag on the session cookie."
 msgstr "在会话 Cookie 上设置 Secure 标志。"
 
@@ -6296,7 +6296,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "登录 NUT 服务器的用户（可选）。"
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:212
+#: services/webservice/schemas/webservice_schema.yaml:216
 msgid "Username and password login for the console."
 msgstr "控制台的用户名和密码登录。"
 
@@ -6311,7 +6311,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "代理的用户名（若需要身份验证）。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:350
+#: services/webservice/schemas/webservice_schema.yaml:354
 msgid "Username of the emergency Admin account."
 msgstr "应急管理员账户的用户名。"
 
@@ -6531,7 +6531,7 @@ msgid "Where the package is installed to on the server."
 msgstr "包在服务器上的安装位置。"
 
 #. webservice_schema:DEFAULT.access.regex;(.+).manager
-#: services/webservice/schemas/webservice_schema.yaml:188
+#: services/webservice/schemas/webservice_schema.yaml:192
 msgid "Whether a managing scope (managed_by) satisfies this capability."
 msgstr ""
 
@@ -6737,7 +6737,10 @@ msgid "Z-score above which traffic counts as anomalous."
 msgstr "高于该 Z 分数的流量即视为异常。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:272
+#: services/webservice/schemas/webservice_schema.yaml:276
 msgid "managed_by values this account may see and act on."
 msgstr "此账户可查看和操作的 managed_by 值。"
+
+#~ msgid "Dust haze density from 0 (none) to 10 (thick)."
+#~ msgstr "沙尘霾密度，从 0（无）到 10（浓）。"
 

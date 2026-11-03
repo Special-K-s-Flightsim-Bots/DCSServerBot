@@ -3195,12 +3195,8 @@ msgstr "气压设定值，单位为 mmHg。"
 msgid "DCS applies dust or fog, not both: enabling one turns the other off."
 msgstr "DCS 只会应用沙尘或雾之一，不能同时：启用一个会关闭另一个。"
 
-#: services/webservice/pages/presets.py:1147
-msgid "Dust haze is a separate switch with its own density."
 msgstr "尘霾是一个独立的开关，有自己的密度。"
 
-#: services/webservice/pages/presets.py:1148
-msgid "0 is none, 10 is thick."
 msgstr "0 表示无，10 表示浓。"
 
 #: services/webservice/pages/presets.py:1149
@@ -10501,3 +10497,15 @@ msgstr "已创建的 Saved Games 实例：无"
 #: services/webservice/setup/review.py
 msgid "{instance}: the instance folder could not be created ({ex})"
 msgstr "{instance}：无法创建实例文件夹（{ex}）"
+
+#: services/webservice/weather_fields.py
+msgid "feet"
+msgstr "英尺"
+
+#: services/webservice/weather_fields.py
+msgid "Dust visibility"
+msgstr "沙尘能见度"
+
+#: services/webservice/pages/presets.py
+msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
+msgstr "沙尘霾的浓度，按任务编辑器沙尘控件的刻度：984 至 65 617 英尺，300 至 20 000 米。"

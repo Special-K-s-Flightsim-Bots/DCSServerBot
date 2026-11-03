@@ -291,8 +291,8 @@ schema;preset_map:
     dust_density:
       type: int
       nullable: false
-      desc: Dust haze density from 0 (none) to 10 (thick).
-      example: "3"
+      desc: Dust visibility in metres, 300 (984 ft) to 20000 (65617 ft); 10000 ft is 3048.
+      example: "3048"
     qnh:
       type: float
       nullable: false

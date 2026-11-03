@@ -5117,6 +5117,7 @@ async def current_mission_available(server: Any) -> bool:
 
 async def _temporary_fieldset(action: WriteAction, server: Any = None, *,
                               server_name: str = "", mission: str = "",
+                              language: str = "",
                               loading: str = PRESET_READ_LOADING, read: str = PRESET_READ_DONE,
                               error: str = PRESET_READ_FAILED) -> dict | None:
     """The TEMPORARY PRESET's body fieldset ONE action's dialog draws — or ``None``.
@@ -5140,10 +5141,15 @@ async def _temporary_fieldset(action: WriteAction, server: Any = None, *,
     from . import presets as presets_page
     from . import server_detail as detail_page
     lists = await presets_page.read_node_choice_lists(getattr(server, "node", None))
+    # THE UNIT the dialog's distance boxes hold: the render's own language decides it, and the hidden
+    # field states it for the POST, whose route has no request to ask.
+    feet = weather_fields.uses_feet(language)
     rows = presets_page.dialog_rows(TEMPORARY_KEYS, {}, clouds=lists["clouds"], halo=lists["halo"],
-                                    crystals=lists["crystals"])
+                                    crystals=lists["crystals"], feet=feet)
     return {"head": TEMPORARY_HEAD, "optional": TEMPORARY_OPTIONAL, "help": TEMPORARY_HELP,
             "note": TEMPORARY_NOTE, "rows": tuple(rows),
+            "units": presets_page.UNITS_FEET if feet else presets_page.UNITS_METRES,
+            "units_field": presets_page.UNITS_FIELD,
             "url": detail_page.mission_weather_path(server_name),
             "mission": mission,
             "loading": loading, "read": read, "error": error}
@@ -5166,6 +5172,12 @@ def temporary_document(form) -> dict:
     rows = [row for row in cells if any(cell.strip() for cell in row)]
     if rows:
         values[weather_fields.FOG_ROWS_KEY] = presets_page.serialize_fog_rows(rows)
+    # THE UNIT the dialog stated: its distance boxes hold feet when it says so, and both the controls
+    # and the fog cells are read back to the preset's metres before the document is built.
+    feet = readmodels.text(form.get(presets_page.UNITS_FIELD)) == presets_page.UNITS_FEET
+    values = presets_page.stored_values(values, feet=feet)
+    values[weather_fields.FOG_ROWS_KEY] = presets_page.stored_fog_rows(
+        values.get(weather_fields.FOG_ROWS_KEY, ""), feet=feet)
     return presets_page.preset_map_from_values(values, fog_rows_stated=bool(cells))
 
 
@@ -7261,6 +7273,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         "temporary": await _temporary_fieldset(
             action, server, server_name=server_name,
             mission=_mission_expected_name(form.get(MISSION_NAME_FIELD)),
+            language=i18n.resolve_language(request),
             loading=i18n.translate(request, PRESET_READ_LOADING),
             read=i18n.translate(request, PRESET_READ_DONE),
             error=i18n.translate(request, PRESET_READ_FAILED)),
@@ -7626,6 +7639,7 @@ def _confirm_handler(action: WriteAction):
         # three sentences are translated HERE, where the request's language is known.
         temporary = (await _temporary_fieldset(
             action, resolution.server, server_name=name,
+            language=i18n.resolve_language(request),
             loading=i18n.translate(request, PRESET_READ_LOADING),
             read=i18n.translate(request, PRESET_READ_DONE),
             error=i18n.translate(request, PRESET_READ_FAILED))

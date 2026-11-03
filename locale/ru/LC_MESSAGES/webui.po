@@ -3519,12 +3519,8 @@ msgstr ""
 "DCS применяет пыль или туман, но не оба: включение одного отключает "
 "другое."
 
-#: services/webservice/pages/presets.py:1147
-msgid "Dust haze is a separate switch with its own density."
 msgstr "Дымка — это отдельный переключатель со своей плотностью."
 
-#: services/webservice/pages/presets.py:1148
-msgid "0 is none, 10 is thick."
 msgstr "0 — нет, 10 — густо."
 
 #: services/webservice/pages/presets.py:1149
@@ -11393,3 +11389,15 @@ msgstr "Созданные экземпляры Saved Games: нет"
 #: services/webservice/setup/review.py
 msgid "{instance}: the instance folder could not be created ({ex})"
 msgstr "{instance}: не удалось создать папку экземпляра ({ex})"
+
+#: services/webservice/weather_fields.py
+msgid "feet"
+msgstr "футы"
+
+#: services/webservice/weather_fields.py
+msgid "Dust visibility"
+msgstr "Видимость пыли"
+
+#: services/webservice/pages/presets.py
+msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
+msgstr "Насколько плотна пыльная дымка — по шкале регулятора пыли в редакторе миссий: 984–65 617 фт, 300–20 000 м."

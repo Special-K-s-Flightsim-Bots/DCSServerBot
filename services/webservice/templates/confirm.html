@@ -418,6 +418,7 @@
            data-mission-read="{{ dialog.temporary.read }}"
            data-mission-error="{{ dialog.temporary.error }}"></p>
         <div class="dlg-temp-rows">
+          <input type="hidden" name="{{ dialog.temporary.units_field }}" value="{{ dialog.temporary.units }}" form="dlg-form">
           {% for row in dialog.temporary.rows %}{{ weather_input(row, 'dlg-form') }}{% endfor %}
         </div>
         <p class="dlg-temp-note">{{ _(dialog.temporary.note) }}</p>
