@@ -39,6 +39,8 @@ class WebService(Service):
         self.upgrade_task = None
         #: the DCS update poll's task — created in ``start()``, cancelled in ``stop()``
         self.dcs_task = None
+        #: the post-update checks the node's hook schedules, kept referenced until they finish
+        self.dcs_tasks: set[asyncio.Task] = set()
         #: the render warm-up's task — created in ``start()``, cancelled in ``stop()``
         self.warm_task = None
         #: the ready-time scope audit's task — created in ``start()``, cancelled in ``stop()``
@@ -215,6 +217,13 @@ class WebService(Service):
             # sampler notices, and a re-check after an accepted update is that module's
             # ``check_node``.
             self.dcs_task = asyncio.create_task(self._poll_dcs_updates())
+            # THE UPDATE'S OWN DOOR: a DCS update that runs in THIS process tells us nothing by any
+            # cached state — the node's files change under a cache the console filled before it
+            # started. The node fires its ``after_dcs_update`` hook when the updater returns, and this
+            # registers the console on it, so the pre-update answer is replaced at once instead of
+            # waiting for the amber beat or the six-hour sweep. Registered only with the frontend on:
+            # there is no console to refresh otherwise.
+            self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
             # THE RENDER WARM-UP: the first page after a boot paid the whole schema parse (measured
             # 781 ms for a node click against 39 ms once the caches were warm). Ask for the same
             # things a page will ask for, ONCE, in a THREAD — so the FIRST click costs what the rest
@@ -267,6 +276,33 @@ class WebService(Service):
             except Exception:
                 self.log.exception("WebService: the DCS update check sweep failed.")
             await asyncio.sleep(poller.sample_seconds)
+
+    async def after_dcs_update(self) -> None:
+        """Re-check this node's DCS facts once an update has RETURNED — the node's own hook.
+
+        SCHEDULED, never awaited: the node calls its ``after_dcs_update`` hooks inside the update's
+        ``finally`` block, and a check makes two node calls (one of them an HTTP fetch to the
+        publisher). Awaiting it here would hold the update open for the check's duration, so the
+        node's "update finished" is not delayed by the console's own bookkeeping.
+        """
+        task = asyncio.create_task(self._recheck_dcs(self.node))
+        self.dcs_tasks.add(task)
+        task.add_done_callback(self.dcs_tasks.discard)
+
+    async def _recheck_dcs(self, node) -> None:
+        """Refresh the cached DCS answer for *node*, containing every failure.
+
+        The node declared a DCS installation — it just updated one — so this states that fact instead
+        of reading it back from the configuration.
+        """
+        from services.webservice import dcs_update
+
+        try:
+            await dcs_update.check_node(node, declared=True)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.log.debug("WebService: the post-update DCS check failed.", exc_info=True)
 
     async def _warm_render_caches(self) -> None:
         """Pre-pay the first render: parse the schemas and run the notice checks, off the boot path.
@@ -349,6 +385,12 @@ class WebService(Service):
             with suppress(asyncio.CancelledError):
                 await self.dcs_task
             self.dcs_task = None
+        # the node hook is registered only when the frontend ran, but unregistering an absent name is
+        # a no-op — so this does not have to repeat the condition that created it.
+        self.node.unregister_callback('after_dcs_update', self.name)
+        for task in list(self.dcs_tasks):
+            task.cancel()
+        self.dcs_tasks.clear()
         if self.task:
             self.server.should_exit = True
             # Explicitly trigger the shutdown of the uvicorn server

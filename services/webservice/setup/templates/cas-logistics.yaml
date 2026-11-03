@@ -1,0 +1,7 @@
+id: cas-logistics
+order: 4
+label: CAS / logistics
+description: Flight plans and a transport board
+plugins:
+  - flightplan
+  - logistics

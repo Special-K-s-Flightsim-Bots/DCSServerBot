@@ -3098,6 +3098,11 @@ def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str
         # busy: the honest affordance is "this server is starting". It is DISABLED — not an
         # invitation — because a second start through the UI is meaningless while the first boots.
         stuck = _pending_row_control(pending, offered, name, token, origin, roles, manager, tab=tab)
+        if stuck is None:
+            # THE LAUNCH'S OTHER DOOR: no expectation was recorded (a start from Discord, the
+            # scheduler, a node power operation, or the boot that follows a DCS update), so the glyph
+            # comes from the row's own state instead — see :func:`_booting_row_control`.
+            stuck = _booting_row_control(state, name, token, origin, roles, manager, tab=tab)
         if not offered and stuck is None:
             continue
         strip = tuple(_control(action, name, token, origin, action.key == pending)
@@ -3134,6 +3139,45 @@ def _pending_row_control(pending: str | None, offered: tuple[WriteAction, ...], 
     action = next((candidate for candidate in server_row_actions()
                    if candidate.key == pending
                    and candidate.observable == AWAIT_OBSERVABLE_STATUS
+                   and permissions.allows(candidate.capability, roles, manager=manager)
+                   and action_available(candidate.qualname)), None)
+    if action is None:
+        return None
+    control = _control(action, name, token, origin, busy=True, tab=tab)
+    control["disabled"] = True
+    return control
+
+
+#: The states a DCS launch passes through on its way up. NO server control is gated on one of them —
+#: the row offers nothing until the boot settles — so a row in one of these states has no glyph of its
+#: own, however the launch was started. ``LOADING`` covers most of a real boot (a launch goes
+#: ``SHUTDOWN`` -> ``LOADING`` -> ``RUNNING``); ``STOPPED`` is not here, because a DCS that is up and
+#: sitting on its menu still owns the pause/stop controls.
+BOOT_STATES: tuple[str, ...] = ("LOADING",)
+
+#: The control a BOOTING row shows: the launch's own declaration. A boot is a start whichever trigger
+#: issued it, and ``startup`` is the control that carries the Launch dialog, the capability and the
+#: glyph the operator recognises.
+BOOT_CONTROL_KEY = "startup"
+
+
+def _booting_row_control(state: str, name: str, token: str, origin: str, roles: frozenset[str],
+                         manager: bool, *, tab: str = "") -> dict | None:
+    """The busy, DISABLED launch control a row shows WHILE IT BOOTS — for a launch from ANYWHERE.
+
+    The expectation store (:func:`awaiting_change`) only knows a write THIS console issued, so a launch
+    started from Discord, the scheduler or a node power operation leaves the row with nothing to pulse:
+    ``LOADING`` matches no control's ``statuses`` and the row would render an empty strip for the whole
+    boot. This reads the ROW's own state instead, so the glyph appears whichever door started the
+    server, and it is the same busy+disabled shape the pending control has after a press here.
+
+    ``None`` when the row is not booting, or when the caller may not run the launch action: the strip
+    still holds ``offered ⊆ authorised``.
+    """
+    if str(state) not in BOOT_STATES:
+        return None
+    action = next((candidate for candidate in server_row_actions()
+                   if candidate.key == BOOT_CONTROL_KEY
                    and permissions.allows(candidate.capability, roles, manager=manager)
                    and action_available(candidate.qualname)), None)
     if action is None:

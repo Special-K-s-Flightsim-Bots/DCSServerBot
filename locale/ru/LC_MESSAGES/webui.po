@@ -6020,10 +6020,6 @@ msgstr ""
 "Пользователи с правом перезапускать миссии, выгонять/банить пользователей"
 " и т. д."
 
-#: services/webservice/setup/tour.py:959
-msgid "Please enter a comma-separated list of UCIDs"
-msgstr "Введите список UCID, разделенный запятыми"
-
 #: services/webservice/setup/tour.py:963
 msgid "Enter the name of your DCS group."
 msgstr "Введите название вашей DCS-группы."
@@ -11206,3 +11202,194 @@ msgstr "любой узел"
 #: services/webservice/pages/audit.py
 msgid "any server"
 msgstr "любой сервер"
+
+#: services/webservice/setup/plugins.py
+msgid ""
+"Pick anything that sounds like your server. Every tick pre-fills a set "
+"of plugins for all the servers you just configured — you can change any "
+"of it, and nothing is written yet."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Also install"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Radio for {instance} — pick one"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Both at once would fight over the same audio."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "DCS-SRS"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Found at {path}. Each server gets its own SRS port, two apart, above the ports already in use."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid ""
+"Not found on this machine. Install it first, or add the path later in the console. Each server "
+"gets its own SRS port, two apart, above the ports already in use."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "DCS Voice Chat"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid ""
+"Built into DCS. Nothing to install; the bot just switches the server "
+"side on."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Tactical view"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Tacview"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Found at {path}. One recorded ACMI per flight."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "LotAtC"
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid "Found at {path}."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid ""
+"Not found on this machine. Install it first, or add the path later in "
+"the console."
+msgstr ""
+
+#: services/webservice/setup/plugins.py
+msgid ""
+"There are many more extensions — GCI, weather, persistence, mod manager "
+"and others. Every one of them has a form in the web admin console once "
+"the bot is running."
+msgstr ""
+
+#: services/webservice/setup/tour.py
+msgid "What do you run?"
+msgstr ""
+
+#: services/webservice/setup/tour.py
+msgid "the extensions are merged into this file"
+msgstr ""
+
+#: services/webservice/setup/review.py
+msgid "{instance}: SRS was not found — no port allocated"
+msgstr "{instance}: SRS не найден — порт не назначен"
+
+#: services/webservice/setup/review.py
+msgid "Configuration file could not be written ({ex}): {path}"
+msgstr "Не удалось записать файл конфигурации ({ex}): {path}"
+
+#: services/webservice/setup/review.py
+msgid "{path} already exists — left untouched"
+msgstr "{path} уже существует — оставлен без изменений"
+
+#: services/webservice/setup/review.py
+msgid "{path} was refused earlier in this commit — not written"
+msgstr "{path} уже был отклонён в этой записи — не записан"
+
+#: services/webservice/setup/review.py
+msgid "{path} is not written while joining an existing installation"
+msgstr "{path} не записывается при присоединении к существующей установке"
+
+#: services/webservice/setup/review.py
+msgid "{path} is merged while joining an existing installation, never rewritten"
+msgstr ""
+"{path} объединяется при присоединении к существующей установке и "
+"никогда не перезаписывается"
+
+#: services/webservice/setup/review.py
+msgid ""
+"{path}: '{key}' already exists with different values — refusing to "
+"overwrite another node's entry."
+msgstr ""
+"{path}: '{key}' уже существует с другими значениями — запись другого "
+"узла не перезаписывается."
+
+#: services/webservice/setup/tour.py
+msgid ""
+"No SRS port was set for {instances}: SRS was not found. Add the "
+"installation path later in the console."
+msgstr ""
+"Для {instances} не задан порт SRS: SRS не найден. Укажите путь "
+"установки позже в консоли."
+
+#: services/webservice/setup/tour.py
+msgid ""
+"These users are UCIDs, not Discord roles"
+msgstr ""
+"Эти пользователи — UCID, а не роли Discord"
+
+#: services/webservice/setup/tour.py
+msgid ""
+"A UCID is the 32-character player id DCS gives a user — it is not a Discord "
+"role, name or id. Enter one UCID per field, exactly 32 characters; use + "
+"Add for more users. A role may stay empty: it then grants nothing."
+msgstr ""
+"UCID — это 32-символьный id игрока, который выдаёт DCS; это не роль, имя "
+"или id Discord. Вводите по одной UCID в поле, ровно 32 символа; используйте "
+"+ Add, чтобы добавить пользователей. Роль может остаться пустой: тогда она "
+"ничего не даёт."
+
+#: services/webservice/setup/tour.py
+msgid ""
+"'{value}' is not a UCID. A UCID is exactly 32 letters and digits — the DCS "
+"player id, not a Discord role or user id. Check the {role} entry."
+msgstr ""
+"'{value}' — не UCID. UCID состоит ровно из 32 букв и цифр — это id игрока "
+"DCS, а не роль или id Discord. Проверьте запись для {role}."
+
+#: services/webservice/setup/templates/competitive.yaml
+msgid "PvP / competitive"
+msgstr "PvP / соревновательный"
+
+#: services/webservice/setup/templates/carrier.yaml
+msgid "Carrier wing"
+msgstr "Авиакрыло авианосца"
+
+#: services/webservice/setup/templates/cas-logistics.yaml
+msgid "CAS / logistics"
+msgstr "CAS / логистика"
+
+#: services/webservice/setup/templates/public-server.yaml
+msgid "Rules and an audience that keeps coming back"
+msgstr "Правила и публика, которая возвращается"
+
+#: services/webservice/setup/templates/competitive.yaml
+msgid "Scoreboard, side balance, no team-killing"
+msgstr "Табло, баланс сторон, без тимкилла"
+
+#: services/webservice/setup/templates/carrier.yaml
+msgid "Landing grades and a squadron board"
+msgstr "Оценки посадки и таблица эскадрильи"
+
+#: services/webservice/setup/templates/cas-logistics.yaml
+msgid "Flight plans and a transport board"
+msgstr "Планы полётов и таблица перевозок"
+
+#: services/webservice/setup/review.py
+msgid "Saved Games instances created: {created}"
+msgstr "Созданные экземпляры Saved Games: {created}"
+
+#: services/webservice/setup/review.py
+msgid "Saved Games instances created: none"
+msgstr "Созданные экземпляры Saved Games: нет"
+
+#: services/webservice/setup/review.py
+msgid "{instance}: the instance folder could not be created ({ex})"
+msgstr "{instance}: не удалось создать папку экземпляра ({ex})"

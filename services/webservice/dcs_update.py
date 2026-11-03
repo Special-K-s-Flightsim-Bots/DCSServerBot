@@ -19,7 +19,7 @@ module never opens a file, never parses ``nodes.yaml`` itself and never reaches 
 attributes. A node whose configuration declares NO DCS block is SKIPPED WITH NO CALL AT ALL and cached
 as ``has_dcs=False``, so a master-only node costs nothing.
 
-WHAT IS POLLED, AND WHEN (the poller's four triggers):
+WHAT IS POLLED, AND WHEN (the poller's five triggers):
 
 * **service start** — the first tick sweeps every node the console knows (``tick`` treats "no sweep
   yet" as due);
@@ -28,8 +28,14 @@ WHAT IS POLLED, AND WHEN (the poller's four triggers):
 * **every 6 hours** — a full sweep re-checks every node, so a node that stays up still learns about a
   release published after its last check;
 * **as soon as a DCS update has RETURNED** — the node action's route re-checks that ONE node once the
-  updater has exited (that call is minutes long and no tick can observe it), so the cache does not
-  wait for the next sweep.
+  updater has exited (that call is minutes long and no tick can observe it), and so does the
+  service's ``after_dcs_update`` hook, which is what covers an update started OUTSIDE the console
+  (a bot-launch autoupdate, ``/dcs update`` from Discord) — the console served the pre-update answer
+  and nothing else would move it before the next sweep;
+* **every :data:`AMBER_SECONDS` while the cached answer says an update is WAITING** — an update that
+  installs itself on ANOTHER node (or one whose check could not run while the updater held the files)
+  moves no state this process can see, so the amber answer is re-read on a short beat until it clears.
+  Nothing else is re-checked on that beat: a node that is current costs one call per sweep.
 
 THE FAILURE RULE, stated here because it is a choice, not an accident. A check that RAISES means
 **UNKNOWN** (``available is None``), never "up to date" and never "update available". Logging is ONCE
@@ -52,7 +58,8 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-__all__ = ["SAMPLE_SECONDS", "SWEEP_SECONDS", "DcsCheck", "ABSENT", "UNKNOWN", "DcsChecks", "CHECKS",
+__all__ = ["SAMPLE_SECONDS", "SWEEP_SECONDS", "AMBER_SECONDS", "DcsCheck", "ABSENT", "UNKNOWN",
+           "DcsChecks", "CHECKS",
            "DcsUpdatePoller", "console_nodes", "console_declared_dcs", "check_node", "entry",
            "available", "checked_at", "has_dcs", "snapshot", "reset", "record", "mark_absent"]
 
@@ -63,6 +70,11 @@ SAMPLE_SECONDS = 30
 #: how long a sweep's answer is trusted before EVERY node is re-checked — "every 6 hours": the
 #: per-node answer is otherwise only refreshed when the node comes online.
 SWEEP_SECONDS = 6 * 60 * 60
+
+#: how often a node whose cached answer says an update is WAITING is re-checked. Shorter than the
+#: bot's own autoupdate loop (5 minutes) so a finished update clears from the console about as fast as
+#: a waiting one is noticed, and confined to amber nodes: a current installation costs nothing here.
+AMBER_SECONDS = 120
 
 
 @dataclass(frozen=True, slots=True)
@@ -372,13 +384,17 @@ class DcsUpdatePoller:
     """
 
     def __init__(self, checks: DcsChecks | None = None, *, sample_seconds: int = SAMPLE_SECONDS,
-                 sweep_seconds: int = SWEEP_SECONDS, clock=time.monotonic) -> None:
+                 sweep_seconds: int = SWEEP_SECONDS, amber_seconds: int = AMBER_SECONDS,
+                 clock=time.monotonic) -> None:
         self.checks = checks if checks is not None else CHECKS
         self.sample_seconds = sample_seconds
         self.sweep_seconds = sweep_seconds
+        self.amber_seconds = amber_seconds
         self._clock = clock
         self._online: set[str] = set()
         self._last_sweep: float | None = None
+        #: when each node's last check was ISSUED — the amber beat's clock, per node
+        self._checked: dict[str, float] = {}
 
     async def tick(self, nodes, declared=None) -> tuple[str, ...]:
         """One round: check every NEWCOMER, and every node when a full sweep is due.
@@ -393,25 +409,35 @@ class DcsUpdatePoller:
         call and is not part of the returned tuple.
 
         THE FIRST TICK IS A FULL SWEEP (``_last_sweep is None``), which is the "service start"
-        trigger; a node that appears afterwards is a newcomer; and ``sweep_seconds`` after the last
-        sweep, every node is re-checked. A node that leaves the console's view is simply no longer a
-        target — its cached answer is kept, because the row it belongs to is gone with it.
+        trigger; a node that appears afterwards is a newcomer; ``sweep_seconds`` after the last
+        sweep, every node is re-checked; and a node whose cached answer still says an update is
+        WAITING is re-checked every ``amber_seconds``. The last one is the only trigger that can
+        notice an update this process did not run: the amber answer is read again until it clears,
+        so a node updated elsewhere stops claiming an update is waiting. A node that leaves the
+        console's view is simply no longer a target — its cached answer is kept, because the row it
+        belongs to is gone with it.
         """
         mapping = dict(nodes or {})
         declarations = console_declared_dcs() if declared is None else dict(declared or {})
         online = {name for name, node in mapping.items() if node is not None}
         newcomers = online - self._online
         self._online = online
-        due = self._last_sweep is None or (self._clock() - self._last_sweep) >= self.sweep_seconds
+        self._checked = {name: moment for name, moment in self._checked.items() if name in online}
+        now = self._clock()
+        due = self._last_sweep is None or (now - self._last_sweep) >= self.sweep_seconds
         targets = set(newcomers)
         if due:
             targets |= online
-            self._last_sweep = self._clock()
+            self._last_sweep = now
+        targets |= {name for name in online
+                    if self.checks.available(name) is True
+                    and (now - self._checked.get(name, now - self.amber_seconds)) >= self.amber_seconds}
         checked: list[str] = []
         for name in sorted(targets):
             if name not in declarations:
                 self.checks.mark_absent(name)
                 continue
             await self.checks.check(mapping[name], declared=True)
+            self._checked[name] = now
             checked.append(name)
         return tuple(checked)

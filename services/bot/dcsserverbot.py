@@ -74,6 +74,11 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
             )
             exit(-2)
 
+    async def login(self, token: str) -> None:
+        if not token:
+            raise FatalException("No Discord token found! You need to configure it in the bot.yaml file.")
+        await super().login(token)
+
     async def _announce_major_upgrade(self) -> None:
         """Tell the audit channel about an update the launcher deliberately did not apply.
 

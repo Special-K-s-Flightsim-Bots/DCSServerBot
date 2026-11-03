@@ -1,0 +1,7 @@
+id: competitive
+order: 2
+label: PvP / competitive
+description: Scoreboard, side balance, no team-killing
+plugins:
+  - competitive
+  - punishment

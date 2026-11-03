@@ -5,8 +5,9 @@ One file, ``<config_dir>/.setup-draft.yaml``, written through the ONE config-wri
 answers the built steps own — the operator's language, the bot-language decision, auto-update, the
 Discord decision, the database block, this node's block, the detected DCS servers with their rows,
 the Discord block (guild id, owner, the member-count decision), the role
-mapping with its channels, the no-Discord community block, the console account and the Review step's
-own per-target write results — plus the furthest COMPLETED step.
+mapping with its channels, the no-Discord community block, the console account, the ticked plugin
+templates with their extension answers, and the Review step's own per-target write results — plus the
+furthest COMPLETED step.
 
 SECRETS ARE NOT HERE. A typed password or bot token is a secret the console holds for its process
 lifetime only; the draft is plain text in a config directory, so nothing of the sort is written to it
@@ -47,12 +48,12 @@ log = logging.getLogger(__name__)
 DRAFT_FILENAME = ".setup-draft.yaml"
 
 #: The last step of the tour (the Review-and-write screen). A draft at this step is a finished tour.
-LAST_STEP = 9
+LAST_STEP = 10
 
 #: The top-level keys this module owns; every other key is carried through untouched (see the module
 #: docstring).
 _OWNED_KEYS = ("step", "discord", "language", "main", "database", "node", "servers",
-               "discord_bot", "roles", "community", "console", "join", "review")
+               "discord_bot", "roles", "community", "console", "join", "plugins", "review")
 
 #: The ``main`` sub-keys this module owns; the rest of the block is carried through untouched.
 _OWNED_MAIN_KEYS = ("language", "autoupdate")
@@ -86,7 +87,7 @@ class SetupDraft:
                  discord_bot: Mapping | None = None,
                  roles: Mapping | None = None, community: Mapping | None = None,
                  console: Mapping | None = None, join: Mapping | None = None,
-                 review: Mapping | None = None) -> None:
+                 plugins: Mapping | None = None, review: Mapping | None = None) -> None:
         self.step = _as_step(step)
         self.language = language or None
         self.bot_language = bool(bot_language)
@@ -112,6 +113,9 @@ class SetupDraft:
         #: the joining state's own answer — the add/rename route (see
         #: :mod:`services.webservice.setup.join`); absent in a first-run tour
         self.join: dict[str, Any] = dict(join or {})
+        #: step 9's answers — the ticked template ids and the per-instance radio choices, plus the
+        #: Tacview / LotAtC ticks
+        self.plugins: dict[str, Any] = dict(plugins or {})
         #: the Review step's last write attempt — per-target outcomes, so a half-written
         #: configuration survives a reload as the same honest list
         self.review: dict[str, Any] = dict(review or {})
@@ -147,6 +151,7 @@ class SetupDraft:
         document["community"] = dict(self.community)
         document["console"] = dict(self.console)
         document["join"] = dict(self.join)
+        document["plugins"] = dict(self.plugins)
         document["review"] = dict(self.review)
         return document
 
@@ -173,6 +178,7 @@ class SetupDraft:
             community=_as_mapping(data.get("community")),
             console=_as_mapping(data.get("console")),
             join=_as_mapping(data.get("join")),
+            plugins=_as_mapping(data.get("plugins")),
             review=_as_mapping(data.get("review")),
         )
 

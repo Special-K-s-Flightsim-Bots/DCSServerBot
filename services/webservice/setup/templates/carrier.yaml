@@ -1,0 +1,6 @@
+id: carrier
+order: 3
+label: Carrier wing
+description: Landing grades and a squadron board
+plugins:
+  - greenieboard

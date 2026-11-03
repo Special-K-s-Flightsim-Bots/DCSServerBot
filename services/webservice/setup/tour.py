@@ -10,7 +10,7 @@ central admin channel's field appears with the central choice) — and every scr
 write works with JavaScript off.
 
 THE RAIL IS DERIVED FROM THE ANSWERS, AND IT IS THE ONLY PROGRESS STATEMENT. The Discord decision
-(step 2) decides whether the rail holds nine rows or eight; on the no-Discord path rows 5 and 6
+(step 2) decides whether the rail holds ten rows or nine; on the no-Discord path rows 5 and 6
 ("Discord — the bot", "Discord — roles and channels") are replaced by a single "Your community" row
 (the agreed layout). The DCS decision (step 4) decides whether row 8 ("DCS servers") is present:
 declining the DCS World installation removes it, and the rows around it stay. Row 8 STAYS when the
@@ -32,9 +32,9 @@ from the draft (``.state``) and re-saving it is a no-op write (the config-write 
 
 THE WRITES. A step's answers are written through the ONE config-write primitive
 (``core.utils.configwrite``) into the tour's draft (``.state.SetupDraft``); no step before the last
-touches a real configuration file. Step 9 (:mod:`services.webservice.setup.review`) is the one commit
-that writes the real files — ``main.yaml`` LAST, because that file is what closes the setup window —
-and removes the draft. Nothing in this module opens a config file itself.
+touches a real configuration file. Step 10 (:mod:`services.webservice.setup.review`) is the one
+commit that writes the real files — ``main.yaml`` LAST, because that file is what closes the setup
+window — and removes the draft. Nothing in this module opens a config file itself.
 """
 
 from __future__ import annotations
@@ -55,6 +55,7 @@ from core.utils import configwrite
 
 from .. import i18n, session
 from .. import theme as theme_module
+from . import apps as apps_step
 from . import boot as boot_module
 from . import community as community_step
 from . import console as console_step
@@ -63,6 +64,7 @@ from . import discord as discord_step
 from . import join as join_step
 from . import language as language_step
 from . import node as node_step
+from . import plugins as plugins_step
 from . import review as review_step
 from . import servers as servers_step
 from .state import LAST_STEP, SetupDraft, draft_path
@@ -77,6 +79,13 @@ __all__ = [
 
 #: The targets keyed by their stable id, for the Review screen's per-file lines.
 TARGET_BY_KEY = {target.key: target for target in review_step.TARGETS}
+
+#: The key namespace of a seeded plugin file (``plugin:<name>``, see ``review.plugin_target``). Those
+#: keys are built per plugin, so they are absent from :data:`TARGET_BY_KEY` and are resolved by name.
+PLUGIN_KEY_PREFIX = "plugin:"
+
+#: What joins two detail sentences of one Review row (a file the commit touches twice).
+DETAIL_SEPARATOR = " — "
 
 log = logging.getLogger(__name__)
 
@@ -101,8 +110,9 @@ FLAGS_DIR = Path(__file__).resolve().parents[1] / "static" / "flags"
 
 #: The step titles (msgids; English is the source and the way back from any translation).
 #: THE IDS ARE THE RAIL ORDER (see :func:`rail_steps`): 5 Discord (the bot), 6 Discord (roles and
-#: channels), 7 Web console, 8 DCS servers, 9 Review. The number a rail row SHOWS is its POSITION,
-#: not its id, so a dropped row (the servers row on a machine with no DCS installation) renumbers it.
+#: channels), 7 Web console, 8 DCS servers, 9 What do you run?, 10 Review. The number a rail row
+#: SHOWS is its POSITION, not its id, so a dropped row (the servers row on a machine with no DCS
+#: installation) renumbers it.
 STEP_LABELS: dict[int, str] = {
     1: i18n._("Language"),
     2: i18n._("General"),
@@ -112,7 +122,8 @@ STEP_LABELS: dict[int, str] = {
     6: i18n._("Discord — roles and channels"),
     7: i18n._("Web console"),
     8: i18n._("DCS servers"),
-    9: i18n._("Review and write"),
+    9: i18n._("What do you run?"),
+    10: i18n._("Review and write"),
 }
 
 #: The row that REPLACES steps 5 and 6 when Discord support is off (step id 5, same slot).
@@ -172,27 +183,28 @@ def rail_steps(discord: bool, dcs: bool = True, servers: bool = True,
 
     Discord comes BEFORE the servers so the central admin-channel question (step 6) is answered
     before any per-server row reads it, and so the pickers a server row offers are already fetched.
-    Nine rows with Discord, eight without (5+6 -> "Your community"); row 8 ("DCS servers") is
-    present only when a DCS installation was configured.
+    Ten rows with Discord, nine without (5+6 -> "Your community"); row 8 ("DCS servers") is present
+    only when a DCS installation was configured, and row 9 ("What do you run?") sits between the
+    servers and the Review row (10).
 
     JOINING SERVES A SUBSET OF THE SAME IDS, IN THE SAME ORDER: database (3), this node (4), DCS
-    servers (8, under the same DCS rule) and review (9). The first-run steps are not asked
-    again — this installation already has its language, its guild, its roles, its console and its
-    database — so they are simply not on the rail. Every id here is a subsequence of the first-run
-    rail's, which is why the "furthest completed step" arithmetic needs no change: a draft whose
-    ``step`` is 0 starts at 3, and the rows it can never reach are not in the list.
+    servers (8, under the same DCS rule) and review (10). The first-run steps are not asked again —
+    this installation already has its language, its guild, its roles, its console and its database —
+    so they are simply not on the rail. Every id here is a subsequence of the first-run rail's, which
+    is why the "furthest completed step" arithmetic needs no change: a draft whose ``step`` is 0
+    starts at 3, and the rows it can never reach are not in the list.
     """
     if mode == boot_module.JOIN:
         rows = [3, 4]
         if dcs and servers:
             rows.append(8)
-        return rows + [9]
+        return rows + [10]
     rows = [1, 2, 3, 4]
     rows += [5, 6] if discord else [5]
     rows.append(7)
     if dcs and servers:
         rows.append(8)
-    rows.append(9)
+    rows += [9, 10]
     return rows
 
 
@@ -311,6 +323,27 @@ font-size:14px}
 .guide ul:last-child{margin-bottom:0}
 .guide li{margin:1px 0}
 .source{color:var(--text-3);font-size:13px;margin:0 0 12px}
+/* The What-do-you-run tiles (step 9): a two-column grid of switch tiles, each carrying its own
+   checkbox as the tick, the tile's label, its one-line description and the plugins it switches on.
+   The checked state is drawn from the checkbox itself, so the tile reads correctly with JavaScript
+   off and needs no second control. */
+.lead{color:var(--text-2);margin:0 0 16px;max-width:74ch}
+.sec{font-size:15px;font-weight:600;color:var(--text);margin:26px 0 10px;
+padding-top:18px;border-top:1px solid var(--line)}
+.sec:first-of-type{margin-top:0;padding-top:0;border-top:0}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+label.tile{position:relative;display:block;padding:13px 14px 13px 40px;cursor:pointer;
+border:1px solid var(--line);border-radius:var(--radius-s);background:var(--panel-2)}
+label.tile:hover{border-color:var(--line-2)}
+label.tile:has(input:checked){border-color:var(--accent)}
+label.tile input{position:absolute;left:13px;top:13px;width:16px;height:16px;margin:0;
+accent-color:var(--accent)}
+label.tile:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+label.tile b{display:block;font-size:13.5px}
+label.tile .sub{display:block;color:var(--text-3);font-size:12.5px;margin-top:2px}
+label.tile .plugs{display:block;color:var(--text-2);font-size:12.5px;margin-top:7px;
+font-family:var(--font-mono)}
+@media (max-width:640px){.tiles{grid-template-columns:1fr}}
 fieldset.choice{border:0;margin:0 0 14px;padding:0}
 .choice-legend{color:var(--text-3);font-size:12.5px;padding:0 0 6px}
 /* The admin-channel question: a role row's own shape — a bold lead with its sentence beneath it —
@@ -408,6 +441,16 @@ padding:6px 8px}
 button.add{font-weight:600;color:var(--text-2);background:var(--panel);
 border:1px solid var(--line-2);border-radius:var(--radius-s);padding:6px 10px}
 button.add:hover{background:var(--panel-2);color:var(--text)}
+/* ONE VALUE of a list row: its field and the control that removes that value, kept on the same line
+   so a row's values wrap as items and the `+ Add` control stays beside them. */
+.oritem{display:flex;flex:1 1 14em;min-width:8em;gap:4px;align-items:center}
+.oritem input{flex:1 1 auto;min-width:0}
+button.rm{color:var(--text-3);background:transparent;border:1px solid var(--line-2);
+border-radius:var(--radius-s);padding:6px 9px;line-height:1}
+button.rm:hover{color:var(--danger);border-color:var(--danger)}
+button.rm:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* The UCID heading: the sentence that says what the fields below hold, above the rows it is about. */
+.ucid-head{font-size:13.5px;font-weight:600;color:var(--text);margin:16px 0 2px}
 /* The optional cluster database: the Federation support checkbox, then the second block it reveals,
    separated from the first block above it by a rule. */
 label.switch.fed{margin:18px 0 0;padding-top:14px;border-top:1px solid var(--line)}
@@ -956,11 +999,19 @@ T_COMMUNITY_MEANINGS: dict[str, str] = {
     "Admin": i18n._("Users can delete data and change the bot"),
     "DCS Admin": i18n._("Users can restart missions, kick/ban users, etc."),
 }
-T_COMMUNITY_UCIDS = i18n._("Please enter a comma-separated list of UCIDs")
+T_COMMUNITY_UCIDS_HEAD = i18n._("These users are UCIDs, not Discord roles")
+T_COMMUNITY_UCIDS = i18n._(
+    "A UCID is the 32-character player id DCS gives a user — it is not a Discord role, name or id. "
+    "Enter one UCID per field, exactly 32 characters; use + Add for more users. A role may stay "
+    "empty: it then grants nothing.")
+T_REMOVE = i18n._("Remove")
 
 #: Step 6' - the no-Discord screen's result sentences, one per classified code.
 COMMUNITY_NOTICE: dict[str, str] = {
     "community_name_required": i18n._("Enter the name of your DCS group."),
+    "community_ucid_invalid": i18n._(
+        "'{value}' is not a UCID. A UCID is exactly 32 letters and digits — the DCS player id, not a "
+        "Discord role or user id. Check the {role} entry."),
 }
 
 # ---- the Web console step (step 7) ------------------------------------------------------------
@@ -1033,6 +1084,9 @@ T_REVIEW_CLUSTER_NOT_VERIFIED = i18n._(
 T_REVIEW_CONSOLE_LOGIN_NOT_WRITTEN = i18n._(
     "the console's Discord login — no client secret is held, so it stays off")
 
+#: The nodes row's second sentence when step 9's extension answers are merged into the same file.
+T_REVIEW_NODES_EXTENSIONS = i18n._("the extensions are merged into this file")
+
 #: The one-line description of each written target, keyed by its stable id (``setup.review``).
 T_REVIEW_FILES: dict[str, str] = {
     "main": i18n._("guild, language, autoupdate"),
@@ -1063,6 +1117,9 @@ T_DONE_NO_CONSOLE = i18n._(
     "config/services/webservice.yaml.")
 T_DONE_START = i18n._("If it is not running, start it with {script}.")
 T_DONE_BUTTON = i18n._("Open the console")
+T_DONE_SRS_PORT = i18n._(
+    "No SRS port was set for {instances}: SRS was not found. Add the installation path later in "
+    "the console.")
 
 # ---- the joining state: the add/rename question, its refusals and its own Done sentence ----
 
@@ -1254,19 +1311,24 @@ def _sentence_with_link(translate, template_msgid: str, url: str, label_msgid: s
 
 
 def _field(label: str, name: str, value, help_text: str | None = None, *,
-           type_: str = "text", required: bool = False, help_markup: str | None = None) -> str:
+           type_: str = "text", required: bool = False, help_markup: str | None = None,
+           placeholder: str | None = None) -> str:
     """One labelled input. A password field is always rendered EMPTY (secrets never come back).
 
     *help_markup* is an ALREADY-escaped help line (a sentence carrying a help link, see
     :func:`_doc_link`); when given it is rendered verbatim in place of the escaped *help_text*.
+
+    *placeholder* is hint text only: it never becomes the field's ``value``, so an untouched field
+    still submits nothing. Omit it and the input carries no ``placeholder`` attribute at all.
     """
     if help_markup is not None:
         help_html = f'<span class="help">{help_markup}</span>'
     else:
         help_html = f'<span class="help">{escape(help_text)}</span>' if help_text else ""
     req = " required" if required else ""
+    hint = f' placeholder="{escape(placeholder)}"' if placeholder is not None else ""
     return (f'<label class="field"><span class="lbl">{escape(label)}</span>'
-            f'<input type="{type_}" name="{name}" value="{escape(str(value))}"{req}>'
+            f'<input type="{type_}" name="{name}" value="{escape(str(value))}"{req}{hint}>'
             f'{help_html}</label>')
 
 
@@ -1990,6 +2052,11 @@ def _server_row(translate, index: int, row: servers_step.ServerRow, port: int | 
         f'</div></details>')
 
 
+#: DCS's own default Saved Games folder name — an instance NAME, not copy, so it is a literal and
+#: never a msgid. It is offered as a placeholder only (see :func:`_add_server_row`).
+DEFAULT_INSTANCE_NAME = "DCS.dcs_serverrelease"
+
+
 def _add_server_row(translate, index: int, row: servers_step.ServerRow, port: int | None, guild, *,
                     central_admin: bool = False, channels: bool = True) -> str:
     """The row a server is ADDED in — blank on an empty scan, and one per instance added already.
@@ -1998,13 +2065,16 @@ def _add_server_row(translate, index: int, row: servers_step.ServerRow, port: in
     separate server name: ONE field carries both, which its label and its help line say. Everything
     else — the manage switch, the derived port, autostart, the channel line — is the detected row's
     own markup, and its values leave through the same builders (see ``setup.servers``).
+
+    The name field carries :data:`DEFAULT_INSTANCE_NAME` as a PLACEHOLDER, so an empty row shows the
+    customary folder name without submitting it.
     """
     manage = ' checked' if row.manage else ''
     autostart = ' checked' if row.autostart else ''
     opn = ' open' if row.manage else ''
     title = escape(row.name) if row.name else escape(translate(T_SRV_ADD))
     fields = [_field(translate(T_SRV_ADD_INSTANCE), f"row_name_{index}", row.name,
-                     translate(T_SRV_ADD_INSTANCE_HELP)),
+                     translate(T_SRV_ADD_INSTANCE_HELP), placeholder=DEFAULT_INSTANCE_NAME),
               _stat(translate(T_SRV_BOT_PORT), str(port) if port is not None else "—")]
     return (
         f'<details class="st-block"{opn}>'
@@ -2147,8 +2217,15 @@ def _role_input(name: str, value: str) -> str:
     return f'<input type="text" name="{name}" value="{escape(value)}">'
 
 
+def _role_item(name: str, value: str, translate) -> str:
+    """One value of a list row: its field and the control that removes that one value."""
+    return (f'<span class="oritem">{_role_input(name, value)}'
+            f'<button type="button" class="rm" aria-label="{escape(translate(T_REMOVE))}">'
+            f'\u2715</button></span>')
+
+
 def _role_row(label: str, meaning: str, name: str, values, translate, *, add: bool,
-              guild=None) -> str:
+              guild=None, remove: bool = False) -> str:
     """One internal-role row: the role word (mono, NEVER translated — it is the key in the config),
     its meaning in one line, and the value control.
 
@@ -2156,11 +2233,18 @@ def _role_row(label: str, meaning: str, name: str, values, translate, *, add: bo
     renders and submits with NO JavaScript, and ``add`` is unused because a multi-select already
     carries several values. Without it the control is the installer's own repeated field plus the
     ``+ Add`` control (each value its own field, the comma form still accepted server-side).
+
+    With *remove* every value carries its own removal control and a row with no value still renders
+    ONE empty field, so a role can be emptied and refilled without scripting.
     """
     if guild is not None:
         control = f'<div class="orlist">{_role_select(name, values, guild)}</div>'
     else:
-        inputs = "".join(_role_input(name, str(value)) for value in values)
+        items = [str(value) for value in values]
+        if remove and not items:
+            items = [""]
+        inputs = "".join(_role_item(name, value, translate) if remove
+                         else _role_input(name, value) for value in items)
         button = ""
         if add:
             button = (f'<button type="button" class="add" data-name="{name}">'
@@ -2174,11 +2258,30 @@ def _role_row(label: str, meaning: str, name: str, values, translate, *, add: bo
 
 
 def _add_row_script() -> str:
-    """``+ Add`` appends another value field to its own row. Nothing else needs scripting."""
-    return ('<script>(function(){var bs=document.querySelectorAll("button.add");'
+    """``+ Add`` appends another value field to its own row, and a row's ``✕`` removes its own value.
+
+    The removal is delegated on the document so a field the script added carries a working control,
+    and the last field of a row is EMPTIED rather than removed: a row must keep one field, or the
+    role would render with no control at all. The added field copies its aria-label off a remove
+    control already on the page — the script owns no translated string.
+    """
+    return ('<script>(function(){'
+            'var known=document.querySelector("button.rm");'
+            'var label=known?known.getAttribute("aria-label"):"";'
+            'var bs=document.querySelectorAll("button.add");'
             'for(var i=0;i<bs.length;i++){bs[i].addEventListener("click",function(){'
             'var f=document.createElement("input");f.type="text";f.name=this.dataset.name;'
-            'this.parentNode.insertBefore(f,this);f.focus();});}})();</script>')
+            'var node=f;'
+            'if(label){var s=document.createElement("span");s.className="oritem";s.appendChild(f);'
+            'var b=document.createElement("button");b.type="button";b.className="rm";'
+            'b.setAttribute("aria-label",label);b.textContent="\\u2715";s.appendChild(b);node=s;}'
+            'this.parentNode.insertBefore(node,this);f.focus();});}'
+            'document.addEventListener("click",function(e){'
+            'var b=e.target&&e.target.closest?e.target.closest("button.rm"):null;if(!b){return;}'
+            'var box=b.parentNode,list=box.parentNode;'
+            'if(list.querySelectorAll(".oritem").length>1){list.removeChild(box);return;}'
+            'var f=box.querySelector("input");if(f){f.value="";f.focus();}});'
+            '})();</script>')
 
 
 def _console_base_url(request: Request, answers) -> str:
@@ -2478,11 +2581,15 @@ def _step_community(request: Request, draft: SetupDraft, translate) -> str:
     """Step 5' — "Your community": the DCS group's name and the users of the two internal roles.
 
     The no-Discord answer, and the row that replaces steps 5 and 6 in the rail when Discord support
-    is off. Each role's UCIDs are one comma-separated field — the installer's own form, and the one a
-    browser without scripting can still fill in. The console account is NOT collected here: it lives on
-    the Web-console step, which is on the rail on both paths. NEITHER IS A DISCORD CLIENT SECRET: this
-    path has no Discord at all — no bot, no OAuth2 login — so nothing Discord-shaped is asked for
-    anywhere on it, and the console signs the operator in with the break-glass account alone.
+    is off. Each role's UCIDs are one value per field with ``+ Add`` and a per-value removal control,
+    and the explanation ABOVE the rows names what a UCID is (a 32-character DCS player id, never a
+    Discord role), so the rows' ``Admin``/``DCS Admin`` labels cannot be read as a place for a Discord
+    role. The comma-separated form still submits, which is what works with scripting off.
+
+    The console account is NOT collected here: it lives on the Web-console step, which is on the rail
+    on both paths. NEITHER IS A DISCORD CLIENT SECRET: this path has no Discord at all — no bot, no
+    OAuth2 login — so nothing Discord-shaped is asked for anywhere on it, and the console signs the
+    operator in with the break-glass account alone.
     """
     token = session.get_csrf_token(request)
     answers = community_step.answers_from_mapping(draft.community)
@@ -2496,9 +2603,8 @@ def _step_community(request: Request, draft: SetupDraft, translate) -> str:
     rows = []
     for index, name in enumerate(community_step.DEFAULT_ROLES):
         meaning = escape(translate(T_COMMUNITY_MEANINGS.get(name, "")))
-        values = answers.users.get(name, ())
-        rows.append(_role_row(name, meaning, f"user_{index}", [", ".join(values)],
-                              translate, add=False))
+        rows.append(_role_row(name, meaning, f"user_{index}", answers.users.get(name, ()),
+                              translate, add=True, remove=True))
     back = _previous_step(draft, 5)
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
@@ -2509,13 +2615,14 @@ def _step_community(request: Request, draft: SetupDraft, translate) -> str:
         f'<div class="fields">'
         f'{_field(translate(T_COMMUNITY_NAME), "guild_name", answers.guild_name, required=True)}'
         f'</div>'
+        f'{notice}'
+        f'<h2 class="ucid-head">{escape(translate(T_COMMUNITY_UCIDS_HEAD))}</h2>'
+        f'<p class="note">{escape(translate(T_COMMUNITY_UCIDS))}</p>'
         f'<p class="note">{escape(translate(T_COMMUNITY_INTRO))}</p>'
         f'{"".join(rows)}'
-        f'<p class="note">{escape(translate(T_COMMUNITY_UCIDS))}</p>'
-        f'{notice}'
         f'<div class="actions">{back_link}'
         f'<button type="submit">{escape(translate(T_CONTINUE))}</button></div>'
-        f'</form>')
+        f'</form>{_add_row_script()}')
 
 
 def _review_path(target: review_step.Target) -> str:
@@ -2557,17 +2664,35 @@ def _will_write(request: Request, draft: SetupDraft, translate) -> list[str]:
 
     Rendering the plan rather than a hand-kept list is what keeps the promise and the write the same
     set: a target the commit will not write cannot appear here.
+
+    ONE ROW PER FILE, NOT PER PLAN ENTRY. ``nodes.yaml`` is planned twice — the node document, then
+    the nested merge of step 9's extension answers — so the merge is folded into the node's row,
+    which then says the extensions land in the same file. The node row itself is never dropped: a
+    plan that carries the merge carries the node document with it.
     """
-    lines: list[str] = []
+    details: dict[str, list[str]] = {}
+    order: list[str] = []
     for item in review_step.plan(draft, app=request.app, mode=_mode(request)):
-        if item.target is review_step.MAIN:
-            detail = _main_detail(draft, app=request.app)
+        path = _review_path(item.target)
+        if path not in details:
+            details[path] = []
+            order.append(path)
+        if item.target is review_step.EXTENSIONS:
+            details[path].append(T_REVIEW_NODES_EXTENSIONS)
+        elif item.target is review_step.MAIN:
+            details[path].append(_main_detail(draft, app=request.app))
         else:
             detail = T_REVIEW_FILES.get(item.target.key, "")
-        lines.append(
-            f'<li><span class="path">{escape(_review_path(item.target))}</span>'
-            f'<span class="state">{escape(translate(detail)) if detail else ""}</span></li>')
-    return lines
+            if detail:
+                details[path].append(detail)
+    return [_review_file_row(path, details[path], translate) for path in order]
+
+
+def _review_file_row(path: str, details: list[str], translate) -> str:
+    """One "will be written" row: the file's path and its detail sentences, joined."""
+    detail = DETAIL_SEPARATOR.join(translate(item) for item in details if item)
+    return (f'<li><span class="path">{escape(path)}</span>'
+            f'<span class="state">{escape(detail) if detail else ""}</span></li>')
 
 
 def _not_written(draft: SetupDraft, app, translate, mode: str = boot_module.INSTALL) -> list[str]:
@@ -2614,34 +2739,54 @@ def _review_write_form(token: str, label: str) -> str:
     """The commit's one button, as its own form (the screen carries no other input)."""
     return (f'<form method="post" action="{STEP_PATH}">'
             f'<input type="hidden" name="{session.CSRF_FIELD}" value="{escape(token)}">'
-            f'<input type="hidden" name="n" value="9">'
+            f'<input type="hidden" name="n" value="10">'
             f'<div class="actions"><span class="grow"></span>'
             f'<button type="submit" name="action" value="write">{escape(label)}</button>'
             f'</div></form>')
+
+
+def _report_target(key: str) -> review_step.Target | None:
+    """The target a write report's key names, or ``None`` when nothing carries that key.
+
+    Static targets resolve through :data:`TARGET_BY_KEY`; a seeded plugin file carries the dynamic
+    ``plugin:<name>`` key of :func:`services.webservice.setup.review.plugin_target`, which the static
+    map by construction cannot hold.
+    """
+    target = TARGET_BY_KEY.get(key)
+    if target is not None:
+        return target
+    if key.startswith(PLUGIN_KEY_PREFIX):
+        plugin = key[len(PLUGIN_KEY_PREFIX):].strip()
+        if plugin:
+            return review_step.plugin_target(plugin)
+    return None
 
 
 def _review_results(token: str, results: list, translate) -> str:
     """The screen after a write attempt: one row per target, and the honest half-written notice.
 
     A row is green only when that target reached the disk; a refused target carries the primitive's
-    own reason, and a target that was never attempted (``main.yaml``, held back because something
-    before it was refused) says that in words.
+    own reason, a deliberately skipped one the reason the skip itself gave (a seed the operator
+    already had, a file refused earlier in the commit), and a target that was never attempted
+    (``main.yaml``, held back because something before it was refused) says that in words.
     """
     rows: list[str] = []
     for entry in results:
         if not isinstance(entry, dict):
             continue
-        target = TARGET_BY_KEY.get(str(entry.get("key")))
+        target = _report_target(str(entry.get("key")))
         if target is None:
             continue
         ok = bool(entry.get("ok"))
         state = translate(T_REVIEW_WRITTEN) if ok else translate(T_REVIEW_NOT_WRITTEN_ITEM)
-        if entry.get("skipped"):
-            reason = translate(T_REVIEW_SKIPPED)
+        note = str(entry.get("note") or "").strip()
+        if ok:
+            reason = note                     # a written file speaks only about what it left out
+        elif entry.get("skipped"):
+            reason = note or translate(T_REVIEW_SKIPPED)
         else:
             reason = str(entry.get("error") or "").strip() or translate(T_REVIEW_NO_REASON)
-        detail = (f'<span class="state">{escape(reason)}</span>'
-                  if not ok and reason else "")
+        detail = f'<span class="state">{escape(reason)}</span>' if reason else ""
         rows.append(f'<li class="{"ok" if ok else "bad"}">'
                     f'<span class="path">{escape(_review_path(target))}</span>'
                     f'<span class="state">{escape(state)}</span>{detail}</li>')
@@ -2685,8 +2830,43 @@ def _review_missing(request: Request, draft: SetupDraft, missing: list, back_lin
             + f'<div class="actions">{back_link}</div>')
 
 
-def _step_nine(request: Request, draft: SetupDraft, translate) -> str:
-    """Step 9 — Review and write: two lists, no input, and the one commit button.
+def _configured_instances(draft: SetupDraft) -> list[tuple[str, str]]:
+    """The managed instances as ``(instance, shown name)``, in the draft's own row order.
+
+    The instance is the identity the answer is keyed on; the name is what the operator called the
+    server, falling back to the instance when the row carries no name.
+    """
+    answers = servers_step.answers_from_mapping(draft.servers)
+    return [(row.instance, row.name or row.instance)
+            for row in servers_step.managed_rows(answers) if row.instance]
+
+
+def _detected_apps() -> dict[str, str | None]:
+    """The installation path each offered application was found at, keyed by extension name."""
+    return {spec.key: apps_step.detect_app(spec) for spec in apps_step.APPS}
+
+
+def _step_plugins(request: Request, draft: SetupDraft, translate) -> str:
+    """Step 9 — What do you run?: the template tiles, the radio choice, the two extension ticks.
+
+    The tiles and their plugin names come from the template files
+    (:func:`services.webservice.setup.plugins.load_templates`); the paths the extension rows show
+    are the Apps step's own probes, run here as a plain read (see :func:`_detected_apps`).
+    """
+    back = _previous_step(draft, plugins_step.STEP_ID, _mode(request))
+    back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
+                 f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
+    return plugins_step.screen_body(
+        plugins_step.answers_from_mapping(draft.plugins),
+        _configured_instances(draft),
+        _detected_apps(),
+        translate,
+        token=session.get_csrf_token(request),
+        back_link=back_link)
+
+
+def _step_review(request: Request, draft: SetupDraft, translate) -> str:
+    """Step 10 — Review and write: two lists, no input, and the one commit button.
 
     Before the write the screen states what is already done and what will be written; after a
     REFUSED write it swaps to the per-target results (see :func:`_review_results`), which is the
@@ -2698,7 +2878,7 @@ def _step_nine(request: Request, draft: SetupDraft, translate) -> str:
     re-enter instead of offering a commit that must not happen.
     """
     token = session.get_csrf_token(request)
-    back = _previous_step(draft, 9, _mode(request))
+    back = _previous_step(draft, 10, _mode(request))
     back_link = (f'<a class="link" href="{STEP_PATH}?n={back}">'
                  f'{escape(translate(T_BACK))}</a>' if back else '<span class="grow"></span>')
     # a joining commit that cannot be built is refused BEFORE the commit button: the plan would raise
@@ -2720,7 +2900,7 @@ def _step_nine(request: Request, draft: SetupDraft, translate) -> str:
                        _not_written(draft, request.app, translate, _mode(request)))
         + f'<form method="post" action="{STEP_PATH}">'
         + f'<input type="hidden" name="{session.CSRF_FIELD}" value="{escape(token)}">'
-        + f'<input type="hidden" name="n" value="9">'
+        + f'<input type="hidden" name="n" value="10">'
         + f'<div class="actions">{back_link}'
         + f'<button type="submit" name="action" value="write">'
         + f'{escape(translate(T_REVIEW_WRITE))}</button></div></form>')
@@ -2833,6 +3013,19 @@ def _submit_join_route(request: Request, draft: SetupDraft, form, config_dir) ->
     return response
 
 
+def _unported_instances(results) -> list[str]:
+    """The instances a commit gave no SRS port, in report order, without duplicates."""
+    found: list[str] = []
+    for entry in results or []:
+        if not isinstance(entry, dict):
+            continue
+        for instance in entry.get("unported") or ():
+            name = str(instance).strip()
+            if name and name not in found:
+                found.append(name)
+    return found
+
+
 def _done_document(request: Request, draft: SetupDraft,
                    renamed: tuple[str, str] | None = None) -> str:
     """The terminal screen: the configuration is written and the console is handing over.
@@ -2844,6 +3037,11 @@ def _done_document(request: Request, draft: SetupDraft,
     The console is mentioned only when it was actually enabled: a console-less install drops the link
     (and the sign-in line) and says so instead, because a button to a console that will never serve
     would be a lie.
+
+    THE COMMIT'S OWN CAVEAT IS SAID HERE TOO. A commit that fully succeeded never renders the Review
+    step's results (:func:`_review_results` is the FAILED-commit screen), so an instance that chose
+    SRS on a machine where none was found would otherwise never learn that it got no port: the results
+    name those instances, and the screen adds one line for them.
 
     JOINING HAS ITS OWN TWO LINES. This install already has its console and its servers, so the
     handed-over lines ("the console will be at ...", "add your DCS servers") are both false here; what
@@ -2866,6 +3064,10 @@ def _done_document(request: Request, draft: SetupDraft,
         return _standalone_document(request, lang, theme, translate, T_DONE_TITLE,
                                     "".join(lines))
     lines = [f'<p class="note">{escape(translate(T_DONE_WRITTEN))}</p>']
+    unported = _unported_instances(draft.review.get("results"))
+    if unported:
+        lines.append(f'<p class="note">'
+                     f'{_say(translate, T_DONE_SRS_PORT, instances=", ".join(unported))}</p>')
     if _console_enabled(_config_dir(request)):
         lines.append(f'<p class="note">{_say(translate, T_DONE_OPEN, url=url)}</p>')
         lines.append(f'<p class="note">{escape(translate(T_DONE_SIGNIN))}</p>')
@@ -2927,8 +3129,10 @@ def _card_body(request: Request, draft: SetupDraft, step: int, translate, *,
         return _step_console(request, draft, translate)
     if step == 8:
         return _step_servers(request, draft, translate)
-    if step == 9:
-        return _step_nine(request, draft, translate)
+    if step == plugins_step.STEP_ID:
+        return _step_plugins(request, draft, translate)
+    if step == 10:
+        return _step_review(request, draft, translate)
     return _placeholder(draft, step, translate)
 
 
@@ -3294,7 +3498,9 @@ async def _dispatch_step(request: Request, draft: SetupDraft, step: int, form, c
         return _submit_console(request, draft, form, config_dir, stay)
     elif step == 8:
         return _submit_servers(request, draft, form, config_dir, stay)
-    elif step == 9:
+    elif step == plugins_step.STEP_ID:
+        return _submit_plugins(request, draft, form, config_dir, stay)
+    elif step == 10:
         return _submit_review(request, draft, form, config_dir)
 
     # re-render the same step against the just-saved draft (the "stay" path, and step 1's own)
@@ -3637,6 +3843,26 @@ def _submit_servers(request: Request, draft: SetupDraft, form, config_dir, stay:
     return HTMLResponse(_render(request, SetupDraft.load(config_dir), 8, stay=True))
 
 
+def _submit_plugins(request: Request, draft: SetupDraft, form, config_dir, stay: bool) -> Response:
+    """Step 9's one write path: the ticked templates and the extension answers.
+
+    Nothing is validated: every tile may be unticked and every instance keeps a radio answer, so a
+    submission is always an answer. The write goes to the draft through the ONE config-write
+    primitive, and the block's keys this step does not own are kept.
+    """
+    answers = plugins_step.resolve_answers(form, [instance for instance, _shown
+                                                  in _configured_instances(draft)])
+    draft.plugins = dict(draft.plugins)
+    draft.plugins.update(plugins_step.non_secret_document(answers))
+    if not stay:
+        draft.step = max(draft.step, plugins_step.STEP_ID)
+        draft.save(config_dir)
+        return RedirectResponse(STEP_PATH, status_code=303)
+    draft.save(config_dir)
+    return HTMLResponse(_render(request, SetupDraft.load(config_dir), plugins_step.STEP_ID,
+                                stay=True))
+
+
 def _persist_console(request: Request, draft: SetupDraft, form, *, validate: bool
                      ) -> tuple[str, dict] | None:
     """Resolve the Web-console step's fields into the draft, and return its classified failure.
@@ -3889,7 +4115,7 @@ def _discard_draft(config_dir) -> None:
 
 
 def _submit_review(request: Request, draft: SetupDraft, form, config_dir) -> Response:
-    """Step 9's one write path: the whole configuration, in one ordered commit.
+    """Step 10's one write path: the whole configuration, in one ordered commit.
 
     :func:`services.webservice.setup.review.write` writes every target through the ONE config-write
     primitive and writes the CLOSING target LAST, and only when everything before it reached the
@@ -3908,22 +4134,26 @@ def _submit_review(request: Request, draft: SetupDraft, form, config_dir) -> Res
     repeated.
     """
     mode = _mode(request)
+    # the console language THIS request is served in: the language every operator sentence of the
+    # commit (a write's note, a refused write's reason) is written in
+    language = language_step.prefill_language(request, draft)
     if mode == boot_module.JOIN:
         refusal = review_step.join_database_refusal(draft, app=request.app)
         if refusal:
             log.warning("Setup join: the Review step refused — %s Nothing was written and the setup "
                         "window stays open.", refusal)
-            return HTMLResponse(_render(request, draft, 9))
+            return HTMLResponse(_render(request, draft, 10))
     missing = review_step.missing_secrets(draft, app=request.app, mode=mode)
     if missing:
         log.warning("Setup tour: the Review step refused — %s not held in this process; nothing was "
                     "written and the setup window stays open.", ", ".join(t.key for t in missing))
-        return HTMLResponse(_render(request, draft, 9))
-    plan = review_step.plan(draft, app=request.app, mode=mode)
+        return HTMLResponse(_render(request, draft, 10))
+    plan = review_step.plan(draft, app=request.app, mode=mode, language=language)
     closing = review_step.NODES if mode == boot_module.JOIN else review_step.MAIN
-    report = review_step.write(plan, config_dir, mode=mode, closing=closing)
+    report = review_step.write(plan, config_dir, mode=mode, closing=closing, language=language)
     results = [{"key": outcome.target.key, "ok": outcome.ok, "changed": outcome.changed,
-                "skipped": outcome.skipped, "error": outcome.error}
+                "skipped": outcome.skipped, "error": outcome.error, "note": outcome.note,
+                "unported": list(outcome.unported)}
                for outcome in report.outcomes]
     if report.completed:
         draft.review = {"written": True, "results": results}
@@ -3940,7 +4170,7 @@ def _submit_review(request: Request, draft: SetupDraft, form, config_dir) -> Res
                 "the setup window stays open.", len(report.failed), len(results), closing.relpath)
     draft.review = {"written": False, "results": results}
     draft.save(config_dir)
-    return HTMLResponse(_render(request, SetupDraft.load(config_dir), 9))
+    return HTMLResponse(_render(request, SetupDraft.load(config_dir), 10))
 
 
 def _remember_language(response: Response, request: Request, language: str) -> None:

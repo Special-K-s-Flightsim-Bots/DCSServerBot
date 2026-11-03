@@ -277,7 +277,7 @@ class SRS(InstallableExtension, FileSystemEventHandler):
                                                'EXTERNAL_AWACS_MODE_RED_PASSWORD','red_password')
 
         # Check IP settings
-        if self.cfg['Server Settings']['SERVER_IP'] != '0.0.0.0':
+        if self.cfg['Server Settings'].get('SERVER_IP', '0.0.0.0') != '0.0.0.0':
             self.log.warning(f"  => {self.server.name}: SERVER_IP is not set to 0.0.0.0 in {self.get_config_path()}")
 
         # Check port conflicts
