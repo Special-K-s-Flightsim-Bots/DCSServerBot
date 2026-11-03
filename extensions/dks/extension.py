@@ -46,6 +46,8 @@ class DKS(InstallableExtension):
             "required": True
         }
     }
+    # Instances already told they have no install code, during this run of the bot.
+    _told_no_code: set[str] = set()
 
     @property
     def identity(self) -> dict[str, str]:
@@ -66,10 +68,13 @@ class DKS(InstallableExtension):
         if self.config.get('key'):
             self.log.error(f"  => {self.name}: The install code is not valid. Copy it again from your server's page "
                            f"in DKS, then run /extension enable, type DKS and paste it.")
-        else:
-            self.log.error(f"  => {self.name}: No install code. The DKS extension installs the DKS exporter now: copy "
-                           f"the install code from your server's page in DKS, then run /extension enable, type DKS "
-                           f"and paste the code.")
+        elif self.server.instance.name not in DKS._told_no_code:
+            # Instances that enabled the earlier, Tacview-based extension have no code. Every server start asks
+            # again, so say it once per run.
+            DKS._told_no_code.add(self.server.instance.name)
+            self.log.warning(f"  => {self.name}: The old DKS add-on for Tacview is retired and was removed from "
+                             f"{self.server.instance.name}. Use the DKS exporter instead: copy the install code from "
+                             f"your server's page in DKS, run /extension enable, type DKS and paste it.")
         return False
 
     def server_down(self) -> bool:

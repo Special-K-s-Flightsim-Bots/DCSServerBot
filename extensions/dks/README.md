@@ -14,8 +14,9 @@ there:
 > can switch back by disabling DKS and enabling Tacview.
 
 > [!NOTE]
-> Earlier versions of this extension installed the DKS weather exporter into Tacview. It is removed (Tacview's own
-> tacview.dll is put back), whether or not you install the new exporter. To install it, get an install code (below).
+> Earlier versions of this extension installed the DKS add-on for Tacview (a weather exporter). It is retired and
+> removed (Tacview's own tacview.dll is put back). Use the DKS exporter instead: get an install code (below). Until
+> you do, DKS stays inactive and says so once each time DCSServerBot starts.
 
 ## Configuration
 There are three ways. All of them need the server's install code from DKS: open your server's page in DKS
