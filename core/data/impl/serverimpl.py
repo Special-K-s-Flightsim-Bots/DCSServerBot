@@ -1238,10 +1238,16 @@ class ServerImpl(Server):
                         if type(ext).modify_mission != Extension.modify_mission:
                             # a None preset is passed as no keyword at all, so an extension still on the
                             # standalone ``modify_mission(self, filename)`` signature stays callable
-                            if preset is None:
-                                new_filename, _dirty = await ext.modify_mission(new_filename)
-                            else:
-                                new_filename, _dirty = await ext.modify_mission(new_filename, preset=preset)
+                            try:
+                                if preset is None:
+                                    new_filename, _dirty = await ext.modify_mission(new_filename)
+                                else:
+                                    new_filename, _dirty = await ext.modify_mission(new_filename, preset=preset)
+                            except Exception as ex:
+                                # a failing extension (RealWeather without a METAR) is skipped: the others
+                                # still apply, instead of loading the bare .orig without any of them
+                                self.log.exception(ex)
+                                continue
                             if _dirty:
                                 self.log.info(f'  => {ext.name} applied on {os.path.basename(new_filename)}.')
                             dirty |= _dirty
