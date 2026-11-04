@@ -3559,10 +3559,6 @@ msgstr "El ajuste barométrico, en mmHg."
 msgid "DCS applies dust or fog, not both: enabling one turns the other off."
 msgstr "DCS aplica polvo o niebla, no ambos: activar uno desactiva el otro."
 
-msgstr "La calima es un interruptor aparte con su propia densidad."
-
-msgstr "0 es nada, 10 es densa."
-
 #: services/webservice/pages/presets.py:1149
 msgid ""
 "auto lets DCS build the fog from the mission's own time; manual uses the "

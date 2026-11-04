@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the DCSServerBot schema descriptions project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
@@ -2785,9 +2784,8 @@ msgstr "用于在榜单上为此评分着色的十六进制颜色。"
 
 #. dks_schema:schema;dks_schema.hidden
 #: extensions/dks/schemas/dks_schema.yaml:19
-#, fuzzy
 msgid "Hide the extension in the server status."
-msgstr "服务器状态嵌入中 LotAtc 扩展显示的名称。"
+msgstr "在服务器状态中隐藏该扩展。"
 
 #. admin_schema:schema;downloads.[0].restricted
 #: plugins/admin/schemas/admin_schema.yaml:48
@@ -6004,9 +6002,8 @@ msgstr ""
 
 #. dks_schema:schema;dks_schema.name
 #: extensions/dks/schemas/dks_schema.yaml:14
-#, fuzzy
 msgid "The name shown for the extension."
-msgstr "为此参数显示的帮助文本。"
+msgstr "为该扩展显示的名称。"
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6547,9 +6544,8 @@ msgstr "DCS-gRPC 扩展是否已启用。"
 
 #. dks_schema:schema;dks_schema.enabled
 #: extensions/dks/schemas/dks_schema.yaml:8
-#, fuzzy
 msgid "Whether the DKS exporter is installed on this instance."
-msgstr "是否在此实例上启用 Olympus 扩展。"
+msgstr "此实例上是否安装了 DKS 导出器。"
 
 #. dsmc_schema:schema;dsmc_schema.enabled
 #: extensions/dsmc/schemas/dsmc_schema.yaml:8

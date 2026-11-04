@@ -3519,10 +3519,6 @@ msgstr ""
 "DCS применяет пыль или туман, но не оба: включение одного отключает "
 "другое."
 
-msgstr "Дымка — это отдельный переключатель со своей плотностью."
-
-msgstr "0 — нет, 10 — густо."
-
 #: services/webservice/pages/presets.py:1149
 msgid ""
 "auto lets DCS build the fog from the mission's own time; manual uses the "

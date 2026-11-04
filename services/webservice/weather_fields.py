@@ -49,9 +49,10 @@ the whole metre, so a fetch-and-save round trip changes nothing.
 Three facts the table carries, not argues with. ``clouds.iprecptns`` is an int the REST API reads as
 ``0=none, 1=rain, 2=thunderstorm, 3=snow`` (``plugins/restapi/models.py``), so it is a SELECT and
 never a slider. The fog mode is a SELECT (``off`` writes no fog, ``auto`` lets DCS build it,
-``manual`` uses the ``fog.rows`` table). And dust and fog are TWO INDEPENDENT switches — DCS renders
-them as separate effects and the mission file carries ``enable_dust`` and ``enable_fog`` side by side
-— so each has its own control and neither clears the other.
+``manual`` uses the ``fog.rows`` table). And dust and fog are MUTUALLY EXCLUSIVE: DCS applies one or
+the other, never both, so a single either-or control picks the haze and the write derives
+``enable_dust`` and ``enable_fog`` from that one choice (:data:`DUST_OR_FOG`,
+:data:`MUTUALLY_EXCLUSIVE`).
 
 Two preset keys share ONE control. ``enable_dust`` carries the dust switch itself; the fog table's
 ``fog.rows`` is a wizard key that exists so the table's control has an identity to be carried under,

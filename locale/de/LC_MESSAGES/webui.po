@@ -3572,10 +3572,6 @@ msgstr ""
 "DCS wendet Staub oder Nebel an, nicht beides: Aktivieren des einen "
 "schaltet das andere ab."
 
-msgstr "Dunst ist ein eigener Schalter mit eigener Dichte."
-
-msgstr "0 ist keiner, 10 ist dicht."
-
 #: services/webservice/pages/presets.py:1149
 msgid ""
 "auto lets DCS build the fog from the mission's own time; manual uses the "

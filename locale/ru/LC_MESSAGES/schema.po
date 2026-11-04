@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the DCSServerBot schema descriptions project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
@@ -2789,9 +2788,8 @@ msgstr "Hex-цвет для окраски этой оценки в таблиц
 
 #. dks_schema:schema;dks_schema.hidden
 #: extensions/dks/schemas/dks_schema.yaml:19
-#, fuzzy
 msgid "Hide the extension in the server status."
-msgstr "Имя, показываемое для расширения LotAtc в embed статуса сервера."
+msgstr "Скрывает расширение в статусе сервера."
 
 #. admin_schema:schema;downloads.[0].restricted
 #: plugins/admin/schemas/admin_schema.yaml:48
@@ -6010,9 +6008,8 @@ msgstr ""
 
 #. dks_schema:schema;dks_schema.name
 #: extensions/dks/schemas/dks_schema.yaml:14
-#, fuzzy
 msgid "The name shown for the extension."
-msgstr "Текст справки, показываемый для этого параметра."
+msgstr "Имя, отображаемое для расширения."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6553,9 +6550,8 @@ msgstr "Включено ли расширение DCS-gRPC."
 
 #. dks_schema:schema;dks_schema.enabled
 #: extensions/dks/schemas/dks_schema.yaml:8
-#, fuzzy
 msgid "Whether the DKS exporter is installed on this instance."
-msgstr "Включено ли расширение Olympus на этом инстансе."
+msgstr "Установлен ли экспортёр DKS на этом инстансе."
 
 #. dsmc_schema:schema;dsmc_schema.enabled
 #: extensions/dsmc/schemas/dsmc_schema.yaml:8

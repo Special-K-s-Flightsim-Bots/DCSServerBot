@@ -19,7 +19,7 @@ if exist "%USERPROFILE%\.local\bin\uv.exe" (
 )
 
 echo uv was not found - installing it for this user ...
-powershell -NoProfile -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy ByPass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; irm https://astral.sh/uv/install.ps1 | iex"
 
 if exist "%USERPROFILE%\.local\bin\uv.exe" (
     SET "UVEXE=%USERPROFILE%\.local\bin\uv.exe"
