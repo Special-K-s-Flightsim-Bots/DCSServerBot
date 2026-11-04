@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the DCSServerBot schema descriptions project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
@@ -2788,9 +2787,8 @@ msgstr "Hex-Farbe, mit der diese Bewertung auf dem Board eingefärbt wird."
 
 #. dks_schema:schema;dks_schema.hidden
 #: extensions/dks/schemas/dks_schema.yaml:19
-#, fuzzy
 msgid "Hide the extension in the server status."
-msgstr "Name, der für die LotAtc-Erweiterung im Serverstatus-Embed angezeigt wird."
+msgstr "Blendet die Erweiterung im Serverstatus aus."
 
 #. admin_schema:schema;downloads.[0].restricted
 #: plugins/admin/schemas/admin_schema.yaml:48
@@ -6011,9 +6009,8 @@ msgstr ""
 
 #. dks_schema:schema;dks_schema.name
 #: extensions/dks/schemas/dks_schema.yaml:14
-#, fuzzy
 msgid "The name shown for the extension."
-msgstr "Hilfetext, der für diesen Parameter angezeigt wird."
+msgstr "Der Name, der für die Erweiterung angezeigt wird."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6554,9 +6551,8 @@ msgstr "Ob die DCS-gRPC-Erweiterung aktiviert ist."
 
 #. dks_schema:schema;dks_schema.enabled
 #: extensions/dks/schemas/dks_schema.yaml:8
-#, fuzzy
 msgid "Whether the DKS exporter is installed on this instance."
-msgstr "Ob die Olympus-Erweiterung auf dieser Instanz aktiviert ist."
+msgstr "Ob der DKS-Exporter auf dieser Instanz installiert ist."
 
 #. dsmc_schema:schema;dsmc_schema.enabled
 #: extensions/dsmc/schemas/dsmc_schema.yaml:8

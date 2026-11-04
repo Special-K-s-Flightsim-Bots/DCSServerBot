@@ -3195,10 +3195,6 @@ msgstr "气压设定值，单位为 mmHg。"
 msgid "DCS applies dust or fog, not both: enabling one turns the other off."
 msgstr "DCS 只会应用沙尘或雾之一，不能同时：启用一个会关闭另一个。"
 
-msgstr "尘霾是一个独立的开关，有自己的密度。"
-
-msgstr "0 表示无，10 表示浓。"
-
 #: services/webservice/pages/presets.py:1149
 msgid ""
 "auto lets DCS build the fog from the mission's own time; manual uses the "

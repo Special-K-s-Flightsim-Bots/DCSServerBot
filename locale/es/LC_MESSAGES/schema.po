@@ -3,7 +3,6 @@
 # This file is distributed under the same license as the DCSServerBot schema descriptions project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
@@ -2788,9 +2787,8 @@ msgstr "Color hex usado para colorear esta nota en el panel."
 
 #. dks_schema:schema;dks_schema.hidden
 #: extensions/dks/schemas/dks_schema.yaml:19
-#, fuzzy
 msgid "Hide the extension in the server status."
-msgstr "Nombre mostrado para la extensión LotAtc en el embed de estado del servidor."
+msgstr "Oculta la extensión en el estado del servidor."
 
 #. admin_schema:schema;downloads.[0].restricted
 #: plugins/admin/schemas/admin_schema.yaml:48
@@ -6012,9 +6010,8 @@ msgstr ""
 
 #. dks_schema:schema;dks_schema.name
 #: extensions/dks/schemas/dks_schema.yaml:14
-#, fuzzy
 msgid "The name shown for the extension."
-msgstr "Texto de ayuda mostrado para este parámetro."
+msgstr "El nombre que se muestra para la extensión."
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6555,9 +6552,8 @@ msgstr "Si la extensión DCS-gRPC está activada."
 
 #. dks_schema:schema;dks_schema.enabled
 #: extensions/dks/schemas/dks_schema.yaml:8
-#, fuzzy
 msgid "Whether the DKS exporter is installed on this instance."
-msgstr "Indica si la extensión Olympus está habilitada en esta instancia."
+msgstr "Indica si el exportador DKS está instalado en esta instancia."
 
 #. dsmc_schema:schema;dsmc_schema.enabled
 #: extensions/dsmc/schemas/dsmc_schema.yaml:8

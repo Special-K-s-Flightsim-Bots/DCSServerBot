@@ -966,6 +966,13 @@ class ServiceBus(Service):
             if instance_key and func_signature and func_signature['instance'].annotation != 'str':
                 kwargs['instance'] = self.node.instances.get(instance_key)
 
+            # A node name is resolved on the answering process too: ``all_nodes`` always holds that
+            # process's own node, so a master->agent call naming the agent resolves to the node object
+            # instead of reaching the method as a plain string.
+            node_key = kwargs.get('node')
+            if node_key and func_signature and func_signature['node'].annotation != 'str':
+                kwargs['node'] = self.node.all_nodes.get(node_key, None)
+
             # Handle master-specific mappings
             if self.master:
                 member_key = kwargs.get('member')
@@ -981,10 +988,6 @@ class ServiceBus(Service):
                         kwargs['user'] = await self.bot.get_member(int(user_key.strip('<@>')))
                     except ValueError:
                         kwargs['user'] = None
-
-                node_key = kwargs.get('node')
-                if node_key and func_signature and func_signature['node'].annotation != 'str':
-                    kwargs['node'] = self.node.all_nodes.get(node_key, None)
 
             # Log performance and execute the function
             with PerformanceLog(f"RPC: {obj.__class__.__name__}.{method_name}()"):
