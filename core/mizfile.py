@@ -287,6 +287,8 @@ class MizFile:
     @enable_dust.setter
     def enable_dust(self, value: bool) -> None:
         self.mission['weather']['enable_dust'] = value
+        if value:
+            self.mission['weather']['enable_fog'] = False
 
     @property
     def dust_density(self) -> int:
@@ -332,10 +334,15 @@ class MizFile:
                 self.mission['weather']['fog2'] = {
                     "mode": 2
                 }
+                # disable the old fog
+                self.mission['weather']['enable_fog'] = False
             else:
                 self.mission['weather'].pop('fog2', None)
             value = False
-        self.mission['weather']['enable_fog'] = value
+        else:
+            self.mission['weather']['enable_fog'] = value
+        if value:
+            self.enable_dust = False
 
     @property
     def fog(self) -> dict:
