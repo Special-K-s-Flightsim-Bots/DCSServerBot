@@ -1,3 +1,4 @@
+# config/servers.yaml
 DEFAULT:
   messages: # General messages for servers. You can overwrite any in any server.
     greeting_message_members: '{player.name}, welcome back to {server.name}!'

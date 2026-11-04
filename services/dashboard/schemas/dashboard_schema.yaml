@@ -4,17 +4,52 @@ mapping:
   DEFAULT:
     type: map
     nullable: false
+    desc: Dashboard settings applied to every node.
+    example: |
+      servers:
+        hide_remote_servers: false
+        background: white on dark_blue
+        border: white
     mapping:
       servers:
         type: map
         nullable: false
+        desc: Colors and options of the servers panel.
+        example: |
+          hide_remote_servers: false
+          background: white on dark_blue
+          border: white
         mapping:
-          hide_remote_servers: {type: bool, nullable: false}
-          background: {type: str, nullable: false, range: {min: 1}}
-          border: {type: str, nullable: false, range: {min: 1}}
+          hide_remote_servers:
+            type: bool
+            nullable: false
+            desc: Show only local servers on the master node.
+            example: "false"
+          background:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Background style of the servers panel.
+            example: "white on dark_blue"
+          border:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Border color of the servers panel.
+            example: "white"
       regex;(header|nodes|log):
         type: map
         nullable: false
         mapping:
-          background: {type: str, nullable: false, range: {min: 1}}
-          border: {type: str, nullable: false, range: {min: 1}}
+          background:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Background style of the header, nodes or log panel.
+            example: "white on navy_blue"
+          border:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Border color of the header, nodes or log panel.
+            example: "white"

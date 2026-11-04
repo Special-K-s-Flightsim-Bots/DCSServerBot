@@ -1,4 +1,5 @@
 import asyncio
+import glob
 import os
 import re
 import shutil
@@ -6,13 +7,15 @@ import zipfile
 
 from aiohttp import ClientSession, ClientResponseError
 from contextlib import suppress
-from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy, Node
+from core import ServiceRegistry, Service, Server, Status, ServiceInstallationError, utils, proxy, Node, Instance
+from core.utils import resolve_within
 from enum import Enum
 from filecmp import cmp
 from functools import total_ordering
 from packaging import version
 from pathlib import Path, PurePosixPath
 from psycopg import sql
+from typing import cast
 from urllib.parse import urlparse
 
 from ..servicebus import ServiceBus
@@ -27,6 +30,76 @@ __all__ = [
 #    ENCODING = 'cp1252'
 #else:
 ENCODING = 'utf-8'
+
+
+#: the names Windows answers as a DEVICE instead of as a file: a write to one targets the device, so the
+#: file it would leave behind is never a file and cannot be removed as one
+_RESERVED_DEVICE_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"COM{number}" for number in range(1, 10)}
+    | {f"LPT{number}" for number in range(1, 10)}
+)
+
+
+def _leaf_name(value: object) -> str | None:
+    """The one leaf name *value* is, or ``None`` when it names a LOCATION instead.
+
+    A package name and a version are interpolated into a glob and joined onto a package-folder path, so
+    both are read through this: the answer is the value the join has to use. Surrounding whitespace is
+    dropped here, so the string that was validated is the string that reaches the filesystem.
+
+    Refused: an empty value, a NUL, a path separator, ``.``/``..``, every absolute form and a Windows
+    device name — ``CON``, ``PRN``, ``AUX``, ``NUL``, ``CONIN$``, ``CONOUT$``, ``COM1``-``COM9`` and
+    ``LPT1``-``LPT9``, with or without an extension. Everything else is accepted — the enumerator
+    decides what a package is called.
+    """
+    text = str(value or "").strip()
+    if not text or "\x00" in text:
+        return None
+    if "/" in text or "\\" in text:
+        return None
+    if text in (".", ".."):
+        return None
+    if len(text) > 1 and text[1] == ":" and text[0].isalpha():
+        return None
+    if text.split(".")[0].strip().upper() in _RESERVED_DEVICE_NAMES:
+        return None
+    return text
+
+
+class _EscapingArchiveEntry(Exception):
+    """An archive entry that names a place outside the tree it would be written to."""
+
+    def __init__(self, entry: str):
+        super().__init__(entry)
+        self.entry = entry
+
+
+def _resolved_below(base: object, name: object) -> str | None:
+    """The RESOLVED path *name* may be written to or read from below *base*, or ``None``.
+
+    An archive entry name and an ``install.log`` line are content, not a caller's identity: both are
+    joined onto a tree, so both are decided here before the join is used. A separator is a separator
+    in either direction — Windows spells it ``\\`` where POSIX reads an ordinary character — so the
+    name is folded to ``/`` and joined segment by segment. An empty name, a NUL, a rooted name and a
+    drive-qualified name never name a place below a tree.
+
+    The decision is :func:`core.utils.resolve_within`'s, taken on the RESOLVED pair: a folder below
+    *base* that is a link or a junction pointing out of it is refused, where a lexical ``abspath`` +
+    ``commonpath`` pair accepts the joined string. The value answered is the resolved one, so a caller
+    that hands it to a writer follows the route that was checked and no second one.
+    """
+    base_text = str(base or "").strip()
+    text = str(name if name is not None else "").strip()
+    if not base_text or not text or "\x00" in text:
+        return None
+    folded = text.replace("\\", "/")
+    if folded.startswith("/"):
+        return None
+    if len(folded) > 1 and folded[1] == ":" and folded[0].isalpha():
+        return None
+    return resolve_within(base_text, os.path.join(base_text, *folded.split("/")))
+
 
 @total_ordering
 class Folder(Enum):
@@ -91,7 +164,9 @@ class ModManagerService(Service):
                     if package.get('version', 'latest') == 'latest':
                         _version = await self.get_latest_version(package)
                     else:
-                        _version = package['version']
+                        _version = package.get('version')
+                        if _version is not None:
+                            _version = str(_version)
                     # check for valid versions
                     if _version is None:
                         self.log.warning(f"{package['name']} without version in {folder.name}, skipped!")
@@ -107,6 +182,13 @@ class ModManagerService(Service):
                     server.maintenance = True
                     try:
                         if not installed:
+                            reference = server.node if folder == Folder.RootFolder else server
+                            blocking = self._blocking_servers(reference, folder)
+                            if blocking:
+                                self.log.warning(
+                                    f"  - Server {server.name} cannot auto-install package {package['name']}: "
+                                    f"{folder.value} is held by server(s) {', '.join(blocking)}.")
+                                break
                             if not await self.install_package(server, folder, package['name'], _version,
                                                               package.get('repo')):
                                 self.log.warning(f"- Package {package['name']}_v{_version} not found!")
@@ -167,6 +249,37 @@ class ModManagerService(Service):
                 data = await response.json()
         return set([x['tag_name'].strip('v') for x in data])
 
+    async def _release_tags(self, repo: str) -> list[str]:
+        """The release tags of ``repo`` in the order GitHub lists them, deduplicated, ``v`` stripped.
+
+        The same API call and the same tag vocabulary as :meth:`get_repo_versions`, read as an
+        ORDERED list: GitHub answers a repository's releases newest first, and a version pick that
+        re-sorted them would put ``2.4.1`` above ``2.10.0``.
+        """
+        api = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
+        async with ClientSession() as session:
+            async with session.get(api, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
+                response.raise_for_status()
+                data = await response.json()
+        tags: list[str] = []
+        for release in data or ():
+            tag = str(release.get('tag_name', '')).strip('v')
+            if tag and tag not in tags:
+                tags.append(tag)
+        return tags
+
+    @proxy(timeout=60)
+    async def list_repo_versions(self, node: Node, url: str) -> list[str]:
+        """The releases of the repository ``url``, newest first — ``[]`` for any other URL.
+
+        Read on ``node``: the GitHub request goes out through that node's proxy, exactly like every
+        other download this service performs, so the answer comes from the network the packages will
+        be fetched over. A URL that is not a repository is answered without a request at all.
+        """
+        if not self.is_repo_url(url):
+            return []
+        return await self._release_tags(url)
+
     async def get_download_url(self, repo: str, package_name: str, version: str) -> str | list[str] | None:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases"
         async with ClientSession() as session:
@@ -190,16 +303,99 @@ class ModManagerService(Service):
             except (KeyError, IndexError):
                 return None
 
-    async def get_available_versions(self, server: Server, folder: Folder, package_name: str) -> list[str]:
+    def _package_dir(self, folder: Folder) -> str:
+        """The package directory of ``folder`` as configured for the node this service runs on."""
+        return os.path.expandvars(self.get_config()[folder.value])
+
+    def _package_identity(self, package_name: object, version: object) -> tuple[str, str] | None:
+        """``(package, version)`` as the identity this call may join onto a path, or ``None``.
+
+        The returned pair is the only form a caller-supplied name and version reach a glob, a path or a
+        row through, so a value naming a location — or a Windows device — is refused here, with a
+        warning line and never a raise, before any join is built.
+        """
+        package = _leaf_name(package_name)
+        _version = _leaf_name(version)
+        if package is None or _version is None:
+            self.log.warning(
+                f"- {package_name!r} v{version!r} is not a package identity, refused: a package name "
+                f"and a version are one entry each, not a path and not a device name.")
+            return None
+        return package, _version
+
+    @proxy
+    async def list_available_packages(self, node: Node, folder: Folder | str) -> list[dict]:
+        """
+        Enumerate the package directory of ``folder`` on ``node``.
+
+        One entry per package: ``name``, ``version``, ``kind`` (``zip`` or ``dir``), ``size`` in bytes and
+        ``mtime``. Both a zip file and a directory are packages. Hidden entries, ``desktop.ini``, entries of
+        any other type and names that do not parse are skipped; a missing package directory yields an empty
+        list.
+        """
+        if isinstance(folder, str):
+            folder = Folder(folder)
+        path = self._package_dir(folder)
+        try:
+            entries = sorted(os.listdir(path))
+        except FileNotFoundError:
+            self.log.warning(f"- ModManager: package folder {folder.value} does not exist.")
+            return []
+        packages = []
+        for entry in entries:
+            if entry.startswith('.') or entry.casefold() == 'desktop.ini':
+                continue
+            full = os.path.join(path, entry)
+            if os.path.isdir(full):
+                kind = 'dir'
+            elif entry.lower().endswith('.zip') and os.path.isfile(full):
+                kind = 'zip'
+            else:
+                continue
+            name, _version = self.parse_filename(entry)
+            if not name or not _version:
+                self.log.debug(f"- ModManager: {folder.value}/{entry} is not a package, skipped.")
+                continue
+            packages.append({
+                'name': name,
+                'version': _version,
+                'kind': kind,
+                'size': self._package_size(full) if kind == 'dir' else os.path.getsize(full),
+                'mtime': os.path.getmtime(full)
+            })
+        return packages
+
+    @staticmethod
+    def _package_size(path: str) -> int:
+        """Total size of the files below ``path``; a package directory carries no size of its own."""
+        size = 0
+        for root, _dirs, files in os.walk(path):
+            for file in files:
+                with suppress(OSError):
+                    size += os.path.getsize(os.path.join(root, file))
+        return size
+
+    async def get_available_versions(self, reference: Server | Node, folder: Folder,
+                                     package_name: str) -> list[str]:
+        """Every version of ``package_name`` the folder and the package's repository offer.
+
+        *reference* is the server the package belongs to, or the node itself when the caller owns no
+        instance (a node's ``RootFolder``): a node reference reads the configuration block without an
+        instance override, which is the block both folders are configured in.
+        """
+        leaf = _leaf_name(package_name)
+        if leaf is None:
+            return []
         local_versions: set[str] = set()
-        config = self.get_config(server)
-        for x in Path(os.path.expandvars(config[folder.value])).glob(f"{package_name}*"):
+        config = self.get_config(reference if isinstance(reference, Server) else None)
+        # the name is literal identity: ``*``, ``?``, ``[`` and ``]`` in it are characters, not a pattern
+        for x in Path(os.path.expandvars(config[folder.value])).glob(f"{glob.escape(leaf)}*"):
             name, version = self.parse_filename(x.name)
             if version:
                 local_versions.add(version)
         remote_versions: set[str] = set()
         with suppress(StopIteration):
-            package = next(x for x in config.get('packages', []) if x['name'] == package_name and x['source'] == folder.value)
+            package = next(x for x in config.get('packages', []) if x['name'] == leaf and x['source'] == folder.value)
             if 'repo' in package:
                 remote_versions = {x for x in await self.get_repo_versions(package['repo'])}
         return sorted(local_versions | remote_versions)
@@ -209,6 +405,14 @@ class ModManagerService(Service):
         path = urlparse(url).path
         return path.lstrip('/')
 
+    @staticmethod
+    def is_repo_url(url: str) -> bool:
+        """True for a GitHub repository URL (``owner/repo`` and nothing deeper)."""
+        parsed = urlparse(url)
+        if parsed.netloc.casefold() not in ('github.com', 'www.github.com'):
+            return False
+        return len([part for part in parsed.path.split('/') if part]) == 2
+
     async def download(self, url: str, folder: Folder, version: str | None, *, force: bool | None = False) -> None:
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
@@ -217,7 +421,15 @@ class ModManagerService(Service):
             filename = os.path.basename(url)[:-4]
         if version and version not in filename:
             filename += f'_v{version}.zip'
-        outpath = os.path.join(path, filename)
+        # the written name is ONE leaf of the package folder, whatever the URL or the version spells;
+        # the leaf is decided on the RESOLVED path, so the writer takes the route that was checked
+        leaf = os.path.basename(filename)
+        outpath = _resolved_below(path, leaf)
+        if outpath is None:
+            self.log.warning(
+                f"- ModManager: nothing was downloaded from {url}: the file name {leaf!r} does not "
+                f"name a file in {path}.")
+            raise ValueError(f"the file name {leaf!r} of {url} does not name a file in {path}")
         self.log.info(f"  => ModManager: Downloading {folder.value}/{filename} ...")
         async with ClientSession() as session:
             async with session.get(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth) as response:
@@ -245,6 +457,38 @@ class ModManagerService(Service):
             url = f'{repo}/releases/download/v{version}/{package_name}_{version}.zip'
             await self.download(url, folder, version, force=force)
 
+    @proxy(timeout=600)
+    async def download_package(self, node: Node, folder: Folder | str, url: str, *, version: str | None = None,
+                               package_name: str | None = None, force: bool = False) -> bool:
+        """
+        Download ``url`` into the package directory of ``folder`` on ``node``.
+
+        A GitHub repository URL resolves one release asset; an answer offering several assets is refused with
+        ``False``, because a version has to be named to pick one. Any other http(s) URL is fetched as given.
+        A missing target folder, an existing file without ``force`` and a failing request raise as the
+        download itself does.
+        """
+        if isinstance(folder, str):
+            folder = Folder(folder)
+        if package_name is not None:
+            name = _leaf_name(package_name)
+            if name is None:
+                self.log.warning(f"- {package_name!r} is not a package name, nothing was downloaded.")
+                return False
+            package_name = name
+        if version is not None:
+            _version = _leaf_name(version)
+            if _version is None:
+                self.log.warning(f"- {version!r} is not a version, nothing was downloaded.")
+                return False
+            version = _version
+        if self.is_repo_url(url):
+            downloaded = await self.download_from_repo(url, folder, package_name=package_name,
+                                                       version=version, force=force)
+            return not isinstance(downloaded, list)
+        await self.download(url, folder, version, force=force)
+        return True
+
     async def get_latest_repo_version(self, repo: str) -> str:
         url = f"https://api.github.com/repos/{self.extract_repo_name(repo)}/releases/latest"
 
@@ -255,14 +499,23 @@ class ModManagerService(Service):
                 return data.get('tag_name', '').strip('v')
 
     async def _get_latest_file_version(self, package: dict):
+        """The newest version of ``package``'s own files in its folder, ``v`` stripped, else ``None``.
+
+        A folder holds every package side by side, so an entry counts for this package only when
+        ``parse_filename`` reads this package's name out of it: a file whose name merely CONTAINS the
+        name (``FooBar`` for ``Foo``) is the file of another package. An entry that does not parse is
+        skipped rather than read as a version.
+        """
         config = self.get_config()
         source = package['source']
         if isinstance(source, Folder):
             source = source.value
         path = os.path.expandvars(config[source])
-        available = [self.parse_filename(x) for x in os.listdir(path) if package['name'] in x]
         max_version = None
-        for _, _version in available:
+        for entry in os.listdir(path):
+            name, _version = self.parse_filename(entry)
+            if not _version or name != package['name']:
+                continue
             if not max_version or version.parse(_version) > version.parse(max_version):
                 max_version = _version
         return max_version.strip('v') if max_version else None
@@ -276,6 +529,53 @@ class ModManagerService(Service):
                     f"Can't connect to {package['repo']}: {ex.message}. "
                     f"Update-check skipped for package {package['name']}.")
         return await self._get_latest_file_version(package)
+
+    @proxy(timeout=120)
+    async def list_package_versions(self, node: Node, folder: Folder | str,
+                                    package_names: list[str]) -> dict[str, dict]:
+        """``{package: {"versions", "latest", "repo", "downloaded"}}`` for one package folder on ``node``.
+
+        Computed by :meth:`get_available_versions` and :meth:`get_latest_version` themselves, so the
+        answer is the chat client's own verdict — the folder's versions merged with a declared
+        ``repo:``'s releases, and the newest of them (a repository's latest release, else the newest
+        file on disk). ``repo`` is the declared repository URL (``""`` for a plain-URL package) and
+        ``downloaded`` says whether ``latest`` is a file in the folder right now.
+
+        ONE call per page for a whole table: the folder is enumerated once and read for every name.
+        A package whose read raises is left out of the answer, so the caller falls back to what it
+        knew before for that row alone rather than losing the table.
+        """
+        if isinstance(folder, str):
+            folder = Folder(folder)
+        declared = {package['name']: package
+                    for package in (self.get_config().get('packages') or ())
+                    if isinstance(package, dict) and package.get('name')
+                    and package.get('source') == folder.value}
+        on_disk: dict[str, set[str]] = {}
+        for entry in await self.list_available_packages(node, folder):
+            on_disk.setdefault(entry['name'], set()).add(entry['version'])
+        answer: dict[str, dict] = {}
+        for name in package_names or ():
+            leaf = _leaf_name(name)
+            if leaf is None:
+                continue
+            repo = str((declared.get(leaf) or {}).get('repo') or '')
+            package = {"source": folder, "name": leaf}
+            if repo:
+                package['repo'] = repo
+            try:
+                versions = await self.get_available_versions(node, folder, leaf)
+                latest = str(await self.get_latest_version(package) or '')
+            except Exception as ex:
+                self.log.warning(f"ModManager: the versions of {leaf} could not be read: {ex}")
+                continue
+            answer[leaf] = {
+                "versions": [str(item) for item in versions],
+                "latest": latest,
+                "repo": repo,
+                "downloaded": latest in on_disk.get(leaf, set()),
+            }
+        return answer
 
     async def get_installed_package(self, reference: Server | Node, folder: Folder, package_name: str) -> str | None:
         if isinstance(reference, Server):
@@ -299,12 +599,18 @@ class ModManagerService(Service):
             force: bool = False,
             repo: str | None = None
     ) -> bool:
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         if folder == Folder.SavedGames:
             packages_path = os.path.join(path, '.' + reference.instance.name, package_name + '_v' + version)
+            target = cast(Instance, cast(Server, reference).instance).home
         else:
             packages_path = os.path.join(path, '.' + reference.name, package_name + '_v' + version)
+            target = cast(Node, reference).installation
         os.makedirs(packages_path, exist_ok=True)
         log_entries = []
 
@@ -323,8 +629,17 @@ class ModManagerService(Service):
                 for name in zfile.namelist():
                     if os.path.basename(name).lower() == 'thumbs.db':
                         continue
+                    # an archive name may only be replayed against the trees it stays below, judged on
+                    # its resolved form so a link below either tree cannot carry it out
+                    if _resolved_below(target, name) is None or \
+                            _resolved_below(packages_path, name) is None:
+                        self.log.warning(
+                            f"- install.log recreation for {package_name}_v{version} left out the "
+                            f"archive entry {name!r}, it names a place outside {target}.")
+                        continue
                     if name.endswith('/'):
-                        name.rstrip('/')
+                        # a directory entry is logged as the tree walk logs it: one path, no separator
+                        name = name.rstrip('/')
                     else:
                         dirname = os.path.dirname(name)
                         if dirname not in created_dirs:
@@ -358,12 +673,17 @@ class ModManagerService(Service):
 
     async def do_install(self, reference: Server | Node, folder: Folder, package_name: str, version: str,
                          path: str, filename: str) -> bool:
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
         if folder == Folder.SavedGames:
             target = reference.instance.home
             packages_path = os.path.join(path, '.' + reference.instance.name, package_name + '_v' + version)
         else:
             target = reference.installation
             packages_path = os.path.join(path, '.' + reference.name, package_name + '_v' + version)
+        created_here = not os.path.isdir(packages_path)
         os.makedirs(packages_path, exist_ok=True)
         log_entries = []
 
@@ -374,6 +694,7 @@ class ModManagerService(Service):
                 ovgme = self.is_ovgme(zfile, package_name)
                 if ovgme:
                     root = PurePosixPath(namelist[0]).parts[0] + '/'
+                entries = []
                 for name in namelist:
                     if ovgme:
                         _name = name.replace(root, '')
@@ -384,12 +705,20 @@ class ModManagerService(Service):
                     # ignore all Thumbs.db files
                     if os.path.basename(_name).lower() == 'thumbs.db':
                         continue
-                    orig = os.path.join(target, _name)
+                    # an entry name is archive content: it may only name a place below both trees, and
+                    # the whole archive is read before anything is written, so a refusal leaves the
+                    # installation untouched instead of half-written. Both joints are decided on the
+                    # RESOLVED path and that value is what the write below uses
+                    written = _resolved_below(target, _name)
+                    backup = _resolved_below(packages_path, _name)
+                    if written is None or backup is None:
+                        raise _EscapingArchiveEntry(name)
+                    entries.append((name, _name, written, backup))
+                for name, _name, orig, dest in entries:
                     parent = os.path.dirname(orig)
 
                     if os.path.exists(orig) and os.path.isfile(orig):
                         log_entries.append(f"x {_name}\n")
-                        dest = os.path.join(packages_path, _name)
                         dest_parent = os.path.dirname(dest)
                         if dest_parent not in create_dirs:
                             os.makedirs(dest_parent, exist_ok=True)
@@ -409,6 +738,8 @@ class ModManagerService(Service):
             return log_entries
 
         def copy_tree():
+            skipped = []
+
             def backup(p, names) -> list[str]:
                 ignore_list = []
                 created_dirs = set()
@@ -421,10 +752,19 @@ class ModManagerService(Service):
                     source = os.path.join(p, name)
                     if len(_dir):
                         name = os.path.join(_dir, name)
-                    orig = os.path.join(target, name)
+                    # a tree entry is walked from the package itself, but the log only carries names that
+                    # stay below both trees — judged on the RESOLVED path, so a link below either tree
+                    # cannot carry an entry out — and anything else is left out of the installation
+                    written = _resolved_below(target, name)
+                    backup = _resolved_below(packages_path, name)
+                    if written is None or backup is None:
+                        skipped.append(name)
+                        ignore_list.append(os.path.basename(name))
+                        continue
+                    orig = written
                     if os.path.exists(orig) and os.path.isfile(orig) and not cmp(source, orig):
                         log_entries.append("x {}\n".format(name.replace('\\', '/')))
-                        dest = os.path.join(packages_path, name)
+                        dest = backup
                         dest_parent = os.path.dirname(dest)
                         if dest_parent not in created_dirs:
                             os.makedirs(dest_parent, exist_ok=True)
@@ -435,9 +775,22 @@ class ModManagerService(Service):
                 return ignore_list
 
             shutil.copytree(filename, target, ignore=backup, dirs_exist_ok=True)
+            if skipped:
+                self.log.warning(
+                    f"- {len(skipped)} entr{'y' if len(skipped) == 1 else 'ies'} of "
+                    f"{package_name}_v{version} name{'s' if len(skipped) == 1 else ''} a place outside "
+                    f"{target}, left out.")
 
         if os.path.isfile(filename) and filename.endswith(".zip"):
-            await asyncio.to_thread(process_zipfile)
+            try:
+                await asyncio.to_thread(process_zipfile)
+            except _EscapingArchiveEntry as ex:
+                self.log.warning(
+                    f"- Installation of package {package_name}_v{version} refused: the archive entry "
+                    f"{ex.entry!r} names a place outside {target}. Nothing was installed.")
+                if created_here:
+                    utils.safe_rmtree(packages_path)
+                return False
         elif os.path.isdir(filename):
             await asyncio.to_thread(copy_tree)
         else:
@@ -453,8 +806,8 @@ class ModManagerService(Service):
 
         async with self.apool.connection() as conn:
             await conn.execute(f"""
-                INSERT INTO mm_packages ({column}, package_name, version, folder) 
-                VALUES (%s, %s, %s, %s) 
+                INSERT INTO mm_packages ({column}, package_name, version, folder, time) 
+                VALUES (%s, %s, %s, %s, timezone('UTC', now())) 
                 ON CONFLICT ({column}, package_name) 
                 DO UPDATE SET version=excluded.version
             """, (reference.name, package_name, version, folder.value))
@@ -465,16 +818,23 @@ class ModManagerService(Service):
                               repo: str | None = None) -> str | None:
         if isinstance(folder, str):
             folder = Folder(folder)
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return None
+        package_name, version = identity
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
+        # the name and the version are literal identity: ``*``, ``?``, ``[`` and ``]`` in them are
+        # characters, not a pattern, so the lookup cannot answer with a sibling package's archive
+        pattern = f"{glob.escape(package_name)}*{glob.escape(version)}*"
         try:
-            return str(next(Path(path).glob(f"{package_name}*{version}*")))
+            return str(next(Path(path).glob(pattern)))
         except StopIteration:
             if repo:
                 try:
                     if await self.download_from_repo(repo, folder, package_name=package_name, version=version):
                         raise
-                    return str(next(Path(path).glob(f"{package_name}*{version}*")))
+                    return str(next(Path(path).glob(pattern)))
                 except Exception:
                     pass
                 self.log.warning(f"- Can't find {package_name}_v{version} in {repo}.")
@@ -482,20 +842,14 @@ class ModManagerService(Service):
                 self.log.warning(f"- Can't find {package_name}_v{version} in {folder.value}.")
             return None
 
-    @proxy(timeout=180)
-    async def install_package(self, server: Server, folder: Folder | str, package_name: str, version: str,
-                              repo: str | None = None) -> bool:
-        self.log.info(f"Installing package {package_name}_v{version} ...")
-        if isinstance(folder, str):
-            folder = Folder(folder)
-        config = self.get_config()
-        path = os.path.expandvars(config[folder.value])
-        if folder == Folder.SavedGames:
-            reference = server
-            os.makedirs(os.path.join(path, '.' + reference.instance.name), exist_ok=True)
-        else:
-            reference = server.node
-            os.makedirs(os.path.join(path, '.' + reference.name), exist_ok=True)
+    async def _install_from_folder(self, reference: Server | Node, folder: Folder, package_name: str,
+                                   version: str, path: str, repo: str | None = None) -> bool:
+        """Install the package ``package_name``/``version`` from the folder ``path`` onto the target of
+        ``reference``."""
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
         filename = await self._ensure_package(folder, package_name, version, repo)
         if not filename:
             return False
@@ -505,8 +859,80 @@ class ModManagerService(Service):
             self.log.exception(ex)
             raise
 
+    def _registry_servers(self) -> list[Server]:
+        """The servers registered in this process; empty when the service has no bus registry."""
+        return list(getattr(getattr(self, 'bus', None), 'servers', {}).values())
+
+    def _blocking_servers(self, reference: Server | Node, folder: Folder) -> list[str]:
+        """Names of the servers whose state forbids a write to ``folder`` on ``reference``.
+
+        ``RootFolder`` is the node's DCS installation: every server on that node must be down.
+        ``SavedGames`` is one instance: only that server must be down. Servers of other nodes never count.
+        """
+        if folder == Folder.SavedGames:
+            server = cast(Server, reference)
+            return [] if server.status == Status.SHUTDOWN else [server.name]
+        node_name = cast(Node, reference).name
+        return sorted(
+            server.name for server in self._registry_servers()
+            if getattr(getattr(server, 'node', None), 'name', None) == node_name
+            and server.status != Status.SHUTDOWN
+        )
+
+    def _gate_open(self, reference: Server | Node, folder: Folder) -> bool:
+        """Whether a write to ``folder`` on ``reference`` may start; a closed gate names its blockers."""
+        blocking = self._blocking_servers(reference, folder)
+        if blocking:
+            self.log.warning(
+                f"- {folder.value} is held by server(s) {', '.join(blocking)}. "
+                f"Shut them down first, nothing was written.")
+            return False
+        return True
+
+    @proxy(timeout=180)
+    async def install_package(self, server: Server, folder: Folder | str, package_name: str, version: str,
+                              repo: str | None = None) -> bool:
+        if isinstance(folder, str):
+            folder = Folder(folder)
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
+        if folder == Folder.SavedGames:
+            reference = server
+            directory = '.' + cast(Instance, server.instance).name
+        else:
+            reference = server.node
+            directory = '.' + server.node.name
+        if not self._gate_open(reference, folder):
+            return False
+        self.log.info(f"Installing package {package_name}_v{version} ...")
+        path = self._package_dir(folder)
+        os.makedirs(os.path.join(path, directory), exist_ok=True)
+        return await self._install_from_folder(reference, folder, package_name, version, path, repo)
+
+    @proxy(timeout=180)
+    async def install_root_package(self, node: Node, package_name: str, version: str,
+                                   repo: str | None = None) -> bool:
+        """Install a package into the DCS installation of ``node`` (``Folder.RootFolder``)."""
+        folder = Folder.RootFolder
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
+        if not self._gate_open(node, folder):
+            return False
+        self.log.info(f"Installing root-package {package_name}_v{version} ...")
+        path = self._package_dir(folder)
+        os.makedirs(os.path.join(path, '.' + node.name), exist_ok=True)
+        return await self._install_from_folder(node, folder, package_name, version, path, repo)
+
     async def do_uninstall(self, reference: Server | Node, folder: Folder, package_name: str, version: str,
                            packages_path: str) -> bool:
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
         target = reference.installation if folder == Folder.RootFolder else reference.instance.home
 
         def _process_install_log() -> list[tuple[str, str]]:
@@ -524,9 +950,27 @@ class ModManagerService(Service):
 
         actions = await asyncio.to_thread(_process_install_log)
 
-        def _apply_actions() -> None:
+        def _apply_actions() -> int:
+            skipped = 0
             for action, filename in reversed(actions):
-                file = os.path.normpath(os.path.join(target, filename))
+                # a log line is content: a name leaving either tree is never removed or overwritten.
+                # The joints are decided on the RESOLVED path, and the resolved value is what the
+                # removal, the directory prune and the restore below act on
+                file = _resolved_below(target, filename)
+                if file is None:
+                    skipped += 1
+                    self.log.warning(
+                        f"- install.log entry {filename!r} names a place outside {target}, skipped.")
+                    continue
+                source = None
+                if action == 'x':
+                    source = _resolved_below(packages_path, filename)
+                    if source is None:
+                        skipped += 1
+                        self.log.warning(
+                            f"- install.log entry {filename!r} names a place outside "
+                            f"{packages_path}, skipped.")
+                        continue
                 if action == 'w':
                     if os.path.isfile(file):
                         os.remove(file)
@@ -535,17 +979,22 @@ class ModManagerService(Service):
                             # avoid loading the full directory listing when only emptiness matters
                             if next(os.scandir(file), None) is None:
                                 os.removedirs(file)
-                elif action == 'x':
+                elif action == 'x' and source is not None:
                     try:
-                        shutil.copy(os.path.join(packages_path, filename), file)
+                        shutil.copy(source, file)
                     except FileNotFoundError:
                         if folder == Folder.RootFolder:
                             self.log.warning(
                                 f"- Can't recover file {filename}, because it has been removed! "
                                 f"You might need to run a slow repair."
                             )
+            return skipped
 
-        await asyncio.to_thread(_apply_actions)
+        skipped = await asyncio.to_thread(_apply_actions)
+        if skipped:
+            self.log.warning(
+                f"- {skipped} install.log entr{'y' if skipped == 1 else 'ies'} of "
+                f"{package_name}_v{version} were skipped, they name a place outside the target.")
         utils.safe_rmtree(packages_path)
 
         if isinstance(reference, Server):
@@ -556,7 +1005,7 @@ class ModManagerService(Service):
             await conn.execute(f"""
                 DELETE FROM mm_packages 
                 WHERE {column} = %s AND folder = %s AND package_name = %s AND version = %s
-            """, (reference.name, folder, package_name, version))
+            """, (reference.name, folder.value, package_name, version))
         self.log.info(f"- Package {package_name}_v{version} successfully removed.")
         return True
 
@@ -572,8 +1021,15 @@ class ModManagerService(Service):
     ) -> bool:
         if isinstance(folder, str):
             folder = Folder(folder)
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
         if folder == Folder.RootFolder:
+            # the node's gate is read once, inside the method that runs on the node
             return await self.uninstall_root_package(server.node, package_name, version, force, repo)
+        if not self._gate_open(server, folder):
+            return False
         self.log.info(f"Uninstalling package {package_name}_v{version} ...")
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
@@ -588,6 +1044,7 @@ class ModManagerService(Service):
                 self.log.info("- Recreation successful.")
         return await self.do_uninstall(server, folder, package_name, version, packages_path)
 
+    @proxy(timeout=180)
     async def uninstall_root_package(
             self, node: Node,
             package_name: str,
@@ -595,8 +1052,14 @@ class ModManagerService(Service):
             force: bool = False,
             repo: str | None = None
     ) -> bool:
-        self.log.info(f"Uninstalling root-package {package_name}_v{version} ...")
         folder = Folder.RootFolder
+        identity = self._package_identity(package_name, version)
+        if identity is None:
+            return False
+        package_name, version = identity
+        if not self._gate_open(node, folder):
+            return False
+        self.log.info(f"Uninstalling root-package {package_name}_v{version} ...")
         config = self.get_config()
         path = os.path.expandvars(config[folder.value])
         packages_path = os.path.join(path, '.' + node.name, package_name + '_v' + version)

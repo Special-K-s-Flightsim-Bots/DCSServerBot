@@ -1,0 +1,33 @@
+{#-
+  THE LANGUAGE CONTROL — one partial, rendered by the shell (base.html) and by the login page
+  (login.html), which does not extend the shell and so cannot inherit it.
+
+  It is PLAIN LINKS, never a form and never a script: each option is a GET to the shell's own
+  /language route, which stores the choice in its own cookie and sends the visitor back to `next`.
+  That is deliberately session-free, so a visitor can pick a language on the login page BEFORE
+  signing in — and the page stays fully usable with JavaScript off.
+
+  EACH OPTION IS A FLAG, NOT A NAME. More languages are coming, so a row of names would be too long;
+  each option is a small SVG flag (a neutral globe for English, the source language). The flag is a
+  real static SVG, never an emoji — Windows renders flag emoji as the two regional-indicator letters,
+  which would look broken on the maintainer's own machine. The language's OWN endonym is still
+  carried as the link's `title` (tooltip) and `aria-label` (accessible name), so hovering and a
+  screen reader still say which language it is even though the name is not drawn; the image itself is
+  decorative (`alt=""`), because the link already names it.
+
+  `language` is built by services.webservice.i18n.language_control and passed by every page that
+  renders the shell; the `is defined` guard keeps the standalone renders a test makes (which pass no
+  request) free of a control that would have nowhere to point. The options are exactly the languages
+  that have a `webui` catalog, so no option can render an untranslated page.
+-#}
+{% if language is defined and language %}
+<nav class="lang" aria-label="{{ _('Language') }}">
+  {%- for item in language.languages %}
+  <a class="lang-opt{{ ' on' if item.active else '' }}" hreflang="{{ item.code }}" title="{{ item.name }}"
+     aria-label="{{ item.name }}"
+     href="{{ language.action }}?lang={{ item.code }}&amp;next={{ language.next|urlencode }}"
+     {%- if item.active %} aria-current="true"{% endif %}><img class="flag" src="{{ item.flag }}" alt=""
+     width="20" height="15"></a>
+  {%- endfor %}
+</nav>
+{% endif %}

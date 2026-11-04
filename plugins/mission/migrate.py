@@ -4,16 +4,14 @@ from copy import deepcopy
 from core import DEFAULT_TAG, Plugin
 from pathlib import Path
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 async def migrate_3_6(self: Plugin):
     filename = os.path.join(self.node.config_dir, 'plugins', 'userstats.yaml')
     if not os.path.exists(filename):
         return
-    data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+    data = new_yaml().load(Path(filename).read_text(encoding='utf-8'))
 
     def migrate_instance(cfg: dict) -> dict:
         ret = {}
@@ -46,7 +44,7 @@ async def migrate_3_6(self: Plugin):
     if dirty:
         path = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
         with open(path, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(self.locals, outfile)
+            new_yaml().dump(self.locals, outfile)
         self.log.warning(f"New file {path} written, please check for possible errors.")
 
 
@@ -60,7 +58,7 @@ async def migrate_3_10(self: Plugin):
     path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
     if not os.path.exists(path):
         return
-    data = yaml.load(Path(path).read_text(encoding='utf-8'))
+    data = new_yaml().load(Path(path).read_text(encoding='utf-8'))
     if self.node.name in data.keys():
         for name, node in data.items():
             if name == DEFAULT_TAG:
@@ -72,7 +70,7 @@ async def migrate_3_10(self: Plugin):
         for instance in data.values():
             _change_instance(instance)
     with open(path, mode='w', encoding='utf-8') as outfile:
-        yaml.dump(data, outfile)
+        new_yaml().dump(data, outfile)
 
 
 async def migrate_3_11(self: Plugin):
@@ -88,7 +86,7 @@ async def migrate_3_11(self: Plugin):
 
     # first, re-organize the messages in servers.yaml
     server_config = os.path.join(self.node.config_dir, 'servers.yaml')
-    server_data = yaml.load(Path(server_config).read_text(encoding='utf-8'))
+    server_data = new_yaml().load(Path(server_config).read_text(encoding='utf-8'))
     # make sure we have a default tag
     default = server_data.get(DEFAULT_TAG)
     if not default:
@@ -171,19 +169,19 @@ async def migrate_3_11(self: Plugin):
     default.pop('message_afk', None)
     # rewrite servers.yaml
     with open(server_config, mode='w', encoding='utf-8') as outfile:
-        yaml.dump(server_data, outfile)
+        new_yaml().dump(server_data, outfile)
     # cleanup
     # remove messages from main.yaml
     config = os.path.join(self.node.config_dir, 'main.yaml')
-    data = yaml.load(Path(config).read_text(encoding='utf-8'))
+    data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
     if data.pop('messages', None):
         with open(config, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(data, outfile)
+            new_yaml().dump(data, outfile)
     # remove unnecessary stuff from own config
     path = os.path.join(self.node.config_dir, 'plugins', self.plugin_name + '.yaml')
     if not os.path.exists(path):
         return
-    data = yaml.load(Path(path).read_text(encoding='utf-8'))
+    data = new_yaml().load(Path(path).read_text(encoding='utf-8'))
     if self.node.name in data.keys():
         for name, node in data.items():
             if name == DEFAULT_TAG:
@@ -195,22 +193,22 @@ async def migrate_3_11(self: Plugin):
         for instance in data.values():
             _change_instance(instance)
     with open(path, mode='w', encoding='utf-8') as outfile:
-        yaml.dump(data, outfile)
+        new_yaml().dump(data, outfile)
 
 
 async def migrate_3_12(self: Plugin):
     config = os.path.join(self.node.config_dir, 'main.yaml')
-    data = yaml.load(Path(config).read_text(encoding='utf-8'))
+    data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
     if not 'mission_rewrite' in data:
         return
     mission_rewrite = data.pop('mission_rewrite')
     with open(config, mode='w', encoding='utf-8') as outfile:
-        yaml.dump(data, outfile)
+        new_yaml().dump(data, outfile)
     if mission_rewrite is True:
         return
     config = os.path.join(self.node.config_dir, 'nodes.yaml')
-    data = yaml.load(Path(config).read_text(encoding='utf-8'))
+    data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
     for name, instance in data.get('instances', {}).items():
         instance['mission_rewrite'] = False
     with open(config, mode='w', encoding='utf-8') as outfile:
-        yaml.dump(data, outfile)
+        new_yaml().dump(data, outfile)

@@ -8,7 +8,7 @@ import os
 import re
 
 from contextlib import suppress
-from core import Status, utils
+from core import Status, utils, Coalition
 from core.data.node import SortOrder, UploadStatus
 from core.services.registry import ServiceRegistry
 from core.translations import get_translation
@@ -37,9 +37,15 @@ __all__ = [
     "wait_for_single_reaction",
     "selection_list",
     "selection",
+    "PagedSelectView",
     "yn_question",
     "populated_question",
     "check_roles",
+    "holds_scope",
+    "holds_admin_role",
+    "member_ban_targets",
+    "member_scope_tokens",
+    "may_manage_server",
     "has_role",
     "has_roles",
     "app_has_role",
@@ -88,7 +94,7 @@ _ = get_translation('core')
 # Logging
 logger = logging.getLogger(__name__)
 
-DISCORD_FILE_SIZE_LIMIT = 10 * 1024 * 1024
+DISCORD_FILE_SIZE_LIMIT = 20 * 1024 * 1024
 
 
 class PlayerType(Enum):
@@ -283,6 +289,138 @@ async def selection(interaction: discord.Interaction | commands.Context, *, titl
                 await msg.delete()
 
 
+class PagedSelectView(View):
+    """A select whose options are spread over pages, keeping every tick across page changes.
+
+    ``pages`` holds the options split into pages of at most 25 (one select's limit), listed in the
+    order the caller wants the values back in. A tick is remembered per page and re-painted with
+    ``SelectOption(default=True)`` whenever its page is drawn again, so a value ticked on page 1 is
+    still ticked after paging away and back. ``result`` is ``None`` until OK is pressed (a timeout
+    leaves it ``None``) and the picked values in LIST order after that — page order, then the
+    option's order in its page — never click order.
+
+    ``min_values``/``max_values`` bound ONE page's tick, Discord's own select semantics; a caller
+    that needs a bound on the total checks the length of ``result``. A single page draws no paging
+    row, so the common case is a plain select with Clear, OK and Cancel.
+
+    ``cancelled`` is ``False`` on construction and ``True`` only when the Cancel button was pressed;
+    a cancel stops the view at once and leaves ``result`` ``None``, exactly like a timeout, so the
+    flag is what tells the two apart. ``result`` keeps its meaning: ``None`` until OK, a list after.
+    """
+
+    #: Seconds the view accepts input for.
+    TIMEOUT = 180
+
+    def __init__(
+            self,
+            *,
+            pages: list[list[SelectOption]],
+            placeholder: str | None = None,
+            min_values: int = 1,
+            max_values: int = 1
+    ):
+        super().__init__(timeout=self.TIMEOUT)
+        if not pages:
+            raise ValueError('at least one page is required')
+        for index, page in enumerate(pages):
+            if not page:
+                raise ValueError(f'page {index + 1} is empty')
+            if len(page) > 25:
+                raise ValueError(f'page {index + 1} holds more than 25 options ({len(page)})')
+        self.result: list[str] | None = None
+        self.cancelled: bool = False
+        self._pages: list[list[SelectOption]] = [list(page) for page in pages]
+        self._page: int = 0
+        self._ticked: dict[int, set[str]] = {index: set() for index in range(len(pages))}
+        self.picks.placeholder = placeholder
+        self.picks.min_values = 1 if min_values is None else min_values
+        self.picks.max_values = 1 if max_values is None else max_values
+        if len(self._pages) == 1:
+            for item in (self.prev_page, self.page_status, self.next_page):
+                self.remove_item(item)
+        self._paint()
+
+    def chosen(self) -> list[str]:
+        """The ticked values in LIST order: page order, then each option's order in its page."""
+        chosen: list[str] = []
+        for index, page in enumerate(self._pages):
+            ticked = self._ticked[index]
+            for option in page:
+                if option.value in ticked and option.value not in chosen:
+                    chosen.append(option.value)
+        return chosen
+
+    def _paint(self) -> None:
+        """Redraw the current page and the paging row from the state the view keeps."""
+        ticked = self._ticked[self._page]
+        self.picks.options = [
+            SelectOption(label=option.label, value=option.value, description=option.description,
+                         emoji=option.emoji, default=option.value in ticked)
+            for option in self._pages[self._page]
+        ]
+        self.page_status.label = (f'page {self._page + 1}/{len(self._pages)} · '
+                                  f'{len(self.chosen())} chosen')
+        self.prev_page.disabled = self._page == 0
+        self.next_page.disabled = self._page == len(self._pages) - 1
+
+    async def _edit(self, interaction: Interaction) -> None:
+        self._paint()
+        await interaction.response.edit_message(view=self)
+
+    @discord.ui.select(row=0)
+    async def picks(self, interaction: Interaction, select: Select):
+        self._ticked[self._page] = set(select.values)
+        await self._edit(interaction)
+
+    @discord.ui.button(label='◀', style=ButtonStyle.secondary, row=1, custom_id='ps_prev')
+    async def prev_page(self, interaction: Interaction, _: Button):
+        if self._page > 0:
+            self._page -= 1
+        await self._edit(interaction)
+
+    @discord.ui.button(label='page', style=ButtonStyle.secondary, row=1, disabled=True,
+                       custom_id='ps_page')
+    async def page_status(self, interaction: Interaction, _: Button):
+        # Disabled, so this never runs: the button only shows the page number and the tick count.
+        return
+
+    @discord.ui.button(label='▶', style=ButtonStyle.secondary, row=1, custom_id='ps_next')
+    async def next_page(self, interaction: Interaction, _: Button):
+        if self._page < len(self._pages) - 1:
+            self._page += 1
+        await self._edit(interaction)
+
+    def _lock(self) -> None:
+        """Disable the select and every button, so no control can answer the pick twice."""
+        for item in self.children:
+            if isinstance(item, (Button, Select)):
+                item.disabled = True
+
+    @discord.ui.button(label='Clear', style=ButtonStyle.secondary, row=2, custom_id='ps_clear')
+    async def clear_all(self, interaction: Interaction, _: Button):
+        self._ticked = {index: set() for index in range(len(self._pages))}
+        await self._edit(interaction)
+
+    @discord.ui.button(label='OK', style=ButtonStyle.green, row=2, custom_id='ps_ok')
+    async def confirm(self, interaction: Interaction, _: Button):
+        self.result = self.chosen()
+        self._lock()
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label='Cancel', style=ButtonStyle.red, row=2, custom_id='ps_cancel')
+    async def cancel(self, interaction: Interaction, _: Button):
+        self.cancelled = True
+        self._lock()
+        await interaction.response.defer()
+        self.stop()
+
+    async def on_timeout(self) -> None:
+        """Leave the pick unconfirmed (``result`` stays ``None``) and lock the controls."""
+        self.result = None
+        self._lock()
+
+
 class YNQuestionView(View):
     def __init__(self):
         super().__init__(timeout=120)
@@ -400,13 +538,101 @@ def check_roles(roles: Iterable[str | int], member: discord.Member | None = None
     """
     if not member or not isinstance(member, discord.Member):
         return False
-    for role in member.roles:
-        for valid_role in roles:
-            if isinstance(valid_role, int) and role.id == valid_role:
-                return True
-            elif isinstance(valid_role, str) and role.name == valid_role:
-                return True
-    return False
+
+    role_ids: set[int] = set()
+    role_names: set[str] = set()
+    for valid_role in roles:
+        if isinstance(valid_role, int):
+            role_ids.add(valid_role)
+        elif isinstance(valid_role, str):
+            role_names.add(valid_role)
+
+    return any(role.id in role_ids or role.name in role_names for role in member.roles)
+
+
+def holds_scope(managed_by: Iterable[Any] | None, scope_tokens: Iterable[Any] | None) -> bool:
+    """True when a caller holding *scope_tokens* may see/act on a server with this ``managed_by``.
+
+    THE rule, in one place. An empty ``managed_by`` means "no restriction" (True); otherwise the
+    caller must hold one of the listed roles, matched on **either** an id or a name — the semantics
+    :func:`check_roles` has always had, which is why a ``managed_by`` list may mix ids and names and
+    a token set carries both.
+    """
+    if not managed_by:
+        return True
+    return not set(managed_by).isdisjoint(scope_tokens or ())
+
+
+def member_scope_tokens(member) -> frozenset[Any]:
+    """The comparison tokens of *member*: its role ids AND role names.
+
+    Exactly the pair :func:`check_roles` builds from a member's roles, so a ``managed_by`` entry
+    matches here iff it matched there. Read tolerantly (a member without ``roles`` — a headless
+    double, a REST snapshot — yields nothing, which denies a restricted server rather than
+    crashing).
+    """
+    tokens: set[Any] = set()
+    for role in getattr(member, "roles", None) or ():
+        role_id = getattr(role, "id", None)
+        if isinstance(role_id, int) and not isinstance(role_id, bool):
+            tokens.add(role_id)
+        name = getattr(role, "name", None)
+        if isinstance(name, str) and name:
+            tokens.add(name)
+    return frozenset(tokens)
+
+
+def holds_admin_role(member, admin_roles: Iterable[Any] | None = None) -> bool:
+    """True when *member* holds the bot's own configured Admin role.
+
+    The ONE home of the Admin-role notion. *admin_roles* is ``bot.roles['Admin']`` — role ids and/or
+    names — matched against the member's tokens the way a ``managed_by`` entry is matched
+    (:func:`holds_scope`, via :func:`member_scope_tokens`), so a role NAME and a role ID both count.
+    An empty *admin_roles* means the installation grants the role to nobody.
+    """
+    return not member_scope_tokens(member).isdisjoint(admin_roles or ())
+
+
+def member_ban_targets(member, servers, admin_roles: Iterable[Any] | None = None) -> list[str]:
+    """The servers a ban issued by *member* covers — the ONE member-derived ban scope.
+
+    An issuer holding the bot's Admin role is UNRESTRICTED: the ban covers every server, so the
+    answer is the EMPTY list — the bot-wide set — whatever any server's ``managed_by`` says.
+    *admin_roles* is the bot's own configured Admin role (``bot.roles['Admin']``, role ids and/or
+    names), matched against the member's roles by :func:`holds_admin_role`. An empty *admin_roles*
+    means the installation grants the role to nobody.
+
+    Every other issuer covers the servers whose ``managed_by`` names one of their roles. An issuer
+    that tags none yields the empty list too: the two share the empty SET, but only the
+    unrestricted issuer holds the licence to name any server — that is the caller's own
+    ``[server.name]``, not this rule's.
+    """
+    tokens = member_scope_tokens(member)
+    if holds_admin_role(member, admin_roles):
+        return []
+    return [name for name, server in servers.items()
+            if (server.locals.get('managed_by') or [])
+            and holds_scope(server.locals['managed_by'], tokens)]
+
+
+def may_manage_server(managed_by, member, *, is_admin: bool,
+                      admin_roles: Iterable[Any] | None = None) -> bool:
+    """The Discord Server picker's rule, verbatim: the restriction applies to the admin class only.
+
+    ``is_admin`` is the command's own check (the picker derives it from the command's first role
+    check), and a non-admin caller passes — that asymmetry is Discord's behaviour and it is preserved
+    here rather than "fixed".
+
+    A caller holding the bot's own Admin role (*admin_roles*, role ids and/or names) is UNRESTRICTED:
+    it passes whatever ``managed_by`` says, matching the console, where Admin is unscoped
+    (``services/webservice/scope.py``). Only an admin-class caller that is NOT an Admin must hold one
+    of *managed_by*'s entries.
+    """
+    if not is_admin:
+        return True
+    if holds_admin_role(member, admin_roles):
+        return True
+    return holds_scope(managed_by, member_scope_tokens(member))
 
 
 @deprecated("Use app_has_role instead")
@@ -853,7 +1079,10 @@ def match(name: str, member_list: list[discord.Member], min_score: int = 70) -> 
     ]:
         return None
 
-    name: str | None = normalize_name(name)
+    name = normalize_name(name)
+    if not name:
+        return None
+
     weights = [3, 2, 1]
     user_lists = [
         [normalize_name(getattr(member, attr)) for member in member_list]
@@ -864,12 +1093,14 @@ def match(name: str, member_list: list[discord.Member], min_score: int = 70) -> 
 
     for user_list, weight in zip(user_lists, weights):
         for idx, user in enumerate(user_list):
-            score = fuzz.ratio(name, user)
-            if score > max_score:
-                best_match_index = idx if score >= min_score else None
-                max_score = score if score >= min_score else 0
+            if not user:
+                continue
+            score = fuzz.ratio(name, user) * weight
+            if score > max_score and score >= min_score:
+                best_match_index = idx
+                max_score = score
 
-    return member_list[best_match_index] if best_match_index else None
+    return member_list[best_match_index] if best_match_index is not None else None
 
 
 def find_similar_names(list1: list[str], list2: list[str], threshold: int = 90) -> list[tuple[str, str, int]]:
@@ -911,7 +1142,9 @@ async def get_all_linked_members(
     The function streams rows from the DB, looks up each member in the
     guild cache and stops as soon as 25 matches have been found.
     """
-    guild = interaction.guild
+    if not interaction.client.intents.members:
+        return []
+
     search_lc = search.lower() if search else None
 
     results: list[discord.Member] = []
@@ -925,9 +1158,9 @@ async def get_all_linked_members(
             mid = row[0]
             ucid = row[1]
 
-            member = guild.get_member(mid)
+            member = interaction.client.guilds[0].get_member(mid)
             if not member:
-                continue  # member not cached – skip
+                continue  # member not there – skip
 
             if search_lc and not (search_lc in member.display_name.lower() or search_lc in ucid):
                 continue
@@ -989,6 +1222,16 @@ class ServerTransformer(app_commands.Transformer):
                 return True
         return False
 
+    @staticmethod
+    def configured_admin_roles(interaction: discord.Interaction) -> Iterable[Any] | None:
+        """The bot's own configured Admin role (``bot.roles['Admin']``, role ids and/or names).
+
+        ``None`` when the client carries no ``roles`` mapping (a headless double, a plain client):
+        the caller then falls back to the ``managed_by`` rule, never crashing.
+        """
+        roles = getattr(interaction.client, "roles", None)
+        return roles.get("Admin") if isinstance(roles, dict) else None
+
     async def transform(self, interaction: discord.Interaction, value: str | None) -> Server:
         """
         Converts a server name into a Server object.
@@ -1007,11 +1250,13 @@ class ServerTransformer(app_commands.Transformer):
             server = interaction.client.servers.get(value)
             is_admin = self.is_admin(interaction)
 
-            if not server or (
-                is_admin and
-                server.locals.get('managed_by') and
-                not utils.check_roles(server.locals.get('managed_by'), interaction.user)
-            ):
+            # The restriction is the shared `may_manage_server` rule (services/webservice/scope.py),
+            # NOT a re-statement of it: a non-admin caller is not restricted here at all, a caller
+            # holding the bot's Admin role is UNRESTRICTED (matching the console), and any other
+            # admin-class caller may only name a server whose `managed_by` roles they hold.
+            if not server or not may_manage_server(server.locals.get('managed_by'), interaction.user,
+                                                   is_admin=is_admin,
+                                                   admin_roles=self.configured_admin_roles(interaction)):
                 raise app_commands.TransformerError(value, self.type, self)
         else:
             server = interaction.client.get_server(interaction)
@@ -1036,20 +1281,32 @@ class ServerTransformer(app_commands.Transformer):
         try:
             server: Server | None = interaction.client.get_server(interaction)
             is_admin = self.is_admin(interaction)
+            admin_roles = self.configured_admin_roles(interaction)
+            current_lc = current.casefold() if current else None
 
-            if (not current and server and server.status != Status.UNREGISTERED and
+            if (not current_lc and server and server.status != Status.UNREGISTERED and
                     (not self.status or server.status in self.status)):
                 return [app_commands.Choice[str](name=server.name, value=server.name)]
-            return [
-                app_commands.Choice[str](name=name, value=name)
-                for name, value in interaction.client.servers.items()
-                if (value.status != Status.UNREGISTERED and
-                    (not self.status or value.status in self.status) and
-                    (not self.maintenance or value.maintenance == self.maintenance) and
-                    (not is_admin or not value.locals.get('managed_by') or utils.check_roles(value.locals.get('managed_by'), interaction.user)) and
-                    (not current or current.casefold() in name.casefold())
-                )
-            ][:25]
+
+            choices: list[app_commands.Choice[str]] = []
+            for name, value in interaction.client.servers.items():
+                if value.status == Status.UNREGISTERED:
+                    continue
+                if self.status and value.status not in self.status:
+                    continue
+                if self.maintenance and value.maintenance != self.maintenance:
+                    continue
+                if current_lc and current_lc not in name.casefold():
+                    continue
+                if not may_manage_server(value.locals.get('managed_by'), interaction.user,
+                                         is_admin=is_admin, admin_roles=admin_roles):
+                    continue
+
+                choices.append(app_commands.Choice[str](name=name, value=name))
+                if len(choices) == 25:
+                    break
+
+            return choices
         except Exception as ex:
             interaction.client.log.exception(ex)
             return []
@@ -1137,12 +1394,24 @@ async def airbase_autocomplete(interaction: discord.Interaction, current: str) -
         server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server or not server.current_mission:
             return []
+        coalition = interaction.namespace.coalition or Coalition.ALL.value
+        match coalition:
+            case 'neutral': coalition_id = 0
+            case 'red': coalition_id = 1
+            case 'blue': coalition_id = 2
+            case _: coalition_id = None
+
         return [
-            app_commands.Choice[int](name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
-                                value=idx)
+            app_commands.Choice[int](
+                name="{}".format(x['name'] if x.get('type', '') != 'FARP' else f"FARP {x['name']}"),
+                value=idx
+            )
             for idx, x in enumerate(server.current_mission.airbases)
-            if not current or current.casefold() in x['name'].casefold() or
-               current.casefold() in x.get('code', x.get('type')).casefold()
+            if (not coalition_id or x['coalition'] == coalition_id)
+               and (
+                    not current or current.casefold() in x['name'].casefold()
+                    or current.casefold() in x.get('code', x.get('type')).casefold()
+               )
         ][:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
@@ -1161,7 +1430,7 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
     """
     def get_name(base_dir: str, path: str):
         try:
-            name = os.path.relpath(path, base_dir).replace('.dcssb' + os.path.sep, '')[:-4]
+            name = os.path.relpath(utils.logical_mission_path(str(path)), base_dir)[:-4]
             if len(name) > 100:
                 raise ValueError("Mission name exceeds maximum length")
             return name
@@ -1174,12 +1443,18 @@ async def mission_autocomplete(interaction: discord.Interaction, current: str) -
         server: Server = await ServerTransformer().transform(interaction, interaction.namespace.server)
         if not server:
             return []
+
+        current_lc = current.casefold() if current else None
         base_dir = await server.get_missions_dir()
-        return sorted([
-            app_commands.Choice[int](name=get_name(base_dir, x), value=idx)
-            for idx, x in enumerate(await get_cached_mission_list(server))
-            if not current or current.casefold() in get_name(base_dir, x).casefold()
-        ], key=lambda choice: choice.name)[:25]
+        choices: list[app_commands.Choice[int]] = []
+
+        for idx, path in enumerate(await get_cached_mission_list(server)):
+            name = get_name(base_dir, path)
+            if current_lc and current_lc not in name.casefold():
+                continue
+            choices.append(app_commands.Choice[int](name=name, value=idx))
+
+        return sorted(choices, key=lambda choice: choice.name)[:25]
     except Exception as ex:
         interaction.client.log.exception(ex)
         return []
@@ -1235,7 +1510,7 @@ class UserTransformer(app_commands.Transformer):
                 else:
                     return value
             elif value.isnumeric():
-                return interaction.guild.get_member(int(value))
+                return await interaction.client.get_member(int(value))
             else:
                 return None
         else:
@@ -1889,7 +2164,7 @@ class ServerUploadHandler(NodeUploadHandler):
         if not channel_id:
             channel_id = bot.locals.get('channels', {}).get('admin')
 
-        if not server and message.channel.id == channel_id:
+        if not server and ((message.channel.id == channel_id) or isinstance(message.channel, discord.DMChannel)):
             ctx = await bot.get_context(message)
             server = await utils.server_selection(
                 bot,

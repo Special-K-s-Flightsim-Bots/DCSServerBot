@@ -230,6 +230,14 @@ def get_cpu_set_information():
             "Logical Processor Index": cpu_info.CpuSet.LogicalProcessorIndex,
             "Core Index": cpu_info.CpuSet.CoreIndex,
             "Efficiency Class": cpu_info.CpuSet.EfficiencyClass,
+            # "Core Class" is the performance tier callers group by: every logical processor of a
+            # symmetric CPU reports the same value. The OS "Scheduling Class" is reported raw and
+            # must not be used as a tier - on a symmetric CPU it can still split the machine into
+            # two values.
+            "Core Class": cpu_info.CpuSet.EfficiencyClass,
+            # "Core Rank" orders cores by the potential the OS attributes to them, higher first.
+            # A rank only orders candidates: it never makes a core unusable.
+            "Core Rank": cpu_info.CpuSet.SchedulingClass,
             "Scheduling Class": cpu_info.CpuSet.SchedulingClass,
             "Numa Node Index": cpu_info.CpuSet.NumaNodeIndex,
             "Last Level Cache Index": cpu_info.CpuSet.LastLevelCacheIndex
@@ -447,6 +455,8 @@ def get_die_info() -> list[list[int]]:
 
 
 def create_cpu_topology_visualization(p_cores, e_cores, cache_structure, display: bool = False, topology: dict = None):
+    from matplotlib import pyplot as plt
+
     if not display:
         plt.switch_backend('agg')
     plt.style.use('dark_background')

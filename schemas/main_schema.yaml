@@ -1,51 +1,202 @@
 type: map
 nullable: false
+desc: Main DCSServerBot configuration file. Defines Discord guild settings, validation mode, database connection, logging, filters, and enabled plugins.
+example: |
+  guild_id: 112233445566778899
+  guild_name: My DCS Community
+  autoupdate: false
+  use_dashboard: true
+  chat_command_prefix: "-"
+  language: en
+  validation: lazy
+  database:
+    url: postgresql://dcssb:SECRET@localhost:5432/dcssb?sslmode=prefer
+    pool_min: 2
+    pool_max: 10
+    max_reties: 3
+    max_idle: 300
+  logging:
+    loglevel: DEBUG
+    logrotate_count: 5
+    logrotate_size: 10485760
+    utc: true
+  filter:
+    server_name: Training
+    mission_name: Caucasus
+    tag: PvE
+  plugins:
+    - admin
+    - mission
+    - scheduler
+  opt_plugins:
+    - music
+    - tacview
 mapping:
-  guild_id: {type: int, required: true, nullable: false}
-  guild_name: {type: str, nullable: false, range: {min: 1}}
-  autoupdate: {type: bool, nullable: false}
-  use_dashboard: {type: bool, nullable: false}
-  chat_command_prefix: {type: str, range: {min: 1, max: 1}, nullable: false}
-  mission_rewrite: {type: bool, nullable: false}
-  language: {type: str, enum: ['en', 'de', 'es', 'ru', 'cn'], nullable: false}
-  validation: {type: str, enum: ['none', 'strict', 'lazy']}
+  guild_id:
+    type: int
+    required: true
+    nullable: false
+    desc: Discord guild/server ID where the bot is installed.
+    example: "112233445566778899"
+  guild_name:
+    type: str
+    nullable: false
+    range: {min: 1}
+    desc: Human-readable Discord guild/server name.
+    example: "My DCS Community"
+  autoupdate:
+    type: bool
+    nullable: false
+    desc: Enables or disables automatic bot updates.
+    example: "false"
+  use_dashboard:
+    type: bool
+    nullable: false
+    desc: Enables or disables dashboard support.
+    example: "true"
+  chat_command_prefix:
+    type: str
+    range: {min: 1, max: 1}
+    nullable: false
+    desc: Single-character prefix used for legacy chat commands.
+    example: "-"
+  language:
+    type: str
+    enum: ['en', 'de', 'es', 'ru', 'cn']
+    nullable: false
+    desc: Default bot language.
+    example: "en"
+  validation:
+    type: str
+    enum: ['none', 'strict', 'lazy']
+    desc: Configuration validation mode. Use strict to fail on validation errors, lazy to warn, or none to disable validation.
+    example: "lazy"
   database:
     type: map
     nullable: false
+    desc: Database connection and pooling configuration.
+    example: |
+      url: postgresql://dcssb:SECRET@localhost:5432/dcssb?sslmode=prefer
+      pool_min: 2
+      pool_max: 10
+      max_reties: 3
+      max_idle: 300
     mapping:
-      url: {type: str, required: true, nullable: false, range: {min: 1}}
-      pool_min: {type: int, range: {min: 2}, nullable: false}
-      pool_max: {type: int, range: {min: 5}, nullable: false}
-      max_reties: {type: int, range: {min: 1}, nullable: false}
-      max_idle: {type: int, range: {min: 0}, nullable: false}
+      url:
+        type: str
+        required: true
+        nullable: false
+        range: {min: 1}
+        desc: PostgreSQL connection URL. The password may be replaced with SECRET after being stored securely.
+        example: "postgresql://dcssb:SECRET@localhost:5432/dcssb?sslmode=prefer"
+      pool_min:
+        type: int
+        range: {min: 2}
+        nullable: false
+        desc: Minimum number of database connections kept in the pool.
+        example: "2"
+      pool_max:
+        type: int
+        range: {min: 5}
+        nullable: false
+        desc: Maximum number of database connections allowed in the pool.
+        example: "10"
+      max_reties:
+        type: int
+        range: {min: 1}
+        nullable: false
+        desc: Maximum number of retry attempts for database operations.
+        example: "3"
+      max_idle:
+        type: int
+        range: {min: 0}
+        nullable: false
+        desc: Maximum idle time for database connections.
+        example: "300"
   logging:
     type: map
     nullable: false
+    desc: Logging configuration for the bot.
+    example: |
+      loglevel: DEBUG
+      logrotate_count: 5
+      logrotate_size: 10485760
+      utc: true
     mapping:
-      loglevel: {type: str, enum: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL'], nullable: false}
-      logrotate_count: {type: int, nullable: false}
-      logrotate_size: {type: int, nullable: false}
-      utc: {type: bool, nullable: false}
+      loglevel:
+        type: str
+        enum: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL']
+        nullable: false
+        desc: Minimum log level written by the bot.
+        example: "DEBUG"
+      logrotate_count:
+        type: int
+        nullable: false
+        desc: Number of rotated log files to keep.
+        example: "5"
+      logrotate_size:
+        type: int
+        nullable: false
+        desc: Maximum log file size in bytes before rotation.
+        example: "10485760"
+      utc:
+        type: bool
+        nullable: false
+        desc: Whether log timestamps should be written in UTC.
+        example: "true"
   filter:
     type: map
     nullable: false
+    desc: Optional default filters used to match servers, missions, or tags.
+    example: |
+      server_name: Training
+      mission_name: Caucasus
+      tag: PvE
     mapping:
-      server_name: {type: str, nullable: false, range: {min: 1}}
-      mission_name: {type: str, nullable: false, range: {min: 1}}
-      tag: {type: str, nullable: false, range: {min: 1}}
+      server_name:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Server name filter.
+        example: "Training"
+      mission_name:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Mission name filter.
+        example: "Caucasus"
+      tag:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Server or mission tag filter.
+        example: "PvE"
   plugins:
     type: seq
     nullable: false
+    desc: Required plugins loaded by the bot.
+    example: |
+      - admin
+      - mission
+      - scheduler
     sequence:
       - type: str
         nullable: false
         range: {min: 1}
         unique: true
+        desc: Plugin name.
+        example: "admin"
   opt_plugins:
     type: seq
     nullable: false
+    desc: Optional plugins loaded when available.
+    example: |
+      - music
+      - tacview
     sequence:
       - type: str
         nullable: false
         range: {min: 1}
         unique: true
+        desc: Optional plugin name.
+        example: "music"

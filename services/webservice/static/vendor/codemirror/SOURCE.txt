@@ -1,0 +1,40 @@
+CodeMirror 5 — vendored source record
+=====================================
+
+WHAT IS HERE, AND WHY IT IS VENDORED
+------------------------------------
+The Settings page's Expert Mode editor (see `services/webservice/static/settings-yaml.js`
+and `services/webservice/templates/settings.html`) uses CodeMirror 5 for two things and
+two things only: YAML SYNTAX HIGHLIGHTING while the operator types, and the line-oriented
+marking of the lines a validation refusal names.
+
+It is VENDORED ON PURPOSE — the console must work with NO NETWORK. No CDN is referenced
+by any page or script; the files below are served from the shell's own `/static` area
+(`/static/vendor/codemirror/...`), exactly like the language flags under
+`services/webservice/static/flags/`. The flag SVGs set that precedent; this is its second
+instance. A page that loaded the editor from a CDN would be a page the console cannot use
+offline.
+
+FILES
+-----
+  codemirror.min.js        CodeMirror 5 core                 (lib/codemirror.js)
+  codemirror.min.css       CodeMirror 5 default stylesheet  (lib/codemirror.css)
+  mode/yaml.min.js         the YAML mode                    (mode/yaml/yaml.js)
+  LICENSE                  the upstream MIT licence, verbatim
+
+The shell's own dark theme overrides the default stylesheet's colours (see the
+`CodeMirror` rules at the foot of `services/webservice/static/shell.css`); the vendored
+CSS is left BYTE-FOR-BYTE as upstream shipped it, so an upgrade is a plain file swap.
+
+VERSION AND PROVENANCE
+----------------------
+  version:  5.65.16
+  source:   https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js
+            https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css
+            https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js
+  licence:  https://raw.githubusercontent.com/codemirror/codemirror5/5.65.16/LICENSE
+
+LICENCE
+-------
+MIT. Copyright (C) 2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others.
+The full licence text ships beside these files as `LICENSE`.

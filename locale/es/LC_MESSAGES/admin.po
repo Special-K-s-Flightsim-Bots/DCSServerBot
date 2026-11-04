@@ -39,8 +39,11 @@ msgstr " por {} días."
 msgid "Unbans a user by name or ucid"
 msgstr "Unban a un usuario por nombre o UCID"
 
-msgid "Player {} unbanned on all servers."
-msgstr "Jugador {} desbaneado de todos los servidores."
+msgid "Player {} unbanned on {}."
+msgstr "Jugador {} desbaneado en {}."
+
+msgid "Player {} was not banned on {}."
+msgstr "Jugador {} no estaba baneado en {}."
 
 msgid "Shows active bans"
 msgstr "Muestra los bans activos"

@@ -21,10 +21,6 @@ from .dcsserverbot import DCSServerBot
 from .dummy import DummyBot
 from ..servicebus import ServiceBus
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 if TYPE_CHECKING:
     from core import Server, Node
 
@@ -85,18 +81,24 @@ class BotService(Service):
 
     @property
     def proxy(self) -> str | None:
-        return self.locals.get('proxy', {}).get('url')
+        if self.locals.get('proxy'):
+            return self.locals.get('proxy', {}).get('url')
+        else:
+            return self.node.proxy
 
     @property
     def proxy_auth(self) -> BasicAuth | None:
-        username = self.locals.get('proxy', {}).get('username')
-        try:
-            password = utils.get_password('proxy', self.node.config_dir)
-        except ValueError:
+        if self.locals.get('proxy'):
+            username = self.locals.get('proxy', {}).get('username')
+            try:
+                password = utils.get_password('proxy', self.node.config_dir)
+            except ValueError:
+                return None
+            if username and password:
+                return BasicAuth(username, password)
             return None
-        if username and password:
-            return BasicAuth(username, password)
-        return None
+        else:
+            return self.node.proxy_auth
 
     def init_bot(self):
         if self.locals.get('no_discord', False):
@@ -111,9 +113,12 @@ class BotService(Service):
                 return commands.when_mentioned_or(*prefixes)(client, message)
 
             intents = discord.Intents.default()
-            # set privileged intents
-            intents.members=True            # necessary to be able to send welcome messages and such
-            intents.message_content=True    # necessary to allow file uploads
+            # set privileged intents, if enabled
+            if self.locals.get('privileged_intents', True):
+                intents.members=True            # necessary to be able to send welcome messages and such
+                intents.message_content=True    # necessary to allow file uploads
+
+            self.log.debug(f"- Privileged intents: members={intents.members}, message_content={intents.message_content}")
 
             # Create the Bot
             return DCSServerBot(version=self.node.bot_version,
@@ -127,7 +132,8 @@ class BotService(Service):
                                 locals=self.locals,
                                 help_command=None,
                                 activity=discord.Game(
-                                    name=self.locals['discord_status']) if 'discord_status' in self.locals else None,
+                                    name=self.locals['discord_status']
+                                ) if 'discord_status' in self.locals else None,
                                 heartbeat_timeout=120,
                                 assume_unsync_clock=True,
                                 proxy=self.proxy,
@@ -139,9 +145,6 @@ class BotService(Service):
             self.bot = self.init_bot()
             await self._install_fonts()
             token: str | None = self.token
-            if not token:
-                raise FatalException("No Discord token found! You need to configure it in the bot.yaml file.")
-
             await self.bot.login(token=token)
 
             async def connect_with_retry() -> None:
@@ -207,11 +210,19 @@ class BotService(Service):
             message: str,
             server: Server | None = None,
             fields: list[tuple[str, str]] | None = None,
-            filename: str | None = None
+            filename: str | None = None,
+            mention: bool = True,
+            warn: bool = True
     ) -> None:
         try:
-            mentions = self.bot.mention_admin(server)
-            embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
+            mentions = self.bot.mention_admin(server) if mention else ""
+            if warn:
+                embed = utils.create_warning_embed(title=title, text=utils.escape_string(message), fields=fields)
+            else:
+                embed = discord.Embed(color=discord.Color.blue(), title=title, description=message or "")
+                if fields:
+                    for name, value in fields:
+                        embed.add_field(name=name, value=value)
             admin_channel = self.bot.get_admin_channel(server)
             audit_channel = self.bot.get_channel(self.bot.locals.get('channels', {}).get('audit', -1))
             channel = admin_channel or audit_channel
@@ -219,12 +230,15 @@ class BotService(Service):
             if channel:
                 if server and filename:
                     file = await server.node.read_file(filename)
-                    zip_buffer = BytesIO()
-                    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
-                        zip_file.writestr(filename, file)
-                    file = zip_buffer.getvalue()
-                    filename += '.zip'
-                    attachment = discord.File(fp=BytesIO(file), filename=os.path.basename(filename))
+                    if not file:
+                        self.log.warning(f"Logfile attachment skipped because file is empty: {filename}")
+                    else:
+                        zip_buffer = BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+                            zip_file.writestr(filename, file)
+                        file = zip_buffer.getvalue()
+                        filename += '.zip'
+                        attachment = discord.File(fp=BytesIO(file), filename=os.path.basename(filename))
 
                 await channel.send(content=mentions, embed=embed, file=attachment)
             else:

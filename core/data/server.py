@@ -17,10 +17,8 @@ from .dataobject import DataObject
 from .const import Status, Coalition, Channel, Side, Port
 from ..utils.helper import YAMLError, async_cache
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Extension, Instance, Mission, UploadStatus, Player
@@ -31,20 +29,30 @@ __all__ = ["Server"]
 # Internationalisation
 _ = get_translation('core')
 
+#: The ``Side`` a coalition chat addresses, for the FAN-OUT of :meth:`Server.sendChatMessage`.
+#: ``Coalition.ALL`` is deliberately absent: it is the game's own server-wide broadcast and takes no
+#: side. Every other member addresses the players of the side named here.
+_COALITION_SIDES: dict[Coalition, Side] = {
+    Coalition.NEUTRAL: Side.NEUTRAL,
+    Coalition.RED: Side.RED,
+    Coalition.BLUE: Side.BLUE,
+}
+
 
 @dataclass
 class Server(DataObject, ABC):
     port: Port
     bus: ServiceBus = field(compare=False)
-    _instance: Instance = field(compare=False, default=None)
+    _instance: Instance | None = field(compare=False, default=None)
     _channels: dict[Channel, int] = field(default_factory=dict, compare=False)
     _status: Status = field(default=Status.UNREGISTERED, compare=False)
     status_change: asyncio.Event = field(compare=False, init=False)
     _options: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     _settings: utils.SettingsDict | utils.RemoteSettingsDict | None = field(default=None, compare=False)
     current_mission: Mission | None = field(default=None, compare=False)
-    _mission_id: int = field(default=None, compare=False)
+    _mission_id: int | None = field(default=None, compare=False)
     players: dict[str, Player] = field(default_factory=dict, compare=False)
+    num_players: int | None = field(default=None, compare=False)
     players_by_id: dict[int, Player] = field(default_factory=dict, compare=False)
     _maintenance: bool = field(compare=False, default=False)
     restart_pending: bool = field(default=False, compare=False)
@@ -56,7 +64,7 @@ class Server(DataObject, ABC):
     listeners: dict[str, asyncio.Future] = field(default_factory=dict, compare=False)
     locals: dict = field(default_factory=dict, compare=False)
     last_seen: datetime = field(compare=False, default=datetime.now(timezone.utc))
-    restart_time: datetime = field(compare=False, default=None)
+    restart_time: datetime | None = field(compare=False, default=None)
     idle_since: datetime | None = field(compare=False, default=None)
     resources: dict = field(repr=False, default_factory=dict)
 
@@ -78,7 +86,7 @@ class Server(DataObject, ABC):
                     utils.validate(config_file, ['schemas/servers_schema.yaml'],
                                    raise_exception=(validation == 'strict'))
 
-                data = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+                data = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError(config_file, ex)
             _locals = utils.deep_merge(data.get(DEFAULT_TAG, {}), data.get(self.name, {}))
@@ -98,7 +106,7 @@ class Server(DataObject, ABC):
         return {}
 
     @property
-    def instance(self) -> Instance:
+    def instance(self) -> Instance | None:
         return self._instance
 
     @instance.setter
@@ -311,7 +319,10 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      preset_name: str | list[str] | None = None,
+                      announce: bool = False) -> None:
         raise NotImplementedError()
 
     async def send_to_dcs_sync(self, message: dict, timeout: int | None = 10) -> dict | None:
@@ -326,7 +337,19 @@ class Server(DataObject, ABC):
             finally:
                 self.listeners.pop(token, None)
 
-    async def sendChatMessage(self, coalition: Coalition, message: str, sender: str = None):
+    async def sendChatMessage(self, coalition: Coalition, message: str, sender: str | None = None):
+        """Post a chat line to the whole server, or to the active players of ONE side.
+
+        ``Coalition.ALL`` is the game's own server-wide broadcast (``net.send_chat``): one payload per
+        line of *message*, no recipient. DCS has no coalition-scoped chat broadcast, so any other side
+        is delivered as a FAN-OUT — one TARGETED line per active player of that side, through
+        :meth:`Player.sendChatMessage` (the ``net.send_chat_to`` primitive), and nothing at all where
+        that side has nobody flying.
+
+        The players enumerated are THIS object's own. The process that holds a server holds its
+        players (an agent-hosted server's players live on the master, whose ``ServerProxy`` this runs
+        on) and each targeted line reaches the owning node through :meth:`send_to_dcs`.
+        """
         if coalition == Coalition.ALL:
             for msg in message.split('\n'):
                 await self.send_to_dcs({
@@ -334,11 +357,15 @@ class Server(DataObject, ABC):
                     "from": sender,
                     "message": msg
                 })
-        else:
-            raise NotImplementedError()
+            return
+        side = _COALITION_SIDES.get(coalition)
+        if side is None:
+            raise ValueError(f"{coalition!r} is not a coalition a chat line can be addressed to.")
+        for player in self.get_active_players(side=side):
+            await player.sendChatMessage(message, sender)
 
     async def sendPopupMessage(self, recipient: Coalition | str, message: str, timeout: int | None = -1,
-                               sender: str = None):
+                               sender: str | None = None):
         if timeout == -1:
             timeout = self.locals.get('message_timeout', 10)
         await self.send_to_dcs({
@@ -358,6 +385,26 @@ class Server(DataObject, ABC):
             "sound": sound
         })
 
+    async def setMarker(self, recipient: Coalition | str, lat: str, lon: str, text: str, readonly: bool = False,
+                        message: str | None = None) -> int:
+        ret = await self.send_to_dcs_sync({
+            "command": "setMarker",
+            "to": 'coalition' if isinstance(recipient, Coalition) else 'group',
+            "id": recipient.value if isinstance(recipient, Coalition) else recipient,
+            "lat": lat,
+            "lon": lon,
+            "text": text,
+            "readonly": readonly,
+            "message": message
+        })
+        return ret['id']
+
+    async def removeMarker(self, marker_id: int):
+        await self.send_to_dcs_sync({
+            "command": "removeMarker",
+            "id": marker_id
+        })
+
     async def lock(self, message: str | None = None):
         await self.send_to_dcs({
             "command": "lock_server",
@@ -374,7 +421,14 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @performance_log()
-    async def start(self) -> bool:
+    async def start(self, *, preset: dict | list | str | None = None) -> bool:
+        """Start the server process.
+
+        ``preset`` is the weather a LAUNCH already applied before this start — the scheduler's
+        stop-then-start shape. It is recorded by the OWNING NODE (``ServerImpl.start``): this base
+        carries the value and writes nothing, and the remote path (``ServerProxy.start``) hands a stated
+        preset to the node, whose ``start`` writes the record.
+        """
         if self.status == Status.STOPPED:
             timeout = 300 if self.node.locals.get('slow_system', False) else 180
             self.status = Status.LOADING
@@ -385,7 +439,10 @@ class Server(DataObject, ABC):
         return False
 
     @abstractmethod
-    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      preset_name: str | list[str] | None = None,
+                      announce: bool = False) -> None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -418,7 +475,10 @@ class Server(DataObject, ABC):
 
     @abstractmethod
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
-                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
+                          use_orig: bool | None = True, no_reload: bool | None = False, *,
+                          preset: dict | list | str | None = None,
+                          preset_name: str | list[str] | None = None,
+                          announce: bool = False) -> bool | None:
         raise NotImplementedError()
 
     @abstractmethod
@@ -430,7 +490,11 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def getAllMissionFiles(self) -> list[str]:
+    async def setMissionList(self, missions: list[str]) -> list[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def getAllMissionFiles(self) -> list[tuple[str, str]]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -439,12 +503,15 @@ class Server(DataObject, ABC):
 
     @abstractmethod
     async def uploadMission(
-            self, filename: str, url: str, *, missions_dir: str = None, force: bool = False
+            self, filename: str, url: str, *, missions_dir: str | None = None, force: bool = False
     ) -> UploadStatus:
         raise NotImplementedError()
 
     @abstractmethod
-    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str | None:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True, *,
+                                    preset: dict | list | str | None = None,
+                                    preset_name: str | list[str] | None = None,
+                                    announce: bool = False) -> str | None:
         raise NotImplementedError()
 
     @property
@@ -535,7 +602,7 @@ class Server(DataObject, ABC):
         raise NotImplementedError()
 
     @async_cache
-    async def list_extensions(self, *, only_installable: bool = False, active: bool = None) -> list[str]:
+    async def list_extensions(self, *, only_installable: bool = False, active: bool | None = None) -> list[str]:
         raise NotImplementedError()
 
     @abstractmethod

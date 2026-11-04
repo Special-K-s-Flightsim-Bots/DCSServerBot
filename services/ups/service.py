@@ -11,7 +11,7 @@ from .nut2 import PyNUTClient, PyNUTError
 @ServiceRegistry.register(depends_on=[ServiceBus])
 class UPSService(Service):
     def __init__(self, node):
-        super().__init__(node)
+        super().__init__(node=node, name="UPS")
         self.bus = ServiceRegistry.get(ServiceBus)
         self.on_battery = False
 

@@ -2,16 +2,16 @@
 In the subfolder `./samples`, you'll find some configuration-file samples for the bot and the different available plugins.
 
 ## main.yaml
-See [README](../README.md#configmainyaml)
+See the [main reference](https://special-k-s-flightsim-bots.github.io/DCSServerBot/reference/config/main/)
 
 ## nodes.yaml
-See [README](../README.md#confignodesyaml)
+See the [nodes reference](https://special-k-s-flightsim-bots.github.io/DCSServerBot/reference/config/nodes/)
 
 ## servers.yaml
-See [README](../README.md#configserversyaml)
+See the [servers reference](https://special-k-s-flightsim-bots.github.io/DCSServerBot/reference/config/servers/)
 
 ## presets.yaml
-See [README](../README.md#configpresetsyaml)
+See the [presets reference](https://special-k-s-flightsim-bots.github.io/DCSServerBot/reference/config/presets/)
 
 ## plugins/admin.yaml
 Default file to support the `/download` command. Here you can configure which files / patterns you want to support for

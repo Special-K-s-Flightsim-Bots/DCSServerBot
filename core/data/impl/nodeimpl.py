@@ -1,6 +1,7 @@
 import aiofiles
 import aiohttp
 import asyncio
+import atexit
 import certifi
 import discord
 import glob
@@ -30,7 +31,11 @@ from contextlib import closing
 from core import utils, Status, Port, PortType
 from core.const import SAVED_GAMES
 from core.data.maintenance import ServerMaintenanceManager
+from core.data.resources import ResourceRegistry, scope_of
+from core.data.node import UPDATE_SERVERS_UP, UPDATE_STOOD_BY
+from core.data.resource_window import ResourceWindowProtocol, ResourceWindows, WINDOW_WAIT
 from core.translations import get_translation
+from core.utils.db_setup import rebuild_url
 from datetime import datetime
 from discord.ext import tasks
 from gzip import BadGzipFile
@@ -41,7 +46,7 @@ from psycopg import sql
 from psycopg.errors import ConnectionTimeout, UniqueViolation, UndefinedTable, UndefinedColumn
 from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool, AsyncConnectionPool
-from typing import Awaitable, Callable, Any
+from typing import Awaitable, Callable, Any, Literal, NamedTuple, cast
 from typing_extensions import override
 from urllib.parse import urlparse, quote, unquote
 from version import __version__
@@ -55,18 +60,39 @@ from core.data.impl.instanceimpl import InstanceImpl
 from core.data.server import Server
 from core.data.impl.serverimpl import ServerImpl
 from core.services.registry import ServiceRegistry
+from core.utils import configwrite
+from core.utils.configwrite import ConfigWriteError
 from core.utils.helper import YAMLError, cache_with_expiration
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 
 __all__ = [
     "NodeImpl",
     "DEFAULT_PLUGINS"
 ]
+
+
+def _write_mode(overwrite: bool) -> Literal["wb", "xb"]:
+    """The ``open`` mode of one write: ``'xb'`` (create, never replace) unless *overwrite*."""
+    return "wb" if overwrite else "xb"
+
+
+def _discard_own_file(path: str, log: Any) -> None:
+    """Remove a file THIS call created exclusively and then failed to fill.
+
+    Only the create-owner may call it: a name that answered ``FileExistsError`` belongs to another
+    writer and is never removed. A removal that itself fails is logged, never raised — the caller is
+    already returning ``WRITE_ERROR`` for the original failure.
+    """
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError as ex:
+        log.error("Could not remove the partial file %s: %s", path, ex)
+
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
 LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
@@ -77,6 +103,32 @@ LICENSES_URL = 'https://www.digitalcombatsimulator.com/checklicenses.php'
 RESTART = -1
 SHUTDOWN = -2
 UPDATE = -3
+
+#: THE NODE READ PATH'S OWN CEILING. ``read_file_window`` moves a BOUNDED window and nothing
+#: else; this is the hard upper bound on ``length`` — the most bytes ONE window read will ever move,
+#: whatever a caller asks. It lives on the PRIMITIVE, not on the one caller (the console passes 64
+#: KiB), so a future caller cannot turn the windowed read back into a whole-file transfer: a length
+#: above this is CLAMPED to it. 1 MiB is 16x the console's window — room for a larger viewer — and
+#: still small enough that the read can never pull a multi-megabyte log into one response.
+NODE_READ_WINDOW_MAX_BYTES = 1024 * 1024
+
+
+def file_identity(st: os.stat_result) -> int | float:
+    """A file's IDENTITY: a value that does NOT change when the file is APPENDED to but DOES change
+    when it is REPLACED — the signal a follower needs to tell a growing log from a ROTATED one.
+
+    ``st_ctime`` is the natural choice ON WINDOWS, where it IS the creation time. On POSIX it is the
+    inode-change time, which the kernel updates on EVERY WRITE — using it there would reset the view
+    on every appended line, so on POSIX this reports the file's INODE (``st_ino``) instead: stable
+    across an append, and different for a replacement file written by a rotation. ``st_birthtime``
+    (the true creation time, on macOS/BSD) is preferred where the platform provides it.
+    """
+    created = getattr(st, "st_birthtime", None)
+    if created:
+        return created
+    if os.name == "nt":
+        return st.st_ctime
+    return st.st_ino
 
 # Internationalisation
 _ = get_translation('core')
@@ -95,6 +147,99 @@ DEFAULT_PLUGINS = [
     "cloud"
 ]
 
+_sync_pools: list[ConnectionPool] = []
+
+
+def _close_sync_pools() -> None:
+    """Close a still-open sync pool while joining its worker threads is still legal.
+
+    ``ConnectionPool.__del__`` joins its workers, which raises ``PythonFinalizationError`` once the
+    interpreter is finalizing. ``close_db()`` covers a normal shutdown; this covers a shutdown
+    interrupted before it. ``close()`` is idempotent, so after a clean shutdown this does nothing.
+    """
+    for pool in _sync_pools:
+        if not pool.closed:
+            try:
+                pool.close()
+            except Exception:
+                pass
+
+
+atexit.register(_close_sync_pools)
+
+
+class _GitState(NamedTuple):
+    """What a checkout's git state says, read WITHOUT asking which branch it is on.
+
+    Every field survives a DETACHED HEAD — the state a release tag gives — where ``repo.active_branch``
+    raises and ``origin.refs[<name>]`` has nothing to find, because ``origin.refs`` holds REMOTE
+    BRANCHES ONLY and a tag never appears there. ``detached`` is what callers branch on; ``pinned``
+    names the tag HEAD sits exactly on, which is how a pinned installation describes itself.
+
+    ``target`` is the commit an update would move to: the tracking branch's commit for a normal
+    checkout, the default branch's otherwise, and ``None`` when nothing could be resolved — never
+    guessed.
+    """
+
+    detached: bool
+    current: str
+    pinned: str | None
+    branch: str | None
+    tracking: str | None
+    default_branch: str | None
+    target: str | None
+
+
+def _default_branch(repo: Any) -> str | None:
+    """The repository's own default branch, from ``refs/remotes/origin/HEAD``, or ``None``."""
+    try:
+        return repo.git.symbolic_ref('refs/remotes/origin/HEAD').split('/')[-1]
+    except Exception:
+        return None
+
+def _tracking_of(branch: Any) -> Any:
+    """*branch*'s tracking reference, or ``None`` — a branch with no upstream is not an error."""
+    try:
+        return branch.tracking_branch()
+    except Exception:
+        return None
+
+def _read_git_state(repo: Any) -> _GitState:
+    """Read *repo*'s state in a way that cannot raise on a detached HEAD; git's own errors still raise."""
+    current = repo.head.commit.hexsha
+    default_branch = _default_branch(repo)
+    if repo.head.is_detached:
+        try:
+            pinned = repo.git.describe('--tags', '--exact-match')
+        except Exception:
+            pinned = None       # detached, but between tags: not a pinned RELEASE
+        return _GitState(True, current, pinned, None, None, default_branch, None)
+    branch = repo.active_branch.name
+    tracking = _tracking_of(repo.active_branch)
+    if tracking is not None:
+        target = tracking.commit.hexsha
+    else:
+        names = [f'origin/{branch}'] + ([f'origin/{default_branch}'] if default_branch else [])
+        by_name = {ref.name: ref.commit.hexsha for ref in repo.remotes.origin.refs}
+        target = next((by_name[n] for n in names if n in by_name), None)
+    return _GitState(False, current, None, branch,
+                     tracking.name if tracking is not None else None, default_branch, target)
+
+def _unpin_argv(repo: Any, state: _GitState) -> list[str] | None:
+    """The ``git`` arguments that leave a detached HEAD for the default branch, or ``None``.
+
+    A clone made WITH ``--branch <tag>`` has no local branch at all, so getting back onto the update
+    stream means creating one that tracks origin's default; a clone that kept its branch only needs a
+    checkout. Both forms were exercised against real tagged clones (one of each shape) before this was
+    written; the caller runs these arguments through git itself.
+    """
+    if not state.detached or not state.default_branch:
+        return None
+    default = state.default_branch
+    if default in [branch.name for branch in repo.branches]:
+        return ['checkout', default]
+    return ['checkout', '-b', default, '--track', f'origin/{default}']
+
 
 class NodeImpl(Node):
 
@@ -107,17 +252,30 @@ class NodeImpl(Node):
         self.is_shutdown = asyncio.Event()
         self.rc = 0
         self.dcs_branch = None
+        self._dcs_cfg_mtime: float | None = None
         self.all_nodes: dict[str, Node | None] = {self.name: self}
         self.suspect: dict[str, Node] = {}
         self.update_pending = False
+        #: the ``(installed, latest)`` version pair of a pending MAJOR upgrade. Recorded while the LAUNCHER decides
+        #: (see run.py), because the bot is what tells an operator about it (see BotService.setup_hook).
+        self.major_upgrade: tuple[str, str] | None = None
         self.before_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.after_update: dict[str, Callable[[], Awaitable[Any]]] = {}
         self.db_version = None
+        #: the resources this node uses, as ``{resource_id: scope}`` — filled by register_resources() and followed by
+        #: the federation loop, which is why it is a field and not a local
+        self.resources: dict[str, str] = {}
+        #: whether a DCS installer is running right now. A shared installation's window must NOT be given back while
+        #: it is: the window is what keeps the other clusters' servers down for the duration of the install.
+        self.installer_running = False
         self.pool: ConnectionPool | None = None
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
         self._heartbeat_conn: psycopg.AsyncConnection | None = None
+        self._heartbeat_write_error = False
         self._master = None
+        self._ready = False
+        self._heartbeat_pool_errors = 0
         self._claimed_master =None
 
     @property
@@ -135,7 +293,13 @@ class NodeImpl(Node):
 
             try:
                 with closing(git.Repo('.')) as repo:
-                    if repo.active_branch.name == 'development':
+                    state = _read_git_state(repo)
+                    if state.detached:
+                        # A pinned checkout is a decision, not a defect — and it has no branch name to
+                        # ask for, which is what used to raise here and stop the bot during startup.
+                        suffix = f' ({state.pinned})' if state.pinned else ''
+                        self.log.info(f'- Pinned version detected{suffix}.')
+                    elif state.branch == 'development':
                         self.log.info(f'- Development version detected.')
             except git.InvalidGitRepositoryError:
                 if os.path.isdir('.git'):
@@ -162,7 +326,7 @@ class NodeImpl(Node):
             await self.get_dcs_branch_and_version()
         await self.init_db()
         # Do we have a cluster?
-        if len(self.all_nodes) > 1:
+        if len(self.all_nodes) > 1 or self.is_federation():
             self._claimed_master = await self.heartbeat()
             if self.is_shutdown.is_set():
                 return
@@ -178,6 +342,9 @@ class NodeImpl(Node):
             except Exception as ex:
                 self.log.exception(ex)
         await self.init_instances()
+        await self.release_own_windows()
+        await self.register_resources()
+        utils.safe_start(self.federation_loop)
 
     async def __aenter__(self):
         if sys.platform == 'win32':
@@ -208,7 +375,44 @@ class NodeImpl(Node):
 
     async def __aexit__(self, _type, _value, _traceback):
         await utils.safe_cancel(self.heartbeat_loop)
+        await utils.safe_cancel(self.federation_loop)
+        await self.release_windows()
         await self.close_db()
+
+    async def release_own_windows(self) -> None:
+        """Clear the window rows a PREVIOUS session of this node left behind, and say so.
+
+        A window's advisory lock is session-scoped, so a row naming this node while no session of it holds the lock
+        is residue: the process that took it is gone and will never release it. Left in place it is read as a live
+        window by every cluster sharing the installation — and by this node's own start gate, which then refuses to
+        start anything on that installation for as long as this node keeps heartbeating.
+        """
+        try:
+            released = await ResourceWindows(self).release_own()  # type: ignore[arg-type]  # a double has no cpool
+        except Exception as ex:
+            self.log.warning(f'- Could not check for leftover federation windows: {ex}')
+            return
+        for resource_id, action in released:
+            self.log.warning(f'- Released a stale {action} window on {resource_id} '
+                             f'left by a previous session of this node.')
+
+    async def release_windows(self) -> None:
+        """Give this node's windows back on a clean shutdown, so a restart does not find a lock nobody owns.
+
+        Never while an installer is running: the window is the only thing keeping the other clusters' servers down,
+        and dropping it mid-install is exactly how an installation gets corrupted. Such a window is left to expire
+        with the process instead, which the lease handles by itself.
+        """
+        if self.installer_running:
+            self.log.warning('- A DCS installer is still running: leaving its window open, it expires on its own.')
+            return
+        try:
+            released = await ResourceWindows(self).release_own()  # type: ignore[arg-type]
+        except Exception as ex:
+            self.log.warning(f'- Could not release the federation window(s) on shutdown: {ex}')
+            return
+        for resource_id, action in released:
+            self.log.info(f'- Released the {action} window on {resource_id} on shutdown.')
 
     @override
     @property
@@ -228,8 +432,9 @@ class NodeImpl(Node):
 
     @override
     @property
-    def installation(self) -> str:
-        return os.path.expandvars(self.locals['DCS']['installation'])
+    def installation(self) -> str | None:
+        inst = self.locals.get('DCS', {}).get('installation')
+        return os.path.expandvars(inst) if inst else None
 
     @property
     def listen_address(self) -> str:
@@ -238,6 +443,15 @@ class NodeImpl(Node):
     @property
     def listen_port(self) -> Port:
         return Port(self.locals.get('listen_port', 10042), PortType.UDP)
+
+    @property
+    def heartbeat_timeout(self) -> int:
+        return self.locals.get('cluster', {}).get('heartbeat_timeout', 20)
+
+    @property
+    def unregister_grace(self) -> int:
+        heartbeat = self.locals.get('cluster', {}).get('heartbeat', 30)
+        return max(self.locals.get('cluster', {}).get('unregister_grace', heartbeat * 2), heartbeat)
 
     def register_callback(self, what: str, name: str, func: Callable[[], Awaitable[Any]]):
         if what == 'before_dcs_update':
@@ -271,7 +485,7 @@ class NodeImpl(Node):
                     schema_files = ['schemas/nodes_schema.yaml']
                     schema_files.extend([str(x) for x in Path('./extensions').rglob('*_schema.yaml')])
                     utils.validate(config_file, schema_files, raise_exception=(validation == 'strict'))
-                data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+                data: dict = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
             except MarkedYAMLError as ex:
                 raise YAMLError('config_file', ex)
             for node_name in data.keys():
@@ -281,6 +495,12 @@ class NodeImpl(Node):
             if not node:
                 raise InstallationException(f'No configuration found for node {self.name} in {config_file}!')
             dirty = False
+            #: The stamps to apply to THIS node's block on disk, each recorded as it is computed: the
+            #: write below re-applies exactly these and touches no other block.
+            secured_database_url: str | None = None
+            removed_dcs_password = False
+            dcs_user: str | None = None
+            use_upnp_stamp: bool | None = None
 
             # check if we need to secure the database URL
             database_url = node.get('database', {}).get('url')
@@ -289,8 +509,9 @@ class NodeImpl(Node):
                 if url.password and url.password != 'SECRET':
                     utils.set_password('database', unquote(url.password), self.config_dir)
                     port = url.port or 5432
-                    node['database']['url'] = \
-                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
+                    secured_database_url = rebuild_url(
+                        url, host=url.hostname, port=port, password='SECRET')
+                    node['database']['url'] = secured_database_url
                     dirty = True
                     self.log.info("Database password found, removing it from config.")
             else:
@@ -306,15 +527,37 @@ class NodeImpl(Node):
             if 'DCS' in node:
                 password = node['DCS'].pop('dcs_password', node['DCS'].pop('password', None))
                 if password:
-                    node['DCS']['user'] = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
+                    dcs_user = node['DCS'].pop('dcs_user', node['DCS'].get('user'))
+                    node['DCS']['user'] = dcs_user
                     utils.set_password('DCS', password, self.config_dir)
+                    removed_dcs_password = True
                     dirty = True
             if not 'use_upnp' in node:
-                node['use_upnp'] = utils.is_upnp_available()
+                use_upnp_stamp = utils.is_upnp_available()
+                node['use_upnp'] = use_upnp_stamp
                 dirty = True
             if dirty:
-                with open(config_file, 'w', encoding='utf-8') as f:
-                    yaml.dump(data, f)
+                def stamp_node_block(document: Any) -> None:
+                    """Apply the stamps above to THIS node's block; every other block is left as it is."""
+                    node_block = document.get(self.name)
+                    if node_block is None:
+                        raise ConfigWriteError(
+                            f"nodes.yaml has no block for node '{self.name}'.")
+                    if secured_database_url is not None:
+                        node_block.setdefault('database', {})['url'] = secured_database_url
+                    if removed_dcs_password:
+                        dcs_block = node_block.get('DCS')
+                        if isinstance(dcs_block, dict):
+                            dcs_block.pop('dcs_password', None)
+                            dcs_block.pop('password', None)
+                            if dcs_user is not None:
+                                dcs_block['user'] = dcs_user
+                    if use_upnp_stamp is not None:
+                        node_block['use_upnp'] = use_upnp_stamp
+
+                # No schema check: the node schema validates the WHOLE document, so a fault in another
+                # node's block would refuse this edit.
+                configwrite.patch_config_file(config_file, stamp_node_block, schemas=None)
             return node
         raise InstallationException(f"No {config_file} found. Exiting.")
 
@@ -437,12 +680,29 @@ class NodeImpl(Node):
         self.log.debug("- Initializing database pools ...")
         self.pool = ConnectionPool(lpool_url, name="SyncPool", min_size=2, max_size=10,
                                    check=ConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                   open=False)
+                                   open=False,
+                                   kwargs={
+                                       'connect_timeout': 10,
+                                       'keepalives': 1,
+                                       'keepalives_idle': 30,
+                                       'keepalives_interval': 10,
+                                       'keepalives_count': 3}
+                                   )
         self.pool.open()
+        _sync_pools.append(self.pool)
 
-        self.apool = AsyncConnectionPool(conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
-                                         check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
-                                         num_workers=num_workers, max_waiting=max_waiting, open=False)
+        self.apool = AsyncConnectionPool(
+            conninfo=lpool_url, name="AsyncPool", min_size=pool_min, max_size=pool_max,
+            check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout,
+            num_workers=num_workers, max_waiting=max_waiting, open=False,
+            kwargs = {
+                'connect_timeout': 10,
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 3
+            }
+        )
         await self.apool.open()
 
         # initialize the cluster pool
@@ -451,19 +711,25 @@ class NodeImpl(Node):
             # create the fast cluster pool
             self.cpool = AsyncConnectionPool(
                 conninfo=cpool_url, name="ClusterPool", min_size=2, max_size=4,
-                check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout, open=False)
+                check=AsyncConnectionPool.check_connection, max_idle=max_idle, timeout=timeout, open=False,
+                kwargs={
+                    'connect_timeout': 10,
+                    'keepalives': 1,
+                    'keepalives_idle': 30,
+                    'keepalives_interval': 10,
+                    'keepalives_count': 3}
+            )
             await self.cpool.open()
         else:
             self.cpool = self.apool
 
         self.log.debug("- Database pools initialized.")
 
+    def is_federation(self):
+        return self.apool != self.cpool
+
     async def close_db(self):
-        if self._heartbeat_conn and not self._heartbeat_conn.closed:
-            try:
-                await self._heartbeat_conn.close()
-            except Exception as ex:
-                self.log.exception(ex)
+        await self._drop_heartbeat_conn(log_exception=True)
         if self.pool and not self.pool.closed:
             try:
                 self.pool.close()
@@ -500,31 +766,60 @@ class NodeImpl(Node):
             """, (self.name,))
         # initialize the nodes
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
-        dirty = False
-
+        initialized: list[Instance] = []
         for _name, _element in self.locals.pop('instances', {}).items():
             try:
                 instance = self.instances[_name] = DataObjectFactory().new(InstanceImpl, node=self, name=_name, locals=_element)
-                # make sure the necessary config is in the nodes.yaml
-                instance_config = config[self.name]['instances'][_name]
-                if 'dcs_port' not in instance_config:
-                    instance_config['dcs_port'] = int(instance.dcs_port)
-                    dirty = True
-                if 'webgui_port' not in instance_config:
-                    instance_config['webgui_port'] = int(instance.webgui_port)
-                    dirty = True
+                initialized.append(instance)
             except UniqueViolation:
                 self.log.error(f"Instance \"{_name}\" can't be added."
                                f"There is an instance already with the same server name or bot port.")
             except Exception:
                 self.log.error(f"Instance \"{_name}\" can't be added.", exc_info=True)
 
-        if dirty:
-            # save the new config
-            with open(config_file, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(config, outfile)
+        def stamp_instance_ports(document: Any) -> None:
+            """Make sure the necessary config is in THIS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            if node_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no block for node '{self.name}'.")
+            instances = node_block.get('instances')
+            for instance in initialized:
+                instance_config = instances.get(instance.name) if instances is not None else None
+                if instance_config is None:
+                    raise ConfigWriteError(
+                        f"nodes.yaml has no instance '{instance.name}' for node '{self.name}'.")
+                if 'dcs_port' not in instance_config:
+                    instance_config['dcs_port'] = int(instance.dcs_port)
+                if 'webgui_port' not in instance_config:
+                    instance_config['webgui_port'] = int(instance.webgui_port)
+
+        # No schema check: the node schema validates the WHOLE document, so a fault in another node's
+        # block would refuse this edit. When no port has to be stamped the mutate is a no-op and the
+        # primitive writes nothing, so a clean file is left exactly as it is.
+        configwrite.patch_config_file(config_file, stamp_instance_ports, schemas=None)
+
+    async def register_resources(self):
+        """Declare this node's DCS installation in the federation registry.
+
+        Automatic, never opt-in: whoever installs a second bot on one PC has no idea they just made two clusters
+        share one installation, so the dependency cannot depend on anybody enabling it. Harmless without a federation
+        — a single cluster simply registers its own resource — and it is the row that lets a *second* cluster see the
+        sharing at all.
+        """
+        if not self.installation:
+            return
+        try:
+            identity = utils.ResourceIdentity.of(self.installation, 'dcs_installation')
+            servers = sorted(self.instances)
+            await ResourceRegistry(self).register(
+                identity, dependents=[('server', name) for name in servers])
+            self.resources[identity.id] = scope_of(identity.resource_type)
+            self.log.info(f'- Resource {identity.path} registered ({len(servers)} server(s) depend on it).')
+        except Exception as ex:
+            # Deliberately not fatal: this reports and coordinates, it is not a precondition for running servers. An
+            # ERROR line is the honest signal — a node that cannot register will not learn it must step down either.
+            self.log.error(f'- Could not register the DCS installation as a federation resource: {ex}')
 
     async def update_db(self):
         rc = 0
@@ -603,11 +898,17 @@ class NodeImpl(Node):
 
         try:
             with closing(git.Repo('.')) as repo:
-                current_hash = repo.head.commit.hexsha
+                if _read_git_state(repo).detached:
+                    # PINNED (a release tag is checked out): there is no branch to follow, so git
+                    # alone cannot answer this — but a newer RELEASE may still exist, and the operator
+                    # has to be able to see it, because ``/node upgrade`` is what offers to move back
+                    # onto the update stream. The version check needs no git at all, so it answers
+                    # this case too.
+                    return await self._upgrade_pending_non_git()
                 origin = repo.remotes.origin
                 origin.fetch()
-                new_hash = origin.refs[repo.active_branch.name].object.hexsha
-                if new_hash != current_hash:
+                state = _read_git_state(repo)     # the fetch moved the remote refs, not HEAD
+                if state.target and state.target != state.current:
                     return True
         except git.InvalidGitRepositoryError:
             return await self._upgrade_pending_non_git()
@@ -648,6 +949,82 @@ class NodeImpl(Node):
         except IndexError:
             self.log.error(f"Corrupt response from GitHub: {repr(result)}")
         return False
+
+    async def _latest_version(self) -> str | None:
+        """The version number of the revision this install would move to, or ``None`` when it cannot be read.
+
+        Two install kinds, two sources, and they are **not** interchangeable:
+
+        * a checkout updates from its **branch**, so the number is the branch tip's own ``version.py`` — a branch
+          carries no release tags, so the tag would answer a different question entirely;
+        * an install that came from a release (no checkout) updates to the newest **release**, and that tag is
+          exactly the number it would move to.
+
+        ``None`` means "could not be read", never "no update": the caller then keeps the previous behaviour and lets
+        the update through — the safe direction, because a guess here could hold an update back for a version the
+        install would never receive.
+        """
+        try:
+            import git  # type: ignore[import-not-found]
+        except ImportError:
+            return await self._latest_version_release()
+        try:
+            repo = git.Repo('.')
+        except git.InvalidGitRepositoryError:
+            # no checkout at all: the install came from a release, and that tag is what it would move to
+            return await self._latest_version_release()
+        try:
+            with closing(repo) as repo:
+                branch = repo.active_branch.name
+                repo.remotes.origin.fetch()
+                blob = repo.git.show(f'origin/{branch}:version.py')
+            match = re.search(r'^__version__\s*=\s*[\'"]([^\'"]+)', blob, re.MULTILINE)
+            return match.group(1) if match else None
+        except Exception as ex:
+            # A checkout updates from its branch, so the release tag is NOT the version it would move to: this
+            # stays unknown rather than guessed.
+            self.log.debug(f"Could not read the version of the remote branch: {ex}")
+            return None
+
+    async def _latest_version_release(self) -> str | None:
+        """The newest release tag GitHub reports, read the way ``_upgrade_pending_non_git`` reads it.
+
+        Deliberately its own request instead of a refactor of that check: that one answers a yes/no and this one
+        needs the number, and editing a working update path for six duplicated lines is the worse trade.
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                    response.raise_for_status()
+                    result = await response.json()
+                    return re.sub('^v', '', result[0]["tag_name"])
+        except Exception as ex:
+            self.log.debug(f"Could not read the latest release tag: {ex}")
+            return None
+
+    async def upgrade_versions(self) -> tuple[str, str] | None:
+        """``(installed, latest)`` when an upgrade is pending AND both numbers could be read, else ``None``.
+
+        ``upgrade_pending()`` stays the one definition of "a newer revision exists" — this is only for the rules
+        that need the numbers. ``None`` means "no reason to hold the update back", never "there is no update".
+        """
+        if not await self.upgrade_pending():
+            return None
+        latest = await self._latest_version()
+        return (__version__, latest) if latest else None
+
+    @override
+    async def upgrade_is_major(self) -> bool:
+        """Whether an update is waiting AND it moves one of the first three version numbers.
+
+        The pair is recorded on the node when it is: the launcher decides this before the bot exists, and the bot is
+        what has to tell an operator (see ``BotService.setup_hook``).
+        """
+        versions = await self.upgrade_versions()
+        if not versions or not utils.is_major_version_change(*versions):
+            return False
+        self.major_upgrade = versions
+        return True
 
     @override
     async def upgrade_pending(self) -> bool:
@@ -704,26 +1081,39 @@ class NodeImpl(Node):
 
     @override
     async def get_dcs_branch_and_version(self) -> tuple[str, str]:
-        if not self.dcs_branch or not self.dcs_version:
-            try:
-                async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
-                    data = json.loads(await cfg.read())
-                self.dcs_branch = data.get('branch', 'release')
-                self.dcs_version = data['version']
-                if 'DEDICATED_SERVER' in await self.get_installed_modules():
-                    self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
-                                   "Use /dcs update to update to the release branch.")
-                if "openbeta" in self.dcs_branch:
-                    self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
-                                     "Use /dcs update if you want to switch to the release branch.")
-            except FileNotFoundError:
-                self.log.critical(f"No DCS installation found at {self.installation}")
-                exit(SHUTDOWN)
+        cfg = os.path.join(self.installation, 'autoupdate.cfg')
+        try:
+            mtime = os.path.getmtime(cfg)
+        except FileNotFoundError:
+            self.log.critical(f"No DCS installation found at {self.installation}")
+            exit(SHUTDOWN)
+
+        if not self.dcs_branch or not self.dcs_version or mtime != self._dcs_cfg_mtime:
+            old_version = self.dcs_version
+            async with aiofiles.open(os.path.join(self.installation, 'autoupdate.cfg'), mode='r', encoding='utf8') as cfg:
+                data = json.loads(await cfg.read())
+            self.dcs_branch = data.get('branch', 'release')
+            self.dcs_version = data['version']
+            self._dcs_cfg_mtime = mtime
+            if 'DEDICATED_SERVER' in await self.get_installed_modules():
+                self.log.error("You're using the OLD dedicated server, which is deprecated.\n"
+                               "Use /dcs update to update to the release branch.")
+            if "openbeta" in self.dcs_branch:
+                self.log.warning("You're running DCS OpenBeta, which is discontinued.\n"
+                                 "Use /dcs update if you want to switch to the release branch.")
+            if old_version and old_version != self.dcs_version and not self.master:
+                from services.servicebus import ServiceBus
+
+                await ServiceRegistry.get(ServiceBus).send_to_node({
+                    "command": "rpc", "service": "ServiceBus",
+                    "method": "set_remote_node_version",
+                    "params": {"node": self.name, "dcs_version": self.dcs_version}
+                })
         return self.dcs_branch, self.dcs_version
 
-    async def update(self, warn_times: list[int], branch: str = None, version: str = None) -> int:
+    async def update(self, warn_times: list[int], branch: str | None = None, version: str | None = None) -> int:
 
-        async def do_update(branch: str, version: str = None) -> int:
+        async def do_update(branch: str, version: str | None = None) -> int:
             # disable any popup on the remote machine
             if sys.platform == 'win32':
                 startupinfo = subprocess.STARTUPINFO()
@@ -784,12 +1174,20 @@ class NodeImpl(Node):
             proc = next(utils.find_process("DCS_updater.exe"), None)
             if proc:
                 self.log.info("- DCS Update already in progress, waiting ...")
-                while proc.is_running():
-                    await asyncio.sleep(1)
+                self.installer_running = True
+                try:
+                    while proc.is_running():
+                        await asyncio.sleep(1)
+                finally:
+                    self.installer_running = False
                 # assuming the update was a success
                 rc = 0
             else:
-                rc = await asyncio.to_thread(run_subprocess)
+                self.installer_running = True
+                try:
+                    rc = await asyncio.to_thread(run_subprocess)
+                finally:
+                    self.installer_running = False
             if branch and rc == 0:
                 # check if the branch has been changed
                 config = os.path.join(self.installation, 'autoupdate.cfg')
@@ -1088,6 +1486,16 @@ class NodeImpl(Node):
             if not self.locals['DCS'].get('cloud', False) or self.master:
                 await utils.safe_cancel(self.autoupdate)
 
+    async def _drop_heartbeat_conn(self, *, log_exception: bool = False) -> None:
+        conn, self._heartbeat_conn = self._heartbeat_conn, None
+        if not conn or conn.closed:
+            return
+        try:
+            await conn.close()
+        except Exception as ex:
+            if log_exception:
+                self.log.exception(ex)
+
     async def heartbeat(self) -> bool:
         lock_key = zlib.crc32(f"DCSSB:{self.guild_id}".encode("utf-8"))
 
@@ -1096,7 +1504,13 @@ class NodeImpl(Node):
             if not self._heartbeat_conn or self._heartbeat_conn.closed:
                 self._heartbeat_conn = await psycopg.AsyncConnection.connect(
                     self.cpool.conninfo,
-                    autocommit=True
+                    autocommit=True,
+                    application_name=f"DCSSB:{self.name}",
+                    connect_timeout=10,
+                    keepalives=1,
+                    keepalives_idle=30,
+                    keepalives_interval=10,
+                    keepalives_count=3
                 )
             return self._heartbeat_conn
 
@@ -1128,10 +1542,15 @@ class NodeImpl(Node):
                 self.log.debug("Upgrade: master => still upgrading")
                 return False
             else:
-                # the master is dead, so reset update pending
-                self.log.error("Master died during an upgrade. Taking over ...")
-                await conn.execute("UPDATE cluster SET update_pending = FALSE WHERE guild_id = %s", (self.guild_id,))
-                # take over
+                # A master dying mid-upgrade is the NORMAL case — it is restarting so its launcher can run
+                # update.py. KEEP the upgrade intent: that flag is what tells every node to update, and clearing it
+                # here silently abandons the upgrade for the whole cluster (the taker then writes its own, older
+                # version into cluster.version, so nothing differs and nothing heals). The next master's own
+                # heartbeat runs the master branch above — re-announcing it to every active node and only then
+                # clearing the flag — one cycle later, so nothing can stay stuck.
+                self.log.error("Master died during an upgrade. Taking over and keeping the upgrade intent, "
+                               "so the next master re-announces it ...")
+                # take over — update_pending deliberately left TRUE
                 return await try_become_master()
 
         async def get_master() -> tuple[str | None, str | None, str, bool]:
@@ -1199,18 +1618,29 @@ class NodeImpl(Node):
             from services.bot import BotService
             from services.servicebus import ServiceBus
 
-            active_nodes = set(await self.get_active_nodes())
             all_nodes = set(self.all_nodes.keys())
+            ready_nodes = await self.get_ready_nodes()
+            # grace: only fence nodes whose last_seen is older than the grace budget
+            stale_nodes = set(await self.get_active_nodes(self.unregister_grace))
+
+            bus = cast(ServiceBus, ServiceRegistry.get(ServiceBus))
+            bot = cast(BotService, ServiceRegistry.get(BotService))
 
             # check if suspect nodes came back again
-            for node_name in {name: self.suspect[name] for name in active_nodes if name in self.suspect}:
+            for node_name in {name: self.suspect[name] for name in ready_nodes if name in self.suspect}:
                 node = self.suspect.pop(node_name)
                 self.all_nodes[node.name] = node
                 self.log.info(f"Node {node.name} is alive again, asking for registration ...")
-                await ServiceRegistry.get(ServiceBus).register_remote_servers(node)
+                await bus.register_remote_servers(node)
+                await bot.alert(
+                    title=_("Node {node} is back up!").format(node=node.name),
+                    message=_("Node {node} was re-added to the cluster.").format(node=node.name),
+                    mention=False,
+                    warn=False
+                )
 
             # remove nodes that are no longer active
-            for node_name in all_nodes - active_nodes:
+            for node_name in all_nodes - stale_nodes:
                 # we are never part of the active nodes list
                 if node_name == self.name:
                     continue
@@ -1218,9 +1648,10 @@ class NodeImpl(Node):
                 # remove known inactive nodes
                 if not node:
                     continue
+
                 self.log.error(f"Node {node.name} is not responding.")
-                await ServiceRegistry.get(ServiceBus).unregister_remote_node(node)
-                await ServiceRegistry.get(BotService).alert(
+                await bus.unregister_remote_node(node)
+                await bot.alert(
                     title=_("Node {node} is not responding").format(node=node.name),
                     message=_("Node {node} was unregistered from the cluster.").format(node=node.name)
                 )
@@ -1287,7 +1718,18 @@ class NodeImpl(Node):
                         if not holds_lock:
                             # Try to grab the lock on the sticky connection
                             cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
-                            if not (await cursor.fetchone())[0]:
+                            got = (await cursor.fetchone())[0]
+                            if not got and not await self.get_active_nodes():
+                                self.log.warning("Master lock held with no live node — reclaiming it ...")
+                                await lock_conn.execute("""
+                                    SELECT pg_terminate_backend(pid)
+                                    FROM pg_locks
+                                    WHERE locktype = 'advisory' AND classid = 0 AND objid = %s
+                                      AND pid <> pg_backend_pid()
+                                """, (lock_key, ))
+                                cursor = await lock_conn.execute("SELECT pg_try_advisory_lock(%s)", (lock_key, ))
+                                got = (await cursor.fetchone())[0]
+                            if not got:
                                 self.log.info("  => Another node still holds the master lock, waiting ...")
                                 return False
 
@@ -1345,47 +1787,91 @@ class NodeImpl(Node):
                 finally:
                     if (not cancelled and not self.node.is_shutdown.is_set()
                             and self.cpool is not None and not self.cpool.closed):
-                        async with self.cpool.connection() as conn2:
-                            await conn2.execute("""
-                                INSERT INTO nodes (guild_id, node) VALUES (%s, %s) 
-                                ON CONFLICT (guild_id, node) DO UPDATE 
-                                SET last_seen = (NOW() AT TIME ZONE 'UTC')
-                            """, (self.guild_id, self.name))
-        except UndefinedTable:
-            # we should only be here when the CLUSTER table does not exist
-            # it will be created directly afterward
+                        try:
+                            async with self.cpool.connection() as conn2:
+                                await conn2.execute("""
+                                    INSERT INTO nodes (guild_id, node, ready)
+                                    VALUES (%s, %s, %s)
+                                    ON CONFLICT (guild_id, node) DO UPDATE
+                                        SET last_seen = (NOW() AT TIME ZONE 'UTC'),
+                                            ready     = EXCLUDED.ready
+                                """, (self.guild_id, self.name, self._ready))
+                            self._heartbeat_write_error = False
+                        except Exception as ex:
+                            if not self._heartbeat_write_error:
+                                self.log.warning(
+                                    f"Could not refresh node liveness: {ex}. "
+                                    f"Node unregistered after {self.unregister_grace}s!"
+                                )
+                                self._heartbeat_write_error = True
+
+        except (UndefinedTable, UndefinedColumn):
+            # We should only be here when the CLUSTER table does not exist or needs to be updated.
+            # It will be created directly afterward.
             return True
 
     @tasks.loop(seconds=5.0)
     async def heartbeat_loop(self):
         try:
-            self._claimed_master = await self.heartbeat()
+            self._claimed_master = await asyncio.wait_for(
+                self.heartbeat(), timeout=self.heartbeat_timeout)
+            self._heartbeat_pool_errors = 0
             if self.heartbeat_loop.seconds == 10.0:
                 self.heartbeat_loop.change_interval(seconds=5.0)
+        except (TimeoutError, asyncio.TimeoutError):
+            self.log.warning(f"Heartbeat timeout after {self.heartbeat_timeout}s, "
+                             f"dropping the connection and retrying ...")
+            await self._drop_heartbeat_conn()
         except psycopg_pool.PoolTimeout:
-            current_stats = self.cpool.get_stats()
-            self.log.warning(f"Pool stats: {repr(current_stats)}")
+            self._heartbeat_pool_errors += 1
+            self.log.warning(f"Pool stats ({self._heartbeat_pool_errors}): {self.cpool.get_stats()!r}")
             if self.heartbeat_loop.seconds == 5.0:
                 self.heartbeat_loop.change_interval(seconds=10.0)
-            else:
+            elif self._heartbeat_pool_errors >= 12:
                 await self.restart()
         except FatalException as ex:
             self.log.critical(ex)
             exit(SHUTDOWN)
+        except (psycopg.OperationalError, psycopg.InterfaceError) as ex:
+            self.log.warning(f"Database connection error in heartbeat: {ex}")
+            await self._drop_heartbeat_conn()
         except Exception as ex:
             self.log.exception(ex)
             await self.restart()
 
-    async def get_active_nodes(self) -> list[str]:
+    async def get_active_nodes(self, timeout: int | None = None) -> list[str]:
+        if timeout is None:
+            timeout = self.locals.get('cluster', {}).get('heartbeat', 30)
         async with self.cpool.connection() as conn:
             query = sql.SQL("""
                 SELECT node FROM nodes 
                 WHERE guild_id = %s
                 AND node <> %s
                 AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
-            """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
+            """).format(interval=sql.Literal(f"{timeout} seconds"))
             cursor = await conn.execute(query, (self.guild_id, self.name))
             return [row[0] async for row in cursor]
+
+    async def set_ready(self) -> None:
+        """Mark this node as fully started (its services can serve RPCs)."""
+        self._ready = True
+        if self.cpool and not self.cpool.closed:
+            async with self.cpool.connection() as conn:
+                await conn.execute("""
+                    UPDATE nodes SET ready = TRUE WHERE guild_id = %s AND node = %s
+                """, (self.guild_id, self.name))
+
+    async def get_ready_nodes(self) -> set[str]:
+        async with self.cpool.connection() as conn:
+            query = sql.SQL("""
+                SELECT node FROM nodes 
+                WHERE guild_id = %s
+                AND node <> %s
+                AND ready = TRUE
+                AND last_seen > (NOW() AT TIME ZONE 'UTC' - interval {interval})
+            """).format(interval=sql.Literal(f"{self.locals.get('cluster', {}).get('heartbeat', 30)} seconds"))
+            cursor = await conn.execute(query, (self.guild_id, self.name))
+            return {row[0] async for row in cursor}
 
     @override
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
@@ -1428,24 +1914,145 @@ class NodeImpl(Node):
                 return (await cursor.fetchone())[0]
 
     @override
-    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
-        if os.path.exists(filename) and not overwrite:
+    async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
+                               behind: int | None = None) -> tuple[bytes, int, int | float] | tuple[int, int, int | float]:
+        """A WINDOW of a file, its size and its identity — never the whole file (see :meth:`Node.read_file_window`).
+
+        A read-only sibling of :meth:`read_file`. On the MASTER this node reads the window off its own
+        disk with a ``seek`` and NOTHING crosses the wire; on an AGENT it writes ONLY the window into
+        the same one-shot ``files`` drop-box row :meth:`read_file` uses and returns ``(row id, size,
+        identity)`` so the master-side proxy can read-and-delete it — the transport is unchanged, only
+        what travels in it is smaller. The proxy turns the id back into the bytes, so a console caller
+        sees ``(bytes, size, identity)`` in either case.
+
+        Exactly one of *offset* / *behind* names the window (``ValueError`` otherwise). ``length`` is
+        CLAMPED to :data:`NODE_READ_WINDOW_MAX_BYTES` — the PRIMITIVE's own ceiling — so the window can
+        never grow into a whole-file transfer whatever a caller asks. The size is the file's size AT
+        READ TIME (the reader sees a truncation/rotation when ``size < offset``) and the identity is
+        :func:`file_identity` (a value stable across an APPEND but changed by a REPLACEMENT, so a
+        rotated log is detected even when the new file is already bigger than the old offset).
+        """
+        if (offset is None) == (behind is None):
+            raise ValueError("read_file_window needs exactly one of 'offset' or 'behind'.")
+        if length <= 0:
+            raise ValueError("read_file_window needs a positive 'length'.")
+        if offset is not None and offset < 0:
+            raise ValueError("read_file_window needs a non-negative 'offset'.")
+        # THE PRIMITIVE'S OWN CEILING: a window can never exceed it, whatever the caller asks.
+        length = min(int(length), NODE_READ_WINDOW_MAX_BYTES)
+        start_hint = int(offset) if offset is not None else 0
+        behind_hint = int(behind) if behind is not None else None
+
+        def _read_window() -> tuple[bytes, int, int | float]:
+            st = os.stat(path)
+            size = st.st_size
+            if behind_hint is not None:
+                end = max(0, min(behind_hint, size))
+                start = max(0, end - length)
+            else:
+                start = min(start_hint, size)
+                end = min(size, start + length)
+            with open(path, 'rb') as file:
+                file.seek(start)
+                data = file.read(max(0, end - start))
+            return data, size, file_identity(st)
+
+        path = os.path.expandvars(path)
+        data, size, identity = await asyncio.to_thread(_read_window)
+        if self.node.master:
+            return data, size, identity
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("""
+                INSERT INTO files (guild_id, name, data) 
+                VALUES (%s, %s, %s)
+                RETURNING id
+            """, (self.guild_id, path, psycopg.Binary(data)))
+            return (await cursor.fetchone())[0], size, identity
+
+    @override
+    async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
+        """Write one file to *target* from a path, a URL or a staged ``files`` row.
+
+        ``overwrite=False`` — the default every caller inherits — is an EXCLUSIVE CREATE: the
+        destination is opened ``O_CREAT|O_EXCL``, so a file that appeared after any caller-side check
+        is refused (:attr:`UploadStatus.FILE_EXISTS`) instead of truncated by the second writer. The
+        existence check that follows is the early answer, never the guarantee. ``overwrite=True``
+        keeps replacing the file, as it always did.
+
+        A write that FAILS after the create removes the file this call created (never one it found),
+        so the name stays free for a retry. A staged row is read, then consumed only after the bytes
+        are on disk; a failed write keeps the row so the caller can retry with it.
+        """
+        if os.path.exists(target) and not overwrite:
             return UploadStatus.FILE_EXISTS
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
-                if response.status == 200:
-                    try:
-                        # make sure the directory exists
-                        os.makedirs(os.path.dirname(filename), exist_ok=True)
-                        async with aiofiles.open(filename, mode='wb') as outfile:
-                            await outfile.write(await response.read())
-                            return UploadStatus.OK
-                    except Exception as ex:
-                        self.log.error(ex)
-                        return UploadStatus.WRITE_ERROR
-                else:
-                    return UploadStatus.READ_ERROR
+        if isinstance(source, str):
+            if source.startswith('http'):
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(source, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                        if response.status == 200:
+                            created = False
+                            try:
+                                # make sure the directory exists
+                                os.makedirs(os.path.dirname(target), exist_ok=True)
+                                async with aiofiles.open(target, mode=_write_mode(overwrite)) as outfile:
+                                    created = not overwrite
+                                    await outfile.write(await response.read())
+                                    return UploadStatus.OK
+                            except FileExistsError:
+                                return UploadStatus.FILE_EXISTS
+                            except Exception as ex:
+                                self.log.error(ex)
+                                if created:
+                                    _discard_own_file(target, self.log)
+                                return UploadStatus.WRITE_ERROR
+                        else:
+                            return UploadStatus.READ_ERROR
+            elif self.node.master:
+                created = False
+                try:
+                    if overwrite:
+                        shutil.copy2(source, target)
+                    else:
+                        # O_EXCL: the copy refuses an occupied destination instead of replacing it
+                        with open(target, 'xb') as out, open(source, 'rb') as src:
+                            created = True
+                            shutil.copyfileobj(src, out)
+                        shutil.copystat(source, target)
+                    return UploadStatus.OK
+                except FileExistsError:
+                    return UploadStatus.FILE_EXISTS
+                except Exception as ex:
+                    self.log.error(ex)
+                    if created:
+                        _discard_own_file(target, self.log)
+                    return UploadStatus.WRITE_ERROR
+            else:
+                self.log.warning("Trying to write a file from an Agent to the Master node. This is not supported.")
+                return UploadStatus.WRITE_ERROR
+        else:
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (source,), binary=True)
+                data = (await cursor.fetchone())[0]
+                created = False
+                try:
+                    async with aiofiles.open(target, mode=_write_mode(overwrite)) as out:
+                        created = not overwrite
+                        await out.write(data)
+                except FileExistsError:
+                    # the name is another writer's: the staged bytes cannot land under it, so the
+                    # row is discarded exactly as a completed write discards it
+                    await conn.execute("DELETE FROM files WHERE id = %s", (source,))
+                    return UploadStatus.FILE_EXISTS
+                except Exception as ex:
+                    # the row STAYS: the bytes are still the caller's to retry with
+                    self.log.error(ex)
+                    if created:
+                        _discard_own_file(target, self.log)
+                    return UploadStatus.WRITE_ERROR
+                # consume the staged row only AFTER the bytes are on disk
+                await conn.execute("DELETE FROM files WHERE id = %s", (source,))
+            return UploadStatus.OK
 
     @override
     async def list_directory(self, path: str, *, pattern: str | list[str] = '*',
@@ -1468,6 +2075,29 @@ class NodeImpl(Node):
 
         ret = [f.as_posix() for f in sorted(filtered_files(), key=sort_key, reverse=sort_key != str)]
         return directory.as_posix(), ret
+
+    @override
+    async def list_files(self, path: str, *, pattern: str | list[str] = '*'
+                         ) -> list[tuple[str, int, float]]:
+        """The FILES matching *pattern*, each as ``(path, size, mtime)``, NEWEST FIRST.
+
+        The local half of :meth:`Node.list_files`: a ``glob`` over the expanded directory, each match
+        ``stat``-ed for its size and modification time, sorted by ``mtime`` DESCENDING. A directory
+        that does not exist simply globs to nothing, so a missing log directory is an EMPTY list, not
+        an error — the honest "there are no files to list" answer.
+        """
+        directory = Path(os.path.expandvars(path))
+        if isinstance(pattern, str):
+            pattern = [pattern]
+
+        found: dict[str, tuple[str, int, float]] = {}
+        for pat in pattern:
+            for file in directory.glob(pat):
+                if file.is_dir():
+                    continue
+                st = file.stat()
+                found[file.as_posix()] = (file.as_posix(), int(st.st_size), float(st.st_mtime))
+        return sorted(found.values(), key=lambda entry: entry[2], reverse=True)
 
     @override
     async def create_directory(self, path: str):
@@ -1497,6 +2127,7 @@ class NodeImpl(Node):
         if server.is_remote:
             server.name = new_name
 
+    @override
     async def is_dcs_update_available(self) -> str | None:
         branch, old_version = await self.get_dcs_branch_and_version()
         try:
@@ -1513,6 +2144,50 @@ class NodeImpl(Node):
             self.log.warning("DCS update check failed, possible server outage at ED.")
         return None
 
+    def resource_of_installation(self) -> str | None:
+        """The resource id of this node's own DCS installation, or ``None`` when it has none registered.
+
+        One installation per node in this slice, so there is at most one id to find; a node that could not identify
+        its installation updates exactly as it did before the federation existed.
+        """
+        return next(iter(self.resources), None)
+
+    async def federated_update(self, resource_id: str, *, branch: str | None = None, version: str | None = None,
+                               warn_times: list[int] | None = None) -> int:
+        """Update the installation under a window, so every cluster sharing it stands down first.
+
+        The advisory lock decides who runs the update: a node that does not get it has powered off nothing and simply
+        returns — which is also the answer to two nodes seeing the update in the same second, since exactly one wins.
+
+        This node's own servers are stopped through the SAME call a follower uses, and recorded the same way. One
+        implementation of "stand down", not two — and as a side effect the maintenance context inside ``update()``
+        then finds nothing in service and restarts nothing, so the single-cluster path and this one compose instead of
+        fighting over who brings the servers back.
+        """
+        protocol = ResourceWindowProtocol(self)
+        scope = self.resources[resource_id]
+        if not await protocol.windows.take(resource_id, 'update', scope):
+            self.log.info(f"- Another cluster is updating {resource_id} right now, standing by.")
+            return UPDATE_STOOD_BY
+        try:
+            await protocol.step_down(resource_id, scope, warn_times or [300, 120, 60])
+            residue = await protocol.wait_for_clear(resource_id, WINDOW_WAIT)
+            if residue:
+                # Refuse and NAME it. The installer must not run under a live server, and the operator has to know
+                # whose it is — "the update did not happen" without a reason is the failure this whole slice exists
+                # to prevent.
+                still_up = [f"{node} ({servers_up})" for _guild, node, servers_up, live
+                            in await protocol.registry.members(resource_id) if live and servers_up]
+                self.log.error(f"- Not updating {resource_id}: {residue} server(s) are still up "
+                               f"[{', '.join(still_up)}]. Stop them and the next run will proceed.")
+                return UPDATE_SERVERS_UP
+            return await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+        finally:
+            # Released in this order on purpose: the window goes first, so followers can come back while this node
+            # restores its own — and both happen even when the update raised.
+            await protocol.windows.release(resource_id)
+            await protocol.restore(resource_id)
+
     @override
     async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
@@ -1520,7 +2195,12 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         self.log.info('A new version of DCS World is available. Auto-updating ...')
-        rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+        resource_id = self.resource_of_installation()
+        if resource_id:
+            rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
+        else:
+            # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
+            rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         if rc == 0:
             bus = ServiceRegistry.get(ServiceBus)
             await bus.send_to_node({
@@ -1560,7 +2240,13 @@ class NodeImpl(Node):
                     "params": params
                 })
         else:
-            if rc == 2:
+            if rc == UPDATE_STOOD_BY:
+                message = (f"DCS World update on node {self.name} did not run: another cluster is updating "
+                           f"the shared DCS installation.")
+            elif rc == UPDATE_SERVERS_UP:
+                message = (f"DCS World update on node {self.name} did not run: servers were still up on the "
+                           f"shared DCS installation.")
+            elif rc == 2:
                 message = f"DCS World update on node {self.name} was aborted (check disk space)!"
             elif rc in [3, 350]:
                 message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
@@ -1579,6 +2265,34 @@ class NodeImpl(Node):
                 }
             })
         return rc
+
+    async def follow_resources(self) -> dict[str, str]:
+        """One follower cycle over every resource this node uses, as ``{resource_id: what it did}``.
+
+        Per resource, never one read for all of them: a resource this node cannot read must not stop it from following
+        the others, and a node that shares two installations has to keep both straight.
+        """
+        actions: dict[str, str] = {}
+        for resource_id, scope in self.resources.items():
+            try:
+                actions[resource_id] = await ResourceWindowProtocol(self).follow(resource_id, scope)
+            except Exception as ex:
+                # One broken resource is not a reason to stop following the others, and the failure has to be visible:
+                # a node that silently stops following will not step down for the next window either.
+                self.log.exception(ex)
+                actions[resource_id] = 'failed'
+        return actions
+
+    @tasks.loop(seconds=5.0)
+    async def federation_loop(self):
+        """Follow the shared resources: step this node's servers down for a window on one, or bring them back.
+
+        A **poll**, not a LISTEN. The window row is the durable half of a window, and the case that matters most is a
+        node that was *down* when the window opened — a notification can never reach it, and it is exactly the node
+        that has to step down on its way back. So the poll is the mechanism that is always right, and a listener could
+        later only make it quicker.
+        """
+        await self.follow_resources()
 
     def can_update(self):
         update_window = self.locals.get('DCS', {}).get('update_window')
@@ -1639,8 +2353,14 @@ class NodeImpl(Node):
         from services.servicebus import ServiceBus
 
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
+        # The port mint below is a READ that has to agree with the write: it computes the free ports
+        # from what is on disk now, so a writer landing in between would let two concurrent adds mint
+        # the SAME ports for two instances. The revision pins the generation this add was computed
+        # from, and ``patch_config_file`` refuses a write whose revision has moved since — the loser
+        # raises ``StaleConfigRevision`` and retries against the newer file instead of overwriting.
+        document_revision = configwrite.config_revision(config_file)
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
 
         max_bot_port = max_dcs_port = max_webgui_port = -1
         for node_name, node in self.all_nodes.items():
@@ -1710,16 +2430,24 @@ class NodeImpl(Node):
             }
             autoexec.net = net
 
-        if 'instances' not in config[self.name]:
-            config[self.name]['instances'] = {}
-        config[self.name]['instances'][instance.name] = {
-            "home": instance.home,
-            "bot_port": int(instance.bot_port)
-        }
+        def add_instance_to_document(document: Any) -> None:
+            """Write the new instance into ITS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            if node_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no block for node '{self.name}': instance "
+                    f"'{instance.name}' cannot be added.")
+            if 'instances' not in node_block:
+                node_block['instances'] = {}
+            node_block['instances'][instance.name] = {
+                "home": instance.home,
+                "bot_port": int(instance.bot_port)
+            }
 
-        # save the new config
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+        # No schema check: the node schema's ``is_node`` rule resolves the candidate's instance names
+        # against the ON-DISK nodes.yaml, and would refuse the name added here.
+        configwrite.patch_config_file(config_file, add_instance_to_document, schemas=None,
+                                      expect_revision=document_revision)
 
         bus = ServiceRegistry.get(ServiceBus)
         server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port, name='n/a', bus=bus)
@@ -1735,11 +2463,27 @@ class NodeImpl(Node):
     @override
     async def delete_instance(self, instance: Instance, remove_files: bool) -> None:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
-        config[self.name]['instances'].pop(instance.name, None)
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+        # The server's own name IS its key in servers.yaml, and the delete removes it there too. Read
+        # BEFORE ``unregister_server`` clears the binding; an instance with no server has no name, and
+        # the reserved blank marker 'n/a' is never a key.
+        server_name = str(getattr(instance.server, 'name', '') or '')
+        if not server_name or server_name == 'n/a':
+            server_name = None
+
+        def delete_instance_from_document(document: Any) -> None:
+            """Drop the instance from ITS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            instances = node_block.get('instances') if node_block is not None else None
+            if not instances or instance.name not in instances:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no instance '{instance.name}' for node '{self.name}'.")
+            instances.pop(instance.name)
+
+        # No schema check: the node schema validates the WHOLE document, so a fault in another node's
+        # block would refuse this edit.
+        configwrite.patch_config_file(config_file, delete_instance_from_document, schemas=None)
+        if server_name:
+            self._remove_server_key(server_name)
         if instance.server:
             await self.unregister_server(instance.server)
         self.instances.pop(instance.name, None)
@@ -1747,6 +2491,26 @@ class NodeImpl(Node):
             await conn.execute("DELETE FROM instances WHERE instance = %s", (instance.name, ))
         if remove_files:
             shutil.rmtree(instance.home, ignore_errors=True)
+
+    def _remove_server_key(self, server_name: str) -> None:
+        """Drop ONE server's key from ``servers.yaml`` — the file is cluster-wide, so key-scoped.
+
+        ``configwrite.patch_config_file`` loads, mutates and writes under the file's own lock, so every
+        other server's block — and every comment — survives byte-identically. A key the file does not
+        carry is a no-op, not an error; a node without a ``servers.yaml`` is left without one.
+
+        No schema is passed: ``schemas/servers_schema.yaml`` validates the WHOLE document (one
+        regex-keyed block per server), so a fault in another server's block would refuse this edit —
+        the same reason the ``nodes.yaml`` writers pass none.
+        """
+        config_file = os.path.join(self.config_dir, 'servers.yaml')
+        if not os.path.exists(config_file):
+            return
+
+        def pop_server_key(document: Any) -> None:
+            document.pop(server_name, None)
+
+        configwrite.patch_config_file(config_file, pop_server_key, schemas=None)
 
     @override
     async def rename_instance(self, instance: Instance, new_name: str) -> None:
@@ -1802,37 +2566,43 @@ class NodeImpl(Node):
                     new_mission_list.append(rename_path(mission))
                 instance.server.settings['missionList'] = new_mission_list
 
-            # read nodes.yaml
+            # read nodes.yaml: the paths below are rewritten against the file system as it is BEFORE
+            # the instance directory is renamed at the end of this method
             config_file = os.path.join(self.config_dir, 'nodes.yaml')
             with open(config_file, mode='r', encoding='utf-8') as infile:
-                config = yaml.load(infile)
+                config = new_yaml().load(infile)
 
-            # rename the instance in nodes.yaml
-            config[self.name]['instances'][new_name] = config[self.name]['instances'].pop(instance.name)
-            config[self.name]['instances'][new_name]['home'] = new_home
-            missions_dir = config[self.name]['instances'][new_name].get('missions_dir')
+            node_block = config.get(self.name)
+            instance_block = node_block.get('instances', {}).get(instance.name) if node_block else None
+            if instance_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no instance '{instance.name}' for node '{self.name}'.")
+
+            # the paths of the instance's own block that name the instance directory
+            missions_dir = instance_block.get('missions_dir')
             if missions_dir:
-                instance.missions_dir = config[self.name]['instances'][new_name]['missions_dir'] = rename_path(missions_dir)
+                instance.missions_dir = new_missions_dir = rename_path(missions_dir)
             else:
                 instance.missions_dir = rename_path(instance.missions_dir)
-
-            # rename extensions in nodes.yaml
-            for name, extension in config[self.name]['instances'][new_name].get('extensions', {}).items():
-                change_instance_in_path(extension)
+                new_missions_dir = None
+            new_extensions = instance_block.get('extensions')
+            if new_extensions is not None:
+                for name, extension in new_extensions.items():
+                    change_instance_in_path(extension)
 
             # rename plugin configs
             for plugin in Path(os.path.join(self.config_dir, 'plugins')).glob('*.yaml'):
-                data = yaml.load(plugin.read_text(encoding='utf-8'))
+                data = new_yaml().load(plugin.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
                 with plugin.open('w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
 
             # rename service configs
             for service in Path(os.path.join(self.config_dir, 'services')).glob('*.yaml'):
-                data = yaml.load(service.read_text(encoding='utf-8'))
+                data = new_yaml().load(service.read_text(encoding='utf-8'))
                 change_instance_in_config(data)
                 with service.open('w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
 
             # restart all services but the bot
             tasks = []
@@ -1851,8 +2621,24 @@ class NodeImpl(Node):
             self.instances[new_name] = self.instances.pop(old_name)
 
             # write the new nodes.yaml
-            with open(config_file, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(config, outfile)
+            def rename_instance_in_document(document: Any) -> None:
+                """Move the instance's block to its new name; every other node is left as it is."""
+                node_block = document.get(self.name)
+                instances = node_block.get('instances') if node_block is not None else None
+                if not instances or old_name not in instances:
+                    raise ConfigWriteError(
+                        f"nodes.yaml has no instance '{old_name}' for node '{self.name}'.")
+                block = instances.pop(old_name)
+                block['home'] = new_home
+                if new_missions_dir is not None:
+                    block['missions_dir'] = new_missions_dir
+                if new_extensions is not None:
+                    block['extensions'] = new_extensions
+                instances[new_name] = block
+
+            # No schema check: the node schema's ``is_node`` rule resolves the candidate's instance
+            # names against the ON-DISK nodes.yaml, and would refuse the new name written here.
+            configwrite.patch_config_file(config_file, rename_instance_in_document, schemas=None)
 
             # reload the bot service
             if self.master:
@@ -1893,6 +2679,58 @@ class NodeImpl(Node):
         server.status = Status.SHUTDOWN
 
     @override
+    async def bind_server(self, instance_name: str, name: str, channels: dict | None = None) -> None:
+        """Give an instance that carries NO server one, and name it — ``add_instance``'s tail.
+
+        The instance keeps the ports its ``nodes.yaml`` block holds: nothing is minted here. Its
+        ``server`` is a NEW blank server (the reserved name ``n/a``) created for THIS node's disk,
+        registered on the bus and reported to the master (``send_init``) when this node is not the
+        master. ``Server.rename`` then gives it its real name — its collision guard runs before any
+        write, and a refused or failed rename leaves the instance unbound again rather than holding a
+        blank server — followed by the channels.
+
+        Refuses an unknown instance and an instance that already carries a server, naming it.
+
+        Runs on the node that owns the instance: ``instance.server`` holds a server built for its own
+        filesystem, and only that node can register it on the bus and hand it its DCS port.
+        """
+        from services.servicebus import ServiceBus
+
+        instance = self.instances.get(instance_name)
+        if instance is None:
+            raise ValueError(f"Instance '{instance_name}' does not exist on node '{self.name}'.")
+        bound = instance.server
+        if bound is not None:
+            raise ValueError(f"Instance '{instance_name}' already carries server "
+                             f"'{getattr(bound, 'name', None) or 'an unnamed server'}'.")
+        bus = ServiceRegistry.get(ServiceBus)
+        server = DataObjectFactory().new(ServerImpl, node=self.node, port=instance.bot_port,
+                                         name='n/a', bus=bus)
+        instance.server = server
+        # we cannot use instance.dcs_port here as that would refer to the server just bound
+        dcs_port = (instance.locals or {}).get('dcs_port')
+        if dcs_port:
+            server.settings['port'] = int(dcs_port)
+        bus.servers[server.name] = server
+        try:
+            # an agent reports the new server to the master before it is named
+            if not self.master:
+                await bus.send_init(server)
+            await server.rename(name, update_settings=True)
+        except Exception:
+            # no half-state: the instance is left as it was found
+            try:
+                await server.unlink()
+            except Exception:
+                self.log.exception(
+                    f"Could not unbind the server of instance '{instance_name}' after a failed "
+                    f"bind.")
+            bus.servers.pop(server.name, None)
+            raise
+        if channels:
+            await server.update_channels(channels)
+
+    @override
     async def unregister_server(self, server: Server) -> None:
         from services.servicebus import ServiceBus
 
@@ -1910,12 +2748,12 @@ class NodeImpl(Node):
 
         # amend the main.yaml
         main_yaml = os.path.join(self.config_dir, 'main.yaml')
-        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        data: dict = new_yaml().load(Path(main_yaml).read_text(encoding='utf-8'))
         if 'opt_plugins' not in data:
             data['opt_plugins'] = []
         data['opt_plugins'].append(plugin)
         with Path(main_yaml).open("w", encoding="utf-8") as file:
-            yaml.dump(data, file)
+            new_yaml().dump(data, file)
         self.plugins.append(plugin)
 
         # install the plugin into all DCS servers
@@ -1934,10 +2772,10 @@ class NodeImpl(Node):
         if not self.master or plugin not in self.plugins:
             return False
         main_yaml = os.path.join(self.config_dir, 'main.yaml')
-        data: dict = yaml.load(Path(main_yaml).read_text(encoding='utf-8'))
+        data: dict = new_yaml().load(Path(main_yaml).read_text(encoding='utf-8'))
         data['opt_plugins'].remove(plugin)
         with Path(main_yaml).open("w", encoding="utf-8") as file:
-            yaml.dump(data, file)
+            new_yaml().dump(data, file)
         bot = ServiceRegistry.get(BotService).bot
         await bot.unload_plugin(plugin)
         self.plugins.remove(plugin)
@@ -2018,9 +2856,16 @@ class NodeImpl(Node):
     @override
     async def set_config(self, config: dict) -> dict:
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
-        with open(config_file, mode='r', encoding='utf-8') as infile:
-            old_config = yaml.load(infile)
-        old_config[self.name] = utils.deep_merge(old_config[self.name], config)
-        with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(old_config, outfile)
+
+        def merge_config_into_document(document: Any) -> None:
+            """Deep-merge the changes into THIS node's block; every other block is left as it is."""
+            node_block = document.get(self.name)
+            if node_block is None:
+                raise ConfigWriteError(
+                    f"nodes.yaml has no block for node '{self.name}'.")
+            document[self.name] = utils.deep_merge(node_block, config)
+
+        # No schema check: the node schema validates the WHOLE document, so a fault in another node's
+        # block would refuse this edit.
+        configwrite.patch_config_file(config_file, merge_config_into_document, schemas=None)
         return self.read_locals()

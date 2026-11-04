@@ -1,21 +1,22 @@
 import asyncio
+import ipaddress
 import logging
 import os
 import uvicorn
 
 from contextlib import suppress
 from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG, Port, PortType
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from pathlib import Path
 from services.servicebus import ServiceBus
+from services.webservice.shell import create_app, frontend_enabled, install_shell
+from starlette.requests import Request
 from typing_extensions import override
 from uvicorn import Config
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 @ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
@@ -33,8 +34,19 @@ class WebService(Service):
 
         self.task = None
         self.server = None
+        self.ui = None
+        #: the upgrade poll's task — created in ``start()``, cancelled in ``stop()``
+        self.upgrade_task = None
+        #: the DCS update poll's task — created in ``start()``, cancelled in ``stop()``
+        self.dcs_task = None
+        #: the post-update checks the node's hook schedules, kept referenced until they finish
+        self.dcs_tasks: set[asyncio.Task] = set()
+        #: the render warm-up's task — created in ``start()``, cancelled in ``stop()``
+        self.warm_task = None
+        #: the ready-time scope audit's task — created in ``start()``, cancelled in ``stop()``
+        self.scope_task = None
         if cfg:
-            self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+            self.app = self._create_app()
             self.config = Config(
                 app=self.app,
                 host=cfg.get('listen', '0.0.0.0'),
@@ -47,10 +59,6 @@ class WebService(Service):
             )
             self.config.extra_kwargs = {"backlog": 2048}
             self.server = uvicorn.Server(config=self.config)
-
-            # add debug endpoints
-            if cfg.get('debug', False):
-                self.add_debug_routes()
         else:
             self.app = None
 
@@ -58,7 +66,7 @@ class WebService(Service):
         old_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
         new_config = os.path.join(self.node.config_dir, 'services', 'webservice.yaml')
         if os.path.exists(old_config) and not os.path.exists(new_config):
-            old = yaml.load(Path(old_config).read_text(encoding='utf-8'))
+            old = new_yaml().load(Path(old_config).read_text(encoding='utf-8'))
             new = old.copy()
             if 'prefix' in old.get(DEFAULT_TAG, {}):
                 old[DEFAULT_TAG] = {
@@ -69,14 +77,40 @@ class WebService(Service):
 
             if old:
                 with open(old_config, mode='w', encoding='utf-8') as old_out:
-                    yaml.dump(old, old_out)
+                    new_yaml().dump(old, old_out)
             else:
                 os.remove(old_config)
             if new:
                 with open(new_config, mode='w', encoding='utf-8') as new_out:
-                    yaml.dump(new, new_out)
+                    new_yaml().dump(new, new_out)
 
-    def add_debug_routes(self):
+    def _create_app(self) -> FastAPI:
+        """Create the FastAPI app and install the admin web shell on it.
+
+        Called from both app-creation paths: __init__ (config exists) and start() (after stop()
+        dropped the app, e.g. across a master/agent switch). The shell install is idempotent, the
+        app object is not — anything registered in __init__ only would be gone after a takeover.
+        """
+        app = create_app()
+        # debug endpoints first: they are created through the app, so they carry the access gate,
+        # and they keep their own local-networks-only dependency (which the gate recognises as a
+        # route that guards itself)
+        if self.get_config().get('debug', False):
+            self.add_debug_routes(app)
+        if frontend_enabled(self.get_config()):
+            self.ui = install_shell(app, self.node, self.get_config())
+        else:
+            # ``frontend: false`` — install NO shell at all: no page route, no ``/auth/*``, no
+            # session middleware, no shell assets and no UI background work. The ``auth:`` block is
+            # not evaluated (the whole install is skipped), so a stale login block cannot hold an
+            # API-only operator hostage, and the REST API is untouched. The refusal handlers, the
+            # access gate and the debug endpoints come from ``create_app`` and stay as they are.
+            self.ui = None
+            self.log.info(f"{self.name}: The admin frontend is disabled (frontend: false); the "
+                          f"auth block was skipped and this service runs as a REST API only.")
+        return app
+
+    def add_debug_routes(self, app: FastAPI):
         self.log.warning("WebService: Debug is enabled, you might expose your API functions!")
 
         # enable debug logging for FastAPI
@@ -84,34 +118,52 @@ class WebService(Service):
         logging.getLogger("uvicorn").setLevel(logging.DEBUG)
         logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
 
+        def local_networks_only(request: Request):
+            if not request.client:
+                raise HTTPException(status_code=404, detail="Not found.")
+
+            try:
+                client_ip = ipaddress.ip_address(request.client.host)
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Not found.")
+
+            if not client_ip.is_loopback and not client_ip.is_private:
+                raise HTTPException(status_code=404, detail="Not found.")
+
         # Enable OpenAPI schema
-        self.app.add_api_route("/openapi.json",
-                               lambda: get_openapi(
-                                   title="DCSServerBot REST API",
-                                   version=f"{self.node.bot_version}.{self.node.sub_version}",
-                                   description="REST functions to be used for DCSServerBot.",
-                                   routes=self.app.routes,
-                               ),
-                               include_in_schema=False
-                               )
+        app.add_api_route(
+            "/openapi.json",
+            lambda: get_openapi(
+                title="DCSServerBot REST API",
+                version=f"{self.node.bot_version}.{self.node.sub_version}",
+                description="REST functions to be used for DCSServerBot.",
+                routes=app.routes,
+            ),
+            include_in_schema=False,
+            dependencies=[Depends(local_networks_only)]
+        )
 
         # Enable Swagger UI
-        self.app.add_api_route("/docs",
-                               lambda: get_swagger_ui_html(
-                                   openapi_url="/openapi.json",
-                                   title="DCSServerBot REST API - Swagger UI",
-                               ),
-                               include_in_schema=False
-                               )
+        app.add_api_route(
+            "/docs",
+            lambda: get_swagger_ui_html(
+                openapi_url="/openapi.json",
+                title="DCSServerBot REST API - Swagger UI",
+            ),
+            include_in_schema=False,
+            dependencies=[Depends(local_networks_only)]
+        )
 
         # Enable ReDoc
-        self.app.add_api_route("/redoc",
-                               lambda: get_redoc_html(
-                                   openapi_url="/openapi.json",
-                                   title="DCSServerBot REST API - ReDoc",
-                               ),
-                               include_in_schema=False
-                               )
+        app.add_api_route(
+            "/redoc",
+            lambda: get_redoc_html(
+                openapi_url="/openapi.json",
+                title="DCSServerBot REST API - ReDoc",
+            ),
+            include_in_schema=False,
+            dependencies=[Depends(local_networks_only)]
+        )
 
     @override
     async def start(self):
@@ -121,11 +173,8 @@ class WebService(Service):
         await super().start()
 
         if not self.app:
-            self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+            self.app = self._create_app()
             self.config.app = self.app
-
-            if self.get_config().get('debug', False):
-                self.add_debug_routes()
 
         # run server in the background but guard against SystemExit
         async def run_server():
@@ -150,9 +199,198 @@ class WebService(Service):
                     break
 
         self.task = asyncio.create_task(run_server())
+        # THE UPGRADE POLL: a background check of every node the console knows, from the
+        # node's OWN API (``Node.upgrade_pending()``) — never from a page render. The four triggers
+        # live in ``services/webservice/upgrade.py`` (start = the poller's first, full sweep);
+        # "immediately after an Upgrade is accepted" is the node route's own call to
+        # ``upgrade.check_node``, and a node coming online is a newcomer the sampler notices.
+        #
+        # It is UI BACKGROUND WORK, so with the frontend off it must not run at all: no node is
+        # ever polled for a console nobody serves (``frontend_enabled`` is the one rule the app
+        # factory reads too).
+        if frontend_enabled(self.get_config()):
+            self.upgrade_task = asyncio.create_task(self._poll_upgrades())
+            # THE DCS UPDATE POLL: the sibling of the upgrade poll, for each node's DCS
+            # installation (branch, version, newer build on that branch) — the node's OWN API,
+            # never a page render. The four triggers live in ``services/webservice/dcs_update.py``
+            # (start = the poller's first, full sweep); a node coming online is a newcomer the
+            # sampler notices, and a re-check after an accepted update is that module's
+            # ``check_node``.
+            self.dcs_task = asyncio.create_task(self._poll_dcs_updates())
+            # THE UPDATE'S OWN DOOR: a DCS update that runs in THIS process tells us nothing by any
+            # cached state — the node's files change under a cache the console filled before it
+            # started. The node fires its ``after_dcs_update`` hook when the updater returns, and this
+            # registers the console on it, so the pre-update answer is replaced at once instead of
+            # waiting for the amber beat or the six-hour sweep. Registered only with the frontend on:
+            # there is no console to refresh otherwise.
+            self.node.register_callback('after_dcs_update', self.name, self.after_dcs_update)
+            # THE RENDER WARM-UP: the first page after a boot paid the whole schema parse (measured
+            # 781 ms for a node click against 39 ms once the caches were warm). Ask for the same
+            # things a page will ask for, ONCE, in a THREAD — so the FIRST click costs what the rest
+            # cost, and nothing here delays the console becoming available.
+            self.warm_task = asyncio.create_task(self._warm_render_caches())
+            # THE SCOPE AUDIT: it compares every server's managed_by against the LIVE guild roles,
+            # and that cache exists only after Discord's READY — later than this service is built
+            # (which is why the install-time audit defers). One shot, once the bot is ready.
+            self.scope_task = asyncio.create_task(self._audit_scope_when_ready())
+
+    async def _poll_upgrades(self) -> None:
+        """Sample the cluster for pending upgrades and refresh the cache the render reads.
+
+        The task lives for the service's lifetime and does NOTHING but the poll: each tick asks
+        :func:`services.webservice.upgrade.console_nodes` for the current registry and lets the
+        poller decide which nodes to check (newcomers, and every node on a due sweep). Every failure
+        is contained — a poll that raises must never take the webservice down with it, and the
+        cache simply keeps its last honest value.
+        """
+        from services.webservice import upgrade as upgrade_signal
+
+        poller = upgrade_signal.UpgradePoller()
+        while True:
+            try:
+                await poller.tick(upgrade_signal.console_nodes())
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.exception("WebService: the upgrade check sweep failed.")
+            await asyncio.sleep(poller.sample_seconds)
+
+    async def _poll_dcs_updates(self) -> None:
+        """Sample every node's DCS installation and refresh the cache the render reads.
+
+        The task lives for the service's lifetime and does NOTHING but the poll: each tick asks
+        :func:`services.webservice.dcs_update.console_nodes` for the current registry, passes the
+        CONFIGURATION's declared DCS blocks (so a node without an installation costs no call at all),
+        and lets the poller decide which nodes to check (newcomers, and every node on a due sweep).
+        Every failure is contained — a poll that raises must never take the webservice down with it,
+        and the cache simply keeps its last honest value.
+        """
+        from services.webservice import dcs_update
+
+        poller = dcs_update.DcsUpdatePoller()
+        while True:
+            try:
+                await poller.tick(dcs_update.console_nodes(), dcs_update.console_declared_dcs())
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.log.exception("WebService: the DCS update check sweep failed.")
+            await asyncio.sleep(poller.sample_seconds)
+
+    async def after_dcs_update(self) -> None:
+        """Re-check this node's DCS facts once an update has RETURNED — the node's own hook.
+
+        SCHEDULED, never awaited: the node calls its ``after_dcs_update`` hooks inside the update's
+        ``finally`` block, and a check makes two node calls (one of them an HTTP fetch to the
+        publisher). Awaiting it here would hold the update open for the check's duration, so the
+        node's "update finished" is not delayed by the console's own bookkeeping.
+        """
+        task = asyncio.create_task(self._recheck_dcs(self.node))
+        self.dcs_tasks.add(task)
+        task.add_done_callback(self.dcs_tasks.discard)
+
+    async def _recheck_dcs(self, node) -> None:
+        """Refresh the cached DCS answer for *node*, containing every failure.
+
+        The node declared a DCS installation — it just updated one — so this states that fact instead
+        of reading it back from the configuration.
+        """
+        from services.webservice import dcs_update
+
+        try:
+            await dcs_update.check_node(node, declared=True)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.log.debug("WebService: the post-update DCS check failed.", exc_info=True)
+
+    async def _warm_render_caches(self) -> None:
+        """Pre-pay the first render: parse the schemas and run the notice checks, off the boot path.
+
+        The work itself lives in :func:`services.webservice.warmup.warm` so it can be tested without a
+        service; here it is only dispatched — in a THREAD (the parse is CPU work, and ``to_thread``
+        keeps it off the event loop) and with every failure contained. A console whose warm-up fails is
+        exactly the console we had before: correct, and slow on the first click.
+        """
+        from services.webservice import warmup
+
+        try:
+            # the shell's Jinja environment (``render`` reads it off the registrar): gave it the
+            # templates too, so the FIRST visit to a page does not pay its compile either
+            environment = getattr(self.ui, "environment", None)
+            parsed, checked, templates, seconds = await asyncio.to_thread(
+                warmup.warm, self.node.config_dir, environment)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.log.exception("WebService: the render warm-up failed; the first page will pay it.")
+            return
+        self.log.info(f"WebService: render warm-up done — {parsed} schemas parsed, "
+                      f"{checked} notices checked, {templates} templates compiled in {seconds:.1f}s.")
+
+    async def _audit_scope_when_ready(self) -> None:
+        """Run the per-server scope audit once the bot is READY.
+
+        The audit compares free-text ``managed_by`` values against the LIVE guild role names and ids.
+        Discord's READY comes AFTER this service is built, so the install-time audit defers
+        (``auth.audit_scope_declarations``) and this is what finally runs it — without it, the
+        diagnostic would never fire at all. READY is the gate, not a guild cache: the audit runs with
+        or without one, and only its ``managed_by`` half is skipped when no guild is cached (the
+        local-scope half still runs; see ``auth._live_scope_inputs``). One shot, and every failure
+        contained: a console whose audit cannot run is the console we had before.
+        """
+        from .auth.discord_oauth import current_bot
+
+        try:
+            bot = current_bot()
+            wait = getattr(bot, "wait_until_ready", None)
+            if callable(wait):
+                await wait()
+            from . import auth as auth_api
+            auth_api.audit_scope_declarations(self.app)
+        except asyncio.CancelledError:
+            # Not a rescue: cancellation propagates on its own, because ``CancelledError`` is a
+            # ``BaseException`` and the blanket ``except Exception`` below cannot catch it. This
+            # clause documents the intent for a reader, as the poller and the warm-up task do.
+            raise
+        except Exception:
+            self.log.debug("WebService: the ready-time scope audit could not run.", exc_info=True)
 
     @override
     async def stop(self):
+        if self.scope_task:
+            # one-shot, like the warm-up: end the WAIT for READY if the service stops first
+            self.scope_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.scope_task
+            self.scope_task = None
+        if self.warm_task:
+            # the warm-up is a one-shot: if the service stops while it runs, end the WAIT for it (the
+            # thread itself finishes harmlessly in the background).
+            self.warm_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.warm_task
+            self.warm_task = None
+        if self.upgrade_task:
+            # the poll runs for the service's lifetime: end it with the service, and wait for the
+            # cancellation so a master/agent switch cannot leave a poller sampling a stopped app.
+            self.upgrade_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.upgrade_task
+            self.upgrade_task = None
+        if self.dcs_task:
+            # the DCS poll is the same lifetime shape: end it with the service, and wait for the
+            # cancellation so no poller keeps sampling a stopped app.
+            self.dcs_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.dcs_task
+            self.dcs_task = None
+        # the node hook is registered only when the frontend ran, but unregistering an absent name is
+        # a no-op — so this does not have to repeat the condition that created it.
+        self.node.unregister_callback('after_dcs_update', self.name)
+        for task in list(self.dcs_tasks):
+            task.cancel()
+        self.dcs_tasks.clear()
         if self.task:
             self.server.should_exit = True
             # Explicitly trigger the shutdown of the uvicorn server
@@ -175,6 +413,7 @@ class WebService(Service):
                 self.server = uvicorn.Server(config=self.config)
                 self.task = None
                 self.app = None
+                self.ui = None
         await super().stop()
 
     @override

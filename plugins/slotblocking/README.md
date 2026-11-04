@@ -55,6 +55,9 @@ DEFAULT:            # Default section - true for all your servers.
     threshold: 0.1            # 10% threshold until slots are blocked
     activation_threshold: 10  # do not balance, if the number of players is below this threshold
     message: You need to take a slot of the opposite coalition to keep the balance!
+  names:
+    pattern: ['%[SK%]', '%[VFW%]']   # Lua patterns matched against the player name; brackets escape as %[ %]
+    message: You need a squadron tag in your name to join this server.
   messages:
     credits_taken: '{deposit} credits taken for using a reserved module.' # Possible variables: deposit, old_points, new_points
     payback: 'You have been given {deposit} credits back.'                # Possible variables: deposit, old_points, new_points

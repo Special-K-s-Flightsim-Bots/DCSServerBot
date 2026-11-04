@@ -1,0 +1,46 @@
+{#-
+  The standalone list pages: Servers, Nodes, Instances, Players — the FULL inventory, one template.
+
+  ONE TEMPLATE FOR FOUR PAGES, deliberately. The four differ by their spec (title, lead, path, the
+  table they render), which the handler passes as data; their markup — the shell, the page head and
+  the table component — is identical. A second template would be a copy that drifts the first time
+  the card or a column changes.
+
+  It extends the shell like every console page, so the sidebar, the top bar with the user chip, the
+  breadcrumb, the pills and the environment marker are the shell's. The list itself is
+  `_table.html` — the SAME partial the dashboard's state panel includes, so the sort links, the
+  header arrows, the players search and the empty states are one rendering rather than two.
+
+  NO SECOND CLIENT. The page is complete when it arrives — every row is in the server-rendered
+  HTML. A page whose rows carry state a WRITE moves (the Servers table: the busy marker of a press,
+  the state a boot settles on) passes `live`, and then `base.html` loads the console's own
+  `static/shell.js`; the table body is the swap target (`_table.html` draws its id), so an update
+  replaces the rows and nothing else. A page that passes no `live` loads no script and opens no
+  connection. The only form the page carries is the players search (a GET) plus, on the Servers page,
+  one POST form per write control it renders (Pause / Unpause, each with the session's CSRF token)
+  and the shell's Sign out control.
+
+  THE LIVE STATE INDICATOR states which transport is running, in words (`shell.js` fills it), and is
+  drawn only on a page that streams: a static page has nothing to say about a stream it never opens.
+
+  THE ONE-SHOT NOTICE of a write is included ABOVE the table on the page a write redirects back to
+  (`_notice.html`): it is `notice` from the context — `None` for every page that has no write, so
+  the include renders nothing there.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+  {% if live %}<span id="live-status" class="live-status">{% trans %}Live updates: unavailable{% endtrans %}</span>{% endif %}
+</div>
+
+{#- THE PAGE-LEVEL CONTROL is not here: the Servers page's "Add server" acts on the table below it,
+    so it renders in that table's card header (`_table.html`, `card_action`) — the way the music
+    area puts New Playlist in its card header. The page head carries the title and the lead only. -#}
+{% include "_notice.html" %}
+{% include "_table.html" %}
+
+{% endblock %}

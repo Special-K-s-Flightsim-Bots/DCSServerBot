@@ -1,0 +1,149 @@
+{#-
+  The Settings page — the console's first schema-driven config page.
+
+  It renders whatever :mod:`services.webservice.configgen` produced from a pykwalify schema: the
+  `render_field` macro (now in `_config_fields.html`, shared with a node's own settings page) turns
+  each `Field` into the control its kind names (see the module docstring of `configgen` for the
+  whole mapping). The right panel shows the file re-serialised as YAML — a DUMP of the parse, not the
+  raw bytes — READ-ONLY by default. `Expert Mode` (the toggle in the panel head, off by default) turns
+  that same panel into an EDITOR (`static/settings-yaml.js`, CodeMirror): every change is checked
+  through the bot's own schema validation, and a save posts the edited document through the SAME atomic
+  write path the form uses. With JavaScript off the panel is exactly the read-only view it always was.
+
+  EVERY row-list container carries a `<template>` with ONE empty row: `configgen.js` seeds a new row
+  from it when the container has no rows yet (an empty `plugins:` list is schema-legal), so "+ Add"
+  is never silent. The regex template is used even when rows exist — a regex entry's fields are keyed
+  by a free-text key typed per row, so cloning a filled row would carry the old key into the new one.
+
+  COPY CONVENTIONS
+  ----------------
+  * Every chrome word the template composes is wrapped: `{% trans %}...{% endtrans %}` for the
+    literals here, `{{ _(f.kind_label) }}` for the generator's own kind words.
+  * A field's LABEL is its schema KEY, printed VERBATIM — the schemas carry identifiers, not prose,
+    so a key stays English in every language. Do not translate it (see `configgen`).
+-#}
+{% extends "base.html" %}
+{% from "_config_fields.html" import render_field, picker %}
+
+{% block content %}
+{% include "_settings_files.html" %}
+<div class="cfg-layout">
+  <form class="cfg-form" method="post" action="{{ save_path }}" data-async>
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+    {#-  EXPERT MODE'S TWO CARRIERS, INSIDE THE FORM SO THEY POST WITH IT. ``_expert`` is a hidden
+        companion the toggle script keeps at "0" (off) or "1" (on); ``_yaml`` is the editor's text.
+        With JavaScript off neither is set up, so the plain form is untouched and the panel stays the
+        read-only view it always was — Expert Mode is an enhancement, never a requirement.  -#}
+    <input type="hidden" name="{{ expert_field }}" value="0" data-cfg-expert>
+    <textarea name="{{ yaml_field }}" data-cfg-yaml-text hidden aria-hidden="true"></textarea>
+    {#-  THE REMOVAL ACKNOWLEDGEMENT the render minted: posted back so the save can tell a genuine
+        removal (this page displayed the fields, and the operator confirmed the trashcan) from a bare
+        POST that never rendered anything. The save refuses a removal without it.  -#}
+    <input type="hidden" name="f.{{ remove_ack_field }}" value="{{ remove_ack }}">
+    {#-  THE REMOVAL VALUE HOLDER the trashcan fills in: `configgen.js` appends each confirmed field's
+        ENCODED path here (newline-joined), so ONE form-level field carries every removal the operator
+        confirmed. Empty means "nothing removed" — a save is then a no-op for removal.  -#}
+    <input type="hidden" name="f.{{ remove_companion }}" value="" data-cfg-rmval>
+
+    <div class="cfg-head">
+      <div>
+        <h2 class="cfg-file mono">{{ file_name }}</h2>
+        <div class="cfg-sub">{{ lead }}</div>
+      </div>
+      <div class="cfg-head-actions">
+        <span class="cfg-badge mono">{% trans %}schema{% endtrans %}: {{ schema_name }}</span>
+        {#-  THE SUBMIT CONTROL. It is offered whenever a save can be attempted: a normal form save, or
+            — for a file that did NOT parse — the Expert Mode recovery the docstring promises. A
+            parse-error page has no form to submit (the file cannot be read), so the ONLY way to fix it
+            is the editor, and the editor is useless without a submit. The SERVER stays the gate: an
+            uncorrected document is still refused. A schema-less page (no form, no editor) offers no
+            save at all.  -#}
+        {% if not readonly or parse_error %}
+        <button type="submit" class="cfg-save">{% trans %}Save{% endtrans %}</button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if parse_error %}
+    <div class="notice bad" role="status">
+      <span class="dot dead" aria-hidden="true"></span>
+      <span class="notice-msg">{{ parse_error }}</span>
+    </div>
+    {% endif %}
+
+    {#-  A file whose kind ships NO schema cannot be given a form; and a file that parses but does
+        NOT validate against its schema is SHOWN AS SUCH, never silently rendered as if it were
+        fine. Both are stated here, above the (possibly empty) form.  -#}
+    {% if no_schema %}
+    <div class="notice bad" role="status">
+      <span class="dot dead" aria-hidden="true"></span>
+      <span class="notice-msg">{{ _(no_schema_banner) }}</span>
+    </div>
+    {% elif schema_error %}
+    <div class="notice bad" role="status">
+      <span class="dot dead" aria-hidden="true"></span>
+      <span class="notice-msg">{{ _(schema_invalid_banner) }} {{ schema_error }}</span>
+    </div>
+    {% endif %}
+
+    {% include "_notice.html" %}
+
+    <div class="cfg-tabs">
+      {% for scope in scopes %}
+      <span class="cfg-tab {{ 'on' if loop.first }}">{{ scope.label }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="cfg-controls">
+      {% for scope in scopes %}
+      <section class="cfg-scope {{ 'on' if loop.first }}">
+        {% if not loop.first %}<h3 class="cfg-scope-label mono">{{ scope.label }}</h3>{% endif %}
+        {% for child in scope.fields %}{% if cfg_id(child) not in hidden %}{{ render_field(child, values, rows, customs, elements, choices, 1, sections, hidden, picks, removable) }}{% endif %}{% endfor %}
+        {{ picker(scope_picks[loop.index0], values, rows, customs, elements, choices, 1, sections, hidden, picks, removable) }}
+      </section>
+      {% endfor %}
+    </div>
+  </form>
+
+  <aside class="cfg-yaml" data-cfg-yaml data-validate-url="{{ validate_path }}">
+    <div class="cfg-yaml-head">
+      <h3>{% trans %}The file, as YAML{% endtrans %}</h3>
+      <span class="cfg-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
+      {#-  THE EXPERT MODE TOGGLE — an explicit, VISIBLE control, off by default, not a hidden
+          preference. It is a real checkbox (keyboard-reachable, a switch role announced) with NO
+          name of its own: only the script drives the hidden ``_expert`` companion, so an operator
+          who ticks it with JavaScript off changes nothing and the panel stays read-only.
+          It is NOT offered on a file whose kind ships no schema: there is no schema to validate an
+          edited document against and no write story for it, so the toggle could do nothing.  -#}
+      {% if not no_schema %}
+      <label class="cfg-expert"><input type="checkbox" role="switch" data-cfg-expert-toggle> {% trans %}Expert Mode{% endtrans %}</label>
+      {% endif %}
+    </div>
+    {% if not no_schema %}
+    <div class="cfg-hint cfg-expert-hint">{% trans %}Edit the file directly. Every change is checked against the bot's own schema, and a document that does not pass cannot be saved.{% endtrans %}</div>
+    {#- BUG-FIX: an Expert Mode save writes the DOCUMENT and does NOT apply the
+        form's pending field changes, so a save that quietly dropped them would be a silent loss.
+        Stated in words, right where the editor is.  -#}
+    <div class="cfg-hint cfg-expert-hint">{% trans %}An Expert Mode save writes the document; the form's pending changes are not applied.{% endtrans %}</div>
+    {% endif %}
+    <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
+    {#-  THE READ-ONLY VIEW (exactly the panel that shipped before) and the EDITOR BESIDE IT. The
+        editor's host ships EMPTY and `hidden`; the script fills it from the read-only panel's text
+        and swaps which of the two is shown. With JavaScript off the read-only panel is all there is.  -#}
+    <pre class="yaml mono" data-cfg-yaml-readonly>{{ yaml }}</pre>
+    <div class="cfg-editor" data-cfg-yaml-editor hidden></div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/configgen.js" defer></script>
+<script src="/static/settings-yaml.js" defer></script>
+{% endblock %}

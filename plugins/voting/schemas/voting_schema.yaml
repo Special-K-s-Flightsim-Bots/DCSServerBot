@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,11 +11,27 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
     options:
       type: map
       nullable: false
       allowempty: true  # allow other options
+      desc: Voting options that players can choose from.
+      example: |
+        preset:
+          choices:
+            - Summer
+            - Winter
+        mission:
+          choices:
+            - a.miz
+        restart:
+          run_extensions: true
+          shutdown: false
+        kick: {}
+        tempban:
+          duration: 3
       mapping:
         preset:
           include: 'preset_schema'
@@ -26,21 +43,68 @@ schema;element_schema:
           include: 'kick_schema'
         tempban:
           include: 'tempban_schema'
-    creator: {type: any, nullable: false, func: text_or_list}
-    voter: {type: any, nullable: false, func: text_or_list}
-    mission_time: {type: int, range: {min: 1}, nullable: false}
-    time: {type: int, range: {min: 30}, nullable: false}
+    creator:
+      type: any
+      nullable: false
+      func: text_or_list
+      desc: Roles allowed to create a voting (all players by default).
+      example: |
+        - DCS
+    voter:
+      type: any
+      nullable: false
+      func: text_or_list
+      desc: Roles allowed to vote (all players by default).
+      example: |
+        - DCS
+    mission_time:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Minimum mission runtime in minutes before a voting.
+      example: "30"
+    time:
+      type: int
+      range: {min: 30}
+      nullable: false
+      desc: Seconds the voting stays open for players.
+      example: "300"
     reminder:
       type: seq
       nullable: false
+      desc: Seconds remaining when voters are reminded to vote.
+      example: |
+        - 180
+        - 60
+        - 30
       sequence:
         - type: int
           nullable: false
           unique: true
-    voting_threshold: {type: float, nullable: false}
-    voting_rule: {type: str, enum: ['majority', 'supermajority', 'unanimous', 'absolute'], nullable: false}
-    welcome_message: {type: str, nullable: false, range: {min: 1}}
-    credits: {type: int, nullable: false}
+          desc: Seconds left before the voting closes.
+          example: "180"
+    voting_threshold:
+      type: float
+      nullable: false
+      desc: Share of players that must vote for a result to count.
+      example: "0.25"
+    voting_rule:
+      type: str
+      enum: ['majority', 'supermajority', 'unanimous', 'absolute']
+      nullable: false
+      desc: Rule that decides whether a voting passes.
+      example: "majority"
+    welcome_message:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Chat message shown to players joining the server.
+      example: "If you are unhappy, you can {prefix}vote for a change!"
+    credits:
+      type: int
+      nullable: false
+      desc: Credit points a player pays to start a voting.
+      example: "10"
 
 type: map
 func: check_main_structure

@@ -1,3 +1,4 @@
+# config/plugins/funkman.yaml
 DEFAULT:
   install: ../FunkMan
   CHANNELID_MAIN: 1122334455667788
@@ -8,3 +9,5 @@ DEFAULT:
   strafe_channel: 1122334455667788
   bomb_board: true
   bomb_channel: 8877665544332211
+# You do NOT need any token in here!
+# You do NOT need to run the FunkMan bot!

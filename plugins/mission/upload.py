@@ -109,7 +109,7 @@ class MissionUploadHandler(ServerUploadHandler):
 
         extensions = [
             x.name for x in self.server.extensions.values()
-            if getattr(x, 'beforeMissionLoad').__module__ != 'core.extension'
+            if getattr(x, 'modify_mission').__module__ != 'core.extension'
         ]
         if len(extensions):
             modify = await utils.yn_question(ctx, _("Do you want to apply extensions before mission start?"))

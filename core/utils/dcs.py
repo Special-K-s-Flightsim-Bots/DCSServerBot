@@ -16,6 +16,7 @@ from core.utils.helper import alternate_parse_settings
 __all__ = [
     "ParseError",
     "findDCSInstances",
+    "detect_dcs_installation",
     "desanitize",
     "is_desanitized",
     "dd_to_dms",
@@ -27,6 +28,7 @@ __all__ = [
     "get_active_runways",
     "create_writable_mission",
     "get_orig_file",
+    "logical_mission_path",
     "lua_pattern_to_python_regex",
     "format_frequency",
     "init_profanity_filter"
@@ -65,6 +67,41 @@ def findDCSInstances(server_name: str | None = None) -> dict[str, str]:
                 else:
                     instances[dirname] = settings['name']
     return instances
+
+
+def detect_dcs_installation() -> list[tuple[str, str]]:
+    """Return the DCS World installations found on this host, as ``(name, path)`` pairs.
+
+    On Windows the candidates come from the Eagle Dynamics registry branch; a candidate whose path
+    no longer exists is dropped. On any other platform there is no discovery source, so the list is
+    empty and the caller asks for a path instead.
+    """
+    if sys.platform != 'win32':
+        return []
+    import winreg
+    installs: list[tuple[str, str]] = []
+    key = None
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Eagle Dynamics", 0)
+        num_dcs_installs = winreg.QueryInfoKey(key)[0]
+        for i in range(0, num_dcs_installs):
+            name = winreg.EnumKey(key, i)
+            skey = None
+            try:
+                skey = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                      f"Software\\Eagle Dynamics\\{name}", 0)
+                path = winreg.QueryValueEx(skey, 'Path')[0]
+                if os.path.exists(path):
+                    installs.append((name, path))
+            finally:
+                if skey:
+                    skey.Close()
+    except (FileNotFoundError, OSError):
+        return []
+    finally:
+        if key:
+            key.Close()
+    return installs
 
 
 def desanitize(self, _filename: str = None) -> None:
@@ -324,9 +361,12 @@ def create_writable_mission(filename: str) -> str:
         with open(filename, mode='a'):
             return filename
     except PermissionError:
-        if '.dcssb' in filename:
-            return os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
-                                os.path.basename(filename))
+        # WHICH spelling *filename* is, by the ONE normaliser: if it already IS the ``.dcssb`` copy,
+        # the writable target is its primary. The marker is a path COMPONENT, never a substring, so a
+        # directory whose NAME merely contains it (``foo.dcssbbar``) is not mistaken for a copy.
+        primary = logical_mission_path(filename)
+        if primary != os.path.normpath(filename):
+            return primary
         else:
             dirname = os.path.join(os.path.dirname(filename), '.dcssb')
             os.makedirs(dirname, exist_ok=True)
@@ -335,9 +375,12 @@ def create_writable_mission(filename: str) -> str:
 def get_orig_file(filename: str, *, create_file: bool = True) -> str | None:
     if filename.endswith('.orig'):
         return filename if os.path.exists(filename) else None
-    if '.dcssb' in filename:
-        mission_file = os.path.join(os.path.dirname(filename).replace('.dcssb', ''),
-                                    os.path.basename(filename))
+    # The ONE normaliser decides which spelling *filename* is: a path with a ``.dcssb`` COMPONENT is the
+    # copy, and its primary is the logical path. A bare ``.dcssb`` substring replace let a directory
+    # whose NAME merely contains the marker (``foo.dcssbbar``) resolve to the wrong primary twin.
+    primary = logical_mission_path(filename)
+    if primary != os.path.normpath(filename):
+        mission_file = primary
         if not os.path.exists(filename):
             filename = mission_file
     else:
@@ -355,6 +398,31 @@ def get_orig_file(filename: str, *, create_file: bool = True) -> str | None:
         else:
             return None
     return orig_file
+
+
+def logical_mission_path(filename: str) -> str:
+    """A mission path with its ``.orig`` suffix and its ``.dcssb`` copy marker stripped — LOGICAL path.
+
+    The ``.dcssb`` marker is a path COMPONENT (the bot's own copy directory, always named exactly
+    ``.dcssb``), never a SUBSTRING: only a component that IS exactly ``.dcssb`` is dropped, so a
+    directory whose NAME merely contains ``.dcssb`` (``foo.dcssbbar``) keeps its name and can never
+    collide with its plain twin (``foobar``). The bare ``str.replace('.dcssb', '')`` this replaces did
+    collide them, which let a mission-list write that drops the running mission be accepted and aimed
+    the rotation pointer at the wrong mission.
+
+    This is the ONE mission-path normaliser: ``ServerImpl.setMissionList`` (the pointer recompute),
+    the mission actions' ``_logical_mission`` and ``_delete_mission_files`` all call it, so the three
+    cannot drift apart again.
+    """
+    text = str(filename)
+    if text.endswith('.orig'):
+        text = text[:-5]
+    # BOTH separators are separators, on every host: this bot runs on Windows as well as on Linux, and a
+    # path that arrives with the OTHER host's separator (a config file, a node's reply, a JSON payload) must
+    # still be split into components — otherwise its ``.dcssb`` component survives and the collision
+    # protection silently does not apply. The marker is still a COMPONENT, never a substring.
+    parts = [part for part in re.split(r'[\\/]', text) if part != '.dcssb']
+    return os.path.normpath(os.path.sep.join(parts))
 
 
 def lua_pattern_to_python_regex(lua_pattern):

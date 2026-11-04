@@ -5,8 +5,14 @@ schema;mission_schema:
     choices:
       type: seq
       nullable: false
+      desc: Missions players can choose from in a voting.
+      example: |
+        - a.miz
+        - b.miz
       sequence:
         - type: str
           nullable: false
           unique: true
           range: {min: 1}
+          desc: Mission file name, must be in serverSettings.lua.
+          example: "a.miz"

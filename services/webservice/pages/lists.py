@@ -1,0 +1,362 @@
+"""The standalone list pages — the full inventory behind the dashboard's attention view.
+
+WHY THESE PAGES EXIST. The dashboard is deliberately an attention surface: it shows ONE list at a
+time, its log placement follows the data, and its job is "what needs you now". An operator with 50
+servers needs the opposite of that too — the whole list, linkable and bookmarkable, one page per
+resource. That is what this module builds, and it builds it out of the parts the console already
+has rather than as a second console:
+
+* the SAME validated view layer (``?sort=``/``?dir=``/``?q=`` via
+  :func:`services.webservice.readmodels.view_state`) — so a page that sorted differently from the
+  dashboard tab for the same list would be a defect the shared call makes impossible;
+* the SAME table component (``templates/_table.html``, which ``_state.html`` includes too), so
+  there is one place where a column, a row or the players search is rendered;
+* the SAME capability/nav mechanism (:mod:`services.webservice.permissions` and
+  :class:`~services.webservice.registry.NavItem`) — the route declares the capability, the nav item
+  names the same string, and ``visible_nav`` reads the very predicate the gate uses, so the sidebar
+  cannot offer a door its route refuses;
+* the read models' OWN empty-state copy (:func:`page_context` passes them through).
+
+NO CAP HERE, and that is the point of the page: the read models hand over every row they have and
+the table renders all of them. The dashboard's tab is the same list; the difference is that the
+dashboard also has to share its width with a log column and a tab strip.
+
+READ-ONLY EXCEPT THE SERVERS PAGE. The route here is a GET, no other method exists on it, and the
+markup it renders writes nothing — but since the pause pilot the Servers page carries the console's
+write controls: ``writes=True`` on a page's spec makes :func:`page_context` hand the table the
+per-row control DATA (``pages/actions``, asked for BY TABLE so one page can never be handed
+another's) plus the one-shot notice of the last write, and ``_table.html`` renders each one as a
+POST form. The other two list pages pass neither, so nothing about them changed — the Players page
+included: it renders the database directory, and a player's row there is a DOOR (its name opens the
+player's page), never a place to act from. The forms a signed-in visitor meets elsewhere are the
+shell's Sign out control and the Players page's search form, which is a GET and mutates nothing.
+
+THE SERVERS AND NODES ROWS ARE LIVE (``live=True`` on the page spec). A row carries state a write
+moves on the server, not on the page: the busy marker a press raises, and the state the boot settles
+on. Rendered once at the write's redirect, those can be one step behind the truth, so the table body
+is a stream target, re-rendered every tick by :func:`render_rows` from :func:`page_context` — the
+SAME builder the page used — and delivered by the console's own transport
+(``pages/live.stream_frames``, ``LiveRegistry``, ``static/shell.js``). The capability and the scope
+are re-resolved per tick, so a revoked role loses the rows at the next frame and a scoped manager
+keeps seeing their own. A node row needs it for the same reason plus one of its own: its DCS chip and
+the mark on its DCS control are read from the console's cached update check, which a completed update
+refreshes, and a page that never re-renders would keep showing the update the node just installed. The
+other two pages pass ``live`` false: their rows carry no state a write moves, and a stream would only
+re-render markup that cannot change.
+"""
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from urllib.parse import urlencode
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+
+from .. import i18n, permissions, readmodels, scope
+from ..registry import NavItem
+from . import dashboard as dashboard_page
+from . import live as live_page
+
+__all__ = [
+    "LIST_TEMPLATE", "CRUMB_GROUP", "READ_ONLY_ROLES", "CLUSTER_ROLES", "TABLE_BODY_TARGET",
+    "TABLE_ROWS_TEMPLATE",
+    "ListPage", "list_view", "page_context", "stream_paths", "live_context",
+    "render_rows", "refuse_without_capability", "event_stream", "add_list_route",
+]
+
+log = logging.getLogger(__name__)
+
+#: the ONE template every list page renders. One template for four pages on purpose: the four
+#: differ by their spec (title, lead, path, table), never by their markup, so a change to a list
+#: page's chrome or its table cannot land on one page and miss the other three.
+LIST_TEMPLATE = "list.html"
+
+#: rendered in the top bar's breadcrumb (chrome; the page name itself comes from the page's title)
+CRUMB_GROUP = dashboard_page.CRUMB_GROUP
+
+#: The dashboard's role model, reused: a member who may read the console may read the fleet and the
+#: players. Named here rather than re-typed so the two pages cannot drift from it — and it is the
+#: NARROWER model now (``Admin``, ``DCS Admin``): the console's third kind of reader is a MANAGER,
+#: which is expressed by the capability's ``scope_grants`` and never as a role name.
+READ_ONLY_ROLES: tuple[str, ...] = dashboard_page.DASHBOARD_ROLES
+
+#: The cluster lists are the same two roles: Nodes and Instances are no more readable than Servers
+#: now that ``DCS`` (the general member role) is out of the console entirely. This is the ONE
+#: definition of "a cluster role" (``..scope.CLUSTER_ROLES``, beside the scope rule), read here so
+#: the console's role model and the scope resolution's cluster bypass cannot drift apart.
+CLUSTER_ROLES: tuple[str, ...] = scope.CLUSTER_ROLES
+
+#: THE LIVE TABLE BODY: the id the page puts on ``_table.html``'s ``<tbody>`` and the target a frame
+#: carries. One constant for the page, the stream and the client (``static/shell.js`` lists it), so a
+#: frame can never name an element the page did not draw.
+TABLE_BODY_TARGET = "list-tbody"
+#: the partial that renders the rows ALONE — ``_table.html`` includes it inside its ``<tbody>``, and
+#: :func:`render_rows` renders it as the streamed fragment. One rendering, two surfaces.
+TABLE_ROWS_TEMPLATE = "_table_rows.html"
+
+
+@dataclass(frozen=True, slots=True)
+class ListPage:
+    """One standalone list page: the table it renders, where it lives, and who may open it.
+
+    The capability is declared with the roles here (:meth:`declare`) and named by both the route
+    (:func:`add_list_route`) and the nav item (:meth:`nav_item`), which is what keeps the three from
+    disagreeing — there is one string, held on this record.
+
+    ``scope_grants`` is the console's access rule's third kind of reader (a MANAGER: an identity
+    whose resolved scope holds a server's ``managed_by``). It defaults to ``False`` — the STRICTER
+    answer — so a page added to the console has to say, here, that a manager may read it; the four
+    pages of the console pass ``True`` because a hoster customer operates their own servers and
+    reads no others (the scoped source guarantees the second half).
+    """
+    table: str
+    path: str
+    capability: str
+    roles: tuple[str, ...]
+    title: str
+    lead: str
+    #: The sidebar label this page advertises — EMPTY for a page that is NOT a menu entry (its
+    #: content is on the Dashboard, so it contributes no nav item). See :meth:`nav_item`.
+    nav_label: str = ""
+    #: The sidebar GROUP this page's entry belongs to — one of the shell's
+    #: (:data:`services.webservice.registry.NAV_GROUPS`), named here rather than mapped in the shell,
+    #: so the grouping lives beside the page it describes. Empty for a page that contributes NO nav
+    #: item (:attr:`nav_label` is empty too, and :meth:`nav_item` is then never called).
+    group: str = ""
+    #: The nav sprite glyph the entry wears (``templates/_icons.html``). An unknown name draws
+    #: nothing; an empty one on a page that IS a menu entry is refused
+    #: (:class:`services.webservice.registry.NavItem`).
+    glyph: str = ""
+    scope_grants: bool = False
+    #: whether this page's rows carry WRITE controls (``pages/actions``). Off by default — the
+    #: stricter answer — so a page added to the console must say here that it renders controls, and
+    #: the data a control is built from is never requested for a page that has none.
+    writes: bool = False
+    #: whether this page's ROWS are a live stream target. Off by default — the stricter answer — so a
+    #: page added here streams nothing, opens no ``/api`` route and loads no script unless it says
+    #: so. A page that passes it renders its table body with :data:`TABLE_BODY_TARGET` and hands
+    #: ``base.html`` a ``live`` context through :func:`live_context`.
+    live: bool = False
+
+    def declare(self) -> None:
+        """Ensure the capability is declared. Idempotent for the same roles AND scope rule."""
+        permissions.declare_capability(self.capability, self.roles,
+                                      scope_grants=self.scope_grants)
+
+    def nav_item(self) -> NavItem:
+        """The sidebar entry for this page — the capability's own name, never a second spelling."""
+        return NavItem(label=self.nav_label, url=self.path, capability=self.capability,
+                       group=self.group, glyph=self.glyph)
+
+
+def list_view(request: Request, state: readmodels.Overview, path: str) -> readmodels.ViewState:
+    """The validated view of THIS request for a standalone page.
+
+    The dashboard resolves the same value through ``dashboard.view_state_for`` — and that helper is
+    bound to the dashboard's path, so it cannot be reused here without its sort links pointing at
+    ``/``. The call below is therefore the SAME layer, with this page's path: same allow-lists, same
+    comparators, same search, same link builder, one function of the read model.
+    """
+    return readmodels.view_state(
+        path,
+        {"servers": state.servers, "nodes": state.nodes, "instances": state.instances,
+         "players": state.players},
+        params=readmodels.view_params(request.query_params))
+
+
+def page_context(request: Request, page: ListPage, *, rows=None, notice: bool = True) -> dict:
+    """EVERYTHING the list template reads, in one value.
+
+    The table is selected by the page's own spec, so a page cannot render another page's list, and
+    the two counts the table needs for its search state come from the same :class:`ViewState` the
+    table rows do — one source, so "1 of 2 players" and the single row cannot disagree.
+
+    ``rows`` is the optional PAGE-ONLY path: a table whose rows are NOT part of the pure Overview
+    (``bans``, a database read the page's route already fetched) is built here from the SAME
+    validated view layer and the SAME table component, with the page's own title as the card heading.
+    With no ``rows`` this does exactly what it always did for the four Overview-backed pages.
+
+    The SERVERS page additionally carries the write controls and the one-shot notice of a write
+    (``pages/actions``): the control is DATA here and the markup is ``_table.html``'s, and both are
+    built from the same request the page renders from. The other three pages pass neither, so
+    ``_table.html`` renders no actions column for them at all.
+
+    ``notice`` False builds the same value WITHOUT spending this request's one-shot write notice. A
+    live tick calls it that way (``render_rows``): the notice belongs to the page, so a tick that
+    popped it would swallow the outcome of a write the person has not been shown yet.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    params = readmodels.view_params(request.query_params)
+    view = list_view(request, state, page.path)
+    live = live_context(request, page)
+    if rows is not None:
+        # the PAGE-ONLY table: the rows are the page's own, so they are shaped here through the one
+        # sort layer — never re-derived in the template.
+        table = readmodels.table_view(page.path, page.table, rows,
+                                      sort=params.sort_for(page.table), direction=params.direction,
+                                      params=view.params, label=page.title)
+    else:
+        table = view.tables[page.table]
+    context = {
+        "title": page.title,
+        "page_title": page.title,
+        "lead": page.lead,
+        "crumb": dashboard_page.crumb(CRUMB_GROUP, page.title),
+        "table": table,
+        "view": view,
+        "empty": dashboard_page.empty_messages(state),
+        # the search form posts back to the page it is on, and its only hidden state is what this
+        # page carries (nothing: there is no log column and no tab here to preserve)
+        "search_action": page.path,
+        "search_clear": page.path,
+        "search_hidden": {},
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=page.path,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        # THE LIVE TARGET: the body's id and the ``live`` context ``base.html`` reads to load the
+        # script. ONE predicate decides both — the id exists exactly when the page hands the browser
+        # a stream to swap it, so a page that does not stream draws the bare element.
+        "table_body_id": TABLE_BODY_TARGET if live else "",
+        "live": live,
+    }
+    if page.writes:
+        # the import is inside the branch on purpose: ``pages.actions`` reaches this module for the
+        # page's own path, so a module-level import would be a cycle.
+        from . import actions as actions_page
+
+        context["notice"] = actions_page.pop_notice(request) if notice else None
+        # the controls are asked for BY TABLE: the page renders one table, so it can never be handed
+        # another page's map (a servers page asking for server controls, a players page for player
+        # ones) — and a table with no write at all gets an empty map, hence no column. The ORIGIN is
+        # this page's own path, so a write returns here even when the same row is also on a dashboard
+        # tab (Defect 1). Built from THIS request on every call, so a live tick re-resolves the
+        # caller's capability and scope and re-reads the pending-write store: the streamed row keeps
+        # the marker the page drew (``in_flight`` / ``busy``) and drops it when the state moves.
+        context["row_controls"] = actions_page.controls_for(request, page.table, page.path)
+        # THE PAGE-LEVEL control (the Servers page's "Add server"): asked for BY TABLE for the same
+        # reason, and ``None`` for a table that has none — so the table component's own condition
+        # decides whether the card header carries a control, never the page's name. It is handed to
+        # ``_table.html`` as ``card_action``: the card it acts on is the card whose header shows it.
+        context["card_action"] = actions_page.page_controls(request, page.table, page.path)
+    else:
+        #: defined for EVERY page, so a template that reads it never meets StrictUndefined
+        context["card_action"] = None
+    return context
+
+
+# ---------------------------------------------------------------------------- the live rows
+
+def stream_paths(page: ListPage) -> tuple[str, str]:
+    """``(stream, fragments)`` for a page: its own ``/api`` pair, on the page's own path.
+
+    Under ``/api`` for the reason every console stream is: the whole area is machine-facing, so a
+    refusal is a status and a JSON body and never a redirect an EventSource cannot follow.
+    """
+    return f"/api{page.path}/stream", f"/api{page.path}/fragments"
+
+
+def live_context(request: Request, page: ListPage) -> dict | None:
+    """What ``base.html`` needs to load the live script, or ``None`` when it must not be loaded.
+
+    ``None`` on a page that does not stream, and ``None`` while live updates are off
+    (``dashboard.live``): the page is then complete on load and opens no connection.
+
+    THE VIEW RIDES IN THE URL. The sort, its direction and the players search are query parameters
+    of the PAGE, and the stream is a separate request: a URL that dropped them would re-render the
+    rows at the default order and filter a tick later — the reader's choice would appear to do
+    nothing. The carried values are the ones the page itself VALIDATED
+    (``readmodels.ViewParams.carry``, bound to this page's table), never raw parameters.
+    """
+    if not page.live or not live_page.dashboard_config(request.app).enabled:
+        return None
+    stream, fragments = stream_paths(page)
+    query = urlencode(readmodels.view_params(request.query_params).carry(table=page.table))
+    suffix = f"?{query}" if query else ""
+    return {"stream": f"{stream}{suffix}", "fragments": f"{fragments}{suffix}"}
+
+
+def _allowed(request: Request, page: ListPage) -> bool:
+    """Whether this caller holds the page's capability — the SAME predicate the access gate runs."""
+    return permissions.allows(page.capability, permissions.role_names_for(request),
+                              manager=permissions.manages_console(request))
+
+
+def render_rows(request: Request, page: ListPage, *, rows=None) -> dict[str, str]:
+    """One tick's fragment: the page's rows, from the SAME builder the page rendered from.
+
+    ``page_context`` is re-run per tick, so the caller's roles and scope are re-resolved (a scoped
+    manager keeps only their own servers) and so is the write store behind
+    :func:`~pages.actions.controls_for` — which is what keeps the busy marker on a row that is
+    mid-action. The one-shot notice is NOT spent here (``notice=False``).
+
+    A ROLE REVOKED MID-STREAM ends the rows at that tick: the body is re-rendered EMPTY, so the last
+    frame a caller who may no longer read the page receives is not the fleet they just lost.
+    """
+    if _allowed(request, page):
+        context = page_context(request, page, rows=rows, notice=False)
+    else:
+        # a role revoked mid-stream: the gate would now refuse this caller, so the body is
+        # re-rendered EMPTY rather than left at the last frame's content
+        context = page_context(request, page, rows=(), notice=False)
+    return {TABLE_BODY_TARGET: i18n.render_fragment(request, TABLE_ROWS_TEMPLATE, **context)}
+
+
+def refuse_without_capability(request: Request, page: ListPage) -> None:
+    """Refuse a caller without the page's capability BEFORE any generator exists.
+
+    A refusal raised inside a ``StreamingResponse`` body arrives AFTER the headers, i.e. as a broken
+    stream instead of the 403 the caller can read — and an EventSource would retry forever. The
+    wording is the access gate's own, so a crafted call and a refused page say one sentence.
+    """
+    if not _allowed(request, page):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Not authorized (needs one of: {permissions.requirement_text(page.capability)}).")
+
+
+def event_stream(request: Request, page: ListPage):
+    """The SSE generator of one connection: the page's rows, at the console's own cadence.
+
+    The frames, the change detection, the heartbeat and the client cap are :mod:`pages.live`'s
+    (``stream_frames`` + ``LiveRegistry`` + the console's live config), so this page streams on the
+    same terms as the dashboard and no second policy exists.
+    """
+    refuse_without_capability(request, page)
+    return live_page.stream_frames(
+        render=lambda: render_rows(request, page),
+        config=live_page.dashboard_config(request.app),
+        registry=live_page.get_registry(request.app, live_page.dashboard_config(request.app)))
+
+
+def add_list_route(router: APIRouter, page: ListPage) -> APIRouter:
+    """Add one list page's route to the shell's own router and return it."""
+    page.declare()
+
+    @router.get(page.path, response_class=HTMLResponse, name=f"page-{page.table}")
+    async def _list_page(request: Request):
+        # no-store: a write returns to a list page, and the browser must not serve the pre-write
+        # page from its cache when it does (the same reason `live.py` sets it for its poll).
+        return HTMLResponse(i18n.render(request, LIST_TEMPLATE, **page_context(request, page)),
+                            headers={"Cache-Control": "no-store"})
+
+    if page.live:
+        stream_path, fragments_path = stream_paths(page)
+
+        @router.get(stream_path, response_class=StreamingResponse, name=f"stream-{page.table}")
+        async def _list_stream(request: Request):
+            return StreamingResponse(event_stream(request, page), media_type="text/event-stream",
+                                     headers={"Cache-Control": "no-cache",
+                                              "X-Accel-Buffering": "no"})
+
+        @router.get(fragments_path, name=f"fragments-{page.table}")
+        async def _list_fragments(request: Request):
+            refuse_without_capability(request, page)
+            return JSONResponse(render_rows(request, page), headers={"Cache-Control": "no-store"})
+
+    return router

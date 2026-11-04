@@ -3,27 +3,66 @@ schema;downloads:
   sequence:
     - type: map
       mapping:
-        label: {type: str, required: true, nullable: false, range: {min: 1}}
-        directory: {type: str, nullable: false, range: {min: 1}}
-        pattern: {type: any, nullable: false, func: str_or_list}
-        target: {type: str, nullable: false, range: {min: 1}}
+        label:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Label shown for this entry in the /download list.
+          example: "DCS Logs"
+        directory:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Directory the downloadable files are read from.
+          example: '{server.instance.home}\logs'
+        pattern:
+          type: any
+          nullable: false
+          func: str_or_list
+          desc: Glob pattern(s) of the files offered for download.
+          example: "dcs*.log"
+        target:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Where the files are sent, such as a path or channel ID.
+          example: 'G:\My Drive\Tracks'
         discord:
           type: seq
           nullable: false
+          desc: Roles allowed to download this entry.
+          example: |
+            - Admin
           sequence:
             - type: text
               nullable: false
-        audit: {type: bool, nullable: false}
-        restricted: {type: bool, nullable: false}
+        audit:
+          type: bool
+          nullable: false
+          desc: Audit every download of this entry.
+          example: "true"
+        restricted:
+          type: bool
+          nullable: false
+          desc: Hide this entry on nodes that restrict commands.
+          example: "false"
 
 schema;uploads:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Allow configuration files to be uploaded at all.
+      example: "true"
     discord:
       type: seq
       nullable: false
+      desc: Roles allowed to upload configuration files.
+      example: |
+        - Admin
       sequence:
         - type: text
 
@@ -31,6 +70,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -48,6 +88,7 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
     downloads:
       include: 'downloads'

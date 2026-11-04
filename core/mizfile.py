@@ -9,6 +9,7 @@ import re
 import shutil
 import tempfile
 import zipfile
+import zlib
 
 from astral import LocationInfo
 from astral.sun import sun
@@ -131,7 +132,19 @@ class MizFile:
                                           "warehouses = " + luadata.serialize(self.warehouses, 'utf-8', indent='\t',
                                                                               indent_level=0))
                         elif item.filename not in filenames:
-                            zout.writestr(item, zin.read(item.filename))
+                            try:
+                                zout.writestr(item, zin.read(item.filename))
+                            except (zlib.error, zipfile.BadZipFile, RuntimeError) as ex:
+                                self.log.error(
+                                    f"Mission archive appears to be corrupt while reading '{item.filename}' "
+                                    f"from '{self.filename}': {ex}"
+                                )
+                                raise UnsupportedMizFileException(
+                                    self.filename,
+                                    f"The mission archive is corrupt or incomplete. "
+                                    f"Failed while reading '{item.filename}'. "
+                                    f"Please restore the mission from backup or re-save it in DCS Mission Editor."
+                                ) from ex
                     for item in self._files:
                         def get_dir_path(name):
                             return name if os.path.isdir(name) else os.path.dirname(name)
@@ -274,6 +287,8 @@ class MizFile:
     @enable_dust.setter
     def enable_dust(self, value: bool) -> None:
         self.mission['weather']['enable_dust'] = value
+        if value:
+            self.mission['weather']['enable_fog'] = False
 
     @property
     def dust_density(self) -> int:
@@ -319,10 +334,15 @@ class MizFile:
                 self.mission['weather']['fog2'] = {
                     "mode": 2
                 }
+                # disable the old fog
+                self.mission['weather']['enable_fog'] = False
             else:
                 self.mission['weather'].pop('fog2', None)
             value = False
-        self.mission['weather']['enable_fog'] = value
+        else:
+            self.mission['weather']['enable_fog'] = value
+        if value:
+            self.enable_dust = False
 
     @property
     def fog(self) -> dict:
@@ -455,6 +475,32 @@ class MizFile:
                 self._files.append({"source": file, "target": "l10n/DEFAULT"})
             else:
                 self._files.append(file)
+
+    def preset_document(self) -> dict:
+        """The mission's own weather as a MizEdit preset DOCUMENT.
+
+        The ONE home for the mission-weather -> preset-document mapping: ``/mission save_preset``
+        writes this document into a preset file, and the console's mission-weather read hands the
+        SAME document to the preset reader. A second copy of the key list is the drift this method
+        exists to prevent.
+
+        Reads the file's own weather, so it may raise for a mission whose weather is absent
+        (``KeyError``) or whose values cannot be read.
+        """
+        return {
+            "start_time": self.start_time,
+            "date": self.date.strftime('%Y-%m-%d'),
+            "temperature": self.temperature,
+            "clouds": self.clouds,
+            "wind": self.wind,
+            "groundTurbulence": self.groundTurbulence,
+            "enable_dust": self.enable_dust,
+            "dust_density": self.dust_density if self.enable_dust else 0,
+            "qnh": self.qnh,
+            "enable_fog": self.enable_fog,
+            "fog": self.fog if self.enable_fog else {"thickness": 0, "visibility": 0},
+            "halo": self.halo
+        }
 
     def parse_moment(self, value: str = "morning") -> int:
         """

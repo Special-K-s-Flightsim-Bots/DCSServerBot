@@ -2,53 +2,165 @@ schema;default_schema:
   type: map
   nullable: false
   mapping:
-    num_landings: {type: int, range: {min: 1, max: 30}, nullable: false}
-    num_rows: {type: int, range: {min: 1, max: 20}, nullable: false}
-    theme: {type: str, nullable: false, enum: ['light', 'dark']}
-    landings_rtl: {type: bool, nullable: false}
-    persistent_board: {type: bool, nullable: false}
-    persistent_channel: {type: int, nullable: false}
-    credits: {type: bool, nullable: false}
-    min_flight_time: {type: int, nullable: false}
+    num_landings:
+      type: int
+      range: {min: 1, max: 30}
+      nullable: false
+      desc: Number of most recent landings shown per player.
+      example: "5"
+    num_rows:
+      type: int
+      range: {min: 1, max: 20}
+      nullable: false
+      desc: Number of players shown on the greenieboard.
+      example: "10"
+    theme:
+      type: str
+      nullable: false
+      enum: ['light', 'dark']
+      desc: Color theme used to render the board image.
+      example: "light"
+    landings_rtl:
+      type: bool
+      nullable: false
+      desc: Draw landings right to left instead of left to right.
+      example: "false"
+    persistent_board:
+      type: bool
+      nullable: false
+      desc: Keep a persistent board posted in the channel.
+      example: "false"
+    persistent_channel:
+      type: int
+      nullable: false
+      desc: Discord channel that hosts the persistent board.
+      example: "123456789"
+    credits:
+      type: bool
+      nullable: false
+      desc: Award credit points for carrier landings.
+      example: "true"
+    min_flight_time:
+      type: int
+      nullable: false
+      desc: Minimum flight time in seconds for a valid landing.
+      example: "600"
     squadrons:
       type: seq
       nullable: false
+      desc: Per-squadron boards with their own display channel.
+      example: |
+        - name: My Fancy Squadron 1
+          channel: 1234567890
       sequence:
         - type: map
           nullable: false
           mapping:
-            name: {type: str, nullable: false, range: {min: 1}}
-            channel: {type: int, nullable: false}
+            name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Name of a squadron to display a board for.
+              example: "My Fancy Squadron 1"
+            channel:
+              type: int
+              nullable: false
+              desc: Channel the squadron board is posted to.
+              example: "1234567890"
     grades:
       type: map
       nullable: false
+      desc: LSO grade definitions keyed by the DCS grade symbol.
+      example: |
+        _OK_:
+          rating: 5
+          grade: Perfect pass
+          legend: PERFECT
       mapping:
         regex;(\_OK\_|OK|\(OK\)|B|\-\-|WO|C|NC|_n):
           type: map
           nullable: false
           mapping:
-            rating: {type: float, nullable: false, range: {min: 0.0}}
-            grade: {type: str, nullable: false, range: {min: 1}}
-            color: {type: str, nullable: false, range: {min: 1}}
-            legend: {type: str, required: true, nullable: false, range: {min: 1}}
+            rating:
+              type: float
+              nullable: false
+              range: {min: 0.0}
+              desc: Numeric score used to rank this landing grade.
+              example: "5"
+            grade:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Full description of the landing grade.
+              example: "Perfect pass"
+            color:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Hex color used to color this grade on the board.
+              example: "#29C248"
+            legend:
+              type: str
+              required: true
+              nullable: false
+              range: {min: 1}
+              desc: Short label shown in the board legend.
+              example: "PERFECT"
     Moose.AIRBOSS:
       type: map
       nullable: false
+      desc: Moose AIRBOSS integration for trapsheets and grades.
+      example: |
+        basedir: airboss
+        grades: AIRBOSS-{carrier}_LSOGrades.csv
+        trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'
       mapping:
-        basedir: {type: str, nullable: false, range: {min: 1}}
-        grades: {type: str, nullable: false, range: {min: 1}}
-        trapsheets: {type: str, nullable: false, range: {min: 1}}
+        basedir:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Folder where Moose AIRBOSS writes its trapsheets.
+          example: "airboss"
+        grades:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Filename pattern for the LSO grade CSV files.
+          example: "AIRBOSS-{carrier}_LSOGrades.csv"
+        trapsheets:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Filename pattern for the trapsheet CSV files.
+          example: "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
     FunkMan:
       type: map
       nullable: false
+      desc: FunkMan integration for rendering grade graphics.
+      example: |
+        install: ../FunkMan
+        IMAGEPATH: ../FunkMan/funkpics/
       mapping:
-        install: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-        IMAGEPATH: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
+        install:
+          type: str
+          nullable: false
+          range: {min: 1}
+          func: dir_exists
+          desc: Path to your FunkMan installation directory.
+          example: "../FunkMan"
+        IMAGEPATH:
+          type: str
+          nullable: false
+          range: {min: 1}
+          func: dir_exists
+          desc: Directory holding the generated FunkMan images.
+          example: "../FunkMan/funkpics/"
 
 schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -57,34 +169,102 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    num_landings: {type: int, range: {min: 1, max: 10}, nullable: false}
-    num_rows: {type: int, range: {min: 1, max: 20}, nullable: false}
-    theme: {type: str, nullable: false, enum: ['light', 'dark']}
-    landings_rtl: {type: bool, nullable: false}
-    persistent_board: {type: bool, nullable: false}
-    persistent_channel: {type: int, nullable: false}
+    num_landings:
+      type: int
+      range: {min: 1, max: 10}
+      nullable: false
+      desc: Number of most recent landings shown per player.
+      example: "5"
+    num_rows:
+      type: int
+      range: {min: 1, max: 20}
+      nullable: false
+      desc: Number of players shown on the greenieboard.
+      example: "10"
+    theme:
+      type: str
+      nullable: false
+      enum: ['light', 'dark']
+      desc: Color theme used to render the board image.
+      example: "light"
+    landings_rtl:
+      type: bool
+      nullable: false
+      desc: Draw landings right to left instead of left to right.
+      example: "false"
+    persistent_board:
+      type: bool
+      nullable: false
+      desc: Keep a persistent board posted in the channel.
+      example: "false"
+    persistent_channel:
+      type: int
+      nullable: false
+      desc: Discord channel that hosts the persistent board.
+      example: "123456789"
     squadrons:
       type: seq
       nullable: false
+      desc: Per-squadron boards with their own display channel.
+      example: |
+        - name: My Fancy Squadron 1
+          channel: 1234567890
       sequence:
         - type: map
           nullable: false
           mapping:
-            name: {type: str, nullable: false, range: {min: 1}}
-            channel: {type: int, nullable: false}
+            name:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: Name of a squadron to display a board for.
+              example: "My Fancy Squadron 1"
+            channel:
+              type: int
+              nullable: false
+              desc: Channel the squadron board is posted to.
+              example: "1234567890"
     Moose.AIRBOSS:
       type: map
       nullable: false
+      desc: Moose AIRBOSS integration for trapsheets and grades.
+      example: |
+        basedir: airboss
+        grades: AIRBOSS-{carrier}_LSOGrades.csv
+        trapsheets: '*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv'
       mapping:
-        basedir: {type: str, nullable: false, range: {min: 1}}
-        grades: {type: str, nullable: false, range: {min: 1}}
-        trapsheets: {type: str, nullable: false, range: {min: 1}}
+        basedir:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Folder where Moose AIRBOSS writes its trapsheets.
+          example: "airboss"
+        grades:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Filename pattern for the LSO grade CSV files.
+          example: "AIRBOSS-{carrier}_LSOGrades.csv"
+        trapsheets:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Filename pattern for the trapsheet CSV files.
+          example: "*AIRBOSS-{carrier}_Trapsheet-{name}_{unit_type}*.csv"
     FunkMan:
       type: map
       nullable: false
+      desc: FunkMan integration toggle for this server.
+      example: |
+        enabled: false
       mapping:
-        enabled: {type: bool, nullable: false}
+        enabled:
+          type: bool
+          nullable: false
+          desc: Enable the FunkMan integration for this server.
+          example: "false"
 
 type: map
 func: check_main_structure

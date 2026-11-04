@@ -10,6 +10,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 - [Credits](#credits)
 - [Utilities](#utilities)
 - [Instance Control](#instance-control)
+- [Node Control](#node-control)
 - [Mission Control](#mission-control)
 - [Mission](#mission)
 - [Schema Models Reference](#schema-models-reference)
@@ -33,22 +34,27 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /highscore | GET | [server_name: string], [period: string], [limit: int] | Get highscore statistics for players |
 | /instance/mission/load | POST | server_name: string, mission_name: string | Load a mission on a given server. |
 | /instance/mission/pause | POST | server_name: string | Pause the mission on a given server. |
-| /instance/mission/restart | POST | server_name: string | Restart the mission on a given server. |
+| /instance/mission/restart | POST | server_name: string, [run_extensions: bool], [use_orig: bool], [when_empty: bool] | Restart the mission on a given server. |
 | /instance/mission/unpause | POST | server_name: string | Unpause the mission on a given server. |
 | /instance/missions | GET | server_name: string | Return all missions for a given server. |
 | /instance/restart | POST | server_name: string | Restart a server. |
+| /instance/shutdown | POST | server_name: string, [force: bool], [maintenance: bool], [when_empty: bool] | Shut a server down (terminates the DCS process). |
 | /instance/start | POST | server_name: string | Start a server. |
 | /instance/stop | POST | server_name: string | Stop a server. |
 | /leaderboard | GET | what: string, [order: string], [query: string | None], [limit: int | None], [offset: int | None], [server_name: string | None] | Get leaderbord information |
 | /linkme | POST | discord_id: string, [force: bool] | Link your Discord account to your DCS account |
 | /mission/bullseyes | GET | server_name: string | Get the bullseye coordinates for blue and red coalitions in the current mission. |
 | /mission/drawings | GET | server_name: string | Get mission drawing objects grouped by drawing layer. |
+| /mission/group | GET | server_name: string, coalition: string, group_name: string, [group_type: string | None] | Get details for a single group in the current mission. |
 | /mission/group/waypoints | GET | server_name: string, group_name: string, group_type: string | Get the lat/lon waypoints for a named group in the current mission. |
+| /mission/groups | GET | server_name: string, coalition: string, [group_type: string | None] | Get all groups in the currently running mission for a coalition. |
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
 | /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |
+| /node/restart | POST | [node_name: string | None] | Restart a node, or all nodes. The bot reloads its configuration. |
 | /player_info | POST | nick: string, [date: string | None], [server_name: string | None] | Get player information |
 | /player_squadrons | POST | nick: string, [date: string | None] | List of player squadrons |
+| /refuelings | GET | ucid: string, [module: string | None], [tanker: string | None], [start_time: datetime | None], [end_time: datetime | None] | Get refueling stats for players |
 | /server_attendance | GET | [server_name: string] | Get detailed server attendance statistics |
 | /servers | GET | [server_name: string | None] | List all servers, the active mission (if any) and the active extensions |
 | /serverstats | GET | [server_name: string] | List the statistics of a whole group |
@@ -1347,12 +1353,45 @@ This documentation is automatically generated from the RestAPI plugin definition
     "comment": "Good pass",
     "grade": "OK",
     "id": 1,
+    "landingdist": -86,
     "night": false,
     "place": "CVN-73",
     "points": 100,
+    "tgroove": 15.7,
     "time": "2025-08-07T12:00:00",
     "trapcase": 3,
+    "trapdata": {
+      "Alt": [
+        185.0,
+        165.0,
+        145.0,
+        125.0,
+        105.0
+      ],
+      "AoA": [
+        8.1,
+        8.0,
+        8.2,
+        8.3,
+        8.1
+      ],
+      "X": [
+        1200.0,
+        1100.0,
+        1000.0,
+        900.0,
+        800.0
+      ],
+      "Z": [
+        -12.5,
+        -10.8,
+        -8.3,
+        -5.2,
+        -2.1
+      ]
+    },
     "unit_type": "F/A-18C",
+    "wind": 25,
     "wire": 3
   }
 ]
@@ -1464,6 +1503,42 @@ This documentation is automatically generated from the RestAPI plugin definition
     "target_type": "MiG-29A",
     "time": "2025-08-07T12:00:00",
     "weapon": "AIM-120C"
+  }
+]
+```
+
+---
+
+### `GET` /refuelings
+
+**Summary:** Refueling Stats
+
+**Description:** Get refueling stats for players
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `ucid` | `string` | query | **Yes** | - | Ucid |
+| `module` | `string | None` | query | No | - | Module |
+| `tanker` | `string | None` | query | No | - | Tanker |
+| `start_time` | `datetime | None` | query | No | - | Start Time |
+| `end_time` | `datetime | None` | query | No | - | End Time |
+
+**Response:** `list[RefuelingEntry]`
+
+#### Response Example
+
+```json
+[
+  {
+    "avg_fuel": 1700.0,
+    "avg_time": 30.5,
+    "completed_transfers": 4,
+    "fuel_taken": 8500,
+    "module": "F-16C_50",
+    "refuelings": 5,
+    "tanker": "KC-135"
   }
 ]
 ```
@@ -1598,6 +1673,109 @@ This documentation is automatically generated from the RestAPI plugin definition
       "lon": 36.5
     }
   }
+}
+```
+
+---
+
+### `GET` /mission/group
+
+**Summary:** Mission Group
+
+**Description:** Get details for a single group in the current mission.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | - | Name of the server |
+| `coalition` | `string` | query | **Yes** | - | Coalition ('blue', 'red', 'neutral') |
+| `group_name` | `string` | query | **Yes** | - | Name of the group to retrieve details for |
+| `group_type` | `string | None` | query | No | - | Optional category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+
+**Response:** `MissionGroupResponse`
+
+#### Response Example
+
+```json
+{
+  "coalition": "blue",
+  "country": "USA",
+  "frequency": 251.0,
+  "group_id": 1,
+  "group_type": "plane",
+  "hidden": false,
+  "modulation": 0,
+  "name": "Enfield 1",
+  "start_time": 0.0,
+  "task": "CAP",
+  "uncontrolled": false,
+  "unit_count": 1,
+  "units": [
+    {
+      "alt": 5000.0,
+      "callsign": "Enfield 1-1",
+      "heading": 1.57,
+      "lat": 35.12345,
+      "livery_id": "16th FS",
+      "lon": 36.54321,
+      "name": "Enfield 1-1",
+      "onboard_num": "010",
+      "skill": "High",
+      "speed": 220.0,
+      "type": "F-16C_50",
+      "unit_id": 1,
+      "x": 42430.0,
+      "y": 5719.0
+    }
+  ],
+  "waypoints": [
+    {
+      "action": "Turning Point",
+      "alt": 5000.0,
+      "eta": 0.0,
+      "lat": 35.12345,
+      "lon": 36.54321,
+      "name": "WP 1",
+      "speed": 220.0,
+      "type": "Turning Point",
+      "x": 42430.0,
+      "y": 5719.0
+    }
+  ]
+}
+```
+
+---
+
+### `GET` /mission/groups
+
+**Summary:** Mission Groups
+
+**Description:** Get all groups in the currently running mission for a coalition.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | - | Name of the server |
+| `coalition` | `string` | query | **Yes** | - | Coalition ('blue', 'red', 'neutral') |
+| `group_type` | `string | None` | query | No | - | Optional category to filter groups by ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+
+**Response:** `MissionGroupsResponse`
+
+#### Response Example
+
+```json
+{
+  "groups": [
+    {
+      "group_type": "plane",
+      "name": "Enfield 1",
+      "task": "CAP",
+      "unit_count": 1
+    }
+  ]
 }
 ```
 
@@ -1819,6 +1997,64 @@ This documentation is automatically generated from the RestAPI plugin definition
 
 ---
 
+### `POST` /instance/shutdown
+
+**Summary:** Shut down a server instance.
+
+**Description:** Shut a server down (terminates the DCS process).
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `server_name` | `string` | query | **Yes** | - | Server Name |
+| `force` | `bool` | query | No | `False` | Kill the DCS process instead of a graceful shutdown (a shutdown deferred by when_empty is always graceful) |
+| `maintenance` | `bool` | query | No | `True` | Set the maintenance flag, so the Scheduler does not start the server again |
+| `when_empty` | `bool` | query | No | `False` | If players are connected, shut down once the server is empty |
+
+**Response:** `ServerShutdownResponse`
+
+#### Response Example
+
+```json
+{
+  "message": "Server 'DCS Server' shut down.",
+  "status": "success"
+}
+```
+
+---
+
+## Node Control
+
+### `POST` /node/restart
+
+**Summary:** Restart a node.
+
+**Description:** Restart a node, or all nodes. The bot reloads its configuration.
+
+#### Parameters
+
+| Name | Type | In | Required | Default | Description |
+|------|------|----|----------|---------|-------------|
+| `node_name` | `string | None` | query | No | - | Node to restart (default: all nodes) |
+
+**Response:** `NodeRestartResponse`
+
+#### Response Example
+
+```json
+{
+  "message": "Node(s) node1 restarting.",
+  "nodes": [
+    "node1"
+  ],
+  "status": "success"
+}
+```
+
+---
+
 ## Mission Control
 
 ### `GET` /instance/missions
@@ -1918,6 +2154,9 @@ This documentation is automatically generated from the RestAPI plugin definition
 | Name | Type | In | Required | Default | Description |
 |------|------|----|----------|---------|-------------|
 | `server_name` | `string` | query | **Yes** | - | Server Name |
+| `run_extensions` | `bool` | query | No | `False` | Run the extensions (MizEdit, RealWeather, ...) on the mission |
+| `use_orig` | `bool` | query | No | `True` | Start from the original mission (.orig) |
+| `when_empty` | `bool` | query | No | `False` | If players are connected, restart once the server is empty |
 
 **Response:** `MissionRestartResponse`
 
@@ -2920,6 +3159,190 @@ Below are the data structures and response models used across the API endpoints:
 }
 ```
 
+### `MissionGroupResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | **Yes** | Group name |
+| `group_id` | `int | None` | No | DCS group ID |
+| `coalition` | `string` | **Yes** | Coalition ('blue', 'red', 'neutral') |
+| `group_type` | `string` | **Yes** | Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+| `country` | `string | None` | No | Country name |
+| `task` | `string | None` | No | Main task of the group |
+| `hidden` | `bool | None` | No | Whether the group is hidden on the F10 map/planner |
+| `frequency` | `float | None` | No | Radio frequency in MHz |
+| `modulation` | `int | None` | No | Modulation (0=AM, 1=FM) |
+| `start_time` | `float | None` | No | Group start time in seconds |
+| `uncontrolled` | `bool | None` | No | Whether the group is uncontrolled |
+| `unit_count` | `int` | No | Number of units in the group |
+| `units` | `list[MissionGroupUnit]` | No | Units in the group |
+| `waypoints` | `list[MissionGroupWaypoint]` | No | Waypoints for the group |
+| `raw` | `object | None` | No | Raw group mission definition table if available |
+
+#### Example
+
+```json
+{
+  "coalition": "blue",
+  "country": "USA",
+  "frequency": 251.0,
+  "group_id": 1,
+  "group_type": "plane",
+  "hidden": false,
+  "modulation": 0,
+  "name": "Enfield 1",
+  "start_time": 0.0,
+  "task": "CAP",
+  "uncontrolled": false,
+  "unit_count": 1,
+  "units": [
+    {
+      "alt": 5000.0,
+      "callsign": "Enfield 1-1",
+      "heading": 1.57,
+      "lat": 35.12345,
+      "livery_id": "16th FS",
+      "lon": 36.54321,
+      "name": "Enfield 1-1",
+      "onboard_num": "010",
+      "skill": "High",
+      "speed": 220.0,
+      "type": "F-16C_50",
+      "unit_id": 1,
+      "x": 42430.0,
+      "y": 5719.0
+    }
+  ],
+  "waypoints": [
+    {
+      "action": "Turning Point",
+      "alt": 5000.0,
+      "eta": 0.0,
+      "lat": 35.12345,
+      "lon": 36.54321,
+      "name": "WP 1",
+      "speed": 220.0,
+      "type": "Turning Point",
+      "x": 42430.0,
+      "y": 5719.0
+    }
+  ]
+}
+```
+
+### `MissionGroupSummary`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `group_type` | `string` | **Yes** | Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static') |
+| `name` | `string` | **Yes** | Group name |
+| `task` | `string | None` | No | Main task of the group |
+| `unit_count` | `int` | No | Number of units in the group |
+
+#### Example
+
+```json
+{
+  "group_type": "plane",
+  "name": "Enfield 1",
+  "task": "CAP",
+  "unit_count": 1
+}
+```
+
+### `MissionGroupUnit`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string` | **Yes** | Unit name |
+| `unit_id` | `int | None` | No | DCS unit ID |
+| `type` | `string` | **Yes** | Unit type name |
+| `skill` | `string | None` | No | Unit skill level (e.g. 'Player', 'Client', 'High') |
+| `lat` | `float | None` | No | Unit latitude in decimal degrees |
+| `lon` | `float | None` | No | Unit longitude in decimal degrees |
+| `alt` | `float | None` | No | Unit altitude in meters |
+| `heading` | `float | None` | No | Unit heading in radians |
+| `speed` | `float | None` | No | Unit speed in m/s |
+| `callsign` | `string | int | object | None` | No | Unit callsign |
+| `onboard_num` | `string | None` | No | Unit onboard/tail number |
+| `livery_id` | `string | None` | No | Unit livery ID |
+| `x` | `float | None` | No | DCS X coordinate in meters |
+| `y` | `float | None` | No | DCS Y coordinate in meters |
+
+#### Example
+
+```json
+{
+  "alt": 5000.0,
+  "callsign": "Enfield 1-1",
+  "heading": 1.57,
+  "lat": 35.12345,
+  "livery_id": "16th FS",
+  "lon": 36.54321,
+  "name": "Enfield 1-1",
+  "onboard_num": "010",
+  "skill": "High",
+  "speed": 220.0,
+  "type": "F-16C_50",
+  "unit_id": 1,
+  "x": 42430.0,
+  "y": 5719.0
+}
+```
+
+### `MissionGroupWaypoint`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `name` | `string | None` | No | Waypoint name |
+| `lat` | `float | None` | No | Waypoint latitude in decimal degrees |
+| `lon` | `float | None` | No | Waypoint longitude in decimal degrees |
+| `alt` | `float | None` | No | Waypoint altitude in meters |
+| `speed` | `float | None` | No | Waypoint speed in m/s |
+| `action` | `string | None` | No | Waypoint action |
+| `type` | `string | None` | No | Waypoint type |
+| `eta` | `float | None` | No | Estimated time of arrival in seconds from mission start |
+| `x` | `float | None` | No | DCS X coordinate in meters |
+| `y` | `float | None` | No | DCS Y coordinate in meters |
+
+#### Example
+
+```json
+{
+  "action": "Turning Point",
+  "alt": 5000.0,
+  "eta": 0.0,
+  "lat": 35.12345,
+  "lon": 36.54321,
+  "name": "WP 1",
+  "speed": 220.0,
+  "type": "Turning Point",
+  "x": 42430.0,
+  "y": 5719.0
+}
+```
+
+### `MissionGroupsResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `groups` | `list[MissionGroupSummary]` | No | List of groups in the mission |
+
+#### Example
+
+```json
+{
+  "groups": [
+    {
+      "group_type": "plane",
+      "name": "Enfield 1",
+      "task": "CAP",
+      "unit_count": 1
+    }
+  ]
+}
+```
+
 ### `MissionInfo`
 
 | Property | Type | Required | Description |
@@ -3211,6 +3634,26 @@ Below are the data structures and response models used across the API endpoints:
 }
 ```
 
+### `NodeRestartResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `status` | `string` | **Yes** | Status of the operation |
+| `message` | `string` | **Yes** | Status message |
+| `nodes` | `list[string]` | **Yes** | Nodes that are restarting |
+
+#### Example
+
+```json
+{
+  "message": "Node(s) node1 restarting.",
+  "nodes": [
+    "node1"
+  ],
+  "status": "success"
+}
+```
+
 ### `PlayerEntry`
 
 | Property | Type | Required | Description |
@@ -3489,6 +3932,32 @@ Below are the data structures and response models used across the API endpoints:
 }
 ```
 
+### `RefuelingEntry`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `module` | `string` | **Yes** | Aircraft |
+| `tanker` | `string` | **Yes** | Tanker used |
+| `refuelings` | `int` | **Yes** | # of refuelings |
+| `fuel_taken` | `int` | **Yes** | Fuel taken in lbs |
+| `avg_fuel` | `float` | **Yes** | Avg fuel taken per refueling |
+| `avg_time` | `float` | **Yes** | Avg time to refuel |
+| `completed_transfers` | `int` | **Yes** | Number of transfer complete |
+
+#### Example
+
+```json
+{
+  "avg_fuel": 1700.0,
+  "avg_time": 30.5,
+  "completed_transfers": 4,
+  "fuel_taken": 8500,
+  "module": "F-16C_50",
+  "refuelings": 5,
+  "tanker": "KC-135"
+}
+```
+
 ### `ServerAttendanceStats`
 
 | Property | Type | Required | Description |
@@ -3666,6 +4135,22 @@ Below are the data structures and response models used across the API endpoints:
 ```json
 {
   "message": "Server 'DCS Server' restarted.",
+  "status": "success"
+}
+```
+
+### `ServerShutdownResponse`
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `status` | `string` | **Yes** | Status of the operation (success, or pending with when_empty) |
+| `message` | `string` | **Yes** | Status message |
+
+#### Example
+
+```json
+{
+  "message": "Server 'DCS Server' shut down.",
   "status": "success"
 }
 ```
@@ -3883,10 +4368,14 @@ Below are the data structures and response models used across the API endpoints:
 | `comment` | `string` | **Yes** | Landing comment |
 | `place` | `string` | **Yes** | Landing location |
 | `trapcase` | `int` | **Yes** | Trap case number |
-| `wire` | `int | None` | **Yes** | Arresting wire number |
+| `wire` | `int | None` | No | Arresting wire number |
 | `night` | `bool` | **Yes** | Whether landing was at night |
 | `points` | `int` | **Yes** | Points awarded for the trap |
 | `time` | `datetime` | **Yes** | Time of the trap |
+| `trapdata` | `object | None` | No | Detailled trap data |
+| `tgroove` | `float | None` | No | Time in the Goove |
+| `landingdist` | `int | None` | No | Landing distance |
+| `wind` | `int | None` | No | Wind |
 
 #### Example
 
@@ -3895,12 +4384,45 @@ Below are the data structures and response models used across the API endpoints:
   "comment": "Good pass",
   "grade": "OK",
   "id": 1,
+  "landingdist": -86,
   "night": false,
   "place": "CVN-73",
   "points": 100,
+  "tgroove": 15.7,
   "time": "2025-08-07T12:00:00",
   "trapcase": 3,
+  "trapdata": {
+    "Alt": [
+      185.0,
+      165.0,
+      145.0,
+      125.0,
+      105.0
+    ],
+    "AoA": [
+      8.1,
+      8.0,
+      8.2,
+      8.3,
+      8.1
+    ],
+    "X": [
+      1200.0,
+      1100.0,
+      1000.0,
+      900.0,
+      800.0
+    ],
+    "Z": [
+      -12.5,
+      -10.8,
+      -8.3,
+      -5.2,
+      -2.1
+    ]
+  },
   "unit_type": "F/A-18C",
+  "wind": 25,
   "wire": 3
 }
 ```

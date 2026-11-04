@@ -1,7 +1,8 @@
 CREATE TABLE music_playlists(
     name TEXT NOT NULL,
     song_id INTEGER NOT NULL,
-    song_file TEXT NOT NULL
+    song_file TEXT NOT NULL,
+    UNIQUE (name, song_file)
 );
 CREATE TABLE music_radios(
     server_name TEXT NOT NULL,

@@ -5,54 +5,187 @@ schema;message_list:
     - type: map
       nullable: false
       mapping:
-       message: {type: str, nullable: false, range: {min: 1}}
-       recipients: {type: str, nullable: false, range: {min: 1}}
-       coalition: {type: str, enum: ['red', 'blue'], nullable: false}
-       report: {type: str, nullable: false, range: {min: 1}}
-       display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
-       display_time: {type: int, range: {min: 1}, nullable: false}
-       sound: {type: str, nullable: false, range: {min: 1}}
+        message:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Message text; supports {server} and {player} placeholders.
+          example: "Welcome to our public server!"
+        recipients:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Discord roles a player must have (prefix with ! to exclude).
+          example: "Members"
+        coalition:
+          type: str
+          enum: ['red', 'blue']
+          nullable: false
+          desc: Coalition that receives the message.
+          example: "red"
+        report:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Reporting-framework report rendered instead of a message.
+          example: "greeting.json"
+        display_type:
+          type: str
+          enum: ['chat', 'popup']
+          nullable: false
+          desc: How the message is shown, in chat or as a popup.
+          example: "popup"
+        display_time:
+          type: int
+          range: {min: 1}
+          nullable: false
+          desc: Seconds a popup message stays visible.
+          example: "20"
+        sound:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Sound file played with the message, loaded in the mission.
+          example: "alarm.ogg"
 
 schema;on_join:
   type: map
   nullable: false
   mapping:
-    message: {type: str, nullable: false, range: {min: 1}}
+    message:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Chat message shown when a player joins the server.
+      example: "Welcome to our public server!"
     messages:
       include: 'message_list'
-    recipients: {type: str, nullable: false, range: {min: 1}}
-    display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
-    display_time: {type: int, range: {min: 1}, nullable: false}
-    sound: {type: str, nullable: false, range: {min: 1}}
+    recipients:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Discord roles a player must have (prefix with ! to exclude).
+      example: "Members"
+    display_type:
+      type: str
+      enum: ['chat', 'popup']
+      nullable: false
+      desc: How the join message is shown, in chat or as a popup.
+      example: "chat"
+    display_time:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Seconds a popup message stays visible.
+      example: "20"
+    sound:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Sound file played with the message, loaded in the mission.
+      example: "alarm.ogg"
 
 schema;on_birth:
   type: map
   nullable: false
   mapping:
-    recipients: {type: str, nullable: false, range: {min: 1}}
-    message: {type: str, nullable: false, range: {min: 1}}
+    recipients:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Discord roles a player must have (prefix with ! to exclude).
+      example: "Members"
+    message:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Message shown when a player enters a plane or helicopter.
+      example: "Teamkills will be punished."
     messages:
       include: 'message_list'
-    report: {type: str, nullable: false, range: {min: 1}}
-    display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
-    display_time: {type: int, range: {min: 1}, nullable: false}
-    delay: {type: int, range: {min: 1}, nullable: false}
-    sound: {type: str, nullable: false, range: {min: 1}}
+    report:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Reporting-framework report rendered instead of a message.
+      example: "greeting.json"
+    display_type:
+      type: str
+      enum: ['chat', 'popup']
+      nullable: false
+      desc: How the birth message is shown, in chat or as a popup.
+      example: "popup"
+    display_time:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Seconds a popup message stays visible.
+      example: "20"
+    delay:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Seconds to wait before displaying the message.
+      example: "10"
+    sound:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Sound file played with the message, loaded in the mission.
+      example: "alarm.ogg"
 
 schema;single_nudge:
   type: map
   nullable: false
   mapping:
-    delay: {type: int, nullable: false}
-    message: {type: str, nullable: false, range: {min: 1}}
-    random: {type: bool, nullable: false}
+    delay:
+      type: int
+      nullable: false
+      desc: Seconds between repeats of this nudge message.
+      example: "3600"
+    message:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Nudge text; supports {server} and {player} placeholders.
+      example: "To see your stats, use /linkme in Discord!"
+    random:
+      type: bool
+      nullable: false
+      desc: Pick a random message from the list on every repeat.
+      example: "true"
     messages:
       include: 'message_list'
-    recipients: {type: str, nullable: false, range: {min: 1}}
-    coalition: {type: str, enum: ['red', 'blue'], nullable: false}
-    display_type: {type: str, enum: ['chat', 'popup'], nullable: false}
-    display_time: {type: int, range: {min: 1}, nullable: false}
-    sound: {type: str, nullable: false, range: {min: 1}}
+    recipients:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Discord roles a player must have (prefix with ! to exclude).
+      example: "!@everyone"
+    coalition:
+      type: str
+      enum: ['red', 'blue']
+      nullable: false
+      desc: Coalition that receives the nudge.
+      example: "blue"
+    display_type:
+      type: str
+      enum: ['chat', 'popup']
+      nullable: false
+      desc: How the nudge is shown, in chat or as a popup.
+      example: "chat"
+    display_time:
+      type: int
+      range: {min: 1}
+      nullable: false
+      desc: Seconds a popup message stays visible.
+      example: "20"
+    sound:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Sound file played with the message, loaded in the mission.
+      example: "alarm.ogg"
 
 schema;multi_nudge:
   type: seq
@@ -64,6 +197,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -72,6 +206,7 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
     on_join:
       include: 'on_join'
@@ -81,6 +216,12 @@ schema;element_schema:
       type: any
       func: seq_or_map
       enum: ['multi_nudge', 'single_nudge']
+      desc: One nudge block, or a list of them for different delays.
+      example: |
+        delay: 3600
+        message: All members, be aware of our weekly mission, Sunday 1700 UTC!
+        recipients: Members
+        display_type: chat
 
 type: map
 func: check_main_structure

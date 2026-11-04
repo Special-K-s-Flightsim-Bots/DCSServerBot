@@ -2,45 +2,163 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: false}
-    status_channel: {type: any, nullable: true}
-    ping_role: {type: str, nullable: true}
-    publish_on_create: {type: bool, nullable: true}
-    publish_on_assign: {type: bool, nullable: true}
-    publish_on_complete: {type: bool, nullable: true}
-    publish_on_abandon: {type: bool, nullable: true}
-    publish_on_cancel: {type: bool, nullable: true}
-    marker_timeout: {type: int, nullable: true}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the logistics plugin for this server.
+      example: "true"
+    status_channel:
+      type: any
+      nullable: true
+      desc: Discord channel for logistics status updates.
+      example: "123456789012345678"
+    ping_role:
+      type: str
+      nullable: true
+      desc: Discord role to ping on new logistics posts.
+      example: "DCS"
+    publish_on_create:
+      type: bool
+      nullable: true
+      desc: Post to Discord when a task is created.
+      example: "true"
+    publish_on_assign:
+      type: bool
+      nullable: true
+      desc: Post to Discord when a task is assigned to a pilot.
+      example: "true"
+    publish_on_complete:
+      type: bool
+      nullable: true
+      desc: Post to Discord when a task is completed.
+      example: "true"
+    publish_on_abandon:
+      type: bool
+      nullable: true
+      desc: Post to Discord when a task is abandoned.
+      example: "true"
+    publish_on_cancel:
+      type: bool
+      nullable: true
+      desc: Post to Discord when a task is cancelled.
+      example: "true"
+    marker_timeout:
+      type: int
+      nullable: true
+      desc: Seconds before temporary F10 markers disappear.
+      example: "30"
     delivery:
       type: map
       nullable: true
+      desc: Rules used to detect automatic task delivery.
+      example: |
+        proximity_threshold: 3000
+        require_landing: true
+        check_interval: 10
       mapping:
-        proximity_threshold: {type: int, nullable: true}
-        require_landing: {type: bool, nullable: true}
-        check_interval: {type: int, nullable: true}
+        proximity_threshold:
+          type: int
+          nullable: true
+          desc: Delivery detection radius in meters.
+          example: "3000"
+        require_landing:
+          type: bool
+          nullable: true
+          desc: Require a landing event to auto-complete a task.
+          example: "true"
+        check_interval:
+          type: int
+          nullable: true
+          desc: Seconds between delivery proximity checks.
+          example: "10"
     markers:
       type: map
       nullable: true
+      desc: F10 map marker display options.
+      example: |
+        enabled: true
+        show_deadline: true
       mapping:
-        enabled: {type: bool, nullable: true}
-        show_deadline: {type: bool, nullable: true}
+        enabled:
+          type: bool
+          nullable: true
+          desc: Draw F10 map markers for logistics tasks.
+          example: "true"
+        show_deadline:
+          type: bool
+          nullable: true
+          desc: Show the task deadline on marker labels.
+          example: "true"
     tasks:
       type: map
       nullable: true
+      desc: Task approval, expiry, and per-player limits.
+      example: |
+        auto_approve: false
+        timeout_hours: 24
+        stale_days: 7
+        max_per_player: 1
       mapping:
-        auto_approve: {type: bool, nullable: true}
-        timeout_hours: {type: int, nullable: true}
-        stale_days: {type: int, nullable: true}
-        max_per_player: {type: int, nullable: true}
+        auto_approve:
+          type: bool
+          nullable: true
+          desc: Approve Discord-created tasks without admin review.
+          example: "false"
+        timeout_hours:
+          type: int
+          nullable: true
+          desc: Hours before an unclaimed task expires.
+          example: "24"
+        stale_days:
+          type: int
+          nullable: true
+          desc: Auto-cancel pending or approved tasks after these days.
+          example: "7"
+        max_per_player:
+          type: int
+          nullable: true
+          desc: Maximum concurrent tasks a single player may hold.
+          example: "1"
     permissions:
       type: map
       nullable: true
+      desc: Discord roles allowed to perform each task action.
+      example: |
+        create:
+          - DCS Admin
+        approve:
+          - DCS Admin
       mapping:
-        create: {type: seq, nullable: true, sequence: [{type: str}]}
-        approve: {type: seq, nullable: true, sequence: [{type: str}]}
-        assign: {type: seq, nullable: true, sequence: [{type: str}]}
-        cancel: {type: seq, nullable: true, sequence: [{type: str}]}
+        create:
+          type: seq
+          nullable: true
+          desc: Roles allowed to create logistics tasks.
+          example: |
+            - DCS Admin
+          sequence: [{type: str}]
+        approve:
+          type: seq
+          nullable: true
+          desc: Roles allowed to approve pending tasks.
+          example: |
+            - DCS Admin
+          sequence: [{type: str}]
+        assign:
+          type: seq
+          nullable: true
+          desc: Roles allowed to assign tasks to pilots.
+          example: |
+            - DCS Admin
+          sequence: [{type: str}]
+        cancel:
+          type: seq
+          nullable: true
+          desc: Roles allowed to cancel tasks.
+          example: |
+            - DCS Admin
+          sequence: [{type: str}]
 
 type: map
 func: check_main_structure

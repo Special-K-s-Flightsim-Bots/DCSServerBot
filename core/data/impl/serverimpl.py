@@ -29,6 +29,7 @@ from core.extension import InstallableExtension
 from core.data.dataobject import DataObjectFactory
 from core.data.const import Status, Channel, Coalition
 from core.data.node import UploadStatus
+from core.data.resource_window import ResourceWindows
 from core.extension import Extension, InstallException
 from core.mizfile import MizFile
 from core.process import ProcessManager
@@ -46,9 +47,7 @@ from watchdog.events import (FileSystemEventHandler, DirCreatedEvent, FileCreate
                              FileDeletedEvent, DirMovedEvent, FileMovedEvent)
 from watchdog.observers import Observer, ObserverType
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from core import Instance
@@ -59,7 +58,48 @@ DEFAULT_EXTENSIONS = {
     "Cloud": {}
 }
 
-__all__ = ["ServerImpl"]
+__all__ = ["ServerImpl", "RenameError", "PortConflictError", "ResourceInUseError", "ServerAlreadyRunningError"]
+
+
+class ServerAlreadyRunningError(Exception):
+    """Startup refused because this instance's own DCS process is already up, or still starting.
+
+    Distinct from :class:`PortConflictError` on purpose: nothing is contested and nobody else holds
+    anything - the port is this instance's own, held by the process that is serving it. The operator's
+    next move is to look at the server, not at another cluster's nodes.yaml, so the message says which
+    status the instance was in. Raised by :meth:`ServerImpl.startup` (``_assert_ports_free``).
+    """
+
+
+class PortConflictError(Exception):
+    """Startup refused because a port this component needs is already taken on this machine.
+
+    Raised BEFORE the process touches an installation or writes a config file, so the caller can
+    report it and the node keeps running. A port taken by a *second bot cluster on the same PC* is
+    the case this exists for: DCS either fails to bind or, being UDP, binds anyway and loses the
+    traffic, and the user sees a server that never comes up rather than a conflict. Raised by
+    :meth:`ServerImpl.startup`.
+    """
+
+
+class ResourceInUseError(Exception):
+    """Startup refused because the DCS installation this server runs on is being taken down by another cluster.
+
+    The case this exists for: several clusters share one installation on a hoster's machine, and an update stops every
+    server on it. A start that slips in mid-update corrupts the installation — and the cluster being updated is not the
+    one that would notice. Carries what the operator needs: which resource, who holds it, and what the window may stop.
+    Raised before the process touches the installation. Raised by :meth:`ServerImpl.startup`.
+    """
+
+
+class RenameError(Exception):
+    """A rename that must NOT proceed — a collision, or a reserved / empty target name.
+
+    Raised BEFORE anything is written or re-keyed, so a caller that catches it can trust that
+    ``servers.yaml``, the database rename, the cluster registry (``ServiceBus.servers``) and the
+    extension ``rename_server`` hooks are all untouched — a refusal, not a failure halfway through.
+    Raised by :meth:`ServerImpl.rename` and, defensively, by ``ServiceBus.rename_server``.
+    """
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
@@ -134,7 +174,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         if not self._is_valid_mission_file(path):
             return
         missions = self.server.settings['missionList']
-        if '.dcssb' not in path:
+        if utils.logical_mission_path(str(path)) == path:
             secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
             if secondary in missions:
                 path = secondary
@@ -257,7 +297,7 @@ class ServerImpl(Server):
         missions = self.settings['missionList']
         i: int = 0
         for file in directory.rglob('*.miz'):
-            if '.dcssb' in str(file):
+            if utils.logical_mission_path(str(file)) != os.path.normpath(str(file)):
                 continue
             secondary = os.path.join(os.path.dirname(file), '.dcssb', os.path.basename(file))
             if str(file) not in missions and secondary not in missions:
@@ -347,10 +387,18 @@ class ServerImpl(Server):
     async def update_channels(self, channels: dict[str, int]) -> None:
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
-        config[self.name]['channels'] = channels
+            config = new_yaml().load(infile)
+        # PRESERVE the keys this write does not name: merge onto the FILE's current map, not an
+        # in-memory copy (which can be stale after a hand-edit) and not the partial map a caller hands
+        # in (the Discord editor sends only the rows it shows). A key absent from ``channels`` keeps
+        # whatever the file holds; only the keys named here are overwritten.
+        entry = config[self.name]
+        current = entry.get('channels')
+        current = dict(current) if isinstance(current, dict) else {}
+        current.update(channels)
+        entry['channels'] = current
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+            new_yaml().dump(config, outfile)
         self.locals.setdefault('channels', {}).update(channels)
         self._channels.clear()
 
@@ -370,7 +418,7 @@ class ServerImpl(Server):
         try:
             admin_channel = self.channels.get(Channel.ADMIN)
             if not admin_channel:
-                data = yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')))
+                data = new_yaml().load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')))
                 admin_channel = data.get('channels', {}).get('admin', -1)
             with open(os.path.join('Scripts', 'net', 'DCSServerBot', 'DCSServerBotConfig.lua.tmpl'), mode='r',
                       encoding='utf-8') as template:
@@ -519,13 +567,69 @@ class ServerImpl(Server):
         await self._ensure_transport()
         self.transport.sendto(msg.encode("utf-8"))
 
+    def _servers_yaml_keys(self) -> list[str]:
+        """The top-level keys of ``servers.yaml`` (the configured servers), or ``[]``.
+
+        Read-only and best-effort: a missing node config dir, a missing file or an unreadable one
+        yields ``[]``, so the collision guard falls back to the live registry alone.
+        """
+        config_dir = getattr(self.node, 'config_dir', None)
+        if not config_dir:
+            return []
+        filename = os.path.join(config_dir, 'servers.yaml')
+        if not os.path.exists(filename):
+            return []
+        try:
+            data = new_yaml().load(Path(filename).read_text(encoding='utf-8'))
+        except Exception:
+            return []
+        return [str(key) for key in data.keys()] if isinstance(data, dict) else []
+
+    def _rename_refusal(self, new_name: Any) -> str | None:
+        """Why *new_name* cannot be this server's name, or ``None`` when it can (see ``RenameError``).
+
+        Three refusals, all decided BEFORE anything is written:
+
+        * an EMPTY name (``None``, a non-string, or whitespace only);
+        * the RESERVED sentinel ``n/a`` — the code's "unnamed" marker, which takes ``rename``'s
+          no-rollback path;
+        * a COLLISION with a DIFFERENT server, read from both the fleet registry (``bus.servers``, the
+          live entry ``ServiceBus.rename_server`` would clobber) and the KEYS of ``servers.yaml`` (a
+          key held by a different entry would leave a half-renamed server).
+
+        Case is folded: ``SRS-1`` and ``srs-1`` name ONE server. The server's OWN name is never a
+        collision, so a same-name Save (and the auto-rename in ``ServiceBus.register_server``) still
+        goes through.
+        """
+        if not isinstance(new_name, str) or not new_name.strip():
+            return 'A server name must not be empty.'
+        folded = new_name.strip().casefold()
+        if folded == 'n/a':
+            return f'Server name "{new_name}" is reserved and cannot be used.'
+        own = str(self.name or '').casefold()
+        if folded == own:
+            return None
+        registry = getattr(getattr(self, 'bus', None), 'servers', None) or {}
+        for other in registry.values():
+            if other is None or other is self:
+                continue
+            other_name = str(getattr(other, 'name', '') or '')
+            if other_name and other_name.casefold() == folded:
+                return f'Server name "{new_name}" is already used by server "{other_name}".'
+        for key in self._servers_yaml_keys():
+            if key.casefold() == own:
+                continue
+            if key.casefold() == folded:
+                return f'Server name "{new_name}" is already used by server "{key}".'
+        return None
+
     @override
     async def rename(self, new_name: str, update_settings: bool = False) -> None:
         def update_config(old_name: str | None, new_name: str, update_settings: bool = False):
             # update servers.yaml
             filename = os.path.join(self.node.config_dir, 'servers.yaml')
             if os.path.exists(filename):
-                data = yaml.load(Path(filename).read_text(encoding='utf-8'))
+                data = new_yaml().load(Path(filename).read_text(encoding='utf-8'))
                 # proper rename
                 if old_name in data and new_name not in data:
                     data[new_name] = data.pop(old_name)
@@ -533,7 +637,7 @@ class ServerImpl(Server):
                 elif not old_name:
                     data[new_name] = {}
                 with open(filename, mode='w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
             # update serverSettings.lua if requested
             if update_settings:
                 self.settings['name'] = new_name
@@ -563,6 +667,11 @@ class ServerImpl(Server):
                 })
                 self.bus.rename_server(self, new_name)
 
+        # REFUSE a reserved / empty / colliding target BEFORE anything is written or re-keyed, so a
+        # refusal leaves no half-state. The guard is typed: ``RenameError``.
+        refusal = self._rename_refusal(new_name)
+        if refusal:
+            raise RenameError(refusal)
         old_name = self.name
         if old_name == 'n/a':
             old_name = None
@@ -586,8 +695,9 @@ class ServerImpl(Server):
                     await update_database(new_name, old_name)
                 raise
         except Exception:
+            # RE-RAISE: a caller must never be told the rename succeeded when it did not.
             self.log.exception(f"Error during renaming of server {old_name} to {new_name}: ", exc_info=True)
-            return
+            raise
 
     async def unlink(self):
         if self.name == 'n/a':
@@ -613,17 +723,15 @@ class ServerImpl(Server):
         except IndexError:
             start_mission = None
         for mission in self.settings['missionList']:
-            if '.dcssb' in mission:
-                _mission = os.path.join(os.path.dirname(os.path.dirname(mission)), os.path.basename(mission))
-            else:
-                _mission = os.path.normpath(mission)
+            _mission = utils.logical_mission_path(mission)
+            is_copy = _mission != os.path.normpath(mission)
             # check if the orig file has been updated
             orig = utils.get_orig_file(_mission, create_file=False)
             if orig and os.path.exists(orig) and os.path.exists(mission) and os.path.getmtime(orig) > os.path.getmtime(mission):
                 shutil.copy2(orig, _mission)
                 missions.append(_mission)
             elif os.path.exists(mission):
-                if '.dcssb' in mission and os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
+                if is_copy and os.path.exists(_mission) and os.path.getmtime(_mission) > os.path.getmtime(mission):
                     shutil.copy2(_mission, mission)
                 missions.append(mission)
             else:
@@ -812,8 +920,137 @@ class ServerImpl(Server):
         except sqlite3.OperationalError:
             pass
 
+    async def _assert_resource_available(self) -> None:
+        """Refuse to launch while a maintenance window holds the installation this server runs on.
+
+        At the top of :meth:`startup`, so every path inherits it — cron, the scheduler, voting, the tournament plugin,
+        the mission actions and the maintenance manager's own power-on. Spread across the call sites, the one that gets
+        missed is the restore.
+
+        Two deliberate non-refusals. A window whose holder has gone silent does **not** refuse: that is the same
+        predicate the restore rule uses, and a taker that died must not keep every other cluster dark. An identity that
+        cannot be derived does not refuse either — this is a guard, not the correctness guarantee (the shutdown request
+        plus ack-and-wait is), and a broken identity must never be what stops servers from starting.
+        """
+        installation = self.node.installation
+        if not installation:
+            return
+        try:
+            identity = utils.ResourceIdentity.of(installation, 'dcs_installation')
+        except ValueError as ex:
+            self.log.warning(f"Could not identify the installation {installation} as a resource: {ex}")
+            return
+        window = await ResourceWindows(self.node).state(identity.id)  # type: ignore[arg-type]  # Node declares no
+        # cpool; both implementations (NodeImpl, NodeProxy) carry it, and the gate only needs the cluster pool.
+        if window and window.holder_live:
+            raise ResourceInUseError(
+                f"The DCS installation {identity.path} is taken by node '{window.holder_node}' "
+                f"(guild {window.holder_guild}) for a {window.action}. Startup refused: while that window is open "
+                f"every {window.scope} on this installation stays down, or the {window.action} corrupts it."
+            )
+
+    #: A port held by this instance's own DCS process is never waited for: a start request must not contain
+    #: a shutdown wait, and a process that is alive but unaccounted for is either dying (the next attempt
+    #: succeeds) or orphaned (the operator has to act). Both are reported immediately, by name.
+    async def _assert_ports_free(self) -> None:
+        """Refuse to launch while a port this instance needs is already taken on this machine.
+
+        A conflict is otherwise silent or late: DCS fails to bind, or - being UDP - binds and loses
+        the traffic, and the user sees a server that never comes up. Two bot clusters on one PC hand
+        the same default ports to instances of both, so this has to be checked against the machine;
+        the schema-level check only ever sees its own nodes.yaml.
+
+        Each port is probed on the address its component binds: DCS uses every interface by default,
+        while the WebGUI and the DCS-to-bot port are reached on ``dcs_host``. Probing the wrong one
+        reports a free port for a bind that is about to fail.
+
+        A port held while **this instance's own DCS process is still alive** is not a conflict and must
+        not be reported as one: blaming "another DCS server or a second bot cluster" there is both wrong
+        and alarming. Nor is it a reason to wait — a start request must not contain a shutdown wait. It
+        is refused at once, and the message says which of the two situations it is: a status that is not
+        down (the request is a duplicate start, and the port is ours by design) or a status that *is*
+        down while a process of ours is alive (a crash that has not exited, or a DCS left behind by an
+        earlier bot session).
+        """
+        instance = self.instance
+        if not instance:
+            return
+        dcs_bind = self.settings.get('bind_address') or '0.0.0.0'
+        local = instance.dcs_host
+        ports = [
+            ("DCS port", dcs_bind, instance.dcs_port.port, False),
+            ("DCS port", dcs_bind, instance.dcs_port.port, True),
+            ("WebGUI port", local, instance.webgui_port.port, False),
+            ("bot port", local, instance.bot_port.port, True),
+        ]
+
+        def taken():
+            for name, host, port, udp in ports:
+                if not utils.is_port_free(host, port, udp=udp):
+                    return name, host, port
+            return None
+
+        conflict = taken()
+        own_process = await self.is_running() if conflict else False
+        if conflict and own_process:
+            # OUR process holds it, so this is not a port conflict and there is nothing to wait for. Two
+            # readings, both reported immediately:
+            #
+            # * the instance is not down, so its own process is the holder BY DESIGN - the request is a
+            #   duplicate start, and waiting for a running server to exit is wrong twice over;
+            # * the instance IS down while a process of it is alive - the bot's state and reality disagree
+            #   (a crash that has not exited, or a DCS left by an earlier bot session), and the operator
+            #   needs to know that, not a 30-second stall followed by a message about a port.
+            name, _host, port = conflict
+            if self.status not in (Status.SHUTDOWN, Status.UNREGISTERED):
+                hint = (" Use /server start to start it, or /server restart to replace it."
+                        if self.status == Status.STOPPED else
+                        " Use /server restart if you meant to replace it.")
+                raise ServerAlreadyRunningError(
+                    f"Server \"{instance.name}\" is already {self.status.value}: its own DCS process "
+                    f"holds port {port}.{hint}"
+                )
+            raise ServerAlreadyRunningError(
+                f"A DCS process of this instance is already running while the bot has the server as "
+                f"'{self.status.value}' - left behind by an earlier launch or an earlier bot session. It "
+                f"holds port {port}. Stop that process, or let it exit, and start the server again."
+            )
+        if conflict:
+            name, host, port = conflict
+            raise PortConflictError(
+                f"{name} {port} is already in use on {host}. Another DCS server, or a second bot "
+                f"cluster on this machine, is most likely holding it. Startup refused - give this "
+                f"instance a different port in nodes.yaml."
+            )
+
     @override
-    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def start(self, *, preset: dict | list | str | None = None) -> bool:
+        # A process start changes no mission, so a start that states no preset leaves the record alone.
+        # A launch-driven start (the scheduler's stop-then-start shape) states the weather it already
+        # applied, so the page names it — and states an empty set when it applied none, which clears.
+        if preset is not None:
+            await _record_launched_preset(self, preset, bool(preset))
+        return await super().start()
+
+    @override
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      preset_name: str | list[str] | None = None,
+                      announce: bool = False) -> None:
+        # A duplicate start request is one where OUR OWN DCS PROCESS IS ALREADY ALIVE, never one where the
+        # status merely reads as up: the scheduler's state loop marks a server LOADING and THEN schedules the
+        # launch that starts it, so a bare ``status == LOADING`` test makes the scheduler skip its own launch
+        # and leaves the server loading forever.
+        if self.status in (Status.LOADING, Status.RUNNING, Status.PAUSED) and await self.is_running():
+            # The process is up, so this is a duplicate - and that is neither an error nor rare: the boot
+            # sequence, the state loop, a node coming back online and an operator's own /server startup can all
+            # ask for the same server within seconds. Letting it through would put a second DCS on the same
+            # port; reporting it as a failure fills the log with errors for a server that is fine.
+            self.log.info(f"  => Server \"{self.name}\" is already {self.status.value} - ignoring this start "
+                          f"request.")
+            return
+        await self._assert_resource_available()
+        await self._assert_ports_free()
         if not utils.is_desanitized(self.node):
             if not self.node.locals['DCS'].get('desanitize', True):
                 raise Exception("Your DCS installation is not desanitized properly to be used with DCSServerBot!")
@@ -824,7 +1061,14 @@ class ServerImpl(Server):
         await self.init_extensions()
         await self.prepare_extensions()
         if modify_mission:
-            await self.apply_mission_changes(use_orig=use_orig)
+            await self.apply_mission_changes(use_orig=use_orig, preset=preset,
+                                             preset_name=preset_name, announce=announce)
+        else:
+            # The extensions do not run here, so this start applies no preset itself. The record
+            # follows the value the caller states: a launch that already applied the weather passes its
+            # preset names, and a start that states none clears the record — the page would otherwise
+            # name a preset this start never applied.
+            await _record_launched_preset(self, preset, bool(preset), preset_name=preset_name)
         await asyncio.to_thread(self.do_startup)
 
         from services.firewall import FirewallService
@@ -945,46 +1189,98 @@ class ServerImpl(Server):
 
     @override
     @performance_log()
-    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True) -> str | None:
-        try:
-            # disable autoscan
-            if self.locals.get('autoscan', False):
-                self.disable_autoscan()
-            if not filename:
-                filename = await self.get_current_mission_file()
-                if not filename:
-                    self.log.warning("No mission found. Is your mission list empty?")
-                    return None
+    async def apply_mission_changes(self, filename: str | None = None, *, use_orig: bool | None = True,
+                                    preset: dict | list | str | None = None,
+                                    preset_name: str | list[str] | None = None,
+                                    announce: bool = False) -> str | None:
+        # The rewrite runs in the nested ``_rewrite`` and reports whether the per-load preset was
+        # REALLY applied — a name the instance does not carry is ignored by the extension and rewrites
+        # nothing. The record and the announcement follow THAT answer, never the request: a launch
+        # nobody picked a preset for, or one that picked a name the instance does not carry, records
+        # none and announces nothing.
+        applied = False
 
-            # create a writable mission
-            new_filename = utils.create_writable_mission(filename)
-            if use_orig:
-                # get the orig file
-                orig_filename = utils.get_orig_file(new_filename)
-                # and copy the orig file over
-                shutil.copy2(orig_filename, new_filename)
-            elif new_filename != filename:
-                shutil.copy2(filename, new_filename)
+        async def _rewrite() -> str | None:
+            nonlocal applied
+            mission = filename
             try:
-                # process all mission modifications
+                # disable autoscan
+                if self.locals.get('autoscan', False):
+                    self.disable_autoscan()
+                if not mission:
+                    mission = await self.get_current_mission_file()
+                    if not mission:
+                        self.log.warning("No mission found. Is your mission list empty?")
+                        return None
+
+                # select the mission file to use before creating a temp copy
+                selected_filename = mission
                 dirty = False
                 for ext in self.extensions.values():
-                    if type(ext).beforeMissionLoad != Extension.beforeMissionLoad:
-                        new_filename, _dirty = await ext.beforeMissionLoad(new_filename)
-                        if _dirty:
-                            self.log.info(f'  => {ext.name} applied on {new_filename}.')
-                        dirty |= _dirty
+                    if type(ext).get_mission_file != Extension.get_mission_file:
+                        new_selected_filename = await ext.get_mission_file(selected_filename)
+                        if new_selected_filename != selected_filename:
+                            self.log.info(f'  => {ext.name} selected {os.path.basename(new_selected_filename)}.')
+                            selected_filename = new_selected_filename
+                            dirty = True
 
-                return filename if not dirty else new_filename
-            except Exception as ex:
-                self.log.exception(ex)
-                if filename != new_filename and os.path.exists(new_filename):
-                    os.remove(new_filename)
-                return filename
-        finally:
-            # enable autoscan
-            if self.locals.get('autoscan', False):
-                self.enable_autoscan()
+                source_filename = utils.get_orig_file(selected_filename) if use_orig else selected_filename
+                temp_dir = tempfile.mkdtemp(prefix='dcssb-mission-')
+                tmp_filename = os.path.join(temp_dir, os.path.basename(selected_filename))
+                new_filename = tmp_filename
+
+                try:
+                    shutil.copy2(source_filename, tmp_filename)
+
+                    # process all mission modifications on the temporary copy
+                    dirty |= use_orig
+                    for ext in self.extensions.values():
+                        if type(ext).modify_mission != Extension.modify_mission:
+                            # a None preset is passed as no keyword at all, so an extension still on the
+                            # standalone ``modify_mission(self, filename)`` signature stays callable
+                            if preset is None:
+                                new_filename, _dirty = await ext.modify_mission(new_filename)
+                            else:
+                                new_filename, _dirty = await ext.modify_mission(new_filename, preset=preset)
+                            if _dirty:
+                                self.log.info(f'  => {ext.name} applied on {os.path.basename(new_filename)}.')
+                            dirty |= _dirty
+                            # the per-load preset is REALLY applied only when the extension that
+                            # CONSUMES it reports a change; a name it does not carry leaves the mission
+                            # untouched, so nothing is recorded and nothing is announced. The consumer is
+                            # named by its class, not imported: this module must not pull the extension
+                            # in to answer the question.
+                            if preset is not None and _dirty and type(ext).__name__ == "MizEdit":
+                                applied = True
+
+                    if not dirty:
+                        return mission
+
+                    writable_filename = utils.create_writable_mission(selected_filename)
+                    shutil.copy2(new_filename, writable_filename)
+                    return writable_filename
+
+                except Exception as ex:
+                    self.log.exception(ex)
+                    if use_orig:
+                        writable_filename = utils.create_writable_mission(selected_filename)
+                        orig_filename = utils.get_orig_file(selected_filename)
+                        shutil.copy2(orig_filename, writable_filename)
+                        return writable_filename
+                    return mission
+
+                finally:
+                    utils.safe_rmtree(temp_dir)
+            finally:
+                # enable autoscan
+                if self.locals.get('autoscan', False):
+                    self.enable_autoscan()
+
+        result = await _rewrite()
+        await _record_launched_preset(self, preset, applied, preset_name=preset_name)
+        if applied and announce:
+            await _announce_launched_preset(self, preset)
+        return result
 
     async def keep_alive(self):
         if self.status in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
@@ -1001,7 +1297,7 @@ class ServerImpl(Server):
             filename: str,
             url: str,
             *,
-            missions_dir: str = None,
+            missions_dir: str | None = None,
             force: bool = False
     ) -> UploadStatus:
         if not missions_dir:
@@ -1052,7 +1348,7 @@ class ServerImpl(Server):
     async def persist_settings(self):
         config_file = os.path.join(self.node.config_dir, 'servers.yaml')
         with open(config_file, mode='r', encoding='utf-8') as infile:
-            config = yaml.load(infile)
+            config = new_yaml().load(infile)
         if self.name not in config:
             config[self.name] = {}
         config[self.name]['serverSettings'] = {
@@ -1069,7 +1365,7 @@ class ServerImpl(Server):
             "maxPlayers": self.settings.get('maxPlayers', 16)
         }
         with open(config_file, mode='w', encoding='utf-8') as outfile:
-            yaml.dump(config, outfile)
+            new_yaml().dump(config, outfile)
 
     @override
     async def render_extensions(self) -> list[dict]:
@@ -1080,10 +1376,17 @@ class ServerImpl(Server):
         return ret
 
     @override
-    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      preset_name: str | list[str] | None = None,
+                      announce: bool = False) -> None:
         current_mission = self._get_current_mission_file()
         if current_mission:
-            await self.loadMission(current_mission, modify_mission=modify_mission, use_orig=use_orig)
+            # ``preset`` / ``preset_name`` / ``announce`` are forwarded so a restart with a weather
+            # pick applies it — and records its name — by the SAME path a load does: a restart whose
+            # caller states none keeps today's behaviour.
+            await self.loadMission(current_mission, modify_mission=modify_mission, use_orig=use_orig,
+                                   preset=preset, preset_name=preset_name, announce=announce)
         else:
             await self.stop()
             await self.start()
@@ -1098,8 +1401,10 @@ class ServerImpl(Server):
             mission_id = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
-        else:
-            self.settings['listStartIndex'] = mission_id
+        # The pointer is written in BOTH branches: the DCS command moves ``net.missionlist`` in the
+        # running process, but the bot's own cache — what ``getStartIndex`` and the mission list read
+        # — would otherwise keep the old index until a restart.
+        self.settings['listStartIndex'] = mission_id
 
     @override
     async def setPassword(self, password: str | None):
@@ -1137,12 +1442,17 @@ class ServerImpl(Server):
     @override
     async def addMission(self, path: str, *, idx: int = -1, autostart: bool = False) -> list[str]:
         path = os.path.normpath(path)
-        if '.dcssb' not in path:
-            mission = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
+        # the OTHER spelling of this mission — its primary and its ``.dcssb`` copy are ONE mission. The
+        # marker is a path COMPONENT (``logical_mission_path``), never a substring, so a directory whose
+        # NAME merely contains ``.dcssb`` (``foo.dcssbbar``) is not mistaken for a copy.
+        primary = utils.logical_mission_path(path)
+        if primary != path:
+            mission = primary
         else:
-            mission = os.path.join(os.path.dirname(path).replace('.dcssb', ''), os.path.basename(path))
+            mission = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
 
         missions = await self.getMissionList()
+        was_empty = not missions
         # we have this mission in the list already
         if path in missions or mission in missions:
             # if the replacement mission is in the list only, update it with the new mission
@@ -1171,12 +1481,24 @@ class ServerImpl(Server):
             self.settings['missionList'] = missions
             if autostart:
                 self.settings['listStartIndex'] = missions.index(path) + 1
+        if was_empty and not autostart:
+            # the FIRST mission in an empty rotation is the only one that can start, so it takes the
+            # pointer whether or not the box was ticked. Any later mission must be ticked to become the
+            # start one: adding never moves the pointer on its own.
+            try:
+                self.settings['listStartIndex'] = self.settings['missionList'].index(path) + 1
+            except ValueError:
+                self.settings['listStartIndex'] = 1
         return self.settings['missionList']
 
     @override
     async def deleteMission(self, mission_id: int) -> list[str]:
         if self.status in [Status.PAUSED, Status.RUNNING] and self.mission_id == mission_id:
             raise AttributeError("Can't delete the running mission!")
+        try:
+            start = int(self.settings['listStartIndex'] or 1)
+        except (KeyError, TypeError, ValueError):
+            start = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
             self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
@@ -1184,6 +1506,92 @@ class ServerImpl(Server):
             missions = self.settings['missionList']
             missions.pop(mission_id - 1)
             self.settings['missionList'] = missions
+        # THE POINTER MUST KEEP NAMING A MISSION. Every entry after the removed slot shifts down by one,
+        # so a start index BEYOND that slot still names its own mission once decremented; the removed
+        # slot itself is taken by the mission that followed it; a list that shrank under the pointer is
+        # clamped to its new length, and an empty list has no start mission at all (0).
+        count = len(self.settings['missionList'])
+        if not count:
+            new_start = 0
+        else:
+            new_start = start - 1 if mission_id < start else start
+            new_start = max(1, min(new_start, count))
+        if new_start != start:
+            if new_start and self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+                # the process owns the index in those states: move it there too, so its own copy of
+                # the list does not put the old slot back
+                await self.setStartIndex(new_start)
+            else:
+                self.settings['listStartIndex'] = new_start
+        return self.settings['missionList']
+
+    @override
+    async def setMissionList(self, missions: list[str]) -> list[str]:
+        """Replace ``self.settings['missionList']`` with *missions* in ONE write.
+
+        The ONE writer of the mission ORDER. It is **offline only**: while the DCS process is up
+        (``{LOADING, STOPPED, PAUSED, RUNNING}``) it holds ``net.missionlist`` — the list AND the
+        index — in memory and re-syncs the file from its own copy on every load and after every
+        add/delete reply (``_load_mission_list`` / ``:1245`` / ``:1262``), so a file write made then
+        is SILENTLY REVERTED. The file is authoritative only in
+        ``{UNREGISTERED, SHUTDOWN, SHUTTING_DOWN}``; anywhere else this REFUSES (the method is the
+        last line, not the first — callers gate the control too).
+
+        It validates before it writes, so nobody can put a wrong list in by calling it:
+
+        * every entry must ALREADY be in the current list — a subset, so no invented path, no
+          absolute path from a client and no traversal can enter the list this way;
+        * no duplicates;
+        * the currently loaded mission must survive — a list that drops it is refused with the ONE
+          sentence the other surfaces use ("You can't delete the running mission."). The bot's own
+          ``deleteMission`` guard compares a DB row id with a list index and never fires, so this
+          check (by PATH, never by slot) is the working one.
+
+        Then it recomputes the pointer BY PATH — ``listStartIndex`` must end up naming the same
+        MISSION, not the same slot. ``_get_current_mission_file`` is the current path; the new list
+        is searched for it (its ``.dcssb`` copy marker stripped, so a primary-spelled entry and the
+        ``.dcssb`` file DCS reports as current are recognised as one mission), falling back to 1 (or
+        0 for an empty list). Both ``listStartIndex`` and ``current`` are set.
+        """
+        if self.status in [Status.LOADING, Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+            raise RuntimeError("The mission list can only be changed while the server is not "
+                               "running.")
+
+        # ONE normaliser for every mission-path comparison (``core.utils.logical_mission_path``): a
+        # path's ``.orig`` suffix and its ``.dcssb`` copy COMPONENT dropped, never a substring of a
+        # longer directory name. A bare ``.replace('.dcssb', '')`` let a ``foo.dcssbbar`` directory
+        # collide with its ``foobar`` twin, so a list that DROPS the running mission was accepted and
+        # the pointer landed on the wrong mission.
+        shorten = utils.logical_mission_path
+
+        current = [os.path.normpath(x) for x in self.settings.get('missionList', [])]
+        allowed = set(current) | {shorten(x) for x in current}
+        norm_new = [os.path.normpath(x) for x in missions]
+        for path in norm_new:
+            if path not in allowed and shorten(path) not in allowed:
+                raise ValueError(f"Mission '{path}' is not in the current mission list.")
+        if len(set(norm_new)) != len(norm_new):
+            raise ValueError("The mission list must not contain duplicates.")
+
+        current_mission = self._get_current_mission_file()
+        if current_mission is not None \
+                and shorten(current_mission) not in {shorten(x) for x in norm_new}:
+            raise AttributeError("You can't delete the running mission.")
+
+        self.settings['missionList'] = norm_new
+        if not norm_new:
+            idx = 0
+        elif current_mission is None:
+            idx = 1
+        else:
+            target = os.path.normpath(current_mission)
+            if target in norm_new:
+                idx = norm_new.index(target) + 1
+            else:
+                logical = shorten(current_mission)
+                idx = next((position for position, entry in enumerate(norm_new, start=1)
+                            if shorten(entry) == logical), 1)
+        self.settings['listStartIndex'] = self.settings['current'] = idx
         return self.settings['missionList']
 
     @override
@@ -1199,7 +1607,10 @@ class ServerImpl(Server):
 
     @override
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
-                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
+                          use_orig: bool | None = True, no_reload: bool | None = False, *,
+                          preset: dict | list | str | None = None,
+                          preset_name: str | list[str] | None = None,
+                          announce: bool = False) -> bool | None:
 
         mission_list = await self.getMissionList()
         start_index = int(self.settings.get('listStartIndex', 1))
@@ -1219,13 +1630,21 @@ class ServerImpl(Server):
             return None
 
         if modify_mission:
-            filename = await self.apply_mission_changes(mission, use_orig=use_orig)
-        elif use_orig:
-            filename = utils.create_writable_mission(mission)
-            orig_mission = utils.get_orig_file(mission)
-            shutil.copy2(orig_mission, filename)
+            filename = await self.apply_mission_changes(mission, use_orig=use_orig, preset=preset,
+                                                        preset_name=preset_name,
+                                                        announce=announce)
         else:
-            filename = mission
+            # The extensions do not run here, so this load applies no preset itself. The record follows
+            # the value the caller states: a launch that already applied the weather passes its preset
+            # names (or the document AND the name it came from), and a load that states none clears the
+            # record.
+            await _record_launched_preset(self, preset, bool(preset), preset_name)
+            if use_orig:
+                filename = utils.create_writable_mission(mission)
+                orig_mission = utils.get_orig_file(mission)
+                shutil.copy2(orig_mission, filename)
+            else:
+                filename = mission
 
         if mission == current_mission and filename != mission:
             mission_list = await self.replaceMission(current_index, filename)
@@ -1365,7 +1784,7 @@ class ServerImpl(Server):
     @override
     async def config_extension(self, name: str, config: dict | None = None) -> dict:
         config_file = os.path.join(self.node.config_dir, 'nodes.yaml')
-        data: dict = yaml.load(Path(config_file).read_text(encoding='utf-8'))
+        data: dict = new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
         all_config = data.get(self.node.name, {})
         node_config = all_config.setdefault('extensions', {})
         extensions = all_config.setdefault('instances', {}).setdefault(
@@ -1381,7 +1800,7 @@ class ServerImpl(Server):
         if 'Instance' in config:
             extensions[name] = extensions.get(name, {}) | config.get('Instance', {})
         with open(config_file, 'w', encoding='utf-8') as f:
-            yaml.dump(data, f)
+            new_yaml().dump(data, f)
         # re-read config
         self.node.locals = self.node.read_locals()
         self.locals |= self.node.locals['instances'][self.instance.name]
@@ -1395,21 +1814,31 @@ class ServerImpl(Server):
     @override
     async def enable_extension(self, name: str, config: dict | None = None) -> bool:
         ext = self.extensions.get(name)
+        old_config = None
         if not ext:
             ext = self.load_extension(name, config)
             self.extensions[name] = ext
-        if ext and await ext.enable():
+        elif config:
+            # a loaded extension is enabled with the config it was given (e.g. a key from /extension enable)
+            old_config = ext.config
+            ext.config = ext.config | config.get('Node', {}) | config.get('Instance', {})
+        enabled = False
+        try:
+            enabled = bool(ext) and await ext.enable()
+        finally:
+            if not enabled and old_config is not None:
+                ext.config = old_config
+        if enabled:
             await self.config_extension(name, utils.deep_merge(config or {}, {"Instance": {"enabled": True}}))
-            return True
-        return False
+        return enabled
 
     @override
     async def disable_extension(self, name: str) -> bool:
         if name not in self.extensions:
             raise InstallException(f"Extension '{name}' not found")
         ext = self.extensions[name]
-        await self.config_extension(name, {"Instance": {"enabled": False}})
         if await ext.disable():
+            await self.config_extension(name, {"Instance": {"enabled": False}})
             self.extensions.pop(name, None)
             return True
         return False
@@ -1421,15 +1850,13 @@ class ServerImpl(Server):
 
     @override
     async def getAllMissionFiles(self) -> list[tuple[str, str]]:
-        def shorten_filename(file: str) -> str:
-            if file.endswith('.orig'):
-                return file[:-5]
-            if '.dcssb' in file:
-                return os.path.join(os.path.dirname(file).replace('.dcssb', ''), os.path.basename(file))
-            return file
-
         result = []
-        base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir, pattern="*.miz",
+        # A PERSISTENT MISSION IS A ``.sav`` FILE: ``/mission persistence`` renames it and points
+        # ``missionList`` at it, so both kinds are missions here — the same pair every other listing
+        # in the bot asks for. Listing only ``*.miz`` left a configured ``.sav`` unresolved, which the
+        # tab read as ``missing`` and the download refused as "not found".
+        base_dir, all_missions = await self.node.list_directory(self.instance.missions_dir,
+                                                                pattern=["*.miz", "*.sav"],
                                                                 ignore=['.dcssb', 'Scripts', 'Saves'], traverse=True)
         for mission in all_missions:
             orig = utils.get_orig_file(mission, create_file=False)
@@ -1443,7 +1870,10 @@ class ServerImpl(Server):
             if os.path.exists(secondary) and os.path.getmtime(secondary) > os.path.getmtime(file):
                 file = secondary
 
-            result.append((shorten_filename(file), file))
+            # the LOGICAL name of the winning copy, by the ONE shared normaliser (``.orig`` suffix and
+            # ``.dcssb`` COMPONENT dropped — never a substring, so ``foo.dcssbbar``/``foobar`` never
+            # collide). A local copy here is exactly the drift this replaces.
+            result.append((utils.logical_mission_path(file), file))
 
         return result
 
@@ -1468,3 +1898,68 @@ class ServerImpl(Server):
     @override
     async def get_config(self) -> dict:
         return self.read_locals()
+
+
+async def _record_launched_preset(server, preset: dict | list | str | None, applied: bool,
+                                  preset_name: str | list[str] | None = None) -> None:
+    """Write what this load was launched with to the server's ``servers`` row.
+
+    The row is the ONE home of the fact: ``launched_preset`` is the preset NAME and
+    ``launched_preset_temporary`` marks a preset built on the spot (which has no name). A load that
+    applied nothing — no preset asked for, or a NAME the server does not carry — CLEARS both, so the
+    record always describes the mission that is running now and never the previous one. The fact
+    belongs to the NAMED server (``servers`` is keyed by ``server_name`` alone), NOT to the instance
+    slot, which can be rebound from one server to the next; the row itself is created by the node when
+    the server registers (``ServerImpl.__init__``). A server with no pool (a test double, an early boot)
+    records nothing rather than raising.
+
+    ``preset_name`` names a preset whose VALUE is a DOCUMENT — a preset read out of a preset file,
+    which carries the change itself and no name in it. When it is stated and the preset was really
+    applied, the record takes that name and is not temporary. A LIST states every name the launch
+    applied and is joined in the launch's own order, each name VERBATIM (a preset name is operator
+    data looked up exactly, so a name whose file spells `` Snow `` is recorded as `` Snow ``).
+    ``None`` (every other caller) derives the record from ``preset`` alone, exactly as before.
+    """
+    pool = getattr(server, "apool", None)
+    server_name = getattr(server, "name", None)
+    if pool is None or not server_name:
+        return
+    name: str | None = None
+    temporary = False
+    if applied:
+        if preset_name is not None:
+            if isinstance(preset_name, (list, tuple)):
+                name = ", ".join(str(entry) for entry in preset_name if entry is not None) or None
+            else:
+                name = preset_name
+        elif isinstance(preset, str):
+            name = preset
+        elif isinstance(preset, list):
+            names = [entry for entry in preset if isinstance(entry, str)]
+            name = ", ".join(names) if names else None
+            temporary = not names
+        else:
+            temporary = True
+    async with pool.connection() as conn:
+        await conn.execute("""
+            UPDATE servers SET launched_preset = %s, launched_preset_temporary = %s
+            WHERE server_name = %s
+        """, (name, temporary, server_name))
+
+
+async def _announce_launched_preset(server, preset: dict | list | str | None) -> None:
+    """Tell the players on the server that its weather was changed for this mission.
+
+    Only the NODE can honestly announce: only it knows a preset was really applied, so a launch that
+    asked for a name the instance does not carry never reaches here. The message is the node's own
+    English sentence — it is delivered to DCS, not to a localised console — and a failed announcement
+    is logged, never raised: the mission must load whether or not the popup could be delivered.
+    """
+    if isinstance(preset, str) and preset:
+        message = f"New weather is in effect for this mission (preset '{preset}')."
+    else:
+        message = "New weather is in effect for this mission."
+    try:
+        await server.sendPopupMessage(Coalition.ALL, message)
+    except Exception:
+        server.log.exception("Could not announce the weather change on server \"%s\".", server.name)

@@ -8,6 +8,8 @@ import random
 from contextlib import suppress
 from core import (Plugin, PluginRequiredError, utils, Status, Server, Coalition, Channel, Group, Node, Instance,
                   DEFAULT_TAG, get_translation, TRAFFIC_LIGHTS)
+from core.actions import ActionContext, call_action
+from core.data.impl.serverimpl import RenameError
 from datetime import datetime, timedelta, timezone
 from discord import app_commands, TextStyle
 from discord.ext import tasks
@@ -21,9 +23,10 @@ from zoneinfo import ZoneInfo
 from .listener import SchedulerListener
 from .views import ServerConfigView
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.presets import (preset_file_label, read_node_presets, resolve_picked_values,
+                               split_preset_entry)
+from core.utils.yaml_helper import new_yaml
+from plugins.mission.views import PRESETS_NEED_EXTENSIONS, launch_presets, preset_file_autocomplete
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -47,7 +50,7 @@ class Scheduler(Plugin[SchedulerListener]):
             os.makedirs(os.path.join(self.node.config_dir, 'plugins'), exist_ok=True)
             with open(os.path.join(self.node.config_dir, 'plugins', 'scheduler.yaml'), mode='w',
                       encoding='utf-8') as outfile:
-                yaml.dump(config, outfile)
+                new_yaml().dump(config, outfile)
         return config
 
     async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
@@ -104,7 +107,7 @@ class Scheduler(Plugin[SchedulerListener]):
             return
 
         config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
-        data = yaml.load(Path(config).read_text(encoding='utf-8'))
+        data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
         if self.node.name in data.keys():
             for name, node in data.items():
                 if name == DEFAULT_TAG:
@@ -116,7 +119,7 @@ class Scheduler(Plugin[SchedulerListener]):
             for instance in data.values():
                 change_instance(instance)
         with Path(config).open(mode='w', encoding='utf-8') as outfile:
-            yaml.dump(data, outfile)
+            new_yaml().dump(data, outfile)
         self.locals = self.read_locals()
 
     async def _handle_load(self, server: Server, config: dict) -> Status:
@@ -251,10 +254,20 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def launch_dcs(self, server: Server, member: discord.Member | None = None, *,
                          modify_mission: bool | None = True, use_orig: bool | None = True,
+                         preset: dict | list | str | None = None,
+                         preset_name: str | list[str] | None = None,
                          ignore_exception: bool | None = False):
+        # ``preset`` / ``preset_name`` reach ``Server.startup`` ONLY when a launch states a pick, so a
+        # launch nobody picked a preset for is the same call it has always been - including on a node
+        # still on a build that does not know the keywords.
+        preset_kwargs: dict = {}
+        if preset is not None:
+            preset_kwargs['preset'] = preset
+        if preset_name:
+            preset_kwargs['preset_name'] = preset_name
         self.log.info(f'  => DCS server "{server.name}" starting up ...')
         try:
-            await server.startup(modify_mission=modify_mission, use_orig=use_orig)
+            await server.startup(modify_mission=modify_mission, use_orig=use_orig, **preset_kwargs)
             if not member:
                 self.log.info(f'  => DCS server "{server.name}" started by '
                               f'{self.__cog_name__}.')
@@ -268,6 +281,15 @@ class Scheduler(Plugin[SchedulerListener]):
                 self.log.warning(f'  => DCS server "{server.name}" was closed / crashed while launching!')
             else:
                 self.log.warning(f'  => DCS server "{server.name}" timeout while launching.')
+            if not ignore_exception:
+                raise
+        except Exception as ex:
+            # The state loop fires this as a task and drops the reference, so a launch that fails
+            # for any other reason - a port already in use, a refusal from startup() - used to
+            # vanish without a line anywhere. Report it here, where the reason is still known.
+            self.log.error(f'  => DCS server "{server.name}" could not be started: {ex}')
+            with suppress(Exception):
+                await self.bot.audit(f"failed to start DCS server: {ex}", server=server)
             if not ignore_exception:
                 raise
 
@@ -412,12 +434,12 @@ class Scheduler(Plugin[SchedulerListener]):
         if not os.path.isabs(filename):
             filename = os.path.join(await server.get_missions_dir(), filename)
         for idx, mission in enumerate(await server.getMissionList()):
-            if '.dcssb' in mission:
+            # the mission's two spellings, decided by the ONE normaliser (``.dcssb`` is a COMPONENT,
+            # never a substring): the primary is the logical path, the copy is its ``.dcssb`` sibling.
+            primary = utils.logical_mission_path(mission)
+            if primary != os.path.normpath(mission):
                 secondary = mission
-                primary = os.path.join(os.path.dirname(mission).replace('.dcssb', ''),
-                                       os.path.basename(mission))
             else:
-                primary = mission
                 secondary = os.path.join(os.path.dirname(mission), '.dcssb', os.path.basename(mission))
             if os.path.normpath(filename).lower() in [
                 os.path.normpath(primary).lower(),
@@ -427,23 +449,95 @@ class Scheduler(Plugin[SchedulerListener]):
         else:
             return 0
 
+    @staticmethod
+    def _preset_file_text(config_dir: str, preset_files) -> str:
+        """The preset file(s) a deferred entry names, printed as the config tree labels them."""
+        if isinstance(preset_files, (list, tuple)):
+            return ", ".join(preset_file_label(config_dir, path) for path in preset_files)
+        return preset_file_label(config_dir, preset_files)
+
+    async def _announce_refused_pick(self, rconf: dict, refusals: list[tuple[str, str]]):
+        """State a refused deferred pick in the channel the operator requested it from.
+
+        *refusals* are ``(file label, preset name)`` pairs, in the pick's own order. Nothing is
+        announced when the deferred record carries no channel (a scheduler-config action) or the
+        channel is gone: the log lines still carry every refusal.
+        """
+        channel_id = rconf.get('channel')
+        if not channel_id:
+            return
+        channel = self.bot.get_channel(channel_id)
+        sender = getattr(channel, 'send', None)
+        if sender is None:
+            self.log.warning(f"{self.__cog_name__}: Cannot announce the refused preset pick, "
+                             f"channel {channel_id} not found.")
+            return
+        missing = ", ".join(f'"{name}" ({label})' for label, name in refusals)
+        action = {'load': _('loaded'), 'rotate': _('rotated')}.get(str(rconf.get('method')), _('restarted'))
+        try:
+            await sender(
+                _('No preset was applied: {missing} could not be found; '
+                  'the mission will be {action} unchanged.').format(missing=missing, action=action))
+        except (discord.Forbidden, discord.HTTPException) as ex:
+            self.log.warning(f"{self.__cog_name__}: Cannot announce the refused preset pick "
+                             f"in channel {channel_id}: {ex}")
+
     async def _run_with_presets(self, server: Server, rconf: dict, new_mission: int, is_running_mission: bool):
+        """Restart/load a mission with the preset pick *rconf* carries, and state what was applied.
+
+        ``rconf['settings']`` holds the pick's entries. An entry that carries its FILE
+        (``<file label>\\n<name>``) is resolved by the core rule against the node's own preset files,
+        so a pick spanning files applies each preset's own body; a BARE name keeps the configured
+        reading — it is looked up in ``rconf['presets']`` (one file by path), else in every file.
+
+        The pick is ALL OR NOTHING: every entry is resolved first, and one that refuses discards the
+        whole pick — no preset from it is applied. The mission is then loaded unchanged (the pick-less
+        path) and the refusal is announced in ``rconf['channel']``.
+        """
         # get config
         use_orig = rconf.get('use_orig', True)
+        preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
+        configured_file = self._preset_file_text(self.node.config_dir, preset_files)
+        # The node's preset files are read ONLY when an entry carries its file (a pick spanning
+        # files); the configured bare names keep their own single-file lookup and cost no read.
+        read = None
+        presets = []
+        applied = []
+        refusals: list[tuple[str, str]] = []
+        for line in rconf['settings']:
+            label, name = split_preset_entry(str(line))
+            if not name:
+                continue
+            if label:
+                if read is None:
+                    read = await read_node_presets(server.node)
+                answer = resolve_picked_values([str(line)], read.files)
+                if answer.refused:
+                    self.log.warning(f"Preset \"{name}\" not found in preset file {label}!")
+                    refusals.append((label, name))
+                    continue
+                presets.extend(answer.documents)
+                applied.append(name)
+                continue
+            preset = utils.get_preset(self.node, name, preset_files)
+            if not preset:
+                self.log.warning(f"Preset \"{name}\" not found in presets files {preset_files}!")
+                refusals.append((configured_file, name))
+                continue
+            presets.append(preset)
+            applied.append(name)
+        if refusals:
+            # no half pick: the whole pick is dropped and the mission loads exactly as it would
+            # have without a pick at all
+            await self._announce_refused_pick(rconf, refusals)
+            await self._run_without_presets(server, rconf, new_mission)
+            return
 
         # stop the server if the running mission should be changed
         if (is_running_mission and server.status in [Status.RUNNING, Status.PAUSED] and
                 not server.locals.get('mission_rewrite', True)):
             await server.stop()
         filename = (await server.getMissionList())[new_mission - 1]
-        preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
-        presets = []
-        for line in rconf['settings']:
-            preset = utils.get_preset(self.node, line, preset_files)
-            if not preset:
-                self.log.warning(f"Preset \"{line}\" not found in presets files {preset_files}!")
-                continue
-            presets.append(preset)
         if presets:
             new_filename = await server.modifyMission(filename, presets, use_orig=use_orig)
             if new_filename != filename:
@@ -455,17 +549,22 @@ class Scheduler(Plugin[SchedulerListener]):
             new_filename = filename
             self.log.warning("No presets provided, restarting mission (unchanged).")
 
+        # The weather this launch applied is stated to the node so the server page can name it — the
+        # same way the launch dialog states its pick. The node writes the record. A load that applied
+        # nothing states none, which clears it; a start is always stated (an empty set clears), because
+        # only a launch-driven start refreshes the record.
         # start the server again
         if server.status == Status.STOPPED:
-            await server.start()
+            await server.start(preset=applied)
         elif server.status in [Status.SHUTDOWN, Status.LOADING]:
             self.log.debug(f"{self.__cog_name__}: Starting server {server.name}")
-            await server.startup(modify_mission=False, use_orig=False)
+            await server.startup(modify_mission=False, use_orig=False, preset=applied or None)
         else:
             await server.loadMission(
                 new_filename,
                 modify_mission=False,
-                use_orig=False
+                use_orig=False,
+                preset=applied or None
             )
 
     async def _run_without_presets(self, server: Server, rconf: dict, new_mission: int):
@@ -527,7 +626,7 @@ class Scheduler(Plugin[SchedulerListener]):
         if method == 'load':
             new_mission = rconf.get('mission_id')
             if isinstance(new_mission, list):
-                new_mission = random.choice(new_mission)
+                new_mission = int(random.choice(new_mission))
             elif isinstance(new_mission, (int, str)):
                 new_mission = int(new_mission)
                 if new_mission > len(mission_list):
@@ -861,17 +960,14 @@ class Scheduler(Plugin[SchedulerListener]):
     @check_state.before_loop
     async def before_check(self):
         await self.bot.wait_until_ready()
-        # wait for all servers to be registered
-        while True:
-            if all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
-                break
+        self.loop.create_task(self._reset_maintenance_once())
+
+    async def _reset_maintenance_once(self):
+        while not all(server.status != Status.UNREGISTERED for server in self.bot.servers.values()):
             await asyncio.sleep(1)
-        # reset maintenance flag
         for server_name, server in self.bot.servers.items():
             config = self.get_config(server)
-            if server.maintenance:
-                if not config.get('startup', {}).get('clear_maintenance'):
-                    continue
+            if server.maintenance and config.get('startup', {}).get('clear_maintenance'):
                 server.maintenance = False
                 self.log.warning(f"Maintenance mode auto-cleared on server {server.name}.")
 
@@ -903,7 +999,9 @@ class Scheduler(Plugin[SchedulerListener]):
 
     async def _startup(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
                        msg: discord.Message = None, mission_id: int = None, maintenance: bool | None = False,
-                       run_extensions: bool = True, use_orig: bool = True, ephemeral: bool = False):
+                       run_extensions: bool = True, use_orig: bool = True, ephemeral: bool = False,
+                       preset: dict | list | str | None = None,
+                       preset_name: str | list[str] | None = None):
 
         if maintenance and not server.maintenance:
             server.maintenance = True
@@ -941,15 +1039,19 @@ class Scheduler(Plugin[SchedulerListener]):
                             server,
                             interaction.user,
                             modify_mission=run_extensions,
-                            use_orig=use_orig
+                            use_orig=use_orig,
+                            preset=preset,
+                            preset_name=preset_name
                         )
                     )
                     # wait until the server is loading
-                    await server.wait_for_status_change(status=[Status.LOADING], timeout=180)
                     embed.description += "\n- {}".format(_("Launching ..."))
                     embed.set_thumbnail(url=TRAFFIC_LIGHTS['amber'])
                     await msg.edit(embed=embed)
-                    # wait for the startup
+                    # Await the launch itself: it returns once the server is up, and raises the real
+                    # reason when it is not. Waiting for LOADING first hid every failure that happens
+                    # before the status moves - a port already in use, a refused desanitize - behind a
+                    # 180s timeout and three "crashed during startup" retries, with the cause unprinted.
                     await task
                     if maintenance:
                         embed = utils.create_warning_embed(
@@ -1000,10 +1102,14 @@ class Scheduler(Plugin[SchedulerListener]):
     @app_commands.rename(mission_id="mission")
     @app_commands.describe(use_orig=_("Change the mission based on the original uploaded mission file."))
     @app_commands.autocomplete(mission_id=utils.mission_autocomplete)
+    @app_commands.autocomplete(presets_file=preset_file_autocomplete)
+    @app_commands.describe(presets=_("Pick weather presets for this launch"))
+    @app_commands.describe(presets_file=_("Presets file to pick from (default: all files)"))
     async def startup(self, interaction: discord.Interaction,
                       server: app_commands.Transform[Server, utils.ServerTransformer(status=[Status.SHUTDOWN])],
                       maintenance: bool = False, run_extensions: bool = True,
-                      use_orig: bool = True, mission_id: int = None):
+                      use_orig: bool = True, mission_id: int = None,
+                      presets: bool = False, presets_file: str | None = None):
 
         if server.status == Status.STOPPED:
             await interaction.response.send_message(
@@ -1028,7 +1134,19 @@ class Scheduler(Plugin[SchedulerListener]):
             return
 
         ephemeral = utils.get_ephemeral(interaction)
+        # A preset is a REQUEST TO APPLY and only a launch that runs the extensions applies one. A
+        # pick beside "do not run the extensions" is two contradictory inputs, so the launch is
+        # refused instead of silently honouring one half.
+        if (presets or presets_file) and not run_extensions:
+            await interaction.response.send_message(PRESETS_NEED_EXTENSIONS, ephemeral=True)
+            return
         await interaction.response.defer(ephemeral=ephemeral)
+
+        # THE PICK runs before any launch work starts: a cancelled or refused pick starts nothing.
+        picked = await launch_presets(interaction, server.node, presets=presets,
+                                      presets_file=presets_file, ephemeral=ephemeral)
+        if picked is None:
+            return
 
         embed = discord.Embed(
             title=_("Launching DCS Server \"{}\"").format(server.display_name),
@@ -1036,7 +1154,8 @@ class Scheduler(Plugin[SchedulerListener]):
         )
         embed.description = ""
         await self._startup(interaction, embed=embed, server=server, maintenance=maintenance, mission_id=mission_id,
-                            run_extensions=run_extensions, use_orig=use_orig, ephemeral=ephemeral)
+                            run_extensions=run_extensions, use_orig=use_orig, ephemeral=ephemeral,
+                            **picked.kwargs)
 
     async def _shutdown(self, interaction: discord.Interaction, embed: discord.Embed, server: Server, *,
                         msg: discord.Message = None, maintenance: bool | None = True, force: bool = False,
@@ -1150,7 +1269,8 @@ class Scheduler(Plugin[SchedulerListener]):
             elif result == 'later':
                 server.on_empty = {
                     "method": "shutdown",
-                    "user": interaction.user
+                    "user": interaction.user,
+                    "channel": interaction.channel_id
                 }
                 server.restart_pending = True
                 await interaction.followup.send(_('Shutdown postponed when server is empty.'), ephemeral=ephemeral)
@@ -1354,6 +1474,8 @@ class Scheduler(Plugin[SchedulerListener]):
                     await self.bot.audit(f"changed password", user=interaction.user, server=server)
                 if server.status in [Status.PAUSED, Status.RUNNING]:
                     message = _("Password will be changed on next server restart.")
+                elif not derived.password.value:
+                    message = _("Password cleared.")
                 else:
                     message = _("Password changed.")
 
@@ -1383,7 +1505,12 @@ class Scheduler(Plugin[SchedulerListener]):
                 await interaction.followup.send(_('Aborted.'))
                 return
 
-        view = ServerConfigView(self.bot, server)
+        view = ServerConfigView(
+            self.bot, server,
+            admin=((not interaction.client.node.locals.get('restrict_owner', False) and
+                    interaction.user.id == interaction.client.owner_id) or
+                   utils.check_roles(interaction.client.roles['Admin'], interaction.user))
+        )
         embed = view.render()
         msg = await interaction.followup.send(embed=embed, view=view, ephemeral=ephemeral)
         try:
@@ -1429,7 +1556,14 @@ class Scheduler(Plugin[SchedulerListener]):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(thinking=True, ephemeral=ephemeral)
         old_name = server.name
-        await server.rename(new_name, True)
+        try:
+            await server.rename(new_name, True)
+        except RenameError as ex:
+            # A refused rename (a collision, or a reserved / empty name) is the user's to act on:
+            # answer with the refusal's own sentence — the same string the console action returns —
+            # rather than let it escape as a generic interaction failure. Nothing was written.
+            await interaction.followup.send(str(ex), ephemeral=ephemeral)
+            return
         await self.bot.audit(f"renamed from {old_name}", server=server, user=interaction.user)
         await interaction.followup.send(
             _("Server \"{old_name}\" renamed to \"{new_name}\".").format(old_name=old_name, new_name=new_name),
@@ -1627,22 +1761,16 @@ class Scheduler(Plugin[SchedulerListener]):
                     ):
                 await interaction.followup.send(_("Aborted."), ephemeral=ephemeral)
                 return
-            server.maintenance = True
-            server.restart_pending = False
-            server.on_empty.clear()
-            server.on_mission_end.clear()
-            server.on_coalition_win.clear()
-            message = _("Maintenance mode set for server \"{}\".").format(server.display_name)
-            if interaction.response.is_done():
-                await interaction.followup.send(message, ephemeral=ephemeral)
-            else:
-                await interaction.response.send_message(message, ephemeral=ephemeral)
-            await self.bot.audit("set maintenance flag", user=interaction.user, server=server)
+        # The change itself — and its trail — are the ACTION's (``plugins/scheduler/actions.py``),
+        # which is the SAME function the console's server-row control calls, so one flag has one
+        # implementation on every transport. The warning above stays here: an action cannot ask a
+        # person a question, and aborting a pending restart is the one consequence worth confirming.
+        ctx = ActionContext.from_interaction(interaction)
+        result = await call_action('set_maintenance', ctx, server_name=server.name)
+        if interaction.response.is_done():
+            await interaction.followup.send(result.message, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(
-                _("Server \"{}\" is already in maintenance mode.").format(server.display_name),
-                ephemeral=ephemeral
-            )
+            await interaction.response.send_message(result.message, ephemeral=ephemeral)
 
     @scheduler.command(description=_("Clears the server's maintenance flag"))
     @utils.app_has_role('DCS Admin')
@@ -1650,18 +1778,12 @@ class Scheduler(Plugin[SchedulerListener]):
     async def clear(self, interaction: discord.Interaction,
                     server: app_commands.Transform[Server, utils.ServerTransformer(maintenance=True)]):
         ephemeral = utils.get_ephemeral(interaction)
-        if server.maintenance:
-            server.maintenance = False
-            await interaction.response.send_message(
-                _("Maintenance mode cleared for server \"{}\".").format(server.display_name),
-                ephemeral=ephemeral
-            )
-            await self.bot.audit("cleared maintenance flag", user=interaction.user, server=server)
+        ctx = ActionContext.from_interaction(interaction)
+        result = await call_action('clear_maintenance', ctx, server_name=server.name)
+        if interaction.response.is_done():
+            await interaction.followup.send(result.message, ephemeral=ephemeral)
         else:
-            await interaction.response.send_message(
-                _("Server \"{}\" is not in maintenance mode.").format(server.display_name),
-                ephemeral=ephemeral
-            )
+            await interaction.response.send_message(result.message, ephemeral=ephemeral)
 
 
 async def setup(bot: DCSServerBot):

@@ -74,6 +74,14 @@ DEFAULT:
   bomb_channel: 8877665544332211
 ```
 
+## Discord Commands
+
+| Command            | Parameter | Channel | Role      | Description                                   |
+|--------------------|-----------|---------|-----------|-----------------------------------------------|
+| /strafeboard clear | [user]    | admin   | DCS Admin | Wipes the strafeboard (optional: for a user). |
+| /bombboard clear   | [user]    | admin   | DCS Admin | Wipes the bombboard (optional: for a user).   |
+
+
 ## Credits
 Thanks to funkyfranky and the Moose team to align the FunkMan protocol with me, which made it very easy for me to add
 support for it and to provide this awesome functionality to you!

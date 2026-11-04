@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import discord
 
 from core import EventListener, Server, Player, Side, event, get_translation, utils
 from datetime import datetime, timezone
@@ -62,16 +61,6 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerStart")
     async def onPlayerStart(self, server: Server, data: dict) -> None:
-        async def get_member(discord_id: int) -> discord.Member | None:
-            try:
-                guild = self.bot.guilds[0]
-                m = guild.get_member(discord_id)
-                if m:
-                    return m
-                return await guild.fetch_member(discord_id)
-            except discord.NotFound:
-                return None
-
         if isinstance(self.bot, DummyBot):
            return
         if data['id'] == 1 or 'ucid' not in data:
@@ -89,7 +78,7 @@ class CloudListener(EventListener["Cloud"]):
                     discord_id = link[0]['discord_id']
                     # we have a cloud link, but the player is not verified yet
                     if not player.verified and discord_id:
-                        member = await get_member(discord_id)
+                        member = await self.bot.get_member(discord_id)
                         if member:
                             player.member = member
                             player.verified = True
@@ -133,7 +122,7 @@ class CloudListener(EventListener["Cloud"]):
                                 "origin": "cloud"
                             }
                         ))
-                        member = await get_member(discord_id)
+                        member = await self.bot.get_member(discord_id)
                         if member:
                             player.member = member
                             player.verified = True
@@ -267,7 +256,6 @@ class CloudListener(EventListener["Cloud"]):
                 """, (player.ucid, server.current_mission.map, player.unit_type))
                 row: dict | None = await cursor.fetchone()
         if row:
-            row['client'] = self.plugin.client
             try:
                 await self.plugin.post('upload', row)
             except aiohttp.ClientError:
@@ -299,7 +287,10 @@ class CloudListener(EventListener["Cloud"]):
 
     @event(name="onPlayerUnbanned")
     async def onPlayerUnbanned(self, _server: Server, data: dict) -> None:
-        await self.plugin.post('unregister_ban', {
-            "guild_id": self.bot.guilds[0].id,
-            "ucid": data['ucid']
-        })
+        try:
+            await self.plugin.post('unregister_ban', {
+                "guild_id": self.bot.guilds[0].id,
+                "ucid": data['ucid']
+            })
+        except aiohttp.ClientError as ex:
+            self.log.debug(f"Could not sync player unban to the cloud: {ex}")

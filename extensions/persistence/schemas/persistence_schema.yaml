@@ -2,5 +2,14 @@ schema;persistence_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    path: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the persistence extension is enabled.
+      example: "true"
+    path:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Folder under Missions where the persistence data is stored.
+      example: "Saves"

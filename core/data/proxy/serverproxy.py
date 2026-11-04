@@ -70,6 +70,11 @@ class ServerProxy(Server):
                 "channels": channels
             }
         }, node=self.node.name, timeout=timeout)
+        # The owning node persisted the write and moved its own ``locals``/channel cache; the
+        # master's view must follow, or a re-render shows the old rows and master-side consumers keep
+        # the old channel until a restart.
+        self.locals.setdefault('channels', {}).update(channels)
+        self._channels.clear()
 
     @override
     async def get_current_mission_file(self) -> str | None:
@@ -97,17 +102,53 @@ class ServerProxy(Server):
         await self.bus.send_to_node(message, node=self.node.name)
 
     @override
-    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def start(self, *, preset: dict | list | str | None = None) -> bool:
+        """Start the server process, stating the weather a LAUNCH already applied.
+
+        A start that states no preset is the plain ``start_server`` command and keeps that exact wire
+        shape. A start that STATES one is the scheduler's stop-then-start launch, which applied the
+        weather itself: only the owning node may write the ``servers`` record, so that start is driven
+        by the node through the existing RPC envelope and the node's ``start`` does the recording.
+        """
+        if preset is None:
+            return await super().start()
+        # covers the node's own DCS start plus its wait for the process to come up (180 + 180)
+        timeout = 360 if not self.node.slow_system else 600
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "start",
+            "server_name": self.name,
+            "params": {
+                "preset": preset
+            }
+        }, node=self.node.name, timeout=timeout)
+
+    @override
+    async def startup(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      preset_name: str | list[str] | None = None,
+                      announce: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
+        # the node validates params against its own method signature, so a None preset, a None
+        # preset_name (and a False announce, the default) must be an ABSENT key rather than a null one,
+        # or a node that predates the param rejects the call
+        params: dict[str, Any] = {
+            "modify_mission": modify_mission,
+            "use_orig": use_orig
+        }
+        if preset is not None:
+            params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
+        if announce:
+            params["announce"] = announce
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "startup",
             "server_name": self.name,
-            "params": {
-                "modify_mission": modify_mission,
-                "use_orig": use_orig
-            }
+            "params": params
         }, timeout=timeout, node=self.node.name)
 
     @override
@@ -175,17 +216,29 @@ class ServerProxy(Server):
         return UploadStatus(data)
 
     @override
-    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True) -> str | None:
+    async def apply_mission_changes(self, filename: str | None = None, use_orig: bool | None = True, *,
+                                    preset: dict | list | str | None = None,
+                                    preset_name: str | list[str] | None = None,
+                                    announce: bool = False) -> str | None:
         timeout = 120 if not self.node.slow_system else 240
+        # a None preset and a None preset_name (and a False announce) travel as an absent key, not a
+        # null one (see startup)
+        params: dict[str, Any] = {
+            "filename": filename or "",
+            "use_orig": use_orig
+        }
+        if preset is not None:
+            params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
+        if announce:
+            params["announce"] = announce
         return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "apply_mission_changes",
             "server_name": self.name,
-            "params": {
-                "filename": filename or "",
-                "use_orig": use_orig
-            }
+            "params": params
         }, timeout=timeout, node=self.node.name)
 
     @override
@@ -260,17 +313,29 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
-    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True) -> None:
+    async def restart(self, modify_mission: bool | None = True, use_orig: bool | None = True, *,
+                      preset: dict | list | str | None = None,
+                      preset_name: str | list[str] | None = None,
+                      announce: bool = False) -> None:
         timeout = 180 if not self.node.slow_system else 300
+        params: dict[str, Any] = {
+            "modify_mission": modify_mission,
+            "use_orig": use_orig
+        }
+        # a None preset (and a False announce) travels as an ABSENT key, not a null one (see startup
+        # / loadMission), so a restart with no weather pick is byte-identical to the pre-change RPC.
+        if preset is not None:
+            params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
+        if announce:
+            params["announce"] = announce
         await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "restart",
             "server_name": self.name,
-            "params": {
-                "modify_mission": modify_mission,
-                "use_orig": use_orig
-            }
+            "params": params
         }, timeout=timeout, node=self.node.name)
 
     @override
@@ -366,20 +431,44 @@ class ServerProxy(Server):
         }, timeout=timeout, node=self.node.name)
 
     @override
+    async def setMissionList(self, missions: list[str]) -> list[str]:
+        timeout = 60 if not self.node.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Server",
+            "method": "setMissionList",
+            "server_name": self.name,
+            "params": {
+                "missions": missions
+            }
+        }, timeout=timeout, node=self.node.name)
+
+    @override
     async def loadMission(self, mission: int | str, modify_mission: bool | None = True,
-                          use_orig: bool | None = True, no_reload: bool | None = False) -> bool | None:
+                          use_orig: bool | None = True, no_reload: bool | None = False, *,
+                          preset: dict | list | str | None = None,
+                          preset_name: str | list[str] | None = None,
+                          announce: bool = False) -> bool | None:
         timeout = 180 if not self.node.slow_system else 300
+        # a None preset (and a False announce) travels as an ABSENT key, not a null one (see startup)
+        params: dict[str, Any] = {
+            "mission": mission,
+            "modify_mission": modify_mission,
+            "use_orig": use_orig,
+            "no_reload": no_reload
+        }
+        if preset is not None:
+            params["preset"] = preset
+        if preset_name is not None:
+            params["preset_name"] = preset_name
+        if announce:
+            params["announce"] = announce
         return await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Server",
             "method": "loadMission",
             "server_name": self.name,
-            "params": {
-                "mission": mission,
-                "modify_mission": modify_mission,
-                "use_orig": use_orig,
-                "no_reload": no_reload
-            }
+            "params": params
         }, timeout=timeout, node=self.node.name)
 
     @override

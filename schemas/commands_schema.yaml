@@ -2,14 +2,34 @@ schema;commands_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    description: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable or disable this command.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Command name shown to users.
+      example: "startup"
+    description:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Short description shown in Discord's command list.
+      example: "Starts the DCS server"
     roles:
       type: seq
       nullable: false
+      desc: Discord roles allowed to run this command.
+      example: |
+        - DCS Admin
       sequence:
-        - {type: text, nullable: false}
+        - type: text
+          nullable: false
+          desc: Discord role name allowed to run the command.
+          example: "DCS Admin"
     regex;(.+):
       include: 'commands_schema'
 
@@ -21,17 +41,49 @@ schema;chat_commands_schema:
       type: map
       nullable: false
       mapping:
-        enabled: {type: bool, nullable: false}
-        name: {type: str, nullable: false, range: {min: 1}}
+        enabled:
+          type: bool
+          nullable: false
+          desc: Enable or disable this chat command.
+          example: "true"
+        name:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Chat command name shown to users.
+          example: "restart"
         aliases:
           type: seq
           nullable: false
+          desc: Alternative names that also trigger this command.
+          example: |
+            - rs
           sequence:
-            - {type: str, nullable: false, range: {min: 1}}
+            - type: str
+              nullable: false
+              range: {min: 1}
+              desc: Alternative name for the chat command.
+              example: "rs"
         roles:
           type: seq
           nullable: false
+          desc: Discord roles allowed to run this command.
+          example: |
+            - DCS Admin
           sequence:
-            - {type: text, nullable: false}
-        usage: {type: str, nullable: false, range: {min: 1}}
-        help: {type: str, nullable: false, range: {min: 1}}
+            - type: text
+              nullable: false
+              desc: Discord role name allowed to run the command.
+              example: "DCS Admin"
+        usage:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Usage hint shown for the command's parameters.
+          example: "<server>"
+        help:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Longer help text describing what the command does.
+          example: "Restarts the selected mission."

@@ -1,0 +1,153 @@
+{#-
+  ONE NODE — its block of `config/nodes.yaml` shown as TABS.
+
+  The first tab is Node-wide: the node's own SETTINGS (the schema-driven form) and then its
+  EXTENSIONS. Then one `Instance <name>` tab per INSTANCE the node's block declares, each with that
+  instance's settings and its own extensions. The tab strip is server-side links (`?tab=<n>`), so it
+  works with JavaScript off, and only the active tab's fields are rendered — a save from a tab applies
+  exactly that block.
+
+  It is the SAME renderer the Settings area uses (`_scope_fields.html`), fed the SAME node-schema tree
+  the settings page uses, and the aside is the selected NODE's slice of `nodes.yaml`, read-only, with
+  the SAME Expert Mode toggle (`static/settings-yaml.js`) and the SAME one write path.
+
+  THE EXTENSIONS ARE THE VERY SAME CARD TILES AS THE SETTINGS PAGE'S PLUGINS AND SERVICES — not a
+  lookalike. They are drawn by the ONE shared macro (`_tiles.html` `tile_card`, the SAME component the
+  Settings landing uses), so each carries the SAME short description (from the extension's schema/
+  README), the SAME enable/disable slider (the shared `switch_control`) and the SAME cogwheel, which
+  OPENS the extension's OWN configuration (a destination page, never an inline form). The extension
+  cards live OUTSIDE the settings form, exactly like the plugin tiles on the Settings landing — a
+  switch's own form is never nested inside another form.
+-#}
+{% extends "base.html" %}
+{% from "_scope_fields.html" import scope_field, picker %}
+{% from "_tiles.html" import tile_card, add_tile with context %}
+
+{% block content %}
+<div class="st-head">
+  <div>
+    <div class="t1">
+      <a class="st-back" href="/nodes">&larr; {{ _('Nodes') }}</a>
+      <span class="st-crumb">&rsaquo; {{ node }}</span>
+    </div>
+    <div class="t1" style="margin-top:6px">
+      <h1>{{ node }}</h1>
+      {% if node is defined %}<span class="st-kind">{{ _('Node') }}</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% include "_notice.html" %}
+
+{% if parse_error or schema_error %}
+<div class="notice bad" role="status">
+  <span class="dot dead" aria-hidden="true"></span>
+  <span class="notice-msg">{% if parse_error %}{{ parse_error }}{% else %}{{ _(schema_invalid_banner) }} {{ schema_error }}{% endif %}</span>
+</div>
+{% endif %}
+
+<div class="st-bar">
+  <div>
+    <div class="where"><b class="mono">{{ file_name }}</b>{% if schema_name %} &middot; {% trans %}schema{% endtrans %} <b>{{ schema_name }}</b>{% endif %}</div>
+    <div class="s">{{ _(lead) }}</div>
+  </div>
+  <div class="acts">
+    {% if not readonly %}
+    <button type="submit" form="cfg-form" class="st-btn pri">{% trans %}Save{% endtrans %}</button>
+    {% endif %}
+  </div>
+</div>
+
+<form id="cfg-form" method="post" action="{{ save_path }}" data-async>
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+  <input type="hidden" name="{{ scope_carrier }}" value="{{ scope_value }}">
+  <input type="hidden" name="{{ expert_field }}" value="0" data-cfg-expert>
+  <textarea name="{{ yaml_field }}" data-cfg-yaml-text hidden aria-hidden="true"></textarea>
+  {#-  THE REMOVAL ACKNOWLEDGEMENT the render minted (see `settings.html`); the save refuses a removal
+      that does not carry it.  -#}
+  <input type="hidden" name="f.{{ remove_ack_field }}" value="{{ remove_ack }}">
+  {#-  THE REMOVAL VALUE HOLDER the trashcan fills in (see `settings.html`).  -#}
+  <input type="hidden" name="f.{{ remove_companion }}" value="" data-cfg-rmval>
+
+  <div class="st-layout" style="margin-top:16px">
+    <div>
+      {% if node_options | length > 1 %}
+      <nav class="st-nodes" aria-label="{{ _(node_label) }}">
+        <span class="lbl">{{ _(node_label) }}</span>
+        {% for option in node_options %}
+        <a class="n {{ 'on' if option.active }}" href="{{ option.url }}" {% if option.active %}aria-current="page"{% endif %}>{{ option.name }}</a>
+        {% endfor %}
+      </nav>
+      <p class="st-node-lead">{{ _(node_lead) }}</p>
+      {% endif %}
+      <nav class="st-tabs" aria-label="{% trans %}Configuration scopes{% endtrans %}">
+        {% for tab in tabs %}
+        <a class="t {{ 'on' if tab.active }} {{ 'def' if tab.kind == 'default' else 'over' }}"
+           href="{{ tab.url }}" {% if tab.active %}aria-current="page"{% endif %}>
+          {% if tab.kind == 'default' %}{% trans %}Node-wide{% endtrans %}{% else %}{% trans name=tab.name %}Instance {{ name }}{% endtrans %}{% endif %}</a>
+        {% endfor %}
+      </nav>
+      <div class="st-panel">
+        <p class="note">{{ scope_note | safe }}</p>
+        {% if parse_error %}
+        <div class="notice bad" role="status"><span class="dot dead" aria-hidden="true"></span>
+          <span class="notice-msg">{% trans %}This file could not be read, so its fields cannot be shown. Fix it in Expert Mode.{% endtrans %}</span></div>
+        {% else %}
+        <h4 class="st-sect">{{ _(settings_heading) }}</h4>
+        {% for field in settings_fields %}{% if cfg_id(field) not in settings_hidden %}{{ scope_field(field, settings_values, settings_displays, settings_rows, settings_customs, settings_elements, settings_choices, settings_sections, settings_hidden, settings_picks, settings_removable) }}{% endif %}{% endfor %}
+        {{ picker(settings_picks.get('', []), settings_values, settings_displays, settings_rows, settings_customs, settings_elements, settings_choices, settings_sections, settings_hidden, settings_picks, settings_removable) }}
+        {% endif %}
+      </div>
+    </div>
+    <aside class="st-aside" data-cfg-yaml data-validate-url="{{ validate_path }}">
+      <div class="hd"><h3>{% trans %}The file, as YAML{% endtrans %}</h3><span class="sp"></span>
+        <span class="st-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
+        {% if not readonly %}
+        <label class="st-expert"><input type="checkbox" role="switch" data-cfg-expert-toggle> {% trans %}Expert Mode{% endtrans %}</label>
+        {% endif %}
+      </div>
+      {% if not readonly %}
+      <div class="st-note">{% trans %}Edit the file directly. Every change is checked against the bot's own schema, and a document that does not pass cannot be saved.{% endtrans %}</div>
+      <div class="st-note">{% trans %}An Expert Mode save writes the document; the form's pending changes are not applied.{% endtrans %}</div>
+      <div class="st-note st-slice">{{ _(slice_note) }}</div>
+      {% endif %}
+      <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
+      <pre class="st-yaml" data-cfg-yaml-readonly>{{ yaml }}</pre>
+      <div class="cfg-editor" data-cfg-yaml-editor hidden></div>
+    </aside>
+  </div>
+</form>
+
+{% if extensions or extension_add %}
+<section class="st-sect">
+  <div class="st-sect-head"><h2>{{ _(extensions_heading) }}</h2></div>
+  <div class="st-grid">
+    {% for ext in extensions %}
+    {% set ext_scope %}{% if ext.default %}<span class="st-badge default">{{ _(extension_default_badge) }}</span>{% else %}<span class="st-badge">{{ _(ext.scope_label) }}</span>{% endif %}{% endset %}
+    {% set ext_warn_body %}{% if ext.confirm %}<pre class="st-warn-yaml">{{ ext.discard }}</pre>{% endif %}{% endset %}
+    {{ tile_card('ext', ext.kind_label, ext.name, ext.description, ext.switch,
+                 cog_url=ext.cog_url, scope=ext_scope, extra=(' is-default' if ext.default else ''),
+                 off=(not ext.enabled),
+                 warn=(extension_remove_warning if ext.confirm else ''), warn_body=ext_warn_body,
+                 trash_url=ext.trash_url, trash_title=ext.trash_title) }}
+    {% endfor %}
+    {#- THE "+ ADD" TILE IS ALWAYS DRAWN: when nothing is left to add it
+        renders in its explicit "all configured" state rather than vanishing silently.  -#}
+    {{ add_tile('ext', extension_kind_label, extension_add.options, extension_add.all_configured) }}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/settings-scope.css">
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/configgen.js" defer></script>
+<script src="/static/settings-yaml.js" defer></script>
+{% endblock %}

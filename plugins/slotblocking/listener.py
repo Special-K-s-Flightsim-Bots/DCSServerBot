@@ -38,7 +38,6 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 roles.append(self.bot.get_role(role))
             if not roles:
                 return
-            guild = self.bot.guilds[0]
             # get all linked members
             async with self.apool.connection() as conn:
                 cursor = await conn.execute("""
@@ -46,8 +45,10 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                     WHERE discord_id != -1 AND LENGTH(ucid) = 32 AND manual = TRUE
                 """)
                 batch = []
-                async for row in cursor:
-                    member = guild.get_member(row[1])
+                rows = await cursor.fetchall()
+                members = await self.bot.get_members(r[1] for r in rows if r[1] != '-1')
+                for row in rows:
+                    member = members.get(row[1])
                     if not member:
                         continue
                     if any(role in roles for role in member.roles):
@@ -196,7 +197,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
         config = self.plugin.get_config(server)
         if not config:
             return
-        player: CreditPlayer = cast(CreditPlayer, server.get_player(ucid=data['ucid'], active=True))
+        player: CreditPlayer = cast(CreditPlayer, server.get_player(id=data['id'], active=True))
         if not player:
             return
         # if payback is enabled, we need to clear the deposit on any slot change
@@ -275,7 +276,7 @@ class SlotBlockingListener(EventListener["SlotBlocking"]):
                 'roles': roles
             })
 
-        member = self.bot.guilds[0].get_member(data['discord_id'])
+        member = await self.bot.get_member(data['discord_id'])
         if not member:
             return
 

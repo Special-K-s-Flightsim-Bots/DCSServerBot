@@ -254,7 +254,7 @@ class ModuleStats2(report.EmbedElement):
     async def render(self, ucid: str, module: str, flt: StatisticsFilter) -> None:
         weapons = hs_ratio = ks_ratio = ''
         category = None
-        inner_sql1 = """
+        inner_sql1 = f"""
             SELECT CASE WHEN COALESCE(m.weapon, '') = '' OR m.event = 'S_EVENT_SHOOTING_START' 
                         THEN 'Gun' ELSE m.weapon 
                    END AS weapon, 
@@ -262,16 +262,16 @@ class ModuleStats2(report.EmbedElement):
                                      THEN 1 ELSE 0 
                                 END), 0
                    ) AS shots 
-            FROM missionstats m, statistics s 
-            WHERE m.mission_id = s.mission_id 
-              AND m.init_id = s.player_ucid
+            FROM missionstats m
+            JOIN statistics s ON m.mission_id = s.mission_id 
+            WHERE m.init_id = s.player_ucid
               AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') 
               AND m.init_id = %(ucid)s 
               AND m.init_type = %(module)s 
+              AND {flt.filter(self.env.bot)}
+            GROUP BY 1
         """
-        inner_sql1 += ' AND ' + flt.filter(self.env.bot)
-        inner_sql1 += " GROUP BY 1"
-        inner_sql2 = """
+        inner_sql2 = f"""
             WITH GroupedHits AS (
                 -- Step 1: Filter and identify unique "hit windows"
                 SELECT
@@ -296,9 +296,11 @@ class ModuleStats2(report.EmbedElement):
                     AND m.time BETWEEN s.hop_on AND COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC')
                     -- Existing filters
                     AND m.target_cat IS NOT NULL 
+                    AND m.target_side != '0'
                     AND m.init_id = %(ucid)s
                     AND m.init_type = %(module)s
-                    AND m.init_side <> m.target_side
+                    AND m.init_side IS DISTINCT FROM m.target_side
+                    AND {flt.filter(self.env.bot)}
             ),
             UniqueHitEvents AS (
                 -- Step 2: Determine the distinct groups of hits for each target/source interaction
@@ -321,9 +323,8 @@ class ModuleStats2(report.EmbedElement):
                 COALESCE(SUM(h.is_hit), 0) AS hits, 
                 COALESCE(SUM(h.is_kill), 0) AS kills
             FROM UniqueHitEvents h
+            GROUP BY 1, 2
         """
-        inner_sql2 += ' WHERE ' + flt.filter(self.env.bot)
-        inner_sql2 += " GROUP BY 1, 2"
         sql = f"""
                 SELECT y.target_cat, y.weapon, x.shots, y.hits, y.kills, y.kills::DECIMAL / x.shots AS kd 
                 FROM (
@@ -359,31 +360,82 @@ class ModuleStats2(report.EmbedElement):
             self.add_field(name=_('Kills/Shot'), value=ks_ratio)
 
 
-class Refuelings(report.EmbedElement):
+class ModuleStats3(report.EmbedElement):
+    async def render(self, ucid: str, module: str, flt: StatisticsFilter) -> None:
+        sql = f"""
+            SELECT target_cat AS "Category", 
+                   target_type AS "Unit Type", 
+                   count(*) AS "Kills" 
+            FROM missionstats m
+            JOIN statistics s ON m.mission_id = s.mission_id 
+            WHERE m.event = 'S_EVENT_KILL' 
+              AND m.init_id = s.player_ucid
+              AND m.time BETWEEN s.hop_on and COALESCE(s.hop_off, NOW() AT TIME ZONE 'UTC') 
+              AND m.init_id = %(ucid)s 
+              AND m.init_type = %(module)s 
+              AND {flt.filter(self.env.bot)}
+              AND target_cat IS NOT NULL 
+              AND target_side != '0'
+              AND init_id IS DISTINCT FROM target_id
+            GROUP BY 1, 2 
+            ORDER BY 1,3 DESC       
+        """
+        categories = []
+        target_types = []
+        kills = []
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, self.env.params)
+                async for row in cursor:
+                    categories.append(row['Category'])
+                    target_types.append(row['Unit Type'] or 'n/a')
+                    kills.append(str(row['Kills']))
+        if categories:
+            await report.Ruler(self.env).render(ruler_length=20)
+            self.add_field(name=_("Category"), value="\n".join(categories))
+            self.add_field(name=_("Unit Type"), value="\n".join(target_types))
+            self.add_field(name=_("Kills"), value="\n".join(kills))
+
+
+class Refuelings(report.GraphElement):
     async def render(self, ucid: str, flt: StatisticsFilter) -> None:
         sql = f"""
-              SELECT init_type, COUNT(*) 
-              FROM missionstats 
-              WHERE EVENT = 'S_EVENT_REFUELING_STOP'
+              SELECT init_type AS module, 
+                     tanker,
+                     COUNT(*) AS refuelings, 
+                     ROUND(SUM(fuel_taken), 2) AS fuel_taken, 
+                     ROUND(AVG(fuel_taken), 2) avg_fuel, 
+                     ROUND(AVG(transfer_time), 2) avg_time,
+                     SUM(CASE WHEN COALESCE(transfer_complete, TRUE) IS TRUE THEN 1 ELSE 0 END) completed_transfers
+              FROM refuelingstats 
+              WHERE init_id = %s
               AND {flt.filter(self.env.bot)}
-              AND init_id = %s 
-              GROUP BY 1 
-              ORDER BY 2 DESC
+              GROUP BY 1, 2
+              ORDER BY 3 DESC
         """
         self.env.embed.title = flt.format(self.env.bot) + (self.env.embed.title or '')
 
-        modules = []
-        numbers = []
         async with self.apool.connection() as conn:
-            cursor = await conn.execute(sql, (ucid,))
-            async for row in cursor:
-                modules.append(row[0])
-                numbers.append(str(row[1]))
-        if len(modules):
-            self.add_field(name=_('Module'), value='\n'.join(modules))
-            self.add_field(name=_('Refuelings'), value='\n'.join(numbers))
-        else:
-            self.add_field(name=_('No refuelings found for this user.'), value='_ _')
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(sql, (ucid,))
+                if cursor.rowcount > 0:
+                    df = pd.DataFrame.from_dict(await cursor.fetchall())
+                    self.axes = df_to_table(
+                        self.axes,
+                        df[['module', 'tanker', 'refuelings', 'fuel_taken', 'avg_fuel', 'avg_time', 'completed_transfers']],
+                        col_labels=[
+                            'Module', 'Tanker', '# Refuelings',
+                            'Fuel taken (lbs)', 'Fuel taken (avg)',
+                            'Time (avg)', 'Transfer Complete'
+                        ]
+                    )
+                else:
+                    self.axes.axis('off')
+                    self.axes.text(
+                        0.5, 0.5, _('No refuelings found for this player.'),
+                        ha='center', va='center', rotation=45, size=15,
+                        transform=self.axes.transAxes
+                    )
 
 
 class Nemesis(report.EmbedElement):
@@ -536,8 +588,11 @@ class AAR:
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.target_id
                     WHERE ms.init_id = %(ucid)s 
+                    AND ms.init_id IS DISTINCT FROM ms.target_id
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
+                    AND ms.target_cat IS NOT NULL
+                    AND ms.target_side != '0'
                     ORDER BY ms.time
                 """, params)
                 kills = await cursor.fetchall()
@@ -552,6 +607,9 @@ class AAR:
                     JOIN missions m ON m.id = ms.mission_id
                     LEFT JOIN players p ON p.ucid = ms.init_id
                     WHERE ms.target_id = %(ucid)s 
+                    AND ms.init_id IS DISTINCT FROM ms.target_id
+                    AND ms.init_side != '0'
+                    AND ms.init_cat IS NOT NULL
                     AND ms.event = 'S_EVENT_KILL' AND {flt}
                     AND ms.weapon != ms.init_type
                     ORDER BY ms.time
@@ -573,6 +631,9 @@ class AAR:
                     WHERE init_id = %(ucid)s
                       AND event IN ('S_EVENT_SHOT', 'S_EVENT_SHOOTING_START', 'S_EVENT_HIT',
                                     'S_EVENT_KILL')
+                      AND target_cat IS NOT NULL
+                      AND target_side != '0'
+                      AND init_id IS DISTINCT FROM target_id
                       AND COALESCE(target_side, '') <> COALESCE(init_side, '')
 					  AND COALESCE(init_type, '') <> COALESCE(weapon, '')
                       AND {flt}

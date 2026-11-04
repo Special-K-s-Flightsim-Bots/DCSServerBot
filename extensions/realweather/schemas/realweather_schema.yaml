@@ -3,93 +3,268 @@ schema;node_realweather_schema:
   nullable: false
   allowempty: true
   mapping:
-    name: {type: str, nullable: false, range: {min: 1}}
-    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
-    autoupdate: {type: bool, nullable: false}
-    ignore_errors: {type: bool, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the RealWeather extension in status embeds.
+      example: "RealWeather"
+    installation:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory where DCS Real Weather is installed.
+      example: "%USERPROFILE%\\Documents\\realweather_v2.5.0"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Update DCS Real Weather automatically on new releases.
+      example: "true"
+    ignore_errors:
+      type: bool
+      nullable: false
+      desc: Log Real Weather errors and continue instead of failing.
+      example: "false"
     realweather:
       type: map
       nullable: false
       allowempty: true
+      desc: Real Weather TOML overrides and log settings.
+      example: |
+        log:
+          enable: true
+          file: realweather.log
+        mission:
+          brief:
+            add-metar: true
       mapping:
         log:
           type: map
           nullable: false
           allowempty: true
+          desc: Logging of the DCS Real Weather process.
+          example: |
+            enable: true
+            file: realweather.log
+            max-size: 1048576
+            level: info
           mapping:
-            enable: {type: bool, nullable: false, enum: [true]}
-            file: {type: str, nullable: false, pattern: "realweather.log"}
-            max-size: {type: int, nullable: false}
-            max-backups: {type: int, nullable: false}
-            max-age: {type: int, nullable: false}
-            compress: {type: bool, nullable: false}
-            level: {type: str, enum: ['debug', 'info', 'warn', 'error'], nullable: false}
+            enable:
+              type: bool
+              nullable: false
+              enum: [true]
+              desc: Enable Real Weather logging (must stay true).
+              example: "true"
+            file:
+              type: str
+              nullable: false
+              pattern: "realweather.log"
+              desc: Name of the Real Weather log file.
+              example: "realweather.log"
+            max-size:
+              type: int
+              nullable: false
+              desc: Maximum log file size in bytes before rotation.
+              example: "1048576"
+            max-backups:
+              type: int
+              nullable: false
+              desc: Number of rotated log files to keep.
+              example: "5"
+            max-age:
+              type: int
+              nullable: false
+              desc: Maximum age of a log file in days.
+              example: "30"
+            compress:
+              type: bool
+              nullable: false
+              desc: Compress rotated log files.
+              example: "true"
+            level:
+              type: str
+              enum: ['debug', 'info', 'warn', 'error']
+              nullable: false
+              desc: Verbosity of the Real Weather log.
+              example: "info"
         mission:
           type: map
           nullable: false
           allowempty: true
+          desc: Real Weather mission processing options.
+          example: |
+            brief:
+              add-metar: true
+              remarks: Remarks:
           mapping:
             brief:
               type: map
               nullable: false
               allowempty: true
+              desc: Weather briefing injected into the mission.
+              example: |
+                add-metar: true
+                remarks: Remarks:
               mapping:
-                add-metar: {type: bool, nullable: false}
-                insert-key: {type: str, nullable: false, range: {min: 1}}
-                remarks: {type: str, nullable: false}
+                add-metar:
+                  type: bool
+                  nullable: false
+                  desc: Add the current METAR to the mission briefing.
+                  example: "true"
+                insert-key:
+                  type: str
+                  nullable: false
+                  range: {min: 1}
+                  desc: Briefing key the METAR text is inserted into.
+                  example: "WeatherBrief"
+                remarks:
+                  type: str
+                  nullable: false
+                  desc: Text appended after the METAR in the briefing.
+                  example: "Remarks:"
     api:
       type: map
       nullable: false
       allowempty: true
+      desc: Weather data providers and the order they are tried in.
+      example: |
+        provider-priority:
+          - aviationweather
+          - checkwx
+        aviationweather:
+          enable: true
       mapping:
         provider-priority:
           type: seq
           nullable: false
+          desc: Ordered providers Real Weather fetches weather from.
+          example: |
+            - aviationweather
+            - checkwx
+            - custom
           sequence:
             - type: str
               enum: ['aviationweather', 'checkwx', 'custom']
               nullable: false
               unique: true
+              desc: Weather data provider name.
+              example: "aviationweather"
         aviationweather:
           type: map
           nullable: false
           allowempty: true
+          desc: AviationWeather.gov provider settings.
+          example: |
+            enable: true
           mapping:
-            enable: {type: bool, nullable: false}
+            enable:
+              type: bool
+              nullable: false
+              desc: Use AviationWeather.gov as a weather source.
+              example: "true"
         checkwx:
           type: map
           nullable: false
           allowempty: true
+          desc: CheckWX provider settings.
+          example: |
+            enable: true
+            key: "***"
           mapping:
-            enable: {type: bool, required: true, nullable: false}
-            key: {type: str, required: true, nullable: false, range: {min: 1}}
+            enable:
+              type: bool
+              required: true
+              nullable: false
+              desc: Use CheckWX as a weather source.
+              example: "true"
+            key:
+              type: str
+              required: true
+              nullable: false
+              range: {min: 1}
+              desc: API key of your CheckWX account.
+              example: "***"
         custom:
           type: map
           nullable: false
           allowempty: true
+          desc: Custom weather provider settings.
+          example: |
+            enable: false
+            file: C:\\weather\\custom.json
           mapping:
-            enable: {type: bool, required: true, nullable: false}
-            file: {type: str, nullable: false, range: {min: 1}}
-            override: {type: bool, nullable: false}
+            enable:
+              type: bool
+              required: true
+              nullable: false
+              desc: Use a custom weather source.
+              example: "false"
+            file:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: File the custom weather data is read from.
+              example: "C:\\weather\\custom.json"
+            override:
+              type: bool
+              nullable: false
+              desc: Let the custom provider override fetched weather.
+              example: "false"
         openmeteo:
           type: map
           nullable: false
           allowempty: true
+          desc: Open-Meteo provider settings.
+          example: |
+            enable: true
           mapping:
-            enable: {type: bool, nullable: false}
+            enable:
+              type: bool
+              nullable: false
+              desc: Use Open-Meteo as a weather source.
+              example: "true"
 
 schema;instance_realweather_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    debug: {type: bool, nullable: false}
-    ignore_errors: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the RealWeather extension for this instance.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the RealWeather extension in status embeds.
+      example: "RealWeather"
+    debug:
+      type: bool
+      nullable: false
+      desc: Write the Real Weather output to the bot log.
+      example: "false"
+    ignore_errors:
+      type: bool
+      nullable: false
+      desc: Log Real Weather errors and continue instead of failing.
+      example: "false"
     terrains:
       type: map
       nullable: false
       allowempty: true
+      desc: Per-terrain option overrides, keyed by the DCS map name.
+      example: |
+        Caucasus:
+          options:
+            weather:
+              icao: UGKO
+        Syria:
+          options:
+            weather:
+              icao: OSDI
       mapping:
         regex;(Caucasus|Syria|PersianGulf|SinaiMap|TheChannel|Nevada|Normandy|MarianaIslands|Falklands|Kola|Afghanistan|Iraq|GermanyCW):
           include: 'instance_realweather_schema'
@@ -97,187 +272,565 @@ schema;instance_realweather_schema:
       type: map
       allowempty: true
       nullable: false
+      desc: Real Weather TOML overrides and log settings.
+      example: |
+        log:
+          enable: true
+          file: realweather.log
       mapping:
         log:
           type: map
           nullable: false
           allowempty: true
+          desc: Logging of the DCS Real Weather process.
+          example: |
+            enable: true
+            file: realweather.log
+            max-size: 1048576
+            level: info
           mapping:
-            enable: {type: bool, nullable: false, enum: [true]}
-            file: {type: str, nullable: false, pattern: "realweather.log"}
-            max-size: {type: int, nullable: false}
-            max-backups: {type: int, nullable: false}
-            max-age: {type: int, nullable: false}
-            compress: {type: bool, nullable: false}
-            level: {type: str, enum: ['debug', 'info', 'warn', 'error'], nullable: false}
+            enable:
+              type: bool
+              nullable: false
+              enum: [true]
+              desc: Enable Real Weather logging (must stay true).
+              example: "true"
+            file:
+              type: str
+              nullable: false
+              pattern: "realweather.log"
+              desc: Name of the Real Weather log file.
+              example: "realweather.log"
+            max-size:
+              type: int
+              nullable: false
+              desc: Maximum log file size in bytes before rotation.
+              example: "1048576"
+            max-backups:
+              type: int
+              nullable: false
+              desc: Number of rotated log files to keep.
+              example: "5"
+            max-age:
+              type: int
+              nullable: false
+              desc: Maximum age of a log file in days.
+              example: "30"
+            compress:
+              type: bool
+              nullable: false
+              desc: Compress rotated log files.
+              example: "true"
+            level:
+              type: str
+              enum: ['debug', 'info', 'warn', 'error']
+              nullable: false
+              desc: Verbosity of the Real Weather log.
+              example: "info"
         mission:
           type: map
           nullable: false
           allowempty: true
+          desc: Real Weather mission processing options.
+          example: |
+            brief:
+              add-metar: true
+              remarks: Remarks:
           mapping:
             brief:
               type: map
+              desc: Weather briefing injected into the mission.
+              example: |
+                add-metar: true
+                remarks: Remarks:
               mapping:
-                add-metar: {type: bool, nullable: false}
-                insert-key: {type: str, nullable: false, range: {min: 1}}
-                remarks: {type: str, nullable: false}
+                add-metar:
+                  type: bool
+                  nullable: false
+                  desc: Add the current METAR to the mission briefing.
+                  example: "true"
+                insert-key:
+                  type: str
+                  nullable: false
+                  range: {min: 1}
+                  desc: Briefing key the METAR text is inserted into.
+                  example: "WeatherBrief"
+                remarks:
+                  type: str
+                  nullable: false
+                  desc: Text appended after the METAR in the briefing.
+                  example: "Remarks:"
     api:
       type: map
       nullable: false
       allowempty: true
+      desc: Weather data providers and the order they are tried in.
+      example: |
+        provider-priority:
+          - aviationweather
+          - checkwx
+        aviationweather:
+          enable: true
       mapping:
         provider-priority:
           type: seq
           nullable: false
+          desc: Ordered providers Real Weather fetches weather from.
+          example: |
+            - aviationweather
+            - checkwx
+            - custom
           sequence:
             - type: str
               enum: ['aviationweather', 'checkwx', 'custom']
               nullable: false
               unique: true
+              desc: Weather data provider name.
+              example: "aviationweather"
         aviationweather:
           type: map
           nullable: false
           allowempty: true
+          desc: AviationWeather.gov provider settings.
+          example: |
+            enable: true
           mapping:
-            enable: {type: bool, nullable: false}
+            enable:
+              type: bool
+              nullable: false
+              desc: Use AviationWeather.gov as a weather source.
+              example: "true"
         checkwx:
           type: map
           nullable: false
           allowempty: true
+          desc: CheckWX provider settings.
+          example: |
+            enable: true
+            key: "***"
           mapping:
-            enable: {type: bool, required: true, nullable: false}
-            key: {type: str, required: true, nullable: false, range: {min: 1}}
+            enable:
+              type: bool
+              required: true
+              nullable: false
+              desc: Use CheckWX as a weather source.
+              example: "true"
+            key:
+              type: str
+              required: true
+              nullable: false
+              range: {min: 1}
+              desc: API key of your CheckWX account.
+              example: "***"
         custom:
           type: map
           nullable: false
           allowempty: true
+          desc: Custom weather provider settings.
+          example: |
+            enable: false
+            file: C:\\weather\\custom.json
           mapping:
-            enable: {type: bool, required: true, nullable: false}
-            file: {type: str, nullable: false, range: {min: 1}}
-            override: {type: bool, nullable: false}
+            enable:
+              type: bool
+              required: true
+              nullable: false
+              desc: Use a custom weather source.
+              example: "false"
+            file:
+              type: str
+              nullable: false
+              range: {min: 1}
+              desc: File the custom weather data is read from.
+              example: "C:\\weather\\custom.json"
+            override:
+              type: bool
+              nullable: false
+              desc: Let the custom provider override fetched weather.
+              example: "false"
         openmeteo:
           type: map
           nullable: false
           allowempty: true
+          desc: Open-Meteo provider settings.
+          example: |
+            enable: true
           mapping:
-            enable: {type: bool, nullable: false}
+            enable:
+              type: bool
+              nullable: false
+              desc: Use Open-Meteo as a weather source.
+              example: "true"
     options:
       type: map
       nullable: false
       allowempty: true
+      desc: Weather, time and date injected into the mission.
+      example: |
+        time:
+          enable: true
+          system-time: true
+          offset: 0h5m
+        weather:
+          enable: true
+          icao: PGUM
       mapping:
         time:
           type: map
           nullable: false
           allowempty: true
+          desc: Mission start time settings.
+          example: |
+            enable: true
+            system-time: true
+            offset: 0h5m
           mapping:
-            enable: {type: bool, nullable: false}
-            system-time: {type: bool, nullable: false}
-            offset: {type: str, pattern: '^[+-]?(?:0|(?:\d+(?:\.\d+)?h(?:\d+m)?))$', nullable: false, range: {min: 1}}
+            enable:
+              type: bool
+              nullable: false
+              desc: Shift the mission start time.
+              example: "true"
+            system-time:
+              type: bool
+              nullable: false
+              desc: Use the current system time as the base.
+              example: "true"
+            offset:
+              type: str
+              pattern: '^[+-]?(?:0|(?:\d+(?:\.\d+)?h(?:\d+m)?))$'
+              nullable: false
+              range: {min: 1}
+              desc: Offset applied to the mission time, e.g. 0h5m.
+              example: "0h5m"
         date:
           type: map
           nullable: false
           allowempty: true
+          desc: Mission date settings.
+          example: |
+            enable: true
+            system-date: true
+            offset: 0
           mapping:
-            enable: {type: bool, nullable: false}
-            system-date: {type: bool, nullable: false}
-            offset: {type: str, pattern: '^[+-]?(?:0|(?:(?:\d+y)?(?:\d+m)?(?:\d+d)?))$', nullable: false, range: {min: 1}}
+            enable:
+              type: bool
+              nullable: false
+              desc: Shift the mission date.
+              example: "true"
+            system-date:
+              type: bool
+              nullable: false
+              desc: Use the current system date as the base.
+              example: "true"
+            offset:
+              type: str
+              pattern: '^[+-]?(?:0|(?:(?:\d+y)?(?:\d+m)?(?:\d+d)?))$'
+              nullable: false
+              range: {min: 1}
+              desc: Offset applied to the mission date, e.g. 10d.
+              example: "10d"
         weather:
           type: map
           nullable: false
           allowempty: true
+          desc: Weather injected into the mission by Real Weather.
+          example: |
+            enable: true
+            icao: PGUM
+            runway-elevation: 160
           mapping:
-            enable: {type: bool, nullable: false}
-            icao: {type: str, pattern: '^[A-Z]{4}$', nullable: false, range: {min: 1}}
+            enable:
+              type: bool
+              nullable: false
+              desc: Inject real-world weather into the mission.
+              example: "true"
+            icao:
+              type: str
+              pattern: '^[A-Z]{4}$'
+              nullable: false
+              range: {min: 1}
+              desc: Fixed ICAO station the weather is taken from.
+              example: "PGUM"
             icao-list:
               type: seq
               nullable: false
+              desc: ICAO stations to pick weather from; exclusive with icao.
+              example: |
+                - EDDF
+                - EDDM
               sequence:
                 - type: str
                   pattern: '^[A-Z]{4}$'
                   nullable: false
                   unique: true
-            runway-elevation: {type: int, range: {min: 0}, nullable: false}
+                  desc: ICAO station code.
+                  example: "EDDF"
+            runway-elevation:
+              type: int
+              range: {min: 0}
+              nullable: false
+              desc: Runway elevation in meters, used for the QNH.
+              example: "160"
             wind:
               type: map
               nullable: false
               allowempty: true
+              desc: Wind generation limits.
+              example: |
+                enable: true
+                minimum: 0
+                maximum: 50
               mapping:
-                enable: {type: bool, nullable: false}
-                minimum: {type: int, range: {min: 0}, nullable: false}
-                maximum: {type: int, range: {max: 50}, nullable: false}
-                gust-minimum: {type: int, range: {min: 0}, nullable: false}
-                gust-maximum: {type: int, range: {max: 50}, nullable: false}
-                scale-factor: {type: float, range: {min: 0.1}, nullable: false}
-                direction-minimum: {type: int, range: {min: 0, max: 359}, nullable: false}
-                direction-maximum: {type: int, range: {min: 0, max: 359}, nullable: false}
-                stability: {type: float, nullable: false}
-                fixed-reference: {type: bool, nullable: false}
+                enable:
+                  type: bool
+                  nullable: false
+                  desc: Generate wind for the mission.
+                  example: "true"
+                minimum:
+                  type: int
+                  range: {min: 0}
+                  nullable: false
+                  desc: Minimum wind speed in meters per second.
+                  example: "0"
+                maximum:
+                  type: int
+                  range: {max: 50}
+                  nullable: false
+                  desc: Maximum wind speed in meters per second.
+                  example: "50"
+                gust-minimum:
+                  type: int
+                  range: {min: 0}
+                  nullable: false
+                  desc: Minimum gust speed in meters per second.
+                  example: "0"
+                gust-maximum:
+                  type: int
+                  range: {max: 50}
+                  nullable: false
+                  desc: Maximum gust speed in meters per second.
+                  example: "50"
+                scale-factor:
+                  type: float
+                  range: {min: 0.1}
+                  nullable: false
+                  desc: Multiplier applied to the generated wind speed.
+                  example: "1.0"
+                direction-minimum:
+                  type: int
+                  range: {min: 0, max: 359}
+                  nullable: false
+                  desc: Lowest wind direction in degrees.
+                  example: "0"
+                direction-maximum:
+                  type: int
+                  range: {min: 0, max: 359}
+                  nullable: false
+                  desc: Highest wind direction in degrees.
+                  example: "359"
+                stability:
+                  type: float
+                  nullable: false
+                  desc: Wind stability factor between 0.0 and 1.0.
+                  example: "0.143"
+                fixed-reference:
+                  type: bool
+                  nullable: false
+                  desc: Use a fixed direction reference instead of random.
+                  example: "false"
             clouds:
               type: map
               nullable: false
               allowempty: true
+              desc: Cloud layer generation.
+              example: |
+                enable: true
+                presets:
+                  default: Preset7
               mapping:
-                enable: {type: bool, nullable: false}
-                fallback-to-legacy: {type: bool, nullable: false}
+                enable:
+                  type: bool
+                  nullable: false
+                  desc: Generate clouds for the mission.
+                  example: "true"
+                fallback-to-legacy:
+                  type: bool
+                  nullable: false
+                  desc: Fall back to the legacy cloud model if needed.
+                  example: "true"
                 base:
                   type: map
                   nullable: false
                   allowempty: true
+                  desc: Cloud base altitude limits.
+                  example: |
+                    minimum: 0
+                    maximum: 15000
                   mapping:
-                    minimum: {type: int, range: {min: 0}, nullable: false}
-                    maximum: {type: int, range: {max: 15000}, nullable: false}
+                    minimum:
+                      type: int
+                      range: {min: 0}
+                      nullable: false
+                      desc: Minimum cloud base altitude in meters.
+                      example: "0"
+                    maximum:
+                      type: int
+                      range: {max: 15000}
+                      nullable: false
+                      desc: Maximum cloud base altitude in meters.
+                      example: "15000"
                 presets:
                   type: map
                   nullable: false
                   allowempty: true
+                  desc: Cloud preset selection.
+                  example: |
+                    default: Preset7
                   mapping:
-                    default: {type: str, nullable: false}
+                    default:
+                      type: str
+                      nullable: false
+                      desc: Default cloud preset used by Real Weather.
+                      example: "Preset7"
                     disallowed:
                       type: seq
                       nullable: false
+                      desc: Cloud presets Real Weather must not pick.
+                      example: |
+                        - Preset1
+                        - Preset2
                       sequence:
                         - type: str
                           nullable: false
                           range: {min: 1}
                           unique: true
+                          desc: Cloud preset name.
+                          example: "Preset1"
                 custom:
                   type: map
                   allowempty: true
                   nullable: false
+                  desc: Custom cloud density settings.
+                  example: |
+                    enable: true
+                    density-maximum: 10
                   mapping:
-                    enable: {type: bool, nullable: false}
-                    allow-precipitation: {type: bool, nullable: false}
-                    density-minimum: {type: int, range: {min: 0}, nullable: false}
-                    density-maximum: {type: int, range: {min: 0, max: 10}, nullable: false}
+                    enable:
+                      type: bool
+                      nullable: false
+                      desc: Use custom cloud density settings.
+                      example: "true"
+                    allow-precipitation:
+                      type: bool
+                      nullable: false
+                      desc: Allow precipitation with custom clouds.
+                      example: "false"
+                    density-minimum:
+                      type: int
+                      range: {min: 0}
+                      nullable: false
+                      desc: Minimum cloud density (0-10).
+                      example: "0"
+                    density-maximum:
+                      type: int
+                      range: {min: 0, max: 10}
+                      nullable: false
+                      desc: Maximum cloud density (0-10).
+                      example: "10"
             fog:
               type: map
               nullable: false
               allowempty: true
+              desc: Fog generation.
+              example: |
+                enable: true
+                mode: auto
+                visibility-maximum: 6000
               mapping:
-                enable: {type: bool, nullable: false}
-                mode: {type: str, enum: ["auto", "manual", "legacy"], nullable: false}
-                thickness-minimum: {type: int, range: {min: 0}, nullable: false}
-                thickness-maximum: {type: int, range: {min: 0, max: 1000}, nullable: false}
-                visibility-minimum: {type: int, range: {min: 0}, nullable: false}
-                visibility-maximum: {type: int, range: {max: 6000}, nullable: false}
+                enable:
+                  type: bool
+                  nullable: false
+                  desc: Generate fog for the mission.
+                  example: "true"
+                mode:
+                  type: str
+                  enum: ["auto", "manual", "legacy"]
+                  nullable: false
+                  desc: Fog generation mode.
+                  example: "auto"
+                thickness-minimum:
+                  type: int
+                  range: {min: 0}
+                  nullable: false
+                  desc: Minimum fog thickness in meters.
+                  example: "0"
+                thickness-maximum:
+                  type: int
+                  range: {min: 0, max: 1000}
+                  nullable: false
+                  desc: Maximum fog thickness in meters.
+                  example: "1000"
+                visibility-minimum:
+                  type: int
+                  range: {min: 0}
+                  nullable: false
+                  desc: Minimum visibility in meters with fog.
+                  example: "0"
+                visibility-maximum:
+                  type: int
+                  range: {max: 6000}
+                  nullable: false
+                  desc: Maximum visibility in meters with fog.
+                  example: "6000"
             dust:
               type: map
               allowempty: true
               nullable: false
+              desc: Dust generation.
+              example: |
+                enable: true
+                visibility-maximum: 3000
               mapping:
-                enable: {type: bool, nullable: false}
-                visibility-minimum: {type: int, range: {min: 300}, nullable: false}
-                visibility-maximum: {type: int, range: {max: 3000}, nullable: false}
+                enable:
+                  type: bool
+                  nullable: false
+                  desc: Generate dust for the mission.
+                  example: "true"
+                visibility-minimum:
+                  type: int
+                  range: {min: 300}
+                  nullable: false
+                  desc: Minimum visibility in meters with dust.
+                  example: "300"
+                visibility-maximum:
+                  type: int
+                  range: {max: 3000}
+                  nullable: false
+                  desc: Maximum visibility in meters with dust.
+                  example: "3000"
             temperature:
               type: map
               nullable: false
               allowempty: true
+              desc: Temperature generation.
+              example: |
+                enable: true
               mapping:
-                enable: {type: bool, nullable: false}
+                enable:
+                  type: bool
+                  nullable: false
+                  desc: Generate temperature for the mission.
+                  example: "true"
             pressure:
               type: map
               nullable: false
               allowempty: true
+              desc: Air pressure generation.
+              example: |
+                enable: true
               mapping:
-                enable: {type: bool, nullable: false}
+                enable:
+                  type: bool
+                  nullable: false
+                  desc: Generate air pressure for the mission.
+                  example: "true"

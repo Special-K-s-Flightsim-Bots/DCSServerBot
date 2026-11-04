@@ -2,14 +2,36 @@ schema;highscore_map:
   type: map
   nullable: false
   mapping:
-    channel: {type: int, nullable: false}
+    channel:
+      type: int
+      nullable: false
+      desc: Discord channel that shows the persistent highscore.
+      example: "1122334455667788"
     params:
       type: map
       nullable: false
+      desc: Filters that define which players the highscore includes.
+      example: |
+        period: month
+        limit: 10
       mapping:
-        period: {type: str, nullable: false, range: {min: 1}}
-        limit: {type: int, nullable: false, range: {min: 3, max: 20}}
-        mission_end: {type: bool, nullable: false}
+        period:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Time period covered, e.g. day, month or a campaign name.
+          example: "month"
+        limit:
+          type: int
+          nullable: false
+          range: {min: 3, max: 20}
+          desc: Number of players shown per entry.
+          example: "10"
+        mission_end:
+          type: bool
+          nullable: false
+          desc: Post the mission highscore when the mission ends.
+          example: "true"
 
 schema;highscore_seq:
   type: seq
@@ -27,6 +49,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -35,15 +58,39 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: false}
-    wipe_stats_on_leave: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable statistics gathering on this server instance.
+      example: "true"
+    wipe_stats_on_leave:
+      type: bool
+      nullable: false
+      desc: Delete a user's statistics when they leave the Discord server.
+      example: "true"
     squadrons:
       type: map
       nullable: false
+      desc: Squadron grouping settings used for group statistics.
+      example: |
+        self_join: true
+        persist_list: true
+        highscore:
+          params:
+            limit: 10
       mapping:
-        self_join: {type: bool, nullable: false}
-        persist_list: {type: bool, nullable: false}
+        self_join:
+          type: bool
+          nullable: false
+          desc: Allow users to join and leave squadrons on their own.
+          example: "true"
+        persist_list:
+          type: bool
+          nullable: false
+          desc: Keep a live member list in the squadron channel.
+          example: "true"
         highscore:
           include: 'highscore'
     highscore:

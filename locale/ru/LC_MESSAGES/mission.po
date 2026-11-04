@@ -554,3 +554,201 @@ msgstr "Вы хотите применить расширения перед з�
 
 msgid "Timeout while trying to load the mission."
 msgstr "Истекло время попытки загрузки миссии."
+
+msgid "User {} unbanned on {}."
+msgstr "Игрок {} разбанен на {}."
+
+msgid "User {} was not banned on {}."
+msgstr "Игрок {} не был забанен на {}."
+
+#: plugins/mission/actions.py
+msgid "The ban list is only available in the web console."
+msgstr "Список банов доступен только в веб-консоли."
+
+#: plugins/mission/actions.py
+msgid "The ban list is not available in this installation."
+msgstr "Список банов недоступен в этой установке."
+
+#: plugins/mission/actions.py
+msgid "The ban list could not be read: {}"
+msgstr "Не удалось прочитать список банов: {}"
+
+#: plugins/mission/actions.py
+msgid "Timeout while lifting the ban."
+msgstr "Тайм-аут при снятии бана."
+
+#: plugins/mission/actions.py
+msgid "Failed to lift the ban: {}"
+msgstr "Не удалось снять бан: {}"
+
+#: plugins/mission/actions.py
+msgid "No active ban for {} in your scope."
+msgstr "Нет активного бана для {} в твоей области."
+
+#: plugins/mission/actions.py
+msgid "Ban lifted on {}."
+msgstr "Бан снят на {}."
+
+#: plugins/mission/actions.py
+msgid "'{}' is not a valid UCID."
+msgstr "'{}' — недопустимый UCID."
+
+#: plugins/mission/actions.py
+msgid "A reason is required to ban a player."
+msgstr "Для бана игрока нужна причина."
+
+#: plugins/mission/actions.py
+msgid "The reason is longer than {} characters."
+msgstr "Причина длиннее {} символов."
+
+#: plugins/mission/actions.py
+msgid "Server '{}' is outside your scope."
+msgstr "Сервер '{}' вне твоей области."
+
+#: plugins/mission/actions.py
+msgid "Player {} banned for {} days on {}."
+msgstr "Игрок {} забанен на {} дней на {}."
+
+#: plugins/mission/actions.py
+msgid "Player {} banned permanently on {}."
+msgstr "Игрок {} забанен бессрочно на {}."
+
+#: plugins/mission/actions.py
+msgid "Timeout while adding the ban."
+msgstr "Тайм-аут при добавлении бана."
+
+#: plugins/mission/actions.py
+msgid "Failed to add the ban: {}"
+msgstr "Не удалось добавить бан: {}"
+
+#: plugins/mission/actions.py
+msgid "The player list could not be read: {}"
+msgstr "Не удалось прочитать список игроков: {}"
+
+#: plugins/mission/actions.py
+msgid "The ban could not be identified — open it from the list."
+msgstr "Не удалось определить бан — откройте его из списка."
+
+#: plugins/mission/actions.py
+msgid "A DGSA ban cannot be edited — it can only be lifted here."
+msgstr "Бан DGSA нельзя изменить — его можно только снять здесь."
+
+#: plugins/mission/actions.py
+msgid "Ban on {} updated."
+msgstr "Бан для {} обновлён."
+
+#: plugins/mission/actions.py
+msgid "Timeout while editing the ban."
+msgstr "Тайм-аут при изменении бана."
+
+#: plugins/mission/actions.py
+msgid "Failed to edit the ban: {}"
+msgstr "Не удалось изменить бан: {}"
+
+#: plugins/mission/actions.py
+msgid ""
+"Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it "
+"empty for a permanent ban."
+msgstr ""
+"Срок истечения должен быть датой/временем UTC, например YYYY-MM-DD "
+"HH:MM:SS — оставь пустым для бессрочного бана."
+
+#: plugins/mission/actions.py
+msgid "Expires must be in the future — a past date would lift the ban. Leave it "
+"empty for a permanent ban."
+msgstr "Срок истечения должен быть в будущем — прошедшая дата сняла бы бан. Оставь "
+"пустым для бессрочного бана."
+
+#: plugins/mission/views.py
+msgid "No preset was picked, so nothing was applied."
+msgstr "Пресет не был выбран, поэтому ничего не применено."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "Один из выбранных пресетов указывал на файл, которого больше нет на этом узле."
+
+#: plugins/mission/views.py
+msgid "One of the picked presets is not in its file any more."
+msgstr "Одного из выбранных пресетов больше нет в его файле."
+
+#: plugins/mission/views.py
+msgid "The picked presets could not be applied."
+msgstr "Выбранные пресеты не удалось применить."
+
+#: plugins/mission/views.py
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "Не выполнено: пресет был выбран, но этот запуск не выполняет расширения, поэтому применять его будет нечему. Либо выполните расширения, либо снимите выбор пресета."
+
+#: plugins/mission/views.py
+msgid "There are no presets to choose from."
+msgstr "Нет пресетов для выбора."
+
+#: plugins/mission/views.py
+msgid "Select the preset(s) you want to apply"
+msgstr "Выберите пресет(ы), которые хотите применить"
+
+#: plugins/mission/views.py
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "Вы выбрали {count} пресетов, но за один раз можно применить не более {limit}. Ничего не применено."
+
+#: plugins/mission/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "Файл пресетов для выбора (по умолчанию: все файлы)"
+
+#: plugins/mission/views.py
+msgid "Cancelled — nothing was applied."
+msgstr "Отменено — ничего не применено."
+
+#: plugins/mission/views.py
+msgid "The pick timed out, so nothing was applied."
+msgstr "Время выбора истекло, поэтому ничего не применено."
+
+#: plugins/mission/actions.py
+msgid "A UCID is required."
+msgstr "Требуется UCID."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "No watch entry for {} in your scope."
+msgstr "Нет записи наблюдения для {} в вашей области."
+
+#: plugins/mission/actions.py
+msgid "An empty reason is not an edit — remove the watch entry instead."
+msgstr "Пустая причина — это не изменение: удалите запись наблюдения."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason is longer than {} characters."
+msgstr "Причина наблюдения длиннее {} символов."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Watch entry for {} removed."
+msgstr "Запись наблюдения для {} удалена."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason for {} was updated."
+msgstr "Причина наблюдения для {} обновлена."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watchlist could not be written: {}"
+msgstr "Не удалось записать список наблюдения: {}"
+
+#: plugins/mission/views.py
+msgid "Edit the watch reason"
+msgstr "Изменить причину наблюдения"
+
+#: plugins/mission/commands.py
+msgid "Edits the reason of a watchlist entry"
+msgstr "Изменяет причину записи наблюдения"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to put a player on the watchlist."
+msgstr "Чтобы поставить игрока в список наблюдения, нужна причина."
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Player {} is not one of your players."
+msgstr "Игрок {} не относится к вашим игрокам."

@@ -235,13 +235,16 @@ class Music(Plugin[MusicEventListener]):
     @app_commands.autocomplete(song=all_songs_autocomplete)
     async def add(self, interaction: discord.Interaction, playlist: str, song: str):
         p = await Playlist.create(playlist)
-        await p.add(song)
+        added = await p.add(song)
         song = os.path.join(await self.service.get_music_dir(), song)
         title = get_tag(song).title or os.path.basename(song)
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
             _('{title} has been added to playlist {playlist}.').format(title=utils.escape_string(title),
-                                                                       playlist=playlist),
+                                                                       playlist=playlist)
+            if added else
+            _('{title} is already in playlist {playlist}.').format(title=utils.escape_string(title),
+                                                                   playlist=playlist),
             ephemeral=utils.get_ephemeral(interaction))
 
     @plgroup.command(description=_("Add all available songs to a playlist"))
@@ -266,15 +269,26 @@ class Music(Plugin[MusicEventListener]):
         p = await Playlist.create(playlist)
         
         x, file_list = await interaction.client.node.list_directory(final_path, pattern=['*.mp3', '*.ogg'])
+        added = 0
+        already = 0
         for song in file_list:
-            await p.add(os.path.relpath(song, music_dir))
             title = get_tag(song).title or os.path.basename(song)
+            if not await p.add(os.path.relpath(song, music_dir)):
+                already += 1
+                await interaction.followup.send(
+                    _('{title} is already in playlist {playlist}.').format(
+                        title=utils.escape_string(title), playlist=playlist),
+                    ephemeral=ephemeral)
+                continue
+            added += 1
             await interaction.followup.send(
                 _('{title} has been added to playlist {playlist}.').format(title=utils.escape_string(title),
                                                                            playlist=playlist),
                 ephemeral=ephemeral)
 
-        await interaction.followup.send(_('Playlist {} updated.').format(playlist), ephemeral=ephemeral)
+        await interaction.followup.send(
+            _('Playlist {} updated: {} track(s) added, {} already there.').format(playlist, added, already),
+            ephemeral=ephemeral)
 
     @plgroup.command(description=_("Remove a song from a playlist"))
     @utils.app_has_role('DCS Admin')
@@ -303,6 +317,16 @@ class Music(Plugin[MusicEventListener]):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        if message.author.bot or not message.attachments:
+            return
+
+        if not isinstance(message.author, discord.Member):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         patterns =  [r'\.mp3$', r'\.ogg$']
         if not NodeUploadHandler.is_valid(message, patterns, self.bot.roles['DCS Admin']):
             return

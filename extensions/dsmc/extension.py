@@ -112,9 +112,9 @@ class DSMC(InstallableExtension):
         return await super().prepare()
 
     @override
-    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
+    async def get_mission_file(self, filename: str) -> str:
         if not os.path.basename(filename).startswith('DSMC'):
-            return filename, False
+            return filename
         orig = filename
         if not filename[-7:-4].isnumeric():
             filename = filename[:-4] + '_000.miz'
@@ -122,9 +122,9 @@ class DSMC(InstallableExtension):
         new_filename = filename[:-7] + f'{version+1:03d}.miz'
         # load the new mission instead, if it exists
         if os.path.exists(new_filename):
-            return new_filename, True
+            return new_filename
         else:
-            return orig, False
+            return orig
 
     @override
     async def render(self, param: dict | None = None) -> dict:

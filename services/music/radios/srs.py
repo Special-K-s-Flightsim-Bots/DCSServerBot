@@ -8,7 +8,7 @@ import psutil
 from core import Server, Status, Coalition, utils
 from extensions.srs import SRS
 from services.music.radios import Radio
-from plugins.music.utils import get_tag
+from services.music.tags import get_tag
 from typing import cast, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -41,7 +41,17 @@ class SRSRadio(Radio):
         try:
             proc = await extension.play_external_audio(self.config, file=file)
             self.process = proc
-            self.current = get_tag(file).title or os.path.basename(file)
+            # THE TRACK HAS TWO FACES: `current` is the title shown, `current_file` the path the
+            # player reads tags from. A caller may pass either an absolute path (the queue worker)
+            # or a music-directory-relative one, so both are normalised here — and the tag read gets
+            # the ABSOLUTE path, or it would look for the file beside the process's own cwd.
+            absolute = file if os.path.isabs(file) else os.path.join(self.service.music_dir, file)
+            self.current_file = os.path.relpath(absolute, self.service.music_dir)
+            # THE TITLE IS THE FILE'S STEM when nothing tags it — the same fallback the Discord
+            # client shows, and the name a listener recognises; the suffix is not part of it.
+            self.current = get_tag(absolute).title or os.path.splitext(os.path.basename(absolute))[0]
+            # THE TRACK IS THERE — the one real "loaded" signal of this radio.
+            self.end_loading()
             coalition = Coalition.BLUE if int(self.config['coalition']) == 2 else Coalition.RED
             server_config = self.service.get_config(self.server)
             if 'popup' in server_config:
@@ -58,26 +68,49 @@ class SRSRadio(Radio):
         except Exception as ex:
             self.log.exception(ex)
         finally:
-            self.current = None
-            self.process = None
+            # A CANCELLED PLAY MUST NOT LEAVE AUDIO RUNNING: when the queue worker is cancelled
+            # mid-track, this block is reached with the process still alive, and dropping the
+            # handle alone would keep the sound on with nothing left to stop it.
+            process = self.process
+            if process is not None and process.is_running():
+                with contextlib.suppress(Exception):
+                    process.terminate()
+            self._forget_track()
+
+    async def _terminate(self, process) -> None:
+        """End one audio process, given the HANDLE to end.
+
+        The handle is captured by the caller before anything is cancelled: cancelling the queue
+        worker runs ``play()``'s ``finally``, which clears ``self.process`` — a stop that read the
+        attribute AFTER the cancel found ``None`` and left the audio running. Taking the handle
+        first is what makes Stop and Skip act on the process that is actually playing.
+        """
+        if process is None or not process.is_running():
+            return
+        try:
+            process.terminate()
+            await asyncio.to_thread(process.wait, 5)
+        except (psutil.TimeoutExpired, psutil.NoSuchProcess):
+            with contextlib.suppress(psutil.NoSuchProcess):
+                process.kill()
+
+    def _forget_track(self) -> None:
+        self.current = None
+        self.current_file = ""
+        self.process = None
 
     async def skip(self) -> None:
-        if self.process and self.process.is_running():
-            try:
-                self.process.terminate()
-                await asyncio.to_thread(self.process.wait, 5)
-            except (psutil.TimeoutExpired, psutil.NoSuchProcess):
-                with contextlib.suppress(psutil.NoSuchProcess):
-                    self.process.kill()
-            finally:
-                self.current = None
-                self.process = None
+        process = self.process
+        await self._terminate(process)
+        self._forget_track()
 
     async def stop(self) -> None:
+        process = self.process
         if self.queue_worker.is_running():
             self.queue_worker.cancel()
-            await self.skip()
-            while self.queue_worker.is_running():
-                await asyncio.sleep(0.5)
-        else:
-            await self.skip()
+        await self._terminate(process)
+        while self.queue_worker.is_running():
+            await asyncio.sleep(0.5)
+        self._forget_track()
+        # a stopped radio is not loading
+        self.end_loading()

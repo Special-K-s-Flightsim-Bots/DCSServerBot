@@ -12,8 +12,9 @@ from copy import deepcopy
 from core import Server, Mission, Node, Status, utils, Instance, FatalException, Port, PortType
 from core.autoexec import Autoexec
 from core.data.dataobject import DataObjectFactory
+from core.data.file_staging import sweep_staged_uploads
 from core.data.impl.instanceimpl import InstanceImpl
-from core.data.impl.serverimpl import ServerImpl
+from core.data.impl.serverimpl import ServerImpl, RenameError
 from core.data.proxy.serverproxy import ServerProxy
 from core.process import ProcessManager
 from core.pubsub import PubSub
@@ -66,9 +67,29 @@ class ServiceBus(Service):
         self.intercom_channel = PubSub(self.node, 'intercom', cpool_url, self.handle_rpc)
         self.broadcasts_channel = PubSub(self.node, 'broadcasts', lpool_url, self.handle_broadcast_event)
         self._lock = asyncio.Lock()
+        self._registering_nodes: set[str] = set()
+
+    def _assert_listen_port_free(self):
+        """Refuse to start when the node's own listener port is already taken.
+
+        That listener binds with SO_REUSEADDR, so a second bot process on this PC binds the very
+        same port successfully and then silently loses the messages of one of the two clusters. The
+        failure reads as servers that report nothing, not as a conflict, so the refusal - and the
+        fix in nodes.yaml - is what makes it visible.
+        """
+        host = self.node.listen_address
+        port = self.node.listen_port.port
+        if not utils.is_port_free(host, port, udp=True):
+            raise FatalException(
+                f"Listen port {port} on {host} is already in use and this node would bind it anyway "
+                f"(the listener sets SO_REUSEADDR), then silently lose its servers' messages. Another "
+                f"bot process on this PC - for example a second cluster - is most likely holding it. "
+                f"Refusing to start: give this node its own 'listen_port' in nodes.yaml."
+            )
 
     async def start(self):
         await super().start()
+        self._assert_listen_port_free()
         try:
             # Start the DCS listener
             self.executor = ThreadPoolExecutor(thread_name_prefix='ServiceBus',
@@ -78,13 +99,8 @@ class ServiceBus(Service):
             # clean up the intercom and broadcast channels
             await self.intercom_channel.clear()
             await self.broadcasts_channel.clear()
-            # clean up the files
-            async with self.node.cpool.connection() as conn:
-                await conn.execute("""
-                    DELETE FROM files 
-                    WHERE guild_id = %s 
-                      AND created < ((now() AT TIME ZONE 'utc') - interval '300 seconds')
-                """, (self.node.guild_id, ))
+            # clean up the files: the staged upload rows a killed process left behind
+            await sweep_staged_uploads(self.node.apool, guild_id=self.node.guild_id)
 
             # subscribe to the intercom and broadcast channels
             self.intercom_subscribe_task = self.intercom_channel.observe_task(asyncio.create_task(
@@ -97,6 +113,8 @@ class ServiceBus(Service):
             ))
             await self.switch(self.master)
 
+        except FatalException:
+            raise
         except Exception as ex:
             # we can't run without the servicebus, so better restart
             raise FatalException(repr(ex)) from ex
@@ -104,6 +122,9 @@ class ServiceBus(Service):
     async def switch(self, master: bool):
         await super().switch(master)
         if master:
+            if master and not self.master:
+                await self.intercom_channel.purge()
+                await self.broadcasts_channel.purge()
             asyncio.create_task(self.register_local_servers(master))
             for node in await self.node.get_active_nodes():
                 await self.send_to_node({
@@ -122,10 +143,33 @@ class ServiceBus(Service):
                 if not row:
                     self.log.warning("No master available, can't register.")
                     return
-                master = row[0]
+                master_node = row[0]
 
-            if master not in await self.node.get_active_nodes():
-                self.log.debug(f"Master node {master} is not active (yet), waiting ...")
+            # Retry loop: master might not yet be in active_nodes
+            # if it's busy with slow startup (DB migrations, etc.)
+            max_retries = 10
+            delay = 2
+            for attempt in range(max_retries):
+                # Abort if we became master ourselves during retry
+                if self.node.claimed_master:
+                    self.log.debug("This node is now master, aborting agent registration.")
+                    return
+                # Abort on shutdown
+                if self.node.is_shutdown.is_set():
+                    return
+
+                if master_node in await self.node.get_active_nodes():
+                    break  # master is ready, proceed
+
+                self.log.debug(f"Master node {master_node} is not active yet "
+                               f"(attempt {attempt + 1}/{max_retries}), retrying in {delay}s ...")
+
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, 30)
+            else:
+                # loop exited without break — exhausted retries
+                self.log.warning(f"Master node {master_node} never became active "
+                                 f"after {max_retries} retries, giving up.")
                 return
 
             await self.send_to_node({
@@ -238,7 +282,8 @@ class ServiceBus(Service):
                 "node": self.node.name,
                 "dcs_port": int(server.instance.dcs_port),
                 "webgui_port": int(server.instance.webgui_port),
-                "maintenance": server.maintenance
+                "maintenance": server.maintenance,
+                "config": server.locals
             }
         }, timeout=timeout)
 
@@ -255,10 +300,6 @@ class ServiceBus(Service):
         await self.bot.wait_until_ready()
 
     async def register_local_servers(self, master: bool):
-        # we only run once
-        if self._lock.locked():
-            return
-
         # wait for the bot service to be started
         if master:
             await self._wait_for_bot()
@@ -325,36 +366,50 @@ class ServiceBus(Service):
 
     async def register_remote_node(self, name: str, public_ip: str, dcs_version: str):
         from core import NodeProxy
-        from ..bot.service import BotService
+        from services.bot import BotService
 
         # in case of a race condition during master takeovers, ignore this registration
         if name == self.node.name:
             return
 
-#        if self.node.all_nodes.get(name):
-#            self.log.debug(f"Node {name} already registered, skipping registration request.")
-#            return
-
-        node = NodeProxy(self.node, name, public_ip, dcs_version)
-        if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
-            self.log.warning(f"Node {name} is not alive (anymore). Skipping registration request.")
+        if name in self._registering_nodes:
+            self.log.debug(f"Registration for node {name} already in progress, skipping duplicate request.")
             return
 
-        self.log.info(f"- Registering remote node {name} ...")
-        # we did not find a configuration for this node, load it from remote
-        if not node.locals:
-            node.locals = await node.get_config()
-            if not node.locals:
-                self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
+        existing_node = self.node.all_nodes.get(name)
+        has_servers = any(s.node.name == name for s in self.servers.values() if s.is_remote)
+        if existing_node and has_servers and await existing_node.is_alive():
+            # The node re-announced itself => it was restarted. Our node/server state for it
+            # is stale, so the handshake must be completed again (server init + status resync).
+            # Never swallow an explicit registration request.
+            self.log.info(f"Node {name} re-requested registration, re-sending the handshake.")
+            await self.register_remote_servers(existing_node)
+            return
 
-        self.node.all_nodes[node.name] = node
-        while not self.bot:
-            await asyncio.sleep(1)
-            service = ServiceRegistry.get(BotService)
-            if service:
-                self.bot = ServiceRegistry.get(BotService).bot
-        await self.bot.wait_until_ready()
-        await self.register_remote_servers(node)
+        self._registering_nodes.add(name)
+        try:
+            node = NodeProxy(self.node, name, public_ip, dcs_version)
+            if not await node.is_alive(self.node.config.get('cluster', {}).get('heartbeat', 30)):
+                self.log.warning(f"Node {name} is not alive (anymore). Skipping registration request.")
+                return
+
+            self.log.info(f"- Registering remote node {name} ...")
+            # we did not find a configuration for this node, load it from remote
+            if not node.locals:
+                node.locals = await node.get_config()
+                if not node.locals:
+                    self.log.warning(f'No configuration found for node "{node.name}" in nodes.yaml!')
+
+            self.node.all_nodes[node.name] = node
+            while not self.bot:
+                await asyncio.sleep(1)
+                service = ServiceRegistry.get(BotService)
+                if service:
+                    self.bot = ServiceRegistry.get(BotService).bot
+            await self.bot.wait_until_ready()
+            await self.register_remote_servers(node)
+        finally:
+            self._registering_nodes.discard(name)
 
     async def unregister_remote_node(self, node: Node):
         # unregister event for a non-registered node received or for myself in case of a race condition, ignoring
@@ -469,29 +524,60 @@ class ServiceBus(Service):
         return True
 
     def rename_server(self, server: Server, new_name: str):
+        # Refuse an empty, reserved or case-insensitively duplicate name BEFORE touching the
+        # registry: assigning below would otherwise overwrite a live entry and silently drop the
+        # other server from the fleet. The collision check folds case, the same rule the core guard
+        # (``ServerImpl._rename_refusal``) and the console's ``_name_collision`` use.
+        if not isinstance(new_name, str) or not new_name.strip():
+            raise RenameError('A server name must not be empty.')
+        folded = new_name.strip().casefold()
+        if folded == 'n/a':
+            raise RenameError(f'Server name "{new_name}" is reserved and cannot be used.')
+        for existing in self.servers.values():
+            if existing is None or existing is server:
+                continue
+            existing_name = str(getattr(existing, 'name', '') or '')
+            if existing_name and existing_name.casefold() == folded:
+                raise RenameError(
+                    f'Server name "{new_name}" is already used by server "{existing_name}".')
         self.servers[new_name] = server
-        if server.name in self.servers:
+        # Only drop the old key when it actually differs — a same-name call would pop the key it
+        # just wrote.
+        if server.name != new_name and server.name in self.servers:
             self.servers.pop(server.name, None)
-        if server.name in self.udp_server.message_queue:
+        if server.name != new_name and server.name in self.udp_server.message_queue:
             self.udp_server.message_queue[server.name].put_nowait({})
             self.udp_server.message_queue[new_name] = asyncio.Queue()
             asyncio.create_task(self.udp_server.process_messages(new_name))
 
-    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: int | None = None):
-        if days:
-            until = datetime.now(tz=timezone.utc) + timedelta(days=days)
-            until_str = until.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+    async def ban(self, ucid: str, banned_by: str, reason: str = 'n/a', days: int | None = None,
+                  server_name: str | None = None, banned_at: datetime | None = None,
+                  until: datetime | None = None):
+        # Three ways to an end: an ABSOLUTE ``until`` (a datetime, written NAIVE UTC as-is), ``days``
+        # from now, or permanent (the year-9999 sentinel). ``until`` wins when given, so a caller that
+        # already knows the end writes it verbatim instead of re-deriving it from a day count — which
+        # is what keeps a reason-only edit from moving the expiry. Every caller that passes no
+        # ``until`` keeps the days math byte-for-byte.
+        if until is not None:
+            end = until.replace(tzinfo=None)
+        elif days:
+            end = (datetime.now(tz=timezone.utc) + timedelta(days=days)).replace(tzinfo=None)
         else:
-            until = datetime(year=9999, month=12, day=31)
-            until_str = 'never'
+            end = datetime(year=9999, month=12, day=31)
+        # The year-9999 sentinel is the permanent ban and announces itself as ``never``; every other
+        # end is a UTC wall-clock stamp stated as UTC.
+        until_str = 'never' if end.year == 9999 else end.strftime('%Y-%m-%d %H:%M') + ' (UTC)'
+        # banned_at is passed explicitly so the ONE ROW PER SERVER of a single scoped ban share a
+        # timestamp — that is the key their grouping in bans() uses to surface them as one ban.
+        stamp = (banned_at or datetime.now(tz=timezone.utc)).replace(tzinfo=None)
         async with self.apool.connection() as conn:
             await conn.execute("""
-                INSERT INTO bans (ucid, banned_by, reason, banned_until) 
-                VALUES (%s, %s, %s, %s) 
-                ON CONFLICT (ucid) DO UPDATE 
-                SET banned_by = excluded.banned_by, reason = excluded.reason, 
+                INSERT INTO bans (ucid, banned_by, reason, banned_at, banned_until, server_name)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (ucid, COALESCE(server_name, '')) DO UPDATE
+                SET banned_by = excluded.banned_by, reason = excluded.reason,
                     banned_at = excluded.banned_at, banned_until = excluded.banned_until
-            """, (ucid, banned_by, reason, until.replace(tzinfo=None)))
+            """, (ucid, banned_by, reason, stamp, end, server_name))
         asyncio.create_task(self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -501,15 +587,28 @@ class ServiceBus(Service):
                 "data": {
                     "ucid": ucid,
                     "reason": reason,
-                    "banned_at": datetime.now(tz=timezone.utc).isoformat(),
-                    "banned_until": until_str
+                    "banned_at": stamp.replace(tzinfo=timezone.utc).isoformat(),
+                    "banned_until": until_str,
+                    "server_name": server_name
                 }
             }
         }))
 
-    async def unban(self, ucid: str):
+    async def unban(self, ucid: str, server_name: str | None = None) -> int:
+        """Expire the ban rows of *ucid* that fall inside *server_name*.
+
+        ``server_name=None`` expires every row of that ucid; a name expires that server's row only.
+        Returns the number of rows cleared, so a caller can tell "cleared" from "nothing in scope".
+        """
+        sql = "UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s"
+        params: tuple = (ucid, )
+        # None is every row of that ucid (a bot-wide unban); a name is that server's row only.
+        if server_name is not None:
+            sql += " AND server_name = %s"
+            params = (ucid, server_name)
         async with self.apool.connection() as conn:
-            await conn.execute("UPDATE bans SET banned_until = NOW() AT TIME ZONE 'UTC' WHERE ucid = %s", (ucid, ))
+            cursor = await conn.execute(sql, params)
+            cleared = cursor.rowcount
         asyncio.create_task(self.send_to_node({
             "command": "rpc",
             "service": "ServiceBus",
@@ -517,37 +616,78 @@ class ServiceBus(Service):
             "params": {
                 "command": "onPlayerUnbanned",
                 "data": {
-                    "ucid": ucid
+                    "ucid": ucid,
+                    "server_name": server_name
                 }
             }
         }))
+        return cleared
 
-    async def bans(self, *, expired: bool = False) -> list[dict]:
+    async def bans(self, *, expired: bool = False, servers: tuple[str, ...] | None = None) -> list[dict]:
+        """The active (or every) ban, one ENTRY per ban.
+
+        ``servers=None`` is the unscoped read and reproduces the statement this method has always
+        run, byte for byte — every caller that passes nothing keeps its answer. ``servers=(…)``
+        restricts the SOURCE to those server names, so a scoped read is built FROM the caller's set
+        rather than filtered afterwards; a bot-wide row (``server_name IS NULL``) is not one of the
+        named servers and is therefore not in a scoped answer.
+        """
         if expired:
             where = ""
         else:
             where = "WHERE b.banned_until >= (now() AT TIME ZONE 'utc')"
+        params: tuple = ()
+        if servers is not None:
+            clause = "b.server_name = ANY(%s)"
+            where = f"{where} AND {clause}" if where else f"WHERE {clause}"
+            params = (list(servers),)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute(f"""
+                statement = f"""
                     SELECT b.ucid, COALESCE(p.discord_id, -1) AS discord_id, p.name, b.banned_by, b.reason, 
-                           b.banned_at, b.banned_until 
+                           b.banned_at, b.banned_until, b.server_name 
                     FROM bans b LEFT OUTER JOIN players p on b.ucid = p.ucid 
                     {where}
-                """)
-                return [x async for x in cursor]
+                    ORDER BY b.ucid, b.banned_at
+                """
+                if params:
+                    await cursor.execute(statement, params)
+                else:
+                    await cursor.execute(statement)
+                rows = [x async for x in cursor]
+        # A ban that covers several servers is stored as one row per server, so the rows of ONE ban
+        # (same ucid, banned_at and reason) are grouped back into a single entry: its scope reads as
+        # the list of server names, or None for a bot-wide ban.
+        grouped: dict[tuple, dict] = {}
+        for row in rows:
+            key = (row['ucid'], row['banned_at'], row['reason'])
+            ban = grouped.get(key)
+            if ban is None:
+                ban = dict(row)
+                ban['server_name'] = None if row['server_name'] is None else [row['server_name']]
+                grouped[key] = ban
+            elif row['server_name'] is None:
+                ban['server_name'] = None
+            elif ban['server_name'] is not None:
+                ban['server_name'].append(row['server_name'])
+        return list(grouped.values())
 
-    async def is_banned(self, ucid: str) -> dict | None:
+    async def is_banned(self, ucid: str, server_name: str | None = None) -> dict | None:
+        # The ONE scope predicate: a ban applies here when it is bot-wide or names THIS server. A
+        # caller with no server context (None) asks the unscoped question and matches any ban.
+        sql = "SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')"
+        params: tuple = (ucid, )
+        if server_name is not None:
+            sql += " AND (server_name IS NULL OR server_name = %s)"
+            params = (ucid, server_name)
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                await cursor.execute("""
-                    SELECT * FROM bans WHERE ucid = %s AND banned_until >= (now() AT TIME ZONE 'utc')
-                """, (ucid, ))
+                await cursor.execute(sql, params)
                 return await cursor.fetchone()
 
     async def init_remote_server(self, server_name: str, status: str, instance: str, home: str,
                                  settings: dict, options: dict, node: Node | str, channels: dict, dcs_port: int,
-                                 webgui_port: int, maintenance: bool) -> None:
+                                 webgui_port: int, maintenance: bool, config: dict) -> None:
         from core import InstanceProxy
 
         # init event for an unregistered remote node received or a race condition due to master switches, ignoring
@@ -563,7 +703,7 @@ class ServiceBus(Service):
                     bus=self
                 )
                 if not server.locals:
-                    server.locals = await server.get_config()
+                    server.locals = config
                     if not server.locals:
                         self.log.warning(f'No configuration found for server "{server.name}" in servers.yaml!')
 
@@ -593,6 +733,12 @@ class ServiceBus(Service):
             self.log.error(f"No configuration found for instance {instance} in nodes.yaml")
         except Exception as ex:
             self.log.exception(str(ex), exc_info=True)
+
+    async def set_remote_node_version(self, node: str, dcs_version: str) -> None:
+        remote = self.node.all_nodes.get(node)
+        if remote:
+            remote.dcs_version = dcs_version
+            self.log.info(f"- DCS version of node {node} updated to {dcs_version}.")
 
     async def send_to_node(self, data: dict, *, node: Node | str | None = None):
         if isinstance(node, Node):
@@ -825,14 +971,14 @@ class ServiceBus(Service):
                 member_key = kwargs.get('member')
                 if member_key:
                     try:
-                        kwargs['member'] = self.bot.guilds[0].get_member(int(member_key.strip('<@>')))
+                        kwargs['member'] = await self.bot.get_member(int(member_key.strip('<@>')))
                     except ValueError:
                         kwargs['member'] = None
 
                 user_key = kwargs.get('user')
                 if user_key and user_key.startswith('<@'):
                     try:
-                        kwargs['user'] = self.bot.guilds[0].get_member(int(user_key.strip('<@>')))
+                        kwargs['user'] = await self.bot.get_member(int(user_key.strip('<@>')))
                     except ValueError:
                         kwargs['user'] = None
 
@@ -891,7 +1037,7 @@ class ServiceBus(Service):
                     buf = derived._data.setdefault(key, {
                         "total": total,
                         "parts": {},
-                        "timestamp": time.time(),
+                        "timestamp": time.monotonic(),
                     })
                     # Sanity check – ignore out‑of‑range or duplicate fragments
                     if seq < 1 or seq > total:
@@ -902,7 +1048,7 @@ class ServiceBus(Service):
                         return False
 
                     buf["parts"][seq] = payload
-                    buf["timestamp"] = time.time()
+                    buf["timestamp"] = time.monotonic()
 
                     # Are we done yet?
                     if len(buf["parts"]) == total:
@@ -930,7 +1076,7 @@ class ServiceBus(Service):
                 Drop any fragment set that has been idle longer than MAX_WAIT.
                 """
                 async with derived._lock:
-                    now = time.time()
+                    now = time.monotonic()
                     keys_to_remove = [
                         k for k, v in derived._data.items()
                         if now - v["timestamp"] > MAX_WAIT
@@ -1113,6 +1259,20 @@ class ServiceBus(Service):
 
                                     except Exception as e:
                                         self.log.error(f"Catastrophic error in wait: {e!r}")
+
+                                # players of an agent-hosted server exist on the master only
+                                # (its ServerProxy holds them), so push the count to the owner
+                                if server.is_remote:
+                                    num_players = len(server.get_active_players())
+                                    if num_players != server.num_players:
+                                        server.num_players = num_players
+                                        asyncio.create_task(self.send_to_node({
+                                            "command": "rpc",
+                                            "object": "Server",
+                                            "server_name": server.name,
+                                            "params": {"num_players": num_players}
+                                        }, node=server.node.name))
+
                             else:
                                 await self.send_to_node(data)
 

@@ -1,0 +1,85 @@
+{#-
+  THE PICK DIALOG — installing a package, and changing the version of one that is installed.
+
+  One page, TWO kinds: `dialog.kind` decides the heading, the lead and the button (`Install` or
+  `Change`), never the markup. Both are the same field — a package, or the versions of one package —
+  so a second template would be a copy that drifts the first time a sentence changes.
+
+  THE PICK IS THE FOLDER, READ WHEN THIS PAGE OPENED. The options are the node's own listing, newest
+  version first, the newest preselected; a read that FAILED and a folder that is genuinely EMPTY
+  both render a sentence and NO primary button (`dialog.options` empty), so an empty pick can never
+  stand in for a failure.
+
+  THE FORM POSTS THE ACTION ROUTE with the one-shot confirm token minted for THIS target: the action
+  refuses a POST that did not come through this page, so the pick is a control and not a screen.
+-#}
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/static/mods.css">{% endblock %}
+{% block title %}{{ say(dialog.page_title) }} — DCSServerBot{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ say(dialog.page_title) }}</h1>
+  <div class="sub">{{ say(dialog.lead) }}</div>
+</div>
+
+<div class="dlg-back">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="hd"><h3 id="dlg-title">{{ say(dialog.heading) }}</h3><span class="tag">{% trans %}dialog{% endtrans %}</span></div>
+    <div class="bd">
+      {% for message in dialog.what %}<p class="dlg-what">{{ say(message)|safe }}</p>{% endfor %}
+      <p class="dlg-what">{% trans target=dialog.target %}Target: <span class="target">{{ target }}</span> — the action and your name are written to the bot log.{% endtrans %}</p>
+      {% if not dialog.options %}<p class="dlg-what">{{ dialog.message }}</p>{% endif %}
+    </div>
+    <div class="ft">
+      <form id="dlg-form" class="dlg-act" method="post" action="{{ dialog.path }}" data-async data-back="{{ dialog.back }}">
+        {% if dialog.options %}
+        <div class="dlg-field wide">
+          <label for="pkg">{% trans %}Package{% endtrans %}</label>
+          <select id="pkg" name="package" required aria-label="{% trans %}Package to install{% endtrans %}">
+            {% for option in dialog.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ say(option.label) }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <input type="hidden" name="{{ dialog.csrf_field }}" value="{{ dialog.csrf_token }}">
+        {% for name, value in dialog.hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+        <input type="hidden" name="{{ dialog.confirm_field }}" value="{{ dialog.confirm_token }}">
+        <div class="dlg-buttons">
+          <a class="btn" href="{{ dialog.back }}" autofocus title="{% trans %}Cancel — go back without doing anything (Esc){% endtrans %}">{% trans %}Cancel{% endtrans %}</a>
+          <span class="spacer"></span>
+          {% if dialog.options %}<button class="btn" type="submit" title="{{ say(dialog.go_title) }}">{{ _(dialog.go) }}</button>{% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+/* The dialog's keyboard contract, the same one `confirm.html` states: Esc goes back without acting and
+   Tab cycles the page's controls. Progressive enhancement — with JavaScript off the page renders in
+   full, Cancel is autofocused and Enter dismisses, and the primary button is never the default. */
+(function () {
+  "use strict";
+  var dialog = document.querySelector('[role="dialog"]');
+  if (!dialog) { return; }
+  var back = {{ dialog.back|tojson }};
+  var items = dialog.querySelectorAll("button, [href], input, select, textarea");
+  if (!items.length) { return; }
+  var cancel = dialog.querySelector("a.btn[href]");
+  var first = cancel || items[0];
+  var last = items[items.length - 1];
+  first.focus();
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") { window.location.assign(back); }
+  });
+  dialog.addEventListener("keydown", function (event) {
+    if (event.key !== "Tab") { return; }
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
+})();
+</script>
+{% endblock %}

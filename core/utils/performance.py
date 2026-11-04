@@ -1,4 +1,5 @@
 import cProfile
+import functools
 import inspect
 import io
 import logging
@@ -24,14 +25,14 @@ class PerformanceLog(ContextDecorator):
         self.logger = logging.getLogger('performance_log')
 
     def __enter__(self):
-        self.start_time = time.time()
+        self.start_time = time.perf_counter()
         if self.use_profiling:
             self.profiler = cProfile.Profile()
             self.profiler.enable()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        execution_time = time.time() - self.start_time
+        execution_time = time.perf_counter() - self.start_time
 
         if self.use_profiling:
             self.profiler.disable()
@@ -61,11 +62,13 @@ def performance_log(use_profiling: bool = False):
     def decorator(func):
 
         if inspect.iscoroutinefunction(func):
+            @functools.wraps(func)
             async def wrapped(*args, **kwargs):
                 log_name = f'{func.__qualname__}()'
                 with PerformanceLog(log_name, use_profiling=use_profiling):
                     return await func(*args, **kwargs)
         else:
+            @functools.wraps(func)
             def wrapped(*args, **kwargs):
                 log_name = f'{func.__qualname__}()'
                 with PerformanceLog(log_name, use_profiling=use_profiling):

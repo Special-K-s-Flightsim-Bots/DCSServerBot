@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,10 +11,26 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    update_interval: {type: int, range: {min: 60}, nullable: false}
-    json_file_path: {type: str, nullable: false, range: {min: 1}, func: file_exists}
-    channel: {type: int, nullable: false}
+    update_interval:
+      type: int
+      range: {min: 60}
+      nullable: false
+      desc: Seconds between updates of the Pretense status embed.
+      example: "120"
+    json_file_path:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: file_exists
+      desc: Path to the Pretense player_stats JSON file.
+      example: "{instance.home}\\Missions\\Saves\\player_stats.json"
+    channel:
+      type: int
+      nullable: false
+      desc: Discord channel where the Pretense stats are posted.
+      example: "1122334455667788"
 
 type: map
 func: check_main_structure

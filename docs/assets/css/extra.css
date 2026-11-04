@@ -1,0 +1,31 @@
+/* Styles used by the generated pages. */
+
+/* Long example values wrap inside the cell instead of widening the table. */
+.md-typeset table:not([class]) td code {
+  white-space: normal;
+  word-break: break-word;
+  font-size: 0.7rem;
+}
+
+/* GitHub's IMPORTANT alert is purple, which Material has no default type for.
+   One icon per box: the mask replaces Material's, it does not add to it. */
+:root {
+  --md-admonition-icon--important: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm1-5h-2v2h2v-2zm0-8h-2v6h2V7z"/></svg>');
+}
+
+.md-typeset .admonition.important,
+.md-typeset details.important {
+  border-color: #8957e5;
+}
+
+.md-typeset .important > .admonition-title,
+.md-typeset .important > summary {
+  background-color: #8957e51a;
+}
+
+.md-typeset .important > .admonition-title::before,
+.md-typeset .important > summary::before {
+  background-color: #8957e5;
+  -webkit-mask-image: var(--md-admonition-icon--important);
+  mask-image: var(--md-admonition-icon--important);
+}

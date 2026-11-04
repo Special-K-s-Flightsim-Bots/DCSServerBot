@@ -1,10 +1,4 @@
-#############################################################
-# Configuration for the Backup-service.                     #
-#############################################################
-# It defines what should be backup-ed and when that backup  #
-# should take place. There is no incremental backup support #
-# by now, please keep that in mind.                         #
-#############################################################
+# config/services/backup.yaml
 delete_after: 7             # keep your backups for 7 days.
 target: G:\My Drive\Backup  # The target directory of your backups. Should be on a cloud / external drive.
 backups:

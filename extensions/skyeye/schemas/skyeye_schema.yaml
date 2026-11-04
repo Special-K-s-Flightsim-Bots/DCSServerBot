@@ -2,64 +2,267 @@ schema;node_skyeye_schema:
   type: map
   nullable: false
   mapping:
-    name: {type: str, nullable: false, range: {min: 1}}
-    installation: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
-    autoupdate: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the SkyEye extension in status embeds.
+      example: "SkyEye"
+    installation:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory where SkyEye is installed.
+      example: "%USERPROFILE%\\Documents\\skyeye-windows-amd64"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Update SkyEye automatically on new releases.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Replicate the SkyEye console log into the bot log.
+      example: "false"
     auto_affinity:
       type: map
       nullable: false
+      desc: Core affinity assigned to the SkyEye process.
+      example: |
+        min_cores: 2
+        max_cores: 4
+        quality: 2
       mapping:
-        min_cores: { type: int, nullable: false, range: { min: 2, max: 4 } }
-        max_cores: { type: int, nullable: false, range: { min: 2 } }
-        quality: { type: int, nullable: false, range: { min: 0, max: 2 } }
+        min_cores:
+          type: int
+          nullable: false
+          range: {min: 2, max: 4}
+          desc: Minimum number of CPU cores to assign.
+          example: "2"
+        max_cores:
+          type: int
+          nullable: false
+          range: {min: 2}
+          desc: Maximum number of CPU cores to assign.
+          example: "4"
+        quality:
+          type: int
+          nullable: false
+          range: {min: 0, max: 2}
+          desc: Core quality to prefer (0=E, 1=normal, 2=high).
+          example: "2"
 
 schema;skyeye_config:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    debug: {type: bool, nullable: false}
-    remote: {type: bool, nullable: false}
-    version: {type: str, nullable: false, range: {min: 1}}
-    log: {type: str, nullable: false, range: {min: 1}}
-    affinity: {type: any, nullable: false, func: str_or_list}
-    config: {type: str, nullable: false, range: {min: 1}}
-    coalition: {type: str, enum: ['blue', 'red'], nullable: false}
-    recognizer: {type: str, enum: ['openai-whisper-local', 'openai-whisper-api'], nullable: false}
-    whisper-model: {type: str, nullable: false, range: {min: 1}}
-    openai-api-key: {type: str, nullable: false, range: {min: 1}}
-    callsign: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable the SkyEye extension for this instance.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Name of the SkyEye extension in status embeds.
+      example: "SkyEye"
+    debug:
+      type: bool
+      nullable: false
+      desc: Replicate the SkyEye console log into the bot log.
+      example: "false"
+    remote:
+      type: bool
+      nullable: false
+      desc: SkyEye runs on a different machine than this node.
+      example: "false"
+    version:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: SkyEye version, needed when it runs remotely.
+      example: "1.9.1"
+    log:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: File the SkyEye log is replicated to.
+      example: "{instance.home}\\Logs\\skyeye.log"
+    affinity:
+      type: any
+      nullable: false
+      func: str_or_list
+      desc: Pinned CPU cores for SkyEye (deprecated).
+      example: "12,13"
+    config:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Path to your SkyEye configuration file.
+      example: "{instance.home}\\Config\\SkyEye.yaml"
+    coalition:
+      type: str
+      enum: ['blue', 'red']
+      nullable: false
+      desc: Coalition SkyEye is active on.
+      example: "blue"
+    recognizer:
+      type: str
+      enum: ['openai-whisper-local', 'openai-whisper-api']
+      nullable: false
+      desc: Speech recognizer used by SkyEye.
+      example: "openai-whisper-local"
+    whisper-model:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Whisper model used by the local recognizer.
+      example: "ggml-small.en.bin"
+    openai-api-key:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: API key for the OpenAI Whisper API recognizer.
+      example: "***"
+    callsign:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Callsign SkyEye answers to.
+      example: "Magic"
     callsigns:
       type: seq
       nullable: false
+      desc: Callsigns SkyEye rotates through.
+      example: |
+        - Magic
+        - Focus
       sequence:
         - type: str
           nullable: false
           range: {min: 1}
           unique: true
-    voice: {type: str, enum: ['feminine', 'masculine'], nullable: false}
-    voice-playback-speed: {type: float, nullable: false}
-    voice-playback-pause: {type: str, pattern: '^\d+(\.\d+)?s$', nullable: false}
-    auto-picture: {type: bool, nullable: false}
-    auto-picture-interval: {type: str, pattern: '^\d+m$', nullable: false}
-    threat-monitoring: {type: bool, nullable: false}
-    threat-monitoring-interval: {type: str, pattern: '^\d+m$', nullable: false}
-    mandatory-threat-radius: {type: int, nullable: false}
-    discord-webhook-id: {type: text, nullable: false}
-    discord-webhook-token: {type: str, nullable: false, range: {min: 1}}
-    telemetry-address: {type: str, nullable: false, range: {min: 1}, func: obsolete}
-    telemetry-password: {type: str, nullable: false, func: obsolete}
-    srs-server-address: {type: str, nullable: false, range: {min: 1}, func: obsolete}
-    srs-eam-password: {type: str, nullable: false, range: {min: 1}, func: obsolete}
-    srs-frequencies: {type: str, nullable: false}
-    enable-grpc: {type: bool, nullable: false, func: obsolete}
-    grpc-address: {type: str, nullable: false, range: {min: 1}, func: obsolete}
-    grpc-password: {type: str, nullable: false, range: {min: 1}, func: obsolete}
+          desc: Callsign SkyEye answers to.
+          example: "Magic"
+    voice:
+      type: str
+      enum: ['feminine', 'masculine']
+      nullable: false
+      desc: Voice SkyEye uses for spoken messages.
+      example: "feminine"
+    voice-playback-speed:
+      type: float
+      nullable: false
+      desc: Playback speed of the SkyEye voice.
+      example: "1.0"
+    voice-playback-pause:
+      type: str
+      pattern: '^\d+(\.\d+)?s$'
+      nullable: false
+      desc: Pause played after each spoken sentence.
+      example: "1s"
+    auto-picture:
+      type: bool
+      nullable: false
+      desc: Post an automatic picture at regular intervals.
+      example: "false"
+    auto-picture-interval:
+      type: str
+      pattern: '^\d+m$'
+      nullable: false
+      desc: Interval between automatic pictures.
+      example: "15m"
+    threat-monitoring:
+      type: bool
+      nullable: false
+      desc: Announce airborne threats to the players.
+      example: "true"
+    threat-monitoring-interval:
+      type: str
+      pattern: '^\d+m$'
+      nullable: false
+      desc: Interval between threat checks.
+      example: "2m"
+    mandatory-threat-radius:
+      type: int
+      nullable: false
+      desc: Radius in nautical miles that always counts as a threat.
+      example: "40"
+    discord-webhook-id:
+      type: text
+      nullable: false
+      desc: Discord webhook id SkyEye posts alerts to.
+      example: "112233445566778899"
+    discord-webhook-token:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Discord webhook token for those alerts.
+      example: "***"
+    telemetry-address:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: Tacview telemetry address, set automatically (deprecated).
+      example: "localhost:42674"
+    telemetry-password:
+      type: str
+      nullable: false
+      func: obsolete
+      desc: Tacview telemetry password, set automatically (deprecated).
+      example: "***"
+    srs-server-address:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: SRS server address, set automatically (deprecated).
+      example: "localhost:5002"
+    srs-eam-password:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: SRS external AWACS password, set automatically (deprecated).
+      example: "***"
+    srs-frequencies:
+      type: str
+      nullable: false
+      desc: SRS frequencies SkyEye broadcasts on.
+      example: "251.0AM,133.0AM,30.0FM"
+    enable-grpc:
+      type: bool
+      nullable: false
+      func: obsolete
+      desc: Enable the DCS gRPC link (deprecated).
+      example: "false"
+    grpc-address:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: DCS gRPC address, set automatically (deprecated).
+      example: "localhost:50051"
+    grpc-password:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: obsolete
+      desc: DCS gRPC password, set automatically (deprecated).
+      example: "***"
     instances:
       type: seq
       nullable: false
+      desc: One entry per SkyEye instance, e.g. per coalition.
+      example: |
+        - coalition: blue
+          affinity: 12,13
+        - coalition: red
+          affinity: 14,15
       sequence:
         - include: 'skyeye_config'
 

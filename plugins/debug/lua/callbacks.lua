@@ -21,7 +21,6 @@ local function sanitizer(t)
             else
                 k = tostring(k)
             end
-            t[k] = k
             if type(v) == "function" then
                 t[k] = "function"
             elseif type(v) == "userdata" then
@@ -45,7 +44,7 @@ end
 
 debug.mt = {
     __index = function(t, key)
-        if rawget(t,"killed") ~= nil or key == 'onSimulationFrame' or key == 'RPC' then
+        if rawget(t,"killed") ~= nil or key == 'onSimulationFrame' or key == 'onTriggerMessage' or key == 'RPC' then
             return
         end
         if key == 'onMissionLoadEnd' then
@@ -53,9 +52,8 @@ debug.mt = {
             utils.loadScript('debug/mission.lua')
         end
         return function(...)
-            js = JSON:encode(sanitizer(arg))
+            local js = JSON:encode(sanitizer(arg))
             log.write('EVENT DEBUGGER', log.DEBUG, key .. '(' .. js .. ')')
-            visitedTable = {}
         end
     end
 }

@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,14 +11,39 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    message_no_srs: {type: str, nullable: false, range: {min: 1}}
-    enforce_srs: {type: bool, nullable: false}
-    move_to_spec: {type: bool, nullable: false}
-    enforce_atc: {type: bool, nullable: false}
+    message_no_srs:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Message shown to players that do not use SRS.
+      example: "You need to use SRS to play on this server!"
+    enforce_srs:
+      type: bool
+      nullable: false
+      desc: Block slots until the player has SRS activated.
+      example: "true"
+    move_to_spec:
+      type: bool
+      nullable: false
+      desc: Move players back to spectators when they leave SRS.
+      example: "true"
+    enforce_atc:
+      type: bool
+      nullable: false
+      desc: Enforce ATC frequencies and raise no_atc_usage events.
+      example: "true"
     atc_frequencies:
       type: map
       nullable: false
+      desc: Per-coalition ATC frequencies used when enforce_atc is on.
+      example: |
+        blue:
+          'Airbase': [30000FM, 252000AM]
+          'Carrier': 251000AM
+          'FARP': 250000AM
+          '*': 253000AM
       mapping:
         regex;(blue|red):
           type: map

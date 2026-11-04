@@ -2,23 +2,59 @@ schema;loganalyser_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    restart_on_unlist: {type: bool, nullable: false}
-    message_unlist: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the log analysis extension is enabled.
+      example: "true"
+    restart_on_unlist:
+      type: bool
+      nullable: false
+      desc: Auto-restart the server when it is unlisted from ED.
+      example: "true"
+    message_unlist:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Popup shown to users before a restart, {} is the countdown.
+      example: "Server is going to restart in {}!"
     disable_detections:
       type: seq
       nullable: false
+      desc: Error detections that should be disabled.
+      example: |
+        - unlisted
+        - regmapstorage
       sequence:
-        - {type: str, nullable: false, enum: ['script errors', 'upnp', 'missing terrain', 'regmapstorage', 'unlisted', 'moose version', 'mist version']}
+        - type: str
+          nullable: false
+          enum: ['script errors', 'upnp', 'missing terrain', 'regmapstorage', 'unlisted', 'moose version', 'mist version']
+          desc: Detection to disable.
+          example: "unlisted"
     ignore_files:
       type: seq
       nullable: false
+      desc: Regex patterns of script files excluded from script-error detection.
+      example: |
+        - moose.lua
+        - [Mm]oose.*\.lua
       sequence:
-        - {type: str, nullable: false, range: {min: 1}}
+        - type: str
+          nullable: false
+          range: {min: 1}
+          desc: Regular expression matching file names to ignore.
+          example: "moose.lua"
     warn_times:
       type: seq
       nullable: false
+      desc: Seconds before a restart at which players are warned.
+      example: |
+        - 120
+        - 60
+        - 10
       sequence:
         - type: int
           nullable: false
           unique: true
+          desc: Warning time in seconds before the restart.
+          example: "120"

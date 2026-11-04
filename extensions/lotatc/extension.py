@@ -7,7 +7,6 @@ import discord
 import json
 import luadata
 import os
-import platform
 import re
 import shutil
 import ssl
@@ -27,7 +26,7 @@ from watchdog.observers import Observer
 _ = get_translation(__name__.split('.')[1])
 
 UPDATER_CODE = '4dctdtna'
-MISSION_SCRIPTING = 'dofile(lfs.writedir().."Mods\\services\\LotAtc\\lua utils\\lotatcMissionServer.lua")'
+MISSION_SCRIPTING = 'dofile(lfs.writedir().."Mods/services/LotAtc/lua utils/lotatcMissionServer.lua")'
 
 __all__ = [
     "LotAtc"
@@ -90,12 +89,6 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
     def __init__(self, server: Server, config: dict):
         self.home = os.path.join(server.instance.home, 'Mods', 'Services', 'LotAtc')
         super().__init__(server, config)
-        # check version incompatibility
-        if self.version and parse(self.version) >= parse('2.5.0') and sys.platform == 'win32':
-            winver = platform.win32_ver()
-            if winver[1] == '10.0.14393' and 'Server' in winver[3]:
-                raise InstallException("LotAtc 2.5+ does not run on Windows Server 2016 anymore!")
-
         self.observer: Observer | None = None
         self.gcis = {
             "blue": {},
@@ -409,7 +402,7 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
                 self.log.info(f"A new LotAtc update is available. Updating to version {version} ...")
                 await asyncio.to_thread(self.do_update)
                 if version != self.get_inst_version()[1]:
-                    self.log.error(f"LotAtc update failed: {version} is not the expected version {self.get_inst_version()[1]}!")
+                    self.log.error(f"LotAtc update failed: {self.get_inst_version()[1]} is not the expected version {version}!")
                     return
 
                 self.log.info("LotAtc installation updated.")

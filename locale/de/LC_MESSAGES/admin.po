@@ -39,8 +39,11 @@ msgstr " (für {} Tage)."
 msgid "Unbans a user by name or ucid"
 msgstr "Entsperre Spieler (Name / UCID)"
 
-msgid "Player {} unbanned on all servers."
-msgstr "Spieler {} wurde auf allen Servern entsperrt."
+msgid "Player {} unbanned on {}."
+msgstr "Spieler {} wurde auf {} entsperrt."
+
+msgid "Player {} was not banned on {}."
+msgstr "Spieler {} war auf {} nicht gesperrt."
 
 msgid "Shows active bans"
 msgstr "Zeigt aktive Sperren"

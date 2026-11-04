@@ -58,6 +58,7 @@ __all__ = [
     "set_password",
     "get_password",
     "delete_password",
+    "resolve_within",
     "sanitize_filename",
     "get_win32_error_message",
     "CloudRotatingFileHandler",
@@ -260,6 +261,37 @@ def delete_password(key: str, config_dir='config'):
         raise ValueError(key)
 
 
+def resolve_within(root: str | Path, path: str | Path) -> str | None:
+    """``path``'s REAL path when it sits inside ``root``'s real path, or ``None``.
+
+    The one containment rule of this codebase, for a READ and for a WRITE alike: both ends are
+    resolved (``realpath`` also resolves a symbolic link and a Windows junction), and the answer is
+    decided on the resolved pair — never on the joined string. A lexical ``abspath`` + ``commonpath``
+    pair, or an ``isdir`` on the parent, follows a link out of the tree while claiming the path is
+    inside it. *path* need not exist: a resolved parent plus a leaf is enough, which is what a write
+    has.
+
+    ``None`` means "not a path inside *root*": it leaves the tree, it IS the root itself, or the two
+    are on different drives (no common path exists at all). The value returned is the RESOLVED path,
+    so a caller that hands it to a writer cannot follow a different route than the one checked.
+    """
+    try:
+        base = os.path.realpath(os.path.expandvars(str(root)))
+        candidate = os.path.realpath(os.path.expandvars(str(path)))
+    except (OSError, ValueError):
+        return None
+    folded_base = os.path.normcase(base)
+    folded = os.path.normcase(candidate)
+    if folded == folded_base:
+        return None
+    try:
+        if os.path.commonpath([folded, folded_base]) != folded_base:
+            return None
+    except ValueError:                      # different drives: there is no common path at all
+        return None
+    return candidate
+
+
 def sanitize_filename(
     filename: str,
     base_directory: str | Path,
@@ -296,20 +328,15 @@ def sanitize_filename(
     base = Path(base_directory).resolve(strict=False)
     user_path = Path(filename)
 
-    # 2. Resolve the combined path (collapse .., symlinks, etc.)
-    resolved = (
-        user_path.resolve(strict=False)
-        if user_path.is_absolute()
-        else (base / user_path).resolve(strict=False)
-    )
+    # 2. Containment is decided on the RESOLVED pair, by the ONE shared rule: a joined path, a
+    #    symbolic link or a junction that leaves *base* is refused whatever the spelling looked like
+    joined = user_path if user_path.is_absolute() else base / user_path
+    contained = resolve_within(base, joined)
+    if contained is None:
+        raise ValueError(f"Attempt to escape base directory: {filename!r}")
+    resolved = Path(contained)
 
-    # 3. Ensure containment – this is the heart of the check
-    if not resolved.is_relative_to(base):
-        raise ValueError(
-            f"Attempt to escape base directory: {filename!r} → {resolved}"
-        )
-
-    # 4. Strip OS‑specific illegal characters
+    # 3. Strip OS‑specific illegal characters
     #    Windows:  < > : " / \ | ? *   and NUL (chr(0))
     #    Linux:    /   and NUL (chr(0))
     illegal_chars = (r'/', r'<>:"/\|?*')[sys.platform.startswith("win")]
@@ -321,7 +348,7 @@ def sanitize_filename(
 
     resolved = resolved.with_name(cleaned)
 
-    # 5. Return the requested representation
+    # 4. Return the requested representation
     return resolved if return_absolute else resolved.relative_to(base)
 
 

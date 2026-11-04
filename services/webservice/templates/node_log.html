@@ -1,0 +1,46 @@
+{#-
+  THE NODE LOG VIEWER — a remote node's OWN bot log, tailed on the website.
+
+  It MIRRORS the server's Log tab (server_detail.html): the same card, the same windowed read
+  (40 lines / 64 KiB windows / 3s follow), the same "Load older" page-back, the same honest
+  empty-state sentences. It is driven by the SAME follower script (`static/server-log.js`) — the
+  card carries the SAME `id="dcs-log-card"` and the SAME `data-*` attributes the script reads, so
+  the two viewers share ONE implementation rather than two that drift. The only differences from
+  the server card: the log is the NODE's own bot log (`logs/dcssb-<node>.log`, read through
+  `Node.read_file_window`), there is no level filter and no artifact picker (a node's log is ONE
+  file, and the download picker lives on the node ROW), and the header names the NODE.
+
+  THE EMPTY STATE IS THE SAME BODY: `#dcs-log-body` is ALWAYS rendered — even while the node's log
+  does not exist yet — so the follower starts and polls from that state; the honest sentence lives
+  BESIDE it in `#dcs-log-note`, which the script hides the moment real lines arrive.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  <div class="sub">{% trans %}Node{% endtrans %} <b>{{ log_node }}</b> · {% trans %}the node's own bot log, followed while this page is open{% endtrans %}</div>
+</div>
+
+<div class="card log-card" id="dcs-log-card"
+     data-window-url="{{ log_window_url }}" data-offset="{{ log_offset }}"
+     data-before="{{ log_before }}" data-identity="{{ log_identity }}"
+     data-follow-seconds="{{ log_follow_seconds }}">
+  <div class="hd">
+    <h3>{% trans %}Node log{% endtrans %}</h3>
+    <div class="spacer"></div>
+    <span class="tag">{{ log_path }}</span>
+    <span class="live-status" id="dcs-log-status">{% if log_available %}{% trans %}following while this tab is open{% endtrans %}{% else %}{% trans %}not available{% endtrans %}{% endif %}</span>
+  </div>
+  <div class="log" id="dcs-log-body">{% with lines = log_lines %}{% include "_dcs_log_lines.html" %}{% endwith %}</div>
+  <div class="bd" id="dcs-log-note"{% if log_lines %} hidden{% endif %}><p class="empty" id="dcs-log-note-text">{{ _(log_message) }}</p></div>
+  <div class="ft">
+    <button type="button" id="dcs-log-older" class="btn"{% if not log_available or log_at_start %} disabled{% endif %}>{% if log_at_start %}{% trans %}Start of log{% endtrans %}{% else %}{% trans %}Load older{% endtrans %}{% endif %}</button>
+    <span class="spacer"></span>
+    <span>{% trans %}Node{% endtrans %} <b>{{ log_node }}</b>.</span>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}<script src="/static/server-log.js" defer></script>{% endblock %}

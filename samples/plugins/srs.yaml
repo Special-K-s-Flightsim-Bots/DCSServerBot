@@ -1,3 +1,4 @@
+# config/plugins/srs.yaml
 DEFAULT:
   message_no_srs: You need to use SRS to play on this server!
   enforce_srs: true   # Block slots until SRS is activated. People cannot use slots if not on SRS!

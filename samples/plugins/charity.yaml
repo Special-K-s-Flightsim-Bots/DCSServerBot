@@ -1,5 +1,4 @@
-# This is a sample configuration for the charity plugin.
-# You can track multiple GoFundMe campaigns.
+# config/plugins/charity.yaml
 DEFAULT:
   gofundme:
     - campaign: campaign1           # The slug of your GoFundMe campaign

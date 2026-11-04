@@ -8,11 +8,14 @@ import shutil
 
 from core import utils, Plugin, Server, command, Node, UploadStatus, Group, Instance, Status, PlayerType, \
     PaginationReport, get_translation, DISCORD_FILE_SIZE_LIMIT, DEFAULT_PLUGINS, ServiceRegistry, NodeTransformer, \
-    InstallException, InstallableExtension, ConfigView
+    InstallException, InstallableExtension, ConfigView, ServerUploadHandler
+from core.actions import ActionContext, call_action
+from core.data.maintenance import ServerMaintenanceManager
+from core.data.node import UPDATE_SERVERS_UP, UPDATE_STOOD_BY
 from discord import app_commands
 from discord.ext import commands, tasks
 from discord.ui import TextInput, Modal
-from functools import partial
+from datetime import datetime, timezone
 from io import BytesIO
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
@@ -23,11 +26,34 @@ from services.modmanager import ModManagerService
 from typing import Literal
 from zipfile import ZipFile, ZIP_DEFLATED
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 _ = get_translation(__name__.split('.')[1])
+
+
+class BanServerTransformer(utils.ServerTransformer):
+    """``ServerTransformer`` that leaves an EMPTY value empty.
+
+    The parent maps a missing value to the interaction's own server
+    (``interaction.client.get_server``), which would silently scope an omitted ``/dcs ban`` to
+    whatever channel it was typed in. An empty value here means "the issuer's own scope" and must
+    stay distinguishable from a named server.
+    """
+
+    async def transform(self, interaction: discord.Interaction, value: str | None):  # type: ignore[override]
+        return await super().transform(interaction, value) if value else None
+
+
+def _ban_targets(member, servers: dict, admin_roles=None) -> list[str]:
+    """The servers a ban issued by *member* covers: :func:`core.utils.discord.member_ban_targets`.
+
+    *admin_roles* is the bot's configured Admin role (``self.bot.roles['Admin']``): an issuer
+    holding it is unrestricted and the ban is bot-wide.
+    """
+    return utils.member_ban_targets(member, servers, admin_roles)
+
+
+def _ban_scope_label(targets: list[str]) -> str:
+    """The human-readable scope of a ban the ``server_name`` rows of *targets* cover."""
+    return _("all servers") if not targets else ", ".join(targets)
 
 
 async def bans_autocomplete(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[int]]:
@@ -295,9 +321,12 @@ class Admin(Plugin[AdminEventListener]):
     @dcs.command(description=_('Bans a user by name or ucid'))
     @app_commands.guild_only()
     @utils.app_has_role('DCS Admin')
+    @app_commands.rename(_server="server")
+    @app_commands.describe(_server=_("Server to ban on (empty = all of your servers, or every server)"))
     async def ban(self, interaction: discord.Interaction,
                   user: app_commands.Transform[discord.Member | str, utils.UserTransformer(
-                      sel_type=PlayerType.PLAYER)]):
+                      sel_type=PlayerType.PLAYER)],
+                  _server: app_commands.Transform[Server, BanServerTransformer] | None = None):
 
         class BanModal(Modal):
             reason = TextInput(label=_("Reason"), max_length=80, required=True)
@@ -329,12 +358,19 @@ class Admin(Plugin[AdminEventListener]):
                     await interaction.response.send_message(_("{} is not a valid UCID!").format(user),
                                                             ephemeral=ephemeral)
                     return
-                await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days)
-                await interaction.response.send_message(_("Player {} banned on all servers").format(name) +
-                                                        (_(" for {} days.").format(days) if days else "."),
-                                                        ephemeral=ephemeral)
+                targets: list[str] = [_server.name] if _server else _ban_targets(
+                    interaction.user, self.bot.servers, self.bot.roles['Admin'])
+                stamp = datetime.now(tz=timezone.utc)
+                for target in targets or [None]:
+                    await self.bus.ban(ucid, interaction.user.display_name, derived.reason.value, days,
+                                       server_name=target, banned_at=stamp)
+                await interaction.response.send_message(
+                    _("Player {} banned on {}").format(name, _ban_scope_label(targets)) +
+                    (_(" for {} days.").format(days) if days else "."),
+                    ephemeral=ephemeral)
                 await self.bot.audit(f'banned player {name} (ucid={ucid} with reason "{derived.reason.value}"' +
-                                     (f' for {days} days.' if days else ' permanently.'), user=interaction.user)
+                                     (f' for {days} days.' if days else ' permanently.') +
+                                     f' on {_ban_scope_label(targets)}.', user=interaction.user)
 
             async def on_error(derived, _: discord.Interaction, error: Exception) -> None:
                 self.log.exception(error)
@@ -347,15 +383,26 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.rename(ucid="user")
     @app_commands.autocomplete(ucid=bans_autocomplete)
     async def unban(self, interaction: discord.Interaction, ucid: str):
-        await self.bus.unban(ucid)
+        # the same issuer scope the ban uses: a narrowed issuer clears their own servers' rows only,
+        # an unscoped one (no target) clears every row of that ucid
+        targets = _ban_targets(interaction.user, self.bot.servers, self.bot.roles['Admin'])
+        cleared = 0
+        for target in targets or [None]:
+            cleared += await self.bus.unban(ucid, target)
         name = await self.bot.get_member_or_name_by_ucid(ucid)
         if isinstance(name, discord.Member):
             name = name.display_name
         elif not name:
             name = ucid
-        await interaction.response.send_message(_("Player {} unbanned on all servers.").format(name),
+        if cleared:
+            message = _("Player {} unbanned on {}.")
+            audit = f'unbanned player {name} (ucid={ucid})'
+        else:
+            message = _("Player {} was not banned on {}.")
+            audit = f'did not unban player {name} (ucid={ucid}): no ban in scope'
+        await interaction.response.send_message(message.format(name, _ban_scope_label(targets)),
                                                 ephemeral=utils.get_ephemeral(interaction))
-        await self.bot.audit(f'unbanned player {name} (ucid={ucid})', user=interaction.user)
+        await self.bot.audit(audit, user=interaction.user)
 
     @dcs.command(description=_('Shows active bans'))
     @app_commands.guild_only()
@@ -381,6 +428,8 @@ class Admin(Plugin[AdminEventListener]):
             until = f'<t:{int(time_obj.timestamp())}:R>\n({time_obj.strftime("%y-%m-%d %H:%Mz")})'
         embed.add_field(name=_("Banned by"),
                         value=ban['banned_by'])
+        embed.add_field(name=_("Scope"),
+                        value=_ban_scope_label(ban.get('server_name') or []))
         embed.add_field(name=_("Expires"),
                         value=until)
         embed.add_field(name=_('Reason'),
@@ -446,6 +495,16 @@ class Admin(Plugin[AdminEventListener]):
                                          ).format(version=new_version, branch=branch, name=node.name))
                 await self.bot.audit(f"updated DCS from {old_version} to {new_version} on node {node.name}.",
                                      user=interaction.user)
+            elif rc == UPDATE_STOOD_BY:
+                await msg.edit(
+                    content=_("DCS World on node {name} was not updated: another cluster is updating the shared "
+                              "DCS installation right now.").format(name=node.name)
+                )
+            elif rc == UPDATE_SERVERS_UP:
+                await msg.edit(
+                    content=_("DCS World on node {name} was not updated: servers on the shared DCS installation "
+                              "were still running, so the installer was not started.").format(name=node.name)
+                )
             elif rc == 2:
                 await msg.edit(
                     content=_("DCS World update on node {name} was aborted (check disk space)!").format(name=node.name)
@@ -829,7 +888,7 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.followup.send(embed=embed, ephemeral=ephemeral)
 
     async def run_on_nodes(self, interaction: discord.Interaction, method: str, node: Node | None = None,
-                           ephemeral: bool | None = True):
+                           ephemeral: bool | None = True, confirm: bool = True):
         if not node:
             question = _("Are you sure you want to proceed?")
             message = _("This will {} **all** nodes.").format(_(method))
@@ -840,7 +899,10 @@ class Admin(Plugin[AdminEventListener]):
         embed.description = message
         embed.set_thumbnail(
             url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
-        if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+        # ``confirm=False``: the caller asked its own question and it covered this step too — the
+        # upgrade's major-version guard asks ONCE for the offline step and the upgrade together.
+        if confirm and not await utils.yn_question(interaction, question=question, embed=embed,
+                                                   ephemeral=ephemeral):
             await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
             return
         if method != 'upgrade' or node:
@@ -884,37 +946,117 @@ class Admin(Plugin[AdminEventListener]):
         await interaction.response.defer(ephemeral=ephemeral)
         await self.run_on_nodes(interaction, "restart", node, ephemeral=ephemeral)
 
-    @node_group.command(description=_('Shuts down all servers, enables maintenance'))
+    async def _power_targets(self, node: Node | None) -> list[str]:
+        """The node names a power command with no explicit node covers — each ONCE.
+
+        Every active node of the cluster plus this one. The old ``/node offline`` walked
+        ``all_nodes.values()`` and then called the master AGAIN (and would have raised on an inactive
+        node, whose value is ``None``); reading the same source ``/node online`` used keeps one
+        behaviour and no duplicates.
+        """
+        if node:
+            return [node.name]
+        names = list(await self.node.get_active_nodes())
+        if self.node.name not in names:
+            names.append(self.node.name)
+        return names
+
+    async def _power_nodes(self, interaction: discord.Interaction, qualname: str, node: Node | None, *,
+                           ephemeral: bool, **params):
+        """Run ONE node power action on every target node — the Discord arm of the seam.
+
+        ``/node offline`` and ``/node online`` are THIN wrappers over the SAME action functions the
+        console calls (``plugins/admin/actions.py``), so one word has one implementation on every
+        transport. The ACTION writes the audit entry itself — one per attempt — so nothing here does.
+
+        The targets run CONCURRENTLY. Each action touches only its own node, and each node's action is
+        its popup chain — minutes. One after another makes the operator wait for the SUM of the nodes
+        when the real cost is the SLOWEST one. The seam allows it: ``call_action``'s in-flight guard is
+        keyed per target, so ``node:DE`` and ``node:US`` may run together while a second call against
+        the SAME node is still refused. A node that fails is reported and does not hold up the others,
+        which the serial loop could not promise — its exception ended the fan-out.
+        """
+        ctx = ActionContext.from_interaction(interaction)
+
+        async def run(name: str) -> None:
+            try:
+                result = await call_action(qualname, ctx, node_name=name, **params)
+                message = result.message
+            except Exception as ex:          # one action's bug must not hide the other nodes' outcome
+                self.log.exception(ex)
+                message = _("Node {}: the action failed - {}").format(name, ex)
+            await interaction.followup.send(message, ephemeral=ephemeral)
+
+        await asyncio.gather(*(run(name) for name in await self._power_targets(node)))
+
+    @node_group.command(description=_('Takes all servers on a node out of service'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
-    @app_commands.describe(shutdown=_('Shuts all servers down (default: on)'))
+    @app_commands.describe(maintenance=_('Also mark the servers as maintenance (default: on)'))
     async def offline(self, interaction: discord.Interaction,
                       node: app_commands.Transform[Node, utils.NodeTransformer] | None,
-                      shutdown: bool | None = True):
-        async def _node_offline(node_name: str):
-            tasks = []
-            if shutdown:
-                msg = await interaction.followup.send(_("Shutting down all servers on node {} ...").format(node_name))
-            for server in self.bot.servers.values():
-                if server.node.name == node_name:
-                    server.maintenance = True
-                    if shutdown:
-                        tasks.append(asyncio.create_task(server.shutdown()))
-            if shutdown:
-                await asyncio.gather(*tasks)
-                await msg.edit(content=_("All servers on node {} were shut down.").format(node_name))
-            await interaction.followup.send(_("Node {} is now offline.").format(node_name))
-            await self.bot.audit(f"took node {node_name} offline.", user=interaction.user)
-
+                      maintenance: bool | None = True):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
-        if shutdown:
+        # The question is about the OPERATION, not about the flag. Taking servers down is destructive with
+        # or without maintenance, so asking only when the flag is set left `maintenance:false` — the run
+        # that stops servers without marking them — with no confirmation at all. The console's design says
+        # the same thing from the other side ("offline confirms, online does not"), so this is the Discord
+        # arm agreeing with it rather than a second opinion.
+        question = _("Are you sure you want to proceed?")
+        if not node:
+            message = (_("This will shutdown **all** servers on **all** nodes and set them to maintenance.")
+                       if maintenance else
+                       _("This will shutdown **all** servers on **all** nodes, leaving their maintenance "
+                         "flags untouched."))
+        else:
+            message = (_("This will shutdown **all** servers on node `{}` and set them to maintenance.").format(node.name)
+                       if maintenance else
+                       _("This will shutdown **all** servers on node `{}`, leaving their maintenance flags "
+                         "untouched.").format(node.name))
+        embed = discord.Embed(color=discord.Color.red())
+        embed.description = message
+        embed.set_thumbnail(
+            url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+        if not await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+            await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+            return
+
+        await self._power_nodes(interaction, "take_node_offline", node, ephemeral=ephemeral,
+                                maintenance=bool(maintenance))
+
+    @node_group.command(description=_('Brings all servers on a node back online'))
+    @app_commands.guild_only()
+    @utils.app_has_role('Admin')
+    @app_commands.describe(maintenance=_('Clear the maintenance flag on every server on the node, even '
+                                         'flags set by hand (forced clear). Omit to clear only the flags '
+                                         'the last offline set'))
+    async def online(self, interaction: discord.Interaction,
+                     node: app_commands.Transform[Node, utils.NodeTransformer] | None,
+                     maintenance: bool | None = None):
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
+
+        if maintenance:
+            # "Bring them back but leave them in maintenance" is not an operation, and silently
+            # ignoring the argument would read as if it did something.
+            await interaction.followup.send(
+                _("`maintenance:true` is not an option of `/node online`: omit it to clear only the "
+                  "flags the last `offline` set, or use `maintenance:false` to clear every flag on "
+                  "the node."), ephemeral=ephemeral)
+            return
+
+        if maintenance is False:
             question = _("Are you sure you want to proceed?")
             if not node:
-                message = _("This will shutdown **all** servers on **all** nodes.")
+                message = _("This will clear the maintenance flag on **every** server on **all** "
+                            "nodes — including flags set by hand — and the scheduler will start "
+                            "every server that is down.")
             else:
-                message = _("This will shutdown **all** servers on node `{}`.").format(node.name)
+                message = _("This will clear the maintenance flag on **every** server on node `{}` — "
+                            "including flags set by hand — and the scheduler will start every server "
+                            "that is down.").format(node.name)
             embed = discord.Embed(color=discord.Color.red())
             embed.description = message
             embed.set_thumbnail(
@@ -923,50 +1065,8 @@ class Admin(Plugin[AdminEventListener]):
                 await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
                 return
 
-        if node:
-            await _node_offline(node.name)
-        else:
-            tasks = [_node_offline(node.name) for node in self.node.all_nodes.values()]
-            tasks.append(_node_offline(self.node.name))
-            await asyncio.gather(*tasks)
-
-    @node_group.command(description=_('Clears the maintenance mode for all servers'))
-    @app_commands.guild_only()
-    @utils.app_has_role('Admin')
-    @app_commands.describe(startup=_('Start all your servers (default: off)'))
-    async def online(self, interaction: discord.Interaction,
-                     node: app_commands.Transform[Node, utils.NodeTransformer] | None,
-                     startup: bool | None = False):
-
-        async def _startup(server: Server):
-            try:
-                await server.startup()
-                server.maintenance = False
-            except (TimeoutError, asyncio.TimeoutError):
-                await interaction.followup.send(_("Timeout while starting server {}!").format(server.name),
-                                                ephemeral=True)
-
-        async def _node_online(node_name: str):
-            next_startup = 0
-            for server in [x for x in self.bot.servers.values() if x.node.name == node_name]:
-                if startup:
-                    self.loop.call_later(delay=next_startup,
-                                         callback=partial(asyncio.create_task, _startup(server)))
-                    next_startup += startup_delay
-                else:
-                    server.maintenance = False
-            await interaction.followup.send(_("Node {} is now online.").format(node_name), ephemeral=ephemeral)
-            await self.bot.audit(f"took node {node_name} online.", user=interaction.user)
-
-        ephemeral = utils.get_ephemeral(interaction)
-        await interaction.response.defer(ephemeral=ephemeral, thinking=True)
-        startup_delay = self.get_config(plugin_name='scheduler').get('startup_delay', 10)
-        if node:
-            await _node_online(node.name)
-        else:
-            for node in await self.node.get_active_nodes():
-                await _node_online(node)
-            await _node_online(self.node.name)
+        await self._power_nodes(interaction, "bring_node_online", node, ephemeral=ephemeral,
+                                clear_all=maintenance is False)
 
     @node_group.command(description=_('Upgrade DCSServerBot'))
     @app_commands.guild_only()
@@ -986,12 +1086,49 @@ class Admin(Plugin[AdminEventListener]):
                                             (_("your cluster") if cluster else _("node {}").format(node.name)),
                                             ephemeral=ephemeral)
             return
-        if node and not node.master and not await utils.yn_question(
-                interaction, _("You are trying to upgrade an agent node in a cluster. Are you really sure?"),
-                ephemeral=ephemeral):
-            await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
-            return
-        await self.run_on_nodes(interaction, "upgrade", node if not cluster else None, ephemeral=ephemeral)
+        # ONE question per upgrade, and never none: whoever asks first, asks. An agent-node upgrade asks its
+        # own (it is the surprising one), the major path asks its own (the offline step and the upgrade are
+        # one operation), and anything else leaves the question to run_on_nodes. Passing ``confirm=False``
+        # unconditionally — as this did — is what silently removed the confirmation from a plain upgrade.
+        asked = False
+        if node and not node.master:
+            asked = True
+            if not await utils.yn_question(
+                    interaction, _("You are trying to upgrade an agent node in a cluster. Are you really sure?"),
+                    ephemeral=ephemeral):
+                await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+                return
+        # A MAJOR upgrade moves the bot's version, and a DCS server only talks to a bot whose hook
+        # version it carries — so DCS has to be down on every node that updates, or the servers come
+        # back speaking the old hook. ONE question covers both halves (taking them offline, then the
+        # upgrade): asking again inside run_on_nodes would be two questions for one operation. The
+        # action refuses a major upgrade with servers in service as well, and that is the backstop if
+        # the version check cannot be read here.
+        targets = None if cluster else node
+        checker = self.node if targets is None else targets
+        try:
+            is_major = bool(await checker.upgrade_is_major())
+        except Exception as ex:
+            self.log.warning("Could not check %s for a major upgrade: %s", checker.name, ex)
+            is_major = False
+        if is_major:
+            running = sum(1 for server in self.bot.servers.values()
+                          if (targets is None or server.node.name == targets.name)
+                          and ServerMaintenanceManager.in_service(server))
+            if running:
+                asked = True
+                if not await utils.yn_question(
+                        interaction,
+                        _("This is a MAJOR upgrade and {} server(s) are in service. They will be taken "
+                          "offline first — DCS has to be down while the bot updates, or the servers come "
+                          "back on the old hook version — and stay in maintenance until you bring them back "
+                          "with `/node online <node> maintenance:false`. Proceed?").format(running),
+                        ephemeral=ephemeral):
+                    await interaction.followup.send(_('Aborted'), ephemeral=ephemeral)
+                    return
+                await self._power_nodes(interaction, "take_node_offline", targets, ephemeral=ephemeral,
+                                        maintenance=True)
+        await self.run_on_nodes(interaction, "upgrade", targets, ephemeral=ephemeral, confirm=not asked)
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
@@ -1032,7 +1169,7 @@ class Admin(Plugin[AdminEventListener]):
         if instance:
             await self.bot.audit(f"added instance {instance.name} to node {node.name}.", user=interaction.user)
             server: Server = instance.server
-            view = ServerConfigView(self.bot, server)
+            view = ServerConfigView(self.bot, server, admin=True)
             embed = discord.Embed(title=_("Instance \"{}\" created.\n"
                                           "Do you want to configure a server for this instance?").format(name),
                                   color=discord.Color.blue())
@@ -1547,6 +1684,14 @@ Please make sure you forward the following ports:
         # ignore bot messages or messages that do not contain YAML attachments
         if message.author.bot or not message.attachments or not message.attachments[0].filename.endswith('.yaml'):
             return
+
+        if not isinstance(message.author, discord.Member):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         # read the default config if there is any
         config = self.get_config().get('uploads', {})
         # check if upload is enabled
@@ -1556,26 +1701,16 @@ Please make sure you forward the following ports:
                 )
         ):
             return
+
         # check if the user has the correct role to upload, defaults to Admin
         if not utils.check_roles(config.get('discord', self.bot.roles['Admin']), message.author):
             return
-        # check if the upload happens in the server's admin-channel (if provided)
-        server: Server = self.bot.get_server(message, admin_only=True)
-        ctx = await self.bot.get_context(message)
+
+        # check if the upload happens in the server's admin-channel or a DM
+        server = await ServerUploadHandler.get_server(message)
         if not server:
-            # check if there is a central admin channel configured
-            admin_channel = self.bot.locals.get('channels', {}).get('admin')
-            if not admin_channel or admin_channel != message.channel.id:
-                return
-            try:
-                server = await utils.server_selection(
-                    self.bot, ctx, title=_("To which server do you want to upload this configuration to?"))
-                if not server:
-                    await ctx.send(_('Aborted.'))
-                    return
-            except Exception as ex:
-                self.log.exception(ex)
-                return
+            return
+
         att = message.attachments[0]
         name = att.filename[:-5]
         if name in ['main', 'nodes', 'servers'] or name.startswith('presets'):
@@ -1592,15 +1727,16 @@ Please make sure you forward the following ports:
             plugin = True
         else:
             return
+
         target_file = os.path.join(target_path, att.filename)
         # TODO: schema validation
         rc = await server.node.write_file(target_file, att.url, True)
         if rc != UploadStatus.OK:
             if rc == UploadStatus.WRITE_ERROR:
-                await ctx.send(_('Error while uploading file to node {}!').format(server.node.name))
+                await message.channel.send(_('Error while uploading file to node {}!').format(server.node.name))
                 return
             elif rc == UploadStatus.READ_ERROR:
-                await ctx.send(_('Error while reading file from discord.'))
+                await message.channel.send(_('Error while reading file from discord.'))
         if plugin:
             await self.bot.reload(name)
             await message.channel.send(_("Plugin {} re-loaded.").format(name.title()))

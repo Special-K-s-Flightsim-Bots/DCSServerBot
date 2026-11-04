@@ -1,0 +1,82 @@
+{#-
+  THE MODS BODY — one rendering for two owners.
+
+  The NODE page (`/nodes/<node>/mods`, the RootFolder half) and a SERVER's Mods tab (`SavedGames`)
+  carry the same grammar: the page-level doors, the state strip that says whether a write is possible
+  right now, and the installed card. Only the DATA differs — `mods.owner` picks nothing here — so a
+  change to the card, a strip or a column cannot land on one surface and miss the other.
+
+  IT COMPUTES NOTHING. Every value is built by `pages/mods` from the read models: the doors are
+  control records, the strip is a sentence record plus the servers holding the gate, and each row
+  carries its own strip (the shared `_strip.html`) already filtered. An unusable control is ABSENT —
+  the doors and the whole Actions column are not drawn at all while the gate is closed, and the
+  card's chip says `read-only` instead (never a disabled button).
+
+  `mods.head` is present on the node page and absent in the tab body: the server page already
+  rendered the page head for the server, so its tab starts at the doors.
+-#}
+{% import "_icons.html" as icons %}
+{% if mods.head %}
+<div class="page-head">
+  <h1>{{ _(mods.head.title) }}</h1>
+  <div class="sub">{{ _(mods.head.lead) }}{% if mods.path %} <span class="mods-path">{{ mods.path }}</span>{% endif %}</div>
+</div>
+{% endif %}
+
+{#- THE TWO PAGE-LEVEL DOORS. A plain POST form each: its answer IS the dialog page, so it is never
+    intercepted, and the target rides in the body beside the path segment it also names. Absent while
+    the gate is closed (`mods.doors` is empty), which is the console's rule for an unusable control. -#}
+{% if mods.doors %}
+<div class="page-actions">
+  {% for door in mods.doors %}
+  <form method="post" action="{{ door.path }}">
+    <input type="hidden" name="{{ door.csrf_field }}" value="{{ door.csrf_token }}">
+    <input type="hidden" name="{{ mods.owner_field }}" value="{{ mods.owner }}">
+    <input type="hidden" name="{{ mods.target_field }}" value="{{ mods.target }}">
+    <button type="submit" title="{{ say(door.title) }}" aria-label="{{ say(door.aria) }}">{{ _(door.label) }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+{#- THE STATE STRIP: the one sentence that says whether mods can be changed right now, and — while it
+    cannot — a link to every server holding the gate. On a server's tab the strip also carries that
+    server's EXISTING row strip while the gate is closed, so the shutdown control is the same write
+    the Servers page offers rather than a second one. -#}
+<div class="mods-state {{ 'ok' if mods.state.ok else 'warn' }}">
+  <span class="dot {{ mods.state.dot }}" aria-hidden="true"></span>
+  <span class="msg">{{ say(mods.state.sentence)|safe }}{% if mods.state.links %}
+    {% for link in mods.state.links %}<a href="{{ link.href }}">{{ say(link.text) }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}</span>
+  {% if mods.strip %}<span class="spacer"></span>{% set strip = mods.strip %}{% include "_strip.html" %}{% endif %}
+</div>
+
+{% set notice = mods.notice %}
+{% include "_notice.html" %}
+
+{#- THE INSTALLED CARD, through the console's ONE table component: its header links, its
+    `actions`/`read-only` chip and its empty state (which states the read's own failure sentence, or
+    the action's "nothing is installed" sentence) all come from `_table.html`. `row_controls` is
+    EMPTY while the gate is closed, so the component draws neither the Actions column nor the
+    `actions` chip — an unusable control is absent, never disabled. -#}
+{% set table = mods.installed.table %}
+{% set row_controls = mods.installed.controls %}
+{% set empty = mods.installed.empty %}
+{% include "_table.html" %}
+
+{#- THE ROOT HALF ON A SERVER'S TAB, read-only: what is installed node-wide is active on this server
+    too, and an operator asking "what is actually active here" has to see both halves — but the root
+    half has ONE home, so this card states the count and links there. -#}
+{% if mods.other %}
+<div class="card">
+  <div class="hd"><h3>{{ say(mods.other.heading)|safe }}</h3><div class="spacer"></div>
+    <span class="tag">{% trans %}node-wide{% endtrans %}</span>
+    <span class="tag">{% trans %}read-only{% endtrans %}</span></div>
+  <div class="bd">
+    {% if mods.other.failure %}
+    <p class="empty">{{ mods.other.failure }}</p>
+    {% else %}
+    <p class="empty">{{ say(mods.other.sentence)|safe }} <a href="{{ mods.other.link }}">{{ say(mods.other.link_text) }}</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

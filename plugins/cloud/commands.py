@@ -38,69 +38,9 @@ class Cloud(Plugin[CloudListener]):
             raise PluginConfigurationError(plugin=self.plugin_name, option=DEFAULT_TAG)
         self.base_url = None
         self._session = None
-        self.client = None
         self.guild_bans = []
+        self._discord_ban_warned = False
         self.troublemakers = ThreadSafeDict()
-
-    async def _is_cloud_available(self, timeout: float = 5.0) -> bool:
-        """Check if the cloud service is reachable via a quick TCP connect.
-        Honors the node's HTTP proxy settings if configured."""
-        host = self.config['host']
-        port = self.config['port']
-        proxy = getattr(self.node, 'proxy', None) if self.config.get('use_proxy', True) else None
-        proxy_auth = getattr(self.node, 'proxy_auth', None)
-
-        try:
-            if proxy:
-                from urllib.parse import urlparse
-                parsed = urlparse(proxy)
-                proxy_host = parsed.hostname
-                proxy_port = parsed.port or 8080
-
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(proxy_host, proxy_port),
-                    timeout=timeout
-                )
-
-                connect_req = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n"
-                if proxy_auth and proxy_auth.login:
-                    import base64
-                    creds = base64.b64encode(
-                        f"{proxy_auth.login}:{proxy_auth.password or ''}".encode()
-                    ).decode()
-                    connect_req += f"Proxy-Authorization: Basic {creds}\r\n"
-                connect_req += "\r\n"
-
-                writer.write(connect_req.encode())
-                await writer.drain()
-
-                response = await asyncio.wait_for(reader.readline(), timeout=timeout)
-                if not response.startswith(b"200"):
-                    writer.close()
-                    await writer.wait_closed()
-                    return False
-
-                while True:
-                    line = await asyncio.wait_for(reader.readline(), timeout=timeout)
-                    if line == b"\r\n" or line == b"":
-                        break
-
-                writer.close()
-                await writer.wait_closed()
-                return True
-
-            else:
-                _, writer = await asyncio.wait_for(
-                    asyncio.open_connection(host, port),
-                    timeout=timeout
-                )
-                writer.close()
-                await writer.wait_closed()
-                return True
-
-        except (OSError, asyncio.TimeoutError):
-            return False
-
 
     @property
     def session(self):
@@ -111,11 +51,6 @@ class Cloud(Plugin[CloudListener]):
             if 'token' in self.config:
                 headers['Authorization'] = f"Bearer {self.config['token']}"
             headers['X-Guild-Id'] = str(self.node.guild_id)
-            self.client = {
-                "guild_id": self.bot.guilds[0].id,
-                "guild_name": self.bot.guilds[0].name,
-                "owner_id": self.bot.owner_id
-            }
             self._session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
                 raise_for_status=True, headers=headers
@@ -126,7 +61,6 @@ class Cloud(Plugin[CloudListener]):
         await super().cog_load()
         self.base_url = f"{self.config['protocol']}://{self.config['host']}:{self.config['port']}"
         self._session = None
-        self.client = None
         # cloud bans / troublemakers
         self.cloud_bans.add_exception_type(IndexError)
         self.cloud_bans.add_exception_type(aiohttp.ClientError)
@@ -135,11 +69,10 @@ class Cloud(Plugin[CloudListener]):
         self.cloud_bans.add_exception_type(DiscordServerError)
         utils.safe_start(self.cloud_bans)
         if self.config.get('register', True):
-            if await self._is_cloud_available():
-                self.cloud_sync.add_exception_type(IndexError)
-                self.cloud_sync.add_exception_type(aiohttp.ClientError)
-                self.cloud_sync.add_exception_type(psycopg.DatabaseError)
-                utils.safe_start(self.cloud_sync)
+            self.cloud_sync.add_exception_type(IndexError)
+            self.cloud_sync.add_exception_type(aiohttp.ClientError)
+            self.cloud_sync.add_exception_type(psycopg.DatabaseError)
+            utils.safe_start(self.cloud_sync)
             self.register.add_exception_type(psycopg.DatabaseError)
             utils.safe_start(self.register)
         if self.config.get('upload_errors', True):
@@ -198,19 +131,21 @@ class Cloud(Plugin[CloudListener]):
     async def _request_with_retry(self, method: str, url: str, *, retries: int = 1, **kwargs) -> Any:
         last_error: Exception | None = None
 
+        proxy = getattr(self.node, 'proxy', None) if self.config.get('use_proxy', True) else None
+        proxy_auth = getattr(self.node, 'proxy_auth', None) if self.config.get('use_proxy', True) else None
         for attempt in range(retries + 1):
             try:
                 session_method = getattr(self.session, method)
-                async with session_method(url, proxy=self.node.proxy, proxy_auth=self.node.proxy_auth, **kwargs) as response:
+                async with session_method(url, proxy=proxy, proxy_auth=proxy_auth, **kwargs) as response:
                     return await response.json()
             except (aiohttp.ClientError, asyncio.TimeoutError) as ex:
                 if isinstance(ex, aiohttp.ClientResponseError):
                     if ex.status in [401, 403]:
                         raise ex
                     elif ex.status == 422:
-                        self.log.warning(f"Unprocessable Content: {kwargs['json']}")
+                        self.log.warning(f"Unprocessable Content: {url} - {kwargs['json']}")
                         raise ex
-                
+
                 last_error = ex
 
                 if isinstance(ex, (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError)):
@@ -444,28 +379,13 @@ class Cloud(Plugin[CloudListener]):
                     for ucid in watches - to_ban:
                         await conn.execute("DELETE FROM watchlist WHERE player_ucid = %s", (ucid,))
             if self.config.get('discord-ban', False):
-                global_bans: dict = await self.get('discord-bans')
-                global_ban_ids = {x['discord_id'] for x in global_bans}
-                if not self.guild_bans:
-                    self.guild_bans = [
-                        x.user async for x in self.bot.guilds[0].bans(limit=None)
-                        if x.reason and x.reason.startswith('DGSA:')
-                    ]
-                banned_users = {x.id for x in self.guild_bans}
-
-                guild = self.bot.guilds[0]
-                # unban users that should not be banned anymore
-                for user_id in banned_users - global_ban_ids:
-                    user = await self.bot.fetch_user(user_id)
-                    await guild.unban(user, reason='DGSA: ban revoked.')
-                    self.guild_bans.remove(user)
-
-                # ban users that were not banned yet (omit the owner, in case they are on the global banlist)
-                for user_id in global_ban_ids - banned_users - {self.bot.owner_id}:
-                    user = await self.bot.fetch_user(user_id)
-                    reason = next(x['reason'] for x in global_bans if x['discord_id'] == user.id)
-                    await guild.ban(user, reason='DGSA: ' + reason)
-                    self.guild_bans.append(user)
+                if isinstance(self.bot, DummyBot):
+                    if not self._discord_ban_warned:
+                        self.log.warning('discord-ban is configured, but this installation runs without Discord: '
+                                         'Discord bans cannot be synchronised.')
+                        self._discord_ban_warned = True
+                else:
+                    await self.sync_discord_bans()
             # read the list of potential troublemakers
             self.troublemakers = {x['ucid']: x for x in await self.get('troublemakers')}
         except aiohttp.ClientError as ex:
@@ -475,15 +395,35 @@ class Cloud(Plugin[CloudListener]):
         except Exception as ex:
             self.log.exception(ex)
 
+    async def sync_discord_bans(self) -> None:
+        global_bans: dict = await self.get('discord-bans')
+        global_ban_ids = {x['discord_id'] for x in global_bans}
+        if not self.guild_bans:
+            self.guild_bans = [
+                x.user async for x in self.bot.guilds[0].bans(limit=None)
+                if x.reason and x.reason.startswith('DGSA:')
+            ]
+        banned_users = {x.id for x in self.guild_bans}
+
+        guild = self.bot.guilds[0]
+        # unban users that should not be banned anymore
+        for user_id in banned_users - global_ban_ids:
+            user = await self.bot.fetch_user(user_id)
+            await guild.unban(user, reason='DGSA: ban revoked.')
+            self.guild_bans.remove(user)
+
+        # ban users that were not banned yet (omit the owner, in case they are on the global banlist)
+        for user_id in global_ban_ids - banned_users - {self.bot.owner_id}:
+            user = await self.bot.fetch_user(user_id)
+            reason = next(x['reason'] for x in global_bans if x['discord_id'] == user.id)
+            await guild.ban(user, reason='DGSA: ' + reason)
+            self.guild_bans.append(user)
+
     @cloud_bans.before_loop
     async def before_cloud_bans(self):
         await self.bot.wait_until_ready()
 
     async def sync_stats(self) -> int:
-        # ensure the session
-        if not self._session:
-            _ = self.session
-        
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
                 await cursor.execute("""
@@ -519,6 +459,7 @@ class Cloud(Plugin[CloudListener]):
                             "linked_at": linked_at.isoformat(),
                             "last_seen": player['last_seen'].isoformat()
                         })
+
                     await cursor.execute("""
                         SELECT s.player_ucid, m.mission_theatre, s.slot, 
                                SUM(s.kills) as kills, SUM(s.pvp) as pvp, SUM(deaths) as deaths, 
@@ -536,7 +477,6 @@ class Cloud(Plugin[CloudListener]):
                         GROUP BY 1, 2, 3
                     """, (row['ucid'], ))
                     async for line in cursor:
-                        line['client'] = self.client
                         await self.post('upload', line)
                     await cursor.execute('UPDATE players SET synced = TRUE WHERE ucid = %s', (row['ucid'], ))
 
@@ -585,10 +525,6 @@ class Cloud(Plugin[CloudListener]):
 
     @tasks.loop(hours=1)
     async def register(self):
-        if not await self._is_cloud_available():
-            self.log.warning("Cloud service unavailable.")
-            return
-
         async with self.apool.connection() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute("""
@@ -653,8 +589,8 @@ class Cloud(Plugin[CloudListener]):
             }
             self.log.debug("Updating registration with this data: " + str(bot))
             await self.post('register', bot)
-        except aiohttp.ClientError:
-            self.log.debug('Cloud: Bot could not register due to service unavailability. Ignored.')
+        except aiohttp.ClientError as ex:
+            self.log.warning(f"Cloud service unavailable: {ex}")
         except Exception:
             self.log.debug("Error while registering: ", exc_info=True)
 
@@ -681,11 +617,12 @@ class Cloud(Plugin[CloudListener]):
             async with self.apool.connection() as conn:
                 for link in links:
                     await conn.execute("""
-                        UPDATE players 
-                           SET discord_id = %s, 
-                               manual = TRUE 
-                        WHERE ucid = %s 
-                    """, (member.id, link['ucid']))
+                        INSERT INTO players (ucid, discord_id, name, first_seen, manual)
+                        VALUES (%(ucid)s, %(discord_id)s, %(name)s, NOW() AT TIME ZONE 'UTC', TRUE)
+                        ON CONFLICT (ucid) DO UPDATE
+                            SET discord_id = excluded.discord_id,
+                                manual = TRUE
+                    """, link)
         except aiohttp.ClientError:
             self.log.warning("Cloud service unavailable.")
 

@@ -35,16 +35,14 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from difflib import unified_diff
 from importlib import import_module
 from lupa.lua51 import LuaSyntaxError
-from packaging.version import parse
+from packaging.version import InvalidVersion, parse
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable, Callable, Any, Coroutine
 from urllib.parse import urlparse
 
-# ruamel YAML support
+from core.utils.yaml_helper import new_yaml
 from pykwalify.errors import SchemaError
-from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import ServerProxy, DataObject, Node
@@ -95,7 +93,9 @@ __all__ = [
     "to_valid_pyfunc_name",
     "pg_interval_to_seconds",
     "get_latest_postgres_version",
-    "get_latest_python_version"
+    "get_latest_python_version",
+    "is_major_version_change",
+    "upgrade_message"
 ]
 
 logger = logging.getLogger(__name__)
@@ -407,7 +407,8 @@ def get_all_players(
         linked: bool | None = None,
         watchlist: bool | None = None,
         vip: bool | None = None,
-        search: str | None = None
+        search: str | None = None,
+        present: Iterable[str] | None = None
 ) -> list[tuple[str, str]]:
     """
     This method `get_all_players` returns a list of tuples containing the UCID and name of players from the database. Filtering can be optionally applied by providing values for the parameters
@@ -421,6 +422,7 @@ def get_all_players(
     :param vip: Optional boolean parameter to filter players based on whether they are VIP players or not. If set to `True`, only VIP players will be returned. If set to `False`, only non
     *-VIP players will be returned. If not provided, no filtering based on VIP status will be applied.
     :param search: Optional string parameter to search for players by name or UCID. If provided, only players whose name or UCID contain the search string will be returned.
+    :param present: Optional collection of UCIDs the result is BOUND to: only players whose UCID is one of them are returned. It is the WHERE bound a caller that only reaches a SET of servers applies, because ``players`` carries no server column (the players PRESENT on those servers). An empty collection matches nobody; `None` applies no bound at all.
     :return: A list of tuples containing the UCID and name of players from the database.
 
     """
@@ -450,6 +452,13 @@ def get_all_players(
             clauses.append("(p.name ILIKE %s OR p.ucid ILIKE %s)")
             pattern = f"%{search_lc}%"
             params.extend([pattern, pattern])
+
+    if present is not None:
+        # the bound is a WHERE term, never a post-filter: the caller only ever reaches the players
+        # PRESENT on the servers it may see. An empty collection is a legal empty array and matches
+        # nobody, so a caller with no such server cannot fall back to the unbounded list.
+        clauses.append("p.ucid = ANY(%s)")
+        params.append(list(present))
 
     sql = "SELECT p.ucid, p.name FROM players p"
     if join_watchlist:
@@ -482,7 +491,7 @@ def get_presets(node: Node) -> Iterable[str]:
     for file in Path(node.config_dir).glob('presets*.yaml'):
         with open(file, mode='r', encoding='utf-8') as infile:
             presets |= set([
-                name for name, value in yaml.load(infile).items()
+                name for name, value in new_yaml().load(infile).items()
                 if isinstance(value, dict) and not value.get('hidden', False)
             ])
     return presets
@@ -497,7 +506,7 @@ def get_preset(node: Node, name: str, filename: str | list[str] | None = None) -
     """
     @cache_with_expiration(120)
     def load_all_presets(filename: Path) -> dict:
-        return yaml.load(filename.read_text(encoding='utf-8'))
+        return new_yaml().load(filename.read_text(encoding='utf-8'))
 
     def _read_presets_from_file(filename: Path, name: str) -> dict | list | None:
         all_presets = load_all_presets(filename)
@@ -579,12 +588,16 @@ def dynamic_import(package_name: str):
     package = importlib.import_module(package_name)
     prefix = package.__name__ + '.'
 
+    # Import every entry the walk yields -- modules as well as packages. Importing only packages
+    # made discovery depend on each package's ``__init__`` importing its own service module (the
+    # ``@ServiceRegistry.register`` decorator runs on import), so a package that resolves its
+    # exports lazily silently unregistered its service.
     for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__, prefix):
-        if is_pkg:
-            try:
-                importlib.import_module(module_name)
-            except Exception as ex:
-                logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
+        try:
+            importlib.import_module(module_name)
+        except Exception as ex:
+            logger.error(f"Failed to import {module_name} due to {ex}, skipping.")
+
 
 def async_cache(func: Callable):
     cache: dict[Any, Any] = {}
@@ -660,7 +673,7 @@ def async_cache(func: Callable):
     return wrapper
 
 
-def cache_with_expiration(expiration: int):
+def cache_with_expiration(expiration: int, maxsize: int | None = None):
     """
     Decorator to cache function results for a specific duration.
     Works with both sync and async functions.
@@ -671,39 +684,47 @@ def cache_with_expiration(expiration: int):
         cache_expiry: dict[Any, float] = {}
         pending: dict[Any, asyncio.Future] = {}
         locks: dict[Any, asyncio.Lock] = {}
+        signature = inspect.signature(func)
         _SENTINEL = object()
 
         def get_cache_key(*args, **kwargs):
-            signature = inspect.signature(func)
-            bound_args = signature.bind(*args, **kwargs)
-            bound_args.apply_defaults()
-
-            # Convert unhashable types to hashable forms
-            hashable_args = []
-            for k, v in bound_args.arguments.items():
-                # For the self-parameter, use its id as part of the key
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()                 # keep: positional/kwargs share one key
+            key = []
+            for k, v in bound.arguments.items():
                 if k == "self":
-                    hashable_args.append(id(v))
-                # if we have a .name element, use this as key instead
+                    key.append(id(v))
                 elif hasattr(v, "name") and not isinstance(v, (str, bytes)):
-                    hashable_args.append(("name", getattr(v, "name", None)))
-                # Convert lists to tuples and handle nested lists
+                    key.append(("name", getattr(v, "name", None)))
                 elif isinstance(v, list):
-                    hashable_args.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
+                    key.append(tuple(tuple(x) if isinstance(x, list) else x for x in v))
                 else:
-                    hashable_args.append(v)
-            return func.__name__, tuple(hashable_args)
+                    key.append(v)
+            return func.__name__, tuple(key)
+
+        def _drop(key):
+            cache.pop(key, None); cache_expiry.pop(key, None); locks.pop(key, None)
 
         def check_cache(cache_key):
             ts = cache_expiry.get(cache_key)
-            if ts is not None and time.time() < ts:
+            if ts is None:
+                return _SENTINEL
+            if time.monotonic() < ts:
                 return cache.get(cache_key, _SENTINEL)
+            _drop(cache_key)
             return _SENTINEL
 
-        def update_cache(cache_key, result):
-            cache[cache_key] = result
-            cache_expiry[cache_key] = time.time() + expiration
+        def update_cache(key, result):
+            cache[key] = result
+            cache_expiry[key] = time.monotonic() + expiration
+            while maxsize and len(cache) > maxsize:
+                _drop(next(iter(cache)))
             return result
+
+        def cache_clear():
+            cache.clear()
+            cache_expiry.clear()
+            locks.clear()
 
         async def _get_lock(cache_key) -> asyncio.Lock:
             # Fast path
@@ -759,6 +780,7 @@ def cache_with_expiration(expiration: int):
             result = func(*args, **kwargs)
             return update_cache(cache_key, result)
 
+        async_wrapper.cache_clear = sync_wrapper.cache_clear = cache_clear
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
@@ -873,7 +895,7 @@ class SettingsDict(dict):
                     raise ex
         elif self.path.lower().endswith('.yaml'):
             with open(self.path, mode='r', encoding='utf-8') as file:
-                data = yaml.load(file)
+                data = new_yaml().load(file)
         if data:
             self.clear()
             self.update(data)
@@ -891,7 +913,7 @@ class SettingsDict(dict):
                                                                      indent_level=0)).encode('utf-8'))
         elif self.path.lower().endswith('.yaml'):
             with open(tmpname, mode="w", encoding='utf-8') as outfile:
-                yaml.dump(self, outfile)
+                new_yaml().dump(self, outfile)
         if not os.path.exists(self.path):
             self.log.info(f"- Creating {self.path} as it did not exist yet.")
         try:
@@ -1626,3 +1648,38 @@ async def get_latest_python_version(node: Node, version: str | None = None) -> d
         return check
     except Exception:
         return None
+
+
+def _release(version: str, parts: int = 3) -> tuple[int, ...] | None:
+    """The first *parts* numbers of a version, zero-padded, or ``None`` when it cannot be read."""
+    try:
+        numbers = list(parse(version).release[:parts])
+    except (InvalidVersion, TypeError):
+        return None
+    return tuple(numbers + [0] * (parts - len(numbers)))
+
+
+def is_major_version_change(installed: str, latest: str) -> bool:
+    """Whether *latest* is a major step up from *installed* — one of the first three numbers moved.
+
+    A release that only moves the fourth number is a hotfix and may be applied unattended; a change in the third one
+    is a feature release, and the installer and migrations behind it belong to an operator. An unreadable version is
+    NOT major on purpose: a format this does not understand must never switch every future update off.
+    """
+    current, available = _release(installed), _release(latest)
+    if current is None or available is None:
+        return False
+    return current != available
+
+
+def upgrade_message(installed: str | None = None, latest: str | None = None) -> str:
+    """The ONE wording for "a DCSServerBot update is waiting for a human".
+
+    With both versions it says what is waiting and why it was not applied; without them it is the sentence the
+    path without autoupdate has always logged.
+    """
+    if installed and latest:
+        return (f"New update for DCSServerBot available: {installed} -> {latest}.\n"
+                f"This is a major version, so it is not applied automatically.\n"
+                f"Use /node upgrade or update.cmd to apply it.")
+    return "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it."

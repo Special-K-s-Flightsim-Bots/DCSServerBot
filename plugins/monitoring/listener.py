@@ -3,7 +3,7 @@ import math
 
 from core import EventListener, Plugin, event, Server, utils, ServiceRegistry, get_translation
 from services.bot import BotService
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from .commands import Monitoring
@@ -18,10 +18,12 @@ class MonitoringListener(EventListener["Monitoring"]):
         self.minutes_fps = {}
         self.minutes_ram = {}
         self.warning_sent = {}
+        self.fps_warning_sent = {}
 
     @event(name="registerDCSServer")
     async def registerDCSServer(self, server: Server, _data: dict) -> None:
         self.warning_sent[server.name] = False
+        self.fps_warning_sent[server.name] = False
 
     @event(name="perfmon")
     async def perfmon(self, server: Server, data: dict):
@@ -35,22 +37,24 @@ class MonitoringListener(EventListener["Monitoring"]):
             if fps < min_fps:
                 self.minutes_fps[server.name] = self.minutes_fps.get(server.name, 0) + 1
                 period = config.get("period", 5)
-                if self.minutes_fps[server.name] == period:
+                if self.minutes_fps[server.name] >= period and not self.fps_warning_sent.get(server.name, False):
                     message = utils.format_string(
                         config.get("message",
                                    _("Server {server} FPS ({fps}) has been below {min_fps} for more than "
                                      "{period} minutes.")),
                         server=server.name, fps=round(fps, 2), min_fps=min_fps, period=period)
                     if config.get("mentioning", True):
-                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title=_("Server Performance Low!"),
-                                                                                  message=message, server=server))
+                        bot = cast(BotService, ServiceRegistry.get(BotService))
+                        asyncio.create_task(bot.alert(title=_("Server Performance Low!"),
+                                                      message=message, server=server, mention=True))
                     else:
                         admin_channel = self.bot.get_admin_channel(server)
                         if admin_channel:
                             asyncio.create_task(admin_channel.send(message))
-                    self.minutes_fps[server.name] = 0
+                    self.fps_warning_sent[server.name] = True
             else:
                 self.minutes_fps[server.name] = 0
+                self.fps_warning_sent[server.name] = False
 
     @event(name="serverLoad")
     async def serverLoad(self, server: Server, data: dict):
@@ -89,8 +93,9 @@ class MonitoringListener(EventListener["Monitoring"]):
                                      "for more than {period} minutes.")),
                         server=server.name, ram=round(ram, 2), max_ram=max_ram, period=period)
                     if config.get("mentioning", True):
-                        asyncio.create_task(ServiceRegistry.get(BotService).alert(title=_("Excessive RAM consumption!"),
-                                                                                  message=message, server=server))
+                        bot = cast(BotService, ServiceRegistry.get(BotService))
+                        asyncio.create_task(bot.alert(title=_("Excessive RAM consumption!"),
+                                                      message=message, server=server))
                     else:
                         admin_channel = self.bot.get_admin_channel(server)
                         if admin_channel:

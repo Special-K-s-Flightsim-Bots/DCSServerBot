@@ -1,3 +1,4 @@
+# config/plugins/missionstats.yaml
 DCS.dcs_serverrelease:
   enabled: true
   display: true

@@ -156,3 +156,58 @@ msgstr "Вы решили простить {} за их действия."
 msgid "displays your penalty points"
 msgstr "показывает ваши штрафные очки"
 
+#: plugins/punishment/actions.py
+msgid "Penalty points can only be changed from the website."
+msgstr "Штрафные баллы можно изменить только на веб-сайте."
+
+#: plugins/punishment/actions.py
+msgid "You need the DCS Admin role to change penalty points."
+msgstr "Чтобы изменять штрафные баллы, нужна роль DCS Admin."
+
+#: plugins/punishment/actions.py
+msgid "Penalty points must be a whole number between {minimum} and {maximum}."
+msgstr "Штрафные баллы должны быть целым числом от {minimum} до {maximum}."
+
+#: plugins/punishment/actions.py
+msgid "A penalty change of 0 does nothing."
+msgstr "Изменение на 0 баллов ничего не делает."
+
+#: plugins/punishment/actions.py
+msgid "A UCID is 32 hexadecimal characters."
+msgstr "UCID — это 32 шестнадцатеричных символа."
+
+#: plugins/punishment/actions.py
+msgid "The database is not available."
+msgstr "База данных недоступна."
+
+#: plugins/punishment/actions.py
+msgid "The punishment plugin is not running, so the points cannot be applied."
+msgstr "Плагин punishment не запущен, поэтому баллы нельзя применить."
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be recorded: {error}"
+msgstr "Не удалось записать штрафные баллы: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The points were recorded, but the punishment could not be applied: {error}"
+msgstr "Баллы записаны, но наказание применить не удалось: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be deleted: {error}"
+msgstr "Не удалось удалить штрафные баллы: {error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points were deleted, but the ban could not be lifted: {error}"
+msgstr "Штрафные баллы удалены, но снять бан не удалось: {error}"
+
+#: plugins/punishment/actions.py
+msgid "This installation runs no server yet."
+msgstr "В этой инсталляции пока нет ни одного сервера."
+
+#: plugins/punishment/actions.py
+msgid "The users punishment points have been reduced by {} points."
+msgstr "Штрафные баллы пользователя уменьшены на {} баллов."
+
+#: plugins/punishment/actions.py
+msgid "changed punishment points of user {ucid} by {points} points."
+msgstr "изменил штрафные баллы пользователя {ucid} на {points} баллов."

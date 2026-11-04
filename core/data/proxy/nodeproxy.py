@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 
+import psycopg
+
 from core.data.node import Node, UploadStatus, SortOrder
 from core.data.proxy.instanceproxy import InstanceProxy
 from core.services.registry import ServiceRegistry
@@ -12,9 +14,7 @@ from psycopg import sql
 from typing import TYPE_CHECKING, cast
 from typing_extensions import override
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from core import Instance, Server
@@ -66,7 +66,7 @@ class NodeProxy(Node):
 
     @override
     @property
-    def installation(self) -> str:
+    def installation(self) -> str | None:
         raise NotImplementedError()
 
     @override
@@ -74,7 +74,7 @@ class NodeProxy(Node):
         _locals = dict()
         config_file = os.path.join(self.config_dir, 'nodes.yaml')
         if os.path.exists(config_file):
-            node: dict = yaml.load(Path(config_file).read_text(encoding='utf-8')).get(self.name)
+            node: dict = new_yaml().load(Path(config_file).read_text(encoding='utf-8')).get(self.name)
             if not node:
                 return {}
             for name, element in node.items():
@@ -111,6 +111,15 @@ class NodeProxy(Node):
             "command": "rpc",
             "object": "Node",
             "method": "upgrade_pending"
+        }, node=self.name, timeout=timeout)
+
+    @override
+    async def upgrade_is_major(self) -> bool:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "upgrade_is_major"
         }, node=self.name, timeout=timeout)
 
     @override
@@ -219,6 +228,15 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
 
     @override
+    async def is_dcs_update_available(self) -> str | None:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "is_dcs_update_available"
+        }, node=self.name, timeout=timeout)
+
+    @override
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         _timeout = 60 if not self.slow_system else 120
         return await self.bus.send_to_node_sync({
@@ -249,15 +267,64 @@ class NodeProxy(Node):
         return file
 
     @override
-    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
+    async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
+                               behind: int | None = None) -> tuple[bytes, int, int | float]:
+        """A WINDOW of a REMOTE node's file plus its size and identity (see :meth:`Node.read_file_window`).
+
+        The same one-shot ``files`` drop-box transport :meth:`read_file` uses: the agent writes ONLY
+        the window into the row and answers with ``(row id, size, identity)``; this side reads the row,
+        deletes it and returns ``(bytes, size, identity)`` — so the caller never sees the transport. The
+        failures (an offline/unknown node, a missing file, permission denied, no answer in time) are the
+        read path's own and are raised, not swallowed.
+
+        The window's ``length`` ceiling lives on the agent (``NODE_READ_WINDOW_MAX_BYTES``, enforced by
+        ``NodeImpl.read_file_window``), so an over-long request is clamped there and the window that
+        travels back is bounded whatever this side sends.
+        """
         timeout = 60 if not self.slow_system else 120
+        result = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "read_file_window",
+            "params": {
+                "path": path,
+                "length": length,
+                "offset": offset,
+                "behind": behind
+            }
+        }, timeout=timeout, node=self.name)
+        if (not isinstance(result, (tuple, list)) or len(result) != 3
+                or not isinstance(result[0], int)):
+            # an agent that answered a failure code (an int) or anything else is not content
+            raise ValueError(f"Node '{self.name}' answered read_file_window with {result!r}.")
+        row_id, size, identity = result
+        async with self.apool.connection() as conn:
+            cursor = await conn.execute("SELECT data FROM files WHERE id = %s", (row_id,),
+                                        binary=True)
+            row = await cursor.fetchone()
+            await conn.execute("DELETE FROM files WHERE id = %s", (row_id,))
+        data = row[0] if row and row[0] is not None else b""
+        return bytes(data), int(size), identity
+
+    @override
+    async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
+        timeout = 60 if not self.slow_system else 120
+        if not target.startswith('http'):
+            async with self.apool.connection() as conn:
+                cursor = await conn.execute("""
+                    INSERT INTO files (guild_id, name, data)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                """, (self.guild_id, target, psycopg.Binary(Path(source).read_bytes())))
+                source = (await cursor.fetchone())[0]
+
         data = await self.bus.send_to_node_sync({
             "command": "rpc",
             "object": "Node",
             "method": "write_file",
             "params": {
-                "filename": filename,
-                "url": url,
+                "target": target,
+                "source": source,
                 "overwrite": overwrite
             }
         }, timeout=timeout, node=self.name)
@@ -283,6 +350,37 @@ class NodeProxy(Node):
                 "traverse": traverse
             }
         }, node=self.name, timeout=timeout)
+
+    @override
+    async def list_files(self, path: str, *, pattern: str | list[str] = '*'
+                         ) -> list[tuple[str, int, float]]:
+        """The FILES matching *pattern* on a REMOTE node, each as ``(path, size, mtime)``, NEWEST FIRST.
+
+        The remote half of :meth:`Node.list_files`: the same RPC the rest of this proxy uses,
+        answered by the agent's own :meth:`NodeImpl.list_files`. The reply is normalised to a list of
+        ``(path, size, mtime)`` triples, so a caller sees the same shape whether the node is local or
+        remote. NOT cached: a download list must reflect a just-rotated log, so the route re-enumerates
+        fresh each time it resolves an artifact.
+        """
+        timeout = 60 if not self.slow_system else 120
+        result = await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "list_files",
+            "params": {
+                "path": path,
+                "pattern": pattern
+            }
+        }, node=self.name, timeout=timeout)
+        if not isinstance(result, (list, tuple)):
+            raise ValueError(f"Node '{self.name}' answered list_files with {result!r}.")
+        entries: list[tuple[str, int, float]] = []
+        for entry in result:
+            if not isinstance(entry, (list, tuple)) or len(entry) != 3:
+                continue
+            name, size, mtime = entry
+            entries.append((str(name), int(size), float(mtime)))
+        return entries
 
     @override
     async def create_directory(self, path: str):
@@ -401,6 +499,20 @@ class NodeProxy(Node):
             "params": {
                 "server": server.name,
                 "instance": instance.name
+            }
+        }, node=self.name, timeout=timeout)
+
+    @override
+    async def bind_server(self, instance_name: str, name: str, channels: dict | None = None) -> None:
+        timeout = 60 if not self.slow_system else 120
+        await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "bind_server",
+            "params": {
+                "instance_name": instance_name,
+                "name": name,
+                "channels": channels
             }
         }, node=self.name, timeout=timeout)
 

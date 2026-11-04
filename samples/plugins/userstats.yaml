@@ -1,3 +1,4 @@
+# config/plugins/userstats.yaml
 DEFAULT:
   wipe_stats_on_leave: true # wipe user statistics if they leave your Discord server (default: true)
   squadrons:

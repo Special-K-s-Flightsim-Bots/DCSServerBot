@@ -554,3 +554,198 @@ msgstr "您想在任务开始前应用扩展吗?"
 
 msgid "Timeout while trying to load the mission."
 msgstr "尝试加载任务时超时."
+
+msgid "User {} unbanned on {}."
+msgstr "已在 {} 解封用户 {}."
+
+msgid "User {} was not banned on {}."
+msgstr "用户 {} 未在 {} 上被封禁."
+
+#: plugins/mission/actions.py
+msgid "The ban list is only available in the web console."
+msgstr "封禁列表仅在网页控制台中可用。"
+
+#: plugins/mission/actions.py
+msgid "The ban list is not available in this installation."
+msgstr "此安装中不可用封禁列表。"
+
+#: plugins/mission/actions.py
+msgid "The ban list could not be read: {}"
+msgstr "无法读取封禁列表：{}"
+
+#: plugins/mission/actions.py
+msgid "Timeout while lifting the ban."
+msgstr "解除封禁超时。"
+
+#: plugins/mission/actions.py
+msgid "Failed to lift the ban: {}"
+msgstr "解除封禁失败：{}"
+
+#: plugins/mission/actions.py
+msgid "No active ban for {} in your scope."
+msgstr "你的范围内没有 {} 的有效封禁。"
+
+#: plugins/mission/actions.py
+msgid "Ban lifted on {}."
+msgstr "已在 {} 上解除封禁。"
+
+#: plugins/mission/actions.py
+msgid "'{}' is not a valid UCID."
+msgstr "'{}' 不是有效的 UCID。"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to ban a player."
+msgstr "封禁玩家需要填写原因。"
+
+#: plugins/mission/actions.py
+msgid "The reason is longer than {} characters."
+msgstr "原因超过 {} 个字符。"
+
+#: plugins/mission/actions.py
+msgid "Server '{}' is outside your scope."
+msgstr "服务器 '{}' 不在你的范围内。"
+
+#: plugins/mission/actions.py
+msgid "Player {} banned for {} days on {}."
+msgstr "玩家 {} 已在 {} 上封禁 {} 天。"
+
+#: plugins/mission/actions.py
+msgid "Player {} banned permanently on {}."
+msgstr "玩家 {} 已在 {} 上永久封禁。"
+
+#: plugins/mission/actions.py
+msgid "Timeout while adding the ban."
+msgstr "添加封禁时超时。"
+
+#: plugins/mission/actions.py
+msgid "Failed to add the ban: {}"
+msgstr "添加封禁失败：{}"
+
+#: plugins/mission/actions.py
+msgid "The player list could not be read: {}"
+msgstr "无法读取玩家列表：{}"
+
+#: plugins/mission/actions.py
+msgid "The ban could not be identified — open it from the list."
+msgstr "无法识别该封禁——请从列表中打开。"
+
+#: plugins/mission/actions.py
+msgid "A DGSA ban cannot be edited — it can only be lifted here."
+msgstr "DGSA 封禁无法编辑——只能在此解除。"
+
+#: plugins/mission/actions.py
+msgid "Ban on {} updated."
+msgstr "已更新对 {} 的封禁。"
+
+#: plugins/mission/actions.py
+msgid "Timeout while editing the ban."
+msgstr "编辑封禁时超时。"
+
+#: plugins/mission/actions.py
+msgid "Failed to edit the ban: {}"
+msgstr "编辑封禁失败：{}"
+
+#: plugins/mission/actions.py
+msgid ""
+"Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it "
+"empty for a permanent ban."
+msgstr "到期时间必须是 UTC 的日期/时间，例如 YYYY-MM-DD HH:MM:SS — 永久封禁请留空。"
+
+#: plugins/mission/actions.py
+msgid "Expires must be in the future — a past date would lift the ban. Leave it "
+"empty for a permanent ban."
+msgstr "到期时间必须在未来 — 过去的日期会解除封禁。永久封禁请留空。"
+
+#: plugins/mission/views.py
+msgid "No preset was picked, so nothing was applied."
+msgstr "未选择任何预设，因此未应用任何内容。"
+
+#: plugins/mission/views.py
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "所选预设之一指向了此节点已不再包含的文件。"
+
+#: plugins/mission/views.py
+msgid "One of the picked presets is not in its file any more."
+msgstr "所选预设之一已不在其文件中。"
+
+#: plugins/mission/views.py
+msgid "The picked presets could not be applied."
+msgstr "无法应用所选预设。"
+
+#: plugins/mission/views.py
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "未执行：已选择预设，但本次启动不运行扩展，因此没有东西会应用该预设。请运行扩展或清除预设选择。"
+
+#: plugins/mission/views.py
+msgid "There are no presets to choose from."
+msgstr "没有可选的预设。"
+
+#: plugins/mission/views.py
+msgid "Select the preset(s) you want to apply"
+msgstr "选择要应用的预设"
+
+#: plugins/mission/views.py
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "您选择了 {count} 个预设，但一次最多只能应用 {limit} 个。未应用任何内容。"
+
+#: plugins/mission/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "可供选择的预设文件（默认：所有文件）"
+
+#: plugins/mission/views.py
+msgid "Cancelled — nothing was applied."
+msgstr "已取消 — 未应用任何内容。"
+
+#: plugins/mission/views.py
+msgid "The pick timed out, so nothing was applied."
+msgstr "选择已超时，因此未应用任何内容。"
+
+#: plugins/mission/actions.py
+msgid "A UCID is required."
+msgstr "需要 UCID。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "No watch entry for {} in your scope."
+msgstr "你的范围内没有 {} 的观察记录。"
+
+#: plugins/mission/actions.py
+msgid "An empty reason is not an edit — remove the watch entry instead."
+msgstr "原因为空不算编辑 — 请改为删除观察记录。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason is longer than {} characters."
+msgstr "观察原因超过 {} 个字符。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Watch entry for {} removed."
+msgstr "已删除 {} 的观察记录。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watch reason for {} was updated."
+msgstr "已更新 {} 的观察原因。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "The watchlist could not be written: {}"
+msgstr "无法写入观察名单：{}"
+
+#: plugins/mission/views.py
+msgid "Edit the watch reason"
+msgstr "编辑观察原因"
+
+#: plugins/mission/commands.py
+msgid "Edits the reason of a watchlist entry"
+msgstr "编辑观察名单记录的原因"
+
+#: plugins/mission/actions.py
+msgid "A reason is required to put a player on the watchlist."
+msgstr "将玩家加入观察名单需要原因。"
+
+#: plugins/mission/actions.py
+#, python-brace-format
+msgid "Player {} is not one of your players."
+msgstr "玩家 {} 不属于你的玩家。"

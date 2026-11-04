@@ -1,0 +1,15 @@
+Flag and globe SVG assets for the console's language control.
+
+  globe.svg  — Feather Icons (https://github.com/feathericons/feather), MIT licence.
+               MODIFIED: the vendored Feather globe used stroke="currentColor", which resolves to
+               BLACK inside an <img> (currentColor has nothing to inherit there). It now carries
+               EXPLICIT colours — a pale disc (#dbe4ee) and dark slate lines (#334155) — so it is
+               legible on both a light and the console's dark (#0b0f14) background. Geometry is
+               otherwise the Feather globe unchanged.
+  de.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+  es.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+  ru.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+  cn.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+
+Add a language by dropping its SVG here and naming it in LANGUAGE_FLAGS
+(services/webservice/i18n.py); a language without an asset falls back to the globe.

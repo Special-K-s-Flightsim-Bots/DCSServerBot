@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,12 +11,21 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
     upload:
       type: map
       nullable: false
+      desc: Where downloaded Tacview files are uploaded to.
+      example: |
+        channel: 1122334455667788
       mapping:
-        channel: {type: int, nullable: false, range: {min: -1}}
+        channel:
+          type: int
+          nullable: false
+          range: {min: -1}
+          desc: Discord channel ID for uploads; -1 sends the file via DM.
+          example: "1122334455667788"
 
 type: map
 func: check_main_structure

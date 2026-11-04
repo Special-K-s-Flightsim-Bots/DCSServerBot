@@ -423,3 +423,11 @@ msgstr "任务"
 
 msgid "in {}"
 msgstr "{} 后"
+
+#: plugins/scheduler/commands.py
+msgid "Pick weather presets for this launch"
+msgstr "为此启动选择天气预设"
+
+#: plugins/scheduler/commands.py
+msgid "Presets file to pick from (default: all files)"
+msgstr "可供选择的预设文件（默认：所有文件）"

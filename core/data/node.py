@@ -7,16 +7,15 @@ import os
 from abc import ABC, abstractmethod
 from core import utils
 from core.translations import get_translation
+from core.utils.db_setup import rebuild_url
 from core.utils.helper import YAMLError
 from enum import Enum, auto
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse, unquote
 
-# ruamel YAML support
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 if TYPE_CHECKING:
     from core import Server, Instance
@@ -26,11 +25,21 @@ __all__ = [
     "UploadStatus",
     "SortOrder",
     "InstallationException",
-    "FatalException"
+    "FatalException",
+    "UPDATE_STOOD_BY",
+    "UPDATE_SERVERS_UP"
 ]
 
 
 _ = get_translation('core')
+
+#: :meth:`Node.dcs_update` return codes for "the installer was never started". They are negative because no
+#: updater exit code is, so a real updater result can never be mistaken for one of them.
+#:
+#: the shared installation is being updated by another cluster, which powered its servers off; this node stood by.
+UPDATE_STOOD_BY = -2
+#: servers were still running on the shared installation when the window opened, so the installer was refused.
+UPDATE_SERVERS_UP = -3
 
 
 class UploadStatus(Enum):
@@ -98,20 +107,20 @@ class Node(ABC):
 
     @property
     @abstractmethod
-    def installation(self) -> str:
+    def installation(self) -> str | None:
         raise NotImplementedError()
 
     @property
     def proxy(self) -> str | None:
         if 'proxy' not in self.locals:
-            config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            config = new_yaml().load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             self.locals['proxy'] = config.get('proxy', {}).get('url')
         return self.locals['proxy']
 
     @property
     def proxy_auth(self) -> aiohttp.BasicAuth | None:
         if 'proxy_auth' not in self.locals:
-            config = yaml.load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            config = new_yaml().load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
             username = config.get('proxy', {}).get('username')
             try:
                 password = utils.get_password('proxy', self.config_dir)
@@ -127,7 +136,7 @@ class Node(ABC):
     def read_config(self, file: str) -> dict:
         try:
             # we need to read first, otherwise we would not know the validation settings
-            config = yaml.load(Path(file).read_text(encoding='utf-8'))
+            config = new_yaml().load(Path(file).read_text(encoding='utf-8'))
             validation = config.get('validation', 'lazy')
             if validation in ['strict', 'lazy']:
                 utils.validate(file, ['schemas/main_schema.yaml'], raise_exception=(validation == 'strict'))
@@ -139,10 +148,10 @@ class Node(ABC):
                 if url.password != 'SECRET':
                     utils.set_password('clusterdb', unquote(url.password), self.config_dir)
                     port = url.port or 5432
-                    config['database']['url'] = \
-                        f"{url.scheme}://{url.username}:SECRET@{url.hostname}:{port}{url.path}?sslmode=prefer"
+                    config['database']['url'] = rebuild_url(
+                        url, host=url.hostname, port=port, password='SECRET')
                     with open(file, 'w', encoding='utf-8') as f:
-                        yaml.dump(config, f)
+                        new_yaml().dump(config, f)
                     self.log.info("Database password found, removing it from config.")
 
             # set defaults
@@ -176,12 +185,32 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def upgrade_is_major(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
     async def upgrade(self):
         raise NotImplementedError()
 
     @abstractmethod
     async def dcs_update(self, branch: str | None = None, version: str | None = None,
                          warn_times: list[int] = None, announce: bool | None = True):
+        """Update DCS World on this node and return the updater's exit code.
+
+        ``0`` means the installer ran and reported success. An installation that is shared between clusters is
+        updated under a window, and the installer is NOT started when the window could not be taken
+        (:data:`UPDATE_STOOD_BY`) or when servers were still running on it (:data:`UPDATE_SERVERS_UP`) — a caller
+        that reads those as success announces an update that never happened.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def is_dcs_update_available(self) -> str | None:
+        """The newer version string when the installed DCS branch has one, otherwise ``None``.
+
+        An unreachable or failing ED endpoint is answered with ``None``, never an exception: the caller
+        reports "no update" rather than propagating a publisher outage.
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -222,7 +251,40 @@ class Node(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def write_file(self, filename: str, url: str, overwrite: bool = False) -> UploadStatus:
+    async def read_file_window(self, path: str, *, length: int, offset: int | None = None,
+                               behind: int | None = None) -> tuple[bytes, int, int | float] | tuple[int, int, int | float]:
+        """A WINDOW of a file — never the whole file — plus its size and IDENTITY at read time.
+
+        A read-only, WINDOWED sibling of :meth:`read_file`, for files too large to move whole (a
+        running server's ``dcs.log``). Exactly one of ``offset`` / ``behind`` names the window:
+
+        * ``offset`` — the bytes AT ``offset``, up to ``length`` of them; the way a FOLLOWER
+          continues from where it last stopped;
+        * ``behind`` — the bytes ENDING just before ``behind``, up to ``length`` of them; the way a
+          reader PAGES BACK through a file it cannot move whole.
+
+        It returns ``(window, size, identity)``:
+
+        * ``size`` — the file's size AT READ TIME: the reader needs it to notice a truncated/rotated
+          file (``size < offset`` means a NEW log) and to page correctly;
+        * ``identity`` — a value that does NOT change when the file is APPENDED to but DOES change
+          when it is REPLACED (``st_ctime`` where that is a creation time, e.g. Windows; the inode on
+          POSIX, where ``st_ctime`` is an inode-change time). It is what lets a follower see a
+          rotation even when the replacement file is ALREADY BIGGER than the offset it holds.
+
+        An ``offset`` at or past the end yields an EMPTY window; a window longer than the file yields
+        the file; ``length`` is CLAMPED to the primitive's own ceiling (``NODE_READ_WINDOW_MAX_BYTES``
+        in ``nodeimpl``), so the window can never become a whole-file transfer. A missing file raises
+        ``FileNotFoundError`` and an unreadable one ``PermissionError`` — the same failures the
+        whole-file read already has, and no new ones.
+
+        The whole-file :meth:`read_file`, its callers and the mission transfer path are UNTOUCHED: a
+        caller that does not ask for a window gets exactly today's behaviour.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def write_file(self, target: str, source: str | int, overwrite: bool = False) -> UploadStatus:
         raise NotImplementedError()
 
     @abstractmethod
@@ -230,6 +292,23 @@ class Node(ABC):
                              order: SortOrder = SortOrder.DATE,
                              is_dir: bool = False, ignore: list[str] = None, traverse: bool = False
                              ) -> tuple[str, list[str]]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def list_files(self, path: str, *, pattern: str | list[str] = '*'
+                         ) -> list[tuple[str, int, float]]:
+        """The FILES matching *pattern* in *path*, each as ``(path, size, mtime)``, NEWEST FIRST.
+
+        A read-only sibling of :meth:`list_directory`, adding the two facts a download list needs and
+        ``list_directory`` does not carry: each file's SIZE in bytes and its MODIFICATION TIME (a Unix
+        epoch second). The result is ordered by ``mtime`` DESCENDING — the newest file first — so an
+        operator choosing between several logs sees which one is which without a second call.
+
+        The paths are ABSOLUTE, resolved on the node that answers (exactly as :meth:`list_directory`
+        does), so a caller never builds a path from request data: it enumerates, and selects an entry
+        by the identity the enumeration itself produced. A directory that does not exist yields the
+        empty list (there are simply no files), never an error.
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -266,6 +345,10 @@ class Node(ABC):
 
     @abstractmethod
     async def migrate_server(self, server: Server, instance: Instance) -> None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def bind_server(self, instance_name: str, name: str, channels: dict | None = None) -> None:
         raise NotImplementedError()
 
     @abstractmethod

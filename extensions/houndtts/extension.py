@@ -133,7 +133,7 @@ class HoundTTS(InstallableExtension):
 
     @override
     def is_installed(self) -> bool:
-        return os.path.exists(self.home)
+        return os.path.exists(os.path.join(self.home, 'bin', 'HoundTTS.dll'))
 
     @override
     @property

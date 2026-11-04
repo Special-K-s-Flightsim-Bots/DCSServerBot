@@ -1,11 +1,11 @@
 # UPS Service
-If your server is battery backed, this service handles the graceful shutdown of your DCS servers and your PC in case of
+If your server is battery-backed, this service handles the graceful shutdown of your DCS servers and your PC in case of
 a power failure.
 
 ## Configuration
-The configuration file for this service has to be placed into config\services\upsservice.yaml:
+The configuration file for this service has to be placed into config\services\ups.yaml:
 ```yaml
-# config/services/upsservice.yaml
+# config/services/ups.yaml
 DEFAULT:
   device: nutdev1       # UPS device name
   host: 192.168.178.123 # UPS host (the host running the NUT server)

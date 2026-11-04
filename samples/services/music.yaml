@@ -1,3 +1,4 @@
+# config/services/music.yaml
 DEFAULT:
   music_dir: G:\My Drive\Music    # Directory where your music is (or where it is uploaded). For clusters, it should be a cloud drive like here.
   popup: Now playing {song} on {frequency}{modulation}  # optional - popup message when a song starts to play

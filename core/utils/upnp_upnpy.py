@@ -37,7 +37,7 @@ class _UPnpyBackend:
                 device_type = device.device_type or ""
             except Exception:
                 device_type = ""
-            
+
             if "InternetGatewayDevice" not in device_type:
                 continue
             try:

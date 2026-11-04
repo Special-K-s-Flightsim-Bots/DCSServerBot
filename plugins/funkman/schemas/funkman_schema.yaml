@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,30 +11,109 @@ schema;default_schema:
   type: map
   nullable: false
   mapping:
-    install: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
-    CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
-    CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
-    CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
-    IMAGEPATH: {type: str, required: true, nullable: false, range: {min: 1}, func: dir_exists}
-    strafe_board: {type: bool, nullable: false}
-    strafe_channel: {type: int, nullable: false}
-    bomb_board: {type: bool, nullable: false}
-    bomb_channel: {type: int, nullable: false}
-    message_autodelete: {type: int, nullable: false}
+    install:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Path to your FunkMan installation directory.
+      example: "../FunkMan"
+    CHANNELID_MAIN:  # TODO: change this to int some day
+      type: text
+      nullable: false
+      desc: Discord channel for the main FunkMan output.
+      example: "1122334455667788"
+    CHANNELID_RANGE:  # s.s.
+      type: text
+      nullable: false
+      desc: Discord channel for strafing and bombing range sheets.
+      example: "8877665544332211"
+    CHANNELID_AIRBOSS:  # s.s.
+      type: text
+      nullable: false
+      desc: Discord channel for LSO trap sheets.
+      example: "1188227733664455"
+    IMAGEPATH:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Directory holding the generated range and trap images.
+      example: "../FunkMan/funkpics/"
+    strafe_board:
+      type: bool
+      nullable: false
+      desc: Show a persistent strafing range board in a channel.
+      example: "true"
+    strafe_channel:
+      type: int
+      nullable: false
+      desc: Discord channel that shows the strafing board.
+      example: "1122334455667788"
+    bomb_board:
+      type: bool
+      nullable: false
+      desc: Show a persistent bombing range board in a channel.
+      example: "true"
+    bomb_channel:
+      type: int
+      nullable: false
+      desc: Discord channel that shows the bombing board.
+      example: "8877665544332211"
+    message_autodelete:
+      type: int
+      nullable: false
+      desc: Delete range or trap sheets after this many seconds.
+      example: "300"
 
 schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    CHANNELID_MAIN: {type: text, nullable: false}    # TODO: change this to int some day
-    CHANNELID_RANGE: {type: text, nullable: false}   # s.s.
-    CHANNELID_AIRBOSS: {type: text, nullable: false} # s.s.
-    strafe_board: {type: bool, nullable: false}
-    strafe_channel: {type: int, nullable: false}
-    bomb_board: {type: bool, nullable: false}
-    bomb_channel: {type: int, nullable: false}
-    message_autodelete: {type: int, nullable: false}
+    CHANNELID_MAIN:  # TODO: change this to int some day
+      type: text
+      nullable: false
+      desc: Discord channel for the main FunkMan output.
+      example: "1122334455667788"
+    CHANNELID_RANGE:  # s.s.
+      type: text
+      nullable: false
+      desc: Discord channel for strafing and bombing range sheets.
+      example: "8877665544332211"
+    CHANNELID_AIRBOSS:  # s.s.
+      type: text
+      nullable: false
+      desc: Discord channel for LSO trap sheets.
+      example: "1188227733664455"
+    strafe_board:
+      type: bool
+      nullable: false
+      desc: Show a persistent strafing range board in a channel.
+      example: "true"
+    strafe_channel:
+      type: int
+      nullable: false
+      desc: Discord channel that shows the strafing board.
+      example: "1122334455667788"
+    bomb_board:
+      type: bool
+      nullable: false
+      desc: Show a persistent bombing range board in a channel.
+      example: "true"
+    bomb_channel:
+      type: int
+      nullable: false
+      desc: Discord channel that shows the bombing board.
+      example: "8877665544332211"
+    message_autodelete:
+      type: int
+      nullable: false
+      desc: Delete range or trap sheets after this many seconds.
+      example: "300"
 
 type: map
 func: check_main_structure

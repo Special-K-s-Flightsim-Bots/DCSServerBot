@@ -1,11 +1,19 @@
 @echo off
-SET VENV=%USERPROFILE%\.dcssb
+REM Resolve the node name first: the environment is per node, so every launcher must agree on it.
+SET "node_name=%computername%"
+
+:parse_args
+if "%~1"=="-n" SET "node_name=%~2"
+SHIFT
+if NOT "%~1"=="" goto parse_args
+
+SET VENV=%USERPROFILE%\.dcssb-%node_name%
 echo Cleaning up the virtual environment ...
 rmdir /s /q %VENV% >NUL 2>&1
 if exist %VENV% (
     echo **************************************************
     echo WARNING: Could not delete the virtual environment.
-    echo Please manually delete the .dcssb directory.
+    echo Please manually delete the environment directory:
     echo Directory Path: %VENV%
     echo **************************************************
 ) else (

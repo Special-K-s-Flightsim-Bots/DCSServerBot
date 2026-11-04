@@ -68,9 +68,10 @@ Per default, files will be uploaded to {instance.home}\Missions\Scripts, but it 
 gamemaster.yaml like so:
 ```yaml
 # config\plugins\gamemaster.yaml
+DEFAULT:
   uploads:          # Configure how Lua uploads are handled
     enabled: true   # Here you can completely disable the feature (default: true = enabled)
-    script_dir: {server.missions_dir}/Missions/Scripts  # Default, can be changed to any directory the bot has write access to
+    script_dir: '{server.missions_dir}/Missions/Scripts'  # Default, can be changed to any directory the bot has write access to
     discord:
       - DCS Admin   # Define which roles are allowed to upload missions (default: DCS Admin)
 ```

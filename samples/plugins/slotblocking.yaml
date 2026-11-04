@@ -1,13 +1,14 @@
+# config/plugins/slotblocking.yaml
 DEFAULT:            # Default section - true for all your servers.
   VIP:              # define a VIP group
-    audit: true     # you want to be informed, if someone of that group enters your server
+    audit: true     # you want to be informed if someone of that group enters your server
     discord:        # you can define VIPs by a specific discord role
       - Admin
       - DCS Admin
-    ucid:           # and a list of UCIDs (can be a single one also)
+    ucid:           # and a list of UCIDs (can be single also)
       - aabbccddeeffgghh
       - 11aa22bb33dd44ee
-    slots: 2        # Optional: These number of slots are locked for VIPs only
+    slots: 2        # Optional: These numbers of slots are locked for VIPs only
     message_server_full: The server is full, please try again later!  # default message, if the server is considered full
   restricted:       # These slots are restricted in any way. Here we restrict CA slots for Donators or members or the Discord.
   - unit_type: artillery_commander
@@ -23,10 +24,10 @@ DEFAULT:            # Default section - true for all your servers.
     side: 2               # side 1 = red, 2 = blue, not given - both sides
     discord: '@everyone'  # Only the "everyone" role needs the @ at the beginning, all other roles don't.
     message: This slot is reserved for members of https://invite.link!
-  balancing:                  # Optional: Allows balancing for your server (blue vs red)
-    blue_vs_red: 0.5          # 50% balance blue vs red
+  balancing:                  # Optional: Allows balancing for your server (blue vs. red)
+    blue_vs_red: 0.5          # 50% balance blue vs. red
     threshold: 0.1            # 10% threshold until slots are blocked
-    activation_threshold: 10  # do not balance, if the number of players is below this threshold
+    activation_threshold: 10  # do not balance if the number of players is below this threshold
     message: You need to take a slot of the opposite coalition to keep the balance!
 DCS.dcs_serverrelease:
   restricted:             # in this example we restrict by credit points
@@ -39,4 +40,4 @@ DCS.dcs_serverrelease:
   - group_name: Ace
     points: 50
     costs: 30
-  payback: true         # payback the plane costs on proper landings, otherwise charge by usage
+  payback: true         # pay back the plane costs on proper landings, otherwise charge by usage

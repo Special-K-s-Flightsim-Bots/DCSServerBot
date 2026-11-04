@@ -1,23 +1,21 @@
 import os
 
 from services.bot.dummy import DummyRole, DummyMember
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 class DummyGuild:
     def __init__(self):
         with open(os.path.join('config', 'services', 'bot.yaml'), mode='r', encoding='utf-8') as f:
-            main = yaml.load(f)
+            main = new_yaml().load(f)
         self._id = main.get('guild_id', 1)
         self._name = main.get('guild_name', 'n/a')
         with open(os.path.join('config', 'services', 'bot.yaml'), mode='r', encoding='utf-8') as f:
-            data = yaml.load(f)
+            data = new_yaml().load(f)
         self._roles: dict[int, DummyRole] = {}
-        self._members: dict[str, DummyMember] = {}
+        self._members: dict[str | int, DummyMember] = {}
         for role, members in data.get('roles', {}).items():
             _role = DummyRole(role)
             for member in members:
@@ -43,13 +41,19 @@ class DummyGuild:
     def members(self) -> list[DummyMember]:
         return list(self._members.values())
 
-    def get_member(self, ucid: str) -> DummyMember | None:
-        return self._members.get(ucid)
+    def get_member(self, user_id: str | int) -> DummyMember | None:
+        return self._members.get(user_id) or self._members.get(str(user_id))
 
-    async def fetch_member(self, ucid: str) -> DummyMember | None:
-        return self.get_member(ucid)
+    async def fetch_member(self, user_id: str | int) -> DummyMember | None:
+        return self.get_member(user_id)
 
-    async def bans(self) -> AsyncIterator[DummyMember | None]:
+    async def bans(self, *, limit: int | None = None, before: Any = None,
+                   after: Any = None) -> AsyncIterator[Any]:
+        """Yield no bans: this guild stands in for an install without Discord.
+
+        The keyword-only signature is discord.py's, so a caller that pages the ban list finds
+        an empty one instead of a TypeError.
+        """
         # noinspection PyUnreachableCode
         if False:
             yield

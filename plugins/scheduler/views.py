@@ -4,6 +4,8 @@ import luadata
 import os
 
 from core import Server, utils
+from core.data.impl.serverimpl import RenameError
+from core.server_config import CHANNELS_ITEM, MANAGER_DENIED
 from discord import ButtonStyle, ChannelType
 from discord.ui import Button, ChannelSelect
 from io import BytesIO
@@ -11,9 +13,7 @@ from pathlib import Path
 from services.bot import DCSServerBot
 from typing import cast
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 class ServerModal(discord.ui.Modal):
@@ -23,7 +23,7 @@ class ServerModal(discord.ui.Modal):
 
 
 class MainModal(ServerModal):
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, *, admin: bool) -> None:
         super().__init__(title="Main Config", config=config)
         server_name = self.config.get('name')
         if server_name == 'n/a':
@@ -60,16 +60,21 @@ class MainModal(ServerModal):
             )
         )
         self.add_item(self.password)
-        self.port = discord.ui.Label(
-            text="Server Port",
-            component=discord.ui.TextInput(
-                default=self.config.get('port', '10308'),
-                style=discord.TextStyle.short,
-                max_length=5,
-                required=True
+        # The port is Admin-only: discord.py's TextInput takes no ``disabled``, so a non-Admin is
+        # locked out by NOT being offered the field at all. ``on_submit`` leaves ``config['port']``
+        # untouched when the field is absent.
+        self.port = None
+        if admin:
+            self.port = discord.ui.Label(
+                text="Server Port",
+                component=discord.ui.TextInput(
+                    default=self.config.get('port', '10308'),
+                    style=discord.TextStyle.short,
+                    max_length=5,
+                    required=True
+                )
             )
-        )
-        self.add_item(self.port)
+            self.add_item(self.port)
         self.max_players = discord.ui.Label(
             text="Maximum number of players",
             component=discord.ui.TextInput(
@@ -87,7 +92,8 @@ class MainModal(ServerModal):
         self.config['name'] = self.name.component.value
         self.config['description'] = self.description.component.value
         self.config['password'] = self.password.component.value
-        self.config['port'] = int(self.port.component.value)
+        if self.port is not None:
+            self.config['port'] = int(self.port.component.value)
         self.config['maxPlayers'] = int(self.max_players.component.value)
 
 
@@ -302,17 +308,40 @@ class UploadModal(discord.ui.Modal):
                         self.config[key] = value
 
 
+def _as_port(value):
+    """``value`` as an int when it denotes a whole number, else ``value`` unchanged.
+
+    An uploaded ``serverSettings.lua`` can carry the port as an int, a float or a numeric string;
+    the comparison must be on the number, not its type. A non-numeric or fractional value is
+    returned unchanged, so it still counts as a change (fail-closed) and never raises.
+    """
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return value
+    if isinstance(value, float) and number != value:
+        return value
+    return number
+
+
 class ServerConfigView(discord.ui.View):
-    def __init__(self, bot: DCSServerBot, server: Server):
+    def __init__(self, bot: DCSServerBot, server: Server, *, admin: bool):
         super().__init__()
         self.bot = bot
         self.server = server
+        self.admin = admin
         self.config = server.settings.copy()
         self.cancelled = False
         self.channel_update = False
         if self.bot.locals.get('channels', {}).get('admin'):
             # noinspection PyUnresolvedReferences
             self.children[0].disabled = True
+        if not admin:
+            # The three channel selects are Admin-only. Discord delivers no interaction for a
+            # disabled select; the callbacks refuse a change that still arrives.
+            for i in range(3):
+                # noinspection PyUnresolvedReferences
+                self.children[i].disabled = True
         # noinspection PyUnresolvedReferences
         self.children[8].disabled = True
         self.toggle_config()
@@ -371,6 +400,9 @@ class ServerConfigView(discord.ui.View):
     async def admin_channel(self, interaction: discord.Interaction,
                             select: ChannelSelect[discord.TextChannel]) -> None:
         await interaction.response.defer()
+        if not self.admin:
+            await interaction.followup.send(MANAGER_DENIED[CHANNELS_ITEM], ephemeral=True)
+            return
         if 'channels' not in self.server.locals:
             self.server.locals['channels'] = {}
         self.server.locals['channels']['admin'] = select.values[0].id
@@ -387,6 +419,9 @@ class ServerConfigView(discord.ui.View):
     async def status_channel(self, interaction: discord.Interaction,
                              select: ChannelSelect[discord.TextChannel]) -> None:
         await interaction.response.defer()
+        if not self.admin:
+            await interaction.followup.send(MANAGER_DENIED[CHANNELS_ITEM], ephemeral=True)
+            return
         if 'channels' not in self.server.locals:
             self.server.locals['channels'] = {}
         self.server.locals['channels']['status'] = select.values[0].id
@@ -402,6 +437,9 @@ class ServerConfigView(discord.ui.View):
     )
     async def chat_channel(self, interaction: discord.Interaction, select: ChannelSelect[discord.TextChannel]) -> None:
         await interaction.response.defer()
+        if not self.admin:
+            await interaction.followup.send(MANAGER_DENIED[CHANNELS_ITEM], ephemeral=True)
+            return
         if 'channels' not in self.server.locals:
             self.server.locals['channels'] = {}
         self.server.locals['channels']['chat'] = select.values[0].id
@@ -409,7 +447,7 @@ class ServerConfigView(discord.ui.View):
 
     @discord.ui.button(label='Setup I', style=ButtonStyle.primary, row=3)
     async def on_main(self, interaction: discord.Interaction, _: Button):
-        modal = MainModal(self.config)
+        modal = MainModal(self.config, admin=self.admin)
         await interaction.response.send_modal(modal)
         await modal.wait()
         if self.server.name == 'n/a' and self.config['name'] != 'n/a':
@@ -442,11 +480,27 @@ class ServerConfigView(discord.ui.View):
     @discord.ui.button(label='Save', style=ButtonStyle.green, emoji='💾', row=4)
     async def on_save(self, interaction: discord.Interaction, _: Button):
         await interaction.response.defer()
+        submitted_port = self.config.get('port')
+        if (submitted_port is not None and not self.admin
+                and _as_port(submitted_port) != _as_port(self.server.settings.get('port'))):
+            # The port is Admin-only: a change that still arrives is refused as a WHOLE (the way
+            # ``manager_denial`` refuses the write for the actions), nothing is written, and the view
+            # stays open. The sentence is the declaration's own.
+            await interaction.followup.send(MANAGER_DENIED['port'], ephemeral=True)
+            return
         bot = cast(DCSServerBot, interaction.client)
         old_name = self.server.name
         new_name = self.config['name']
         if old_name != new_name:
-            await self.server.rename(new_name=new_name, update_settings=True)
+            try:
+                await self.server.rename(new_name=new_name, update_settings=True)
+            except RenameError as ex:
+                # A refused rename (a collision, or a reserved / empty name) is the user's to act on:
+                # answer with the refusal's own sentence rather than let it escape as a generic
+                # interaction failure. Nothing is written, and the view stays open so the name can be
+                # corrected and Save pressed again.
+                await interaction.followup.send(str(ex), ephemeral=True)
+                return
             bot.servers[new_name] = self.server
             if old_name in bot.servers:
                 del bot.servers[old_name]
@@ -455,10 +509,10 @@ class ServerConfigView(discord.ui.View):
         # make sure we change any existing overwriting in the servers.yaml file
         if self.server.locals.get('serverSettings'):
             config = os.path.join(bot.node.config_dir, 'servers.yaml')
-            data = yaml.load(Path(config).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
             utils.update_in_place(data[self.server.name].get('serverSettings', {}), self.server.settings)
             with Path(config).open('w', encoding='utf-8') as f:
-                yaml.dump(data, f)
+                new_yaml().dump(data, f)
             await self.server.reload()
         self.stop()
 

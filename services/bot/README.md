@@ -12,12 +12,13 @@ requirements:
 token: SECRET DISCORD TOKEN COMES HERE          # Your TOKEN, as received from the discord developer portal.
 owner: 1122334455667788                         # The ID of your bot user. Right click, select "Copy User ID".
 command_prefix: .                               # Optional: only used for the commands plugin       
-automatch: true                                 # Use the bots auto-matching functionality (see below), default is false.
-autoban: false                                  # Use the bots auto-ban functionality (see below), default is false.
+proxy:                                          # Optional: proxy server for people that cannot reach Discord without a proxy
+  url: 'https://myfancyproxy:8080'              #   If a node-wide proxy is already specified in nodes.yaml, you can omit it here.
+  username: admin
+  password: secret
 autorole:                                       # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
-  on_join: Member                               # Give anyone the "Member" role, if they join your Discord.
-  linked: DCS                                   # Give people that get linked the DCS role.
-  online: Online                                # Give people that are online on any of your servers the "Online" role.
+  linked: DCS                                   #   Give people that get linked the DCS role.
+  online: Online                                #   Give people that are online on any of your servers the "Online" role.
 no_dcs_autoban: false                           # If true, people banned on your Discord will not be banned on your servers (default: false)
 message_ban: User has been banned on Discord.   # Default reason to show people that try to join your DCS servers when they are banned on Discord.
 message_autodelete: 300                         # Most of the Discord messages are private messages. If not, this is the timeout after that they vanish. Default is 300 (5 mins). 
@@ -41,6 +42,29 @@ roles:                                          # Roles mapping. The bot uses in
   - @everyone
 ```
 
+If you have "Server Members Intent" enabled in your Discord Developer Portal (and you have less than 10.000 users),
+you can enable these settings also:
+```yaml
+# config/services/bot.yaml
+privileged_intents: true                  # Use privileged intents (see below). Default: true
+automatch: false                          # Optional: Use the bots auto-matching functionality (see below), default is false.
+autoban: false                            # Use the bots auto-ban functionality (see below), default is false.
+autorole:                                 # Automatically give roles to people, depending on conditions (see below). The roles need to be set up in your Discord server.
+  on_join: Member                         #   Give anyone the "Member" role if they join your Discord.
+greeting_dm: {name}, welcome to {guild}!  # Send a welcome DM to a new user. 
+```
+
+If you have this intent disabled, the bot reads membership changes (especially role changes) via the Discord audit log.
+You need to enable the "View Audit Log" permission for your bot. 
+Also, you can configure how often the audit log is polled:
+
+```yaml
+# config/services/bot.yaml
+privileged_intents: false # Do not use privileged intents
+audit_log:
+  poll_interval: 30       # 30 seconds, by default. Minimum: 15s. 
+```
+
 > [!CAUTION]
 > Never ever share your Discord TOKEN with anyone. If you plan to check in your configuration to GitHub, don't do that
 > for the Discord TOKEN. GitHub will automatically revoke it from Discord for security reasons.
@@ -49,6 +73,40 @@ roles:                                          # Roles mapping. The bot uses in
 > The bot will remove the Discord token on the first startup from your bot.yaml.<br>
 > If you want to replace the token later, re-add the line into your bot.yaml and DCSServerBot will replace the 
 > internal token with this one.
+
+## Privileged Intents
+Discord allows you to elevate the permissions of your Discord bots, if your Discord server has less than 10.000 users.
+If you enable `privileged_intents` in your bot.yaml (defaul: true = enabled), your need to enable the following
+privileged intents in your [Discord developer portal](https://discord.com/developers/applications):
+
+| Intent                 | Why enable it?                                                                                      |
+|------------------------|-----------------------------------------------------------------------------------------------------|
+| Server Members Intent  | Allows you to detect role changes of your members to auto-upload changed roles to your DCS servers. | 
+| Message Content Intent | Allows you to upload missions to your admin channels.                                               |
+
+> [!NOTE]
+> It was neither my decision to add this limitation to Discord nor do I like it.
+> I've also tried to convince Discord that there is no other option to achieve what we are doing here, 
+> but they just don't care. So I fear we have to live with it.
+
+### What will no longer work if I have more than 10.000 users?
+Besides the parameters listed above, these features will no longer be available in your bot.
+Most of them are cosmetic and not a great deal or there are other options.
+
+| Plugin     | Functionality          | Description                                                                                               |
+|------------|------------------------|-----------------------------------------------------------------------------------------------------------|
+| admin      | `greeting_dm`          | We can not greet new people with a DM.                                                                    |
+| admin      | `autorole_on_join`     | We can not give people a role on join. Use Discord's onboarding feature.                                  |
+| cloud      | auto-link on join      | People can not be auto-linked on Discord join, but will be auto-linked on their first DCS join.           |
+| discord    | `on_join` / `on_leave` | We do not get information about joined or left players, so this is inop.                                  |
+| gamemaster | chat replies           | You can no longer reply to the in-game chat by just chatting in the chat-replicatioon channel in Discord. |
+| userstats  | `wipe_stats_on_leave`  | We can not auto-delete statistics of players that left the Discord. Use `/prune` instead.                 |
+
+> [!IMPORTANT]
+> Please keep in mind that all file uploads to DCSServerBot can not happen to the configured admin channel(s) anymore.
+> If you have disabled privileged intents, you need to either
+> - upload into the bot's DM channel
+> - @mention the bot when uploading a file into the admin channel
 
 ## Non-Discord Installations
 DCSServerBot is made for Discord and I highly recommend using it with that. Nevertheless, there are people that do not

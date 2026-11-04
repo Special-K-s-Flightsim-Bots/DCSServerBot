@@ -1,3 +1,4 @@
+# config/nodes.yaml
 Legion: # this will usually be your hostname
   listen_port: 10042            # On which port should the bot listen? Default is 10042
   listen_address: 127.0.0.1     # Optional: On which interface should the bot listen? Default is 127.0.0.1 (localhost only).

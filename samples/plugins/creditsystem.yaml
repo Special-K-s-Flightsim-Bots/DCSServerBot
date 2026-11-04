@@ -1,13 +1,4 @@
-##############################################################
-# Configuration for the Creditsystem-plugin.                 #
-##############################################################
-# The Creditsystem allows you to credit for kills or other   #
-# events like carrier landings. You can use it with a custom #
-# lua command in your own missions also.                     #
-# Some other plugins can work with these credits, like for   #
-# instance the SlotBlocking-plugin, that can block slots by  #
-# credits.                                                   #
-##############################################################
+# config/plugins/creditsystem.yaml
 DEFAULT: # valid for all servers
   initial_points: 10  # The initial points a player gets (default = 0).
   max_points: 100     # The maximum points a player can get (default = unlimited).
@@ -37,10 +28,10 @@ DEFAULT: # valid for all servers
       role: Rookie      # Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
     - credits: 50
       playtime: 25
-      role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
+      role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR playtime of 25 hrs
     - credits: 100
       playtime: 50
-      combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
+      combined: true    # you need to have 100 credit points AND playtime of more than 50 hrs to get the "Ace" role
       role: Ace
   leaderboard: # Simple leaderboard, persistent, displayed in a channel of your choice
     channel: 112233445566778899

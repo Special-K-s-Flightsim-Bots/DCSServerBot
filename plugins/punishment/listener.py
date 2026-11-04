@@ -4,7 +4,7 @@ import os
 import time
 
 from core import EventListener, Server, Player, event, chat_command, get_translation, ChatCommand, Channel, \
-    ThreadSafeDict, Coalition, Side, utils
+    ThreadSafeDict, Coalition, Side, utils, ServiceRegistry
 from pathlib import Path
 from plugins.competitive.commands import Competitive
 from psycopg.types.json import Json
@@ -24,8 +24,8 @@ class PunishmentEventListener(EventListener["Punishment"]):
         self.active_servers: set[str] = set()
         self.pending_forgiveness: dict[tuple[str, str], list[asyncio.Task]] = {}
         self.pending_repair: dict[str, asyncio.Task] = {}
-        self.pending_kill: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
-        self.disconnected: dict[str, tuple[int, dict | None]] = ThreadSafeDict()
+        self.pending_kill: dict[str, tuple[float, dict | None]] = ThreadSafeDict()
+        self.disconnected: dict[str, tuple[float, dict | None]] = ThreadSafeDict()
         self.awaiting_task: dict[str, asyncio.TimerHandle] = ThreadSafeDict()
         self.missile_parameters: dict[str, dict[str, float]] = self.read_missile_parameters()
 
@@ -188,9 +188,9 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 message = _("{}, you landed outside of an airfield.\n"
                             "CSAR has been deployed to pick you up.").format(initiator.name)
             elif event_name == 'S_EVENT_EJECTION':
-                message = _("{}, your aircraft must be fitted with a new ejection seat.")
+                message = _("{}, your aircraft must be fitted with a new ejection seat.").format(initiator.name)
             else:
-                message = _("{}, your aircraft needs an inspection.")
+                message = _("{}, your aircraft needs an inspection.").format(initiator.name)
             message += "\n" + _("Please stand by for {}").format(utils.format_time(window))
             await initiator.lock()
             await initiator.sendUserMessage(message)
@@ -257,7 +257,10 @@ class PunishmentEventListener(EventListener["Punishment"]):
             return
 
         # no penalty configured for this event
-        penalty = next((item for item in config['penalties'] if item['event'] == data['eventName']), None)
+        penalty = next(
+            (item for item in config.get('penalties', []) if item.get('event') == data.get('eventName')),
+            None
+        )
         if not penalty:
             return
 
@@ -444,7 +447,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if shot_time == -1 or not evt or data['arg4'] != 0:
                 return
 
-            delta_time = int(time.time()) - shot_time
+            delta_time = time.monotonic() - shot_time
             if delta_time < config.get('reslot_window', 60):
                 # the kill will be given to the opponent
                 asyncio.create_task(self._give_kill(server, evt.copy()))
@@ -454,7 +457,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
             else:
                 return
             # mark the event for a potential penalty
-            self.disconnected[initiator.ucid] = (int(time.time()), evt)
+            self.disconnected[initiator.ucid] = (time.monotonic(), evt)
 
     async def _send_player_points(self, player: Player):
         points = await self._get_punishment_points(player)
@@ -556,7 +559,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         config = self.get_config(server)
         tm, _evt = self.disconnected.pop(data['ucid'])
         # we do not punish if the disconnect was longer than reslot_window seconds ago
-        delta_time = int(time.time()) - tm
+        delta_time = time.monotonic() - tm
         if delta_time > config.get('reslot_window', 60):
             return
 
@@ -574,7 +577,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         admin = self.bot.get_admin_channel(server)
         if admin:
             asyncio.create_task(admin.send(
-                "```" + _("Player {} (ucid={}) disconnected and reconnected {} seconds after being shot at.").format(
+                "```" + _("Player {} (ucid={}) disconnected and reconnected {:.2f} seconds after being shot at.").format(
                     player.name, player.ucid, delta_time) + "```"))
 
     @event(name="onPlayerStart")
@@ -615,7 +618,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 return
 
             shot_time, s_event = self.pending_kill.get(target.ucid, (-1, None))
-            now = int(time.time())
+            now = time.monotonic()
             if data['eventName'] == 'S_EVENT_SHOT':
                 # if there is an older shot ...
                 if shot_time > 0 and s_event:
@@ -638,15 +641,32 @@ class PunishmentEventListener(EventListener["Punishment"]):
                         else:
                             self.log.debug(f"Punishment: Replacing old shot event as new PBK was higher.")
 
-            # we got hit by a player
-            elif initiator and s_event:
-                # check how good our prediction was
-                orig_name = s_event.get('initiator', {}).get('name')
-                if orig_name == initiator.name:
-                    self.log.debug("Punishment: Good prediction, shot hit the player.")
-                elif orig_name:
-                    self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
-                                   f"where player {orig_name} was predicted.")
+            # we got hit by a player ...
+            elif initiator:
+                # ... (check for cheaters) ...
+                distance = data.get('distance', -1)
+                if data.get('weapon', {}).get('name', 'Gun') == 'Gun' and distance > 10000:
+                    from services.bot import BotService
+
+                    await self.bus.ban(initiator.ucid, banned_by=self.plugin_name, reason="Cheating")
+                    bot = cast(BotService, ServiceRegistry.get(BotService))
+                    await bot.alert(
+                        title="Cheater detected!",
+                        message=f"Player {initiator.display_name} ({initiator.ucid}) was banned "
+                                f"for cheating with weapons. Please report them to DGSA.",
+                        server=server
+                    )
+                    return
+
+                # ... that shot before
+                if s_event:
+                    # check how good our prediction was
+                    orig_name = s_event.get('initiator', {}).get('name')
+                    if orig_name == initiator.name:
+                        self.log.debug("Punishment: Good prediction, shot hit the player.")
+                    elif orig_name:
+                        self.log.debug(f"Punishment: Bad prediction: {initiator.name} hit player {target.name} "
+                                       f"where player {orig_name} was predicted.")
 
             # store the shot with the highest PBK or the latest hit event
             self.log.debug(f"Punishment: Storing {data['eventName']}: {init_name} -> {target.name}.")
@@ -681,13 +701,20 @@ class PunishmentEventListener(EventListener["Punishment"]):
             if shot_time == -1 or not s_event:
                 # create a repair window to repair the ejection seat
                 if data['eventName'] == 'S_EVENT_EJECTION':
-                    repair_window = self.get_config(server).get('repair_timeout', 0)
+                    repair_window = self.get_config(server).get('csar_timeout', 0)
                     if repair_window > 0:
                         task = asyncio.create_task(self._repair_window(initiator, repair_window, data['eventName']))
                         self.pending_repair[initiator.ucid] = task
+                    if data.get('inAir', False):
+                        evt = {
+                            "server_name": server.name,
+                            "initiator": initiator,
+                            "eventName": "ground_ejection"
+                        }
+                        asyncio.create_task(self._check_punishment(evt.copy()))
                 return
 
-            delta_time = int(time.time()) - shot_time
+            delta_time = time.monotonic() - shot_time
             weapon = s_event.get('weapon', {}).get('name')
             distance_old = float(s_event.get('distance', 0))
 
@@ -730,7 +757,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
         if shot_time == -1 or not s_event:
             return
 
-        delta_time = int(time.time()) - shot_time
+        delta_time = time.monotonic() - shot_time
         if delta_time < config.get('reslot_window', 60):
             evt = {
                 "eventName": "reslot",

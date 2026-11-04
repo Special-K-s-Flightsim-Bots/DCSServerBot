@@ -27,9 +27,20 @@ MyNode:                     # This is the name of your first node (will be diffe
   cluster:
     cloud_drive: true       # Is your DCSServerBot installed on a cloud drive (Google Drive, OneDrive, etc.)? Default is true. 
     heartbeat: 60           # Heartbeat between the nodes in a cluster. Default is 30, use larger values if your nodes are not in the same network.
+    heartbeat_timeout: 20   # Max seconds a single heartbeat may take before the DB connection is dropped and retried. Default 20, keep it below heartbeat.
+    unregister_grace: 120   # Seconds a node may be silent before the master unregisters it. Default 2 x heartbeat, never below heartbeat.
     preferred_master: true  # This node will always be the master. If your database is installed on a node, make it your preferred master node.
     no_master: true         # This node will never become a master. You cannot specify preferred_master and no_master on the same node. 
 ```
+
+The master unregisters a node as soon as its `last_seen` is older than `unregister_grace` seconds: 
+it removes the node's server entries and alerts you. 
+A shorter outage, like a database blip or a network hiccup, is tolerated: nothing is torn down and no alert is raised.
+
+> [!NOTE]
+> `unregister_grace` is clamped to `heartbeat`: values below it are raised, so a mistyped grace can never
+> unregister a node the master still considers active. If a node comes back after being unregistered, it is
+> re-registered automatically with a "Node <name> is back up!" alert.
 
 ## Cloud-Drive Setup (default)
 You need to make sure that **every node in your cluster that should be able to act as a master** is aware of the 

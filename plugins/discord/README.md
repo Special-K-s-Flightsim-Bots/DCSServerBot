@@ -16,7 +16,7 @@ DEFAULT:
     report: true                # create an audit report (default: true)
     timeout: 60                 # optional: timeout for 60 minutes (default: 60 minutes, 0 to disable)
     kick: false                 # optional: kick member on mentioning (default: false)
-  on_join:                      # Auto-generate a welcome message for a user
+  on_join:                      # Auto-generate a welcome DM for a user (only works with privileged member intents)
     message: Welcome {name} to this server!
     mention: 9988776655443322   # Optional: Role id to mention (in addition to the user itself, if configured)
     channel: 1199228833774466   # -1 for DM, see also greeting_dm in bot.yaml!
@@ -29,7 +29,7 @@ DEFAULT:
       on_remove:
         message: You lost the Sample role!
         channel: -1                       # -1 for DM
-      on_leave:
+      on_leave:                           # on_leave will only work if you have the "Server Members Intent" privilege intent enabled
         message: '{name}, see you next time!'
         channel: -1                       # -1 for DM
   reaction:                               # Auto-generate a reaction message to give roles to people

@@ -97,7 +97,7 @@ class LogAnalyser(Extension):
         if 'terrain' in detections:
             self.register_callback(ERROR_DETECTIONS['missing terrain'], self.terrain_missing)
         if 'regmapstorage' in detections:
-            self.register_callback(ERROR_DETECTIONS['regmapstorage'], self.restart_server)
+            self.register_callback(ERROR_DETECTIONS['regmapstorage'], self.regmapstorage)
         if 'moose version' in detections:
             self.register_callback(ERROR_DETECTIONS['moose version'], self.moose_check)
         if 'mist version' in detections:
@@ -204,16 +204,7 @@ class LogAnalyser(Extension):
     async def unlisted(self, _idx: int, _line: str, _match: re.Match):
         if not self.config.get('restart_on_unlist', False):
             return
-        self.log.error(f"Server {self.server.name} got unlisted from the ED server list. Restarting ...")
-        if self.server.status == Status.RUNNING:
-            self.log.info("- Warning users before ...")
-            warn_times = self.config.get('warn_times', [600, 300, 120, 60, 10])
-            wait_times = [max(warn_times) - t for t in warn_times]
-            warn_tasks = [self._send_warning(self.server, t) for t in wait_times if t > 0]
-            # Gather tasks then wait
-            await utils.run_parallel_nofail(*warn_tasks)
-        await self.bot.audit(message="restart due to unlisting from the ED server list", server=self.server)
-        await self.server.restart(modify_mission=False)
+        await self._restart_server(reason="unlisting from ED server list")
 
     async def _send_audit_msg(self, filename: str, target_line: int, error_message: str, context: int = 5):
         if not filename.strip('.') or not os.path.exists(filename):
@@ -337,14 +328,25 @@ class LogAnalyser(Extension):
                 server=self.server
             )
 
-    async def restart_server(self, _idx: int, line: str, _match: re.Match):
-        self.log.warning(f"Server restarting due to critical error: {line.rstrip()}")
-        asyncio.create_task(self.server.restart(modify_mission=False))
+    async def regmapstorage(self, _idx: int, line: str, _match: re.Match):
+        await self._restart_server(reason="RegMapStorage error")
+
+    async def _restart_server(self, *, reason: str):
+        self.log.warning(f"Server will be restarted due to {reason}")
+        if self.server.status == Status.RUNNING:
+            self.log.info("- Warning users before ...")
+            warn_times = self.config.get('warn_times', [600, 300, 120, 60, 10])
+            wait_times = [max(warn_times) - t for t in warn_times]
+            warn_tasks = [self._send_warning(self.server, t) for t in wait_times if t > 0]
+            # Gather tasks then wait
+            await utils.run_parallel_nofail(*warn_tasks)
+        await self.bot.audit(message=f"restart due to {reason}", server=self.server)
+        await self.server.restart(modify_mission=False)
 
     async def foothold_check(self, _idx: int, _line: str, _match: re.Match):
         mission_name = self.server.current_mission.name if self.server.current_mission else f"on server {self.server.name}"
         embed = utils.create_warning_embed(
-            title='OExternal Foothold config is outdated!',
+            title='External Foothold config is outdated!',
             text="Internal defaults were applied where required.")
         embed.add_field(name="Server", value=self.server.display_name, inline=False)
         embed.add_field(name="Mission", value=mission_name, inline=False)

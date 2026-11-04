@@ -53,7 +53,7 @@
          [
             {
               "class": "plugins.monitoring.serverstats.UniqueUsers",
-              "params": { "col": 0, "row": 0, "interval": "1 month" }
+              "params": { "col": 0, "row": 0 }
             },
             {
               "class": "plugins.monitoring.serverstats.UserRetention",

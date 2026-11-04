@@ -1,0 +1,15 @@
+{#-
+  THE NODE PAGE — `/<nodes>/<node>/mods`, the RootFolder half's ONE home.
+
+  The shell chrome is `base.html`'s; everything under the breadcrumb is the SAME body a server's Mods
+  tab renders (`mods_body.html`), because the two owners differ by their data and never by their
+  markup. The only thing this page adds is the page head, which the tab body cannot carry (the server
+  page already rendered one for the server) — that is `mods.head`, and it is absent there.
+
+  The stylesheet is the mods delta on the shipped sheet: the state strip and the verbatim folder
+  value. Every card, table, glyph, tab and dialog rule comes from `shell.css`.
+-#}
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/static/mods.css">{% endblock %}
+{% block title %}{{ _(mods.head.title) }} — DCSServerBot{% endblock %}
+{% block content %}{% include "mods_body.html" %}{% endblock %}

@@ -1,11 +1,13 @@
 CREATE TABLE IF NOT EXISTS version (version TEXT PRIMARY KEY);
-INSERT INTO version (version) VALUES ('v3.17') ON CONFLICT (version) DO NOTHING;
+INSERT INTO version (version) VALUES ('v3.23') ON CONFLICT (version) DO NOTHING;
 CREATE TABLE IF NOT EXISTS plugins (plugin TEXT PRIMARY KEY, version TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS servers (
     server_name TEXT PRIMARY KEY,
     blue_password TEXT,
     red_password TEXT,
-    maintenance BOOLEAN NOT NULL DEFAULT FALSE
+    maintenance BOOLEAN NOT NULL DEFAULT FALSE,
+    launched_preset TEXT NULL,
+    launched_preset_temporary BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE TABLE IF NOT EXISTS message_persistence (
     id SERIAL PRIMARY KEY,
@@ -33,8 +35,12 @@ CREATE TABLE IF NOT EXISTS audit(
     node TEXT NOT NULL,
     event TEXT NOT NULL,
     server_name TEXT,
+    actor TEXT,
     discord_id BIGINT,
     ucid TEXT,
     time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     FOREIGN KEY (server_name) REFERENCES servers (server_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
+-- The console's Audit page reads the trail newest first, one page at a time, so the order the page
+-- always asks for is the one index it needs.
+CREATE INDEX IF NOT EXISTS idx_audit_time ON audit (time DESC);

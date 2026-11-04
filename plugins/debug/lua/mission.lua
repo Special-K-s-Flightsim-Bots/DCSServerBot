@@ -1,6 +1,6 @@
-local base	= _G
-dcsbot 		= base.dcsbot
-local JSON 	= loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
+local base	    = _G
+local dcsbot    = base.dcsbot
+local JSON 	    = loadfile(lfs.currentdir() .. "Scripts\\JSON.lua")()
 
 
 local event_by_id = {}
@@ -21,7 +21,6 @@ local function sanitizer(t)
             else
                 k = tostring(k)
             end
-            t[k] = k
             if type(v) == "function" then
                 t[k] = "function"
             elseif type(v) == "userdata" then

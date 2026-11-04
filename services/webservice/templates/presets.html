@@ -1,0 +1,137 @@
+{#-
+  The Presets page — the MizEdit preset files this installation names, one TILE per preset.
+
+  The page is a READ. A preset is one top-level key of one discovered preset file; its tile is the
+  console's OWN tile component (``_tiles.html``, the same macro the settings landing and the node page
+  draw), carrying the preset's name, its kind badge and the top-level keys it writes — the schema's own
+  key names, printed as data and never translated. A preset has no on/off state, so the tile's switch
+  is not drawn (``sw=none``): the foot is the trash and the cog.
+
+  Every tile also carries the YAML DOOR — an optional link the shared tile component draws only when
+  a URL is passed (``card.yaml_url``, empty for a caller without ``presets.view``). It opens the
+  preset's own one-block editor, which is how a preset created by the wizard becomes an expert-DSL
+  preset. The cog opens the wizard at the URL the page module declares; a preset the wizard does not
+  open (the ``modify`` expert DSL) states its own note in the tile's body and carries the YAML door as
+  its only editor — no cog is drawn beside it.
+
+  The trash is a LINK to this page's own confirm surface (``?remove=<name>``), which shows the
+  preset's document and EVERY reference to it and posts to the ONE write route. A preset that is still
+  referenced carries no trash: the confirm page could only refuse it, so the tile states the refusal
+  itself — the SAME sentence and the SAME reference labels the confirm page prints, in the tile's own
+  ``st-note`` (the shape the ``modify`` preset's note already uses). A removable preset carries the
+  trash and no such note.
+
+  The toolbar is a real GET with no JavaScript: the tab strip carries ``?file=``, the kind chips carry
+  ``?kind=``, the search box carries ``?q=``, and each keeps the other two. The strip is drawn only
+  when the installation carries more than one preset file.
+
+  It extends the shell like every console page, so the sidebar, the top bar with the user chip, the
+  breadcrumb, the pills and the environment marker are the shell's.
+-#}
+{% extends "base.html" %}
+{% from "_tiles.html" import tile_card with context %}
+{#  the tab's title is the page's own wrapped label, translated for the request like the heading  #}
+{% block title %}{{ _(title) }} — DCSServerBot{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+{% include "_notice.html" %}
+
+{% if removal %}
+{#-  THE ONE REMOVAL DOOR. A GET that shows what the removal deletes and everything that names it; the
+    form below posts to the SAME write route, with the SAME revision guard, that every preset write
+    uses. When anything still references the preset the button is NOT drawn and the references are
+    listed instead — a control that could only be refused is worse than none.  -#}
+<div class="ps-confirm">
+  <h2 class="ps-confirm-head">{{ _(removal_head) }}</h2>
+  <p class="ps-confirm-lead">{{ removal_lead }}</p>
+  <div class="ps-confirm-id">
+    <span class="st-name">{{ removal.name }}</span>
+    <span class="st-src">{{ removal.file }}</span>
+  </div>
+  <p class="pw-note">{{ _(removal_sentence) }}</p>
+  {% if removal.references %}
+  <p class="pw-note">{{ removal_in_use }}</p>
+  <ul class="ps-refs">
+    {% for reference in removal.references %}<li>{{ reference }}</li>{% endfor %}
+  </ul>
+  <p class="pw-note">{{ _(removal_note) }}</p>
+  <div class="ps-confirm-act">
+    <a class="pw-btn gh" href="{{ path }}">{{ _(cancel_label) }}</a>
+  </div>
+  {% else %}
+  <form class="ps-confirm-act" method="post" action="{{ save_path }}">
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ action_field }}" value="{{ action_remove }}">
+    <input type="hidden" name="{{ original_field }}" value="{{ removal.name }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ removal.revision }}">
+    <a class="pw-btn gh" href="{{ path }}">{{ _(cancel_label) }}</a>
+    <button class="pw-btn pri danger" type="submit">{{ _(remove_label) }}</button>
+  </form>
+  {% endif %}
+  <h3 class="ps-confirm-doc">{{ _(removal_document_label) }}</h3>
+  <pre class="pw-yaml">{{ removal.document }}</pre>
+</div>
+
+{% else %}
+
+<form class="ps-bar" method="get" action="{{ path }}">
+  <input type="hidden" name="kind" value="{{ selected }}">
+  <input type="hidden" name="file" value="{{ active_file }}">
+  <input class="ps-search" type="search" name="q" value="{{ query }}"
+         placeholder="{{ _(filter_placeholder) }}" aria-label="{{ _(filter_placeholder) }}">
+  <button class="ps-go" type="submit">{{ _(filter_label) }}</button>
+  <span class="ps-chips">
+    {% for chip in filters %}
+    <a class="ps-chip{{ ' on' if chip.active else '' }}" href="{{ chip.url }}">{{ _(chip.label) }} <b>{{ chip.count }}</b></a>
+    {% endfor %}
+  </span>
+  <a class="ps-new" href="{{ new_url }}">{{ _(new_label) }}</a>
+</form>
+
+{% if show_tabs %}
+<nav class="ps-tabs">
+  {% for tab in tabs %}
+  <a class="ps-tab{{ ' on' if tab.active else '' }}" href="{{ tab.url }}">{% if tab.all_files | default(false) %}{{ _(all_files_label) }}{% else %}{{ tab.label }}{% endif %} <b>{{ tab.count }}</b></a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if file_gone %}<p class="ps-notice">{{ file_gone }}</p>{% endif %}
+
+{% for line in notices %}
+<p class="ps-notice">{{ line }}</p>
+{% endfor %}
+
+{% if cards %}
+<div class="st-grid">
+  {% for card in cards %}
+  {% set preset_scope %}{{ _(card.kind_label) }}{% endset %}
+  {% set preset_body %}
+  <div class="ps-sets" aria-label="{{ _(keys_label) }}">
+    {% for key in card.writes %}<span>{{ key }}</span>{% endfor %}
+  </div>
+  <div class="st-src">{{ card.file }}</div>
+  {% if not card.wizard_url %}<div class="st-note">{{ _(modify_note) }}</div>{% endif %}
+  {% if card.in_use_sentence %}<div class="st-note st-inuse">{{ card.in_use_sentence }}<ul class="ps-refs">{% for reference in card.references %}<li>{{ reference }}</li>{% endfor %}</ul></div>{% endif %}
+  {% endset %}
+  {{ tile_card('preset', preset_label, card.name, '', none,
+               cog_url=(card.wizard_url or ''), cog_title=card.name, scope=preset_scope,
+               body=preset_body, trash_url=card.remove_url, trash_title=remove_label,
+               yaml_url=card.yaml_url, yaml_title=yaml_label) }}
+  {% endfor %}
+</div>
+{% elif not total %}
+  {% if not found %}<p class="ps-notice">{{ _(no_file) }}</p>{% endif %}
+{% else %}
+<p class="ps-notice">{{ _(no_match) }}</p>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

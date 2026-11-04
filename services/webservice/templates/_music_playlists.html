@@ -1,0 +1,66 @@
+{#-
+  THE PLAYLISTS CARD — every playlist with its figures, its radios and its row controls.
+
+  Rendered by `pages/music.sections_context` for BOTH the page (inside `#mus-playlists`) and the live
+  stream, so a streamed row cannot differ from the one the initial page drew. THE PARTIAL CARRIES NO
+  ID: the wrapper in `music.html` owns it, and a frame replaces this partial's html as the wrapper's
+  inner content.
+
+  NEW PLAYLIST LIVES IN THE CARD HEADER, not on the page: it acts on the table below it, and the
+  header is where the console puts a card's own action. Same POST, same session CSRF token, and the
+  same gate — the control exists only when the write behind it is registered in this process AND the
+  caller may write.
+
+  A refused playlist read states its own sentence INSIDE this card: an empty table alone could not tell
+  a failed read from an installation with no playlists, and the message moves with the fragment when
+  the live stream re-renders it.
+-#}
+{% import "_icons.html" as icons %}
+{% import "_strip.html" as strip %}
+<section class="card mus-card">
+  <div class="hd">
+    <h3>{{ _(labels.playlists) }}</h3>
+    <span class="spacer"></span>
+    {% if new_control %}
+    <form method="post" action="{{ new_control.path }}">
+      <input type="hidden" name="{{ new_control.csrf_field }}" value="{{ new_control.csrf_token }}">
+      <button type="submit" class="btn primary">{{ _(new_control.label) }}</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if message %}<p class="mus-note" role="status">{{ message }}</p>{% endif %}
+  <div class="tbl">
+    <table class="mus-table">
+      <thead>
+        <tr>
+          <th>{% trans %}Name{% endtrans %}</th>
+          <th class="num">{% trans %}Tracks{% endtrans %}</th>
+          <th>{% trans %}Total length{% endtrans %}</th>
+          <th>{% trans %}Used by{% endtrans %}</th>
+          <th>{% trans %}State{% endtrans %}</th>
+          <th class="acts" scope="col"><span class="mus-vh">{% trans %}Actions{% endtrans %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in playlists %}
+        <tr>
+          <td><a class="mus-name" href="{{ row.url }}">{{ row.name }}</a>
+            {% if row.missing_sentence %}<div class="mus-missing">{{ row.missing_sentence }}</div>{% endif %}</td>
+          <td class="num mono">{{ row.tracks }}</td>
+          <td class="mono">{{ row.length }}</td>
+          <td>{% if row.used %}{{ row.used|join(', ') }}{% else %}—{% endif %}</td>
+          <td>{% if row.on_air %}<span class="mus-air"><span class="dot run" aria-hidden="true"></span>{% trans %}on air{% endtrans %}</span>{% else %}<span class="tag">{% trans %}idle{% endtrans %}</span>{% endif %}</td>
+          <td class="acts">
+            <span class="act-strip">
+              <a class="act-btn" href="{{ row.url }}" title="{{ say(row.edit_title) }}" aria-label="{{ say(row.edit_title) }}">{{ icons.act('pencil') }}</a>
+              {% for control in row.controls %}{{ strip.strip_form(control) }}{% endfor %}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="mus-note">{{ _(labels.none) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>

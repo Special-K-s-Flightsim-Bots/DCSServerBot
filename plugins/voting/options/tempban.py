@@ -1,6 +1,21 @@
 
 from core import Server, Player, Coalition
+from datetime import datetime, timezone
 from plugins.voting.base import VotableItem
+
+
+def _ban_targets(server: Server, servers: dict) -> list[str]:
+    """The servers a ban raised on *server* covers.
+
+    Every server whose ``managed_by`` names one of *server*'s own; an empty list means *server*
+    declares no ``managed_by`` and the ban is bot-wide.
+    """
+    managed_by = server.locals.get('managed_by') or []
+    if not managed_by:
+        return []
+    return [name for name, srv in servers.items()
+            if (srv.locals.get('managed_by') or [])
+            and not set(srv.locals['managed_by']).isdisjoint(managed_by)]
 
 
 class Tempban(VotableItem):
@@ -28,8 +43,11 @@ class Tempban(VotableItem):
             message = f"Player {self.player.name} not banned."
         else:
             duration = self.config.get('duration', 3)
-            await self.server.bus.ban(self.player.ucid, banned_by='Other players', reason=f"Annoying people on the server",
-                                      days=duration)
+            stamp = datetime.now(tz=timezone.utc)
+            for target in _ban_targets(self.server, self.server.bus.servers) or [None]:
+                await self.server.bus.ban(self.player.ucid, banned_by='Other players',
+                                          reason=f"Annoying people on the server", days=duration,
+                                          server_name=target, banned_at=stamp)
             message = f"Player {self.player.name} banned for {duration} days."
         await self.server.sendChatMessage(Coalition.ALL, message)
         await self.server.sendPopupMessage(Coalition.ALL, message)

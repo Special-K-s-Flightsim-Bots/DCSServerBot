@@ -1,0 +1,9919 @@
+from __future__ import annotations
+
+import asyncio
+import html
+import hmac
+import json
+import logging
+import os
+import posixpath
+import re
+import secrets
+import threading
+import time
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
+from datetime import timezone
+from typing import Any
+from urllib.parse import quote, urlencode
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+from core.action_results import ActionResult, PlayerScreenshotResult
+from core.actions import (AUDIT_NOT_RECORDED, TRANSPORT_WEB, ActionContext, NodeResolution,
+                          ServerResolution, action_available, audit_action, bound_text, call_action,
+                          in_flight_targets, read_action)
+from core.data.const import Status
+# the engine's power-off RECORD, read by :func:`node_power_states` to gate the node row's power pair
+# (the operation that took a node's servers down records what it did, so the way back can revert
+# exactly that). It is the engine's own accessor — this module neither keeps nor
+# copies the record, and it never writes one. ``ServerMaintenanceManager.in_service`` is the SAME one
+# definition of "may this server's process be up" that the engine's power halves use, which is what
+# makes the node route's PREDICTION follow the operation rather than a second rule.
+from core.data.maintenance import ServerMaintenanceManager, power_record
+# THE PRESET RULE: the file label, the pick entry shape and the name -> document resolution live in
+# ``core/utils/presets.py``, so a plugin reaches them without importing a page module.
+from core.utils.presets import (PRESET_PAIR_SEPARATOR, REFUSAL_NO_PICK, REFUSAL_UNKNOWN_FILE,
+                                REFUSAL_UNKNOWN_PRESET, preset_file_is_safe, preset_names_of,
+                                preset_option_value, resolve_picked_values, split_preset_entry)
+
+from .. import i18n, permissions, readmodels, session
+# THE ONE WEATHER FIELD TABLE (``services/webservice/weather_fields.py``): the launch dialog's
+# temporary preset draws its controls from the SAME rows the presets wizard renders, so the two
+# surfaces cannot drift into two sets of labels, units or ranges.
+from .. import weather_fields
+# THE BANS PAGE'S READ MODEL, for its ONE view option: the ``dgsa`` query pair a ban write carries
+# back to the page (``_dgsa_carry``). The page module owns the words; this module owns the URL.
+from ..readmodels import bans as ban_readmodel
+# THE CONFIG FIELD DECLARATION, the same one the page renders from, so the form and this submit path
+# cannot disagree (``readmodels`` stays free of ``core``).
+from ..readmodels import serverconfig as server_config
+# THE ONE url encoder for a server's own page: this module's redirect back and the row's own link
+# build the same URL from the same name.
+from ..readmodels.servers import server_url
+# THE CACHED UPGRADE SIGNAL: the node row's Upgrade control is gated on it, and only the
+# poller in the webservice service ever calls the node. This module only READS the cache.
+from .. import upgrade as upgrade_signal
+# THE CACHED DCS SIGNAL, read for the same reason: the DCS update dialog's branch and version picks
+# are built from what the background check already learned, so opening the dialog issues no node call
+# of its own. Only the poller ever asks.
+from .. import dcs_update as dcs_update_signal
+from ..auth import Identity
+from . import dashboard as dashboard_page
+
+__all__ = [
+    "OWNER", "WRITE_ROLES", "NODE_ROLES", "PAUSE_PATH", "UNPAUSE_PATH", "PAUSE_CAPABILITY",
+    "UNPAUSE_CAPABILITY",
+    "CHAT_PATH", "POPUP_PATH", "MESSAGE_CAPABILITY", "MESSAGE_FIELD_MAX", "BAN_DAYS_MIN",
+    "BAN_DAYS_MAX", "SCREENSHOT_PATH", "SCREENSHOT_IMAGE_PATH", "SCREENSHOT_CAPABILITY",
+    "SCREENSHOT_SETTING", "screenshot_control", "screenshot_capture", "remember_screenshot",
+    "prune_screenshots", "ScreenshotCapture", "SCREENSHOT_RETENTION_SECONDS",
+    "SERVER_CHAT_PATH", "SERVER_POPUP_PATH", "SERVER_MESSAGE_CAPABILITY",
+    "SERVER_MESSAGE_AUDIENCE", "SERVER_MESSAGE_AUDIENCE_HELP",
+    "PRESET_FIELD", "PRESET_NAME_PARAM", "PRESET_LABEL", "PRESET_HELP", "PRESET_NONE_LABEL",
+    "PRESET_FREE_TEXT_HELP", "PRESET_GROUP_HELP", "PRESET_CUSTOM_VALUE", "PRESET_CUSTOM_LABEL",
+    "PRESET_FILE_FIELD", "PRESET_FILE_LABEL", "PRESET_FILE_HELP", "PRESET_LIST_LABEL",
+    "PRESET_LIST_HELP", "PRESET_FILE_ALL", "PRESET_FILE_ALL_LABEL", "PRESET_PAIR_SEPARATOR",
+    "preset_option_value", "split_preset_entry", "preset_name_text",
+    "WEATHER_MODE_FIELD", "WEATHER_MODE_LEAVE", "WEATHER_MODE_FILE",
+    "WEATHER_MODE_CUSTOM", "WEATHER_MODES", "_WeatherRefusal", "preset_file_is_safe",
+    "preset_names_of", "select_params",
+    "PRESET_READ_LOADING", "PRESET_READ_DONE", "PRESET_READ_FAILED",
+    "PRESET_NO_MISSION", "current_mission_available",
+    "TEMPORARY_KEYS", "TEMPORARY_HEAD", "TEMPORARY_OPTIONAL", "TEMPORARY_HELP", "TEMPORARY_NOTE",
+    "REFUSAL_WEATHER_CONFLICT", "REFUSAL_WEATHER_NEEDS_EXTENSIONS", "REFUSAL_WEATHER_NO_PICK",
+    "REFUSAL_WEATHER_UNKNOWN_PRESET", "REFUSAL_WEATHER_UNKNOWN_FILE",
+    "temporary_document",
+    "temporary_stated", "launch_weather_refusal", "MODIFY_MISSION_FIELD", "MODIFY_MISSION_OPTION",
+    "SERVER_MAINTENANCE_CAPABILITY", "SERVER_CLEAR_MAINTENANCE_CAPABILITY",
+    "NOTICE_MAX_CHARS", "CONFIRM_SUFFIX", "CONFIRM_FIELD", "CONFIRM_TEMPLATE", "CONFIRM_MAX_PENDING",
+    "ORIGIN_FIELD", "TAB_FIELD", "origin_path", "origin_url", "posted_tab", "tabbed_origin",
+    "dialog_back",
+    "ROW_STRIP", "ROW_MENU",
+    "NODE_RESTART_CAPABILITY", "NODE_SHUTDOWN_CAPABILITY", "NODE_UPGRADE_CAPABILITY",
+    "NODE_OFFLINE_CAPABILITY", "NODE_ONLINE_CAPABILITY",
+    "NODE_IN_SERVICE", "NODE_MAINTENANCE", "NODE_POWER_OFF", "NODE_POWER_ON",
+    "NOTE_NO_CHECK",
+    "WriteAction", "PlayerAction", "NodeAction", "BanAction", "NodeOption", "SelectField", "SelectOption",
+    "SERVER_ACTIONS", "PLAYER_ACTIONS", "NODE_ACTIONS", "BAN_ACTIONS",
+    # the SERVER CREATION pair: the row-level DELETE and the page-level ADD
+    "SERVER_NODE_ACTIONS", "SERVER_PAGE_ACTIONS", "server_row_actions",
+    "SERVER_ADD_CAPABILITY", "SERVER_DELETE_CAPABILITY", "SERVER_ADD_PATH", "SERVER_DELETE_PATH",
+    "ADD_NODE_FIELD", "ADD_INSTANCE_FIELD", "ADD_NAME_FIELD", "ADD_CONFIGURE_FIELD",
+    "ADD_NEW_OPTION",
+    "CONFIRM_NAME_FIELD", "REMOVE_FILES_FIELD",
+    # the BAN-ENTRY writes: the row-level LIFT and EDIT, the page-level ADD
+    "BAN_LIFT_ACTION", "BAN_ADD_ACTION", "BAN_EDIT_ACTION", "BAN_ADD_CAPABILITY", "BAN_ADD_PATH",
+    "BAN_LIFT_CAPABILITY", "BAN_LIFT_PATH", "BAN_EDIT_CAPABILITY", "BAN_EDIT_PATH",
+    "BAN_ADD_UCID_FIELD", "BAN_SCOPE_FIELD", "BAN_DAYS_FIELD", "BAN_REASON_FIELD",
+    "BAN_UNTIL_FIELD",
+    # the ADD's own player search: the JSON GET its UCID field autocompletes on
+    "BAN_PLAYERS_PATH", "BAN_PLAYERS_QUERY", "BAN_ADD_UCID_LOOKUP",
+    "ban_dialog_fields", "ban_days_field", "ban_until_field", "ban_add_dialog_context",
+    "ban_edit_dialog_context",
+    "ban_scope_options",
+    "BanScope",
+    # the WATCH-ENTRY writes: one capability, the add, the edit and the remove
+    "WatchAction", "WATCH_ACTIONS", "WATCH_ENTRY_ACTIONS", "WATCH_ADD_ACTION", "WATCH_EDIT_ACTION",
+    "WATCH_REMOVE_ACTION", "WATCH_CAPABILITY", "WATCH_ADD_PATH", "WATCH_REMOVE_PATH",
+    "WATCH_EDIT_PATH", "watch_controls", "watch_add_control", "watch_add_dialog_context",
+    "watch_remove_dialog_context", "watch_edit_dialog_context",
+    # the PENALTY-POINT writes: one capability, the add, the remove and the forgive
+    "PenaltyAction", "PENALTY_ACTIONS", "PENALTY_ADD_ACTION", "PENALTY_REMOVE_ACTION",
+    "PENALTY_FORGIVE_ACTION", "PENALTY_CAPABILITY", "PENALTY_ADD_PATH", "PENALTY_REMOVE_PATH",
+    "PENALTY_FORGIVE_PATH", "PENALTY_POINTS_FIELD", "PENALTY_REASON_FIELD",
+    "penalty_inputs", "penalty_dialog_context",
+    # the radio writes: the Music tab's transport, its playlist select and its settings form
+    "MUSIC_ACTIONS", "MUSIC_CONTROL_CAPABILITY", "MUSIC_CONTROL_PATH", "MUSIC_PLAYLIST_PATH",
+    "MUSIC_SETTINGS_PATH", "MUSIC_RADIO_FIELD", "MUSIC_CONTROL_FIELD", "MUSIC_MODE_FIELD",
+    "MUSIC_PLAYLIST_FIELD", "MUSIC_SETTING_FIELDS",
+    "page_controls", "add_dialog_context", "empty_instances", "installable_nodes",
+    "declare", "capabilities", "register", "add_routes",
+    "server_controls", "player_controls", "node_controls", "ban_controls", "controls_for", "state_of",
+    "directory_controls", "DIRECTORY_GLYPHS",
+    "context_for",
+    "node_state",
+    "node_states", "node_power_states",
+    "target_key", "target_is_busy",
+    "AWAIT_CHANGE_SECONDS", "AWAIT_MAX_PENDING",
+    "AWAIT_OBSERVABLE_STATUS", "AWAIT_OBSERVABLE_MAINTENANCE", "AWAIT_OBSERVABLE_CONFIG",
+    "AWAIT_OBSERVABLE_DCS", "DCS_PULSE_SECONDS",
+    "SERVER_CONFIG_ACTIONS", "SERVER_CONFIG_ACTION_KEY", "SERVER_CONFIG_PATH",
+    "SERVER_CONFIG_CAPABILITY", "SERVER_CONFIG_FIELD", "SERVER_CONFIG_CLEAR_FIELD",
+    "SERVER_CONFIG_REVERT_FIELD", "config_values_from_form",
+    # the channels write: its own declaration, path, diff and pulse
+    "SERVER_CHANNEL_ACTIONS", "SERVER_CHANNEL_ACTION_KEY", "SERVER_CHANNELS_PATH",
+    "SERVER_CHANNELS_CAPABILITY",
+    "channels_values_from_form", "channels_pulse", "channels_write_available",
+    # the coalition face: its own declaration, path, read helper and diff
+    "SERVER_COALITION_ACTIONS", "SERVER_COALITION_ACTION_KEY", "SERVER_COALITIONS_PATH",
+    "SERVER_COALITIONS_CAPABILITY",
+    "coalition_values", "coalition_values_from_form", "coalitions_write_available",
+    "mission_list",
+    "download_mission",
+    "read_mission_weather",
+    # the mission-list writes: their declarations, paths, fields and read helper
+    "MISSION_ACTIONS", "MISSIONS_ADD_CAPABILITY", "MISSIONS_DELETE_CAPABILITY",
+    "MISSIONS_LOAD_CAPABILITY", "MISSIONS_UPLOAD_CAPABILITY",
+    "MISSIONS_ADD_PATH", "MISSIONS_DELETE_PATH", "MISSIONS_LOAD_PATH", "MISSIONS_UPLOAD_PATH",
+    "MISSIONS_REORDER_CAPABILITY", "MISSIONS_REORDER_PATH", "MISSIONS_BULK_DELETE_PATH",
+    "MISSIONS_BULK_DELETE_STATES", "MISSION_DELETE_LOADING_REFUSAL",
+    "MISSIONS_ACTIVATE_CAPABILITY", "MISSIONS_ACTIVATE_PATH", "MISSIONS_ACTIVATE_STATES",
+    "MISSION_ACTIVE_LOADING_REFUSAL", "MISSIONS_ACTIVATE_SELECTION_REFUSAL",
+    "MISSION_DIRECTION_FIELD", "MISSION_LIST_OFFLINE_STATES", "MISSION_LIST_OFFLINE_ONLY",
+    "MISSION_ORDER_FIELD",
+    "MISSION_FIELD", "MISSION_NAME_FIELD", "MISSION_PATH_FIELD", "MISSION_FILE_FIELD",
+    "MISSION_AUTOSTART_FIELD", "MISSION_LOAD_FIELD", "MISSION_DISK_FIELD",
+    "MISSIONS_UPLOAD_MAX_BYTES", "mission_index_required",
+    "MISSION_DIALOG_KEYS", "MISSION_LOAD_STATES", "MISSION_LOAD_SETS_START_STATES",
+    "dialog_options",
+    "addable_missions", "mission_write_available", "missions_write_available",
+    "mission_load_allowed", "mission_confirm_context",
+    "REVERT_MAX_CHARS", "REVERT_TOO_LONG_SENTENCE",
+    "awaiting_store", "reset_awaiting_changes", "remember_awaiting_change",
+    "forget_awaiting_change", "awaiting_change", "awaiting_action",
+    "NODE_MOVE_ACTIONS", "node_moved_names",
+    "pop_notice", "NOTICE_KEY",
+    "confirm_targets", "confirm_dialog", "node_confirm_context", "node_load",
+    # the DCS update: its declaration, its two picks, its dialog fields and the on-demand version list
+    "NODE_DCS_UPDATE_CAPABILITY", "NODE_DCS_UPDATE_PATH", "DCS_UPDATE_KEY", "DCS_UPDATE_TEMPLATE",
+    "DCS_VERSIONS_PATH", "DCS_VERSIONS_QUERY", "DCS_BRANCH_FIELD", "DCS_VERSION_FIELD",
+    "DCS_WARN_TIME_FIELD", "DCS_ANNOUNCE_FIELD", "DCS_WARN_TIME_DEFAULT", "DCS_WARN_TIME_MIN",
+    "DCS_WARN_TIME_MAX",
+    "DCS_BRANCH_UNCHANGED", "DCS_VERSION_NEWEST", "DCS_BRANCH_INSTALLED_LABEL",
+    "dcs_versions_path", "dcs_branch_values",
+    "dcs_branch_options", "dcs_version_options", "node_dialog_inputs", "node_dialog_values",
+    "node_dialog_options",
+    "NodeField",
+]
+
+log = logging.getLogger(__name__)
+
+#: the registrar owner of the write surface. Its OWN owner name (the shell owns the pages): a path
+#: claimed twice is refused at registration time, and this module's declaration is where a reader
+#: looks for what its routes need.
+OWNER = "actions"
+
+WRITE_ROLES: tuple[str, ...] = ("Admin", "DCS Admin")
+NODE_ROLES: tuple[str, ...] = ("Admin",)
+
+NODE_RESTART_CAPABILITY = "nodes.restart"
+NODE_SHUTDOWN_CAPABILITY = "nodes.shutdown"
+NODE_UPGRADE_CAPABILITY = "nodes.upgrade"
+NODE_OFFLINE_CAPABILITY = "nodes.offline"
+NODE_ONLINE_CAPABILITY = "nodes.online"
+
+# ── the DCS UPDATE ─────────────────────────────────────────────────────────
+# ONE control for THREE operator words — update, roll back, switch the branch — because the engine has
+# ONE call for them: ``Node.dcs_update(branch=…, version=…)``. The dialog therefore asks WHICH branch
+# and WHICH version, and nothing else; there is no second control and no second action.
+#: ``nodes.*`` and ADMIN ONLY with NO scope grant, exactly like the five node writes above: this one
+#: warns the players of every server on the node, stops them all and installs a new DCS, so it takes
+#: the whole machine out of service — a manager's scope is a set of SERVERS and must never widen into
+#: that.
+NODE_DCS_UPDATE_CAPABILITY = "nodes.dcs_update"
+#: the control's own route, and the KEY the declaration is found by (the route table and the dialog
+#: both branch on it rather than on a path string).
+NODE_DCS_UPDATE_PATH = "/actions/node/dcs_update"
+DCS_UPDATE_KEY = "dcs_update"
+#: THE VERSION LIST the dialog reads ON DEMAND: the node's own
+#: ``get_available_dcs_versions(branch)``, newest first. A GET because it changes nothing, gated by
+#: the SAME capability as the control it feeds (a picker is not a lesser right than the write), and
+#: the node's name travels as ONE percent-encoded path segment (:func:`dcs_versions_path`).
+#:
+#: THE ``:path`` CONVERTER is what lets a node whose own name CONTAINS a ``/`` resolve: the encoder
+#: writes the name as one escaped segment, and the framework hands the handler the DECODED path, so a
+#: single-segment pattern would answer 404 for exactly those names. ``pages/server_detail`` carries
+#: its server routes the same way (``/fleet/{name:path}``), and the declared path is this same string,
+#: because the gate resolves a route by its OWN path (``registry.capability_for``).
+DCS_VERSIONS_PATH = "/nodes/{node:path}/dcs/versions"
+DCS_VERSIONS_QUERY = "branch"
+#: THE DIALOG the DCS update opens. Its own template because its VERSION pick is filled from that
+#: route once the page is open — ``confirm.html`` draws the fields (it renders every declared shape)
+#: but carries no script of its own to fill one, and this page needs exactly that one addition. It
+#: extends the shared template, so the dialog's markup, copy and behaviour are still the one
+#: ``confirm.html``: this file adds the read and nothing else.
+DCS_UPDATE_TEMPLATE = "dcs_update.html"
+#: the dialog's four fields, each name BOTH the form field and the ACTION's parameter.
+DCS_BRANCH_FIELD = "branch"
+DCS_VERSION_FIELD = "version"
+DCS_WARN_TIME_FIELD = "warn_time"
+DCS_ANNOUNCE_FIELD = "announce"
+#: THE EMPTY BRANCH. The picker's first entry states no branch at all, which the ACTION resolves to
+#: the INSTALLED one — the truthful default: an operator who only wants the newest build on the branch
+#: the node already runs never has to name it, and a value nothing offers is never forwarded.
+DCS_BRANCH_UNCHANGED = ""
+#: THE EMPTY VERSION, the same rule one field down: no version means "the newest build on the chosen
+#: branch", which the ACTION resolves through ``Node.get_latest_version``.
+DCS_VERSION_NEWEST = ""
+#: The warning time's default and the console's own bounds, in seconds. The DEFAULT is
+#: ``/dcs update``'s own (60); the bounds keep a mistyped box from stalling every server on the node
+#: for hours, and the ACTION re-reads whatever a crafted POST sends.
+DCS_WARN_TIME_DEFAULT = 60
+DCS_WARN_TIME_MIN = 0
+DCS_WARN_TIME_MAX = 3600
+DCS_WARN_TIME_LABEL = i18n._("Warning time (seconds)")
+DCS_WARN_TIME_HELP = i18n._("How long the players on this node are warned before their servers are "
+                            "stopped. 60 is the default.")
+DCS_BRANCH_LABEL = i18n._("Branch")
+DCS_BRANCH_HELP = i18n._("The branch to install. Testing and Nightly are offered only when this "
+                         "node is configured with DCS credentials.")
+DCS_VERSION_LABEL = i18n._("Version")
+DCS_VERSION_HELP = i18n._("The version to install. A version older than the installed one is a "
+                          "rollback; the installed one on the same branch is refused.")
+#: The picker's first entry in each field: the choices that mean "leave it to the action".
+DCS_BRANCH_UNCHANGED_LABEL = i18n._("Installed branch (no change)")
+#: The same entry once the CACHED check knows which branch is installed — the branch pick's own
+#: "installed now" marker. The WIRE VALUE stays :data:`DCS_BRANCH_UNCHANGED`.
+DCS_BRANCH_INSTALLED_LABEL = i18n._("Installed branch: {branch} (no change)")
+DCS_VERSION_NEWEST_LABEL = i18n._("Newest build on the branch")
+#: The three branch words, in ``/dcs update``'s own spelling (``plugins/admin/commands.py``'s
+#: ``get_dcs_branches``). ``dcs_server`` is not a fourth word: it is the PREFIX a node whose installed
+#: branch is a ``dcs_server`` one takes on all three.
+DCS_BRANCH_LABELS: dict[str, str] = {
+    "release": i18n._("Release"),
+    "testing": i18n._("Testing"),
+    "nightly": i18n._("Nightly"),
+}
+#: The prefix a node running a ``dcs_server``-family installation adds to every branch name.
+DCS_SERVER_PREFIX = "dcs_server."
+#: The version pick's two markers, and what the pick says while the on-demand read is running.
+DCS_VERSION_LATEST_LABEL = i18n._("{version} — newest on this branch")
+DCS_VERSION_INSTALLED_LABEL = i18n._("{version} — installed now")
+DCS_VERSIONS_READING = i18n._("Reading the versions this node offers…")
+DCS_VERSIONS_FAILED = i18n._("The version list could not be read: {reason}")
+DCS_VERSIONS_UNREADABLE = i18n._("The version list could not be read.")
+#: THE LIST ROUTE'S OWN SENTENCES — the console's chrome, translated for the request and rendered into
+#: the JSON body the dialog's script shows (see ``services/webservice/I18N.md``: a string a script
+#: SHOWS rather than looks up needs no message key). Each names the cause; NONE of them is ever a 500
+#: and none of them ever stands in for an invented list.
+DCS_VERSIONS_UNKNOWN_BRANCH = i18n._("'{branch}' is not a branch this node offers.")
+DCS_VERSIONS_NO_DCS = i18n._("Node '{node}' declares no DCS installation, so it has no versions to "
+                             "offer.")
+DCS_VERSIONS_OFFLINE = i18n._("Node '{node}' is offline or unknown, so its versions cannot be read.")
+DCS_VERSIONS_EMPTY = i18n._("Node '{node}' answered with no version for branch '{branch}' — ED may be "
+                            "unreachable, or this node has no DCS credentials.")
+DCS_VERSIONS_FAILED_BODY = i18n._("Node '{node}' could not answer with its version list ({error}).")
+# ── the SERVER CREATION pair ───────────────────────────────────────────────
+#: THE ADD SERVER capability. ``servers.*`` because the page is the fleet — and ADMIN ONLY with NO
+#: scope grant, exactly like every other node/instance write: this one CREATES an instance (its
+#: ``nodes.yaml`` block, its ports, its Saved Games directory), which is a node fact, and a manager's
+#: scope is a set of SERVER names that cannot name a server which does not exist yet.
+SERVER_ADD_CAPABILITY = "servers.add"
+#: THE DELETE SERVER capability — the same rule for the same reason: it removes the instance with the
+#: server. The two are separate capabilities because they are two operations, not two halves of one.
+SERVER_DELETE_CAPABILITY = "servers.delete"
+#: the ADD dialog's own path — a PAGE-LEVEL control (the Servers page head), not a row control: there
+#: is no server yet to hang it on.
+SERVER_ADD_PATH = "/actions/server/add"
+#: the DELETE control's path — a row control on the server row, like every other server write.
+SERVER_DELETE_PATH = "/actions/server/delete"
+#: the ADD form's fields. One name for the field and the ACTION's parameter, so the dialog cannot post
+#: one thing and the action read another.
+ADD_NODE_FIELD = "node"
+ADD_INSTANCE_FIELD = "instance"
+ADD_NAME_FIELD = "name"
+ADD_CONFIGURE_FIELD = "configure"
+#: the value of the ADD form's instance picker that means "create a new instance", and therefore the
+#: value that carries NO instance name.
+ADD_NEW_OPTION = ""
+#: the DELETE dialog's TYPED confirmation: the field the operator types the server's name into. A
+#: yes/no is a click; typing the name is the deliberate act a removal earns.
+CONFIRM_NAME_FIELD = "confirm_name"
+#: the DELETE action's own option — the Saved Games directory, which is a choice of its own and never
+#: implied by removing the server.
+REMOVE_FILES_FIELD = "remove_files"
+NODE_IN_SERVICE = "in-service"
+NODE_MAINTENANCE = "maintenance"
+NODE_POWER_OFF = "servers-up"
+NODE_POWER_ON = "servers-down"
+NOTE_NO_CHECK = upgrade_signal.NOTE_NO_CHECK
+
+PAUSE_PATH = "/actions/server/pause"
+UNPAUSE_PATH = "/actions/server/unpause"
+PAUSE_CAPABILITY = "missions.pause"
+UNPAUSE_CAPABILITY = "missions.unpause"
+
+#: THE PLAYER MESSAGE PAIR — ONE control per mode, each a glyph on the row with its OWN dialog. The
+#: row carries neither the text field nor a mode button: the mode is the CONTROL's own fact
+#: (:attr:`PlayerAction.constants`), so the message is typed in the dialog and nothing a request
+#: sends can move a write from one mode to the other. Both post to the ONE ``message_player`` action,
+#: whose modes are ``plugins.mission.actions.MESSAGE_MODES``.
+CHAT_PATH = "/actions/player/chat"
+POPUP_PATH = "/actions/player/popup"
+MESSAGE_CAPABILITY = "players.message"
+#: The console's own bound on a ban's length, in days — a human-scale suspension, and the range the
+#: ban dialog's number box refuses to submit outside. It is deliberately NARROWER than the action's
+#: own :data:`plugins.mission.actions.MAX_BAN_DAYS` (100 years, the domain's overflow guard): the
+#: console offers what an operator actually means, and the action still re-checks every POST.
+BAN_DAYS_MIN = 1
+BAN_DAYS_MAX = 999
+
+#: THE PLAYER SCREENSHOT: the glyph that asks a server for a capture of one player's screen.
+SCREENSHOT_PATH = "/actions/player/screenshot"
+#: Where the TAKEN image is served from: ``{SCREENSHOT_IMAGE_PATH}/<token>.png``. The token is the
+#: only handle — minted per capture, held in memory, and gone a day later — so the URL is
+#: short-lived by construction and never names the server or the player in a path a person can edit.
+SCREENSHOT_IMAGE_PATH = "/players/screenshot"
+SCREENSHOT_CAPABILITY = "players.screenshot"
+#: The declaration's own key, so the route table can pick the screenshot's handler without matching
+#: on a path string (assembled in two places: the declaration and the route loop).
+SCREENSHOT_KEY = "screenshot"
+#: The server setting that decides whether the glyph is offered at all, in the dotted form the
+#: ``servers.yaml`` schema writes it. The SAME path ``plugins.mission.actions`` reads — one string,
+#: two readers, so a rename cannot leave the console offering a glyph the action then refuses.
+SCREENSHOT_SETTING = "advanced.server_can_screenshot"
+
+#: THE SERVER MESSAGE PAIR — the server-row twin of the pair above: ONE glyph per mode, each with
+#: its OWN dialog, both posting to the ONE ``message_server`` action. They differ from the player
+#: pair in ONE thing: the audience is a CHOICE (``SelectField``) drawn on the dialog, because a
+#: server-wide message may be addressed to the whole server or to one coalition. The choice is a
+#: declared SELECT whose options are validated by the ACTION against its own allow-list
+#: (``plugins.mission.actions.SERVER_MESSAGE_RECIPIENTS``), so a crafted body cannot address a
+#: message to something the domain cannot deliver.
+SERVER_CHAT_PATH = "/actions/server/chat"
+SERVER_POPUP_PATH = "/actions/server/popup"
+SERVER_MESSAGE_CAPABILITY = "servers.message"
+
+SERVER_MAINTENANCE_CAPABILITY = "servers.maintenance"
+SERVER_CLEAR_MAINTENANCE_CAPABILITY = "servers.clear_maintenance"
+
+#: THE DCS config write — the write half of the Configuration tab (its read half is the page's
+#: ``servers.config``, declared by ``pages/server_detail.py``). ``("Admin",)`` WITH a scope grant: an
+#: Admin changes everything, and a MANAGER (an identity whose scope holds a server's ``managed_by``)
+#: may change every setting EXCEPT the ones the manager deny-list names (``core.server_config`` — the
+#: port today). The deny-list is applied inside the action, on top of the scope grant. A ``DCS Admin``
+#: is refused: ``allows`` needs the ``Admin`` role or a managing scope, and a DCS Admin's
+#: ``Scope.cluster`` is a ROLE's scope, never a managing one.
+SERVER_CONFIG_CAPABILITY = "servers.config.dcs"
+SERVER_CONFIG_PATH = "/actions/server/config"
+SERVER_CONFIG_ACTION_KEY = "config"
+#: The hidden field a Save carries, holding the JSON map of OLD values a REVERT re-submits through the
+#: SAME action (a revert is another write: audited, validated and locked like any other).
+SERVER_CONFIG_REVERT_FIELD = "_revert"
+#: The programmatic CLEAR field, still ACCEPTED by the route though no control renders it: a password
+#: is normally cleared by EMPTYING the field, so this is only kept for a crafted caller that posts it.
+SERVER_CONFIG_CLEAR_FIELD = "password_clear"
+#: The single hidden field the whole form posts its target under — the same name every server write
+#: uses (``server``), so one resolution path serves the config write and the row strip.
+SERVER_CONFIG_FIELD = "server"
+
+#: THE CHANNELS WRITE — the bot face of the same tab (``servers.yaml``), its own declaration, route
+#: and action (``set_server_channels``). ``servers.config.channels`` is ``("Admin",)`` with NO scope
+#: grant: the channels write is denied to a manager as a whole. The channel rows are also named in the
+#: manager deny-list (``core.server_config.CHANNELS_ITEM``), so the page OMITS the whole card and
+#: the action re-checks a direct caller. Its observable is the config revision, like the DCS Save.
+SERVER_CHANNELS_CAPABILITY = "servers.config.channels"
+SERVER_CHANNEL_ACTION_KEY = "channels"
+SERVER_CHANNELS_PATH = "/actions/server/channels"
+
+#: THE COALITION WRITE — the third face of the Configuration tab (the bot database). Its capability
+#: ``servers.config.coalitions`` is ``("Admin",)`` WITH a scope grant, so a manager reaches the coalition
+#: passwords of THEIR OWN servers (and nobody else's — the scope is applied by ``resolve_scoped_server``),
+#: the same rule the DCS config write carries. The WRITE calls the bot's own ``setCoalitionPassword``.
+SERVER_COALITIONS_CAPABILITY = "servers.config.coalitions"
+SERVER_COALITION_ACTION_KEY = "coalitions"
+SERVER_COALITIONS_PATH = "/actions/server/coalitions"
+
+#: THE MISSION-LIST WRITES — four controls on the Missions tab that mirror
+#: ``plugins/mission/commands.py``'s ``/mission add|delete|load`` and ``plugins/mission/upload.py``.
+#: Each is ``WRITE_ROLES`` (``Admin`` + ``DCS Admin``) WITH a scope grant, so a MANAGER stays inside
+#: THEIR OWN servers (``resolve_scoped_server`` applies the scope; a foreign server is refused the
+#: console's 403 without disclosing the target). One declaration each, read by the tab control, the
+#: capability map and the route, exactly like the config faces above.
+MISSIONS_ADD_CAPABILITY = "missions.add"
+MISSIONS_DELETE_CAPABILITY = "missions.delete"
+MISSIONS_LOAD_CAPABILITY = "missions.load"
+MISSIONS_UPLOAD_CAPABILITY = "missions.upload"
+MISSIONS_ADD_PATH = "/actions/server/missions/add"
+MISSIONS_DELETE_PATH = "/actions/server/missions/delete"
+MISSIONS_LOAD_PATH = "/actions/server/missions/load"
+MISSIONS_UPLOAD_PATH = "/actions/server/missions/upload"
+#: The form fields the mission writes read: the LOGICAL target (an index or name) the row's Load /
+#: Remove controls post, the missions-dir-relative path the Add picker posts, the uploaded file, and
+#: the two booleans the Add / Upload controls carry.
+MISSION_FIELD = "mission"
+#: THE STALE-PAGE COMPANION: the row's LOGICAL mission name, posted BESIDE its 1-based index so the
+#: action can refuse a write whose list changed between render and POST. The value is
+#: ``"<index>=<logical name>"`` (one per row; the console's rows and dialogs post it).
+MISSION_NAME_FIELD = "mission_name"
+MISSION_PATH_FIELD = "path"
+MISSION_FILE_FIELD = "file"
+MISSION_AUTOSTART_FIELD = "autostart"
+MISSION_LOAD_FIELD = "load"
+MISSION_DISK_FIELD = "delete_from_disk"
+
+#: The size cap the console applies to an UPLOAD, as ONE named constant so the route, its early
+#: refusal and its streaming read cannot disagree. It MUST equal the action's own
+#: ``plugins.mission.actions.MAX_MISSION_UPLOAD_BYTES`` — the console keeps its own copy so the
+#: generic web surface never imports a plugin module — and ``test_webui_missions_dialog`` pins the
+#: two together so they cannot drift. 100 MiB: comfortably above a real ``.miz``.
+MISSIONS_UPLOAD_MAX_BYTES = 100 * 1024 * 1024
+
+#: THE MISSION-LIST WRITES. The REORDER replaces the ORDER of ``missionList`` in ONE write through
+#: the bot's own ``Server.setMissionList`` — no DCS-side function (the idle states'
+#: file write is the whole answer) — and is OFFLINE ONLY. BULK REMOVE is the row's own delete,
+#: repeated: it calls the bot's own per-mission ``deleteMission``, one per selected mission,
+#: DESCENDING, in every state but ``LOADING``. Both re-use ``missions.delete``, each has its own path,
+#: and each has its own state gate the tab reads and the action enforces.
+MISSIONS_REORDER_CAPABILITY = "missions.reorder"
+MISSIONS_REORDER_PATH = "/actions/server/missions/reorder"
+MISSIONS_BULK_DELETE_PATH = "/actions/server/missions/delete_bulk"
+#: THE ACTIVATE WRITE: make a CONFIGURED mission the START mission — through the bot's own
+#: ``Server.setStartIndex``. Its own capability (``missions.activate``) and path; it works in every
+#: state EXCEPT ``LOADING`` (see ``MISSIONS_ACTIVATE_STATES``).
+MISSIONS_ACTIVATE_CAPABILITY = "missions.activate"
+MISSIONS_ACTIVATE_PATH = "/actions/server/missions/activate"
+#: The form field the reorder control posts (``up`` / ``down``).
+MISSION_DIRECTION_FIELD = "direction"
+#: The form field a row DRAG posts: the WHOLE new order, one repeated value per row (the row's
+#: logical name, in the order dropped). Its presence is what tells the ONE reorder route that the
+#: request is a drop and answers JSON (``static/reorder.js``) rather than the redirect the up/down
+#: buttons take.
+MISSION_ORDER_FIELD = "order"
+#: The states a mission-list write is ACCEPTED in — the file-write states, i.e. the DCS process is
+#: DOWN. ``STOPPED`` is NOT one of them (DCS is up in ``{LOADING, STOPPED, PAUSED, RUNNING}`` and owns
+#: ``net.missionlist`` in memory): a write made then is reverted (`plugins/mission/actions.py`). This
+#: gate is the OFFLINE-ONLY move's (``mission_reorder``); bulk remove uses ``MISSIONS_BULK_DELETE_STATES``.
+MISSION_LIST_OFFLINE_STATES: tuple[str, ...] = ("UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN")
+
+#: The sentence the OFFLINE-ONLY move refuses with — the reason the tab shows where it omits its
+#: control. Owned by ``plugins.mission.actions.MISSION_LIST_OFFLINE_ONLY``; the console keeps its OWN
+#: copy so the generic web surface never imports a plugin module (a test pins them equal).
+MISSION_LIST_OFFLINE_ONLY = "Missions can only be changed while the server is not running."
+
+#: BULK REMOVE'S STATE GATE: every state EXCEPT ``LOADING``. The bot's ``deleteMission`` routes
+#: to DCS in ``{STOPPED, PAUSED, RUNNING}`` and edits the mission file otherwise; in ``LOADING`` the
+#: process is up (DCS owns ``net.missionlist``) but the method would edit the file, so the removal is
+#: reverted — the action refuses it and the tab omits the control there. The other five states stick.
+MISSIONS_BULK_DELETE_STATES: tuple[str, ...] = (
+    "UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN", "STOPPED", "PAUSED", "RUNNING")
+
+#: The sentence the bulk remove refuses a ``LOADING`` POST with — owned by
+#: ``plugins.mission.actions.MISSION_DELETE_LOADING_REFUSAL``; the console keeps its OWN copy so the
+#: generic web surface never imports a plugin module (a test pins the two equal).
+MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
+
+#: THE ACTIVATE WRITE'S STATE GATE: every state EXCEPT ``LOADING``. The bot's ``setStartIndex``
+#: routes to DCS in ``{STOPPED, PAUSED, RUNNING}`` and writes the file otherwise; in ``LOADING`` the
+#: process is up (DCS owns ``net.missionlist``) but the method would write the file, so the change is
+#: reverted — the action refuses it and the tab omits the control there. The other five states stick.
+MISSIONS_ACTIVATE_STATES: tuple[str, ...] = (
+    "UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN", "STOPPED", "PAUSED", "RUNNING")
+
+#: The sentence the activate write refuses a ``LOADING`` POST with — owned by
+#: ``plugins.mission.actions.MISSION_ACTIVE_LOADING_REFUSAL``; the console keeps its OWN copy so the
+#: generic web surface never imports a plugin module (a test pins the two equal).
+MISSION_ACTIVE_LOADING_REFUSAL = "The start mission cannot be changed while the server is loading."
+
+#: The sentence the bar's ``Set as start`` refuses a selection that is not EXACTLY ONE mission with —
+#: the tick IS its target, so NONE names nothing and SEVERAL names no single mission. Owned by
+#: the console (no plugin copy: the plugin's action takes ONE mission and never sees a selection), and
+#: stated where the count already reads, so the client's own reason and this answer are one rule.
+MISSIONS_ACTIVATE_SELECTION_REFUSAL = (
+    "Select exactly one mission to set as the start mission.")
+
+
+
+def mission_index_required(value: Any) -> str:
+    """The sentence a NON-POSITIVE numeric mission target gets on EVERY console surface.
+
+    The console's mission indexes are 1-BASED (the number its own tab shows and its row links post),
+    so ``0`` — and anything below it — names nothing. Said plainly, in ONE place, so the download
+    route's 404 and the load route's notice read the same.
+    """
+    return f"The mission index is 1-based; '{readmodels.text(value)}' is not a mission index."
+
+
+def _upload_cap_message() -> str:
+    """The console's over-cap refusal — the SAME sentence the action answers with, so an operator
+    cannot tell which surface refused (the two caps are pinned equal by a test)."""
+    return (f"The mission file is larger than the "
+            f"{MISSIONS_UPLOAD_MAX_BYTES // (1024 * 1024)} MiB limit and was not uploaded.")
+
+MESSAGE_FIELD_MAX = 1024
+
+NOTICE_KEY = "_action_notice"
+
+NOTICE_MAX_CHARS = 300
+
+#: The most characters the one-shot REVERT payload may occupy in the session cookie. Bounded well
+#: below the browser's ~4 KiB cookie ceiling, and large enough to carry the action's per-field maximum
+#: (``description`` ≤ 2000) plus its JSON overhead. A payload that exceeds this is dropped WHOLE, never
+#: truncated — a string cut mid-value cannot parse and would make the Revert silently inert.
+REVERT_MAX_CHARS = 2800
+
+#: The sentence a notice carries when a Revert could not be offered because its payload cannot be
+#: carried whole — so the operator learns WHY there is no Revert rather than being shown a dead one.
+#: It is the CONSOLE's own wording (nothing composes it where a write runs and nothing shows it on
+#: Discord), `i18n._`-marked and rendered through ``_`` at the notice, so it follows the language.
+REVERT_TOO_LONG_SENTENCE = i18n._("The previous values are too long to offer a one-shot Revert here. "
+                                  "Re-open the page to edit them back by hand.")
+
+AWAIT_MAX_PENDING = 8
+AWAIT_CHANGE_SECONDS = 120
+
+_AWAIT_LOCK = threading.Lock()
+_AWAIT: dict[str, dict] = {}
+
+AWAIT_OBSERVABLE_STATUS = "status"
+AWAIT_OBSERVABLE_MAINTENANCE = "maintenance"
+#: The THIRD observable: a config write moves neither ``status`` nor ``maintenance``, so neither of the
+#: two above can end its pulse. Its signal is the server's CONFIG REVISION (the settings ``mtime``
+#: hashed with the ``servers.yaml`` mtime, read without an RPC — :func:`config_revision`). On an AGENT
+#: node the expectation can end on the background poller's tick rather than on this response, bounded
+#: by :data:`AWAIT_CHANGE_SECONDS` like every other action.
+AWAIT_OBSERVABLE_CONFIG = "config"
+#: THE FOURTH CASE, and the one an action declares when it MOVES NOTHING AT ALL: a message is posted
+#: to players and no status, flag or revision changes. An expectation recorded for such an action
+#: could only ever end on the ceiling, so the row's glyph would blink for two minutes over a write
+#: that already finished — the declaration says ``none`` and the route records no expectation, which
+#: is exactly "there is nothing to wait for".
+AWAIT_OBSERVABLE_NONE = "none"
+#: THE FIFTH observable, and the one a NODE control declares: the console's cached DCS check
+#: (``services/webservice/dcs_update.py``). Its value is that record's ``checked_at`` stamp, so the
+#: pulse ends when the check has been REFRESHED — which the route does once the update has returned —
+#: and never on a render that merely re-reads the old record.
+AWAIT_OBSERVABLE_DCS = "dcs"
+
+#: HOW LONG a DCS update's pulse may last. The operation warns and stops every server on the node and
+#: then downloads and installs a full DCS build, so the ceiling is tens of minutes; it only bounds a
+#: pulse whose check never landed (a node that went away mid-update).
+DCS_PULSE_SECONDS = 45 * 60
+
+CONFIRM_SUFFIX = "/confirm"
+CONFIRM_FIELD = "_confirm_token"
+CONFIRM_TEMPLATE = "confirm.html"
+
+ORIGIN_FIELD = "_origin"
+#: THE ACTIVE-TAB CARRIER, and the reason it is a SECOND field rather than a query on the origin:
+#: the dashboard renders all four tables at ONE path (``/``) and the table in force is a query
+#: parameter, while a write returns by looking its origin up in the registry — an allow-list of PAGE
+#: PATHS (``Registrar.page_paths``), which refuses ``/?tab=players`` outright. So the tab travels
+#: beside the origin and the routes that build the return URL append it (:func:`origin_url`). A
+#: control on a page whose table is its path (``/fleet``, ``/players``, ``/nodes``) carries no tab
+#: at all, and neither does the dashboard's default tab: an unadorned page stays unadorned.
+TAB_FIELD = "_tab"
+CONFIRM_KEY = "_action_confirms"
+CONFIRM_MAX_PENDING = 8
+
+ROW_STRIP = "strip"
+ROW_MENU = "menu"
+
+MENU_NOTE = i18n._("Start and Stop live only here: they act on fewer states than Startup and "
+                   "Shutdown, so they do not earn a place in the strip.")
+
+#: THE BUSY SENTENCE a pending control's own glyph carries (see :func:`_control`). It is a
+#: per-request record like every other composed sentence: the control's own ``label`` and the
+#: resolved target's ``name`` are substituted at render, so the sentence is translated FIRST and the
+#: operator data interpolated after. ``{label}`` is the action's own translatable label (the
+#: template's ``say`` translates it too — see ``templating.SENTENCE_GLOBAL``).
+_BUSY_TITLE = i18n._("{label} — an action on {name} is running; this can take a moment")
+_BUSY_ARIA = i18n._("{label} — an action on {name} is running")
+
+
+@dataclass(frozen=True, slots=True)
+class NodeOption:
+    """ONE checkbox a control's DIALOG carries — the command's own option, as a form field.
+
+    SHARED by the NODE row's operations (``/node offline``'s ``maintenance``) and the SERVER row's
+    Shutdown/Startup (the flag each sets or clears by default). It lives above every declaration
+    because it is READ while the action tuples are built (``NodeOption(...)`` is a runtime call), and
+    because its shape is one thing, not one per surface.
+
+    The option is NOT decoration: ``/node offline`` stops the servers by default and ``/node online``
+    does not start them by default, and Discord's ``/server shutdown|startup`` set/clear the
+    maintenance flag by default — so the choice is part of the operation and the dialog is where the
+    operator makes it.
+
+    ``field`` is BOTH the form field's name and the ACTION parameter's name — one string, so the
+    route cannot post one thing and the action read another. ``on``/``off`` are the two values the
+    control sends, and the companion ``off`` input is rendered BEFORE the checkbox (a checked box
+    sends no field of its own, and this FastAPI resolves a repeated field to the LAST value): see
+    :func:`option_inputs`.
+    """
+
+    field: str
+    label: str
+    default: bool = False
+    help: str = ""
+    on: str = "1"
+    off: str = "0"
+
+
+@dataclass(frozen=True, slots=True)
+class SelectOption:
+    """ONE option a control's DIALOG offers in its SELECT.
+
+    ``value`` is the string the form posts and the ACTION validates (never a label a translator
+    could move); ``label`` is the ``i18n._``-marked English the dialog shows, translated for the
+    REQUEST where the dialog is built.
+    """
+
+    value: str
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
+class SelectField:
+    """The SELECT ONE control's DIALOG draws, when the operation offers a choice among named values.
+
+    Its own shape rather than a second :class:`NodeOption`, because a checkbox is a boolean and this
+    is a choice: ``field`` is BOTH the form field's name and the ACTION parameter's name (one
+    string, so the route cannot post one thing and the action read another), and ``options`` is the
+    declaration's own list. A select with ONE option is honest where the operation has one audience —
+    it states the recipient rather than leaving the operator to guess.
+    """
+
+    field: str
+    label: str
+    options: tuple[SelectOption, ...]
+    help: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class WriteAction:
+    """One write of the console: what it needs, what it calls, and which state it applies to.
+
+    Data, not code, on purpose: the route table, the capability map and the page
+    control are three readings of ONE declaration, so a write cannot exist without a declared
+    capability and a declared action.
+
+    ``statuses`` is the state the control applies to. It is not a second authorization: it *** the
+    page from offering a button whose only possible answer is the action's own state guard
+    (``"Server 'X' is Stopped, not running."``). The guard remains the authority — a stale page or a
+    crafted POST reaches it and is refused with a typed result. An EMPTY ``statuses`` means "every
+    state": the maintenance pair is the one control set that applies in all of them, because a FLAG is
+    not a power state — it can be set or cleared while the process is up, down or between.
+
+    ``when_maintenance`` is the flag pair's own state gate, exactly as ``PlayerAction.when_muted`` is
+    the mute pair's: ``set_maintenance`` is offered only on a server the read model says is NOT
+    flagged, ``clear_maintenance`` only on one it says is. It is the ONLY per-row server state the
+    strip consults beyond ``statuses``, and it is read from the same scoped source the row renders
+    from — so the two halves of the pair are never both offered and never both withheld.
+
+    The PRESENTATION half (``key`` the glyph, ``tip`` the native tooltip, ``aria`` the accessible
+    name, ``row`` where the control sits, ``danger`` the hover tint, ``confirm`` whether it goes
+    through its dialog, and the dialog's own ``warning``/``detail``/``go`` copy) is here rather than
+    in a template for the same reason: one declaration, read by the row, by the dialog page and by
+    the tests. ``tip``/``aria``/``warning``/``detail``/``go_title`` carry ``{server}``/``players``
+    placeholders, formatted by :func:`_control` and :func:`confirm_dialog` from the RESOLVED object
+    — never from anything the browser sent.
+    """
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    statuses: tuple[str, ...]
+    row: str = ROW_STRIP
+    danger: bool = False
+    confirm: bool = False
+    #: record EVERY attempt at this action in the audit, including a refusal the ROUTE made before
+    #: any action ran. The default is False — a refusal a route makes is not an incident for most
+    #: writes — and an action whose refusal IS worth a row (a destructive one, or one whose probe the
+    #: operator wants to see) declares True here, so the flag travels with the declaration rather than
+    #: with the route. Read by :func:`_audit_refusal`, the single consumer.
+    audit_refusals: bool = False
+    when_maintenance: bool | None = None
+    #: whether this control is reached through its DIALOG while requiring NO confirmation — the ADD
+    # SERVER control, whose dialog IS the form (a node, an instance, a name, the channels). A dialog
+    # is otherwise reached because the action confirms or carries an option; this one carries neither
+    # and still needs the page, so it says so. It mints no one-shot token: adding a server is not
+    # destructive, and a token nothing spends is the dead knob this console forbids.
+    form: bool = False
+    #: whether the DIALOG requires the target's NAME to be TYPED into it. A destructive write a click
+    # cannot be undone from earns the deliberate act: the route compares the posted value with the
+    # RESOLVED target's own name and refuses a mismatch before it resolves anything.
+    typed_confirm: bool = False
+    #: the command's own OPTION, when the action has one: a checkbox with its ``off`` companion,
+    # drawn by the action's DIALOG (``templates/confirm.html`` via :func:`option_inputs`).
+    # Shutdown sets the maintenance flag, Startup clears it (``plugins.mission.actions``'s own contract),
+    # and the choice is part of the operation, so the dialog is where the operator makes it —
+    # which is what makes these two controls reach their dialog even when they are not destructive
+    # (see :attr:`dialog`).
+    option: NodeOption | None = None
+    #: THE OTHER OPTIONS a control's DIALOG draws, when ONE checkbox is not enough — the Missions
+    #: tab's ADD flow, whose dialog owns both the load-at-next-start and the load-now choices. Same
+    #: shape as ``option`` (a :class:`NodeOption`) and drawn by the SAME template (:func:`option_inputs`
+    #: reads ``option`` then ``options``); ``option`` stays the single-option spelling the server and
+    #: node rows use, and a control may use either. A mission route parses its own option fields
+    #: (``_mission_add_handler``), so ``_handler``'s single-option parse is untouched by this.
+    options: tuple[NodeOption, ...] = ()
+    #: THE DIALOG'S own TEXT field, when the action asks the operator for text (a server-wide
+    #: message). The same shape and the same discipline as :attr:`PlayerAction.field`: ``field`` is
+    #: BOTH the form field's name and the ACTION parameter's name, and the value travels UNVALIDATED
+    #: — the action owns its own refusals.
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    #: HOW the dialog renders that text field: ``text`` is the one-line input, ``textarea`` the box a
+    #: message of several lines is typed into. It lives on the declaration for the same reason the
+    #: rest of the dialog does — the operator's message is prose, so the control that collects it
+    #: says so once, beside the field it describes.
+    field_kind: str = "text"
+    #: THE DIALOG'S own SELECT, when the action offers a choice among named values (a message's
+    #: audience). Drawn by the SAME template as the text field and the checkboxes
+    #: (``confirm.html``'s ``field_input``), and its ``field`` is likewise the action's parameter.
+    select: SelectField | None = None
+    #: whether the DIALOG also draws the TEMPORARY PRESET's weather fields — the second shape of the
+    #: same ``preset`` choice its ``select`` names (``TEMPORARY_KEYS``, read from the one field
+    #: table). The two are posted under one field and the route refuses a launch that states both.
+    weather: bool = False
+    #: what the CONTROL adds to the action call on its OWN authority — the fields the declaration
+    #: states and the body cannot supply, applied AFTER the posted values so they can never be
+    #: overridden. The server message pair is the case that needs it: ``chat`` and ``popup`` are two
+    #: controls of ONE ``message_server`` action whose MODE is not a choice the browser makes
+    #: (``(("mode", "chat"),)``), so a crafted POST cannot move a write from one mode to the other.
+    constants: tuple[tuple[str, str], ...] = ()
+    #: whether the ACTOR's own name is passed to the action as ``sender`` — the label an in-game
+    #: message appears to come from. Read off the request's identity, never from the body, so nobody
+    #: can sign another person's name onto a message.
+    sender: bool = False
+    #: whether the ACTION writes its own audit entry (``core.actions.audit_action``), which is what
+    #: decides the seam's ``audit_result``. True for an action this repo owns; False for a plugin
+    #: action this console may not modify, whose entry the SEAM writes instead — one entry either
+    #: way, never two.
+    self_audited: bool = False
+    #: WHICH observable this action MOVES, and therefore which signal ends the pulse it starts.
+    # The default — the row's status/state — is what every power action and the
+    #: mission pair change; ``AWAIT_OBSERVABLE_MAINTENANCE`` is the flag pair's own, because setting or
+    #: clearing ``server.maintenance`` moves no status at all; ``AWAIT_OBSERVABLE_CONFIG`` is the
+    #: config writes' own (the revision); and ``AWAIT_OBSERVABLE_NONE`` is an action that moves
+    #: NOTHING, so no expectation is recorded and its control never pulses. It lives on the
+    #: DECLARATION for the same reason every other fact about a control does: the route that records
+    #: the expectation and the read that ends it are two readings of ONE declaration, never a second
+    #: list of "which actions are flag actions" that could drift from the pair below.
+    observable: str = AWAIT_OBSERVABLE_STATUS
+    #: THE STATE ITS WRITE IS WORKING TOWARD: the row reads one of these when the action has SETTLED,
+    #: and only then is its pulse spent. The end condition is not simply "the status moved", which a
+    #: real DCS boot defeats — a launch goes ``SHUTDOWN`` -> ``LOADING`` (most of the boot) ->
+    #: ``RUNNING`` (``core/data/impl/serverimpl.py``), so the expectation would be spent one or two
+    #: seconds in and the pulse gone before anyone saw it. ``LOADING`` is deliberately in NO settled
+    #: set — it is the state the person is waiting THROUGH — and while the row sits there with a
+    #: pending start/restart its control stays on the row, busy (see :func:`server_controls`).
+    #:
+    #: * ``startup`` / ``start`` / ``restart`` settle at ``RUNNING``/``PAUSED``;
+    #: * ``shutdown`` / ``stop`` settle at ``SHUTDOWN``/``STOPPED``;
+    #: * the mission pair settles at the state it moves to (``PAUSED`` / ``RUNNING``).
+    #:
+    #: AN EMPTY tuple means "any change of the observable ends it" — the rule kept for an action that
+    #: names no target state — and the flag pair, whose observable is a boolean, ignores this field
+    #: entirely (its value either moved or it did not). ``restart`` is why the read needs more than
+    #: ``state in settled``: it is SUBMITTED in a settled state (``RUNNING``), so the read also
+    #: requires that the row LEFT that state first — see :func:`awaiting_change`.
+    settled: tuple[str, ...] = ()
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    #: the warning/go-title variants used when the resolved player count is ZERO: a sentence that
+    #: names how many players lose their connection has nothing true to say then, so the dialog
+    #: drops it instead of printing "0 players". Empty falls back to ``warning`` / ``go_title``.
+    warning_empty: str = ""
+    detail: str = ""
+    go: str = ""
+    go_title: str = ""
+    go_title_empty: str = ""
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG (``confirm.html``) rather than posting
+        the action directly.
+
+        The node row's own rule, applied to the server row (``_node_control``): a control that
+        CONFIRMS posts to ``<path>/confirm`` so the action's route can refuse a POST that skipped
+        the dialog, and a control that CARRIES AN OPTION posts there too because the option is a
+        form field and has nowhere else to live. Startup is the second case: it is not destructive
+        (nothing to confirm), but its maintenance box is drawn — and chosen — on the dialog.
+
+        This is the ONE place the question is answered: the control's path (``_control``), the
+        dialog route's registration and the capability map (``capabilities``) are three readings of
+        it, so a control cannot post directly while its option is rendered on a page nobody reaches.
+        """
+        return bool(self.confirm or self.option is not None or self.options or self.form)
+
+
+#: THE SERVER MESSAGE AUDIENCE — the recipients a server-wide message offers, declared ONCE and read
+#: by BOTH dialogs of the pair (the chat control and the popup control), so the two cannot drift into
+#: two vocabularies for one choice. The values are the ACTION's own recipient words
+#: (``plugins.mission.actions.SERVER_MESSAGE_RECIPIENTS``); the labels are the three the console
+#: shows. ALL THREE ARE ALWAYS OFFERED on a server whose process can take the message: DCS addresses
+#: a coalition directly (``trigger.action.outTextForCoalition``) and the chat line fans out per player
+#: of that side, so red/blue need no server-side configuration. The action re-validates every POST
+#: against its own allow-list.
+SERVER_MESSAGE_AUDIENCE: tuple[SelectOption, ...] = (
+    SelectOption("all", i18n._("Everyone")),
+    SelectOption("red", i18n._("Red coalition")),
+    SelectOption("blue", i18n._("Blue coalition")),
+)
+
+#: The audience SELECT's own help line, shared by both dialogs because the choice it explains is the
+#: same one.
+SERVER_MESSAGE_AUDIENCE_HELP = i18n._("The choice is the audience: everyone on the server, or one "
+                                      "side of the mission.")
+
+
+#: THE LAUNCH DIALOG'S WEATHER PICK. ``field`` is BOTH the form field's name and the ACTION
+#: parameter's name (``startup_server``), one string so the route cannot post one thing and the action
+#: read another. The OPTIONS are not static — they are the preset names the resolved server's NODE
+#: carries in its preset files, read per request and grouped per file — so the declaration holds only
+#: the field and its copy; ``pages/actions`` draws the options (``_weather_fields``).
+PRESET_FIELD = "preset"
+#: The ACTION's keyword that names a preset whose ``preset`` VALUE is a document: a preset read out of
+#: a preset file carries the change itself and no name in it, so the name travels beside it. Never a
+#: form field — the route computes it from what the operator picked.
+PRESET_NAME_PARAM = "preset_name"
+PRESET_LABEL = i18n._("Weather preset")
+PRESET_HELP = i18n._("Applied to the mission when this server starts up. It replaces the instance's "
+                     "configured weather for this launch.")
+#: The FIRST choice and the default: the launch behaves exactly as it did before this pick existed.
+PRESET_NONE_LABEL = i18n._("Leave the weather alone")
+#: The help shown IN PLACE of the preset pick when this server's preset files cannot be read: a preset
+#: out of a file cannot be resolved at POST time then, so the mode is not offered and this says why.
+PRESET_FREE_TEXT_HELP = i18n._("This server's preset files could not be read, so a preset out of a "
+                               "file cannot be picked for this launch — create your own weather "
+                               "below instead.")
+#: THE PICK'S SECOND HELP LINE, beside :data:`PRESET_LIST_HELP`: what the entries below it are grouped
+#: by. The grouping is per preset FILE on the node, and a node carrying one preset file draws none — so
+#: the sentence states both, because the reader sees exactly one of the two shapes.
+PRESET_GROUP_HELP = i18n._("One group per preset file on this node; a node carrying a single preset "
+                           "file lists its presets without a group heading.")
+
+#: THE WEATHER MODE — the ONE three-way exclusive choice both launch dialogs draw ABOVE the pick:
+#: leave the weather alone, take a preset out of one of the node's preset FILES, or build a one-off
+#: preset in the temporary fields. It travels under its OWN form field, so the dialog can state a mode
+#: the pick alone cannot express and the route reads the MODE to decide how to read ``preset``.
+#: ``WEATHER_MODE_LEAVE`` is the default and the first row, so a launch nobody touched posts the same
+#: thing as a launch from before the pick existed. An ABSENT field is not a fourth mode: it is how a
+#: caller with no dialog (direct / REST / MCP) states its pick, and it keeps that caller's reading
+#: (:func:`launch_weather_params`).
+WEATHER_MODE_FIELD = "weather_mode"
+WEATHER_MODE_LEAVE = "leave"
+WEATHER_MODE_FILE = "file"
+WEATHER_MODE_CUSTOM = "custom"
+WEATHER_MODES: tuple[str, ...] = (WEATHER_MODE_LEAVE, WEATHER_MODE_FILE, WEATHER_MODE_CUSTOM)
+#: The three rows' own copy, in the order the dialog draws them.
+WEATHER_MODE_LEAVE_LABEL = PRESET_NONE_LABEL
+WEATHER_MODE_LEAVE_HELP = i18n._("The mission loads as its file stands. (default)")
+WEATHER_MODE_FILE_LABEL = i18n._("Use a preset from a file")
+WEATHER_MODE_FILE_HELP = i18n._("Pick the preset file, then the preset inside it.")
+WEATHER_MODE_CUSTOM_LABEL = i18n._("Create your own weather")
+WEATHER_MODE_CUSTOM_HELP = i18n._("Build a one-off preset in the fields below.")
+
+#: MODE 2's FILE FILTER — it narrows what the browser SHOWS, it never narrows what the pick can
+#: carry. Drawn only when the node carries more than one preset file (with a single file there is
+#: nothing to filter) and defaulting to the empty value, "All files". A ticked entry carries its own
+#: file, so this control takes no part in resolving a pick; the route accepts only a label the render
+#: listed (:func:`_weather_fields`), so a posted path is never opened.
+PRESET_FILE_FIELD = "preset_file"
+PRESET_FILE_LABEL = i18n._("Show")
+PRESET_FILE_HELP = i18n._("Narrows the list to one preset file. A preset ticked in another file "
+                          "stays ticked, and is still applied.")
+#: the filter's first entry: the value that filters nothing.
+PRESET_FILE_ALL = ""
+PRESET_FILE_ALL_LABEL = i18n._("All files")
+#: MODE 2's name pick: the pick's own label and help while the mode is "a preset out of a file".
+PRESET_LIST_LABEL = i18n._("Presets")
+PRESET_LIST_HELP = i18n._("Tick several presets to merge them in order, as the node always did. The "
+                          "order is the order the presets stand in their files, not the order you "
+                          "ticked them. A field two presets both set keeps the later one.")
+# ``PRESET_PAIR_SEPARATOR`` and the entry shape it separates (``preset_option_value`` /
+# ``split_preset_entry``) are imported from :mod:`core.utils.presets`, the module that also owns the
+# name -> document rule, so a plugin builds and reads a pick entry exactly as this page does.
+
+#: THE LAUNCH DIALOG'S "Create your own weather" ENTRY — the value under which a caller with no
+#: dialog states the temporary preset instead of a named one. The dialogs no longer OFFER it (the
+#: temporary fields are their own mode); it survives as the reading :func:`preset_choice` applies to a
+#: posted entry, which is what keeps the conflict refusal reachable for direct / REST / MCP callers.
+PRESET_CUSTOM_VALUE = "__create_your_own__"
+#: the entry's own label, kept beside the value it belongs to because the wizard entry the value
+#: stands for still exists on the Presets page.
+PRESET_CUSTOM_LABEL = i18n._("Create your own weather")
+
+#: THE MISSION READ'S OWN LINE, on the temporary block. The launch dialog reads the mission's current
+#: weather ON DEMAND — only while "Create your own weather" is selected — so the block carries one line
+#: that says what it is doing: this sentence while the read runs, then :data:`PRESET_READ_DONE` with the
+#: mission's own file name once it answers. Both are translated for the request and ride the block as
+#: data, because the read is performed by ``static/dialog-mission-weather.js`` — the dialog's form POSTS
+#: the launch, so the read can never be a submit.
+PRESET_READ_LOADING = i18n._("Loading current mission …")
+#: the line once the read answered: the mission's own file name fills ``{mission}``.
+PRESET_READ_DONE = i18n._("Read from {mission}")
+#: the line a read that never reached the route leaves — every refusal the ROUTE answers carries its own
+#: sentence, so this one is only for a transport that never answered.
+PRESET_READ_FAILED = i18n._("The mission's weather could not be read.")
+#: THE SENTENCE A DIALOG CARRIES IN PLACE OF THE WEATHER PICK when the server names no current mission:
+#: there is nothing to apply a preset to, so the pick is not offered at all and this says why. It is a
+#: STARTUP dialog's own — the LOAD dialog always has the row that was picked.
+PRESET_NO_MISSION = i18n._("This server has no current mission, so there is nothing to apply a "
+                           "weather preset to.")
+
+#: THE LAUNCH DIALOG'S TEMPORARY PRESET — the same weather pick's OTHER shape, on the same dialog.
+#: The controls are the rows of the ONE field table the presets wizard renders
+#: (``weather_fields.FIELDS``), each posted under its own preset KEY, and the document they produce
+#: is built by the WIZARD's own builder (``presets.preset_map_from_values``), so a control this
+#: dialog draws cannot write a key the wizard does not and the coercion of numbers and booleans is
+#: the one the save uses. It rides the SAME ``preset`` form field as the pick: one choice, two ways
+#: to make it.
+TEMPORARY_KEYS: tuple[str, ...] = tuple(
+    entry.key for entry in weather_fields.FIELDS if entry.key not in ("name", "terrains"))
+#: the fieldset's own copy, drawn above the controls.
+TEMPORARY_HEAD = i18n._("Or create a temporary preset")
+#: the word the block's heading carries beside the head, so it says in words that adding a preset
+#: here is OPTIONAL — the block appears only while "Create your own weather" is selected, and the
+#: launch is fine without it.
+TEMPORARY_OPTIONAL = i18n._("optional")
+TEMPORARY_HELP = i18n._("Applied to this launch only. Nothing is saved to the preset files: a field "
+                        "left empty leaves the mission's own value alone.")
+TEMPORARY_NOTE = i18n._("These fields are the whole choice in this mode — a preset out of a file is "
+                        "not applied beside them.")
+#: A launch that states BOTH shapes is refused rather than having one silently preferred. The
+#: dialogs cannot produce it any more (each mode is the only one that is read), so it is the BACKSTOP
+#: for a caller with no dialog: direct / REST / MCP callers post neither a mode nor this console's
+#: fields, and a POST that states a preset entry (:data:`PRESET_CUSTOM_VALUE` or a name) AND fills a
+#: temporary control is still refused. It is a ROUTE refusal (the console's own wording, built before
+#: any action runs and shown nowhere else), so it is wrapped and reaches the page through the
+#: one-shot notice.
+REFUSAL_WEATHER_CONFLICT = i18n._("Not done (a preset was picked and the temporary weather fields "
+                                  "were filled — pick one, not both).")
+#: MODE 2 was chosen and no preset was ticked: the mode states an intent the POST does not carry, so
+#: the launch is refused rather than launched applying nothing.
+REFUSAL_WEATHER_NO_PICK = i18n._("Not done (\"Use a preset from a file\" was chosen and no preset was "
+                                 "ticked — tick one, or choose \"Leave the weather alone\").")
+#: A picked preset NAME that the node's preset files no longer carry (removed or renamed between the
+#: dialog's render and the POST). The launch is refused rather than launched applying nothing.
+REFUSAL_WEATHER_UNKNOWN_PRESET = i18n._("Not done (a picked preset is not in this server's preset "
+                                        "files any more — reopen the dialog and pick it again).")
+#: The mode-2 FILE value that is not one of the labels the render listed: a path, a drive letter, a
+#: UNC share, a ``..`` component or simply a file this node does not carry. THE ONE sentence every
+#: shape gets, so no answer tells a probe which shape it sent.
+REFUSAL_WEATHER_UNKNOWN_FILE = i18n._("Not done (that is not a preset file this server's node lists — "
+                                      "reopen the dialog and pick one from the list).")
+#: The refusal a launch that states a weather pick while the extensions are OFF is given. The SAME
+#: choice the conflict guards, one box over: the pick is a request to APPLY, and a launch whose
+#: extensions do not run applies nothing — so the SAME sentence the action's own backstop carries
+#: (``plugins.mission.actions.WEATHER_NEEDS_EXTENSIONS``) is raised HERE, by the route, where the
+#: request's language is known. It is the console's OWN wording (built before any action runs), so it
+#: is wrapped and reaches the page through the one-shot notice; the action keeps its unwrapped copy
+#: as the backstop for direct / REST / MCP callers, which have no request language. A test pins this
+#: literal equal to the action's so the operator reads one sentence either way.
+REFUSAL_WEATHER_NEEDS_EXTENSIONS = i18n._(
+    "Not done (a weather preset was picked and the extensions are off, so nothing would apply it — "
+    "tick \"Run extensions on the mission\", or clear the weather pick).")
+
+#: THE SHARED LAUNCH FORM — the ONE declaration of the weather pick's SELECT, drawn by BOTH dialogs
+#: that carry the launch form: the server row's Startup and the Missions tab's Load. ``field`` is BOTH
+#: the form field's name and the ACTION parameter's name (``startup_server`` / ``load_mission``), one
+#: string so the route cannot post one thing and the action read another. The OPTIONS are not static —
+#: they are the named presets the SERVER'S OWN NODE carries, read per request — so the declaration
+#: states the field and its copy only and the route draws the options (``_weather_fields``), which is
+#: also where the mode radios and the mode-2 file pick are built.
+#:
+#: The dialog does NOT announce any more: the node's ``announce`` parameter is untouched on the actions
+#: and in the bot, and a launch from the website simply never states it.
+WEATHER_PRESET_SELECT = SelectField(field=PRESET_FIELD, label=PRESET_LIST_LABEL, options=(),
+                                    help=PRESET_LIST_HELP)
+
+#: THE LAUNCH FORM'S "run the extensions" BOX — the SAME choice on both launch dialogs (Startup and
+#: the Missions tab's Load), so the two render ONE declaration and the refusal's two inputs (this box
+#: and the weather pick) cannot drift apart. ``field`` is BOTH the form field's name and the ACTION
+#: parameter's name (``startup_server`` / ``load_mission``), one string so the route cannot post one
+#: thing and the action read another. ON by default, exactly like Discord's ``/server startup``: the
+#: extensions are what APPLY a weather pick, so a launch with this off and a pick stated is refused
+#: (``REFUSAL_WEATHER_NEEDS_EXTENSIONS``), never launched with the pick silently dropped.
+MODIFY_MISSION_FIELD = "modify_mission"
+MODIFY_MISSION_OPTION = NodeOption(
+    field=MODIFY_MISSION_FIELD,
+    label=i18n._("Run extensions on the mission"),
+    default=True,
+    help=i18n._("On by default, as in /server startup: the server's extensions are applied to the "
+                "mission before it loads. Untick to launch the mission exactly as its file stands."))
+
+
+#: The SERVER row's controls. The three process/DCS-level writes
+#: (``startup_server`` / ``shutdown_server`` / ``start_server`` / ``stop_server``) are
+#: ``plugins/mission/actions.py``'s own actions; ``pause_mission`` / ``unpause_mission`` are the
+#: mission plugin's. The ``__qualname__`` is the registry's key (``core/actions.py``), never the
+#: function NAME.
+#:
+#: * **stop stays the filled square**, **start the play triangle** (it never appears beside startup:
+#:   the states are disjoint);
+#: * the player-row glyphs (popup filled, kick simplified).
+SERVER_ACTIONS: tuple[WriteAction, ...] = (
+    # Startup's maintenance option: the same box the node row's ``offline`` carries,
+    # mirroring Discord's ``/server startup`` — ON by default, meaning CLEAR any flag so the
+    # scheduler may start the server again. It rides on the DIALOG (``WriteAction.dialog``), which
+    # is why this non-destructive control opens a form instead of posting directly: the checkbox is
+    # a form field with nowhere else to live.
+    WriteAction(key="startup", capability="servers.startup", qualname="startup_server",
+                path="/actions/server/startup", label=i18n._("Startup"), statuses=("SHUTDOWN",),
+                settled=("RUNNING", "PAUSED"),
+                option=NodeOption(
+                    field="maintenance",
+                    label=i18n._("End maintenance so the server is scheduled again"),
+                    default=True,
+                    help=i18n._("On by default, exactly like Discord's /server startup. An unflagged "
+                                "server simply stays unflagged.")),
+                options=(
+                    MODIFY_MISSION_OPTION,
+                    NodeOption(
+                        field="use_orig",
+                        label=i18n._("Apply them to the original mission file"),
+                        default=True,
+                        help=i18n._("Only matters while extensions run: on (the default) they are "
+                                    "applied to the uploaded file, off to the file the server is on "
+                                    "now.")),
+                ),
+                # THE WEATHER PICK. Its OPTIONS are the resolved server's node's own presets, drawn
+                # per request (``_dialog_inputs``), so only the field and its copy live here. Empty
+                # options on the declaration is what says "the options come from the request". ONE
+                # declaration, shared with the Missions tab's Load dialog (``WEATHER_PRESET_SELECT``).
+                select=WEATHER_PRESET_SELECT,
+                # THE SAME CHOICE'S SECOND SHAPE: the temporary preset's weather fields, drawn on
+                # this dialog's body from the one field table. Its document rides ``preset`` beside
+                # the select's name, and a launch stating both is refused.
+                weather=True,
+                tip=i18n._("Startup — bring this server up from SHUTDOWN"),
+                aria=i18n._("Startup server {server}"),
+                detail=i18n._("It comes back up and rejoins the rotation: with the first box ticked "
+                              "(the default) any maintenance is ended, so the scheduler may start it "
+                              "again. A server that was not in maintenance simply stays that way. "
+                              "The other two are /server startup's own choices — whether the "
+                              "extensions are applied to the mission, and whether they are applied to "
+                              "the uploaded file or to the one the server is on. This is the "
+                              "DCS-level bring-up, not the process-level Start in the row's menu."),
+                go=i18n._("Start up server"),
+                go_title=i18n._("Start up {server} — ends maintenance so the scheduler may start it")),
+    WriteAction(key="start", capability="servers.start", qualname="start_server",
+                path="/actions/server/start", label=i18n._("Start"), statuses=("STOPPED",),
+                settled=("RUNNING", "PAUSED"),
+                row=ROW_MENU,
+                tip=i18n._("Start — start a STOPPED server"),
+                aria=i18n._("Start server {server}"),
+                hint=i18n._("start a STOPPED server — Startup is the usual one")),
+    WriteAction(key="pause", capability=PAUSE_CAPABILITY, qualname="pause_mission",
+                path=PAUSE_PATH, label=i18n._("Pause"), statuses=("RUNNING",),
+                settled=("PAUSED",),
+                tip=i18n._("Pause — freeze the mission; players stay connected"),
+                aria=i18n._("Pause the mission on {server}")),
+    WriteAction(key="unpause", capability=UNPAUSE_CAPABILITY, qualname="unpause_mission",
+                path=UNPAUSE_PATH, label=i18n._("Unpause"), statuses=("PAUSED",),
+                settled=("RUNNING",),
+                tip=i18n._("Unpause — resume the frozen mission"),
+                aria=i18n._("Unpause the mission on {server}")),
+    WriteAction(key="restart", capability="servers.restart", qualname="restart_server",
+                path="/actions/server/restart", label=i18n._("Restart"),
+                statuses=("RUNNING", "PAUSED"),
+                settled=("RUNNING", "PAUSED"),
+                danger=True, confirm=True,
+                tip=i18n._("Restart — players currently flying lose their sortie"),
+                aria=i18n._("Restart server {server}"),
+                warning=i18n._("<b>Players currently flying lose their sortie.</b> The mission "
+                               "restarts from the beginning — mid-mission progress is gone."),
+                detail=i18n._("A restart stops the mission, reloads it from the start and the "
+                              "players reconnect to a fresh round. It cannot be undone from here."),
+                go=i18n._("Restart server"),
+                go_title=i18n._("Restart {server} — players flying lose their sortie")),
+    WriteAction(key="shutdown", capability="servers.shutdown", qualname="shutdown_server",
+                path="/actions/server/shutdown", label=i18n._("Shutdown"),
+                statuses=("RUNNING", "PAUSED"),
+                settled=("SHUTDOWN", "STOPPED"),
+                danger=True, confirm=True,
+                option=NodeOption(
+                    field="maintenance",
+                    label=i18n._("Set maintenance so the scheduler does not restart it"),
+                    default=True,
+                    help=i18n._("On by default, exactly like Discord's /server shutdown: without it "
+                                "a scheduled start brings the server straight back.")),
+                tip=i18n._("Shutdown — stop the DCS server; everyone on it is disconnected"),
+                aria=i18n._("Shutdown server {server}"),
+                warning=i18n._("<b>{players} player(s) connected right now lose their connection</b> "
+                               "and nobody can join until somebody starts the server up again. The "
+                               "box below is ticked by default and puts the server into maintenance "
+                               "— it stays out of service, so the scheduler does not bring it back "
+                               "up. Clear it only to shut the server down without keeping it down."),
+                warning_empty=i18n._("<b>Nobody is connected right now.</b> The box below is ticked "
+                                     "by default and puts the server into maintenance — it stays out "
+                                     "of service, so the scheduler does not bring it back up. Clear "
+                                     "it only to shut the server down without keeping it down."),
+                detail=i18n._("It stays SHUTDOWN on every page until a Startup brings it back — "
+                              "this is the graceful stop, not the process-level Stop in the row's "
+                              "menu."),
+                go=i18n._("Shut down"),
+                go_title=i18n._("Shut down {server} — {players} player(s) lose their connection"),
+                go_title_empty=i18n._("Shut down {server}")),
+    WriteAction(key="stop", capability="servers.stop", qualname="stop_server",
+                path="/actions/server/stop", label=i18n._("Stop"), statuses=("RUNNING", "PAUSED"),
+                settled=("SHUTDOWN", "STOPPED"),
+                row=ROW_MENU, danger=True, confirm=True,
+                tip=i18n._("Stop — stop the server process; players are disconnected"),
+                aria=i18n._("Stop server {server}"),
+                hint=i18n._("stop the server process — players are disconnected"),
+                warning=i18n._("<b>{players} player(s) connected right now lose their connection.</b> "
+                               "Stop ends the server process, and nobody can join until a Start "
+                               "brings it back."),
+                warning_empty=i18n._("<b>Nobody is connected right now.</b> Stop ends the server "
+                                     "process, and nobody can join until a Start brings it back."),
+                detail=i18n._("This is the process-level pair (Stop/Start), not the DCS-level pair "
+                              "(Shutdown/Startup)."),
+                go=i18n._("Stop server process"),
+                go_title=i18n._("Stop {server} — {players} player(s) lose their connection"),
+                go_title_empty=i18n._("Stop {server}")),
+    # ── the MAINTENANCE flag pair ──────────────────────────
+    # ONE HOME PER CONCEPT: the per-server flag, set and cleared here and NOWHERE ELSE on
+    # the node row — the node row's pair is power and no longer carries a flag. The two halves are
+    # the flags' own state pair, gated by ``when_maintenance`` (the ``when_muted`` shape), and they
+    # are offered in EVERY server state: a flag is not a power state, so neither the server's
+    # ``status`` nor its process being up has anything to say about whether it may be flagged.
+    #
+    # NO CONFIRMATION, and that is the mockup's own rule: neither
+    # half kills a process, disconnects a player or loses state — the flag only decides whether the
+    # SCHEDULER may start the server. Setting it while a restart is pending aborts that restart, and
+    # the ACTION says so in its message; the console does not put a dialog in front of a reversible
+    # state change when the row next to it (Shutdown) already confirms the irreversible ones.
+    WriteAction(key="maintenance", capability=SERVER_MAINTENANCE_CAPABILITY,
+                qualname="set_maintenance", path="/actions/server/maintenance",
+                label=i18n._("Maintenance"), statuses=(), when_maintenance=False,
+                observable=AWAIT_OBSERVABLE_MAINTENANCE,
+                tip=i18n._("Maintenance — keep this server out of service; the scheduler will not start it"),
+                aria=i18n._("Put server {server} into maintenance"),
+                hint=i18n._("keep the server out of service — it is not stopped by this")),
+    WriteAction(key="end_maintenance", capability=SERVER_CLEAR_MAINTENANCE_CAPABILITY,
+                qualname="clear_maintenance", path="/actions/server/end-maintenance",
+                label=i18n._("End maintenance"), statuses=(), when_maintenance=True,
+                observable=AWAIT_OBSERVABLE_MAINTENANCE,
+                tip=i18n._("End maintenance — let the scheduler start this server again"),
+                aria=i18n._("Take server {server} out of maintenance"),
+                hint=i18n._("the server may be started again — nothing is started by this")),
+    # ── the SERVER MESSAGE pair ────────────────────────────
+    # The server-row twin of the player pair (``PLAYER_ACTIONS``' ``chat``/``popup``): ONE glyph per
+    # mode, its own dialog, both posting to the ONE ``message_server`` action. They sit in the strip
+    # on the RUNNING and PAUSED rows alone — the states whose process can receive the message at all —
+    # and they CONFIRM, exactly as the player pair does, so the message is typed in a dialog beside
+    # the consequence and a POST that skipped it is refused.
+    #
+    # THE AUDIENCE is the difference: a server-wide message may be addressed to the whole server or
+    # to one coalition, so each dialog carries a SELECT (``SelectField``) whose values are the
+    # ACTION's own recipient words. Both dialogs read the SAME declaration
+    # (:data:`SERVER_MESSAGE_AUDIENCE`): one choice, one vocabulary, whether the line is a chat line
+    # or a popup.
+    WriteAction(key="chat", capability=SERVER_MESSAGE_CAPABILITY, qualname="message_server",
+                path=SERVER_CHAT_PATH, label=i18n._("Chat"), statuses=("RUNNING", "PAUSED"),
+                confirm=True, audit_refusals=True, self_audited=True, sender=True,
+                field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                field_kind="textarea",
+                field_help=i18n._("Written into the game chat of the recipients you choose below."),
+                observable=AWAIT_OBSERVABLE_NONE,
+                constants=(("mode", "chat"),),
+                select=SelectField(
+                    field="coalition", label=i18n._("Send to"),
+                    options=SERVER_MESSAGE_AUDIENCE,
+                    help=SERVER_MESSAGE_AUDIENCE_HELP),
+                tip=i18n._("Chat — a chat line in game, to the recipients you choose"),
+                aria=i18n._("Send a chat line on {server}"),
+                hint=i18n._("a chat line in game, addressed to the recipients you choose"),
+                warning=i18n._("<b>The recipients you choose below read this line.</b> It appears "
+                               "in their game chat on {server} under your name, as if you had typed "
+                               "it there."),
+                detail=i18n._("The line goes into the game chat of every player on {server}, or of "
+                              "the one side you choose below."),
+                go=i18n._("Send chat line"),
+                go_title=i18n._("Send a chat line on {server}")),
+    WriteAction(key="popup", capability=SERVER_MESSAGE_CAPABILITY, qualname="message_server",
+                path=SERVER_POPUP_PATH, label=i18n._("Popup"), statuses=("RUNNING", "PAUSED"),
+                confirm=True, audit_refusals=True, self_audited=True, sender=True,
+                field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                field_kind="textarea",
+                field_help=i18n._("Arrives in a box of its own and closes by itself."),
+                observable=AWAIT_OBSERVABLE_NONE,
+                constants=(("mode", "popup"),),
+                select=SelectField(
+                    field="coalition", label=i18n._("Send to"),
+                    options=SERVER_MESSAGE_AUDIENCE,
+                    help=SERVER_MESSAGE_AUDIENCE_HELP),
+                tip=i18n._("Popup — a message box on every screen"),
+                aria=i18n._("Send a popup to {server}"),
+                hint=i18n._("a message box on every screen"),
+                warning=i18n._("<b>Every player on {server} sees this box</b> — or, with a "
+                               "coalition chosen below, every player on that side. It closes by "
+                               "itself after the server's configured message timeout."),
+                detail=i18n._("The box is addressed to everyone on {server}, or to the one side "
+                              "you choose below."),
+                go=i18n._("Send popup"),
+                go_title=i18n._("Send a popup to {server}")),
+)
+
+
+#: THE SERVER CREATION PAIR — the two writes that did not exist before a server did.
+#:
+#: DELETE (``servers.delete``) is a ROW control: the row names the server, and the operation removes
+#: that server TOGETHER with the instance it runs in. ADMIN ONLY with NO scope grant
+#: (:data:`NODE_ROLES`) — removing an instance is a node fact, like every other write in that family,
+#: and a manager's scope is a set of servers, which is not a licence to delete one's machine state. Its
+#: ``statuses`` is EMPTY because the ACTION stops the server itself, so no state can refuse it, and
+#: ``typed_confirm`` makes its dialog ask for the name to be TYPED instead of a click.
+#:
+#: ``audit_refusals`` is True: a probe of a DESTRUCTIVE removal — a typed name that does not match, a
+#: target outside the caller's view, a body stating an option this console never sends — is exactly the
+#: incident the trail exists for, and the route records it before it answers the bare refusal.
+#:
+#: ADD (``servers.add``) is a PAGE control (:func:`page_controls`), not a row one: there is no row yet
+#: to hang it on. It opens the ONE dialog that asks for the node, the instance (an existing EMPTY one,
+#: or a new one), the name and whether to configure the server — ``form`` rather than ``confirm``,
+#: because adding a server is not destructive and the dialog is a form, not a confirmation.
+#:
+#: ``audit_refusals`` is True here too: a refused creation — a node outside the caller's view — leaves
+#: a row, so the pair is recorded on every attempt.
+SERVER_NODE_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key="delete", capability=SERVER_DELETE_CAPABILITY, qualname="delete_server",
+                path=SERVER_DELETE_PATH, label=i18n._("Delete"), statuses=(),
+                row=ROW_MENU, danger=True, confirm=True, typed_confirm=True, audit_refusals=True,
+                option=NodeOption(
+                    field=REMOVE_FILES_FIELD,
+                    label=i18n._("Also delete the Saved Games directory"),
+                    default=False,
+                    help=i18n._("Deletes the instance's own directory, with every mission and "
+                                "configuration file in it. Left OFF, the directory stays on the "
+                                "machine.")),
+                tip=i18n._("Delete — stop this server and remove it with the instance it runs in"),
+                aria=i18n._("Delete server {server}"),
+                hint=i18n._("remove the server and the instance it runs in"),
+                warning=i18n._("<b>{server} is stopped and removed, together with the instance it "
+                               "runs in.</b> {players} player(s) are disconnected if it is up. The "
+                               "box below is off by default: with it ticked the instance's Saved "
+                               "Games directory is deleted as well, and that cannot be undone."),
+                detail=i18n._("Type the server's name below to confirm. The server, its instance "
+                              "block in nodes.yaml and its database rows go away; the Saved Games "
+                              "directory stays unless you tick the box."),
+                go=i18n._("Delete server"),
+                go_title=i18n._("Delete {server} — it is stopped and removed with its instance")),
+)
+
+SERVER_PAGE_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key="add_server", capability=SERVER_ADD_CAPABILITY, qualname="add_server",
+                path=SERVER_ADD_PATH, label=i18n._("Add server"), statuses=(), form=True,
+                audit_refusals=True,
+                tip=i18n._("Add server — give an instance that has none its server, or create a new "
+                           "instance"),
+                aria=i18n._("Add a server")),
+)
+
+
+def server_row_actions() -> tuple[WriteAction, ...]:
+    """EVERY control a SERVER row may render, in order: the server writes, then the creation pair.
+
+    ONE function, so the row's strip, the pending-control lookups and the capability map cannot
+    disagree about which declarations belong to a server row.
+    """
+    return SERVER_ACTIONS + SERVER_NODE_ACTIONS
+
+
+#: THE DCS CONFIG WRITE — a declaration of its own, NOT a ``SERVER_ACTIONS`` row: it is not a
+#: row-strip control (its body is a MAPPING of changed settings, not a target). It is still ONE
+#: :class:`WriteAction`, so the route table (``add_routes``), the capability map (``capabilities``)
+#: and the page control are three readings of THIS one declaration. ``statuses`` is the same state
+#: gate the page renders from (the action refuses a running server itself): Save is offered only where
+#: the file may be written.
+SERVER_CONFIG_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key=SERVER_CONFIG_ACTION_KEY, capability=SERVER_CONFIG_CAPABILITY,
+                qualname="set_server_config", path=SERVER_CONFIG_PATH, label="Save",
+                statuses=("SHUTDOWN", "STOPPED", "UNREGISTERED"),
+                observable=AWAIT_OBSERVABLE_CONFIG,
+                tip="Save — write the DCS configuration; it applies when the server next starts",
+                aria="Save the configuration of {server}"),
+)
+
+
+#: THE CHANNELS WRITE — the bot face of the Configuration tab (``servers.yaml``). A declaration of its
+#: own, NOT a ``SERVER_CONFIG_ACTIONS`` row: its body is a MAPPING of changed channel rows, applied
+#: IMMEDIATELY through the bot's ``Server.update_channels``, so there is NO state gate (``statuses=()``
+#: means every server state). Its observable is the config revision, so its Save pulses on the same
+#: signal. Its capability (``servers.config.channels``) is its own Admin-only one, denied to a manager.
+SERVER_CHANNEL_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key=SERVER_CHANNEL_ACTION_KEY, capability=SERVER_CHANNELS_CAPABILITY,
+                qualname="set_server_channels", path=SERVER_CHANNELS_PATH, label="Save channels",
+                statuses=(),
+                observable=AWAIT_OBSERVABLE_CONFIG,
+                tip="Save channels — write the Discord channels; applied immediately, no restart",
+                aria="Save the Discord channels of {server}"),
+)
+
+
+#: THE COALITION WRITE — the third face of the Configuration tab (the bot's database). Its OWN action
+#: (``set_coalition_password``), which calls the bot's own ``Server.setCoalitionPassword`` — never the
+#: hash, never a direct file/database write. ``statuses`` is its OWN gate: unlike the DCS Save, the
+#: coalition write works WHILE the server is up (the bot's method tells DCS live), so RUNNING and PAUSED
+#: are offered. There is NO pulse: no observable moves reliably for this write (the config revision
+#: moves only on the file branch), so the one-shot notice carries the outcome alone.
+SERVER_COALITION_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key=SERVER_COALITION_ACTION_KEY, capability=SERVER_COALITIONS_CAPABILITY,
+                qualname="set_coalition_password", path=SERVER_COALITIONS_PATH,
+                label="Save coalition passwords",
+                statuses=("SHUTDOWN", "STOPPED", "RUNNING", "PAUSED"),
+                tip="Save coalition passwords — the bot sends them to DCS and keeps them in its database",
+                aria="Save the coalition passwords of {server}"),
+)
+
+
+#: THE MISSION-LIST WRITES — four declarations of their own, NOT ``SERVER_ACTIONS`` rows:
+#: their controls live on the Missions TAB (a list, an add form and an upload form), not on the
+#: server row strip. Each is still ONE :class:`WriteAction`, so the route table (``add_routes``), the
+#: capability map (``capabilities``) and the tab control are three readings of ONE declaration.
+#: ``load``'s ``statuses`` IS the gate ``load_mission`` applies (RUNNING / PAUSED / STOPPED); the tab
+#: omits the control where the action would refuse. ``add`` / ``delete`` / ``upload`` work in every
+#: state (``addMission`` / ``deleteMission`` route through DCS or edit the file directly), so their
+#: ``statuses`` is empty — as does the BULK REMOVE, except in ``LOADING``
+#: (``MISSIONS_BULK_DELETE_STATES``).
+MISSION_ACTIONS: tuple[WriteAction, ...] = (
+    # ADD is reached through its DIALOG (``MISSION_DIALOG_KEYS``): the picker and the load choices
+    # both live there, so choosing a mission and confirming happen in ONE dialog — the operator's
+    # "decisive" rule. It carries NO confirm token: adding to the rotation is not destructive
+    # (nothing is copied, nothing is deleted), so its dialog is the OPTIONS form, like Startup's.
+    WriteAction(key="mission_add", capability=MISSIONS_ADD_CAPABILITY, qualname="add_mission",
+                path=MISSIONS_ADD_PATH, label=i18n._("Add to the rotation"), statuses=(),
+                options=(
+                    NodeOption(
+                        field=MISSION_AUTOSTART_FIELD,
+                        label=i18n._("Load it when the server next starts"),
+                        default=False,
+                        help=i18n._("Arms the rotation so this mission is the next one the server "
+                                    "loads.")),
+                    NodeOption(
+                        field=MISSION_LOAD_FIELD,
+                        label=i18n._("Load it now"),
+                        default=False,
+                        help=i18n._("Loads it right away — only honoured while the server is "
+                                    "running, paused or stopped.")),
+                ),
+                tip="Add — put a mission that is ALREADY on this server into its rotation list",
+                aria="Add a mission to {server}",
+                detail=i18n._("This mission is already on the server: adding it changes the ROTATION "
+                              "LIST only. No file is copied and nothing is deleted — that is what "
+                              "Upload does."),
+                go=i18n._("Add to the rotation"),
+                go_title=i18n._("Add the mission to {server}'s rotation list")),
+    # REMOVE is destructive, so it CONFIRMS through the same dialog component and, carrying an
+    # option, also collects the "delete the real file?" choice there — the two questions Discord's
+    # ``/mission delete`` asks, in ONE dialog. The one-shot token is what makes the dialog a control
+    # rather than a screen (see ``_mission_confirm_handler`` / ``_mission_delete_handler``).
+    WriteAction(key="mission_delete", capability=MISSIONS_DELETE_CAPABILITY,
+                qualname="delete_mission", path=MISSIONS_DELETE_PATH, label=i18n._("Remove"),
+                statuses=(), danger=True, confirm=True,
+                option=NodeOption(
+                    field=MISSION_DISK_FIELD,
+                    label=i18n._("Also delete the mission file from disk"),
+                    default=False,
+                    help=i18n._("Removes the primary file, its .dcssb copy and the .orig. This "
+                                "cannot be undone.")),
+                tip="Remove — take the mission out of the rotation list; optionally delete it from "
+                    "disk too",
+                aria="Remove a mission from {server}",
+                warning=i18n._("<b>The mission is removed from the rotation list and stops being "
+                               "loaded.</b> The box below is off by default: with it ticked the "
+                               "mission file itself — the primary, its .dcssb copy and the .orig — "
+                               "is deleted from the server, and that cannot be undone."),
+                detail=i18n._("Removing it from the list changes the rotation only; the file stays "
+                              "on the server unless you tick the box. Discord's /mission delete "
+                              "asks the same two questions."),
+                go=i18n._("Remove mission"),
+                go_title=i18n._("Remove the mission from {server}'s rotation list")),
+    # LOAD gained the launch form: its dialog carries the same weather pick, temporary fields and
+    # "run the extensions" box Startup's does (``WEATHER_PRESET_SELECT`` / ``MODIFY_MISSION_OPTION``),
+    # drawn per request beside the row's own mission. The extensions box is what makes the launch
+    # FORMALLY state whether a pick can be applied: with it off and a pick stated the route refuses
+    # (``REFUSAL_WEATHER_NEEDS_EXTENSIONS``), exactly as Startup's does. The mission rides it as
+    # hidden fields, and — being non-destructive and only CARRYING an option — wears the OPTIONS
+    # chrome, mints no confirm token.
+    WriteAction(key="mission_load", capability=MISSIONS_LOAD_CAPABILITY, qualname="load_mission",
+                path=MISSIONS_LOAD_PATH, label=i18n._("Load"),
+                statuses=("RUNNING", "PAUSED", "STOPPED"),
+                options=(MODIFY_MISSION_OPTION,),
+                select=WEATHER_PRESET_SELECT,
+                weather=True,
+                tip="Load — start this mission now on {server}",
+                aria="Load a mission on {server}",
+                detail=i18n._("The mission loads now on {server}. The weather pick applies to this "
+                              "load only — a temporary preset is built here and writes nothing to "
+                              "the preset files."),
+                go=i18n._("Load mission"),
+                go_title=i18n._("Load this mission on {server}")),
+    WriteAction(key="mission_upload", capability=MISSIONS_UPLOAD_CAPABILITY,
+                qualname="upload_mission", path=MISSIONS_UPLOAD_PATH, label=i18n._("Upload mission"),
+                statuses=(),
+                tip="Upload — send a .miz FILE from your own computer into {server}'s missions "
+                    "directory and add it",
+                aria="Upload a mission to {server}"),
+    # BULK REMOVE: several missions out of the rotation, one row's
+    # delete repeated. It RE-USES ``missions.delete`` (it is still delete) and goes through its DIALOG
+    # — the console's ONE dialog component, which here IS the selection (a checkbox per configured
+    # mission, the running one omitted with the reason stated in the warning) plus the same "delete
+    # the real file?" box and the one-shot confirm token. Its ``statuses`` is every state EXCEPT
+    # ``LOADING`` (``MISSIONS_BULK_DELETE_STATES``): the bot's ``deleteMission`` sticks in the
+    # process-up trio (through DCS) and the file-write trio (by the file), and only ``LOADING``
+    # reverts it.
+    WriteAction(key="mission_delete_bulk", capability=MISSIONS_DELETE_CAPABILITY,
+                qualname="delete_missions", path=MISSIONS_BULK_DELETE_PATH,
+                label=i18n._("Remove missions"), statuses=MISSIONS_BULK_DELETE_STATES,
+                danger=True, confirm=True,
+                option=NodeOption(
+                    field=MISSION_DISK_FIELD,
+                    label=i18n._("Also delete the mission files from disk"),
+                    default=False,
+                    help=i18n._("Removes the primary file, its .dcssb copy and the .orig of EVERY "
+                                "selected mission. This cannot be undone. Left OFF, the mission only "
+                                "leaves the rotation — and while the server's mission auto-scan is "
+                                "on, a mission file left on disk is re-added to the list, so the "
+                                "removal is not permanent.")),
+                tip="Remove — take SEVERAL missions out of the rotation list at once; optionally "
+                    "delete their files from disk too",
+                aria="Remove missions from {server}",
+                warning=i18n._("<b>The selected missions are removed from the rotation list and stop "
+                               "being loaded.</b> The box below is off by default: with it ticked "
+                               "the mission files themselves are deleted from the server, and that "
+                               "cannot be undone."),
+                detail=i18n._("The chosen missions leave the rotation list; their files stay on the "
+                              "server unless you tick the box."),
+                go=i18n._("Remove missions"),
+                go_title=i18n._("Remove the selected missions from {server}'s rotation list")),
+    # MOVE UP / DOWN: reorder ONE mission in the rotation list. Two small buttons per row open
+    # no dialog — they post directly — and the offline-only gate is its ``statuses``.
+    WriteAction(key="mission_reorder", capability=MISSIONS_REORDER_CAPABILITY,
+                qualname="reorder_mission", path=MISSIONS_REORDER_PATH, label=i18n._("Move"),
+                statuses=MISSION_LIST_OFFLINE_STATES,
+                tip="Move — reorder a mission in {server}'s rotation list (only while the server is "
+                    "not running)",
+                aria="Move a mission in {server}'s rotation list"),
+    # ACTIVATE: make ONE configured mission the START mission — through the bot's own
+    # ``setStartIndex``. Offered in every state EXCEPT ``LOADING`` (``MISSIONS_ACTIVATE_STATES``); the
+    # action refuses that one state, where the write would be silently reverted. It posts directly —
+    # not destructive, no options — like the move pair. ITS LABEL IS THE OPERATOR'S WORD:
+    # ``Set as start``, matching the ``START`` marker on the row it names; it sets the rotation
+    # pointer and does NOT load the mission now (that is ``Load``, a different control and a
+    # different write).
+    WriteAction(key="mission_activate", capability=MISSIONS_ACTIVATE_CAPABILITY,
+                qualname="set_active_mission", path=MISSIONS_ACTIVATE_PATH,
+                label=i18n._("Set as start"),
+                statuses=MISSIONS_ACTIVATE_STATES,
+                tip="Set as start — make this mission the one {server} loads when it starts (the "
+                    "rotation pointer); it does not load it now",
+                aria="Set the start mission on {server}"),
+)
+
+#: The mission controls reached through their DIALOG (``confirm.html``): the ADD flow, whose picker
+#: and load choices live on the dialog, the single REMOVE (its tab control is gone, but the route
+#: remains), the bulk REMOVE — whose dialog shows the LIST'S selection READ-ONLY — and LOAD, whose
+#: dialog carries the launch form (weather modes + pick + temporary fields). All post
+#: through ``<path>/confirm``; the capability map declares that path (``capabilities``) and
+#: ``add_routes`` registers it. ``mission_delete`` and ``mission_delete_bulk`` also declare ``confirm``,
+#: so their own routes demand the token.
+MISSION_DIALOG_KEYS: frozenset[str] = frozenset(
+    {"mission_add", "mission_delete", "mission_delete_bulk", "mission_load"})
+
+
+#: THE MUSIC TAB'S RADIO WRITES — three declarations of their own, NOT ``SERVER_ACTIONS`` rows: their
+#: controls live on one card per radio of the server, not on a server row. Same discipline as the
+#: mission writes: the route table (``add_routes``), the capability map (``capabilities``) and the
+#: tab's control are three readings of ONE declaration.
+#:
+#: ``music.control`` is the name the music plugin's own action module states
+#: (``plugins.music.actions.CAPABILITY_CONTROL``); it is spelled here as a literal because the
+#: console may not import a plugin at import time. It carries the console's SERVER-write rule —
+#: :data:`WRITE_ROLES` WITH a manager scope grant — so a manager of THIS server drives their own
+#: radios. The scope itself is applied inside the action (``resolve_scoped_server``), which refuses a
+#: server outside the caller's scope; both halves together are what keeps a manager out of a foreign
+#: server's radios.
+#:
+#: ``statuses`` is EMPTY for all three: a radio is configured and driven whether or not its DCS
+#: server is up — a stopped server's radio reads as idle and refuses a transport command with its own
+#: sentence — so no process state describes the control's applicability.
+MUSIC_CONTROL_CAPABILITY = "music.control"
+MUSIC_CONTROL_PATH = "/actions/server/music/control"
+MUSIC_PLAYLIST_PATH = "/actions/server/music/playlist"
+MUSIC_SETTINGS_PATH = "/actions/server/music/settings"
+
+#: the fields the three radio writes read. ``radio`` names the radio inside this server's block of
+#: ``config/services/music.yaml``; ``control`` / ``mode`` are the action's own words, and the five
+#: settings are the keys ``set_radio_config`` writes — the SAME names as its parameters, so a form
+#: field cannot come to mean something other than the parameter it feeds.
+MUSIC_RADIO_FIELD = "radio"
+MUSIC_CONTROL_FIELD = "control"
+MUSIC_MODE_FIELD = "mode"
+MUSIC_PLAYLIST_FIELD = "playlist"
+MUSIC_SETTING_FIELDS: tuple[str, ...] = ("frequency", "modulation", "coalition", "volume",
+                                         "display_name")
+
+#: the READ the tab makes for the playlist select's choices — the music plugin's own playlist list,
+#: with the radios that use each one. Read through the action so the console never queries the
+#: playlists itself and never invents a name the action would refuse.
+MUSIC_PLAYLIST_ACTION = "list_music_playlists"
+
+MUSIC_ACTIONS: tuple[WriteAction, ...] = (
+    WriteAction(key="music_control", capability=MUSIC_CONTROL_CAPABILITY,
+                qualname="control_radio", path=MUSIC_CONTROL_PATH, label="Radio", statuses=(),
+                tip="the transport strip of one radio", aria="Control a radio of {server}"),
+    WriteAction(key="music_playlist", capability=MUSIC_CONTROL_CAPABILITY,
+                qualname="set_radio_playlist", path=MUSIC_PLAYLIST_PATH, label="Playlist",
+                statuses=(), tip="assign a playlist to one radio and reload it",
+                aria="Assign a playlist to a radio of {server}"),
+    WriteAction(key="music_settings", capability=MUSIC_CONTROL_CAPABILITY,
+                qualname="set_radio_config", path=MUSIC_SETTINGS_PATH, label="Settings",
+                statuses=(), tip="write one radio's settings and apply them",
+                aria="Change the settings of a radio of {server}"),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerAction:
+    """One write of the console that acts on a PLAYER row.
+
+    Its own record rather than a second :class:`WriteAction`, because a player write carries what a
+    server write does not: the UCID that completes its target, the MODE it writes in and, with it, a
+    field the person fills in. Same discipline as its server twin — data, not code: the route table,
+    the capability map, the page control and the dialog are four readings of ONE declaration.
+
+    ``params`` is the translation from FORM field name to the ACTION's parameter name, which is the
+    only thing the route does with a body (``{"message": "message"}``); ``constants`` is what the
+    control adds to that call on its OWN authority — the fields the declaration states and the body
+    cannot supply. The message pair is why it exists: ``chat`` and ``popup`` are two controls of ONE
+    action whose mode is not a choice the browser makes (``("mode", "chat")``), so the mode travels
+    with the control rather than in a form, and a crafted POST cannot send the other one.
+
+    ``sender`` marks the actions that are told who is acting, so the copy reads the identity rather
+    than a field the browser sent.
+
+    ``field``/``field_label``/``field_max`` describe the text field the DIALOG offers (a kick reason,
+    a ban reason, the message the two message controls send). A player row renders GLYPHS ONLY: the
+    field is asked for on the dialog, where the consequence is written next to it.
+
+    ``when_muted`` is the mute pair's own state gate: ``unmute`` is offered only on a player the read
+    model says is muted, ``mute`` only on one it does not. It is the ONLY per-row player state the
+    control consults, and it is read from the same scoped source the row renders from.
+    """
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    icon: str = ""
+    danger: bool = False
+    confirm: bool = False
+    #: record EVERY attempt at this action in the audit, including a refusal the ROUTE made before
+    #: any action ran.
+    audit_refusals: bool = False
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    #: how the dialog renders that field — see :attr:`WriteAction.field_kind`
+    field_kind: str = "text"
+    #: the field's own width class in the dialog: ``wide`` stretches it across the dialog (a reason
+    #: the operator reads back), ``narrow`` shrinks it to the few characters a count needs. Empty
+    #: keeps the shared default. Declared here for the same reason as the kind: the field's SHAPE is
+    #: a fact about what it collects, not a decision the template makes per action.
+    field_width: str = ""
+    params: tuple[tuple[str, str], ...] = ()
+    constants: tuple[tuple[str, str], ...] = ()
+    sender: bool = False
+    when_muted: bool | None = None
+    #: THE SERVER'S OWN PERMISSION, when the action needs one: a dotted ``servers.yaml`` path
+    #: (``advanced.server_can_screenshot``), read from the row's own server through the same scoped
+    #: source. False OMITS the control — an action the server cannot perform is not a control to
+    #: offer disabled. The screenshot is the only one that declares it: it is the ONE per-row SERVER
+    #: fact a player control consults, exactly as ``when_muted`` is its one per-row PLAYER fact.
+    when_server_allows: str = ""
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    detail: str = ""
+    go: str = ""
+    go_title: str = ""
+
+
+#: The player row's controls: kick · ban · chat · popup · mute. Every one of them posts to an
+#: action that EXISTS — ``message_player`` (one control per mode) and the four mission actions in
+#: ``plugins/mission/actions.py``. The ``__qualname__`` is the registry's key
+#: (``core/actions.py``), never the function NAME.
+#:
+#: THE ROW IS GLYPHS ONLY: every control here that asks for something asks for it on its DIALOG
+#: (``confirm``), so the strip carries the five icons and the widest column of the table stops being
+#: a text field. The two message controls are the split of what used to be one control with an
+#: inline field and a mode button per mode: the mode is now the control's own ``constants`` entry,
+#: and the field is typed in the dialog the glyph opens.
+#:
+#: CAPABILITIES: ``players.kick`` / ``players.ban`` / ``players.mute`` alongside ``players.message``
+#: — all four declared here with ``scope_grants=True``, so a
+#: manager reaches them on their own servers and on nobody else's, which is the same rule the
+#: mockup's ``03-permissions-…`` picture shows (chat+popup for a manager's own players).
+#:
+#: THE WORDS are in the user's terms: the consequence first, in bold, then
+#: what actually happens. ``{player}`` and ``{server}`` are formatted from the RESOLVED object.
+PLAYER_ACTIONS: tuple[PlayerAction, ...] = (
+    PlayerAction(key="kick", capability="players.kick", qualname="kick_player",
+                 path="/actions/player/kick", label=i18n._("Kick"), icon="kick",
+                 danger=True, confirm=True, audit_refusals=True,
+                 field="reason", field_label=i18n._("Reason"), field_max=200,
+                 field_width="wide",
+                 field_help=i18n._("Shown to the player in game."),
+                 params=(("reason", "reason"),),
+                 tip=i18n._("Kick — disconnected now; they may rejoin immediately"),
+                 aria=i18n._("Kick {player} from {server}"),
+                 hint=i18n._("disconnected now — a kick is not a ban"),
+                 warning=i18n._("<b>{player} is disconnected from {server} now.</b> They can rejoin "
+                                "immediately — a kick is not a ban and leaves no block behind."),
+                 detail=i18n._("A kick ends their session; it blocks nothing and expires with it. "
+                               "Nothing is written to the ban list, so they may be back in the air "
+                               "in a minute."),
+                 go=i18n._("Kick player"),
+                 go_title=i18n._("Kick {player} from {server} — they may rejoin immediately")),
+    PlayerAction(key="ban", capability="players.ban", qualname="ban_player",
+                 path="/actions/player/ban", label=i18n._("Ban"), icon="ban",
+                 danger=True, confirm=True, audit_refusals=True,
+                 field="reason", field_label=i18n._("Reason"), field_max=80,
+                 field_width="wide",
+                 field_help=i18n._("Kept on the ban list."),
+                 params=(("reason", "reason"), ("days", "days")), sender=True,
+                 tip=i18n._("Ban — removed and blocked from rejoining"),
+                 aria=i18n._("Ban {player} from {server}"),
+                 hint=i18n._("removed and blocked from rejoining"),
+                 warning=i18n._("<b>{player} is removed from {server} and cannot rejoin it</b> for "
+                                "as long as the ban stands. Empty duration means it never expires "
+                                "on its own."),
+                 detail=i18n._("The ban is written to the ban list every installation syncs, so it "
+                               "holds wherever they connect from — not only on this server."),
+                 go=i18n._("Ban player"),
+                 go_title=i18n._("Ban {player} — empty duration is permanent")),
+    PlayerAction(key="chat", capability=MESSAGE_CAPABILITY, qualname="message_player",
+                 path=CHAT_PATH, label=i18n._("Chat"), icon="chat", confirm=True,
+                 field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                 field_kind="textarea",
+                 field_help=i18n._("Sent to this player's game chat — only they read it."),
+                 params=(("message", "message"),), constants=(("mode", "chat"),), sender=True,
+                 tip=i18n._("Chat — a chat line only this player reads"),
+                 aria=i18n._("Send a chat line to {player} on {server}"),
+                 hint=i18n._("a chat line in game only they read"),
+                 warning=i18n._("<b>Only {player} reads this line.</b> It is written in their own "
+                                "game chat under your name, as if you had typed it there."),
+                 detail=i18n._("The line is addressed to {player} alone: it goes into their game "
+                               "chat and nobody else on {server} sees it."),
+                 go=i18n._("Send chat line"),
+                 go_title=i18n._("Send a chat line to {player} on {server}")),
+    PlayerAction(key="popup", capability=MESSAGE_CAPABILITY, qualname="message_player",
+                 path=POPUP_PATH, label=i18n._("Popup"), icon="popup", confirm=True,
+                 field="message", field_label=i18n._("Message"), field_max=MESSAGE_FIELD_MAX,
+                 field_kind="textarea",
+                 field_help=i18n._("A popup — only this player sees it."),
+                 params=(("message", "message"),), constants=(("mode", "popup"),), sender=True,
+                 tip=i18n._("Popup — a private message in game"),
+                 aria=i18n._("Send a popup to {player} on {server}"),
+                 hint=i18n._("a private message only they see"),
+                 warning=i18n._("<b>Only {player} sees this message.</b> It arrives in a box of its "
+                                "own and closes by itself after the server's configured message "
+                                "timeout."),
+                 detail=i18n._("The popup is addressed to {player} alone. It arrives in a box of "
+                               "its own, not as a line in their chat."),
+                 go=i18n._("Send popup"),
+                 go_title=i18n._("Send a popup to {player} on {server} — only they see it")),
+    PlayerAction(key="mute", capability="players.mute", qualname="mute_player",
+                 path="/actions/player/mute", label=i18n._("Mute"), icon="mute", when_muted=False,
+                 tip=i18n._("Mute — they can no longer send chat"),
+                 aria=i18n._("Mute {player} on {server}"),
+                 hint=i18n._("they can no longer send chat")),
+    PlayerAction(key="unmute", capability="players.mute", qualname="unmute_player",
+                 path="/actions/player/unmute", label=i18n._("Unmute"), icon="unmute", when_muted=True,
+                 tip=i18n._("Unmute — restore their chat"),
+                 aria=i18n._("Unmute {player} on {server}"),
+                 hint=i18n._("restore their chat")),
+    # THE SCREENSHOT: the ONE player control whose answer is not a sentence but an IMAGE, and the
+    # only one gated on the SERVER's own permission (``when_server_allows``) — a DCS server that may
+    # not screenshot cannot answer at all, so the glyph is omitted there rather than offered
+    # disabled. Its route reads the capture out of the server's own web GUI and serves it back under
+    # a short-lived token (see ``screenshot_control``).
+    PlayerAction(key="screenshot", capability=SCREENSHOT_CAPABILITY, qualname="screenshot_player",
+                 path=SCREENSHOT_PATH, label=i18n._("Screenshot"), icon="camera",
+                 when_server_allows=SCREENSHOT_SETTING,
+                 tip=i18n._("Screenshot — capture this player's screen"),
+                 aria=i18n._("Take a screenshot of {player} on {server}"),
+                 hint=i18n._("a photo of their screen, shown when it arrives")),
+)
+
+
+#: THE LIFT — the capability the console's lift declares. Its own capability, NOT ``players.ban``:
+#: a hoster who may ban is not thereby allowed to unban, and the tree's own rule is one capability
+#: per OPERATION (``servers.add`` / ``servers.delete`` are two).
+BAN_LIFT_CAPABILITY = "players.unban"
+BAN_LIFT_PATH = "/actions/ban/lift"
+
+#: THE ADD — its own path, and the capability the player-row Ban already carries: adding a ban is
+#: ONE concept, whether it is aimed at an online player on a resolved server or at a bare ucid.
+BAN_ADD_CAPABILITY = "players.ban"
+BAN_ADD_PATH = "/actions/ban/add"
+
+#: THE EDIT — its own capability, on the tree's own rule that one OPERATION is one capability
+#: (``servers.add`` / ``servers.delete``, kick / ban). A hoster who may add a ban is not thereby
+#: allowed to rewrite the reasons on the list, and vice versa.
+BAN_EDIT_CAPABILITY = "players.edit_ban"
+BAN_EDIT_PATH = "/actions/ban/edit"
+
+#: The ADD dialog's own fields, beside the reason and the duration the ban dialogs share. ``value``
+#: names both the form field and the ACTION's own parameter, so the route cannot post one thing and
+#: the action read another.
+BAN_ADD_UCID_FIELD = "ucid"
+BAN_SCOPE_FIELD = "scope"
+BAN_DAYS_FIELD = "days"
+BAN_REASON_FIELD = "reason"
+#: The EDIT dialog's ABSOLUTE expiration field. Its own name, NOT ``days``: the EDIT states a UTC
+#: datetime where the ADD and the player-row Ban state a day count, and the two must not share a
+#: field name — the route maps a field to the action's own parameter (``edit_ban`` reads ``until``).
+BAN_UNTIL_FIELD = "until"
+
+#: THE ADD'S PLAYER SEARCH — the JSON GET the UCID field's autocomplete reads: a fragment of a name
+#: or a UCID in (``?q=``), at most 25 ``{name, ucid}`` suggestions out, most recently seen first.
+#: It is a declared READ (like the screenshot's short-lived image URL), and it carries the ADD's OWN
+#: capability: the door to the search is the door to the write the search feeds, so nobody reaches a
+#: player's name through a narrower right than the ban itself.
+BAN_PLAYERS_PATH = "/actions/ban/players"
+#: the search's own query parameter.
+BAN_PLAYERS_QUERY = "q"
+#: the value the UCID field's declaration carries as its ``data-lookup`` — the URL the ADD dialog's
+#: own enhancement reads. ONE string, so the field, the route and the declaration cannot drift.
+BAN_ADD_UCID_LOOKUP = BAN_PLAYERS_PATH
+
+
+@dataclass(frozen=True, slots=True)
+class BanAction:
+    """One write of the console that acts on a ban ENTRY.
+
+    Its own record rather than a fourth :class:`WriteAction`, because a ban write's target is neither
+    a server nor a player ON a server: it is an ENTRY — a UCID plus the ban's own identity. The same
+    discipline as its three siblings: data, not code, so the route table, the capability map, the row
+    control and the dialog are four readings of ONE declaration.
+
+    ``dgsa_warning``/``dgsa_detail`` are the DGSA copy: a DGSA ban (``banned_by == 'cloud'``) is
+    liftable LOCALLY only. ONE meaning, in both sentences — the lift removes this installation's
+    copy and does NOT touch the DGSA cloud ban. The control's LABEL and the dialog's TITLE are the
+    SAME on every row: a DGSA entry is identified by its tag and explained by the warning sentence,
+    never by a second wording of the control — so the declaration carries one label and the
+    DGSA-only sentences.
+
+    ``form`` marks the ONE ban write that is reached through its dialog while requiring no
+    confirmation (:attr:`WriteAction.form`'s twin): the ADD's dialog IS its form, and adding a ban
+    mints no one-shot token because there is no irreversible step a token would gate — the ban can be
+    lifted again from the same page. ``field``/``field_label``/``field_max``/``field_help``/
+    ``field_width`` are the REASON field, declared here exactly as :class:`PlayerAction` declares it,
+    so both ban dialogs draw it from the one builder (:func:`ban_dialog_fields`).
+    """
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    icon: str = ""
+    danger: bool = True
+    confirm: bool = True
+    form: bool = False
+    audit_refusals: bool = False
+    #: whether the ACTOR's own shown name is passed to the action as ``sender`` — the value the ban
+    #: list records as ``banned_by``, read off the request's identity and never from the body, so
+    #: nobody can sign another person's name onto a ban.
+    sender: bool = False
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    field_width: str = ""
+    field_kind: str = "text"
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    dgsa_warning: str = ""
+    detail: str = ""
+    dgsa_detail: str = ""
+    go: str = ""
+    go_title: str = ""
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG (see :attr:`WriteAction.dialog`).
+
+        The same ONE place the question is answered for a server write: a control that CONFIRMS or
+        that has a FORM posts to ``<path>/confirm``, so the route can refuse a POST that skipped the
+        dialog, and a control that posts directly has no dialog to skip.
+        """
+        return bool(self.confirm or self.form)
+
+
+#: The ban ENTRY's controls. The LIFT and the EDIT are the ROW controls; the ADD is the PAGE-LEVEL
+#: one (a ban being added has no row), so the two kinds are never asked for by the same caller —
+#: the row map names the first pair, ``PAGE_CONTROLS`` the second.
+#:
+#: The LIFT is the first console write whose target is NOT a server, so it carries the entry's
+#: identity (ucid + the ban's own timestamp) rather than a server name. ``confirm`` is the modal
+#: gate: the action's route refuses a POST that did not come through the dialog, so the one-shot
+#: token machinery IS the confirmation. The EDIT carries the same identity but is a FORM (no token).
+BAN_LIFT_ACTION = BanAction(
+    key="lift", capability=BAN_LIFT_CAPABILITY, qualname="unban", path=BAN_LIFT_PATH,
+    label=i18n._("Lift ban…"), icon="unban",
+    danger=True, confirm=True, audit_refusals=True,
+    tip=i18n._("Lift — remove this ban from the list"),
+    aria=i18n._("Lift the ban on {player}"),
+    hint=i18n._("the ban is removed from the list"),
+    warning=i18n._("<b>{player} may rejoin the servers this ban covers.</b> The ban is "
+                   "removed from the ban list and expires now."),
+    dgsa_warning=i18n._("<b>This lift applies here only.</b> The DGSA cloud ban is not "
+                        "affected by it."),
+    detail=i18n._("The ban expires on the servers it covers here. A player who is online "
+                  "right now is not disconnected by the lift."),
+    dgsa_detail=i18n._("Only this installation's copy is lifted: the global DGSA ban is "
+                       "untouched."),
+    go=i18n._("Lift ban"),
+    go_title=i18n._("Lift the ban on {player}"))
+
+#: The ADD: a ban written by UCID, for a player who may be offline or unknown to this installation.
+#: It resolves nothing and looks no player up, which is why it is its own action and not
+#: ``ban_player``. ``form`` says its dialog is a form (no one-shot token); ``sender`` says the
+#: acting person's shown name is written as ``banned_by``, mirroring the Discord ban dialog.
+BAN_ADD_ACTION = BanAction(
+    key="add", capability=BAN_ADD_CAPABILITY, qualname="ban_ucid", path=BAN_ADD_PATH,
+    label=i18n._("Add ban…"), danger=True, confirm=False, form=True, audit_refusals=True,
+    field=BAN_REASON_FIELD, field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the ban list."),
+    sender=True,
+    tip=i18n._("Add a ban to the list"),
+    aria=i18n._("Add a ban"),
+    hint=i18n._("the ban is written to the list every installation syncs"),
+    warning=i18n._("<b>The player is removed from the servers this ban covers and cannot "
+                   "rejoin them</b> for as long as the ban stands. Empty duration means it never "
+                   "expires on its own."),
+    detail=i18n._("The ban is written to the ban list every installation syncs, so it holds "
+                  "wherever they connect from — not only on one server."),
+    go=i18n._("Ban player"),
+    go_title=i18n._("Add the ban — an empty duration is permanent"))
+
+#: The EDIT: the second row control. Like the ADD it is a FORM (no one-shot token — an edit is
+#: reversible from the same page, so a token nothing spends would be a dead knob), and like the lift
+#: its target is the entry's identity (ucid + the ban's own timestamp) carried hidden. ``danger`` is
+#: False: nothing here is destructive, and the mockup tints the primary button not at all.
+#:
+#: NO ``warning``: the mockup's edit dialog carries no red-edged block — what it says about the
+#: action is one sentence of ``detail`` (reason and expiration only; the rest is lift-and-re-add).
+#: The reason and the expiration are ITS OWN two records (:func:`ban_edit_dialog_context` feeds them
+#: their pre-filled values): a day-count box is the ADD's and the player-row Ban's alone.
+BAN_EDIT_ACTION = BanAction(
+    key="edit", capability=BAN_EDIT_CAPABILITY, qualname="edit_ban", path=BAN_EDIT_PATH,
+    label=i18n._("Edit…"), icon="pencil", danger=False, confirm=False, form=True, audit_refusals=True,
+    field=BAN_REASON_FIELD, field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the ban list."),
+    tip=i18n._("Edit the reason or the expiration of the ban on {player}"),
+    aria=i18n._("Edit the ban on {player}"),
+    hint=i18n._("only the reason and the expiration can change"),
+    detail=i18n._("Only the reason and the expiration can change. The player, the UCID and the "
+                  "scope stay: a different player is a different ban, and a ban that covers other "
+                  "servers is lifted and re-added instead of moved."),
+    go=i18n._("Save ban"),
+    go_title=i18n._("Save the ban on {player}"))
+
+BAN_ACTIONS: tuple[BanAction, ...] = (BAN_LIFT_ACTION, BAN_ADD_ACTION, BAN_EDIT_ACTION)
+
+
+#: THE WATCH-ENTRY writes' ONE capability. Adding, editing and removing a watch entry are ONE rule —
+#: who may change what the watchlist says about a player — and splitting them would let an operator
+#: add a watch entry he cannot remove again, which is the trap the ban pair's three capabilities
+#: avoid on purpose.
+WATCH_CAPABILITY = "players.watch"
+WATCH_ADD_PATH = "/actions/watch/add"
+WATCH_REMOVE_PATH = "/actions/watch/remove"
+WATCH_EDIT_PATH = "/actions/watch/edit"
+
+
+@dataclass(frozen=True, slots=True)
+class WatchAction:
+    """One write of the console that acts on a watch ENTRY.
+
+    Its own record rather than a :class:`BanAction` with half its fields empty: a watch entry has no
+    expiry, no server scope and no DGSA half, so the ban record's ``dgsa_*`` copy and its absolute
+    expiration read as knobs that could never be set here. The shared shape (``path``, ``capability``,
+    ``qualname``, the glyph and its two names, ``confirm``/``form``) is read by the SAME route and
+    control machinery the ban records feed, so the two entry kinds cannot drift apart.
+
+    ``confirm`` is the one-shot gate: the REMOVE spends a token bound to the entry's UCID, so a POST
+    that never rendered the warning cannot delete anything. The EDIT is a FORM — the dialog IS the
+    write — because a reason can be corrected again from the same page.
+
+    ``sender`` is the ban ADD's own knob, reused here: the acting person's shown name, read off the
+    request's identity and never from the body, so an entry's ``created_by`` cannot be signed with
+    somebody else's name. Only the ADD sets it — the REMOVE deletes the row and the EDIT deliberately
+    leaves ``created_by``/``created_at`` exactly as they are.
+    """
+
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    icon: str = ""
+    danger: bool = True
+    confirm: bool = True
+    form: bool = False
+    audit_refusals: bool = False
+    sender: bool = False
+    field: str = ""
+    field_label: str = ""
+    field_max: int = 0
+    field_help: str = ""
+    field_width: str = ""
+    field_kind: str = "text"
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    detail: str = ""
+    go: str = ""
+    go_title: str = ""
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG (see :attr:`BanAction.dialog`)."""
+        return bool(self.confirm or self.form)
+
+
+#: The watch ENTRY's two controls, in the mockup's order (the EDIT glyph, then the REMOVE one).
+#:
+#: BOTH are controls OF an entry — an entry that does not exist renders neither, so the pair is only
+#: ever offered where there is something to change. The REMOVE is destructive and says what it costs:
+#: the REASON is lost with the row and the player is NOT unbanned. The EDIT is a form whose one field
+#: is the reason, pre-filled from the entry.
+WATCH_REMOVE_ACTION = WatchAction(
+    key="unwatch", capability=WATCH_CAPABILITY, qualname="unwatch_player",
+    path=WATCH_REMOVE_PATH, label=i18n._("Remove from watchlist"), icon="conceal",
+    danger=True, confirm=True, audit_refusals=True,
+    tip=i18n._("Remove from watchlist — drop this watch entry"),
+    aria=i18n._("Remove {player} from the watchlist"),
+    hint=i18n._("the watch entry and its reason are gone"),
+    warning=i18n._("<b>{player} leaves the watchlist.</b> The reason is lost with the entry, and "
+                   "the player is not unbanned by this."),
+    detail=i18n._("Only the watch entry is removed. A ban on this player is a different list and "
+                  "is unaffected."),
+    go=i18n._("Remove from watchlist"),
+    go_title=i18n._("Remove {player} from the watchlist"))
+
+WATCH_EDIT_ACTION = WatchAction(
+    key="edit_watch", capability=WATCH_CAPABILITY, qualname="edit_watch",
+    path=WATCH_EDIT_PATH, label=i18n._("Edit the watch reason"), icon="pencil",
+    danger=False, confirm=False, form=True, audit_refusals=True,
+    field="reason", field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the watchlist."),
+    tip=i18n._("Edit the watch reason of {player}"),
+    aria=i18n._("Edit the watch reason of {player}"),
+    hint=i18n._("only the reason changes; who watched and when stay as they are"),
+    detail=i18n._("Only the reason changes: who watched the player and when are history and stay "
+                  "as they are."),
+    go=i18n._("Save the reason"),
+    go_title=i18n._("Save the watch reason of {player}"))
+
+#: THE ADD: the one watch control that acts on a player who is NOT on the list — a form whose dialog
+#: IS the write (no one-shot token). ``sender`` says the acting person's shown name is written as
+#: ``created_by``, read off the identity and never from the body, exactly like the ban ADD's
+#: ``banned_by``. Offered where there is no entry to edit or remove, so the three controls of this
+#: capability never appear together.
+WATCH_ADD_ACTION = WatchAction(
+    key="watch", capability=WATCH_CAPABILITY, qualname="watch_player", path=WATCH_ADD_PATH,
+    label=i18n._("Add to watchlist…"), icon="warn",
+    danger=False, confirm=False, form=True, audit_refusals=True, sender=True,
+    field="reason", field_label=i18n._("Reason"), field_max=80, field_width="wide",
+    field_help=i18n._("Kept on the watchlist."),
+    tip=i18n._("Add to watchlist — put this player on the list"),
+    aria=i18n._("Put {player} on the watchlist"),
+    hint=i18n._("the moderators are alerted when they join"),
+    warning=i18n._("<b>{player} is put on the watchlist.</b> The moderators are alerted every "
+                   "time they join a server, and nothing blocks them from playing."),
+    detail=i18n._("The entry carries a reason and who wrote it. It is a note for the moderators, "
+                  "not a ban: nothing about the player's access changes."),
+    go=i18n._("Add to watchlist"),
+    go_title=i18n._("Put {player} on the watchlist"))
+
+#: The three watch controls. The two ENTRY controls are the pair an existing entry renders; the ADD
+#: is offered where there is no entry, so a page never draws it beside them.
+WATCH_ENTRY_ACTIONS: tuple[WatchAction, ...] = (WATCH_EDIT_ACTION, WATCH_REMOVE_ACTION)
+WATCH_ACTIONS: tuple[WatchAction, ...] = (WATCH_ADD_ACTION,) + WATCH_ENTRY_ACTIONS
+
+
+#: THE PENALTY-POINT writes' ONE capability. Adding and removing points, and forgiving them, are ONE
+#: rule — who may move a player's penalty total — and the plugin's actions re-check the same rule
+#: server-side, because a REST/MCP caller has no console route in front of it.
+PENALTY_CAPABILITY = "players.punish"
+PENALTY_ADD_PATH = "/actions/penalty/add"
+PENALTY_REMOVE_PATH = "/actions/penalty/remove"
+PENALTY_FORGIVE_PATH = "/actions/penalty/forgive"
+
+#: The write dialog's own fields. ``value`` names both the form field and the ACTION's parameter,
+#: so the route cannot post one thing and the action read another. There is no server field: the
+#: change is fleet-wide and the action resolves its own reference server.
+PENALTY_POINTS_FIELD = "points"
+PENALTY_REASON_FIELD = "reason"
+
+#: The console's human-scale bound on ONE change. The form states it and the ACTION re-checks it.
+PENALTY_POINTS_MIN = 1
+PENALTY_POINTS_MAX = 1000
+
+PENALTY_POINTS_LABEL = i18n._("Points")
+PENALTY_POINTS_REMOVE_LABEL = i18n._("Points to remove")
+PENALTY_POINTS_HELP = i18n._("A whole number from 1 to 1000.")
+PENALTY_REASON_LABEL = i18n._("Reason")
+PENALTY_REASON_HELP = i18n._("Kept in the penalty log as the event's name.")
+
+
+@dataclass(frozen=True, slots=True)
+class PenaltyAction:
+    """One write of the console that moves a player's penalty points.
+
+    Its own record rather than a :class:`WatchAction`, because the target is a UCID and the write is
+    FLEET-WIDE: no server is picked, and the reference server the row needs is resolved inside the
+    action (``plugins.punishment.actions._reference_server``).
+
+    ``points`` says the dialog asks for a magnitude and a reason; the FORGIVE asks for neither
+    (``confirm`` is its one-shot gate). Every control of this surface is reached through its dialog
+    (``dialog`` is always True): the consequences belong there, never on the card.
+    """
+
+    key: str
+    qualname: str
+    path: str
+    label: str
+    danger: bool = False
+    confirm: bool = False
+    points: bool = False
+    warning: str = ""
+    detail: str = ""
+    go: str = ""
+    go_title: str = ""
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    capability: str = PENALTY_CAPABILITY
+
+    @property
+    def dialog(self) -> bool:
+        """Whether this control is reached through its DIALOG — always, for this surface."""
+        return True
+
+
+#: The three penalty writes, in the card's order: add, remove, forgive. The two point controls are
+#: forms whose dialog IS the write (no one-shot token — a typed row can be taken back from the same
+#: page); the forgive confirms, because it deletes every row and lifts the bot's ban.
+PENALTY_ADD_ACTION = PenaltyAction(
+    key="add_points", qualname="punish_player", path=PENALTY_ADD_PATH,
+    label=i18n._("Add points"), points=True,
+    tip=i18n._("Add points — increase this player's penalty total"),
+    aria=i18n._("Add penalty points to {player}"),
+    hint=i18n._("the points are logged and the ladder runs"),
+    warning=i18n._("<b>The points are written to the penalty log</b> and the punishment ladder runs "
+                   "at once, so a kick or a ban can follow from the new total."),
+    detail=i18n._("The change is one entry in the penalty log; the ladder decides what the total "
+                  "means."),
+    go=i18n._("Add points"),
+    go_title=i18n._("Add the points to {player}'s total"))
+
+PENALTY_REMOVE_ACTION = PenaltyAction(
+    key="remove_points", qualname="punish_player", path=PENALTY_REMOVE_PATH,
+    label=i18n._("Remove points"), points=True,
+    tip=i18n._("Remove points — take back penalty points this player was given"),
+    aria=i18n._("Remove penalty points from {player}"),
+    hint=i18n._("a negative entry in the same penalty log"),
+    warning=i18n._("<b>The points are taken back</b> as one negative entry in the penalty log, "
+                   "and the ladder is re-evaluated for the lower total."),
+    detail=i18n._("Enter the magnitude to remove: 5 takes five points off. The entry stays in the "
+                  "log with a negative value, so the history is kept."),
+    go=i18n._("Remove points"),
+    go_title=i18n._("Remove the points from {player}'s total"))
+
+PENALTY_FORGIVE_ACTION = PenaltyAction(
+    key="forgive", qualname="forgive_player", path=PENALTY_FORGIVE_PATH,
+    label=i18n._("Forgive all"), danger=True, confirm=True,
+    tip=i18n._("Forgive all — delete every penalty entry and lift the bot's ban"),
+    aria=i18n._("Forgive all penalty points of {player}"),
+    hint=i18n._("every entry deleted, the bot's own ban lifted"),
+    warning=i18n._("<b>Every penalty entry of {player} is deleted and the bot's own ban is "
+                   "lifted.</b> A ban a human added elsewhere is not the bot's to lift and stays."),
+    detail=i18n._("The delete covers every UCID of this player's Discord link, because the link is "
+                  "what the page groups them by. The ban lifted is the bot's own, bot-wide: a ban "
+                  "a human added elsewhere stays."),
+    go=i18n._("Forgive all"),
+    go_title=i18n._("Delete every penalty entry of {player} and lift the bot's ban"))
+
+PENALTY_ACTIONS: tuple[PenaltyAction, ...] = (PENALTY_ADD_ACTION, PENALTY_REMOVE_ACTION,
+                                             PENALTY_FORGIVE_ACTION)
+
+
+@dataclass(frozen=True, slots=True)
+class NodeField:
+    """ONE named input a NODE control's DIALOG asks for, besides its checkbox(es).
+
+    Its own shape rather than a third reading of :class:`SelectField`, because a node write's fields
+    are not all selects and because each KIND is also the route's READER: ``branch`` is a picker over
+    an allow-list the route re-checks, ``version`` is a picker whose options are filled ON DEMAND
+    (the server draws what the cached check knows and the dialog's own script asks for the rest), and
+    ``number`` is a bounded whole number. One string per field — ``field`` is BOTH the form field's
+    name and the ACTION's parameter's name — so the route cannot post one thing and the action read
+    another.
+
+    ``label``/``help`` are ``i18n._``-marked English translated where the dialog renders. ``default``
+    is what the control states when nothing else does, and for ``number`` it is also what the route
+    reads from a body that omits the field.
+    """
+
+    field: str
+    kind: str
+    label: str
+    help: str = ""
+    default: str = ""
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NodeAction:
+    """One write of the console that acts on a NODE row.
+
+    Its own record rather than a third :class:`WriteAction`, because a node write states what a
+    server write does not: the target is a NODE (in the body, as ``node``), the state gates are the
+    node's MAINTENANCE state and the heartbeat's verdict rather than a ``Status`` member, and the
+    dialog may carry an OPTION. Same discipline as its two siblings — data, not code: the route
+    table, the capability map, the page control and the dialog are four readings of ONE declaration.
+
+    ``states`` is the maintenance state(s) this control applies to (:data:`NODE_IN_SERVICE` /
+    :data:`NODE_MAINTENANCE`), or empty for "every state" — the lifecycle trio changes a node's
+    process, which maintenance does not make meaningless. It is the same kind of gate as
+    ``WriteAction.statuses``: a control whose only possible answer is a refusal is not offered.
+
+    ``heading`` is the dialog's own title, because the three-then-two operations do not all read well
+    as "<label> <node>?" (``Take servers offline dcs-a-01?`` is not a sentence); the template's
+    default is only a fallback.
+
+    ``confirm`` says whether the ACTION's route requires the one-shot confirm token — i.e. whether the
+    operation is destructive enough that a POST skipping its dialog must be refused. ``danger`` tints
+    the row's control and its dialog button; the maintenance pair's two halves differ exactly there,
+    and the mockup agrees (offline confirms, online does not).
+
+    ``master_note`` is the one piece of copy that only the MASTER node's dialog carries (see
+    :func:`node_confirm_context`): the console runs inside the master's process, so restarting or
+    shutting it down kills the process serving the page. It applies to the LIFECYCLE trio only — the
+    maintenance pair touches no service, so the master's row needs no such sentence (an empty
+    ``master_note`` is how that is declared, never a special case in the template).
+    """
+
+    key: str
+    capability: str
+    qualname: str
+    path: str
+    label: str
+    confirm: bool = True
+    danger: bool = True
+    #: record EVERY attempt at this action in the audit, including a refusal the ROUTE made before
+    #: any action ran. For these five it is
+    #: unconditional: taking a whole node — or every server on it — out of service is exactly the
+    #: destructive class that ruling is about.
+    audit_refusals: bool = True
+    states: tuple[str, ...] = ()
+    #: WHETHER THIS CONTROL IS GATED ON THE CACHED UPGRADE CHECK. Only the Upgrade
+    #: control declares it. When True the control is offered **only while the cache says an update
+    #: is pending** (``services.webservice.upgrade.pending``), the row says ``"no update check yet"``
+    #: while the value is UNKNOWN, and the dialog reports when the value was last checked. The check
+    #: itself is a node call and lives in the poller — a render NEVER issues it (see the module
+    #: docstring of ``services/webservice/upgrade.py``).
+    check: bool = False
+    #: WHETHER THIS CONTROL NEEDS A DCS INSTALLATION. Only the DCS update declares it. A node whose
+    #: ``nodes.yaml`` block declares no ``DCS:`` has nothing for the control to act on, so it is not
+    #: offered there — a CONFIGURATION fact, read from the source, never a node call. It is NOT a
+    #: gate on "is an update available": a rollback happens exactly when nothing is available, so a
+    #: node that HAS DCS is offered this control whether or not ED reports a newer build.
+    needs_dcs: bool = False
+    #: WHICH observable ENDS the pulse this control starts (see :class:`WriteAction`'s field of the same
+    #: name). ``AWAIT_OBSERVABLE_NONE`` — the default — records NO expectation, so a node control that
+    #: declares nothing never pulses; the DCS update declares :data:`AWAIT_OBSERVABLE_DCS`, whose signal
+    #: is the console's cached DCS check.
+    observable: str = AWAIT_OBSERVABLE_NONE
+    #: how long this control's pulse may last, in seconds — ``0`` keeps
+    #: :data:`AWAIT_CHANGE_SECONDS`. Only an operation measured in tens of minutes needs its own.
+    ceiling: float = 0.0
+    #: WHETHER a successful run RE-READS this node's cached DCS facts. The DCS update declares it: the
+    #: console's chip and the row's mark are read from that cache, and without this they would keep
+    #: reporting the update the node has just installed until the next background sweep.
+    refresh_dcs: bool = False
+    #: THE NAMED FIELDS this control's dialog asks for, besides its checkbox(es), in the order it
+    #: draws them (:class:`NodeField`). The SAME tuple drives the draw (:func:`node_dialog_inputs`)
+    #: and the route's read (:func:`node_dialog_values`), so a field cannot be rendered without being
+    #: read, nor read without having been offered.
+    inputs: tuple[NodeField, ...] = ()
+    #: THE DIALOG TEMPLATE, when this control's dialog is more than ``confirm.html`` can carry: the
+    #: DCS update's version pick is filled from the node ON DEMAND, so its page loads one script of
+    #: its own. Empty means the shared template, which is every other node control.
+    template: str = ""
+    option: NodeOption | None = None
+    heading: str = ""
+    tip: str = ""
+    aria: str = ""
+    hint: str = ""
+    warning: str = ""
+    detail: str = ""
+    master_note: str = ""
+    go: str = ""
+    go_title: str = ""
+
+
+#: The NODE row's controls: **restart · shut down · upgrade** and the
+#: maintenance pair **offline · online**.
+#:
+#: THE GLYPHS ARE SHARED WITH THE SERVER ROW, deliberately: ``restart`` and ``shutdown`` are the same
+#: two operations one level up, and a second spelling of the same word is the drift this file exists
+#: to prevent. ``upgrade`` is this row's own. The maintenance pair uses the NODE ROW's own reviewed
+#: pair from the mockup's legend (``_icons.html``: the box with the arrow up, and the box with the
+#: arrow down) — the mockup drew them for exactly these two words.
+#:
+#: WHAT EACH OPERATION MIRRORS (``plugins/admin/actions.py``): ``Node.restart()``, ``Node.shutdown()``
+#: and ``Node.upgrade()`` for the trio, and ``take_node_offline``/``bring_node_online`` — the
+#: ``server.maintenance`` pair — for offline/online.
+#:
+#: THE WORDS name the real consequence, per action and per target: every server on the node goes down
+#: with a lifecycle operation, the numbers come from the RESOLVED node (never from the request), and a
+#: node that is down cannot be started from a browser — which is the one honest thing the shutdown
+#: copy has to say. The maintenance pair's words name the SERVER effect (maintenance, stop, start) and
+#: never the node's power: the node's services, this console included, keep running.
+#:
+#: UPGRADE IS OFFERED ONLY WHILE THE NODE REPORTS AN UPDATE PENDING, read from the CACHED
+#: background check. ``Node.upgrade_pending()`` is an async git/HTTP check on the local node and an
+#: RPC on a remote one, so a page render must not ask it (``readmodels/nodes.py``: no RPC on render):
+#: the poller in the webservice service asks instead and caches the answer, and this control carries
+#: ``check=True`` so it is offered only while that cache says True (and the row says "no update check
+#: yet" while the value is unknown). See the Upgrade entry's ``detail`` and
+#: ``services/webservice/upgrade.py``.
+NODE_ACTIONS: tuple[NodeAction, ...] = (
+    NodeAction(key="restart", capability=NODE_RESTART_CAPABILITY, qualname="restart_node",
+               path="/actions/node/restart", label=i18n._("Restart"),
+               tip=i18n._("Restart node — every server on {node} goes down while the node restarts"),
+               aria=i18n._("Restart node {node}"),
+               hint=i18n._("every server on the node goes down"),
+               warning=i18n._("<b>Every server on {node} goes down with it</b> — {servers} server(s) "
+                              "and {players} player(s) are on it right now."),
+               detail=i18n._("A node restart ends the bot process on that machine; the launcher "
+                             "there brings the node back, and its servers do not: they stay down "
+                             "until somebody starts them again."),
+               master_note=i18n._("<b>This console runs inside that node</b> — restarting it ends "
+                                  "the process serving this page, and this window has to be reloaded "
+                                  "once the node is back."),
+               go=i18n._("Restart node"),
+               go_title=i18n._("Restart {node} — every server on it goes down")),
+    NodeAction(key="shutdown", capability=NODE_SHUTDOWN_CAPABILITY, qualname="shutdown_node",
+               path="/actions/node/shutdown", label=i18n._("Shut down"),
+               tip=i18n._("Shut down node — every server on {node} goes down and nothing brings it back"),
+               aria=i18n._("Shut down node {node}"),
+               hint=i18n._("every server on the node goes down, for good"),
+               warning=i18n._("<b>{servers} server(s) on {node} go down and {players} player(s) are "
+                              "disconnected, and nothing brings the node back.</b>"),
+               detail=i18n._("A node shutdown ends the bot process on that machine for good: "
+                             "somebody has to start the node THERE, at the machine. A node that is "
+                             "down cannot be started from this browser, and its servers stay down "
+                             "with it."),
+               master_note=i18n._("<b>This console runs inside that node</b> — shutting it down "
+                                  "ends the process serving this page, and nothing brings it back "
+                                  "until somebody starts the node on that machine."),
+               go=i18n._("Shut down node"),
+               go_title=i18n._("Shut down {node} — every server on it goes down")),
+    NodeAction(key="upgrade", capability=NODE_UPGRADE_CAPABILITY, qualname="upgrade_node",
+               path="/actions/node/upgrade", label=i18n._("Upgrade"), check=True,
+               tip=i18n._("Upgrade node — update DCSServerBot on {node} and restart it; every server on "
+                   "it goes down"),
+               aria=i18n._("Upgrade node {node}"),
+               hint=i18n._("update and restart, every server goes down"),
+               warning=i18n._("<b>Every server on {node} goes down with it</b> — {servers} server(s) "
+                              "and {players} player(s) are on it right now."),
+               detail=i18n._("The node is updated and restarted. The console offers Upgrade ONLY "
+                             "while the node itself reports an update pending — it asks every node "
+                             "in the background, never while rendering a page, and this control is "
+                             "gone again once there is nothing to upgrade."),
+               master_note=i18n._("<b>This console runs inside that node</b> — upgrading it ends "
+                                  "the process serving this page, and this window has to be reloaded "
+                                  "once the node is back."),
+               go=i18n._("Upgrade node"),
+               go_title=i18n._("Upgrade {node} — every server on it goes down")),
+    # ── the POWER pair ───────────────────────────────────
+    # NOT a flag control any more. "offline" means THE SERVERS, never the node's own process (that is
+    # *Shut down*, above): these two change the SERVERS the node carries and touch no service, so
+    # this console survives an "offline" and can bring the node back. The words therefore name the
+    # SERVER effect, never the node's power — the row's own ONLINE/OFFLINE tag is the heartbeat's
+    # verdict and would otherwise contradict the control beside it.
+    #
+    # What each half is (``plugins/admin/actions.py`` for the code):
+    # ``offline`` shuts the node's in-service servers down through the engine's popup chain and —
+    # unless its ``maintenance`` option is cleared — marks them so a scheduled start cannot bring
+    # them back; ``online`` reverts EXACTLY what that operation did: it clears only the flags the
+    # operation set and starts only the servers it stopped. A flag set by hand is never touched in
+    # either direction, which is why the flag's own controls live on the SERVER row.
+    NodeAction(key="offline", capability=NODE_OFFLINE_CAPABILITY, qualname="take_node_offline",
+               path="/actions/node/offline", label=i18n._("Take servers offline"),
+               states=(NODE_POWER_OFF,),
+               option=NodeOption(field="maintenance",
+                                 label=i18n._("Also mark them as maintenance"),
+                                 default=True,
+                                 help=i18n._("On by default: without it a scheduled start can bring "
+                                             "the servers back while the node is \"offline\".")),
+               heading=i18n._("Take the servers on {node} offline?"),
+               tip=i18n._("Take servers offline — every server on {node} that is up is marked as "
+                   "maintenance and stopped; its players are disconnected, while the node's "
+                   "services stay up"),
+               aria=i18n._("Take the servers on {node} out of service"),
+               hint=i18n._("marks the node's servers as maintenance and stops them"),
+               warning=i18n._("<b>{servers} server(s) on {node} go down and {players} player(s) are "
+                              "disconnected.</b> The box below is ticked by default and marks those "
+                              "servers as maintenance — leave it ticked unless you mean to let a "
+                              "scheduled start bring them back while the node is \"offline\"."),
+               detail=i18n._("Only the SERVERS on the node change. The node itself keeps running, "
+                             "so its services — including this console — stay up, and bringing the "
+                             "node back is a job this browser CAN do. With the box ticked the "
+                             "servers are flagged as maintenance before they stop, so they stay out "
+                             "of service until somebody ends that; clear the box and no flag is "
+                             "written at all — the servers stop and nothing keeps the scheduler "
+                             "from starting them again."),
+               go=i18n._("Take servers offline"),
+               go_title=i18n._("Take {node} offline — {servers} server(s) go down, {players} "
+                               "player(s) are disconnected")),
+    # NO OPTION: ending the maintenance IS the operation. Clearing the flags this node's power-off set
+    # is not a choice to offer — it is what "online" means — and the START is not this action's to
+    # take: the scheduler owns every start, so the two never race over the same server. There used to
+    # be a ``startup`` checkbox here, and it is exactly what turned a flag toggle into a power
+    # operation; it is gone.
+    NodeAction(key="online", capability=NODE_ONLINE_CAPABILITY, qualname="bring_node_online",
+               path="/actions/node/online", label=i18n._("Bring servers online"),
+               states=(NODE_POWER_ON,), confirm=False, danger=False,
+               heading=i18n._("Bring the servers on {node} back online?"),
+               tip=i18n._("Bring servers online — clear the maintenance flags this node's power-off "
+                   "set; the scheduler then starts the servers it stopped. A flag set by hand is "
+                   "left alone"),
+               aria=i18n._("Bring the servers on {node} back into service"),
+               hint=i18n._("ends the maintenance this node's power-off set — the scheduler starts "
+                           "what it stopped"),
+               warning="",
+               detail=i18n._("This reverts EXACTLY the last power-off on this node: it clears only "
+                             "the maintenance flags that operation set, and the servers it stopped "
+                             "are left for the scheduler to start. A flag somebody set by hand is "
+                             "never cleared, and a server that is still in maintenance is not "
+                             "started. If the bot has restarted since the power-off the record is "
+                             "gone, and this then releases every server that is down and not in "
+                             "maintenance, clearing no flag at all — the message says which of the "
+                             "two happened. The node's services were never touched."),
+               go=i18n._("Bring servers online"),
+               go_title=i18n._("Bring {node} online — the flags its power-off set are cleared, and "
+                               "the scheduler starts what it stopped")),
+    # ── the DCS UPDATE ───────────────────────────────────
+    # ONE control for three operator words — UPDATE, ROLL BACK, SWITCH THE BRANCH — because the
+    # engine has one call for them: ``Node.dcs_update(branch=…, version=…)`` names both halves, so an
+    # older version on the installed branch IS a rollback and another branch IS a switch. Three
+    # controls for one call would be three dialogs that cannot disagree with the engine and can only
+    # disagree with each other.
+    #
+    # OFFERED ALWAYS, NEVER GATED — no ``states`` and no ``check``: a reachable node that HAS DCS
+    # offers this control whether or not an update exists, because a ROLLBACK happens exactly when
+    # nothing is "available", so a check-gated control would withdraw itself at the one moment the
+    # operator needs it. The single condition is the CONFIGURATION fact that the node declares a DCS
+    # installation at all (``needs_dcs``); "is a newer build available" is a node call, and a render
+    # issues none.
+    #
+    # The dialog asks WHICH BRANCH and WHICH VERSION, how long the players are warned and whether the
+    # update is announced: the branch list is computed from configuration and the cached check (no
+    # node call at all), and the VERSION list is read on demand from ``DCS_VERSIONS_PATH`` by the
+    # dialog's own script, marking the installed version — which is what makes the older ones
+    # reachable as a rollback. TWO FIELDS ARE PER NODE (:func:`node_dialog_inputs`): the branch pick
+    # only on a node configured with DCS credentials (Testing and Nightly are authenticated builds a
+    # node without them could never fetch) and the announce box only on a node that declares a
+    # ``DCS.announce`` block (with none configured there is nothing to announce).
+    NodeAction(key=DCS_UPDATE_KEY, capability=NODE_DCS_UPDATE_CAPABILITY, qualname="update_dcs",
+               path=NODE_DCS_UPDATE_PATH, label=i18n._("Update DCS"), needs_dcs=True,
+               template=DCS_UPDATE_TEMPLATE,
+               # the pulse: it starts on the press and ends when the check has been refreshed, so it
+               # lasts as long as the update does rather than the default two minutes
+               observable=AWAIT_OBSERVABLE_DCS, ceiling=DCS_PULSE_SECONDS, refresh_dcs=True,
+               heading=i18n._("Update, roll back or switch the DCS branch on {node}?"),
+               inputs=(NodeField(field=DCS_BRANCH_FIELD, kind="branch", label=DCS_BRANCH_LABEL,
+                                 help=DCS_BRANCH_HELP),
+                       NodeField(field=DCS_VERSION_FIELD, kind="version", label=DCS_VERSION_LABEL,
+                                 help=DCS_VERSION_HELP),
+                       NodeField(field=DCS_WARN_TIME_FIELD, kind="number",
+                                 label=DCS_WARN_TIME_LABEL, help=DCS_WARN_TIME_HELP,
+                                 default=str(DCS_WARN_TIME_DEFAULT),
+                                 minimum=DCS_WARN_TIME_MIN, maximum=DCS_WARN_TIME_MAX)),
+               option=NodeOption(field=DCS_ANNOUNCE_FIELD,
+                                 label=i18n._("Announce the update on Discord"),
+                                 default=True,
+                                 help=i18n._("On by default: once the update has finished the node "
+                                             "posts the DCS announcement configured in its "
+                                             "nodes.yaml.")),
+               tip=i18n._("Update DCS — update, roll back or switch the branch on {node}; every "
+                          "server on it goes down and comes back on the new version"),
+               aria=i18n._("Update, roll back or switch the DCS branch on {node}"),
+               hint=i18n._("update, roll back or switch branch — every server on the node goes down"),
+               warning=i18n._("<b>Every server on {node} goes down</b> — {servers} server(s) and "
+                              "{players} player(s) are on it right now, and each one is warned for "
+                              "the warning time you set before it is stopped."),
+               detail=i18n._("Every server on the node is warned, then stopped, the installation is "
+                             "updated to the version you choose and the servers come back on it."),
+               go=i18n._("Update DCS"),
+               go_title=i18n._("Update {node} — every server on it goes down and comes back on the "
+                               "new version")),
+)
+
+
+def declare() -> None:
+    """Declare every write capability. Idempotent for the same roles AND scope rule.
+
+    ``scope_grants=True`` is expressed in the console's existing mechanism: a
+    MANAGER (an identity whose resolved scope holds a server's ``managed_by``) may pause a mission —
+    or message a player — ON THEIR OWN SERVERS, and the scope inside the seam holds them to exactly
+    that. Node and instance writes stay Admin-only and must not be granted to managers; they are not
+    in this map, and adding one means adding it here with the reason.
+
+    Called at import AND from :func:`capabilities`, because the capability table is process state
+    and a test fixture that snapshots/restores it can drop this declaration between two installs.
+    """
+    for action in SERVER_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE SERVER MESSAGE PAIR (``servers.message``) is declared by that same loop: a server-wide
+    # message is a server-row write, so it carries the server row's rule — ``Admin`` + ``DCS Admin``,
+    # with a manager's scope grant, exactly as the PLAYER message pair carries it for a manager's own
+    # players.
+    # THE SERVER CREATION PAIR is declared by its OWN loop, NOT the one above: ``servers.add`` and
+    # ``servers.delete`` create and remove an INSTANCE, so they carry the node/instance rule —
+    # ``Admin`` only, and NO scope grant. A manager's scope is a set of server names and cannot widen
+    # into creating one (there is no name to scope yet) or into removing a machine's instance.
+    for action in SERVER_NODE_ACTIONS + SERVER_PAGE_ACTIONS:
+        permissions.declare_capability(action.capability, NODE_ROLES)
+    # THE MAINTENANCE PAIR IS DECLARED BY THE LOOP ABOVE, deliberately, and that IS §10.9's
+    # decision made visible: ``servers.maintenance`` / ``servers.clear_maintenance`` carry the
+    # console's server-write rule — ``Admin`` + ``DCS Admin`` WITH a manager's scope grant — which is
+    # Discord's ``/scheduler maintenance`` / ``/scheduler clear`` (``DCS Admin``,
+    # ``plugins/scheduler/commands.py``) widened by the console's own convention (``Admin`` holds
+    # every server-row write here, §4.1) and narrowed back per server by the SCOPE. A manager may
+    # flag their own server and nobody else's: the same predicate that hides the control
+    # (``permissions.allows``) is the one the gate runs, and the scope is applied by
+    # ``resolve_scoped_server``. NODE and INSTANCE writes stay Admin-only with NO scope grant
+    # (:data:`NODE_ROLES`, below) — a manager's scope is a set of SERVERS and must never widen into
+    # a node, which is why flagging a server is here and taking a node offline is not.
+    for action in PLAYER_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE BAN-ENTRY WRITES: the same server-write rule — ``WRITE_ROLES`` WITH a scope grant — so a
+    # manager adds and lifts the bans on THEIR OWN servers and nobody else's. The lift is per ROW and
+    # the ADD covers the caller's whole target set (or one server of it), and the scope is applied
+    # inside the action (``_caller_ban_targets``), which is what a scoped entry needs. The ADD reuses
+    # ``players.ban`` — adding a ban is ONE concept, whether it is aimed at a player row or a ucid.
+    for action in BAN_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE WATCH-ENTRY WRITES: ONE capability, the console's player-row rule — ``WRITE_ROLES`` WITH a
+    # manager scope grant, so a manager changes the watch entries of THEIR OWN players and nobody
+    # else's. The bound is applied inside the actions (the same presence rule the player read uses),
+    # which is what a capability without a server in its path needs.
+    for action in WATCH_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE PENALTY-POINT WRITES: ``WRITE_ROLES`` WITH a manager scope grant, so a manager of at least
+    # one server reaches the surface — the same grant the player and watch surfaces carry. The write
+    # itself is FLEET-WIDE: it changes the points of the whole installation, no server is picked, and
+    # each action resolves its OWN reference server (``plugins.punishment.actions._reference_server``)
+    # for the NOT NULL ``pu_events.server_name`` and the ladder it reads. The trap: the scope does NOT
+    # narrow the change, so a manager of one server moves points across every tenant boundary.
+    for action in PENALTY_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # the node writes: Admin only, and NO scope grant — see NODE_ROLES for why (a manager's scope is
+    # a set of servers, and "one of mine runs there" must not become "let me stop that machine").
+    for action in NODE_ACTIONS:
+        permissions.declare_capability(action.capability, NODE_ROLES)
+    # THE DCS CONFIG WRITE: ``("Admin",)`` WITH a scope grant, so a manager may reach it; a DCS Admin
+    # is still refused (its Scope.cluster is a ROLE's scope, never a managing one). The manager
+    # deny-list (``core.server_config``) is applied inside the action, on top of this.
+    for action in SERVER_CONFIG_ACTIONS:
+        permissions.declare_capability(action.capability, NODE_ROLES, scope_grants=True)
+    # THE CHANNELS WRITE: its OWN capability, Admin only, NO scope grant — a manager may not write the
+    # channels at all. The deny-list also names the channels, so the page OMITS the whole card and
+    # the action re-checks a direct caller.
+    for action in SERVER_CHANNEL_ACTIONS:
+        permissions.declare_capability(action.capability, NODE_ROLES)
+    # THE COALITION WRITE: ``("Admin",)`` WITH a scope grant, so a manager reaches the coalition
+    # passwords of THEIR OWN servers — the same rule the DCS config write carries, and the same
+    # refusal a foreign server meets (``resolve_scoped_server``'s bare 403). The action's own
+    # ``_coalition_authorised`` re-checks it server-side and additionally refuses the REST/MCP
+    # transports, which do not reach a console page.
+    for action in SERVER_COALITION_ACTIONS:
+        permissions.declare_capability(action.capability, NODE_ROLES, scope_grants=True)
+    # THE MISSION-LIST WRITES: ``WRITE_ROLES`` WITH a scope grant — the console's server-write rule,
+    # so a manager adds / removes / loads / uploads missions on THEIR OWN servers and nobody else's.
+    for action in MISSION_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+    # THE RADIO WRITES: ``WRITE_ROLES`` WITH a scope grant, the same server-write rule as the mission
+    # writes — a manager drives the radios of THEIR OWN servers and nobody else's, and the scope is
+    # applied inside the action (``resolve_scoped_server``) as well as by the gate.
+    for action in MUSIC_ACTIONS:
+        permissions.declare_capability(action.capability, WRITE_ROLES, scope_grants=True)
+
+
+declare()
+
+
+def capabilities() -> dict[str, str]:
+    """The capability declaration for the paths this module registers (one literal path each).
+
+    An action with a DIALOG (``WriteAction.dialog``: it confirms OR carries an option) contributes
+    TWO paths — its own POST and the POST that renders its dialog — and both declare the SAME
+    capability: opening a dialog is not a lesser right than performing the action, and the dialog's
+    own refusal would be unusable if the door to it were narrower.
+    """
+    declare()
+    capabilities_ = {action.path: action.capability for action in server_row_actions()}
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in server_row_actions() if action.dialog})
+    # the PAGE control (Add server) contributes its own two paths for the same reason: the dialog is
+    # reached through POST too, and opening it is not a lesser right than performing the action.
+    capabilities_.update({action.path: action.capability for action in SERVER_PAGE_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in SERVER_PAGE_ACTIONS if action.dialog})
+    capabilities_.update({action.path: action.capability for action in PLAYER_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in PLAYER_ACTIONS if action.confirm})
+    # THE BAN-ENTRY WRITES: each posts its own form and reaches its DIALOG (the lift confirms, the
+    # ADD is a form), so opening one is gated by the SAME capability as performing it.
+    capabilities_.update({action.path: action.capability for action in BAN_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in BAN_ACTIONS if action.dialog})
+    # THE ADD'S PLAYER SEARCH: a READ (a GET), declared with the ADD's own capability — the search is
+    # the door to the write it feeds, so opening it is not a lesser right than the ban itself.
+    capabilities_[BAN_PLAYERS_PATH] = BAN_ADD_CAPABILITY
+    # THE WATCH-ENTRY WRITES: the REMOVE confirms and the EDIT is a form, so each contributes its own
+    # POST and its dialog's POST, both gated by the ONE capability — opening a dialog is not a lesser
+    # right than performing the write.
+    capabilities_.update({action.path: action.capability for action in WATCH_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in WATCH_ACTIONS if action.dialog})
+    # THE PENALTY-POINT WRITES: every control is reached through its dialog, so both POSTs of each
+    # one carry the SAME capability — opening a dialog is not a lesser right than the write.
+    capabilities_.update({action.path: action.capability for action in PENALTY_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in PENALTY_ACTIONS})
+    # THE SHORT-LIVED IMAGE URL carries the SCREENSHOT's own capability: it is the glyph's answer, so
+    # whoever may ask for a capture may load it, and nobody else — a token is not a second door. The
+    # declaration is the ROUTE's pattern, because that is what the gate resolves a request against.
+    capabilities_[f"{SCREENSHOT_IMAGE_PATH}/{{token}}.png"] = SCREENSHOT_CAPABILITY
+    # the node writes contribute both of their paths, exactly like the two surfaces above: opening a
+    # dialog is not a lesser right than performing the action. The dialog path is declared for EVERY
+    # node action — the maintenance pair's two halves both collect their option there, even though only
+    # ``offline`` requires the one-shot token (``confirm``).
+    capabilities_.update({action.path: action.capability for action in NODE_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in NODE_ACTIONS})
+    # THE DCS VERSION LIST: a READ (a GET), declared with the DCS update's own capability — the list
+    # is the door to the write it feeds, so reading it is not a lesser right than the update itself.
+    # The declaration is the ROUTE's pattern, because that is what the gate resolves a request
+    # against (the node's name is a path parameter, exactly like the screenshot's token).
+    capabilities_[DCS_VERSIONS_PATH] = NODE_DCS_UPDATE_CAPABILITY
+    # THE DCS CONFIG WRITE and THE CHANNELS WRITE: one path each, no dialog (each posts its whole
+    # form directly).
+    capabilities_.update({action.path: action.capability for action in SERVER_CONFIG_ACTIONS})
+    capabilities_.update({action.path: action.capability for action in SERVER_CHANNEL_ACTIONS})
+    capabilities_.update({action.path: action.capability for action in SERVER_COALITION_ACTIONS})
+    # THE MISSION-LIST WRITES: each posts its own form/body directly; the ADD and REMOVE controls
+    # additionally contribute their DIALOG path (``MISSION_DIALOG_KEYS``), so opening one is gated by
+    # the SAME capability as performing it — a dialog is not a lesser right than the write.
+    capabilities_.update({action.path: action.capability for action in MISSION_ACTIONS})
+    capabilities_.update({action.path + CONFIRM_SUFFIX: action.capability
+                          for action in MISSION_ACTIONS if action.key in MISSION_DIALOG_KEYS})
+    # THE RADIO WRITES: one path each, no dialog — the card's whole form is the input.
+    capabilities_.update({action.path: action.capability for action in MUSIC_ACTIONS})
+    return capabilities_
+
+
+# --------------------------------------------------------------------------------- the controls
+
+def state_of(value: Any) -> str:
+    """The state a control's ``statuses`` is matched against: the ``Status`` member's NAME when the
+    raw value names one, else the folded word the page shows (``UNKNOWN`` for anything unmapped).
+
+    It is NOT ``status_view(...).word``, and that is the whole point: the read model deliberately
+    folds ``Shutting down`` and ``Unregistered`` onto the SHUTDOWN word so a reader acts on four
+    words (``readmodels/model.py``), but neither is the state a Startup applies to —
+    ``startup_server`` guards on ``Status.SHUTDOWN`` itself. A control whose only possible answer is
+    the action's own state refusal is not offered, and a row between two states gets no
+    control at all. ``Status`` is the authority: when the mockup's state table and the enum disagree,
+    the enum wins.
+    """
+    raw = (readmodels.status_view(value).raw or "").strip().lower()
+    for member in Status:
+        if member.value.lower() == raw:
+            return member.name
+    return readmodels.status_view(value).word
+
+
+# --------------------------------------------------------- the control that is RUNNING
+
+def target_key(kind: str, name: str | None = "") -> str:
+    """The in-flight GUARD's key for a ``(kind, name)`` target.
+
+    A thin re-statement of ``core/actions._normalise_target``'s key shape — strip, case-fold,
+    prefix the KIND (``server:<folded name>`` / ``node:<folded name>``) — kept HERE because the
+    console must not reach for a private name in the seam. It is what lets a page ask the guard's
+    OWN set (:func:`target_is_busy`) about a row it is rendering, so the pulse a person sees and the
+    refusal a second press meets are ONE fact, never two that disagree.
+
+    It is pinned to the guard by ``tests/test_webui_busy_control.py``, which puts a target in flight
+    through the REAL :func:`core.actions.call_action` and asserts the rendered control goes busy: if
+    the guard's key shape ever moves, that pin fails rather than the pulse silently never lighting.
+    """
+    return f"{kind}:{str(name or '').strip().casefold()}"
+
+
+def target_is_busy(kind: str, name: str | None, running: frozenset[str] | None = None) -> bool:
+    """Whether an action is running on the ``(kind, name)`` target RIGHT NOW.
+
+    Read from the seam's own in-flight set (``core.actions.in_flight_targets``), and — the scope
+    rule this must not break — the console only ever asks about a target it is ALREADY
+    rendering a row for. There is no list of in-flight targets on any page and no count, so a
+    viewer who cannot see a server cannot learn from any rendered output that it is mid-action.
+    ``running`` is an already-read snapshot, so a page reads the set once for the whole table.
+    """
+    return target_key(kind, name) in (in_flight_targets() if running is None else running)
+
+
+# ------------------------------------- the control that is AWAITING A CHANGE
+
+def _row_state(server: Any) -> str:
+    """The state ONE row's control matches on — the SAME reading :func:`server_controls` uses.
+
+    Kept as one function so the state a write is SUBMITTED under and the state a later render
+    COMPARES against cannot drift: both call this, both get :func:`state_of` of the server's own
+    ``status`` (the ``Status`` member's name, never the folded word).
+    """
+    return state_of(readmodels.safe(lambda: getattr(server, "status", None)))
+
+
+def awaiting_store() -> dict:
+    """A SNAPSHOT of the pending expectations, keyed by target — never the live mapping.
+
+    A COPY, taken behind the store's lock, so a reader can walk the whole store (the tests reach an
+    entry's stamp this way) without holding the lock a route writes it under, and without being able
+    to mutate the store through the dict it was handed.
+    """
+    with _AWAIT_LOCK:
+        return {key: dict(entry) for key, entry in _AWAIT.items()}
+
+
+def reset_awaiting_changes() -> None:
+    """Drop every pending expectation — PROCESS state's test seam, this store's ``reset_in_flight``.
+
+    ``tests/conftest.py`` clears it after every test for the same reason ``reset_in_flight`` exists:
+    an expectation left by one test is a pulse some later render never asked for.
+    """
+    with _AWAIT_LOCK:
+        _AWAIT.clear()
+
+
+def _observable_value(action: WriteAction | NodeAction, state: str, flagged: bool,
+                      revision: str = "") -> Any:
+    """The current value of the observable *action* MOVES — the signal whose move ends its pulse.
+
+    The ONE translation from the declaration's ``observable`` to a value a later render can compare:
+    the maintenance flag for the flag pair (a boolean, so ``False`` is a real
+    value and not an absent one), the CONFIG REVISION for the config write (``revision``), the row's
+    state for everything else. Kept beside the store that records it and the read that spends it, so a
+    third observable is one branch in ONE place.
+    """
+    observable = getattr(action, "observable", AWAIT_OBSERVABLE_STATUS)
+    if observable == AWAIT_OBSERVABLE_MAINTENANCE:
+        return bool(flagged)
+    if observable in (AWAIT_OBSERVABLE_CONFIG, AWAIT_OBSERVABLE_DCS):
+        return str(revision)
+    return str(state)
+
+
+def remember_awaiting_change(kind: str, name: str | None, action: WriteAction | NodeAction,
+                             state: str, flagged: bool, *, revision: str = "") -> None:
+    """Record that *action*'s write on ``(kind, name)`` is ON ITS WAY, and what its observable read.
+
+    WRITTEN BEFORE THE ACTION RUNS: the route calls this once the target is resolved and
+    the observable has been read, and only then calls the action — so the fresh render the browser
+    lands on (issued at the same moment as the POST) already finds the expectation, with no cookie
+    round-trip in the way. A write that then FAILS or is REFUSED drops it again
+    (:func:`forget_awaiting_change`), so a failed start never pulses while the notice says it failed.
+
+    THIS is the pulse's authority — "someone started something through THIS control and the glyph it
+    moves has not swapped yet" — held PROCESS-side, keyed by target (see the store's note above for
+    why it left the session). IT NAMES THE ACTION: the seam's in-flight guard
+    keys only the TARGET and cannot say WHICH control was pressed, but this record is written by the
+    ROUTE, which knows exactly which action it is running, so :func:`awaiting_change` answers ``True``
+    only for that same control — pressing *Maintenance* must not blink *Startup*.
+
+    IT NAMES THE OBSERVABLE TOO: ``action.observable`` decides whether the
+    expectation ends on the row's status or on the maintenance flag, and the value that observable
+    holds AT SUBMISSION is stored beside it. The flag pair therefore spends its expectation on the
+    very next render (the flag lands before the response returns), never a 120-second pulse re-armed
+    by every further press.
+
+    A SECOND PRESS REPLACES the entry — the key is the TARGET, so there is exactly one expectation
+    per target and the newest press owns it (never stacking, never re-arming a spent one: a spent
+    entry is dropped by :func:`awaiting_change` the moment it is read). An empty/unreadable target
+    records nothing. The store is bounded by count (:data:`AWAIT_MAX_PENDING`), oldest dropped first,
+    so a long-lived process cannot grow it without limit.
+    """
+    if not str(name or "").strip():
+        return
+    key = target_key(kind, name)
+    entry = {"action": str(getattr(action, "key", "")),
+             "observable": getattr(action, "observable", AWAIT_OBSERVABLE_STATUS),
+             "value": _observable_value(action, state, flagged, revision),
+             # the state the write works TOWARD: the read spends the expectation when the
+             # row reads one of these AND has left the submitted state — see :func:`awaiting_change`.
+             # Empty for an action that names no target state ("any change" ends it).
+             "settled": tuple(getattr(action, "settled", ()) or ()),
+             "departed": False,
+             # how long THIS action's pulse may last: an operation that takes tens of minutes declares
+             # its own ceiling, and an action that declares none keeps the default.
+             "ceiling": float(getattr(action, "ceiling", 0.0) or AWAIT_CHANGE_SECONDS),
+             "at": time.monotonic()}
+    with _AWAIT_LOCK:
+        _AWAIT[key] = entry
+        if len(_AWAIT) > AWAIT_MAX_PENDING:
+            for stale in list(_AWAIT)[:-AWAIT_MAX_PENDING]:
+                _AWAIT.pop(stale, None)
+
+
+def forget_awaiting_change(kind: str, name: str | None) -> None:
+    """Drop the expectation for ``(kind, name)`` — a write that FAILED or was REFUSED.
+
+    A failed start must not pulse for two minutes while the notice says it failed, so the
+    route forgets the expectation at the same moment it remembers the failure notice. Removing an
+    absent key is a no-op.
+    """
+    with _AWAIT_LOCK:
+        _AWAIT.pop(target_key(kind, name), None)
+
+
+def _evaluate(entry: dict, state: str, flagged: bool, revision: str = "") -> str:
+    """Whether a stored expectation has ENDED against the row's current observable — ``"end"``/``"pending"``.
+
+    The ONE place the end condition lives, read by both :func:`awaiting_change` (does THIS
+    control pulse?) and :func:`awaiting_action` (which control is pending at all?). Three shapes:
+
+    * the flag observable (``AWAIT_OBSERVABLE_MAINTENANCE``) — ENDED as soon as the boolean differs
+      from the value it held at submission;
+    * a STATUS observable WITH a settled set — ENDED when the row reads one of the settled
+      states AND it has LEFT the state it was submitted in. The ``departed`` latch is what makes a
+      ``restart`` work: it is SUBMITTED in a settled state (``RUNNING``), so the bare
+      ``state in settled`` test would spend it on the first render; only once the row has been seen
+      in a NON-settled state (``LOADING``, ``STOPPED``) does the return to ``RUNNING`` end it. A
+      non-settled state does NOT end it: ``LOADING`` is the wait, not the finish. The latch is
+      persisted on the entry, so the two renders that bracket the boot agree.
+    * a STATUS observable with NO settled set — the rule kept for an action that names no target
+      state: any change ends it.
+
+    It MUTATES the entry it is given (the ``departed`` latch), which is why it is called under the
+    store's lock by both readers.
+    """
+    if entry.get("observable") == AWAIT_OBSERVABLE_MAINTENANCE:
+        return "end" if bool(flagged) != entry.get("value") else "pending"
+    if entry.get("observable") in (AWAIT_OBSERVABLE_CONFIG, AWAIT_OBSERVABLE_DCS):
+        # the CONFIG REVISION moved (the settings write and/or the servers.yaml override landed), or
+        # the cached DCS check was REFRESHED (its ``checked_at`` moved): the pulse is SPENT. A value
+        # that has not moved keeps waiting, under the ceiling.
+        return "end" if str(revision) != str(entry.get("value")) else "pending"
+    now_state = str(state)
+    settled = tuple(entry.get("settled") or ())
+    if not settled:                                   # no declared target: any change ends it
+        return "end" if now_state != str(entry.get("value")) else "pending"
+    if now_state in settled:
+        # settled — but a restart is submitted IN one, so require that the row left first
+        if entry.get("departed") or now_state != str(entry.get("value")):
+            return "end"
+        return "pending"
+    entry["departed"] = True                          # transitional (LOADING/STOPPED): keep waiting
+    return "pending"
+
+
+def _pending_key_locked(key: str, state: str, flagged: bool, now: float | None,
+                        revision: str = "") -> str | None:
+    """The action key of the pending expectation at *key*, evaluated against the row — or ``None``.
+
+    Runs the ceiling, the end condition and the drop in ONE place, under the store's lock, so a spent
+    entry is removed WHOEVER reads it and the two public readers cannot drift. Returns the
+    pending action's KEY (never a bool), because the caller needs to know WHICH control is pending
+    in order to keep it on screen while the state does not match its own gate.
+    """
+    entry = _AWAIT.get(key)
+    if not isinstance(entry, dict):
+        return None
+    if _evaluate(entry, state, flagged, revision) == "end":
+        _AWAIT.pop(key, None)     # the glyph swapped: SPENT — drop it, so it can never re-arm
+        return None
+    try:
+        stamped = float(entry.get("at", 0.0))
+        ceiling = float(entry.get("ceiling") or AWAIT_CHANGE_SECONDS)
+    except (TypeError, ValueError):
+        _AWAIT.pop(key, None)
+        return None
+    moment = time.monotonic() if now is None else now
+    if (moment - stamped) >= ceiling:
+        _AWAIT.pop(key, None)     # the ceiling: a start that never came up must not pulse forever
+        return None
+    return str(entry.get("action") or "") or None
+
+
+def awaiting_change(kind: str, name: str | None, action_key: str,
+                    state: str, flagged: bool, *, now: float | None = None,
+                    revision: str = "") -> bool:
+    """Whether the write by the control *action_key* on ``(kind, name)`` is still waiting for its glyph.
+
+    ``True`` while ALL of these hold:
+
+    * an expectation exists for this target (a write was issued and has not ended), and
+    * the entry was submitted by THIS control — ``action_key`` is the key the record carries, so a
+      SIBLING control of the same row never pulses for an action it did not run, and
+    * the observable THAT ACTION MOVES has not reached the END its action declares — the row's status
+      reaching the action's ``settled`` state for a power action, the maintenance flag
+      moving for ``servers.maintenance`` / ``servers.clear_maintenance`` — see
+      :func:`_evaluate`, and
+    * the expectation is younger than :data:`AWAIT_CHANGE_SECONDS` (the ceiling that keeps a start
+      that never comes up from pulsing forever).
+    """
+    with _AWAIT_LOCK:
+        pending = _pending_key_locked(target_key(kind, name), state, flagged, now, revision)
+    # still pending: only the control the record NAMES pulses (a sibling never does)
+    return pending is not None and pending == str(action_key)
+
+
+def awaiting_action(kind: str, name: str | None, state: str, flagged: bool, *,
+                    now: float | None = None, revision: str = "") -> str | None:
+    """The action KEY whose write on ``(kind, name)`` is still pending against the row — or ``None``.
+
+    Like every read of the store it is consulted only for a server already in the caller's scoped
+    source — it yields a property of a row the caller is rendering, never a list of busy targets.
+    """
+    with _AWAIT_LOCK:
+        return _pending_key_locked(target_key(kind, name), state, flagged, now, revision)
+
+
+# ------------------------------------- the SERVERS a NODE action will move
+
+#: The SERVER action a node power operation's per-server effect takes its semantics from. The node
+#: route describes each affected server through the SERVER_ACTIONS record — the observable and the
+#: settled state it declares — so the seeding has NO second rule engine: it reads the very declaration
+#: the server row reads. ``offline`` stops (``shutdown``: settled at SHUTDOWN/STOPPED), ``online``
+#: starts (``startup``: settled at RUNNING/PAUSED).
+NODE_MOVE_ACTIONS: dict[str, str] = {"offline": "shutdown", "online": "startup"}
+
+
+def _server_action(key: str) -> WriteAction:
+    """The :class:`WriteAction` a SERVER control KEY names — the observable/settled the seed borrows."""
+    return next(action for action in server_row_actions() if action.key == key)
+
+
+def node_moved_names(request: Request, node_name: str,
+                     action: NodeAction, record: Any = None) -> list[str]:
+    """Seed the expectation on the SERVERS a node power operation WILL move.
+
+    ``record`` is the engine's power-off RECORD (``core.data.maintenance.power_record``), which the
+    CALLER reads BEFORE the action runs and passes here — *because the action CLEARS it as it reverts
+    the power-off*: a read taken after the action would find nothing and mistake a recorded *online*
+    for the no-record fallback. It is used only for ``online``; the caller passes ``None`` elsewhere.
+
+    WHICH SERVERS — the PREDICTION RULE, stated in full:
+
+    * **``offline``** ("Take servers offline") will STOP the servers that are IN SERVICE — not
+      ``SHUTDOWN`` and not ``UNREGISTERED``, the engine's OWN test
+      (:attr:`core.data.maintenance.ServerMaintenanceManager.in_service`), the same fact a per-server
+      write would be about. A server already down is not in service and the operation skips it.
+    * **``online``** ("Bring servers online") will START the servers the last power-off STOPPED, as the
+      power-off RECORD names them (*record* above — the SAME record the node row's power gate reads).
+      With NO record the operation falls back to its RULE ("every server that is down and not in
+      maintenance", the online copy's own words), so the prediction is that same set. In both cases the
+      engine applies ``skip_running`` and ``skip_flagged``: a server already up, or still carrying a
+      flag the operation does not own, is NOT started — so it is not seeded either.
+
+    IT IS A PREDICTION, never authority. The action re-resolves its servers from the CALLER's view at
+    run time; if the bot ends up touching a server the console did not predict, that row only LOSES a
+    pulse (never the reverse — a row is seeded only when the action's OWN semantics say it will move),
+    and the ceiling still ends anything the operation turns out not to finish. A server whose
+    observable ALREADY equals the SETTLED state the action declares is not seeded at all — nothing is
+    pending for it, e.g. a server already up when "bring online" runs or one already SHUTDOWN/STOPPED
+    when "take offline" runs.
+
+    SCOPED, exactly as the rows are: the servers are enumerated from
+    :func:`services.webservice.pages.dashboard.request_source` — the SAME scoped source the page
+    renders from (the non-disclosure rule) — matched on the node's own name. A node a caller
+    cannot see carries no server in their view, so nothing is seeded for them, and only the actor sees
+    these expectations at all. Seeding the SAME server twice REPLACES its entry (the key is the
+    target), exactly as the per-server path already does.
+
+    Returns the names seeded, in name order, so a caller may report or test what it predicted; the
+    store remains the authority.
+    """
+    server_key = NODE_MOVE_ACTIONS.get(action.key)
+    if server_key is None:
+        return []            # the lifecycle trio touches servers only as a side effect of the node's
+                             # own process; only the POWER pair moves servers as its operation
+    source = dashboard_page.request_source(request)
+    wanted = readmodels.text(node_name)
+    servers = [server for server in (getattr(source, "servers", ()) or ())
+               if readmodels.text(readmodels.safe(
+                   lambda: getattr(getattr(server, "node", None), "name", ""))) == wanted]
+    servers.sort(key=lambda server: readmodels.text(
+        readmodels.safe(lambda: getattr(server, "name", ""))))
+    server_action = _server_action(server_key)
+    settled = tuple(getattr(server_action, "settled", ()) or ())
+    recorded = {str(name).casefold() for name in (getattr(record, "stopped", None) or ())} \
+        if record is not None else None
+    seeded: list[str] = []
+    for server in servers:
+        name = readmodels.text(readmodels.safe(lambda: getattr(server, "name", "")))
+        if not name:
+            continue
+        if action.key == "offline":
+            # the servers the operation will STOP: in service (the engine's own test). Anything down
+            # is skipped by the operation and must not pulse.
+            if not ServerMaintenanceManager.in_service(server):
+                continue
+        else:
+            # the servers the operation will START: down (not in service) and NOT flagged, and — when
+            # a record exists — only the ones it stopped. This is ``power_on``'s own filter.
+            if ServerMaintenanceManager.in_service(server):
+                continue
+            if bool(readmodels.safe(lambda: getattr(server, "maintenance", False), False)):
+                continue
+            if recorded is not None and name.casefold() not in recorded:
+                continue
+        state = _row_state(server)
+        if settled and state in settled:
+            continue         # nothing is pending for it: the observable already reads the settled state
+        remember_awaiting_change("server", name, server_action, state, False)
+        seeded.append(name)
+    return seeded
+
+
+def server_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, dict]:
+    """The row STRIP each server row may render, keyed by server name — and nothing for a row whose
+    controls may not be offered.
+
+    ``origin`` is the PAGE this strip is being rendered on (its own path constant), and it travels
+    into every control as a hidden field so the write can return there: the
+    Dashboard (``/``) and ``/fleet`` render the SAME strip, so a Startup pressed on either must
+    keep the person on the page they were on. ``tab`` is the dashboard's active tab, carried beside
+    it for the page whose tables share one path (see :func:`controls_for`). The route re-checks the
+    origin against the registry — this value is a rendering aid, never the authority (see
+    :func:`origin_path`).
+
+    Three conditions, each read from the ONE place that decides it; a control is
+    OMITTED — never rendered disabled — when any of them is false:
+
+    * **the capability**: ``permissions.allows``, the same predicate the access gate runs, so
+      ``offered ⊆ authorised`` holds by construction;
+    * **the scope**: the servers come from :func:`services.webservice.pages.dashboard.request_source`
+      — the SCOPED source every page renders from, which is the ONE owner of "which servers are in
+      this caller's view" (pinned by ``tests/test_webui_scope_view.py``). A server outside the
+      caller's scope is not in the source, so no control is built for it at all — and a crafted POST
+      naming it is refused by ``resolve_scoped_server`` with the same bare 403 as a name that
+      does not exist;
+    * **the action**: ``action_available`` — an installation whose ``mission`` plugin is not loaded
+      offers no button that could only answer a refusal.
+
+    ``statuses`` then decides WHICH controls (Startup on a SHUTDOWN server, Pause on a RUNNING one)
+    for the same reason: a button whose only answer is a state refusal is not offered. The state is
+    read by :func:`state_of` — the ``Status`` member's name, not the folded word — so
+    ``SHUTTING_DOWN`` and ``UNREGISTERED`` (both rendered as SHUTDOWN) offer nothing.
+
+    Each control ALSO carries ``busy`` — and it is the EXPECTATION half of the busy rule and NOTHING
+    ELSE: ``True`` only while THIS session issued a write by
+    THAT control (the record names the action's key) and the observable the action moves has not
+    moved yet — the row's status for a power action, the maintenance flag for the flag
+    pair — bounded by :data:`AWAIT_CHANGE_SECONDS`. So pressing *Maintenance*
+    makes the *Maintenance* glyph pulse and leaves *Startup* alone, and vice versa. The record is the
+    ACTOR's own expectation, held in the session: a second viewer of the same server never sees it —
+    see :func:`remember_awaiting_change` for why that is the honest reading rather than a disclosure
+    the scope rule would forbid.
+
+    The seam's IN-FLIGHT half (:func:`target_is_busy`) is NOT stamped on a control any more. It keys
+    the TARGET, so it cannot say which action is running, and stamping every offered control of the
+    row with it is exactly the defect (a *Startup* that blinks when *Maintenance*
+    was pressed). It travels instead as ``in_flight`` on the ROW record — a marker on the strip
+    container, never a pulsing glyph (``templates/_strip.html``). It is still consulted only for a
+    server already in ``source``, so it remains a property of a row the caller can see and never a
+    channel that could disclose one they cannot.
+
+    The value is ONE record per row, because the row is ONE component at two widths
+    (``templates/_strip.html``): ``strip`` are the icons on the row, ``menu`` the controls the row's
+    overflow trigger opens, and ``wide`` says whether there is a trigger at all. A row whose single
+    applicable control lives in the menu keeps that control's GLYPH rather than paying a click for a
+    one-item menu — so a STOPPED row shows the Start glyph and no trigger.
+    """
+    source = dashboard_page.request_source(request)
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    token = session.get_csrf_token(request)
+    # the seam's own in-flight set, read ONCE for the whole table. It is consulted only
+    # for a server already in ``source`` — the caller's SCOPED view — so the pulse can never be a
+    # second list of busy targets that discloses a row the caller cannot see; it is a property of a
+    # row they are looking at.
+    running = in_flight_targets()
+    controls: dict[str, dict] = {}
+    for index, server in enumerate(getattr(source, "servers", ()) or ()):
+        name = readmodels.text(readmodels.safe(lambda: getattr(server, "name", "")))
+        if not name:
+            continue
+        state = _row_state(server)
+        # the flag pair's own per-row state: read from the SAME scoped object the row is built
+        # from, exactly as ``_muted_state`` reads a player's mute flag. Unreadable counts as NOT
+        # flagged — which offers *Maintenance*; the action's own "already in maintenance mode" guard
+        # is the authority a stale page meets, and a wrong guess costs one typed refusal.
+        flagged = bool(readmodels.safe(lambda: getattr(server, "maintenance", False), False))
+        offered = tuple(action for action in server_row_actions()
+                        if (not action.statuses or state in action.statuses)
+                        and (action.when_maintenance is None
+                             or action.when_maintenance == flagged)
+                        and permissions.allows(action.capability, roles, manager=manager)
+                        and action_available(action.qualname))
+        # WHICH control is pending for this row: read ONCE through the SAME ceiling and
+        # end rule as each control's own read (both call ``_pending_key_locked``), so the row and the
+        # controls can never disagree about what is running.
+        pending = awaiting_action("server", name, state, flagged)
+        # busy is the EXPECTATION half ONLY: this session issued a write by THIS
+        # control and the observable it moves has not reached the end its action declares.
+        # The record names the action, so ONE control pulses — the one
+        # that was pressed — not stamped across the row's whole strip. It is the actor's own view,
+        # held PROCESS-side, and bounded by AWAIT_CHANGE_SECONDS.
+        #
+        # The seam's in-flight half does NOT live here: it keys the TARGET and cannot name the
+        # action, so it must not light a glyph (that is the defect). It is reported ONCE per row, as
+        # a marker on the strip container — see ``in_flight`` in the record below and
+        # ``templates/_strip.html``.
+        in_flight = target_is_busy("server", name, running)
+        # A CONTROL WHOSE OPERATION IS PENDING STAYS ON THE ROW. This is what makes
+        # the pulse survive the STARTING state: a real DCS launch reads ``LOADING`` for most of the
+        # boot, and NO control is gated on ``LOADING`` — so without this the row renders nothing and
+        # there is no glyph to pulse. While the row is
+        # transitional and a start/restart is pending, the pending control's OWN glyph is rendered,
+        # busy: the honest affordance is "this server is starting". It is DISABLED — not an
+        # invitation — because a second start through the UI is meaningless while the first boots.
+        stuck = _pending_row_control(pending, offered, name, token, origin, roles, manager, tab=tab)
+        if stuck is None:
+            # THE LAUNCH'S OTHER DOOR: no expectation was recorded (a start from Discord, the
+            # scheduler, a node power operation, or the boot that follows a DCS update), so the glyph
+            # comes from the row's own state instead — see :func:`_booting_row_control`.
+            stuck = _booting_row_control(state, name, token, origin, roles, manager, tab=tab)
+        if not offered and stuck is None:
+            continue
+        strip = tuple(_control(action, name, token, origin, action.key == pending)
+                      for action in offered if action.row == ROW_STRIP)
+        menu = tuple(_control(action, name, token, origin, action.key == pending)
+                     for action in offered if action.row == ROW_MENU)
+        if len(offered) == 1 and not strip:
+            strip, menu = menu, ()
+        if stuck is not None:
+            strip = (stuck,) + strip
+        controls[name] = {"strip": strip, "menu": menu, "wide": bool(strip) and bool(menu),
+                          "menu_id": f"act-menu-{index}", "server": name,
+                          "in_flight": in_flight,
+                          "aria": _sentence(i18n._("More controls for {server}"), server=name),
+                          "menu_note": MENU_NOTE}
+    return controls
+
+
+def _pending_row_control(pending: str | None, offered: tuple[WriteAction, ...], name: str,
+                         token: str, origin: str, roles: frozenset[str], manager: bool,
+                         *, tab: str = "") -> dict | None:
+    """The busy, DISABLED control a row shows for a pending action its own gate no longer matches.
+
+    ``pending`` is the action key :func:`awaiting_action` read for this row; it
+    returns ``None`` when there is nothing pending, when the action is ALREADY among ``offered`` (so
+    the normal path renders it, precision-pulsed — never a second copy), or when it is not a SERVER
+    power action the caller may run. The clipped gate (``observable == AWAIT_OBSERVABLE_STATUS``)
+    keeps this to the server row's power controls — the node and player rows never reach it — and a
+    pending action the caller is not authorised for renders nothing, so ``offered ⊆ authorised`` still
+    holds. The returned control is ``busy`` (it pulses) and ``disabled`` (it is not an invitation).
+    """
+    if not pending or any(action.key == pending for action in offered):
+        return None
+    action = next((candidate for candidate in server_row_actions()
+                   if candidate.key == pending
+                   and candidate.observable == AWAIT_OBSERVABLE_STATUS
+                   and permissions.allows(candidate.capability, roles, manager=manager)
+                   and action_available(candidate.qualname)), None)
+    if action is None:
+        return None
+    control = _control(action, name, token, origin, busy=True, tab=tab)
+    control["disabled"] = True
+    return control
+
+
+#: The states a DCS launch passes through on its way up. NO server control is gated on one of them —
+#: the row offers nothing until the boot settles — so a row in one of these states has no glyph of its
+#: own, however the launch was started. ``LOADING`` covers most of a real boot (a launch goes
+#: ``SHUTDOWN`` -> ``LOADING`` -> ``RUNNING``); ``STOPPED`` is not here, because a DCS that is up and
+#: sitting on its menu still owns the pause/stop controls.
+BOOT_STATES: tuple[str, ...] = ("LOADING",)
+
+#: The control a BOOTING row shows: the launch's own declaration. A boot is a start whichever trigger
+#: issued it, and ``startup`` is the control that carries the Launch dialog, the capability and the
+#: glyph the operator recognises.
+BOOT_CONTROL_KEY = "startup"
+
+
+def _booting_row_control(state: str, name: str, token: str, origin: str, roles: frozenset[str],
+                         manager: bool, *, tab: str = "") -> dict | None:
+    """The busy, DISABLED launch control a row shows WHILE IT BOOTS — for a launch from ANYWHERE.
+
+    The expectation store (:func:`awaiting_change`) only knows a write THIS console issued, so a launch
+    started from Discord, the scheduler or a node power operation leaves the row with nothing to pulse:
+    ``LOADING`` matches no control's ``statuses`` and the row would render an empty strip for the whole
+    boot. This reads the ROW's own state instead, so the glyph appears whichever door started the
+    server, and it is the same busy+disabled shape the pending control has after a press here.
+
+    ``None`` when the row is not booting, or when the caller may not run the launch action: the strip
+    still holds ``offered ⊆ authorised``.
+    """
+    if str(state) not in BOOT_STATES:
+        return None
+    action = next((candidate for candidate in server_row_actions()
+                   if candidate.key == BOOT_CONTROL_KEY
+                   and permissions.allows(candidate.capability, roles, manager=manager)
+                   and action_available(candidate.qualname)), None)
+    if action is None:
+        return None
+    control = _control(action, name, token, origin, busy=True, tab=tab)
+    control["disabled"] = True
+    return control
+
+
+def _hidden_fields(origin: str, tab: str, *pairs: tuple[str, str]) -> tuple[tuple[str, str], ...]:
+    """The hidden fields a control or dialog carries: its TARGETS, its ORIGIN, and its TAB.
+
+    The tab field is emitted only when a tab is stated, so a control on a page whose table IS its
+    path (``/fleet``, ``/players``, ``/nodes``) and one on the dashboard's default tab render exactly
+    the fields they did before the carrier existed — the value is empty there and an empty field is
+    the dead knob this console forbids.
+    """
+    fields = tuple(pairs) + ((ORIGIN_FIELD, origin),)
+    if tab:
+        return fields + ((TAB_FIELD, tab),)
+    return fields
+
+
+def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool = False,
+             *, tab: str = "", attention: bool = False) -> dict:
+    """One rendered control, as data: where it posts, its glyph, its two names, and the target.
+
+    The target travels in the request BODY, never in a URL: there is no path or query
+    parameter a person can edit to point an action at another server.
+
+    The ORIGIN travels in the body too, beside the target: the page this control
+    is rendered on, so the route can 303 back to it rather than to the section's own page. It is a
+    hidden field and not a URL parameter for the same reason the target is — and the route accepts it
+    only by lookup against the registry (:func:`origin_path`), so it is a candidate, not a choice.
+    ``tab`` (the dashboard's active tab, empty elsewhere) travels beside it in :data:`TAB_FIELD`,
+    because the registry holds page paths and refuses a query-carrying origin: the route rebuilds the
+    return URL from both (:func:`origin_url`).
+
+    A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
+    :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
+    dialog, so the row could not reach it directly even if it wanted to. A control that merely
+    CARRIES AN OPTION does too (:attr:`WriteAction.dialog`): the checkbox is chosen on the
+    dialog, so the row posts there to collect it.
+
+    ``busy`` is the busy truth for THIS control's own action, read at render time: ``True``
+    only when THIS session issued a write THROUGH THIS CONTROL and the observable that action moves has
+    not moved yet (the glyph has not swapped), bounded by :data:`AWAIT_CHANGE_SECONDS`. The record
+    carries it, the strip renders ``aria-busy`` and the animating class from it, and it clears by
+    itself when the observable moves or the ceiling is reached. The seam's in-flight half is NOT here:
+    it cannot name the action, so it travels as the ROW marker (``server_controls``'s ``in_flight``).
+
+    WHY THE BUSY SENTENCE NAMES NO ACTION. The sentence is the ROW's fact — "an action on this server
+    is running" — because the guard keys the TARGET, not the operation, and its own refusal says
+    "Another action on SRS-1 is still running". The control still names ITSELF through ``action.label``
+    (the title/aria are prefixed with the label), so what the sentence claims is true of the row while
+    what it is ABOUT is the control the person pressed. That is the honest reading of a signal whose
+    only authority knows the target: it never claims a sibling performed an operation it did not.
+
+    ``attention`` is NOT a ``WriteAction`` field, deliberately: whether something is waiting is a
+    per-ROW runtime fact (a node's cached DCS check), never a property of the declaration — a static
+    field would wear the amber on every row, including the ones where nothing waits. It defaults to
+    ``False`` because no SERVER control has a "something waits" fact; the node row's DCS control is
+    the one caller that passes it, from the cache (:func:`_dcs_attention`).
+    """
+    if busy:
+        title = {"msgid": _BUSY_TITLE, "params": {"name": name}, "label": action.label}
+        aria = {"msgid": _BUSY_ARIA, "params": {"name": name}, "label": action.label}
+    else:
+        title = _sentence(action.tip, server=name)
+        aria = _sentence(action.aria, server=name)
+    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+            "label": action.label, "icon": action.key, "title": title,
+            "aria": aria, "hint": action.hint,
+            "danger": action.danger, "server": name, "busy": busy,
+            "attention": bool(attention),
+            "direct": not action.dialog,
+            # the transitional busy control a row keeps for a pending action is DISABLED —
+            # it is a statement ("this server is starting"), not an invitation to press it again. Every
+            # other control leaves this False and stays a real, focusable button (the seam's guard, not
+            # a disabled attribute, is what refuses a second press).
+            "disabled": False,
+            "hidden": _hidden_fields(origin, tab, ("server", name)),
+            "csrf_field": session.CSRF_FIELD, "csrf_token": token}
+
+
+def node_state(source, node_name: str) -> str:
+    """The MAINTENANCE state of *node_name* in the caller's view: ``in-service`` / ``maintenance`` / ``""``.
+
+    Read from the SAME scoped source the rows render from — ``source.servers``, the caller's own view
+    — so a state can never describe a server the caller cannot see. It is NOT the row's ONLINE/OFFLINE
+    tag: that comes from ``readmodels/nodes`` and is the HEARTBEAT's verdict (``node is not None``),
+    while this reads the servers' own ``maintenance`` flag, which ``/node offline`` sets and
+    ``/node online`` clears (``plugins/admin/actions.py``). The two can disagree in both directions —
+    a heartbeating node whose servers are all under maintenance, and a node the heartbeat cannot reach
+    whose servers are still listed.
+
+    THREE answers, one of them deliberate:
+
+    * ``maintenance`` — at least ONE server on the node is under maintenance. "Any" rather than "all"
+      because a partial state is exactly the state an operator must be able to leave: ``/node offline``
+      marks a node's servers as they are at that moment, and a server added or restarted later would
+      otherwise strand the row on "offline" forever with no way back from the console;
+    * ``in-service`` — the node carries servers and none of them is under maintenance;
+    * ``""`` — the node carries NO server at all, in the caller's view. There is then nothing to take
+      out of service and nothing to bring back, so NEITHER half of the pair is offered: a control whose
+      only possible effect is nothing is not a control.
+
+    Anything unreadable counts as not-under-maintenance: a broken attribute must cost a state, never
+    the page.
+    """
+    found = False
+    for server in getattr(source, "servers", ()) or ():
+        name = readmodels.text(readmodels.safe(
+            lambda: getattr(getattr(server, "node", None), "name", "")))
+        if name != node_name:
+            continue
+        found = True
+        if bool(readmodels.safe(lambda: getattr(server, "maintenance", False), False)):
+            return NODE_MAINTENANCE
+    return NODE_IN_SERVICE if found else ""
+
+
+def node_power_states(source, node_name: str) -> frozenset[str]:
+    """The POWER state of *node_name*, in the caller's view — what the power pair is offered on.
+
+    THE NODE'S OWN STATE DECIDES, not what its servers happen to be doing. Asked
+    in this order:
+
+    * **the heartbeat** — ``source.nodes[node_name] is None`` means the cluster cannot reach the
+      node, and it is in NEITHER state. The tag :func:`readmodels.nodes` renders is this same verdict,
+      and a row the cluster cannot reach is offered no control at all by :func:`node_controls`; the
+      check is here so this function answers correctly on its own;
+    * **at least one server in the caller's view** — the scoped view the row counts. A node with no
+      server is in neither state: a control whose only possible report is "0 server(s)" is not a
+      control.
+
+    Given both, the POWER-OFF RECORD alone decides which half is offered — the engine's own
+    ``core.data.maintenance.power_record`` for the operation that took the servers down:
+
+    * **no record** — :data:`NODE_POWER_OFF` only: *Take servers offline*. The node is IN SERVICE, so
+      the operation is available whether or not anything currently runs. (The old gate added *offline*
+      only while some server's process was up and *online* while one was down and unflagged, so an
+      ONLINE node with every server stopped offered the online half and never the offline one —
+      inverted from the node's own state);
+    * **a record exists** — :data:`NODE_POWER_ON` only: *Bring servers online*, the way back to what
+      the operation actually took down (the flags it set and the servers it stopped).
+
+    DELIBERATE CONSEQUENCE, so the next reader knows this is a choice and not an oversight: there is
+    NO "some server is down" arm any more, and §5(a) keeps the record IN MEMORY. *After a bot
+    restart* the bring-online control is therefore NOT offered on a heartbeating node that has no
+    record — even when its servers are down. Pressing *Take servers offline* re-creates a record
+    (a no-op stop for the servers already down) and the way back appears. Re-deriving "something is
+    down, therefore this is a power-on" is exactly the arm that produced the defect.
+
+    The RECORD is the engine's (``core.data.maintenance.power_record``), read here rather than in a
+    read model because it is PROCESS state and not a figure about the cluster: it is what makes the
+    console's two halves of ONE operation two HTTP requests. It is read by KEY and never awaited, so
+    the render path keeps its no-RPC rule.
+    """
+    entries = getattr(source, "nodes", None)
+    if entries is not None and entries.get(node_name) is None:
+        return frozenset()          # unreachable: the heartbeat's verdict, neither half
+    found = False
+    for server in getattr(source, "servers", ()) or ():
+        name = readmodels.text(readmodels.safe(
+            lambda: getattr(getattr(server, "node", None), "name", "")))
+        if name == node_name:
+            found = True
+            break
+    if not found:
+        return frozenset()          # no server in the caller's view: neither half
+    if power_record(node_name) is not None:
+        return frozenset({NODE_POWER_ON})
+    return frozenset({NODE_POWER_OFF})
+
+
+def node_states(source, node_name: str) -> frozenset[str]:
+    """EVERY state *node_name* is in, in the caller's view — the ONE gate a node control matches.
+
+    The union of the two vocabularies the row needs, each computed by its own owner:
+
+    * the POWER states (:func:`node_power_states`) — what the power pair is gated on, from the node's
+      OWN state;
+    * the FLAG state (:func:`node_state`) — ``in-service`` / ``maintenance`` / ``""``. Nothing
+      declares it today (the flag's own controls are on the SERVER row, §10.4), and it is in the set
+      anyway so that a future node-row control about the flag declares :data:`NODE_IN_SERVICE` /
+      :data:`NODE_MAINTENANCE` and works — and so that this function is the ONE place a node control's
+      gate is computed rather than two that could drift.
+
+    An action declaring several states is offered when ANY of them is present: the states are not
+    mutually exclusive facts (a node can be ``in-service`` AND have a power-off on record), which is
+    why the gate is a set and not a single value.
+    """
+    states = set(node_power_states(source, node_name))
+    flag_state = node_state(source, node_name)
+    if flag_state:
+        states.add(flag_state)
+    return frozenset(states)
+
+
+def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, dict]:
+    """The row STRIP each NODE row may render, keyed by node name — and nothing for a row that may
+    not be offered one.
+
+    ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
+    field so the write returns there — the registry re-checks it
+    (:func:`origin_path`).
+
+    FIVE conditions, each read from the ONE place that decides it; a control is
+    OMITTED — never rendered disabled — when any of them is false:
+
+    * **the capability**: ``permissions.allows``, the same predicate the access gate runs. Node
+      writes are Admin-only with no scope grant, so a MANAGER is offered none even on the node their
+      own servers run on;
+    * **the reachability**: ``node is not None`` in the caller's view of the cluster — the heartbeat's
+      verdict, the same fact ``readmodels.nodes`` renders as ONLINE/OFFLINE. A node the cluster
+      cannot reach has no object to call, so a control for it could only answer the action's own
+      "offline or unknown" refusal, and a button whose only answer is a refusal is not offered. This
+      applies to the MAINTENANCE PAIR as well, and for a second reason: its servers are read from the
+      caller's view, so an unreachable node would answer "0 server(s)" while its servers may still be
+      listed;
+    * **the scope**: the nodes come from the caller's own ``_Cluster`` (built from the SCOPED
+      source), so a node outside the caller's view is not in the mapping at all;
+    * **the action**: ``action_available`` — an installation whose ``admin`` plugin is not loaded
+      offers no button that could only answer a refusal;
+    * **the state**: an action declaring ``states`` is offered only while at least one of them holds,
+      as computed by :func:`node_states` over the caller's own view. The power pair's gate is the
+      POWER state — *Take servers offline* on a heartbeating node that carries servers and has NO
+      power-off on record, *Bring servers online* on a node whose power-off IS on record
+      (:func:`node_power_states`; the gate is off the servers' statuses) — because the pair is a power
+      control and not a flag toggle. A node carrying no server
+      is in no state at all and is offered neither half.
+
+    THE MASTER'S OWN ROW IS NOT SPECIAL-CASED HERE, and that is the decision:
+    the console's process lives inside the master, so restarting it or shutting it
+    down kills the process serving this page — but refusing would make the master the ONE node an
+    Admin cannot restart from the console, and hiding the control would be a per-row inconsistency
+    nobody can see. The warning belongs in the dialog, one sentence longer for that row
+    (:func:`node_confirm_context`), which is where the consequence is read before it is chosen. The
+    MAINTENANCE pair needs no such note: it stops no service, which is why it is on this row at all.
+
+    Each row's DCS control ALSO carries ``attention`` — the CACHED check saying a newer build waits
+    (:func:`_dcs_attention`) — which the strip renders as the amber mark beside the same amber chip.
+    It is a mark and never a gate: the control is offered on every node that declares DCS, because a
+    rollback is the operation a node CURRENT on its branch still needs.
+
+    The record ALSO carries ``mods`` — the row's door into that node's ROOT-MODS page
+    (``pages/mods``), or ``None``. It takes the PAGE's own capability (``mods.manage``) and not
+    ``nodes.settings``: an entry point into an editor takes the capability that owns the resource the
+    editor writes. It is a link, so it needs no reachable node, no plugin and no state — an OFFLINE
+    row keeps it, because the mods page reads its installed list from the database.
+
+    The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
+    ONE component at two widths (``templates/_strip.html``). The node controls are a strip with no
+    overflow menu: they are one equally consequential family, and folding any of them into a menu
+    would make one look rarer than its neighbours for no reason.
+    """
+    source = dashboard_page.request_source(request)
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    token = session.get_csrf_token(request)
+    # THE LOG DOWNLOAD's owner is the nodes PAGE module (it owns the route and the capability);
+    # imported here, inside the function, beside the other page imports this module makes lazily.
+    from . import nodes as nodes_page
+    # THE NODE PAGE's owner is the per-node settings page (it owns the route and the capability);
+    # imported lazily for the same reason.
+    from . import node_settings as node_settings_page
+    # THE MODS DOOR's owner is the mods page module (it owns the page, its URL builder and its
+    # capability); imported lazily for the same reason.
+    from . import mods as mods_page
+    # THE NODES THAT DECLARE A DCS INSTALLATION, from the source's own configuration map — read once
+    # here, beside the rows it describes: a render must not ask a node whether it has DCS.
+    declared_dcs = {readmodels.text(name).casefold()
+                    for name in (getattr(source, "declared_dcs", None) or {})}
+    controls: dict[str, dict] = {}
+    for index, (name, node) in enumerate(
+            (getattr(source, "nodes", None) or {}).items()):
+        key = readmodels.text(name)
+        if not key:
+            continue
+        # THE ROW'S ONLY DOOR — the node's NAME opens its node page (``/nodes/<node>``). Offered on
+        # BOTH the standalone NODES list AND the Dashboard's Nodes tab (the operator reaches nodes from
+        # there too), so it is NOT origin-gated. It is gated by the node page's OWN capability
+        # (``node_settings_control``'s gate, ``nodes.settings``, Admin-only) so the row is never
+        # offered a door the page refuses; ``None`` leaves the name as plain text.
+        page_control = node_settings_page.node_settings_control(key, roles)
+        page = page_control["path"] if page_control else None
+        # THE MODS DOOR — the row's entry into that node's ROOT-MODS page, built by the page module's
+        # own URL builder so the link and the page can never be spelled two ways. Gated on the
+        # capability the PAGE declares (``mods.manage``), never on ``nodes.settings``: the page owns
+        # mod management on that machine, so an entry point into it takes the capability that owns the
+        # resource. A LINK, not a form (a page changes nothing), so it carries no CSRF token — and it
+        # is offered on an OFFLINE row too, because the installed list is a database read: the page
+        # renders (with its gate closed) while the node itself cannot be reached.
+        mods_control = ({
+            "path": mods_page.node_page_url(key),
+            "title": _sentence(i18n._("Root mods on {node} — install, change and remove the packages "
+                                      "in this node's DCS installation"), node=key),
+            "aria": _sentence(i18n._("Open the root mods of node {node}"), node=key),
+        } if permissions.allows(mods_page.MODS_MANAGE_CAPABILITY, roles) else None)
+        if node is None:        # OFFLINE: the cluster knows it and cannot reach it
+            # The write controls and the two log READ controls need a reachable node (they are
+            # calls), so an OFFLINE row is offered none of them — but its NAME link and its MODS door
+            # do not (the mods page renders its installed list from the database): keep the row when
+            # it has either, and render just those.
+            if page is None and mods_control is None:
+                continue
+            record = _node_record(key, index, (), "", None, page=page, tab=tab)
+            record["mods"] = mods_control
+            controls[key] = record
+            continue
+        # THE TWO READ CONTROLS on the row: *View log* (follow the node's own bot log) and
+        # *Download log* (hand over the whole file), both offered on the LOG PANEL's own capability
+        # -- the same predicate the routes' gate runs. They need a node the cluster can REACH
+        # (``read_file`` / ``read_file_window`` are calls), so an OFFLINE row is offered neither,
+        # exactly like its write controls: the row already says the node is offline, and a control
+        # that could only answer "offline or unknown" is not offered.
+        view = nodes_page.log_view_control(key, roles, manager)
+        download = nodes_page.log_download_control(key, roles, manager)
+        states = node_states(source, key)
+        offered = tuple(action for action in NODE_ACTIONS
+                        if (not action.states or (set(action.states) & states))
+                        and _node_offered(action, key, roles, manager,
+                                          declares_dcs=key.casefold() in declared_dcs))
+        # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
+        # control is NOT offered, and the row says why rather than leaving the person to guess.
+        note = _upgrade_note(key, roles, manager)
+        # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, the
+        # two log read controls, the node page link or the mods door. The reads and the two page
+        # links need no plugin, so an install whose ``admin`` actions are absent still follows and
+        # hands over a node's log and mods, and names the way into its own page.
+        if (not offered and not note and view is None and download is None
+                and page is None and mods_control is None):
+            continue
+        record = _node_record(key, index, offered, note, download,
+                              view=view, token=token, origin=origin, page=page, tab=tab,
+                              waiting=_dcs_attention(key), pulsing=_dcs_pulse(key))
+        # the mods door is grafted on HERE rather than passed through ``_node_record``: it is the one
+        # row link that belongs to a DIFFERENT page module, and it must be the same key in both
+        # branches (offline included) — which this ONE line guarantees.
+        record["mods"] = mods_control
+        controls[key] = record
+    return controls
+
+
+def _node_record(key: str, index: int, offered, note: str, download,
+                 *, view=None, token: str = "", origin: str = "", page: str | None = None,
+                 tab: str = "", waiting: bool = False, pulsing: bool = False) -> dict:
+    """One NODE row's control record — the SAME shape whether the node is reachable or not.
+
+    ``offered`` are the lifecycle/power actions the reachable node may render (empty for an OFFLINE
+    one); ``note``/``view``/``download`` are the row-level statement, the log VIEW and the log
+    DOWNLOAD. ``page`` is the NODE PAGE URL (``/nodes/<node>``) the row's NAME links to — the row's
+    ONLY door into that page, so no second link to the same page is drawn beside it. ``waiting`` is
+    the row's CACHED DCS answer (see :func:`_dcs_attention`), and it marks the DCS control alone;
+    ``pulsing`` is the pending expectation of a DCS update pressed through the console
+    (:func:`_dcs_pulse`) and marks that same control alone, so no neighbour's glyph blinks for a
+    write it did not start.
+    Kept in ONE place so the offline and online branches cannot produce two different record shapes
+    that ``_table.html`` would then have to know apart.
+    """
+    return {
+        "strip": tuple(_node_control(action, key, token, origin, tab=tab,
+                                     attention=waiting and action.key == DCS_UPDATE_KEY,
+                                     busy=pulsing and action.key == DCS_UPDATE_KEY)
+                       for action in offered),
+        "menu": (), "wide": False, "menu_id": f"act-menu-n{index}",
+        "node": key, "aria": _sentence(i18n._("Controls for node {node}"), node=key),
+        "menu_note": "",
+        # the row-level statement ``_table.html`` renders beside the strip (`no update check yet`)
+        "note": note,
+        # the row's log VIEW control (``pages/nodes.log_view_control``): a LINK, rendered by
+        # ``_table.html`` beside the strip, or ``None`` for a caller who may not use it.
+        "view": view,
+        # the row's log DOWNLOAD control (``pages/nodes.log_download_control``): a LINK, or ``None``.
+        "download": download,
+        # THE NODE PAGE URL the row's NAME links to (``/nodes/<node>``), or ``None`` — the row's ONE
+        # door into that page: the name is the link, and no second glyph points at the same URL.
+        "page": page,
+    }
+
+
+def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager: bool, *,
+                  declares_dcs: bool = True) -> bool:
+    """Whether ONE node control may be offered on *name* — capability, availability and its gate.
+
+    Four readings of the ONE declaration, exactly like the filter it replaces: the capability
+    (``permissions.allows``, the predicate the access gate runs), the action's availability
+    (``action_available``), — for a CHECK-GATED control — the
+    CACHED upgrade value, and — for a control that NEEDS DCS — whether the node declares a DCS
+    installation at all. Both of the last two are read from state a render already holds and NEVER by
+    asking a node: the poller owns every call, and a render must issue none. A cached value that is
+    ``False`` OR UNKNOWN withholds a check-gated control ("offered only while the cached value is
+    True"): a control whose only possible answer is the action's own "no upgrade available" refusal
+    is not offered. *declares_dcs* comes from the source's own configuration map
+    (``declared_dcs``), so a node without a ``DCS:`` block is not offered a DCS update and nothing is
+    asked to find that out.
+    """
+    if not permissions.allows(action.capability, roles, manager=manager):
+        return False
+    if not action_available(action.qualname):
+        return False
+    if getattr(action, "needs_dcs", False) and not declares_dcs:
+        return False
+    if getattr(action, "check", False) and upgrade_signal.pending(name) is not True:
+        return False
+    return True
+
+
+def _upgrade_note(name: str, roles: frozenset[str], manager: bool) -> str:
+    """The row's honest statement while a CHECK-GATED control's cached value is UNKNOWN.
+
+    Empty unless the caller could otherwise be offered such a control (same capability and
+    availability predicates as :func:`_node_offered`) AND its value is UNKNOWN — never checked, or
+    the last check failed. The wording is :data:`NOTE_NO_CHECK` ("no update check yet"). A value
+    that is known (``True`` or ``False``) carries no note: True offers the control, and False simply
+    offers nothing.
+    """
+    for action in NODE_ACTIONS:
+        if not getattr(action, "check", False):
+            continue
+        if (permissions.allows(action.capability, roles, manager=manager)
+                and action_available(action.qualname)
+                and upgrade_signal.pending(name) is None):
+            return NOTE_NO_CHECK
+    return ""
+
+
+def node_load(source, node_name: str) -> tuple[int, int]:
+    """``(servers, players)`` on *node_name* in the caller's view — what an operation will take down.
+
+    Read from the SAME scoped source the page renders from, so the numbers in a dialog describe what
+    the caller can already see on that page (and never more). Nothing is awaited and no RPC is
+    issued: the servers are in-process objects, exactly as the read models' counters are. Anything
+    unreadable counts as 0 — a figure is decoration here, and a broken attribute must not cost the
+    dialog.
+    """
+    servers = 0
+    players = 0
+    for server in getattr(source, "servers", ()) or ():
+        name = readmodels.text(readmodels.safe(
+            lambda: getattr(getattr(server, "node", None), "name", "")))
+        if name != node_name:
+            continue
+        servers += 1
+        players += players_on(server)
+    return servers, players
+
+
+# ------------------------------------- the DCS update's own dialog fields
+# ONE reading of the branch rule and ONE of the version pick, shared by the dialog that DRAWS them and
+# the route that READS them, so a value the picker offers is exactly a value the route accepts.
+
+def dcs_versions_path(node_name: str) -> str:
+    """The URL of *node_name*'s version list — the name percent-encoded into one path segment.
+
+    ``quote(..., safe='')`` escapes every character a URL reserves, so the caller never escapes a
+    name and no character in one can add a path of its own. The route matches it with a MULTI-segment
+    converter (``DCS_VERSIONS_PATH`` is ``{node:path}``), which hands the handler the decoded name
+    once; that name is used only as a registry lookup key — never joined into a filesystem path and
+    never into a shell command — so a name carrying a ``/`` resolves while nothing it contains
+    reaches the disk or a process.
+    """
+    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/dcs/versions"
+
+
+def _declared_dcs_block(node_name: str) -> dict | None:
+    """The ``DCS`` block ``nodes.yaml`` gives *node_name* — or ``None`` when it declares none.
+
+    THE ANSWER TO "HAS THIS NODE A DCS INSTALLATION", from CONFIGURATION: the same
+    ``readmodels.declared_node_dcs`` map every node row already reads, which costs no node call (the
+    alternative, ``NodeProxy.installation``, raises on a remote node) and no per-render YAML read. A
+    node absent from that map runs no DCS; a block that is not a mapping is reported as an empty
+    declaration rather than raising. Names fold case, like every other name in this seam.
+    """
+    wanted = readmodels.text(node_name).casefold()
+    for name, block in (readmodels.declared_node_dcs() or {}).items():
+        if readmodels.text(name).casefold() == wanted:
+            return dict(block or {})
+    return None
+
+
+def _dcs_credentials_declared(node_name: str) -> bool:
+    """Whether *node_name* is configured with DCS credentials (``DCS.user`` in ``nodes.yaml``).
+
+    THE SAME CONDITION ``/dcs update`` applies to its own branch autocomplete
+    (``plugins/admin/commands.py``'s ``get_dcs_branches``): Testing and Nightly are builds the
+    publisher hands out to authenticated users only, so offering them to a node without credentials
+    would offer two branches the update could never fetch. Read from the CONFIGURATION — a node
+    without a ``DCS:`` block declares none, and no node is asked.
+    """
+    return bool((_declared_dcs_block(node_name) or {}).get("user"))
+
+
+def _dcs_announce_declared(node_name: str) -> bool:
+    """Whether *node_name* declares a DCS announcement (``DCS.announce``) in ``nodes.yaml``.
+
+    A USABLE announcement is a non-empty mapping: the node's own post reads its ``title``,
+    ``description`` and ``channel`` off that block, so an absent key, a ``false`` or an empty map
+    means the node announces nothing. Read from the CONFIGURATION, so no node is asked.
+    """
+    block = _declared_dcs_block(node_name) or {}
+    announce = block.get("announce") if isinstance(block, dict) else None
+    return isinstance(announce, dict) and bool(announce)
+
+
+def _dcs_cached(node_name: str):
+    """The CACHED DCS facts for *node_name* — the background check's record, or ``None``.
+
+    A dict lookup and nothing else: the console never asks a node for these, because the answer is a
+    file read on the node (an RPC on a remote one) and every page view would pay for it. The poller
+    owns the only calls (``services/webservice/dcs_update.py``).
+    """
+    return dcs_update_signal.entry(readmodels.text(node_name))
+
+
+def _dcs_attention(node_name: str) -> bool:
+    """Whether a DCS update is WAITING for *node_name* — ``available is True`` in the CACHE.
+
+    THE SAME CACHED ANSWER THE CHIP PRINTS (``readmodels.model.dcs_chip``'s ``warn``): one dict
+    lookup, so the amber glyph on the row's DCS control and the amber chip beside the node's name can
+    never disagree. ``False`` for UNKNOWN (no record, or a check that failed) and for a node that is
+    current — an unasked node is never amber, because amber claims an update exists.
+
+    Nothing is asked of the node: the poller owns every call (``services/webservice/dcs_update.py``).
+    """
+    record = _dcs_cached(node_name)
+    return bool(record is not None and record.available is True)
+
+
+def _dcs_checked_stamp(node_name: str) -> str:
+    """When *node_name*'s cached DCS answer was last PRODUCED, as text — ``''`` while there is none.
+
+    The value the DCS pulse compares against (:data:`AWAIT_OBSERVABLE_DCS`): it moves exactly when the
+    console has re-read the node, which is what the route does once an update has returned.
+    """
+    record = _dcs_cached(node_name)
+    stamp = getattr(record, "checked_at", None) if record is not None else None
+    return stamp.isoformat() if stamp is not None else ""
+
+
+def _dcs_pulse(node_name: str) -> bool:
+    """Whether a DCS update pressed on *node_name* through THIS console is still waiting for its check.
+
+    ``True`` while the expectation recorded by the node action's route (:func:`remember_awaiting_change`)
+    has not ended, and only for the DCS control it names. It is the row's own fact, read at render like
+    every other control record, and it asks the node nothing: the cache is the only source.
+    """
+    return awaiting_change("node", node_name, DCS_UPDATE_KEY, "", False,
+                           revision=_dcs_checked_stamp(node_name))
+
+
+def dcs_branch_values(node_name: str) -> tuple[str, ...]:
+    """The branch VALUES this console offers for *node_name* — the ALLOW-LIST the route re-checks.
+
+    ``/dcs update``'s own rule (``plugins/admin/commands.py``): ``release``, plus ``testing`` and
+    ``nightly`` only when the node is configured with DCS credentials — all three carrying the
+    ``dcs_server.`` prefix when the INSTALLED branch is a ``dcs_server``-family one, because that
+    family names its branches differently and switching between the two families is not the same
+    operation as picking a branch inside one.
+
+    The installed branch is read from the CACHED check, never from the node. A cache with no record
+    yet (the poller has not reached this node, or its check failed) therefore offers the plain family
+    — and because the picker's default states NO branch at all, the action still resolves the
+    INSTALLED one: an unknown cache can only hide an alternative, never pick the wrong branch.
+    """
+    record = _dcs_cached(node_name)
+    installed = readmodels.text(getattr(record, "branch", ""))
+    prefix = DCS_SERVER_PREFIX if DCS_SERVER_PREFIX in installed else ""
+    names = ["release"]
+    if _dcs_credentials_declared(node_name):
+        names.extend(["testing", "nightly"])
+    return tuple(prefix + name for name in names)
+
+
+def dcs_branch_options(request: Request, node_name: str) -> tuple[dict, ...]:
+    """The BRANCH picker's options: the empty "installed branch" entry, then the allow-list.
+
+    The empty entry comes first and is the default: it states no branch, which the ACTION resolves to
+    the installed one — so the ordinary "install the newest build on the branch I already run" needs
+    no choice at all, and a cache that has not learned the installed branch yet cannot make the pick
+    name the wrong one. Its LABEL names the installed branch from the CACHED check, the branch pick's
+    own "installed now" marker; with no cached branch it keeps the plain wording rather than inventing
+    a name. The WIRE VALUE is :data:`DCS_BRANCH_UNCHANGED` either way.
+    """
+    installed = readmodels.text(getattr(_dcs_cached(node_name), "branch", ""))
+    if installed:
+        unchanged = i18n.translate(request, DCS_BRANCH_INSTALLED_LABEL).replace("{branch}", installed)
+    else:
+        unchanged = i18n.translate(request, DCS_BRANCH_UNCHANGED_LABEL)
+    options = [{"value": DCS_BRANCH_UNCHANGED, "label": unchanged}]
+    for value in dcs_branch_values(node_name):
+        word = value[len(DCS_SERVER_PREFIX):] if value.startswith(DCS_SERVER_PREFIX) else value
+        options.append({"value": value,
+                        "label": i18n.translate(request, DCS_BRANCH_LABELS.get(word, word))})
+    return tuple(options)
+
+
+def dcs_version_options(request: Request, node_name: str) -> tuple[dict, ...]:
+    """The VERSION picker's STARTING options — what the CACHED check already knows.
+
+    Three entries at most, and the first is the empty one: the newest build on the chosen branch,
+    which the ACTION resolves through ``Node.get_latest_version`` exactly as ``/dcs update`` does with
+    no version named. The cached newest build and the installed build follow, marked as such, so the
+    dialog is a usable form with JavaScript off.
+
+    THE REST OF THE LIST IS READ ON DEMAND (``DCS_VERSIONS_PATH``) by the dialog's own script, which
+    replaces these entries with every version the node offers and keeps the installed one marked —
+    that older half is what makes a rollback reachable. It never guesses: a read that cannot answer
+    leaves these three entries in place.
+    """
+    record = _dcs_cached(node_name)
+    latest = readmodels.text(getattr(record, "latest", ""))
+    installed = readmodels.text(getattr(record, "version", ""))
+    options = [{"value": DCS_VERSION_NEWEST,
+                "label": i18n.translate(request, DCS_VERSION_NEWEST_LABEL)}]
+    if latest:
+        options.append({"value": latest,
+                        "label": i18n.translate(request, DCS_VERSION_LATEST_LABEL)
+                        .replace("{version}", latest)})
+    if installed and installed != latest:
+        options.append({"value": installed,
+                        "label": i18n.translate(request, DCS_VERSION_INSTALLED_LABEL)
+                        .replace("{version}", installed)})
+    return tuple(options)
+
+
+def node_dialog_options(action: "NodeAction", node_name: str) -> tuple[NodeOption, ...]:
+    """EVERY checkbox ONE node action's dialog draws FOR ONE NODE, in the declaration's order.
+
+    THE PER-NODE HALF of :func:`dialog_options`. The DCS update's ``announce`` box is drawn only when
+    the node declares a ``DCS.announce`` block: with no announcement configured a tickable box would
+    promise one that cannot happen. The route reads this SAME tuple, so a box the dialog did not draw
+    is never read off the body either — and its action parameter is ``False``, never the
+    declaration's default.
+    """
+    found = dialog_options(action)
+    if action.key != DCS_UPDATE_KEY:
+        return found
+    return tuple(option for option in found
+                 if option.field != DCS_ANNOUNCE_FIELD or _dcs_announce_declared(node_name))
+
+
+def node_dialog_inputs(request: Request, action: "NodeAction", node_name: str) -> tuple[dict, ...]:
+    """EVERY field ONE node action's dialog asks for FOR ONE NODE, in the declaration's order.
+
+    The NAMED inputs (:attr:`NodeAction.inputs`) first — each drawn by its own KIND, so a branch pick
+    is a picker over :func:`dcs_branch_values` and a number is a bounded box — and then the
+    checkbox(es) (:func:`node_dialog_options`). A control that declares none of either draws no field,
+    which is why the lifecycle trio's dialog is still a plain confirmation.
+
+    TWO FIELDS ARE PER NODE, and both are ABSENT rather than drawn disabled or empty: the DCS
+    update's branch pick only on a node configured with DCS credentials (``DCS.user``), and its
+    announce box only on a node that declares a ``DCS.announce`` block. A body cannot carry what the
+    dialog did not draw — the route reads the same decisions.
+    """
+    fields: list[dict] = []
+    for declared in getattr(action, "inputs", ()) or ():
+        if declared.kind == "branch":
+            if not _dcs_credentials_declared(node_name):
+                continue
+            fields.append(_dialog_field(declared.field, declared.label, kind="select",
+                                        options=dcs_branch_options(request, node_name),
+                                        help_text=declared.help))
+        elif declared.kind == "version":
+            fields.append(_dialog_field(declared.field, declared.label, kind="select",
+                                        options=dcs_version_options(request, node_name),
+                                        help_text=declared.help))
+        else:
+            number = _dialog_field(declared.field, declared.label, kind="number",
+                                   value=str(declared.default), help_text=declared.help,
+                                   required=True)
+            number["bounds"] = _number_bounds(declared)
+            fields.append(number)
+    fields.extend(_option_fields(node_dialog_options(action, node_name)))
+    return tuple(fields)
+
+
+def _number_bounds(declared: "NodeField") -> dict | None:
+    """A number field's ``{min, max}`` for the browser, or ``None`` when the declaration states none."""
+    bounds: dict = {}
+    if declared.minimum is not None:
+        bounds["min"] = declared.minimum
+    if declared.maximum is not None:
+        bounds["max"] = declared.maximum
+    return bounds or None
+
+
+def node_dialog_values(action: "NodeAction", form: Any, node_name: str) -> dict[str, Any]:
+    """The NAMED inputs ONE node action's dialog asked for, READ OFF the posted body.
+
+    The reader half of :func:`node_dialog_inputs` and the same declaration, so a field cannot be
+    drawn without being read nor read without having been offered. Every kind validates its own
+    value and raises :class:`ValueError` for anything the dialog cannot have sent — the route turns
+    that into a 400 rather than forwarding it to the node:
+
+    * ``branch`` — empty means "the installed branch" (``None`` to the action); a non-empty value
+      that is not in :func:`dcs_branch_values` is REFUSED, so a free-text branch is never forwarded;
+    * ``version`` — empty means "the newest build on the branch" (``None`` to the action); any other
+      value is passed through, because the versions a node offers change and the ACTION is where a
+      version this installation does not know is judged;
+    * ``number`` — a whole number inside the declared bounds, the declaration's default when the
+      body states none.
+    """
+    values: dict[str, Any] = {}
+    for declared in getattr(action, "inputs", ()) or ():
+        posted = readmodels.text(_last_form_value(form, declared.field))
+        if declared.kind == "branch":
+            if posted and posted not in dcs_branch_values(node_name):
+                raise ValueError(f"'{posted}' is not a branch this console offers")
+            values[declared.field] = posted or None
+        elif declared.kind == "version":
+            values[declared.field] = posted or None
+        else:
+            if not posted:
+                values[declared.field] = int(declared.default or 0)
+                continue
+            try:
+                number = int(posted)
+            except ValueError:
+                raise ValueError(f"the '{declared.field}' field was not a whole number")
+            if declared.minimum is not None and number < declared.minimum:
+                raise ValueError(f"the '{declared.field}' field is below {declared.minimum}")
+            if declared.maximum is not None and number > declared.maximum:
+                raise ValueError(f"the '{declared.field}' field is above {declared.maximum}")
+            values[declared.field] = number
+    return values
+
+
+def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab: str = "",
+                  attention: bool = False, busy: bool = False) -> dict:
+    """One rendered NODE control, as data: where it posts, its glyph, its two names, its target.
+
+    The target travels in the request BODY, never in a URL, under the field name the
+    node route reads (``node``) — one string, so a name cannot point an action at another machine.
+    The ORIGIN travels beside it, the page this control is rendered on.
+
+    EVERY node control posts to its DIALOG's path (see :data:`CONFIRM_SUFFIX`) — the LIFECYCLE trio
+    because the confirmation is what protects a destructive operation, and the MAINTENANCE pair
+    because both of its halves carry the command's own option, which is a form field and has nowhere
+    else to live. ``action.confirm`` decides the other half of the difference: whether the ACTION's
+    own route demands the one-shot token (offline does; online, which only clears a state, does not).
+
+    ``attention`` marks a WAITING STATE on the control (``_strip.html`` renders its class): amber for
+    the node whose cached DCS check says a newer build exists. It never decides whether the control is
+    offered — a rollback is needed exactly when nothing is available — so it is a mark, not a gate.
+    ``busy`` marks a write THIS control started and is still waiting for (the strip animates it); it
+    is a per-row, per-control fact like ``attention``, never a declaration field.
+    """
+    return {"path": action.path + CONFIRM_SUFFIX,
+            "label": action.label, "icon": action.key, "title": _sentence(action.tip, node=name),
+            "aria": _sentence(action.aria, node=name), "hint": action.hint,
+            "danger": action.danger, "node": name, "attention": bool(attention),
+            "busy": bool(busy),
+            "direct": False,
+            "hidden": _hidden_fields(origin, tab, ("node", name)),
+            "csrf_field": session.CSRF_FIELD, "csrf_token": token}
+
+
+def controls_for(request: Request, table: str, origin: str, *, tab: str = "") -> dict:
+    """The row controls the table *table* may render — ONE call a list page makes for its own table.
+
+    A list page asks for controls by the table it renders, so the page never decides which map
+    applies and a page that renders no rows cannot be handed another page's controls. A table with
+    no write at all (instances) gets ``{}`` — no header cell, no empty column.
+
+    ``origin`` is the path of the PAGE that is rendering the table, and it travels into every control
+    as a hidden field so a write returns there: the caller states which page it
+    is (``page.path`` for a list page, the Dashboard's ``/`` for the console), which is the one thing
+    this module cannot read off the request — the live stream renders the dashboard's tables through
+    its own ``/api/…`` request, so the request path is not the page.
+
+    ``tab`` is the ACTIVE TABLE of that page, for the one page whose tables share its path: the
+    dashboard's four tabs live at ``/`` and differ by a query parameter, so the tab rides beside the
+    origin in :data:`TAB_FIELD` and the routes re-attach it (:func:`origin_url`). A caller whose
+    table IS its path passes nothing (the default tab included — see :func:`dashboard.row_controls_for`).
+    """
+    if table == "players":
+        return player_controls(request, origin, tab=tab)
+    if table == "servers":
+        return server_controls(request, origin, tab=tab)
+    if table == "nodes":
+        return node_controls(request, origin, tab=tab)
+    if table == "bans":
+        # A ban row's control is built from the ROWS the page already fetched: a ban list is a
+        # DATABASE read and this function is synchronous, so the page's route stashes its rows on
+        # ``request.state`` (``pages/bans``) and the control is shaped here — the same one map every
+        # other table's controls come from, asked BY TABLE.
+        return ban_controls(request, getattr(request.state, "bans_rows", ()) or (), origin)
+    if table == "player_directory":
+        # The directory's rows are a DATABASE read the page fetched before this module was asked, and
+        # it stashes them on ``request.state`` (``pages/players``) for the same reason: the control is
+        # built from the SAME scoped rows the table renders, never from a second read.
+        return directory_controls(
+            request, getattr(request.state, "player_directory_rows", ()) or (), origin)
+    return {}
+
+
+# ── the player screenshot's short-lived images ──────────────────────────────
+#: How long a taken screenshot stays readable, in seconds. The URL it is served under is SHORT-LIVED
+#: on purpose — the image is a moment of a player's screen, so it is not kept: a capture older than
+#: this is dropped on the next look. That sweep IS the cleanup; no job is scheduled, and there is no
+#: window in which an old capture is still reachable.
+SCREENSHOT_RETENTION_SECONDS = 24 * 3600
+
+#: How many captures may be held at once, oldest dropped first. The retention above bounds TIME; this
+#: bounds MEMORY, so a burst of captures cannot grow the console's footprint without limit.
+SCREENSHOT_MAX_CAPTURES = 64
+
+
+@dataclass
+class ScreenshotCapture:
+    """ONE taken screenshot: the bytes, who asked for it, and whether it has been shown yet.
+
+    ``actor`` is the session that pressed the glyph (``{backend}:{subject}`` — the identity's own
+    stable pair), because the photo belongs to the person who asked and must not open on somebody
+    else's page. ``delivered`` is SPENT by the page that renders it, so a reload does not re-open the
+    modal.
+    """
+    token: str
+    server: str
+    player: str
+    ucid: str
+    actor: str
+    created: float
+    image: bytes
+    delivered: bool = False
+
+
+#: token -> capture. Process-side, like the awaiting-change store below: the console serves from ONE
+#: process, and an image that had to survive a restart would be a file, not a notice.
+_SCREENSHOT_CAPTURES: dict[str, ScreenshotCapture] = {}
+_SCREENSHOT_LOCK = threading.Lock()
+
+
+def prune_screenshots(now: float | None = None) -> int:
+    """Drop every capture past :data:`SCREENSHOT_RETENTION_SECONDS` (or past the cap); return the count.
+
+    Called on every look — storing one, reading one, rendering the modal — which is why there is no
+    scheduler: the only moment the held bytes matter is when something asks for them, and a sweep
+    then is O(open captures), which is single digits.
+    """
+    moment = time.time() if now is None else now
+    gone = 0
+    with _SCREENSHOT_LOCK:
+        for token, capture in list(_SCREENSHOT_CAPTURES.items()):
+            if moment - capture.created > SCREENSHOT_RETENTION_SECONDS:
+                del _SCREENSHOT_CAPTURES[token]
+                gone += 1
+        if len(_SCREENSHOT_CAPTURES) > SCREENSHOT_MAX_CAPTURES:
+            oldest = sorted(_SCREENSHOT_CAPTURES.values(), key=lambda item: item.created)
+            for capture in oldest[:len(_SCREENSHOT_CAPTURES) - SCREENSHOT_MAX_CAPTURES]:
+                del _SCREENSHOT_CAPTURES[capture.token]
+                gone += 1
+    return gone
+
+
+def screenshot_capture(token: str) -> ScreenshotCapture | None:
+    """The capture a token names, or ``None``. Swept first, so a token past its life answers nothing."""
+    prune_screenshots()
+    with _SCREENSHOT_LOCK:
+        return _SCREENSHOT_CAPTURES.get(token)
+
+
+def remember_screenshot(server_name: str, player_name: str, ucid: str, actor: str,
+                        image: bytes) -> ScreenshotCapture:
+    """Store ONE image under a fresh token and return its record."""
+    prune_screenshots()
+    capture = ScreenshotCapture(token=secrets.token_urlsafe(24), server=server_name,
+                                player=player_name, ucid=ucid, actor=actor,
+                                created=time.time(), image=image)
+    with _SCREENSHOT_LOCK:
+        _SCREENSHOT_CAPTURES[capture.token] = capture
+    return capture
+
+
+def _actor_key(identity) -> str:
+    """The session a capture belongs to: ``{backend}:{subject}``, the identity's own stable pair.
+
+    Never the shown name: that is presentation, re-resolved per request and changeable, and two
+    people may read the same one.
+    """
+    return f"{getattr(identity, 'backend', '')}:{getattr(identity, 'subject', '')}"
+
+
+def screenshot_control(request: Request) -> dict | None:
+    """THE MODAL: the freshest capture THIS request's own session has not been shown yet, or ``None``.
+
+    Read by :func:`services.webservice.i18n.render` for EVERY page, so the answer to a press can be
+    shown wherever the glyph was rendered. It is SPENT here — the flag is set while the record is
+    read — so a reload, or the next live refresh, does not re-open it.
+    """
+    # A request this cannot identify (no session, a page rendered outside a sign-in) has no capture
+    # to show — the same fail-closed reading the rest of the console uses, and a render must never
+    # raise because the identity could not be resolved.
+    identity = readmodels.safe(lambda: _identity(request), None)
+    if identity is None:
+        return None
+    actor = _actor_key(identity)
+    prune_screenshots()
+    with _SCREENSHOT_LOCK:
+        fresh = [capture for capture in _SCREENSHOT_CAPTURES.values()
+                 if not capture.delivered and capture.actor == actor]
+        if not fresh:
+            return None
+        capture = max(fresh, key=lambda item: item.created)
+        capture.delivered = True
+    return {"token": capture.token, "player": capture.player, "server": capture.server,
+            # where the modal's own Close goes: THIS page, path and query, so closing it is the same
+            # render without the capture (it is already spent) — the dialog's "the way out is where
+            # you came from" rule, applied to a modal that opens over the page rather than as one.
+            "back": f"{request.url.path}{f'?{request.url.query}' if request.url.query else ''}",
+            "image_url": f"{SCREENSHOT_IMAGE_PATH}/{capture.token}.png"}
+
+
+def _screenshot_capable(source) -> dict[str, bool]:
+    """Which servers in the caller's view may be asked for a screenshot, keyed by server name.
+
+    Read from the SAME scoped source the rows come from — so a control is never offered for a server
+    outside the caller's view — and from the server's own ``advanced.server_can_screenshot`` setting,
+    the exact path the action and the Discord command read. A server that cannot answer is a server
+    whose glyph is OMITTED (:attr:`PlayerAction.when_server_allows`), never rendered disabled.
+    """
+    out: dict[str, bool] = {}
+    for server in getattr(source, "servers", ()) or ():
+        server_name = readmodels.text(readmodels.safe(lambda: getattr(server, "name", "")))
+        if not server_name:
+            continue
+        section, _, key = SCREENSHOT_SETTING.partition(".")
+        out[server_name] = bool(readmodels.safe(
+            lambda: (getattr(server, "settings", None) or {}).get(section, {}).get(key, False), False))
+    return out
+
+
+def _muted_state(source) -> dict[tuple[str, str], bool]:
+    """The MUTE flag of every ACTIVE player in the caller's view, keyed by ``(server, ucid)``.
+
+    Read from the SAME SCOPED SOURCE the rows come from, so the flag can never describe a player the
+    row does not: it is the control's one piece of per-row state, and the read model's ``PlayerView``
+    does not carry it (the read model is the ROW; a control's state is this module's business). An
+    unreadable player or flag answers ``False`` — "not muted" — which offers the Mute control; the
+    action's own ``already muted`` guard is the authority a stale page meets, and a wrong guess costs
+    one typed refusal rather than a wrong write.
+    """
+    out: dict[tuple[str, str], bool] = {}
+    for server in getattr(source, "servers", ()) or ():
+        server_name = readmodels.text(readmodels.safe(lambda: getattr(server, "name", "")))
+        if not server_name:
+            continue
+        players = readmodels.safe(lambda: getattr(server, "players", None), {}) or {}
+        for player in (players or {}).values():
+            ucid = readmodels.text(readmodels.safe(lambda: getattr(player, "ucid", "")))
+            if not ucid:
+                continue
+            out[(server_name, ucid)] = bool(readmodels.safe(
+                lambda: getattr(player, "muted", False), False))
+    return out
+
+
+def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tuple[str, str], dict]:
+    """The controls each PLAYER row may render, keyed by ``(server name, ucid)`` — and nothing for a
+    row whose control may not be offered.
+
+    ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
+    field so the write returns there — the registry re-checks it (:func:`origin_path`) — and ``tab``
+    is the dashboard's active tab, carried beside it for the page whose tables share one path
+    (:func:`controls_for`).
+
+    Same three conditions as :func:`server_controls`, each read from the ONE place that decides it,
+    and the control is OMITTED — never rendered disabled — when any is false:
+
+    * **the capability**: ``permissions.allows``, the same predicate the access gate runs;
+    * **the scope**: the rows come from :func:`readmodels.players_online` over
+      :func:`services.webservice.pages.dashboard.request_source` — the SCOPED source, and the very
+      read model the Players table renders from, so ``controls ⊆ rows`` holds by construction. A
+      player on a server outside the caller's scope is not in the source at all, and a crafted POST
+      naming them is refused by ``resolve_scoped_server`` with the same bare 403 as a name that does
+      not exist;
+    * **the action**: ``action_available`` — an installation whose ``mission`` plugin is not loaded
+      offers no control that could only answer a refusal.
+
+    Two further conditions decide WHICH control, never whether the row may be acted on:
+
+    * ``when_muted`` — the Mute pair: the read model's own mute flag picks which of the two is
+      drawn, so a muted player is offered Unmute, and never both;
+    * the player's own existence — there is none to add: the read model lists ACTIVE players only,
+      and the action's ``get_player(active=True)`` lookup is the authority a stale page or a crafted
+      POST meets (it answers its own typed refusal).
+
+    The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
+    ONE component at two widths (``templates/_strip.html``), and the player row shares it rather than
+    growing a second. A player row has no overflow menu: its five glyphs go
+    to the strip, and folding five icons into a menu would be a different design.
+    """
+    source = dashboard_page.request_source(request)
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    token = session.get_csrf_token(request)
+    muted = _muted_state(source)
+    capable = _screenshot_capable(source)
+    controls: dict[tuple[str, str], dict] = {}
+    for index, view in enumerate(readmodels.players_online(source)):
+        server_name = readmodels.text(view.server_name)
+        ucid = readmodels.text(view.ucid)
+        if not server_name or not ucid:
+            continue
+        is_muted = bool(muted.get((server_name, ucid), False))
+        name = readmodels.text(view.name) or ucid
+        offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab)
+                        for action in PLAYER_ACTIONS
+                        if (action.when_muted is None or action.when_muted == is_muted)
+                        and (not action.when_server_allows or capable.get(server_name, False))
+                        and permissions.allows(action.capability, roles, manager=manager)
+                        and action_available(action.qualname))
+        if offered:
+            controls[(server_name, ucid)] = {
+                "strip": offered, "menu": (), "wide": False,
+                "menu_id": f"act-menu-p{index}", "server": server_name, "ucid": ucid,
+                "aria": _sentence(i18n._("Controls for {player} on {server}"),
+                                  player=name, server=server_name)}
+    return controls
+
+
+def _player_control(action: PlayerAction, server_name: str, ucid: str, player_name: str,
+                    token: str, origin: str, tab: str = "") -> dict:
+    """One rendered PLAYER control, as data: path, glyph, the two names, target, token.
+
+    BOTH halves of the target travel in the request BODY — there is no URL a person
+    can edit to point a write at another server or another player — and the ORIGIN travels beside
+    them, the page this control is rendered on, with the dashboard's TAB beside the origin
+    (:func:`_hidden_fields`).
+
+    A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
+    :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
+    dialog, so the row could not reach it directly even if it wanted to.
+
+    A player row renders GLYPHS ONLY — this record carries no field and no mode button. Everything a
+    write asks the person for (a reason, a message) is asked for on its dialog
+    (:func:`player_confirm_context`), which is where the consequence is written beside it.
+    """
+    values = {"server": server_name, "player": player_name}
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.confirm else action.path,
+        "label": action.label, "icon": action.icon,
+        "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
+        "hint": action.hint, "danger": action.danger,
+        "server": server_name, "ucid": ucid,
+        "direct": not action.confirm,
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
+def ban_controls(request: Request, rows, origin: str) -> dict[str, dict]:
+    """The LIFT and EDIT controls a ban ENTRY row may render, keyed by the entry's IDENTITY.
+
+    The rows are the SAME :class:`~services.webservice.readmodels.bans.BanView` records the table
+    renders from (the page's route fetched them once and stashed them for :func:`controls_for`), so
+    ``controls ⊆ rows`` holds by construction and each control is built from the entry's OWN identity
+    (``key``: ``<ucid>@<banned_at ISO>``), never a value the browser sent.
+
+    EACH control is gated on its OWN capability (``permissions.allows``, the very predicate the gate
+    runs) and its own action (``action_available`` — an installation whose ``mission`` plugin is not
+    loaded is offered no control whose only answer is a refusal), so a caller holding one right sees
+    one control and not the other. A DGSA row keeps its LIFT and NEVER carries the EDIT: a DGSA ban
+    cannot be edited, so the control's only possible answer would be a refusal, and a control is
+    omitted rather than rendered disabled. A row no control applies to gets NO entry, so its Actions
+    cell renders nothing.
+
+    THE SHAPE IS THE ROW STRIP's (``templates/_strip.html``): ``{"strip": (control, …), "wide":
+    False}`` — the SAME component the server and player rows render, so a ban control is a glyph on
+    a strip and not a second control shape. A ban row has two glyphs at most, so it never goes wide
+    (no ``⋮`` menu).
+
+    The current view option (``?dgsa=1``) rides with every control as a hidden field
+    (:func:`_dgsa_carry`), so the dialog it opens can return to the SAME view state.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    # the EDIT first, then the LIFT — the order the mockup draws the row's two glyphs in.
+    available = [action for action in (BAN_EDIT_ACTION, BAN_LIFT_ACTION)
+                 if permissions.allows(action.capability, roles, manager=manager)
+                 and action_available(action.qualname)]
+    if not available:
+        return {}
+    token = session.get_csrf_token(request)
+    carry = _dgsa_carry(request.query_params)
+    controls: dict[str, dict] = {}
+    for row in rows:
+        key = readmodels.text(getattr(row, "key", ""))
+        if not key:
+            continue
+        offered = tuple(action for action in available
+                        if not (action.key == BAN_EDIT_ACTION.key
+                                and bool(getattr(row, "dgsa", False))))
+        if offered:
+            controls[key] = {"strip": tuple(_ban_control(action, row, token, origin, carry)
+                                            for action in offered),
+                             "wide": False}
+    return controls
+
+
+def _ban_control(action: BanAction, row, token: str, origin: str,
+                 carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """One rendered ban control, as the strip's control record: where it posts, its glyph, its names.
+
+    BOTH halves of the target travel in the request BODY — the ucid and the ban's own timestamp — so
+    there is no URL a person can edit to point a write at another ban, and the ORIGIN travels beside
+    them (the page this control is rendered on). A control whose answer is a DIALOG (the lift
+    confirms, the edit is a form) posts to that dialog's path, so the action's own route can refuse a
+    POST that skipped it. ``carry`` is the page's current view option, re-emitted so the dialog can
+    return to it.
+
+    The record is the strip's own (``templates/_strip.html``): ``icon`` is the declaration's glyph,
+    ``title`` the native tooltip and ``aria`` the accessible name (both formatted from the entry's
+    resolved name, never from a field the browser sent). A DGSA row reads the SAME label as any
+    other row — the distinction is the row's ``DGSA`` tag and the dialog's warning, never a second
+    spelling of the control.
+    """
+    values = {"player": readmodels.text(getattr(row, "name", ""))}
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "label": action.label, "icon": action.icon,
+        "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
+        "danger": bool(action.danger),
+        "key": readmodels.text(getattr(row, "key", "")),
+        "hidden": _hidden_fields(origin, "",
+                                 ("ucid", readmodels.text(getattr(row, "ucid", ""))),
+                                 ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
+                                 *carry),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
+#: The directory row's own glyph per ban/watch action key — the mockup's two pairs: Ban / Lift ban,
+#: Watch / Unwatch. The ACTIONS are the console's ban and watch writes, declared once each; only the
+#: drawing differs from the page-level controls, which spell their verb beside an empty field.
+DIRECTORY_GLYPHS: dict[str, str] = {"add": "ban", "lift": "unban", "watch": "reveal",
+                                    "unwatch": "conceal"}
+
+#: The ban ADD's ROW wording. Its page-level copy names no player, because there the operator types
+#: the UCID into the dialog; a row already knows whose ban it would add.
+DIRECTORY_BAN_SENTENCE = i18n._("Ban {player}")
+
+
+def directory_controls(request: Request, rows, origin: str) -> dict[str, dict]:
+    """The Ban/Watch controls a PLAYER-DIRECTORY row may render, keyed by the row's UCID.
+
+    The rows are the SAME scoped :class:`~services.webservice.pages.players.DirectoryRowView` records
+    the table renders (the page stashed them for :func:`controls_for`), so ``controls ⊆ rows`` holds
+    by construction: a player outside the caller's scope is not in the rows at all, and a crafted
+    POST naming one is refused by the action layer exactly like a UCID nothing answers to.
+
+    Both pairs key on the UCID and need no live session — the ban ADD resolves no server and looks no
+    player up, and the watch trio is the same shape — which is why they are row controls here while
+    Message / Popup / Kick / Screenshot stay on the player page.
+
+    EACH control is gated on its OWN capability (``permissions.allows``, the predicate the gate runs)
+    and its own action (``action_available``), and on the ROW's state: a banned row offers the LIFT
+    and never the ADD, a watched row the REMOVE and never the ADD. A control the caller may not use,
+    or that does not apply to the row, is ABSENT — never rendered disabled.
+
+    The shape is the row strip's (``templates/_strip.html``): ``{"strip": (control, …), "wide":
+    False}``, so a directory row draws the same component every other row does. A row nothing applies
+    to gets no entry at all, and its Actions cell renders nothing.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+
+    def offered(action) -> bool:
+        return (permissions.allows(action.capability, roles, manager=manager)
+                and action_available(action.qualname))
+
+    ban = tuple(action for action in (BAN_ADD_ACTION, BAN_LIFT_ACTION) if offered(action))
+    watch = tuple(action for action in (WATCH_ADD_ACTION, WATCH_REMOVE_ACTION) if offered(action))
+    if not ban and not watch:
+        return {}
+    token = session.get_csrf_token(request)
+    controls: dict[str, dict] = {}
+    for row in rows:
+        ucid = readmodels.text(getattr(row, "ucid", ""))
+        if not ucid:
+            continue
+        banned = bool(getattr(row, "banned", False))
+        watched = bool(getattr(row, "watched", False))
+        name = readmodels.text(getattr(row, "name", "")) or ucid
+        applicable = (tuple(action for action in ban if (action.key == BAN_LIFT_ACTION.key) == banned)
+                      + tuple(action for action in watch
+                              if (action.key == WATCH_REMOVE_ACTION.key) == watched))
+        if applicable:
+            controls[ucid] = {"strip": tuple(_directory_control(action, ucid, name, token, origin)
+                                             for action in applicable),
+                              "wide": False}
+    return controls
+
+
+def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: str, token: str,
+                       origin: str) -> dict:
+    """One rendered directory control, as the strip's control record.
+
+    The target is the row's UCID and travels in the request BODY — there is no URL a person can edit
+    to point the write at another player — beside the page that rendered it and the session's CSRF
+    token. A ROW IS GLYPHS ONLY, so the word lives in the native tooltip and the accessible name and
+    both name the player (a directory row has no resolved server to name as well).
+    """
+    values = {"player": player_name}
+    sentence = DIRECTORY_BAN_SENTENCE if action.key == BAN_ADD_ACTION.key else action.aria
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "label": action.label, "icon": DIRECTORY_GLYPHS[action.key],
+        "title": _sentence(sentence, **values), "aria": _sentence(sentence, **values),
+        "danger": bool(action.danger),
+        "key": ucid,
+        "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
+def watch_controls(request: Request, detail, origin: str, tab: str = "") -> dict | None:
+    """The EDIT and REMOVE controls a player's WATCH ENTRY renders — ``None`` when there is none.
+
+    *detail* is the player page's own read (``readmodels.players.PlayerDetailView``), so the entry the
+    controls name is the SAME record the page renders: an entry that is not there renders NO control
+    at all (an unusable control is absent, never drawn disabled), and the UCID each control posts is
+    the entry's own, never a value the browser sent.
+
+    EACH control is gated on its OWN action availability plus the ONE capability the pair shares,
+    through the very predicate the gate runs (``permissions.allows``), so a caller holding
+    ``players.watch`` sees the pair and everybody else sees nothing. The shape is the row strip's
+    (``templates/_strip.html``): ``{"strip": (control, …), "wide": False}``.
+    """
+    watch = getattr(detail, "watch", None)
+    if watch is None or not getattr(watch, "active", False):
+        return None
+    ucid = readmodels.text(getattr(watch, "ucid", ""))
+    if not ucid:
+        return None
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    offered = tuple(action for action in WATCH_ENTRY_ACTIONS
+                    if permissions.allows(action.capability, roles, manager=manager)
+                    and action_available(action.qualname))
+    if not offered:
+        return None
+    token = session.get_csrf_token(request)
+    label = readmodels.text(getattr(detail, "name", "")) or ucid
+    return {"strip": tuple(_watch_control(action, ucid, label, token, origin, tab)
+                           for action in offered),
+            "wide": False}
+
+
+def watch_add_control(request: Request, detail, origin: str, tab: str = "") -> dict | None:
+    """The ADD control a player's page renders when it has NO watch entry — else ``None``.
+
+    The twin of :func:`watch_controls` for the other state: the three controls of ``players.watch``
+    are never drawn together, because an entry that exists is edited or removed and a player without
+    one is added. A page-level control (it creates the entry no row can be drawn from), so its record
+    is the strip's own single-control shape.
+    """
+    watch = getattr(detail, "watch", None)
+    if watch is not None and getattr(watch, "active", False):
+        return None
+    ucid = readmodels.text(getattr(detail, "ucid", ""))
+    if not ucid:
+        return None
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    action = WATCH_ADD_ACTION
+    if not (permissions.allows(action.capability, roles, manager=manager)
+            and action_available(action.qualname)):
+        return None
+    label = readmodels.text(getattr(detail, "name", "")) or ucid
+    return _watch_control(action, ucid, label, session.get_csrf_token(request), origin, tab)
+
+
+def _watch_control(action: WatchAction, ucid: str, player_name: str, token: str, origin: str,
+                   tab: str = "") -> dict:
+    """One rendered watch control, as the strip's control record.
+
+    The entry's UCID travels in the request BODY, so there is no URL a person can edit to point a
+    write at another entry, and the ORIGIN travels beside it (the page the control was rendered on).
+    A control whose answer is a DIALOG posts to that dialog's path, so the action's own route can
+    refuse a POST that skipped it.
+    """
+    values = {"player": player_name}
+    return {
+        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "label": action.label, "icon": action.icon,
+        "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
+        "hint": action.hint, "danger": bool(action.danger),
+        "key": ucid,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "csrf_field": session.CSRF_FIELD, "csrf_token": token,
+    }
+
+
+# ------------------------------------------------------------------------------- the confirm step
+
+def _confirm_key(path: str, name: str) -> str:
+    """The store key of ONE pending confirmation: the action's path and the resolved target."""
+    return f"{path}|{name}"
+
+
+def _confirm_store(request: Request) -> dict:
+    """The pending confirmations in this session, as a plain dict. Never raises, never authored."""
+    try:
+        stored = request.session.get(CONFIRM_KEY)
+    except (AssertionError, KeyError):       # no SessionMiddleware / no session on this request
+        return {}
+    return dict(stored) if isinstance(stored, dict) else {}
+
+
+def mint_confirm_token(request: Request, path: str, name: str) -> str:
+    """Mint the one-shot token the dialog's form carries, and remember it for this target.
+
+    Bounded (``CONFIRM_MAX_PENDING``): the store rides in the SIGNED COOKIE (see
+    ``NOTICE_MAX_CHARS``), so opening dialogs must never grow the session without limit. The oldest
+    entries are dropped once the cap is reached — a dropped token can only cause a refusal, never a
+    confirmation that was not asked for.
+    """
+    token = secrets.token_urlsafe(24)
+    store = _confirm_store(request)
+    store[_confirm_key(path, name)] = token
+    if len(store) > CONFIRM_MAX_PENDING:
+        for stale in list(store)[:-CONFIRM_MAX_PENDING]:
+            store.pop(stale, None)
+    try:
+        request.session[CONFIRM_KEY] = store
+    except (AssertionError, KeyError):       # pragma: no cover - guarded by the session's presence
+        return token
+    return token
+
+
+def consume_confirm_token(request: Request, path: str, name: str, posted: str) -> bool:
+    """Whether *posted* is this session's pending token for (*path*, *name*) — and SPEND it.
+
+    The token is removed on the way through, so a replayed dialog form is refused rather than
+    re-running a destructive action. Comparison is constant-time (``hmac.compare_digest``) because
+    the value is a secret the server minted.
+    """
+    store = _confirm_store(request)
+    expected = store.pop(_confirm_key(path, name), None)
+    try:
+        request.session[CONFIRM_KEY] = store
+    except (AssertionError, KeyError):       # pragma: no cover - guarded by the session's presence
+        pass
+    return bool(expected) and bool(posted) and hmac.compare_digest(str(expected), str(posted))
+
+
+def players_on(server: Any) -> int:
+    """How many players are on *server* right now, read tolerantly from the RESOLVED object.
+
+    The dialog's numbers come from the server the caller resolved, never from a field the browser
+    sent. Anything unreadable answers 0: a figure is decoration here, and a broken
+    attribute must not cost the dialog.
+    """
+    try:
+        active = getattr(server, "get_active_players", None)
+        if callable(active):
+            found: Any = active()
+            return len(found) if found else 0
+    except Exception:
+        log.exception("Could not count the players on '%s'", getattr(server, "name", "?"))
+    try:
+        return len(getattr(server, "players", None) or {})
+    except Exception:
+        return 0
+
+
+def _sentence(msgid: str, **params) -> dict:
+    """A per-request sentence the DIALOG template renders in the request's language.
+
+    ``msgid`` is an ``i18n._``-marked literal (so Babel extracts it); ``params`` are its interpolation
+    values — already HTML-escaped where they carry config data, exactly as the previous inline
+    ``.format`` did. The template renders ``_(msgid).format(**params)`` through the per-language Jinja
+    environment (``templates/confirm.html``'s ``say`` macro). The translation cannot happen HERE: the
+    console's Python ``_`` is an extraction marker that returns the string unchanged, and the language
+    is a property of the REQUEST, resolved where the page renders.
+
+    A parameterless sentence may be passed as the plain marked STRING instead (``action.go``): the
+    macro accepts both shapes. This record is for a sentence whose figures or target names are only
+    known at render (a warning's player count, a mission dialog's count).
+    """
+    return {"msgid": msgid, "params": params}
+
+
+def _default_title(action_label: str, target: str) -> dict:
+    """The console's OWN dialog title pattern, ``"<Action> <target>?"`` — the sentence the console
+    composes when the declaration names no ``heading``.
+
+    It is a record with a top-level ``label``: the action's own label is itself a translatable msgid,
+    so the template translates it too (a nested ``_()``) rather than emitting the English word inside
+    a translated sentence. ``target`` is the RESOLVED object's name — the server, the player on it, or
+    the node — carried verbatim (server/player/node names are operator data and are never translated).
+    """
+    return {"msgid": i18n._("{label} {target}?"), "params": {"target": target},
+            "label": action_label}
+
+
+def confirm_context(request: Request, action: WriteAction, name: str, players: int,
+                    token: str, origin: str, tab: str = "",
+                    weather_fields: tuple[dict, ...] = (),
+                    temporary: dict | None = None,
+                    weather_note: dict | None = None,
+                    with_select: bool = True) -> dict:
+    """Everything the confirm dialog's page reads, in one value.
+
+    ``origin`` is the page the row that opened this dialog was rendered on: it
+    is re-emitted in the dialog's own form (so the action's route can 303 back there), and it is what
+    the dialog's ``Cancel`` and its ``Esc`` go back to — cancelling a Dashboard dialog must not
+    strand the person on the Servers page either. ``tab`` is the dashboard's active tab, re-emitted
+    beside the origin and re-attached to both destinations by :func:`tabbed_origin`, so the dialog
+    that was opened from the Players tab returns there too.
+
+    The MARKUP of the warning is assembled HERE and not in the template, with the interpolated values
+    HTML-escaped (``html.escape``): the two halves of that copy — the consequence in bold, the detail
+    under it — are one sentence pair that must not drift, and the server name is config data that
+    must not be able to inject markup into the dialog. The template marks the field safe because the
+    module built it; nothing user-supplied reaches it unescaped.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    values = {"server": html.escape(str(name)), "players": str(int(players))}
+    #: A COUNT OF ZERO HAS NOTHING TO WARN ABOUT: the sentence that names how many players lose their
+    #: connection is replaced by its own variant instead of printing "0 players".
+    empty = int(players) == 0
+    dialog = {
+        "heading": _default_title(action.label, name),
+        "warning": _sentence((action.warning_empty if empty else "") or action.warning, **values)
+        if action.warning else None,
+        #: no extra warning sentence: the running-mission note is a MISSION dialog's own
+        #: (``mission_confirm_context``), declared here so the template reads ONE shape everywhere.
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        #: no trailing detail sentences: the MASTER node's note and the upgrade control's
+        #: "last update check" line are a NODE dialog's own (``node_confirm_context``).
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence((action.go_title_empty if empty else "") or action.go_title, **values),
+        "path": action.path,
+        "server": name,
+        #: the CONSEQUENCE's target, as the dialog's own sentence names it (``pages/actions``): the
+        #: resolved object's label, never a field the browser sent. A server dialog targets the
+        #: server; a player dialog targets the player on it.
+        "target": name,
+        #: the form's hidden fields — the whole target and the page it was pressed on
+        "hidden": _hidden_fields(origin, tab, ("server", name)),
+        #: the fields the dialog asks for, drawn before the button, in the declaration's order: the
+        #: command's own OPTION when the action declares one (Shutdown/Startup's maintenance box), the
+        #: TEXT field and the SELECT a message control declares, otherwise none — the destructive trio
+        #: need no input, which is why this row exists at all. ``weather_fields`` is the launch
+        #: dialog's per-request weather control set (mode, file pick, preset pick), drawn from the
+        #: resolved server's node's own preset files.
+        "inputs": _dialog_inputs(request, action, weather_fields, with_select=with_select),
+        #: THE TEMPORARY PRESET'S FIELDSET, on the SAME dialog: the weather controls the one field
+        #: table declares, or ``None`` for every action that does not declare ``weather``. Its choice
+        #: controls are filled by the caller from the resolved server's own node (``_temporary_fieldset``)
+        #: — they are several lines tall, so they sit in the BODY and carry ``form="dlg-form"``. It is a
+        #: BODY fieldset (form-associated to the footer's form), because its rows are several lines
+        #: tall and the two ways out stay the dialog's last row.
+        "temporary": temporary,
+        #: THE SENTENCE THAT REPLACES THE WEATHER PICK when the server names no current mission: the
+        #: pick and the temporary block are both ``None`` then, and this says why (``PRESET_NO_MISSION``).
+        #: ``None`` on every dialog that offers the pick, so its markup is unchanged.
+        "weather_note": weather_note,
+        #: the TYPED confirmation, for an action that declares one (:attr:`WriteAction.typed_confirm`):
+        #: the operator types the target's name and the route compares it with the RESOLVED name. It
+        #: is a body field (drawn beside the warning that explains it) and an EMPTY tuple for every
+        #: other action, so their markup is unchanged.
+        "body_inputs": typed_confirm_inputs(action),
+        #: the template's own chrome. A DESTRUCTIVE write confirms (red button, "cannot be undone");
+        #: an action that only CARRIES AN OPTION (Startup) renders the plain form its sibling
+        #: ``online`` does on the node row — driven by the declaration, never by an action's name.
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — confirm",
+        "page_title": _default_title(action.label, name),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                               current=origin,
+                                               manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def _player_target(server_name: str, ucid: str) -> str:
+    """The confirm store's key for a PLAYER write: both halves of the target, as one string.
+
+    A server's key is its name; a player's must carry the server too, or two players with one ucid
+    (or an empty one) on different servers would share a pending confirmation.
+    """
+    return f"{server_name}|{ucid}"
+
+
+def _plain_name(source: Any, attributes: tuple[str, ...]) -> str:
+    """The PLAIN name of *source*: the first of *attributes* that carries one.
+
+    The DOMAIN objects carry a name twice: ``name`` is the plain string, and ``display_name`` is that
+    same string ESCAPED for Discord's markdown (``core/data/player.py``: ``utils.escape_string``),
+    so ``[TAG] Test Pilot`` reads back as ``\\[TAG\\] Test Pilot``. The console renders names into a
+    browser and never into Discord, so it reads the plain attribute; a display name stays the LAST
+    candidate, for a double that carries nothing else.
+    """
+    for attribute in attributes:
+        value = readmodels.text(readmodels.safe(lambda: getattr(source, attribute, "")))
+        if value:
+            return value
+    return ""
+
+
+def _player_name(player: Any, ucid: str) -> str:
+    """The label a player dialog shows — the RESOLVED object's own PLAIN name, never a browser field.
+
+    The console must not import the ``mission`` plugin (its pages have to render on an install whose
+    plugin is absent), so this is the console's own tolerant read of the same object the plugin's
+    actions read. ``name`` comes FIRST (:func:`_plain_name`): the domain ``display_name`` is the name
+    escaped for Discord's markdown, and a dialog that showed ``\\[TAG\\] Test Pilot`` for a name with
+    brackets was reading that escaped value. The ucid is the fallback, so a dialog can never name
+    nobody.
+    """
+    return _plain_name(player, ("name", "display_name")) or ucid
+
+
+def player_confirm_context(request: Request, action: PlayerAction, server: Any, player: Any,
+                           server_name: str, ucid: str, token: str, origin: str,
+                           tab: str = "") -> dict:
+    """Everything a PLAYER confirm dialog's page reads — the twin of :func:`confirm_context`.
+
+    Same discipline, one difference that is the whole point: the dialog carries the SECOND half of
+    the target (the ucid) and the fields the destructive action needs (a reason, an optional number
+    of days), which is why the mockup draws kick and ban as dialogs with a message field while the
+    three server dialogs ask for nothing. ``origin`` is the page the row was rendered on, re-emitted
+    in the dialog's form and used for its ``Cancel``/``Esc``, with the dashboard's ``tab`` re-attached
+    to both (:func:`tabbed_origin`).
+
+    The player's label is read off the RESOLVED ``Player`` — never a hidden field the browser sent
+ — and the warning is assembled here with :func:`html.escape` for the same reason
+    the server dialog's is: the target can be config data, and the copy must not be able to inject
+    markup.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = html.escape(_player_name(player, ucid))
+    values = {"server": html.escape(str(server_name)), "player": label}
+    inputs: list[dict] = []
+    if action.key == "ban":
+        # THE BAN PAIR comes from the ONE builder both ban dialogs read (``ban_dialog_fields``): the
+        # reason and the duration are the same two records the console's ADD draws, so neither
+        # dialog can drift from the other.
+        inputs.extend(ban_dialog_fields(action))
+    elif action.field:
+        inputs.append(_dialog_field(action.field, action.field_label or action.label,
+                                    kind=action.field_kind, required=True,
+                                    maximum=action.field_max, help_text=action.field_help,
+                                    width=action.field_width))
+    dialog = {
+        "heading": _default_title(action.label, label),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": server_name,
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
+        "inputs": tuple(inputs),
+        "body_inputs": (),
+        "tag": i18n._("confirm"),
+        "irreversible": True,
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — confirm",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                               current=origin,
+                                               manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def _ban_target(ucid: str, banned_at: str) -> str:
+    """The confirm store's key for a BAN-ENTRY write: the entry's identity, as one string.
+
+    The entry is ``(ucid, the ban's own timestamp)`` — the same pair ``readmodels.bans`` builds its
+    ``key`` from — so two bans of one ucid (or a ban re-dated after an edit) never share a pending
+    confirmation.
+    """
+    return f"{ucid}@{banned_at}"
+
+
+def _dgsa_carry(source) -> tuple[tuple[str, str], ...]:
+    """The Bans page's view option as hidden fields, or ``()`` when it is off.
+
+    Read from a query mapping (the page render) or a submitted form (a write or a dialog): the ONE
+    spelling of "the DGSA rows are shown" — ``readmodels.bans.DGSA_PARAM`` / ``DGSA_ON`` — so the row
+    control, the dialog's ``back`` link and the write's redirect cannot disagree about the view.
+    """
+    if not hasattr(source, "get"):
+        return ()
+    if readmodels.text(source.get(ban_readmodel.DGSA_PARAM)) == ban_readmodel.DGSA_ON:
+        return ((ban_readmodel.DGSA_PARAM, ban_readmodel.DGSA_ON),)
+    return ()
+
+
+def _bans_url(origin: str, tab: str, carry: tuple[tuple[str, str], ...] = ()) -> str:
+    """A Bans page URL: the resolved origin and tab, with the carried view option appended."""
+    url = tabbed_origin(origin, tab)
+    if not carry:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{urlencode(dict(carry))}"
+
+
+def _bans_return(request: Request, form) -> str:
+    """Where a BAN write returns: the page it was rendered on, carrying the DGSA view option.
+
+    :func:`origin_url`'s rule (a lookup against the registry, never a redirect to raw input) with the
+    page's OWN view option re-attached, so a lift or an add made while the DGSA rows are shown lands
+    back on the state the operator was reading — the SAME URL the dialog's ``back`` states.
+    """
+    return _bans_url(origin_path(request, form.get(ORIGIN_FIELD), _bans_path()),
+                     posted_tab(form.get(TAB_FIELD)), _dgsa_carry(form))
+
+
+async def _ban_rows(ctx: ActionContext):
+    """The ban entries the caller may act on, through the console's own READ action.
+
+    The dialog re-reads the entry it is acting on (never a value the browser sent): the route knows
+    only the identity, so the entry's name, reason and DGSA-ness come from this read — the SAME
+    scoped source the table rendered from.
+    """
+    result = await read_action("list_bans", ctx)
+    data = getattr(result, "data", None) or {}
+    entries = data.get("bans") if getattr(result, "success", False) else None
+    return readmodels.ban_views(entries or ())
+
+
+def ban_confirm_context(request: Request, action: BanAction, row, token: str, origin: str,
+                        tab: str = "", carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """Everything the LIFT confirm dialog's page reads.
+
+    The twin of :func:`player_confirm_context`, for the one write whose target is a ban ENTRY rather
+    than a player on a server: it carries no fields (a lift asks for nothing) and its WARNING and
+    DETAIL are the DGSA copy for a DGSA entry, chosen from the ENTRY's own marker — never from the
+    browser. The target line names the RESOLVED player (or the ucid), read off the entry, and the
+    copy is assembled here with :func:`html.escape` for the same reason every dialog's is.
+
+    ``carry`` is the page's current view option (``?dgsa=1``), re-emitted into the form and the
+    ``Cancel``/``data-back`` URL so the dialog returns to the SAME view it was opened from.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = html.escape(readmodels.text(getattr(row, "name", "")) or readmodels.text(getattr(row, "ucid", "")))
+    values = {"player": label}
+    dgsa = bool(getattr(row, "dgsa", False))
+    heading_label = action.label
+    dialog = {
+        "heading": _default_title(heading_label, label),
+        "warning": _sentence(action.dgsa_warning if dgsa else action.warning, **values),
+        "warning_note": None,
+        "detail": _sentence(action.dgsa_detail if dgsa else action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab,
+                                 ("ucid", readmodels.text(getattr(row, "ucid", ""))),
+                                 ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
+                                 *carry),
+        "inputs": (),
+        "body_inputs": (),
+        # THE LIFT WAITS FOR ITS WRITE (``data-await``): the returned page is read AFTER the route has
+        # committed the lift, so the list the operator lands on shows the ban as gone (see
+        # ``templates/confirm.html``).
+        "await": True,
+        "tag": i18n._("confirm"),
+        "irreversible": True,
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{heading_label} — confirm",
+        "page_title": _default_title(heading_label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, heading_label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, _bans_url(origin, tab, carry)),
+        "dialog": dialog,
+    }
+
+
+def dialog_options(action: WriteAction | NodeAction) -> tuple[NodeOption, ...]:
+    """EVERY checkbox ONE control's dialog draws, in order — ``option`` then ``options``.
+
+    The server row and the node row declare a single ``option``; the Missions tab's ADD flow declares
+    its ``options`` (the load pair). One accessor, so :func:`option_inputs` and the mission dialog
+    context cannot disagree about what a declaration carries.
+    """
+    found: list[NodeOption] = []
+    option = getattr(action, "option", None)
+    if option is not None:
+        found.append(option)
+    found.extend(getattr(action, "options", ()) or ())
+    return tuple(found)
+
+
+def _option_fields(options) -> tuple[dict, ...]:
+    """The dialog fields a list of :class:`NodeOption` is drawn as — the OFF companion then the box.
+
+    TWO records for one checkbox, and the ORDER is the substance: the hidden companion carrying the
+    OFF value comes FIRST and the checkbox second. A checkbox sends no field of its own when it is
+    cleared, so without the companion the OFF value is indistinguishable from the form not stating
+    the field — and this FastAPI resolves a repeated field to the LAST value it sees, so the pair must
+    be OFF then ON (the other order makes a ticked box save OFF). The checkbox's ``checked``
+    attribute is the DECLARATION's default, which is how the browser shows the operator which way the
+    default points. Shared by :func:`option_inputs` and the mission dialog context.
+    """
+    fields: list[dict] = []
+    for option in options:
+        fields.append({"type": "hidden", "name": option.field, "value": option.off, "id": "",
+                       "label": "", "max": 0, "required": False, "checked": False, "help": "",
+                       "placeholder": ""})
+        fields.append({"type": "checkbox", "name": option.field, "value": option.on,
+                       "id": f"{option.field}-dialog", "label": option.label, "max": 0,
+                       "required": False, "checked": option.default, "help": option.help,
+                       "placeholder": ""})
+    return tuple(fields)
+
+
+def option_inputs(action: WriteAction | NodeAction) -> tuple[dict, ...]:
+    """The dialog fields ONE action's own OPTION(s) are drawn as — or none when it has no option.
+
+    Shared by the SERVER dialog (``confirm_context``: Shutdown/Startup's maintenance box), the
+    NODE dialog (``node_confirm_context``: ``offline``'s box) and the MISSION dialogs, because the
+    option is ONE shape (``NodeOption``) read by ONE template (``confirm.html``). A declaration may
+    carry a single ``option`` or several ``options`` (:func:`dialog_options`), and the order is the
+    declaration's.
+    """
+    return _option_fields(dialog_options(action))
+
+
+def _dialog_inputs(request: Request, action: WriteAction,
+                   weather_fields: tuple[dict, ...] = (), *, with_select: bool = True) -> tuple[dict, ...]:
+    """EVERY field ONE action's dialog asks for, in the declaration's order.
+
+    Three shapes, each read off the declaration: the TEXT field (``field``, rendered as a textarea
+    where the declaration says so), the SELECT (``select``), then the checkboxes
+    (``option``/``options``). The select's labels are translated for THIS request, because
+    ``confirm.html`` renders a select option's label verbatim (the page module is the one place the
+    request's language is known).
+
+    ``weather_fields`` is the ALREADY-BUILT control set for an action whose options are not static —
+    the launch dialog's weather mode, file pick and preset pick, whose entries are the resolved
+    server's node's own preset files. It REPLACES the declared ``select`` when given, so the caller
+    owns the per-request draw and the declaration still states the field and its copy.
+
+    ``with_select`` False draws NEITHER the declared select NOR the weather control set: the pick is
+    withheld entirely, which is the Startup dialog's answer for a server that names no current mission
+    — there is nothing to apply a preset to, and an empty select would be a control claiming a choice
+    it cannot offer.
+    """
+    fields: list[dict] = []
+    if action.field:
+        fields.append(_dialog_field(action.field, action.field_label, kind=action.field_kind,
+                                    required=True, maximum=action.field_max,
+                                    help_text=action.field_help))
+    if with_select:
+        if weather_fields:
+            fields.extend(weather_fields)
+        else:
+            select = action.select
+            if select is not None:
+                options = tuple({"value": option.value,
+                                 "label": i18n.translate(request, option.label)}
+                                for option in select.options)
+                fields.append(_dialog_field(select.field, select.label, kind="select",
+                                            options=options, help_text=select.help))
+    fields.extend(option_inputs(action))
+    return tuple(fields)
+
+
+def _preset_option(value: str, label: str, file: str = "") -> dict:
+    """ONE entry of the launch dialog's weather pick, as ``confirm.html``'s ``pick`` branch reads it.
+
+    The value is the POST's own value — a preset NAME (or a FILE + NAME pair), which is operator data
+    and no valid id, so the entry carries no anchor. ``file`` is the group's own label, drawn beside
+    the chip so a pick spanning files names where each preset came from.
+    """
+    return {"value": value, "label": label, "file": file, "checked": False}
+
+
+#: The mode rows' own records, in the order the dialog draws them: the value, its label and the hint
+#: under it. ONE declaration, read by :func:`_weather_mode_field` and by nothing else.
+WEATHER_MODE_ROWS: tuple[tuple[str, str, str], ...] = (
+    (WEATHER_MODE_LEAVE, WEATHER_MODE_LEAVE_LABEL, WEATHER_MODE_LEAVE_HELP),
+    (WEATHER_MODE_FILE, WEATHER_MODE_FILE_LABEL, WEATHER_MODE_FILE_HELP),
+    (WEATHER_MODE_CUSTOM, WEATHER_MODE_CUSTOM_LABEL, WEATHER_MODE_CUSTOM_HELP),
+)
+
+
+def _weather_mode_field(request: Request, *, file_mode: bool) -> dict:
+    """The weather MODE control — the three exclusive rows the launch dialogs draw above the pick.
+
+    One native radio per row under ONE form field (:data:`WEATHER_MODE_FIELD`), the first row CHECKED
+    (``leave``, so a launch nobody touched posts exactly what it posted before the pick existed). A
+    row is left out only when the server cannot offer it: ``file`` is dropped for a node whose preset
+    files cannot be listed, because a preset out of a file could not be resolved at POST time.
+    """
+    rows = tuple({"value": value, "id": f"{WEATHER_MODE_FIELD}-{value}",
+                  "label": i18n.translate(request, label),
+                  "help": i18n.translate(request, hint),
+                  "checked": value == WEATHER_MODE_LEAVE}
+                 for value, label, hint in WEATHER_MODE_ROWS
+                 if file_mode or value != WEATHER_MODE_FILE)
+    return _dialog_field(WEATHER_MODE_FIELD, PRESET_LABEL, kind="radio", options=rows,
+                         help_text=PRESET_HELP)
+
+
+async def _weather_fields(request: Request, server: Any) -> tuple[dict, ...]:
+    """THE LAUNCH FORM'S WEATHER CONTROLS for ONE server — mode, mode-2 file pick, mode-2 name pick.
+
+    THREE records, in the order the dialog draws them, because they are three parts of ONE choice:
+
+    1. the MODE radios (:func:`_weather_mode_field`), always drawn;
+    2. the FILE FILTER, drawn ONLY when the node carries more than one preset file (with a single
+       file there is nothing to filter). It narrows what the browser SHOWS; it never narrows what
+       the pick can carry, and it takes no part in resolving a pick. Its first value is empty, "All
+       files"; every other value is a file's own ``config/…`` label — never a path;
+    3. the preset NAME pick, a MULTI pick over the node's preset files, one ``<optgroup>`` per file
+       carrying the file's own label — every group drawn, none hidden until the filter asks. Each
+       group offers ITS OWN file's names and nothing else, so a name two files both define appears
+       under BOTH headings. A grouped option's value carries its own FILE and its name
+       (:func:`preset_option_value`), so the entry ticked under one heading applies THAT file's
+       body; a node drawing ONE file draws bare names and no heading.
+
+    The whole control set comes from ONE read (:func:`presets.node_preset_records`), the same answer
+    the POST resolves the pick against, so the files offered here are exactly the files accepted
+    there. A node whose preset files cannot be read offers no file mode at all: the pick could not be
+    resolved at POST time, so the dialog says so (:data:`PRESET_FREE_TEXT_HELP`) rather than
+    offering a choice the launch would refuse.
+    """
+    from . import presets as presets_page
+
+    node = getattr(server, "node", None)
+    records, readable = (await presets_page.node_preset_records(node)
+                         if node is not None else ([], False))
+    groups: list[dict] = []
+    for label, _path, names, _values in records:
+        # every group is that file's OWN names: a name two files carry is drawn under both, each
+        # entry standing for its own file's body (the entry's value carries that file)
+        entries = [_preset_option(preset_option_value(label, name), name, label)
+                   for name in names]
+        if entries:
+            groups.append({"label": label, "options": tuple(entries)})
+    grouped = len(groups) > 1
+    if grouped:
+        options: tuple[dict, ...] = ()
+        blocks: tuple[dict, ...] = tuple(groups)
+    else:
+        # ONE file: no heading to disambiguate, so its names are drawn flat and post bare
+        options = tuple(_preset_option(option["label"], option["label"])
+                        for group in groups for option in group["options"])
+        blocks = ()
+    pick = _dialog_field(PRESET_FIELD, PRESET_LIST_LABEL, kind="pick",
+                         options=options, groups=blocks, help_text=PRESET_LIST_HELP)
+    if groups:
+        pick["group_help"] = PRESET_GROUP_HELP
+    fields: list[dict] = [_weather_mode_field(request, file_mode=readable)]
+    if len(records) > 1:
+        fields.append(_dialog_field(
+            PRESET_FILE_FIELD, PRESET_FILE_LABEL, kind="select",
+            options=({"value": PRESET_FILE_ALL, "label": PRESET_FILE_ALL_LABEL},
+                     *( {"value": label, "label": label}
+                        for label, _path, _names, _values in records)),
+            help_text=PRESET_FILE_HELP))
+    if not readable:
+        pick["help"] = PRESET_FREE_TEXT_HELP
+    fields.append(pick)
+    return tuple(fields)
+
+
+async def current_mission_available(server: Any) -> bool:
+    """Whether *server* names a CURRENT mission — the gate the STARTUP dialog's weather pick reads.
+
+    A server that answers "no mission" has nothing to apply a preset to (it would launch without a
+    mission and settle at ``STOPPED``), so the pick is withheld. Tolerant by design: only a server that
+    ANSWERS with no mission withholds it, so a double or a transport that cannot answer keeps the pick
+    rather than hiding a feature on an unreadable state. The read is the server's own
+    (``get_current_mission_file``), the same one the read route falls back to when it is sent no
+    mission.
+    """
+    getter: Any = getattr(server, "get_current_mission_file", None)
+    if not callable(getter):
+        return True
+    try:
+        current: Any = await getter()  # type: ignore[misc] - a server double may bind a plain method
+    except Exception as ex:  # noqa: BLE001 - an unreadable state keeps the pick
+        log.debug("Startup dialog: the server's current mission is unreadable (%s)", type(ex).__name__)
+        return True
+    return bool(readmodels.text(current))
+
+
+async def _temporary_fieldset(action: WriteAction, server: Any = None, *,
+                              server_name: str = "", mission: str = "",
+                              language: str = "",
+                              loading: str = PRESET_READ_LOADING, read: str = PRESET_READ_DONE,
+                              error: str = PRESET_READ_FAILED) -> dict | None:
+    """The TEMPORARY PRESET's body fieldset ONE action's dialog draws — or ``None``.
+
+    The rows are the ONE field table's (``weather_fields.FIELDS``), through the presets wizard's own
+    row builder (``presets.dialog_rows``), which fills every choice control from the SAME builders the
+    wizard's step reads: the halo's ``off``/``auto`` pair (the table's own data) and the node's own
+    cloud-plate and halo entry names, read once here. A list that cannot be read falls back to the
+    key's free-text shape, exactly as the wizard does, so the dialog is never refused. The presets page
+    is imported LAZILY: it imports this module, so a top-level import would be a cycle.
+
+    The block also carries the MISSION READ it performs ON DEMAND (``static/dialog-mission-weather.js``):
+    the route URL (the server's own read), the mission it names (empty reads the server's current one,
+    which is what STARTUP means) and the three sentences the line shows. The caller passes the sentences
+    TRANSLATED for its request — the language is a property of the request, resolved where the page
+    renders — and every one defaults to its msgid, which is what an English render shows. ``url`` comes
+    from the route's own home, so the read's path is spelled in exactly one place.
+    """
+    if not action.weather:
+        return None
+    from . import presets as presets_page
+    from . import server_detail as detail_page
+    lists = await presets_page.read_node_choice_lists(getattr(server, "node", None))
+    # THE UNIT the dialog's distance boxes hold: the render's own language decides it, and the hidden
+    # field states it for the POST, whose route has no request to ask.
+    feet = weather_fields.uses_feet(language)
+    rows = presets_page.dialog_rows(TEMPORARY_KEYS, {}, clouds=lists["clouds"], halo=lists["halo"],
+                                    crystals=lists["crystals"], feet=feet)
+    return {"head": TEMPORARY_HEAD, "optional": TEMPORARY_OPTIONAL, "help": TEMPORARY_HELP,
+            "note": TEMPORARY_NOTE, "rows": tuple(rows),
+            "units": presets_page.UNITS_FEET if feet else presets_page.UNITS_METRES,
+            "units_field": presets_page.UNITS_FIELD,
+            "url": detail_page.mission_weather_path(server_name),
+            "mission": mission,
+            "loading": loading, "read": read, "error": error}
+
+
+def temporary_document(form) -> dict:
+    """The temporary preset DOCUMENT a launch POST's weather fields produce — ``{}`` when none is set.
+
+    Built by the presets wizard's OWN builder (``presets.preset_map_from_values``), so a control this
+    dialog draws cannot write a key the wizard does not, and the coercion of a posted string into the
+    schema's type (a number, a boolean) is the one the save uses. Each control's value is read LAST
+    (``_last_form_value``) — the browser resolves a repeated field the same way. The fog table's cells
+    are the wizard's OWN indexed ``fog_row_<index>_<cell>`` fields, composed into the one ``fog.rows``
+    value through the wizard's own serializer (a row with no cell set posts nothing). An all-empty form
+    answers an empty document, which is "no preset was chosen".
+    """
+    from . import presets as presets_page
+    values = {key: _last_form_value(form, key) for key in TEMPORARY_KEYS}
+    cells = presets_page.fog_rows_from_form(form)
+    rows = [row for row in cells if any(cell.strip() for cell in row)]
+    if rows:
+        values[weather_fields.FOG_ROWS_KEY] = presets_page.serialize_fog_rows(rows)
+    # THE UNIT the dialog stated: its distance boxes hold feet when it says so, and both the controls
+    # and the fog cells are read back to the preset's metres before the document is built.
+    feet = readmodels.text(form.get(presets_page.UNITS_FIELD)) == presets_page.UNITS_FEET
+    values = presets_page.stored_values(values, feet=feet)
+    values[weather_fields.FOG_ROWS_KEY] = presets_page.stored_fog_rows(
+        values.get(weather_fields.FOG_ROWS_KEY, ""), feet=feet)
+    return presets_page.preset_map_from_values(values, fog_rows_stated=bool(cells))
+
+
+def temporary_stated(form) -> bool:
+    """Whether a launch POST FILLED any of the temporary preset's weather controls.
+
+    The stated read is what tells the two SHAPES of the one choice apart (a preset NAME and the
+    fields), so it answers on the FORM and not on the document the builder produces: a control the
+    builder ignores while its mode is unset is still a field the operator filled. The fog table's
+    indexed cells count too — a filled keyframe is a stated field whatever else is empty.
+    """
+    if any(_last_form_value(form, key).strip() for key in TEMPORARY_KEYS):
+        return True
+    from . import presets as presets_page
+    return any(cell.strip() for row in presets_page.fog_rows_from_form(form) for cell in row)
+
+
+class _WeatherChoiceConflict(Exception):
+    """Raised when a launch POST states BOTH shapes of the ONE weather field at once.
+
+    The dialogs cannot produce it: each MODE is the only one the route reads. It is the BACKSTOP for a
+    caller with no dialog — direct / REST / MCP — whose POST states a preset entry AND fills a
+    temporary control. A route turns it into its own refusal (the server route a 400, the mission route
+    a one-shot notice), and the console's own sentence (:data:`REFUSAL_WEATHER_CONFLICT`) travels with
+    it.
+    """
+
+
+def preset_entry_text(value: Any) -> str:
+    """ONE posted pick entry, cleaned PER PART: its SHAPE is read off the value before any trimming.
+
+    An entry is ``<file label><newline><preset name>`` (:func:`preset_option_value`), so the separator
+    is what makes it a FILE + NAME pair, and it is looked for on the value exactly as it arrived —
+    trimming the value whole would eat a trailing separator and read a LABEL-ONLY entry (a file, no
+    preset) as a bare preset NAME. The label is then cleaned (it is the node's own ``config/…`` name);
+    the name is kept VERBATIM, because a preset name is operator data, is looked up exactly, and may
+    begin or end with a space. A value carrying no separator is a bare name and is cleaned whole.
+    """
+    raw = "" if value is None else str(value)
+    if PRESET_PAIR_SEPARATOR not in raw:
+        return raw.strip()
+    label, name = raw.split(PRESET_PAIR_SEPARATOR, 1)
+    return f"{label.strip()}{PRESET_PAIR_SEPARATOR}{name}"
+
+
+def posted_preset_entries(form, action: WriteAction) -> list[str]:
+    """Every value a launch POST carries under the pick's field, in posted order — ``[]`` for none.
+
+    A name per entry the operator selected, the empty "leave the weather alone" as ``""``, and
+    :data:`PRESET_CUSTOM_VALUE` for "Create your own weather". Each value keeps its own SHAPE
+    (:func:`preset_entry_text`), so an entry naming a file and no preset is still that entry. The pick
+    is a MULTI pick, so the field repeats and EVERY occurrence is read (``getlist``) — reading one with
+    ``.get`` would drop the rest of a rotation. A form-like double that answers only ``get`` states one
+    value, the same way the write-form-state contract reads a repeated field.
+    """
+    if action.select is None:
+        return []
+    getlist: Any = getattr(form, "getlist", None)
+    if callable(getlist):
+        raw: Any = getlist(action.select.field)
+        values = [preset_entry_text(value) for value in (raw or ())]
+    else:
+        values = [preset_entry_text(form.get(action.select.field))]
+    return [value for value in values if value.strip()]
+
+
+def preset_choice(form, action: WriteAction) -> tuple[list[str], bool]:
+    """The weather pick ONE launch POST states, as ``(names, own)``.
+
+    ``names`` are the preset NAMES (the rotation — several boxes ticked), and ``own`` says whether
+    "Create your own weather" was chosen: the TWO SHAPES of the ONE choice, read from the ONE field.
+    The empty "leave the weather alone" entry is neither of them.
+    """
+    entries = posted_preset_entries(form, action)
+    return ([value for value in entries if value != PRESET_CUSTOM_VALUE],
+            PRESET_CUSTOM_VALUE in entries)
+
+
+def select_params(form, action: WriteAction) -> dict[str, Any]:
+    """The value of an action's OWN select, read off a POST — ``{}`` for an action declaring none.
+
+    A select-bearing dialog that declares no weather pick (``chat`` and ``popup``, whose select is the
+    coalition) carries its value here, under the DECLARATION's field name: one entry per repeated
+    value, comma-joined, which is the read the launch form's pick made of every select before it was
+    guarded on ``WriteAction.weather``.
+    """
+    if action.select is None:
+        return {}
+    values, _own = preset_choice(form, action)
+    return {action.select.field: ",".join(values)}
+
+
+class _WeatherRefusal(Exception):
+    """Raised when a launch POST states a pick that cannot be honoured, carrying the sentence.
+
+    A route turns it into its own refusal (the server route a 400, the mission route a one-shot
+    notice) — the console's own wrapped sentence (:attr:`sentence`) travels with it, exactly as
+    :class:`_WeatherChoiceConflict` carries :data:`REFUSAL_WEATHER_CONFLICT`.
+    """
+
+    def __init__(self, sentence: str):
+        super().__init__(sentence)
+        self.sentence = sentence
+
+
+#: The console's own sentence for each reason the preset rule refuses a pick with. The REASONS come
+#: from :mod:`core.utils.presets`; the words are the console's, localised like the rest of its chrome.
+_PRESET_REFUSAL_SENTENCES: dict[str, str] = {
+    REFUSAL_NO_PICK: REFUSAL_WEATHER_NO_PICK,
+    REFUSAL_UNKNOWN_FILE: REFUSAL_WEATHER_UNKNOWN_FILE,
+    REFUSAL_UNKNOWN_PRESET: REFUSAL_WEATHER_UNKNOWN_PRESET,
+}
+
+
+def preset_name_text(value: str | list[str] | tuple[str, ...] | None) -> str | None:
+    """The ``preset_name`` parameter's value — one string, never a list.
+
+    The payload names EVERY preset the launch applies, so the field accepts a list of names and
+    joins it into the ONE comma string the action and the record take. ``None`` stays ``None``: a
+    launch that names nothing states nothing.
+
+    A LIST's entries are names ALREADY RESOLVED against the node's preset files (the resolution
+    :func:`_stated_presets` performed), so each name is operator-and-file data and is joined as it
+    stands — a name whose file spells `` Snow `` is stated as `` Snow ``, never trimmed into the
+    different preset ``Snow``. Only the joined string's own transport noise (absent entries) is
+    dropped, never an individual name's spelling. A BARE string argument keeps today's reading: it
+    is the raw form value, not a resolved name, and is read through :func:`readmodels.text`.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        names = [str(entry) for entry in value if entry is not None]
+        joined = ",".join(name for name in names if name)
+        return joined or None
+    return readmodels.text(value) or None
+
+
+async def _stated_presets(form, action: WriteAction, server: Any) -> dict[str, Any]:
+    """MODE 2's payload: the picked entries resolved into the DOCUMENTS they stand for.
+
+    The rule is :func:`core.utils.presets.resolve_picked_values` — the same one a plugin resolves a
+    pick with — so this function reads the POST, hands the rule the node's files and turns the rule's
+    REASON into the console's own sentence:
+
+    * :data:`core.utils.presets.REFUSAL_UNKNOWN_FILE` — a file value the node no longer lists, or one
+      shaped like a path (:data:`REFUSAL_WEATHER_UNKNOWN_FILE`). An empty file value is the filter's
+      "All files" and is never a refusal;
+    * :data:`core.utils.presets.REFUSAL_UNKNOWN_PRESET` — a name neither the file it was picked in
+      nor the node's merged map carries (:data:`REFUSAL_WEATHER_UNKNOWN_PRESET`);
+    * :data:`core.utils.presets.REFUSAL_NO_PICK` — a POST that resolved no name at all, including one
+      whose every entry named a file and no preset (:data:`REFUSAL_WEATHER_NO_PICK`).
+
+    A POST that picked nothing is refused BEFORE the node is read, so an empty pick costs no
+    transport call. The files are the ONE read :func:`presets.node_preset_records` — the same answer
+    the dialog drew its groups from, taken once here.
+    """
+    from . import presets as presets_page
+
+    select = action.select
+    if select is None:
+        return {}
+    entries = [entry for entry in posted_preset_entries(form, action)
+               if entry != PRESET_CUSTOM_VALUE]
+    if not entries:
+        raise _WeatherRefusal(REFUSAL_WEATHER_NO_PICK)
+    node = getattr(server, "node", None)
+    records, _readable = (await presets_page.node_preset_records(node)
+                          if node is not None else ([], False))
+    files = {label: values for label, _path, _names, values in records}
+    answer = resolve_picked_values(entries, files,
+                                   named_file=readmodels.text(form.get(PRESET_FILE_FIELD)) or "")
+    if answer.reason is not None:
+        raise _WeatherRefusal(_PRESET_REFUSAL_SENTENCES[answer.reason])
+    return {select.field: answer.documents[0] if len(answer.documents) == 1 else answer.documents,
+            PRESET_NAME_PARAM: preset_name_text(answer.names)}
+
+
+async def launch_weather_params(form, action: WriteAction,
+                                server: Any = None) -> dict[str, Any]:
+    """The weather a launch POST states, as the ACTION's own parameters — ``{}`` for an action that
+    declares no pick.
+
+    THE MODE decides how ``preset`` is read, and the mode is the POST's own field
+    (:data:`WEATHER_MODE_FIELD`):
+
+    * ``leave`` — the default row: the launch states no weather at all, and anything the form carries
+      under the pick's field or the temporary controls is ignored, because the operator said so;
+    * ``file`` — a preset out of one of the node's preset FILES: the picked names are resolved into the
+      DOCUMENT they stand for (:func:`_stated_presets`), which travels as ``preset``, and the names
+      travel beside it as ``preset_name`` so the server page can name the preset;
+    * ``custom`` — the temporary preset: the weather fields' DOCUMENT, as the wizard's own builder
+      makes it (:func:`temporary_document`).
+
+    An ABSENT mode is a caller with no dialog (direct / REST / MCP), and it keeps that caller's
+    reading: the two shapes of the ONE field, a name list and the temporary DOCUMENT, with a POST that
+    states BOTH refused through :class:`_WeatherChoiceConflict`.
+
+    The select's field name is the DECLARATION's (``action.select.field``), so the route reads the name
+    the dialog actually drew. Shared by BOTH launch routes — the server's ``_handler`` and the mission
+    tab's ``_mission_load_handler`` — so the two forms cannot parse differently.
+
+    The guard is the DECLARATION's ``weather`` flag, not the presence of a select: ``chat`` and
+    ``popup`` declare a coalition select and go through the same route, and a select-bearing dialog
+    must not inherit mode parsing through it.
+    """
+    if action.select is None or not action.weather:
+        return {}
+    mode = readmodels.text(form.get(WEATHER_MODE_FIELD))
+    if mode == WEATHER_MODE_LEAVE:
+        return {action.select.field: ""}
+    if mode == WEATHER_MODE_CUSTOM:
+        return {action.select.field: temporary_document(form) or ""}
+    if mode == WEATHER_MODE_FILE:
+        if server is None:
+            # the target could not be resolved, so no node could be read: the pick travels as the
+            # operator's NAMES and the launch's own refusal answers, exactly as before.
+            entries = [entry for entry in posted_preset_entries(form, action)
+                       if entry != PRESET_CUSTOM_VALUE]
+            names = [split_preset_entry(entry)[1] for entry in entries]
+            names = [name for name in names if name]
+            if not names:
+                raise _WeatherRefusal(REFUSAL_WEATHER_NO_PICK)
+            return {action.select.field: ",".join(names)}
+        return await _stated_presets(form, action, server)
+    names, own = preset_choice(form, action)
+    # A caller with no dialog (direct / REST / MCP) states "Create your own weather" by FILLING a
+    # temporary control rather than by ticking the entry, so both are the same half of the conflict.
+    own = own or bool(action.weather and temporary_stated(form))
+    if own and names:
+        raise _WeatherChoiceConflict
+    # a NAMED pick travels as the node reads it: ONE string, a comma list when several names were
+    # ticked, which ``MizEdit`` splits back into the names it applies in order.
+    return {action.select.field: (temporary_document(form) or "") if own else ",".join(names)}
+
+
+def launch_weather_refusal(action: WriteAction, params: Mapping[str, Any]) -> str | None:
+    """The console's OWN refusal for a launch that states a weather pick its extensions will not apply
+    — or ``None`` when the launch is fine.
+
+    The CONDITION is the mission plugin's ONE predicate
+    (``plugins.mission.actions.states_unapplied_weather``), never a second copy: the import is
+    DELIBERATE and GUARDED — the generic web surface must not pull a plugin into an install that does
+    not run it, so the import runs only when the action is already registered, which is exactly when
+    the plugin's module is loaded (a cache hit that registers nothing new). An action that declares no
+    pick states none and is never refused.
+
+    The two inputs are the ACTION's own parameters, parsed from the form by the SAME readers the route
+    already uses: the pick under the declaration's select field (``launch_weather_params``) and the
+    extensions box under :data:`MODIFY_MISSION_FIELD` (``option_value``, which falls back to the
+    declaration's default — ON — when the form states nothing). The returned sentence is the
+    console's own (:data:`REFUSAL_WEATHER_NEEDS_EXTENSIONS`), so the route raises it wrapped, exactly
+    like the conflict, while the action keeps its unwrapped backstop for callers with no request.
+    """
+    if action.select is None or not action_available(action.qualname):
+        return None
+    from plugins.mission.actions import states_unapplied_weather
+    if states_unapplied_weather(params.get(MODIFY_MISSION_FIELD, True),
+                                params.get(action.select.field)):
+        return REFUSAL_WEATHER_NEEDS_EXTENSIONS
+    return None
+
+
+def _checked_text(when) -> str:
+    """A cache timestamp as the dialog's own words: ``YYYY-MM-DD HH:MM UTC``.
+
+    Read off the check record's aware datetime, rendered in UTC so the value is unambiguous across
+    the machine's timezone (the bot logs in UTC by default). Anything unreadable answers ``""`` —
+    the sentence is dropped rather than rendered half-written.
+    """
+    try:
+        return when.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    except (AttributeError, ValueError):
+        return ""
+
+
+def node_confirm_context(request: Request, action: NodeAction, name: str, node: Any,
+                         token: str, origin: str, tab: str = "") -> dict:
+    """Everything a NODE dialog's page reads — the third twin of :func:`confirm_context`.
+
+    Same discipline, three differences that are the whole point of a node dialog:
+
+    * the FIGURES are the node's load, not one server's — ``{servers}`` and ``{players}`` are what the
+      operation takes down with it, counted from the caller's own scoped source
+      (:func:`node_load`), never from a field the browser sent;
+    * the MASTER row's dialog carries one more sentence (``master_note``). The console runs INSIDE
+      the master's process (``services/webservice/service.py``), so restarting or shutting that node
+      down ends the very request that is being served — a consequence the machine cannot escape and
+      the operator has to be told before choosing: warn and allow, never hide,
+      never refuse). The test for it is the ABSENCE of that sentence on an agent's dialog, so the
+      wording cannot silently spread to every node;
+    * the MAINTENANCE pair's own OPTION is rendered here (:func:`option_inputs`), which is what
+      makes this page a form rather than a yes/no. The dialog a POST that skipped it is refused
+      against is still this one (``action.confirm``), and for the pair's non-destructive half it is a
+      form that runs the operation directly — the mockup's own rule (offline confirms, online does
+      not).
+
+    The warning is assembled HERE with :func:`html.escape`, as its two siblings' are: the node name
+    is config data and the copy must not be able to inject markup. A node action with NO warning
+    (the maintenance pair's online half) renders no warning block at all — the template's own
+    condition, driven by this value rather than by an action name.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    source = dashboard_page.request_source(request)
+    state = readmodels.overview(source, level=dashboard_page.log_level(request))
+    servers, players = node_load(source, name)
+    label = html.escape(str(name))
+    values = {"node": label, "servers": str(int(servers)), "players": str(int(players))}
+    #: THE TWO EXTRA SENTENCES a node dialog may carry after its detail: the MASTER node's note
+    #: (the console runs inside that node) and, for a check-gated control, when the update check was
+    #: last run. Each is a marked literal rendered as its own ``_sentence`` — never concatenated into
+    #: the detail's msgid, which would make the whole sentence unextractable.
+    detail_notes: list[dict] = []
+    if bool(readmodels.safe(lambda: getattr(node, "master", False), False)) and action.master_note:
+        detail_notes.append(_sentence(action.master_note, **values))
+    if getattr(action, "check", False):
+        when = upgrade_signal.checked_at(name)
+        if when is not None:
+            # WHEN THE CACHED VALUE WAS PRODUCED: a stale answer must read as stale
+            # rather than authoritative-looking. The value is the poller's own timestamp, never a
+            # field the browser sent, and it is present only for a check-gated control.
+            detail_notes.append(_sentence(i18n._("Last update check: {when}."),
+                                          when=_checked_text(when)))
+    # THE CONTROL'S OWN PAGE FACTS, for a dialog that declares a TEMPLATE of its own. The DCS update
+    # is the one control whose version pick is filled AFTER the page is open: its page reads these off
+    # the served document — the read's URL, the two field names, the INSTALLED branch/version (so the
+    # pick can mark it and ask the right branch) and the sentences it shows. Translated HERE, where
+    # the request's language is known, because a script that SHOWS a sentence never looks one up.
+    page_facts = None
+    if action.template:
+        record = _dcs_cached(name)
+        page_facts = {
+            "versions_url": dcs_versions_path(name),
+            "branch_field": DCS_BRANCH_FIELD,
+            "version_field": DCS_VERSION_FIELD,
+            # the QUERY the route reads the branch from — its own constant, never a second spelling
+            # of the field name
+            "branch_query": DCS_VERSIONS_QUERY,
+            "installed_branch": readmodels.text(getattr(record, "branch", "")),
+            "installed_version": readmodels.text(getattr(record, "version", "")),
+            "reading": i18n.translate(request, DCS_VERSIONS_READING),
+            "failed": i18n.translate(request, DCS_VERSIONS_FAILED),
+            "unreadable": i18n.translate(request, DCS_VERSIONS_UNREADABLE),
+            "newest_label": i18n.translate(request, DCS_VERSION_NEWEST_LABEL),
+            "latest_label": i18n.translate(request, DCS_VERSION_LATEST_LABEL),
+            "installed_label": i18n.translate(request, DCS_VERSION_INSTALLED_LABEL),
+        }
+    dialog = {
+        "heading": (_sentence(action.heading, **values) if action.heading
+                    else _default_title(action.label, label)),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": tuple(detail_notes),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": label,
+        "target": _sentence(i18n._("{label} (node)"), label=label),
+        "hidden": _hidden_fields(origin, tab, ("node", name)),
+        # EVERY field the declaration asks for: its NAMED inputs first (the DCS update's branch,
+        # version and warning time) and then its checkbox(es). A control that declares neither asks
+        # for nothing, which is why the lifecycle trio's dialog is still a plain confirmation.
+        "inputs": node_dialog_inputs(request, action, name),
+        "body_inputs": (),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        # the dialog's own chrome, driven by the DECLARATION rather than by an action's name: a
+        # destructive operation wears a red button and says it cannot be undone; a form that only
+        # clears a state says neither.
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — confirm",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                               current=origin,
+                                               manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+        # THE DIALOG'S OWN TEMPLATE and the facts its page reads (see ``page_facts``): the shared
+        # ``confirm.html`` for every control that declares none, so a page cannot pick a template the
+        # declaration did not name.
+        "dialog_template": action.template or CONFIRM_TEMPLATE,
+        "page_facts": page_facts,
+    }
+
+
+# ------------------------------------------------------------------------------- the notice
+
+def _remember_notice(request: Request,
+                     action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction
+                     | PenaltyAction,
+                     result: ActionResult, *, revert: str = "", revert_omitted: str = "",
+                     refusal: bool = False) -> None:
+    """Store the outcome of one write as a ONE-SHOT notice, for the page the redirect lands on.
+
+    The typed result is read for its FIELDS (``success``, ``message``, ``data["audit"]``), never
+    re-parsed from prose: the page renders what the action reported, and a copy change in the action
+    cannot make the banner lie.
+
+    The MESSAGE is BOUNDED here, at the point it enters the session, not at each render: the value
+    lives in the signed cookie, so its size is the cookie's size. The clip is VISIBLE — ``bound_text``
+    appends the truncation marker — so a refusal clipped for a crafted target does not read as a whole
+    one.
+
+    ``refusal`` marks a message the CONSOLE itself composed (a route refusal, see
+    :func:`_refusal_notice`), as opposed to the ACTION's own message. It is the ONE fact that decides
+    whether the notice template may look the message up in a catalog (``{{ _(notice.message) }}``): the
+    console's refusal wording is chrome and is marked for translation, while an action's runtime message
+    is composed where the action runs and shown on Discord too, so it must render verbatim.
+    """
+    data = getattr(result, "data", None) or {}
+    audit = readmodels.text(data.get("audit")) if isinstance(data, dict) else ""
+    request.session[NOTICE_KEY] = {
+        "message": bound_text(readmodels.text(getattr(result, "message", "")), NOTICE_MAX_CHARS),
+        "ok": bool(getattr(result, "success", False)),
+        "audit": audit,
+        # an audit that could not be recorded is VISIBLE — never a green banner over a lost trail
+        "audit_warning": audit == AUDIT_NOT_RECORDED,
+        "action": action.label,
+        # THE ONE-SHOT REVERT: the OLD values of the keys just written, JSON-encoded and bounded, so
+        # the page can offer a Revert that re-submits them through the SAME action. Empty for every
+        # write that offers none. ``revert_omitted`` is the visible reason a Revert could not be
+        # offered (a payload too large to carry) — never a silently inert button.
+        "revert": revert,
+        "revert_omitted": revert_omitted,
+        # whether the MESSAGE is the console's OWN refusal wording (translatable chrome) rather than
+        # the action's own message (composed where the action runs, shown on Discord, verbatim).
+        "refusal": bool(refusal),
+    }
+
+
+def pop_notice(request: Request) -> dict | None:
+    """The outcome of the last write, or ``None``. POPPED: it is shown exactly once.
+
+    A session value is attacker-controlled data in the sense that it survives a cookie round trip,
+    so the shape is re-validated here rather than trusted by the template.
+    """
+    try:
+        stored = request.session.pop(NOTICE_KEY, None)
+    except (AssertionError, KeyError):       # no SessionMiddleware / no session on this request
+        return None
+    if not isinstance(stored, dict) or not stored.get("message"):
+        return None
+    return stored
+
+
+#: The wording a ROUTE-recorded out-of-scope refusal carries. It is deliberately the same
+#: claim the console's own 403 makes and names NOTHING about the target, so the notice cannot become
+#: a second, softer channel for the enumeration the bare refusal exists to prevent: a name that
+#: exists and a name that does not are answered identically, in the page and in the notice alike.
+REFUSAL_OUT_OF_SCOPE = i18n._("Not authorized (this target is outside your scope).")
+
+#: The other two refusals a ROUTE makes before any action runs: no resolvable identity, and a write
+#: that did not come through its dialog (a spent or absent confirm token). Both are the console's OWN
+#: chrome, `i18n._`-marked so the extractor records them and the one-shot notice renders them in the
+#: request's language (see :func:`_refusal_notice`): unlike the ACTION's own message, nothing here is
+#: composed where a write runs or shown on Discord, so translating it leaks nothing.
+REFUSAL_NO_IDENTITY = i18n._("Not authorized (no signed-in identity).")
+REFUSAL_CONFIRM_REQUIRED = i18n._("Not authorized (this action must be confirmed through its dialog).")
+#: The refusal a TYPED confirmation owes: the operator typed a name that is not the target's. It names
+#: nothing about the target (the dialog showed it), so it cannot become a second channel that discloses
+#: whether a name exists — and the action never ran.
+REFUSAL_NAME_MISMATCH = i18n._("Not done (the typed name does not match the target).")
+
+#: The refusal a crafted POST meets when it names a DGSA entry as its EDIT target. The console renders
+#: NO Edit control on such a row, and this is the door behind that omission: a DGSA ban is never
+#: editable, so a direct POST must not reach an edit form that would offer to rewrite it.
+BAN_EDIT_DGSA_REFUSAL = i18n._("A DGSA ban cannot be edited — it can only be lifted here.")
+
+
+def _refusal_notice(request: Request,
+                    action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction
+                     | PenaltyAction,
+                    message: str) -> None:
+    """Store the ONE-SHOT refusal *message* for the page the person lands on.
+
+    A refusal the ROUTE makes BEFORE any action runs used to be a bare ``HTTPException`` — which a
+    person never read, because ``static/submit.js`` hands the page over to a fresh render the moment
+    it fires the POST. This uses the console's OWN answer to "where is a refusal seen": the one-shot
+    notice, the mechanism every accepted write's outcome already travels on
+    (:func:`_remember_notice`), rendered where the person lands and on the live path
+    (``pages/live.py``'s ``notice`` target).
+
+    THE STATUS DOES NOT MOVE. A refused write is still the 403 it has always been — the wire contract
+    for the API face and the refusal page for a browser are untouched — and the notice only ADDS a
+    way for the refusal to be read once the background submit has handed the page over. It is the
+    SAME store and the SAME partial as a success's notice, so a refusal can never read as one.
+
+    ``refusal=True`` is what tells the notice template that *message* is the CONSOLE's own wording
+    (a marked catalog entry) rather than the action's own message — see :func:`_remember_notice`. The
+    console's refusals are chrome and render in the request's language; an action's message never does.
+    """
+    _remember_notice(request, action, ActionResult(success=False, message=message), refusal=True)
+
+
+# ------------------------------------------------------------------------------- the routes
+
+# ------------------------------------------------------------------------ the radio writes (Music tab)
+# The Music tab's three writes: one radio's transport (play / stop / skip / mode), its playlist
+# assignment and its settings. Same shape as the mission writes — identity, scoped target, action,
+# one-shot notice, 303 back to the tab — with ONE difference: the radio actions AUDIT THEMSELVES
+# (``plugins.music.actions._audited`` writes the trail for every attempt, success or refusal), so no
+# route here passes ``audit_result`` and no entry is written twice.
+
+
+def _music_back_path(name: str) -> str:
+    """The Music tab of *name* — the ONE encoder, so a redirect and the tab's own URL agree."""
+    return server_url(name, tab="music")
+
+
+def _music_control_handler(action: WriteAction):
+    """The route for ``control_radio`` — the transport strip and the mode pick, posted directly.
+
+    The VERB rides the body (``play`` / ``stop`` / ``skip`` / ``mode``), so one button can never be
+    pointed at another operation by editing a URL, and the action refuses a word outside its own
+    ``CONTROLS``. ``mode`` is stated by the mode form alone; the action reads it only for that verb.
+    A radio whose server is not up is refused by the action with its own sentence.
+
+    THE ANSWER GOES BACK TO THE PAGE THAT PRESSED IT: the origin rides the body
+    (:data:`ORIGIN_FIELD`) and is resolved against the registry (:func:`origin_url`), so a control
+    drawn on ``/music`` returns there — where the read re-renders the card with the state the write
+    produced — while a control on the server's Music tab names no origin and keeps the tab as the
+    default. Neither the path nor the tab is ever taken from the request unfiltered.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        result = await call_action(
+            action.qualname, ctx, server_name=canonical,
+            radio_name=readmodels.text(form.get(MUSIC_RADIO_FIELD)),
+            control=readmodels.text(form.get(MUSIC_CONTROL_FIELD)),
+            mode=readmodels.text(form.get(MUSIC_MODE_FIELD)))
+        _remember_notice(request, action, result)
+        back = origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD),
+                          _music_back_path(canonical))
+        return RedirectResponse(back, status_code=303)
+
+    return handle
+
+
+def _music_playlist_handler(action: WriteAction):
+    """The route for ``set_radio_playlist`` — the card's playlist select, posted directly.
+
+    The playlist's NAME rides the body; the action resolves it against the playlists that exist and
+    then reassigns through the radio's own setter, which re-reads the song list (stop, assign, start).
+    An edit made in the playlist editor reaches a playing radio only through THIS write or a restart,
+    which is what the card says beside the select.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        result = await call_action(
+            action.qualname, ctx, server_name=canonical,
+            radio_name=readmodels.text(form.get(MUSIC_RADIO_FIELD)),
+            playlist=readmodels.text(form.get(MUSIC_PLAYLIST_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_music_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _music_settings_handler(action: WriteAction):
+    """The route for ``set_radio_config`` — one radio's settings form, posted directly.
+
+    Every field is passed as stated, an EMPTY one included: the action writes only the values that
+    carry text, so an emptied box leaves the configured value alone rather than clearing it, and each
+    stated value is validated against the action's own accepted set before
+    ``config/services/music.yaml`` is patched — a refusal writes nothing.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        stated = {field: readmodels.text(form.get(field)) for field in MUSIC_SETTING_FIELDS}
+        result = await call_action(
+            action.qualname, ctx, server_name=canonical,
+            radio_name=readmodels.text(form.get(MUSIC_RADIO_FIELD)),
+            frequency=stated["frequency"], modulation=stated["modulation"],
+            coalition=stated["coalition"], volume=stated["volume"],
+            display_name=stated["display_name"])
+        _remember_notice(request, action, result)
+        return RedirectResponse(_music_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def add_routes(router: APIRouter) -> APIRouter:
+    """Add one POST route per write, each with the session's CSRF dependency.
+
+    A confirm-required write contributes TWO routes: the action's own (which refuses a POST that did
+    not come through its dialog) and the POST that renders that dialog. Both are POSTs — the console
+    has one way to send a target, and it is the body of a request, never a URL.
+    """
+    for action in SERVER_ACTIONS:
+        router.add_api_route(action.path, _handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        if action.dialog:
+            # the DIALOG route: the destructive controls confirm through it, and Startup collects
+            # its own maintenance option there — see ``_confirm_handler`` and
+            # ``WriteAction.dialog``.
+            router.add_api_route(action.path + CONFIRM_SUFFIX, _confirm_handler(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-{action.key}-confirm")
+    # THE DELETE of the creation pair: the DIALOG route is the shared one (the action declares a
+    # ``confirm`` and an ``option``, so ``confirm_context`` draws both, plus the typed-name field it
+    # declares), while the POST has a handler of its own — it reads the TYPED name and the directory
+    # choice beside a target it resolves the same way every other server write does.
+    for action in SERVER_NODE_ACTIONS:
+        router.add_api_route(action.path, _delete_server_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        router.add_api_route(action.path + CONFIRM_SUFFIX, _confirm_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}-confirm")
+    # THE ADD of the creation pair: a PAGE control posts to the DIALOG (there is no row to post from),
+    # and the dialog's own form posts to the action.
+    for action in SERVER_PAGE_ACTIONS:
+        router.add_api_route(action.path, _add_server_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        if action.dialog:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, _add_server_confirm_handler(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-{action.key}-confirm")
+    for action in PLAYER_ACTIONS:
+        # THE SCREENSHOT IS THE ONE PLAYER WRITE WHOSE ANSWER IS A FILE: its route has to keep the
+        # image, not only report a sentence, so it carries a handler of its own.
+        handler = (_screenshot_handler(action) if action.key == SCREENSHOT_KEY
+                   else _player_handler(action))
+        router.add_api_route(action.path, handler, methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-player-{action.key}")
+        if action.confirm:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, _player_confirm_handler(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-player-{action.key}-confirm")
+    # THE SHORT-LIVED IMAGE URL the modal's own <img> loads. A GET because it changes nothing, gated
+    # by the glyph's own capability (declared in ``capabilities``): a token is not a second door.
+    router.add_api_route(f"{SCREENSHOT_IMAGE_PATH}/{{token}}.png", _screenshot_image_handler(),
+                         methods=["GET"], name="player-screenshot-image")
+    # THE BAN-ENTRY WRITES: three shapes, told apart by their own declaration and key — the LIFT
+    # confirms (its own route + a dialog that mints the one-shot token), the ADD and the EDIT are
+    # FORMS (the dialog IS the write, no token). The lift's route refuses a POST that skipped its
+    # dialog; the two forms post to their own route directly.
+    for action in BAN_ACTIONS:
+        if action.form and action.key == BAN_EDIT_ACTION.key:
+            handler, dialog = _ban_edit_handler(action), _ban_edit_confirm_handler(action)
+        elif action.form:
+            handler, dialog = _ban_add_handler(action), _ban_add_confirm_handler(action)
+        else:
+            handler, dialog = _ban_handler(action), _ban_confirm_handler(action)
+        router.add_api_route(action.path, handler, methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-ban-{action.key}")
+        if action.dialog:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, dialog, methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-ban-{action.key}-confirm")
+    # THE ADD'S PLAYER SEARCH — the JSON GET the UCID field's enhancement reads. A GET because it
+    # changes nothing, and so WITHOUT the CSRF dependency the writes carry: there is no token to send
+    # and nothing a forged request could change. Gated by the ADD's own capability (declared above).
+    router.add_api_route(BAN_PLAYERS_PATH, _ban_players_handler(), methods=["GET"],
+                         name="ban-players")
+    # THE WATCH-ENTRY WRITES: the ADD and the EDIT are FORMS (the dialog IS the write, no token) and
+    # the REMOVE confirms (its dialog mints the one-shot token its route spends). All three are
+    # registered through the same loop shape the ban writes use, so a new watch write is one
+    # declaration.
+    _watch_handlers = {
+        WATCH_ADD_ACTION.key: (_watch_add_handler, _watch_add_confirm_handler),
+        WATCH_REMOVE_ACTION.key: (_watch_remove_handler, _watch_remove_confirm_handler),
+        WATCH_EDIT_ACTION.key: (_watch_edit_handler, _watch_edit_confirm_handler),
+    }
+    for action in WATCH_ACTIONS:
+        handler_factory, dialog_factory = _watch_handlers[action.key]
+        router.add_api_route(action.path, handler_factory(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-watch-{action.key}")
+        if action.dialog:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, dialog_factory(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-watch-{action.key}-confirm")
+    # THE PENALTY-POINT WRITES: every one of them is reached through its dialog (the consequence
+    # lives there), so each contributes two POSTs gated by the same capability.
+    for action in PENALTY_ACTIONS:
+        router.add_api_route(action.path, _penalty_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-penalty-{action.key}")
+        router.add_api_route(action.path + CONFIRM_SUFFIX, _penalty_confirm_handler(action),
+                             methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-penalty-{action.key}-confirm")
+    # THE DCS UPDATE'S VERSION LIST — the JSON GET the dialog's version pick reads. A GET because it
+    # changes nothing, and so WITHOUT the CSRF dependency the writes carry: there is no token to send
+    # and nothing a forged request could change. Gated by the update's own capability, declared above
+    # (``capabilities()`` registers the route's own pattern, node parameter and all).
+    router.add_api_route(DCS_VERSIONS_PATH, _dcs_versions_handler(), methods=["GET"],
+                         name="node-dcs-versions")
+    for action in NODE_ACTIONS:
+        router.add_api_route(action.path, _node_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-node-{action.key}")
+        # the DIALOG route, for every node action: the trio confirms through it, and the maintenance
+        # pair collects its own option there — see ``_node_control`` and ``node_option_inputs``.
+        router.add_api_route(action.path + CONFIRM_SUFFIX, _node_confirm_handler(action),
+                             methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-node-{action.key}-confirm")
+    # THE DCS CONFIG WRITE: one POST, no dialog (the whole form is the input).
+    for action in SERVER_CONFIG_ACTIONS:
+        router.add_api_route(action.path, _config_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+    # THE CHANNELS WRITE: one POST, no dialog.
+    for action in SERVER_CHANNEL_ACTIONS:
+        router.add_api_route(action.path, _channels_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+    # THE COALITION WRITE: one POST, no dialog.
+    for action in SERVER_COALITION_ACTIONS:
+        router.add_api_route(action.path, _coalition_handler(action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+    # THE MISSION-LIST WRITES: one POST each. The upload posts a MULTIPART body (the file plus its
+    # load options); the other three post their own small form. The ADD and REMOVE controls ALSO
+    # contribute their DIALOG route (``MISSION_DIALOG_KEYS``), which RENDERS ``confirm.html`` — the
+    # row/openers post THERE, and the delete route refuses a POST that skipped it (see
+    # ``_mission_confirm_handler`` / ``_mission_delete_handler``).
+    _mission_handlers = {
+        "mission_add": _mission_add_handler,
+        "mission_delete": _mission_delete_handler,
+        "mission_delete_bulk": _mission_bulk_delete_handler,
+        "mission_reorder": _mission_reorder_handler,
+        "mission_activate": _mission_activate_handler,
+        "mission_load": _mission_load_handler,
+        "mission_upload": _mission_upload_handler,
+    }
+    for action in MISSION_ACTIONS:
+        router.add_api_route(action.path, _mission_handlers[action.key](action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+        if action.key in MISSION_DIALOG_KEYS:
+            router.add_api_route(action.path + CONFIRM_SUFFIX, _mission_confirm_handler(action),
+                                 methods=["POST"],
+                                 dependencies=[Depends(session.csrf_protect)],
+                                 name=f"action-{action.key}-confirm")
+    # THE RADIO WRITES: one POST each, no dialog — the card's whole form is the input.
+    _music_handlers = {
+        "music_control": _music_control_handler,
+        "music_playlist": _music_playlist_handler,
+        "music_settings": _music_settings_handler,
+    }
+    for action in MUSIC_ACTIONS:
+        router.add_api_route(action.path, _music_handlers[action.key](action), methods=["POST"],
+                             dependencies=[Depends(session.csrf_protect)],
+                             name=f"action-{action.key}")
+    return router
+
+
+def register(registrar) -> None:
+    """Register the write surface with the registrar, under this module's own owner name."""
+    router = APIRouter()
+    add_routes(router)
+    registrar.register_pages(OWNER, router, capabilities=capabilities())
+
+
+# ------------------------------------------------------------------------------- the config write
+
+#: What a bool form field posts when it is ON (a checkbox that is unticked posts nothing at all, which
+#: is how "changed to false" is told from "not stated" — the form always renders the checkbox).
+_CONFIG_TRUE = ("1", "true", "on", "yes")
+
+
+def _as_bool(value) -> bool:
+    """The boolean a setting's current value or a posted field means (anything unreadable -> False)."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in _CONFIG_TRUE
+
+
+def _choice_value(field, chosen: str):
+    """The declared OPTION a SELECT posted, by its rendered spelling — else the raw text.
+
+    A select's options are the field's ``choices`` (:class:`server_config.ConfigField`), so the
+    submitted value is matched back to the declared one and handed to the action with its own TYPE
+    (``resume_mode``'s options are ints). A value that matches nothing is passed through unchanged,
+    so the ACTION refuses it with a typed reason rather than this route dropping it silently.
+    """
+    for choice in field.choices:
+        if str(choice) == chosen:
+            return choice
+    return chosen
+
+
+def _unprotected_password(settings, form, key: str, values: dict) -> None:
+    """An UNPROTECTED password's keep / clear / replace — the plain STRING diff.
+
+    The field ships holding the STORED value, so a posted value equal to it is not a change, an
+    EMPTIED field is the explicit clear (``None`` — the action reads a blank as unchanged), and
+    anything else is the new password. A form that does not STATE the field clears nothing.
+    """
+    if not _form_has(form, key):
+        return
+    current = server_config.current_setting(settings, key)
+    current_text = "" if current is None else str(current)
+    stated = _last_form_value(form, key)
+    if not stated.strip():
+        if current_text.strip():
+            values[key] = None                # emptied: the explicit clear
+    elif stated != current_text:
+        values[key] = stated                  # a typed password IS the new password
+
+
+def _protected_password(settings, form, key: str, values: dict) -> None:
+    """A PROTECTED password's keep / clear / replace — with NO value ever on the page.
+
+    The field NEVER holds the value: it holds :data:`serverconfig.PROTECTED_SENTINEL` while one is set.
+    An untouched field (that sentinel) keeps the value, an EMPTIED field clears it (``None``), and
+    anything else replaces it. The current value is read only to decide whether an emptied field has
+    anything to clear — never to render it.
+    """
+    if not _form_has(form, key):
+        return
+    stated = _last_form_value(form, key)
+    if stated == server_config.PROTECTED_SENTINEL:
+        return                                # the untouched placeholder: keep
+    if stated.strip():
+        values[key] = stated                  # a typed password IS the new password
+        return
+    current = server_config.current_setting(settings, key)
+    if current is not None and str(current).strip():
+        values[key] = None                    # emptied: the explicit clear
+
+
+def config_values_from_form(settings, form) -> dict:
+    """The CHANGED editable fields a submitted form carries — and ONLY those.
+
+    The whole form is posted (no JavaScript required); each field's submitted value is diffed against
+    the value the page SHOWED (through :func:`serverconfig.current_setting`, the SAME read the tab's
+    rows use), and an unchanged field is left out, so the action is handed exactly the changed keys.
+
+    THE PASSWORD FIELDS ARE DIFFED BY THEIR DECLARATION (``ConfigField.protection``):
+    an UNPROTECTED one ships the stored value and is diffed as a string; a PROTECTED one never carries
+    the value (it ships :data:`serverconfig.PROTECTED_SENTINEL` while one is set) and its keep / clear /
+    replace is read from that placeholder. Either way an EMPTIED field is the explicit clear (``None``),
+    which the action reads as a clear, and a blank field means unchanged to the action.
+
+    A value present but UNPARSEABLE for its declared kind (a number field holding letters) is passed
+    THROUGH as text: the ACTION validates and refuses it with a typed reason, never a silent drop.
+    """
+    values: dict[str, Any] = {}
+    for key, field in server_config.EDITABLE_BY_KEY.items():
+        if field.protection:
+            continue                          # every password field is handled below, by declaration
+        posted = _last_form_value(form, key)
+        present = _form_has(form, key)
+        current = server_config.current_setting(settings, key)
+        if field.choices:
+            # A SELECT (``ConfigField.choices``): the form renders a leading EMPTY "unchanged" option
+            # that a browser picks exactly when nothing was chosen, so an UNTOUCHED select posts ""
+            # and must NEVER read as a change. A chosen option is handed on with its declared type.
+            if not present:
+                continue                         # not stated by this form: unchanged
+            chosen = posted.strip()
+            if chosen == "":
+                continue                         # the "unchanged" placeholder: not a change
+            current_text = "" if current is None else str(current)
+            if chosen != current_text:
+                values[key] = _choice_value(field, chosen)
+            continue
+        if field.kind == server_config.KIND_BOOL:
+            posted_bool = posted.strip().lower() in _CONFIG_TRUE
+            if posted_bool != _as_bool(current):
+                values[key] = posted_bool
+        elif field.kind == server_config.KIND_INT:
+            if not present:
+                continue                         # not stated by this form: unchanged
+            stripped = posted.strip()
+            if stripped == "":
+                if current is None:
+                    continue                     # nothing was there and nothing was posted
+                values[key] = stripped           # cleared: the action refuses it, visibly
+                continue
+            try:
+                number = int(stripped)
+            except ValueError:
+                values[key] = stripped           # not a number: the action's validation says so
+                continue
+            if not (isinstance(current, int) and not isinstance(current, bool) and number == current):
+                values[key] = number
+        else:
+            if not present:
+                continue                         # not stated by this form: unchanged
+            current_text = "" if current is None else str(current)
+            if posted != current_text:
+                values[key] = posted
+    # THE PASSWORD FIELDS, by their own declaration: one branch per value of ``protection``.
+    for key, field in server_config.EDITABLE_BY_KEY.items():
+        if not field.protection:
+            continue
+        if field.protection == server_config.PROTECTED:
+            _protected_password(settings, form, key, values)
+        else:
+            _unprotected_password(settings, form, key, values)
+    if _as_bool(_last_form_value(form, SERVER_CONFIG_CLEAR_FIELD)):
+        values["password"] = None                # the programmatic CLEAR (accepted; no control renders it)
+    return values
+
+
+def _revert_values(payload: str) -> dict:
+    """The OLD values a one-shot Revert re-submits, decoded from the hidden field — or ``{}``.
+
+    The action returns ``applied`` as ``{key: {"from":…, "to":…}}`` and the console offers a Revert that
+    re-submits the ``from`` side through the SAME action, so it is audited, validated and locked like
+    any write. Only EDITABLE keys survive, and a PASSWORD key (either branch of ``protection``) never
+    does: its ``from`` side is a redaction sentinel, not a value, so there is nothing to restore. A
+    malformed payload yields nothing to write (never a crash).
+    """
+    try:
+        data = json.loads(payload)
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {key: value for key, value in data.items()
+            if key in server_config.EDITABLE_BY_KEY
+            and not server_config.EDITABLE_BY_KEY[key].protection}
+
+
+def _revert_offer(result) -> tuple[str, str]:
+    """The one-shot Revert to offer for a config write — ``(payload, omitted_sentence)``.
+
+    ``payload`` is the JSON map of OLD values, built from the CONFIG action's own result
+    (``ServerConfigResult.applied``: ``{key: {"from":…, "to":…}}``). Only EDITABLE keys survive, and a
+    PASSWORD key (either branch of ``protection``) never does (its ``from`` is a redaction sentinel,
+    not a value — nothing to restore). When there is nothing to restore the payload is ``""`` with an
+    empty sentence.
+
+    THE PAYLOAD IS NEVER TRUNCATED: it is bounded by :data:`REVERT_MAX_CHARS`, and a map that will not
+    fit is dropped ENTIRELY with a VISIBLE reason (:data:`REVERT_TOO_LONG_SENTENCE`) — a JSON string cut
+    mid-value cannot parse and would leave an inert Revert.
+    """
+    applied = getattr(result, "applied", None) or {}
+    if not isinstance(applied, dict):
+        return "", ""
+    out: dict[str, Any] = {}
+    for key, change in applied.items():
+        field = server_config.EDITABLE_BY_KEY.get(key)
+        if field is None or field.protection:
+            continue
+        if isinstance(change, dict) and "from" in change:
+            out[key] = change["from"]
+    if not out:
+        return "", ""
+    try:
+        payload = json.dumps(out)
+    except (TypeError, ValueError):
+        return "", ""
+    if len(payload) > REVERT_MAX_CHARS:
+        return "", REVERT_TOO_LONG_SENTENCE
+    return payload, ""
+
+
+def _servers_yaml_mtime() -> float | None:
+    """The ``servers.yaml`` mtime on THIS master, or ``None`` — read WITHOUT an RPC.
+
+    Read off the process's own node's ``config_dir`` (the live ``ServiceBus`` node, exactly as
+    :func:`_context` reads the seam's node): a plain attribute, no node round-trip. A console installed
+    without a bot (a test, a standalone render) has no node, so the mtime is ``None`` and the revision
+    is the settings ``mtime`` alone — still correct for the DCS face.
+    """
+    node = _node()
+    config_dir = getattr(node, "config_dir", None)
+    if not config_dir:
+        return None
+    try:
+        return os.path.getmtime(os.path.join(str(config_dir), "servers.yaml"))
+    except OSError:
+        return None
+
+
+def config_revision_for(server) -> str:
+    """The config revision for *server* — the value the pulse records and a later render compares."""
+    return server_config.config_revision(server, servers_yaml_mtime=_servers_yaml_mtime())
+
+
+def config_pulse(server, server_name: str,
+                 action_key: str = SERVER_CONFIG_ACTION_KEY) -> bool:
+    """Whether the Save control for *server* is still pulsing its last config write.
+
+    Read through the SAME store and end rule as every other control (:func:`awaiting_change`): it is
+    ``True`` only while THIS session issued a config write on *server*, the CONFIG REVISION has not
+    moved, and the expectation is younger than :data:`AWAIT_CHANGE_SECONDS`. A refusal or a failure
+    dropped the expectation already, so a failed Save never pulses while its notice says it failed.
+    """
+    state = _row_state(server)
+    flagged = bool(readmodels.safe(lambda: getattr(server, "maintenance", False), False))
+    return awaiting_change("server", server_name, action_key, state, flagged,
+                           revision=config_revision_for(server))
+
+
+def _config_back_path(name: str) -> str:
+    """Where the config write returns: the server's own page, Configuration tab (a GET, no POST).
+
+    Built by the ONE encoder (``readmodels.servers.server_url``) so this redirect and the row's own
+    link build the SAME URL for the same name — a name carrying a space, ``&`` or ``#`` lands on the
+    page instead of truncating the path or opening a query string.
+    """
+    return server_url(name, tab="configuration")
+
+
+def _post_write_name(result, server, canonical: str) -> str:
+    """The server's name AFTER the config write — the redirect target.
+
+    A config write may RENAME the server, and 303-ing to the name read BEFORE the action would land
+    the browser on the OLD name's URL — a 404 that also swallows the success notice and the Revert.
+    The ACTION is the authority on what it renamed, so its ``applied['name']['to']`` is read first; a
+    write that renamed nothing falls back to the resolved object's own ``name`` (updated in place by
+    the rename), then to the name the route came in with.
+    """
+    applied = getattr(result, "applied", None)
+    if isinstance(applied, dict):
+        rename = applied.get("name")
+        if isinstance(rename, dict):
+            new_name = readmodels.text(rename.get("to"))
+            if new_name:
+                return new_name
+    return readmodels.text(readmodels.safe(lambda: getattr(server, "name", ""))) or canonical
+
+
+def _wants_json(request: Request) -> bool:
+    """Whether the caller is the console's own background submit, which states it accepts JSON.
+
+    The no-JavaScript path is a plain form post: no ``Accept`` at all, or ``text/html``. Both keep the
+    303 the browser follows natively, so nothing changes for a caller without the interceptor.
+    """
+    return "application/json" in request.headers.get("accept", "").lower()
+
+
+def _redirect_or_json(request: Request, target: str):
+    """Answer a write with its destination: a 303, or the URL itself for the background submit.
+
+    ``submit.js`` posts with ``fetch(redirect: "manual")``, which hands the script an OPAQUE response —
+    a 303's ``Location`` is unreadable — so a write that lands on a DIFFERENT page than the one it was
+    pressed on (a rename moves the server's own page) would send the browser back to where it was. The
+    interceptor states ``Accept: application/json``; answering the destination lets it go there.
+    """
+    if _wants_json(request):
+        return JSONResponse({"redirect": target}, status_code=200)
+    return RedirectResponse(target, status_code=303)
+
+
+def config_write_available() -> bool:
+    """Whether the ONE config action is registered in THIS process (the ``action_available`` rule).
+
+    The console does not offer a control whose only possible answer is the action's own
+    "not available in this installation" refusal: an install without the ``scheduler``
+    plugin ships no config write, so the tab shows the read and no Save.
+    """
+    return action_available(SERVER_CONFIG_ACTIONS[0].qualname)
+
+
+def _config_handler(action: WriteAction):
+    """The route for THE DCS CONFIG WRITE — one POST, no dialog.
+
+    Same order as the other write routes (identity, form, resolution, action, notice, redirect), with
+    three differences: the body is the form of settings, diffed to the CHANGED keys here
+    (:func:`config_values_from_form`) — or, for a one-shot Revert, the OLD values decoded from the
+    hidden field (:func:`_revert_values`) — and the ONE action ``set_server_config`` is called either
+    way; the expectation is recorded with the THIRD observable (:data:`AWAIT_OBSERVABLE_CONFIG`) and
+    the revision read BEFORE the action; and it 303s back to the server's own page.
+
+    No ``audit_result``: the config action writes its OWN trail, once, for every outcome
+    (``plugins/scheduler/actions.py``). A refusal or a failure forgets the expectation at once.
+    """
+    async def handle(request: Request) -> Response:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            # authorized, but the name matches nothing: the honest answer is the seam's typed refusal,
+            # rendered through the one-shot notice — never a 404 and never a silent success.
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return _redirect_or_json(request, _servers_path())
+        server = resolution.server
+        canonical = readmodels.text(readmodels.safe(lambda: getattr(server, "name", ""))) or name
+        revert = readmodels.text(form.get(SERVER_CONFIG_REVERT_FIELD))
+        if revert:
+            values = _revert_values(revert)
+        else:
+            values = config_values_from_form(
+                readmodels.safe(lambda: getattr(server, "settings", None)), form)
+        # THE EXPECTATION BEFORE THE ACTION: the fresh render the async submit lands on must already
+        # find it (the store is process-side, recorded here).
+        remember_awaiting_change("server", canonical, action, _row_state(server), False,
+                                 revision=config_revision_for(server))
+        result = await call_action(action.qualname, ctx, server_name=canonical, values=values)
+        revert_payload, revert_omitted = _revert_offer(result)
+        _remember_notice(request, action, result, revert=revert_payload,
+                         revert_omitted=revert_omitted)
+        if not bool(getattr(result, "success", False)):
+            forget_awaiting_change("server", canonical)
+        # THE REDIRECT NAMES THE SERVER AS IT IS **AFTER** THE WRITE: a rename moves the name, so the
+        # pre-action name would be a 404 — and the notice and Revert ride this redirect. The background
+        # submit cannot read that 303, so it is handed the destination instead (:func:`_redirect_or_json`).
+        return _redirect_or_json(request, _config_back_path(_post_write_name(result, server, canonical)))
+
+    return handle
+
+
+# ------------------------------------------------------------------------------- the channels write
+# The bot face of the Configuration tab: ONE extra POST (``set_server_channels``), the same shape as
+# the DCS config write (identity, form, scoped resolution, action, notice, redirect) but with its own
+# capability. It differs in what the body is: a set of CHANGED CHANNEL ROWS, diffed here against the
+# server's own ``locals['channels']`` so only what the operator moved is submitted.
+
+
+def _channel_int(value) -> int:
+    """A stored channel value as an int for diffing: the id, or :data:`serverconfig.CHANNEL_UNSET`.
+
+    An absent value and an unreadable one both read as UNSET, exactly as
+    :func:`serverconfig.channel_value_text` renders them, so "what the page showed" and "what the
+    write compares against" are one reading of the file.
+    """
+    if value is None or isinstance(value, bool):
+        return server_config.CHANNEL_UNSET
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return server_config.CHANNEL_UNSET
+
+
+def channels_values_from_form(channels, form) -> dict:
+    """The CHANGED channel rows a submitted form carries — and ONLY those.
+
+    ``channels`` is the server's current per-server channel map (``server.locals['channels']``); each
+    rendered select posts its CURRENT value when untouched (so it diffs to nothing), the explicit
+    ``not set`` value (:data:`serverconfig.CHANNEL_UNSET_VALUE`) for a clear, or a channel id for a
+    new pick. The rules, stated so the template and this cannot disagree:
+
+    * a row the form does not STATE is untouched;
+    * a posted value that equals the current value is unchanged;
+    * ``not set`` on a SET row is the explicit CLEAR — written as :data:`serverconfig.CHANNEL_UNSET`
+      (the bot's own ``-1``), never a blank;
+    * anything else is a new channel id — parsed to an int here, or passed through as text when it is
+      not numeric so the ACTION refuses it with a typed reason rather than this route dropping it.
+    """
+    current = channels if isinstance(channels, dict) else {}
+    values: dict[str, Any] = {}
+    for key in server_config.CHANNEL_KEYS:
+        field = f"channels.{key}"
+        if not _form_has(form, field):
+            continue
+        posted = _last_form_value(form, field).strip()
+        old = _channel_int(current.get(key))
+        if posted == server_config.CHANNEL_UNSET_VALUE:
+            if old != server_config.CHANNEL_UNSET:
+                values[key] = server_config.CHANNEL_UNSET
+            continue
+        if posted == "":
+            continue                             # the untouched marker (a set value not among options)
+        try:
+            number = int(posted)
+        except ValueError:
+            values[key] = posted                 # not a number: the action's validation says so
+            continue
+        if number != old:
+            values[key] = number
+    return values
+
+
+def channels_pulse(server, server_name: str,
+                   action_key: str = SERVER_CHANNEL_ACTION_KEY) -> bool:
+    """Whether the channels Save for *server* is still pulsing its last write.
+
+    Read through the SAME store and end rule as the config pulse (``awaiting_change``): ``True`` only
+    while THIS session issued a channels write on *server*, the CONFIG REVISION has not moved, and the
+    expectation is younger than :data:`AWAIT_CHANGE_SECONDS`. A refusal or a failure dropped it
+    already, so a failed Save never pulses while its notice says it failed.
+    """
+    state = _row_state(server)
+    flagged = bool(readmodels.safe(lambda: getattr(server, "maintenance", False), False))
+    return awaiting_change("server", server_name, action_key, state, flagged,
+                           revision=config_revision_for(server))
+
+
+def channels_write_available() -> bool:
+    """Whether the channels action is registered in THIS process (the ``action_available`` rule).
+
+    The console does not offer a control whose only possible answer is the action's own
+    "not available in this installation" refusal: an install without the ``scheduler``
+    plugin ships no channels write, so the page shows the rows read-only and no Save.
+    """
+    return action_available(SERVER_CHANNEL_ACTIONS[0].qualname)
+
+
+def _channels_handler(action: WriteAction):
+    """The route for THE CHANNELS WRITE — one POST, no dialog.
+
+    Same order as the config write (identity, form, scoped resolution, action, notice, redirect), with
+    the same two guarantees and one difference:
+
+    * the body is a set of CHANGED CHANNEL ROWS, diffed here against the server's own
+      ``locals['channels']`` (:func:`channels_values_from_form`) — so an untouched form submits
+      nothing and stays a no-op, and "not set" is an explicit change rather than a blank field;
+    * the expectation is recorded with the THIRD observable (:data:`AWAIT_OBSERVABLE_CONFIG`), the
+      same signal the DCS Save uses;
+    * it 303s back to the SERVER'S OWN PAGE — there is NO rename here, so the target's own name is
+      the redirect (a write that re-rendered itself would re-POST on refresh).
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_servers_path(), status_code=303)
+        server = resolution.server
+        canonical = readmodels.text(readmodels.safe(lambda: getattr(server, "name", ""))) or name
+        local_channels = readmodels.safe(
+            lambda: (getattr(server, "locals", None) or {}).get("channels"), None)
+        values = channels_values_from_form(local_channels, form)
+        # THE EXPECTATION BEFORE THE ACTION, exactly like the DCS config write: the fresh render the
+        # async submit lands on must already find it, and it ends when the config revision moves.
+        remember_awaiting_change("server", canonical, action, _row_state(server), False,
+                                 revision=config_revision_for(server))
+        result = await call_action(action.qualname, ctx, server_name=canonical, channels=values)
+        _remember_notice(request, action, result)
+        if not bool(getattr(result, "success", False)):
+            forget_awaiting_change("server", canonical)
+        return RedirectResponse(_config_back_path(canonical), status_code=303)
+
+    return handle
+
+
+# ---------------------------------------------------------------------------- the coalition write
+# The THIRD face of the Configuration tab: the blue/red coalition passwords, whose cleartext lives in
+# the bot's database and whose write goes through the bot's own ``setCoalitionPassword``. Same shape as
+# the two faces above (identity, form, scoped resolution, action, notice, redirect), with two
+# differences: its READ is an ACTION (the cleartext is not in ``server.settings``, so the page cannot
+# read it in-process), and there is NO pulse (no observable moves for this write).
+
+
+async def coalition_values(request: Request, server_name: str, *, ctx: ActionContext | None = None):
+    """The plaintext coalition passwords for *server_name*, through the READ action — or ``None``.
+
+    The console reads the cleartext with an ACTION, not a bare SELECT, for the repo's \"one home per
+    operation\" reason: the write action already lives in the registry, and a console-side fourth SELECT
+    would be a fourth place that knows the query. It goes through ``read_action`` (the UNGUARDED
+    twin), so a render is never refused by the in-flight guard of a power action running on the same
+    server.
+
+    Returns the action's ``data`` mapping (``{"blue": …, "red": …, "*_hash_set": …}``) on success, and
+    ``None`` for an absent action or any refusal — a page that cannot read renders NO coalition card
+    rather than a card that reads as \"no password\".
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    result = await read_action("get_server_coalitions", ctx, server_name=server_name)
+    if not bool(getattr(result, "success", False)):
+        return None
+    data = getattr(result, "data", None)
+    return data if isinstance(data, dict) else None
+
+
+async def mission_list(request: Request, server_name: str, *, ctx: ActionContext | None = None):
+    """The mission list of *server_name*, through the ``get_mission_list`` READ action — or ``None``.
+
+    The console reads the list with an ACTION, never by touching a mission file, a ``.dcssb`` copy or
+    ``missionList``: the action is the ONE resolver of the newest copy and the ONE reader of the
+    rotation state, so the tab, the download route and every other transport cannot disagree about
+    which mission is "current". It goes through ``read_action`` (the UNGUARDED twin), so a render is
+    never refused by the in-flight guard of a power action running on the same server.
+
+    Returns the action's own RESULT (an ``ActionResult`` / ``MissionListResult``), whose ``success``,
+    ``message`` and ``data`` the caller reads: ``data`` carries ``missions`` / ``listStartIndex`` /
+    ``current`` / ``next`` on success, and a refused result carries the action's own sentence (the
+    server could not be reached, the missions directory is missing) for an EXPLAINED empty state.
+    ``None`` only for an identity the request cannot resolve (the gate refuses that case anyway).
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("get_mission_list", ctx, server_name=server_name)
+
+
+async def download_mission(request: Request, server_name: str, mission, *,
+                           ctx: ActionContext | None = None):
+    """The bytes of ONE mission of *server_name*, through the ``download_mission`` READ action.
+
+    ``mission`` is an INDEX (1-based) or a NAME — NEVER a path: the action resolves the newest copy
+    and validates the resolved path against ``missions_dir`` itself, so the console hands over a
+    named mission and nothing that a request could turn into an arbitrary file read. A READ: it goes
+    through ``read_action`` (unguarded, unaudited) and returns the action's own result — ``content``
+    (bytes) and ``filename`` (the LOGICAL ``.miz`` name) on success, a typed refusal otherwise.
+    ``None`` only for an identity the request cannot resolve.
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("download_mission", ctx, server_name=server_name, mission=mission)
+
+
+async def read_mission_weather(request: Request, server_name: str, mission: str = "",
+                               *, ctx: ActionContext | None = None):
+    """The CURRENT mission's weather of *server_name*, through the ``read_mission_weather`` action.
+
+    ``mission`` is an INDEX or a logical NAME — NEVER a path: the action resolves it against the
+    server's own list, so the console hands over a named mission and nothing a request could turn into
+    an arbitrary file read. Empty reads the mission the server reports as current. A READ: it goes
+    through ``read_action`` (unguarded, unaudited) and returns the action's own result — the
+    dotted-key document and the mission's file NAME on success, a typed refusal otherwise. ``None``
+    only for an identity the request cannot resolve.
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("read_mission_weather", ctx, server_name=server_name, mission=mission)
+
+
+# ------------------------------------------------------------------------ the mission-list writes
+# The FOUR controls of the Missions tab: add (with the file picker), remove, load and upload. Same
+# shape as the config faces above — identity, form, scoped resolution, action, one-shot notice,
+# redirect back to the SERVER'S OWN missions tab — with the ONE difference that this tab posts to
+# four different actions, each with its own capability, so the tab can OMIT a control its viewer may
+# not use (the console's rule: omit, never draw disabled).
+
+
+async def addable_missions(request: Request, server_name: str, *, ctx: ActionContext | None = None):
+    """The ADD picker's list — through the ``get_addable_missions`` READ action, or ``None``.
+
+    The console reads the pickable files with an ACTION, so it never walks ``missions_dir`` itself and
+    never re-implements the exclude rule (already-installed, ``.dcssb``, ``ignore_dirs``): the action
+    is the ONE owner of that rule, shared with ``/mission add``'s autocomplete. Returns the action's
+    result; a refused result carries the action's own sentence for an EXPLAINED empty picker.
+    """
+    if ctx is None:
+        identity = _identity(request)
+        if identity is None:
+            return None
+        ctx = _context(request, identity)
+    return await read_action("get_addable_missions", ctx, server_name=server_name)
+
+
+def mission_write_available(kind: str) -> bool:
+    """Whether the mission action *kind* ('add' / 'delete' / 'load' / 'upload') is registered HERE.
+
+    The ``action_available`` rule: an installation whose ``mission`` plugin is not loaded ships no
+    mission write, so the tab does not offer a control whose only possible answer is the action's own
+    \"not available in this installation\" refusal.
+    """
+    action = next((x for x in MISSION_ACTIONS if x.key == f"mission_{kind}"), None)
+    return action is not None and action_available(action.qualname)
+
+
+def missions_write_available() -> bool:
+    """Whether ANY mission write is registered — the tab draws the write cards only then."""
+    return any(action_available(x.qualname) for x in MISSION_ACTIONS)
+
+
+def _mission_back_path(name: str) -> str:
+    """The Missions tab of *name* — the ONE encoder, so a rename-safe redirect and the tab's own URL agree."""
+    return server_url(name, tab="missions")
+
+
+def _mission_expected_names(values) -> dict[int, str]:
+    """The ``{index: logical name}`` map a mission form posts beside its selection — the STALE-PAGE
+    cross-check the action runs.
+
+    Each value is ``"<1-based index>=<logical name>"`` (see :data:`MISSION_NAME_FIELD`); a value that
+    does not parse, or names no mission, is dropped — it cannot identify a row. An empty map means the
+    request carried no names (an older page, or a crafted POST), and the action then runs no check.
+    """
+    expected: dict[int, str] = {}
+    for value in values:
+        index_text, sep, name = readmodels.text(value).partition("=")
+        if sep and name and index_text.lstrip("-").isdigit():
+            expected[int(index_text)] = name
+    return expected
+
+
+def _mission_expected_name(value) -> str:
+    """The ONE logical name a row form posts (``"<index>=<name>"``) — ``""`` when none is carried."""
+    index_text, sep, name = readmodels.text(value).partition("=")
+    return name if sep else readmodels.text(value)
+
+
+async def _resolve_mission_write(request: Request, form, action: WriteAction):
+    """Shared prologue of the mission writes: identity, scoped target, canonical name.
+
+    Returns ``(ctx, canonical, server)`` on success, or a ``RedirectResponse`` when the target is
+    authorized but unknown (a one-shot notice is stored first) — so every mission write refuses an
+    out-of-scope target with the console's OWN 403 (never disclosing whether the name exists, which
+    RAISES) and an unknown target with a notice + redirect, exactly like the config faces. ``server``
+    is the RESOLVED object, handed on for the reads a route makes per request (the launch dialog's
+    weather resolution reads the server's own node).
+    """
+    identity = _identity(request)
+    if identity is None:
+        _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+        raise HTTPException(status_code=403,
+                            detail=REFUSAL_NO_IDENTITY)
+    name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+    ctx = _context(request, identity)
+    resolution = await ctx.resolve_scoped_server(name)
+    if resolution.status == ServerResolution.NOT_PERMITTED:
+        _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+        raise dashboard_page.out_of_scope_refusal()
+    if not resolution.is_found:
+        result = await audit_action(ctx, ActionResult(success=False, message=resolution.message))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_servers_path(), status_code=303)
+    canonical = readmodels.text(readmodels.safe(lambda: getattr(resolution.server, "name", ""))) or name
+    return ctx, canonical, resolution.server
+
+
+def _mission_add_handler(action: WriteAction):
+    """The route for ``missions.add`` — the picker's path, its two load options, one POST."""
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical,
+            path=readmodels.text(form.get(MISSION_PATH_FIELD)),
+            autostart=_as_bool(_last_form_value(form, MISSION_AUTOSTART_FIELD)),
+            load=_as_bool(_last_form_value(form, MISSION_LOAD_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_delete_handler(action: WriteAction):
+    """The route for ``missions.delete`` — the running-mission refusal is the ACTION's own sentence.
+
+    DESTRUCTIVE, so it refuses a POST that did not come through its dialog: the control that opens it
+    (the API/legacy path — the Missions tab's per-row trashcan was removed) posts to
+    ``<path>/confirm``, that dialog's form carries the one-shot token minted for THIS (server, mission),
+    and a caller who skips the dialog has no token — a confirmation curl can bypass is decoration. The
+    token is spent by the first POST.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        target = readmodels.text(form.get(MISSION_FIELD))
+        if action.confirm and not consume_confirm_token(
+                request, action.path, _mission_target(canonical, target),
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(
+                status_code=403,
+                detail=REFUSAL_CONFIRM_REQUIRED)
+        mission = int(target) if target.isdigit() else target
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
+            expected_name=_mission_expected_name(form.get(MISSION_NAME_FIELD)),
+            delete_from_disk=_as_bool(_last_form_value(form, MISSION_DISK_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_bulk_delete_handler(action: WriteAction):
+    """The route for ``delete_missions`` — the SELECTION rides repeated ``mission`` fields.
+
+    The dialog is the selection (a checkbox per configured mission, ``name="mission"``, each value
+    the 1-based index), so the confirm POST can carry several. DESTRUCTIVE, so it refuses a POST that
+    did not come through its dialog: the token minted for THIS (server, bulk) target must be spent
+    here — a confirmation curl can bypass is decoration. A selection that names no index is handed to
+    the ACTION as an empty list, which answers its own no-op sentence (never an invented one here).
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        if not consume_confirm_token(request, action.path, _mission_target(canonical, "bulk"),
+                                     readmodels.text(form.get(CONFIRM_FIELD))):
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(
+                status_code=403,
+                detail=REFUSAL_CONFIRM_REQUIRED)
+        selected: list[int] = []
+        for value in form.getlist(MISSION_FIELD):
+            text = readmodels.text(value)
+            if text.lstrip("-").isdigit():
+                selected.append(int(text))
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, missions=selected,
+            expected_names=_mission_expected_names(form.getlist(MISSION_NAME_FIELD)),
+            delete_from_disk=_as_bool(_last_form_value(form, MISSION_DISK_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_reorder_handler(action: WriteAction):
+    """The route for ``reorder_mission`` — the row drag and the up/down buttons, one write.
+
+    TWO SHAPES ON ONE PATH. A request carrying the WHOLE new order (:data:`MISSION_ORDER_FIELD`, one
+    repeated value per row, sent by ``static/reorder.js`` on a drop) is answered as JSON so the script
+    can keep or restore the DOM it drew; a request carrying one index and a direction (the up/down
+    buttons) is answered with the redirect every other form takes. Both carry the session's CSRF token
+    in the body — the route's dependency refuses a crafted POST without one.
+
+    The 1-based ``missionList`` index rides the body beside the direction (``up`` / ``down``), both
+    under their own field names, so a control can never be pointed at another mission by editing a
+    URL. The action owns the bounds (an up on the first row is a no-op), the offline-only gate and the
+    permutation check of a dropped order.
+    """
+    async def handle(request: Request):
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        order = [readmodels.text(value) for value in form.getlist(MISSION_ORDER_FIELD)
+                 if readmodels.text(value)]
+        if order:
+            result = await call_action(action.qualname, ctx, audit_result=True,
+                                       server_name=canonical, order=order)
+            _remember_notice(request, action, result)
+            return JSONResponse(
+                {"ok": bool(getattr(result, "success", False)),
+                 "message": readmodels.text(getattr(result, "message", ""))},
+                status_code=200, headers={"Cache-Control": "no-store"})
+        target = readmodels.text(form.get(MISSION_FIELD))
+        mission = int(target) if target.isdigit() else target
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
+            direction=readmodels.text(form.get(MISSION_DIRECTION_FIELD)),
+            expected_name=_mission_expected_name(form.get(MISSION_NAME_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_activate_handler(action: WriteAction):
+    """The route for ``set_active_mission`` — the bar's ``Set as start``, posted directly.
+
+    The control MOVED from the mission row to the selection bar (tick the mission,
+    press the bar), so its target is the TICK — the same selection form the bulk remove uses, sent here
+    by a ``formaction``. The route therefore reads the REPEATED ``mission`` field and serves ONLY a
+    selection of EXACTLY ONE: none names nothing and several names no single mission, so BOTH are
+    refused HERE, in the console's own sentence (:data:`MISSIONS_ACTIVATE_SELECTION_REFUSAL`) — the
+    answer a no-JavaScript submit and a crafted POST both meet, so the path can never depend on
+    ``static/mission-select.js``.
+
+    The 1-based ``missionList`` index and, for the STALE-PAGE cross-check, the chosen row's LOGICAL name
+    ride the body. The bar posts the ``<index>=<logical name>`` map one entry per row, so the name for
+    the CHOSEN index is read off that map (``_mission_expected_names``) — never a single last value,
+    which would be the wrong row. The action owns the resolve, the ``LOADING`` refusal and the
+    ``setStartIndex`` call.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        chosen = [readmodels.text(value) for value in form.getlist(MISSION_FIELD)
+                  if readmodels.text(value)]
+        if len(chosen) != 1:
+            # NONE or SEVERAL: the tick names no single mission. The console's OWN sentence, stored as
+            # the one-shot notice so the honest reason is read on the Missions tab they land back on.
+            result = await audit_action(ctx, ActionResult(
+                success=False, message=MISSIONS_ACTIVATE_SELECTION_REFUSAL))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        target = chosen[0]
+        mission = int(target) if target.isdigit() else target
+        expected_name = ""
+        if target.isdigit():
+            expected_name = _mission_expected_names(
+                form.getlist(MISSION_NAME_FIELD)).get(int(target), "")
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, mission=mission,
+            expected_name=expected_name)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _mission_load_handler(action: WriteAction):
+    """The route for ``missions.load`` — ``load_mission``'s own int parameter is 0-BASED, while the
+    tab SHOWS the 1-based ``missionList`` index, so a numeric target is converted here (a name is
+    passed through and resolved by the action). No other translation: the action owns the load.
+
+    A NON-POSITIVE numeric target is refused HERE, in the 1-based sentence
+    (:func:`mission_index_required`) — converting ``"0"`` to ``-1`` would hand the action an index
+    the operator never typed and answer "Mission index -1 out of range", which is not a message
+    about what they asked for.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, server = resolved
+        target = readmodels.text(form.get(MISSION_FIELD))
+        if target.isdigit() and int(target) < 1:
+            result = await audit_action(ctx, ActionResult(
+                success=False, message=mission_index_required(target)))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        mission = (int(target) - 1) if target.isdigit() else target
+        params: dict[str, Any] = {
+            "server_name": canonical, "mission": mission,
+            "expected_name": _mission_expected_name(form.get(MISSION_NAME_FIELD))}
+        # THE LAUNCH FORM the dialog carries: the weather MODE and the pick it qualifies, parsed by
+        # the ONE shared reader both launch routes use. A row posted straight to this route — the
+        # pre-dialog path, or a crafted POST — states no mode and no pick, and behaves exactly as it
+        # always did.
+        try:
+            params.update(await launch_weather_params(form, action, server))
+        except _WeatherChoiceConflict:
+            _refusal_notice(request, action, REFUSAL_WEATHER_CONFLICT)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        except _WeatherRefusal as refusal:
+            _refusal_notice(request, action, refusal.sentence)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        for option in dialog_options(action):
+            try:
+                params[option.field] = option_value(option, form)
+            except ValueError as ex:
+                _refusal_notice(request, action, str(ex))
+                return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        # THE CONTRADICTORY LAUNCH, the second shape of the same rule: a pick stated while the
+        # extensions box is OFF is refused BEFORE the action runs — the console's own wrapped
+        # sentence, exactly as the conflict above is. The action's own guard stays the backstop for
+        # callers with no request (direct / REST / MCP). Both inputs are parsed by now, so the
+        # condition is the ONE predicate the action guards on, never a second copy.
+        refusal = launch_weather_refusal(action, params)
+        if refusal is not None:
+            _refusal_notice(request, action, refusal)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        result = await call_action(action.qualname, ctx, audit_result=True, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+#: The multipart envelope a one-file upload carries around the file itself: the boundary lines, the
+#: part headers and the small text fields. Bounded far above the real thing (a few hundred bytes) and
+#: far below any real ``.miz``, so the declared-body check can never refuse a file that FITS.
+_MULTIPART_ENVELOPE_BYTES = 64 * 1024
+
+#: The chunk the upload is read in, so the cap is enforced AS the bytes arrive.
+_UPLOAD_CHUNK = 64 * 1024
+
+
+async def _read_upload_capped(upload: Any, limit: int) -> bytes | None:
+    """Read an ``UploadFile`` in chunks, returning ``None`` the moment it crosses *limit*.
+
+    The accumulated buffer never exceeds ``limit + one chunk``, so an oversized upload cannot make
+    the console hold it in memory first — the read STOPS at the failure instead of completing and
+    being measured afterwards.
+    """
+    buffer = bytearray()
+    while True:
+        piece = await upload.read(_UPLOAD_CHUNK)
+        if not piece:
+            return bytes(buffer)
+        buffer.extend(piece)
+        if len(buffer) > limit:
+            return None
+
+
+def _mission_upload_handler(action: WriteAction):
+    """The route for ``missions.upload`` — a MULTIPART form (the file + its two load options).
+
+    The console hands the file to the ``upload_mission`` ACTION as BYTES (the ``web`` transport may
+    never name a path), so the action's traversal gate, size cap and ONE writer all apply unchanged.
+    The upload's two load options (``autostart`` = load at next start, ``load`` = load now) ride the
+    same POST and are handed to the action, which owns the load handling.
+
+    THE CAP IS REFUSED AS THE SIZE CROSSES IT, never after the whole file has been buffered:
+
+    1. the request's DECLARED ``Content-Length`` is checked BEFORE the body is parsed — a body that
+       cannot fit the cap (plus the multipart envelope) is refused with a 413 without the console
+       ever reading it;
+    2. the parsed part's own size (``UploadFile.size``, the bytes Starlette counted for the part) is
+       checked before the file is read at all — an oversized file is refused, never ``read()``;
+    3. the bytes are then read in CHUNKS with a running total, so a body that lied about its length
+       (or arrived chunked, with no ``Content-Length``) is refused the moment the total crosses the
+       cap instead of being accumulated whole first.
+
+    Every cap refusal is the ACTION's own sentence (:func:`_upload_cap_message`), so an operator
+    cannot tell which of the two surfaces refused.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        declared_body = request.headers.get("content-length")
+        if declared_body and declared_body.isdigit() \
+                and int(declared_body) > MISSIONS_UPLOAD_MAX_BYTES + _MULTIPART_ENVELOPE_BYTES:
+            # The BODY alone cannot fit the cap: refuse BEFORE ``request.form()`` buffers it. No
+            # server name is known yet (it is a field IN the body), so this is the one mission
+            # refusal that cannot be a notice on the tab.
+            raise HTTPException(status_code=413, detail=_upload_cap_message())
+        form = await request.form()
+        resolved = await _resolve_mission_write(request, form, action)
+        if isinstance(resolved, RedirectResponse):
+            return resolved
+        ctx, canonical, _server = resolved
+        upload = form.get(MISSION_FILE_FIELD)
+        is_file = upload is not None and not isinstance(upload, str)
+        declared_size = getattr(upload, "size", None) if is_file else None
+        data: bytes | None = None
+        over_cap = False
+        if is_file:
+            if isinstance(declared_size, int) and declared_size > MISSIONS_UPLOAD_MAX_BYTES:
+                # REFUSE BY WHAT IS DECLARED: an oversized part is never read into memory.
+                over_cap = True
+            else:
+                data = await _read_upload_capped(upload, MISSIONS_UPLOAD_MAX_BYTES)
+                over_cap = data is None
+        if over_cap:
+            result = await audit_action(ctx, ActionResult(
+                success=False, message=_upload_cap_message()))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        if not is_file:
+            # NO file part at all is the console's own "required" sentence; an EMPTY file is handed
+            # to the action, which owns the empty-content refusal (one sentence, one owner).
+            result = await audit_action(ctx, ActionResult(
+                success=False, message="A mission file (.miz) is required to upload."))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_mission_back_path(canonical), status_code=303)
+        filename = readmodels.text(getattr(upload, "filename", "") or "")
+        result = await call_action(
+            action.qualname, ctx, audit_result=True, server_name=canonical, name=filename,
+            source=bytes(data or b""),
+            autostart=_as_bool(_last_form_value(form, MISSION_AUTOSTART_FIELD)),
+            load=_as_bool(_last_form_value(form, MISSION_LOAD_FIELD)))
+        _remember_notice(request, action, result)
+        return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+    return handle
+
+
+# -------------------------------------------- the mission DIALOGS (add / remove), one component
+# The two mission controls reached through ``confirm.html`` (``MISSION_DIALOG_KEYS``). BOTH use the
+# console's ONE dialog component and the SAME prologue as the mission writes: identity, scoped
+# resolution, the action's own refusals. The ADD dialog carries the file picker AND the load options;
+# the REMOVE dialog carries the "also delete the file?" checkbox and, being destructive, a one-shot
+# confirm token.
+
+#: The states ``load_mission`` accepts — the ONLY states in which the ADD dialog's "load it now" box
+#: is offered, the SAME gate the tab's per-row Load control uses.
+MISSION_LOAD_STATES: tuple[str, ...] = ("RUNNING", "PAUSED", "STOPPED")
+
+#: The state in which the bot's ``loadMission`` ALSO moves the rotation pointer — its ``STOPPED``
+#: branch sets ``listStartIndex``/``current`` to the loaded mission and STARTS the server
+#: (``core/data/impl/serverimpl.py:1384-1388``). In ``RUNNING``/``PAUSED`` it merely sends the load
+#: (``startMission``) and leaves the start index alone. Read here so the tab can word its per-row
+#: ``Load`` control honestly IN THE STATE THE ROW IS RENDERED IN: at ``STOPPED`` a load becomes the
+#: start mission; while the server is up it does not.
+MISSION_LOAD_SETS_START_STATES: tuple[str, ...] = ("STOPPED",)
+
+
+def _mission_target(server_name: str, mission) -> str:
+    """The confirm store's key for a mission write: the server AND the mission, as one string.
+
+    A server's key is its name; a mission's must carry the mission too, or two pending removals on one
+    server (two rows, two dialogs) would share a single token — and spending one would refuse the
+    other.
+    """
+    return f"{server_name}|{readmodels.text(mission)}"
+
+
+def mission_load_allowed(request: Request, server: Any) -> bool:
+    """Whether the ADD dialog may offer the "load it now" box for *server*.
+
+    The SAME predicate ``_missions_write_context`` runs for the tab's Load control: the capability,
+    the action being registered here, and the state ``load_mission`` accepts. Kept beside the dialog
+    so the box and the control cannot disagree about when a load may be asked for.
+    """
+    roles = permissions.role_names_for(request)
+    manager = permissions.manages_console(request)
+    state = state_of(getattr(server, "status", None))
+    return (permissions.allows(MISSIONS_LOAD_CAPABILITY, roles, manager=manager)
+            and mission_write_available("load")
+            and state in MISSION_LOAD_STATES)
+
+
+async def _mission_picker(request: Request, server_name: str, ctx: ActionContext) -> list[dict]:
+    """The ADD dialog's picker options — the UNCONFIGURED files, read through the action (never the
+    request), each as ``{"value": path, "label": path}``."""
+    found = await addable_missions(request, server_name, ctx=ctx)
+    options: list[dict] = []
+    if found is None or not bool(getattr(found, "success", False)):
+        return options
+    data = getattr(found, "data", None)
+    for entry in (data.get("missions") or [] if isinstance(data, dict) else []):
+        if not isinstance(entry, dict):
+            continue
+        path = readmodels.text(entry.get("path"))
+        if path:
+            options.append({"value": path, "label": path})
+    return options
+
+
+async def _mission_label_for(request: Request, server_name: str, target: Any,
+                             ctx: ActionContext) -> str:
+    """The logical name of the mission *target* (a 1-based index or a name) names — or ``\"\"``.
+
+    Read through the ``get_mission_list`` ACTION, so the dialog's copy never trusts a name the browser
+    sent: the mission named in the warning is the server's own.
+    """
+    result = await mission_list(request, server_name, ctx=ctx)
+    if result is None or not bool(getattr(result, "success", False)):
+        return ""
+    data = getattr(result, "data", None)
+    entries = data.get("missions") if isinstance(data, dict) else None
+    wanted = readmodels.text(target).strip().casefold()
+    for entry in (entries or []):
+        if not isinstance(entry, dict):
+            continue
+        name = readmodels.text(entry.get("name"))
+        index = readmodels.text(entry.get("index"))
+        if index == wanted or name.casefold() == wanted \
+                or os.path.basename(name).casefold() == wanted:
+            return name
+    return ""
+
+
+def _mission_selected_indexes(values) -> list[int]:
+    """The 1-based mission indexes a selection POST carried, in order, de-duplicated.
+
+    The tab's selection is a repeated ``mission`` field (one per ticked row); the dialog opener reads
+    the SAME field to show what was chosen. A value that is not a positive integer names nothing and
+    is dropped — the action owns the range check, and an empty selection is an honest no-op.
+    """
+    selected: list[int] = []
+    for value in values:
+        text = readmodels.text(value)
+        if text.lstrip("-").isdigit():
+            index = int(text)
+            if index >= 1 and index not in selected:
+                selected.append(index)
+    return selected
+
+
+async def _mission_selection(request: Request, server_name: str, indexes: list[int],
+                             ctx: ActionContext) -> tuple[list[str], str]:
+    """The CHOSEN missions as ``(names, running_name)`` — resolved through the read action.
+
+    ``names`` are the LOGICAL names the server's own list puts at each chosen 1-based index, in the
+    selection's order (never a name the browser sent), so the dialog's read-only list is the server's
+    truth and not a posting's. An index the list does not hold is shown as its ``#index`` so the
+    dialog never silently drops a choice. ``running_name`` is the running (loaded) mission's name
+    when it is among the chosen ones, else ``""`` — the dialog states that it cannot be removed.
+    ``([], "")`` when the list cannot be read (the dialog then carries only the box + token).
+    """
+    result = await mission_list(request, server_name, ctx=ctx)
+    if result is None or not bool(getattr(result, "success", False)):
+        return [], ""
+    data = getattr(result, "data", None)
+    entries = data.get("missions") if isinstance(data, dict) else None
+    by_index = {int(entry["index"]): entry for entry in (entries or [])
+                if isinstance(entry, dict) and entry.get("index") is not None}
+    names: list[str] = []
+    running = ""
+    for index in indexes:
+        entry = by_index.get(index)
+        if entry is None:
+            names.append(f"#{index}")
+            continue
+        name = readmodels.text(entry.get("name"))
+        names.append(name)
+        if entry.get("current"):
+            running = name
+    return names, running
+
+
+async def mission_confirm_context(request: Request, action: WriteAction, server: Any,
+                                  server_name: str, form, ctx: ActionContext,
+                                  weather_fields: tuple[dict, ...] = ()) -> dict:
+    """Everything a MISSION dialog's page reads — the fourth sibling of :func:`confirm_context`.
+
+    Same discipline, and the differences are the whole point of these two dialogs:
+
+    * the ADD dialog (:attr:`mission_add`) renders the PICKER (the ``get_addable_missions`` READ action,
+      never the request) and the load pair (``action.options``) — so choosing a mission and confirming
+      happen in ONE dialog, with the load/autostart choice owned by it. The picker and the load pair sit
+      in the BODY, beside what they modify: they are form-associated to the footer's form, so the
+      footer keeps exactly one cancel and one primary — the SAME shape the removal dialog has (a
+      field drawn in the footer's form ahead of the button pushed the primary out of line). It mints NO
+      token (adding is not destructive) and wears the OPTIONS chrome, like Startup's dialog;
+    * the REMOVE dialog (:attr:`mission_delete`) names the mission (read through the ``get_mission_list``
+      action, never a posted name) and carries the "also delete the file?" checkbox
+      (``action.option``). It is DESTRUCTIVE, so it mints the one-shot token its own route refuses a
+      POST without, and wears the confirmation chrome.
+
+    ``back`` is the server's Missions tab (``_mission_back_path``), so the dialog's Cancel and its Esc
+    return there — the mission writes always redirect to that tab, so this is the one place to go back
+    to.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = html.escape(str(server_name))
+    back = _mission_back_path(server_name)
+    inputs: list[dict] = []
+    # THE DIALOG BODY'S OWN FIELDS: the fields rendered in ``.bd`` rather than the footer form —
+    # the read-only selection ``list`` and the "delete the files from disk?" box that belongs beside
+    # it. They are form-associated to the footer's form (``form="dlg-form"``), so the body carries the
+    # choice and the footer still carries exactly one primary and one cancel. Empty for every other
+    # dialog, whose markup is therefore unchanged.
+    body_inputs: list[dict] = []
+    #: the button's own words: the action's, except for the bulk dialog, whose label carries the COUNT
+    #: so the label and the read-only list can never disagree.
+    go = _sentence(action.go)
+    hidden: list[tuple[str, str]] = [("server", server_name)]
+    if action.key == "mission_add":
+        picker = await _mission_picker(request, server_name, ctx)
+        # THE PICKER AND THE LOAD PAIR LIVE IN THE BODY: drawn in the dialog's `.bd` and
+        # form-associated to the footer's `dlg-form` (the template's `field_input(field, 'dlg-form')`),
+        # so the footer carries exactly one cancel and one primary — the options are NOT posted ahead of
+        # the primary button, which is what pushed the primary out of the footer row's line.
+        body_inputs.append({"type": "select", "name": MISSION_PATH_FIELD, "id": "path-dialog",
+                            "label": i18n._("Mission file already on this server"), "options": picker,
+                            "required": True, "max": 0, "checked": False, "value": "",
+                            "help": i18n._("Only files NOT already in the rotation are offered.")})
+        options = [option for option in action.options
+                   if option.field != MISSION_LOAD_FIELD or mission_load_allowed(request, server)]
+        body_inputs.extend(_option_fields(options))
+        mission_label = ""
+        heading = _sentence(i18n._("Add a mission to {server}?"), server=label)
+        target = label
+        running_note = None
+        token_target = _mission_target(server_name, form.get(MISSION_FIELD))
+    elif action.key == "mission_delete_bulk":
+        # THE DIALOG IS A CONFIRMATION, NOT THE SELECTION: the selection is made in the LIST
+        # (a checkbox per row) and rides the POST as repeated ``mission`` fields. The dialog shows the
+        # CHOSEN missions READ-ONLY (the new ``list`` input shape, the names the server's own list
+        # resolves, never a posting) and the "delete the files from disk?" box beside it — the ONE
+        # decision this dialog asks. The selection travels on as hidden fields, because the read-only
+        # list is presentation and the write reads the fields.
+        selected = _mission_selected_indexes(form.getlist(MISSION_FIELD))
+        names, running = await _mission_selection(request, server_name, selected, ctx)
+        body_inputs.append({"type": "list", "name": "", "value": "", "id": "", "label": "",
+                            "max": 0, "required": False, "checked": False, "help": "",
+                            "placeholder": "", "lines": tuple(names)})
+        if action.option is not None:
+            body_inputs.extend(_option_fields([action.option]))
+        for index in selected:
+            hidden.append((MISSION_FIELD, str(index)))
+        # THE STALE-PAGE MAP: forward the ``<index>=<logical name>`` pair the TAB posted for every
+        # row, so the bulk route can refuse a selection whose list changed between render and POST.
+        for value in form.getlist(MISSION_NAME_FIELD):
+            hidden.append((MISSION_NAME_FIELD, readmodels.text(value)))
+        mission_label = ""
+        count = len(selected)
+        if count == 1 and names:
+            heading = _sentence(i18n._("Remove {mission} from the rotation?"),
+                                mission=html.escape(names[0]))
+            go = _sentence(i18n._("Remove mission"))
+        else:
+            heading = _sentence(i18n._("Remove {count} missions from {server}?"),
+                                count=count, server=label)
+            go = (_sentence(i18n._("Remove {count} missions"), count=count) if count
+                  else _sentence(i18n._("Remove missions")))
+        target = label
+        running_note = (_sentence(i18n._("<b>The running mission ({mission}) cannot be removed.</b>"),
+                                  mission=html.escape(running))
+                        if running else None)
+        token_target = _mission_target(server_name, "bulk")
+    elif action.key == "mission_load":
+        # LOAD's dialog carries the LAUNCH FORM — the SAME weather modes, file pick, preset pick and
+        # temporary fields Startup's dialog does (``WEATHER_PRESET_SELECT`` / ``WriteAction.weather``),
+        # drawn per request beside the row's own mission. Like ADD it is non-destructive and only
+        # carries an option, so it mints no token and wears the OPTIONS chrome.
+        mission = form.get(MISSION_FIELD)
+        hidden.append((MISSION_FIELD, readmodels.text(mission)))
+        # THE STALE-PAGE CROSS-CHECK for LOAD: the row posts the mission's LOGICAL name beside its
+        # index, and it must travel THROUGH this dialog so the load route can refuse a page whose
+        # list changed between the tab render and the confirm POST — the SAME guard the row posts
+        # today.
+        hidden.append((MISSION_NAME_FIELD, readmodels.text(form.get(MISSION_NAME_FIELD))))
+        mission_label = html.escape(await _mission_label_for(request, server_name, mission, ctx))
+        # THE LAUNCH FORM's own fields (the weather mode, the file pick and the preset pick) ride the
+        # FOOTER form; the temporary weather fields are a BODY fieldset (``dialog.temporary``),
+        # because its rows are several lines tall and the two ways out stay the dialog's last row.
+        inputs.extend(_dialog_inputs(request, action, weather_fields))
+        heading = _sentence(i18n._("Load {mission} on {server}?"),
+                            mission=mission_label or readmodels.text(mission), server=label)
+        target = mission_label or readmodels.text(mission)
+        running_note = None
+        token_target = _mission_target(server_name, form.get(MISSION_FIELD))
+    else:
+        mission = form.get(MISSION_FIELD)
+        hidden.append((MISSION_FIELD, readmodels.text(mission)))
+        # THE STALE-PAGE CROSS-CHECK for the single REMOVE: the row control posts the mission's LOGICAL
+        # name beside its index on the TAB, and it must travel THROUGH this dialog (the row form posts
+        # HERE, and this dialog's form posts the write) so the delete route can refuse a page whose
+        # list changed between the tab render and the confirm POST — the SAME guard the bulk dialog
+        # and the reorder/load rows carry.
+        hidden.append((MISSION_NAME_FIELD, readmodels.text(form.get(MISSION_NAME_FIELD))))
+        mission_label = html.escape(await _mission_label_for(request, server_name, mission, ctx))
+        if action.option is not None:
+            inputs.extend(_option_fields([action.option]))
+        heading = _sentence(i18n._("Remove {mission} from the rotation?"), mission=mission_label)
+        target = mission_label or readmodels.text(mission)
+        running_note = None
+        token_target = _mission_target(server_name, form.get(MISSION_FIELD))
+    escape_values = {"server": label, "mission": mission_label}
+    token = mint_confirm_token(request, action.path, token_target) if action.confirm else ""
+    dialog = {
+        "heading": heading,
+        "warning": _sentence(action.warning, **escape_values) if action.warning else None,
+        "warning_note": running_note,
+        "detail": _sentence(action.detail, **escape_values),
+        "detail_notes": (),
+        "go": go,
+        "go_title": _sentence(action.go_title, **escape_values),
+        "path": action.path,
+        "server": server_name,
+        "target": target,
+        "hidden": tuple(hidden),
+        "inputs": tuple(inputs),
+        "body_inputs": tuple(body_inputs),
+        #: THE TEMPORARY PRESET'S FIELDSET, on the SAME launch form: the weather controls the one
+        #: field table declares, or ``None`` for every mission dialog that does not declare
+        #: ``weather`` (ADD and the removals). Its choice controls are filled from the SAME node the
+        #: pick reads. A BODY fieldset (form-associated to the footer's form), so its several-lines-tall
+        #: rows do not push the two ways out off the last row.
+        "temporary": await _temporary_fieldset(
+            action, server, server_name=server_name,
+            mission=_mission_expected_name(form.get(MISSION_NAME_FIELD)),
+            language=i18n.resolve_language(request),
+            loading=i18n.translate(request, PRESET_READ_LOADING),
+            read=i18n.translate(request, PRESET_READ_DONE),
+            error=i18n.translate(request, PRESET_READ_FAILED)),
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        #: THE DIALOG WAITS FOR ITS WRITE (``data-await``): the page every mission dialog returns to
+        #: is the Missions tab, and its ROW SET is what the write changed — a dialog that navigated on
+        #: the press would render the list as it stood BEFORE the add, the removal or the load.
+        "await": True,
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — confirm",
+        "page_title": heading,
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                               current=_servers_path(),
+                                               manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, back),
+        "dialog": dialog,
+    }
+
+
+def _mission_confirm_handler(action: WriteAction):
+    """The route that RENDERS a MISSION action's dialog (``confirm.html``). It changes nothing.
+
+    The twin of :func:`_confirm_handler` for the two mission controls that go through their dialog.
+    The target is resolved HERE through the same scoped seam the action uses, with the same refusals —
+    a name outside the caller's scope is the console's 403, the SAME answer as a name that does not
+    exist, and a name that genuinely does not exist is an honest 404.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            raise HTTPException(status_code=404, detail=f"No server named '{name}'.")
+        canonical = readmodels.text(readmodels.safe(
+            lambda: getattr(resolution.server, "name", ""))) or name
+        # THE LOAD DIALOG'S WEATHER PICK is drawn from the RESOLVED server's own node, per request:
+        # its options are that node's named presets, not a declaration's static list. Only LOAD
+        # declares the pick among the mission dialogs; every other dialog passes nothing and its
+        # markup is unchanged.
+        weather_fields = await _weather_fields(request, resolution.server) \
+            if action.key == "mission_load" else ()
+        dialog = await mission_confirm_context(request, action, resolution.server, canonical, form,
+                                               ctx, weather_fields)
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def coalition_values_from_form(current, form) -> dict:
+    """The CHANGED coalition passwords a submitted form carries — and ONLY those.
+
+    ``current`` is what :func:`coalition_values` read for the page (the cleartext the field was rendered
+    with, and whether each hash is set); each row's submitted value is diffed against it, so an
+    untouched form submits nothing and the action is handed exactly the changed coalitions. The rules,
+    stated so the template and this cannot disagree:
+
+    * a row the form does not STATE is untouched;
+    * an EMPTIED field that shipped HOLDING a cleartext is the explicit clear (``None``) — the same
+      way the DCS server password is removed;
+    * an EMPTIED field that shipped EMPTY does NOTHING, so
+      a password the bot knows only as a hash (its field renders empty) cannot be wiped by a blank;
+    * a value equal to the cleartext the page showed is unchanged;
+    * anything else is the new password, submitted verbatim.
+    """
+    current = current if isinstance(current, dict) else {}
+    values: dict[str, Any] = {}
+    for token in server_config.COALITION_TOKENS:
+        key = f"{token}Password"
+        known = current.get(token)
+        known_text = "" if known is None else str(known)
+        if not _form_has(form, key):
+            continue                                  # not stated by this form: unchanged
+        posted = _last_form_value(form, key)
+        if not posted.strip():
+            if known_text.strip():
+                values[key] = None                    # emptied a field that held a value: the clear
+            continue                                  # a field that shipped empty: blank is a no-op
+        if known_text and posted == known_text:
+            continue                                  # the value the page showed: unchanged
+        values[key] = posted
+    return values
+
+
+def coalitions_write_available() -> bool:
+    """Whether the coalition action is registered in THIS process (the ``action_available`` rule)."""
+    return action_available(SERVER_COALITION_ACTIONS[0].qualname)
+
+
+def _coalition_handler(action: WriteAction):
+    """The route for THE COALITION WRITE — one POST, no dialog.
+
+    Same order as the channels write (identity, form, scoped resolution, action, notice, redirect),
+    with the same two guarantees and one difference: the body is a set of CHANGED coalition passwords,
+    diffed here against what the page read (:func:`coalition_values_from_form`), so an untouched form
+    submits nothing; and NO pulse is recorded — no observable moves for this write, so the one-shot
+    notice carries the outcome alone.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get(SERVER_CONFIG_FIELD))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return RedirectResponse(_servers_path(), status_code=303)
+        server = resolution.server
+        canonical = readmodels.text(readmodels.safe(lambda: getattr(server, "name", ""))) or name
+        current = await coalition_values(request, canonical, ctx=ctx)
+        values = coalition_values_from_form(current, form)
+        result = await call_action(action.qualname, ctx, server_name=canonical, values=values)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_config_back_path(canonical), status_code=303)
+
+    return handle
+
+
+def _handler(action: WriteAction):
+    """The route for one write. One implementation, so every write is refused the same way."""
+
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            # The gate let the request in, so this is a resolver that answered without an identity
+            # (a role resolver that cannot see one). Refuse rather than act as anybody. The refusal
+            # is STORED for the page the person lands on: the write was submitted in the
+            # background, so an exception alone would be seen by nobody.
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        if action.confirm and not consume_confirm_token(request, action.path, name,
+                                                        readmodels.text(form.get(CONFIRM_FIELD))):
+            # A confirm-required write REFUSES a POST that did not come through its dialog:
+            # the row's control posts to the dialog, the dialog's form carries the one-shot
+            # token minted for this target, and a caller who skips the dialog has no token. A
+            # confirmation curl can bypass is decoration, so this refusal is the control.
+            #
+            # The token is spent by the first POST, so the second takes this branch — and since the
+            # dialog closes on press, the person is looking at the page they came from rather than at
+            # this answer. The one-shot notice is what makes the refusal visible (see :func:`_refusal_notice`).
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(
+                status_code=403,
+                detail=REFUSAL_CONFIRM_REQUIRED)
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            # The console's refusal for a named target outside the caller's scope. With the scoped
+            # source this route feeds the seam, an out-of-scope name is simply absent from the bus,
+            # so the answer here is the SAME as for a name that does not exist (that is the point —
+            # a hoster cannot enumerate the fleet by probing names). The branch stays because the
+            # ANSWER belongs to the route, not to the seam: a caller that ever hands it a broader
+            # view must get the console's refusal rather than an empty message.
+            #
+            # This refusal happens BEFORE any action, so it carries no ActionResult and is NOT part
+            # of the audit step below — the trail records the ACTION's own refusals (one entry per
+            # attempt), and a scope refusal is the route's answer. The
+            # notice names no target (the wording discloses nothing), and it is stored so a
+            # background submit's refusal is SEEN.
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        # the row's status AS SUBMITTED, and the flag AS SUBMITTED, read BEFORE the
+        # action runs: the action may change them in the same call (pause flips the status immediately,
+        # ``set_maintenance`` flips the flag immediately) while a DCS startup leaves the status
+        # SHUTDOWN for about a minute — and it is that later change, the glyph swap, that the pulse
+        # waits for. WHICH of the two the expectation watches is the ACTION's own declaration
+        # (``WriteAction.observable``), so a power action waits on the status and the flag pair waits
+        # on the flag: a status-keyed expectation for *Maintenance* was never satisfied (the status
+        # never moves).
+        submitted = _row_state(resolution.server) if resolution.is_found else ""
+        submitted_flag = bool(readmodels.safe(
+            lambda: getattr(resolution.server, "maintenance", False), False)) if resolution.is_found \
+            else False
+        # THE EXPECTATION IS RECORDED **BEFORE** THE ACTION RUNS, and that ordering is the
+        # point: ``static/submit.js`` hands the page over the moment it fires the POST, so the fresh
+        # render is issued at the same time as this request and must already find the expectation —
+        # there is no cookie round-trip to wait for any more, because the store is process-side. A
+        # write that then fails or is refused drops it again below, so the pulse never outlives a
+        # failed write's notice.
+        if resolution.is_found and action.observable != AWAIT_OBSERVABLE_NONE:
+            remember_awaiting_change("server", name, action, submitted, submitted_flag)
+        # THE COMMAND'S OWN OPTION, when the action declares one: Shutdown's and
+        # Startup's ``maintenance`` box, parsed out of the same body and handed to the action as its
+        # own parameter — one name for the field and the parameter (``NodeOption.field``), so the
+        # route cannot post one thing and the action read another. A body stating an option this
+        # console never sends is refused (never guessed at), exactly as the node routes do.
+        params: dict[str, Any] = {"server_name": name}
+        # THE DIALOG'S OWN FIELDS, when the control declares any: the TEXT field (a message) and the
+        # SELECT (a named choice), each ONE name for the form field and the action's parameter, so
+        # the route cannot post one thing and the action read another. The values travel
+        # UNVALIDATED — the ACTION owns its allow-list (``message_server``), so a body stating
+        # something else meets its typed refusal rather than this route guessing at it.
+        if action.field:
+            params[action.field] = readmodels.text(form.get(action.field))
+        if action.weather:
+            # THE WEATHER MODE AND THE PICK IT QUALIFIES — the ONE shared reader the Missions tab's
+            # Load route uses too, so the two dialogs cannot parse differently. A mode the POST
+            # states with a pick that cannot be resolved is REFUSED here, in the console's own
+            # sentence: it is never launched applying nothing.
+            try:
+                params.update(await launch_weather_params(form, action, resolution.server
+                                                          if resolution.is_found else None))
+            except _WeatherChoiceConflict:
+                forget_awaiting_change("server", name)
+                _refusal_notice(request, action, REFUSAL_WEATHER_CONFLICT)
+                raise HTTPException(status_code=400, detail=REFUSAL_WEATHER_CONFLICT)
+            except _WeatherRefusal as refusal:
+                forget_awaiting_change("server", name)
+                _refusal_notice(request, action, refusal.sentence)
+                raise HTTPException(status_code=400, detail=refusal.sentence)
+        else:
+            # A select-bearing dialog with NO weather pick: its select is the action's own value
+            # (``chat``/``popup`` and their coalition), read under the DECLARATION's field name.
+            params.update(select_params(form, action))
+        # THE CONTROL'S OWN PARAMETERS, applied AFTER the body and never before it: the mode one of
+        # the two message controls writes in is the DECLARATION's, so a crafted POST naming the other
+        # one changes nothing.
+        params.update(dict(action.constants))
+        # THE ACTOR'S OWN NAME, when the action is told who is acting: the label an in-game message
+        # appears to come from, read off the identity and never from the body.
+        if action.sender:
+            params["sender"] = _sender(identity)
+        # THE CONTROL'S OWN OPTIONS — every checkbox its dialog drew, in the order it drew them, each
+        # parsed and passed under the DECLARATION's field name (``maintenance``, ``modify_mission``,
+        # ``use_orig``). Looping over :func:`dialog_options` rather than reading ``action.option`` is
+        # what keeps a control that declares SEVERAL boxes from having one of them silently dropped.
+        for option in dialog_options(action):
+            try:
+                params[option.field] = option_value(option, form)
+            except ValueError as ex:
+                forget_awaiting_change("server", name)   # nothing will run: no expectation to keep
+                raise HTTPException(status_code=400, detail=str(ex))
+        # THE CONTRADICTORY LAUNCH, one box over from the conflict above: a weather pick stated while
+        # the extensions box is OFF is refused BEFORE the action runs. Both of its inputs (the pick
+        # and ``modify_mission``) are parsed by now, so the condition is the ONE predicate the action
+        # guards on (:func:`launch_weather_refusal`) — never a second copy — and the refusal is the
+        # console's own wrapped sentence, raised exactly as the conflict is.
+        refusal = launch_weather_refusal(action, params)
+        if refusal is not None:
+            forget_awaiting_change("server", name)   # nothing will run: no expectation to keep
+            _refusal_notice(request, action, refusal)
+            raise HTTPException(status_code=400, detail=refusal)
+        if resolution.is_found:
+            # ``audit_result`` is the DECLARATION's own fact (``WriteAction.self_audited``): True for
+            # the plugin's power/mission actions, which do not write a trail themselves and which
+            # this route may not modify — the SEAM writes the ONE entry then, with the resolved
+            # target as the server (``core/actions.call_action``), so the log never claims a trail
+            # that does not exist. False for an action this repo owns (``message_server``), which
+            # writes its own entry per attempt; auditing it here as well would write two.
+            result = await call_action(action.qualname, ctx,
+                                       audit_result=not action.self_audited, **params)
+        else:
+            # The request WAS authorized; the name genuinely does not exist. The honest answer is
+            # the seam's typed refusal, rendered inline — never a 404 and never a silent success.
+            # No action ran, so the trail is written here (one entry per ATTEMPT) — and it
+            # never changes the outcome: a success stays a success even when the trail could not be
+            # written.
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+        _remember_notice(request, action, result)
+        # ...AND A WRITE THAT DID NOT SUCCEED DROPS IT AT ONCE. The pulse is "you
+        # started something and it has not moved yet" — a FAILED or REFUSED write has nothing to wait
+        # for and must not blink while the notice beside it says it failed. A SUCCESSFUL write keeps
+        # the entry recorded above (the observable it names is what ends it: the glyph swap, or the
+        # ceiling — so only the control that was pressed pulses).
+        if not (resolution.is_found and bool(getattr(result, "success", False))):
+            forget_awaiting_change("server", name)
+        # 303 back to the PAGE the control was rendered on — its own constant when the form carried a
+        # known one, else the section default, with the dashboard's active tab re-attached so a write
+        # pressed on the Players tab lands back on the Players tab and not on the default one. A POST
+        # that re-rendered a table would re-POST on refresh; the page re-reads its data, so it shows
+        # the state the action produced.
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _servers_path()),
+            status_code=303)
+
+    return handle
+
+
+def _confirm_handler(action: WriteAction):
+    """The route that RENDERS one action's dialog. It changes nothing.
+
+    TWO readers: a DESTRUCTIVE action's confirmation (Restart/Shutdown/Stop) and the FORM
+    that collects a non-destructive action's OPTION (Startup). Both resolve the target here through
+    the same scoped seam the action uses, and the numbers in the warning come from the resolved
+    object: ``{players}`` is read off the live server, never echoed from the request.
+    Only ``action.confirm`` mints the one-shot token — an option-only dialog has nothing for the
+    action's route to refuse, and a token nothing spends is the dead knob the console forbids.
+
+    THE REFUSALS ARE THE ACTION'S OWN, so a person cannot learn about a server by comparing the two
+    pages: a name outside the caller's scope is the console's 403 — the SAME answer
+    as a name that does not exist — and a name that genuinely does not exist is the honest 404 an
+    unscoped caller gets from ``resolve_scoped_server``.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            raise HTTPException(status_code=404, detail=f"No server named '{name}'.")
+        token = mint_confirm_token(request, action.path, name) if action.confirm else ""
+        # the page the row was rendered on travels THROUGH the dialog: the row
+        # posts here with the origin hidden field, and the dialog's own form re-emits it so the
+        # action's route can 303 back there. Validated here too, so the dialog never echoes an
+        # unknown page onward — but the route re-checks, because this field is attacker-modifiable.
+        # The TAB rides beside it (the dashboard's tables share one path) and is re-attached to the
+        # dialog's Cancel link and to its form by :func:`tabbed_origin`.
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _servers_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        # THE LAUNCH DIALOG'S WEATHER PICK is drawn from the RESOLVED server's own node, per request:
+        # its options are that node's named presets, not a declaration's static list. Only Startup
+        # declares the pick (``SERVER_ACTIONS``); every other dialog passes nothing and its markup is
+        # unchanged.
+        # THE STARTUP DIALOG'S MISSION GATE: a server that names no current mission has nothing to
+        # apply a preset to, so the weather pick and its temporary block are both withheld and a
+        # sentence says why (:data:`PRESET_NO_MISSION`). The LOAD dialog is never gated: it always
+        # carries the row that was picked.
+        offers_weather = (action.key != "startup"
+                          or await current_mission_available(resolution.server))
+        weather_fields = (await _weather_fields(request, resolution.server)
+                          if action.key == "startup" and offers_weather else ())
+        # the temporary preset's control choices come from the SAME node read the pick uses; the read's
+        # three sentences are translated HERE, where the request's language is known.
+        temporary = (await _temporary_fieldset(
+            action, resolution.server, server_name=name,
+            language=i18n.resolve_language(request),
+            loading=i18n.translate(request, PRESET_READ_LOADING),
+            read=i18n.translate(request, PRESET_READ_DONE),
+            error=i18n.translate(request, PRESET_READ_FAILED))
+            if offers_weather else None)
+        weather_note = None if offers_weather else _sentence(PRESET_NO_MISSION)
+        dialog = confirm_context(request, action, name, players_on(resolution.server), token, origin,
+                                 tab, weather_fields, temporary, weather_note,
+                                 with_select=offers_weather)
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+# ── the SERVER CREATION pair's own surfaces ─────────────────────────────────
+#
+# ADD is a PAGE control and DELETE is a ROW control, and both reach a dialog: the add dialog IS the
+# form (a node, an instance, a name and whether to configure the server), the delete dialog ASKS FOR
+# THE NAME TO BE TYPED beside the consequence. Neither the page control nor either dialog invents its
+# own data: the instances and the nodes come from the caller's SCOPED source (no RPC, no node call —
+# the render rule every page in this console obeys), and the delete resolves its target through the
+# same scoped seam every other server write uses.
+
+#: The typed-confirmation field's label and the sentence that says what it is for. Both are rendered
+#: through the template's own ``_`` (a FIELD's label/help is translated there, unlike a sentence record).
+_TYPED_CONFIRM_LABEL = i18n._("Type the name to confirm")
+_TYPED_CONFIRM_HELP = i18n._("The action is refused unless this matches the target's name exactly.")
+
+
+def _dialog_field(name: str, label: str, *, kind: str = "text", value: str = "",
+                  required: bool = False, maximum: int = 0, help_text: str = "",
+                  options: tuple[dict, ...] = (), checked: bool = False, rows: int = 0,
+                  bounds: dict | None = None, width: str = "", lookup: str = "",
+                  groups: tuple[dict, ...] = ()) -> dict:
+    """ONE dialog field record — the shape ``confirm.html``'s ``field_input`` renders.
+
+    The TEMPLATE owns the markup and this owns the meaning: a ``select`` carries its ``options``
+    (``{value, label}`` pairs), a ``textarea`` its ``rows``, a ``checkbox`` its ``checked`` default,
+    everything else its own input ``type``. ``groups`` is a PICK's optional ``{label, options}``
+    blocks, drawn after the field's own entries, each as one ``<optgroup>`` — empty keeps the pick a
+    flat list. ``bounds`` is a NUMBER field's ``{min, max}`` — the range the browser itself refuses to
+    submit outside, which for a day count is what keeps a field meant for ``14`` from taking a date.
+    ``width`` is the field's own width class (``wide`` across the dialog, ``narrow`` down to the few
+    characters a count needs); empty keeps the shared default. ``lookup`` is the URL a text field's own
+    PROGRESSIVE ENHANCEMENT reads (``data-lookup``); empty is a field the browser's plain markup alone
+    is answerable for. One builder, so a field this module adds is shaped exactly like the ones the
+    mission dialogs already generate, and a new shape is one edit in the template.
+    """
+    return {"type": kind, "name": name, "id": f"{name}-dialog" if name else "", "label": label,
+            "max": maximum, "required": required, "checked": checked, "value": value,
+            "help": help_text, "placeholder": "", "options": options, "rows": rows,
+            "bounds": bounds, "width": width, "lookup": lookup, "groups": groups}
+
+
+def typed_confirm_inputs(action: WriteAction) -> tuple[dict, ...]:
+    """The TYPED-confirmation fields ONE action's dialog draws — or none when it declares none.
+
+    The operator types the target's name here and the action's route compares it with the RESOLVED
+    name, so the field is the deliberate act a removal earns; the sentence says the condition rather
+    than repeating the target, whose own name the dialog already shows.
+    """
+    if not action.typed_confirm:
+        return ()
+    return (_dialog_field(CONFIRM_NAME_FIELD, _TYPED_CONFIRM_LABEL, required=True, maximum=128,
+                          help_text=_TYPED_CONFIRM_HELP),)
+
+
+# ── the ban dialogs' own fields ──────────────────────────────────────────────
+#: The DURATION field's label and help: a NUMBER box bounded by the console's human-scale cap and
+#: three characters wide, so a field meant for ``14`` cannot take a date or a paragraph. The browser
+#: refuses to submit outside the range and the ACTION still re-validates whatever a crafted POST
+#: sends — the bound is the field's shape, never the authority. Empty is permanent, which is why the
+#: box is not required.
+BAN_DAYS_LABEL = i18n._("Days (optional)")
+BAN_DAYS_HELP = i18n._("Empty = permanent — the ban does not expire on its own. 7 means seven days "
+                       "from now.")
+
+
+def ban_days_field() -> dict:
+    """The DURATION field every ban dialog draws — ONE record, so no two spellings of it can exist."""
+    return _dialog_field(BAN_DAYS_FIELD, BAN_DAYS_LABEL, kind="number", maximum=3,
+                         bounds=dict(min=BAN_DAYS_MIN, max=BAN_DAYS_MAX), width="narrow",
+                         help_text=BAN_DAYS_HELP)
+
+
+#: The EDIT dialog's expiration field: an ABSOLUTE UTC datetime typed as text and written straight to
+#: the list. ``UTC`` is stated in the label and in the format in the help, because the value the field
+#: reads and writes is a NAIVE UTC stamp — the same convention the list's own stamps use. The parser
+#: accepts shorter inputs (minutes, hour, or the date alone), so the help names the full layout and
+#: says less is allowed. Empty means the permanent sentinel, which is why the field is not required.
+BAN_UNTIL_LABEL = i18n._("Expires (UTC)")
+BAN_UNTIL_HELP = i18n._("A UTC date/time: YYYY-MM-DD HH:MM:SS, or less — HH:MM, HH, or the date "
+                        "alone (the current time that day). Empty = permanent.")
+
+
+def ban_until_field() -> dict:
+    """The EDIT dialog's ABSOLUTE expiration field — a UTC text box, not a day count.
+
+    The ADD and the player-row Ban keep :func:`ban_days_field`: only an EDIT of an EXISTING entry
+    states an absolute end, so that a reason-only save writes the entry's own instant back instead of
+    re-deriving a drifting one from a day count.
+    """
+    return _dialog_field(BAN_UNTIL_FIELD, BAN_UNTIL_LABEL, kind="text", width="wide",
+                         help_text=BAN_UNTIL_HELP)
+
+
+def ban_dialog_fields(action: BanAction | PlayerAction) -> tuple[dict, ...]:
+    """The REASON and the DURATION, in the order every ban dialog asks for them.
+
+    ONE builder, read by the player-row Ban dialog (:func:`player_confirm_context`) and by the
+    console's ADD (:func:`ban_add_dialog_context`), and fed from the DECLARATION — so a ban dialog
+    added later draws the same two fields instead of copying them, and a changed bound or help line
+    changes both at once.
+    """
+    return (_dialog_field(action.field, action.field_label or action.label, kind=action.field_kind,
+                          required=True, maximum=action.field_max, help_text=action.field_help,
+                          width=action.field_width),
+            ban_days_field())
+
+
+# ── the ADD dialog ───────────────────────────────────────────────────────────
+#: The UCID field: the ONE thing that can name whom a ban is for when nothing is resolved.
+BAN_ADD_UCID_LABEL = i18n._("Player (UCID)")
+BAN_ADD_UCID_HELP = i18n._("The player's UCID, as the ban list records it — e.g. 4b1f9c22.")
+
+#: The SCOPE picker: the bot-wide value first (the empty one), then one option per server the caller
+#: may name. The bot-wide option's WORD states what it writes: ``All my servers`` when the caller
+#: holds a target set of its own (one row per server of it), and the accurate ``Every server
+#: (bot-wide)`` when it holds none (ONE bot-wide row).
+BAN_SCOPE_LABEL = i18n._("Applies to")
+BAN_SCOPE_ALL_LABEL = i18n._("All my servers")
+BAN_SCOPE_EVERY_LABEL = i18n._("Every server (bot-wide)")
+BAN_SCOPE_HELP = i18n._("One server, or every server you manage. A ban on all of them is written to "
+                        "the list every installation syncs.")
+
+#: The dialog's own heading and its target sentence. The ADD has no resolved object to name, so the
+#: target line points at the field instead of at a name.
+BAN_ADD_HEADING = i18n._("Add a ban?")
+BAN_ADD_TARGET = i18n._("the UCID you enter below")
+
+
+@dataclass(frozen=True, slots=True)
+class BanScope:
+    """The ADD picker's scope, read from the console's own scoped ``list_bans``.
+
+    ``servers`` are the names a per-server ban may NAME — the caller's whole view for an unscoped
+    caller, its own target set for a narrowed one — and ``scoped`` says whether the caller holds a
+    target set of its own, which chooses the bot-wide option's word.
+    """
+    servers: tuple[str, ...]
+    scoped: bool
+
+
+async def _ban_scope(request: Request) -> BanScope:
+    """The servers a ban added from this console may name, and whether the caller holds a target set.
+
+    Read through the console's own scoped read action (``list_bans``), which reports both beside the
+    rows: the same call, and the same rule (``plugins.mission.actions._caller_ban_servers`` /
+    ``_caller_ban_targets``), the write re-checks a chosen name against, so the picker cannot offer a
+    server the action would refuse — and the console keeps no second spelling of the scope rule. An
+    absent plugin or a refused read answers the empty set, which is the bot-wide value alone.
+    """
+    result = await read_action("list_bans", context_for(request))
+    data = getattr(result, "data", None) or {}
+    if not getattr(result, "success", False):
+        return BanScope(servers=(), scoped=False)
+    servers = tuple(name for name in (readmodels.text(value) for value in (data.get("servers") or ()))
+                    if name)
+    targets = tuple(name for name in (readmodels.text(value) for value in (data.get("targets") or ()))
+                    if name)
+    return BanScope(servers=servers, scoped=bool(targets))
+
+
+def ban_scope_options(request: Request, scope: BanScope) -> tuple[dict, ...]:
+    """The scope picker's options: the bot-wide value, then one per server the caller may name.
+
+    ``""`` IS the bot-wide value (the whole target set, or a single bot-wide row when that set is
+    empty). Its word follows *scope*: ``All my servers`` when the caller holds a target set, else the
+    accurate ``Every server (bot-wide)``. A server name is operator data and is emitted verbatim;
+    only the bot-wide word is translated, because ``confirm.html`` renders a select option's label
+    as written.
+    """
+    label = BAN_SCOPE_ALL_LABEL if scope.scoped else BAN_SCOPE_EVERY_LABEL
+    return ({"value": "", "label": i18n.translate(request, label)},
+            *({"value": name, "label": name} for name in scope.servers))
+
+
+def ban_add_inputs(request: Request, action: BanAction, scope: BanScope,
+                   ucid: str = "") -> tuple[dict, ...]:
+    """The ADD dialog's fields, in the mockup's order: the UCID, the reason, the duration, the scope.
+
+    The ucid is REQUIRED — nothing else can name whom the ban is for — and the reason and the
+    duration are the SAME records the player-row Ban dialog draws (:func:`ban_dialog_fields`). The
+    ucid field is the ONE field that carries a ``lookup`` (``BAN_ADD_UCID_LOOKUP``): its own
+    progressive enhancement turns the name the operator knows into the UCID it has to type.
+
+    *ucid* fills the field when a control already named its target (a player directory row's Ban),
+    so the operator confirms the player instead of retyping the id; it stays an editable input, and a
+    page-level ADD that named nothing arrives empty.
+    """
+    field = _dialog_field(BAN_ADD_UCID_FIELD, BAN_ADD_UCID_LABEL, required=True, maximum=64,
+                          value=readmodels.text(ucid), width="wide", help_text=BAN_ADD_UCID_HELP,
+                          lookup=BAN_ADD_UCID_LOOKUP)
+    return (field,
+            *ban_dialog_fields(action),
+            _dialog_field(BAN_SCOPE_FIELD, BAN_SCOPE_LABEL, kind="select",
+                          options=ban_scope_options(request, scope), help_text=BAN_SCOPE_HELP))
+
+
+def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab: str = "",
+                           scope: BanScope = BanScope(servers=(), scoped=False),
+                           ucid: str = "",
+                           carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """Everything the ADD ban dialog's page reads — the sixth sibling of :func:`confirm_context`.
+
+    It is the one ban dialog that ASKS for its target: a ban is added from the PAGE head, so no row
+    was clicked and nothing was resolved — the ucid is typed into the form, the reason and the
+    duration are the records the player-row Ban dialog draws, and the scope picker offers the
+    bot-wide value followed by the servers the caller may name (*scope*, read through the scoped
+    action, never off the request). *ucid* is the target a ROW's control already named, so the field
+    arrives filled; the ADD at the page head names none and arrives empty.
+
+    NO ONE-SHOT TOKEN (``action.form``, ``action.confirm`` False): adding a ban is not a step that
+    cannot be undone from here — the row it writes carries a Lift — so nothing this route could
+    refuse a later POST against exists, and a token nothing spends is the dead knob this console
+    forbids. The dialog is a form; its own POST is the write.
+
+    The markup is assembled through the SAME records every other dialog uses: ``heading`` and
+    ``target`` are sentence records (the ucid is named by its own field, so there is no resolved name
+    to carry), and the warning and detail are the declaration's own sentences.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    dialog = {
+        "heading": {"msgid": BAN_ADD_HEADING, "params": {}},
+        "warning": _sentence(action.warning),
+        "warning_note": None,
+        "detail": _sentence(action.detail),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title),
+        "path": action.path,
+        "server": "",
+        "target": {"msgid": BAN_ADD_TARGET, "params": {}},
+        "hidden": _hidden_fields(origin, tab, *carry),
+        "inputs": ban_add_inputs(request, action, scope, ucid),
+        "body_inputs": (),
+        # THE ADD WAITS FOR ITS WRITE (``data-await``): the returned list is read AFTER the ban is
+        # written, so the operator lands on a list that already holds it.
+        "await": True,
+        # the tokenless form's chrome (the tree's own rule for a dialog whose write IS reversible):
+        # the tag names no confirmation it does not have, and the CALLER's write is not irreversible
+        # from here — the row it writes carries a Lift. ``danger`` stays the declaration's own tint.
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Add a ban')}",
+        "page_title": {"msgid": i18n._("Add ban"), "params": {}},
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, _bans_url(origin, tab, carry)),
+        "dialog": dialog,
+    }
+
+
+#: The EDIT dialog's own heading. An edit has a RESOLVED entry whose name it can carry, so the
+#: sentence names the player; the reason and the absolute UTC expiration below it are pre-filled from
+#: that entry.
+BAN_EDIT_HEADING = i18n._("Edit the ban on {player}?")
+
+
+def ban_edit_inputs(action: BanAction, row) -> tuple[dict, ...]:
+    """The EDIT dialog's fields: the reason and the ABSOLUTE UTC expiration, PRE-FILLED from the entry.
+
+    The reason is the declaration's own record. The expiration is :func:`ban_until_field` — a UTC text
+    box, NOT the day-count box the ADD and the player-row Ban draw — fed the entry's OWN end
+    (:func:`readmodels.bans.expires_utc`), so saving the form untouched writes that exact instant back
+    and a reason-only edit cannot drift the expiration. ``confirm.html`` renders a field's ``value``
+    into the input, so the operator edits what is there rather than retyping it.
+    """
+    reason = _dialog_field(action.field, action.field_label or action.label, kind=action.field_kind,
+                           required=True, maximum=action.field_max, help_text=action.field_help,
+                           width=action.field_width)
+    reason["value"] = readmodels.text(getattr(row, "reason", ""))
+    expires = ban_until_field()
+    expires["value"] = readmodels.text(getattr(row, "expires_utc", ""))
+    return (reason, expires)
+
+
+def ban_edit_dialog_context(request: Request, action: BanAction, row, origin: str,
+                            tab: str = "", carry: tuple[tuple[str, str], ...] = ()) -> dict:
+    """Everything the EDIT ban dialog's page reads — the ADD dialog's twin.
+
+    A FORM, and no one-shot token (``action.form``, ``action.confirm`` False): editing a ban is
+    reversible from the same page, so nothing this route could refuse a later POST against exists.
+    The entry's IDENTITY (ucid + its own ``banned_at``) rides hidden, so the action re-reads and
+    re-writes exactly that entry and the ban does not move in time.
+
+    The route ALREADY re-read the entry (through the scoped ``list_bans``) and refuses a DGSA one
+    before this is called, so the name, the reason and the DGSA-ness here are the entry's own and
+    never a field the browser sent. NO warning block: the mockup's edit dialog carries none, and the
+    one thing the operator must read — reason and expiration only, re-scoping is lift-and-re-add —
+    is the declaration's ``detail``.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = (readmodels.text(getattr(row, "name", ""))
+             or readmodels.text(getattr(row, "ucid", "")))
+    ucid = readmodels.text(getattr(row, "ucid", ""))
+    dialog = {
+        "heading": _sentence(BAN_EDIT_HEADING, player=label),
+        "warning": None,
+        "warning_note": None,
+        "detail": _sentence(action.detail),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, player=label),
+        "path": action.path,
+        "server": "",
+        #: the target line names the RESOLVED player and its ucid — the pair the entry is identified
+        #: by — as ONE plain string of operator data (it is never translated).
+        "target": f"{label} · {ucid}",
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid),
+                                 ("banned_at", readmodels.text(getattr(row, "banned_at_key", ""))),
+                                 *carry),
+        "inputs": ban_edit_inputs(action, row),
+        "body_inputs": (),
+        # THE EDIT WAITS FOR ITS WRITE (``data-await``): the returned list is read AFTER the entry is
+        # rewritten, so the operator lands on the edited row rather than the one they opened.
+        "await": True,
+        # the tokenless form's chrome (the tree's own rule for a dialog whose write IS reversible):
+        # no "confirm" badge and no sentence claiming it cannot be undone.
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Edit ban')}",
+        "page_title": {"msgid": i18n._("Edit ban"), "params": {}},
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, i18n._("Edit ban")),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, _bans_url(origin, tab, carry)),
+        "dialog": dialog,
+    }
+
+
+#: The watch dialogs' ONE facts line: who put the player on the list, when, and the entry's reason.
+#: Rendered as a NOTE under the declaration's own ``detail``, so the operator sees what the write is
+#: about without the dialog inventing a second layout for it.
+WATCH_ENTRY_NOTE = i18n._("Watched by {by} on {at} — reason: {reason}")
+
+
+async def player_detail_view(request: Request, ucid: str):
+    """The player *ucid* names, read through the console's own detail action — or ``None``.
+
+    The name, the UCIDs and the moderation states in a dialog are therefore the same values the
+    player page renders and never a field the browser sent. A player outside the caller's scope
+    answers ``found`` False there and is indistinguishable from one this installation never saw.
+    """
+    result = await read_action("get_player_detail", context_for(request), ucid=ucid)
+    data = getattr(result, "data", None)
+    if not getattr(result, "success", False) or not isinstance(data, Mapping):
+        return None
+    detail = readmodels.player_detail(data)
+    return detail if detail.found else None
+
+
+async def watch_entry_detail(request: Request, ucid: str):
+    """The player *ucid* names, with its watch entry — or ``None`` when there is no entry."""
+    detail = await player_detail_view(request, ucid)
+    if detail is None or not detail.watch.active:
+        return None
+    return detail
+
+
+def _watch_note(watch) -> tuple[dict, ...]:
+    """The entry's own facts as ONE note record, escaped like every other dialog value."""
+    return (_sentence(WATCH_ENTRY_NOTE,
+                      by=html.escape(readmodels.text(getattr(watch, "created_by", "")) or "?"),
+                      at=html.escape(readmodels.text(getattr(watch, "created_at", "")) or "?"),
+                      reason=html.escape(readmodels.text(getattr(watch, "reason", "")) or "—")),)
+
+
+def watch_add_dialog_context(request: Request, action: WatchAction, detail, origin: str,
+                             tab: str = "") -> dict:
+    """Everything the ADD watch-entry dialog's page reads.
+
+    A FORM with ONE field — the reason — empty, because there is no entry yet. NO one-shot token
+    (``action.form``, ``action.confirm`` False): adding a watch is reversible from the same page, the
+    entry it writes carrying its own Remove. The target is the RESOLVED player, named by the entry the
+    route already re-read, never by a field the browser sent.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    label = readmodels.text(getattr(detail, "name", "")) or readmodels.text(
+        getattr(detail, "ucid", ""))
+    ucid = readmodels.text(getattr(detail, "ucid", ""))
+    reason = _dialog_field(action.field, action.field_label or action.label,
+                           kind=action.field_kind, required=True, maximum=action.field_max,
+                           help_text=action.field_help, width=action.field_width)
+    values = {"player": html.escape(label)}
+    dialog = {
+        "heading": _default_title(action.label, html.escape(label)),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "inputs": (reason,),
+        "body_inputs": (),
+        # the add waits for its write, so the page it returns to already shows the new entry.
+        "await": True,
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Add to watchlist')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def watch_remove_dialog_context(request: Request, action: WatchAction, detail, token: str,
+                                origin: str, tab: str = "") -> dict:
+    """Everything the REMOVE watch-entry dialog's page reads — the ban lift dialog's twin.
+
+    It asks for NOTHING (the entry's UCID is the whole identity) and carries the one-shot token the
+    action's route spends, so a POST that never rendered the warning cannot delete the entry. The
+    warning names the player and states what the removal costs: the reason goes with the row, and the
+    player is not unbanned by it.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    watch = detail.watch
+    ucid = readmodels.text(getattr(watch, "ucid", ""))
+    label = html.escape(readmodels.text(getattr(detail, "name", "")) or ucid)
+    values = {"player": label}
+    dialog = {
+        "heading": _default_title(action.label, label),
+        "warning": _sentence(action.warning, **values),
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": _watch_note(watch),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "inputs": (),
+        "body_inputs": (),
+        # the removal waits for its write, so the page it returns to already shows the entry gone.
+        "await": True,
+        "tag": i18n._("confirm"),
+        "irreversible": True,
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('confirm')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def watch_edit_dialog_context(request: Request, action: WatchAction, detail, origin: str,
+                              tab: str = "") -> dict:
+    """Everything the EDIT watch-reason dialog's page reads.
+
+    A FORM with ONE field — the reason — PRE-FILLED from the entry, because a watch entry has no
+    expiry to state and no second value an edit may change. No one-shot token: a reason can be
+    corrected again from the same page, so nothing here could refuse a later POST.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    watch = detail.watch
+    ucid = readmodels.text(getattr(watch, "ucid", ""))
+    label = readmodels.text(getattr(detail, "name", "")) or ucid
+    reason = _dialog_field(action.field, action.field_label or action.label,
+                           kind=action.field_kind, required=True, maximum=action.field_max,
+                           help_text=action.field_help, width=action.field_width)
+    reason["value"] = readmodels.text(getattr(watch, "reason", ""))
+    dialog = {
+        "heading": _default_title(action.label, html.escape(label)),
+        "warning": None,
+        "warning_note": None,
+        "detail": _sentence(action.detail),
+        "detail_notes": _watch_note(watch),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, player=html.escape(label)),
+        "path": action.path,
+        "server": "",
+        "target": label,
+        "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
+        "inputs": (reason,),
+        "body_inputs": (),
+        # the edit waits for its write, so the page it returns to already shows the new reason.
+        "await": True,
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Edit the watch reason')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+# ── the penalty-point dialogs ────────────────────────────────────────────────
+
+
+def penalty_inputs(action: PenaltyAction) -> tuple[dict, ...]:
+    """The write dialog's fields: for a point change the points and the reason, else none.
+
+    There is NO server field: the change is fleet-wide and the action resolves the reference server
+    itself. The magnitude is a bounded number, and the reason is the event text the penalty log
+    keeps; the FORGIVE asks for neither.
+    """
+    fields: list[dict] = []
+    if action.points:
+        label = PENALTY_POINTS_REMOVE_LABEL if action.key == PENALTY_REMOVE_ACTION.key \
+            else PENALTY_POINTS_LABEL
+        fields.append(_dialog_field(PENALTY_POINTS_FIELD, label, kind="number", required=True,
+                                    value="1", maximum=4, width="narrow",
+                                    bounds=dict(min=PENALTY_POINTS_MIN, max=PENALTY_POINTS_MAX),
+                                    help_text=PENALTY_POINTS_HELP))
+        fields.append(_dialog_field(PENALTY_REASON_FIELD, PENALTY_REASON_LABEL, required=True,
+                                    value="admin", maximum=80, width="wide",
+                                    help_text=PENALTY_REASON_HELP))
+    return tuple(fields)
+
+
+def penalty_dialog_context(request: Request, action: PenaltyAction, ucid: str, label: str,
+                           token: str = "", origin: str = "") -> dict:
+    """Everything a penalty dialog's page reads — the sibling of :func:`player_confirm_context`.
+
+    The player's label is the page's RESOLVED name, never a browser field, and the dialog asks for
+    no server: the write is fleet-wide. The FORGIVE carries the one-shot token its route spends; the
+    two point controls are forms (no token — a typed row can be taken back from the same page).
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    values = {"player": html.escape(label)}
+    dialog = {
+        "heading": _default_title(action.label, label),
+        "warning": _sentence(action.warning, **values) if action.warning else None,
+        "warning_note": None,
+        "detail": _sentence(action.detail, **values),
+        "detail_notes": (),
+        "go": _sentence(action.go),
+        "go_title": _sentence(action.go_title, **values),
+        "path": action.path,
+        "server": "",
+        "target": html.escape(label),
+        "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
+        "inputs": penalty_inputs(action),
+        "body_inputs": (),
+        "tag": i18n._("confirm") if action.confirm else i18n._("options"),
+        "irreversible": bool(action.confirm),
+        "danger": bool(action.danger),
+        "confirm_field": CONFIRM_FIELD,
+        "confirm_token": token,
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Penalty points')}",
+        "page_title": _default_title(action.label, label),
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin or _players_path(),
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, origin or _players_path()),
+        "dialog": dialog,
+    }
+
+
+def installable_nodes(request: Request) -> tuple[dict, ...]:
+    """The nodes a NEW instance may be created on, as SELECT options, in name order.
+
+    Read from the caller's own view of the cluster (``source.nodes``), and only the entries that
+    resolve: ``None`` is the heartbeat's verdict that the node cannot be reached, and creating an
+    instance on it is an RPC with nothing behind it. A node outside the caller's view is not in the
+    mapping at all.
+    """
+    entries = getattr(dashboard_page.request_source(request), "nodes", None) or {}
+    names = sorted(readmodels.text(name) for name, node in entries.items()
+                   if node is not None and readmodels.text(name))
+    return tuple({"value": name, "label": name} for name in names)
+
+
+def empty_instances(request: Request) -> tuple[dict, ...]:
+    """The instances that carry NO server, as SELECT options, across the caller's whole view.
+
+    ONE condition is structural rather than a guess: ``instance.server is None`` — no server is bound
+    to it, which is what declining Discord's "configure a server for this instance?" leaves behind.
+
+    The VALUE states the instance's OWN node with its name (``<node>/<instance>``): the node an
+    instance lives on is the machine that binds a server to it, and the same instance name can exist
+    on two nodes. The LABEL names what the operator recognises it by: the instance's Saved Games
+    folder (the instance's own name), the node it is on and its DCS port. Every figure is read from
+    the caller's SCOPED source, so an instance outside the caller's view is not in the list at all,
+    and no node is asked anything while rendering.
+    """
+    source = dashboard_page.request_source(request)
+    options: list[dict] = []
+    for instance in getattr(source, "instances", ()) or ():
+        name = readmodels.text(readmodels.safe(lambda: getattr(instance, "name", "")))
+        if not name or readmodels.safe(lambda: getattr(instance, "server", None)) is not None:
+            continue
+        node_name = readmodels.text(readmodels.safe(
+            lambda: getattr(getattr(instance, "node", None), "name", "")))
+        port = readmodels.text(readmodels.safe(
+            lambda: (getattr(instance, "locals", None) or {}).get("dcs_port")))
+        words = i18n.translate(request, i18n._("DCS port %(port)s"), port=port or "?")
+        if node_name:
+            options.append({"value": f"{node_name}/{name}",
+                            "label": f"{name} — {node_name} — {words}"})
+        else:
+            # no readable node name: the value is the bare instance name, which the action resolves
+            # on the node the form named
+            options.append({"value": name, "label": f"{name} — {words}"})
+    return tuple(options)
+
+
+#: table name -> the PAGE-LEVEL declaration its page head renders. ONE map, asked BY TABLE, so a
+#: page can never be handed another page's control and a table with no page-level control (every
+#: other table today) is simply absent. Two entries: the Servers page creates a SERVER, and the Bans
+#: page adds a BAN — the ADD belongs in the TABLE's own map, never on a row, because a ban being
+#: added has no row to hang a control on.
+PAGE_CONTROLS: dict[str, tuple[WriteAction | BanAction, ...]] = {
+    "servers": SERVER_PAGE_ACTIONS,
+    "bans": (BAN_ADD_ACTION,),
+}
+
+
+def page_controls(request: Request, table: str, origin: str) -> dict | None:
+    """The PAGE-LEVEL control the table *table* may render — or ``None`` for a page that has none.
+
+    The Servers page is the only page that creates a server, and the Bans page the only one that
+    adds a ban; there is no row to hang either control on, so it renders in the page head from this
+    ONE map: the dialog's path, the session's CSRF token and the page it was pressed on (the same
+    origin contract every row control carries).
+
+    THREE conditions, each read from the place that decides it: the CAPABILITY
+    (``permissions.allows``, the very predicate the gate runs, so ``offered ⊆ authorised`` holds by
+    construction), the ACTION (``action_available`` — an installation whose ``admin`` plugin is not
+    loaded is offered no button whose only answer is a refusal), and the TABLE (asked by table, so a
+    page can never be handed another page's control).
+    """
+    declared = PAGE_CONTROLS.get(table)
+    if not declared:
+        return None
+    action = declared[0]
+    if not permissions.allows(action.capability, permissions.role_names_for(request),
+                              manager=permissions.manages_console(request)):
+        return None
+    if not action_available(action.qualname):
+        return None
+    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+            "label": action.label, "title": _sentence(action.tip), "aria": _sentence(action.aria),
+            "csrf_field": session.CSRF_FIELD, "csrf_token": session.get_csrf_token(request),
+            "origin_field": ORIGIN_FIELD, "origin": origin,
+            # THE PAGE'S OWN VIEW OPTION, re-emitted so the dialog it opens returns to the same state
+            # (the Bans page's ``?dgsa=1``; empty for every other page's control).
+            "hidden": _dgsa_carry(request.query_params)}
+
+
+def add_dialog_context(request: Request, action: WriteAction, origin: str, tab: str = "") -> dict:
+    """Everything the ADD SERVER dialog's page reads — the fifth sibling of :func:`confirm_context`.
+
+    The form IS the dialog, so this is the ONE dialog that asks for several things and asks for no
+    target: the NODE to create a new instance on, the INSTANCE picker (an existing EMPTY one, or
+    "create a new instance"), the NAME, and whether a server should be bound at all. Every figure is
+    from the caller's SCOPED source, never a field the browser sent.
+
+    NO CHANNEL PICKER. A Discord channel is configured on the server's own page (its Configuration
+    tab), where the bot that owns the channels is also the thing showing them — so nothing about a
+    channel is asked while a server is created, and a body that states one is not read (the ACTION's
+    optional channel parameters keep their defaults).
+
+    NO ONE-SHOT TOKEN: adding a server is not destructive (``action.confirm`` is False), so nothing
+    this route could refuse a later POST against exists — the dialog is a form, and its own POST is
+    the write. The template's own chrome follows the declaration for the same reason: no red button,
+    and the sentence beside the target says the action is recorded, not that it cannot be undone.
+    """
+    registrar = getattr(request.app.state, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                                level=dashboard_page.log_level(request))
+    options = ({"value": ADD_NEW_OPTION,
+                "label": i18n.translate(request, i18n._("Create a new instance"))},
+               *empty_instances(request))
+    body_inputs: tuple[dict, ...] = (
+        _dialog_field(ADD_NODE_FIELD, i18n._("Node"), kind="select",
+                      options=installable_nodes(request), required=True,
+                      help_text=i18n._("Where a NEW instance is created. An instance picked below "
+                                       "is attached on its own node.")),
+        _dialog_field(ADD_INSTANCE_FIELD, i18n._("Attach to an existing instance"), kind="select",
+                      options=options, required=False,
+                      help_text=i18n._("Every instance that carries no server yet is offered, with "
+                                       "the node it is on — a server is bound on that node. "
+                                       "\"Create a new instance\" uses the node above.")),
+        _dialog_field(ADD_NAME_FIELD, i18n._("Server name"), required=True, maximum=64,
+                      help_text=i18n._("The name of the new server (its key in servers.yaml) — and "
+                                       "the Saved Games folder name of a NEW instance. A name "
+                                       "another server already uses is refused.")),
+        *_option_fields([NodeOption(field=ADD_CONFIGURE_FIELD,
+                                    label=i18n._("Configure a server for the instance"),
+                                    default=True,
+                                    help=i18n._("On by default, exactly like Discord's own view. "
+                                                "Off: a NEW instance is created blank, with no "
+                                                "server bound to it."))]),
+    )
+    dialog = {
+        "heading": {"msgid": i18n._("Add a server"), "params": {}},
+        "warning": None,
+        "warning_note": None,
+        "detail": _sentence(i18n._("The instance carries the ports; a new one gets the next free "
+                                   "ports on its node, and its Saved Games directory is created "
+                                   "there. Nothing is started: the server is created and comes up "
+                                   "when somebody starts it or the scheduler does.")),
+        "detail_notes": (),
+        "go": _sentence(i18n._("Add server")),
+        "go_title": _sentence(i18n._("Add the server — it is created, not started")),
+        "path": action.path,
+        "server": "",
+        #: the TARGET is what is being created — an operator-facing phrase rather than a name, so the
+        #: template's own "Target: …" sentence still reads as a sentence.
+        "target": {"msgid": i18n._("a new server"), "params": {}},
+        "hidden": _hidden_fields(origin, tab),
+        "inputs": (),
+        "body_inputs": body_inputs,
+        "tag": i18n._("options"),
+        "irreversible": False,
+        "danger": False,
+        "confirm_field": CONFIRM_FIELD,
+        #: NO TOKEN — adding is not destructive (see this function's docstring).
+        "confirm_token": "",
+        "csrf_field": session.CSRF_FIELD,
+        "csrf_token": session.get_csrf_token(request),
+    }
+    return {
+        "title": f"{action.label} — {i18n._('Add a server')}",
+        "page_title": {"msgid": i18n._("Add a server"), "params": {}},
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, action.label),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=origin,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "dialog": dialog,
+    }
+
+
+def _add_server_confirm_handler(action: WriteAction):
+    """The route that RENDERS the ADD SERVER dialog. It changes nothing.
+
+    It resolves nothing: the node is CHOSEN in the dialog, so there is no target to look up and no
+    refusal to make beyond the identity one. The form it renders posts to the action's own route.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _servers_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = add_dialog_context(request, action, origin, tab)
+        # no-store: the dialog is a console page too (see ``_confirm_handler``).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _add_server_handler(action: WriteAction):
+    """The route for the ADD write — the dialog's own POST.
+
+    Same order as its siblings (identity, form, the node resolution, the action, the notice, the
+    redirect) with the one difference a creation has: the target is a NODE, so the scoped seam's node
+    twin answers for it — a node outside the caller's view is the console's bare 403, the SAME answer
+    as a node that does not exist, and a node the cluster cannot reach is the seam's typed refusal.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        node_name = readmodels.text(form.get(ADD_NODE_FIELD))
+        back = origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _servers_path())
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_node(node_name)
+        if resolution.status == NodeResolution.NOT_PERMITTED:
+            # The console's refusal for a node outside the caller's view — the SAME answer as a node
+            # that does not exist. The attempt is recorded (the pair is audited on every refusal), and
+            # the notice discloses nothing about the target.
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"node '{node_name}'")
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return RedirectResponse(back, status_code=303)
+        canonical = readmodels.text(readmodels.safe(
+            lambda: getattr(resolution.node, "name", ""))) or node_name
+        result = await call_action(
+            action.qualname, ctx, node_name=canonical,
+            name=readmodels.text(form.get(ADD_NAME_FIELD)),
+            instance=readmodels.text(form.get(ADD_INSTANCE_FIELD)),
+            configure=_as_bool(_last_form_value(form, ADD_CONFIGURE_FIELD)))
+        _remember_notice(request, action, result)
+        # 303 back to the PAGE the control was rendered on, for the reason every other write returns
+        # there: a POST that re-rendered the page would re-POST on refresh, and the page re-reads its
+        # data so it shows what the action produced.
+        return RedirectResponse(back, status_code=303)
+
+    return handle
+
+
+def _delete_server_handler(action: WriteAction):
+    """The route for the DELETE write — the ROW control's dialog, then this.
+
+    The fourth twin of :func:`_handler`, and the TWO things it adds are the removal's own:
+
+    * the TYPED NAME (``CONFIRM_NAME_FIELD``) must equal the RESOLVED server's own name, compared the
+      way every name in this seam is compared (case-folded). A mismatch is refused BEFORE the action
+      runs — nothing is read, nothing is stopped — and the refusal is stored as the one-shot notice,
+      because the write was submitted in the background. The name is checked against the RESOLVED
+      object, never against the field the browser sent;
+    * the TARGET comes from the resolved server, not from the request: the action derives the node it
+      runs on from the server itself (``server.node``), so no posted node name can point the removal
+      at another machine's instance.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        back = origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _servers_path())
+        if action.confirm and not consume_confirm_token(request, action.path, name,
+                                                        readmodels.text(form.get(CONFIRM_FIELD))):
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            # The console's refusal for a named target outside the caller's view — the SAME answer as
+            # a name that does not exist. This is a DESTRUCTIVE removal, so the attempt is recorded
+            # first, naming the actor, the action and the target, and the person's page gets the
+            # one-shot notice whose wording discloses nothing about the target.
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"server '{name}'")
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+            _remember_notice(request, action, result)
+            return RedirectResponse(back, status_code=303)
+        server = resolution.server
+        canonical = readmodels.text(readmodels.safe(
+            lambda: getattr(server, "name", ""))) or name
+        if action.typed_confirm:
+            typed = readmodels.text(form.get(CONFIRM_NAME_FIELD))
+            if typed.strip().casefold() != canonical.casefold():
+                # A typed name that is not the target's is a refused REMOVAL, and the target was
+                # resolved — so the row names the real one, never the spelling the browser sent.
+                await _audit_refusal(ctx, action, "typed name does not match the target",
+                                     f"server '{canonical}'")
+                _refusal_notice(request, action, REFUSAL_NAME_MISMATCH)
+                raise HTTPException(status_code=400, detail=REFUSAL_NAME_MISMATCH)
+        assert action.option is not None, "the remove-server control declares its file box"
+        try:
+            remove_files = option_value(action.option, form)
+        except ValueError as ex:
+            # A body stating an option this console never sends is not a form submission: refuse it
+            # (never guess a boolean from it) and leave a row — this operation must leave a trail.
+            await _audit_refusal(ctx, action, f"invalid option ({ex})", f"server '{canonical}'")
+            raise HTTPException(status_code=400, detail=str(ex))
+        result = await call_action(action.qualname, ctx, server_name=canonical,
+                                   remove_files=remove_files)
+        _remember_notice(request, action, result)
+        return RedirectResponse(back, status_code=303)
+
+    return handle
+
+
+async def _audit_refusal(ctx: ActionContext,
+                         action: WriteAction | PlayerAction | NodeAction | BanAction | WatchAction
+                     | PenaltyAction,
+                         why: str, target: str) -> None:
+    """Record ONE audit entry for an attempt the ROUTE refused before any action ran.
+
+    A scope-refused or permission-refused POST used to leave no audit row; that was acceptable for
+    PAUSE but had to be revisited once the console carries DESTRUCTIVE writes. This is that revisit,
+    and it is DELIBERATELY NARROW: only the actions that declare ``audit_refusals`` are recorded here
+    — the player pair, the five node operations, and the server creation pair (add, delete).
+
+    ``target`` is the caller's own spelling of what was aimed at — ``server 'X', ucid=Y`` or
+    ``node 'X'`` — assembled by the calling route, so one message shape serves every surface. The
+    message names the attempt and its target so an operator can see a probe in the trail; it
+    discloses nothing to the CALLER, whose answer stays the console's own bare refusal — the audit is
+    the operator's log, not a second response. A capability refusal never reaches this function at
+    all: the app-level gate answers it before the handler, so no route code — this one included — can
+    observe it.
+    """
+    if not getattr(action, "audit_refusals", False):
+        return
+    await audit_action(ctx, ActionResult(
+        success=False,
+        message=f"refused {action.qualname}: {why} ({target})"))
+
+
+def _last_form_value(form, name: str) -> str:
+    """The LAST value a repeated form field carries, as text — ``""`` when the field is absent.
+
+    LAST, not first, and that is the whole point (``write-form-state-contract.md`` §8): a checkbox
+    sends the companion's ``off`` value and its own ``on`` value only when it is ticked, so the pair
+    is read as one field whose LAST occurrence wins — which is also how the framework resolves a
+    repeated field for a typed parameter. ``getlist`` is the MultiDict's own accessor; a form-like
+    double that only answers ``get`` still works.
+    """
+    getlist: Any = getattr(form, "getlist", None)
+    if callable(getlist):
+        repeated = [value for value in (getlist(name) or ())]
+        if repeated:
+            return readmodels.text(repeated[-1])
+    return readmodels.text(form.get(name))
+
+
+def _form_has(form, name: str) -> bool:
+    """Whether *name* was STATED by the submitted form at all — the difference between "unchanged"
+    and "changed to empty" for a text/number field.
+
+    A checkbox that is unchecked states NOTHING (the browser sends no field), which is why a bool is
+    read from presence-as-truthiness instead; a text box the operator emptied still sends the field
+    WITH an empty value, and that is a change. ``in`` covers both the MultiDict the framework hands the
+    route and a plain dict double.
+    """
+    try:
+        return name in form
+    except TypeError:  # pragma: no cover - a form-like double without __contains__
+        return form.get(name) is not None
+
+
+def option_value(option: NodeOption, form) -> bool:
+    """The boolean ONE checkbox was submitted as — the command's own flag, parsed.
+
+    Parsed, never truthiness-tested: ``bool('0')`` is ``True`` and a form sends strings, so a
+    truthiness test would read the OFF value as ON (``write-form-state-contract.md`` §8). An ABSENT
+    or empty value is "the form did not state it" and falls back to the declaration's ``default`` —
+    the same value the checkbox was rendered checked with — while anything outside the known
+    spellings raises :class:`ValueError`, which the route turns into a 400 rather than a guess.
+
+    It takes the OPTION, not the action: a control may declare several boxes
+    (:func:`dialog_options`), and each is parsed by its own declaration and nothing else.
+    """
+    posted = _last_form_value(form, option.field)
+    if posted == "":
+        return option.default
+    if posted in (option.on, "true", "on", "yes"):
+        return True
+    if posted in (option.off, "false", "off", "no"):
+        return False
+    raise ValueError(f"the '{option.field}' option was not one this console sent")
+
+
+def _node_handler(action: NodeAction):
+    """The route for one NODE write — the third twin of :func:`_handler`.
+
+    Same shape, same order (identity, form, confirm step, resolution, action, notice, redirect), and
+    TWO differences, one per node family:
+
+    * the target: a node names its machine in the field ``node``, and the resolution goes through
+      :meth:`core.actions.ActionContext.resolve_scoped_node` — the seam's node twin, which keeps the
+      not-found/not-permitted distinction for the same reason the server one does;
+    * the OPTION: an action declaring one (``NodeAction.option``) reads it out of the same body and
+      hands it to the action as its own parameter (``shutdown`` / ``startup``) — one name for the
+      field and the parameter, so the route cannot post one thing and the action read another.
+
+    ``action.confirm`` decides whether this route demands the one-shot token: the LIFECYCLE trio and
+    the pair's offline half do, so a POST that skipped the dialog is refused; the online half does
+    not, because it only clears a state — the mockup's own rule.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("node"))
+        if action.confirm and not consume_confirm_token(request, action.path, name,
+                                                        readmodels.text(form.get(CONFIRM_FIELD))):
+            # Same refusal as the server and player twins: the row's control posts to the dialog, the
+            # dialog's form carries the one-shot token minted for THIS node, and a caller who skips
+            # the dialog has no token. A confirmation curl can bypass is decoration.
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(
+                status_code=403,
+                detail=REFUSAL_CONFIRM_REQUIRED)
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {"node_name": name}
+        # THE PER-NODE OPTIONS: a box the dialog did not draw on THIS node is not read off the body,
+        # and its parameter is ``False`` — never the declaration's ``default``, which would let a
+        # node with no announcement configured reach the action asking for one.
+        offered = {option.field for option in node_dialog_options(action, name)}
+        for option in dialog_options(action):
+            if option.field not in offered:
+                params[option.field] = False
+                continue
+            try:
+                params[option.field] = option_value(option, form)
+            except ValueError as ex:
+                # A body stating an option this console never sends is not a form submission: refuse
+                # it (never guess a boolean from it) and leave a row — these operations are in the
+                # class that must leave a trail.
+                await _audit_refusal(ctx, action, f"invalid option ({ex})", f"node '{name}'")
+                raise HTTPException(status_code=400, detail=str(ex))
+        resolution = await ctx.resolve_scoped_node(name)
+        if resolution.status == NodeResolution.NOT_PERMITTED:
+            # The console's refusal for a named target outside the caller's view — the SAME answer as
+            # a name that does not exist. For these destructive operations the attempt is recorded
+            # first, and the actor, the action and the target are named
+            # so a probe is visible in the operator's trail. The person's own page gets the one-shot
+            # notice, whose wording discloses nothing about the target.
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"node '{name}'")
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        # THE NAMED INPUTS (the DCS update's branch, version and warning time), read through the SAME
+        # declaration that drew them: a value the dialog cannot have sent — a free-text branch, a
+        # warning time outside the declared bounds — is refused HERE, so it is never forwarded to the
+        # node. Refused with a trail, like every other body this console will not act on, and AFTER
+        # the scope check so an out-of-view name never learns anything from a field refusal.
+        try:
+            params.update(node_dialog_values(action, form, name))
+        except ValueError as ex:
+            await _audit_refusal(ctx, action, f"invalid field ({ex})", f"node '{name}'")
+            raise HTTPException(status_code=400, detail=str(ex))
+        # THE SERVERS THE OPERATION WILL MOVE, PREDICTED BEFORE THE ACTION RUNS. The
+        # prediction reads the caller's own SCOPED view and — for ``online`` — the engine's power-off
+        # RECORD, which the action CLEARS as part of reverting it: read it HERE, at the same moment the
+        # action's own ``power_on`` reads it, or the post-action read would find nothing and predict
+        # the no-record fallback. Nothing is seeded yet — a refused or failed write must seed nothing —
+        # so the prediction is captured now and spent only once the write is accepted, below.
+        canonical = readmodels.text(getattr(resolution.node, "name", "")) or name \
+            if resolution.is_found else ""
+        predicted_record = power_record(canonical) \
+            if resolution.is_found and action.key == "online" else None
+        # THE PULSE'S EXPECTATION, recorded BEFORE the action runs: the dialog closes on the press and
+        # the page is rendered again at once, so the row the person lands on must already find it. The
+        # observable is the cached DCS check's stamp, and the action that declares one is the DCS
+        # update — its pulse lasts as long as the update does (``action.ceiling``).
+        if resolution.is_found \
+                and getattr(action, "observable", AWAIT_OBSERVABLE_NONE) == AWAIT_OBSERVABLE_DCS:
+            remember_awaiting_change("node", canonical, action, "", False,
+                                     revision=_dcs_checked_stamp(canonical))
+        if resolution.is_found:
+            # No ``audit_result``: every node action writes its own trail, once, for every outcome
+            # — including the refusals it produces itself.
+            result = await call_action(action.qualname, ctx, **params)
+        else:
+            # The request WAS authorized; the node is offline or the name matches nothing. The honest
+            # answer is the seam's typed refusal, rendered inline — never a 404 and never a silent
+            # success. No action ran, so the trail is written here (one entry per ATTEMPT).
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+        _remember_notice(request, action, result)
+        # A REFUSED OR FAILED write drops the expectation it recorded, so its glyph stops pulsing
+        # while the notice beside it says the operation did not happen.
+        if not bool(getattr(result, "success", False)):
+            forget_awaiting_change("node", canonical)
+        # AN ACCEPTED node POWER write seeds the per-server expectation on the servers it started or
+        # stopped, so their rows pulse on the servers page and the dashboard exactly as a per-server
+        # write's do — and end by the identical rules (settled state / failure / ceiling). A refused or
+        # failed node write seeds NOTHING, and the enumeration is the caller's own SCOPED view, so only
+        # the actor's rows ever light up. The prediction rule (and its honesty) is in
+        # :func:`node_moved_names`.
+        if resolution.is_found and bool(getattr(result, "success", False)):
+            node_moved_names(request, canonical, action, predicted_record)
+        # "IMMEDIATELY AFTER AN UPGRADE IS ACCEPTED": a successful check-gated action
+        # (Upgrade) re-checks THAT node at once, so the cache does not wait for the next sample. It
+        # is FIRE-AND-FORGET — the check is an RPC and must not delay the person's redirect — and
+        # the poller's own failure rule applies to it (a node already restarting keeps the last
+        # known True, so the control is not withdrawn mid-upgrade).
+        if resolution.is_found and bool(getattr(result, "success", False)) \
+                and getattr(action, "check", False):
+            asyncio.create_task(upgrade_signal.check_node(resolution.node))
+        # THE DCS UPDATE'S OWN RE-READ, and it is placed HERE because only now is the updater done:
+        # this route awaits the action, and the action awaits ``Node.dcs_update`` to its exit. The
+        # cached answer the row's chip and mark read is therefore refreshed against what is actually
+        # installed, instead of surviving until the next six-hour sweep. It is FIRE-AND-FORGET like
+        # the upgrade check above (an RPC plus an ED request must not delay the redirect), and a check
+        # that cannot answer keeps the node's last known value by the poller's own failure rule.
+        if resolution.is_found and bool(getattr(result, "success", False)) \
+                and getattr(action, "refresh_dcs", False):
+            # declared=True: a successful DCS operation proves the node declares an installation, so
+            # the re-read does not depend on re-reading the configuration map.
+            asyncio.create_task(dcs_update_signal.check_node(resolution.node, declared=True))
+        # 303 back to the PAGE the control was rendered on — the Dashboard's
+        # Nodes tab and /nodes render the same row strip, so the write must not re-orient the person,
+        # and the tab in force is re-attached so a node write pressed on the Nodes tab lands back on
+        # the Nodes tab; a POST that re-rendered a table would re-POST on refresh, and the page
+        # re-reads its data so it shows the state the operation produced (for the master's own row
+        # that state may be "gone", which is exactly what the dialog warned about).
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _nodes_path()),
+            status_code=303)
+
+    return handle
+
+
+def _node_confirm_handler(action: NodeAction):
+    """The route that RENDERS one node action's dialog. It changes nothing.
+
+    The twin of :func:`_confirm_handler`. The target is resolved HERE through the same scoped seam
+    the action uses, so the figures in the warning come from the resolved node's load and never from
+    the request — and the MASTER's own row gets the one extra sentence that says the
+    console dies with it (:func:`node_confirm_context`).
+
+    THE ONE-SHOT TOKEN IS MINTED ONLY FOR A CONFIRM-REQUIRED ACTION (``action.confirm``): the token
+    exists so the ACTION's route can refuse a POST that skipped this page, and an operation that only
+    clears a state has nothing to refuse (offline confirms, online does
+    not). Minting one anyway would put a token in the session that nothing ever spends — the dead
+    knob this console's own rules forbid, in the cookie that is size-bounded on purpose.
+
+    THE REFUSALS ARE THE ACTION'S OWN, so a person cannot learn about a node by comparing the two
+    pages: a node outside the caller's view is the console's 403 — the SAME answer as a name that
+    does not exist — while a node the caller may see but which is OFFLINE answers 404 with the
+    seam's own "offline or unknown" sentence, because there is no object to act on either way.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("node"))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_node(name)
+        if resolution.status == NodeResolution.NOT_PERMITTED:
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"node '{name}'")
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            raise HTTPException(status_code=404, detail=resolution.message)
+        token = mint_confirm_token(request, action.path, name) if action.confirm else ""
+        # the page the row was rendered on travels THROUGH the dialog: the row
+        # posts here with the origin hidden field, and this dialog re-emits it so the route can 303
+        # back there. For the online half (no token) the dialog's POST runs the action directly, and
+        # it still carries the origin — the person stays where they were either way.
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _nodes_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = node_confirm_context(request, action, name, resolution.node, token, origin, tab)
+        # THE TEMPLATE COMES OFF THE DECLARATION, never off the request: the control's own page when
+        # it declares one (the DCS update's version pick is filled after the page is open), the
+        # shared ``confirm.html`` for every other node control.
+        template = dialog.pop("dialog_template", CONFIRM_TEMPLATE)
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(i18n.render(request, template, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_players_handler():
+    """The JSON GET the ADD dialog's UCID field reads: ``{"players": [{"name", "ucid"}, …]}``.
+
+    The search is the console's own READ action (``search_players``), so the SCOPE rule — an unscoped
+    caller finds every player, a narrowed one only the players PRESENT on the servers it may see —
+    lives inside the action and nowhere else, and this route names no server and applies no filter of
+    its own.
+
+    The answer ALWAYS carries a list: a query matching nobody, a query that is empty, and a plugin
+    that is not loaded all answer HTTP 200 with nothing in it. The field is a plain required text box
+    with or without this route, and the write re-validates the UCID, so a lookup that cannot answer
+    must not become an error the operator has to read before typing the UCID themselves.
+    """
+    async def handle(request: Request) -> JSONResponse:
+        query = readmodels.text(request.query_params.get(BAN_PLAYERS_QUERY))
+        result = await read_action("search_players", context_for(request), query=query)
+        data = getattr(result, "data", None) or {}
+        players = data.get("players") if getattr(result, "success", False) else ()
+        # no-store: a suggestion list is a live view of who is on a server right now.
+        return JSONResponse({"players": list(players or ())},
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _shown_sentence(request: Request, msgid: str, **params) -> str:
+    """*msgid* in the request's language, its ``{name}`` holes filled after the translation.
+
+    The console's rule for a string a SCRIPT shows rather than looks up (``I18N.md``): translate
+    first, interpolate after, so a node name or a version never goes through a catalog. A translation
+    that lost a hole degrades to the English sentence rather than raising into a 500 — the same guard
+    the dialogs' ``say`` applies.
+    """
+    translated = i18n.translate(request, msgid)
+    try:
+        return translated.format(**params)
+    except (KeyError, IndexError, ValueError):
+        try:
+            return str(msgid).format(**params)
+        except (KeyError, IndexError, ValueError):
+            return str(msgid)
+
+
+def _dcs_versions_answer(request: Request, status_code: int, msgid: str,
+                         **params) -> JSONResponse:
+    """ONE refusal of the version list: ``{"versions": [], "reason": "<sentence>"}``.
+
+    The shape is the route's whole contract — a LIST always, empty when nothing could be read, and the
+    reason beside it. Never an invented entry, never a 500 and never an empty list without a word
+    about why: the dialog's pick states the sentence where the choices would be.
+    """
+    return JSONResponse({"versions": [],
+                         "reason": _shown_sentence(request, msgid, **params)},
+                        status_code=status_code, headers={"Cache-Control": "no-store"})
+
+
+def _dcs_versions_handler():
+    """The JSON GET the DCS update dialog's version pick reads: ``{"versions": [...]}``, newest first.
+
+    THE NODE IS ASKED AT ALL ONLY HERE — never while a page renders — which is what makes the pick
+    show the versions a node really offers (the older ones included, which is the rollback) instead of
+    whatever the console could guess from its cache.
+
+    THE GATE IS THE CONTROL'S OWN (``nodes.dcs_update``, declared in :func:`capabilities`): the list is
+    the door to the write it feeds, so it is not a lesser right.
+
+    THE THREE REFUSALS, all in the one JSON shape:
+
+    * a node outside the caller's view — the console's own out-of-scope sentence, the SAME answer a
+      name that does not exist gets, so the list cannot be used to enumerate the cluster;
+    * a node the cluster knows and cannot reach — the seam's sentence, with the node's name;
+    * a ``branch`` that is not one of :func:`dcs_branch_values` for that node. A FREE-TEXT BRANCH IS
+      NEVER FORWARDED: the picker's allow-list is the gate, so a crafted query cannot ask a node about
+      a branch the console does not offer.
+
+    A node that declares no DCS installation, one whose check raises, and one that answers with no
+    version are three DIFFERENT reasons and three different sentences — the operator learns which of
+    them happened rather than reading an empty pick.
+    """
+    async def handle(request: Request) -> JSONResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        node_name = readmodels.text(request.path_params.get("node"))
+        branch = readmodels.text(request.query_params.get(DCS_VERSIONS_QUERY))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_node(node_name)
+        if resolution.status == NodeResolution.NOT_PERMITTED:
+            return _dcs_versions_answer(request, 403, REFUSAL_OUT_OF_SCOPE)
+        if not resolution.is_found:
+            return _dcs_versions_answer(request, 404, DCS_VERSIONS_OFFLINE, node=node_name)
+        canonical = readmodels.text(getattr(resolution.node, "name", "")) or node_name
+        if branch not in dcs_branch_values(canonical):
+            return _dcs_versions_answer(request, 400, DCS_VERSIONS_UNKNOWN_BRANCH, branch=branch)
+        if _declared_dcs_block(canonical) is None:
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_NO_DCS, node=canonical)
+        reader: Any = getattr(resolution.node, "get_available_dcs_versions", None)
+        if not callable(reader):
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_FAILED_BODY, node=canonical,
+                                        error="no such method")
+        invoke: Any = reader
+        try:
+            versions = await invoke(branch)
+        except (TimeoutError, asyncio.TimeoutError):
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_FAILED_BODY, node=canonical,
+                                        error="timeout")
+        except Exception as ex:
+            log.warning("DCS versions for node '%s' on branch '%s' failed: %s", canonical, branch, ex)
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_FAILED_BODY, node=canonical,
+                                        error=type(ex).__name__)
+        # THE NODE ANSWERS OLDEST FIRST (``get_latest_version`` is ``versions[-1]``), so the list is
+        # reversed: the pick's first entry is the newest build, and the older ones follow it down.
+        ordered = [readmodels.text(version) for version in (versions or ())
+                   if readmodels.text(version)]
+        if not ordered:
+            return _dcs_versions_answer(request, 200, DCS_VERSIONS_EMPTY, node=canonical,
+                                        branch=branch)
+        ordered.reverse()
+        # no-store: what a branch offers changes with every ED release, so a cached list is a lie the
+        # next rollback would act on.
+        return JSONResponse({"versions": ordered}, headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_add_handler(action: BanAction):
+    """The route for the console's ADD — the dialog's own POST.
+
+    Nothing is resolved and no token is spent: the target is the ucid in the BODY, and the scope is
+    re-derived INSIDE the action (``plugins.mission.actions._caller_ban_targets``), so this route
+    never names a server and cannot widen what the action may cover. It reads the person's shown
+    name off the IDENTITY (``action.sender``, never a body field) so nobody can sign another person's
+    name onto a ban, and the reason, the duration and the scope ride the declaration's OWN field
+    names — one string each, so the route cannot post one thing and the action read another.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the add-ban control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {
+            BAN_ADD_UCID_FIELD: readmodels.text(form.get(BAN_ADD_UCID_FIELD)),
+            action.field: readmodels.text(form.get(action.field)),
+            BAN_DAYS_FIELD: readmodels.text(form.get(BAN_DAYS_FIELD)),
+            BAN_SCOPE_FIELD: readmodels.text(form.get(BAN_SCOPE_FIELD)),
+        }
+        if action.sender:
+            params["sender"] = _sender(identity)
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_bans_return(request, form), status_code=303)
+
+    return handle
+
+
+def _ban_add_confirm_handler(action: BanAction):
+    """The route that RENDERS the ADD dialog. It changes nothing.
+
+    It resolves nothing — the ucid is TYPED into the form, so there is no target to look up and no
+    refusal to make beyond the identity one — and it mints NO one-shot token, because the write it
+    opens is not irreversible (``action.confirm`` is False). Its OWN scope picker is read here,
+    through the console's scoped action, never off the request.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = ban_add_dialog_context(request, action, origin, tab, await _ban_scope(request),
+                                        ucid=readmodels.text(form.get(BAN_ADD_UCID_FIELD)),
+                                        carry=_dgsa_carry(form))
+        # no-store: the dialog is a console page too (see ``_confirm_handler``).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_handler(action: BanAction):
+    """The route for one BAN-ENTRY write (the LIFT). One implementation, so the refusal shape is
+    the same as every other write's.
+
+    Two differences from its siblings, both about a target that is not a server: the identity is
+    (ucid, the ban's own timestamp) and the confirm token is keyed on it; and there is NOTHING to
+    resolve against the cluster — the scope is re-derived INSIDE the action (``_caller_ban_targets``),
+    so the route never names a server.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        banned_at = readmodels.text(form.get("banned_at"))
+        ctx = _context(request, identity)
+        if action.confirm and not consume_confirm_token(
+                request, action.path, _ban_target(ucid, banned_at),
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            # A confirm-required write REFUSES a POST that did not come through its dialog: the row's
+            # control posts to the dialog, the dialog's form carries the one-shot token minted for
+            # THIS entry, and a caller who skips the dialog has no token. That refusal IS the modal
+            # gate — a curl cannot skip it.
+            await _audit_refusal(ctx, action, "not confirmed through its dialog", f"ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        result = await call_action(action.qualname, ctx, ucid=ucid, banned_at=banned_at)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_bans_return(request, form), status_code=303)
+
+    return handle
+
+
+def _ban_confirm_handler(action: BanAction):
+    """The route that RENDERS the LIFT's dialog. It changes nothing.
+
+    The entry is RE-READ here (through the console's own scoped read action) from the identity the
+    form carries, so the dialog's name, reason and DGSA copy come from the entry — never from a field
+    the browser sent. A POST naming an entry the caller cannot see answers the console's bare 404,
+    the SAME answer as an entry that does not exist.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        banned_at = readmodels.text(form.get("banned_at"))
+        ctx = _context(request, identity)
+        # ``banned_at`` is omitted by a row that knows only the UCID (the player directory): the
+        # player's own entry is then the target, and an entry this caller cannot see answers the
+        # same 404 as a UCID nothing answers to.
+        row = next((candidate for candidate in await _ban_rows(ctx)
+                    if candidate.ucid == ucid
+                    and (not banned_at or candidate.banned_at_key == banned_at)), None)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"No ban for ucid '{ucid}'.")
+        token = mint_confirm_token(request, action.path,
+                                   _ban_target(ucid, readmodels.text(getattr(row, "banned_at_key", ""))))
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = ban_confirm_context(request, action, row, token, origin, tab, _dgsa_carry(form))
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _ban_edit_handler(action: BanAction):
+    """The route for the console's EDIT — the dialog's own POST.
+
+    Nothing is resolved and no token is spent: the target is the entry IDENTITY in the BODY (ucid +
+    the ban's own ``banned_at``), and the scope is re-derived INSIDE the action
+    (``plugins.mission.actions._caller_ban_targets``), so this route never names a server and cannot
+    widen what the action may write. The reason and the ABSOLUTE UTC expiration ride the declaration's
+    OWN field names — one string each, so the route cannot post one thing and the action read another.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the edit-ban control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {
+            "ucid": readmodels.text(form.get("ucid")),
+            "banned_at": readmodels.text(form.get("banned_at")),
+            action.field: readmodels.text(form.get(action.field)),
+            BAN_UNTIL_FIELD: readmodels.text(form.get(BAN_UNTIL_FIELD)),
+        }
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_bans_return(request, form), status_code=303)
+
+    return handle
+
+
+def _ban_edit_confirm_handler(action: BanAction):
+    """The route that RENDERS the EDIT dialog. It changes nothing.
+
+    The entry is RE-READ here (through the console's own scoped read action) from the identity the
+    form carries, so the dialog's name, reason and pre-filled duration come from the entry — never
+    from a field the browser sent. A POST naming an entry the caller cannot see answers the console's
+    bare 404, the SAME answer as an entry that does not exist; a DGSA entry is REFUSED outright,
+    because the list renders no Edit control on one and this is the door behind that omission.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        banned_at = readmodels.text(form.get("banned_at"))
+        ctx = _context(request, identity)
+        row = next((candidate for candidate in await _ban_rows(ctx)
+                    if candidate.ucid == ucid and candidate.banned_at_key == banned_at), None)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"No ban for ucid '{ucid}'.")
+        if bool(getattr(row, "dgsa", False)):
+            raise HTTPException(status_code=403, detail=BAN_EDIT_DGSA_REFUSAL)
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _bans_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = ban_edit_dialog_context(request, action, row, origin, tab, _dgsa_carry(form))
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _watch_add_handler(action: WatchAction):
+    """The route for the watch entry's ADD — the dialog's own POST.
+
+    No token is spent (the write is reversible from the same page): the UCID, the reason and the
+    actor's shown name ride the declaration's OWN field names, and ``sender`` is read off the
+    identity, never from the body, so nobody can sign another person's name onto an entry.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the add-watch control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {"ucid": readmodels.text(form.get("ucid")),
+                                  action.field: readmodels.text(form.get(action.field))}
+        if action.sender:
+            params["sender"] = _sender(identity)
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _watch_add_confirm_handler(action: WatchAction):
+    """The route that RENDERS the ADD dialog. It changes nothing and mints no token.
+
+    The player is RE-READ here through the console's own detail action, so the dialog names a resolved
+    player and never a field the browser sent. A UCID with no player answer the console's bare 404;
+    so does a player who IS watched, because the ADD is the control of the entry-less state and this
+    is the door behind that omission.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await player_detail_view(request, ucid)
+        if detail is None or detail.watch.active:
+            raise HTTPException(status_code=404, detail=f"No such player for ucid '{ucid}'.")
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = watch_add_dialog_context(request, action, detail, origin, tab)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _watch_remove_handler(action: WatchAction):
+    """The route for the watch entry's REMOVE — the dialog's own POST.
+
+    The entry's UCID travels in the BODY and the one-shot token is keyed on it, so a POST that never
+    rendered the warning carries no token and is refused. The scope is applied INSIDE the action (the
+    player read's own presence bound), so this route names no server and cannot widen it.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        if not consume_confirm_token(request, action.path, ucid,
+                                     readmodels.text(form.get(CONFIRM_FIELD))):
+            # The row's control posts to the DIALOG, the dialog's form carries the token minted for
+            # THIS entry, and a caller who skips the dialog has none. That refusal IS the gate.
+            await _audit_refusal(ctx, action, "not confirmed through its dialog",
+                                 f"ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        result = await call_action(action.qualname, ctx, ucid=ucid)
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _watch_remove_confirm_handler(action: WatchAction):
+    """The route that RENDERS the REMOVE dialog. It changes nothing.
+
+    The entry is RE-READ here through the console's own detail action, so the name, the reason and
+    the watcher in the dialog come from the entry — never from a field the browser sent. A UCID with
+    no entry the caller can see answers the console's bare 404, the SAME answer as a UCID nothing
+    answers to; the token is minted on the ENTRY's own UCID, which is what the dialog posts back.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await watch_entry_detail(request, ucid)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"No watch entry for ucid '{ucid}'.")
+        entry_ucid = readmodels.text(getattr(detail.watch, "ucid", "")) or ucid
+        token = mint_confirm_token(request, action.path, entry_ucid)
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = watch_remove_dialog_context(request, action, detail, token, origin, tab)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _watch_edit_handler(action: WatchAction):
+    """The route for the watch entry's EDIT — the dialog's own POST.
+
+    No token is spent (an edit is reversible from the same page): the UCID and the reason ride the
+    declaration's OWN field names, so the route cannot post one thing and the action read another.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        assert action.field, "the edit-watch control declares its reason field"
+        form = await request.form()
+        ctx = _context(request, identity)
+        params: dict[str, Any] = {"ucid": readmodels.text(form.get("ucid")),
+                                  action.field: readmodels.text(form.get(action.field))}
+        result = await call_action(action.qualname, ctx, **params)
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _watch_edit_confirm_handler(action: WatchAction):
+    """The route that RENDERS the EDIT dialog. It changes nothing and mints no token.
+
+    The entry is RE-READ here, so the reason the field PRE-FILLS is the entry's own; a UCID with no
+    entry the caller can see answers the console's bare 404.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await watch_entry_detail(request, ucid)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"No watch entry for ucid '{ucid}'.")
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = watch_edit_dialog_context(request, action, detail, origin, tab)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _penalty_back(ucid: str) -> str:
+    """The page a penalty write returns to: the player's INFRACTIONS tab — where the card lives."""
+    from . import player_detail as player_page
+
+    return player_page.player_path(ucid, "infractions") if ucid else _players_path()
+
+
+def _penalty_points_value(action: PenaltyAction, raw: Any) -> int | None:
+    """The figure the action receives: the typed magnitude, or the negative of it for a removal.
+
+    The two controls have two contracts, both bounded by :data:`PENALTY_POINTS_MIN` …
+    :data:`PENALTY_POINTS_MAX` — a bound the ROUTE applies, because the form's own bounds are never
+    the authority:
+
+    * the REMOVE control takes a MAGNITUDE, and its sign is applied here and only here, so the row it
+      writes is the negative one;
+    * the ADD control takes a positive figure, so a typed minus is not a value it can honour.
+
+    ``None`` for anything else — a value outside the bound or one that does not parse — which the
+    ACTION refuses with its own sentence (:data:`plugins.punishment.actions.POINTS_REFUSAL`) and
+    writes nothing. The console therefore carries no second wording of its own for this refusal.
+    """
+    try:
+        typed = int(readmodels.text(raw))
+    except (TypeError, ValueError):
+        return None
+    if action.key == PENALTY_REMOVE_ACTION.key:
+        magnitude = abs(typed)
+        return -magnitude if PENALTY_POINTS_MIN <= magnitude <= PENALTY_POINTS_MAX else None
+    return typed if PENALTY_POINTS_MIN <= typed <= PENALTY_POINTS_MAX else None
+
+
+def _penalty_handler(action: PenaltyAction):
+    """The route for one PENALTY write — the dialog's own POST.
+
+    The FORGIVE spends the one-shot token its dialog minted; the two point controls are forms whose
+    dialog IS the write, so they carry none. The write is FLEET-WIDE: the route reads no server
+    field (there is none) and passes none — the action resolves its own reference server.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        if action.confirm and not consume_confirm_token(
+                request, action.path, ucid,
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            await _audit_refusal(ctx, action, "not confirmed through its dialog",
+                                 f"ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(status_code=403, detail=REFUSAL_CONFIRM_REQUIRED)
+        if action.points:
+            result = await call_action(
+                action.qualname, ctx, ucid=ucid,
+                points=_penalty_points_value(action, form.get(PENALTY_POINTS_FIELD)),
+                reason=readmodels.text(form.get(PENALTY_REASON_FIELD)))
+        else:
+            result = await call_action(action.qualname, ctx, ucid=ucid)
+        _remember_notice(request, action, result)
+        return RedirectResponse(_penalty_back(ucid), status_code=303)
+
+    return handle
+
+
+def _penalty_confirm_handler(action: PenaltyAction):
+    """The route that RENDERS one penalty dialog. It changes nothing.
+
+    The player is RE-READ here through the console's own detail action, so the dialog names a
+    resolved player and never a field the browser sent. The dialog asks for no server: the write is
+    fleet-wide, and an installation that runs no server is refused by the ACTION with its own
+    sentence. The FORGIVE mints the one-shot token its route spends, keyed on the UCID.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        ucid = readmodels.text(form.get("ucid"))
+        detail = await player_detail_view(request, ucid)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"No such player for ucid '{ucid}'.")
+        token = ""
+        if action.confirm:
+            # the FORGIVE's target is the player's UCID group, which is the whole token key
+            token = mint_confirm_token(request, action.path, ucid)
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        label = detail.name or ucid
+        dialog = penalty_dialog_context(request, action, ucid, label, token, origin)
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _player_handler(action: PlayerAction):
+    """The route for one PLAYER write. One implementation, so every player write is refused the
+    same way as every server write — resolution first, then the action, then the one-shot notice.
+
+    TWO differences from the server twin, both of them about destructive writes:
+
+    * a CONFIRM-REQUIRED player write (kick, ban) refuses a POST that did not come through its
+      dialog, exactly as the server writes do — and the token is keyed on BOTH halves of the target;
+    * a refusal this route makes on behalf of a destructive action leaves an audit entry
+      (:func:`_audit_refusal`); every other refusal is not audited here.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        if action.confirm and not consume_confirm_token(
+                request, action.path, _player_target(name, ucid),
+                readmodels.text(form.get(CONFIRM_FIELD))):
+            # A confirm-required write REFUSES a POST that did not come through its dialog. The row's
+            # control posts to the dialog, the dialog's form carries the one-shot token minted for THIS
+            # (server, ucid), and a caller who skips the dialog has no token. A confirmation curl can
+            # bypass is decoration, so this refusal is the control.
+            _refusal_notice(request, action, REFUSAL_CONFIRM_REQUIRED)
+            raise HTTPException(
+                status_code=403,
+                detail=REFUSAL_CONFIRM_REQUIRED)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            # The console's refusal for a named target outside the caller's scope — the SAME answer
+            # as a name that does not exist, so a hoster cannot enumerate the fleet.
+            # It happens before any action, so it carries no ActionResult; for the DESTRUCTIVE pair
+            # the attempt is recorded first, and for every other player write the trail
+            # is the ACTION's own (one entry per attempt). The person's page gets the
+            # one-shot notice, whose wording discloses nothing about the target.
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"server '{name}', ucid={ucid or '?'}")
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if resolution.is_found:
+            # No ``audit_result``: every action this route reaches writes its own trail, once, for
+            # every outcome — the flag belongs to a plugin action this route may not modify.
+            params: dict[str, Any] = {target: readmodels.text(form.get(source))
+                                      for source, target in action.params}
+            # The control's OWN parameters, added AFTER the body: the mode a message control writes
+            # in is the declaration's, so a crafted POST naming the other one changes nothing.
+            params.update(dict(action.constants))
+            if action.sender:
+                params["sender"] = _sender(identity)
+            result = await call_action(action.qualname, ctx, server_name=name, ucid=ucid,
+                                       **params)
+        else:
+            # The request WAS authorized; the name genuinely does not exist. The honest answer is
+            # the seam's typed refusal, rendered inline — never a 404 and never a silent success.
+            # No action ran, so the trail is written here (one entry per ATTEMPT).
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+        _remember_notice(request, action, result)
+        # 303 back to the PAGE the control was rendered on — the Dashboard's
+        # Players tab and /players render the same row strip, so the write must not re-orient the
+        # person, and the tab in force is re-attached so a player write pressed on the Players tab
+        # lands back on the Players tab; never a re-render of a POST.
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+def _screenshot_handler(action: PlayerAction):
+    """The route for the player SCREENSHOT — the one player write whose answer is an IMAGE.
+
+    Everything up to the action is :func:`_player_handler`'s own discipline: the identity, the scoped
+    resolution, the seam's typed refusals. The difference comes after it — the action answers with the
+    KEY of a file the GAME SERVER wrote, so this route reads that file out of the server's own web GUI
+    and keeps it under a short-lived token, which the page it lands on renders as a modal
+    (:func:`screenshot_control`). The bytes are read HERE rather than in the action because the file is
+    served by DCS itself, on the loopback address the bot already knows.
+
+    A capture that was taken but cannot be read back is reported as a FAILURE: "taken" with no image
+    would be a success whose answer never arrives.
+    """
+    async def handle(request: Request) -> RedirectResponse:
+        identity = _identity(request)
+        if identity is None:
+            _refusal_notice(request, action, REFUSAL_NO_IDENTITY)
+            raise HTTPException(status_code=403, detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            _refusal_notice(request, action, REFUSAL_OUT_OF_SCOPE)
+            raise dashboard_page.out_of_scope_refusal()
+        if resolution.is_found:
+            player_name = ucid
+            result = await call_action(action.qualname, ctx, server_name=name, ucid=ucid)
+            player_name = readmodels.text(getattr(result, "player_name", "")) or player_name
+            key = readmodels.text(getattr(result, "screenshot", ""))
+            if bool(getattr(result, "success", False)) and key:
+                image = await _read_screenshot(resolution.server, key)
+                if image is None:
+                    result = PlayerScreenshotResult(
+                        success=False,
+                        message=(f"The screenshot of {player_name} on server '{name}' was taken but "
+                                 f"could not be read back."),
+                        player_name=player_name, ucid=ucid)
+                else:
+                    remember_screenshot(name, player_name, ucid, _actor_key(identity), image)
+        else:
+            # The request WAS authorized; the name genuinely does not exist. The honest answer is the
+            # seam's typed refusal, rendered inline — never a 404 and never a silent success.
+            result = await audit_action(ctx, ActionResult(success=False,
+                                                          message=resolution.message))
+        _remember_notice(request, action, result)
+        return RedirectResponse(
+            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
+            status_code=303)
+
+    return handle
+
+
+async def _read_screenshot(server, key: str) -> bytes | None:
+    """The PNG the game server wrote, read from ITS OWN web GUI — or ``None``.
+
+    The file is served by the DCS server's web GUI on the loopback address the bot already knows
+    (``server.instance.webgui_port``, exactly as the Discord command reads it), so this is one HTTP
+    read through the node's own file accessor. Every failure answers the same ``None``: the caller
+    turns it into a typed refusal rather than a success with no image.
+    """
+    port = int(readmodels.safe(
+        lambda: getattr(getattr(server, "instance", None), "webgui_port", 0), 0) or 0)
+    if not port:
+        return None
+    try:
+        data = await server.node.read_file(f"http://127.0.0.1:{port}{key}")
+    except Exception:  # noqa: BLE001 - any failure here has the same answer: no image
+        log.exception("the screenshot %s could not be read from server '%s'",
+                      key, getattr(server, "name", "?"))
+        return None
+    return bytes(data) if data else None
+
+
+def _screenshot_image_handler():
+    """The SHORT-LIVED URL: the PNG a token names, or a 404.
+
+    It changes nothing, so it is a GET, and its capability is the glyph's own
+    (:data:`SCREENSHOT_CAPABILITY`) — a token is not a second door. A token past its life and one that
+    never existed answer the SAME way, so a probe learns nothing about what is held.
+    """
+    async def handle(token: str) -> Response:
+        capture = screenshot_capture(token)
+        if capture is None:
+            raise HTTPException(status_code=404, detail="No such screenshot.")
+        return Response(content=capture.image, media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _player_confirm_handler(action: PlayerAction):
+    """The route that RENDERS one destructive PLAYER action's dialog. It changes nothing.
+
+    The twin of :func:`_confirm_handler`, and it exists for the reason the mockup draws kick and ban
+    as dialogs at all: those two need a REASON (and the ban a duration), so the dialog is where the
+    person types while looking at the consequence — the field is asked for next to the warning that
+    explains it, not on the row.
+
+    THE REFUSALS ARE THE ACTION'S OWN, so a person cannot learn about a server by comparing the two
+    pages: a name outside the caller's scope is the console's 403 — the SAME answer
+    as a name that does not exist — and a server that genuinely does not exist is the honest 404 an
+    unscoped caller gets. The player is resolved ON the scoped server, so a ucid that belongs
+    elsewhere is simply not here.
+    """
+    async def handle(request: Request) -> HTMLResponse:
+        identity = _identity(request)
+        if identity is None:
+            raise HTTPException(status_code=403,
+                                detail=REFUSAL_NO_IDENTITY)
+        form = await request.form()
+        name = readmodels.text(form.get("server"))
+        ucid = readmodels.text(form.get("ucid"))
+        ctx = _context(request, identity)
+        resolution = await ctx.resolve_scoped_server(name)
+        if resolution.status == ServerResolution.NOT_PERMITTED:
+            await _audit_refusal(ctx, action, "not permitted (outside your scope)",
+                                 f"server '{name}', ucid={ucid or '?'}")
+            raise dashboard_page.out_of_scope_refusal()
+        if not resolution.is_found:
+            raise HTTPException(status_code=404, detail=f"No server named '{name}'.")
+        player = readmodels.safe(
+            lambda: resolution.server.get_player(ucid=ucid, active=True), None)
+        if player is None:
+            raise HTTPException(status_code=404,
+                                detail=f"No active player '{ucid}' on server '{name}'.")
+        token = mint_confirm_token(request, action.path, _player_target(name, ucid))
+        origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
+        tab = posted_tab(form.get(TAB_FIELD))
+        dialog = player_confirm_context(request, action, resolution.server, player, name, ucid,
+                                        token, origin, tab)
+        # no-store: the dialog is a console page too, and a browser must re-render it rather than
+        # serve it from its cache (the console's pages set this for themselves; `live.py` does the
+        # same for its poll).
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **dialog),
+                            headers={"Cache-Control": "no-store"})
+
+    return handle
+
+
+def _sender(identity: Identity) -> str:
+    """The label an in-game message appears to come from: the identity's own PLAIN shown name.
+
+    The twin of what the Discord commands pass (``interaction.user.display_name``), read off the
+    identity rather than from the form — a person cannot sign somebody else's name onto a message.
+    Read through :func:`_plain_name` like every other name this module labels with: an identity's
+    shown name is plain (no Discord-markdown escaping is introduced on an ``Identity`` — that
+    escaping lives on the DOMAIN objects' ``display_name``), and a chat line must carry the name as
+    it is, never a display string.
+    """
+    return _plain_name(identity, ("shown_name", "display_name"))
+
+
+def _identity(request: Request) -> Identity | None:
+    """The signed-in identity of this request, or ``None`` (see the caller)."""
+    manager = getattr(getattr(request.app, "state", None), "webui_auth", None)
+    if manager is None:
+        return None
+    return manager.authenticate(request)
+
+
+def context_for(request: Request) -> ActionContext:
+    """The seam's context for a READ page: the request's own resolved roles and scope.
+
+    A page must render for an AUTHORISED caller even when no identity BACKEND is installed (a test
+    shell, a console with no sign-in door): the capability gate has already authorised the request,
+    and the roles/scope resolvers are the very facts the gate and the sidebar read. No audit actor is
+    set — a read writes no trail. A WRITE keeps using :func:`_context`, which requires a resolvable
+    identity so its trail can name the actor.
+    """
+    source = dashboard_page.request_source(request)
+    ctx = ActionContext(node=_node(), bus=_Cluster(source))
+    ctx._scope = permissions.scope_for(request)
+    ctx._roles = permissions.role_names_for(request)
+    ctx._transport = TRANSPORT_WEB
+    return ctx
+
+
+def _context(request: Request, identity: Identity) -> ActionContext:
+    """The seam's context for this request: the caller's identity against the console's own cluster.
+
+    ``bus`` is :class:`_Cluster` rather than the ``ServiceBus`` itself, and deliberately: the
+    console's data has ONE seam (:func:`services.webservice.readmodels.console_source` — the live
+    registry, or whatever a deployment pinned on ``app.state.webui_source_provider``), so a write
+    resolves its target against the SAME cluster the page it came from rendered. The seam only ever
+    reads ``bus.servers`` (``core/actions.py``), which is exactly what that carries.
+
+    The SCOPE is the request's RESOLVED scope — ``permissions.scope_for``, the SAME resolver every
+    page and read model renders from — carried on the identity ``from_web`` reads it off. A backend
+    that builds a RESTRICTED identity for a caller who holds a cluster role (the Discord OAuth
+    backend always does) therefore reaches the seam with the cluster-role upgrade already applied,
+    so the read path and the write path cannot disagree about which servers this caller may act on.
+    ``resolve_scoped_server`` applies it — the route never resolves a server itself.
+    """
+    # THE SCOPED SOURCE, through the ONE function pages may read it from (pinned by
+    # tests/test_webui_scope_view.py: ``request_source`` is the only caller of the source seam in
+    # this package). The seam's own resolution re-checks the scope, so a name the caller cannot see
+    # is refused — and, because the bus only holds the caller's view, a name that does not exist and
+    # a name outside the scope produce the SAME answer, which is the point: a hoster
+    # cannot enumerate the fleet by probing names.
+    source = dashboard_page.request_source(request)
+    scoped_identity = replace(identity, scope=permissions.scope_for(request))
+    return ActionContext.from_web(scoped_identity, _node(), _Cluster(source))
+
+
+def _node() -> Any:
+    """The process's own node, when there is one. Read by no action; the seam's contract carries it."""
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.servicebus import ServiceBus
+
+        bus = ServiceRegistry.get(ServiceBus)
+        return getattr(bus, "node", None) if bus is not None else None
+    except Exception:
+        return None
+
+
+def _servers_path() -> str:
+    """Where a SERVER write redirects back to when the form named no known page: the Servers page's
+    own constant, never a typed string."""
+    from . import servers as servers_page
+
+    return servers_page.SERVERS_PATH
+
+
+def origin_path(request: Request, posted: Any, section_default: str) -> str:
+    """The page a write returns to: *posted* when the REGISTRY knows it, else *section_default*.
+
+    THE ONE place the browser's destination is chosen by request data, and it is an ALLOW-LIST, never
+    a redirect to raw input. The candidate travels in the form
+    as :data:`ORIGIN_FIELD` (never in a URL), and it is accepted only if it EQUALS a path the registrar
+    already knows — ``Registrar.page_paths``, the pages' own nav declarations, so no second mapping
+    table can drift from the routes. The value RETURNED is that registry constant, not the posted
+    string: a request can cause a redirect to a page of this console and to nothing else, so a crafted
+    ``_origin=//evil.example`` or ``_origin=https://evil.example`` is discarded and the section default
+    is used instead.
+
+    A missing or unknown origin is not an error — it is the section default (``/fleet`` for a server
+    write, ``/nodes`` for a node write, ``/players`` for a player write), which is what every write
+    redirects to and stays the honest answer for a caller that never sent one.
+
+    A value carrying a QUERY is not a page path either, so ``/?tab=players`` is refused here exactly
+    like any other value the registry does not hold: the dashboard's tab in force travels BESIDE the
+    origin, in :data:`TAB_FIELD`, and :func:`origin_url` is what re-attaches it to the value this
+    function returned.
+    """
+    wanted = readmodels.text(posted)
+    registrar = getattr(getattr(request, "app", None), "state", None)
+    registrar = getattr(registrar, "webui_registrar", None)
+    for path in tuple(getattr(registrar, "page_paths", ()) or ()):
+        if path == wanted:
+            return path
+    return section_default
+
+
+def origin_url(request: Request, posted_origin: Any, posted_tab: Any, section_default: str) -> str:
+    """Where a write RETURNS TO: :func:`origin_path`'s page, with the dashboard's tab re-attached.
+
+    THE ONE place a return URL is built, so a control's ``Cancel`` link and the post-write redirect
+    cannot disagree about where the person goes back to. The origin is resolved by LOOKUP against the
+    registry (:func:`origin_path`) and never trusted; the tab rides beside it in :data:`TAB_FIELD`
+    because the registry holds PAGE PATHS and a query-carrying value is refused there.
+
+    The tab is appended ONLY for the dashboard — the one page whose table is chosen by a parameter —
+    and it is validated by the dashboard's own :func:`~services.webservice.pages.dashboard.normalise_tab`,
+    so a crafted ``_tab`` is dropped rather than echoed, a tab this console does not serve becomes the
+    default, and the DEFAULT tab leaves the URL unadorned (an unadorned page stays unadorned). Nothing
+    else of the request reaches the URL: the path is the registry's own constant and the query is
+    rebuilt from the validated tab key alone.
+    """
+    return tabbed_origin(origin_path(request, posted_origin, section_default), posted_tab)
+
+
+def tabbed_origin(origin: str, tab: Any) -> str:
+    """The dashboard URL of *origin* with its active *tab*, or *origin* unchanged for any other page.
+
+    :func:`origin_url`'s read of the two values once the origin has been resolved, and the same one
+    composition the DIALOG pages need (their ``Cancel`` link and their form's ``data-back`` go to the
+    page the row was rendered on, tab and all). One function, so the link and the redirect cannot
+    drift; the tab goes through :func:`posted_tab`, so a value this console does not serve is dropped
+    here as well as at the route.
+    """
+    from urllib.parse import urlencode
+
+    key = posted_tab(tab)
+    if origin == dashboard_page.DASHBOARD_PATH and key:
+        return f"{origin}?{urlencode({'tab': key})}"
+    return origin
+
+
+def dialog_back(request: Request, target: str) -> str:
+    """*target* rewritten as a reference RELATIVE to the page being rendered.
+
+    The console is served under a reverse-proxy sub-path as well as at the root, and an ABSOLUTE
+    return path (``/fleet``) leaves that prefix behind: the browser resolves it against the origin,
+    so the dialog hands the person back at ``/`` instead of ``/serverbot/``. The app itself cannot
+    know the prefix — a proxy strips it and no forwarded-path header reaches here — so the one
+    prefix-agnostic spelling is a reference relative to the CURRENT page, which the browser resolves
+    against the URL it actually loaded (the ``..`` segments cancel out whatever the prefix is).
+
+    ``data-back``, the dialog's ``Cancel`` link and its ``Esc`` all read this. The ROUTE-side 303
+    keeps the absolute path: it answers a POST whose own URL carries the same prefix.
+    """
+    if not target:
+        return target
+    path, sep, query = target.partition("?")
+    directory = request.url.path.rsplit("/", 1)[0] + "/"
+    return posixpath.relpath(path, directory) + sep + query
+
+
+def posted_tab(value: Any) -> str:
+    """A posted tab carrier as the console's OWN canonical tab key — ``""`` for the default tab.
+
+    The carrier is a closed vocabulary, so it is read through the dashboard's own validator
+    (:func:`~services.webservice.pages.dashboard.normalise_tab`) rather than echoed: a value this
+    console does not serve becomes the default, a value it does serve is normalised, and the DEFAULT
+    tab answers the empty string — which is what an unadorned URL means, and what a dialog must
+    re-emit rather than a tab nobody chose.
+    """
+    key = dashboard_page.normalise_tab(value)
+    return "" if key == dashboard_page.DEFAULT_TAB else key
+
+
+def _players_path() -> str:
+    """Where a PLAYER write redirects back to: the Players page's own constant."""
+    from . import players as players_page
+
+    return players_page.PLAYERS_PATH
+
+
+def _bans_path() -> str:
+    """Where a BAN-ENTRY write redirects back to: the Bans page's own constant."""
+    from . import bans as bans_page
+
+    return bans_page.BANS_PATH
+
+
+def _nodes_path() -> str:
+    """Where a NODE write redirects back to: the Nodes page's own constant, never a typed string."""
+    from . import nodes as nodes_page
+
+    return nodes_page.NODES_PATH
+
+
+class _Cluster:
+    """The ``bus`` the seam is given: the servers the console reads, keyed by name — and the nodes.
+
+    Duck-typed like every other seam in this package: ``core/actions.py`` reads ``bus.servers`` and
+    ``bus.nodes`` and nothing else. A server with no readable name is skipped rather than keyed as
+    ``""``, so it can never be the target of a write.
+
+    ``nodes`` is the SAME SCOPED VIEW the page renders its node rows from, ``None`` values included:
+    a node the cluster knows and cannot reach stays in the mapping as ``None``, which is exactly the
+    fact the seam's :class:`~core.actions.NodeResolution` reports as NOT_FOUND ("offline or
+    unknown"). For a caller whose view is restricted that mapping only holds the nodes carrying their
+    own servers, so "not in the mapping" IS "not permitted" — the scope is applied once, by the
+    source, and the resolver never re-implements it.
+    """
+
+    __slots__ = ("_source",)
+
+    def __init__(self, source):
+        self._source = source
+
+    @property
+    def servers(self) -> dict:
+        out: dict = {}
+        for server in getattr(self._source, "servers", ()) or ():
+            name = readmodels.text(readmodels.safe(lambda: getattr(server, "name", "")))
+            if name:
+                out[name] = server
+        return out
+
+    @property
+    def nodes(self) -> dict:
+        """``{name: node-or-None}`` as the console's own source carries it — never filtered twice."""
+        entries = getattr(self._source, "nodes", None)
+        return dict(entries) if isinstance(entries, dict) else {}

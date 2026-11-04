@@ -14,9 +14,7 @@ from pathlib import Path
 from services.bot import DCSServerBot
 from typing import Any, Mapping
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -84,7 +82,7 @@ class Commands(Plugin):
             config = Path(self.node.config_dir) / 'plugins' / 'commands.yaml'
             if not config.exists():
                 return
-            data = yaml.load(config.read_text(encoding='utf-8'))
+            data = new_yaml().load(config.read_text(encoding='utf-8'))
             if DEFAULT_TAG in data:
                 data.pop(DEFAULT_TAG)
             if not 'commands' in data or not isinstance(data['commands'], list):
@@ -113,15 +111,15 @@ class Commands(Plugin):
             data.pop('commands')
             data['commands'] = data.pop('new_commands')
             with open(config, 'w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+                new_yaml().dump(data, outfile)
             self.locals = self.read_locals()
             # remove potential command_prefix in bot.yaml
             if 'command_prefix' in self.bot.locals:
                 config = Path(self.node.config_dir) / 'services' / 'bot.yaml'
-                data = yaml.load(config.read_text(encoding='utf-8'))
+                data = new_yaml().load(config.read_text(encoding='utf-8'))
                 data.pop('command_prefix', None)
                 with open(config, 'w', encoding='utf-8') as outfile:
-                    yaml.dump(data, outfile)
+                    new_yaml().dump(data, outfile)
 
     async def _send(
         self,

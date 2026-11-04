@@ -1,7 +1,20 @@
 #!/bin/bash
 
+# Resolve the node name first: the environment is per node, so every launcher must agree on it.
+node_name=$(hostname)
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -n)
+            node_name="$2"
+            shift
+            ;;
+    esac
+    shift
+done
+
 # Set path to the virtual environment
-VENV="$HOME/.dcssb"
+VENV="$HOME/.dcssb-$node_name"
 
 echo "Cleaning up the virtual environment ..."
 
@@ -12,7 +25,7 @@ rm -rf "$VENV" > /dev/null 2>&1
 if [ -d "$VENV" ]; then
     echo "**************************************************"
     echo "WARNING: Could not delete the virtual environment."
-    echo "Please manually delete the .dcssb directory."
+    echo "Please manually delete the environment directory:"
     echo "Directory Path: $VENV"
     echo "**************************************************"
 else

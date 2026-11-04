@@ -5,14 +5,15 @@ import sys
 
 from aiohttp import ClientError
 from core import Channel, utils, Status, PluginError, Group, Node, DEFAULT_CHANNEL_PERMISSIONS, \
-    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS, Command
+    SEND_ONLY_CHANNEL_PERMISSIONS, SEND_ONLY_WITH_EMBEDS_PERMISSIONS, Command, cache_with_expiration
 from core.data.node import FatalException
 from core.listener import EventListener
 from core.services.registry import ServiceRegistry
+from core.utils.audit import record_audit
 from datetime import datetime, timezone
 from discord import Thread, PrivilegedIntentsRequired
 from discord.abc import PrivateChannel, GuildChannel
-from discord.ext import commands
+from discord.ext import commands, tasks
 from typing import TYPE_CHECKING, Iterable, cast, Any
 
 if TYPE_CHECKING:
@@ -55,26 +56,78 @@ class DCSServerBot(commands.Bot):
         self.tree.on_error = self.on_app_command_error
         self._locks: dict[tuple[str, str], asyncio.Lock] = {}
         self._roles = None
-
-    async def start(self, token: str, *, reconnect: bool = True) -> None:
-        self.synced: bool = False
-        await super().start(token, reconnect=reconnect)
+        self._audit_cursor = None
+        self._member_snapshots = {}
 
     async def connect(self, *, reconnect: bool = True) -> None:
         try:
+            if not self.intents.members:
+                interval = max(15, self.locals.get('audit_log', {}).get('poll_interval', 30))
+                self.audit_poll.change_interval(seconds=interval)
+                self.audit_poll.start()
             await super().connect(reconnect=reconnect)
         except PrivilegedIntentsRequired:
-            self.log.critical("You need to enable all priviledged intents in your Discord developer page!")
+            self.log.critical(
+"""You do not have the `Server Members Intent` or the `Message Content Intent` enabled in your Discord Developer Portal.
+If you have less than 10.000 users in your Discord server, please enable these Intents to get the most out of the bot.
+If you have more than 10.000 player, you have to set `privileged_intents: false` in your config/services/bot.yaml."""
+            )
             exit(-2)
+
+    async def login(self, token: str) -> None:
+        if not token:
+            raise FatalException("No Discord token found! You need to configure it in the bot.yaml file.")
+        await super().login(token)
+
+    async def _announce_major_upgrade(self) -> None:
+        """Tell the audit channel about an update the launcher deliberately did not apply.
+
+        Scheduled, never awaited: ``setup_hook`` runs before the Discord connection is ready and ``audit()`` needs
+        the guild cache. The launcher has already logged the same sentence to the bot log.
+        """
+        try:
+            await self.wait_until_ready()
+            # the pair is what the launcher recorded; the checker cannot know it is set when this runs
+            await self.audit(message=utils.upgrade_message(*self.node.major_upgrade))  # type: ignore[arg-type]
+        except Exception as ex:
+            self.log.warning(f"Could not announce the pending major upgrade: {ex}")
 
     async def close(self):
         try:
+            if self.audit_poll.is_running():
+                self.audit_poll.cancel()
             await self.audit(message="Discord Bot stopped.")
         except Exception:
             pass
         self.log.info('- Unloading Plugins ...')
         await super().close()
         self.log.info("- Plugins unloaded.")
+
+    @tasks.loop(seconds=30)
+    async def audit_poll(self):
+        guild = self.guilds[0]
+        if self._audit_cursor is None:                     # never replay history
+            self._audit_cursor = datetime.now(tz=timezone.utc)
+            return
+        try:
+            async for entry in guild.audit_logs(limit=None, after=self._audit_cursor, oldest_first=True):
+                self._audit_cursor = entry.created_at
+                if entry.action not in (discord.AuditLogAction.member_update,
+                                        discord.AuditLogAction.member_role_update):
+                    continue
+                member = await self.get_member(entry.target.id)
+                if member:
+                    before = self._member_snapshots.get(member.id)
+                    self._member_snapshots[member.id] = discord.Member._copy(member)
+                    if before and before.roles != member.roles:   # skip our own autorole + nick-only
+                        self.dispatch('member_update', before, member)
+        except discord.Forbidden:
+            self.log.error("You need to give DCSServerBot the 'View Audit Log' permission.")
+            self.audit_poll.cancel()
+
+    @audit_poll.before_loop
+    async def before_audit_poll(self):
+        await self.wait_until_ready()
 
     @property
     def roles(self) -> dict[str, list[str | int]]:
@@ -100,9 +153,19 @@ class DCSServerBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         self.log.info('- Loading Plugins ...')
+        # An update the launcher held back (a major version step, see run.py) is announced from here: the launcher
+        # has no Discord connection, and this is where one exists and the audit channel is known.
+        if self.node.major_upgrade:
+            asyncio.create_task(self._announce_major_upgrade())
         # we need to keep the order for our default plugins...
         for plugin in self.plugins:
             await self.load_plugin(plugin.lower())
+        # let the plugins register their admin web UI pages (no-op when no WebService runs on
+        # this node). This mirrors where the Discord plugins are loaded: after the cogs, from the
+        # same list, so a page and a command of one plugin can never disagree about loading.
+        from core.plugin_manager import PluginManager
+        self.plugin_manager = PluginManager(self.node)
+        await self.plugin_manager.load_plugins(self.plugins)
         # clean up remote servers (if any)
         for key in [key for key, value in self.bus.servers.items() if value.is_remote]:
             self.bus.servers.pop(key)
@@ -283,6 +346,7 @@ class DCSServerBot(commands.Bot):
             asyncio.create_task(register_guild_name())
             if not self.synced:
                 self.log.info(f'- Preparing Discord Bot "{self.user.name}" ...')
+                member_count = self.guilds[0].member_count or 1
                 if len(self.guilds) > 1:
                     self.log.warning('  => Your bot can only be installed in ONE Discord server. Fixing ...')
                     for guild in self.guilds:
@@ -291,6 +355,8 @@ class DCSServerBot(commands.Bot):
                             self.log.warning(f'    - Left {guild.name}')
                 elif self.node.guild_id != self.guilds[0].id:
                     raise FatalException(f"Change your guild_id in main.yaml to {self.guilds[0].id}!")
+                elif member_count >= 10000 and self.locals.get("privileged_intents", True):
+                    self.log.warning('Please set "privileged_intents: false" in your config/services/bot.yaml!')
                 self.member = self.guilds[0].get_member(self.user.id)
                 if not self.member:
                     raise FatalException("Can't access the bots user. Check your Discord server settings.")
@@ -324,6 +390,11 @@ class DCSServerBot(commands.Bot):
 
                 self.log.info('  => Registering Discord Commands (this might take a bit) ...')
                 self.tree.copy_global_to(guild=self.guilds[0])
+                # Commands imported before this bot existed still need their parameter
+                # trimming applied; this is the last moment it can be done before publishing.
+                for cmd in self.tree.walk_commands():
+                    if isinstance(cmd, Command):
+                        cmd.bind(self)
                 app_cmds = await self.tree.sync(guild=self.guilds[0])
                 app_ids: dict[str, int] = {}
                 for app_cmd in app_cmds:
@@ -429,7 +500,8 @@ class DCSServerBot(commands.Bot):
 
     async def audit(self, message, *, user: discord.Member | str | None = None,
                     server: "Server | None" = None, node: Node | None = None,
-                    mention: discord.Role | list[discord.Role] | None = None, **kwargs):
+                    mention: discord.Role | list[discord.Role] | None = None,
+                    actor: str | None = None, **kwargs):
         # init node if not set
         if not node:
             node = self.node
@@ -456,19 +528,20 @@ class DCSServerBot(commands.Bot):
                 member = await self.get_member_by_ucid(user) if utils.is_ucid(user) else None
             else:
                 member = user
+            # the actor lives in the entry's own column; a web action's author IS the bot in the
+            # channel, so the render puts the token back in front of the sentence
+            display = f'{actor} {message}' if actor else message
             embed = discord.Embed(color=discord.Color.blue())
             if member:
                 embed.set_author(name=member.display_name, icon_url=member.avatar)
                 if 'error' in kwargs:
                     embed.set_thumbnail(url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
-                else:
-                    embed.set_thumbnail(url=member.avatar)
                 if member != self.member:
-                    embed.description = f'<@{member.id}> ' + message
+                    embed.description = f'<@{member.id}> ' + display
                 else:
-                    embed.description = message
+                    embed.description = display
             else:
-                embed.description = message
+                embed.description = display
             if isinstance(user, str):
                 embed.add_field(name='UCID', value=user)
             if server:
@@ -494,13 +567,12 @@ class DCSServerBot(commands.Bot):
             except ClientError:
                 self.log.warning("Audit message discarded due to connection issue: " + message)
 
-        async with self.apool.connection() as conn:
-            await conn.execute("""
-                INSERT INTO audit (node, event, server_name, discord_id, ucid)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (node.name, message, server.name if server else None,
-                  user.id if isinstance(user, discord.Member) else None,
-                  user if isinstance(user, str) else None))
+        await record_audit(
+            self.apool, node=node.name, event=message,
+            server_name=server.name if server else None,
+            actor=actor,
+            discord_id=user.id if isinstance(user, discord.Member) else None,
+            ucid=user if isinstance(user, str) else None)
 
     def get_admin_channel(self, server: "Server | None" = None) -> discord.TextChannel | None:
         admin_channel = self.locals.get('channels', {}).get('admin')
@@ -511,6 +583,58 @@ class DCSServerBot(commands.Bot):
                 return None
         return self.get_channel(admin_channel)
 
+    @cache_with_expiration(60)
+    async def _fetch_member(self, user_id: int) -> discord.Member | None:
+        try:
+            return await self.guilds[0].fetch_member(user_id)
+        except discord.NotFound:
+            return None
+        except (discord.HTTPException, ClientError) as ex:
+            self.log.warning(f"Could not fetch member {user_id}: {ex}")
+            raise
+
+    def _track(self, member: discord.Member | None) -> discord.Member | None:
+        """Remember the member's state so the audit poller has a 'before'."""
+        if member:
+            self._member_snapshots.setdefault(member.id, discord.Member._copy(member))
+        return member
+
+    async def get_member(self, user_id: int, fetch: bool = True) -> discord.Member | None:
+        if user_id in (-1, None):
+            return None
+        member = self.guilds[0].get_member(int(user_id))
+        if member or not fetch:
+            return self._track(member)
+        try:
+            return self._track(await self._fetch_member(int(user_id)))
+        except (discord.HTTPException, ClientError):
+            return None
+
+    async def get_members(self, user_ids: Iterable[int], fetch: bool = True,
+                          concurrency: int = 5, budget: int | None = None) -> dict[int, discord.Member]:
+        """Resolve several members at once: cache first, then a bounded number of REST calls."""
+        guild = self.guilds[0]
+        ids = {i for i in (int(x) if x is not None else 0 for x in user_ids) if i > 0}
+        members = {i: m for i in ids if (m := guild.get_member(i))}
+        missing = sorted(ids - members.keys())
+        if not fetch or not missing:
+            return members
+        if budget is not None:
+            missing = missing[:budget]
+        sem = asyncio.Semaphore(concurrency)
+
+        async def _get(user_id: int) -> tuple[int, discord.Member | None]:
+            async with sem:
+                try:
+                    return user_id, await self._fetch_member(user_id)
+                except (discord.HTTPException, ClientError):
+                    return user_id, None
+
+        for user_id, member in await asyncio.gather(*[_get(i) for i in missing]):
+            if member:
+                members[user_id] = member
+        return members
+
     async def get_member_or_name_by_ucid(self, ucid: str, verified: bool = False) -> discord.Member | str | None:
         async with self.apool.connection() as conn:
             cursor = await conn.execute("SELECT discord_id, name, manual FROM players WHERE ucid = %s", (ucid, ))
@@ -519,7 +643,7 @@ class DCSServerBot(commands.Bot):
                 return None
             if verified and row[2] is False:
                 return row[1]
-            return self.guilds[0].get_member(row[0]) or row[1]
+            return await self.get_member(row[0]) or row[1]
 
     async def get_ucid_by_member(self, member: discord.Member, verified: bool | None = False) -> str | None:
         async with self.apool.connection() as conn:
@@ -540,29 +664,31 @@ class DCSServerBot(commands.Bot):
                 sql += ' AND manual IS TRUE'
             cursor = await conn.execute(sql, (ucid, ))
             if cursor.rowcount == 1:
-                return self.guilds[0].get_member((await cursor.fetchone())[0])
+                return await self.get_member((await cursor.fetchone())[0])
             else:
                 return None
 
     async def match_user(self, data: dict, rematch=False) -> discord.Member | None:
+        if not self.intents.members:
+            return None  # auto-matching needs the full member list
         if not rematch:
             member = await self.get_member_by_ucid(data['ucid'])
             if member:
                 return member
         return utils.match(data['name'], [x for x in self.get_all_members() if not x.bot])
 
-    def get_servers(self, manager: discord.Member | None = None) -> dict[str, "Server"] | None:
+    def get_servers(self, manager: discord.Member | None = None) -> dict[str, "Server"]:
         def check_server_roles(server: "Server") -> bool:
-            if server.locals.get('managed_by') and not utils.check_roles(server.locals.get('managed_by'), manager):
-                return False
-            return True
+            return utils.holds_scope(server.locals.get('managed_by'), utils.member_scope_tokens(manager))
 
         return {k: v for k,v in self.servers.items() if check_server_roles(v)}
 
-    def get_server(self, ctx: commands.Context | discord.Interaction | discord.Message | str, *,
+    def get_server(self, ctx: discord.Interaction | discord.Message | str, *,
                    admin_only: bool | None = False) -> "Server | None":
 
-        all_servers = self.get_servers(manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author)
+        all_servers = self.get_servers(
+            manager=ctx.user if isinstance(ctx, discord.Interaction) else ctx.author if isinstance(ctx, discord.Message) else None
+        )
         if len(all_servers) == 1:
             server = next(iter(all_servers.values()))
             if admin_only:
@@ -575,9 +701,12 @@ class DCSServerBot(commands.Bot):
                     return None
             else:
                 return server
+
         for server_name, server in all_servers.items():
-            if isinstance(ctx, commands.Context) or isinstance(ctx, discord.Interaction) \
-                    or isinstance(ctx, discord.Message):
+            if isinstance(ctx, str):
+                if server_name == ctx:
+                    return server
+            else:
                 if server.status == Status.UNREGISTERED:
                     continue
                 for channel in [Channel.ADMIN, Channel.STATUS, Channel.EVENTS, Channel.CHAT,
@@ -586,9 +715,6 @@ class DCSServerBot(commands.Bot):
                     if int(server.locals.get('channels', {}).get(channel.value, -1)) != -1 and \
                             server.channels[channel] == ctx.channel.id:
                         return server
-            else:
-                if server_name == ctx:
-                    return server
         return None
 
     async def fetch_embed(self, embed_name: str, channel: GuildChannel, server: "Server | None" = None):

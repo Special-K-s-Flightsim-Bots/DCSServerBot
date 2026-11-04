@@ -31,10 +31,6 @@ from .view import ChoicesView, ApplicationModal, ApplicationView, TournamentModa
 from ..competitive.commands import Competitive
 from ..creditsystem.squadron import Squadron
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
-
 _ = get_translation(__name__.split('.')[1])
 
 
@@ -482,7 +478,7 @@ class Tournament(Plugin[TournamentEventListener]):
             message = _("## :warning: Attention all Squadron Leaders! :warning:\n"
                         "A new tournament has been created:\n"
                         "\n"
-                        "```{}```").format(tournament['description'])
+                        "```{}```").format(tournament.get('description', 'No description added.'))
             message += _("\nYou can use {} to sign up.").format(
                 (await utils.get_command(self.bot, group=self.tournament.name, name=self.signup.name)).mention)
             embed.add_field(name=utils.print_ruler(ruler_length=27), value="_ _", inline=False)
@@ -2498,6 +2494,13 @@ class Tournament(Plugin[TournamentEventListener]):
         if message.author.bot or not message.attachments:
             return
 
+        if not isinstance(message.author, discord.Member):
+            member = await self.bot.get_member(message.author.id)
+            if not member:
+                return
+            # this is quite a hack honestly, but it works
+            message.author = member
+
         att = message.attachments[0]
         filename = att.filename.lower()
         filetype = filename.lower().split('.')[-1]
@@ -2505,7 +2508,7 @@ class Tournament(Plugin[TournamentEventListener]):
             return
 
         if not utils.check_roles(set(self.bot.roles['DCS Admin'] + self.bot.roles['GameMaster']), message.author):
-            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload data."))
+            await message.channel.send(_("You need to be DCS Admin or GameMaster to upload tournament data."))
             return
 
         match = re.match(r'^tournament_(\d+)\.xlsx?$', filename)

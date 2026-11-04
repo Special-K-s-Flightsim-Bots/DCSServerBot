@@ -351,7 +351,12 @@ class MissionStatistics(Plugin[MissionStatisticsEventListener]):
         await interaction.response.defer(ephemeral=True)
         report = Report(self.bot, self.plugin_name, 'refuelings.json')
         env = await report.render(ucid=ucid, member_name=name, flt=period)
-        await interaction.followup.send(embed=env.embed, ephemeral=True)
+        try:
+            file = discord.File(fp=env.buffer, filename=env.filename)
+            await interaction.followup.send(embed=env.embed, file=file, ephemeral=True)
+        finally:
+            if env.buffer:
+                env.buffer.close()
 
     @command(description=_('Find who killed you most'))
     @app_commands.guild_only()

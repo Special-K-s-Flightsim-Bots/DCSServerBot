@@ -18,11 +18,9 @@ if TYPE_CHECKING:
     from core import Server, NodeImpl
     from .registry import ServiceRegistry
 
-# ruamel YAML support
+from core.utils.yaml_helper import new_yaml
 from pykwalify.errors import PyKwalifyException
-from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
-yaml = YAML()
 
 __all__ = [
     "proxy",
@@ -188,14 +186,14 @@ class Service(ABC):
                 else:
                     self.log.warning(f'No schema file for service "{self.name}" found.')
 
-            return yaml.load(Path(filename).read_text(encoding='utf-8'))
+            return new_yaml().load(Path(filename).read_text(encoding='utf-8'))
         except (MarkedYAMLError, PyKwalifyException) as ex:
             raise ServiceInstallationError(self.name, ex.__str__())
 
     def save_config(self):
         with open(os.path.join(self.node.config_dir, 'services', f'{self.name.lower()}.yaml'),
                   mode='w', encoding='utf-8') as outfile:
-            yaml.dump(self.locals, outfile)
+            new_yaml().dump(self.locals, outfile)
 
     def get_config(self, server: Server | None = None, **kwargs) -> dict:
         if not server:

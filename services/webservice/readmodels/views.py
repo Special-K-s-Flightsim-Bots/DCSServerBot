@@ -1,0 +1,701 @@
+"""Sorting and searching the console's tables — the ONE validated parameter layer.
+
+``?sort=``, ``?dir=`` and ``?q=`` are USER INPUT arriving in the query string, so they are parsed
+HERE, validated against explicit allow-lists, and turned into plain data a template can read — one
+place to review, one place to test, and no template ever computes a direction or compares a column
+key. The pattern is the log level filter's (:func:`services.webservice.readmodels.logtail.
+normalise_level`): the URL says it, a closed vocabulary validates it, an unknown value silently
+falls back to the default, and no arbitrary string is ever echoed back into the page or a link.
+
+WHAT IS ALLOWED, and what happens to junk:
+
+* ``sort`` — only the COLUMN KEYS OF THE TABLE IN QUESTION (see :data:`TABLE_COLUMNS`). A value
+  that is not a column of that table is not an error: the table renders in its documented default
+  order (``name``, ascending, for all four tables — the read model's own order, so nothing changes
+  until the reader asks). The raw value is dropped, never carried into a link.
+* ``dir`` — only ``asc``/``desc``; anything else is the default ``asc``.
+* ``q`` — the players search text: trimmed, control characters removed, capped at
+  :data:`MAX_QUERY_LENGTH`. It is echoed back (the form re-fills) and it round-trips through every
+  link, both URL-encoded by :func:`urllib.parse.urlencode` — it never becomes a URL or attribute
+  injection vector.
+* ``log`` — the placement override, only ``bottom``/``right``/``expanded``.
+
+TYPED COMPARATORS. Each column declares its kind once, next to its label (:class:`Column`), so the
+sorting behaviour and the markup cannot drift apart: ``num`` columns compare as integers (9 before
+10), ``text`` columns case-insensitively. The secondary key is always the row's NAME and it is
+applied in the same direction for both orders (see :func:`sort_rows`), so equal keys produce a
+deterministic order that never depends on the input sequence.
+
+PURE AND REUSABLE. Nothing here imports HTTP, ``core`` or Discord, and nothing takes a
+``Request``: :func:`view_params` takes a query MAPPING and :func:`view_state` takes a path, so the
+standalone Servers/Nodes/Instances/Players pages can call the same layer with their own path and
+their own rows (requirement 6). Sorting works on the already-built tuple views — no new query, and
+no re-reading of anything.
+"""
+from __future__ import annotations
+
+import unicodedata
+from dataclasses import dataclass
+from typing import Mapping, Sequence
+from urllib.parse import urlencode
+
+__all__ = [
+    "MAX_QUERY_LENGTH", "MAX_SORT_LENGTH", "SORT_PARAM", "DIRECTION_PARAM", "SORT_DIRECTIONS",
+    "DEFAULT_SORT", "DEFAULT_DIRECTION", "PAGE_PARAM", "PLAYER_DIRECTORY_PAGE_SIZE",
+    "LOG_POSITIONS", "TEXT", "NUM", "Column", "ColumnView", "TableView", "PlayerSearch",
+    "ViewParams", "ViewState", "TABLE_COLUMNS", "TABLE_LABELS", "PAGE_COLUMNS", "PAGE_LABELS",
+    "ALL_COLUMN_KEYS", "columns_for",
+    "column_keys", "normalise_sort", "normalise_direction", "normalise_query", "normalise_page",
+    "normalise_position", "opposite_direction", "natural_direction",
+    "sort_rows", "search_players", "column_link", "table_view", "view_state", "view_params",
+]
+
+
+def _(message: str) -> str:
+    """Mark a string as translatable for the extractor; return it UNCHANGED.
+
+    The console's extraction marker (see :func:`services.webservice.i18n._`): Babel reads the literal
+    out of this module, while at runtime this is an identity, so the read model stays pure and has no
+    language of its own. The translation happens where the string is RENDERED, by the per-language
+    Jinja environment's own ``_`` (``{{ _(column.label) }}`` in the templates). Defined here rather
+    than imported so this module keeps its zero-package-import purity.
+    """
+    return message
+
+#: how long the players search text may be. Long enough for a name or a UCID, short enough that a
+#: hostile query string cannot make the page or its links unreadable.
+MAX_QUERY_LENGTH = 64
+
+#: a sort key is a column key from a closed allow-list, so it has no room for prose
+MAX_SORT_LENGTH = 32
+
+#: THE VIEW PARAMETERS' OWN NAMES in the query string. One spelling, read by the parser
+#: (:func:`view_params`), by the link builder (:func:`column_link`) and by the pages that CARRY the
+#: current order in a form or a link (:func:`services.webservice.pages.bans.dgsa_context`) — a rename
+#: here moves every reader with it instead of silently desyncing the ones that typed the literal.
+SORT_PARAM = "sort"
+DIRECTION_PARAM = "dir"
+
+#: The PAGE parameter of a paged table (``?page=``) — the directory's own, validated here so the
+#: page and the read that answers it cannot disagree about what a page number is.
+PAGE_PARAM = "page"
+
+#: How many rows a paged table shows at once. The directory's own number: 50 rows fill the card
+#: without turning one page into a scroll hunt, and the read's ``LIMIT`` uses the same value.
+PLAYER_DIRECTORY_PAGE_SIZE = 50
+
+#: the two directions, and the one in force when the URL says nothing
+SORT_DIRECTIONS: tuple[str, ...] = ("asc", "desc")
+DEFAULT_SORT = "name"
+DEFAULT_DIRECTION = "asc"
+
+#: the log placement override (the panel's own vocabulary, see the mockups' log header)
+LOG_POSITIONS: tuple[str, ...] = ("bottom", "right", "expanded")
+
+#: column kinds. Declared once per column, so the comparator and the header cannot disagree.
+TEXT = "text"
+NUM = "num"
+
+#: worst-case words for the number of characters a string-typed cell may contribute; the comparator
+#: only cares about the two kinds above. Marked translatable: the template's "Sorted by …"/"Sort by …"
+#: tooltip composes them through the environment's ``_``, and the extraction marker here is what puts
+#: them in the catalog (a ``_(…)`` call inside a Jinja ``{% trans %}`` variable is not extracted).
+_DIRECTION_WORDS = {"asc": _("ascending"), "desc": _("descending")}
+
+
+@dataclass(frozen=True, slots=True)
+class Column:
+    """One sortable column: the key in the URL, the label the header shows, and how it compares."""
+    key: str
+    label: str
+    kind: str = TEXT
+
+
+#: The sortable columns of each table, in the order the table renders them. The keys are the
+#: ``?sort=`` vocabulary AND the per-table allow-list: a value that is not a key here is refused for
+#: that table.
+#:
+#: ``nodes`` deliberately has no ``heartbeat`` column: the mockups draw one, but ``NodeView``
+#: carries no heartbeat age (a read-model change, listed in the mockups' "would need new backend
+#: data"), and a sort key with no source would be a control that lies. ``state`` (the ONLINE/OFFLINE
+#: verdict) IS offered — it is a real, in-process fact (the heartbeat's ``node is not None``) that the
+#: row already shows as a dot and a tag, so a reader can sort the offline nodes to the top. The
+#: ``master``/``online`` booleans are not offered separately: ``master`` is a tag on the name and
+#: ``online`` is what ``state`` sorts by. A per-node bot VERSION is NOT a column (the bot version is
+#: cluster-wide), and LAST SEEN (a database column the pure read model does not read) is not one
+#: either — see ``templates/_table.html``'s node row.
+TABLE_COLUMNS: dict[str, tuple[Column, ...]] = {
+    "servers": (Column("name", _("Server")), Column("node", _("Node")), Column("status", _("Status")),
+                Column("mission", _("Mission")), Column("elapsed", _("Elapsed"), NUM),
+                Column("players", _("Players"), NUM)),
+    "nodes": (Column("name", _("Node")), Column("state", _("State")),
+              Column("instances", _("Instances"), NUM),
+              Column("servers", _("Servers"), NUM), Column("players", _("Players"), NUM)),
+    "instances": (Column("name", _("Instance")), Column("node", _("Node")), Column("server", _("Server")),
+                  Column("dcs_port", _("DCS port"), NUM), Column("webgui_port", _("WebGUI port"), NUM)),
+    "players": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("server", _("Server")),
+                Column("slot", _("Slot")), Column("coalition", _("Coalition"))),
+}
+
+TABLE_LABELS: dict[str, str] = {
+    "servers": _("Servers"), "nodes": _("Nodes"), "instances": _("Instances"), "players": _("Players"),
+}
+
+#: The sortable columns of a PAGE-ONLY table — a table the console renders on its own page and never
+#: as a dashboard tab. ``bans`` is the first: its rows are a database read (not part of the pure
+#: Overview), so it cannot be a dashboard tab, but it reuses the SAME sort layer and table component
+#: as the four tabs. ``TABLE_COLUMNS`` stays the four on purpose: the dashboard's tab strip derives
+#: from it, and a fifth key there would put a Postgres-backed table on every live tick.
+PAGE_COLUMNS: dict[str, tuple[Column, ...]] = {
+    "bans": (Column("name", _("Player")), Column("ucid", _("UCID")), Column("reason", _("Reason")),
+             Column("banned_at", _("Banned")), Column("banned_until", _("Expires")),
+             Column("scope", _("Scope"))),
+    # THE MODS TABLE: one row per installed package of ONE target, a database read like the bans
+    # list — so it is a page-only table too and never a dashboard tab. ``status`` is the bookkeeping
+    # state the row carries (installed); whether a NEWER package sits in the folder is a node read
+    # and therefore not a column, because a sort key with no source is a control that lies.
+    #: the package column is keyed ``name`` like every other table's first column: the sort layer's
+    #: default key and its name tie-break are spelled once, and a table whose first column is called
+    #: something else would be the one exception to both.
+    "mods": (Column("name", _("Package")), Column("version", _("Version")),
+             Column("installed", _("Installed")), Column("status", _("Status"))),
+    # THE PLAYER DIRECTORY: one row per PLAYER (a Discord link groups its UCIDs), a Postgres read
+    # with its own ``LIMIT``/``OFFSET`` and its own empty-state-able page. It is deliberately NOT the
+    # dashboard's ``players`` table: that one is the live roster, rebuilt from the in-memory source on
+    # every live tick, and it must not grow a database column. ``playtime`` compares as a number of
+    # SECONDS so ``9 h`` sorts before ``10 h``; ``state`` compares the ban/watch/VIP tokens.
+    "player_directory": (Column("online", _("Status")), Column("name", _("Player")),
+                         Column("ucid", _("UCID")),
+                         Column("discord", _("Discord"), NUM),
+                         Column("last_seen", _("Last seen")), Column("playtime", _("Playtime"), NUM),
+                         Column("state", _("State"))),
+    # THE AUDIT TRAIL: one row per recorded operation, a Postgres read with its own ``LIMIT`` and its
+    # own paged view. ``server`` is the row's ``server_name`` (a column key has no ``_name`` suffix
+    # here, because the URL is read by an operator); ``time`` sorts lexicographically as the UTC stamp
+    # it renders, which is the same order the column holds.
+    "audit": (Column("time", _("When")), Column("node", _("Node")), Column("actor", _("Actor")),
+              Column("server", _("Server")), Column("event", _("Event"))),
+}
+
+#: The card heading of a PAGE-ONLY table (the dashboard's own labels are :data:`TABLE_LABELS`).
+PAGE_LABELS: dict[str, str] = {"bans": _("Bans"), "mods": _("Mods"),
+                               "player_directory": _("Players"), "audit": _("Audit")}
+
+
+def columns_for(table: str) -> tuple[Column, ...]:
+    """The sortable columns of *table* — a dashboard tab's or a page-only table's.
+
+    ONE lookup, so ``column_keys``, ``_column``, ``table_view`` and :data:`ALL_COLUMN_KEYS` cannot
+    disagree about which table carries which columns, and the per-table allow-list of ``?sort=``
+    reads the same tuple the header renders from.
+    """
+    return TABLE_COLUMNS.get(table) or PAGE_COLUMNS.get(table, ())
+
+
+#: every column key of every table. Used ONLY to decide whether a ``sort`` value is worth carrying
+#: into a link at all (the per-table allow-list is still the authority on what a table honours).
+ALL_COLUMN_KEYS: frozenset[str] = frozenset(
+    column.key for columns in (*TABLE_COLUMNS.values(), *PAGE_COLUMNS.values())
+    for column in columns)
+
+
+# --------------------------------------------------------------------------------- cleaning
+
+def _clean(value, limit: int) -> str:
+    """*value* as text, control characters removed, trimmed, and capped at *limit* characters.
+
+    Control characters (Unicode category ``C*`` — the C0/C1 sets, DEL, and the invisible
+    formatting characters) are deleted rather than escaped: they are never part of a name, a UCID
+    or a query a reader typed, and a raw one in a URL or an attribute is what makes a value
+    hostile. Everything else survives, because the HTML escaping is the template's job and
+    stripping it here would corrupt a legitimate search for, say, ``A-10C``.
+    """
+    if value is None:
+        return ""
+    text = str(value)
+    cleaned = "".join(char for char in text if not unicodedata.category(char).startswith("C"))
+    return cleaned.strip()[:limit]
+
+
+def default_sort(table: str) -> str:
+    """The column *table* sorts by when the URL states none.
+
+    :data:`DEFAULT_SORT` when the table has it, else the table's FIRST column — a page-only table
+    whose leading column is not ``name`` (the audit trail leads with ``time``) must not resolve to a
+    key it does not have.
+    """
+    keys = column_keys(table)
+    return DEFAULT_SORT if DEFAULT_SORT in keys else (keys[0] if keys else DEFAULT_SORT)
+
+
+def normalise_sort(table: str, value) -> str:
+    """A column key of *table*, or its default. Nothing else is ever passed on."""
+    key = _clean(value, MAX_SORT_LENGTH)
+    return key if key in column_keys(table) else default_sort(table)
+
+
+def normalise_direction(value) -> str:
+    """``asc`` or ``desc``; anything unrecognised is the default (``asc``)."""
+    key = _clean(value, MAX_SORT_LENGTH).lower()
+    return key if key in SORT_DIRECTIONS else DEFAULT_DIRECTION
+
+
+def normalise_query(value) -> str:
+    """The search text as it may be echoed and matched: trimmed, control-free, capped."""
+    return _clean(value, MAX_QUERY_LENGTH)
+
+
+def normalise_page(value, pages: int | None = None) -> int:
+    """The 1-based page number *value* names, or 1 when it names none of this table's pages.
+
+    The CLOSED RANGE is ``1..pages``: a non-numeric, blank, negative or zero value is page 1, and so
+    is a value past the last page — a page number is not an error the page can show, it is a view
+    nobody can serve, so the reader is handed the first page instead of an empty table. ``pages=None``
+    is the before-the-read case (the caller does not know yet how many pages exist): the answer is
+    then any value ``>= 1``, and the read's own fallback handles a page past the end.
+    """
+    key = _clean(value, MAX_SORT_LENGTH)
+    try:
+        page = int(key)
+    except (TypeError, ValueError):
+        return 1
+    if page < 1:
+        return 1
+    if pages is not None and page > max(int(pages), 1):
+        return 1
+    return page
+
+
+def normalise_position(value) -> str | None:
+    """A log placement override from :data:`LOG_POSITIONS`, or ``None`` (the computed default)."""
+    key = _clean(value, MAX_SORT_LENGTH).lower()
+    return key if key in LOG_POSITIONS else None
+
+
+def column_keys(table: str) -> tuple[str, ...]:
+    """The ``?sort=`` vocabulary of *table* — its allow-list, in render order."""
+    return tuple(column.key for column in columns_for(table))
+
+
+def _column(table: str, key: str) -> Column:
+    for column in columns_for(table):
+        if column.key == key:
+            return column
+    raise KeyError(f"{table} has no sortable column {key!r}")
+
+
+def natural_direction(kind: str) -> str:
+    """The direction a NEW column sorts by: numbers descending (the interesting end first), text
+    ascending (A first). One function, so the rule is stated once."""
+    return "desc" if kind == NUM else "asc"
+
+
+def opposite_direction(direction: str) -> str:
+    """The direction a click on the ACTIVE column asks for (validated first)."""
+    return "asc" if normalise_direction(direction) == "desc" else "desc"
+
+
+# ----------------------------------------------------------------------------- the parameters
+
+@dataclass(frozen=True, slots=True)
+class ViewParams:
+    """The validated view parameters of one request.
+
+    ``sort`` is kept as stated (cleaned) and validated PER TABLE by :meth:`sort_for`, because the
+    allow-list is the table's: ``?sort=players`` is a Servers column, not an Instances one, and the
+    same request has to answer honestly for both.
+    """
+    sort: str = ""
+    direction: str = DEFAULT_DIRECTION
+    query: str = ""
+    position: str | None = None
+
+    def sort_for(self, table: str) -> str:
+        """The column *table* sorts by: the requested one when it is a column of *table*, else its
+        default."""
+        return normalise_sort(table, self.sort)
+
+    @property
+    def known_sort(self) -> bool:
+        """Whether the requested ``sort`` names a column of ANY table (worth carrying in a link)."""
+        return self.sort in ALL_COLUMN_KEYS
+
+    def carry(self, *, table: str | None = None) -> dict[str, str]:
+        """The pairs to preserve in a link or a stream URL — VALIDATED values only.
+
+        A ``sort`` that names no column is dropped rather than forwarded, so an attacker-shaped
+        value cannot be laundered from the page's URL into the stream's. The direction rides along
+        only when it is stated or when a known sort makes it meaningful, which is what keeps an
+        unadorned page's stream URL exactly ``?level=…``.
+
+        ``table`` is the table the URL being built will actually RENDER (the dashboard's active
+        tab, for the stream URL). When it is given, a ``sort`` that is a column of some OTHER table
+        is dropped too (Finding 3): ``?sort=dcs_port`` on the Servers tab sorts nothing there, so
+        carrying it into the stream URL would state a view the page never showed. ``table=None``
+        keeps the wider "names a column of any table" rule, which is what a link that does not yet
+        know its target wants.
+        """
+        honoured = (self.known_sort if table is None
+                    else bool(self.sort) and self.sort in column_keys(table))
+        carried: dict[str, str] = {}
+        if honoured:
+            carried[SORT_PARAM] = self.sort
+            carried[DIRECTION_PARAM] = self.direction
+        elif self.direction != DEFAULT_DIRECTION:
+            carried[DIRECTION_PARAM] = self.direction
+        if self.query:
+            carried["q"] = self.query
+        if self.position:
+            carried["log"] = self.position
+        return carried
+
+
+def view_params(query: Mapping | None) -> ViewParams:
+    """Parse ``sort``/``dir``/``q``/``log`` out of a query mapping into :class:`ViewParams`.
+
+    *query* is a plain mapping (``request.query_params``, or a dict in a test) — no ``Request``
+    object, so this module stays HTTP-free. A missing mapping is the same as an empty one.
+    """
+    lookup = query if hasattr(query, "get") else {}
+    return ViewParams(
+        sort=_clean(lookup.get(SORT_PARAM), MAX_SORT_LENGTH),
+        direction=normalise_direction(lookup.get(DIRECTION_PARAM)),
+        query=normalise_query(lookup.get("q")),
+        position=normalise_position(lookup.get("log")),
+    )
+
+
+# -------------------------------------------------------------------------------- the sorting
+
+def _cell(table: str, key: str, row):
+    """The raw value *row* carries for column *key* of *table*. Raises for an unlisted pair — the
+    allow-list is checked before this is ever called, so reaching the raise is a programming
+    error, not a user input problem."""
+    if table == "servers":
+        if key == "name":
+            return row.name
+        if key == "node":
+            return row.node_name
+        if key == "status":
+            return row.status.word
+        if key == "mission":
+            return row.mission_name or ""
+        if key == "elapsed":
+            return row.mission_seconds
+        if key == "players":
+            return row.players
+    elif table == "nodes":
+        if key == "name":
+            return row.name
+        if key == "state":
+            # the ONLINE/OFFLINE verdict as a sortable word (the heartbeat's ``node is not None``)
+            return "online" if row.online else "offline"
+        if key == "instances":
+            return row.instances
+        if key == "servers":
+            return row.servers
+        if key == "players":
+            return row.players
+    elif table == "instances":
+        if key == "name":
+            return row.name
+        if key == "node":
+            return row.node_name
+        if key == "server":
+            return row.server_name or ""
+        if key == "dcs_port":
+            return row.dcs_port
+        if key == "webgui_port":
+            return row.webgui_port
+    elif table == "players":
+        if key == "name":
+            return row.name
+        if key == "ucid":
+            return row.ucid
+        if key == "server":
+            return row.server_name
+        if key == "slot":
+            return row.slot
+        if key == "coalition":
+            return row.coalition
+    elif table == "bans":
+        if key == "name":
+            return row.name
+        if key == "ucid":
+            return row.ucid
+        if key == "reason":
+            return row.reason
+        if key == "banned_at":
+            return row.banned_at
+        if key == "banned_until":
+            return row.banned_until
+        if key == "scope":
+            return row.scope
+    elif table == "mods":
+        if key in ("name", "package"):
+            return row.package
+        if key == "version":
+            return row.version
+        if key == "installed":
+            return row.installed
+        if key == "status":
+            return row.state
+    elif table == "player_directory":
+        if key == "online":
+            # the live marker as a sortable word: ``online`` sorts after ``offline`` ascending, so
+            # the players in a slot are first when the column is read descending.
+            return "online" if row.online else "offline"
+        if key == "name":
+            return row.name
+        if key == "ucid":
+            return row.ucid
+        if key == "discord":
+            # the number the LINK is, never the member's name: a name changes, an id does not, and an
+            # unlinked player's ``-1`` is the one value that sorts them together.
+            return row.discord_id
+        if key == "last_seen":
+            return row.last_seen_at
+        if key == "playtime":
+            return row.playtime_seconds
+        if key == "state":
+            return row.state
+    elif table == "audit":
+        if key == "time":
+            return row.time
+        if key == "node":
+            return row.node
+        if key == "actor":
+            return row.actor
+        if key == "server":
+            return row.server
+        if key == "event":
+            return row.event
+    raise KeyError(f"no cell for {table}.{key}")
+
+
+def _number(value) -> int:
+    """A numeric cell as an int. ``None`` (an unknown port) is 0 and sorts first ascending."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _text(value) -> str:
+    return "" if value is None else str(value)
+
+
+def sort_rows(table: str, rows: Sequence, sort: str = DEFAULT_SORT,
+              direction: str = DEFAULT_DIRECTION) -> list:
+    """*rows* ordered by the validated column and direction. Never raises on input, never mutates.
+
+    THE SECONDARY KEY IS THE TABLE'S TIE-BREAKER, ASCENDING IN BOTH DIRECTIONS. The list is first
+    ordered by that key (a stable, complete tie-breaker — ``name`` for every table that has one, else
+    the table's default column, as the audit trail has) and then by the requested column, using a
+    STABLE sort. Sorting by the primary in reverse therefore cannot shuffle the ties: equal
+    keys always come out in tie-break order, whichever way the primary runs, and the result never
+    depends on the order the read model happened to hand the rows over in.
+    """
+    key = normalise_sort(table, sort)
+    direction = normalise_direction(direction)
+    kind = _column(table, key).kind
+    tiebreak = "name" if "name" in column_keys(table) else default_sort(table)
+
+    def name_key(row):
+        return _text(_cell(table, tiebreak, row)).casefold()
+
+    def primary_key(row):
+        value = _cell(table, key, row)
+        return _number(value) if kind == NUM else _text(value).casefold()
+
+    ordered = sorted(rows, key=name_key)
+    ordered.sort(key=primary_key, reverse=(direction == "desc"))
+    return ordered
+
+
+# --------------------------------------------------------------------------------- the search
+
+@dataclass(frozen=True, slots=True)
+class PlayerSearch:
+    """The players search result: the matched rows, the query, and BOTH counts.
+
+    ``filtered`` alone would let the page imply the fleet shrank ("3 players online"), so the
+    unfiltered ``total`` is carried next to it and the sentence is built from the same record the
+    table is built from.
+    """
+    rows: tuple
+    query: str
+    total: int
+    filtered: int
+
+    @property
+    def active(self) -> bool:
+        return bool(self.query)
+
+    @property
+    def label(self) -> str:
+        """The one statement of the filter, in words (the template renders it, never composes it)."""
+        return (f"Filter: name or UCID contains {self.query} · "
+                f"{self.filtered} of {self.total} players")
+
+
+def search_players(rows: Sequence, query=None) -> PlayerSearch:
+    """Filter *rows* by a case-insensitive substring on the name OR the UCID.
+
+    An empty (or whitespace-only, or control-only) query means NO filter: every row is returned and
+    the result reports ``active`` False, so an empty search can never look like "no players".
+    """
+    needle = normalise_query(query).casefold()
+    if not needle:
+        return PlayerSearch(rows=tuple(rows), query="", total=len(rows), filtered=len(rows))
+    matched = tuple(row for row in rows
+                    if needle in _text(getattr(row, "name", "")).casefold()
+                    or needle in _text(getattr(row, "ucid", "")).casefold())
+    return PlayerSearch(rows=matched, query=normalise_query(query), total=len(rows),
+                        filtered=len(matched))
+
+
+# ---------------------------------------------------------------------------------- the links
+
+@dataclass(frozen=True, slots=True)
+class ColumnView:
+    """One header cell, as DATA: what to show, whether it is the active sort, and the link it
+    should render. The template computes nothing — not the direction, not the arrow, not the
+    ``aria-sort``."""
+    key: str
+    label: str
+    kind: str
+    link: str
+    active: bool
+    direction: str          # the direction THIS link applies when clicked
+    arrow: str              # ▼ / ▲ on the active column, ↕ on the others
+    aria_sort: str          # descending / ascending / none
+    title: str
+
+
+@dataclass(frozen=True, slots=True)
+class TableView:
+    """One table: its rows in the validated order, and its columns as renderable data."""
+    name: str
+    label: str
+    columns: tuple[ColumnView, ...]
+    rows: tuple
+    sort: str
+    direction: str
+    sorted_label: str       # "Sorted by Players, descending"
+
+
+@dataclass(frozen=True, slots=True)
+class ViewState:
+    """EVERYTHING the template needs about the view, in one value (requirement 4).
+
+    ``tables`` holds all four tables of the console, each validated against its own allow-list, so
+    the dashboard tabs and the standalone pages read the same shape. ``search`` carries the players
+    counts; ``params`` is what a form must carry along (the level and any active filter) so a search
+    does not throw away the view.
+    """
+    query: str
+    params: dict
+    tables: dict
+    search: PlayerSearch
+
+    def table(self, name: str) -> TableView:
+        """The table of that name (a KeyError is a caller asking for a table that does not exist)."""
+        return self.tables[name]
+
+
+def _preserved(params: ViewParams | None, carry: Mapping | None) -> dict[str, str]:
+    """The validated pairs a link must keep: whatever the caller proved valid, plus the view's own
+    ``q``/``log``. ``sort``/``dir`` are set by the link itself, so they are not carried here."""
+    kept = {str(key): str(value) for key, value in dict(carry or {}).items() if value not in
+            (None, "")}
+    if params is not None:
+        if params.query:
+            kept["q"] = params.query
+        if params.position:
+            kept["log"] = params.position
+    return kept
+
+
+def column_link(path: str, table: str, key: str, *, sort: str = DEFAULT_SORT,
+                direction: str = DEFAULT_DIRECTION, params: Mapping | None = None) -> str:
+    """The href for a column header: *path* plus the validated view state a click should produce.
+
+    The ACTIVE column asks for the opposite direction; a NEW column asks for its natural one
+    (numbers descending, text ascending). Every value in the URL is one this module validated, and
+    the whole query is built by :func:`urllib.parse.urlencode`, so the search text is percent-
+    encoded rather than concatenated — it cannot break out of the attribute or add a parameter.
+    """
+    column = _column(table, normalise_sort(table, key))
+    current = normalise_sort(table, sort)
+    direction = normalise_direction(direction)
+    wanted = opposite_direction(direction) if column.key == current \
+        else natural_direction(column.kind)
+
+    query: dict[str, str] = dict(params or {})
+    query.pop(SORT_PARAM, None)
+    query.pop(DIRECTION_PARAM, None)
+    query[SORT_PARAM] = column.key
+    query[DIRECTION_PARAM] = wanted
+    return f"{path}?{urlencode(query)}"
+
+
+def _column_view(path: str, table: str, column: Column, *, sort: str,
+                 direction: str, params: Mapping | None) -> ColumnView:
+    active = column.key == sort
+    wanted = (opposite_direction(direction) if active
+              else natural_direction(column.kind))
+    if active:
+        arrow = "▼" if direction == "desc" else "▲"
+        aria = _DIRECTION_WORDS[direction]
+        title = (f"Sorted by {column.label}, {aria} — "
+                 f"click to sort {_DIRECTION_WORDS[wanted]}")
+    else:
+        arrow = "↕"
+        aria = "none"
+        title = f"Sort by {column.label}, {_DIRECTION_WORDS[wanted]}"
+    return ColumnView(key=column.key, label=column.label, kind=column.kind,
+                      link=column_link(path, table, column.key, sort=sort, direction=direction,
+                                       params=params),
+                      active=active, direction=wanted, arrow=arrow, aria_sort=aria, title=title)
+
+
+def table_view(path: str, table: str, rows: Sequence, *, sort: str = DEFAULT_SORT,
+               direction: str = DEFAULT_DIRECTION, params: Mapping | None = None,
+               label: str | None = None) -> TableView:
+    """One table as the template reads it: sorted rows plus every header's link and state.
+
+    *label* overrides the card heading — a PAGE-ONLY table (``bans``) names its own, since it is not
+    in :data:`TABLE_LABELS` (which stays the four dashboard tabs).
+    """
+    key = normalise_sort(table, sort)
+    direction = normalise_direction(direction)
+    columns = tuple(_column_view(path, table, column, sort=key, direction=direction, params=params)
+                    for column in columns_for(table))
+    column_label = _column(table, key).label
+    return TableView(name=table, label=label or TABLE_LABELS.get(table) or PAGE_LABELS.get(table, table),
+                     columns=columns,
+                     rows=tuple(sort_rows(table, rows, key, direction)),
+                     sort=key, direction=direction,
+                     sorted_label=f"Sorted by {column_label}, {_DIRECTION_WORDS[direction]}")
+
+
+def view_state(path: str, rows: Mapping | None = None, *, params: ViewParams | None = None,
+               carry: Mapping | None = None) -> ViewState:
+    """The whole validated view for one render (requirement 4).
+
+    *rows* is a mapping of table name to the ALREADY-BUILT tuple views (``servers``, ``nodes``,
+    ``instances``, ``players``) — the read models' output, untouched. Missing tables render empty.
+    *path* is where the table lives (``/`` for the dashboard, ``/players`` for the standalone
+    page), and *carry* holds any further validated pair a link must keep (the resolved level).
+    """
+    params = params if params is not None else ViewParams()
+    preserved = _preserved(params, carry)
+    source = dict(rows or {})
+    search = search_players(source.get("players") or (), params.query)
+    source["players"] = search.rows
+    tables = {name: table_view(path, name, source.get(name) or (),
+                               sort=params.sort_for(name), direction=params.direction,
+                               params=preserved)
+              for name in TABLE_COLUMNS}
+    return ViewState(query=params.query, params=preserved, tables=tables, search=search)

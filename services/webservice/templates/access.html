@@ -1,0 +1,183 @@
+{#-
+  ACCESS — the role → capability matrix of the WEBSITE.
+
+  One row per capability the console declares, one column per role of the bot's role model, plus the
+  locked `Admin` column and the `managed_by` column. Every word and every value comes from
+  `pages/access.py`; the template decides nothing but the markup, which is what keeps the page and
+  the save from disagreeing about what a cell means.
+
+  THREE CELLS ARE NOT CHECKBOXES, and each is refused by the server as well (the page is not the
+  guard, it is the explanation):
+
+  * `Admin` — a lock, on every row whose declaration carries it. The hidden `admin` value per row is
+    what carries it through the form: a matrix that arrives without it says "Admin is off here",
+    which the save refuses. A row whose declaration does NOT carry Admin has no lock: its cell is a
+    dash and it posts no marker, so the save cannot grant what was never declared.
+  * a `managed_by` grant on a machine- or installation-wide capability — `—`, no control at all.
+  * this page's own pair (`access.view` / `access.write`) — locked outright on every row it appears
+    in; the page cannot be used to widen or narrow the page.
+
+  WORKS WITH JAVASCRIPT OFF: the whole matrix is in the form (every granted cell, every locked Admin
+  marker, every `managed_by` grant), so "Apply now" posts a complete picture and the server computes
+  the delta. The filter and "show changes only" are a GET form and a checkbox, so they work too.
+  `static/access.js` only adds a live count/change bar and a live row filter on top of that.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ _(page_title) }} — DCSServerBot
+{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">{% endblock %}
+{% block content %}
+
+<div class="acc-head">
+  <div class="acc-title">
+    <h1>{{ _(page_title) }}</h1>
+    <div class="acc-sub">{{ _(lead) }}</div>
+  </div>
+  <form class="acc-acts" method="get" action="{{ page_path }}" role="search">
+    <label class="acc-search">
+      <span aria-hidden="true">⌕</span>
+      <input type="search" name="{{ filter_field }}" value="{{ filter }}"
+             placeholder="{{ _('Filter a control…') }}"
+             aria-label="{{ _('Filter a control…') }}">
+    </label>
+    <label class="acc-toggle">
+      <input type="checkbox" name="{{ changes_field }}" value="1" {% if changes_only %}checked{% endif %}>
+      {{ _('Show changes only') }}
+    </label>
+    {#- the FILTER'S submit button: with a script off nothing else sends the GET form, so it is
+        always rendered — the script only makes it unnecessary. -#}
+    <button class="acc-btn" type="submit">{{ _('Filter') }}</button>
+  </form>
+</div>
+
+{% include "_notice.html" %}
+
+{% if not readable %}
+<div class="acc-banner acc-warn" role="alert">
+  {{ _('This page could not read the service configuration, so it shows the declared values only — nothing here is stored yet.') }}
+</div>
+{% endif %}
+
+{% if ignored %}
+<div class="acc-banner acc-warn" role="alert">
+  {{ _(ignored_lead) }}
+  <ul class="acc-ignored">
+    {%- for line in ignored %}
+    <li>{{ line }}</li>
+    {%- endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="acc-banner" role="note">
+  <b>{{ _('This matrix decides the website only.') }}</b>
+  {{ _("The bot's own Discord commands keep their roles, so a role you narrow here can still act in Discord.") }}
+  <b>managed_by</b>
+  {{ _('is the scope of a server: a manager acts on the servers their scope names, never anywhere else.') }}
+</div>
+
+<div class="acc-legend">
+  <span><span class="box lock">✓</span> {{ _('Admin — always on') }}</span>
+  <span><span class="box on">✓</span> {{ _('granted') }}</span>
+  <span><span class="box"></span> {{ _('not granted') }}</span>
+  <span><span class="box no">—</span> {{ _('cannot be granted here') }}</span>
+</div>
+
+{% if not rows %}
+<div class="acc-empty">{{ _('No control matches this filter.') }}</div>
+{% else %}
+<form class="acc-form" method="post" action="{{ save_path }}"
+      data-added="{{ _(added_message) }}" data-removed="{{ _(removed_message) }}"
+      data-manager-on="{{ _(manager_on_message) }}" data-manager-off="{{ _(manager_off_message) }}"
+      data-pending="{{ _(pending_label) }}" data-no-changes="{{ _(no_changes) }}">
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+  <div class="card acc-card">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th>{{ _('Control') }}</th>
+          <th class="c lockcol">{{ _('Admin') }}</th>
+          {% for role in roles %}<th class="c">{{ _(role) }}</th>{% endfor %}
+          <th class="c">managed_by</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for group in rows %}
+        <tr class="grp"><td colspan="{{ roles | length + 3 }}">{{ _(group.group) }}</td></tr>
+        {% for row in group.rows %}
+        <tr class="acc-row{{ ' chg' if row.changed else '' }}" data-cap="{{ row.capability }}"
+            data-search="{{ row.capability }} {{ _(row.why) }}">
+          <td>
+            <div class="cap">{{ row.capability }}</div>
+            {% if row.why %}<div class="why">{{ _(row.why) }}</div>{% endif %}
+          </td>
+          <td class="c lockcol">
+            {% if row.admin_locked %}
+            <input type="hidden" name="{{ admin_field }}" value="{{ row.capability }}">
+            <span class="box lock" title="{{ _('Admin — always on') }}">✓</span>
+            {% else %}
+            <span class="box no" title="{{ _('cannot be granted here') }}">—</span>
+            {% endif %}
+          </td>
+          {% for cell in row.cells %}
+          <td class="c">
+            {% if cell.editable %}
+            <input class="acc-box" type="checkbox" name="{{ cell_field }}" data-cap-kind="role"
+                   value="{{ row.capability }}|{{ cell.role }}" data-was="{{ 1 if cell.was else 0 }}"
+                   {% if cell.granted %}checked{% endif %}
+                   aria-label="{{ row.capability }} — {{ cell.role }}">
+            {% elif cell.granted %}
+            <span class="box lock" title="{{ _('locked') }}">✓</span>
+            {% else %}
+            <span class="box no" title="{{ _('cannot be granted here') }}">—</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="c">
+            {% if row.manager_editable %}
+            <input class="acc-box" type="checkbox" name="{{ manager_field }}" value="{{ row.capability }}"
+                   data-cap-kind="manager" data-was="{{ 1 if row.manager_was else 0 }}"
+                   {% if row.manager %}checked{% endif %}
+                   aria-label="managed_by — {{ row.capability }}">
+            {% elif row.manager %}
+            {#- a STRUCTURAL grant that is ON: it has no control, so the whole matrix carries it as a
+                hidden value — a save that arrives without it would be saying "this grant is off". -#}
+            <input type="hidden" name="{{ manager_field }}" value="{{ row.capability }}">
+            <span class="box lock" title="{{ _('locked') }}">✓</span>
+            {% else %}
+            <span class="box no" title="{{ _('cannot be granted here') }}">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="acc-bar">
+      <span class="tag{{ ' a' if change_count else '' }}" id="acc-count">{{ change_count }}</span>
+      <span class="acc-meta" id="acc-meta">
+        {%- if changes -%}
+        {%- for line in changes -%}
+        <span class="acc-line"><span class="mono">{{ line.capability }}</span> — {{ _(line.msgid) % line.params }}</span>
+        {%- endfor -%}
+        {%- else -%}
+        {{ _(no_changes) }}
+        {%- endif -%}
+      </span>
+      <div class="spacer"></div>
+      <a class="acc-btn" href="{{ page_path }}">{{ _(discard_label) }}</a>
+      <button class="acc-btn pri" type="submit" id="acc-apply">{{ _(apply_label) }}</button>
+    </div>
+  </div>
+</form>
+{% endif %}
+
+<div class="acc-banner" role="note">
+  <b>{{ _('Applied immediately, no restart.') }}</b>
+  {{ _('The decision is read per request, so a save takes effect immediately — and is refused if it would leave no role able to open this page.') }}
+</div>
+
+{% endblock %}
+{% block scripts %}<script src="/static/{{ script }}" defer></script>{% endblock %}

@@ -4,27 +4,113 @@ mapping:
   DEFAULT:
     type: map
     nullable: false
+    desc: Section applied to all of your DCS servers.
+    example: |
+      banlist: both
+      dcs-ban: true
+      host: dcsserverbot-prod.herokuapp.com
+      port: 443
+      protocol: https
     mapping:
-      banlist: {type: str, nullable: false, enum: ['pvp', 'pve', 'both']}
-      dcs-ban: {type: bool, nullable: false}
-      discord-ban: {type: bool, nullable: false}
-      watchlist_only: {type: bool, nullable: false}
-      host: {type: str, nullable: false, range: {min: 1}}
-      port: {type: int, range: {min: 80, max: 65535}, nullable: false}
-      protocol: {type: str, enum: ['http', 'https'], nullable: false}
-      use_proxy: {type: bool, nullable: false}
-      register: {type: bool, nullable: false}
-      upload_errors: {type: bool, nullable: false}
-      token: {type: str, nullable: false, range: {min: 1}}
+      banlist:
+        type: str
+        nullable: false
+        enum: ['pvp', 'pve', 'both']
+        desc: Global ban list to subscribe to (PvP, PvE or both).
+        example: "both"
+      dcs-ban:
+        type: bool
+        nullable: false
+        desc: Ban listed players from your DCS servers.
+        example: "true"
+      discord-ban:
+        type: bool
+        nullable: false
+        desc: Ban listed users from your Discord server.
+        example: "true"
+      watchlist_only:
+        type: bool
+        nullable: false
+        desc: Only put matching players on the watchlist.
+        example: "false"
+      host:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Hostname of the cloud service.
+        example: "dcsserverbot-prod.herokuapp.com"
+      port:
+        type: int
+        range: {min: 80, max: 65535}
+        nullable: false
+        desc: Port of the cloud service.
+        example: "443"
+      protocol:
+        type: str
+        enum: ['http', 'https']
+        nullable: false
+        desc: Protocol used to reach the cloud service.
+        example: "https"
+      use_proxy:
+        type: bool
+        nullable: false
+        desc: Route cloud traffic through the configured node proxy.
+        example: "true"
+      register:
+        type: bool
+        nullable: false
+        desc: Send anonymous usage statistics to the cloud service.
+        example: "true"
+      upload_errors:
+        type: bool
+        nullable: false
+        desc: Upload crash reports to the central database.
+        example: "true"
+      token:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Cloud token for telemetry and statistics upload.
+        example: "your-cloud-token"
       troublemakers:
         type: map
         nullable: false
+        desc: Handling of players known from other servers.
+        example: |
+          warn: true
+          warn_threshold: 3
+          kick: true
+          kick_threshold: 5
+          message: You are not welcome on this server.
         mapping:
-          warn: {type: bool, nullable: false}
-          warn_threshold: {type: int, nullable: false, range: {min: 3}}
-          kick: {type: bool, nullable: false}
-          kick_threshold: {type: int, nullable: false, range: {min: 3}}
-          message: {type: str, nullable: false, range: {min: 1}}
+          warn:
+            type: bool
+            nullable: false
+            desc: Warn when a known troublemaker joins the server.
+            example: "true"
+          warn_threshold:
+            type: int
+            nullable: false
+            range: {min: 3}
+            desc: Other server bans needed to trigger a warning.
+            example: "3"
+          kick:
+            type: bool
+            nullable: false
+            desc: Kick players banned on too many other servers.
+            example: "false"
+          kick_threshold:
+            type: int
+            nullable: false
+            range: {min: 3}
+            desc: Other server bans needed to trigger a kick.
+            example: "5"
+          message:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown to a joining troublemaker.
+            example: "You are not welcome on this server."
   commands:
     include: 'commands_schema'
   chat_commands:

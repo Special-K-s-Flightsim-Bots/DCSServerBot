@@ -210,23 +210,32 @@ function getIP(s)
 end
 
 function isDynamic(slotId)
+    if not slotId then
+        return false
+    end
+
+    slotId = tostring(slotId)
+
     if not(string.find(slotId, 'red') or string.find(slotId, 'blue')) then
         -- Player took model
-        local _master_slot = slotId
+        local _master_slot = tonumber(slotId)
         local _sub_slot = 0
 
-        if (not tonumber(slotId)) then
+        if not _master_slot then
             -- If this is multiseat slot parse master slot and look for seat number
             local _t_start, _t_end = string.find(slotId, '_%d+')
 
             if _t_start then
                 -- This is co-player
-                _master_slot = tonumber(string.sub(slotId, 0 , _t_start -1 ))
-                _sub_slot = tonumber(string.sub(slotId, _t_start + 1, _t_end ))
+                _master_slot = tonumber(string.sub(slotId, 1, _t_start - 1))
+                _sub_slot = tonumber(string.sub(slotId, _t_start + 1, _t_end))
             end
-        else
-            _master_slot = tonumber(slotId)
         end
+
+        if not _master_slot then
+            return false
+        end
+
         return _master_slot > 1000000
     else
         return false

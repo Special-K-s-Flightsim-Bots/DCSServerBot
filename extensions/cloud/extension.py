@@ -13,8 +13,7 @@ from typing import Any
 from typing_extensions import override
 
 # ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 
 class Cloud(Extension):
@@ -33,14 +32,14 @@ class Cloud(Extension):
 
     @override
     def load_config(self) -> dict:
-        return yaml.load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+        return new_yaml().load(Path(os.path.join(self.node.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
 
     def read_config(self):
         config_file = os.path.join(self.node.config_dir, 'plugins', 'cloud.yaml')
         if not os.path.exists(config_file):
             self.log.info('No cloud.yaml found, copying the sample.')
             shutil.copyfile('samples/plugins/cloud.yaml', config_file)
-        return yaml.load(Path(config_file).read_text(encoding='utf-8'))
+        return new_yaml().load(Path(config_file).read_text(encoding='utf-8'))
 
     @property
     def session(self):

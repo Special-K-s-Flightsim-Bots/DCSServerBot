@@ -2,77 +2,276 @@ schema;houndtts_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    autoupdate: {type: bool, nullable: false}
-    debug: {type: bool, nullable: false}
-    DEFAULT_PROVIDER: {type: str, nullable: false}
-    DEFAULT_VOICE: {type: str, nullable: false}
-    DEFAULT_CULTURE: {type: str, nullable: false}
-    DEFAULT_GENDER: {type: str, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the HoundTTS text-to-speech extension is enabled.
+      example: "true"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Automatically update HoundTTS when a new version is available.
+      example: "true"
+    debug:
+      type: bool
+      nullable: false
+      desc: Write HoundTTS debug output to the bot log.
+      example: "false"
+    DEFAULT_PROVIDER:
+      type: str
+      nullable: false
+      desc: Default text-to-speech provider used for spoken output.
+      example: "sapi"
+    DEFAULT_VOICE:
+      type: str
+      nullable: false
+      desc: Default voice used by the selected provider.
+      example: "en-US-JennyNeural"
+    DEFAULT_CULTURE:
+      type: str
+      nullable: false
+      desc: Default language/culture for synthesized speech.
+      example: "en-US"
+    DEFAULT_GENDER:
+      type: str
+      nullable: false
+      desc: Default voice gender used by the selected provider.
+      example: "female"
     provider:
       type: map
       nullable: false
+      desc: Per-provider engine settings and credentials.
+      example: |
+        Piper:
+          path: C:\HoundTTS\piper
+          voice_path: C:\HoundTTS\voices
+          threads: 4
+          max_concurrent: 4
       mapping:
         Piper:
           type: map
           nullable: false
+          desc: Piper local neural text-to-speech engine settings.
+          example: |
+            path: C:\HoundTTS\piper
+            voice_path: C:\HoundTTS\voices
+            threads: 4
+            max_concurrent: 4
           mapping:
-            path: {type: str, nullable: false, func: dir_exists}
-            voice_path: {type: str, nullable: false, func: dir_exists}
-            threads: {type: int, nullable: false, range: {min: 1}}
-            max_concurrent: {type: int, nullable: false, range: {min: 1}}
+            path:
+              type: str
+              nullable: false
+              func: dir_exists
+              desc: Directory that holds the Piper executable.
+              example: "C:\\HoundTTS\\piper"
+            voice_path:
+              type: str
+              nullable: false
+              func: dir_exists
+              desc: Directory that holds the Piper .onnx voice files.
+              example: "C:\\HoundTTS\\voices"
+            threads:
+              type: int
+              nullable: false
+              range: {min: 1}
+              desc: Number of CPU threads each Piper synthesizer may use.
+              example: "4"
+            max_concurrent:
+              type: int
+              nullable: false
+              range: {min: 1}
+              desc: Maximum number of Piper synthesizers run in parallel.
+              example: "4"
         Google:
           type: map
           nullable: false
+          desc: Google Cloud text-to-speech provider settings.
+          example: |
+            credentials_file: C:\HoundTTS\gcloud.json
           mapping:
-            credentials_file: {type: str, nullable: false, func: file_exists}
+            credentials_file:
+              type: str
+              nullable: false
+              func: file_exists
+              desc: Path to your Google Cloud service account JSON file.
+              example: "C:\\HoundTTS\\gcloud.json"
         Azure:
           type: map
           nullable: false
+          desc: Microsoft Azure text-to-speech provider settings.
+          example: |
+            key: '***'
+            region: westeurope
           mapping:
-            key: {type: str, nullable: false}
-            region: {type: str, nullable: false}
+            key:
+              type: str
+              nullable: false
+              desc: Azure Speech subscription key.
+              example: "***"
+            region:
+              type: str
+              nullable: false
+              desc: Azure region that hosts the Speech service.
+              example: "westeurope"
         ElevenLabs:
           type: map
           nullable: false
+          desc: ElevenLabs text-to-speech provider settings.
+          example: |
+            api_key: '***'
+            model_id: eleven_turbo_v2
           mapping:
-            api_key: {type: str, nullable: false}
-            model_id: {type: str, nullable: false}
+            api_key:
+              type: str
+              nullable: false
+              desc: ElevenLabs API key.
+              example: "***"
+            model_id:
+              type: str
+              nullable: false
+              desc: ElevenLabs model used for text-to-speech synthesis.
+              example: "eleven_turbo_v2"
         AWS:
           type: map
           nullable: false
+          desc: Amazon Polly text-to-speech provider settings.
+          example: |
+            access_key_id: '***'
+            secret_key: '***'
+            region: eu-west-1
+            engine: standard
           mapping:
-            access_key_id: {type: str, nullable: false}
-            secret_key: {type: str, nullable: false}
-            region: {type: str, nullable: false}
-            engine: {type: str, nullable: false}
+            access_key_id:
+              type: str
+              nullable: false
+              desc: AWS access key id used for Amazon Polly.
+              example: "***"
+            secret_key:
+              type: str
+              nullable: false
+              desc: AWS secret access key used for Amazon Polly.
+              example: "***"
+            region:
+              type: str
+              nullable: false
+              desc: AWS region that hosts the Polly service.
+              example: "eu-west-1"
+            engine:
+              type: str
+              nullable: false
+              desc: Polly speech engine to use, standard or neural.
+              example: "standard"
         OpenAI:
           type: map
           nullable: false
+          desc: OpenAI text-to-speech provider settings.
+          example: |
+            api_key: '***'
+            endpoint: https://api.openai.com/
+            model: tts-1
+            chat_model: gpt-4o-mini
           mapping:
-            api_key: {type: str, nullable: false}
-            endpoint: {type: url, nullable: false}
-            model: {type: str, nullable: false}
-            chat_model: {type: str, nullable: false}
+            api_key:
+              type: str
+              nullable: false
+              desc: OpenAI API key.
+              example: "***"
+            endpoint:
+              type: url
+              nullable: false
+              desc: Base URL of the OpenAI-compatible API.
+              example: "https://api.openai.com/"
+            model:
+              type: str
+              nullable: false
+              desc: OpenAI text-to-speech model name.
+              example: "tts-1"
+            chat_model:
+              type: str
+              nullable: false
+              desc: OpenAI chat model used to preprocess the spoken text.
+              example: "gpt-4o-mini"
         LibreTranslate:
           type: map
           nullable: false
+          desc: LibreTranslate provider used to translate spoken text.
+          example: |
+            api_key: '***'
+            endpoint: http://localhost:5000
           mapping:
-            api_key: {type: str, nullable: false}
-            endpoint: {type: url, nullable: false}
+            api_key:
+              type: str
+              nullable: false
+              desc: LibreTranslate API key.
+              example: "***"
+            endpoint:
+              type: url
+              nullable: false
+              desc: URL of the LibreTranslate server.
+              example: "http://localhost:5000"
         Discord:
           type: map
           nullable: false
+          desc: Discord text-to-speech provider settings.
+          example: |
+            bot_token: '***'
           mapping:
-            bot_token: {type: str, nullable: false}
+            bot_token:
+              type: str
+              nullable: false
+              desc: Discord bot token used for voice output.
+              example: "***"
         Supertonic:
           type: map
           nullable: false
+          desc: Supertonic neural text-to-speech engine settings.
+          example: |
+            path: C:\HoundTTS\supertonic
+            model_path: C:\HoundTTS\supertonic\models
+            voice_style: default
+            voice_style_path: C:\HoundTTS\supertonic\styles
+            total_steps: 8
+            threads: 4
+            max_concurrent: 4
           mapping:
-            path: {type: str, nullable: false, func: dir_exists}
-            model_path: {type: str, nullable: false, func: dir_exists}
-            voice_style: {type: str, nullable: false}
-            voice_style_path: {type: str, nullable: false, func: dir_exists}
-            total_steps: {type: int, nullable: false, range: {min: 1}}
-            threads: {type: int, nullable: false, range: {min: 1}}
-            max_concurrent: {type: int, nullable: false, range: {min: 1}}
+            path:
+              type: str
+              nullable: false
+              func: dir_exists
+              desc: Directory that holds the Supertonic installation.
+              example: "C:\\HoundTTS\\supertonic"
+            model_path:
+              type: str
+              nullable: false
+              func: dir_exists
+              desc: Directory that holds the Supertonic model files.
+              example: "C:\\HoundTTS\\supertonic\\models"
+            voice_style:
+              type: str
+              nullable: false
+              desc: Name of the Supertonic voice style to use.
+              example: "default"
+            voice_style_path:
+              type: str
+              nullable: false
+              func: dir_exists
+              desc: Directory that holds the Supertonic voice style files.
+              example: "C:\\HoundTTS\\supertonic\\styles"
+            total_steps:
+              type: int
+              nullable: false
+              range: {min: 1}
+              desc: Number of diffusion steps per synthesis; higher is slower.
+              example: "8"
+            threads:
+              type: int
+              nullable: false
+              range: {min: 1}
+              desc: Number of CPU threads each Supertonic synthesizer may use.
+              example: "4"
+            max_concurrent:
+              type: int
+              nullable: false
+              range: {min: 1}
+              desc: Maximum number of Supertonic synthesizers run in parallel.
+              example: "4"

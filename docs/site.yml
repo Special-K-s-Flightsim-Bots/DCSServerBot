@@ -1,0 +1,84 @@
+# Structure of the documentation site. Everything here is data, not code: the
+# navigation and the generated pages are built from these lists.
+
+# Components that stay out of the site. community is a private plugin,
+# federation is not released, sample is the template new plugins start from.
+exclude:
+  plugins: [community, federation, sample]
+
+# Order of the Getting started section; the pages themselves live in src/.
+getting_started:
+  - install.md
+  - configure.md
+  - website.md
+  - secrets.md
+
+# Schemas whose structure is polymorphic (an entry is a list OR a map,
+# depending on a func: key) cannot be flattened honestly; menus.yaml is
+# documented in prose on the mission plugin page instead.
+skip_schemas: [menus]
+
+# Introductory sentence for a schema whose root key is a placeholder, i.e. a
+# file that holds repeated blocks rather than one fixed set of keys.
+block_notes:
+  servers: >-
+    Each top-level key is one server block: `DEFAULT`, which carries the shared
+    defaults (in-game messages, timeouts, rules) that every server inherits, or
+    a server name as it appears in the server list. A server's own block wins
+    over `DEFAULT`.
+  nodes: >-
+    Each top-level key is one node: the machine's hostname by default.
+
+# Sidebar labels for the repo's own root documents, where the H1 is not a title.
+guide_titles:
+  auto-affinity.md: Auto-affinity
+
+# Sidebar groups for the 41 plugins that ship a README. Order here is the order
+# on the page; a plugin missing from every group lands in "Other".
+plugins:
+  Administration & moderation:
+    - admin
+    - commands
+    - help
+    - motd
+    - discord
+    - punishment
+    - slotblocking
+    - voting
+    - firewall
+    - creditsystem
+  Players & statistics:
+    - userstats
+    - missionstats
+    - logbook
+    - competitive
+    - tournament
+    - greenieboard
+    - charity
+  Missions & events:
+    - mission
+    - scheduler
+    - gamemaster
+    - battleground
+    - battleground2
+    - pretense
+    - flightplan
+    - logistics
+  Operations & maintenance:
+    - backup
+    - monitoring
+    - modmanager
+    - cloud
+    - restapi
+    - profiler
+    - dbexporter
+    - debug
+  Integrations:
+    - srs
+    - lotatc
+    - tacview
+    - dks
+    - skyeye
+    - funkman
+    - realweather
+    - music

@@ -1,3 +1,4 @@
+# config/plugins/discord.yaml
 DEFAULT:
   on_join:
     message: Welcome {name} to this server!

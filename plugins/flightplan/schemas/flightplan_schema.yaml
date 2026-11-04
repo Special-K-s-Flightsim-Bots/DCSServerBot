@@ -2,33 +2,98 @@ schema;openaip_schema:
   type: map
   nullable: true
   mapping:
-    api_key: {type: str, nullable: true}
-    cache_hours: {type: int, nullable: true}
+    api_key:
+      type: str
+      nullable: true
+      desc: OpenAIP API key used to sync navigation fixes.
+      example: "***"
+    cache_hours:
+      type: int
+      nullable: true
+      desc: Hours to cache downloaded OpenAIP navigation data.
+      example: "168"
 
 schema;auto_lifecycle_schema:
   type: map
   nullable: true
   mapping:
-    activate_on_takeoff: {type: bool, nullable: true}
-    complete_on_landing: {type: bool, nullable: true}
-    require_departure_match: {type: bool, nullable: true}
-    proximity_threshold: {type: int, nullable: true}
+    activate_on_takeoff:
+      type: bool
+      nullable: true
+      desc: Auto-activate a filed plan when the pilot takes off.
+      example: "true"
+    complete_on_landing:
+      type: bool
+      nullable: true
+      desc: Auto-complete an active plan on landing at the destination.
+      example: "true"
+    require_departure_match:
+      type: bool
+      nullable: true
+      desc: Only activate if takeoff matches the filed departure.
+      example: "false"
+    proximity_threshold:
+      type: int
+      nullable: true
+      desc: Fallback destination match distance in meters.
+      example: "3000"
 
 schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: true}
-    status_channel: {type: any, nullable: true}
-    ping_role: {type: str, nullable: true}
-    publish_on_file: {type: bool, nullable: true}
-    publish_on_activate: {type: bool, nullable: true}
-    publish_on_complete: {type: bool, nullable: true}
-    publish_on_cancel: {type: bool, nullable: true}
-    stale_hours: {type: int, nullable: true}
-    auto_cancel_stale: {type: bool, nullable: true}
-    marker_timeout: {type: int, nullable: true}
+    enabled:
+      type: bool
+      nullable: true
+      desc: Enable the flight plan plugin for this server.
+      example: "true"
+    status_channel:
+      type: any
+      nullable: true
+      desc: Discord channel that shows flight plan updates.
+      example: "123456789012345678"
+    ping_role:
+      type: str
+      nullable: true
+      desc: Discord role to ping when a flight plan is posted.
+      example: "DCS"
+    publish_on_file:
+      type: bool
+      nullable: true
+      desc: Post to Discord when a flight plan is filed.
+      example: "true"
+    publish_on_activate:
+      type: bool
+      nullable: true
+      desc: Update Discord when a flight plan is activated.
+      example: "true"
+    publish_on_complete:
+      type: bool
+      nullable: true
+      desc: Update Discord when a flight plan is completed.
+      example: "true"
+    publish_on_cancel:
+      type: bool
+      nullable: true
+      desc: Update Discord when a flight plan is cancelled.
+      example: "true"
+    stale_hours:
+      type: int
+      nullable: true
+      desc: Cancel flight plans older than this many hours.
+      example: "24"
+    auto_cancel_stale:
+      type: bool
+      nullable: true
+      desc: Auto-cancel stale flight plans on mission start.
+      example: "true"
+    marker_timeout:
+      type: int
+      nullable: true
+      desc: Default F10 marker display time in seconds.
+      example: "30"
     openaip:
       include: 'openaip_schema'
     auto_lifecycle:

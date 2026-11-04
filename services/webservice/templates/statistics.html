@@ -1,0 +1,84 @@
+{#-
+  STATISTICS — the strategic, period-based view. Long-term questions only.
+
+  Every word here comes from `pages/statistics.py` (a wrapped msgid, or a sentence record rendered
+  through `say`), and every figure is a value the page module already formatted. The template
+  computes nothing and carries no literal number: a figure typed here would be a second definition
+  of a number the read owns.
+
+  No live figure and no node fact appears on this page — live state and node health belong to the
+  dashboard and its Load tab. The controls are plain links (period chips, scope links), so the page
+  works with JavaScript off.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ _(page_title) }} — DCSServerBot
+{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+<div class="stt-bar">
+  <span class="stt-group">
+    <span class="stt-lbl">{{ _(labels.scope) }}</span>
+    <span class="tabs">
+      {% for choice in scope %}<a class="tab{{ ' on' if choice.active else '' }}" href="{{ choice.url }}"
+        {% if choice.active %}aria-current="page"{% endif %}>{{ _(choice.label) }}</a>{% endfor %}
+    </span>
+  </span>
+  <span class="stt-group">
+    <span class="stt-lbl">{{ _(labels.period) }}</span>
+    <span class="tabs">
+      {% for chip in chips %}<a class="tab{{ ' on' if chip.active else '' }}" href="{{ chip.url }}"
+        {% if chip.active %}aria-current="page"{% endif %}>{{ _(chip.label) }}</a>{% endfor %}
+    </span>
+  </span>
+</div>
+
+{% include "_statistics_body.html" %}
+
+{% if kpis %}
+<article class="card">
+  <div class="hd"><h3>{{ _(cards.servers.title) }}</h3>
+    <span class="meta">{{ say(cards.servers.meta) }}</span></div>
+  <div class="bd">
+    {% if servers.rows %}
+    {#- The period's totals per server, as an ARIA grid: the console's ONE table component
+        (`_table.html`) renders the sortable LIST tables from a TableView, and this card is a
+        fixed comparison with bars in its cells — so it draws rows of its own, and says which
+        role each cell plays, rather than copying the list table's markup. -#}
+    <div class="stt-table" role="table">
+      <div class="stt-tr stt-th" role="row">
+        <span role="columnheader">{{ _(labels.col_server) }}</span>
+        <span role="columnheader" class="stt-r">{{ _(labels.col_playtime) }}</span>
+        <span role="columnheader" class="stt-r">{{ _(labels.col_unique) }}</span>
+        <span role="columnheader" class="stt-r">{{ _(labels.col_new) }}</span>
+        <span role="columnheader" class="stt-r">{{ _(labels.col_missions) }}</span>
+        <span role="columnheader">{{ _(labels.col_theatre) }}</span>
+      </div>
+      {% for row in servers.rows %}
+      <div class="stt-tr" role="row">
+        <span role="cell"><b>{{ row.name }}</b></span>
+        <span role="cell" class="stt-r">
+          <span class="stt-inline"><span class="stt-mini"><i style="width:{{ row.width }}%"></i></span>{{ row.playtime }}{% if row.unit %} {{ _(row.unit) }}{% endif %}</span>
+        </span>
+        <span role="cell" class="stt-r">{{ row.players }}</span>
+        <span role="cell" class="stt-r">{{ row.new_players }}</span>
+        <span role="cell" class="stt-r">{{ row.missions }}</span>
+        <span role="cell" class="stt-dim">{{ row.theatre }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="stt-note">{{ _(labels.distinct_note) }}
+      <b>{{ servers.distinct }}</b> {{ _(labels.distinct_total) }} ·
+      <b>{{ servers.summed }}</b> {{ _(labels.summed_total) }}</p>
+    {% else %}
+    <p class="empty">{{ _(empty) }}</p>
+    {% endif %}
+  </div>
+</article>
+{% endif %}
+{% endblock %}

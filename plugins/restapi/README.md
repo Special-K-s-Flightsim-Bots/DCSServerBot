@@ -14,16 +14,48 @@ You can configure the RestAPI endpoints in your config\plugins\restapi.yaml like
 ```yaml
 # config/plugins/restapi.yaml
 DEFAULT:
-  prefix: /stats            # Optional: use this prefix
-  api_key: aaabbbcccc       # Optional: API key to be used to secure the API
-  endpoints:                 # endpoint configuration
+  prefix: /stats            # Optional: use this prefix (you can omit the leading / if you like)
+  auth:
+    api_key: "CHANGE_ME"
+    jwt:
+      key: "some-shared-token-key"
+      jwks_url: https://digitalkneeboardsimulator.com/api/pubkey  # the URL of your JWKS
+
+  security:
+    # Defines which source networks are treated as "trusted".
+    # Trusted requests can use separate endpoint auth rules from remote requests.
+    # Loopback is always "local" and does not need to be listed here.
+    trusted:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      - fc00::/7
+    
+    # optional fallback if an endpoint has no explicit rule
+    default:
+      local: none           # We do not need any auth when we connect through the loopback interface
+      trusted: api_key      # We need an API key if we connect through trusted networks
+      remote: jwt           # We need a JWT if we connect through the internet
+      # remote: disabled    # You can also disable connections from specific networks at all like so.
+
+  endpoints:                # endpoint configuration
     servers:                # /servers
+      security:
+        local: none
+        trusted: none
+        remote: api_key
+
       filter:               # config parameter (in this case, the server filter list)
         - 'MyPrivateServer' # Do not show a server named "MyPrivateServer"
         - '(.*)Private(.*)' # Do not show any server that has "Private" in its name 
       include_weather: true # Include weather information in /servers endpoint (default: true)
+    
     server_attendance:      # /server_attendance 
       enabled: true         # Enable the server attendance statistics endpoint (default: true)
+      security:
+        local: none
+        trusted: api_key
+        remote: jwt
 ```
 
 > [!WARNING]
@@ -32,52 +64,57 @@ DEFAULT:
 ## RestAPI
 The following commands are available through the API. For detailed parameter definitions, response models, and schemas, see [API Documentation](API.md).
 
-| API | GET / POST | Parameters | Description |
-|-----|------------|------------|-------------|
-| /airbase | GET | server_name: string, airbase_name: string | Get information for a given airbase on a given server. |
-| /airbase/atis | GET | server_name: string, airbase_name: string | Get ATIS information for an airbase on a given server. |
-| /airbase/capture | POST | server_name: string, airbase_name: string, coalition: int | Capture the airbase. |
-| /airbase/warehouse | GET | server_name: string, airbase_name: string | Get warehouse information for an airbase on a given server. |
-| /airbase/warehouse/item | POST | server_name: string, airbase_name: string, item: string, value: int | Set warehouse item quantity for an airbase on a given server. |
-| /airbases | GET | server_name: string | Get a listing of all airbases on a given server. |
-| /convertCoordinates | GET | server_name: string, coordinates: string | Convert provided coordinate string into other formats. |
-| /credits | POST | nick: string, [date: string | None], [campaign: string | None] | Get campaign credits for players |
-| /current_server | GET | nick: string, [date: string | None] | Server name a player is flying on |
-| /events | GET | ucid: string, start_time: datetime, end_time: datetime, [event: string | None], [init_type: string | None], [offset: int | None], [limit: int | None] | Get mission events for players |
-| /getuser | POST | [nick: string], [discord_id: string] | Get users by name |
-| /greenieboard | POST | [date: string | None], [server_name: string | None] | Get a greenieboard |
-| /highscore | GET | [server_name: string], [period: string], [limit: int] | Get highscore statistics for players |
-| /instance/mission/load | POST | server_name: string, mission_name: string | Load a mission on a given server. |
-| /instance/mission/pause | POST | server_name: string | Pause the mission on a given server. |
-| /instance/mission/restart | POST | server_name: string, [run_extensions: bool], [use_orig: bool], [when_empty: bool] | Restart the mission on a given server. Defaults: run_extensions=false, use_orig=true, when_empty=false. With when_empty=true and players connected, the restart waits until the server is empty (needs the Scheduler plugin) and the response status is "pending"; 409 if an action is already pending. |
-| /instance/mission/unpause | POST | server_name: string | Unpause the mission on a given server. |
-| /instance/missions | GET | server_name: string | Return all missions for a given server. |
-| /instance/restart | POST | server_name: string | Restart a server. |
-| /instance/start | POST | server_name: string | Start a server. |
-| /instance/stop | POST | server_name: string | Stop a server. |
-| /leaderboard | GET | what: string, [order: string], [query: string | None], [limit: int | None], [offset: int | None], [server_name: string | None] | Get leaderbord information |
-| /linkme | POST | discord_id: string, [force: bool] | Link your Discord account to your DCS account |
-| /mission/bullseyes | GET | server_name: string | Get the bullseye coordinates for blue and red coalitions in the current mission. |
-| /mission/drawings | GET | server_name: string | Get mission drawing objects grouped by drawing layer. |
-| /mission/group/waypoints | GET | server_name: string, group_name: string, group_type: string | Get the lat/lon waypoints for a named group in the current mission. |
-| /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
-| /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
-| /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |
-| /player_info | POST | nick: string, [date: string | None], [server_name: string | None] | Get player information |
-| /player_squadrons | POST | nick: string, [date: string | None] | List of player squadrons |
-| /server_attendance | GET | [server_name: string] | Get detailed server attendance statistics |
-| /servers | GET | [server_name: string | None] | List all servers, the active mission (if any) and the active extensions |
-| /serverstats | GET | [server_name: string] | List the statistics of a whole group |
-| /squadron_credits | POST | name: string, [campaign: string] | Squadron campaign credits |
-| /squadron_members | POST | name: string | List squadron members |
-| /squadrons | GET | [limit: int], [offset: int] | List all squadrons and their roles |
-| /stats | POST | nick: string, [date: string | None], [server_name: string | None], [last_session: bool | None] | Get player statistics |
-| /topkdr | GET | [limit: int], [offset: int], [server_name: string] | Get top KDR statistics for players |
-| /topkills | GET | [limit: int], [offset: int], [server_name: string] | Get top kills statistics for players |
-| /traps | POST | nick: string, [date: string | None], [limit: int | None], [offset: int | None], [server_name: string | None] | Get traps for players |
-| /traps/img | GET | trap_id: int | Get trap image for a player |
-| /trueskill | GET | [limit: int], [offset: int], [server_name: string] | Get TrueSkill:tm: statistics for players |
-| /weaponpk | POST | nick: string, [date: string | None], [server_name: string | None] | Get PK statistics for all weapons of a specific players |
+| API                       | GET / POST | Parameters                                                                                                                | Description                                                                        |
+|---------------------------|------------|---------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| /airbase                  | GET        | server_name: string, airbase_name: string                                                                                 | Get information for a given airbase on a given server.                             |
+| /airbase/atis             | GET        | server_name: string, airbase_name: string                                                                                 | Get ATIS information for an airbase on a given server.                             |
+| /airbase/capture          | POST       | server_name: string, airbase_name: string, coalition: int                                                                 | Capture the airbase.                                                               |
+| /airbase/warehouse        | GET        | server_name: string, airbase_name: string                                                                                 | Get warehouse information for an airbase on a given server.                        |
+| /airbase/warehouse/item   | POST       | server_name: string, airbase_name: string, item: string, value: int                                                       | Set warehouse item quantity for an airbase on a given server.                      |
+| /airbases                 | GET        | server_name: string                                                                                                       | Get a listing of all airbases on a given server.                                   |
+| /convertCoordinates       | GET        | server_name: string, coordinates: string                                                                                  | Convert provided coordinate string into other formats.                             |
+| /credits                  | POST       | nick: string, [date: string], [campaign: string]                                                                          | Get campaign credits for players                                                   |
+| /current_server           | GET        | nick: string, [date: string]                                                                                              | Server name a player is flying on                                                  |
+| /events                   | GET        | ucid: string, start_time: datetime, end_time: datetime, [event: string], [init_type: string], [offset: int], [limit: int] | Get mission events for players                                                     |
+| /getuser                  | POST       | [nick: string], [discord_id: string]                                                                                      | Get users by name                                                                  |
+| /greenieboard             | POST       | [date: string], [server_name: string]                                                                                     | Get a greenieboard                                                                 |
+| /highscore                | GET        | [server_name: string], [period: string], [limit: int]                                                                     | Get highscore statistics for players                                               |
+| /instance/mission/load    | POST       | server_name: string, mission_name: string                                                                                 | Load a mission on a given server.                                                  |
+| /instance/mission/pause   | POST       | server_name: string                                                                                                       | Pause the mission on a given server.                                               |
+| /instance/mission/restart | POST       | server_name: string, [run_extensions: bool], [use_orig: bool], [when_empty: bool]                                         | Restart the mission on a given server.                                             |
+| /instance/mission/unpause | POST       | server_name: string                                                                                                       | Unpause the mission on a given server.                                             |
+| /instance/missions        | GET        | server_name: string                                                                                                       | Return all missions for a given server.                                            |
+| /instance/restart         | POST       | server_name: string                                                                                                       | Restart a server.                                                                  |
+| /instance/shutdown        | POST       | server_name: string, [force: bool], [maintenance: bool], [when_empty: bool]                                               | Shut a server down (terminates the DCS process).                                   |
+| /instance/start           | POST       | server_name: string                                                                                                       | Start a server.                                                                    |
+| /instance/stop            | POST       | server_name: string                                                                                                       | Stop a server.                                                                     |
+| /leaderboard              | GET        | what: string, [order: string], [query: string], [limit: int], [offset: int], [server_name: string]                        | Get leaderbord information                                                         |
+| /linkme                   | POST       | discord_id: string, [force: bool]                                                                                         | Link your Discord account to your DCS account                                      |
+| /mission/bullseyes        | GET        | server_name: string                                                                                                       | Get the bullseye coordinates for blue and red coalitions in the current mission.   |
+| /mission/drawings         | GET        | server_name: string                                                                                                       | Get mission drawing objects grouped by drawing layer.                              |
+| /mission/group            | GET        | server_name: string, coalition: string, group_name: string, [group_type: string]                                          | Get details for a single group in the current mission.                             |
+| /mission/group/waypoints  | GET        | server_name: string, group_name: string, group_type: string                                                               | Get the lat/lon waypoints for a named group in the current mission.                |
+| /mission/groups           | GET        | server_name: string, coalition: string, [group_type: string]                                                              | Get all groups in the currently running mission for a coalition.                   |
+| /mission/unit             | GET        | server_name: string, unit_name: string                                                                                    | Get mission unit data including current position, loadout, navaids, and waypoints. |
+| /mission/upload           | POST       | server_name: string, file: string, filename: string, load_after: bool                                                     | Upload a .miz mission file to the server.                                          |
+| /modulestats              | POST       | nick: string, [date: string], [server_name: string]                                                                       | Get module statistics                                                              |
+| /node/restart             | POST       | [node_name: string]                                                                                                       | Restart a node, or all nodes. The bot reloads its configuration.                   |
+| /player_info              | POST       | nick: string, [date: string], [server_name: string]                                                                       | Get player information                                                             |
+| /player_squadrons         | POST       | nick: string, [date: string]                                                                                              | List of player squadrons                                                           |
+| /refuelings               | GET        | ucid: string, [module: string], [tanker: string], [start_time: datetime], [end_time: datetime]                            | Get refueling stats for players                                                    |
+| /server_attendance        | GET        | [server_name: string]                                                                                                     | Get detailed server attendance statistics                                          |
+| /servers                  | GET        | [server_name: string]                                                                                                     | List all servers, the active mission (if any) and the active extensions            |
+| /serverstats              | GET        | [server_name: string]                                                                                                     | List the statistics of a whole group                                               |
+| /squadron_credits         | POST       | name: string, [campaign: string]                                                                                          | Squadron campaign credits                                                          |
+| /squadron_members         | POST       | name: string                                                                                                              | List squadron members                                                              |
+| /squadrons                | GET        | [limit: int], [offset: int]                                                                                               | List all squadrons and their roles                                                 |
+| /stats                    | POST       | nick: string, [date: string], [server_name: string], [last_session: bool]                                                 | Get player statistics                                                              |
+| /topkdr                   | GET        | [limit: int], [offset: int], [server_name: string]                                                                        | Get top KDR statistics for players                                                 |
+| /topkills                 | GET        | [limit: int], [offset: int], [server_name: string]                                                                        | Get top kills statistics for players                                               |
+| /traps                    | POST       | nick: string, [date: string], [limit: int], [offset: int], [server_name: string]                                          | Get traps for players                                                              |
+| /traps/img                | GET        | trap_id: int                                                                                                              | Get trap image for a player                                                        |
+| /trueskill                | GET        | [limit: int], [offset: int], [server_name: string]                                                                        | Get TrueSkill:tm: statistics for players                                           |
+| /weaponpk                 | POST       | nick: string, [date: string], [server_name: string]                                                                       | Get PK statistics for all weapons of a specific players                            |
 
 > [!NOTE]
 > To get more detailled API documentation with test options, please enable debug in your WebService config and 

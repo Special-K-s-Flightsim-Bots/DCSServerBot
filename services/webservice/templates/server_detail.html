@@ -1,0 +1,959 @@
+{#-
+  The per-server page: its head, the tab strip, and one tab's content. The Configuration tab is the
+  deliverable; Overview / Players / Missions / Log reuse the shared read models and the ONE table
+  component (`_table.html`), so this template owns no table markup of its own.
+
+  READ + WRITE. The tab renders ONE form that posts the single action `set_server_config`
+  (`pages/actions.py`); there is no second write path and no state-changing GET. Only the CHANGED
+  fields are submitted, Save is drawn DISABLED (with its reason stated) when the server cannot take a
+  change or the action is absent, and a successful write offers a one-shot Revert that re-submits the
+  previous values through the SAME action.
+
+  THE PASSWORD FIELDS DECLARE WHICH THEY ARE (`serverconfig.ConfigField.protection`, read here, never
+  the field's key): an UNPROTECTED one renders a normal masked field holding the STORED value (this
+  console's own Discord editor already shows it in the clear) with the eye beside it — leave it to
+  keep, empty it to remove, type in it to set a new one. A PROTECTED one renders NO value at all: only
+  the "a password is set" state, with the same keep / clear / replace read off the fixed placeholder
+  the field holds. The coalition password hashes are not rendered at all.
+
+  THE THIRD FACE (its own card and form): the blue/red coalition passwords, whose CLEARTEXT lives in
+  the bot's database and whose write goes through the bot's own `setCoalitionPassword`. Their values
+  are rendered in the clear; a password is removed by EMPTYING its field (the same way the DCS server
+  password is removed — there is no Clear control), a field that shipped EMPTY does nothing, and the
+  card is absent when the read could not be taken.
+-#}
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+{#-  THE SHARED BLOCK MACRO (see `_editor.html`): the SAME collapsible `<details
+    class="st-block">` the schema-driven editor draws, so the DCS groups below are the
+    SAME control a schema map renders — one editor look, whatever the file format.  -#}
+{% import "_editor.html" as editor %}
+{#- THE LOG FAMILY'S ONE CARD. The Log tab and the optional Events tab render the SAME
+    presentation — the tailed window, "Load older", and the artifacts PICKER — so it is ONE macro, not
+    two copies that could drift. `which` is the file selector the shared window route reads; the level
+    rides on the card as `data-level` and the follow/page-back script appends it.
+
+    THE EMPTY STATE IS THE SAME BODY. `#dcs-log-body` is ALWAYS rendered — even
+    while the file does not exist yet — so the follower starts and polls from that state; the honest
+    sentence lives BESIDE it in `#dcs-log-note`, which the script hides the moment real lines arrive
+    (and shows again if the log disappears). The old markup shipped NO body in the empty state, so the
+    follower bailed out at once and the "no log file yet" sentence could never become the log without a
+    toolbar reload.
+
+    THE LEVEL ROW IS OMITTED ON THE EVENTS TAB (`log_levels` empty there): every debug entry is
+    DEBUG, so a filter there is noise.
+
+    THE DOWNLOAD IS A PICKER, NOT A LIST: one `<select>` of the server's artifacts plus a single
+    Download control, mirroring the bot's own `/download`. Each option carries the name, the size and
+    the modification time. The listing is still enumerated server-side and the route still matches the
+    choice BY IDENTITY against a fresh enumeration — the form only chooses; the route is unchanged. -#}
+{% macro log_card(title, which) %}
+<div class="card log-card" id="dcs-log-card"
+     data-window-url="{{ log_window_url }}" data-offset="{{ log_offset }}"
+     data-before="{{ log_before }}" data-identity="{{ log_identity }}"
+     data-level="{{ log_level }}"{% if log_which %} data-which="{{ log_which }}"{% endif %}
+     data-follow-seconds="{{ log_follow_seconds }}">
+  <div class="hd">
+    <h3>{{ title }}</h3>
+    <div class="spacer"></div>
+    {% if log_levels %}<span class="log-level" id="dcs-log-level">{% for item in log_levels %}<a href="{{ item.href }}" class="tag{{ ' a' if item.active else '' }}"{% if item.active %} aria-current="true"{% endif %}>{{ _(item.label) }}</a>{% endfor %}</span>{% endif %}
+    <span class="tag">{{ log_path }}</span>
+    <span class="live-status" id="dcs-log-status">{% if log_available %}{% trans %}following while this tab is open{% endtrans %}{% else %}{% trans %}not available{% endtrans %}{% endif %}</span>
+  </div>
+  <div class="log" id="dcs-log-body">{% with lines = log_lines %}{% include "_dcs_log_lines.html" %}{% endwith %}</div>
+  <div class="bd" id="dcs-log-note"{% if log_lines %} hidden{% endif %}><p class="empty" id="dcs-log-note-text">{{ _(log_message) }}</p></div>
+  <div class="ft">
+    <button type="button" id="dcs-log-older" class="btn"{% if not log_available or log_at_start %} disabled{% endif %}>{% if log_at_start %}{% trans %}Start of log{% endtrans %}{% else %}{% trans %}Load older{% endtrans %}{% endif %}</button>
+    <span class="spacer"></span>
+    <span>{% trans %}Node{% endtrans %} <b>{{ log_node }}</b>.</span>
+  </div>
+</div>
+
+{#- THE DOWNLOAD PICKER. ONE `<select>` of the artifacts the tab offers (name, size, modification
+    time — newest first) and ONE Download control, mirroring the bot's own `/download`. A GET form, so
+    the download stays a READ and the route's contract is untouched. -#}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Log files{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}download{% endtrans %}</span></div>
+  <div class="bd">
+    {% if log_artifacts_note %}
+    <p class="empty">{{ log_artifacts_note }}</p>
+    {% elif log_artifacts %}
+    <form class="cfg-form log-picker" method="get" action="{{ log_download_base }}">
+      {% if log_which %}<input type="hidden" name="which" value="{{ log_which }}">{% endif %}
+      {% set dl_lab %}<div class="nm">{% trans %}Log file{% endtrans %}</div><div class="hp">{% trans %}Choose a file to download.{% endtrans %}</div>{% endset %}
+      {% set dl_ctl %}
+          <select id="dcs-log-file" name="artifact" class="cfg-input" aria-label="{% trans %}Log file to download{% endtrans %}">
+            {% for a in log_artifacts %}
+            <option value="{{ a.id }}">{{ a.name }} — {{ a.size_text }} · {{ a.mtime }} UTC</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn">{% trans %}Download{% endtrans %}</button>
+      {% endset %}
+      {{ editor.field_row('select', dl_lab, dl_ctl) }}
+    </form>
+    {% else %}
+    <p class="empty">{% trans %}No log files are in this server's log directory yet.{% endtrans %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+{% block title %}{{ page_title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ page_title }}</h1>
+  {% if server is defined and server %}
+  {#- THE STATUS IS A LIVE REGION. The mark is wrapped so the status's own poll can replace its
+      content, and the page head carries the poll's URL and cadence (the way the log card carries its
+      window URL and follow seconds). The status is kept current on EVERY tab: this head is outside the
+      tab branches, and `/static/server-status.js` is loaded on every tab. -#}
+  <div class="sub" data-server-status-url="{{ server_status_url }}" data-server-status-seconds="{{ server_status_seconds }}">{% trans %}node{% endtrans %} {{ server.node_name }}{% if server.instance_name %} · {% trans %}instance{% endtrans %} {{ server.instance_name }}{% endif %}{% if server.port %} · {% trans %}port{% endtrans %} :{{ server.port }}{% endif %} · <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span>{% if server.maintenance %} <span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}</div>
+  {% endif %}
+</div>
+
+<nav class="tabs" aria-label="{% trans %}Server{% endtrans %}">
+  {% for t in tabs %}<a class="tab{{ ' on' if t.active else '' }}" href="{{ t.link }}"{% if t.active %} aria-current="page"{% endif %}>{{ _(t.label) }}</a>
+  {% endfor %}
+</nav>
+
+{% if tab == 'configuration' %}
+{# ---------------------------------------------------------------- the Configuration tab #}
+{#-  THE SAME EDITOR AS EVERY OTHER CONFIG SURFACE. This page edits a LUA file (serverSettings.lua)
+    with no schema, so its fields come from the console's own DECLARATION (readmodels.serverconfig),
+    not from a pykwalify schema — the PARSER differs. The EDITOR does not: the layout (`st-head` /
+    `st-bar` / `st-layout` with the file's aside), the collapsible `<details class="st-block">` blocks
+    (the ONE macro in `_editor.html`, shared with the schema-driven view), the byte-honest Save and
+    the read-only file panel are the SAME as `settings_scope.html` / `node_page.html`. The rule:
+    config files of different FORMATS may need different parsers, but they must not grow different
+    EDITORS.
+
+    WHAT THIS LUA FILE CANNOT DO, stated plainly rather than faked: it has no SCHEMA (so no schema
+    validator, no `+ Add` picker of optional fields — every declared field is always present), and the
+    console never opens or writes it (the bot's own action does), so there is NO Expert Mode text
+    editor here — one would be a second write path, which this console forbids. The aside is therefore
+    read-only, exactly the panel the yaml editor shows with JavaScript off.  -#}
+{% set cfg_enabled = config.serviceable and config_available %}
+{#- THE WORDS FOR A CHOICE FIELD'S OPTIONS. `advanced.resume_mode`'s options are bare numbers in the
+    declaration (`choices=(0, 1, 2)`), and "1" is not "always pause". The SUBMITTED values stay the
+    numbers; only what is READ changes, and the number stays in the label so it still matches the file
+    and DCS's own docs.
+
+    The map sits here, beside the render that reads it, rather than in the declaration (which carries
+    values only). Folding it into the declaration as `(value, label)` pairs beside `choices` would
+    remove this map. -#}
+{% set CHOICE_LABELS = {'advanced.resume_mode': {0: _('0 — always run'), 1: _('1 — always pause'),
+                                                 2: _('2 — pause without clients')}} %}
+
+<div class="st-head">
+  <div>
+    <div class="t1">
+      <a class="st-back" href="/fleet">&larr; {{ _('Servers') }}</a>
+      <span class="st-crumb">&rsaquo; {{ _('Configuration') }}</span>
+    </div>
+    <div class="t1" style="margin-top:6px">
+      <h1>{{ server_name }}</h1>
+      <span class="st-kind">{{ _('Server') }}</span>
+    </div>
+  </div>
+</div>
+
+{% include "_notice.html" %}
+{% if notice and notice.revert %}
+<form class="revert" method="post" action="{{ config_action_path }}" data-async>
+  <input type="hidden" name="server" value="{{ server_name }}">
+  <input type="hidden" name="{{ config_revert_field }}" value="{{ notice.revert }}">
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <span class="sub">{% trans %}Every write is a write: Revert re-submits the previous values through the same action — audited, validated and locked like any change.{% endtrans %}</span>
+  <button type="submit">{% trans %}Revert{% endtrans %}</button>
+</form>
+{% elif notice and notice.revert_omitted %}
+<div class="notice"><div class="sub">{{ _(notice.revert_omitted) }}</div></div>
+{% endif %}
+
+{% if not config.serviceable %}
+<div class="notice"><div class="sub"><b>{{ _(config.status.word) }}</b> — {{ _(config.apply_note) }}</div></div>
+{% elif not config_available %}
+<div class="notice"><div class="sub"><b>{% trans %}Read-only.{% endtrans %}</b> {% trans %}The write action is not available in this installation (the <span class="mono">scheduler</span> plugin is not loaded), so there is no Save here.{% endtrans %}</div></div>
+{% endif %}
+
+<div class="st-bar">
+  <div>
+    <div class="where"><b>{{ _('Configuration — the DCS face') }}</b> &middot; <span class="mono">Saved Games/&lt;instance&gt;/Config/serverSettings.lua</span></div>
+    <div class="s">{% trans %}Read from the master's in-process snapshot: no file is opened and no node is asked on this render.{% endtrans %} {% if config.overridden %}{% trans names=config.overridden | join(', ') %}Pinned by <b>servers.yaml</b>: {{ names }}. A change updates both places.{% endtrans %}{% endif %}</div>
+  </div>
+  <div class="acts">
+    {#-  THE TAB'S OWN Save — the ONE filled control on a page that carries three (`Save channels` and
+        `Save coalition passwords` are the plain secondary chips). It references the DCS form by id
+        (`form="cfg-form"`), exactly as the scoped editor's bar does. The class STARTS with `primary`
+        (the console's own marker) and carries the shell's `st-btn pri` fill; the `busy` pulse rides
+        the SAME element.  -#}
+    <button type="submit" form="cfg-form" class="primary st-btn pri{% if cfg_enabled and config_pulse %} busy{% endif %}"{% if not cfg_enabled %} disabled title="{{ _(config.apply_note) if not config.serviceable else _('The write action is not available in this installation.') }}"{% elif config_pulse %} aria-busy="true"{% endif %}>{% trans %}Save{% endtrans %}</button>
+  </div>
+</div>
+
+<div class="st-layout" style="margin-top:16px">
+  <div>
+    <form class="cfg-form" method="post" action="{{ config_action_path }}" data-async id="cfg-form">
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+
+      {% for group in config.groups %}
+      {%- set gsummary %}<span class="k">{{ _(group.label) }}</span><span class="kd">{{ group.fields | length }} {{ _('editable') }}</span>{% endset %}
+      {% call editor.panel(gsummary, open=True) %}
+        {% for f in group.fields %}
+        {% set dcs_lab %}
+          <div class="nm">{{ _(f.label) }}</div>
+          <div class="kk"><span class="key mono">{{ f.key }}</span><span class="ty">{{ f.bound }}{% if f.protection %} · {{ f.protection }}{% endif %}</span>{% if f.overridden %} <span class="tag">{% trans %}also pinned in servers.yaml — a change updates both{% endtrans %}</span>{% endif %}</div>
+          <div class="hp">{{ _(f.help) }}</div>
+          {% if f.protection == 'protected' %}<div class="hp">{% trans %}Leave it to keep the password, empty it to remove it, type in it to set a new one. Its value is never shown here.{% endtrans %}</div>{% endif %}
+        {% endset %}
+        {% set dcs_ctl %}
+              {% if f.protection == 'protected' %}
+                {#- A PROTECTED PASSWORD: the value is NEVER rendered. The field holds the fixed
+                    placeholder (`serverconfig.PROTECTED_SENTINEL`) while a password is set, and nothing
+                    when none is — so the browser sees the "a password is set" state and never the value.
+                    Leave it to keep the password, empty it to remove it, type in it to set a new one
+                    (the write reads the placeholder back: see `actions._protected_password`). There is
+                    NO eye here: the field holds no value to reveal. `autocomplete="new-password"`
+                    stops the browser offering a saved credential into the console's own field. -#}
+                <input type="password" id="cfg-{{ f.key | replace('.', '-') }}" name="{{ f.key }}"
+                       value="{{ f.value if f.value is not none else '' }}" class="cfg-input"
+                       autocomplete="new-password"{% if not cfg_enabled %} disabled{% endif %}>
+              {% elif f.protection == 'unprotected' %}
+                {#- AN UNPROTECTED PASSWORD: A NORMAL MASKED FIELD HOLDING THE STORED VALUE, shown as it
+                    is (this console's own Discord editor already shows it in the clear). Leave it to
+                    keep, empty it to remove, type in it to set a new one — the plain field semantics,
+                    read off what the browser posts (see `actions.config_values_from_form`).
+                    `autocomplete="new-password"` stops the browser offering a saved credential into
+                    the console's own field. -#}
+                <input type="password" id="cfg-{{ f.key | replace('.', '-') }}" name="{{ f.key }}"
+                       value="{{ f.value if f.value is not none else '' }}" class="cfg-input"
+                       autocomplete="new-password"{% if not cfg_enabled %} disabled{% endif %}>
+                {#- THE EYE. A real `button` (keyboard-reachable, Enter/Space both work, never a submit —
+                    `type="button"`), carrying `aria-pressed` as the announced state and both glyphs, so
+                    the shape says which way the button goes. It ships `hidden` and the ONE script that
+                    enhances the page (`/static/reveal.js`) reveals it: with JavaScript off a button that
+                    could not toggle anything would lie, and this console's rule is that nothing is
+                    MISSING without JS — only the enhancement is.
+
+                    IT IS DISABLED WHILE THE FIELD IS EMPTY (nothing to reveal); otherwise it toggles the
+                    masking of what the field holds, and nothing else. -#}
+                <button type="button" class="cfg-reveal" data-reveal="cfg-{{ f.key | replace('.', '-') }}"
+                        aria-pressed="false" aria-label="{% trans %}Show password{% endtrans %}" title="{% trans %}Show password{% endtrans %}"
+                        {% if not cfg_enabled %}disabled{% endif %} hidden>
+                  <span class="g-show">{{ icons.act('reveal') }}</span>
+                  <span class="g-hide">{{ icons.act('conceal') }}</span>
+                </button>
+                {#- HOW A PASSWORD IS REMOVED IS THE FIELD ITSELF: empty it and save, and the write
+                    submits the explicit clear. There is no clear link, no button and no checkbox. -#}
+              {% elif f.multiline %}
+                {#- A MULTI-LINE FIELD for the one declaration that asks for it (`description`, whose
+                    own maximum is 2000 characters). `maxlength` is the browser's OWN enforcement of
+                    the action's declared maximum — it costs nothing and prevents the over-long value
+                    instead of reporting it — and the browser's resize handle is deliberately left
+                    alone (`resize` is not set anywhere), so the field the reader grows stays grown. -#}
+                <textarea name="{{ f.key }}" rows="7" class="cfg-input mono"{% if f.maximum %} maxlength="{{ f.maximum }}"{% endif %}{% if not cfg_enabled %} disabled{% endif %}>{{ f.value if f.value is not none else '' }}</textarea>
+              {% elif f.kind == 'bool' %}
+                <label class="tag"><input type="checkbox" name="{{ f.key }}" value="1"{% if f.value %} checked{% endif %}{% if not cfg_enabled %} disabled{% endif %}> {% if f.value %}{% trans %}on{% endtrans %}{% else %}{% trans %}off{% endtrans %}{% endif %}</label>
+              {% elif f.choices %}
+                {#- a leading EMPTY "unchanged" option. A browser ALWAYS submits the chosen option, and
+                    picks the FIRST one when none is marked — so with this first an UNTOUCHED select
+                    posts "" (never the first choice, which would write 0 for an absent or unlisted
+                    current value). It is marked selected only when the current value is not itself an
+                    offered option.
+
+                    The option's TEXT is the meaning, the option's VALUE is the number the file carries:
+                    `CHOICE_LABELS` words them (see the map at the top of this tab), and a choice with no
+                    words of its own falls back to the value itself, so a later declaration with more
+                    options cannot render a blank one. -#}
+                {% set choice_words = CHOICE_LABELS.get(f.key, {}) %}
+                <select name="{{ f.key }}" class="cfg-input"{% if not cfg_enabled %} disabled{% endif %}><option value=""{% if f.value not in f.choices %} selected{% endif %}>{% trans %}— unchanged —{% endtrans %}</option>{% for c in f.choices %}<option value="{{ c }}"{% if f.value == c %} selected{% endif %}>{{ choice_words.get(c, c) }}</option>{% endfor %}</select>
+              {% elif f.kind == 'int' %}
+                <input type="number" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}" class="cfg-input mono"{% if not cfg_enabled %} disabled{% endif %}>
+              {% else %}
+                <input type="text" name="{{ f.key }}" value="{{ f.value if f.value is not none else '' }}" class="cfg-input"{% if not cfg_enabled %} disabled{% endif %}>
+              {% endif %}
+        {% endset %}
+        {{ editor.field_row(f.kind, dcs_lab, dcs_ctl, cls='cfg-wide' if f.multiline else '') }}
+        {% endfor %}
+      {% endcall %}
+      {% endfor %}
+
+      <div class="notice">
+        <div class="sub"><b>{% trans %}Save writes the file — the change applies when the server next starts.{% endtrans %}</b> {% trans %}DCS reads <span class="mono">serverSettings.lua</span> at boot, so nothing is applied live here. Only the fields you change are submitted.{% endtrans %}</div>
+      </div>
+    </form>
+  </div>
+  <aside class="st-aside">
+    <div class="hd"><h3 class="mono">serverSettings.lua</h3><span class="sp"></span>
+      <span class="st-badge">{% trans %}read-only{% endtrans %}</span></div>
+    <div class="st-note">{% trans %}The console never opens or writes this file: it reads the settings from the bot's in-process snapshot and writes them through the bot's own action, so there is no Expert Mode text editor here.{% endtrans %}</div>
+    <pre class="st-yaml">{% for group in config.groups %}{% for f in group.fields %}{{ f.key }} = {{ f.value if f.value is not none else '' }}
+{% endfor %}{% endfor %}</pre>
+  </aside>
+</div>
+
+{% set channels_enabled = channels_available %}
+{#- THE CHANNELS CARD — the servers.yaml face, with REAL channel pickers. It is its OWN <form>, posted
+    to its OWN action (`set_server_channels`): the channels are a different face of the same tab,
+    written through the bot's own `Server.update_channels`, and applied IMMEDIATELY (no state gate, no
+    restart). The DCS form above cannot carry it — nested forms are not a thing — so this form sits
+    after the DCS face's Save. It is drawn as the SAME collapsible block the DCS groups use.
+
+    THE WHOLE CARD IS ABSENT WHEN THE VIEWER MAY NOT WRITE THE CHANNELS: the read model builds no row
+    at all and sets `config.channels_denied` (see `serverconfig._channels`), so a manager — who may not
+    write the channels — gets no card, no picker and no reason to read. The refusal itself is the
+    action's, server-side; the card being gone is not the control.
+
+    THE ADMIN ROW IS ABSENT WHEN `bot.yaml` DEFINES A CENTRAL ADMIN CHANNEL: the read model does not
+    build it at all (see `serverconfig._channels`), so there is nothing here to hide with CSS and
+    nothing to disable — in that configuration the setting is not per-server. The `config.central_admin`
+    flag only words the note; it never suppresses a row the read model already decided against. -#}
+{% if not config.channels_denied %}
+{%- set chsummary %}<span class="k">{{ _('Discord channels') }}</span><span class="r"><span class="tag">{{ _('bot face — servers.yaml') }}</span></span>{% endset %}
+{% call editor.panel(chsummary) %}
+    <div class="sub">{% trans %}The one part of this page that does not live in <span class="mono">serverSettings.lua</span>: these are the <span class="mono">servers.yaml</span> face, written through the bot's own <span class="mono">Server.update_channels</span>. Pick a channel per row; only the rows you change are submitted.{% endtrans %}</div>
+    <form class="cfg-form" method="post" action="{{ channels_action_path }}" data-async id="channels-form">
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% for c in config.channels %}
+      {% set ch_lab %}
+        <div class="nm">{{ _(c.label) }}</div>
+        <div class="kk"><span class="key mono">{{ c.key }}</span><span class="ty">{% if c.required %}{% trans %}required{% endtrans %}{% else %}{% trans %}optional{% endtrans %}{% endif %}</span></div>
+        <div class="hp">{{ _(c.help) }}</div>
+      {% endset %}
+      {% set ch_ctl %}
+          {#- THE PICKER. Options are the guild's channels, grouped by category, plus an explicit
+              "not set" whose VALUE is a distinct sentinel (`channel_unset_value`) — so clearing a set
+              channel is an explicit change and never a blank field. A value that is set but not among
+              the options (a deleted channel, or one from another guild) is rendered as its own
+              selected option, so an untouched form still posts the truth (unchanged) instead of
+              silently reading as "not set". -#}
+          <select name="{{ c.key }}" class="cfg-input"{% if not channels_enabled %} disabled{% endif %}>
+            {% for g in c.options %}{% if g.label %}<optgroup label="{{ g.label }}">
+              {% endif %}{% for o in g.options %}<option value="{{ o.value }}"{% if o.value == c.value %} selected{% endif %}>{{ o.label }}</option>
+              {% endfor %}{% if g.label %}</optgroup>
+            {% endif %}{% endfor %}
+            {% if c.value and not c.value_offered %}<option value="{{ c.value }}" selected>{{ c.value }} {% trans %}(not in this guild){% endtrans %}</option>
+            {% endif %}<option value="{{ channel_unset_value }}"{% if not c.value %} selected{% endif %}>{% trans %}— not set —{% endtrans %}</option>
+          </select>
+      {% endset %}
+      {{ editor.field_row('select', ch_lab, ch_ctl) }}
+      {% endfor %}
+      <div class="notice">
+        <div class="sub"><b>{% trans %}Channel changes apply immediately.{% endtrans %}</b> {{ _(config.channel_apply_note) }} {% trans %}Read from the master's in-process Discord connection: no node is asked and no Discord API call is made on this render.{% endtrans %}{% if not config.channel_options_available %} {% trans %}The guild's channel list could not be read right now (the bot is not connected to a guild) — only "not set" can be chosen.{% endtrans %}{% endif %}{% if config.central_admin %} {% trans %}A central admin channel is defined in <span class="mono">bot.yaml</span>, so the per-server admin channel is not shown or edited here.{% endtrans %}{% endif %}</div>
+        <button type="submit"{% if not channels_enabled %} disabled title="{{ _('The channels action is not available in this installation.') }}"{% elif channels_pulse %} class="busy" aria-busy="true"{% endif %}>{% trans %}Save channels{% endtrans %}</button>
+      </div>
+    </form>
+{% endcall %}
+{% endif %}
+
+{#- THE COALITION PASSWORDS CARD — the THIRD face: the blue/red join passwords, whose CLEARTEXT lives
+    in the bot's database (``servers.blue_password`` / ``red_password``) and whose write goes through
+    the bot's own ``Server.setCoalitionPassword``. Its own ``<form>``, its own route
+    (``set_coalition_password``) and its own capability. The values are rendered IN THE CLEAR — the field holds the real password, with the same eye the DCS password
+    carries — except that
+    the CLEARTEXT comes from the read ACTION: when that read could not be taken, ``config.coalitions``
+    is EMPTY and this whole card is absent (never two rows that would read as \"no password\"). The
+    hash is never rendered anywhere.
+
+    REMOVING A PASSWORD IS EMPTYING ITS FIELD — the same way the DCS server password is removed, and
+    the reason no Clear control is offered. A field that shipped HOLDING a password and comes
+    back empty is the deliberate clear; a field that shipped EMPTY does nothing, so a password the bot
+    knows only as a hash (its field renders empty) can be REPLACED but never wiped by a blank submit. -#}
+{% set coalitions_enabled = config.coalitions_serviceable and coalitions_available %}
+{% if config.coalitions %}
+{%- set cosummary %}<span class="k">{{ _('Coalition passwords') }}</span><span class="r"><span class="tag">{{ _('bot database — set live, no restart') }}</span></span>{% endset %}
+{% call editor.panel(cosummary) %}
+    <div class="sub">{% trans %}The blue and red join passwords. The bot keeps the cleartext in its own database and asks DCS to apply it — a change while the server is running or paused is picked up at its next restart, exactly like <span class="mono">/password</span>. This page never writes <span class="mono">serverSettings.lua</span> itself.{% endtrans %}</div>
+    <form class="cfg-form" method="post" action="{{ coalitions_action_path }}" data-async id="coalitions-form">
+      <input type="hidden" name="server" value="{{ server_name }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% for c in config.coalitions %}
+      {% set co_lab %}
+        <div class="nm">{{ _(c.label) }}</div>
+        <div class="kk"><span class="key mono">{{ c.key }}</span><span class="ty">{% if c.hash_set %}{% trans %}hash set{% endtrans %}{% else %}{% trans %}no hash{% endtrans %}{% endif %}</span></div>
+        <div class="hp">{{ _(c.help) }}</div>
+        {% if c.note %}<div class="hp"><b>{{ _(c.note) }}</b></div>{% endif %}
+      {% endset %}
+      {% set co_ctl %}
+          {#- The real password, masked, with the eye — the same unprotected branch the DCS password
+              uses. `autocomplete="new-password"` stops the browser offering a saved credential here. -#}
+          <input type="password" id="cfg-{{ c.key }}" name="{{ c.key }}" class="cfg-input"
+                 value="{{ c.value }}" autocomplete="new-password"{% if not coalitions_enabled %} disabled{% endif %}>
+          <button type="button" class="cfg-reveal" data-reveal="cfg-{{ c.key }}"
+                  aria-pressed="false" aria-label="{% trans %}Show password{% endtrans %}" title="{% trans %}Show password{% endtrans %}"
+                  {% if not coalitions_enabled %}disabled{% endif %} hidden>
+            <span class="g-show">{{ icons.act('reveal') }}</span>
+            <span class="g-hide">{{ icons.act('conceal') }}</span>
+          </button>
+      {% endset %}
+      {{ editor.field_row('password', co_lab, co_ctl) }}
+      {% endfor %}
+      <div class="notice">
+        <div class="sub"><b>{% trans %}Emptying a field removes its password.{% endtrans %}</b> {% trans %}A field that is already empty does nothing — so a password shown as empty here (the bot knows only its hash) can be replaced but not removed from this page.{% endtrans %} {% if not config.coalitions_serviceable %}<b>{{ _(config.status.word) }}</b> — {{ _(config.coalition_apply_note) }}{% endif %}</div>
+        <button type="submit"{% if not coalitions_enabled %} disabled title="{{ _(config.coalition_apply_note) if not config.coalitions_serviceable else _('The write action is not available in this installation.') }}"{% endif %}>{% trans %}Save coalition passwords{% endtrans %}</button>
+      </div>
+    </form>
+{% endcall %}
+{% endif %}
+
+{% elif tab == 'players' %}
+{# ---------------------------------------------------------------- the Players tab #}
+{% set search_action = search_action %}
+{% set search_clear = search_clear %}
+{% set search_hidden = search_hidden %}
+{% include "_table.html" %}
+
+{% elif tab == 'statistics' %}
+{# ---------------------------------------------------------------- the Statistics tab #}
+{#- THE SAME BODY the Admin-only Statistics page renders, read for THIS server only (see
+    `_statistics_body.html`). The PERIOD CHIPS are the tab's own, because a chip's link has to stay on
+    this tab; the per-server comparison card is the page's, since it compares servers. -#}
+<div class="stt-bar">
+  <span class="stt-group">
+    <span class="stt-lbl">{{ _(labels.period) }}</span>
+    <span class="tabs">
+      {% for chip in chips %}<a class="tab{{ ' on' if chip.active else '' }}" href="{{ chip.url }}"
+        {% if chip.active %}aria-current="page"{% endif %}>{{ _(chip.label) }}</a>{% endfor %}
+    </span>
+  </span>
+</div>
+{% include "_statistics_body.html" %}
+
+{% elif tab == 'missions' %}
+{# ---------------------------------------------------------------- the Missions tab #}
+{#- THE LIST is the CONFIGURED ``missionList`` — one row per configured entry, in the order the bot
+    indexes into, read through the mission plugin's own `get_mission_list` ACTION, never off
+    `server.settings` or a mission file. Each row shows the logical name (the newest physical copy —
+    primary / `.dcssb` / `.orig` — resolved by the action) and the missions-dir-relative path. The
+    ``#N`` index is NO LONGER rendered (it is a position, and the console posts it; the operator never
+    types it), and neither is the primary/secondary copy tag. A configured entry whose file is GONE
+    stays in the list, tagged `missing` — never silently dropped.
+
+    THE TWO FACTS the rows carry, in two marks: the START mission (the row ``listStartIndex``
+    names — what the server loads when it starts) wears the amber ``START`` tag and the row treatment
+    (`.row-active`); the RUNNING mission wears the console's own live dot. They are DIFFERENT facts and
+    at most one row carries each.
+
+    THE CONTROLS mirror `/mission add|delete|load` plus the activate (never an invented
+    behaviour): the LIST IS THE SELECTION — a box per row (the running one drawn DISABLED with the
+    reason on its row) belongs to the ONE selection form, and the card header's bar carries TWO
+    actions on that one selection — ``Set as start`` (meaningful with exactly ONE ticked: the rotation
+    pointer) and ``Remove selected…`` (the bulk removal into the console's one dialog
+    ``confirm.html``, where the read-only selection and its "also delete the real files?" box are
+    shown and the removal confirmed). Per row: a DOWNLOAD (a GET link, no CSRF), a MOVE pair (offline
+    only) and ``Load`` (load it now, only where `load_mission` accepts the state). ``Load`` stays on
+    the row — it acts on the row it names — while ``Set as start`` is the bar's, because the tick is
+    its target. Then an ADD card whose button opens the SAME dialog component with the file picker
+    (`get_addable_missions`) and the load/autostart pair ON its BODY, so choosing and confirming are
+    one step; and an UPLOAD card — a `.miz` from the operator's own computer — whose label says
+    exactly that, because an add copies nothing and an upload brings a file in. Every write goes
+    through the mission plugin's own ACTION — this page never writes a mission file, a `.dcssb` copy
+    or `missionList`.
+
+    A control the viewer may not use is OMITTED, never drawn disabled. The selection box is tickable
+    on EVERY row, the running one included: it is the ONLY selection, and its two bar actions treat it
+    differently — "Set as start" accepts the running mission (making the running mission the start
+    mission again is a legitimate correction), while the removal refuses just that row and removes the
+    rest, naming it. When the read cannot answer (server unreachable, missions dir missing) the card
+    shows the ACTION's own sentence. -#}
+{% if missions_write_available %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Missions{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}rotation list{% endtrans %}</span>
+    {#- THE SELECTION BAR (the bar's SECOND action is the activate): the list IS the selection, so its
+        count and its actions live in the card header — the whole "Remove several missions" card is
+        gone. The bar is drawn only while the viewer may remove missions AND the installation runs the
+        action AND the STATE accepts a removal (every state but ``LOADING``, the bot's own per-mission
+        gate) — otherwise no boxes and no bar at all (omit, never disable), with the action's OWN
+        sentence where a capable viewer is in ``LOADING``. The count and the count-bearing label are the
+        console's own client enhancement (``/static/mission-select.js``). BOTH BUTTONS SHIP **ENABLED**
+        (with JavaScript off too): they must still submit the selection, so the
+        server-rendered controls can never depend on the script — the script ADDS the behaviour (it
+        disables a button whose selection it cannot serve and rewrites the removal label) only once it
+        has taken over, and each ACTION refuses an invalid selection itself, with an honest sentence.
+        The count ships server-rendered AND counts SELECTABLE rows only (``missions_selectable``), so
+        the number does not change meaning the moment the script loads.
+
+        THE TWO ACTIONS ON ONE SELECTION. ``Remove selected…`` acts on the ticked rows
+        (the bulk remove, one or more). ``Set as start`` acts on the ticked row TOO, and is meaningful
+        with EXACTLY ONE ticked — it is the per-row control that moved into the bar, so the removal
+        path and the start path read the SAME selection. It is drawn only while the viewer may activate
+        (``missions_activate_allowed``: the activate capability AND every state but ``LOADING`` — the
+        SAME per-state gate the per-row control carried, read off the action's OWN declaration, so
+        there is no second copy of the rule). ``Load`` STAYS a per-row control: it is a different write
+        (load now, not the rotation pointer) and it belongs on the row it acts on. The asymmetry is on
+        record, not an accident. -#}
+    {% if missions_available and missions and missions_select_allowed %}
+    <div class="sel-bar" data-sel-bar>
+      <label class="sel-all"><input type="checkbox" data-sel-all> {% trans %}All{% endtrans %}</label>
+      <span class="cnt" data-sel-count>{% trans count=missions_selectable %}0 of {{ count }} selected{% endtrans %}</span>
+      <a class="sel-clear" href="{{ missions_tab_url }}">{% trans %}Clear{% endtrans %}</a>
+      {#- ``formaction`` sends the SAME selection form (server, CSRF, the ticked rows and the per-row
+          stale-page map) to the ACTIVATE route instead of the removal dialog — one selection, two
+          actions, no second form to keep in step. -#}
+      {% if missions_activate_allowed %}<button type="submit" form="missions-form" formaction="{{ missions_activate_path }}" data-sel-start data-sel-why="{{ missions_activate_why }}" title="{% trans server=missions_server %}Set the ONE ticked mission as the mission {{ server }} loads when it starts — the rotation pointer, not a load now; tick exactly one{% endtrans %}">{% trans %}Set as start{% endtrans %}</button>{% endif %}
+      <button type="submit" form="missions-form" data-sel-go>{% trans %}Remove selected…{% endtrans %}</button>
+    </div>
+    {% elif missions_available and missions and missions_select_blocked and (missions_delete_bulk_capable or missions_activate_capable) %}
+    {#- THE STATE THAT OMITS THE BAR, spoken in EACH action's OWN sentence (never a second copy of the
+        rule): the removal's when the viewer may remove, and ``Set as start``'s when the viewer may
+        activate. Either way the control is OMITTED, never drawn dead. -#}
+    <span class="sub">{% if missions_delete_bulk_capable %}{{ missions_delete_bulk_reason }}{% endif %}{% if missions_delete_bulk_capable and missions_activate_capable %} {% endif %}{% if missions_activate_capable %}{{ missions_activate_reason }}{% endif %}</span>
+    {% endif %}
+  </div>
+  <div class="bd">
+    {% include "_notice.html" %}
+    {% if not missions_available %}
+    <p class="empty">{{ _(missions_message) }}</p>
+    {% elif missions %}
+    {#- THE SELECTION FORM: the row boxes belong to it through ``form="missions-form"`` (the row's own
+        controls are their OWN small forms, so nothing nests); the per-row stale-page map rides it as
+        one hidden field per row, and it posts to the ONE dialog that asks the confirmation. -#}
+    {% if missions_select_allowed %}
+    <form id="missions-form" class="sel-form" method="post" action="{{ missions_delete_bulk_dialog }}">
+      <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% for m in missions %}<input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">{% endfor %}
+    </form>
+    {% endif %}
+    {% if missions_reorder_capable and not missions_offline %}
+    <div class="sub">{{ missions_offline_reason }}</div>
+    {% endif %}
+    <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
+    {% if missions_drag_allowed %}
+    {#- THE ROW DRAG (``static/reorder.js``): the SAME script the music playlist uses, pointed at this
+        row container instead of a table body. It enhances only an OPT-IN list — ``data-reorder``
+        alone says so — and draws no control of its own: the GRIP each row carries below is the
+        handle, and the script neither adds nor removes it. One POST per drop, carrying the WHOLE new
+        order. The process-down gate is the write's own — a drop accepted while DCS is up would be
+        reverted — and the two sentences it can show arrive here, in the request's language. -#}
+    <div class="cfg-form" data-reorder data-reorder-body
+         data-reorder-url="{{ missions_reorder_path }}"
+         data-reorder-field="{{ missions_order_field }}"
+         data-reorder-params="server={{ missions_server|urlencode }}"
+         data-reorder-token="{{ csrf_token }}"
+         data-reorder-token-field="{{ csrf_field }}"
+         data-reorder-refused="{% trans %}Not saved: the new order was refused. Reload the page and try again.{% endtrans %}"
+         data-reorder-offline="{% trans %}Not saved: the new order could not be sent.{% endtrans %}">
+    {% else %}
+    <div class="cfg-form">
+    {% endif %}
+      {% for m in missions %}
+      {% set m_lab %}
+          {#- ONE ROW, ONE FACT, ONE BOX, ONE GRIP: the grip is the row's order control, the box is
+              SELECTION only. Each owns its OWN column — the grip first, then ``.m-box`` — and the
+              name and the ``.miz`` path start to the RIGHT of both and line up with each other, so
+              neither the grip nor the box can land the name under itself. The RUNNING mission's box
+              is the single deliberate exception to omit-never-disable: it is drawn DISABLED, with the
+              row's own line saying why, because a box's absence is what made the old numbering read
+              as a gap. The START marker (amber ``.tag.a``) names the mission the server loads when it
+              starts; the live ``.dot.run`` beside the name names the mission it is running NOW — two
+              different facts. No ``#N`` and no primary/secondary copy tag: the ``.miz`` path names
+              the file.
+
+              THE ROW'S COLUMNS ARE SET INLINE, deliberately: the layout must not depend on a
+              browser's cached copy of ``shell.css`` (a stale sheet left the name UNDER the box), and
+              the 9px inset keeps the START row's 3px `.row-active` stripe off the grip and the text.
+              The grip exists only where the row may be dragged: its column is conditional too, so a
+              row without one does not carry an empty gutter. -#}
+          {% set m_cols %}{% if missions_drag_allowed %}16px {% endif %}{% if missions_select_allowed %}22px {% endif %}minmax(0, 1fr){% endset %}
+          <div class="m-row" style="display:grid;grid-template-columns:{{ m_cols }};align-items:start;padding-left:9px">
+            {% if missions_drag_allowed %}<span class="grip" style="padding-top:2px" data-reorder-handle tabindex="0" title="{% trans %}Drag to reorder{% endtrans %}" aria-label="{% trans %}Drag to reorder, or press Alt+Up or Alt+Down{% endtrans %}">⠿</span>{% endif %}
+            {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box></div>{% endif %}
+            <div class="m-fact" style="min-width:0">
+              <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
+              <div class="hp mono">{{ m.path }}</div>
+              {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission can be set as the start mission, but it cannot be removed.{% endtrans %}</div>{% endif %}
+            </div>
+          </div>
+      {% endset %}
+      {% set m_ctl %}
+          {#- THE ROW'S CONTROLS: Download and Load only. The ORDER control is the GRIP the row's own
+              label carries (above) — one order affordance per row, never a second drawn one — and the
+              drop it starts posts the WHOLE new order to the same path the old pair posted to.
+              ``Load`` posts the row's 1-based index and its logical name in the BODY to the LOAD
+              DIALOG, which re-emits both as hidden fields and carries the SAME launch form Startup's
+              does (the weather pick, the temporary fields and the announce box) — so one click becomes
+              one click plus the form the owner approved. THE LOAD TITLE IS STATE-DEPENDENT: it says
+              what THIS control does IN THE STATE THE ROW IS RENDERED IN
+              (``missions_load_sets_start``), so the difference is stated where the operator reads it. -#}
+          <a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>
+          {#- THE ONE ROW WRITE: ``Load`` is the ONLY per-row write left. ``Set as start`` — the
+              rotation pointer (``set_active_mission``) — MOVED to the selection bar, where it acts on
+              the ticked row. It is a DIFFERENT write
+              from ``Load``: ``Set as start`` sets what the server loads when it STARTS and does NOT
+              load anything now, while ``Load`` loads the mission NOW (``load_mission``) and — while
+              the server is RUNNING/PAUSED — does NOT change the start index, while at STOPPED it DOES
+              (the bot's ``loadMission`` sets ``listStartIndex`` and starts the server). ``Load`` stays
+              on the row because it acts on the row it names. It posts the row's 1-based index and its
+              logical name in the BODY to the LOAD DIALOG, which re-emits both as hidden fields and
+              carries the SAME launch form Startup's does (the weather pick, the temporary fields and
+              the announce box) — so one click becomes one click plus the form the owner approved. THE
+              LOAD TITLE IS STATE-DEPENDENT: it says what THIS
+              control does IN THE STATE THE ROW IS RENDERED IN (``missions_load_sets_start``), so the
+              difference is stated where the operator reads it. -#}
+          {% if missions_load_allowed %}
+          <form method="post" action="{{ missions_load_path }}{{ missions_confirm_suffix }}">
+            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+            <input type="hidden" name="{{ missions_field }}" value="{{ m.index }}">
+            <input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">
+            <button type="submit" title="{% if missions_load_sets_start %}{% trans name=m.name, server=missions_server %}Load {{ name }} now on {{ server }} — this also becomes the start mission and starts the server{% endtrans %}{% else %}{% trans name=m.name, server=missions_server %}Load {{ name }} now on {{ server }} — the start mission is unchanged; use Set as start for that{% endtrans %}{% endif %}">{% trans %}Load{% endtrans %}</button>
+          </form>
+          {% endif %}
+      {% endset %}
+      {% set m_attrs %}{% if missions_drag_allowed %}data-reorder-row data-reorder-id="{{ m.name }}"{% endif %}{% endset %}
+      {{ editor.field_row('', m_lab, m_ctl, cls='row-active' if m.active else '', attrs=m_attrs) }}
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% endif %}
+  </div>
+</div>
+
+{#- ADD — a mission ALREADY on the server. The picker and the load/autostart choice live in the
+    DIALOG the button opens (choosing a mission and confirming happens in ONE dialog — never a picker
+    followed by a button followed by a question). Nothing about this card copies a file: that is
+    Upload, below, and the two labels say so. -#}
+{% if missions_add_allowed %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Add to the rotation{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}list only{% endtrans %}</span></div>
+  <div class="bd">
+    <div class="cfg-form">
+      {% set add_lab %}
+          <div class="nm">{% trans %}A mission already on this server{% endtrans %}</div>
+          <div class="hp">{% trans %}Pick a file from this server's missions directory and add it to the rotation list. Adding it changes the LIST only — no file is copied and nothing is deleted. To bring a mission from your own computer, use <b>Upload a mission file</b> below.{% endtrans %}</div>
+      {% endset %}
+      {% set add_ctl %}
+          {% if missions_can_add %}
+          <form method="post" action="{{ missions_add_path }}{{ missions_confirm_suffix }}">
+            <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+            <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+            <button type="submit" title="{% trans %}Choose a mission file already on this server and add it to the rotation{% endtrans %}">{% trans %}Add a mission…{% endtrans %}</button>
+          </form>
+          {% else %}
+          <span class="sub">{% trans %}No unconfigured mission file was found in the missions directory.{% endtrans %}</span>
+          {% endif %}
+      {% endset %}
+      {{ editor.field_row('', add_lab, add_ctl, cls='cfg-add') }}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{#- UPLOAD — a file coming from the OPERATOR's own computer into the server's missions directory.
+    The label carries it: nothing here looks like an add, and nothing about an add
+    looks like this. -#}
+{% if missions_upload_allowed %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Upload a mission file{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}from your computer{% endtrans %}</span></div>
+  <div class="bd">
+    <form class="cfg-form" method="post" action="{{ missions_upload_path }}" enctype="multipart/form-data">
+      <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
+      <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+      {% set up_lab %}
+          <div class="nm">{% trans %}Send a .miz from your own computer{% endtrans %}</div>
+          <div class="hp">{% trans %}The file is copied into the server's missions directory and added to the rotation. Use <b>Add to the rotation</b> above for a mission that is already on the server.{% endtrans %}</div>
+      {% endset %}
+      {% set up_ctl %}
+          {#- THE CONSOLE'S OWN FILE CONTROL. A raw `<input type="file">` makes the
+              browser draw ITS OWN button, in ITS OWN language ("Datei auswählen" on a German
+              browser) — browser chrome must never be what the operator reads; the console is English.
+              So the REAL input stays in the DOM and in the tab order, visually hidden by CLIPPING
+              (never `display:none`, never `aria-hidden`: either would take it away from a keyboard
+              and a screen reader, and both are forbidden); the `<label for=...>` is the control
+              the operator sees and presses, wearing the tab's own button chip; and
+              `/static/filepick.js` writes the chosen file's name into the span beside it, so what
+              they picked is visible — and changes if they pick again — before they submit. -#}
+          <span class="file-pick-control" data-file-pick>
+            <input type="file" id="upload-file" name="file" accept=".miz" required
+                   class="file-input-sr" aria-label="{% trans %}Mission file to upload from your computer{% endtrans %}">
+            <label class="file-pick" for="upload-file">{% trans %}Choose a .miz file…{% endtrans %}</label>
+            <span class="file-name" data-file-name aria-live="polite"></span>
+          </span>
+          <label class="tag"><input type="checkbox" name="autostart" value="1"> {% trans %}load at next start{% endtrans %}</label>
+          {% if missions_load_allowed %}<label class="tag"><input type="checkbox" name="load" value="1"> {% trans %}load now{% endtrans %}</label>{% endif %}
+          <button type="submit">{% trans %}Upload mission{% endtrans %}</button>
+      {% endset %}
+      {{ editor.field_row('', up_lab, up_ctl, cls='cfg-upload') }}
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Missions{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}read-only{% endtrans %}</span></div>
+  <div class="bd">
+    {% if not missions_available %}
+    <p class="empty">{{ _(missions_message) }}</p>
+    {% elif missions %}
+    <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
+    {% if missions_reorder_capable and not missions_offline %}
+    <div class="sub">{{ missions_offline_reason }}</div>
+    {% endif %}
+    <div class="cfg-form">
+      {% for m in missions %}
+      {#- The READ-ONLY list carries the SAME two facts as the write list — the START marker and the
+          live dot — and nothing that writes: no box, no move pair, no Set as start, no Load. The
+          download is the one control a read-only viewer keeps. -#}
+      {% set ro_lab %}
+          {#-  the same row anatomy without a box (a read-only viewer selects nothing)  -#}
+          <div class="m-row" style="display:grid;grid-template-columns:minmax(0, 1fr);align-items:start;padding-left:9px"><div class="m-fact" style="min-width:0">
+            <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
+            <div class="hp mono">{{ m.path }}</div>
+          </div></div>
+      {% endset %}
+      {% set ro_ctl %}<a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>{% endset %}
+      {{ editor.field_row('', ro_lab, ro_ctl, cls='row-active' if m.active else '') }}
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% elif tab == 'mods' %}
+{# ---------------------------------------------------------------- the Mods tab: this server's Saved Games #}
+{#-  THE SERVER'S OWN PACKAGES: the body is the mods page module's SHARED template — the same one the
+    node's root-mods page renders — so the doors, the state strip, the installed card and the read-only
+    root card are ONE rendering for both owners. `mods` is the tab context the page module built
+    (`pages/mods.tab_context`); the tab renders no page head, because this page already rendered one for
+    the server. A caller without `mods.view` never reaches this branch: the route refuses the request.
+    The write controls it carries post to their own DIALOGS (`/mods/<owner>/<target>/<verb>`), never to
+    an action route, and the stylesheet below is the mods delta the card's strip and folder need.  -#}
+{% include "mods_body.html" %}
+
+{% elif tab == 'scheduler' %}
+{# ---------------------------------------------------------------- the Scheduler tab: this server's plan #}
+{#-  THE SERVER'S OWN PLAN, READ-ONLY: the body is `scheduler_body.html`, which renders the scheduler
+    plugin's merged configuration plus, per key, whether the value is the server's own or inherited
+    from `DEFAULT`. The page module owns the reading (`_scheduler_tab_context`); the branch renders no
+    page head, because this page already rendered one for the server. A caller without `settings.view`
+    never reaches this branch: the route refuses the request.  -#}
+{% include "scheduler_body.html" %}
+
+{% elif tab == 'music' %}
+{# ---------------------------------------------------------------- the Music tab: this server's radios #}
+{#-  THE SERVER'S OWN RADIOS: the body is `music_body.html`, one card per radio with what it is set
+    to, whether it is on air, the track it is playing and the three writes the music plugin's actions
+    offer (transport, playlist assignment, settings). The page module owns the reading
+    (`_music_tab_context`); this branch renders no page head, because this page already rendered one
+    for the server. A server the file configures no radio for never reaches this branch — the route
+    refuses `?tab=music` with the same predicate that withholds the link. -#}
+{% include "music_body.html" %}
+
+{% elif tab == 'log' %}
+{# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
+{#  THE SERVER'S OWN LOG: the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
+    renders this tab and the Events tab so the two cannot drift.  #}
+{{ log_card(_('Server log'), 'log') }}
+
+{% elif tab == 'events' %}
+{# ---------------------------------------------------------------- the Events tab: the debug plugin's events.log #}
+{#  THE DEBUG PLUGIN'S events.log: offered ONLY while the debug plugin is active for this server.
+    Same presentation as the Log tab; its downloads cover only events.log / events.log.old.  #}
+{{ log_card(_('Events'), 'events') }}
+
+{% else %}
+{# ---------------------------------------------------------------- the Overview tab #}
+{#- THE SUBSTANCE OF THE REMOVED "Server overview" PAGE, in the place the operator was looking. It mirrors
+    the bot's server-status embed (see ``pages/server_detail.EMBED_FIELD_COVERAGE``): status, mission,
+    map, mission clock, seats, player count, runtime, restart, the weather facts, the client limits, the
+    extensions and the server's schedule — every value read off the SAME `server`
+    (``readmodels.servers.server_view``, plus the three reads that are not process reads: the extension
+    render, the live fog reading and the scheduler's plan) the heading renders, so a shown fact cannot
+    disagree with the polled status. The one embed fact NOT rendered is the password VALUE: the lock
+    indicator says a password is set, the cleartext is never disclosed. -#}
+{#-  ONE CARD, FIVE SECTIONS. The facts the operator came for are ONE block: the header carries the
+     status and the server's address/versions, and beneath it the sections sit in two columns with
+     HAIRLINES between them instead of a card each. The columns are set INLINE — the arrangement must
+     not depend on a browser's cached copy of the stylesheet. -#}
+{% set sec = 'padding:13px 14px 14px' %}
+{% set sec_t = 'padding:13px 14px 14px;border-top:1px solid var(--line)' %}
+{% set sec_h = 'margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)' %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Overview{% endtrans %}</h3><div class="spacer"></div>
+    <span class="tag" data-server-status>{% with status = server.status %}{% include "_server_status.html" %}{% endwith %}</span>
+    {% if server.locked %}<span class="tag" title="{% trans %}Password{% endtrans %}" aria-label="{% trans %}Password{% endtrans %}">🔐</span>{% endif %}
+    {% if server.maintenance %}<span class="tag">{% trans %}maintenance{% endtrans %}</span>{% endif %}</div>
+  <div class="bd">
+    <div class="sub">{% trans %}node{% endtrans %} {{ server.node_name }}{% if server.instance_name %} · {% trans %}instance{% endtrans %} {{ server.instance_name }}{% endif %}{% if server.public_ip %} · {{ server.public_ip }}{% if server.port %}:{{ server.port }}{% endif %}{% elif server.port %} · {% trans %}port{% endtrans %} :{{ server.port }}{% endif %}{% if server.remote %} · {% trans %}remote{% endtrans %}{% endif %}</div>
+    {#- the embed's FOOTER: the server's own DCS build, the console's version and when this page read
+        the state — the two brands print verbatim, they are names and not words -#}
+    <div class="sub mono">{% if server.dcs_version %}DCS {{ server.dcs_version }} · {% endif %}DCSServerBot {{ bot_version }} · {% trans when=updated %}Last updated: %(when)s{% endtrans %}</div>
+
+    {% if not server.running %}
+    <p class="empty" style="margin-top:12px">{{ _(empty.not_running) }}</p>
+    {% else %}
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;border-top:1px solid var(--line);margin-top:12px">
+      <div style="min-width:0">
+        <section style="{{ sec }}">
+          <h4 style="{{ sec_h }}">{% trans %}Mission{% endtrans %}</h4>
+          <div class="sub">{% trans %}Current mission:{% endtrans %} <b>{{ server.mission_name or '—' }}</b></div>
+          <div class="sub">{% trans %}Map{% endtrans %}: {{ server.map_name or '—' }}</div>
+          {% if server.mission_date %}<div class="sub">{% trans %}Date / Time in Mission{% endtrans %}: {{ server.mission_date }}</div>{% endif %}
+          <div class="sub">{% trans %}Runtime{% endtrans %}: {{ server.runtime }}{% if server.restart_in %} · {% trans %}Restart{% endtrans %}: {{ server.restart_in }}{% endif %}</div>
+          {% if server.coalitions %}
+          <div class="sub">{% trans %}Coalitions{% endtrans %}: {% trans %}Yes{% endtrans %}</div>
+          {% elif server.slots_blue or server.slots_red %}
+          <div class="sub">{% trans %}Slots{% endtrans %}: {% if server.slots_blue %}{% trans %}Blue{% endtrans %} {{ server.slots_blue }}{% endif %}{% if server.slots_blue and server.slots_red %} · {% endif %}{% if server.slots_red %}{% trans %}Red{% endtrans %} {{ server.slots_red }}{% endif %}</div>
+          {% endif %}
+        </section>
+
+        <section style="{{ sec_t }}">
+          <h4 style="{{ sec_h }}">{% trans %}Weather{% endtrans %}</h4>
+          {% if server.weather and (server.weather.preset or server.weather.temperature) %}
+          <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+            {#- THE PRESET'S OWN PICTURE, served by this console's thumbnail route: the file lives in the
+                DCS installation on the server's node, so its path can never reach an `src` attribute. A
+                picture that cannot be read answers a plain refusal and `preset-thumb.js` hides the empty
+                frame, so a mission whose install has no thumbnail simply draws none. -#}
+            {% if preset_image %}<img data-preset-thumb src="{{ preset_image }}" alt="{{ server.weather.preset }}" width="150" height="100" style="border:1px solid var(--line);border-radius:var(--radius-s)">{% endif %}
+            <div>
+              <div><b>{{ _(server.weather.preset) }}</b></div>
+              {% if server.weather.temperature %}<div class="sub">{% trans %}Temperature{% endtrans %}: {{ server.weather.temperature }} · {% trans %}QNH (QFF){% endtrans %}: {{ server.weather.qnh }}</div>{% endif %}
+              {% if server.weather.cloudbase %}
+              <div class="sub">{% trans %}Cloudbase{% endtrans %}: {{ server.weather.cloudbase }}{% if server.weather.density %} · {% trans %}Density{% endtrans %}: {{ server.weather.density }}/10{% endif %}{% if server.weather.thickness %} · {% trans %}Thickness{% endtrans %}: {{ server.weather.thickness }}{% endif %}</div>
+              {% endif %}
+              {% if server.weather.visibility %}<div class="sub">{% trans %}Visibility{% endtrans %}: {{ server.weather.visibility }}</div>{% endif %}
+              {% if server.weather.wind or server.weather.wind_low or server.weather.wind_high %}
+              <div class="sub">{% trans %}Wind{% endtrans %}:{% if server.weather.wind %} {% trans %}Ground{% endtrans %} {{ server.weather.wind }}{% endif %}{% if server.weather.wind_low %} · 6,600 ft {{ server.weather.wind_low }}{% endif %}{% if server.weather.wind_high %} · 26,000 ft {{ server.weather.wind_high }}{% endif %}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <p class="empty">{{ _(empty.weather) }}</p>
+          {% endif %}
+          {#- THE LAUNCHED PRESET: which preset this mission was STARTED with, as the node recorded it
+              (``servers.launched_preset``). It is NOT the weather above — that is what the sky IS;
+              this says what the launch was given, and names a preset built on the spot as temporary.
+              Absent when the load applied nothing (no preset asked for, or a name the instance does
+              not carry), so the label never claims a preset that was not applied. -#}
+          {% if server.launched_preset %}
+          <div class="sub" style="margin-top:6px">{% if server.launched_preset.name %}{% trans %}Launched with weather preset{% endtrans %} <b>{{ server.launched_preset.name }}</b>{% else %}{% trans %}Launched with a temporary weather preset{% endtrans %}{% endif %}</div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div style="min-width:0;border-left:1px solid var(--line)">
+        <section style="{{ sec }}">
+          <h4 style="{{ sec_h }}">{% trans %}Server{% endtrans %}</h4>
+          <div class="sub">{% trans count=server.players %}{{ count }} player(s){% endtrans %}{% if server.max_players %} / {{ server.max_players }}{% endif %}{% if server.active_players %} ({% trans count=server.active_players %}{{ count }} active{% endtrans %}){% endif %}</div>
+          {% if server.restrictions %}
+          {#-  EVERY anti-cheat switch, and whether it is IN FORCE — never only the set ones (the embed
+               prints just those, so a hole in the protection reads like a closed server). The two
+               families are labelled because a tick means the opposite above and below: an integrity
+               flag in force PROTECTS the server, an export switch in force OPENS it.  -#}
+          <div class="sub"><b>{% trans %}Client Limits{% endtrans %}</b>
+            {% for group, group_label in (('integrity', _('Integrity')), ('export', _('Exports'))) %}
+            {% set rows = server.restrictions | selectattr('kind', 'equalto', group) | list %}
+            {% if rows %}
+            <div style="margin-top:4px"><span class="tag">{{ group_label }}</span></div>
+            <ul style="margin:4px 0 0;padding-left:18px;list-style:none">
+              {% for row in rows %}
+              <li><span aria-hidden="true">{{ '✅' if row.enabled else '❌' }}</span> {{ _(row.label) }}
+                <span class="meta">{{ _('on') if row.enabled else _('off') }}</span></li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </section>
+
+        {% if schedule %}
+        <section style="{{ sec_t }}">
+          <h4 style="{{ sec_h }}">{% trans %}Schedule{% endtrans %}</h4>
+          <div class="sub mono">{% trans offset=schedule.offset %}Time (UTC%(offset)s){% endtrans %}</div>
+          {% for row in schedule.rows %}
+          <div class="sub mono">{{ row.period }} &nbsp; {{ row.glyphs|join(' ') }}</div>
+          {% endfor %}
+          <div class="sub meta">{% trans %}✅ running · ❌ not running · ☑️ shuts down without players{% endtrans %}</div>
+        </section>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{#-  THE EXTENSIONS, in their OWN card below — one entry per extension, hairline-separated, the same
+     treatment as the sections above. An entry prints its name, its version as a chip when the extension
+     reports one (never a bare ``v``), and its value line dressed as its author wrote it: the parts come
+     from the read model, which recognises an absolute http(s) link (markdown or bare), ``**bold**`` and
+     ``__italic__`` — every other character is escaped text, so an extension cannot inject markup. An
+     external link opens in a new tab. -#}
+{% if extensions %}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Extensions{% endtrans %}</h3></div>
+  <div class="bd">
+    {#-  SIDE BY SIDE, one column per extension, with a HAIRLINE between the columns — not a stack. The
+         columns auto-fit, so a wide screen shows them all on one row and a narrow one wraps them; the
+         negative margin cancels the body's padding so the first and last columns' text line up with
+         the card's content edge. -#}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));column-gap:0;row-gap:12px;margin:0 -14px">
+      {% for extension in extensions %}
+      <section style="padding:0 14px{% if not loop.first %};border-left:1px solid var(--line){% endif %}">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b>{{ extension.name }}</b>{% if extension.version %}<span class="tag">v{{ extension.version }}</span>{% endif %}</div>
+        <p class="st-desc" style="white-space:pre-line;margin:4px 0 0">{% for part in extension.parts %}{% if part.href %}<a href="{{ part.href }}" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>{% elif part.style == 'bold' %}<strong>{{ part.text }}</strong>{% elif part.style == 'italic' %}<em>{{ part.text }}</em>{% else %}{{ part.text }}{% endif %}{% endfor %}</p>
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{#-  the TAB CHAIN's closer: the Overview tab is this template's ``{% else %}`` branch (the last
+     ``{% elif tab == … %}`` above it), so exactly one ``{% endif %}`` belongs to it — not to the
+     overview block's own conditionals. -#}
+{% endif %}
+
+{% endblock %}
+
+{#  THE PAGE'S ENHANCEMENTS. The UNPROTECTED password's eye (``reveal.js``): a page that ships no
+    enhancement with JavaScript off must LOSE nothing — the field is a plain masked password input
+    that submits exactly like every other control (empty = clear, left as it is = keep), and the script
+    only lets the reader LOOK at what it holds. The UPLOAD's file-name echo (``filepick.js``) and the
+    Missions tab's SELECTION BAR (``mission-select.js``, which keeps the count and the count-bearing
+    button label in step with the ticked boxes) are enhancements in the SAME sense: with JavaScript
+    off the boxes still submit the selection and the dialog still asks the confirmation. Registered
+    HERE, on the page that renders them, rather than in base.html: a page with none of them has no
+    reason to load any.  #}
+{#  THE MODS DELTA (`static/mods.css`) rides on every tab, the way the node page loads it: the Mods
+    tab's state strip and its verbatim package-folder value are the two rules the shipped sheet does not
+    own, and a tab is not a page of its own — it cannot declare a stylesheet only for itself.  #}
+{#  THE SCHEDULER DELTA (`static/scheduler.css`) ships with the page for the same reason: its week
+    grid, action rows and key-source rows are rules no other sheet owns, and a tab cannot declare a
+    stylesheet only for itself.  #}
+{#  THE STATISTICS SHEET (`static/statistics.css`) is the Statistics PAGE's own, so the tab borrows it
+    only while that tab is in force: `style` is in the context for this tab alone, which is what makes
+    the condition safe. Every other tab loads exactly what it loaded before.  #}
+{% block head %}<link rel="stylesheet" href="/static/settings-scope.css">
+<link rel="stylesheet" href="/static/mods.css">
+<link rel="stylesheet" href="/static/scheduler.css">
+{% if tab == 'statistics' %}<link rel="stylesheet" href="/static/{{ style }}">{% endif %}{% endblock %}
+
+{% block scripts %}<script src="/static/reveal.js" defer></script>
+<script src="/static/filepick.js" defer></script>
+<script src="/static/mission-select.js" defer></script>
+{#  THE MISSIONS ROW DRAG (``static/reorder.js``): the shared pointer reorder, loaded only when the
+    tab's rows are draggable (the offline-only gate plus the reorder capability). The rows carry no
+    drawn order control beside it: with JavaScript off the grip does nothing and the LIST ITSELF is
+    unchanged — reading, downloading and loading a mission never depended on the order control.  #}
+{% if tab == 'missions' and missions_drag_allowed %}<script src="/static/reorder.js" defer></script>{% endif %}
+{#  THE SERVER LOG's follow + page-back: a progressive enhancement. With JavaScript off the tail
+    the page rendered is all there is — the page is not live and "Load older" does nothing.  #}
+<script src="/static/server-log.js" defer></script>
+{#  THE SERVER'S STATUS's own poll: a progressive enhancement. It keeps the status "at the top"
+    (and the Overview card's copy) current on its OWN interval, on every tab — separate from the log
+    follower on purpose, so one fact has one updater and the two can never drift.  #}
+<script src="/static/server-status.js" defer></script>
+{#  THE PRESET THUMBNAIL's own enhancement: the Overview card's picture is served by a read route, so a
+    picture that is not in the DCS installation answers a refusal and this script hides the empty frame
+    — with JavaScript off the browser shows its own broken-image mark for the same missing file.  #}
+<script src="/static/preset-thumb.js" defer></script>{% endblock %}
+

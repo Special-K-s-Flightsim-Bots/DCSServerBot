@@ -2,6 +2,7 @@ schema;instance_schema:
   type: map
   func: is_node
   nullable: false
+  desc: Applies to one instance only.
   mapping:
     regex;(.+):
       include: 'element_schema'
@@ -10,24 +11,67 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: false}
-    display: {type: bool, nullable: false}
-    channel: {type: int, nullable: false}
-    persistence: {type: bool, nullable: false}
-    persist_ai_statistics: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Enable mission statistics gathering for this server.
+      example: "true"
+    display:
+      type: bool
+      nullable: false
+      desc: Show the mission statistics embed in a status channel.
+      example: "true"
+    channel:
+      type: int
+      nullable: false
+      desc: Channel that shows the mission statistics embed.
+      example: "998877665544332211"
+    persistence:
+      type: bool
+      nullable: false
+      desc: Persist mission statistics to the database.
+      example: "true"
+    persist_ai_statistics:
+      type: bool
+      nullable: false
+      desc: Also persist statistics for AI units.
+      example: "false"
     event_filter:
       type: seq
       nullable: false
+      desc: In-game events excluded from statistics gathering.
+      example: |
+        - S_EVENT_MARK_ADDED
+        - S_EVENT_SHOOTING_START
       sequence:
         - {type: str, nullable: false, range: {min: 1}}
     mission_end:
       type: map
       nullable: false
+      desc: Optional final statistics embed shown at mission end.
+      example: |
+        persistent: true
+        channel: 1122334455667788
+        title: Mission accomplished!
       mapping:
-        persistent: {type: bool, nullable: false}
-        channel: {type: int, nullable: false}
-        title: {type: str, nullable: false, range: {min: 1}}
+        persistent:
+          type: bool
+          nullable: false
+          desc: Keep the mission end embed permanently posted.
+          example: "true"
+        channel:
+          type: int
+          nullable: false
+          desc: Channel that receives the mission end embed.
+          example: "1122334455667788"
+        title:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Title used on the mission end embed.
+          example: "Mission accomplished!"
 
 type: map
 func: check_main_structure

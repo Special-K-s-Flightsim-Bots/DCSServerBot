@@ -13,9 +13,7 @@ from plugins.userstats.filter import StatisticsFilter, PeriodTransformer, Period
 from services.bot import DCSServerBot
 from services.firewall import FirewallService
 
-# ruamel YAML support
-from ruamel.yaml import YAML
-yaml = YAML()
+from core.utils.yaml_helper import new_yaml
 
 _ = get_translation(__name__.split('.')[1])
 
@@ -175,14 +173,14 @@ class Firewall(Plugin):
         # Update config file once (on the master)
         config_path = os.path.join(self.node.config_dir, 'services', 'firewall.yaml')
         if os.path.exists(config_path):
-            data = yaml.load(Path(config_path).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(config_path).read_text(encoding='utf-8'))
             for key in data:
                 ddos_cfg = data[key].setdefault('ddos_detection', {})
                 whitelist = ddos_cfg.setdefault('whitelist', [])
                 if ip not in whitelist:
                     whitelist.append(ip)
             with open(config_path, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+                new_yaml().dump(data, outfile)
 
         # Propagate to all nodes
         results = []
@@ -210,14 +208,14 @@ class Firewall(Plugin):
         # Update config file once (on the master)
         config_path = os.path.join(self.node.config_dir, 'services', 'firewall.yaml')
         if os.path.exists(config_path):
-            data = yaml.load(Path(config_path).read_text(encoding='utf-8'))
+            data = new_yaml().load(Path(config_path).read_text(encoding='utf-8'))
             for key in data:
                 ddos_cfg = data[key].get('ddos_detection', {})
                 whitelist = ddos_cfg.get('whitelist', [])
                 if ip in whitelist:
                     whitelist.remove(ip)
             with open(config_path, mode='w', encoding='utf-8') as outfile:
-                yaml.dump(data, outfile)
+                new_yaml().dump(data, outfile)
 
         # Propagate to all nodes
         results = []

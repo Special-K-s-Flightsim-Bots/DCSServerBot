@@ -45,6 +45,10 @@ DEFAULT:
     default: 10
     action: kick
     reason: Illegal taxiway takeoff
+  - event: ground_ejection
+    default: 0
+    action: kick
+    reason: Ejecting on the ground
   forgive: 30               # People can forgive others in-between of 30 seconds (default) with the .forgive in-game chat command.
   punishments:              # list of punishments, based on the user's penalty points
   - points: 100             # we temp-ban the player when they reached 100 points.
@@ -54,9 +58,9 @@ DEFAULT:
     action: kick
   - points: 40              # we move them to spectators when they have 40 points
     action: move_to_spec
-  - penalty: 10             # we take away credits from them if they have 10 points
+  - points: 10              # we take away credits from them if they have 10 points
     action: credits
-    points: 12              # number of credits to take
+    penalty: 12             # number of credits to take
   - points: 1               # we warn them with each penalty point they got
     action: warn
   flightHoursWeight:        # If you want to treat people that are frequent flyers on your server differently, you can do this here
@@ -92,9 +96,22 @@ Inside the mission environment, you can create custom events, such as "zone-bomb
 
 If you incorporate the inline "action"-element, you can immediately initiate actions like "move_to_spec" or "credits" 
 when friendly fire occurs or a team member is killed.
+
 > [!NOTE]
 > Multiple events that happen in-between a minute are calculated as a single event. 
 > This is on purpose to avoid too many punishments when a user dropped a CBU or strafed multiple targets in one run.
+
+These events are supported:
+
+| Event           | Description                                             |
+|-----------------|---------------------------------------------------------|
+| kill            | Team-kill                                               |
+| collision-kill  | Team-kill during a collision                            |
+| friendly_fire   | Hitting a friendly player with a weapon                 |
+| collision-hit   | Hitting a friendly player with their plane              |
+| reslot          | Reslotting when being shot at / hit (PvP)               |
+| taxiway_takeoff | Taking off from a taxiway or inproper takeoff maneuvers |
+| ground_ejection | Ejecting while being on the ground                      |
 
 ### Punishments
 Each point level can trigger a specific action. When the user hits this limit by gathering penalties, the specific 
@@ -105,11 +122,22 @@ A ban is temporary, and punishment points can decay over time (see below).
 In conjunction with the [CreditSystem](../creditsystem/README.md) plugin, you can use "credits" as a punishment and take away credit points 
 from players if they misbehave. A campaign has to be running for this to happen.
 
+These actions can be taken:
+
+| Action       | Description                                   |
+|--------------|-----------------------------------------------|
+| kick         | Kick the player                               |
+| move_to_spec | Move the player to spectators                 |
+| ban          | Ban a player (for "days" days, default = 3)   |
+| credits      | Take away "penalty" credits (default = 1)     |
+| warn         | Warn a player with a message (on punishments) |
+| message      | A friendly reminder                           |
+
 ### Exemptions
-User that should not be punished. Can be either ucids, Discord roles or a whole side.
+User that should not be punished. Can be either ucids, Discord roles or a whole side (red / blue).
 
 ### Forgive
-To prevent actions to be executed against an initiator, victims can use the `.forgive` command inside the in-game chat.
+To prevent actions to be executed against an initiator, victims can use the `-forgive` command inside the in-game chat.
 This will delete the punishments to this user that are not executed already and delete the events from this specific 
 occasion.
 

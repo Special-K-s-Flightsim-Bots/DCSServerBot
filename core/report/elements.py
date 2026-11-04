@@ -94,7 +94,7 @@ def df_to_table(ax: Axes, df: pd.DataFrame, *, col_labels: list[str] = None, fon
         cellText=df.values,
         colLabels=df.columns if col_labels is None else col_labels,
         cellLoc='left',
-        loc='bottom',
+        loc='center',
     )
     table.auto_set_font_size(False)
     if fontsize is None:
@@ -311,13 +311,16 @@ class Graph(ReportElement):
     def _plot(self):
         plt.subplots_adjust(wspace=self.wspace, hspace=self.hspace)
 
-        # ask the renderer for the tight bounding box (in pixels)
+        # Ensure table/text layout is finalized before calculating the tight bounding box.
+        self.env.figure.canvas.draw()
+
+        # ask the renderer for the tight bounding box
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message='.*glyph.*missing from font.*')
             renderer = self.env.figure.canvas.get_renderer()
             tight_bbox = self.env.figure.get_tightbbox(renderer)
 
-        # convert that pixel‑bbox to inches and resize the figure
+        # resize the figure to the tight content area
         fig_w, fig_h = tight_bbox.width, tight_bbox.height
         self.env.figure.set_size_inches(fig_w, fig_h, forward=True)
 

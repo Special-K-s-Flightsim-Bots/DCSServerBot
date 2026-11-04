@@ -2,9 +2,18 @@ schema;element_schema:
   type: map
   func: is_element
   nullable: false
+  desc: Applies to every instance.
   mapping:
-    enabled: {type: bool, nullable: true}
-    auto_qualifications: {type: bool, nullable: true}
+    enabled:
+      type: bool
+      nullable: true
+      desc: Enable the logbook plugin for this server.
+      example: "true"
+    auto_qualifications:
+      type: bool
+      nullable: true
+      desc: Auto-grant qualifications once their requirements are met.
+      example: "true"
 
 type: map
 func: check_main_structure

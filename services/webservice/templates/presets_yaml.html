@@ -1,0 +1,68 @@
+{#-
+  One expert-DSL preset's own block — ONE YAML editor, nothing else.
+
+  The page states the preset's name and the file it lives in, and hands the editor THAT PRESET'S BLOCK:
+  its top-level key plus its value, the document the preset schema validates. The other presets of the
+  same file are not shown and are not written — a save replaces this one key through the console's one
+  config-write primitive, with the revision this render carried.
+
+  A preset that is not yet the expert DSL carries ONE extra sentence beside the editor: the save
+  accepts a value that turns it into the DSL, and the wizard stops editing it from then on.
+
+  The carrier is a real `<textarea>` holding the block (`name="_yaml"`), so the page is EDITABLE AND
+  SAVEABLE WITH JAVASCRIPT OFF. `static/settings-yaml.js` replaces it with a CodeMirror editor on load
+  (`data-cfg-yaml-source="textarea"` — the toggle-less mode of the ONE editor script) and every change
+  is checked against the bot's own validator through `data-validate-url`.
+
+  Deliberately absent, because this page edits one preset rather than a file: the Settings area's file
+  tabs, the schema-driven form, the read-only `<pre>` with its badge, and the Expert Mode toggle.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ _(title) }} — DCSServerBot{% endblock %}
+{#-  THE VENDORED EDITOR'S STYLESHEET, loaded after the shell's, exactly as the settings pages load it.  -#}
+{% block head %}<link rel="stylesheet" href="/static/{{ style }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+{% include "_notice.html" %}
+
+<form class="ps-yaml-form" method="post" action="{{ save_path }}">
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <input type="hidden" name="{{ revision_field }}" value="{{ preset.revision }}">
+
+  <div class="ps-yaml-id">
+    <span class="st-name">{{ preset.name }}</span>
+    <span class="st-src mono">{{ preset.file }}</span>
+  </div>
+  <p class="ps-yaml-hint">{{ _(hint) }}</p>
+  {% if convert_hint %}<p class="ps-yaml-hint ps-yaml-convert">{{ _(convert_hint) }}</p>{% endif %}
+
+  <section class="ps-yaml" data-cfg-yaml data-cfg-yaml-source="textarea"
+           data-validate-url="{{ validate_url }}">
+    <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
+    {#-  THE SOURCE, AND THE EDITOR BESIDE IT. A hidden `<textarea>` still posts its value (only
+        `disabled` stops it), which is what lets ONE form carry the block with the script and without
+        it. The editor's host ships EMPTY and `hidden`; the script fills it and swaps which is shown.  -#}
+    <textarea class="ps-yaml-text mono" name="{{ yaml_field }}" data-cfg-yaml-text rows="24"
+              spellcheck="false" aria-label="{{ _(editor_label) }}">{{ preset.document }}</textarea>
+    <div class="cfg-editor" data-cfg-yaml-editor hidden></div>
+  </section>
+
+  <div class="ps-yaml-act">
+    <a class="pw-btn gh" href="{{ back_url }}">{{ _(cancel_label) }}</a>
+    <button class="pw-btn pri" type="submit">{{ _(save_label) }}</button>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/settings-yaml.js" defer></script>
+{% endblock %}

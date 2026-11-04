@@ -3,6 +3,9 @@ CREATE TABLE IF NOT EXISTS traps (
     mission_id INTEGER NOT NULL,
     player_ucid TEXT NOT NULL,
     unit_type TEXT NOT NULL,
+    tgroove DECIMAL,
+    landingdist INTEGER,
+    wind INTEGER,
     grade TEXT NOT NULL,
     comment TEXT NOT NULL,
     place TEXT NOT NULL,
@@ -11,6 +14,7 @@ CREATE TABLE IF NOT EXISTS traps (
     night BOOLEAN NOT NULL,
     points DECIMAL,
     trapsheet BYTEA,
+    trapdata JSONB,
     time TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),
     FOREIGN KEY (player_ucid) REFERENCES players (ucid) ON UPDATE CASCADE ON DELETE CASCADE
 );

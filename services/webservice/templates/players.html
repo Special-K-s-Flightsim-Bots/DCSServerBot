@@ -1,0 +1,30 @@
+{#-
+  The Players page: the database directory of every known player, with the live roster one link away.
+
+  Thin on purpose. The page head is this template's own; the card, the Show switch, the search form,
+  the table and the pager are `_table.html`'s — the SAME component the dashboard's tabs and the other
+  list pages render, so a column or a chip cannot land here and miss them. Everything the component
+  draws is DATA from `pages/players.py`; nothing is computed here.
+
+  MODERATION STRIP: a row's last cell carries the four writes that key on the UCID and need no live
+  session (Ban / Lift ban, Watch / Unwatch); they are `pages/actions` records built from the same
+  scoped rows, and a control the caller may not use is absent. Message / Popup / Kick / Screenshot
+  need a slot, so they live on the player's page — which a row's name opens.
+
+  THE ONE-SHOT NOTICE of a write is included ABOVE the table: a row write, and every write on a
+  player's page, 303s back to THIS page, so this is where the outcome is read. It renders nothing
+  when no write just ran.
+-#}
+{% extends "base.html" %}
+{% block title %}{{ title }} — DCSServerBot{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+{% include "_notice.html" %}
+{% include "_table.html" %}
+
+{% endblock %}

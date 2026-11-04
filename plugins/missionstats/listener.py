@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from core import EventListener, PersistentReport, Server, Coalition, Channel, event, Report, get_translation, \
     ThreadSafeDict, Side, utils
@@ -53,11 +54,13 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
     EVENT_TEXTS = {
         Coalition.BLUE: {
             'capture': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {}.')),
-            'capture_from': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {} from RED coalition.'))
+            'capture_from': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE coalition has captured {} from RED coalition.')),
+            'refueling': '```ansi\n\u001b[0;34m{}```'.format(_('BLUE player {} took {} lbs of fuel from {}'))
         },
         Coalition.RED: {
             'capture': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {}.')),
-            'capture_from': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {} from BLUE coalition.'))
+            'capture_from': '```ansi\n\u001b[0;31m{}```'.format(_('RED coalition has captured {} from BLUE coalition.')),
+            'refueling': '```ansi\n\u001b[0;34m{}```'.format(_('RED player {} took {} lbs of fuel from {}'))
         }
     }
 
@@ -254,7 +257,7 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
         elif data['eventName'] in ['S_EVENT_UNIT_LOST', 'S_EVENT_PLAYER_LEAVE_UNIT']:
             initiator = data['initiator']
             # no stats for Neutral
-            coalition: Coalition = self.COALITION[initiator['coalition']]
+            coalition: Coalition = self.COALITION[initiator.get('coalition', 0)]
             if coalition == Coalition.NEUTRAL:
                 return
 
@@ -284,8 +287,8 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
                 return
             # workaround for DCS base capture bug:
             if (
-                    name in stats['coalitions'][win_coalition.name]['airbases'] or
-                    name not in stats['coalitions'][lose_coalition.name]['airbases']
+                name in stats['coalitions'][win_coalition.name]['airbases'] or
+                name not in stats['coalitions'][lose_coalition.name]['airbases']
             ):
                 return
 
@@ -312,6 +315,45 @@ class MissionStatisticsEventListener(EventListener["MissionStatistics"]):
             events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
             if events_channel:
                 asyncio.create_task(events_channel.send(message))
+
+        elif data['eventName'] == 'S_EVENT_REFUELING':
+            player = server.get_player(name=data['initiator'].get('name'))
+            if player and data.get('target'):
+                tanker = data['target']['unit_type']
+                async with self.apool.connection() as conn:
+                    await conn.execute("""
+                        INSERT INTO refuelingstats (
+                            mission_id, init_id, init_type, tanker
+                        ) VALUES (
+                            %s, %s, %s, %s
+                        )
+                    """, (server.mission_id, player.ucid, player.unit_type, tanker))
+
+        elif data['eventName'] == 'S_EVENT_REFUELING_STOP':
+            player = server.get_player(name=data['initiator'].get('name'))
+            if player and data.get('target'):
+                tanker = data['target']['unit_type']
+                comment = json.loads(data.get('comment', {"lbs": 0, "secs": 0.0}))
+                async with self.apool.connection() as conn:
+                    await conn.execute("""
+                        UPDATE refuelingstats
+                        SET fuel_taken = %s,
+                            transfer_complete = %s,
+                            transfer_time = %s
+                        WHERE mission_id = %s 
+                          AND init_id = %s 
+                          AND init_type = %s 
+                          AND tanker = %s
+                          AND transfer_time IS NULL
+                    """, (comment['lbs'], comment.get('full'), comment['secs'],
+                          server.mission_id, player.ucid, player.unit_type, tanker))
+                events_channel = self.bot.get_channel(server.channels.get(Channel.EVENTS, -1))
+                if events_channel:
+                    coalition = self.COALITION[data['initiator']['coalition']]
+                    message = self.EVENT_TEXTS[coalition]['refueling'].format(
+                        player.name, comment['lbs'], tanker
+                    )
+                    asyncio.create_task(events_channel.send(message))
 
         # is an embed update necessary?
         self.update[server.name] = update

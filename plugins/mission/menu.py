@@ -6,9 +6,8 @@ from pathlib import Path
 
 # ruamel YAML support
 from pykwalify.errors import PyKwalifyException
-from ruamel.yaml import YAML
+from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError, YAMLError
-yaml = YAML()
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ def read_menu_config(listener: EventListener, server: Server) -> list | None:
     if os.path.exists(menu_file):
         try:
             utils.validate(menu_file, ['schemas/menus_schema.yaml'], raise_exception=True)
-            menu = yaml.load(Path(menu_file).read_text(encoding='utf-8'))
+            menu = new_yaml().load(Path(menu_file).read_text(encoding='utf-8'))
             if server.instance.name in menu:
                 return menu[server.instance.name]
             else:

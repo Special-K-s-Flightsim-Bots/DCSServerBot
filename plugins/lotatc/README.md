@@ -5,6 +5,14 @@ configuration in your servers and a plugin, that enables the possibility to uplo
 discord and to inform you about active GCIs on the server. The best result you'll get, if you use LotAtc together with 
 the [SRS](../../extensions/srs/README.md) extension.
 
+> [!IMPORTANT]
+> LotAtc > 2.5+ uses Qt6, which is not compatible with Windows Server 2016 anymore.
+> You might encounter an error like "Entry Point Not Found" for SetThreadDescription in Qt6Core.dll. 
+> This is because Windows Server 2016 lacks some DLL support required by Qt6.
+> To work around this, you can either update your operating system (recommended) or you download the zip file
+> at https://www.lotatc.com/download/packages/qtwin2016_270.zip and unpack it into your Mods/services/LotAtc/bin
+> directory.
+
 ## Configuration
 As LotAtc is an optional plugin, you need to activate it in main.yaml first like so:
 ```yaml
@@ -13,8 +21,8 @@ opt_plugins:
   - lotatc
 ```
 
-In the default case, you do not need any additional configuration. There is an exception though, if you want to block
-people from joining your server, if they are GCIs on station. This is to prevent cheating (if you have the password,
+In the default case, you do not need any additional configuration. There is an exception though if you want to block
+people from joining your server and if they are GCIs on station. This is to prevent cheating (if you have the password,
 you could open LotAtc and fly.) The configuration goes into config\plugins\lotatc.yaml:
 ```yaml
 # config/plugins/lotatc.yaml

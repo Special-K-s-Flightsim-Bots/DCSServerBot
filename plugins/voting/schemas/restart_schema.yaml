@@ -2,5 +2,13 @@ schema;restart_schema:
   type: map
   nullable: false
   mapping:
-    run_extensions: {type: bool, nullable: false}
-    shutdown: {type: bool, nullable: false}
+    run_extensions:
+      type: bool
+      nullable: false
+      desc: Run mission extensions like RealWeather on restart.
+      example: "true"
+    shutdown:
+      type: bool
+      nullable: false
+      desc: Shut the server down instead of a soft restart.
+      example: "true"

@@ -1,7 +1,4 @@
-########################################
-# This file is used to create a custom #
-# F10-menu inside of DCS World.        #
-########################################
+# config/menus.yaml
 DEFAULT:
   - DCSServerBot:                   # This is the name of the F10-Root menu (multiple possible)
       - Help:                       # Top-Level command below the root menu

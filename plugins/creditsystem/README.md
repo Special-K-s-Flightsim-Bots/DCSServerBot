@@ -1,68 +1,70 @@
 # Plugin "CreditSystem"
 This plugin adds credits to the bot. People can gain credits atm by killing stuff. 
 
-Other plugins make use of credits. Currently, [SlotBlocking](../slotblocking/README.md) can block slots by credits and
-take credits away, if people waste airplanes. Furthermore, [Punishment](../punishment/README.md) can take credit points
-away due to punishment points a player gets due to team-kills or the like.
+Other plugins can make use of credits. Currently, [SlotBlocking](../slotblocking/README.md) can block slots by credits 
+and take credits away if people waste airplanes. 
+Furthermore, [Punishment](../punishment/README.md) can take credit points away due to punishment points a player gets due to team-kills 
+or similar.
 
 ## Configuration
-The CreditSystem is configured with a file named config\plugins\creditsystem.yaml. You'll find a sample file in that directory:
+The CreditSystem is configured with a file named config\plugins\creditsystem.yaml. 
+You'll find a sample file in that directory:
 ```yaml
 # config/plugins/creditsystem.yaml
-DEFAULT:                # valid for all servers
-  initial_points: 10    # The initial points a player gets (default = 0).
-  max_points: 100       # The maximum points a player can get (default = unlimited).
-  multiplier: 1.0       # multiplier for credit points on proper landings if payback is enabled in slotblocking.yaml (default: 1.0)
-  points_on_rtb: false  # only give credit points on RTB (default: false)
-  squadron_credits: true # enable squadron credits (see below).
+DEFAULT:                  # valid for all servers
+  initial_points: 10      # The initial points a player gets (default = 0).
+  max_points: 100         # The maximum points a player can get (default = unlimited).
+  multiplier: 1.0         # multiplier for credit points on proper landings if payback is enabled in slotblocking.yaml (default: 1.0)
+  points_on_rtb: false    # only give credit points on RTB (default: false)
+  squadron_credits: true  # enable squadron credits (see below).
   squadron:
     initial_points: 100 # default: 0
     max_points: 1000    # default: unlimited
   messages:
     message_kill: You received {points} credit points for killing {victim}.   # if not set, no kill message will be printed!
-  points_per_kill:    # How many points do players get when they kill another unit?
-  - default: 1        # You get at least one point (default = 0).
-  - category: Ships   # If you kill a ship. you get 2 points
+  points_per_kill:      # How many points do players get when they kill another unit?
+  - default: 1          # You get at least one point (default = 0).
+  - category: Ships     # If you kill a ship. you get 2 points
     points: 2
   - category: Air Defence
     points: 3
   - category: Planes
-    type: AI          # for planes and helicopters you can decide whether you killed an AI or a human player
+    type: AI            # for planes and helicopters you can decide whether you killed an AI or a human player
     points: 3
   - category: Planes
     type: Player
     points: 4
   - category: Planes
     type: Player
-    unit_type: F-14B  # you can specify the unit_type, unit_name, group_name as another differentiation
+    unit_type: F-14B    # you can specify the unit_type, unit_name, group_name as another differentiation
     points: 5
   - category: Helicopters
     points: 3
-  - category: User    # Bounty for specific users / roles. Could also be added to Planes / Helicopters.
+  - category: User      # Bounty for specific users / roles. Could also be added to Planes / Helicopters.
     ucid:
       - 1122334455667788
     discord:
-      - Cannon Fodder # Discord role (name or id)
+      - Cannon Fodder   # Discord role (name or id)
     points: 5
-  achievements:       # OPTIONAL: you can give players Discord roles according to their achievements
+  achievements:         # OPTIONAL: you can give players Discord roles according to their achievements
   - credits: 0
-    playtime: 0       # Playtime is in hours
-    badge:            # Optional: give the player a badge
+    playtime: 0         # Playtime is in hours
+    badge:              # Optional: give the player a badge
       name: Rookie
       img: https://example.com/rookie_badge.png
-    role: Rookie      # Optional: Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
+    role: Rookie        # Optional: Initially, with 0 credits and 0 playtime, you get the role "Rookie" (has to be in Discord)
   - credits: 50
     playtime: 25
-    role: Veteran     # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
+    role: Veteran       # to get the Veteran role, you have to have EITHER 50 credit points OR a playtime of 25 hrs
   - credits: 100
     playtime: 50
-    combined: true    # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
+    combined: true      # you need to have 100 credit points AND a playtime of more than 50 hrs to get the "Ace" role
     role: Ace
-  leaderboard:        # Simple leaderboard, persistent, displayed in a channel of your choice
+  leaderboard:          # Simple leaderboard, persistent, displayed in a channel of your choice
     channel: 112233445566778899
-    limit: 10         # max number of entries to be shown
-DCS.server:           # valid for a specific server
-  initial_points:     # different initial points can be specified for different Discord roles
+    limit: 10           # max number of entries to be shown
+DCS.dcs_serverrelease:  # valid for a specific server
+  initial_points:       # different initial points can be specified for different Discord roles
   - discord: Donator
     points: 15
   - default: 10
@@ -124,7 +126,7 @@ Select the col and row of the element you replaced (I took the "Ships" in the ab
 | -donate  | whom points         | all  | Donate credits to another player. |
 | -tip     | points [gci number] | all  | Tip a GCI role.                   |
 
-## Usage inside of Missions (Scripting API)
+## Usage inside Missions (Scripting API)
 If you want to change user points based on any mission achievements, you are good to go:
 ```lua
   if dcsbot then

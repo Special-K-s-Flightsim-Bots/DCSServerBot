@@ -1,0 +1,90 @@
+{#-
+  THE SETTINGS LANDING PAGE — a grid of TILES, one per plugin / service.
+
+  It replaces the old list of YAML filenames. Each tile carries the item's NAME, its own one-line
+  description, an on/off control that is HONEST about how the bot works, and a COGWHEEL into the
+  item's configuration. The two kinds are told apart AT A GLANCE four ways at once — the 3px left
+  rail (colour), the kind GLYPH, the kind WORD, and the scope line — never by colour alone.
+
+  THE CARD MARKUP IS SHARED. The WHOLE card — shell, head, name, description, foot and switch — is
+  NOT written here: it comes from `_tiles.html` (`tile_card`, `switch_control`, the kind glyphs, the
+  cogwheel), the very macros the NODE page uses for its extension cards — so the two surfaces cannot
+  drift apart.
+
+  NODE AND EXTENSION CONFIGURATION ARE NOT HERE. A node's own settings and the extensions bound to it
+  (or to one of its instances) all live in `nodes.yaml`, and the NODES page now edits them through the
+  node page (`/nodes/<node>`, `Node-wide` tab = the node, then one `Instance <name>` tab each). The old
+  "This install → nodes.yaml" tile and the whole EXTENSIONS rail are therefore GONE — no duplicate
+  entry point, and no `/settings/extension/<name>` page.
+
+  ON/OFF, per kind (the mechanism the bot actually uses) is computed in `pages.settings.load_landing`
+  into each row's `switch` model; the SAME `switch_control` macro draws every one of them:
+  * a PLUGIN is enabled by its name being in `opt_plugins` (or absent-key `plugins`); the switch posts
+    the SAME `f.opt_plugins` list the existing plugin block writes, to the SAME save route (no new
+    route).
+  * a SERVICE is enabled by its config file EXISTING; the switch moves the file aside / home through
+    the one service route, and a service held off by its PLUGIN dependency says so and moves NOTHING.
+
+  Every composed word is wrapped (`_(…)`); an item's NAME and DESCRIPTION are operator data and are
+  printed VERBATIM. The configuration forms themselves live on the per-file pages the cogwheels open.
+-#}
+{% extends "base.html" %}
+{% from "_tiles.html" import tile_card, glyph_plugin, cog, add_tile with context %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ _(page_title) }}</h1>
+  <div class="sub">{{ _(lead) }}</div>
+</div>
+
+{% include "_notice.html" %}
+
+<div class="grid">
+  <section class="card">
+    <div class="hd"><h3>{% trans %}This install{% endtrans %}</h3><div class="spacer"></div>
+      <span class="tag">{% trans %}admin only{% endtrans %}</span></div>
+    <div class="st-core">
+      <div class="r">
+        <span class="st-kind" style="--k:var(--line-2);--kw:transparent;color:var(--text-2);border-color:var(--line-2)">{{ glyph_plugin() }}{% trans %}Main{% endtrans %}</span>
+        <div><div class="nm">main.yaml</div><div class="ds">{% trans %}The bot's own configuration: guild, database, logging, the plugin list.{% endtrans %}</div></div>
+        <div class="rt">{{ cog(file_path.format(kind='main', name='main'), 'main.yaml') }}</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="st-sect">
+  <div class="st-sect-head">
+    <h2>{{ _(plugins_heading) }}</h2>
+    <span class="st-legend">{{ plugins_legend }}</span>
+  </div>
+  <div class="st-grid">
+    {% for row in plugin_tiles %}
+    {% set plugin_state = (('gone' if not row.installed else '') ~ (' is-default' if row.default else '')).strip() %}
+    {% set plugin_scope %}{% if row.default %}<span class="st-badge default">{{ _(row.badge) }}</span>{% else %}<span class="st-badge">{{ _(row.badge) }}</span>{% endif %}{% endset %}
+    {{ tile_card('plugin', kind_labels.plugin, row.name, row.description, row.switch,
+                 cog_url=row.cog_url, scope=plugin_scope, extra=plugin_state,
+                 off=(not row.enabled), warn=(plugin_default_warning if row.confirm else '')) }}
+    {% endfor %}
+    {#- THE "+ ADD" TILE IS ALWAYS DRAWN: when every optional plugin is
+        enabled already it renders in its explicit "all configured" state, never vanishing.  -#}
+    {{ add_tile('plugin', kind_labels.plugin, plugin_options, plugin_add_all_configured) }}
+  </div>
+</section>
+
+<section class="st-sect">
+  <div class="st-sect-head">
+    <h2>{{ _(services_heading) }}</h2>
+    <span class="st-legend">{{ services_legend }}</span>
+  </div>
+  <div class="st-grid">
+    {% for tile_row in services %}
+    {% set service_scope %}{{ _(service_runs_on) }}<br><b>{{ _(tile_row.placement_label) }}</b>{% endset %}
+    {% set service_body %}<div class="st-src">{{ 'config/services/' ~ tile_row.file_key ~ '.yaml' }}</div>{% if tile_row.note %}<div class="st-note">{{ tile_row.note }}</div>{% endif %}{% endset %}
+    {{ tile_card('service', kind_labels.service, tile_row.name, tile_row.description, tile_row.switch,
+                 cog_url=tile_row.cog_url, scope=service_scope, body=service_body,
+                 off=(tile_row.state in ('off', 'unconfigured'))) }}
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

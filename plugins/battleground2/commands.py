@@ -1,9 +1,8 @@
 import discord
 import json
 
-from core import Plugin, utils, Channel, Coalition, Server, get_translation
+from core import Plugin, utils, Channel, Coalition, Server, get_translation, Group
 from discord import app_commands
-from discord.app_commands import Group
 from services.bot import DCSServerBot
 
 from .listener import BattlegroundEventListener

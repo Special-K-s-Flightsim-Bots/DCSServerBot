@@ -2,6 +2,19 @@ schema;pretense_schema:
   type: map
   nullable: false
   mapping:
-    enabled: {type: bool, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    randomize: {type: bool, nullable: false}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the Pretense extension is enabled.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Extension name shown in the server status embed.
+      example: "Pretense"
+    randomize:
+      type: bool
+      nullable: false
+      desc: Write a randomize.lua into the mission's Saves directory.
+      example: "true"

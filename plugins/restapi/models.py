@@ -112,6 +112,7 @@ class ExtensionInfo(BaseModel):
     name: str
     version: str | None = None
     value: str
+    # ports: dict[str, dict] | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -119,6 +120,15 @@ class ExtensionInfo(BaseModel):
                 "name": "SRS",
                 "version": "1.9.0.0",
                 "value": "127.0.0.1:5002"
+#                "ports": {
+#                    "Tavciew": {
+#                        "tacviewRealTimeTelemetryPort": {
+#                            "port": 42674,
+#                            "type": "TCP",
+#                            "public": True
+#                        }
+#                    }
+#                }
             }
         }
     }
@@ -647,10 +657,15 @@ class TrapEntry(BaseModel):
     comment: str = Field(..., description="Landing comment")
     place: str = Field(..., description="Landing location")
     trapcase: int = Field(..., description="Trap case number")
-    wire: int | None = Field(..., description="Arresting wire number")
+    wire: int | None = Field(None, description="Arresting wire number")
     night: bool = Field(..., description="Whether landing was at night")
     points: int = Field(..., description="Points awarded for the trap")
     time: datetime = Field(..., description="Time of the trap")
+    trapdata: dict | None = Field(None, description="Detailled trap data")
+    tgroove: float | None = Field(None, description="Time in the Goove")
+    landingdist: int | None = Field(None, description="Landing distance")
+    wind: int | None = Field(None, description="Wind")
+
 
     model_config = {
         "json_encoders": {
@@ -667,7 +682,16 @@ class TrapEntry(BaseModel):
                 "wire": 3,
                 "night": False,
                 "points": 100,
-                "time": "2025-08-07T12:00:00"
+                "time": "2025-08-07T12:00:00",
+                "trapdata": {
+                    "X": [1200.0, 1100.0, 1000.0, 900.0, 800.0],
+                    "Z": [-12.5, -10.8, -8.3, -5.2, -2.1],
+                    "AoA": [8.1, 8.0, 8.2, 8.3, 8.1],
+                    "Alt": [185.0, 165.0, 145.0, 125.0, 105.0]
+                },
+                "tgroove": 15.7,
+                "landingdist": -86,
+                "wind": 25
             }
         }
     }
@@ -770,6 +794,29 @@ class EventEntry(BaseModel):
         }
     }
 
+
+class RefuelingEntry(BaseModel):
+    module: str = Field(..., description="Aircraft")
+    tanker: str = Field(..., description="Tanker used")
+    refuelings: int = Field(..., description="# of refuelings")
+    fuel_taken: int = Field(..., description="Fuel taken in lbs")
+    avg_fuel: float = Field(..., description="Avg fuel taken per refueling")
+    avg_time: float = Field(..., description="Avg time to refuel")
+    completed_transfers: int = Field(..., description="Number of transfer complete")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "module": "F-16C_50",
+                "tanker": "KC-135",
+                "refuelings": 5,
+                "fuel_taken": 8500,
+                "avg_fuel": 1700.0,
+                "avg_time": 30.5,
+                "completed_transfers": 4
+            }
+        }
+    }
 
 class SquadronCampaignCredit(BaseModel):
     campaign: str | None = Field(None, description="Campaign name")
@@ -1604,6 +1651,36 @@ class ServerRestartResponse(BaseModel):
     }
 
 
+class ServerShutdownResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation (success, or pending with when_empty)")
+    message: str = Field(..., description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Server 'DCS Server' shut down."
+            }
+        }
+    }
+
+
+class NodeRestartResponse(BaseModel):
+    status: str = Field(..., description="Status of the operation")
+    message: str = Field(..., description="Status message")
+    nodes: list[str] = Field(..., description="Nodes that are restarting")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "success",
+                "message": "Node(s) node1 restarting.",
+                "nodes": ["node1"]
+            }
+        }
+    }
+
+
 class ConvertCoordinates(BaseModel):
     latlon: str = Field(..., description="Latitude and Longitude in decimal degrees")
     mgrs: str = Field(..., description="Cooridnate provided, converted to MGRS")
@@ -1641,6 +1718,184 @@ class GroupWaypointsResponse(BaseModel):
                     "wp1": {"lat": 36.00001, "lon": 36.00001},
                     "wp2": {"lat": 36.50000, "lon": 36.50000}
                 }
+            }
+        }
+    }
+
+
+class MissionGroupUnit(BaseModel):
+    name: str = Field(..., description="Unit name")
+    unit_id: int | None = Field(None, description="DCS unit ID")
+    type: str = Field(..., description="Unit type name")
+    skill: str | None = Field(None, description="Unit skill level (e.g. 'Player', 'Client', 'High')")
+    lat: float | None = Field(None, description="Unit latitude in decimal degrees")
+    lon: float | None = Field(None, description="Unit longitude in decimal degrees")
+    alt: float | None = Field(None, description="Unit altitude in meters")
+    heading: float | None = Field(None, description="Unit heading in radians")
+    speed: float | None = Field(None, description="Unit speed in m/s")
+    callsign: str | int | dict | None = Field(None, description="Unit callsign")
+    onboard_num: str | None = Field(None, description="Unit onboard/tail number")
+    livery_id: str | None = Field(None, description="Unit livery ID")
+    x: float | None = Field(None, description="DCS X coordinate in meters")
+    y: float | None = Field(None, description="DCS Y coordinate in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Enfield 1-1",
+                "unit_id": 1,
+                "type": "F-16C_50",
+                "skill": "High",
+                "lat": 35.12345,
+                "lon": 36.54321,
+                "alt": 5000.0,
+                "heading": 1.57,
+                "speed": 220.0,
+                "callsign": "Enfield 1-1",
+                "onboard_num": "010",
+                "livery_id": "16th FS",
+                "x": 42430.0,
+                "y": 5719.0
+            }
+        }
+    }
+
+
+class MissionGroupWaypoint(BaseModel):
+    name: str | None = Field(None, description="Waypoint name")
+    lat: float | None = Field(None, description="Waypoint latitude in decimal degrees")
+    lon: float | None = Field(None, description="Waypoint longitude in decimal degrees")
+    alt: float | None = Field(None, description="Waypoint altitude in meters")
+    speed: float | None = Field(None, description="Waypoint speed in m/s")
+    action: str | None = Field(None, description="Waypoint action")
+    type: str | None = Field(None, description="Waypoint type")
+    eta: float | None = Field(None, description="Estimated time of arrival in seconds from mission start")
+    x: float | None = Field(None, description="DCS X coordinate in meters")
+    y: float | None = Field(None, description="DCS Y coordinate in meters")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "WP 1",
+                "lat": 35.12345,
+                "lon": 36.54321,
+                "alt": 5000.0,
+                "speed": 220.0,
+                "action": "Turning Point",
+                "type": "Turning Point",
+                "eta": 0.0,
+                "x": 42430.0,
+                "y": 5719.0
+            }
+        }
+    }
+
+
+class MissionGroup(BaseModel):
+    name: str = Field(..., description="Group name")
+    group_id: int | None = Field(None, description="DCS group ID")
+    coalition: str = Field(..., description="Coalition ('blue', 'red', 'neutral')")
+    group_type: str = Field(..., description="Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    country: str | None = Field(None, description="Country name")
+    task: str | None = Field(None, description="Main task of the group")
+    hidden: bool | None = Field(False, description="Whether the group is hidden on the F10 map/planner")
+    frequency: float | None = Field(None, description="Radio frequency in MHz")
+    modulation: int | None = Field(None, description="Modulation (0=AM, 1=FM)")
+    start_time: float | None = Field(None, description="Group start time in seconds")
+    uncontrolled: bool | None = Field(False, description="Whether the group is uncontrolled")
+    unit_count: int = Field(0, description="Number of units in the group")
+    units: list[MissionGroupUnit] = Field(default_factory=list, description="Units in the group")
+    waypoints: list[MissionGroupWaypoint] = Field(default_factory=list, description="Waypoints for the group")
+    raw: dict | None = Field(None, description="Raw group mission definition table if available")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "name": "Enfield 1",
+                "group_id": 1,
+                "coalition": "blue",
+                "group_type": "plane",
+                "country": "USA",
+                "task": "CAP",
+                "hidden": False,
+                "frequency": 251.0,
+                "modulation": 0,
+                "start_time": 0.0,
+                "uncontrolled": False,
+                "unit_count": 1,
+                "units": [
+                    {
+                        "name": "Enfield 1-1",
+                        "unit_id": 1,
+                        "type": "F-16C_50",
+                        "skill": "High",
+                        "lat": 35.12345,
+                        "lon": 36.54321,
+                        "alt": 5000.0,
+                        "heading": 1.57,
+                        "speed": 220.0,
+                        "callsign": "Enfield 1-1",
+                        "onboard_num": "010",
+                        "livery_id": "16th FS",
+                        "x": 42430.0,
+                        "y": 5719.0
+                    }
+                ],
+                "waypoints": [
+                    {
+                        "name": "WP 1",
+                        "lat": 35.12345,
+                        "lon": 36.54321,
+                        "alt": 5000.0,
+                        "speed": 220.0,
+                        "action": "Turning Point",
+                        "type": "Turning Point",
+                        "eta": 0.0,
+                        "x": 42430.0,
+                        "y": 5719.0
+                    }
+                ]
+            }
+        }
+    }
+
+
+class MissionGroupResponse(MissionGroup):
+    pass
+
+
+class MissionGroupSummary(BaseModel):
+    group_type: str = Field(..., description="Category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    name: str = Field(..., description="Group name")
+    task: str | None = Field(None, description="Main task of the group")
+    unit_count: int = Field(0, description="Number of units in the group")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "group_type": "plane",
+                "name": "Enfield 1",
+                "task": "CAP",
+                "unit_count": 1
+            }
+        }
+    }
+
+
+class MissionGroupsResponse(BaseModel):
+    groups: list[MissionGroupSummary] = Field(default_factory=list, description="List of groups in the mission")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "groups": [
+                    {
+                        "group_type": "plane",
+                        "name": "Enfield 1",
+                        "task": "CAP",
+                        "unit_count": 1
+                    }
+                ]
             }
         }
     }
@@ -1789,7 +2044,7 @@ class MissionDrawing(BaseModel):
 
 
 class MissionDrawingsResponse(BaseModel):
-    drawings: dict[str, list[dict[str, MissionDrawing]]] = Field(
+    drawings: dict[str, list[MissionDrawing]] = Field(
         ...,
         description="Drawings keyed by layer name; each drawing contains primitive-specific fields"
     )

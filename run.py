@@ -36,16 +36,18 @@ try:
     from ruamel.yaml import YAML
     yaml = YAML()
 except ModuleNotFoundError as ex:
+    import shutil
     import subprocess
 
     print(f"Module {ex.name} is not installed, fixing ...")
-    cmd = [
-        sys.executable,
-        '-m', 'piptools', 'sync', 'requirements.txt'
-    ]
-    if os.path.exists("requirements.local"):
-        cmd.append('requirements.local')
-    subprocess.run(cmd)
+    if shutil.which('uv'):
+        cmd = ['uv', 'pip', 'sync', '--python', sys.executable, 'requirements.txt']
+        if os.path.exists("requirements.local"):
+            cmd.append("requirements.local")
+        subprocess.run(cmd)
+    else:
+        print("uv was not found in your PATH - install it from https://docs.astral.sh/uv/ to "
+              "repair the environment.")
     exit(-1)
 
 LOGLEVEL = {
@@ -56,6 +58,12 @@ LOGLEVEL = {
     'CRITICAL': logging.CRITICAL,
     'FATAL': logging.FATAL
 }
+
+async_error_rc: int | None = None
+
+
+def async_error_log_path(node: str) -> str:
+    return os.path.join('logs', f'async_errors-{node}.log')
 
 
 class Main:
@@ -124,7 +132,7 @@ class Main:
         perf_logger.addHandler(pfh)
 
         # Rotate async_errors.log
-        async_log = os.path.join('logs', 'async_errors.log')
+        async_log = async_error_log_path(node)
         async_old = async_log.replace('.log', '.old')
         if os.path.exists(async_old):
             os.remove(async_old)
@@ -163,17 +171,29 @@ class Main:
         if autoupdate:
             cloud_drive = self.node.locals.get('cluster', {}).get('cloud_drive', True)
             if (cloud_drive and self.node.master) or not cloud_drive:
-                await self.node.upgrade()
-                if self.node.is_shutdown.is_set():
-                    return
+                # A major step (one of the first three version numbers moved) is never applied unattended: the
+                # installer and the migrations behind it belong to an operator, who runs /node upgrade or
+                # update.cmd. What is waiting is announced from BotService once Discord is connected.
+                if await self.node.upgrade_is_major():
+                    # the pair was just set by that call; the checker cannot know it
+                    self.log.warning(utils.upgrade_message(*self.node.major_upgrade))  # type: ignore[arg-type]
+                else:
+                    await self.node.upgrade()
+                    if self.node.is_shutdown.is_set():
+                        return
         elif self.node.master and await self.node.upgrade_pending():
-            self.log.warning(
-                "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it.")
+            self.log.warning(utils.upgrade_message())
 
         me = psutil.Process(os.getpid())
         ProcessManager(
             auto_affinity=self.node.locals.get('auto_affinity', {}).get('enabled', False),
-            excluded_cores=self.node.locals.get('auto_affinity', {}).get('excluded_cores', [])
+            excluded_cores=self.node.locals.get('auto_affinity', {}).get('excluded_cores', []),
+            reuse_cores=self.node.locals.get('auto_affinity', {}).get('reuse_cores', True),
+            max_core_sharing=self.node.locals.get('auto_affinity', {}).get("max_core_sharing", 2),
+            growth_load_threshold=self.node.locals.get('auto_affinity', {}).get("growth_load_threshold", 70.0),
+            steal_load_threshold=self.node.locals.get('auto_affinity', {}).get("steal_load_threshold", 85.0),
+            idle_load_threshold=self.node.locals.get('auto_affinity', {}).get("idle_load_threshold", 20.0),
+            steal_streak=self.node.locals.get('auto_affinity', {}).get("steal_streak", 3)
         ).assign_process(
             me,
             min_cores=self.node.locals.get('auto_affinity', {}).get('min_cores', 1),
@@ -184,6 +204,7 @@ class Main:
         await self.node.register()
         db_available = True
         async with ServiceRegistry(node=self.node) as registry:
+            await self.node.set_ready()
             self.log.info("DCSServerBot {} started.".format("MASTER" if self.node.master else "AGENT"))
             try:
                 while not self.node.is_shutdown.is_set():
@@ -197,18 +218,18 @@ class Main:
                     # switch master
                     if self.node.claimed_master:
                         self.log.info("Taking over as the MASTER node ...")
+
                         # stop all agent-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.agent_only(x)]:
                             tasks.append(registry.get(cls).stop())
                         await asyncio.gather(*tasks)
+
                         # start all master-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             tasks.append(self.start_service(registry, cls))
                         await asyncio.gather(*tasks)
-                        # now we are the real master
-                        self.node.commit_claimed_master()
 
                         # switch all others services / register the agent nodes
                         tasks = []
@@ -220,20 +241,23 @@ class Main:
                             if service:
                                 tasks.append(service.switch(True))
                         await asyncio.gather(*tasks)
+
+                        # now we are the real master
+                        self.node.commit_claimed_master()
                     else:
                         self.log.info("Second MASTER found, stepping back to AGENT configuration.")
+
                         # stop all master-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.master_only(x)]:
                             tasks.append(registry.get(cls).stop())
                         await asyncio.gather(*tasks)
+
                         # start all agent-only services
                         tasks = []
                         for cls in [x for x in registry.services().keys() if registry.agent_only(x)]:
                             tasks.append(self.start_service(registry, cls))
                         await asyncio.gather(*tasks)
-                        # now we are the agent
-                        self.node.commit_claimed_master()
 
                         # switch all others services
                         tasks = []
@@ -245,6 +269,9 @@ class Main:
                             if service:
                                 tasks.append(service.switch(False))
                         await asyncio.gather(*tasks)
+
+                        # now we are the agent
+                        self.node.commit_claimed_master()
             except OperationalError:
                 db_available = False
                 raise
@@ -254,22 +281,30 @@ class Main:
             finally:
                 self.log.warning("Aborting the main loop ...")
                 if db_available:
-                    await self.node.unregister()
+                    try:
+                        await asyncio.wait_for(self.node.unregister(), timeout=5.0)
+                    except (asyncio.TimeoutError, Exception) as ex:
+                        self.log.error(f"Node unregister failed (forcing exit anyway): {ex}")
 
 
 def handle_exception(loop, context):
+    global async_error_rc
+
     # Extract exception details from context
     exception = context.get('exception')
     message = context.get('message')
 
     # Log detailed information
     if exception:
+        # restart on AssertionErrors
+        if isinstance(exception, AssertionError):
+            async_error_rc = -1
         log.error(f"Async error: {message}", exc_info=exception)
     else:
         log.error(f"Async error: {message}")
 
     # Write to async_errors.log with task information
-    with open(os.path.join('logs', 'async_errors.log'), 'a', encoding='utf-8') as f:
+    with open(async_error_log_path(COMMAND_LINE_ARGS.node), 'a', encoding='utf-8') as f:
         f.write(f"\n{'=' * 50}\n{datetime.now().isoformat()}: {message}\n")
 
         # Dump all running tasks
@@ -287,6 +322,43 @@ def handle_exception(loop, context):
             f.write("\nException details:\n")
             traceback.print_exception(type(exception), exception, exception.__traceback__, file=f)
         f.write(f"{'=' * 50}\n")
+
+
+def setup_is_required(config_dir: str, node: str = "") -> bool:
+    """Whether this process must run the setup console, for the node it was started as.
+
+    The rule itself lives with the console (:func:`services.webservice.setup.boot.should_run_setup`)
+    so there is one copy of it; the import is inside the function because that module is the only
+    one cheap enough to touch on a configured boot.
+
+    ``node`` is this launcher's own node name (``args.node``). It is what tells the two states apart:
+    with no ``main.yaml`` any node needs setup, and with one a node that ``nodes.yaml`` does not carry
+    needs the joining flow instead of the bot's own boot.
+    """
+    from services.webservice.setup.boot import should_run_setup
+
+    return should_run_setup(config_dir, node)
+
+
+def web_setup_enabled(args) -> bool:
+    """Whether the setup console may run instead of the command line installer.
+
+    The rule lives with the console (``services.webservice.setup.boot.web_setup_enabled``) so there
+    is one copy of it; this is the launcher's delegating call.
+    """
+    from services.webservice.setup.boot import web_setup_enabled as _web_setup_enabled
+
+    return _web_setup_enabled(args)
+
+
+def run_cmd_installer(node: str, config_dir: str) -> None:
+    """The command line installer: the headless/CI path, kept as an escape hatch.
+
+    It also remains the backstop ``run_node`` falls back to when it finds no ``main.yaml``.
+    """
+    from install import Install
+
+    Install(node=node).install(config_dir=config_dir, user='dcsserverbot', database='dcsserverbot')
 
 
 async def run_node(name, config_dir=None, no_autoupdate=False, restarted=False) -> int:
@@ -372,16 +444,54 @@ if __name__ == "__main__":
 
         with PidFile(pidname=f"dcssb_{args.node}", piddir='.'):
             try:
-                rc = utils.asyncio_run(run_node(
-                    name=args.node,
-                    config_dir=args.config,
-                    no_autoupdate=args.noupdate,
-                    restarted=args.restarted
-                ))
-            except InstallationException:
-                from install import Install
+                rc = None
+                if args.setup and not setup_is_required(args.config, args.node):
+                    # The setup window is file-derived and decided at boot: it is not re-opened by
+                    # an option, so this asks for nothing rather than starting a second front end
+                    # on an install that already has one.
+                    log.error(f"--setup was given, but {os.path.join(args.config, 'main.yaml')} "
+                              f"exists: this installation is configured, so the setup console is "
+                              f"not started.")
+                    rc = -2
+                elif setup_is_required(args.config, args.node):
+                    # UNCONFIGURED, or THIS NODE IS MISSING FROM nodes.yaml. Either the setup
+                    # console, or - with no terminal to run it in - the command line installer this
+                    # has always used.
+                    if web_setup_enabled(args):
+                        from services.webservice.setup import boot as setup_boot
 
-                Install(node=args.node).install(config_dir=args.config, user='dcsserverbot', database='dcsserverbot')
+                        log.info("No main.yaml found, or this node is not in nodes.yaml: starting "
+                                 "the setup console.")
+                        rc = utils.asyncio_run(setup_boot.run_setup_console(
+                            node=args.node,
+                            config_dir=args.config,
+                            open_browser=not args.no_browser
+                        ))
+                        if not setup_is_required(args.config, args.node):
+                            # the console finished its own mode: main.yaml on a first run, this
+                            # node's block in nodes.yaml while joining. Continue into the boot.
+                            log.info("Setup finished: booting DCSServerBot.")
+                            rc = None
+                        else:
+                            log.error(f"The setup console stopped while this installation is still "
+                                      f"not configured for node {args.node} "
+                                      f"({os.path.join(args.config, 'main.yaml')}, "
+                                      f"{os.path.join(args.config, 'nodes.yaml')}); "
+                                      f"DCSServerBot is NOT started.")
+                            rc = -2
+                    else:
+                        run_cmd_installer(args.node, args.config)
+                if rc is None:
+                    rc = utils.asyncio_run(run_node(
+                        name=args.node,
+                        config_dir=args.config,
+                        no_autoupdate=args.noupdate,
+                        restarted=args.restarted
+                    ))
+            except InstallationException:
+                # The backstop: run_node found no main.yaml (the file appeared between the check
+                # above and the boot, or this is the installer path). Unchanged behaviour.
+                run_cmd_installer(args.node, args.config)
                 rc = utils.asyncio_run(run_node(
                     name=args.node,
                     config_dir=args.config,
@@ -402,8 +512,8 @@ if __name__ == "__main__":
         rc = -1
     except asyncio.CancelledError:
         log.warning("Main loop cancelled.")
-        # do not restart again
-        rc = -2
+        # restart only in specific cases
+        rc = async_error_rc or -2
     except (YAMLError, FatalException) as ex:
         log.exception(ex)
         input("Press any key to continue ...")
@@ -420,10 +530,10 @@ if __name__ == "__main__":
         rc = ex.code
         if rc not in [0, -1, -2]:
             log.exception(ex)
-    except:
+    except BaseException as ex:
+        log.exception("Unhandled exception in main runner.")
         console.print_exception(show_locals=True, max_frames=1)
-        # do not restart on unknown errors
-        rc = -2
+        rc = async_error_rc or -2
     finally:
         log.info("DCSServerBot stopped.")
         fault_log.close()

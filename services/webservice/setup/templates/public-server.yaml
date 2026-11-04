@@ -1,0 +1,6 @@
+id: public-server
+order: 1
+label: Public server
+description: Rules and an audience that keeps coming back
+plugins:
+  - punishment

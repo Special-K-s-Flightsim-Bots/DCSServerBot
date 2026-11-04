@@ -1,3 +1,4 @@
+# config/plugins/pretense.yaml
 DEFAULT:
   update_interval: 60         # interval in seconds when the embed should update (default = 60)
 DCS.dcs_serverrelease:

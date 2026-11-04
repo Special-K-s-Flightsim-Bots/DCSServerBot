@@ -163,3 +163,58 @@ msgstr "您已选择原谅 {} 的行为."
 msgid "displays your penalty points"
 msgstr "显示您的罚分"
 
+#: plugins/punishment/actions.py
+msgid "Penalty points can only be changed from the website."
+msgstr "处罚分只能在网站上更改。"
+
+#: plugins/punishment/actions.py
+msgid "You need the DCS Admin role to change penalty points."
+msgstr "更改处罚分需要 DCS Admin 角色。"
+
+#: plugins/punishment/actions.py
+msgid "Penalty points must be a whole number between {minimum} and {maximum}."
+msgstr "处罚分必须是 {minimum} 到 {maximum} 之间的整数。"
+
+#: plugins/punishment/actions.py
+msgid "A penalty change of 0 does nothing."
+msgstr "更改 0 分没有任何效果。"
+
+#: plugins/punishment/actions.py
+msgid "A UCID is 32 hexadecimal characters."
+msgstr "UCID 是 32 个十六进制字符。"
+
+#: plugins/punishment/actions.py
+msgid "The database is not available."
+msgstr "数据库不可用。"
+
+#: plugins/punishment/actions.py
+msgid "The punishment plugin is not running, so the points cannot be applied."
+msgstr "punishment 插件未运行，因此无法应用这些分数。"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be recorded: {error}"
+msgstr "无法记录处罚分：{error}"
+
+#: plugins/punishment/actions.py
+msgid "The points were recorded, but the punishment could not be applied: {error}"
+msgstr "分数已记录，但无法执行处罚：{error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points could not be deleted: {error}"
+msgstr "无法删除处罚分：{error}"
+
+#: plugins/punishment/actions.py
+msgid "The penalty points were deleted, but the ban could not be lifted: {error}"
+msgstr "处罚分已删除，但无法解除封禁：{error}"
+
+#: plugins/punishment/actions.py
+msgid "This installation runs no server yet."
+msgstr "此安装尚未运行任何服务器。"
+
+#: plugins/punishment/actions.py
+msgid "The users punishment points have been reduced by {} points."
+msgstr "该用户的处罚分已减少 {} 分。"
+
+#: plugins/punishment/actions.py
+msgid "changed punishment points of user {ucid} by {points} points."
+msgstr "将用户 {ucid} 的处罚分更改了 {points} 分。"

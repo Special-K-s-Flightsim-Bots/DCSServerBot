@@ -3,22 +3,111 @@ schema;grpc_schema:
   nullable: false
   allowempty: true  # we might want to specify additional parameters
   mapping:
-    enabled: {type: bool, nullable: false}
-    autoupdate: {type: bool, nullable: false}
-    name: { type: str, nullable: false, range: { min: 1 } }
-    port: {type: int, nullable: false, func: unique_port}
-    evalEnabled: {type: bool, nullable: false}
-    host: {type: str, nullable: false, range: {min: 1}}
-    debug: {type: bool, nullable: false}
-    throughputLimit: {type: int, nullable: false}
-    integrityCheckDisabled: {type: bool, nullable: false}
-    tts.defaultProvider: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.azure.key: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.azure.region: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.azure.defaultVoice: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.aws.key: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.aws.region: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.aws.defaultVoice: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.gcloud.key: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.gcloud.defaultVoice: {type: str, nullable: false, range: {min: 1}}
-    tts.provider.win.defaultVoice: {type: str, nullable: false, range: {min: 1}}
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether the DCS-gRPC extension is enabled.
+      example: "true"
+    autoupdate:
+      type: bool
+      nullable: false
+      desc: Auto-update DCS-gRPC to the latest version from GitHub.
+      example: "true"
+    name:
+      type: str
+      nullable: false
+      range: { min: 1 }
+      desc: Extension name shown in the server status embed.
+      example: "DCS-gRPC"
+    port:
+      type: int
+      nullable: false
+      func: unique_port
+      desc: TCP port the DCS-gRPC server listens on.
+      example: "50051"
+    evalEnabled:
+      type: bool
+      nullable: false
+      desc: Allow the eval() function in mission scripts. Default is false.
+      example: "false"
+    host:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Host address the DCS-gRPC server binds to.
+      example: "127.0.0.1"
+    debug:
+      type: bool
+      nullable: false
+      desc: Write DCS-gRPC debug output to the bot log.
+      example: "false"
+    throughputLimit:
+      type: int
+      nullable: false
+      desc: Maximum gRPC throughput in bytes per second.
+      example: "1048576"
+    integrityCheckDisabled:
+      type: bool
+      nullable: false
+      desc: Disable the DCS-gRPC integrity check of mission files.
+      example: "false"
+    tts.defaultProvider:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Default text-to-speech provider used by DCS-gRPC.
+      example: "win"
+    tts.provider.azure.key:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Azure Speech subscription key for text-to-speech.
+      example: "***"
+    tts.provider.azure.region:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Azure region that hosts the Speech service.
+      example: "westeurope"
+    tts.provider.azure.defaultVoice:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Default Azure voice used for text-to-speech.
+      example: "en-US-JennyNeural"
+    tts.provider.aws.key:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: AWS access key for Amazon Polly text-to-speech.
+      example: "***"
+    tts.provider.aws.region:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: AWS region that hosts the Polly service.
+      example: "eu-west-1"
+    tts.provider.aws.defaultVoice:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Default AWS Polly voice used for text-to-speech.
+      example: "Joanna"
+    tts.provider.gcloud.key:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Google Cloud API key for text-to-speech.
+      example: "***"
+    tts.provider.gcloud.defaultVoice:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Default Google Cloud voice used for text-to-speech.
+      example: "en-US-Wavenet-D"
+    tts.provider.win.defaultVoice:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Default Windows SAPI voice used for text-to-speech.
+      example: "Microsoft Hedda"

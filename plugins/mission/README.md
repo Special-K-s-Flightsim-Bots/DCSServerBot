@@ -11,9 +11,14 @@ differ a lot.
 > The TOKEN can then be entered in the in-game chat as a chat-command with ```-linkme TOKEN```.
 
 ## Uploading of Missions
-You can upload .miz files in the configured admin channel of your server(s). Existing missions will be replaced (with 
-security question), and if the server is running with that mission, it will be restarted (another security question 
-will apply). Newly added missions will be auto-added to the mission list.<br>
+You can upload .miz files in the configured admin channel of your server(s). 
+Existing missions will be replaced (with security question), and if the server is running with that mission, 
+it will be restarted (another security question will apply). 
+Newly added missions will be auto-added to the mission list.
+
+> [!NOTE]
+> If your Discord server has more than 10.000 users, you need to use the bot's DM channel to upload missions,
+> or you mention the bot when doing so in your admin channel.
 
 ## Custom User Menus
 DCSServerBot allows you to create custom user menus that people can use via the F10 menu. 

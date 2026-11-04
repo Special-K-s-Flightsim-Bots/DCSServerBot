@@ -1,39 +1,107 @@
 type: map
 nullable: false
 mapping:
-  target: {type: str, nullable: false, range: {min: 1}}
-  delete_after: {type: text, nullable: false}
+  target:
+    type: str
+    nullable: false
+    range: {min: 1}
+    desc: Directory the backup archives are written to.
+    example: "G:\\My Drive\\Backup"
+  delete_after:
+    type: text
+    nullable: false
+    desc: Delete backup folders older than this many days, or never.
+    example: "never"
   backups:
     type: map
     nullable: false
+    desc: The database, servers and bot backup jobs.
+    example: |
+      database:
+        schedule:
+          times:
+          - '03:00'
+          days: YYYYYYY
     mapping:
       database:
         type: map
         nullable: false
+        desc: Backup of the DCSSB PostgreSQL database.
+        example: |
+          username: postgres
+          schedule:
+            times:
+            - '03:00'
+            days: YYYYYYY
         mapping:
-          path: {type: str, required: false, nullable: false, range: {min: 1}, func: dir_exists}
-          username: {type: str, nullable: false, range: {min: 1}}
-          password: {type: str, nullable: false}
+          path:
+            type: str
+            required: false
+            nullable: false
+            range: {min: 1}
+            func: dir_exists
+            desc: PostgreSQL bin directory holding pg_dump.
+            example: "C:\\Program Files\\PostgreSQL\\17\\bin"
+          username:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Database user the backup connects as.
+            example: "postgres"
+          password:
+            type: str
+            nullable: false
+            desc: Password of that user; moved to the secret store.
+            example: "***"
           schedule:
             type: map
             nullable: false
+            desc: When the database backup runs.
+            example: |
+              times:
+              - '03:00'
+              days: YYYYYYY
             mapping:
               times:
                 type: seq
                 nullable: false
+                desc: Times of day the backup runs, in local time.
+                example: |
+                  - '03:00'
                 sequence:
                   - type: str
                     nullable: false
                     range: {min: 1}
                     unique: true
-              days: {type: str, pattern: '^[YN]{7}$', nullable: false, range: {min: 1}}
+              days:
+                type: str
+                pattern: '^[YN]{7}$'
+                nullable: false
+                range: {min: 1}
+                desc: Seven flags (Mo..Su) marking the days the job runs.
+                example: "YYYYYYY"
       servers:
         type: map
         nullable: false
+        desc: Backup of every local DCS server's directories.
+        example: |
+          directories:
+          - Config
+          - Missions
+          - Scripts
+          schedule:
+            times:
+            - '02:00'
+            days: YNYNYNN
         mapping:
           directories:
             type: seq
             nullable: false
+            desc: Server sub-directories that are zipped into the backup.
+            example: |
+              - Config
+              - Missions
+              - Scripts
             sequence:
               - type: str
                 nullable: false
@@ -42,23 +110,50 @@ mapping:
           schedule:
             type: map
             nullable: false
+            desc: When the server backup runs.
+            example: |
+              times:
+              - '02:00'
+              days: YNYNYNN
             mapping:
               times:
                 type: seq
                 nullable: false
+                desc: Times of day the backup runs, in local time.
+                example: |
+                  - '02:00'
                 sequence:
                   - type: str
                     nullable: false
                     range: {min: 1}
                     unique: true
-              days: {type: str, pattern: '^[YN]{7}$', nullable: false, range: {min: 1}}
+              days:
+                type: str
+                pattern: '^[YN]{7}$'
+                nullable: false
+                range: {min: 1}
+                desc: Seven flags (Mo..Su) marking the days the job runs.
+                example: "NYYYYYN"
       bot:
         type: map
         nullable: false
+        desc: Backup of the bot's own configuration and reports.
+        example: |
+          directories:
+          - config
+          - reports
+          schedule:
+            times:
+            - '00:00'
+            days: YYYYYYY
         mapping:
           directories:
             type: seq
             nullable: false
+            desc: Bot directories that are zipped into the backup.
+            example: |
+              - config
+              - reports
             sequence:
               - type: str
                 nullable: false
@@ -68,14 +163,28 @@ mapping:
           schedule:
             type: map
             nullable: false
+            desc: When the bot backup runs.
+            example: |
+              times:
+              - '00:00'
+              days: YYYYYYY
             mapping:
               times:
                 type: seq
                 nullable: false
+                desc: Times of day the backup runs, in local time.
+                example: |
+                  - '00:00'
                 sequence:
                   - type: str
                     pattern: '^([0-9]|0[0-9]|1[0-9]|2[0-3]):([0-9]|[0-5][0-9])$'
                     nullable: false
                     range: {min: 1}
                     unique: true
-              days: {type: str, pattern: '^[YN]{7}$', nullable: false, range: {min: 1}}
+              days:
+                type: str
+                pattern: '^[YN]{7}$'
+                nullable: false
+                range: {min: 1}
+                desc: Seven flags (Mo..Su) marking the days the job runs.
+                example: "YYYYYYY"

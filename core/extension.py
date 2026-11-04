@@ -85,7 +85,12 @@ class Extension(ABC):
             raise InstallException(f"{self.name} is not installed.")
         return True
 
-    async def beforeMissionLoad(self, filename: str) -> tuple[str, bool]:
+    async def get_mission_file(self, filename: str) -> str:
+        return filename
+
+    async def modify_mission(self, filename: str, *,
+                             preset: dict | list | str | None = None) -> tuple[str, bool]:
+        # ``preset`` is a per-load weather choice consumed by MizEdit; every other extension ignores it.
         return filename, False
 
     async def startup(self, *, quiet: bool = False) -> bool:
@@ -166,6 +171,7 @@ class Extension(ABC):
         if self.hidden:
             raise NotImplementedError()
         return {
+            "_class": self.__class__.__name__,
             "name": self.name,
             "version": self.version or 'n/a'
         }

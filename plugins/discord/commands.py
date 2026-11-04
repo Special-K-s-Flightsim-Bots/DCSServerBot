@@ -1,11 +1,11 @@
 import discord
 
-from contextlib import suppress
-from core import Plugin, command, utils, get_translation, Group
+from core import Plugin, utils, get_translation, Group
 from datetime import timedelta
 from discord import app_commands, Permissions
 from discord.abc import GuildChannel
 from discord.ext import commands
+from discord.utils import MISSING
 from services.bot import DCSServerBot
 from services.cron.actions import purge_channel
 from typing import cast
@@ -20,6 +20,11 @@ class Discord(Plugin):
     def __init__(self, bot: DCSServerBot):
         super().__init__(bot)
         self.reaction_message_id = None
+
+    async def cog_load(self) -> None:
+        if self.get_config().get('ping_everyone') and not self.bot.intents.message_content:
+            self.log.warning("The ping_everyone check is configured, but you do not have the Message Content Intent "
+                             "enabled in your Discord Developer Portal!")
 
     async def on_ready(self):
         config = self.get_config()
@@ -59,7 +64,9 @@ class Discord(Plugin):
             # set the id to handle reactions
             self.reaction_message_id = message.id
 
-    @command(name='clear', description=_('Clear Discord messages'))
+    disc = Group(name="discord", description=_("Discord management commands"))
+
+    @disc.command(name='clear', description=_('Clear Discord messages'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     @app_commands.describe(older_than=_('Delete messages older than x days (0 = all)'))
@@ -69,16 +76,18 @@ class Discord(Plugin):
                     after_id: str | None = None, before_id: str | None = None):
         if not channel:
             channel = interaction.channel
-        await interaction.response.defer(thinking=True, ephemeral=utils.get_ephemeral(interaction))
-        msg = await interaction.followup.send(_("Deleting messages ..."))
-        await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
-                            ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
-                            before_id=int(before_id) if before_id else None)
-        with suppress(discord.NotFound):
-            await msg.delete()
-        await interaction.followup.send(_("All messages deleted."))
+        ephemeral = utils.get_ephemeral(interaction)
+        await interaction.response.defer(thinking=True, ephemeral=ephemeral)
+        msg = await interaction.followup.send(_("Deleting messages ..."), ephemeral=ephemeral)
+        try:
+            await purge_channel(node=self.node, channel=channel.id, older_than=older_than,
+                                ignore=ignore.id if ignore else None, after_id=int(after_id) if after_id else None,
+                                before_id=int(before_id) if before_id else None)
+            await msg.edit(content=_("All messages deleted."))
+        except Exception as ex:
+            await msg.edit(content=_("Error while deleting messages: {}").format(ex))
 
-    @command(name='addrole', description=_('Adds a role to a member'))
+    @disc.command(name='addrole', description=_('Adds a role to a member'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def addrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
@@ -98,7 +107,7 @@ class Discord(Plugin):
                 _("You don't have permission to add role {role} to {member}.").format(
                     role=role.mention, member=member.mention), ephemeral=True)
 
-    @command(name='delrole', description=_('Removes a role from a member'))
+    @disc.command(name='delrole', description=_('Removes a role from a member'))
     @app_commands.guild_only()
     @utils.app_has_role('Admin')
     async def delrole(self, interaction: discord.Interaction, member: discord.Member, role: discord.Role):
@@ -131,8 +140,6 @@ class Discord(Plugin):
         channel = self.bot.get_channel(channel_id) if channel_id != -1 else member
         await channel.send(message.format(name=member.display_name, mention=member.mention))
 
-    disc = Group(name='discord', description="Discord commands")
-
     @disc.command(name='healthcheck', description=_("Run a healthcheck of your discord server"))
     @app_commands.guild_only()
     @app_commands.default_permissions(administrator=True)
@@ -145,25 +152,38 @@ class Discord(Plugin):
 
         # check roles
         guild = self.bot.guilds[0]
-        admin_roles = []
-        admins = []
-        elevated_roles = []
-        elevated = []
-        everyone_ping = []
-        external_apps = []
+        members_intent = self.bot.intents.members  # role.members needs GUILD_MEMBERS
+        admin_roles, admins = [], []
+        elevated_roles, elevated = [], []
+        everyone_ping, external_apps = [], []
         for role in guild.roles:
             if role.permissions.administrator:
                 admin_roles.append(role)
-                admins.extend(role.members)
+                if members_intent:
+                    admins.extend(role.members)
             elif role.permissions.value & Permissions.elevated().value > 0:
                 elevated_roles.append(role)
-                elevated.extend(role.members)
+                if members_intent:
+                    elevated.extend(role.members)
             else:
                 if role.permissions.mention_everyone:
                     everyone_ping.append(role)
                 if role.permissions.use_external_apps:
                     external_apps.append(role)
-        all_bots = [x for x in guild.members if x.bot]
+        bot_ids = {x.id for x in guild.members if x.bot} if members_intent else set()
+
+        def _roles(entries: list[discord.Role], mention: bool = False) -> str:
+            if not entries:
+                return _("none")
+            return '\n'.join(x.mention if mention else x.name for x in entries)
+
+        def _members(entries: list[discord.Member], mention: bool = False) -> str:
+            if not members_intent:
+                return _("unavailable without the 'Server Members Intent'")
+            if not entries:
+                return _("none")
+            return '\n'.join((x.mention if mention else x.display_name) +
+                             (' (🤖)' if x.id in bot_ids else '') for x in entries)
 
         # check channels
         channels_for_everyone = []
@@ -175,25 +195,24 @@ class Discord(Plugin):
 
         embed = discord.Embed(colour=discord.Colour.blue())
         embed.title = f"Healthcheck for {guild.name}"
+
         # Roles
-        embed.add_field(name=_("Admin Roles"), value='\n'.join([x.name for x in admin_roles]))
-        embed.add_field(name=_("Members"), value='\n'.join([
-            x.display_name + (' (🤖)' if x in all_bots else '') for x in admins
-        ]))
+        embed.add_field(name=_("Admin Roles"), value=_roles(admin_roles))
+        embed.add_field(name=_("Members"), value=_members(admins))
         embed.add_field(name=utils.print_ruler(header="Elevated Roles"), value='_ _', inline=False)
-        embed.add_field(name=_("Elevated Roles"), value='\n'.join([x.mention for x in elevated_roles]))
-        embed.add_field(name=_("Members"), value='\n'.join([
-            x.mention + (' (🤖)' if x in all_bots else '') for x in elevated
-        ]))
+        embed.add_field(name=_("Elevated Roles"), value=_roles(elevated_roles, mention=True))
+        embed.add_field(name=_("Members"), value=_members(elevated, mention=True))
         embed.add_field(name=utils.print_ruler(header="⚠️ Critical Roles ⚠️"), value='_ _', inline=False)
         if everyone_ping or external_apps:
-            embed.add_field(name=_("Everyone Ping"), value='\n'.join([x.name for x in everyone_ping]))
-            embed.add_field(name=_("External Apps"), value='\n'.join([x.name for x in external_apps]))
-            embed.set_footer(text="🤖 = Discord Bot")
+            embed.add_field(name=_("Everyone Ping"), value=_roles(everyone_ping))
+            embed.add_field(name=_("External Apps"), value=_roles(external_apps))
+            if members_intent:
+                embed.set_footer(text="🤖 = Discord Bot")
             view = HealthcheckView(everyone_ping, external_apps)
         else:
             embed.add_field(name='_ _', value=_("No critical permissions found."), inline=False)
             view = None
+
         # Channels
         if len(channels_for_everyone) > 1:
             embed.add_field(name=utils.print_ruler(header=_("Channels")), value='_ _', inline=False)
@@ -203,11 +222,9 @@ class Discord(Plugin):
             else:
                 embed.add_field(name=_("Public Channels"), value='\n'.join(x.mention for x in channels_for_everyone),
                                 inline=False)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        try:
+        await interaction.response.send_message(embed=embed, view=view or MISSING, ephemeral=True)
+        if view:
             await view.wait()
-        finally:
-            await interaction.delete_original_response()
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -249,14 +266,17 @@ class Discord(Plugin):
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         # ignore ourselves adding the initial reactions
-        if payload.message_id != self.reaction_message_id or payload.member.id == self.bot.user.id:
+        if payload.message_id != self.reaction_message_id or payload.user_id == self.bot.user.id:
+            return
+        member = payload.member or await self.bot.get_member(payload.user_id)
+        if not member:
             return
         if payload.emoji.name == '🤖':
-            self.log.warning(f"Member {payload.member.display_name} fell into the bot trap!")
-            if payload.member.id != self.bot.owner_id:
-                await self.bot.audit(_("Kicked for falling into the bot trap."), member=payload.member)
+            self.log.warning(f"Member {member.display_name} fell into the bot trap!")
+            if member.id != self.bot.owner_id:
+                await self.bot.audit(_("Kicked for falling into the bot trap."), member=member)
                 try:
-                    await payload.member.kick(reason="Bot user")
+                    await member.kick(reason="Bot user")
                 except discord.Forbidden:
                     self.log.error('DCSServerBot is missing permission "Kick, Approve and Reject Members"!')
             else:
@@ -268,15 +288,15 @@ class Discord(Plugin):
                 role = self.bot.get_role(config.get('role'))
                 if role:
                     try:
-                        await payload.member.add_roles(role)
-                        self.log.debug(f"Added role {role.name} to {payload.member.display_name}")
+                        await member.add_roles(role)
+                        self.log.debug(f"Added role {role.name} to {member.display_name}")
                     except discord.Forbidden:
                         self.log.warning('DCSServerBot is missing permission "Manage Roles"!')
                 else:
                     self.log.warning(f"Role {config['role']} not found for emoji {payload.emoji.name}")
             else:
                 message = await self.bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
-                await message.remove_reaction(payload.emoji, payload.member)
+                await message.remove_reaction(payload.emoji, member)
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
@@ -290,7 +310,11 @@ class Discord(Plugin):
             return
         role = self.bot.get_role(config.get('role'))
         if role:
-            member = self.bot.guilds[0].get_member(int(payload.user_id))
+            member = await self.bot.get_member(int(payload.user_id))
+            if not member:
+                # we should never be here
+                self.log.warning(f"Member {payload.user_id} not found!")
+                return
             try:
                 await member.remove_roles(role)
                 self.log.info(f"Removed role {role.name} from {member.display_name}")
@@ -299,11 +323,13 @@ class Discord(Plugin):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # ignore my own messages
-        if message.author.id == self.bot.user.id:
+        # ignore my own messages or DMs
+        if (message.author.id == self.bot.user.id) or not isinstance(message.author, discord.Member):
             return
         config = self.get_config().get('ping_everyone')
         if not config:
+            return
+        if not self.bot.intents.message_content:  # fake @everyone detection needs the content
             return
         # only report members that do not have the permission to ping @everyone or @here
         if ('@everyone' in message.content or '@here' in message.content) and not message.mention_everyone:

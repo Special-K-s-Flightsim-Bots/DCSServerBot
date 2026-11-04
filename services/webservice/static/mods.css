@@ -1,0 +1,61 @@
+/* THE MODS PAGES' DELTA on the shipped stylesheet (shell.css).
+ *
+ * Everything else here is a rule the console did not have. Every card, table, tag, glyph, tab and
+ * dialog rule the mods pages use is already in shell.css, so a rule added here is a delta — never a
+ * correction of a shared one.
+ */
+
+/* THE STATE STRIP: the one sentence that says whether mods can be changed right now, in the same card
+ * grammar as the rest of the console — a left edge in the state's own colour, the state dot and the
+ * sentence, with room for the links that name the servers holding a closed gate. A quiet state uses
+ * --run; a blocked one the warn tokens (the pair .tag.a already uses). */
+.mods-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px;
+  padding: 10px 14px; border: 1px solid var(--line-2); border-left-width: 3px;
+  border-radius: var(--radius-s); background: var(--panel); font-size: 12.5px; color: var(--text-2); }
+.mods-state.ok { border-left-color: var(--run); }
+.mods-state.warn { border-color: var(--warn-line); border-left-color: var(--warn-text);
+  background: var(--warn-bg); color: var(--warn-text); }
+.mods-state .msg { min-width: 0; }
+.mods-state .msg b { color: inherit; font-weight: 600; }
+.mods-state a { color: var(--link); }
+.mods-state.warn a { color: var(--warn-text); text-decoration: underline; }
+.mods-state .spacer { flex: 1; }
+
+/* THE PACKAGE FOLDER, printed VERBATIM: the configuration's own value, %USERPROFILE% and all. It is
+ * expanded on the node that reads the folder and never here, so the page must not look like a path a
+ * browser could open — monospace, quiet, and allowed to break anywhere. */
+.mods-path { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-3);
+  word-break: break-all; }
+.dlg .mods-path { display: inline; }
+
+/* THE UPDATE CHIP beside a row's installed version: the shipped `.tag.a` rules with the one thing a
+ * table cell needs — held on the version's own line, so a long newer version never wraps the word
+ * away from the number it belongs to. */
+.mods-update { white-space: nowrap; margin-left: 2px; }
+
+/* THE VERSION HINT: one quiet line under the version field, shown while the link offers no list to
+ * pick from. The field is only as wide as a version, so the sentence takes the dialog's width instead
+ * of wrapping into three words per row — and it reads quiet, not alarming: typing the version is a
+ * supported answer here, not an error. */
+.dlg-hint { max-width: min(26rem, 100%); margin: 0; font-size: 11px; line-height: 1.4;
+  color: var(--text-3); text-align: right; }
+
+/* THE LINK AND ITS VERSION SHARE ONE ROW: they answer one question between them, so the URL takes the
+ * width the version box does not and a long link shortens instead of pushing the version out of the
+ * dialog. The row is exactly the footer's content width — never wider, never a second scrollbar. */
+.dlg-row { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 8px;
+  align-self: stretch; min-width: 0; }
+/* the URL fills what is left; min-width: 0 lets a long link shrink rather than overflow the row */
+.dlg-row .dlg-field.wide { flex: 1 1 auto; min-width: 0; align-self: auto; }
+/* the version box is as wide as a version string and no wider — 6.5rem holds `latest` and a normal
+ * tag in full, and the release pick the script swaps in keeps the same width */
+.dlg-row .dlg-field.narrow { flex: 0 0 auto; width: 6.5rem; min-width: 0; align-self: auto; }
+.dlg-row .dlg-field select { width: 100%; }
+/* NARROW: below 26rem of viewport the dialog's content box is under 24rem, where 6.5rem of version
+ * plus the gap leaves the URL less than 16rem — two unreadable boxes. The version goes under the URL
+ * there (right-aligned, the side it sat on) instead of squashing it. */
+@media (max-width: 26rem) {
+  .dlg-row { flex-wrap: wrap; }
+  .dlg-row .dlg-field.wide { flex: 1 1 100%; }
+  .dlg-row .dlg-field.narrow { margin-left: auto; }
+}

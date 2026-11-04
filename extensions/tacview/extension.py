@@ -251,15 +251,15 @@ class Tacview(InstallableExtension):
             host = self.config.get('host', self.node.public_ip)
             value = ''
             if self.locals.get('tacviewRealTimeTelemetryEnabled', True):
-                value += f"{host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
+                value += f"- {host}:{self.locals.get('tacviewRealTimeTelemetryPort', 42674)}\n"
                 if show_passwords and self.locals.get('tacviewRealTimeTelemetryPassword'):
-                    value += f"Password: {self.locals['tacviewRealTimeTelemetryPassword']}\n"
+                    value += f"- Password: {self.locals['tacviewRealTimeTelemetryPassword']}\n"
+            if int(self.locals.get('tacviewPlaybackDelay', 0)) > 0:
+                value += f"- Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}\n"
             if self.locals.get('tacviewRemoteControlEnabled', False):
                 value += f"**Remote Ctrl [{self.locals.get('tacviewRemoteControlPort', 42675)}]**\n"
                 if show_passwords and self.locals.get('tacviewRemoteControlPassword'):
-                    value += f"Password: {self.locals['tacviewRemoteControlPassword']}\n"
-            if int(self.locals.get('tacviewPlaybackDelay', 0)) > 0:
-                value += f"Delay: {utils.format_time(self.locals['tacviewPlaybackDelay'])}"
+                    value += f"- Password: {self.locals['tacviewRemoteControlPassword']}\n"
             if len(value) == 0:
                 value = 'enabled'
         return ret | {

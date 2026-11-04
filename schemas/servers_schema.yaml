@@ -2,59 +2,234 @@ schema;settings_schema:
   type: map
   allowempty: true
   mapping:
-    bind_address: {type: str, nullable: false, range: {min: 1}}
-    description: {type: str, nullable: false}
-    isPublic: {type: bool, nullable: false}
-    listLoop: {type: bool, nullable: false}
-    listShuffle: {type: bool, nullable: false}
-    maxPlayers: {type: text, nullable: false}
-    name: {type: str, nullable: false, range: {min: 1}}
-    password: {type: str, nullable: false}
-    port: {type: text, nullable: false}
-    mode: {type: text, nullable: false}
-    require_pure_clients: {type: bool, nullable: false}
-    require_pure_models: {type: bool, nullable: false}
-    require_pure_scripts: {type: bool, nullable: false}
-    require_pure_textures: {type: bool, nullable: false}
+    bind_address:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: IP address the DCS server binds its network interface to.
+      example: "0.0.0.0"
+    description:
+      type: str
+      nullable: false
+      desc: Description shown next to the server in the multiplayer list.
+      example: "Our training server"
+    isPublic:
+      type: bool
+      nullable: false
+      desc: Publish the server in the public multiplayer server list.
+      example: "true"
+    listLoop:
+      type: bool
+      nullable: false
+      desc: Restart the mission list from the top after the last mission.
+      example: "true"
+    listShuffle:
+      type: bool
+      nullable: false
+      desc: Shuffle the mission list order before each rotation.
+      example: "false"
+    maxPlayers:
+      type: text
+      nullable: false
+      desc: Maximum number of players allowed on the server.
+      example: "64"
+    name:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Server name shown in the multiplayer server list.
+      example: "My Fancy Server"
+    password:
+      type: str
+      nullable: false
+      desc: Password players must enter to join the server.
+      example: ""
+    port:
+      type: text
+      nullable: false
+      desc: UDP port the DCS server listens on.
+      example: "10308"
+    mode:
+      type: text
+      nullable: false
+      desc: Server visibility mode as advertised in the server list.
+      example: "0"
+    require_pure_clients:
+      type: bool
+      nullable: false
+      desc: Reject clients whose DCS installation is not pure.
+      example: "true"
+    require_pure_models:
+      type: bool
+      nullable: false
+      desc: Reject clients carrying modified models.
+      example: "true"
+    require_pure_scripts:
+      type: bool
+      nullable: false
+      desc: Reject clients carrying modified scripts.
+      example: "true"
+    require_pure_textures:
+      type: bool
+      nullable: false
+      desc: Reject clients carrying modified textures.
+      example: "true"
     missionList:
       type: seq
       nullable: false
+      desc: Missions pre-loaded into the server's mission list.
+      example: |
+        - MyMission
+        - Training_Day
       sequence:
         - type: str
           unique: true
           nullable: false
           range: {min: 1}
+          desc: Mission file name without the .miz extension.
+          example: "MyMission"
     advanced:
       type: map
       nullable: false
       allowempty: true
+      desc: Advanced DCS settings written to serverSettings.lua.
+      example: |
+        client_outbound_limit: 400000
+        pause_on_load: false
+        resume_mode: 0
       mapping:
-        client_outbound_limit: {type: text, nullable: false}
-        client_inbound_limit: {type: text, nullable: false}
-        disable_events: {type: bool, nullable: false}
-        maxPing: {type: text, nullable: false}
-        pause_on_load: {type: bool, nullable: false}
-        pause_without_clients: {type: bool, nullable: false}
-        resume_mode: {type: text, nullable: false}
-        server_can_screenshot: {type: bool, nullable: false}
-        voice_chat_server: {type: bool, nullable: false}
-        allow_change_skin: {type: bool, nullable: false}
-        allow_change_tailno: {type: bool, nullable: false}
-        allow_dynamic_radio: {type: bool, nullable: false}
-        allow_ownship_export: {type: bool, nullable: false}
-        allow_object_export: {type: bool, nullable: false}
-        allow_players_pool: {type: bool, nullable: false}
-        allow_sensor_export: {type: bool, nullable: false}
-        allow_trial_only_clients: {type: bool, nullable: false}
-        event_Connect: {type: bool, nullable: false}
-        event_Crash: {type: bool, nullable: false}
-        event_Ejecting: {type: bool, nullable: false}
-        event_Kill: {type: bool, nullable: false}
-        event_Role: {type: bool, nullable: false}
-        event_Takeoff: {type: bool, nullable: false}
-        bluePasswordHash: {type: str, nullable: false, range: {min: 1}}
-        redPasswordHash: {type: str, nullable: false, range: {min: 1}}
-        sav_autosave: {type: bool, nullable: false}
+        client_outbound_limit:
+          type: text
+          nullable: false
+          desc: Outbound network bandwidth limit per client in bytes/s.
+          example: "400000"
+        client_inbound_limit:
+          type: text
+          nullable: false
+          desc: Inbound network bandwidth limit per client in bytes/s.
+          example: "400000"
+        disable_events:
+          type: bool
+          nullable: false
+          desc: Disable the DCS event system for this server.
+          example: "false"
+        maxPing:
+          type: text
+          nullable: false
+          desc: Maximum allowed client ping in milliseconds.
+          example: "500"
+        pause_on_load:
+          type: bool
+          nullable: false
+          desc: Pause the server automatically after loading a mission.
+          example: "false"
+        pause_without_clients:
+          type: bool
+          nullable: false
+          desc: Pause the server while no clients are connected.
+          example: "true"
+        resume_mode:
+          type: text
+          nullable: false
+          desc: How the server resumes from a paused state.
+          example: "0"
+        server_can_screenshot:
+          type: bool
+          nullable: false
+          desc: Allow clients to take screenshots on the server.
+          example: "true"
+        voice_chat_server:
+          type: bool
+          nullable: false
+          desc: Enable the built-in DCS voice chat server.
+          example: "true"
+        allow_change_skin:
+          type: bool
+          nullable: false
+          desc: Allow players to change their aircraft livery.
+          example: "true"
+        allow_change_tailno:
+          type: bool
+          nullable: false
+          desc: Allow players to change their aircraft tail number.
+          example: "true"
+        allow_dynamic_radio:
+          type: bool
+          nullable: false
+          desc: Allow players to use dynamic radio channel assignment.
+          example: "true"
+        allow_ownship_export:
+          type: bool
+          nullable: false
+          desc: Allow export of own-ship data to external tools.
+          example: "true"
+        allow_object_export:
+          type: bool
+          nullable: false
+          desc: Allow export of object data to external tools.
+          example: "false"
+        allow_players_pool:
+          type: bool
+          nullable: false
+          desc: Allow players to share a pool of aircraft across slots.
+          example: "true"
+        allow_sensor_export:
+          type: bool
+          nullable: false
+          desc: Allow export of sensor data to external tools.
+          example: "true"
+        allow_trial_only_clients:
+          type: bool
+          nullable: false
+          desc: Allow clients restricted to trial modules to join.
+          example: "false"
+        event_Connect:
+          type: bool
+          nullable: false
+          desc: Emit connect events to the bot.
+          example: "true"
+        event_Crash:
+          type: bool
+          nullable: false
+          desc: Emit crash events to the bot.
+          example: "true"
+        event_Ejecting:
+          type: bool
+          nullable: false
+          desc: Emit ejecting events to the bot.
+          example: "true"
+        event_Kill:
+          type: bool
+          nullable: false
+          desc: Emit kill events to the bot.
+          example: "true"
+        event_Role:
+          type: bool
+          nullable: false
+          desc: Emit role-change events to the bot.
+          example: "true"
+        event_Takeoff:
+          type: bool
+          nullable: false
+          desc: Emit takeoff events to the bot.
+          example: "true"
+        bluePasswordHash:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Hashed password to join the blue coalition.
+          example: "hash"
+        redPasswordHash:
+          type: str
+          nullable: false
+          range: {min: 1}
+          desc: Hashed password to join the red coalition.
+          example: "hash"
+        sav_autosave:
+          type: bool
+          nullable: false
+          desc: Automatically save the mission state periodically.
+          example: "true"
 
 type: map
 mapping:
@@ -65,129 +240,460 @@ mapping:
       messages:
         nullable: false
         type: map
+        desc: Per-server overrides for the bot's in-game messages.
+        example: |
+          greeting_message_members: '{player.name}, welcome back!'
+          message_ban: 'You are banned from this server.'
         mapping:
-          greeting_message_members: {type: str, nullable: false, range: {min: 1}}
-          greeting_message_unmatched: {type: str, nullable: false, range: {min: 1}}
-          message_player_username: {type: str, nullable: false, range: {min: 1}}
-          message_player_default_username: {type: str, nullable: false, range: {min: 1}}
-          message_player_inappropriate_username: {type: str, nullable: false, range: {min: 1}}
-          message_ban: {type: str, nullable: false, range: {min: 1}}
-          message_reserved: {type: str, nullable: false, range: {min: 1}}
-          message_no_voice: {type: str, nullable: false, range: {min: 1}}
-          message_seat_locked: {type: str, nullable: false, range: {min: 1}}
-      message_timeout: {type: int, range: {min: 5, max: 60}, nullable: false}
-      display_ai_chat: {type: bool, nullable: false}
-      profanity_filter: {type: bool, nullable: false}
-      no_join_with_cursename: {type: bool, nullable: false}
-      server_user: {type: str, nullable: false, range: {min: 1}}
-      show_passwords: {type: bool, nullable: false}
-      show_atis: {type: bool, nullable: false}
-      mission_rewrite: {type: bool, nullable: false}
+          greeting_message_members:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Greeting shown to linked members when they join.
+            example: "{player.name}, welcome back to {server.name}!"
+          greeting_message_unmatched:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Greeting shown to players not yet linked to Discord.
+            example: "{player.name}, please use /linkme in our Discord!"
+          message_player_username:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Warning for players whose name contains invalid characters.
+            example: "Your player name contains invalid characters."
+          message_player_default_username:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Warning for players still using a default name.
+            example: "Please change your default player name."
+          message_player_inappropriate_username:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Warning for players with an inappropriate name.
+            example: "Your username is inappropriate and needs to be changed."
+          message_ban:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown to banned players ({}) is replaced by the reason.
+            example: "You are banned from this server. Reason: {}"
+          message_reserved:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown when a server is locked to specific users.
+            example: "This server is locked for specific users."
+          message_no_voice:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown when voice channel membership is required.
+            example: 'You need to be in voice channel "{}" to use this server!'
+          message_seat_locked:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown when a player's seat is locked.
+            example: "Your player is currently locked."
+      message_timeout:
+        type: int
+        range: {min: 5, max: 60}
+        nullable: false
+        desc: Lifetime of DCS popup messages in seconds.
+        example: "10"
+      display_ai_chat:
+        type: bool
+        nullable: false
+        desc: Replicate AI chat messages to the Discord chat channel.
+        example: "false"
+      profanity_filter:
+        type: bool
+        nullable: false
+        desc: Filter profanity in player names and in-game chat.
+        example: "true"
+      no_join_with_cursename:
+        type: bool
+        nullable: false
+        desc: Block players whose names contain profanity.
+        example: "true"
+      server_user:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Name of the server's first technical user.
+        example: "Admin"
+      show_passwords:
+        type: bool
+        nullable: false
+        desc: Show the server password in the status embed.
+        example: "true"
+      show_atis:
+        type: bool
+        nullable: false
+        desc: Show ATIS information in the join popup.
+        example: "true"
+      mission_rewrite:
+        type: bool
+        nullable: false
+        desc: Rewrite the mission file before loading it.
+        example: "false"
       afk:
         type: map
         nullable: false
+        desc: Automatic kick of players who sit idle (AFK).
+        example: |
+          afk_time: 900
+          check_on_join: true
+          message: '{player.name}, you have been kicked for being AFK.'
         mapping:
-          afk_time: {type: int, range: {min: -1}, nullable: false}
-          punish: {type: bool, nullable: false}
-          threshold: {type: int, range: {min: 0, max: 100}, nullable: false}
-          check_on_join: {type: bool, nullable: false}
-          check_on_spawn: {type: bool, nullable: false}
-          check_after_landing: {type: bool, nullable: false}
-          message: {type: str, nullable: false, range: {min: 1}}
+          afk_time:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Seconds before a player counts as AFK (-1 disables).
+            example: "900"
+          punish:
+            type: bool
+            nullable: false
+            desc: Create an "afk" punishment instead of kicking.
+            example: "false"
+          threshold:
+            type: int
+            range: {min: 0, max: 100}
+            nullable: false
+            desc: Only kick AFK players above this server fill percentage.
+            example: "75"
+          check_on_join:
+            type: bool
+            nullable: false
+            desc: Check for AFK while a player sits in slot selection.
+            example: "true"
+          check_on_spawn:
+            type: bool
+            nullable: false
+            desc: Check for AFK while a player idles on the apron.
+            example: "false"
+          check_after_landing:
+            type: bool
+            nullable: false
+            desc: Check for AFK after landing, before the next takeoff.
+            example: "false"
+          message:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown to players kicked for being AFK.
+            example: "{player.name}, you have been kicked for being AFK."
           exemptions:
             nullable: false
             type: map
+            desc: UCIDs and Discord roles exempt from AFK kicks.
+            example: |
+              ucid:
+                - aabbccddeeff1122334455
+              discord:
+                - Donators
             mapping:
               ucid:
                 type: seq
                 nullable: false
+                desc: UCIDs exempt from AFK kicks.
+                example: |
+                  - aabbccddeeff1122334455
                 sequence:
                   - type: str
                     nullable: false
                     range: {min: 1}
                     unique: true
+                    desc: Player UCID exempt from AFK kicks.
+                    example: "aabbccddeeff1122334455"
               discord:
                 type: seq
+                desc: Discord role names exempt from AFK kicks.
+                example: |
+                  - Donators
                 sequence:
                   - type: text
                     nullable: false
                     unique: true
+                    desc: Discord role name exempt from AFK kicks.
+                    example: "Donators"
       usage_alarm:
         type: map
         nullable: false
+        desc: Alert pings when server usage crosses thresholds.
+        example: |
+          min_threshold: 30
+          max_threshold: 10
+          role: DCS Admin
         mapping:
-          min_threshold: {type: int, range: {min: 1}, nullable: false}
-          max_threshold: {type: int, range: {min: 0}, nullable: false}
-          role: {type: text, nullable: false}
-          channel: {type: int, nullable: false}
+          min_threshold:
+            type: int
+            range: {min: 1}
+            nullable: false
+            desc: Alert when fewer players than this are online.
+            example: "30"
+          max_threshold:
+            type: int
+            range: {min: 0}
+            nullable: false
+            desc: Alert when more players than this are online.
+            example: "10"
+          role:
+            type: text
+            nullable: false
+            desc: Discord role to ping for the usage alarm.
+            example: "DCS Admin"
+          channel:
+            type: int
+            nullable: false
+            desc: Discord channel for the usage alarm (default admin).
+            example: "1122334455"
       slot_spamming:
         type: map
         nullable: false
+        desc: Limit how often a player may change slots.
+        example: |
+          message: You have been kicked for slot spamming!
+          check_time: 5
+          slot_changes: 5
         mapping:
-          message: {type: str, nullable: false, range: {min: 1}}
-          check_time: {type: int, nullable: false}
-          slot_changes: {type: int, nullable: false}
-      ping_admin_on_crash: {type: bool, nullable: false}
-      autoscan: {type: bool, nullable: false}
+          message:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Message shown to players kicked for slot spamming.
+            example: "You have been kicked for slot spamming!"
+          check_time:
+            type: int
+            nullable: false
+            desc: Length of the observation window in seconds.
+            example: "5"
+          slot_changes:
+            type: int
+            nullable: false
+            desc: Allowed slot changes within the observation window.
+            example: "5"
+      ping_admin_on_crash:
+        type: bool
+        nullable: false
+        desc: Ping the DCS Admin role when the server crashes.
+        example: "true"
+      autoscan:
+        type: bool
+        nullable: false
+        desc: Scan for new missions and auto-add them to the list.
+        example: "false"
       ignore_dirs:
         type: seq
         nullable: false
+        desc: Directories skipped during mission upload and add.
+        example: |
+          - archive
         sequence:
           - type: str
             nullable: false
             range: {min: 1}
             unique: true
-      autoadd: {type: bool, nullable: false}
-      validate_missions: {type: bool, nullable: false}
-      autorole: {type: text, nullable: false}
-      smooth_pause: {type: int, nullable: false}
-      lock_on_load: {type: int, nullable: false}
-      force_voice: {type: bool, nullable: false}
-      rules: {type: str, nullable: false, range: {min: 1}}
-      accept_rules_on_join: {type: bool, nullable: false}
-      smart_bans: {type: bool, nullable: false}
+            desc: Directory name ignored during mission handling.
+            example: "archive"
+      autoadd:
+        type: bool
+        nullable: false
+        desc: Auto-add uploaded missions to the mission list.
+        example: "true"
+      validate_missions:
+        type: bool
+        nullable: false
+        desc: Check that missions can load (maps, modules) before use.
+        example: "true"
+      autorole:
+        type: text
+        nullable: false
+        desc: Role granted to players online on this server.
+        example: "Fancy Players"
+      smooth_pause:
+        type: int
+        nullable: false
+        desc: Seconds a PAUSE-on-start server runs before pausing again.
+        example: "5"
+      lock_on_load:
+        type: int
+        nullable: false
+        desc: Seconds to lock a server after a mission restart.
+        example: "120"
+      force_voice:
+        type: bool
+        nullable: false
+        desc: Require players to join a Discord voice channel.
+        example: "false"
+      rules:
+        type: str
+        nullable: false
+        range: {min: 1}
+        desc: Rules text displayed to new players (needs MissionStats).
+        example: |
+          These are the rules to play on this server:
+          1) Do not team-kill
+      accept_rules_on_join:
+        type: bool
+        nullable: false
+        desc: Require acknowledgement of the rules on join.
+        example: "true"
+      smart_bans:
+        type: bool
+        nullable: false
+        desc: Enable the smart ban system (IPv4 reuse detection).
+        example: "true"
       serverSettings:
         include: 'settings_schema'
       discord:
         type: seq
         nullable: false
+        desc: Discord roles allowed to use this server.
+        example: |
+          - '@everyone'
         sequence:
           - type: text
             nullable: false
             unique: true
+            desc: Discord role name allowed to use this server.
+            example: "@everyone"
       managed_by:
         type: seq
         nullable: false
+        desc: Discord roles allowed to manage this server.
+        example: |
+          - Special Admin
         sequence:
           - type: text
             nullable: false
             unique: true
+            desc: Discord role name allowed to manage this server.
+            example: "Special Admin"
       channels:
         type: map
         nullable: false
+        desc: Discord channels this server uses for its features.
+        example: |
+          status: 1122334455667788
+          chat: 8877665544332211
+          admin: 1188227733664455
         mapping:
-          status: {type: int, range: {min: -1}, nullable: false}
-          chat: {type: int, range: {min: -1}, nullable: false}
-          events: {type: int, range: {min: -1}, nullable: false}
-          admin: {type: int, range: {min: -1}, nullable: false}
-          voice: {type: int, range: {min: -1}, nullable: false}
-          audit: {type: int, range: {min: -1}, nullable: false}
-          blue: {type: int, range: {min: -1}, nullable: false}
-          blue_events: {type: int, range: {min: -1}, nullable: false}
-          red: {type: int, range: {min: -1}, nullable: false}
-          red_events: {type: int, range: {min: -1}, nullable: false}
+          status:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for the server status and player embeds.
+            example: "1122334455667788"
+          chat:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for the in-game chat replication.
+            example: "8877665544332211"
+          events:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for game events, split from chat.
+            example: "1928374619283746"
+          admin:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel where admin commands for this server are run.
+            example: "1188227733664455"
+          voice:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Voice channel players must join when force_voice is on.
+            example: "1827364518273645"
+          audit:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Server-specific channel for audit events.
+            example: "9182736459182736"
+          blue:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for the blue coalition chat.
+            example: "1122334455667788"
+          blue_events:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for blue coalition game events.
+            example: "1122334455667788"
+          red:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for the red coalition chat.
+            example: "8877665544332211"
+          red_events:
+            type: int
+            range: {min: -1}
+            nullable: false
+            desc: Channel for red coalition game events.
+            example: "8877665544332211"
       chat_log:
         type: map
         nullable: false
+        desc: In-game chat log written to disk for abuse checks.
+        example: |
+          count: 10
+          size: 1048576
         mapping:
-          count: {type: int, range: {min: 1}, nullable: false}
-          size: {type: int, nullable: false}
+          count:
+            type: int
+            range: {min: 1}
+            nullable: false
+            desc: Number of chat log files kept on disk.
+            example: "10"
+          size:
+            type: int
+            nullable: false
+            desc: Maximum size of a chat log file in bytes.
+            example: "1048576"
       coalitions:
         type: map
         nullable: false
+        desc: Coalition handling for this server.
+        example: |
+          lock_time: 15
+          blue_role: Blue
         mapping:
-          lock_time: {type: str, nullable: false, range: {min: 1}}
-          allow_players_pool: {type: bool, nullable: false}
-          blue_role: {type: text, nullable: false}
-          red_role: {type: text, nullable: false}
-      no_coalition_chat: {type: bool, nullable: false}
+          lock_time:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Minutes a coalition stays locked after joining.
+            example: "15"
+          allow_players_pool:
+            type: bool
+            nullable: false
+            desc: Let players switch between unlocked coalitions.
+            example: "true"
+          blue_role:
+            type: text
+            nullable: false
+            desc: Discord role mapped to the blue coalition.
+            example: "Blue"
+          red_role:
+            type: text
+            nullable: false
+            desc: Discord role mapped to the red coalition.
+            example: "Red"
+      no_coalition_chat:
+        type: bool
+        nullable: false
+        desc: Skip replicating red and blue chats to Discord.
+        example: "true"

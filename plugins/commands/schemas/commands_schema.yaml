@@ -2,33 +2,93 @@ schema;cmd_execute_schema:
   type: map
   nullable: false
   mapping:
-    cmd: {type: str, required: true, nullable: false, range: {min: 1}}
-    args: {type: str, nullable: false, range: {min: 1}}
-    cwd: {type: str, nullable: false, range: {min: 1}, func: dir_exists}
-    shell: {type: bool, nullable: false}
+    cmd:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: Executable or shell command to run.
+      example: "DCS_server.exe"
+    args:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Arguments passed to the command; supports placeholders.
+      example: "-w {instance.name}"
+    cwd:
+      type: str
+      nullable: false
+      range: {min: 1}
+      func: dir_exists
+      desc: Working directory the command is run in.
+      example: 'C:\Program Files\Eagle Dynamics\DCS World Server\bin'
+    shell:
+      type: bool
+      nullable: false
+      desc: Run the command through the shell; needed for bat or cmd.
+      example: "true"
 
 schema;cmd_event_schema:
   type: map
   allowempty: true
   nullable: false
   mapping:
-    sync: {type: bool, nullable: false}
+    sync:
+      type: bool
+      nullable: false
+      desc: Wait for the event result before continuing.
+      example: "false"
     # include: 'event_schema' # to check the events structure for DCS events
 
 schema;cmd_params_schema:
   type: map
   nullable: false
   mapping:
-    description: {type: str, nullable: false, range: {min: 1}}
-    type: {type: str, nullable: false, enum: ['str', 'int', 'bool', 'member', 'channel', 'role', 'mentionable', 'number', 'attachment']}
-    required: {type: bool, nullable: false}
-    default: {type: text, nullable: false}
-    nsfw: {type: bool, nullable: false}
-    min_value: {type: int, nullable: false}
-    max_value: {type: int, nullable: false}
+    description:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Help text shown for this parameter.
+      example: "Options for the dir command"
+    type:
+      type: str
+      nullable: false
+      enum: ['str', 'int', 'bool', 'member', 'channel', 'role', 'mentionable', 'number', 'attachment']
+      desc: Parameter type offered in Discord.
+      example: "str"
+    required:
+      type: bool
+      nullable: false
+      desc: Whether the parameter must be provided.
+      example: "true"
+    default:
+      type: text
+      nullable: false
+      desc: Value used when the parameter is omitted.
+      example: 'C:\Program Files\Eagle Dynamics\DCS World'
+    nsfw:
+      type: bool
+      nullable: false
+      desc: Only allow this parameter in NSFW channels.
+      example: "false"
+    min_value:
+      type: int
+      nullable: false
+      desc: Minimum allowed value of the parameter.
+      example: "0"
+    max_value:
+      type: int
+      nullable: false
+      desc: Maximum allowed value of the parameter.
+      example: "10"
     choices:
       type: seq
       nullable: false
+      desc: Fixed set of values the user can pick from.
+      example: |
+        - A
+        - B
+        - C
       sequence:
         - {type: text, nullable: false, unique: true}
 
@@ -37,29 +97,70 @@ mapping:
   commands:
     type: map
     nullable: false
+    desc: Your custom Discord commands, keyed by command name.
+    example: |
+      startup:
+        roles:
+          - DCS Admin
+        execute:
+          cmd: DCS_server.exe
+          args: -w {instance.name}
     mapping:
       regex;(.+):   # Any string as a command name
         type: map
         nullable: false
         mapping:
-          description: {type: str, nullable: false, range: {min: 1}}
-          ephemeral: {type: bool, nullable: false}
+          description:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Description shown in the command help.
+            example: "shows a directory listing"
+          ephemeral:
+            type: bool
+            nullable: false
+            desc: Only show the command output to the caller.
+            example: "true"
           roles:
             type: seq
             nullable: false
+            desc: Roles allowed to run this command.
+            example: |
+              - Admin
+              - DCS Admin
             sequence:
               - type: text
                 nullable: false
-          server: {type: any, nullable: false, func: str_or_list} # can be str or list[str]
-          server_only: {type: bool, nullable: false}
+          server:
+            type: any
+            nullable: false
+            func: str_or_list
+            desc: Server(s) this command is restricted to.
+            example: "DCS.dcs_serverrelease"
+          server_only:
+            type: bool
+            nullable: false
+            desc: Only allow the command while a server is selected.
+            example: "false"
           execute:
             include: 'cmd_execute_schema'
           event:
             include: 'cmd_event_schema'
-          report: {type: str, nullable: false, range: {min: 1}}
+          report:
+            type: str
+            nullable: false
+            range: {min: 1}
+            desc: Report template rendered after the command runs.
+            example: "highscore"
           sequence:
             type: map
             nullable: false
+            desc: Several execute or event steps run in order.
+            example: |
+              - execute:
+                  cmd: DCS_server.exe
+              - event:
+                  command: setFlag
             mapping:
               execute:
                 include: 'cmd_execute_schema'
@@ -67,6 +168,10 @@ mapping:
                 include: 'cmd_event_schema'
           params:
             type: map
+            desc: Parameters this command accepts, keyed by name.
+            example: |
+              instance:
+                required: true
             mapping:
               regex;(.+):   # Any string as a parameter name
                 include: 'cmd_params_schema'

@@ -1,0 +1,24 @@
+{#-
+  THE SETTINGS AREA'S FILE LIST — one entry per GLOBAL configuration file.
+
+  The entries are DATA (`files`), read from DISK at render time by `pages.settings.discover_files`
+  — `main.yaml` plus every `config/services/*.yaml` and every preset file — so a new service or
+  preset file appears here with no code change. Each entry is a real link to that file's generated
+  page (`main.yaml` keeps `/settings`); the entry for the file being shown carries `.on`.
+
+  A file's own NAME is operator data, printed verbatim (never looked up as a msgid); the kind word
+  ("Main" / "Service" / "Preset") is chrome and is wrapped with `_(…)`.
+-#}
+{% if files %}
+<nav class="cfg-files" aria-label="{% trans %}Configuration files{% endtrans %}">
+  <div class="cfg-tabs">
+    {% for entry in files %}
+    <a class="cfg-tab {{ 'on' if entry.active }}" href="{{ entry.url }}"
+       {% if entry.active %}aria-current="page"{% endif %}>
+      <span class="cfg-kind">{{ _(entry.kind_label) }}</span>
+      <span class="mono">{{ entry.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</nav>
+{% endif %}

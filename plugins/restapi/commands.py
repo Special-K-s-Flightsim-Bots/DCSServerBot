@@ -1,5 +1,6 @@
-import aiofiles
 import asyncio
+import ipaddress
+import jwt
 import os
 import psycopg
 import random
@@ -7,11 +8,15 @@ import re
 
 from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
                   PluginInstallationError, Server, async_cache, const)
+from core.actions import ActionContext, call_action
 from datetime import datetime, timedelta, timezone
 from discord.ext import tasks
-from fastapi import FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response
-from fastapi.security import APIKeyHeader
-from typing import Any, Literal, cast, TYPE_CHECKING
+from fastapi import (FastAPI, APIRouter, Form, Query, HTTPException, Depends, File, UploadFile, Response,
+                     BackgroundTasks)
+from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
+from pathlib import Path
+from starlette.requests import Request
+from typing import Any, Literal, cast, TYPE_CHECKING, Callable
 
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
@@ -20,6 +25,8 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
+
+from core.utils.yaml_helper import new_yaml
 
 if TYPE_CHECKING:
     from plugins.srs.commands import SRS
@@ -62,16 +69,19 @@ from .models import (
     ServerStartResponse,
     ServerStopResponse,
     ServerRestartResponse,
+    ServerShutdownResponse,
+    NodeRestartResponse,
     MissionUploadResponse,
     GroupWaypointsResponse,
+    MissionGroupResponse,
+    MissionGroupsResponse,
     MissionBullseyesResponse,
     MissionDrawingsResponse,
     MissionUnitResponse,
-    EventEntry
+    EventEntry, RefuelingEntry
 )
 
 app: FastAPI | None = None
-
 
 # Bit field constants
 BIT_USER_LINKED = 1
@@ -104,6 +114,20 @@ class RestAPI(Plugin):
                     self.app.routes.remove(route)
         await super().cog_unload()
 
+    async def migrate(self, new_version: str, conn: psycopg.AsyncConnection | None = None) -> None:
+        if new_version == '1.5':
+            config = os.path.join(self.node.config_dir, 'plugins', f'{self.plugin_name}.yaml')
+            if not os.path.exists(config):
+                return
+            data = new_yaml().load(Path(config).read_text(encoding='utf-8'))
+            api_key = data.get(DEFAULT_TAG, {}).pop('api_key', None)
+            if api_key:
+                data[DEFAULT_TAG]['auth'] = {
+                    "api_key": api_key
+                }
+                with Path(config).open(mode='w', encoding='utf-8') as outfile:
+                    new_yaml().dump(data, outfile)
+
     async def init_webservice(self):
         # give the webservice 10 seconds to launch on master switches
         for i in range(0, 10):
@@ -118,6 +142,8 @@ class RestAPI(Plugin):
             return
         self.log.debug(f"   - {self.__cog_name__}: WebService is running")
         self.app = self.web_service.app
+        # also, wait for the bot before exposing API endpoints
+        await self.bot.wait_until_ready()
         if self.app:
             self.register_routes()
         else:
@@ -128,33 +154,199 @@ class RestAPI(Plugin):
         prefix = self.locals.get(DEFAULT_TAG, {}).get('prefix', '')
         if prefix and not prefix.startswith('/'):
             prefix = '/' + prefix
-        api_key = self.locals.get(DEFAULT_TAG, {}).get('api_key')
 
-        if api_key:
-            api_key_header = APIKeyHeader(name="X-API-Key")
+        default_config = self.locals.get(DEFAULT_TAG, {})
+        auth_config = default_config.get('auth', {})
+        api_key = auth_config.get("api_key")
+        jwt_info = auth_config.get("jwt")
+        if jwt_info:
+            jwt_client = jwt.PyJWKClient(jwt_info['jwks_url'])
+        security_config = default_config.get('security', {})
+        default_security = security_config.get('default', {
+            "local": "none",
+            "trusted": "api_key",
+            "remote": "jwt"
+        })
+        trusted_networks = [
+            ipaddress.ip_network(network)
+            for network in security_config.get('trusted', [
+                "10.0.0.0/8",
+                "172.16.0.0/12",
+                "192.168.0.0/16",
+                "fc00::/7"
+            ])
+        ]
 
-            def get_api_key(api_key_in_header: str = Depends(api_key_header)):
-                if api_key_in_header != str(api_key):
-                    raise HTTPException(status_code=403, detail="Invalid API Key")
+        api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+        bearer_scheme = HTTPBearer(auto_error=False)
 
-            dependencies = [Depends(get_api_key)]
-        else:
-            dependencies = None
+        auth_rank = {
+            "none": 0,
+            "api_key": 1,
+            "jwt": 2,
+            "disabled": 3
+        }
 
-        self.router = APIRouter(prefix=prefix, dependencies=dependencies)
+        def get_request_ip(request: Request) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+            if not request.client:
+                return None
+
+            try:
+                return ipaddress.ip_address(request.client.host)
+            except ValueError:
+                return None
+
+        def get_request_scope(request: Request) -> str:
+            client_ip = get_request_ip(request)
+            if not client_ip:
+                return "remote"
+
+            if client_ip.is_loopback:
+                return "local"
+
+            if any(client_ip in network for network in trusted_networks):
+                return "trusted"
+
+            return "remote"
+
+        async def verify_token(token: str, key: str) -> dict[str, Any] | None:
+            try:
+                header = jwt.get_unverified_header(token)
+                kid = header.get("kid")
+
+                if not kid:
+                    return None
+
+                signing_key = await asyncio.to_thread(jwt_client.get_signing_key, kid)
+
+                if not signing_key:
+                    self.log.error("RestAPI: No signing key provided!")
+                    return None
+
+                data = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[signing_key.algorithm_name],
+                    audience='dcssb',
+                    leeway=10
+                )
+
+                if data.get('key') != key:
+                    self.log.error("RestAPI: Signing key does not match!")
+                    return None
+
+                return data
+
+            except Exception as ex:
+                self.log.exception(ex)
+                return None
+
+        async def get_authenticated_scheme(
+                request: Request,
+                credentials: HTTPAuthorizationCredentials | None,
+                provided_api_key: str | None,
+        ) -> str | None:
+            if jwt_info and credentials and credentials.scheme == "Bearer":
+                payload = await verify_token(credentials.credentials, jwt_info['key'])
+
+                if payload:
+                    request.state.auth_scheme = "jwt"
+                    request.state.jwt_token = credentials.credentials
+                    request.state.jwt_payload = payload
+                    return "jwt"
+
+            if api_key and provided_api_key == str(api_key):
+                request.state.auth_scheme = "api_key"
+                return "api_key"
+
+            return None
+
+        def get_required_auth_level(endpoint: str, scope: str) -> str:
+            endpoint_security = self.get_endpoint_config(endpoint).get('security', {})
+            required_level = endpoint_security.get(scope, default_security.get(scope, "jwt"))
+
+            if required_level not in auth_rank:
+                self.log.warning(
+                    f"Invalid REST API auth level '{required_level}' for endpoint '{endpoint}' and scope '{scope}'. "
+                    f"Falling back to 'jwt'."
+                )
+                return "jwt"
+
+            return required_level
+
+        def auth_dependency(endpoint: str):
+            async def auth(
+                    request: Request,
+                    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+                    provided_api_key: str | None = Depends(api_key_header),
+            ):
+                scope = get_request_scope(request)
+                required_level = get_required_auth_level(endpoint, scope)
+
+                if required_level == 'disabled':
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Not found."
+                    )
+
+                request.state.auth_scope = scope
+                request.state.required_auth_level = required_level
+
+                if required_level == "none":
+                    request.state.auth_scheme = "none"
+                    return
+
+                provided_scheme = await get_authenticated_scheme(request, credentials, provided_api_key)
+
+                if provided_scheme and auth_rank[provided_scheme] >= auth_rank[required_level]:
+                    return
+
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Invalid authentication"
+                )
+
+            return auth
+
+        self.router = APIRouter(prefix=prefix)
         if not self.router:
             return
 
+        def add_secured_api_route(
+                path: str,
+                endpoint: Callable[..., Any],
+                *,
+                methods: list[str],
+                response_model: Any = None,
+                description: str = "",
+                summary: str = "",
+                tags: list[str] | None = None
+        ):
+            endpoint_config_key = path.lstrip("/")
+            # only register enabled endpoints
+            if self.get_config().get('endpoints', {}).get(endpoint_config_key, {}).get('enabled', True):
+                self.router.add_api_route(
+                    path,
+                    endpoint,
+                    methods=methods,
+                    response_model=response_model,
+                    description=description,
+                    summary=summary,
+                    tags=tags,
+                    dependencies=[Depends(auth_dependency(endpoint_config_key))]
+                )
+
         ## Airbase Routes
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbases", self.airbases,
             methods=["GET"],
-            response_model = AirbasesResponse,
+            response_model=AirbasesResponse,
             description="Get a listing of all airbases on a given server.",
             summary="Airbases Listing",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+
+        add_secured_api_route(
             "/airbase", self.airbase_info,
             methods=["GET"],
             response_model = AirbaseInfoResponse,
@@ -162,7 +354,7 @@ class RestAPI(Plugin):
             summary="Airbase Information",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/atis", self.airbase_atis,
             methods=["GET"],
             response_model=AirbaseAtisResponse,
@@ -170,7 +362,7 @@ class RestAPI(Plugin):
             summary="Airbase ATIS",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/warehouse", self.airbase_warehouse,
             methods=["GET"],
             response_model = AirbaseWarehouseResponse,
@@ -178,7 +370,7 @@ class RestAPI(Plugin):
             summary="Airbase Warehouse",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/warehouse/item", self.set_warehouse_item,
             methods=["POST"],
             response_model=AirbaseSetWarehouseItemResponse,
@@ -186,7 +378,7 @@ class RestAPI(Plugin):
             summary="Set Quantity of an Airbase Warehouse Item",
             tags=["Airbase"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/airbase/capture", self.capture_airbase,
             methods=["POST"],
             response_model = AirbaseCaptureResponse,
@@ -196,7 +388,7 @@ class RestAPI(Plugin):
         )
         
         ## Info Routes
-        self.router.add_api_route(
+        add_secured_api_route(
             "/serverstats", self.serverstats,
             methods = ["GET"],
             response_model = ServerStats,
@@ -204,7 +396,7 @@ class RestAPI(Plugin):
             summary = "Server Statistics",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/server_attendance", self.server_attendance,
             methods = ["GET"],
             response_model = ServerAttendanceStats,
@@ -212,7 +404,7 @@ class RestAPI(Plugin):
             summary = "Server Attendance Statistics", 
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/servers", self.servers,
             methods = ["GET"],
             response_model = list[ServerInfo],
@@ -220,7 +412,7 @@ class RestAPI(Plugin):
             summary = "Server list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/squadrons", self.squadrons,
             methods = ["GET"],
             response_model = list[SquadronInfo],
@@ -228,7 +420,7 @@ class RestAPI(Plugin):
             summary = "Squadron list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/squadron_members", self.squadron_members,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -236,7 +428,7 @@ class RestAPI(Plugin):
             summary = "Squadron Members",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/getuser", self.getuser,
             methods = ["POST"],
             response_model = list[UserEntry],
@@ -244,7 +436,7 @@ class RestAPI(Plugin):
             summary = "User list",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/linkme", self.linkme,
             methods=["POST"],
             response_model=LinkMeResponse,
@@ -252,7 +444,7 @@ class RestAPI(Plugin):
             summary="Link Discord to DCS",
             tags=["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/current_server", self.current_server,
             methods = ["GET"],
             response_model = str | None,
@@ -260,7 +452,7 @@ class RestAPI(Plugin):
             summary = "Current Server",
             tags = ["Info"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/player_squadrons", self.player_squadrons,
             methods = ["POST"],
             response_model = list[PlayerSquadron],
@@ -269,8 +461,8 @@ class RestAPI(Plugin):
             tags = ["Info"]
         )
 
-        ##Statistics Routes
-        self.router.add_api_route(
+        ## Statistics Routes
+        add_secured_api_route(
             "/leaderboard", self.leaderboard,
             methods = ["GET"],
             response_model = LeaderBoard,
@@ -278,7 +470,7 @@ class RestAPI(Plugin):
             summary = "Leaderboard",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/topkills", self.topkills,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -286,7 +478,7 @@ class RestAPI(Plugin):
             summary = "Top Kills",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/topkdr", self.topkdr,
             methods = ["GET"],
             response_model = list[TopKill],
@@ -294,7 +486,7 @@ class RestAPI(Plugin):
             summary = "Top KDR",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/trueskill", self.trueskill,
             methods = ["GET"],
             response_model = list[Trueskill],
@@ -302,7 +494,7 @@ class RestAPI(Plugin):
             summary = "TrueSkill:tm:",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/weaponpk", self.weaponpk,
             methods = ["POST"],
             response_model = list[WeaponPK],
@@ -310,7 +502,7 @@ class RestAPI(Plugin):
             summary = "Weapon PK",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/stats", self.stats,
             methods = ["POST"],
             response_model = PlayerStats,
@@ -318,7 +510,7 @@ class RestAPI(Plugin):
             summary = "Player Statistics",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/modulestats", self.modulestats,
             methods = ["POST"],
             response_model = list[ModuleStats],
@@ -326,7 +518,7 @@ class RestAPI(Plugin):
             summary = "Module Statistics",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/player_info", self.player_info,
             methods = ["POST"],
             response_model = PlayerInfo,
@@ -334,7 +526,7 @@ class RestAPI(Plugin):
             summary = "Player Information",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/highscore", self.highscore,
             methods = ["GET"],
             response_model = Highscore,
@@ -342,7 +534,7 @@ class RestAPI(Plugin):
             summary = "Highscore",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/traps", self.traps,
             methods = ["POST"],
             response_model = list[TrapEntry],
@@ -350,7 +542,7 @@ class RestAPI(Plugin):
             summary = "Carrier Traps",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/traps/img", self.traps_image,
             methods = ["GET"],
             response_model = bytes,
@@ -358,7 +550,7 @@ class RestAPI(Plugin):
             summary = "Carrier Trap Image",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/greenieboard", self.greenieboard,
             methods = ["POST"],
             response_model = GreenieboardResponse,
@@ -366,7 +558,7 @@ class RestAPI(Plugin):
             summary = "GreenieBoard",
             tags = ["Statistics"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/events", self.events,
             methods = ["GET"],
             response_model = list[EventEntry],
@@ -374,9 +566,17 @@ class RestAPI(Plugin):
             summary = "Mission Events",
             tags = ["Statistics"]
         )
+        add_secured_api_route(
+            "/refuelings", self.refuelings,
+            methods = ["GET"],
+            response_model = list[RefuelingEntry],
+            description = "Get refueling stats for players",
+            summary = "Refueling Stats",
+            tags = ["Statistics"]
+        )
 
-        # Credits routes
-        self.router.add_api_route(
+        ## Credits routes
+        add_secured_api_route(
             "/credits", self.credits,
             methods = ["POST"],
             response_model = CampaignCredits,
@@ -384,7 +584,7 @@ class RestAPI(Plugin):
             summary = "Campaign Credits",
             tags = ["Credits"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/squadron_credits", self.squadron_credits,
             methods = ["POST"],
             response_model = SquadronCampaignCredit,
@@ -393,8 +593,8 @@ class RestAPI(Plugin):
             tags = ["Credits"]
         )
 
-        # Helper routes
-        self.router.add_api_route(
+        ## Helper routes
+        add_secured_api_route(
             "/convertCoordinates", self.convertCoordinates,
             methods = ["GET"],
             response_model = ConvertCoordinates,
@@ -402,7 +602,7 @@ class RestAPI(Plugin):
             summary = "Converts the provided coordinate into multiple formats.",
             tags = ["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/group/waypoints", self.group_waypoints,
             methods=["GET"],
             response_model=GroupWaypointsResponse,
@@ -410,7 +610,23 @@ class RestAPI(Plugin):
             summary="Group Waypoints",
             tags=["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
+            "/mission/group", self.mission_group,
+            methods=["GET"],
+            response_model=MissionGroupResponse,
+            description="Get details for a single group in the current mission.",
+            summary="Mission Group",
+            tags=["Utilities"]
+        )
+        add_secured_api_route(
+            "/mission/groups", self.mission_groups,
+            methods=["GET"],
+            response_model=MissionGroupsResponse,
+            description="Get all groups in the currently running mission for a coalition.",
+            summary="Mission Groups",
+            tags=["Utilities"]
+        )
+        add_secured_api_route(
             "/mission/bullseyes", self.mission_bullseyes,
             methods=["GET"],
             response_model=MissionBullseyesResponse,
@@ -418,7 +634,7 @@ class RestAPI(Plugin):
             summary="Mission Bullseyes",
             tags=["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/drawings", self.mission_drawings,
             methods=["GET"],
             response_model=MissionDrawingsResponse,
@@ -426,7 +642,7 @@ class RestAPI(Plugin):
             summary="Mission Drawings",
             tags=["Utilities"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/unit", self.mission_unit,
             methods=["GET"],
             response_model=MissionUnitResponse,
@@ -435,8 +651,8 @@ class RestAPI(Plugin):
             tags=["Utilities"]
         )
 
-        # Instance routes
-        self.router.add_api_route(
+        ## Instance routes
+        add_secured_api_route(
             "/instance/start", self.instance_start,
             methods = ["POST"],
             response_model = ServerStartResponse,
@@ -444,7 +660,7 @@ class RestAPI(Plugin):
             summary = "Start a server instance.",
             tags = ["Instance Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/stop", self.instance_stop,
             methods = ["POST"],
             response_model = ServerStopResponse,
@@ -452,7 +668,7 @@ class RestAPI(Plugin):
             summary = "Stop a server instance.",
             tags = ["Instance Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/restart", self.instance_restart,
             methods = ["POST"],
             response_model = ServerRestartResponse,
@@ -460,9 +676,27 @@ class RestAPI(Plugin):
             summary = "Restart a server instance.",
             tags = ["Instance Control"]
         )
+        add_secured_api_route(
+            "/instance/shutdown", self.instance_shutdown,
+            methods = ["POST"],
+            response_model = ServerShutdownResponse,
+            description = "Shut a server down (terminates the DCS process).",
+            summary = "Shut down a server instance.",
+            tags = ["Instance Control"]
+        )
 
-        # Mission routes
-        self.router.add_api_route(
+        # Node routes
+        add_secured_api_route(
+            "/node/restart", self.node_restart,
+            methods = ["POST"],
+            response_model = NodeRestartResponse,
+            description = "Restart a node, or all nodes. The bot reloads its configuration.",
+            summary = "Restart a node.",
+            tags = ["Node Control"]
+        )
+
+        ## Mission routes
+        add_secured_api_route(
             "/instance/missions", self.instance_missions,
             methods = ["GET"],
             response_model = MissionsResponse,
@@ -470,7 +704,7 @@ class RestAPI(Plugin):
             summary = "Mission listing for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/pause", self.instance_mission_pause,
             methods = ["POST"],
             response_model = MissionPauseResponse,
@@ -478,7 +712,7 @@ class RestAPI(Plugin):
             summary = "Pause mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/unpause", self.instance_mission_unpause,
             methods = ["POST"],
             response_model = MissionUnpauseResponse,
@@ -486,7 +720,7 @@ class RestAPI(Plugin):
             summary = "Unpause mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/restart", self.instance_mission_restart,
             methods = ["POST"],
             response_model = MissionRestartResponse,
@@ -494,7 +728,7 @@ class RestAPI(Plugin):
             summary = "Restart mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/instance/mission/load", self.instance_mission_load,
             methods = ["POST"],
             response_model = MissionLoadResponse,
@@ -502,7 +736,7 @@ class RestAPI(Plugin):
             summary = "Load mission for a server instance.",
             tags = ["Mission Control"]
         )
-        self.router.add_api_route(
+        add_secured_api_route(
             "/mission/upload", self.mission_upload,
             methods=["POST"],
             response_model=MissionUploadResponse,
@@ -592,7 +826,120 @@ class RestAPI(Plugin):
         except Exception as ex:
             self.log.exception(ex)
             raise HTTPException(status_code=500, detail=f"Failed to restart server: {str(ex)}")
-    
+
+    # Shut down a server (DCS process) based on the provided name.
+    # Endpoint:   /instance/shutdown
+    # Method:     [POST]
+    # Params:     - server_name   [required]
+    #             - force         [optional, default: False]
+    #             - maintenance   [optional, default: True]
+    #             - when_empty    [optional, default: False]
+    async def instance_shutdown(
+        self,
+        server_name: str = Query(...),
+        force: bool = Query(False, description="Kill the DCS process instead of a graceful shutdown "
+                                             "(a shutdown deferred by when_empty is always graceful)"),
+        maintenance: bool = Query(True, description="Set the maintenance flag, so the Scheduler does not start the "
+                                                    "server again"),
+        when_empty: bool = Query(False, description="If players are connected, shut down once the server is empty")
+    ):
+        """Shut a server down, like /server shutdown."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status == Status.SHUTDOWN:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is already shut down.")
+
+        # /server shutdown asks to force a shutdown in these states, we cannot
+        if server.status in [Status.UNREGISTERED, Status.LOADING, Status.SHUTTING_DOWN] and not force:
+            raise HTTPException(status_code=409,
+                                detail=f"Server '{resolved_server_name}' is in {server.status.name} state, "
+                                       f"use force to shut it down.")
+
+        # force never cuts a session either: the deferred shutdown is a graceful one
+        if when_empty and server.is_populated():
+            # /server shutdown asks before replacing a pending action, we cannot
+            if server.restart_pending or server.on_empty:
+                raise HTTPException(status_code=409,
+                                    detail=f"An action is already pending on server '{resolved_server_name}'.")
+            # same as "later" in /server shutdown, run by the Scheduler on onServerEmpty
+            server.on_empty = {
+                "method": "shutdown",
+                "maintenance": maintenance
+            }
+            server.restart_pending = True
+            return {
+                "status": "pending",
+                "message": f"Server '{resolved_server_name}' will shut down when it is empty."
+            }
+
+        if maintenance:
+            server.maintenance = True
+        if server.on_empty:
+            server.on_empty.clear()
+
+        try:
+            if force:
+                await server.shutdown(force=True)
+            else:
+                # same as the Scheduler's teardown_dcs
+                await self.bus.send_to_node({"command": "onShutdown", "server_name": server.name})
+                await asyncio.sleep(1)
+                await server.shutdown()
+            if not maintenance and server.maintenance:
+                server.maintenance = False
+            await self.bot.audit("shut down DCS server through the RestAPI", server=server)
+            return {
+                "status": "success",
+                "message": f"Server '{resolved_server_name}' shut down."
+            }
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while shutting down server.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to shut down server: {str(ex)}")
+
+    # Restart a node, or all nodes, like /node restart.
+    # Endpoint:   /node/restart
+    # Method:     [POST]
+    # Params:     - node_name     [optional, default: all nodes]
+    async def node_restart(
+        self,
+        background_tasks: BackgroundTasks,
+        node_name: str | None = Query(None, description="Node to restart (default: all nodes)")
+    ):
+        """Restart a node, or all nodes, like /node restart. The response is sent before the restart."""
+        if node_name and node_name not in self.node.all_nodes:
+            raise HTTPException(status_code=404, detail=f"Node '{node_name}' not found.")
+
+        try:
+            restarted = []
+            for n in await self.node.get_active_nodes():
+                if not node_name or n == node_name:
+                    await self.bus.send_to_node({
+                        "command": "rpc",
+                        "object": "Node",
+                        "method": "restart"
+                    }, node=n)
+                    restarted.append(n)
+            if not node_name or node_name == self.node.name:
+                # the RestAPI runs in this process: answer first, restart afterward
+                background_tasks.add_task(self.node.restart)
+                restarted.append(self.node.name)
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to restart node: {str(ex)}")
+
+        if not restarted:
+            raise HTTPException(status_code=409, detail=f"Node '{node_name}' is not active.")
+        await self.bot.audit(f"restarted node(s) {', '.join(restarted)} through the RestAPI")
+        return {
+            "status": "success",
+            "message": f"Node(s) {', '.join(restarted)} restarting.",
+            "nodes": restarted
+        }
+
 
     # Return a listing of available missions
     # Endpoint:   /instance/missions
@@ -782,38 +1129,41 @@ class RestAPI(Plugin):
         filename: str = Form(..., description="Filename for the mission file (required)"),
         load_after: bool = Form(..., description="Load mission after upload (default: False)")
     ) -> MissionUploadResponse:
-        """Upload a .miz mission file to the specified server. Optionally rename and load after upload."""
+        """Upload a .miz mission file to the specified server. Optionally load after upload.
+
+        The WRITE goes through the ``upload_mission`` ACTION — the ONE implementation the console
+        will share — so this endpoint stops having its own: the posted name is validated IN the
+        action (a traversal or a non-``.miz`` name is refused before anything is written) and every
+        byte goes through the bot's own ``Server.uploadMission``. ``force=True`` preserves this
+        endpoint's long-standing behaviour of replacing an existing mission.
+        """
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
         if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
             raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
-        # Determine filename: use provided filename or fallback to upload filename
-        use_filename = filename
-        if not use_filename or not use_filename.lower().endswith('.miz'):
-            raise HTTPException(status_code=400, detail="Only .miz files are allowed.")
-        try:
+        use_filename = filename or (file.filename or "")
+        contents = await file.read()
+        result = await call_action("upload_mission", ActionContext.from_plugin(self),
+                                   server_name=resolved_server_name, name=use_filename,
+                                   source=contents, force=True)
+        if not result.success:
+            # The action's typed refusal (a traversal / non-.miz name, a write error, a mission in
+            # use) is the client's answer — never a 500 for a bad request.
+            raise HTTPException(status_code=400, detail=result.message)
+        msg = result.message
+        if load_after:
             base_dir = await server.get_missions_dir()
-            dest_path = os.path.join(base_dir, use_filename)
-            # Save the uploaded file
-            contents = await file.read()
-            async with aiofiles.open(dest_path, 'wb') as f:
-                await f.write(contents)
-            
-            # Add mission to the list
-            await server.addMission(dest_path)
-            
-            msg = f"Mission '{use_filename}' uploaded to server '{resolved_server_name}'."
-            if load_after:
-                await server.loadMission(dest_path, modify_mission=False)
-                msg += f" Mission loaded."
-            return MissionUploadResponse.model_validate({
-                "status": "success",
-                "message": msg
-            })
-        except Exception as ex:
-            self.log.exception(ex)
-            raise HTTPException(status_code=500, detail=f"Failed to upload mission: {str(ex)}")
+            # Load what was ACTUALLY written: the action's validated ``filename`` (it always sets one
+            # on success), never the raw form leaf — if sanitisation altered the name, the raw leaf
+            # would name a file that is not there and ``loadMission`` would target nothing.
+            written = getattr(result, "filename", "") or use_filename
+            await server.loadMission(os.path.join(base_dir, written), modify_mission=False)
+            msg += " Mission loaded."
+        return MissionUploadResponse.model_validate({
+            "status": "success",
+            "message": msg
+        })
 
     ## convertCoordinates Function
     ## ----------------------------------------------
@@ -1007,6 +1357,96 @@ class RestAPI(Plugin):
             waypoints=sorted_waypoints
         )
 
+    # Get details for a single group in the current mission.
+    # Endpoint:   /mission/group
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - coalition     [required]  blue | red | neutral
+    #             - group_name    [required]
+    #             - group_type    [optional]  plane | helicopter | vehicle | ship | static
+    async def mission_group(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        coalition: str = Query(..., description="Coalition ('blue', 'red', 'neutral')"),
+        group_name: str = Query(..., description="Name of the group to retrieve details for"),
+        group_type: str | None = Query(default=None, description="Optional category of the group ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    ) -> MissionGroupResponse:
+        """Return details for a single group in the current mission."""
+        if group_type and group_type.lower() not in ["plane", "helicopter", "vehicle", "ship", "static"]:
+            raise HTTPException(status_code=400, detail=f"Invalid group_type '{group_type}'. Must be 'plane', 'helicopter', 'vehicle', 'ship', or 'static'.")
+
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        payload = {
+            "command": "getMissionGroup",
+            "group_name": group_name,
+            "coalition": coalition
+        }
+        if group_type:
+            payload["group_type"] = group_type
+
+        try:
+            result = await server.send_to_dcs_sync(payload, timeout=60)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission group: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        group_data = result.get("group", {})
+        return MissionGroupResponse.model_validate(group_data)
+
+    # Get all groups in the currently running mission for a coalition.
+    # Endpoint:   /mission/groups
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - coalition     [required]  blue | red | neutral
+    #             - group_type    [optional]  plane | helicopter | vehicle | ship | static
+    async def mission_groups(
+        self,
+        server_name: str = Query(..., description="Name of the server"),
+        coalition: str = Query(..., description="Coalition ('blue', 'red', 'neutral')"),
+        group_type: str | None = Query(default=None, description="Optional category to filter groups by ('plane', 'helicopter', 'vehicle', 'ship', 'static')")
+    ) -> MissionGroupsResponse:
+        """Return all groups in the currently running mission for a coalition."""
+        if group_type and group_type.lower() not in ["plane", "helicopter", "vehicle", "ship", "static"]:
+            raise HTTPException(status_code=400, detail=f"Invalid group_type '{group_type}'. Must be 'plane', 'helicopter', 'vehicle', 'ship', or 'static'.")
+
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+
+        if server.status not in [Status.RUNNING, Status.PAUSED]:
+            raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is not running or paused.")
+
+        payload = {
+            "command": "getMissionGroups",
+            "coalition": coalition
+        }
+        if group_type:
+            payload["group_type"] = group_type
+
+        try:
+            result = await server.send_to_dcs_sync(payload, timeout=60)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout waiting for DCS response.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve mission groups: {str(ex)}")
+
+        if result.get("error"):
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return MissionGroupsResponse.model_validate(result)
+
     # Get bullseye coordinates for blue and red coalitions in the current mission.
     # Endpoint:   /mission/bullseyes
     # Method:     [GET]
@@ -1048,7 +1488,7 @@ class RestAPI(Plugin):
     async def mission_drawings(
         self,
         server_name: str = Query(..., description="Name of the server")
-    ) -> dict[str, Any]:
+    ) -> MissionDrawingsResponse:
         """Return mission drawings grouped by layer name."""
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
@@ -1093,9 +1533,9 @@ class RestAPI(Plugin):
                 elif _is_lua_null_placeholder(layer_data):
                     normalized_drawings[layer_name] = []
 
-        return {
-            "drawings": normalized_drawings
-        }
+        return MissionDrawingsResponse(
+            drawings=normalized_drawings
+        )
 
     # Get current and mission-related data for a named unit.
     # Endpoint:   /mission/unit
@@ -1201,6 +1641,10 @@ class RestAPI(Plugin):
             "z": airbase_data['position']['z']
         }, timeout=60)
 
+        runway_list = airbase_data.get('runwayList') or []
+        wind_data = atisData.get('wind', {})
+        wind_dir = (wind_data.get('dir', 0) + 180) % 360
+
         # Return only the ATIS info
         ret = {
             "temp": atisData['temp'],
@@ -1208,10 +1652,10 @@ class RestAPI(Plugin):
             "qnh": atisData['qnh'],
             "turbulence": int(atisData.get('turbulence', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
             "wind": {
-                "speed": int(atisData.get('wind', {}).get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
-                "dir": atisData.get('wind', {}).get('dir', 0) + 180 % 360,
+                "speed": int(wind_data.get('speed', 0) * const.METER_PER_SECOND_IN_KNOTS + 0.5),
+                "dir": wind_dir,
             },
-            "active_runways": utils.get_active_runways(airbase_data['runwayList'], atisData['wind'])
+            "active_runways": utils.get_active_runways(runway_list, wind_data) if runway_list else ['n/a']
         }
         if atisData.get('clouds', {}).get('preset'):
             ret['preset'] = atisData['clouds']['preset']
@@ -1272,12 +1716,22 @@ class RestAPI(Plugin):
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
-        
+
+        if not server.current_mission:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not running.")
+
+        airbase = next((x for x in server.current_mission.airbases if x['name'] == airbase_name), None)
+        if not airbase:
+            raise HTTPException(status_code=404, detail=f"Airbase '{airbase_name}' not found.")
+
         await server.send_to_dcs_sync({
             "command": "captureAirbase",
             "name": airbase_name,
             "coalition": coalition
         }, timeout=60)
+
+        # change the coalition
+        airbase['coalition'] = coalition
 
         return AirbaseCaptureResponse(
             server_name=server_name,
@@ -1604,7 +2058,7 @@ class RestAPI(Plugin):
             
             # Extract wind data (use ground level wind by default)
             wind_data = weather_data.get('wind', {}).get('atGround', {})
-            wind_dir = (wind_data.get('dir', 0) + 180) % 360
+            wind_dir = (int(wind_data.get('dir', 0)) + 180) % 360
 
             # Extract clouds data (it's directly in weather_data, not separate)
             clouds_data = weather_data.get('clouds', {})
@@ -1706,6 +2160,12 @@ class RestAPI(Plugin):
             # add extensions
             if server.status in [Status.RUNNING, Status.PAUSED]:
                 data['extensions'] = await server.render_extensions()
+#                data['extensions'] = []
+#                for extension in await server.render_extensions():
+#                    ports = await server.run_on_extension(extension['_class'], 'get_ports')
+#                    data['extensions'].append(extension | {
+#                        "ports": {k: v.to_dict() for k,v in ports.items()}
+#                    })
             else:
                 data['extensions'] = []
 
@@ -2230,7 +2690,8 @@ class RestAPI(Plugin):
                         join = ""
                         where = "WHERE t.player_ucid = %(ucid)s"
                     await cursor.execute(f"""
-                        SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, t.time
+                        SELECT t.id, t.unit_type, t.grade, t.comment, t.place, t.trapcase, t.wire, t.night, t.points, 
+                               t.time, t.trapdata, t.tgroove, t.landingdist, t.wind
                         FROM traps t
                         {join}
                         {where}
@@ -2347,6 +2808,40 @@ class RestAPI(Plugin):
                 """, {"ucid": ucid, "start_time": start_time, "end_time": end_time})
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
 
+    async def refuelings(self,
+                         ucid: str = Query(...),
+                         module: str | None = Query(default=None),
+                         tanker: str | None = Query(default=None),
+                         start_time: datetime | None = Query(default=None),
+                         end_time: datetime | None = Query(default=None)):
+        where = ""
+        if start_time:
+            where += " AND time >= %(start_time)"
+        if end_time:
+            where += " AND time <= %(end_time)"
+        if module:
+            where += " AND init_type = %(module)"
+        if tanker:
+            where += " AND tanker = %(tanker)"
+        async with self.apool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cursor:
+                await cursor.execute(f"""
+                    SELECT init_type AS module, 
+                         tanker,
+                         COUNT(*) AS refuelings, 
+                         ROUND(SUM(fuel_taken), 2) AS fuel_taken, 
+                         ROUND(AVG(fuel_taken), 2) avg_fuel, 
+                         ROUND(AVG(transfer_time), 2) avg_time,
+                         SUM(CASE WHEN COALESCE(transfer_complete, TRUE) IS TRUE THEN 1 ELSE 0 END) completed_transfers
+                    FROM refuelingstats 
+                    WHERE init_id = %(ucid)s
+                    {where}
+                    GROUP BY 1, 2
+                    ORDER BY 3 DESC
+                """, {"ucid": ucid, "module": module, "tanker": tanker, "start_time": start_time, "end_time": end_time})
+                return [RefuelingEntry.model_validate(result) for result in await cursor.fetchall()]
+
+
     async def squadron_members(self, name: str = Form(...)):
         self.log.debug(f'Calling /squadron_members with name="{name}"')
         async with self.apool.connection() as conn:
@@ -2391,8 +2886,8 @@ class RestAPI(Plugin):
                     detail=f"Squadron {name} does not have any credits"
                 )
             squadron = utils.get_squadron(node=self.node, name=name)
-            squadron_obj = DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
-                                                   campaign_id=row[0])
+            squadron_obj = await DataObjectFactory().new(Squadron, node=self.node, name=squadron['name'],
+                                                         campaign_id=row[0]).prep()
             return SquadronCampaignCredit.model_validate({"campaign": row[1], "credits": squadron_obj.points})
 
     async def linkme(self,
