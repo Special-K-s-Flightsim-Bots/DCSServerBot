@@ -289,6 +289,8 @@ class MizFile:
         self.mission['weather']['enable_dust'] = value
         if value:
             self.mission['weather']['enable_fog'] = False
+            self.mission['weather'].pop('fog', None)
+            self.mission['weather'].pop('fog2', None)
 
     @property
     def dust_density(self) -> int:
