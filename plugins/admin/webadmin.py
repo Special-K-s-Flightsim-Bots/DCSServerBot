@@ -75,7 +75,7 @@ MAX_PASSWORD = MAX_PASSWORD_LENGTH
 #: the most components one Discord modal carries
 MODAL_LIMIT = 5
 
-#: the most options one Discord select carries
+#: the most choices one autocomplete answer carries
 SELECT_LIMIT = 25
 
 #: the role a local account needs to reach the console at all
@@ -1140,6 +1140,32 @@ def local_account_names(config_dir: str | os.PathLike) -> list[str]:
             if isinstance(user, Mapping) and str(user.get('username') or '').strip()]
 
 
+async def local_account_autocomplete(interaction: discord.Interaction,
+                                     current: str) -> list[app_commands.Choice[str]]:
+    """The local account names that contain *current*, at most :data:`SELECT_LIMIT` of them.
+
+    Only a caller holding the bot's Admin role is answered, and only on the master: the names live
+    in the master's configuration file, so anywhere else there is nothing to offer. Ordering the
+    matches before the cut-off is what keeps every account reachable — the answer narrows with what
+    the operator types.
+    """
+    try:
+        if not utils.holds_admin_role(interaction.user,
+                                      interaction.client.roles.get('Admin', [])):
+            return []
+        node = getattr(interaction.client, 'node', None)
+        if not getattr(node, 'master', False):
+            return []
+        names = await asyncio.to_thread(local_account_names, str(node.config_dir))
+        text = str(current or '').lower()
+        matches = sorted(name for name in names if text in name.lower())
+        return [app_commands.Choice[str](name=name, value=name)
+                for name in matches[:SELECT_LIMIT]]
+    except Exception as ex:  # noqa: BLE001 - the answer names the type, never a payload
+        log.warning("Local account autocomplete failed (%s).", type(ex).__name__)
+        return []
+
+
 def add_local_user(config_dir: str | os.PathLike, username: str, password: str,
                    roles: Iterable[str], *, known: Iterable[str]) -> configwrite.SaveResult:
     """Append one local account. Raises :class:`UserWriteRefused` for anything the file refuses."""
@@ -1449,63 +1475,6 @@ class SetPasswordModal(utils.ConfigModal):
                                         ephemeral=True)
 
 
-# ------------------------------------------------------------------------------------- the views
-
-class UserPicker(discord.ui.View):
-    """Pick one local account by name; *handler* receives ``(interaction, username)``."""
-
-    def __init__(self, names: Iterable[str], handler):
-        super().__init__(timeout=300)
-        self.handler = handler
-        options = [discord.SelectOption(label=name, value=name)
-                   for name in list(names)[:SELECT_LIMIT]]
-        select = Select(placeholder=_("Pick a local account"), options=options)
-        select.callback = self._picked
-        self.select = select
-        self.add_item(select)
-
-    async def _picked(self, interaction: discord.Interaction) -> None:
-        await self.handler(interaction, self.select.values[0])
-
-
-class ConfirmDeleteView(discord.ui.View):
-    """The confirmation before one account is removed. Removed means removed."""
-
-    def __init__(self, bot, node, username: str):
-        super().__init__(timeout=120)
-        self.bot = bot
-        self.node = node
-        self.username = username
-        confirm = Button(label=_("Delete it"), style=discord.ButtonStyle.danger)
-        confirm.callback = self._confirm
-        self.add_item(confirm)
-        cancel = Button(label=_("Cancel"), style=discord.ButtonStyle.secondary)
-        cancel.callback = self._cancel
-        self.add_item(cancel)
-
-    async def _confirm(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-        try:
-            result = await asyncio.to_thread(delete_local_user, str(self.node.config_dir),
-                                             self.username)
-        except UserWriteRefused as refusal:
-            await interaction.edit_original_response(content=str(refusal), embed=None, view=None)
-            return
-        except Exception as ex:  # noqa: BLE001 - the reply names the type, never the payload
-            log.warning("Removing a local account failed (%s).", type(ex).__name__)
-            await interaction.edit_original_response(content=_write_error_text(ex), embed=None,
-                                                     view=None)
-            return
-        await interaction.edit_original_response(
-            content=None, embed=account_embed(self.username, result, deleted=True),
-            view=RestartConsoleView(self.bot, self.node))
-
-    async def _cancel(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-        await interaction.edit_original_response(content=_("Nothing was deleted."), embed=None,
-                                                 view=None)
-
-
 def not_master_refusal(node, command: str) -> str:
     """The refusal a write on a node that is not the master gets — the same one ``setup`` gives."""
     name = master_name(node)
@@ -1550,53 +1519,61 @@ class UserAdmin(Group):
         await interaction.response.send_modal(AddUserModal(interaction.client, node, sorted(known)))
 
     @command(name="delete", description=_("Removes a local account from the admin website"))
+    @app_commands.autocomplete(username=local_account_autocomplete)
+    @app_commands.describe(username=_("Account to remove"))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
-    async def delete(self, interaction: discord.Interaction):
-        """Pick an account, confirm, remove exactly that entry. Ephemeral."""
+    async def delete(self, interaction: discord.Interaction, username: str):
+        """Remove the named account behind one yes/no question. Ephemeral."""
         node = getattr(interaction.client, 'node')
         if not getattr(node, 'master', False):
             await interaction.response.send_message(
                 not_master_refusal(node, '/webadmin user delete'), ephemeral=True)
             return
         names = await asyncio.to_thread(local_account_names, str(node.config_dir))
-        if not names:
-            await interaction.response.send_message(
-                _("The website configuration carries no local accounts."), ephemeral=True)
+        if username not in names:
+            await interaction.response.send_message(_missing_account_text(username),
+                                                    ephemeral=True)
             return
-        view = UserPicker(names, lambda i, name: self._delete_picked(i, name, node))
-        await interaction.response.send_message(
-            _("Pick the local account to remove. This cannot be undone."), view=view, ephemeral=True)
-
-    async def _delete_picked(self, interaction: discord.Interaction, username: str, node) -> None:
-        """Ask for confirmation before removing *username*."""
-        await interaction.response.edit_message(
-            content=_("Delete the local account '{}'? This cannot be undone.").format(username),
-            embed=None, view=ConfirmDeleteView(interaction.client, node, username))
+        answer = await utils.yn_question(
+            interaction,
+            _("Delete the local account '{}'? This cannot be undone.").format(username),
+            ephemeral=True)
+        if not answer:
+            await interaction.followup.send(_("Nothing was deleted."), ephemeral=True)
+            return
+        try:
+            result = await asyncio.to_thread(delete_local_user, str(node.config_dir), username)
+        except UserWriteRefused as refusal:
+            await interaction.followup.send(str(refusal), ephemeral=True)
+            return
+        except Exception as ex:  # noqa: BLE001 - the reply names the type, never the payload
+            log.warning("Removing a local account failed (%s).", type(ex).__name__)
+            await interaction.followup.send(_write_error_text(ex), ephemeral=True)
+            return
+        await interaction.followup.send(embed=account_embed(username, result, deleted=True),
+                                        view=RestartConsoleView(interaction.client, node),
+                                        ephemeral=True)
 
     @command(name="password", description=_("Sets a new password for a local account"))
+    @app_commands.autocomplete(username=local_account_autocomplete)
+    @app_commands.describe(username=_("Account whose password to change"))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
-    async def password(self, interaction: discord.Interaction):
-        """Pick an account, then open one form for its new password. Ephemeral."""
+    async def password(self, interaction: discord.Interaction, username: str):
+        """Open one form for the named account's new password. Ephemeral."""
         node = getattr(interaction.client, 'node')
         if not getattr(node, 'master', False):
             await interaction.response.send_message(
                 not_master_refusal(node, '/webadmin user password'), ephemeral=True)
             return
         names = await asyncio.to_thread(local_account_names, str(node.config_dir))
-        if not names:
-            await interaction.response.send_message(
-                _("The website configuration carries no local accounts."), ephemeral=True)
+        if username not in names:
+            await interaction.response.send_message(_missing_account_text(username),
+                                                    ephemeral=True)
             return
-        view = UserPicker(names, lambda i, name: self._password_picked(i, name, node))
-        await interaction.response.send_message(
-            _("Pick the local account whose password you want to change."), view=view, ephemeral=True)
-
-    async def _password_picked(self, interaction: discord.Interaction, username: str, node) -> None:
-        """Open the new-password form for *username*."""
         await interaction.response.send_modal(
             SetPasswordModal(interaction.client, node, username))
 

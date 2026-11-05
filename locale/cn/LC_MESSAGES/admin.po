@@ -844,6 +844,14 @@ msgid "Pick a local account"
 msgstr "选择本地账户"
 
 # /webadmin user
+msgid "Account to remove"
+msgstr "要删除的账户"
+
+# /webadmin user
+msgid "Account whose password to change"
+msgstr "要更改密码的账户"
+
+# /webadmin user
 msgid "Delete it"
 msgstr "删除"
 

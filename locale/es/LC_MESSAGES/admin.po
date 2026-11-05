@@ -825,6 +825,14 @@ msgid "Pick a local account"
 msgstr "Elegir una cuenta local"
 
 # /webadmin user
+msgid "Account to remove"
+msgstr "Cuenta a eliminar"
+
+# /webadmin user
+msgid "Account whose password to change"
+msgstr "Cuenta a la que cambiar la contraseña"
+
+# /webadmin user
 msgid "Delete it"
 msgstr "Eliminar"
 

@@ -840,6 +840,14 @@ msgid "Pick a local account"
 msgstr "Выберите локальную учётную запись"
 
 # /webadmin user
+msgid "Account to remove"
+msgstr "Удаляемая учётная запись"
+
+# /webadmin user
+msgid "Account whose password to change"
+msgstr "Учётная запись, пароль которой нужно изменить"
+
+# /webadmin user
 msgid "Delete it"
 msgstr "Удалить"
 
