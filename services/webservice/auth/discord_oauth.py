@@ -115,6 +115,12 @@ SECRETS IN LOGS: the authorization code, the access token and the client secret 
 and never rendered. Errors carry the HTTP status or the failure class, and the page a visitor sees
 is one generic sentence.
 
+PROXY: every Discord call goes through the NODE's proxy setting when one is configured
+(``Node.proxy`` / ``node.proxy_auth`` — the ``proxy:`` block of ``nodes.yaml``, or the bot
+service's ``bot.yaml``). Authentication is exactly the call that has to work from a network that
+cannot reach Discord directly, so the setting the bot's other HTTP calls use applies here too;
+with no proxy configured the calls go direct, unchanged.
+
 BOUNDED ANSWERS: every call goes through :func:`_request`, which bounds BOTH the round-trip
 (``TIMEOUT_SECONDS``) and the answer (``MAX_RESPONSE_BYTES``). The body is read through a capped
 read, so a wrong or hostile endpoint — or a hijacked DNS answer — cannot pull an unbounded body
@@ -290,6 +296,29 @@ def current_bot():
 
     service = ServiceRegistry.get(BotService)
     return getattr(service, "bot", None) if service is not None else None
+
+
+def _node_proxy():
+    """The node's outbound proxy and its auth, or ``(None, None)``.
+
+    Read per request; ``Node.proxy`` caches the setting in the node's locals, so this is a dict
+    lookup once the first call has read the config. A lookup that fails answers ``(None, None)`` —
+    the request then goes direct, which is what an install without a proxy does — and the failure
+    is logged, because a silently ignored proxy is indistinguishable from a network error.
+    """
+    try:
+        from core import ServiceRegistry
+        from services.bot import BotService
+
+        service = ServiceRegistry.get(BotService)
+        node = getattr(service, "node", None) if service is not None else None
+        if node is None:
+            return None, None
+        return node.proxy, node.proxy_auth
+    except Exception:
+        log.debug("auth: could not read the node's proxy setting - the request goes direct",
+                  exc_info=True)
+        return None, None
 
 
 def _subject_key(subject):
@@ -755,8 +784,13 @@ async def _request(method: str, url: str, *, data=None, headers=None,
         request_headers.update(headers)
     try:
         timeout = aiohttp.ClientTimeout(total=TIMEOUT_SECONDS)
+        proxy, proxy_auth = _node_proxy()
+        # logged BEFORE the request: a connection failure is raised inside ``request()``, so a line
+        # placed after it would never run for the failure an operator reads this line to explain
+        log.debug("auth: Discord request via proxy: %s", "yes" if proxy else "no")
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.request(method, url, data=data, headers=request_headers) as response:
+            async with session.request(method, url, data=data, headers=request_headers,
+                                       proxy=proxy, proxy_auth=proxy_auth) as response:
                 if response.status == 404 and not_found_ok:
                     return None
                 if response.status != 200:
