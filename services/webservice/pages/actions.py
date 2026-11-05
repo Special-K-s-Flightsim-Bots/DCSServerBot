@@ -6534,22 +6534,26 @@ async def download_mission(request: Request, server_name: str, mission, *,
 
 
 async def read_mission_weather(request: Request, server_name: str, mission: str = "",
-                               *, ctx: ActionContext | None = None):
+                               original: bool = True, *,
+                               ctx: ActionContext | None = None):
     """The CURRENT mission's weather of *server_name*, through the ``read_mission_weather`` action.
 
     ``mission`` is an INDEX or a logical NAME — NEVER a path: the action resolves it against the
     server's own list, so the console hands over a named mission and nothing a request could turn into
-    an arbitrary file read. Empty reads the mission the server reports as current. A READ: it goes
-    through ``read_action`` (unguarded, unaudited) and returns the action's own result — the
-    dotted-key document and the mission's file NAME on success, a typed refusal otherwise. ``None``
-    only for an identity the request cannot resolve.
+    an arbitrary file read. Empty reads the mission the server reports as current. ``original`` is the
+    launch's "apply them to the original mission" box: on (the launch's own default) reads the
+    ``.orig`` twin the launch rewrites, off the file the server is on. A READ: it goes through
+    ``read_action`` (unguarded, unaudited) and returns the action's own result — the dotted-key
+    document and the mission's file NAME on success, a typed refusal otherwise. ``None`` only for an
+    identity the request cannot resolve.
     """
     if ctx is None:
         identity = _identity(request)
         if identity is None:
             return None
         ctx = _context(request, identity)
-    return await read_action("read_mission_weather", ctx, server_name=server_name, mission=mission)
+    return await read_action("read_mission_weather", ctx, server_name=server_name, mission=mission,
+                             original=original)
 
 
 # ------------------------------------------------------------------------ the mission-list writes

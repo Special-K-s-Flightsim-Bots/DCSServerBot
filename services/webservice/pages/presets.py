@@ -97,10 +97,10 @@ __all__ = ["PRESETS_PATH", "PRESETS_CAPABILITY", "PRESETS_WRITE_CAPABILITY", "PR
            "preset_read_key", "PRESET_FILE_PATTERNS", "preset_file_label", "node_preset_records",
            "node_preset_files", "node_preset_values",
            "parse_fog_rows", "serialize_fog_rows", "fog_rows_from_document", "fog_rows_from_form",
-           "haze_choice", "fog_mode_choice", "fog_columns", "fog_table_rows",
+           "haze_choice", "fog_mode_choice", "fog_columns", "fog_table_rows", "fog_rows_from_table",
            "FOG_ADD_FIELD", "FOG_REMOVE_FIELD", "UNITS_FIELD", "UNITS_FEET", "UNITS_METRES",
            "out_of_range_value", "PRESETS_REFUSED_OUT_OF_RANGE",
-           "stored_values", "stored_fog_rows", "display_values",
+           "stored_values", "stored_fog_rows", "display_values", "display_fog_rows",
            "HALO_OFF_PRESET", "HALO_AUTO_PRESET", "MODE_KEYS", "is_real_halo",
            "WIZARD_FOG_ADD", "WIZARD_CRYSTALS_NOTE", "WIZARD_HALO_FALLBACK",
            "PRESETS_REFUSED_FOG_TIME",
@@ -2598,16 +2598,31 @@ def stored_values(values: Mapping[str, Any], *, feet: bool) -> dict[str, Any]:
             for key, value in values.items()}
 
 
+def display_fog_rows(text: Any) -> str:
+    """The ``fog.rows`` TEXT with its two distance cells stated in the render's unit.
+
+    The composite value's own rule: the rows are ONE text field whose thickness and visibility are
+    distances, so a render in feet states those two cells in feet and the time cell is untouched.
+    """
+    return serialize_fog_rows(
+        [(time, weather_fields.display_value("thickness", thickness),
+          weather_fields.display_value("visibility", visibility))
+         for time, thickness, visibility in parse_fog_rows(text)])
+
+
 def display_values(values: Mapping[str, Any], *, feet: bool) -> dict[str, Any]:
     """*values* as the CONTROLS a render of *feet* draws can hold them.
 
     The mirror of :func:`stored_values`, for a read that feeds a control rather than the file: the
     mission-weather prefill answers numbers the dialog's own boxes can hold, so a distance is stated in
     the render's unit and never below its control's floor (a mission carrying ``dust_density: 0`` must
-    not put 0 in a box whose range starts at 984).
+    not put 0 in a box whose range starts at 984). The fog table's ``fog.rows`` is a COMPOSITE of three
+    cells and follows its own rule (:func:`display_fog_rows`).
     """
     out: dict[str, Any] = {}
     for key, value in values.items():
+        if key == weather_fields.FOG_ROWS_KEY and feet:
+            value = display_fog_rows(value)
         if key in weather_fields.DISTANCE_KEYS:
             value = weather_fields.floored(key, value)
             if feet:
@@ -2768,17 +2783,17 @@ def fog_rows_from_form(form: Mapping[str, Any]) -> list[tuple[str, str, str]]:
 def haze_choice(document: Any) -> str:
     """The either-or choice a preset's own value states: ``dust``, ``fog`` or ``off``.
 
-    DCS applies one of the two, so a preset that carries BOTH (a contradiction the pair is there to
-    prevent) is read as the one holding the more: a fog map carries a mode and rows, where dust is a
-    switch and a number, so the fog wins and the switch it drops costs least.
+    DCS applies one of the two, so ONE choice is read. The dust switch is read FIRST: a mission whose
+    ``enable_dust`` is set has dust and no fog, whatever fog keys a converted file still carries
+    beside it. Without that switch, fog is read from ``enable_fog`` or from the presence of a fog map.
     """
     if not isinstance(document, Mapping):
         return ""
+    if document.get("enable_dust"):
+        return "dust"
     fog = document.get("fog")
     if document.get("enable_fog") or isinstance(fog, Mapping):
         return "fog"
-    if document.get("enable_dust"):
-        return "dust"
     return "off"
 
 
@@ -3323,17 +3338,40 @@ def fog_table_rows(values: Mapping[str, str], query: Mapping[str, Any], *,
         if 0 <= index < len(rows):
             del rows[index]
     columns = fog_columns(feet)
-    return [{
-        "index": index,
-        "cells": [{"name": weather_fields.fog_row_field(index, column["key"]),
-                   "value": (weather_fields.display_value(column["key"], row[position])
-                             if convert else row[position]),
-                   "min": column["min"], "max": column["max"], "step": column["step"],
-                   "box_step": column["box_step"],
-                   "hint": column["hint"],
-                   "start": column["key"] == "time" and row[0].strip() == "0"}
-                  for position, column in enumerate(columns)],
-    } for index, row in enumerate(rows)]
+    drawn: list[dict] = []
+    for index, row in enumerate(rows):
+        # a row is a ``(time, thickness, visibility)`` triple whatever order the table DRAWS its
+        # columns in, so every cell is addressed by its own name.
+        by_cell = dict(zip(weather_fields.FOG_CELL_ORDER, row))
+        drawn.append({
+            "index": index,
+            "cells": [{
+                "name": weather_fields.fog_row_field(index, column["key"]),
+                "value": (weather_fields.display_value(column["key"], by_cell.get(column["key"], ""))
+                          if convert else by_cell.get(column["key"], "")),
+                "min": column["min"], "max": column["max"], "step": column["step"],
+                "box_step": column["box_step"],
+                "hint": column["hint"],
+                "start": column["key"] == "time" and str(by_cell.get("time", "")).strip() == "0",
+            } for column in columns],
+        })
+    return drawn
+
+
+def fog_rows_from_table(columns: list[dict], table: list[dict], *,
+                        feet: bool) -> list[tuple[str, str, str]]:
+    """The rows a RENDERED table carries, back in the ``fog.rows`` value's own cell order.
+
+    Each cell is read by its own name, so the table's DISPLAY order may differ from the value's.
+    ``feet`` reads a cell that was drawn in the Mission Editor's unit back to metres.
+    """
+    rows: list[tuple[str, str, str]] = []
+    for entry in table:
+        by_cell = {column["key"]: cell["value"] for column, cell in zip(columns, entry["cells"])}
+        stated = [weather_fields.stored_value(key, by_cell.get(key, "")) if feet
+                  else by_cell.get(key, "") for key in weather_fields.FOG_CELL_ORDER]
+        rows.append((stated[0], stated[1], stated[2]))
+    return rows
 
 
 def _write_rows(values: Mapping[str, str]) -> list[dict]:
@@ -3380,8 +3418,7 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
     # same numbers the file will hold.
     columns = fog_columns(feet)
     values[weather_fields.FOG_ROWS_KEY] = serialize_fog_rows(
-        [tuple(weather_fields.stored_value(column["key"], cell["value"]) if feet else cell["value"]
-               for column, cell in zip(columns, entry["cells"])) for entry in table])
+        fog_rows_from_table(columns, table, feet=feet))
 
     # THE DESTINATION FILE. One file: it is the single one stated. Several: the operator's own choice
     # rides in the URL (``file=``) and is carried here; when none was posted the first is the default.

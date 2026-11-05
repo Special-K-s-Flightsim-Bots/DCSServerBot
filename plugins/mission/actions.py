@@ -1962,20 +1962,6 @@ def _punishment_report() -> dict:
     raise FileNotFoundError(_PUNISHMENT_REPORT_FILE)
 
 
-def _punishment_active(ctx: Any) -> bool:
-    """Whether the punishment plugin is loaded on this process's node."""
-    node = getattr(ctx, "node", None)
-    if node is None:
-        return False
-    try:
-        from core.plugin_manager import PluginManager
-
-        names = list(PluginManager(node).plugins)
-    except Exception:  # noqa: BLE001 - a node that cannot answer holds no plugin
-        names = list(getattr(node, "plugins", None) or ())
-    return "punishment" in {str(name).lower() for name in names}
-
-
 def report_statements(report: dict) -> dict[str, str]:
     """The report's two player statements, keyed ``infractions`` / ``ban_history``.
 
@@ -2462,10 +2448,6 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
     The report reads ONE UCID (``init_id``), so this reads the page's UCID and nothing wider: a
     player's other UCIDs are other rows in every one of these tables.
 
-    ``penalties_available`` states whether ``pu_events`` could be read at all: the penalty log is the
-    punishment plugin's table, so with that plugin unloaded the statement does not run, the two
-    lists the plugin does not own still answer, and the flag is ``False``.
-
     The scope is the player read's own bound (``_player_in_scope``): a player outside a narrowed
     caller's servers answers the same empty answer a UCID nothing knows does, so infractions are not
     a way around the directory's scope.
@@ -2481,11 +2463,8 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
     pool = _player_pool(ctx)
     if pool is None:
         return ActionResult(success=False, message=PLAYERS_UNAVAILABLE)
-    # ``pu_events`` is the OPTIONAL punishment plugin's table (its own migrations create it), so the
-    # penalty statement may only run while that plugin is loaded on this node.
-    active = _punishment_active(ctx)
     empty = {"ucid": wanted, "found": False, "infractions": [], "penalties": [],
-             "penalty_total": 0.0, "penalties_available": active, "ban_history": []}
+             "penalty_total": 0.0, "ban_history": []}
     try:
         statements = report_statements(_punishment_report())
         infractions_sql = statements["infractions"].format(ucid=wanted,
@@ -2500,7 +2479,7 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
             if not await _player_in_scope(conn, ucids, _player_servers(ctx)):
                 return ActionResult(success=True, data=empty)
             events = await _fetch_all(conn, infractions_sql, None)
-            penalties = await _fetch_all(conn, _PENALTY_SQL, {"ucid": wanted}) if active else []
+            penalties = await _fetch_all(conn, _PENALTY_SQL, {"ucid": wanted})
             history = await _fetch_all(conn, history_sql, None)
     except Exception as ex:
         log.exception("get_player_infractions failed")
@@ -2520,7 +2499,6 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
         "penalties": [{"time": item.get("time"), "event": _plain(item.get("event")),
                        "points": item.get("points")} for item in penalties],
         "penalty_total": total,
-        "penalties_available": active,
         "ban_history": [{"timeframe": _plain(item.get("Timeframe")),
                          "reason": _plain(item.get("Reason")),
                          "status": _plain(item.get("Status"))} for item in history],
@@ -3809,8 +3787,8 @@ def _parse_mission_document(payload: bytes, node: Any) -> dict:
 
 
 @action
-async def read_mission_weather(ctx: Any, server_name: str,
-                               mission: int | str = "") -> MissionWeatherResult:
+async def read_mission_weather(ctx: Any, server_name: str, mission: int | str = "",
+                               original: bool = False) -> MissionWeatherResult:
     """The CURRENT mission's own weather, as a MizEdit preset document — a READ, never audited.
 
     ``mission`` is the LOGICAL mission: a 1-based INDEX into the server's ``missionList`` (the
@@ -3819,6 +3797,12 @@ async def read_mission_weather(ctx: Any, server_name: str,
     its basename, with or without the ``.miz`` extension, case-insensitive), resolved against the
     server's OWN list. Empty reads the mission ``server.get_current_mission_file()`` names. A PATH is
     never accepted: nothing a request states is joined to a directory.
+
+    ``original`` reads the mission's ORIGINAL file instead of the copy the server is on — the file a
+    launch with "apply them to the original mission" bases its rewrite on
+    (``ServerImpl.apply_mission_changes``: ``get_orig_file(selected) if use_orig else selected``). A
+    mission that has no ``.orig`` yet is read as it stands, which is what the launch would create the
+    original from.
 
     The bytes come over ``server.node.read_file`` and are materialised to a temp file for the parse,
     which is deleted afterwards. The document is built by ``MizFile.preset_document`` — the SAME
@@ -3878,6 +3862,11 @@ async def read_mission_weather(ctx: Any, server_name: str,
                 success=False, status=404, server_name=server_name,
                 message=MISSION_WEATHER_UNKNOWN.format(mission=wanted, server=display))
         mission_file = str(mission_list[index - 1])
+    if original:
+        # THE ORIGINAL: what a launch with "apply them to the original mission" rewrites — the
+        # ``.orig`` twin when one exists, else the file itself (the launch creates the original by
+        # copying it). A READ never creates anything, so ``create_file=False`` answers None instead.
+        mission_file = utils.get_orig_file(mission_file, create_file=False) or mission_file
     name = _mission_file_name(mission_file)
     try:
         content = await node.read_file(str(mission_file))

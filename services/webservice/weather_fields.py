@@ -81,7 +81,8 @@ __all__ = [
     "DISTANCE_KEYS", "FT_PER_M", "FOOT_LANGUAGES", "uses_feet", "floored", "display_unit",
     "display_value",
     "display_bounds", "stored_value",
-    "FOG_ROWS_KEY", "FOG_COLUMNS", "FOG_HINTS", "FOG_MODE_KEY", "HAZE_KEY", "DUST_DENSITY_NAME",
+    "FOG_ROWS_KEY", "FOG_COLUMNS", "FOG_CELL_ORDER", "FOG_HINTS", "FOG_MODE_KEY", "HAZE_KEY",
+    "DUST_DENSITY_NAME",
     "FOG_ROW_PREFIX", "fog_row_field", "fog_row_cell",
 ]
 
@@ -322,14 +323,19 @@ FOG_ROWS_KEY = "fog.rows"
 FOG_COLUMNS: tuple[Field, ...] = (
     Field("time", i18n._("Time"), KIND_NUMBER, unit=i18n._("seconds"), min=0, max=86400, step=1,
           source=SOURCE_CURATED, box_step=BOX_STEP_WHOLE),
-    #: the ME's own keyframe spin boxes: thickness 0..5000 m and visibility 0..100000 m
-    #: (``me_weather.lua:2814``/``:2789``), the same limits this table states.
-    Field("thickness", i18n._("Fog thickness"), KIND_NUMBER, unit=i18n._("metres"), min=0, max=5000,
-          step=10, source=SOURCE_ME, box_step=BOX_STEP_WHOLE),
+    #: the ME's own keyframe spin boxes: visibility 0..100000 m and thickness 0..5000 m
+    #: (``me_weather.lua:2789``/``:2814``), the same limits this table states.
     Field("visibility", i18n._("Fog visibility"), KIND_NUMBER, unit=i18n._("metres"), min=0,
           max=100000, step=100, source=SOURCE_ME, box_step=BOX_STEP_WHOLE),
+    Field("thickness", i18n._("Fog thickness"), KIND_NUMBER, unit=i18n._("metres"), min=0, max=5000,
+          step=10, source=SOURCE_ME, box_step=BOX_STEP_WHOLE),
 )
 FOG_COLUMNS_BY_NAME: dict[str, Field] = {column.key: column for column in FOG_COLUMNS}
+
+#: the position of each cell in a ``fog.rows`` ROW — the VALUE's own spelling, which the table's
+#: DISPLAY order (:data:`FOG_COLUMNS`) does not follow: a render may present the columns in any order
+#: and the carried text stays ``time:thickness:visibility``.
+FOG_CELL_ORDER: tuple[str, ...] = ("time", "thickness", "visibility")
 
 #: a per-cell hint — the wizard's OWN prose (the table stays prose-free).
 FOG_HINTS: dict[str, str] = {
