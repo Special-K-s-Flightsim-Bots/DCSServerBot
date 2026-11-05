@@ -38,3 +38,11 @@ configuration restarts the affected node. [Configuration](configure.md) has the 
 !!! note
     The website listens on the machine the bot runs on. If you reach it from outside, put it behind a
     reverse proxy with TLS — it is an admin interface, not a public page.
+
+## Setting it up
+
+Two step-by-step guides carry it end to end: the session secret, the login you choose (Discord or
+local users), and putting it on the internet behind HTTPS with nginx or Caddy.
+
+- [Web frontend on Linux](guides/webservice-frontend-linux.md) — Debian/Ubuntu or Fedora/RHEL
+- [Web frontend on Windows](guides/webservice-frontend-windows.md) — nginx with win-acme, or Caddy

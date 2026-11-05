@@ -53,6 +53,7 @@ operated by someone who has no Discord account at all.
 |:--------------|:-----|
 | Get it running | [Installation](install.md) |
 | Change a setting | [Configuration](configure.md) |
+| Run the website | [The website](website.md) · [Linux frontend guide](guides/webservice-frontend-linux.md) · [Windows frontend guide](guides/webservice-frontend-windows.md) |
 | Know what a command does | [Command reference](reference/commands.md) |
 | Give people roles and permissions | [Roles and permissions](guides/roles.md) |
 | Link players to Discord | [Player linking](guides/player-linking.md) |
