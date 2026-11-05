@@ -10505,3 +10505,7 @@ msgstr "沙尘能见度"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "沙尘霾的浓度，按任务编辑器沙尘控件的刻度：984 至 65 617 英尺，300 至 20 000 米。"
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "不记录处罚分，因为 punishment 插件未启用。"

@@ -11499,3 +11499,7 @@ msgstr "Visibilidad del polvo"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "Grosor de la calima de polvo, según el control de polvo del editor de misiones: 984 a 65 617 ft, 300 a 20 000 m."
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "Los puntos de penalización no se registran porque el plugin de sanciones no está activo."

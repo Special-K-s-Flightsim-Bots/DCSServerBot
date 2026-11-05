@@ -238,12 +238,32 @@ def create_secret_dir(config_dir='config'):
 
             # noinspection PyUnresolvedReferences
             ctypes.windll.kernel32.SetFileAttributesW(path, 2)
+    if sys.platform != 'win32':
+        # owner-only: only the account that runs the bot may enter or list the store. Applied to an
+        # existing directory too, so one an older build or a permissive umask left wide is narrowed.
+        with suppress(OSError):
+            os.chmod(path, 0o700)
 
 
 def set_password(key: str, password: str, config_dir='config'):
-    create_secret_dir()
-    with open(os.path.join(config_dir, '.secret', f'{key}.pkl'), mode='wb') as f:
-        pickle.dump(password, f)
+    create_secret_dir(config_dir)
+    path = os.path.join(config_dir, '.secret', f'{key}.pkl')
+    if sys.platform == 'win32':
+        with open(path, mode='wb') as f:
+            pickle.dump(password, f)
+        return
+    # 0600 from the first byte: the file is created owner-only (never a moment at a wider mode),
+    # and an existing file keeps its own mode through open(), so it is narrowed before the write.
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with suppress(OSError):
+            os.fchmod(fd, 0o600)
+        with os.fdopen(fd, mode='wb') as f:
+            fd = -1
+            pickle.dump(password, f)
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
 def get_password(key: str, config_dir='config') -> str:

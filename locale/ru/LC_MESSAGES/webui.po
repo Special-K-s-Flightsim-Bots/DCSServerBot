@@ -11397,3 +11397,7 @@ msgstr "Видимость пыли"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "Насколько плотна пыльная дымка — по шкале регулятора пыли в редакторе миссий: 984–65 617 фт, 300–20 000 м."
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "Очки штрафов не отслеживаются, потому что плагин punishment не активен."

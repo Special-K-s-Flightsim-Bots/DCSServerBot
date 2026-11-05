@@ -575,7 +575,6 @@ def _store_password(key: str, password: str, config_dir) -> None:
     ``utils.set_password`` creates the secret directory of its DEFAULT config dir, so a tour whose
     config dir is elsewhere has to ensure the right one exists before the write.
     """
-    utils.create_secret_dir(str(config_dir))
     utils.set_password(key, password, str(config_dir))
 
 

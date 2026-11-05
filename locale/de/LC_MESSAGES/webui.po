@@ -11549,3 +11549,7 @@ msgstr "Staubsichtweite"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "Wie dicht der Staubnebel ist, nach der Skala des Staub-Reglers im Missionseditor: 984 bis 65 617 ft, 300 bis 20 000 m."
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "Strafpunkte werden nicht erfasst, weil das Punishment-Plugin nicht aktiv ist."

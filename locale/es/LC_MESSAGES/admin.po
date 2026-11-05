@@ -399,3 +399,483 @@ msgstr "Plugin {} cargado de nuevo."
 
 msgid "To apply the new config by restarting a node or the whole cluster, use {}"
 msgstr "Para aplicar al nueva configuración reiniciando el nodo o todo el cluster, utilice {}"
+
+# /webadmin status
+msgid "A configuration change applies on the next node restart, not on a page reload."
+msgstr "Un cambio de configuración se aplica en el próximo reinicio del nodo, no al recargar la página."
+
+# /webadmin status
+msgid "Configuration file"
+msgstr "Archivo de configuración"
+
+# /webadmin status
+msgid "Frontend"
+msgstr "Interfaz web"
+
+# /webadmin status
+msgid "frontend is off — the service serves the REST API only: no page, no login, no session cookie. Set frontend: true."
+msgstr "frontend está desactivado — el servicio sólo ofrece la API REST: ninguna página, ningún inicio de sesión, ninguna cookie de sesión. Establece frontend: true."
+
+# /webadmin status
+msgid "username and password"
+msgstr "usuario y contraseña"
+
+# /webadmin status
+msgid "Discord"
+msgstr "Discord"
+
+# /webadmin status
+msgid "break-glass credential"
+msgstr "credencial de emergencia"
+
+# /webadmin status
+msgid "Login"
+msgstr "Inicio de sesión"
+
+# /webadmin status
+msgid "The login block is empty — every page answers 403. Enable at least one of auth.local, auth.discord or auth.breakglass."
+msgstr "El bloque de inicio de sesión está vacío — todas las páginas responden 403. Activa al menos uno de auth.local, auth.discord o auth.breakglass."
+
+# /webadmin status
+msgid "Session secret"
+msgstr "Secreto de sesión"
+
+# /webadmin status
+msgid "Public address"
+msgstr "Dirección pública"
+
+# /webadmin status
+msgid "Service"
+msgstr "Servicio"
+
+# /webadmin status
+msgid "Next step"
+msgstr "Siguiente paso"
+
+# /webadmin status
+msgid "Inspects the configuration of the admin website"
+msgstr "Comprueba la configuración del sitio web de administración"
+
+# /webadmin status
+msgid "frontend is on — the pages, the login and the session cookie are installed."
+msgstr "frontend está activado — las páginas, el inicio de sesión y la cookie de sesión están instalados."
+
+# /webadmin status
+msgid "session.secret is not set — a random key is generated at every start, so everyone is signed out when the node restarts. Set a secret of at least 32 characters."
+msgstr "session.secret no está definido — en cada arranque se genera una clave aleatoria, así que todos quedan desconectados al reiniciar el nodo. Define un secreto de al menos 32 caracteres."
+
+# /webadmin status
+msgid "auth.public_base_url is not set — redirect URIs are built from it, so a Discord login cannot return. Set the address your users open, e.g. https://dcs.example.com."
+msgstr "auth.public_base_url no está definido — las URI de redirección se construyen a partir de él, así que un inicio de sesión de Discord no puede volver. Define la dirección que abren tus usuarios, p. ej. https://dcs.example.com."
+
+# /webadmin status
+msgid "The website runs on the master node only — this is not the master, so nothing is served here. Run the check on the master."
+msgstr "El sitio web sólo se ejecuta en el nodo maestro — este no es el maestro, así que aquí no se sirve nada. Ejecuta la comprobación en el maestro."
+
+# /webadmin status
+msgid "The service is loaded but not running, so nothing answers on a port. Restart the node."
+msgstr "El servicio está cargado pero no en ejecución, así que ningún puerto responde. Reinicia el nodo."
+
+# /webadmin status
+msgid "Website status"
+msgstr "Estado del sitio web"
+
+# /webadmin status
+msgid "Shows which part of the website configuration is missing"
+msgstr "Muestra qué parte de la configuración del sitio web falta"
+
+# /webadmin status
+msgid "{} found."
+msgstr "{} encontrado."
+
+# /webadmin status
+msgid "session.secret is set ({} characters) — sessions survive a node restart."
+msgstr "session.secret está definido ({} caracteres) — las sesiones sobreviven a un reinicio del nodo."
+
+# /webadmin status
+msgid "auth.public_base_url is {} — redirect URIs are built from it."
+msgstr "auth.public_base_url es {} — las URI de redirección se construyen a partir de él."
+
+# /webadmin status
+msgid "The service is not loaded on this node — {} is read at startup. Restart the node."
+msgstr "El servicio no está cargado en este nodo — {} se lee al arrancar. Reinicia el nodo."
+
+# /webadmin status
+msgid "The address is not known yet."
+msgstr "La dirección aún no se conoce."
+
+# /webadmin status
+msgid "{} is missing — no website service exists without it. Run /webadmin setup to create it."
+msgstr "Falta {} — sin él no existe ningún servicio de sitio web. Ejecuta /webadmin setup para crearlo."
+
+# /webadmin status
+msgid "Login is enabled for: {}."
+msgstr "Inicio de sesión activado para: {}."
+
+# /webadmin status
+msgid "session.secret is only {} characters long — a key shorter than 32 characters is refused at startup. Use at least 32."
+msgstr "session.secret sólo tiene {} caracteres — una clave de menos de 32 caracteres se rechaza al arrancar. Usa al menos 32."
+
+# /webadmin status
+msgid "auth.public_base_url is not an absolute http(s) address ({}) — redirect URIs are built from it."
+msgstr "auth.public_base_url no es una dirección http(s) absoluta ({}) — las URI de redirección se construyen a partir de él."
+
+# /webadmin status
+msgid "auth.public_base_url points at this machine only ({}) — a Discord login comes back to this machine and nowhere else. Set the address your users open."
+msgstr "auth.public_base_url apunta sólo a esta máquina ({}) — un inicio de sesión de Discord sólo vuelve a esta máquina. Define la dirección que abren tus usuarios."
+
+# /webadmin status
+msgid "The service is running on this node, port {}."
+msgstr "El servicio se está ejecutando en este nodo, puerto {}."
+
+# /webadmin status
+msgid "Open {}."
+msgstr "Abre {}."
+
+# /webadmin setup
+msgid "Not chosen yet — pick a sign-in mode from the list below."
+msgstr "Aún no elegido — selecciona abajo un modo de acceso de la lista."
+
+# /webadmin setup
+msgid "Everything is collected — press the button below to write the configuration."
+msgstr "Todo recopilado — pulsa el botón de abajo para escribir la configuración."
+
+# /webadmin setup
+msgid "Discord login and a local account"
+msgstr "Inicio de sesión con Discord y una cuenta local"
+
+# /webadmin setup
+msgid "Manual"
+msgstr "Manual"
+
+# /webadmin setup
+msgid "Pick how you sign in from the list below."
+msgstr "Elige abajo en la lista cómo iniciar sesión."
+
+# /webadmin setup
+msgid "Fill in the form the wizard opened."
+msgstr "Rellena el formulario que abrió el asistente."
+
+# /webadmin setup
+msgid "The configuration keeps auth.discord.client_secret_key: discord_client_secret."
+msgstr "La configuración conserva auth.discord.client_secret_key: discord_client_secret."
+
+# /webadmin setup
+msgid "Client secret"
+msgstr "Secreto de cliente"
+
+# /webadmin setup
+msgid "Username"
+msgstr "Nombre de usuario"
+
+# /webadmin setup
+msgid "Website setup"
+msgstr "Configuración del sitio web"
+
+# /webadmin setup
+msgid "Turns the admin website on and stores the login secret"
+msgstr "Activa el sitio web de administración y guarda el secreto de acceso"
+
+# /webadmin setup
+msgid "Listen"
+msgstr "Dirección de escucha"
+
+# /webadmin setup
+msgid "How do you want to sign in?"
+msgstr "¿Cómo quieres iniciar sesión?"
+
+# /webadmin setup
+msgid "Write the configuration"
+msgstr "Escribir la configuración"
+
+# /webadmin setup
+msgid "Step 1: address and port"
+msgstr "Paso 1: dirección y puerto"
+
+# /webadmin setup
+msgid "Step 2: Discord login"
+msgstr "Paso 2: Discord"
+
+# /webadmin setup
+msgid "Step 2: local account"
+msgstr "Paso 2: cuenta local"
+
+# /webadmin setup
+msgid "Local account"
+msgstr "Cuenta local"
+
+# /webadmin setup
+msgid "This node is not the master — the website runs on the master node only. Run /webadmin setup on the master node."
+msgstr "Este nodo no es el maestro — la web solo se ejecuta en el nodo maestro. Ejecuta /webadmin setup en el nodo maestro."
+
+# /webadmin setup
+msgid "Manual setup"
+msgstr "Configuración manual"
+
+# /webadmin setup
+msgid "Pick how you sign in first."
+msgstr "Elige primero cómo te identificas."
+
+# /webadmin setup
+msgid "The public address has to be an absolute http or https address."
+msgstr "La dirección pública tiene que ser una dirección http o https absoluta."
+
+# /webadmin setup
+msgid "The client secret is required."
+msgstr "El secreto del cliente es obligatorio."
+
+# /webadmin setup
+msgid "Backup"
+msgstr "Copia de seguridad"
+
+# /webadmin setup
+msgid "Nothing changed — {} already matches."
+msgstr "Nada cambió — {} ya coincide."
+
+# /webadmin setup
+msgid "{} was written."
+msgstr "{} se ha escrito."
+
+# /webadmin setup
+msgid "This node is not the master — the website runs on the master node only. Run /webadmin setup on {}."
+msgstr "Este nodo no es el maestro — la web solo funciona en el nodo maestro. Ejecuta /webadmin setup en {}."
+
+# /webadmin setup
+msgid "The configuration could not be written: {}"
+msgstr "La configuración no se pudo escribir: {}"
+
+# /webadmin setup
+msgid "Store the client secret with:"
+msgstr "Guarda el secreto del cliente con:"
+
+# /webadmin setup
+msgid "The port has to be a whole number between {} and {}."
+msgstr "El puerto tiene que ser un número entero entre {} y {}."
+
+# /webadmin setup
+msgid "The previous version is kept as {}."
+msgstr "La versión anterior se conserva como {}."
+
+# /webadmin setup
+msgid "A configuration change applies on the next node restart, not on a page reload: {}"
+msgstr "Un cambio de configuración se aplica en el próximo reinicio del nodo, no al recargar la página: {}"
+
+# /webadmin setup
+msgid "Open the Discord Developer Portal, your application → OAuth2, and add the redirect URI {}."
+msgstr "Abre el Discord Developer Portal, tu aplicación → OAuth2, y añade la URI de redirección {}."
+
+# /webadmin setup
+msgid "Discord login"
+msgstr "Inicio de sesión con Discord"
+
+# /webadmin setup
+msgid "Port"
+msgstr "Puerto"
+
+# /webadmin setup
+msgid "The bot's application id could not be read, so the Discord login cannot be configured here."
+msgstr "No se pudo leer el id de aplicación del bot, así que el inicio de sesión con Discord no se puede configurar aquí."
+
+# /webadmin
+msgid "Inspects and sets up the admin website"
+msgstr "Inspecciona y configura el sitio web de administración"
+
+# /webadmin status
+msgid "auth.public_base_url is {} — plain http carries the login page and the session cookie in cleartext. Set an https address, or an address inside your own network."
+msgstr "auth.public_base_url es {} — http sin cifrar transporta la página de inicio de sesión y la cookie de sesión en claro. Usa una dirección https o una dirección dentro de tu propia red."
+
+# /webadmin setup
+msgid "The client secret is stored under auth.discord.client_secret_key — the configuration file names that key only, never the value."
+msgstr "El secreto de cliente se guarda en auth.discord.client_secret_key — el archivo de configuración sólo nombra esa clave, nunca el valor."
+
+# /webadmin setup
+msgid "Step 2: Discord login and a local account"
+msgstr "Paso 2: inicio de sesión con Discord y una cuenta local"
+
+# /webadmin setup
+msgid "Password"
+msgstr "Contraseña"
+
+# /webadmin setup
+msgid "A username is required."
+msgstr "Se requiere un nombre de usuario."
+
+# /webadmin setup
+msgid "The password has to be at least {} characters long."
+msgstr "La contraseña debe tener al menos {} caracteres."
+
+# /webadmin setup
+msgid "The local account '{}' already exists — nothing was written. Change its password with the user password command instead."
+msgstr "La cuenta local '{}' ya existe — no se escribió nada. Cambia su contraseña con el comando user password."
+
+# /webadmin setup
+msgid "The local account {} is set up; its password is the one you entered."
+msgstr "La cuenta local {} está configurada; su contraseña es la que introdujiste."
+
+# /webadmin user
+msgid "The username has to be at most {} characters long."
+msgstr "El nombre de usuario debe tener como máximo {} caracteres."
+
+# /webadmin user
+msgid "The password has to be at most {} characters long."
+msgstr "La contraseña debe tener como máximo {} caracteres."
+
+# /webadmin user
+msgid "The local account '{}' is not in the configuration any more — reload and pick again."
+msgstr "La cuenta local '{}' ya no está en la configuración — vuelve a cargar y elige de nuevo."
+
+# /webadmin user
+msgid "The role(s) {} are not defined by this installation — nothing was written. Known roles: {}."
+msgstr "Los roles {} no están definidos en esta instalación — no se escribió nada. Roles conocidos: {}."
+
+# /webadmin user
+msgid "The local account '{}' is the last one holding Admin — removing it would lock everyone out of the console. Give another account Admin first."
+msgstr "La cuenta local '{}' es la última que tiene Admin — eliminarla bloquearía el acceso de todos a la consola. Da Admin a otra cuenta primero."
+
+# /webadmin user
+msgid "Pick at least one role for the new account."
+msgstr "Elige al menos un rol para la nueva cuenta."
+
+# /webadmin user
+msgid "Local account removed"
+msgstr "Cuenta local eliminada"
+
+# /webadmin user
+msgid "Account"
+msgstr "Cuenta"
+
+# /webadmin user
+msgid "The REST API plugin was reloaded, so its routes are attached to the new application object."
+msgstr "El plugin de la API REST se recargó, así que sus rutas están adjuntas al nuevo objeto de aplicación."
+
+# /webadmin restart
+msgid "The REST API plugin is loaded on this node, but its reload failed, so its routes are still attached to the old application object — reload it by hand."
+msgstr "El plugin de la API REST está cargado en este nodo, pero su recarga falló, por lo que sus rutas siguen adjuntas al objeto de aplicación antiguo — recárguelo manualmente."
+
+# /webadmin user
+msgid "The REST API plugin is not loaded on this node, so no routes had to be re-attached."
+msgstr "El plugin de la API REST no está cargado en este nodo, así que no hubo que volver a adjuntar rutas."
+
+# /webadmin user
+msgid "session.secret is not set — every restart mints a new random session key, so this signs everyone out. Write session.secret first, or press the button again to confirm."
+msgstr "session.secret no está configurado — cada reinicio genera una nueva clave de sesión aleatoria, lo que cierra la sesión de todos. Escribe session.secret primero, o pulsa el botón de nuevo para confirmar."
+
+# /webadmin user
+msgid "The web console could not be restarted ({}). It is down until the bot is restarted."
+msgstr "No se pudo reiniciar la consola web ({}). Está caída hasta que se reinicie el bot."
+
+# /webadmin user
+msgid "The web console did not come back up — it is down until the bot is restarted. Check the bot's log for the service's error."
+msgstr "La consola web no volvió a arrancar — está caída hasta que se reinicie el bot. Revisa el registro del bot para ver el error del servicio."
+
+# /webadmin user
+msgid "The web console was rebuilt and is running on port {}."
+msgstr "La consola web se reconstruyó y está en ejecución en el puerto {}."
+
+# /webadmin user
+msgid "The web console was rebuilt and is running."
+msgstr "La consola web se reconstruyó y está en ejecución."
+
+# /webadmin user
+msgid "Web console restart"
+msgstr "Reinicio de la consola web"
+
+# /webadmin user
+msgid "Result"
+msgstr "Resultado"
+
+# /webadmin user
+msgid "Address"
+msgstr "Dirección"
+
+# /webadmin user
+msgid "Restart anyway"
+msgstr "Reiniciar de todos modos"
+
+# /webadmin user
+msgid "Cancel"
+msgstr "Cancelar"
+
+# /webadmin user
+msgid "Nothing was restarted."
+msgstr "No se reinició nada."
+
+# /webadmin user
+msgid "Restart the web console"
+msgstr "Reiniciar la consola web"
+
+# /webadmin user
+msgid "Roles"
+msgstr "Roles del usuario"
+
+# /webadmin user
+msgid "New password"
+msgstr "Nueva contraseña"
+
+# /webadmin user
+msgid "Add a local account"
+msgstr "Añadir una cuenta local"
+
+# /webadmin user
+msgid "Set a new password for {}"
+msgstr "Establecer una nueva contraseña para {}"
+
+# /webadmin user
+msgid "Pick a local account"
+msgstr "Elegir una cuenta local"
+
+# /webadmin user
+msgid "Delete it"
+msgstr "Eliminar"
+
+# /webadmin user
+msgid "Nothing was deleted."
+msgstr "No se eliminó nada."
+
+# /webadmin user
+msgid "This node is not the master — the website runs on the master node only. Run {} on {}."
+msgstr "Este nodo no es el maestro — el sitio web solo se ejecuta en el nodo maestro. Ejecuta {} en {}."
+
+# /webadmin user
+msgid "This node is not the master — the website runs on the master node only. Run {} on the master node."
+msgstr "Este nodo no es el maestro — el sitio web solo se ejecuta en el nodo maestro. Ejecuta {} en el nodo maestro."
+
+# /webadmin user
+msgid "This installation defines no role names, so no account can be granted one."
+msgstr "Esta instalación no define nombres de roles, así que no se puede conceder ninguno a una cuenta."
+
+# /webadmin user
+msgid "Adds a local account to the admin website"
+msgstr "Añade una cuenta local al sitio web de administración"
+
+# /webadmin user
+msgid "The website configuration carries no local accounts."
+msgstr "La configuración del sitio web no contiene cuentas locales."
+
+# /webadmin user
+msgid "Pick the local account to remove. This cannot be undone."
+msgstr "Elige la cuenta local que se va a eliminar. Esto no se puede deshacer."
+
+# /webadmin user
+msgid "Removes a local account from the admin website"
+msgstr "Elimina una cuenta local del sitio web de administración"
+
+# /webadmin user
+msgid "Delete the local account '{}'? This cannot be undone."
+msgstr "¿Eliminar la cuenta local '{}'? Esto no se puede deshacer."
+
+# /webadmin user
+msgid "Pick the local account whose password you want to change."
+msgstr "Elige la cuenta local cuya contraseña quieres cambiar."
+
+# /webadmin user
+msgid "Sets a new password for a local account"
+msgstr "Establece una nueva contraseña para una cuenta local"
+
+# /webadmin user
+msgid "Manages the local accounts that sign in to the admin website"
+msgstr "Gestiona las cuentas locales que inician sesión en el sitio web de administración"
+
+# /webadmin setup
+msgid "Setup cancelled — nothing was written."
+msgstr "Configuración cancelada: no se ha escrito nada."

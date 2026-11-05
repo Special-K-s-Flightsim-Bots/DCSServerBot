@@ -38,35 +38,35 @@ the problem; with `validation: lazy` (the default) it is logged
 All keys live under `DEFAULT:` in `config/services/webservice.yaml`. Nothing here is derived from a
 request, so the same file behaves the same behind a reverse proxy as it does on localhost.
 
-| Key | Default | What it does | Source |
-|-----|---------|--------------|--------|
-| `listen` | `0.0.0.0` | Interface the HTTP server binds to. | `service.py:46` |
-| `port` | `9876` | TCP port. Must be 1024–65535 and unique per node. | `schemas/webservice_schema.yaml:10`, `core/utils/validators.py:170` |
-| `debug` | `false` | Serves `/openapi.json`, `/docs` and `/redoc` for API testing (loopback and private networks only — see the warning below). | `service.py:92`, `service.py:115-125` |
-| `log_level` | `info` | Default level filter of the console's log panel: `info`, `warning` or `all`. The same choice is available per page as `?level=`. | `schemas/webservice_schema.yaml:22` |
-| `frontend` | `false` | Install the web console. `false` = REST API only. | `schemas/webservice_schema.yaml:17`, `shell.py:75` |
-| `dashboard.live` | `true` | Serve the live update stream (Server-Sent Events) on the dashboard. | `schemas/webservice_schema.yaml:33` |
-| `dashboard.refresh_seconds` | `2` | How often changed fragments are re-rendered and pushed, in seconds (1–60). | `schemas/webservice_schema.yaml:36` |
-| `dashboard.stream_clients` | `16` | Most concurrent live streams (1–256). | `schemas/webservice_schema.yaml:39` |
-| `session.secret` | *(unset → random per start)* | Signs the session cookie. Unset means every restart signs everyone out. | `schemas/webservice_schema.yaml:49`, `session.py:221` |
-| `session.cookie_name` | `dcssb_session` | Session cookie name. | `schemas/webservice_schema.yaml:50`, `session.py:48` |
-| `session.max_age` | `86400` | Session lifetime in seconds. | `schemas/webservice_schema.yaml:53` |
-| `session.https_only` | *(unset → derived from `listen`)* | The `Secure` flag on the session cookie. Unset: `false` on a loopback-only bind, `true` on anything else. | `schemas/webservice_schema.yaml:59`, `session.py:140-169` |
-| `session.same_site` | `lax` | Cookie `SameSite`: `lax`, `strict` or `none`. Keep `lax` — `strict` makes every OAuth login fail. | `schemas/webservice_schema.yaml:63`, `session.py:201-212` |
-| `auth.public_base_url` | *(none)* | The public origin (scheme + host) the console is reachable at. Redirect URIs are built from this, never from a request. | `schemas/webservice_schema.yaml:73` |
-| `auth.local.enabled` | `false` | Enable username/password login. | `schemas/webservice_schema.yaml:80` |
-| `auth.local.users[].username` | *(required)* | The account name. | `schemas/webservice_schema.yaml:87` |
-| `auth.local.users[].password_hash` | *(required)* | A PBKDF2 hash — never a plaintext password. | `schemas/webservice_schema.yaml:90` |
-| `auth.local.users[].roles` | *(required)* | Role **names** of the bot's role model (`Admin`, `DCS Admin`, …). An unknown name is refused at startup. | `schemas/webservice_schema.yaml:93-97` |
-| `auth.local.users[].scope` | *(unset = unrestricted)* | The `managed_by` values this account may see and act on (the web-only equivalent of a Discord manager's scope). | `schemas/webservice_schema.yaml:106-110` |
-| `auth.discord.enabled` | `false` | Enable Discord OAuth login. | `schemas/webservice_schema.yaml:122` |
-| `auth.discord.client_id` | *(none)* | The Discord application's client id. | `schemas/webservice_schema.yaml:123` |
-| `auth.discord.client_secret` | *(none)* | Inline client secret. | `schemas/webservice_schema.yaml:126` |
-| `auth.discord.client_secret_key` | *(none)* | Name of a key in the bot's secret store. When set it **wins over** `client_secret`. | `schemas/webservice_schema.yaml:130` |
-| `auth.discord.member_ttl` | `60` | Seconds a member resolution may be cached when the bot runs without the Server Members Intent (clamped 1–3600). | `schemas/webservice_schema.yaml:136` |
-| `auth.breakglass.enabled` | `false` | Enable the single emergency Admin credential, for the day the identity provider is what broke. | `schemas/webservice_schema.yaml:143` |
-| `auth.breakglass.username` | *(none)* | The emergency account name. | `schemas/webservice_schema.yaml:144` |
-| `auth.breakglass.password_hash` | *(none)* | A PBKDF2 hash, same format as `auth.local`. | `schemas/webservice_schema.yaml:145` |
+| Key                                | Default                           | What it does                                                                                                                     | Source                                                              |
+|------------------------------------|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| `listen`                           | `0.0.0.0`                         | Interface the HTTP server binds to.                                                                                              | `service.py:46`                                                     |
+| `port`                             | `9876`                            | TCP port. Must be 1024–65535 and unique per node.                                                                                | `schemas/webservice_schema.yaml:10`, `core/utils/validators.py:170` |
+| `debug`                            | `false`                           | Serves `/openapi.json`, `/docs` and `/redoc` for API testing (loopback and private networks only — see the warning below).       | `service.py:92`, `service.py:115-125`                               |
+| `log_level`                        | `info`                            | Default level filter of the console's log panel: `info`, `warning` or `all`. The same choice is available per page as `?level=`. | `schemas/webservice_schema.yaml:22`                                 |
+| `frontend`                         | `false`                           | Install the web console. `false` = REST API only.                                                                                | `schemas/webservice_schema.yaml:17`, `shell.py:75`                  |
+| `dashboard.live`                   | `true`                            | Serve the live update stream (Server-Sent Events) on the dashboard.                                                              | `schemas/webservice_schema.yaml:33`                                 |
+| `dashboard.refresh_seconds`        | `2`                               | How often changed fragments are re-rendered and pushed, in seconds (1–60).                                                       | `schemas/webservice_schema.yaml:36`                                 |
+| `dashboard.stream_clients`         | `16`                              | Most concurrent live streams (1–256).                                                                                            | `schemas/webservice_schema.yaml:39`                                 |
+| `session.secret`                   | *(unset → random per start)*      | Signs the session cookie. Unset means every restart signs everyone out.                                                          | `schemas/webservice_schema.yaml:49`, `session.py:221`               |
+| `session.cookie_name`              | `dcssb_session`                   | Session cookie name.                                                                                                             | `schemas/webservice_schema.yaml:50`, `session.py:48`                |
+| `session.max_age`                  | `86400`                           | Session lifetime in seconds.                                                                                                     | `schemas/webservice_schema.yaml:53`                                 |
+| `session.https_only`               | *(unset → derived from `listen`)* | The `Secure` flag on the session cookie. Unset: `false` on a loopback-only bind, `true` on anything else.                        | `schemas/webservice_schema.yaml:59`, `session.py:140-169`           |
+| `session.same_site`                | `lax`                             | Cookie `SameSite`: `lax`, `strict` or `none`. Keep `lax` — `strict` makes every OAuth login fail.                                | `schemas/webservice_schema.yaml:63`, `session.py:201-212`           |
+| `auth.public_base_url`             | *(none)*                          | The public origin (scheme + host) the console is reachable at. Redirect URIs are built from this, never from a request.          | `schemas/webservice_schema.yaml:73`                                 |
+| `auth.local.enabled`               | `false`                           | Enable username/password login.                                                                                                  | `schemas/webservice_schema.yaml:80`                                 |
+| `auth.local.users[].username`      | *(required)*                      | The account name.                                                                                                                | `schemas/webservice_schema.yaml:87`                                 |
+| `auth.local.users[].password_hash` | *(required)*                      | A PBKDF2 hash — never a plaintext password.                                                                                      | `schemas/webservice_schema.yaml:90`                                 |
+| `auth.local.users[].roles`         | *(required)*                      | Role **names** of the bot's role model (`Admin`, `DCS Admin`, …). An unknown name is refused at startup.                         | `schemas/webservice_schema.yaml:93-97`                              |
+| `auth.local.users[].scope`         | *(unset = unrestricted)*          | The `managed_by` values this account may see and act on (the web-only equivalent of a Discord manager's scope).                  | `schemas/webservice_schema.yaml:106-110`                            |
+| `auth.discord.enabled`             | `false`                           | Enable Discord OAuth login.                                                                                                      | `schemas/webservice_schema.yaml:122`                                |
+| `auth.discord.client_id`           | *(none)*                          | The Discord application's client id.                                                                                             | `schemas/webservice_schema.yaml:123`                                |
+| `auth.discord.client_secret`       | *(none)*                          | Inline client secret.                                                                                                            | `schemas/webservice_schema.yaml:126`                                |
+| `auth.discord.client_secret_key`   | *(none)*                          | Name of a key in the bot's secret store. When set it **wins over** `client_secret`.                                              | `schemas/webservice_schema.yaml:130`                                |
+| `auth.discord.member_ttl`          | `60`                              | Seconds a member resolution may be cached when the bot runs without the Server Members Intent (clamped 1–3600).                  | `schemas/webservice_schema.yaml:136`                                |
+| `auth.breakglass.enabled`          | `false`                           | Enable the single emergency Admin credential, for the day the identity provider is what broke.                                   | `schemas/webservice_schema.yaml:143`                                |
+| `auth.breakglass.username`         | *(none)*                          | The emergency account name.                                                                                                      | `schemas/webservice_schema.yaml:144`                                |
+| `auth.breakglass.password_hash`    | *(none)*                          | A PBKDF2 hash, same format as `auth.local`.                                                                                      | `schemas/webservice_schema.yaml:145`                                |
 
 `Source` paths are relative to `services/webservice/`.
 
@@ -127,15 +127,15 @@ door on a headless (`no_discord: true`) install.
 Roles are the bot's role names from `bot.yaml` (`roles:`). The two-cluster-role pair is `Admin` and
 `DCS Admin` (`services/webservice/scope.py:90`).
 
-| Page or control | Who |
-|-----------------|-----|
+| Page or control                                                                                       | Who                                                                                                                                                                                                      |
+|-------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Dashboard (`/`), Servers (`/fleet`), Players (`/players`), Nodes (`/nodes`), Instances (`/instances`) | `Admin` sees everything; `DCS Admin` sees the untagged servers plus those whose `managed_by` names one of its roles; a **manager** sees only their own servers (and the nodes/instances that carry them) |
-| Logs page (`/logs`) and a node's *Download log* | `Admin` only |
-| A server's own page and its **Missions** tab | `Admin`, `DCS Admin`, and any **manager** — each on the servers in their view |
-| A server's **Configuration** tab — DCS config and coalition passwords | `Admin`, and a manager for the servers in their scope |
-| A server's **Configuration** tab — channels | `Admin` only (a manager may not write channels) |
-| Server **and** player controls (start/stop/restart, kick/ban/mute/message, mission add/remove/load/…) | `Admin`, `DCS Admin`, and managers — each on the servers in their view |
-| Node controls (restart, shut down, upgrade, take servers offline, bring servers online) | `Admin` only |
+| Logs page (`/logs`) and a node's *Download log*                                                       | `Admin` only                                                                                                                                                                                             |
+| A server's own page and its **Missions** tab                                                          | `Admin`, `DCS Admin`, and any **manager** — each on the servers in their view                                                                                                                            |
+| A server's **Configuration** tab — DCS config and coalition passwords                                 | `Admin`, and a manager for the servers in their scope                                                                                                                                                    |
+| A server's **Configuration** tab — channels                                                           | `Admin` only (a manager may not write channels)                                                                                                                                                          |
+| Server **and** player controls (start/stop/restart, kick/ban/mute/message, mission add/remove/load/…) | `Admin`, `DCS Admin`, and managers — each on the servers in their view                                                                                                                                   |
+| Node controls (restart, shut down, upgrade, take servers offline, bring servers online)               | `Admin` only                                                                                                                                                                                             |
 
 **Managers and scope.** A *manager* is a signed-in identity whose scope holds a server's
 `managed_by` value. A manager sees and acts on **their own servers only** — a server that declares no
@@ -176,14 +176,14 @@ serve HTTPS there. Two consequences matter:
 
 ## Problems people actually hit
 
-| Symptom | Cause and fix |
-|---------|---------------|
-| "Login seems to work, then the next page is refused" | A `Secure` session cookie served over plain HTTP on a non-loopback bind. Bind to `127.0.0.1`, or terminate TLS and set `session.https_only: true`. (`session.py:140-169`) |
-| Discord login "fails the first time, works on retry", or every Discord login fails | `session.same_site` is not `lax`. `strict` drops the cookie on the OAuth callback. Set it back to `lax`. (`session.py:201-212`) |
-| Everyone is signed out after every restart | `session.secret` is unset, so a random key is used per start. Set it to make sessions survive a restart. (`session.py:221-224`) |
+| Symptom                                                                                         | Cause and fix                                                                                                                                                                                                                                                                               |
+|-------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| "Login seems to work, then the next page is refused"                                            | A `Secure` session cookie served over plain HTTP on a non-loopback bind. Bind to `127.0.0.1`, or terminate TLS and set `session.https_only: true`. (`session.py:140-169`)                                                                                                                   |
+| Discord login "fails the first time, works on retry", or every Discord login fails              | `session.same_site` is not `lax`. `strict` drops the cookie on the OAuth callback. Set it back to `lax`. (`session.py:201-212`)                                                                                                                                                             |
+| Everyone is signed out after every restart                                                      | `session.secret` is unset, so a random key is used per start. Set it to make sessions survive a restart. (`session.py:221-224`)                                                                                                                                                             |
 | A user who lost a role keeps it for a while (or a signed-in page says "console is starting up") | With `privileged_intents: false`, member roles are re-resolved at most every `member_ttl` (default 60 s). After a restart, signed-in visitors get a page that retries itself for up to 60 s — no sign-in is needed, it resolves on its own. (`auth.discord.member_ttl`; `shell.py:419-490`) |
-| The console is not there at all | `frontend` is not `true`. The default serves the REST API only. (`shell.py:75`) |
-| The port is already in use | Ports must be 1024–65535 and unique per node; the service retries the bind a few times and then logs an error. (`core/utils/validators.py:170`, `service.py:175-188`) |
+| The console is not there at all                                                                 | `frontend` is not `true`. The default serves the REST API only. (`shell.py:75`)                                                                                                                                                                                                             |
+| The port is already in use                                                                      | Ports must be 1024–65535 and unique per node; the service retries the bind a few times and then logs an error. (`core/utils/validators.py:170`, `service.py:175-188`)                                                                                                                       |
 
 ### A warning about `debug`
 
