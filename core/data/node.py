@@ -111,22 +111,42 @@ class Node(ABC):
         raise NotImplementedError()
 
     @property
-    def proxy(self) -> str | None:
+    def _proxy_config(self) -> dict:
+        """This node's proxy settings: the node's own block in ``nodes.yaml``, else the bot service's ``bot.yaml``.
+
+        A bare URL string is read as ``{"url": …}``. A missing ``bot.yaml`` means "no proxy": that file only
+        exists where the bot service runs.
+        """
         if 'proxy' not in self.locals:
-            config = new_yaml().load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
-            self.locals['proxy'] = config.get('proxy', {}).get('url')
-        return self.locals['proxy']
+            try:
+                config = new_yaml().load(
+                    Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
+            except FileNotFoundError:
+                config = {}
+            self.locals['proxy'] = config.get('proxy') or {}
+        proxy = self.locals['proxy']
+        if isinstance(proxy, str):
+            proxy = self.locals['proxy'] = {'url': proxy}
+        return proxy or {}
+
+    @property
+    def proxy(self) -> str | None:
+        url = self._proxy_config.get('url')
+        return str(url) if url else None
 
     @property
     def proxy_auth(self) -> aiohttp.BasicAuth | None:
         if 'proxy_auth' not in self.locals:
-            config = new_yaml().load(Path(os.path.join(self.config_dir, 'services', 'bot.yaml')).read_text(encoding='utf-8'))
-            username = config.get('proxy', {}).get('username')
-            try:
-                password = utils.get_password('proxy', self.config_dir)
-                self.locals['proxy_auth'] = aiohttp.BasicAuth(username, password)
-            except ValueError:
-                self.locals['proxy_auth'] = None
+            proxy = self._proxy_config
+            username = proxy.get('username')
+            password = proxy.get('password') or None
+            if not password:
+                try:
+                    password = utils.get_password('proxy', self.config_dir)
+                except ValueError:
+                    password = None
+            self.locals['proxy_auth'] = (
+                aiohttp.BasicAuth(username, password) if username and password else None)
         return self.locals['proxy_auth']
 
     @property
