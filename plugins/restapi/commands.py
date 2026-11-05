@@ -1,4 +1,5 @@
 import asyncio
+import glob
 import ipaddress
 import jwt
 import os
@@ -25,6 +26,7 @@ from psycopg.rows import dict_row
 from services.bot import DCSServerBot
 from services.servicebus import ServiceBus
 from services.webservice import WebService
+from services.webservice.readmodels.dcslog import dcs_log_path
 
 from core.utils.yaml_helper import new_yaml
 
@@ -78,8 +80,14 @@ from .models import (
     MissionBullseyesResponse,
     MissionDrawingsResponse,
     MissionUnitResponse,
-    EventEntry, RefuelingEntry
+    EventEntry, RefuelingEntry,
+    LogFileInfo,
+    LogFilesResponse,
+    LogLine,
+    LogReadResponse
 )
+from .logreader import (LogReader, LogSource, LogNotFound, LogRequestError, BOT_FORMAT, DCS_FORMAT,
+                        DEFAULT_LINES, MAX_LINES, build_filter)
 
 app: FastAPI | None = None
 
@@ -261,9 +269,15 @@ class RestAPI(Plugin):
 
             return None
 
-        def get_required_auth_level(endpoint: str, scope: str) -> str:
+        def get_required_auth_level(endpoint: str, scope: str, min_auth: str = "none") -> str:
             endpoint_security = self.get_endpoint_config(endpoint).get('security', {})
-            required_level = endpoint_security.get(scope, default_security.get(scope, "jwt"))
+            if scope in endpoint_security:
+                required_level = endpoint_security[scope]
+            else:
+                # an endpoint without its own rule never falls below its minimum (logs carry player data)
+                required_level = default_security.get(scope, "jwt")
+                if required_level in auth_rank and auth_rank[required_level] < auth_rank[min_auth]:
+                    required_level = min_auth
 
             if required_level not in auth_rank:
                 self.log.warning(
@@ -274,14 +288,14 @@ class RestAPI(Plugin):
 
             return required_level
 
-        def auth_dependency(endpoint: str):
+        def auth_dependency(endpoint: str, min_auth: str = "none"):
             async def auth(
                     request: Request,
                     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
                     provided_api_key: str | None = Depends(api_key_header),
             ):
                 scope = get_request_scope(request)
-                required_level = get_required_auth_level(endpoint, scope)
+                required_level = get_required_auth_level(endpoint, scope, min_auth)
 
                 if required_level == 'disabled':
                     raise HTTPException(
@@ -320,7 +334,8 @@ class RestAPI(Plugin):
                 response_model: Any = None,
                 description: str = "",
                 summary: str = "",
-                tags: list[str] | None = None
+                tags: list[str] | None = None,
+                min_auth: str = "none"
         ):
             endpoint_config_key = path.lstrip("/")
             # only register enabled endpoints
@@ -333,7 +348,7 @@ class RestAPI(Plugin):
                     description=description,
                     summary=summary,
                     tags=tags,
-                    dependencies=[Depends(auth_dependency(endpoint_config_key))]
+                    dependencies=[Depends(auth_dependency(endpoint_config_key, min_auth))]
                 )
 
         ## Airbase Routes
@@ -695,6 +710,45 @@ class RestAPI(Plugin):
             tags = ["Node Control"]
         )
 
+        # Log routes: logs carry player names and IP addresses, so they need at least an API key, even
+        # on the loopback interface, unless the endpoint has its own security rule
+        add_secured_api_route(
+            "/node/logs", self.node_logs,
+            methods = ["GET"],
+            response_model = LogFilesResponse,
+            description = "List the bot log files of a node (the live one and the rotated ones).",
+            summary = "Bot log files of a node.",
+            tags = ["Logs"],
+            min_auth = "api_key"
+        )
+        add_secured_api_route(
+            "/node/log", self.node_log,
+            methods = ["GET"],
+            response_model = LogReadResponse,
+            description = "Read a bot log file of a node, filtered, with a cursor to get only the new lines later.",
+            summary = "Read a bot log.",
+            tags = ["Logs"],
+            min_auth = "api_key"
+        )
+        add_secured_api_route(
+            "/instance/logs", self.instance_logs,
+            methods = ["GET"],
+            response_model = LogFilesResponse,
+            description = "List the DCS log files of a server (dcs.log, dcs.log.old and the copies the bot keeps).",
+            summary = "DCS log files of a server.",
+            tags = ["Logs"],
+            min_auth = "api_key"
+        )
+        add_secured_api_route(
+            "/instance/log", self.instance_log,
+            methods = ["GET"],
+            response_model = LogReadResponse,
+            description = "Read a DCS log file of a server, filtered, with a cursor to get only the new lines later.",
+            summary = "Read a DCS log.",
+            tags = ["Logs"],
+            min_auth = "api_key"
+        )
+
         ## Mission routes
         add_secured_api_route(
             "/instance/missions", self.instance_missions,
@@ -939,6 +993,147 @@ class RestAPI(Plugin):
             "message": f"Node(s) {', '.join(restarted)} restarting.",
             "nodes": restarted
         }
+
+    def _bot_log_reader(self, node_name: str | None) -> tuple[str, LogReader]:
+        """The reader of a node's bot log (``logs/dcssb-<node>.log``, relative to the node's installation)."""
+        name = node_name or self.node.name
+        if name not in self.node.all_nodes:
+            raise HTTPException(status_code=404, detail=f"Node '{name}' not found.")
+        node = self.node.all_nodes[name]
+        if node is None:
+            raise HTTPException(status_code=503, detail=f"Node '{name}' is not active.")
+        live = f"dcssb-{name}.log"
+        source = LogSource(kind="bot", key=name, directory="logs", live=live,
+                           patterns=(glob.escape(live), glob.escape(live) + ".*"), format=BOT_FORMAT,
+                           utc=self.node.config.get('logging', {}).get('utc', True))
+        return name, LogReader(source, node.read_file_window, node.list_files)
+
+    def _dcs_log_reader(self, server_name: str) -> tuple[Server, LogReader]:
+        """The reader of a server's dcs.log (the LogAnalyser ``log`` setting, else ``<home>/Logs/dcs.log``)."""
+        resolved_server_name, server = self.get_resolved_server(server_name)
+        if not server:
+            raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
+        path = dcs_log_path(server)
+        live = os.path.basename(path)
+        source = LogSource(kind="dcs", key=server.name, directory=os.path.dirname(path), live=live,
+                           patterns=("dcs*.log*", glob.escape(live)), format=DCS_FORMAT, utc=True)
+        return server, LogReader(source, server.node.read_file_window, server.node.list_files)
+
+    async def _log_call(self, coro):
+        """Run a log reader call, its failures turned into HTTP errors."""
+        try:
+            return await coro
+        except LogNotFound as ex:
+            raise HTTPException(status_code=404, detail=str(ex))
+        except LogRequestError as ex:
+            raise HTTPException(status_code=400, detail=str(ex))
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="The log file disappeared while it was read, try again.")
+        except PermissionError:
+            raise HTTPException(status_code=403, detail="The node is not allowed to read this log file.")
+        except (TimeoutError, asyncio.TimeoutError):
+            raise HTTPException(status_code=504, detail="Timeout while reading the log on its node.")
+        except Exception as ex:
+            self.log.exception(ex)
+            raise HTTPException(status_code=500, detail=f"Failed to read the log: {str(ex)}")
+
+    @staticmethod
+    def _log_files(log: str, node: str, server_name: str | None, files) -> LogFilesResponse:
+        return LogFilesResponse(log=log, node=node, server_name=server_name, files=[
+            LogFileInfo(name=f.name, size=f.size, modified=datetime.fromtimestamp(f.mtime, tz=timezone.utc),
+                        live=f.live)
+            for f in files
+        ])
+
+    @staticmethod
+    def _log_read(log: str, node: str, server_name: str | None, result) -> LogReadResponse:
+        return LogReadResponse(
+            log=log, node=node, server_name=server_name, file=result.file, utc=result.utc,
+            lines=[LogLine(time=e.time, level=e.level, text=e.text) for e in result.entries],
+            cursor=result.cursor, rotated=result.rotated, gap=result.gap, new_file_at=result.new_file_at,
+            more=result.more,
+            scanned_bytes=result.scanned_bytes
+        )
+
+    @staticmethod
+    async def _read_log(reader: LogReader, file, contains, level, since, until, lines, tail, cursor):
+        flt = build_filter(contains=contains, level=level, since=since, until=until, utc=reader.source.utc)
+        return await reader.read(file, flt=flt, lines=lines, tail=tail, cursor=cursor)
+
+    # List the bot log files of a node.
+    # Endpoint:   /node/logs
+    # Method:     [GET]
+    # Params:     - node_name     [optional, default: the node that serves the RestAPI]
+    async def node_logs(
+        self,
+        node_name: str | None = Query(None, description="Node (default: the node that serves the RestAPI)")
+    ):
+        """List the bot log files of a node."""
+        name, reader = self._bot_log_reader(node_name)
+        files = await self._log_call(reader.list_files())
+        return self._log_files("bot", name, None, files)
+
+    # Read a bot log file of a node.
+    # Endpoint:   /node/log
+    # Method:     [GET]
+    # Params:     - node_name     [optional, default: the node that serves the RestAPI]
+    #             - file, contains, level, since, until, lines, tail, cursor [all optional]
+    async def node_log(
+        self,
+        node_name: str | None = Query(None, description="Node (default: the node that serves the RestAPI)"),
+        file: str | None = Query(None, description="A file name from /node/logs (default: the live log)"),
+        contains: list[str] | None = Query(None, description="Keep entries that contain this text "
+                                                             "(case-insensitive); repeat it to require several"),
+        level: str | None = Query(None, description="Minimum level: debug, info, warning, error or critical"),
+        since: str | None = Query(None, description="Keep entries from this time on: ISO 8601 or a duration "
+                                                    "(30m, 2h, 1d)"),
+        until: str | None = Query(None, description="Keep entries up to this time: ISO 8601 or a duration"),
+        lines: int = Query(DEFAULT_LINES, ge=1, le=MAX_LINES, description="Maximum number of entries"),
+        tail: bool = Query(True, description="Return the last matching entries (false: the first ones)"),
+        cursor: str | None = Query(None, description="The cursor of a previous answer: return only what was "
+                                                     "written since")
+    ):
+        """Read a bot log file of a node."""
+        name, reader = self._bot_log_reader(node_name)
+        result = await self._log_call(self._read_log(reader, file, contains, level, since, until, lines, tail,
+                                                     cursor))
+        return self._log_read("bot", name, None, result)
+
+    # List the DCS log files of a server.
+    # Endpoint:   /instance/logs
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    async def instance_logs(self, server_name: str = Query(...)):
+        """List the DCS log files of a server."""
+        server, reader = self._dcs_log_reader(server_name)
+        files = await self._log_call(reader.list_files())
+        return self._log_files("dcs", server.node.name, server.name, files)
+
+    # Read a DCS log file of a server.
+    # Endpoint:   /instance/log
+    # Method:     [GET]
+    # Params:     - server_name   [required]
+    #             - file, contains, level, since, until, lines, tail, cursor [all optional]
+    async def instance_log(
+        self,
+        server_name: str = Query(...),
+        file: str | None = Query(None, description="A file name from /instance/logs (default: dcs.log)"),
+        contains: list[str] | None = Query(None, description="Keep entries that contain this text "
+                                                             "(case-insensitive); repeat it to require several"),
+        level: str | None = Query(None, description="Minimum level: debug, info, warning, error or critical"),
+        since: str | None = Query(None, description="Keep entries from this time on: ISO 8601 or a duration "
+                                                    "(30m, 2h, 1d)"),
+        until: str | None = Query(None, description="Keep entries up to this time: ISO 8601 or a duration"),
+        lines: int = Query(DEFAULT_LINES, ge=1, le=MAX_LINES, description="Maximum number of entries"),
+        tail: bool = Query(True, description="Return the last matching entries (false: the first ones)"),
+        cursor: str | None = Query(None, description="The cursor of a previous answer: return only what was "
+                                                     "written since")
+    ):
+        """Read a DCS log file of a server."""
+        server, reader = self._dcs_log_reader(server_name)
+        result = await self._log_call(self._read_log(reader, file, contains, level, since, until, lines, tail,
+                                                     cursor))
+        return self._log_read("dcs", server.node.name, server.name, result)
 
 
     # Return a listing of available missions
