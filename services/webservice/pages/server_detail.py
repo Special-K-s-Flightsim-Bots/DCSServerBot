@@ -1794,6 +1794,17 @@ def _weather_refuse(status_code: int, sentence: str) -> PlainTextResponse:
     return PlainTextResponse(sentence + "\n", status_code=status_code)
 
 
+def _weather_original(value: str) -> bool:
+    """The dialog's "apply them to the original mission" box as the read's own flag.
+
+    The launch applies its weather to the ORIGINAL mission file by default (``use_orig`` is on in the
+    launch action's own signature), so a request that states nothing reads the original as well. Only
+    a stated OFF value reads the file the server is on.
+    """
+    text = readmodels.text(value).strip().lower()
+    return text not in ("0", "false", "no", "off")
+
+
 def add_mission_weather_route(router: APIRouter) -> APIRouter:
     """Add THE mission-weather read route (``GET``) — the launch dialog's own prefill read.
 
@@ -1803,12 +1814,17 @@ def add_mission_weather_route(router: APIRouter) -> APIRouter:
     parameter, never a path): the action resolves it against the server's own list, so a request that
     names a PATH is refused.
 
+    ``original`` follows the launch's own "apply them to the original mission" box: on reads the
+    ``.orig`` twin the launch bases its rewrite on, off the file the server is on — the same choice
+    ``ServerImpl.apply_mission_changes`` makes (``get_orig_file(selected) if use_orig else selected``).
+
     It answers JSON — the mission's weather as the wizard's own dotted-key values (``values``) plus the
     mission's FILE NAME (``name``) for the dialog's line — and every failure is its own plain sentence
     with its own status, never a document of zeros or defaults.
     """
     @router.get(MISSION_WEATHER_PATH, name="mission-weather")
-    async def mission_weather(request: Request, name: str, mission: str = "") -> Response:
+    async def mission_weather(request: Request, name: str, mission: str = "",
+                              original: str = "") -> Response:
         server = dashboard_page.scoped_server(request, name)
         node = _reachable_log_node(request, server)
         node_name = readmodels.text(attr(node, "name", None)) or readmodels.text(
@@ -1816,7 +1832,8 @@ def add_mission_weather_route(router: APIRouter) -> APIRouter:
         if node is None:
             return _weather_refuse(404, MISSION_WEATHER_NODE_OFFLINE.format(node=node_name))
         result = await actions_page.read_mission_weather(request, readmodels.text(name),
-                                                         readmodels.text(mission))
+                                                         readmodels.text(mission),
+                                                         original=_weather_original(original))
         if result is None:  # pragma: no cover - the access gate refuses an unresolved identity
             return _weather_refuse(403, "Not authorized.")
         if not bool(getattr(result, "success", False)):
