@@ -45,7 +45,7 @@
   <div class="card">
     <div class="hd">
       <span class="dot {{ s.status.dot }}" aria-hidden="true"></span>
-      {% if s.link %}<a class="srv-name" href="{{ s.link }}"><b>{{ s.display_name }}</b></a>{% else %}<b>{{ s.display_name }}</b>{% endif %}
+      {% if s.link %}<a class="srv-name" href="{{ s.link }}"><b>{{ s.name }}</b></a>{% else %}<b>{{ s.name }}</b>{% endif %}
       <div class="spacer"></div>
       <span class="tag" title="{{ s.status.raw }}">{{ _(s.status.word) }}</span>
       {% if s.locked %}<span class="tag" title="{% trans %}Password{% endtrans %}" aria-label="{% trans %}Password{% endtrans %}">🔐</span>{% endif %}

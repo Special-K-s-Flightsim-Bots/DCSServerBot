@@ -440,6 +440,15 @@
       box-shadow: 0 4px 25px rgba(0, 0, 0, 0.45);
     }
 
+    /* The bar carries the SHELL's brand (logo + product name, the same parts and the same 34px mark
+       every other page shows). Only the sidebar's own box is dropped: the bar already pads itself,
+       and a second bottom border would draw over the bar's. */
+    header.login-bar .brand {
+      padding: 0;
+      border-bottom: 0;
+      background: none;
+    }
+
     main.login-wrap {
       position: relative;
       z-index: 10;
@@ -671,6 +680,220 @@
         0 0 20px rgba(245, 158, 11, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
     }
+
+    /* =========================================================================
+       DAYLIGHT — the same scene for html[data-theme="light"].
+
+       The dark scene is built from glows and translucent glass, neither of which
+       survives a pale ground: a glow on white is a smudge and a dark glass panel
+       on white has no depth. So the light variant is a DAY SKY — ink on paper,
+       solid panels, soft grey shadows — rather than the dark values re-tinted.
+       Everything below is scoped to the light theme; the dark render is untouched.
+       ========================================================================= */
+    html[data-theme="light"] body.login-page {
+      background:
+        radial-gradient(circle at 50% 108%, rgba(56, 189, 248, 0.28) 0%, rgba(186, 230, 253, 0.55) 24%, #eaf4fd 56%, #dce9f6 100%) !important;
+      color: #0f172a;
+    }
+
+    html[data-theme="light"] .dcs-bg-canvas {
+      background:
+        radial-gradient(ellipse 90% 45% at 50% 0%, rgba(14, 165, 233, 0.10), transparent 70%),
+        radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.07), transparent 45%),
+        radial-gradient(circle at 85% 25%, rgba(245, 158, 11, 0.08), transparent 45%);
+    }
+
+    html[data-theme="light"] .dcs-planet {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.96) 0%, rgba(186, 230, 253, 0.92) 8%, rgba(147, 197, 253, 0.60) 26%, #cfe0f2 58%);
+      box-shadow:
+        0 -2px 16px rgba(255, 255, 255, 0.9),
+        0 -12px 48px rgba(56, 189, 248, 0.28),
+        inset 0 18px 52px rgba(255, 255, 255, 0.85);
+      border-top-color: #ffffff;
+    }
+
+    html[data-theme="light"] .dcs-planet-crest {
+      background: radial-gradient(ellipse at center, #ffffff 0%, rgba(186, 230, 253, 0.9) 32%, rgba(245, 158, 11, 0.35) 62%, transparent 100%);
+    }
+
+    html[data-theme="light"] .dcs-planet-rings {
+      border-color: rgba(2, 132, 199, 0.28);
+      box-shadow: none;
+    }
+    html[data-theme="light"] .dcs-planet-rings::before {
+      border-color: rgba(180, 83, 9, 0.22);
+    }
+
+    html[data-theme="light"] .dcs-radar-ring,
+    html[data-theme="light"] .dcs-radar-ring::before {
+      border-color: rgba(2, 132, 199, 0.20);
+      box-shadow: none;
+    }
+    html[data-theme="light"] .dcs-radar-ring::after {
+      border-color: rgba(180, 83, 9, 0.18);
+    }
+    html[data-theme="light"] .dcs-radar-sweep {
+      background: conic-gradient(from 0deg,
+        rgba(2, 132, 199, 0.14) 0deg, rgba(2, 132, 199, 0.05) 60deg, transparent 120deg);
+    }
+
+    html[data-theme="light"] .dcs-beacon {
+      color: #0f172a;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+    html[data-theme="light"] .dcs-beacon-dot {
+      background: #0284c7;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 10px rgba(2, 132, 199, 0.45);
+    }
+    html[data-theme="light"] .dcs-beacon-dot::after {
+      border-color: rgba(2, 132, 199, 0.55);
+    }
+    html[data-theme="light"] .dcs-beacon.gold .dcs-beacon-dot {
+      background: #d97706;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 10px rgba(217, 119, 6, 0.45);
+    }
+    html[data-theme="light"] .dcs-beacon.gold .dcs-beacon-dot::after {
+      border-color: rgba(180, 83, 9, 0.55);
+    }
+    html[data-theme="light"] .dcs-beacon-tag {
+      background: rgba(255, 255, 255, 0.92);
+      border-color: rgba(2, 132, 199, 0.35);
+      color: #0f172a;
+    }
+    html[data-theme="light"] .dcs-beacon.gold .dcs-beacon-tag {
+      border-color: rgba(180, 83, 9, 0.40);
+      color: #7c2d12;
+    }
+
+    html[data-theme="light"] .dcs-hud-wing {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(2, 132, 199, 0.24);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12), inset 0 1px 0 #ffffff;
+    }
+    html[data-theme="light"] .dcs-hud-wing.left {
+      border-left-color: rgba(2, 132, 199, 0.75);
+    }
+    html[data-theme="light"] .dcs-hud-wing.right {
+      border-right-color: rgba(217, 119, 6, 0.75);
+    }
+    html[data-theme="light"] .dcs-wing-hd {
+      color: #0369a1;
+      border-bottom-color: rgba(2, 132, 199, 0.20);
+    }
+    html[data-theme="light"] .dcs-hud-wing.right .dcs-wing-hd {
+      color: #b45309;
+      border-bottom-color: rgba(180, 83, 9, 0.22);
+    }
+    html[data-theme="light"] .dcs-wing-live {
+      color: #047857;
+    }
+    html[data-theme="light"] .dcs-wing-live::before {
+      background: #059669;
+      box-shadow: none;
+    }
+    html[data-theme="light"] .dcs-wing-item {
+      background: rgba(248, 250, 252, 0.92);
+      border-color: rgba(2, 132, 199, 0.16);
+    }
+    html[data-theme="light"] .dcs-wing-row {
+      color: #0f172a;
+    }
+    html[data-theme="light"] .dcs-wing-sub {
+      color: #475569;
+    }
+    html[data-theme="light"] .dcs-badge-on {
+      color: #047857;
+    }
+    html[data-theme="light"] .dcs-badge-stby {
+      color: #b45309;
+    }
+    html[data-theme="light"] .dcs-telem-bar {
+      background: rgba(203, 213, 225, 0.9);
+    }
+
+    html[data-theme="light"] .dcs-hud-compass {
+      color: #0369a1;
+      text-shadow: none;
+      border-color: rgba(2, 132, 199, 0.28);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.10);
+    }
+    html[data-theme="light"] .dcs-hud-compass .hud-accent {
+      color: #b45309;
+      text-shadow: none;
+    }
+    html[data-theme="light"] .dcs-hud-compass .hud-ok {
+      color: #047857;
+      text-shadow: none;
+    }
+
+    html[data-theme="light"] header.shell-bar.login-bar {
+      background: rgba(255, 255, 255, 0.94) !important;
+      border-bottom-color: rgba(2, 132, 199, 0.22) !important;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    html[data-theme="light"] .login-hero {
+      background: radial-gradient(circle, rgba(2, 132, 199, 0.12) 0%, transparent 75%);
+    }
+    html[data-theme="light"] .login-logo {
+      filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.18));
+    }
+    html[data-theme="light"] main.login-wrap h1 {
+      background: linear-gradient(135deg, #0f172a 0%, #0369a1 55%, #b45309 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: none;
+    }
+    html[data-theme="light"] main.login-wrap p.sub {
+      color: #334155 !important;
+      text-shadow: none;
+    }
+
+    html[data-theme="light"] .login-grid .card {
+      background: linear-gradient(165deg, rgba(255, 255, 255, 0.97) 0%, rgba(248, 250, 252, 0.99) 100%) !important;
+      border-color: rgba(2, 132, 199, 0.28) !important;
+      box-shadow:
+        0 22px 50px rgba(15, 23, 42, 0.16),
+        inset 0 1px 0 #ffffff !important;
+    }
+    html[data-theme="light"] .login-grid .card:focus-within,
+    html[data-theme="light"] .login-grid .card:hover {
+      border-color: rgba(2, 132, 199, 0.55) !important;
+    }
+    html[data-theme="light"] .login-grid .card .hd {
+      background: rgba(241, 245, 249, 0.9) !important;
+      border-bottom-color: rgba(2, 132, 199, 0.20) !important;
+    }
+    html[data-theme="light"] .login-grid .card .hd h2.ct {
+      color: #0f172a !important;
+    }
+    html[data-theme="light"] .login-grid .card .hd h2.ct::before {
+      background: #0284c7;
+      box-shadow: none;
+    }
+    html[data-theme="light"] .login-hud-tag {
+      color: #7c2d12;
+      background: rgba(245, 158, 11, 0.14);
+      border-color: rgba(180, 83, 9, 0.35);
+    }
+    html[data-theme="light"] .login-form label {
+      color: #0369a1 !important;
+    }
+    html[data-theme="light"] .login-form input[type="text"],
+    html[data-theme="light"] .login-form input[type="password"] {
+      background: #ffffff !important;
+      border-color: rgba(2, 132, 199, 0.35) !important;
+      color: #0f172a !important;
+      box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+    }
+    html[data-theme="light"] .login-form input[type="text"]:focus,
+    html[data-theme="light"] .login-form input[type="password"]:focus {
+      border-color: #0284c7 !important;
+      background: #ffffff !important;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18) !important;
+    }
   </style>
 </head>
 <body class="login-page">
@@ -691,20 +914,20 @@
         {% set b0 = fleet_servers[0] %}
         <div class="dcs-beacon gold" style="left: 50%; bottom: 52px; transform: translateX(-50%);">
           <div class="dcs-beacon-dot"></div>
-          <div class="dcs-beacon-tag">{{ (b0.display_name or b0.name)|upper }}{% if b0.port %} • {{ b0.port }}{% endif %}</div>
+          <div class="dcs-beacon-tag">{{ b0.name|upper }}{% if b0.port %} • {{ b0.port }}{% endif %}</div>
         </div>
         {% if fleet_servers|length > 1 %}
           {% set b1 = fleet_servers[1] %}
           <div class="dcs-beacon" style="left: 16%; bottom: 18px;">
             <div class="dcs-beacon-dot"></div>
-            <div class="dcs-beacon-tag">{{ (b1.display_name or b1.name)|upper }}{% if b1.port %} • {{ b1.port }}{% endif %}</div>
+            <div class="dcs-beacon-tag">{{ b1.name|upper }}{% if b1.port %} • {{ b1.port }}{% endif %}</div>
           </div>
         {% endif %}
         {% if fleet_servers|length > 2 %}
           {% set b2 = fleet_servers[2] %}
           <div class="dcs-beacon" style="right: 14%; bottom: 18px;">
             <div class="dcs-beacon-dot"></div>
-            <div class="dcs-beacon-tag">{{ (b2.display_name or b2.name)|upper }}{% if b2.port %} • {{ b2.port }}{% endif %}</div>
+            <div class="dcs-beacon-tag">{{ b2.name|upper }}{% if b2.port %} • {{ b2.port }}{% endif %}</div>
           </div>
         {% endif %}
       {% else %}
@@ -738,7 +961,7 @@
         {% for s in fleet_servers %}
         <div class="dcs-wing-item">
           <div class="dcs-wing-row">
-            <span>{{ s.display_name or s.name }}</span>
+            <span>{{ s.name }}</span>
             {% if s.status.dot == 'run' %}
             <span class="dcs-badge-on">● {{ _(s.status.word) }}</span>
             {% else %}
@@ -840,6 +1063,11 @@
 
   <header class="shell-bar login-bar">
     <div class="brand">
+      {#  The same mark and text as the shell's sidebar brand (base.html): the logo is a plain static
+          request, the product name is text because the wordmark inside the logo is unreadable at this
+          size. Only the size differs — the bar is 58px, not the sidebar's row.  #}
+      <img class="brand-logo" src="/static/logo-256.png" alt="DCSServerBot logo"
+           width="45" height="30">
       <div><b>DCSServerBot</b><small>{% trans %}Admin Console{% endtrans %}</small></div>
     </div>
     <div class="spacer"></div>
@@ -1011,11 +1239,11 @@
       setInterval(spawnMissile, 4200);
       setTimeout(spawnMissile, 1200);
 
-      function drawJetShape(ctx, scale, color, glow, isAwacs) {
+      function drawJetShape(ctx, scale, color, flame, isAwacs) {
         ctx.save();
         ctx.scale(scale, scale);
 
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.8)';
+        ctx.fillStyle = flame;
         ctx.beginPath();
         ctx.moveTo(-5, -1.8);
         ctx.lineTo(-17, 0);
@@ -1052,6 +1280,40 @@
         ctx.restore();
       }
 
+      // The drawing follows the console's theme: white stars and dark label boxes are dirt and
+      // holes on a pale sky, so the light theme asks for INK -- darker strokes, solid white tags.
+      const INK = {
+        dark: {
+          star: 'rgba(224, 242, 254, 0.55)',
+          trailHostile: 'rgba(248, 113, 113, 0.38)',
+          trailFriendly: 'rgba(125, 211, 252, 0.38)',
+          awacs: '167, 139, 250',
+          tagBg: 'rgba(4, 11, 25, 0.85)',
+          tagHostile: 'rgba(248, 113, 113, 0.45)',
+          tagFriendly: 'rgba(56, 189, 248, 0.35)',
+          tagText: 'rgba(203, 213, 225, 0.85)',
+          missile: 'rgba(251, 191, 36, 0.75)'
+        },
+        light: {
+          star: 'rgba(51, 65, 85, 0.38)',
+          trailHostile: 'rgba(190, 18, 60, 0.40)',
+          trailFriendly: 'rgba(3, 105, 161, 0.40)',
+          awacs: '109, 40, 217',
+          tagBg: 'rgba(255, 255, 255, 0.92)',
+          tagHostile: 'rgba(190, 18, 60, 0.45)',
+          tagFriendly: 'rgba(3, 105, 161, 0.45)',
+          tagText: 'rgba(15, 23, 42, 0.85)',
+          missile: 'rgba(180, 83, 9, 0.75)'
+        }
+      };
+      // The jets wear bright colours that read on a night sky and vanish on a pale one, so the
+      // light theme maps each silhouette to its ink equivalent.
+      const INK_OF = {
+        '#38bdf8': '#0369a1', '#34d399': '#047857', '#fbbf24': '#b45309',
+        '#f87171': '#be123c', '#a78bfa': '#6d28d9'
+      };
+      let ink = INK.dark;
+
       let tick = 0;
       let lastFrame = 0;
       let isTyping = false;
@@ -1068,9 +1330,10 @@
         if (now - lastFrame < 33) return;
         lastFrame = now;
         tick++;
+        ink = document.documentElement.getAttribute('data-theme') === 'light' ? INK.light : INK.dark;
         ctx.clearRect(0, 0, W, H);
 
-        ctx.fillStyle = 'rgba(224, 242, 254, 0.55)';
+        ctx.fillStyle = ink.star;
         ctx.beginPath();
         for (let sIdx = 0; sIdx < stars.length; sIdx++) {
           const st = stars[sIdx];
@@ -1099,7 +1362,7 @@
           if (j.trail.length > 36) j.trail.shift();
 
           if (j.trail.length > 2) {
-            ctx.strokeStyle = j.hostile ? 'rgba(248, 113, 113, 0.38)' : 'rgba(125, 211, 252, 0.38)';
+            ctx.strokeStyle = j.hostile ? ink.trailHostile : ink.trailFriendly;
             ctx.lineWidth = 1.6;
             ctx.beginPath();
             ctx.moveTo(j.trail[0].x, j.trail[0].y);
@@ -1112,35 +1375,38 @@
           if (j.awacs) {
             const pulseR = (tick % 45) * 1.6;
             const pulseA = Math.max(0, 1 - pulseR / 72) * 0.35;
-            ctx.strokeStyle = 'rgba(167, 139, 250, ' + pulseA.toFixed(2) + ')';
+            ctx.strokeStyle = 'rgba(' + ink.awacs + ', ' + pulseA.toFixed(2) + ')';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(j.px, j.py, pulseR, 0, Math.PI * 2);
             ctx.stroke();
           }
 
+          const col = ink === INK.light ? (INK_OF[j.color] || j.color) : j.color;
+          const flame = ink === INK.light ? 'rgba(180, 83, 9, 0.8)' : 'rgba(251, 191, 36, 0.8)';
+
           ctx.save();
           ctx.translate(j.px, j.py);
           ctx.rotate(j.angle);
-          drawJetShape(ctx, j.scale, j.color, j.glow, j.awacs);
+          drawJetShape(ctx, j.scale, col, flame, j.awacs);
           ctx.restore();
 
-          ctx.strokeStyle = j.color;
+          ctx.strokeStyle = col;
           ctx.lineWidth = 1;
           ctx.strokeRect(j.px - 9, j.py - 9, 18, 18);
 
           const tagX = j.px + 14;
           const tagY = j.py - 22;
-          ctx.fillStyle = 'rgba(4, 11, 25, 0.85)';
+          ctx.fillStyle = ink.tagBg;
           ctx.fillRect(tagX, tagY, 94, 20);
-          ctx.strokeStyle = j.hostile ? 'rgba(248, 113, 113, 0.45)' : 'rgba(56, 189, 248, 0.35)';
+          ctx.strokeStyle = j.hostile ? ink.tagHostile : ink.tagFriendly;
           ctx.strokeRect(tagX, tagY, 94, 20);
 
           ctx.font = 'bold 8.5px Consolas, monospace';
-          ctx.fillStyle = j.color;
+          ctx.fillStyle = col;
           ctx.fillText(j.callsign, tagX + 4, tagY + 9);
           ctx.font = '7.5px Consolas, monospace';
-          ctx.fillStyle = 'rgba(203, 213, 225, 0.85)';
+          ctx.fillStyle = ink.tagText;
           ctx.fillText(j.sub, tagX + 4, tagY + 17);
         }
 
@@ -1161,7 +1427,7 @@
           if (m.trail.length > 16) m.trail.shift();
 
           if (m.trail.length > 1) {
-            ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
+            ctx.strokeStyle = ink.missile;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(m.trail[0].x, m.trail[0].y);

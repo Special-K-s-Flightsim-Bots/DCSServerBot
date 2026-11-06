@@ -111,6 +111,19 @@
   --login-line: #a9711f; --login-text: #1a1204; --login-hover: #c98f34; --login-lead: #3a3320;
   --login-ring: rgba(232, 163, 61, .12);        /* .login-grid .card.lead inset ring */
   --sw-off: #26313f; --sw-on: #2c4a30; --sw-on-line: #3d6b44;  /* .st-sw tile track */
+  /* the DEPTH cues — gradients, shadows and the one glow, so a second palette is declared here
+   * rather than re-typed into a rule (a shadow tuned for a black ground is invisible on white) */
+  --side-top: #0d131c; --side-bottom: #090d14;  /* .side gradient */
+  --side-shadow: 4px 0 20px rgba(0, 0, 0, .4);
+  --brand-wash: rgba(240, 168, 48, .08);        /* .brand gradient */
+  --brand-strong: #f8fafc;                      /* .brand b */
+  --brand-glow: 0 1px 8px rgba(240, 168, 48, .25);
+  --bar-shadow: 0 2px 14px rgba(0, 0, 0, .35);  /* .shell-bar / .top */
+  --card-shadow: 0 6px 22px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .04);
+  --card-hover-line: #2f435e;                   /* .card:hover border */
+  --run-glow: 0 0 8px rgba(63, 185, 80, .65);   /* .dot.run glow (the halo token is separate) */
+  --pill-top: #182232; --pill-bottom: #121924;  /* .pill gradient */
+  --pill-inset: rgba(255, 255, 255, .05);
 }
 
 * { box-sizing: border-box; }
@@ -151,17 +164,22 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
   display: flex;
   flex-direction: column;
 }
-.brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px;
-  border-bottom: 1px solid var(--line); }
-.brand img.brand-logo { height: 60px; width: auto; display: block; flex: 0 0 auto; }
+.brand { display: flex; gap: 10px; align-items: center; flex: 0 0 auto;
+  height: var(--nav-h); padding: 0 16px; border-bottom: 1px solid var(--line); }
+.brand img.brand-logo { height: 34px; width: auto; display: block; flex: 0 0 auto; }
 /* The brand mark is THE PROJECT'S OWN LOGO (services/webservice/static/logo.png), served from a
  * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
  * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
- * every viewport (a fixed width would stretch it). At 40px the mark draws ~60px wide at the file's
- * 3:2 aspect, from a 256px-wide derivative -- still ~4x the drawn width, so it stays sharp on a 2x
- * display. 40px is a third taller than the 30px it grew from, so the brand row is now taller than
- * before; that is expected. The height is stated ONCE, here; the element's own width and
- * height attributes are only a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
+ * every viewport (a fixed width would stretch it). At 34px the mark draws ~51px wide at the file's
+ * 3:2 aspect, from a 256px-wide derivative -- still ~5x the drawn width, so it stays sharp on a 2x
+ * display. The height is stated ONCE, here; the element's own width and height attributes are only
+ * a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
+ *
+ * THE ROW IS `--nav-h`, NOT A PADDED BAND: the brand row's bottom border has to land on the same
+ * line as the top bar's, so the logo and the product name sit in the band above the nav exactly as
+ * they do in the login page's bar. A mark taller than the bar pushed the row past it and the two
+ * edges disagreed. `flex: 0 0 auto` pins it for the same reason the bar pins itself — a long nav
+ * would otherwise shrink it.
  *
  * TO REGENERATE the derivatives (never logo.png itself — it is the canonical master, byte-for-byte
  * what was supplied) from the repository root, with Pillow on the interpreter:
@@ -1763,6 +1781,20 @@ html[data-theme="light"] {
   --login-ring: rgba(154, 90, 5, .14);
   --sw-off: #d4dbe5; --sw-on: #bfe3c6; --sw-on-line: #7bbf8a;
 
+  /* the depth cues: a shadow tuned for black is invisible on white, and a glow reads as a smudge,
+   * so the light set is lighter, tighter and grey-tinted rather than a copy of the dark one */
+  --side-top: #ffffff; --side-bottom: #f7f9fb;
+  --side-shadow: 4px 0 20px rgba(15, 23, 42, .10);
+  --brand-wash: rgba(154, 90, 5, .07);
+  --brand-strong: #0f172a;
+  --brand-glow: none;
+  --bar-shadow: 0 2px 14px rgba(15, 23, 42, .08);
+  --card-shadow: 0 6px 18px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255, 255, 255, .7);
+  --card-hover-line: #93a3b7;
+  --run-glow: 0 0 8px rgba(26, 127, 55, .35);
+  --pill-top: #ffffff; --pill-bottom: #eef1f6;
+  --pill-inset: rgba(255, 255, 255, .8);
+
   /* the settings-tile kind signatures (declared in the tile block above) also flip */
   --kind-plugin: var(--accent); --kind-service: var(--link); --kind-ext: #0d7f74;
   --kind-preset: #6b3fa0;
@@ -1896,35 +1928,26 @@ html[data-theme="light"] {
 
 
 /* ================================================================
- * Modern Tactical Glass & Glow Theme Enhancements
+ * Tactical glass & glow — the depth cues (gradients, shadows, glows)
+ * the shell wears on top of the palette. Every colour here is a TOKEN,
+ * declared once with the palette above and overridden by
+ * html[data-theme="light"], so both themes get the same construction
+ * and neither one is a re-typed copy of the other.
  * ================================================================ */
-:root {
-  --ground: #080b10;
-  --ground-2: #0d121a;
-  --panel: #121924;
-  --panel-2: #182232;
-  --line: #223044;
-  --line-2: #2d4059;
-  --accent: #f0a830;
-  --accent-2: #d48817;
-  --run: #2ea043;
-  --ok: #2ea043;
-}
-
 .side {
-  background: linear-gradient(180deg, #0d131c 0%, #090d14 100%);
-  box-shadow: 4px 0 20px rgba(0, 0, 0, .4);
+  background: linear-gradient(180deg, var(--side-top) 0%, var(--side-bottom) 100%);
+  box-shadow: var(--side-shadow);
 }
 
 .brand {
-  background: linear-gradient(90deg, rgba(240, 168, 48, .08), transparent);
+  background: linear-gradient(90deg, var(--brand-wash), transparent);
 }
 
 .brand b {
-  color: #f8fafc;
+  color: var(--brand-strong);
   font-size: 14.5px;
   letter-spacing: .4px;
-  text-shadow: 0 1px 8px rgba(240, 168, 48, .25);
+  text-shadow: var(--brand-glow);
 }
 
 .brand small {
@@ -1934,39 +1957,27 @@ html[data-theme="light"] {
 }
 
 .shell-bar, .top {
-  background: linear-gradient(180deg, #131b27 0%, #0d131c 100%);
-  box-shadow: 0 2px 14px rgba(0, 0, 0, .35);
+  box-shadow: var(--bar-shadow);
 }
 
 .card {
-  box-shadow: 0 6px 22px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .04);
+  box-shadow: var(--card-shadow);
   transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 .card:hover {
-  border-color: #2f435e;
-}
-
-.card > .hd {
-  background: linear-gradient(180deg, #1a2434 0%, #131b27 100%);
+  border-color: var(--card-hover-line);
 }
 
 .dot.run {
-  background: #3fb950;
-  box-shadow: 0 0 8px rgba(63, 185, 80, .65), 0 0 0 3px var(--run-halo);
+  box-shadow: var(--run-glow), 0 0 0 3px var(--run-halo);
 }
 
 .pill {
-  background: linear-gradient(180deg, #182232 0%, #121924 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+  background: linear-gradient(180deg, var(--pill-top) 0%, var(--pill-bottom) 100%);
+  box-shadow: inset 0 1px 0 var(--pill-inset);
 }
 
 .nav a {
   transition: background .15s ease, color .15s ease, transform .15s ease;
-}
-
-.nav a.on {
-  background: linear-gradient(90deg, rgba(240, 168, 48, .20), rgba(240, 168, 48, .03));
-  box-shadow: inset 3px 0 0 var(--accent);
-  font-weight: 600;
 }

@@ -7,8 +7,10 @@ import os
 import re
 
 from core import Service, ServiceRegistry, Status, NodeImpl, get_translation
+from core.utils.yaml_helper import new_yaml
 from datetime import datetime
 from logging.handlers import QueueHandler, RotatingFileHandler
+from pathlib import Path
 from queue import Queue
 from rich import box
 from rich.align import Align
@@ -108,6 +110,28 @@ class HeaderWidget:
         self.service = service
         self.node = service.node
         self.log = service.log
+        #: the console's address, read once — services/webservice.yaml is read at process start, so a
+        #: change to it needs a restart anyway and a per-frame file read would be pure cost.
+        self.web_url: str | None = self._read_console_url()
+
+    def _read_console_url(self) -> str | None:
+        """The console's address as an operator types it, or ``None`` when no console is served.
+
+        Read from ``services/webservice.yaml`` — the file that STARTS the service — so a custom
+        port or a configured ``auth.public_base_url`` is what the header shows. The bind address
+        (often ``0.0.0.0``) is never a browsable one, so the fallback is loopback plus the port.
+        """
+        try:
+            path = Path(self.node.config_dir) / 'services' / 'webservice.yaml'
+            cfg = new_yaml().load(path.read_text(encoding='utf-8')) or {}
+        except Exception:
+            return None
+        if not cfg or not cfg.get('frontend', True):
+            return None
+        base = str(((cfg.get('auth') or {}).get('public_base_url')) or '').strip()
+        if not base:
+            base = f"http://localhost:{cfg.get('port', 9876)}"
+        return base.rstrip('/')
 
     def __rich__(self) -> Panel:
         config = self.service.get_config().get('header', {})
@@ -124,7 +148,11 @@ class HeaderWidget:
                 prefix = f"{_('Cluster Agent')} | "
         left_msg = f"🟢 [bold bright_white]{prefix}DCSServerBot v{self.node.bot_version}.{self.node.sub_version}[/]"
 
-        center_msg = f"[bold bright_cyan]{_('Web')}:[/] [underline bright_white]localhost:9876[/]"
+        url = self.web_url
+        if url:
+            center_msg = f"[bold bright_cyan]{_('Web')}:[/] [underline bright_white]{url}[/]"
+        else:
+            center_msg = f"[bold bright_cyan]{_('Web')}:[/] [dim]—[/]"
         if self.node.dcs_version:
             center_msg = f"[bold bright_cyan]{_('DCS Version')}:[/] [bright_white]{self.node.dcs_version}[/]  [dim cyan]│[/]  " + center_msg
 
@@ -358,20 +386,9 @@ class LogWidget:
             return True
         return False
 
-    def _emit(self, record: logging.LogRecord) -> ConsoleRenderable | None:
+    def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
         record = self._normalize_record(record)
         raw_msg = getattr(record, "message", None) or record.getMessage()
-        if any(s in raw_msg for s in (
-            "signed in via the local backend",
-            "Registrar: '",
-            "Admin web shell installed:",
-            "Admin web UI auth:",
-            "PluginManager:",
-            "Python version ",
-            "Web UI session: session.https_only",
-        )):
-            return None
-
         clean_msg = _clean_log_prefix(raw_msg)
         badge, mod, msg_styled = _log_badge_and_module(record, raw_msg, clean_msg)
         ts = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
@@ -417,8 +434,6 @@ class LogWidget:
                     record: logging.LogRecord = self.queue.get_nowait()
                     try:
                         log_renderable = self._emit(record)
-                        if log_renderable is None:
-                            continue
                         renderable_lines = self._measure_renderable_lines(log_renderable, options.max_width)
                         self.buffer.append((renderable_lines, log_renderable))
                     except Exception as ex:
