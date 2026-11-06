@@ -80,7 +80,8 @@ __all__ = [
     "WEATHER_MODE_CUSTOM", "WEATHER_MODES", "_WeatherRefusal", "preset_file_is_safe",
     "preset_names_of", "select_params",
     "PRESET_READ_LOADING", "PRESET_READ_DONE", "PRESET_READ_FAILED",
-    "PRESET_NO_MISSION", "current_mission_available",
+    "PRESET_NO_MISSION", "MISSION_LIST_UNREADABLE",
+    "MISSION_PICK_LABEL", "MISSION_PICK_HELP", "MISSION_ONLY_SENTENCE",
     "TEMPORARY_KEYS", "TEMPORARY_HEAD", "TEMPORARY_OPTIONAL", "TEMPORARY_HELP", "TEMPORARY_NOTE",
     "REFUSAL_WEATHER_CONFLICT", "REFUSAL_WEATHER_NEEDS_EXTENSIONS", "REFUSAL_WEATHER_NO_PICK",
     "REFUSAL_WEATHER_UNKNOWN_PRESET", "REFUSAL_WEATHER_UNKNOWN_FILE",
@@ -758,6 +759,12 @@ class WriteAction:
     #: audience). Drawn by the SAME template as the text field and the checkboxes
     #: (``confirm.html``'s ``field_input``), and its ``field`` is likewise the action's parameter.
     select: SelectField | None = None
+    #: THE LAUNCH DIALOG'S MISSION PICK — the mission the launch starts. A SEPARATE slot from
+    #: ``select`` because Startup draws TWO per-request picks (this one and the weather preset) and
+    #: because its options come from the server's OWN rotation, read per request: only the field and
+    #: its copy are declared here. The pick states a mission for THIS launch; the action moves the
+    #: rotation pointer to it, which is how ``Server.startup`` selects what it loads.
+    mission_select: SelectField | None = None
     #: whether the DIALOG also draws the TEMPORARY PRESET's weather fields — the second shape of the
     #: same ``preset`` choice its ``select`` names (``TEMPORARY_KEYS``, read from the one field
     #: table). The two are posted under one field and the route refuses a launch that states both.
@@ -945,11 +952,27 @@ PRESET_READ_DONE = i18n._("Read from {mission}")
 #: the line a read that never reached the route leaves — every refusal the ROUTE answers carries its own
 #: sentence, so this one is only for a transport that never answered.
 PRESET_READ_FAILED = i18n._("The mission's weather could not be read.")
-#: THE SENTENCE A DIALOG CARRIES IN PLACE OF THE WEATHER PICK when the server names no current mission:
-#: there is nothing to apply a preset to, so the pick is not offered at all and this says why. It is a
-#: STARTUP dialog's own — the LOAD dialog always has the row that was picked.
-PRESET_NO_MISSION = i18n._("This server has no current mission, so there is nothing to apply a "
+#: THE SENTENCE A DIALOG CARRIES IN PLACE OF THE WEATHER PICK when the server's rotation names no
+#: mission: there is nothing to start, and therefore nothing to apply a preset to, so the pick is not
+#: offered at all and this says why. It is a STARTUP dialog's own — the LOAD dialog always has the row
+#: that was picked.
+PRESET_NO_MISSION = i18n._("This server's rotation names no mission, so there is nothing to apply a "
                            "weather preset to.")
+#: THE SAME WITHHOLDING when the rotation could not be READ at all: the dialog cannot offer a mission
+#: it cannot list, so it says that instead of drawing an empty pick.
+MISSION_LIST_UNREADABLE = i18n._("This server's mission list could not be read, so there is nothing to "
+                                 "apply a weather preset to.")
+#: THE STARTUP DIALOG'S MISSION PICK. The mission list is the SERVER'S OWN rotation, read per request
+#: (``_startup_mission_pick``), so only the field and its copy are declared. The value is the mission's
+#: LOGICAL NAME — the same word the Missions tab shows — which the action resolves against the list,
+#: so a page that outlived a reorder names nothing rather than the wrong entry.
+MISSION_PICK_LABEL = i18n._("Mission to start")
+MISSION_PICK_HELP = i18n._("The mission this server loads when it starts — the one its rotation names. "
+                           "Choosing another one moves that rotation pointer, exactly like "
+                           "/server startup mission:.")
+#: THE PICK AS ONE SENTENCE, for a server whose rotation holds exactly ONE mission: a dropdown with one
+#: entry is a control that cannot choose, so the fact is stated instead of drawn.
+MISSION_ONLY_SENTENCE = i18n._("Loaded at start: {mission}")
 
 #: THE LAUNCH DIALOG'S TEMPORARY PRESET — the same weather pick's OTHER shape, on the same dialog.
 #: The controls are the rows of the ONE field table the presets wizard renders
@@ -1072,6 +1095,12 @@ SERVER_ACTIONS: tuple[WriteAction, ...] = (
                 # options on the declaration is what says "the options come from the request". ONE
                 # declaration, shared with the Missions tab's Load dialog (``WEATHER_PRESET_SELECT``).
                 select=WEATHER_PRESET_SELECT,
+                # THE MISSION THIS LAUNCH STARTS. Its options are the server's own rotation, read per
+                # request, with the configured start mission preselected — so doing nothing changes
+                # nothing. Only Startup declares it: the Load dialog already names its mission on the
+                # row that opened it.
+                mission_select=SelectField(field=MISSION_FIELD, label=MISSION_PICK_LABEL, options=(),
+                                           help=MISSION_PICK_HELP),
                 # THE SAME CHOICE'S SECOND SHAPE: the temporary preset's weather fields, drawn on
                 # this dialog's body from the one field table. Its document rides ``preset`` beside
                 # the select's name, and a launch stating both is refused.
@@ -4582,7 +4611,9 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
                     weather_fields: tuple[dict, ...] = (),
                     temporary: dict | None = None,
                     weather_note: dict | None = None,
-                    with_select: bool = True) -> dict:
+                    with_select: bool = True,
+                    mission_pick: dict | None = None,
+                    mission_note: dict | None = None) -> dict:
     """Everything the confirm dialog's page reads, in one value.
 
     ``origin`` is the page the row that opened this dialog was rendered on: it
@@ -4626,13 +4657,26 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         "target": name,
         #: the form's hidden fields — the whole target and the page it was pressed on
         "hidden": _hidden_fields(origin, tab, ("server", name)),
+        #: THE LAUNCH FORM'S BODY CONTROLS, in the order the dialog draws them: the MISSION pick (the
+        #: launch's own choice, Startup only) and then the weather mode/file/preset controls whose
+        #: MODE decides whether the temporary block below is shown. They sit in the BODY because they
+        #: qualify the block they precede — drawn after it, the mode that hides a block would come
+        #: after the block it hides. Every one of them is form-associated to the footer's form
+        #: (``form="dlg-form"``), so the submit is still the ONE button at the bottom.
+        "body_fields": tuple(([mission_pick] if mission_pick else [])
+                             + (list(weather_fields) if action.weather and with_select else [])),
+        #: THE PICK AS A SENTENCE, for a rotation holding a single mission: a dropdown with one entry
+        #: cannot choose, so the fact is stated (``mission_note``, ``None`` on every other dialog).
+        "mission_note": mission_note,
         #: the fields the dialog asks for, drawn before the button, in the declaration's order: the
         #: command's own OPTION when the action declares one (Shutdown/Startup's maintenance box), the
         #: TEXT field and the SELECT a message control declares, otherwise none — the destructive trio
         #: need no input, which is why this row exists at all. ``weather_fields`` is the launch
         #: dialog's per-request weather control set (mode, file pick, preset pick), drawn from the
-        #: resolved server's node's own preset files.
-        "inputs": _dialog_inputs(request, action, weather_fields, with_select=with_select),
+        #: resolved server's node's own preset files; on a launch dialog those travel in
+        #: ``body_fields`` instead, so only the checkboxes are left here.
+        "inputs": _dialog_inputs(request, action, () if action.weather else weather_fields,
+                                 with_select=False if action.weather else with_select),
         #: THE TEMPORARY PRESET'S FIELDSET, on the SAME dialog: the weather controls the one field
         #: table declares, or ``None`` for every action that does not declare ``weather``. Its choice
         #: controls are filled by the caller from the resolved server's own node (``_temporary_fieldset``)
@@ -5094,25 +5138,49 @@ async def _weather_fields(request: Request, server: Any) -> tuple[dict, ...]:
     return tuple(fields)
 
 
-async def current_mission_available(server: Any) -> bool:
-    """Whether *server* names a CURRENT mission — the gate the STARTUP dialog's weather pick reads.
+async def _startup_mission_pick(request: Request,
+                                server_name: str) -> tuple[dict | None, dict | None, dict | None, str]:
+    """The Startup dialog's mission choice, read from the server's OWN rotation.
 
-    A server that answers "no mission" has nothing to apply a preset to (it would launch without a
-    mission and settle at ``STOPPED``), so the pick is withheld. Tolerant by design: only a server that
-    ANSWERS with no mission withholds it, so a double or a transport that cannot answer keeps the pick
-    rather than hiding a feature on an unreadable state. The read is the server's own
-    (``get_current_mission_file``), the same one the read route falls back to when it is sent no
-    mission.
+    Returns ``(picker, note, weather_note, mission)``:
+
+    * ``picker`` — the ``select`` record, its options the rotation's missions in ``missionList``
+      order with the configured start mission SELECTED, so a launch nobody touches states the
+      mission the server would have loaded anyway. ``None`` when there is nothing to choose
+      between: a rotation holding ONE mission is stated as a sentence (``note``) rather than drawn
+      as a dropdown that cannot choose, and a rotation that could not be read offers neither.
+    * ``note`` — that one-mission sentence, or ``None``.
+    * ``weather_note`` — the sentence that replaces the weather pick when there is no mission to
+      apply a preset to (an EMPTY rotation, or one that could not be read); ``None`` otherwise.
+    * ``mission`` — the logical NAME the weather read starts from (empty when there is none), so the
+      temporary block's line names the same mission the pick shows.
+
+    The list comes from the ``get_mission_list`` READ action — the SAME reader the Missions tab
+    renders — so the names offered here, the START row the tab marks and the mission the weather is
+    read from are one fact, never three. The value posted is the mission's LOGICAL NAME (what the tab
+    shows), which the action resolves against a FRESH list: a picked name that a reorder invalidated
+    names nothing and is refused, where a posted index would silently name its new occupant.
     """
-    getter: Any = getattr(server, "get_current_mission_file", None)
-    if not callable(getter):
-        return True
-    try:
-        current: Any = await getter()  # type: ignore[misc] - a server double may bind a plain method
-    except Exception as ex:  # noqa: BLE001 - an unreadable state keeps the pick
-        log.debug("Startup dialog: the server's current mission is unreadable (%s)", type(ex).__name__)
-        return True
-    return bool(readmodels.text(current))
+    result = await mission_list(request, server_name)
+    if result is None or not bool(getattr(result, "success", False)):
+        log.info("Startup dialog: the mission list could not be read (%s)",
+                 readmodels.text(getattr(result, "message", "")) or "no answer")
+        return None, None, _sentence(MISSION_LIST_UNREADABLE), ""
+    data = getattr(result, "data", None) or {}
+    rows = [row for row in (data.get("missions") or []) if isinstance(row, dict)]
+    names = [readmodels.text(row.get("name")) for row in rows]
+    names = [name for name in names if name]
+    if not names:
+        return None, None, _sentence(PRESET_NO_MISSION), ""
+    active = int(data.get("active") or 0)
+    chosen = names[active - 1] if 1 <= active <= len(names) else names[0]
+    if len(names) == 1:
+        return None, _sentence(MISSION_ONLY_SENTENCE, mission=names[0]), None, chosen
+    field = _dialog_field(MISSION_FIELD, MISSION_PICK_LABEL, kind="select",
+                          options=tuple({"value": name, "label": name,
+                                         "selected": name == chosen} for name in names),
+                          help_text=MISSION_PICK_HELP)
+    return field, None, None, chosen
 
 
 async def _temporary_fieldset(action: WriteAction, server: Any = None, *,
@@ -7505,6 +7573,12 @@ def _handler(action: WriteAction):
         # something else meets its typed refusal rather than this route guessing at it.
         if action.field:
             params[action.field] = readmodels.text(form.get(action.field))
+        if action.mission_select is not None:
+            # THE LAUNCH'S MISSION, when the dialog offers the choice (Startup): the LOGICAL name the
+            # pick posts, under the declaration's own field name, so the route cannot post one thing and
+            # the action read another. Unstated (an older page, a direct caller) leaves the rotation
+            # pointer exactly as it is — which is the mission the server would have loaded anyway.
+            params[action.mission_select.field] = _last_form_value(form, action.mission_select.field)
         if action.weather:
             # THE WEATHER MODE AND THE PICK IT QUALIFIES — the ONE shared reader the Missions tab's
             # Load route uses too, so the two dialogs cannot parse differently. A mode the POST
@@ -7631,27 +7705,36 @@ def _confirm_handler(action: WriteAction):
         # its options are that node's named presets, not a declaration's static list. Only Startup
         # declares the pick (``SERVER_ACTIONS``); every other dialog passes nothing and its markup is
         # unchanged.
-        # THE STARTUP DIALOG'S MISSION GATE: a server that names no current mission has nothing to
-        # apply a preset to, so the weather pick and its temporary block are both withheld and a
-        # sentence says why (:data:`PRESET_NO_MISSION`). The LOAD dialog is never gated: it always
-        # carries the row that was picked.
-        offers_weather = (action.key != "startup"
-                          or await current_mission_available(resolution.server))
+        # THE STARTUP DIALOG'S MISSION CHOICE: the server's own rotation, drawn as one pick with the
+        # configured start mission selected. It is read FIRST because everything about the weather
+        # depends on it — a rotation that cannot be listed offers no mission, so there is nothing to
+        # apply a preset TO, and the pick/block are withheld with the sentence that says which case it
+        # is (empty rotation or unreadable list). The LOAD dialog is never gated: it always carries
+        # the row that was picked.
+        mission_pick = mission_note = None
+        weather_note = None
+        mission = ""
+        offers_weather = True
+        if action.key == "startup":
+            mission_pick, mission_note, weather_note, mission = await _startup_mission_pick(request, name)
+            offers_weather = weather_note is None
         weather_fields = (await _weather_fields(request, resolution.server)
                           if action.key == "startup" and offers_weather else ())
         # the temporary preset's control choices come from the SAME node read the pick uses; the read's
-        # three sentences are translated HERE, where the request's language is known.
+        # three sentences are translated HERE, where the request's language is known. The MISSION it
+        # starts from is the pick's own choice: the weather the operator edits is the weather of the
+        # file this launch will load.
         temporary = (await _temporary_fieldset(
-            action, resolution.server, server_name=name,
+            action, resolution.server, server_name=name, mission=mission,
             language=i18n.resolve_language(request),
             loading=i18n.translate(request, PRESET_READ_LOADING),
             read=i18n.translate(request, PRESET_READ_DONE),
             error=i18n.translate(request, PRESET_READ_FAILED))
             if offers_weather else None)
-        weather_note = None if offers_weather else _sentence(PRESET_NO_MISSION)
         dialog = confirm_context(request, action, name, players_on(resolution.server), token, origin,
                                  tab, weather_fields, temporary, weather_note,
-                                 with_select=offers_weather)
+                                 with_select=offers_weather,
+                                 mission_pick=mission_pick, mission_note=mission_note)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).

@@ -248,6 +248,20 @@
     return url + (url.indexOf("?") === -1 ? "?" : "&") + query.join("&");
   }
 
+  //: THE LAUNCH'S MISSION PICK (`pages/actions.MISSION_FIELD`) — Startup draws it, and the weather
+  //: this block shows is the weather of the mission it names. A `<select>`, never the dialog's hidden
+  //: `name="mission"` field (the Load dialog carries the picked row's index there), so the two shapes
+  //: cannot be confused.
+  var MISSION_PICK = 'select[name="mission"]';
+
+  //: the mission the read names: the pick's own entry when the dialog draws one, else the name the
+  //: page rendered onto the line (the Load dialog, whose mission is the row that opened it).
+  function missionOf(document_, node) {
+    var pick = document_.querySelector(MISSION_PICK);
+    if (pick) { return String(pick.value || ""); }
+    return String((node && node.getAttribute("data-mission-name")) || "");
+  }
+
   //: whether the launch will rewrite the ORIGINAL mission file — the box the dialog offers, and the
   //: launch's own default when it offers none (the Load dialog has no such box).
   function originalRequested(document_) {
@@ -280,7 +294,7 @@
     var token = generation;
     clear(document_);
     textOf(node, String(node.getAttribute("data-mission-loading") || ""));
-    var mission = String(node.getAttribute("data-mission-name") || "");
+    var mission = missionOf(document_, node);
     var failed = String(node.getAttribute("data-mission-error") || "");
     fetch(readUrl(node, mission, originalRequested(document_)),
           {headers: {"Accept": "application/json"}, credentials: "same-origin"})
@@ -310,6 +324,13 @@
       // THE MISSION THE CUSTOM WEATHER READS FOLLOWS THE BOX: the launch rewrites the original file
       // or the one the server is on, so a changed box re-reads instead of keeping the other file's
       // values in controls the launch will apply.
+      if (!customChosen(document)) { return; }
+      start(document);
+      return;
+    }
+    if (target.matches && target.matches(MISSION_PICK)) {
+      // …and it follows the MISSION pick for the same reason: another mission is another file with
+      // another sky, so the rows are filled from the mission this launch will actually load.
       if (!customChosen(document)) { return; }
       start(document);
       return;

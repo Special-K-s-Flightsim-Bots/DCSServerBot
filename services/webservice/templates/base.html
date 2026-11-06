@@ -28,7 +28,7 @@
       header mark reads, so the two share one request and one cache entry. See the note on
       `.brand img.brand-logo` in shell.css for why the pages never serve the 2.1 MB master.  #}
   <link rel="icon" type="image/png" href="/static/logo-256.png">
-  <link rel="stylesheet" href="/static/shell.css">
+  <link rel="stylesheet" href="/static/shell.css?v={{ asset_version }}">
   {#  THE STARTED APPLY'S ONE SELF-RELOAD: the notice a started reload/restart leaves carries
       `pending`, and the page it lands on reloads ONCE so the operator sees the fresh state. It is a
       META REFRESH rather than a script, so it works with JavaScript off; the notice block also offers
