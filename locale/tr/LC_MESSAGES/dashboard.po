@@ -1,0 +1,325 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Monday"
+msgstr "Pazartesi"
+
+msgid "Tuesday"
+msgstr "Salı"
+
+msgid "Wednesday"
+msgstr "Çarşamba"
+
+msgid "Thursday"
+msgstr "Perşembe"
+
+msgid "Friday"
+msgstr "Cuma"
+
+msgid "Saturday"
+msgstr "Cumartesi"
+
+msgid "Sunday"
+msgstr "Pazar"
+
+msgid "Running"
+msgstr "Çalışıyor"
+
+msgid "Loading"
+msgstr "Yükleniyor"
+
+msgid "Paused"
+msgstr "Duraklatıldı"
+
+msgid "Stopped"
+msgstr "Durduruldu"
+
+msgid "Shutdown"
+msgstr "Kapalı"
+
+msgid "Shutting Down"
+msgstr "Kapatılıyor"
+
+msgid "Unregistered"
+msgstr "Beklemede"
+
+msgid "Cluster Master"
+msgstr "Ana Sunucu (Master)"
+
+msgid "Cluster Agent"
+msgstr "İstemci (Agent)"
+
+msgid "DCSServerBot Version"
+msgstr "DCSServerBot Sürüm"
+
+msgid "DCS Version"
+msgstr "DCS Sürüm"
+
+msgid "Shutting_Down"
+msgstr "Kapatılıyor"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Status"
+msgstr "Durum"
+
+msgid "Server Name"
+msgstr "Sunucu Adı"
+
+msgid "Mission Name"
+msgstr "Görev (Mission)"
+
+msgid "Players"
+msgstr "Oyuncular"
+
+msgid "Port / SRS"
+msgstr "Port / SRS"
+
+msgid "Node"
+msgstr "Oturum"
+
+msgid "DCS SERVER STATUS"
+msgstr "DCS SUNUCU DURUMLARI"
+
+msgid "Node ([green]Master[/])"
+msgstr "Oturum ([green]Ana[/])"
+
+msgid "Servers"
+msgstr "Sunucular"
+
+msgid "inactive"
+msgstr "pasif"
+
+msgid "Nodes"
+msgstr "Oturumlar"
+
+msgid "LIVE SYSTEM LOG"
+msgstr "CANLI SİSTEM GÜNLÜĞÜ (LOG)"
+
+msgid "Time   │   Status   │   Module   │   Event Detail"
+msgstr "Saat   │   Durum   │   Modül   │   İşlem Detayı"
+
+msgid "WEB UI"
+msgstr "WEB PANEL"
+
+msgid "DISCORD"
+msgstr "DISCORD"
+
+msgid "SCHEDULER"
+msgstr "ZAMANLAYICI"
+
+msgid "SRS RADIO"
+msgstr "SRS TELSİZ"
+
+msgid "EXTENSION"
+msgstr "UZANTI"
+
+msgid "SERVER"
+msgstr "SUNUCU"
+
+msgid "SYSTEM"
+msgstr "SİSTEM"
+
+msgid "ERROR"
+msgstr "HATA"
+
+msgid "WARN"
+msgstr "UYARI"
+
+msgid "DOWN"
+msgstr "KAPALI"
+
+msgid "INIT"
+msgstr "İŞLEM"
+
+msgid "ACTIVE"
+msgstr "AKTİF"
+
+msgid "INFO"
+msgstr "BİLGİ"
+
+msgid "DCSServerBot MASTER starting up ..."
+msgstr "DCSServerBot ANA SUNUCU (MASTER) başlatılıyor..."
+
+msgid "DCSServerBot AGENT starting up ..."
+msgstr "DCSServerBot İSTEMCİ (AGENT) başlatılıyor..."
+
+msgid "DCSServerBot MASTER started."
+msgstr "DCSServerBot ANA SUNUCU (MASTER) başlatıldı."
+
+msgid "DCSServerBot stopped."
+msgstr "DCSServerBot durduruldu."
+
+msgid "Connection to PostgreSQL"
+msgstr "PostgreSQL bağlantısı kuruldu:"
+
+msgid "established."
+msgstr "(aktif)."
+
+msgid "Loading Plugins ..."
+msgstr "Eklentiler yükleniyor..."
+
+msgid "Plugins loaded."
+msgstr "Tüm eklentiler yüklendi."
+
+msgid "Unloading Plugins ..."
+msgstr "Eklentiler kapatılıyor..."
+
+msgid "Plugins unloaded."
+msgstr "Tüm eklentiler kapatıldı."
+
+msgid "Starting Services ..."
+msgstr "Servisler başlatılıyor..."
+
+msgid "Services started."
+msgstr "Tüm servisler başlatıldı."
+
+msgid "Services stopped."
+msgstr "Tüm servisler durduruldu."
+
+msgid "Starting Service "
+msgstr "Servis başlatılıyor: "
+
+msgid "Service Dashboard stopped."
+msgstr "Dashboard servisi durduruldu."
+
+msgid "Service Cleanup stopped."
+msgstr "Cleanup servisi durduruldu."
+
+msgid "Service WebService stopped."
+msgstr "WebService servisi durduruldu."
+
+msgid "Service Bot stopped."
+msgstr "Discord Bot servisi durduruldu."
+
+msgid "Service ServiceBus stopped."
+msgstr "ServiceBus servisi durduruldu."
+
+msgid "Service Monitoring stopped."
+msgstr "Monitoring servisi durduruldu."
+
+msgid "Preparing Discord Bot"
+msgstr "Discord Botu hazırlanıyor:"
+
+msgid "Registering Discord Commands (this might take a bit) ..."
+msgstr "Discord komutları kaydediliyor..."
+
+msgid "Discord Commands registered."
+msgstr "Discord komutları başarıyla kaydedildi."
+
+msgid "Discord Bot started, accepting commands."
+msgstr "Discord Botu başlatıldı, komutlar hazır."
+
+msgid "Searching for local DCS servers (this might take a bit) ..."
+msgstr "Yerel DCS sunucuları taranıyor..."
+
+msgid "local DCS servers registered."
+msgstr "yerel DCS sunucusu sisteme kaydedildi."
+
+msgid "Local DCS-Server"
+msgstr "Sunucu"
+
+msgid "registered as UP."
+msgstr "AÇIK (Çalışıyor) olarak algılandı."
+
+msgid "registered as DOWN (no process)."
+msgstr "KAPALI olarak kaydedildi."
+
+msgid "DCS server starting up with PID"
+msgstr "DCS sunucusu başlatıldı — PID:"
+
+msgid "starting up ..."
+msgstr "başlatılıyor..."
+
+msgid "DCS server"
+msgstr "Sunucu"
+
+msgid "started by Scheduler."
+msgstr "Zamanlayıcı tarafından başlatıldı."
+
+msgid "LogAnalyser launched for"
+msgstr "Log Analizcisi başlatıldı:"
+
+msgid "LogAnalyser shut down for"
+msgstr "Log Analizcisi kapatıldı:"
+
+msgid "SRS autoconnect is enabled for this server."
+msgstr "SRS Otomatik Bağlantı bu sunucu için aktif."
+
+msgid "SRS launched for"
+msgstr "SRS Ses Sunucusu başlatıldı:"
+
+msgid "SRS shut down for"
+msgstr "SRS Ses Sunucusu kapatıldı:"
+
+msgid "Could not find a running SRS server process."
+msgstr "Çalışan bir SRS sunucu işlemi bulunamadı."
+
+msgid "Please move your SRS configuration to"
+msgstr "Lütfen SRS yapılandırmasını şu konuma taşıyın:"
+
+msgid "Aborting the main loop ..."
+msgstr "Ana döngü sonlandırılıyor..."
+
+msgid "- Stopping Services..."
+msgstr "Servisler durduruluyor..."
+
+msgid "NOT launched for"
+msgstr "başlatılamadı:"
+
+msgid "launched for"
+msgstr "başlatıldı:"
+
+msgid "shut down for"
+msgstr "kapatıldı:"
+
+msgid "Preset image answered 404:"
+msgstr "Önizleme görseli bulunamadı (404):"
+
+msgid "is not in this server's DCS installation"
+msgstr "sunucu DCS kurulumunda yok"
+
+msgid "looked for"
+msgstr "aranan:"
+
+msgid "Web UI: http://localhost:9876"
+msgstr "Web Panel: http://localhost:9876"
+
+msgid "WebService: render warm-up done"
+msgstr "Web arayüz önbelleği hazır"
+
+msgid "schemas parsed,"
+msgstr "şema,"
+
+msgid "notices checked,"
+msgstr "bildirim,"
+
+msgid "templates compiled in"
+msgstr "şablon derlendi —"
+
+msgid "signed in with the local backend"
+msgstr "kullanıcısı yönetim paneline giriş yaptı."
+
+msgid "signed in via the local backend"
+msgstr "kullanıcısı yönetim paneline giriş yaptı."
+
+msgid "signed out"
+msgstr "kullanıcısı yönetim panelinden çıkış yaptı."
+
+msgid "refusing a local login for"
+msgstr "hatalı giriş denemesi reddedildi:"
+
+msgid "bad password"
+msgstr "hatalı şifre"
+
+msgid "login refused for"
+msgstr "giriş isteği reddedildi:"
+
+msgid "- Master node."
+msgstr "Ana oturum (Master) olarak çalışıyor."

@@ -1,0 +1,97 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage DCS-SRS"
+msgstr "DCS-SRS telsiz sistemini yönetmek için komutlar"
+
+msgid "List of active SRS users"
+msgstr "Aktif SRS kullanıcılarının listesi"
+
+msgid "You are not allowed to see the {} players."
+msgstr "{} oyuncularını görme izniniz yok."
+
+msgid "{} Players on SRS"
+msgstr "SRS üzerindeki {} Oyuncuları"
+
+msgid "Name"
+msgstr "Ad"
+
+msgid "Radios"
+msgstr "Telsizler"
+
+msgid "Only the first 2 radios are displayed per user."
+msgstr "Kullanıcı başına yalnızca ilk 2 telsiz gösterilir."
+
+msgid "No {} players on SRS."
+msgstr "SRS üzerinde {} oyuncusu yok."
+
+msgid "Send a TTS message"
+msgstr "Sesli okuma (TTS) mesajı gönder"
+
+msgid "The server to send the TTS message to"
+msgstr "TTS mesajının gönderileceği sunucu"
+
+msgid "The message to send"
+msgstr "Gönderilecek mesaj"
+
+msgid "Limit the frequencies to this player"
+msgstr "Frekansları bu oyuncuyla sınırla"
+
+msgid "Limit the frequencies to this coalition"
+msgstr "Frekansları bu koalisyonla sınırla"
+
+msgid "The frequency to send the message to"
+msgstr "Mesajın gönderileceği frekans"
+
+msgid "Message sent."
+msgstr "Mesaj gönderildi."
+
+msgid "Failed to send TTS message."
+msgstr "TTS mesajı gönderilemedi."
+
+msgid "Update DCS-SRS"
+msgstr "Update DCS-SRS"
+
+msgid "Extension SRS is not loaded on server {}"
+msgstr "Extension SRS is not loaded on sunucu {}"
+
+msgid "DCS-SRS update to version {} available!"
+msgstr "DCS-SRS update to version {} available!"
+
+msgid "Do you want to update DCS-SRS now?"
+msgstr "Do you want to update DCS-SRS now?"
+
+msgid "This will terminate all DCS-SRS servers on node {}!"
+msgstr "This will terminate all DCS-SRS sunucus on node {}!"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "DCS-SRS updated to version {}."
+msgstr "DCS-SRS updated to version {}."
+
+msgid "Failed to update DCS-SRS. See log for defails."
+msgstr "Failed to update DCS-SRS. See log for defails."
+
+msgid "No update for DCS-SRS available."
+msgstr "No update for DCS-SRS available."
+
+msgid "Repair DCS-SRS"
+msgstr "Repair DCS-SRS"
+
+msgid "Extension SRS is not active on server {}"
+msgstr "Extension SRS is not active on sunucu {}"
+
+msgid "Do you want to repair DCS-SRS now?"
+msgstr "Do you want to repair DCS-SRS now?"
+
+msgid "DCS-SRS repaired on node {}."
+msgstr "DCS-SRS repaired on node {}."
+
+msgid "Please contact ATC on {}"
+msgstr "Please contact ATC on {}"

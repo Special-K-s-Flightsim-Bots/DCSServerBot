@@ -1,0 +1,91 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage Tacview"
+msgstr "Tacview eklentisini yönetmek için komutlar"
+
+msgid "Configure Tacview"
+msgstr "Tacview'u yapılandır"
+
+msgid "Tacview not installed on server {}!"
+msgstr "{} sunucusunda Tacview kurulu değil!"
+
+msgid "Tacview configuration changed on server {}."
+msgstr "{} sunucusunda Tacview yapılandırması değiştirildi."
+
+msgid "Server {} needs to be shut down to configure Tacview."
+msgstr "Tacview yapılandırmak için {} sunucusu kapatılmalıdır."
+
+msgid "Install Tacview"
+msgstr "Tacview yükle"
+
+msgid "Tacview already installed on server {}!"
+msgstr "{} sunucusunda Tacview zaten yüklü!"
+
+msgid "Installing Tacview on server {} ..."
+msgstr "{} sunucusuna Tacview yükleniyor ..."
+
+msgid "Tacview is not configured on node {}!"
+msgstr "{} düğümünde Tacview yapılandırılmamış!"
+
+msgid "Tacview installed on server {}."
+msgstr "{} sunucusuna Tacview yüklendi."
+
+msgid "Tacview could not be installed on server {}!"
+msgstr "{} sunucusuna Tacview yüklenemedi!"
+
+msgid "Server {} needs to be shut down to install Tacview."
+msgstr "Tacview yüklemek için {} sunucusu kapatılmalıdır."
+
+msgid "Uninstall Tacview"
+msgstr "Tacview kaldır"
+
+msgid "Uninstalling Tacview on server {} ..."
+msgstr "{} sunucusundan Tacview kaldırılıyor ..."
+
+msgid "Tacview uninstalled on server {}."
+msgstr "{} sunucusundan Tacview kaldırıldı."
+
+msgid "Tacview could not be uninstalled on server {}!"
+msgstr "{} sunucusundan Tacview kaldırılamadı!"
+
+msgid "Server {} needs to be shut down to uninstall Tacview."
+msgstr "Tacview kaldırmak için {} sunucusu kapatılmalıdır."
+
+msgid "Tacview file for server {}"
+msgstr "{} sunucusu için Tacview dosyası"
+
+msgid "Tacview updated to version {version} on instance {instance}."
+msgstr "{instance} örneğinde Tacview {version} sürümüne güncellendi."
+
+msgid "Download a Tacview"
+msgstr "Download a Tacview"
+
+msgid "The file exceeds the maximum allowed size on Discord. Aborted."
+msgstr "The file exceeds the maximum allowed size on Discord. Aborted."
+
+msgid "Tacview recording sent in a DM"
+msgstr "Tacview recording sent in a DM"
+
+msgid "Tacview recording uploaded to channel {}"
+msgstr "Tacview recording uploaded to channel {}"
+
+msgid "Error during upload. Check the log for details."
+msgstr "Error during upload. Check the log for details."
+
+msgid "Start realtime recording"
+msgstr "Start realtime recording"
+
+msgid "Tacview recording started."
+msgstr "Tacview recording started."
+
+msgid "Stop realtime recording"
+msgstr "Stop realtime recording"
+
+msgid "Tacview recording stopped, file {} written."
+msgstr "Tacview recording stopped, file {} written."

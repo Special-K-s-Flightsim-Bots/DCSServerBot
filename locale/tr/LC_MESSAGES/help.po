@@ -1,0 +1,79 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Command: {}"
+msgstr "Komut: {}"
+
+msgid "Usage"
+msgstr "Kullanım"
+
+msgid "<> mandatory, [] non-mandatory"
+msgstr "<> zorunlu, [] isteğe bağlı"
+
+msgid "{} Help"
+msgstr "{} Yardımı"
+
+msgid "Command"
+msgstr "Komut"
+
+msgid "Description"
+msgstr "Açıklama"
+
+msgid "There are no commands for your role in this plugin."
+msgstr "Bu eklentide rolünüz için kullanılabilir komut yok."
+
+msgid "Use /help [command] if you want help for a specific command."
+msgstr "Belirli bir komut hakkında yardım almak için /help [komut] kullanın."
+
+msgid "Select the plugin you want help for"
+msgstr "Yardım almak istediğiniz eklentiyi seçin"
+
+msgid "The help command"
+msgstr "Yardım komutu"
+
+msgid "Command {} not found."
+msgstr "{} komutu bulunamadı."
+
+msgid "You don't have the permission to use this command."
+msgstr "Bu komutu kullanma izniniz yok."
+
+msgid "## DCSServerBot Commands"
+msgstr "## DCSServerBot Komutları"
+
+msgid "Generate Documentation"
+msgstr "Dokümantasyon Oluştur"
+
+msgid "\nThe following bot commands can be used in this discord by members that have the {} role:\n_ _\n"
+msgstr "\nAşağıdaki bot komutları bu Discord sunucusunda {} rolüne sahip üyeler tarafından kullanılabilir:\n_ _\n"
+
+msgid "\nThe following bot commands can be used in this discord:\n_ _\n"
+msgstr "\nAşağıdaki bot komutları bu Discord sunucusunda kullanılabilir:\n_ _\n"
+
+msgid "Please provide a role for channel output."
+msgstr "Lütfen kanal çıktısı için bir rol belirtin."
+
+msgid "Unknown option {}!"
+msgstr "Bilinmeyen seçenek {}!"
+
+msgid "Plugin"
+msgstr "Plugin"
+
+msgid "Please specify the format (channel or xls)."
+msgstr "Please specify the format (channel or xls)."
+
+msgid "Do you want to generate the server documentation?"
+msgstr "Do you want to generate the sunucu documentation?"
+
+msgid "The file may contain passwords!"
+msgstr "The file may contain passwords!"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Your firewall ruleset:"
+msgstr "Your firewall ruleset:"

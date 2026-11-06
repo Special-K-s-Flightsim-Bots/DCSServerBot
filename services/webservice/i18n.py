@@ -114,7 +114,7 @@ MESSAGES_PATH = "/i18n/messages.js"
 #: somebody who does not read the current language. A catalog with no entry here still appears in
 #: the control, labelled by its code — a new catalog is never hidden for want of a name.
 LANGUAGE_NAMES: dict[str, str] = {"en": "English", "de": "Deutsch", "es": "Español", "ru": "Русский",
-                                 "cn": "中文"}
+                                 "cn": "中文", "tr": "Türkçe"}
 
 #: the static area the flag SVGs are served from (the shell's own asset path, served by the same
 #: gated frontend every other asset uses; spelled here rather than imported from ``shell`` because
@@ -130,7 +130,7 @@ FLAG_NEUTRAL_ASSET = "globe.svg"
 #: public-domain / MIT artwork only; see ``static/flags/SOURCE.txt`` beside the files. Windows does
 #: not render flag EMOJI (it falls back to the two regional-indicator letters), which is exactly why
 #: these are real SVG files and not emoji. A code absent here gets the neutral globe.
-LANGUAGE_FLAGS: dict[str, str] = {"de": "de.svg", "es": "es.svg", "ru": "ru.svg", "cn": "cn.svg"}
+LANGUAGE_FLAGS: dict[str, str] = {"de": "de.svg", "es": "es.svg", "ru": "ru.svg", "cn": "cn.svg", "tr": "tr.svg"}
 
 
 def flag_asset(code: str) -> str:
