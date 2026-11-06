@@ -55,7 +55,7 @@ SET "REQ=requirements.txt"
 if exist requirements.local SET "REQ=requirements.txt requirements.local"
 
 echo Creating the Python Virtual Environment ...
-"%UVEXE%" venv "%VENV%"
+"%UVEXE%" venv --python ">=3.11,<3.15" --no-python-downloads "%VENV%"
 "%UVEXE%" pip sync --python "%VENV%\Scripts\python.exe" %REQ%
 
 :venv_ready

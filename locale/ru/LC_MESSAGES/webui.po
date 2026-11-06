@@ -760,12 +760,25 @@ msgid "The mission's weather could not be read."
 msgstr "Не удалось прочитать погоду миссии."
 
 #: services/webservice/pages/actions.py:764
-msgid ""
-"This server has no current mission, so there is nothing to apply a "
-"weather preset to."
-msgstr ""
-"На этом сервере нет текущей миссии, поэтому применять предустановку "
-"погоды не к чему."
+#: services/webservice/pages/actions.py:951
+msgid "This server's rotation names no mission, so there is nothing to apply a weather preset to."
+msgstr "Ротация этого сервера не указывает миссию, поэтому применять пресет погоды не к чему."
+
+#: services/webservice/pages/actions.py:957
+msgid "This server's mission list could not be read, so there is nothing to apply a weather preset to."
+msgstr "Список миссий этого сервера не удалось прочитать, поэтому применять пресет погоды не к чему."
+
+#: services/webservice/pages/actions.py:963
+msgid "Mission to start"
+msgstr "Миссия для запуска"
+
+#: services/webservice/pages/actions.py:963
+msgid "The mission this server loads when it starts — the one its rotation names. Choosing another one moves that rotation pointer, exactly like /server startup mission:."
+msgstr "Миссия, которую этот сервер загружает при запуске — та, которую указывает его ротация. Выбор другой миссии сдвигает этот указатель ротации, как и /server startup mission:."
+
+#: services/webservice/pages/actions.py:970
+msgid "Loaded at start: {mission}"
+msgstr "Загружается при запуске: {mission}"
 
 #: services/webservice/pages/actions.py:777
 msgid "Or create a temporary preset"
@@ -11397,3 +11410,7 @@ msgstr "Видимость пыли"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "Насколько плотна пыльная дымка — по шкале регулятора пыли в редакторе миссий: 984–65 617 фт, 300–20 000 м."
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "Очки штрафов не отслеживаются, потому что плагин punishment не активен."

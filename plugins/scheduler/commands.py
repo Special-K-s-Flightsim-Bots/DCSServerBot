@@ -482,7 +482,8 @@ class Scheduler(Plugin[SchedulerListener]):
             self.log.warning(f"{self.__cog_name__}: Cannot announce the refused preset pick "
                              f"in channel {channel_id}: {ex}")
 
-    async def _run_with_presets(self, server: Server, rconf: dict, new_mission: int, is_running_mission: bool):
+    async def _run_with_presets(self, server: Server, rconf: dict, new_mission: int,
+                                is_running_mission: bool) -> bool:
         """Restart/load a mission with the preset pick *rconf* carries, and state what was applied.
 
         ``rconf['settings']`` holds the pick's entries. An entry that carries its FILE
@@ -493,9 +494,22 @@ class Scheduler(Plugin[SchedulerListener]):
         The pick is ALL OR NOTHING: every entry is resolved first, and one that refuses discards the
         whole pick — no preset from it is applied. The mission is then loaded unchanged (the pick-less
         path) and the refusal is announced in ``rconf['channel']``.
+
+        A ``load`` of the mission that is already running is skipped entirely when ``no_reload`` is
+        set: the pick is not resolved, nothing is written, and the mission is not loaded.
+
+        Returns whether a mission was actually started or loaded — ``False`` for the skipped load.
         """
+        # a load of the running mission reloads and rewrites nothing
+        if (rconf.get('method') == 'load' and rconf.get('no_reload', False) and is_running_mission):
+            self.log.debug(f"{self.__cog_name__}: Mission {new_mission} already loaded on server "
+                           f"{server.name}, no_reload is set — nothing to do.")
+            server.restart_pending = False
+            return False
+
         # get config
         use_orig = rconf.get('use_orig', True)
+        no_reload = rconf.get('no_reload', False)
         preset_files = rconf.get('presets', os.path.join(self.node.config_dir, 'presets.yaml'))
         configured_file = self._preset_file_text(self.node.config_dir, preset_files)
         # The node's preset files are read ONLY when an entry carries its file (a pick spanning
@@ -530,8 +544,7 @@ class Scheduler(Plugin[SchedulerListener]):
             # no half pick: the whole pick is dropped and the mission loads exactly as it would
             # have without a pick at all
             await self._announce_refused_pick(rconf, refusals)
-            await self._run_without_presets(server, rconf, new_mission)
-            return
+            return await self._run_without_presets(server, rconf, new_mission)
 
         # stop the server if the running mission should be changed
         if (is_running_mission and server.status in [Status.RUNNING, Status.PAUSED] and
@@ -564,10 +577,12 @@ class Scheduler(Plugin[SchedulerListener]):
                 new_filename,
                 modify_mission=False,
                 use_orig=False,
+                no_reload=no_reload,
                 preset=applied or None
             )
+        return True
 
-    async def _run_without_presets(self, server: Server, rconf: dict, new_mission: int):
+    async def _run_without_presets(self, server: Server, rconf: dict, new_mission: int) -> bool:
         # get config
         modify_mission = rconf.get('run_extensions', True)
         use_orig = rconf.get('use_orig', True)
@@ -576,6 +591,7 @@ class Scheduler(Plugin[SchedulerListener]):
         if server.status in [Status.SHUTDOWN, Status.LOADING]:
             self.log.debug(f"{self.__cog_name__}: Starting server {server.name}")
             await server.startup(modify_mission=modify_mission, use_orig=use_orig)
+            return True
         else:
             rc = await server.loadMission(
                 new_mission,
@@ -588,11 +604,12 @@ class Scheduler(Plugin[SchedulerListener]):
             if rc is False:
                 self.log.error(f"Mission {new_mission} not loaded on server {server.name}")
                 server.restart_pending = False
-                return
+                return False
             elif rc is None:
                 self.log.debug(f"Mission {new_mission} already loaded on server {server.name}")
                 server.restart_pending = False
-                return
+                return False
+            return True
 
     async def run_action(self, server: Server, rconf: dict):
         method = rconf['method']
@@ -663,9 +680,10 @@ class Scheduler(Plugin[SchedulerListener]):
         # apply presets if configured
         try:
             if rconf.get('settings'):
-                await self._run_with_presets(server, rconf, new_mission, is_running_mission)
+                loaded = await self._run_with_presets(server, rconf, new_mission,
+                                                      is_running_mission)
             else:
-                await self._run_without_presets(server, rconf, new_mission)
+                loaded = await self._run_without_presets(server, rconf, new_mission)
         except (asyncio.TimeoutError, TimeoutError):
             await self.bot.audit(
                 f"{self.__cog_name__} timeout while starting mission",
@@ -674,6 +692,10 @@ class Scheduler(Plugin[SchedulerListener]):
                 mission=new_mission
             )
             server.restart_pending = False
+            return
+
+        # nothing was started or loaded (no_reload, or the load failed): state nothing as done
+        if not loaded:
             return
 
         # change password if configured

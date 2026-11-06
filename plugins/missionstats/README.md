@@ -1,7 +1,17 @@
 # Plugin "MissionStats"
-When enabled, this plugin will generate a persistent mission statistics embed to be displayed in the status channels and 
-detailed statistics from the in-game event system. The global DCSServerBot.lua and a plugin-specific mission.lua will 
+This plugin generates a persistent mission statistics embed to be displayed in the status channels and detailed 
+statistics from the in-game event system. The global DCSServerBot.lua and a plugin-specific mission.lua will 
 automatically be loaded into any mission running on that specific server.
+
+> [!NOTE]
+> If you do not like the mission statistics embed to be displayed, you can disable it by creating a configuration
+> file like so:
+> ```yaml
+> # config/plugins/missionstatistics.yaml
+> DEFAULT:
+>   display: false  # Disable the update of the mission statistics embed in Discord
+> ```
+> You might need to delete any existing mission statistics embeds manually if they exist already.
 
 ## Configuration
 Missionstats need the Userstats plugin to be loaded first (default).

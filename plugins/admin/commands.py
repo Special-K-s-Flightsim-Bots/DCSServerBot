@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from plugins.admin.listener import AdminEventListener
 from plugins.admin.views import CleanupView
+from plugins.admin.webadmin import webadmin_group
 from plugins.modmanager.commands import get_installed_mods
 from plugins.scheduler.views import ServerConfigView
 from services.bot import DCSServerBot
@@ -317,6 +318,7 @@ class Admin(Plugin[AdminEventListener]):
         return config
 
     dcs = Group(name="dcs", description=_("Commands to manage your DCS installations"))
+    webadmin = webadmin_group
 
     @dcs.command(description=_('Bans a user by name or ucid'))
     @app_commands.guild_only()

@@ -703,7 +703,9 @@ class PlayerInfractionsView:
 
     ``points_total`` is the SUM of ``penalties`` as the bot's ``/penalty`` prints it — the points
     decay over time, so it is today's value. ``bans`` counts every entry of the history, which is
-    the page's "all time" figure.
+    the page's "all time" figure. ``penalties_available`` states whether the penalty log could be
+    read at all: it is the OPTIONAL punishment plugin's table, so an installation without that
+    plugin has no points to show and the page says so instead of printing a zero.
     """
     ucid: str
     found: bool
@@ -711,6 +713,7 @@ class PlayerInfractionsView:
     penalties: tuple[PenaltyEntry, ...]
     points_total: str
     ban_history: tuple[BanHistoryEntry, ...]
+    penalties_available: bool = True
 
     @property
     def bans(self) -> int:
@@ -761,7 +764,10 @@ def player_infractions(data: Mapping | None) -> PlayerInfractionsView:
                                  found=bool(source.get("found")),
                                  infractions=infractions, penalties=penalties,
                                  points_total=_points(source.get("penalty_total")),
-                                 ban_history=history)
+                                 ban_history=history,
+                                 # absent means available: an answer that predates the flag keeps
+                                 # the behaviour it had
+                                 penalties_available=bool(source.get("penalties_available", True)))
 
 
 # ── 5. the live half of one player ─────────────────────────────────────────

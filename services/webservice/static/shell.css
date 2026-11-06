@@ -843,6 +843,12 @@ input.field:focus-visible, textarea.field:focus-visible, select.field:focus-visi
  * the right), and the controls wear the dialog's own box, so a launch reads as one form whether a
  * preset is named above or built here. Nothing below states a colour of its own: the shell's tokens
  * stay the one owner of the look. */
+/* THE JS-GATED BLOCKS ARE HIDDEN FROM THE FIRST PAINT. `confirm.html`'s head sets `dlg-gate` on <html>
+ * before the body parses and drops it on DOMContentLoaded, which is when `dialog-preset.js` applies the
+ * mode with inline display. Without the guard the browser painted the whole custom-weather block and
+ * the preset pick and then collapsed them on the same page load. With JavaScript off the class is never
+ * set, so every block stays visible — the no-script rule the page states below. */
+html.dlg-gate .dlg-temp, html.dlg-gate .dlg-pick { display: none; }
 .dlg-temp { align-self: stretch; display: flex; flex-direction: column; gap: 8px; margin-top: 4px;
   padding-top: 10px; border-top: 1px solid var(--line-2); }
 /* the block is a plain region the dialog's own script shows and hides (a <select multiple> cannot be

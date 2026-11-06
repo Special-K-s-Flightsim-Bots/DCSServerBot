@@ -162,6 +162,8 @@ NOT_ON_SERVER = i18n._("Not on a server right now.")
 NO_SESSIONS = i18n._("No session has been recorded for this player, so there is nothing to chart.")
 NO_INFRACTIONS = i18n._("There are no infractions of this player logged.")
 NO_PENALTIES = i18n._("This player has no penalty points.")
+NO_PENALTY_TRACKING = i18n._("Penalty points are not tracked, because the punishment plugin is "
+                             "not active.")
 NO_BANS = i18n._("There are no bans logged for this player.")
 #: the ONE sentence a moderator must not get wrong: the two records are two records.
 TWO_RECORDS = i18n._("Lifting one leaves the other untouched: lifting the ban keeps the watch entry, "
@@ -416,6 +418,7 @@ def _moderation(request: Request, detail: player_model.PlayerDetailView, data: M
         "watch": detail.watch,
         "watch_controls": watch_strip,
         "points": infractions.points_total,
+        "available": infractions.penalties_available,
         "bans": infractions.bans,
     }
 
@@ -435,7 +438,8 @@ def _penalty_card(request: Request, detail: player_model.PlayerDetailView,
     controls = tuple(_page_control(request, action, detail.ucid, name, action.label)
                      for action in actions_page.PENALTY_ACTIONS
                      if _allowed(request, action))
-    return {"controls": controls, "points": infractions.points_total}
+    return {"controls": controls, "points": infractions.points_total,
+            "available": infractions.penalties_available}
 
 
 def _page_controls(request: Request, detail: player_model.PlayerDetailView,
@@ -535,7 +539,7 @@ async def player_context(request: Request, ucid: str, tab: str) -> dict:
         "kill_types": (),
         "periods": (),
         "empty": {"infractions": NO_INFRACTIONS, "penalties": NO_PENALTIES, "bans": NO_BANS,
-                  "sessions": NO_SESSIONS},
+                  "sessions": NO_SESSIONS, "penalty_tracking": NO_PENALTY_TRACKING},
     }
     if tab == TAB_INFRACTIONS:
         context["infractions"] = infractions

@@ -24,6 +24,11 @@
  * slider's readout, a dial's needle — follow the new value instead of the rendered one. No shape is
  * decided here.
  *
+ * THE FOG TABLE IS FILLED FROM ITS OWN VALUE: the answer carries the mission's keyframes as the
+ * single `fog.rows` value, and the table's cells are named per row, so the rows are rebuilt from
+ * that value (cloning the row the page drew) and each cell is written by NAME. The table's column
+ * order is the render's — this script reads the cell name and never assumes a position.
+ *
  * THE PICKERS ARE MARKED, never invented: a control whose value names a cloud preset or an
  * ice-crystal preset the node's OWN list carries is set to that entry; a name the list does NOT carry
  * leaves the control exactly as rendered (free text stays free text), so no control ever claims a
@@ -49,6 +54,17 @@
   var GATE_CONTROL = "clouds";
   //: the ONE placeholder the "read from" sentence carries, filled with the mission's file name.
   var MISSION_PLACEHOLDER = "{mission}";
+  //: THE FOG TABLE — the rows live in the rendered dialog and the answer carries them as ONE
+  //: ``fog.rows`` value, so the rows are read from that value and written into the cells by NAME
+  //: (``fog_row_<index>_<cell>``). Neither the column order nor the cell spelling is decided here.
+  var FOG_TABLE = ".dlg-ftable";
+  var FOG_ROW = ".dlg-frow:not(.hd)";
+  var FOG_CELL = /^fog_row_\d+_(.+)$/;
+  //: the preset key the table's rows travel under (``weather_fields.FOG_ROWS_KEY``).
+  var FOG_ROWS_KEY = "fog.rows";
+  //: THE LAUNCH'S "apply them to the original mission" BOX (``actions.MODIFY_MISSION_OPTION``'s
+  //: neighbour ``use_orig``): the read follows it, because the launch rewrites the mission it names.
+  var ORIGINAL_FIELD = "use_orig";
 
   //: what each control was RENDERED with, so clearing restores it rather than emptying it.
   var filled = [];
@@ -120,9 +136,90 @@
     }
   }
 
+  //: the table's data rows, as an array (a live NodeList would change under the loop that grows it).
+  function fogRows(table) {
+    var nodes = table.querySelectorAll(FOG_ROW);
+    var rows = [];
+    for (var index = 0; index < nodes.length; index += 1) { rows.push(nodes[index]); }
+    return rows;
+  }
+
+  //: the answer's ``fog.rows`` value — the preset's own spelling: one row per keyframe as
+  //: ``time:thickness:visibility``, rows separated by ``,``, an omitted cell left empty.
+  function parseFogRows(text) {
+    var rows = [];
+    var chunks = String(text || "").split(",");
+    for (var index = 0; index < chunks.length; index += 1) {
+      var cells = chunks[index].split(":");
+      var row = {time: (cells[0] || "").trim(), thickness: (cells[1] || "").trim(),
+                 visibility: (cells[2] || "").trim()};
+      if (!row.time && !row.thickness && !row.visibility) { continue; }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  //: every cell keeps the name the form posts (``fog_row_<index>_<cell>``), so a row added here is
+  //: routed with the rows the page drew.
+  function renumberRows(table) {
+    var rows = fogRows(table);
+    for (var index = 0; index < rows.length; index += 1) {
+      var cells = rows[index].querySelectorAll('input[type="number"]');
+      for (var cell = 0; cell < cells.length; cell += 1) {
+        var match = FOG_CELL.exec(cells[cell].name || "");
+        if (match) { cells[cell].name = "fog_row_" + index + "_" + match[1]; }
+      }
+      var remove = rows[index].querySelector("[data-fog-remove]");
+      if (remove) { remove.setAttribute("data-fog-remove", String(index)); }
+    }
+  }
+
+  //: THE KEYFRAMES the mission carries: one row per keyframe, added by cloning the row the page
+  //: drew (a POST form has no GET reload to spawn one), then every cell written by its own name.
+  function fillFogRows(root, text) {
+    var table = root && root.querySelector ? root.querySelector(FOG_TABLE) : null;
+    if (!table) { return; }
+    var wanted = parseFogRows(text);
+    if (!wanted.length) { return; }
+    var rows = fogRows(table);
+    if (!rows.length) { return; }
+    while (rows.length < wanted.length) {
+      var last = rows[rows.length - 1];
+      var clone = last.cloneNode(true);
+      var inputs = clone.querySelectorAll("input");
+      for (var input = 0; input < inputs.length; input += 1) { inputs[input].value = ""; }
+      last.parentNode.insertBefore(clone, last.nextSibling);
+      var grown = fogRows(table);
+      if (grown.length <= rows.length) { return; }   // a table that cannot grow: fill what is there
+      rows = grown;
+    }
+    renumberRows(table);
+    rows = fogRows(table);
+    for (var index = 0; index < wanted.length && index < rows.length; index += 1) {
+      var cells = rows[index].querySelectorAll('input[type="number"]');
+      for (var cell = 0; cell < cells.length; cell += 1) {
+        var match = FOG_CELL.exec(cells[cell].name || "");
+        if (!match || wanted[index][match[1]] === undefined) { continue; }
+        if (write(cells[cell], wanted[index][match[1]])) { announce(cells[cell]); }
+      }
+    }
+  }
+
+  //: leaving the mode drops the rows this fill added; the row the page rendered stays, blank.
+  function clearFogRows(root) {
+    var table = root && root.querySelector ? root.querySelector(FOG_TABLE) : null;
+    if (!table) { return; }
+    var rows = fogRows(table);
+    for (var index = rows.length - 1; index > 0; index -= 1) {
+      if (rows[index].parentNode) { rows[index].parentNode.removeChild(rows[index]); }
+    }
+    renumberRows(table);
+  }
+
   //: restore every control this script filled and empty the line — leaving the mode, and the failure's
   //: own "nothing is prefilled" (a failure fills nothing, but a previous success may be cleared by it).
   function clear(document_) {
+    clearFogRows(block(document_));
     for (var index = 0; index < filled.length; index += 1) {
       filled[index].control.value = filled[index].previous;
     }
@@ -140,10 +237,37 @@
   //: THE READ'S OWN ATTRIBUTES live on the line element (`[data-mission-line]`), never on the block:
   //: the template renders all five there, so both this helper and ``start``/``apply`` read them off
   //: ``node``. ``fill`` still targets the BLOCK, because the rows are the block's controls.
-  function readUrl(node, mission) {
+  function readUrl(node, mission, original) {
     var url = String((node && node.getAttribute("data-mission-url")) || "");
-    if (!url || !mission) { return url; }
-    return url + (url.indexOf("?") === -1 ? "?" : "&") + "mission=" + encodeURIComponent(mission);
+    if (!url) { return url; }
+    var query = [];
+    if (mission) { query.push("mission=" + encodeURIComponent(mission)); }
+    //: ALWAYS stated: the launch applies its weather to the ORIGINAL mission file by default, so a
+    //: request that says nothing would read a different file than the one being rewritten.
+    query.push("original=" + (original ? "1" : "0"));
+    return url + (url.indexOf("?") === -1 ? "?" : "&") + query.join("&");
+  }
+
+  //: THE LAUNCH'S MISSION PICK (`pages/actions.MISSION_FIELD`) — Startup draws it, and the weather
+  //: this block shows is the weather of the mission it names. A `<select>`, never the dialog's hidden
+  //: `name="mission"` field (the Load dialog carries the picked row's index there), so the two shapes
+  //: cannot be confused.
+  var MISSION_PICK = 'select[name="mission"]';
+
+  //: the mission the read names: the pick's own entry when the dialog draws one, else the name the
+  //: page rendered onto the line (the Load dialog, whose mission is the row that opened it).
+  function missionOf(document_, node) {
+    var pick = document_.querySelector(MISSION_PICK);
+    if (pick) { return String(pick.value || ""); }
+    return String((node && node.getAttribute("data-mission-name")) || "");
+  }
+
+  //: whether the launch will rewrite the ORIGINAL mission file — the box the dialog offers, and the
+  //: launch's own default when it offers none (the Load dialog has no such box).
+  function originalRequested(document_) {
+    var box = document_.querySelector('input[type="checkbox"][name="' + ORIGINAL_FIELD + '"]');
+    if (!box) { return true; }
+    return !!box.checked;
   }
 
   function apply(document_, response) {
@@ -155,6 +279,7 @@
       return;
     }
     fill(block_, response.values);
+    fillFogRows(block_, (response.values || {})[FOG_ROWS_KEY]);
     regate(document_);
     var template = String(node.getAttribute("data-mission-read") || "");
     var name = String(response.name === undefined || response.name === null ? "" : response.name);
@@ -169,10 +294,10 @@
     var token = generation;
     clear(document_);
     textOf(node, String(node.getAttribute("data-mission-loading") || ""));
-    var mission = String(node.getAttribute("data-mission-name") || "");
+    var mission = missionOf(document_, node);
     var failed = String(node.getAttribute("data-mission-error") || "");
-    fetch(readUrl(node, mission), {headers: {"Accept": "application/json"},
-                                   credentials: "same-origin"})
+    fetch(readUrl(node, mission, originalRequested(document_)),
+          {headers: {"Accept": "application/json"}, credentials: "same-origin"})
       .then(function (response) {
         if (token !== generation) { return null; }
         if (!response.ok) {
@@ -194,7 +319,23 @@
   document.addEventListener("change", function (event) {
     var target = event && event.target;
     if (!target || typeof target.getAttribute !== "function") { return; }
-    if (target.getAttribute("name") !== "weather_mode") { return; }
+    var name = target.getAttribute("name");
+    if (name === ORIGINAL_FIELD) {
+      // THE MISSION THE CUSTOM WEATHER READS FOLLOWS THE BOX: the launch rewrites the original file
+      // or the one the server is on, so a changed box re-reads instead of keeping the other file's
+      // values in controls the launch will apply.
+      if (!customChosen(document)) { return; }
+      start(document);
+      return;
+    }
+    if (target.matches && target.matches(MISSION_PICK)) {
+      // …and it follows the MISSION pick for the same reason: another mission is another file with
+      // another sky, so the rows are filled from the mission this launch will actually load.
+      if (!customChosen(document)) { return; }
+      start(document);
+      return;
+    }
+    if (name !== "weather_mode") { return; }
     generation += 1;
     if (!customChosen(document)) { clear(document); return; }
     start(document);

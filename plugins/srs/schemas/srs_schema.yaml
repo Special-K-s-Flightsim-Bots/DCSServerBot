@@ -56,8 +56,17 @@ schema;element_schema:
       type: seq
       nullable: false
       range: {min: 2, max: 2}
+      desc: Keep only the airbase frequencies in this range (kHz) when atc_frequencies has no entry for the airbase type.
+      example: "[118000, 137000]"
       sequence:
         - type: int
+    atc_exempt_unit_types:
+      type: seq
+      nullable: false
+      desc: Unit types with neither the ATC popup nor the takeoff check, e.g. aircraft with preset-only radios.
+      example: "[P-51D, SpitfireLFMkIX]"
+      sequence:
+        - type: str
 
 type: map
 func: check_main_structure

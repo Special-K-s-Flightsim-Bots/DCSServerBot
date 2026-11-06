@@ -32,6 +32,34 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+def serialize_params(params: dict[str, Any]) -> dict[str, Any]:
+    """The wire form of an RPC's *params*: references become their names, enums their values.
+
+    A reference object is not JSON-serialisable, and the message is stored in a JSONB column, so
+    every one of them travels as its name and the answering process resolves the name back into an
+    object (``ServiceBus.rpc``). ``Server`` and ``Instance`` are ``DataObject``s; ``Node`` is not —
+    it is a plain ABC — and that difference is why a ``node:`` parameter used to reach the store as
+    a live object. Containers are walked, so a reference nested in a list or a dict is dereferenced
+    too.
+    """
+    from core import Node
+
+    def serialize(value: Any) -> Any:
+        if isinstance(value, Enum):
+            return value.value
+        if isinstance(value, (DataObject, Node)):
+            return value.name
+        if isinstance(value, dict):
+            return {key: serialize(val) for key, val in value.items()}
+        if isinstance(value, list):
+            return [serialize(item) for item in value]
+        if isinstance(value, tuple):
+            return [serialize(item) for item in value]
+        return value
+
+    return {key: serialize(value) for key, value in params.items()}
+
+
 def proxy(_func: Callable[..., Any] | None = None, *, timeout: float = 60):
     """
     Can be used as a decorator to any service method, that should act as a remote call, if the server provided
@@ -51,14 +79,12 @@ def proxy(_func: Callable[..., Any] | None = None, *, timeout: float = 60):
             bound_args.apply_defaults()
             arg_dict = {k: v for k, v in bound_args.arguments.items() if k != "self"}
 
-            # Dereference DataObject and Enum values in parameters
-            params = {
-                k: v.name if isinstance(v, DataObject)
-                else v.value if isinstance(v, Enum)
-                else v
+            # Dereference reference objects and Enum values in parameters
+            params = serialize_params({
+                k: v
                 for k, v in arg_dict.items()
                 if v is not None  # Ignore None values
-            }
+            })
 
             call = {
                 "command": "rpc",
@@ -316,20 +342,4 @@ class ServiceProxy:
         return self._serialize_params(params)
 
     def _serialize_params(self, params: dict[str, Any]) -> dict[str, Any]:
-        from enum import Enum
-        from core import Server, Node, Instance
-
-        def serialize(value: Any) -> Any:
-            if isinstance(value, Enum):
-                return value.value
-            if isinstance(value, (Server, Node, Instance)):
-                return value.name
-            if isinstance(value, dict):
-                return {key: serialize(val) for key, val in value.items()}
-            if isinstance(value, list):
-                return [serialize(item) for item in value]
-            if isinstance(value, tuple):
-                return [serialize(item) for item in value]
-            return value
-
-        return {key: serialize(value) for key, value in params.items()}
+        return serialize_params(params)

@@ -131,7 +131,7 @@
 <p class="{{ field_class }}">
   <label for="{{ field.id }}">{{ _(field.label) }}</label>
   <select id="{{ field.id }}" name="{{ field.name }}"{% if field.required %} required{% endif %}{% if form_id %} form="{{ form_id }}"{% endif %}>
-    {% for option in field.options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
+    {% for option in field.options %}<option value="{{ option.value }}"{% if option.get('selected') %} selected{% endif %}>{{ option.label }}</option>{% endfor %}
   </select>
   {% if field.help %}<span class="hint" id="{{ field.id }}-help">{{ _(field.help) }}</span>{% endif %}
 </p>
@@ -361,6 +361,23 @@
 </div>
 {%- endmacro %}
 {% block title %}{{ say_title(page_title) }} — DCSServerBot{% endblock %}
+{#-  THE FIRST PAINT CARRIES THE MODE ALREADY. The launch form draws the whole temporary-weather block
+    and the preset pick in the markup (with JavaScript off they must stay visible), and
+    `dialog-preset.js` hides the ones the chosen mode does not show — but it runs as a deferred script,
+    so the browser painted the full block first and collapsed it afterwards: a dialog that fell from
+    three screens to one on every open. `dlg-gate` (one rule in `shell.css`) hides those two blocks
+    while the page is still parsing, and this listener drops it on DOMContentLoaded — which fires AFTER
+    the deferred scripts, so `reveal()` has already replaced the guard with the mode's own display and
+    nothing is painted in between. The listener is also the FAILSAFE: a page whose gate script never
+    loads ends up exactly as it rendered before this guard existed.  -#}
+{% block head %}<script>
+(function () {
+  "use strict";
+  var root = document.documentElement;
+  root.classList.add("dlg-gate");
+  document.addEventListener("DOMContentLoaded", function () { root.classList.remove("dlg-gate"); });
+})();
+</script>{% endblock %}
 {% block content %}
 {% set go_text = say(dialog.go) %}
 
@@ -385,6 +402,15 @@
       {% else %}
       <p class="dlg-what">{% trans target=tgt %}Target: <span class="target">{{ target }}</span> — the action and your name are written to the bot log.{% endtrans %}</p>
       {% endif %}
+      {#- THE LAUNCH FORM'S OWN CHOICES, in the BODY above the block they qualify. The MISSION pick
+          (Startup only) names which mission this launch loads, and the weather MODE decides whether
+          the temporary block below is shown at all — drawn after that block, the control that hides
+          it would come after the thing it hides. Every field here is form-associated to the footer's
+          form (``form="dlg-form"``), so the submit stays the ONE button at the bottom.
+          ``mission_note`` states the same fact as a sentence when the rotation holds exactly one
+          mission: a dropdown with one entry cannot choose, so it is not drawn. -#}
+      {% if dialog.get('mission_note') %}<p class="dlg-what" data-mission-note>{{ say(dialog.mission_note) }}</p>{% endif %}
+      {% for field in dialog.get('body_fields') or [] %}{{ field_input(field, 'dlg-form') }}{% endfor %}
       {#- THE BODY'S OWN FIELDS: the read-only selection list and the "delete the files from
           disk?" box that belongs BESIDE it — the one decision a bulk-remove dialog still asks. They are
           form-associated to the footer's form (``form="dlg-form"``), so the choice rides the same POST
@@ -469,23 +495,23 @@
     UCID box). It is a shipped asset of its own, like the missions selection bar, because it is a
     CONTROL's behaviour rather than this page's, and it does nothing on a dialog whose fields carry no
     `data-lookup`. -#}
-<script src="/static/player-lookup.js" defer></script>
+<script src="/static/player-lookup.js?v={{ asset_version }}" defer></script>
 {#- THE WEATHER SLIDER PAIR's behaviour — the SAME shipped asset the presets wizard loads, because the
     pair is a CONTROL rather than this page's. It does nothing on a dialog whose rows carry no
     `data-weather-pair`. -#}
-<script src="/static/weather-slider.js" defer></script>
+<script src="/static/weather-slider.js?v={{ asset_version }}" defer></script>
 {#- THE WEATHER MODE'S OWN BEHAVIOUR — which blocks belong to the chosen mode, the file filter hiding
     the groups it leaves out (never a tick), and the chosen block listing every ticked preset in the
     files' own order. Driven on the client because this form POSTS the launch (a mode change must
     never submit it), and because the filtering may not cost a second read. It also applies the
     wizard's row gate to the temporary fields and pre-fills the cloud base from the chosen preset. It
     does nothing on a dialog that draws no weather control. -#}
-<script src="/static/dialog-preset.js" defer></script>
+<script src="/static/dialog-preset.js?v={{ asset_version }}" defer></script>
 {#- THE MISSION READ — the custom mode's other half: choosing "Create your own weather" fetches
     the mission's own weather and fills the rows with it, never submitting the launch. It reads the
     URL and the three sentences off the block's `[data-mission-line]` and does nothing on a dialog that
     draws no temporary block. -#}
-<script src="/static/dialog-mission-weather.js" defer></script>
+<script src="/static/dialog-mission-weather.js?v={{ asset_version }}" defer></script>
 <script>
 /* The dialog's keyboard contract — the ONE page-specific script left in the console (the read pages
    load none; base.html loads `submit.js` on every page and shell.js for a page that passes `live`).

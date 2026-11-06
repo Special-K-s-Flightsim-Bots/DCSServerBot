@@ -766,12 +766,25 @@ msgid "The mission's weather could not be read."
 msgstr "Das Wetter der Mission konnte nicht gelesen werden."
 
 #: services/webservice/pages/actions.py:764
-msgid ""
-"This server has no current mission, so there is nothing to apply a "
-"weather preset to."
-msgstr ""
-"Dieser Server hat keine aktuelle Mission, also gibt es nichts, worauf ein"
-" Wetter-Preset angewendet werden könnte."
+#: services/webservice/pages/actions.py:951
+msgid "This server's rotation names no mission, so there is nothing to apply a weather preset to."
+msgstr "Die Rotation dieses Servers nennt keine Mission, also gibt es nichts, worauf ein Wetter-Preset angewendet werden könnte."
+
+#: services/webservice/pages/actions.py:957
+msgid "This server's mission list could not be read, so there is nothing to apply a weather preset to."
+msgstr "Die Missionsliste dieses Servers konnte nicht gelesen werden, also gibt es nichts, worauf ein Wetter-Preset angewendet werden könnte."
+
+#: services/webservice/pages/actions.py:963
+msgid "Mission to start"
+msgstr "Zu startende Mission"
+
+#: services/webservice/pages/actions.py:963
+msgid "The mission this server loads when it starts — the one its rotation names. Choosing another one moves that rotation pointer, exactly like /server startup mission:."
+msgstr "Die Mission, die dieser Server beim Start lädt — die aus seiner Rotation. Eine andere Wahl verschiebt diesen Rotationszeiger, genau wie /server startup mission:."
+
+#: services/webservice/pages/actions.py:970
+msgid "Loaded at start: {mission}"
+msgstr "Beim Start geladen: {mission}"
 
 #: services/webservice/pages/actions.py:777
 msgid "Or create a temporary preset"
@@ -11549,3 +11562,7 @@ msgstr "Staubsichtweite"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "Wie dicht der Staubnebel ist, nach der Skala des Staub-Reglers im Missionseditor: 984 bis 65 617 ft, 300 bis 20 000 m."
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "Strafpunkte werden nicht erfasst, weil das Punishment-Plugin nicht aktiv ist."

@@ -130,7 +130,7 @@
     <div class="player-gap"></div>
     {% endif %}
     <dl class="player-facts">
-      <dt>{{ _(labels.points) }}</dt><dd>{{ moderation.points or '0.00' }} — <a href="{{ tabs[1].href }}">{% trans %}see the log{% endtrans %}</a></dd>
+      <dt>{{ _(labels.points) }}</dt><dd>{% if moderation.available %}{{ moderation.points or '0.00' }} — <a href="{{ tabs[1].href }}">{% trans %}see the log{% endtrans %}</a>{% else %}—{% endif %}</dd>
       <dt>{{ _(labels.bans_all) }}</dt><dd>{{ moderation.bans }}</dd>
     </dl>
   </div>
@@ -183,10 +183,10 @@
   <div class="hd"><h3>{{ _(labels.points) }}</h3><div class="spacer"></div></div>
   <div class="bd">
     <dl class="player-facts">
-      <dt>{% trans %}Total{% endtrans %}</dt><dd>{{ penalty.points or '0.00' }}</dd>
+      <dt>{% trans %}Total{% endtrans %}</dt><dd>{% if penalty.available %}{{ penalty.points or '0.00' }}{% else %}—{% endif %}</dd>
     </dl>
     <div class="player-gap"></div>
-    <p class="sub player-note">{% trans %}Points decay over time, so this total is today's value.{% endtrans %}</p>
+    {% if penalty.available %}<p class="sub player-note">{% trans %}Points decay over time, so this total is today's value.{% endtrans %}</p>{% endif %}
     {% if penalty.controls %}
     <p class="sub player-note">{% trans %}These controls change the points of the whole fleet, not of one server.{% endtrans %}</p>
     <div class="player-gap"></div>
@@ -214,6 +214,7 @@
       <div class="row"><span class="t">{{ row.time }}</span><span class="w">{{ _(row.event) }}</span><span class="d">{{ row.points }}</span></div>
       {% endfor %}
     </div>
+    {% elif not infractions.penalties_available %}<p class="empty">{{ _(empty.penalty_tracking) }}</p>
     {% else %}<p class="empty">{{ _(empty.penalties) }}</p>{% endif %}
   </div>
 </div>

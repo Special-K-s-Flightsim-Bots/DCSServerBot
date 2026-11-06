@@ -767,12 +767,25 @@ msgid "The mission's weather could not be read."
 msgstr "No se pudo leer el clima de la misión."
 
 #: services/webservice/pages/actions.py:764
-msgid ""
-"This server has no current mission, so there is nothing to apply a "
-"weather preset to."
-msgstr ""
-"Este servidor no tiene una misión actual, así que no hay nada sobre lo "
-"que aplicar una preconfiguración de clima."
+#: services/webservice/pages/actions.py:951
+msgid "This server's rotation names no mission, so there is nothing to apply a weather preset to."
+msgstr "La rotación de este servidor no indica ninguna misión, así que no hay nada a lo que aplicar un preset de clima."
+
+#: services/webservice/pages/actions.py:957
+msgid "This server's mission list could not be read, so there is nothing to apply a weather preset to."
+msgstr "No se pudo leer la lista de misiones de este servidor, así que no hay nada a lo que aplicar un preset de clima."
+
+#: services/webservice/pages/actions.py:963
+msgid "Mission to start"
+msgstr "Misión a iniciar"
+
+#: services/webservice/pages/actions.py:963
+msgid "The mission this server loads when it starts — the one its rotation names. Choosing another one moves that rotation pointer, exactly like /server startup mission:."
+msgstr "La misión que este servidor carga al iniciarse — la que indica su rotación. Elegir otra mueve ese puntero de rotación, igual que /server startup mission:."
+
+#: services/webservice/pages/actions.py:970
+msgid "Loaded at start: {mission}"
+msgstr "Cargada al inicio: {mission}"
 
 #: services/webservice/pages/actions.py:777
 msgid "Or create a temporary preset"
@@ -11499,3 +11512,7 @@ msgstr "Visibilidad del polvo"
 #: services/webservice/pages/presets.py
 msgid "How thick the dust haze is, as the Mission Editor's own dust control states it: 984 to 65 617 ft, 300 to 20 000 m."
 msgstr "Grosor de la calima de polvo, según el control de polvo del editor de misiones: 984 a 65 617 ft, 300 a 20 000 m."
+
+#: services/webservice/pages/player_detail.py
+msgid "Penalty points are not tracked, because the punishment plugin is not active."
+msgstr "Los puntos de penalización no se registran porque el plugin de sanciones no está activo."

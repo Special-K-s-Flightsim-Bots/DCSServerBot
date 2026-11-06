@@ -227,8 +227,19 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
                          use_orig: bool = True, maintenance: bool = True,
                          preset: str | dict | list | None = "",
                          preset_name: str | None = None,
-                         announce: bool = False) -> ServerControlResult:
+                         announce: bool = False,
+                         mission: int | str | None = None) -> ServerControlResult:
     """Start up a SHUTDOWN DCS server (the DCS-level Startup; process-level Start is another action).
+
+    ``mission`` names what this launch loads — the 1-based ``missionList`` index or the mission's
+    logical name (:func:`_resolve_mission_id`, the resolver its siblings use). It is honoured by
+    moving the rotation pointer with the bot's own ``Server.setStartIndex`` BEFORE the launch, which
+    is the only way a launch selects its mission: ``Server.startup`` loads ``listStartIndex``. That
+    is the same pair ``/server startup mission:`` performs (``plugins/scheduler/commands.py``), so the
+    two transports start the same mission the same way. A name that resolves to nothing is REFUSED and
+    nothing starts — the bot's own ``setStartIndex`` would silently clamp an out-of-range index to 1,
+    which would launch the wrong mission. Unstated (``None`` / empty) leaves the pointer alone, which
+    is what the operator's rotation already said.
 
     ``modify_mission`` / ``use_orig`` mirror the arguments ``Server.startup`` takes and the Discord
     command passes (``plugins/scheduler/commands.py``), and both are REPRODUCED here: the values reach
@@ -287,6 +298,56 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
             message=WEATHER_NEEDS_EXTENSIONS,
             server_name=server_name,
         )
+    # THE MISSION THIS LAUNCH LOADS. A stated one moves the rotation pointer FIRST, because
+    # ``Server.startup`` loads ``listStartIndex`` and there is no other way to name the mission: that
+    # is the pair ``/server startup mission:`` performs. Resolution happens against a FRESH list, so a
+    # name the page outlived is refused here rather than starting whatever its index now means — and a
+    # refused mission starts NOTHING, never a launch with the wrong one.
+    mission_name = ""
+    mission_moved = False
+    if mission is not None and not isinstance(mission, bool) and str(mission).strip():
+        try:
+            missions = await server.getMissionList()
+        except Exception as ex:
+            log.exception("startup_server failed")
+            return ServerControlResult(
+                success=False,
+                message=f"Failed to list missions: {ex}",
+                server_name=server_name,
+            )
+        index = _resolve_mission_id(missions, mission)
+        if index is None:
+            return ServerControlResult(
+                success=False,
+                message=f"Mission '{mission}' not found on server '{_server_label(server, server_name)}'.",
+                server_name=server_name,
+            )
+        mission_name = os.path.basename(_logical_mission(missions[index - 1]))
+        # THE POINTER MOVES ONLY WHEN THE CHOICE DIFFERS: the dialog always posts the mission it
+        # shows, whose default is the configured start one, so a launch nobody changed writes nothing
+        # — "doing nothing changes nothing" is literally true here, not merely equivalent.
+        current_index = 0
+        try:
+            current_index = int(await server.getStartIndex() or 0)
+        except Exception:  # noqa: BLE001 - an unreadable pointer still launches the chosen mission
+            current_index = 0
+        if index != current_index:
+            try:
+                await server.setStartIndex(index)
+            except (TimeoutError, asyncio.TimeoutError):
+                return ServerControlResult(
+                    success=False,
+                    message=f"Timeout while making mission '{mission_name}' the start mission.",
+                    server_name=server_name,
+                )
+            except Exception as ex:
+                log.exception("startup_server failed")
+                return ServerControlResult(
+                    success=False,
+                    message=f"Failed to make mission '{mission_name}' the start mission: {ex}",
+                    server_name=server_name,
+                )
+            mission_moved = True
     # The pick travels ONLY into a launch that applies it: with the extensions off the node treats
     # ``preset`` as "already applied, record it", so a pick sent there would be recorded as weather
     # no extension produced. ``None`` is what such a launch states — it clears the record.
@@ -327,20 +388,22 @@ async def startup_server(ctx: Any, server_name: str, modify_mission: bool = True
                 server_name=server_name,
             )
     label = _server_label(server, server_name)
-    # THE MESSAGE IS THE AUDIT TEXT (``call_action`` -> ``audit_action``), so naming the preset here
-    # is the whole trail — there is no second record to write. The console cannot know whether the
-    # NODE really applied a NAME (one the instance does not carry is ignored there), so a name is
-    # reported as the launch's REQUEST, never as an applied fact; the record the node writes is the
-    # truth, and the server page renders it. A temporary preset document is applied as it stands, so
-    # it is named as applied; a launch nobody picked a preset for keeps the sentence it always had.
+    # THE MESSAGE IS THE AUDIT TEXT (``call_action`` -> ``audit_action``), so naming the mission the
+    # launch was pointed at and the preset it requested here is the whole trail — there is no second
+    # record to write. The console cannot know whether the NODE really applied a NAME (one the
+    # instance does not carry is ignored there), so a name is reported as the launch's REQUEST, never
+    # as an applied fact; the record the node writes is the truth, and the server page renders it. A
+    # temporary preset document is applied as it stands, so it is named as applied; a launch nobody
+    # picked a mission or a preset for keeps the sentence it always had.
+    started = f"Server '{label}' started up" + (f" for mission '{mission_name}'" if mission_moved else "")
     if preset_name and weather_pick:
-        message = f"Server '{label}' started up — weather preset '{preset_name}' requested."
+        message = f"{started} — weather preset '{preset_name}' requested."
     elif isinstance(weather_pick, str) and weather_pick:
-        message = f"Server '{label}' started up — weather preset '{weather_pick}' requested."
+        message = f"{started} — weather preset '{weather_pick}' requested."
     elif weather_pick:
-        message = f"Server '{label}' started up with a temporary weather preset."
+        message = f"{started} with a temporary weather preset."
     else:
-        message = f"Server '{label}' started up."
+        message = f"{started}."
     return ServerControlResult(
         success=True,
         message=message,
@@ -1962,6 +2025,20 @@ def _punishment_report() -> dict:
     raise FileNotFoundError(_PUNISHMENT_REPORT_FILE)
 
 
+def _punishment_active(ctx: Any) -> bool:
+    """Whether the punishment plugin is loaded on this process's node."""
+    node = getattr(ctx, "node", None)
+    if node is None:
+        return False
+    try:
+        from core.plugin_manager import PluginManager
+
+        names = list(PluginManager(node).plugins)
+    except Exception:  # noqa: BLE001 - a node that cannot answer holds no plugin
+        names = list(getattr(node, "plugins", None) or ())
+    return "punishment" in {str(name).lower() for name in names}
+
+
 def report_statements(report: dict) -> dict[str, str]:
     """The report's two player statements, keyed ``infractions`` / ``ban_history``.
 
@@ -2448,6 +2525,10 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
     The report reads ONE UCID (``init_id``), so this reads the page's UCID and nothing wider: a
     player's other UCIDs are other rows in every one of these tables.
 
+    ``penalties_available`` states whether ``pu_events`` could be read at all: the penalty log is the
+    punishment plugin's table, so with that plugin unloaded the statement does not run, the two
+    lists the plugin does not own still answer, and the flag is ``False``.
+
     The scope is the player read's own bound (``_player_in_scope``): a player outside a narrowed
     caller's servers answers the same empty answer a UCID nothing knows does, so infractions are not
     a way around the directory's scope.
@@ -2463,8 +2544,11 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
     pool = _player_pool(ctx)
     if pool is None:
         return ActionResult(success=False, message=PLAYERS_UNAVAILABLE)
+    # ``pu_events`` is the OPTIONAL punishment plugin's table (its own migrations create it), so the
+    # penalty statement may only run while that plugin is loaded on this node.
+    active = _punishment_active(ctx)
     empty = {"ucid": wanted, "found": False, "infractions": [], "penalties": [],
-             "penalty_total": 0.0, "ban_history": []}
+             "penalty_total": 0.0, "penalties_available": active, "ban_history": []}
     try:
         statements = report_statements(_punishment_report())
         infractions_sql = statements["infractions"].format(ucid=wanted,
@@ -2479,7 +2563,7 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
             if not await _player_in_scope(conn, ucids, _player_servers(ctx)):
                 return ActionResult(success=True, data=empty)
             events = await _fetch_all(conn, infractions_sql, None)
-            penalties = await _fetch_all(conn, _PENALTY_SQL, {"ucid": wanted})
+            penalties = await _fetch_all(conn, _PENALTY_SQL, {"ucid": wanted}) if active else []
             history = await _fetch_all(conn, history_sql, None)
     except Exception as ex:
         log.exception("get_player_infractions failed")
@@ -2499,6 +2583,7 @@ async def get_player_infractions(ctx: Any, ucid: str) -> ActionResult:
         "penalties": [{"time": item.get("time"), "event": _plain(item.get("event")),
                        "points": item.get("points")} for item in penalties],
         "penalty_total": total,
+        "penalties_available": active,
         "ban_history": [{"timeframe": _plain(item.get("Timeframe")),
                          "reason": _plain(item.get("Reason")),
                          "status": _plain(item.get("Status"))} for item in history],
@@ -3787,8 +3872,8 @@ def _parse_mission_document(payload: bytes, node: Any) -> dict:
 
 
 @action
-async def read_mission_weather(ctx: Any, server_name: str,
-                               mission: int | str = "") -> MissionWeatherResult:
+async def read_mission_weather(ctx: Any, server_name: str, mission: int | str = "",
+                               original: bool = False) -> MissionWeatherResult:
     """The CURRENT mission's own weather, as a MizEdit preset document — a READ, never audited.
 
     ``mission`` is the LOGICAL mission: a 1-based INDEX into the server's ``missionList`` (the
@@ -3797,6 +3882,12 @@ async def read_mission_weather(ctx: Any, server_name: str,
     its basename, with or without the ``.miz`` extension, case-insensitive), resolved against the
     server's OWN list. Empty reads the mission ``server.get_current_mission_file()`` names. A PATH is
     never accepted: nothing a request states is joined to a directory.
+
+    ``original`` reads the mission's ORIGINAL file instead of the copy the server is on — the file a
+    launch with "apply them to the original mission" bases its rewrite on
+    (``ServerImpl.apply_mission_changes``: ``get_orig_file(selected) if use_orig else selected``). A
+    mission that has no ``.orig`` yet is read as it stands, which is what the launch would create the
+    original from.
 
     The bytes come over ``server.node.read_file`` and are materialised to a temp file for the parse,
     which is deleted afterwards. The document is built by ``MizFile.preset_document`` — the SAME
@@ -3856,6 +3947,11 @@ async def read_mission_weather(ctx: Any, server_name: str,
                 success=False, status=404, server_name=server_name,
                 message=MISSION_WEATHER_UNKNOWN.format(mission=wanted, server=display))
         mission_file = str(mission_list[index - 1])
+    if original:
+        # THE ORIGINAL: what a launch with "apply them to the original mission" rewrites — the
+        # ``.orig`` twin when one exists, else the file itself (the launch creates the original by
+        # copying it). A READ never creates anything, so ``create_file=False`` answers None instead.
+        mission_file = utils.get_orig_file(mission_file, create_file=False) or mission_file
     name = _mission_file_name(mission_file)
     try:
         content = await node.read_file(str(mission_file))

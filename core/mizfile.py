@@ -288,7 +288,7 @@ class MizFile:
     def enable_dust(self, value: bool) -> None:
         self.mission['weather']['enable_dust'] = value
         if value:
-            self.mission['weather']['enable_fog'] = False
+            self.enable_fog = False
 
     @property
     def dust_density(self) -> int:
@@ -322,67 +322,73 @@ class MizFile:
 
     @property
     def enable_fog(self) -> bool:
-        if parse(self.node.dcs_version) >= Version('2.9.10'):
-            return self.mission['weather'].get('fog2') is not None
-        else:
-            return self.mission['weather'].get('enable_fog', False)
+        """Whether the mission's weather carries fog — decided by the FILE's own keys.
+
+        ``fog2`` is the fog map of DCS 2.9.10 and later; a mission that has no ``fog2`` may still
+        carry the older ``enable_fog`` switch with its ``fog`` map. Which of the two the node's own
+        DCS build reads is the WRITE's business (see the setter), never the read's.
+        """
+        weather = self.mission['weather']
+        return weather.get('fog2') is not None or bool(weather.get('enable_fog', False))
 
     @enable_fog.setter
     def enable_fog(self, value: bool) -> None:
-        if parse(self.node.dcs_version) >= Version('2.9.10'):
-            if value:
-                self.mission['weather']['fog2'] = {
-                    "mode": 2
-                }
-                # disable the old fog
-                self.mission['weather']['enable_fog'] = False
-            else:
-                self.mission['weather'].pop('fog2', None)
-            value = False
-        else:
-            self.mission['weather']['enable_fog'] = value
         if value:
             self.enable_dust = False
+            self.mission['weather']['fog2'] = {
+                "mode": 2
+            }
+        else:
+            self.mission['weather'].pop('fog2', None)
+        self.mission['weather']['enable_fog'] = False
 
     @property
     def fog(self) -> dict:
-        if parse(self.node.dcs_version) >= Version('2.9.10'):
-            fog = self.mission['weather'].get('fog2')
-            if not fog:
-                return {}
-            if fog['mode'] == 2:
+        """The mission's fog as TIME-KEYED rows, or the ``{"mode": "auto"}`` DCS builds itself.
+
+        ``fog2`` carries ``mode`` 2 (auto) or 4 (manual keyframes under ``manual``). The older fog has
+        ONE ``thickness``/``visibility`` pair for the whole mission, so it is stated as the single
+        keyframe at 0 seconds — both shapes then read the same way, and a shape with no fog at all is
+        an empty map.
+        """
+        weather = self.mission['weather']
+        fog2 = weather.get('fog2')
+        if fog2 is not None:
+            if fog2.get('mode') == 2:
                 return {
                     "mode": "auto"
                 }
-            else:
-                return {d["time"]: {"thickness": d["thickness"], "visibility": d["visibility"]} for d in fog["manual"]}
-        else:
-            return self.mission['weather']['fog']
+            return {row["time"]: {"thickness": row.get("thickness", 0),
+                                  "visibility": row.get("visibility", 0)}
+                    for row in fog2.get('manual') or []}
+        legacy = weather.get('fog')
+        if not isinstance(legacy, dict) or not legacy:
+            return {}
+        if any(str(key).isdigit() for key in legacy):
+            return legacy
+        return {0: {"thickness": legacy.get("thickness", 0),
+                    "visibility": legacy.get("visibility", 0)}}
 
     @fog.setter
     def fog(self, values: dict):
-        if parse(self.node.dcs_version) >= Version('2.9.10'):
-            if values.get('mode') == "auto":
-                self.mission['weather']['enable_fog'] = False
-                self.mission['weather']['fog2'] = {
-                    "mode": 2
-                }
-            elif "thickness" in values or "visibility" in values:
-                self.mission['weather']['enable_fog'] = True
-                self.mission['weather']['fog'] |= values
-            elif values.pop('mode', 'manual') == 'manual':
-                self.mission['weather']['enable_fog'] = False
-                self.mission['weather']['fog2'] = {
-                    "manual": [
-                        {"time": key, "visibility": value["visibility"], "thickness": value["thickness"]}
-                        for key, value in values.items()
-                        if isinstance(key, int)
-                    ],
-                    "mode": 4
-                }
-        else:
+        if values.get('mode') == "auto":
+            self.mission['weather']['enable_fog'] = False
+            self.mission['weather']['fog2'] = {
+                "mode": 2
+            }
+        elif "thickness" in values or "visibility" in values:
             self.mission['weather']['enable_fog'] = True
             self.mission['weather']['fog'] |= values
+        elif values.pop('mode', 'manual') == 'manual':
+            self.mission['weather']['enable_fog'] = False
+            self.mission['weather']['fog2'] = {
+                "manual": [
+                    {"time": key, "visibility": value["visibility"], "thickness": value["thickness"]}
+                    for key, value in values.items()
+                    if isinstance(key, int)
+                ],
+                "mode": 4
+            }
 
     @property
     def halo(self) -> dict:
@@ -484,10 +490,15 @@ class MizFile:
         SAME document to the preset reader. A second copy of the key list is the drift this method
         exists to prevent.
 
+        The haze is stated the way DCS applies it — ONE of dust or fog, never both: a mission with the
+        dust switch set carries the dust keys and no fog key at all, a mission with fog carries
+        ``enable_fog`` and its fog map, and a mission with neither carries ``enable_fog`` false and no
+        ``fog`` key. A fabricated empty fog map would be read as an enabled fog.
+
         Reads the file's own weather, so it may raise for a mission whose weather is absent
         (``KeyError``) or whose values cannot be read.
         """
-        return {
+        document = {
             "start_time": self.start_time,
             "date": self.date.strftime('%Y-%m-%d'),
             "temperature": self.temperature,
@@ -495,12 +506,22 @@ class MizFile:
             "wind": self.wind,
             "groundTurbulence": self.groundTurbulence,
             "enable_dust": self.enable_dust,
-            "dust_density": self.dust_density if self.enable_dust else 0,
             "qnh": self.qnh,
-            "enable_fog": self.enable_fog,
-            "fog": self.fog if self.enable_fog else {"thickness": 0, "visibility": 0},
             "halo": self.halo
         }
+        if self.enable_dust:
+            document["dust_density"] = self.dust_density
+            # the dust switch supersedes the fog: DCS applies one of the two, so the fog side is
+            # stated OFF and no fog map is written beside it.
+            document["enable_fog"] = False
+        else:
+            document["dust_density"] = 0
+            if self.enable_fog:
+                document["enable_fog"] = True
+                document["fog"] = self.fog
+            else:
+                document["enable_fog"] = False
+        return document
 
     def parse_moment(self, value: str = "morning") -> int:
         """
