@@ -6,7 +6,7 @@ import logging
 import os
 import re
 
-from core import Service, ServiceRegistry, Status, NodeImpl, get_translation
+from core import Service, ServiceRegistry, Status, NodeImpl, get_translation, DEFAULT_TAG
 from core.utils.yaml_helper import new_yaml
 from datetime import datetime
 from logging.handlers import QueueHandler, RotatingFileHandler
@@ -81,22 +81,22 @@ def _log_badge_and_module(record: logging.LogRecord, raw_msg: str, clean_msg: st
         mod = _("SYSTEM")
 
     if record.levelno >= logging.ERROR:
-        badge = f"🔴 [bold bright_red]{_('ERROR'):<6}[/]"
+        badge = f"[bold bright_red]{_('ERROR'):<6}[/]"
         msg_styled = f"[bright_red]{clean_msg}[/]"
     elif record.levelno >= logging.WARNING:
-        badge = f"🟡 [bold bright_yellow]{_('WARN'):<6}[/]"
+        badge = f"[bold bright_yellow]{_('WARN'):<6}[/]"
         msg_styled = f"[bright_yellow]{clean_msg}[/]"
     elif "registered as down" in low or "shut down" in low or "stopped" in low:
-        badge = f"🔴 [bold bright_red]{_('DOWN'):<6}[/]"
+        badge = f"[bold bright_red]{_('DOWN'):<6}[/]"
         msg_styled = f"[white]{clean_msg}[/]"
     elif "starting up" in low or "searching for" in low or "registering" in low or "preparing" in low or "loading" in low:
-        badge = f"🟡 [bold gold1]{_('INIT'):<6}[/]"
+        badge = f"[bold gold1]{_('INIT'):<6}[/]"
         msg_styled = f"[bright_white]{clean_msg}[/]"
     elif "registered as up" in low or "started" in low or "signed in" in low or "loaded" in low:
-        badge = f"🟢 [bold bright_green]{_('ACTIVE'):<6}[/]"
+        badge = f"[bold bright_green]{_('ACTIVE'):<6}[/]"
         msg_styled = f"[bold bright_white]{clean_msg}[/]"
     else:
-        badge = f"🟢 [bold bright_cyan]{_('INFO'):<6}[/]"
+        badge = f"[bold bright_cyan]{_('INFO'):<6}[/]"
         msg_styled = f"[white]{clean_msg}[/]"
 
     msg_styled = re.sub(r'"([^"]+)"', r'[bold gold1]"\1"[/]', msg_styled)
@@ -124,10 +124,12 @@ class HeaderWidget:
         try:
             path = Path(self.node.config_dir) / 'services' / 'webservice.yaml'
             cfg = new_yaml().load(path.read_text(encoding='utf-8')) or {}
+            if not cfg or DEFAULT_TAG not in cfg or not cfg[DEFAULT_TAG].get('frontend', False):
+                return None
         except Exception:
             return None
-        if not cfg or not cfg.get('frontend', True):
-            return None
+
+        cfg = cfg[DEFAULT_TAG]
         base = str(((cfg.get('auth') or {}).get('public_base_url')) or '').strip()
         if not base:
             base = f"http://localhost:{cfg.get('port', 9876)}"
@@ -146,7 +148,7 @@ class HeaderWidget:
                 prefix = f"{_('Cluster Master')} | "
             else:
                 prefix = f"{_('Cluster Agent')} | "
-        left_msg = f"🟢 [bold bright_white]{prefix}DCSServerBot v{self.node.bot_version}.{self.node.sub_version}[/]"
+        left_msg = f"[bold bright_white]{prefix}DCSServerBot v{self.node.bot_version}.{self.node.sub_version}[/]"
 
         url = self.web_url
         if url:
