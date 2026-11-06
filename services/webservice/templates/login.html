@@ -1,74 +1,878 @@
-{#-
-  The sign-in page (variant 3 of the mockups, mockups/dcssb-admin-ui/login-variants/).
-
-  IT IS ITS OWN DOCUMENT, AND THAT IS DELIBERATE. It does not extend `base.html`: the shell's
-  sidebar and top bar were what made this page look wrong (there is nothing to navigate to while
-  signed out, and the breadcrumb/pill strip rendered empty), and the door carries its own top bar
-  built from the same tokens. So the shell's chrome rules and this page's rules cannot drift into
-  each other's markup.
-
-  WHICH DOORS EXIST IS `doors` (services/webservice/auth/routes.py::LoginDoors), built from the
-  ENABLED BACKENDS — the same value the server refuses a login against. A disabled door is ABSENT
-  FROM THIS MARKUP, never hidden with CSS: a password form that ships to the browser and is styled
-  away is a defect. Every name this template reads is passed by
-  `services/webservice/auth/routes.py::_render_login`; the environment is StrictUndefined, so a name
-  nobody passes is a hard error rather than an empty string.
-
-  `error` is a GENERIC sentence. The reason a login was refused (unknown user / bad password)
-  belongs in the log, where an operator can read it, and never on a page anyone can type at.
-
-  NO JAVASCRIPT, and no affordance that only works with it: the door is a link, the form is a form.
--#}
 <!DOCTYPE html>
 <html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="{{ theme.current if theme is defined and theme else 'dark' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% trans %}Sign in{% endtrans %} — DCSServerBot</title>
-  {#  The favicon, the same cacheable static request as every console page's. This document does not
-      extend `base.html` (its own chrome — see the header comment), so the head links are repeated
-      here rather than inherited.  #}
   <link rel="icon" type="image/png" href="/static/logo-256.png">
   <link rel="stylesheet" href="/static/shell.css">
+  <style>
+    /* =========================================================================
+       DCS WORLD ULTRA-SLEEK ORBITAL COCKPIT & TACTICAL AIRSPACE LOGIN
+       ========================================================================= */
+    body.login-page {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 108%, rgba(56, 189, 248, 0.35) 0%, rgba(14, 116, 144, 0.22) 22%, rgba(7, 16, 33, 0.92) 52%, #02050b 100%) !important;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Interactive 60FPS Tactical Sky & Orbital Canvas */
+    #dcs-tactical-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Upper Nebula & Stratosphere Glow */
+    .dcs-bg-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 90% 45% at 50% 0%, rgba(14, 165, 233, 0.12), transparent 70%),
+        radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.09), transparent 45%),
+        radial-gradient(circle at 85% 25%, rgba(245, 158, 11, 0.08), transparent 45%);
+    }
+
+    /* Curved Planet Earth Horizon at Bottom */
+    .dcs-planet {
+      position: fixed;
+      left: 50%;
+      bottom: -146vw;
+      width: 176vw;
+      height: 176vw;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(125, 211, 252, 0.42) 0%, rgba(14, 165, 233, 0.22) 7%, rgba(3, 18, 42, 0.96) 24%, #01040a 55%);
+      box-shadow:
+        0 -3px 22px rgba(186, 230, 253, 0.9),
+        0 -14px 65px rgba(56, 189, 248, 0.65),
+        0 -45px 150px rgba(14, 165, 233, 0.35),
+        0 -90px 240px rgba(245, 158, 11, 0.14),
+        inset 0 22px 65px rgba(125, 211, 252, 0.45),
+        inset 0 70px 150px rgba(2, 132, 199, 0.25);
+      border-top: 2px solid rgba(224, 242, 254, 0.88);
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+      animation: planetBreathe 9s ease-in-out infinite alternate;
+    }
+
+    /* Sunrise Crest Flare on the Planet Horizon */
+    .dcs-planet-crest {
+      position: fixed;
+      left: 50%;
+      bottom: 29.3vw;
+      width: 520px;
+      height: 18px;
+      transform: translateX(-50%);
+      background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98) 0%, rgba(125, 211, 252, 0.85) 30%, rgba(245, 158, 11, 0.45) 60%, transparent 100%);
+      filter: blur(3px);
+      pointer-events: none;
+      z-index: 2;
+      animation: crestPulse 5s ease-in-out infinite alternate;
+    }
+    @keyframes crestPulse {
+      0% { opacity: 0.75; transform: translateX(-50%) scaleX(0.9); }
+      100% { opacity: 1; transform: translateX(-50%) scaleX(1.15); }
+    }
+
+    /* Glowing City Lights & Tactical Theater Nodes on the Planet */
+    .dcs-planet-continents {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background-image:
+        radial-gradient(2.5px 2.5px at 46% 3.5%, rgba(251, 191, 36, 0.95), transparent),
+        radial-gradient(2px 2px at 46.8% 3.9%, rgba(251, 191, 36, 0.85), transparent),
+        radial-gradient(3.5px 3.5px at 47.4% 3.2%, rgba(56, 189, 248, 0.95), transparent),
+        radial-gradient(2px 2px at 49.5% 2.6%, rgba(251, 191, 36, 0.9), transparent),
+        radial-gradient(4px 4px at 50% 2.2%, rgba(253, 224, 71, 1), transparent),
+        radial-gradient(2.5px 2.5px at 50.7% 2.8%, rgba(251, 191, 36, 0.85), transparent),
+        radial-gradient(3px 3px at 52.6% 3.4%, rgba(56, 189, 248, 0.95), transparent),
+        radial-gradient(2px 2px at 53.3% 3.9%, rgba(251, 191, 36, 0.85), transparent),
+        radial-gradient(2.5px 2.5px at 54.4% 4.6%, rgba(251, 191, 36, 0.9), transparent),
+        radial-gradient(ellipse 8% 1.8% at 47% 3.5%, rgba(245, 158, 11, 0.24), transparent),
+        radial-gradient(ellipse 9% 2.0% at 50% 2.5%, rgba(56, 189, 248, 0.28), transparent),
+        radial-gradient(ellipse 8% 1.8% at 53.2% 3.6%, rgba(245, 158, 11, 0.24), transparent),
+        repeating-radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.13) 0px, rgba(56, 189, 248, 0.13) 1px, transparent 1px, transparent 52px),
+        repeating-conic-gradient(from 0deg at 50% 50%, rgba(56, 189, 248, 0.1) 0deg, rgba(56, 189, 248, 0.1) 0.35deg, transparent 0.35deg, transparent 7.5deg);
+      mask-image: radial-gradient(circle at 50% 0%, black 0%, rgba(0,0,0,0.65) 18%, transparent 38%);
+      -webkit-mask-image: radial-gradient(circle at 50% 0%, black 0%, rgba(0,0,0,0.65) 18%, transparent 38%);
+    }
+
+    @keyframes planetBreathe {
+      0% {
+        box-shadow:
+          0 -3px 20px rgba(186, 230, 253, 0.85),
+          0 -14px 60px rgba(56, 189, 248, 0.55),
+          0 -45px 140px rgba(14, 165, 233, 0.30),
+          inset 0 22px 60px rgba(125, 211, 252, 0.40);
+      }
+      100% {
+        box-shadow:
+          0 -4px 28px rgba(224, 242, 254, 1),
+          0 -18px 80px rgba(56, 189, 248, 0.80),
+          0 -60px 180px rgba(14, 165, 233, 0.45),
+          inset 0 28px 80px rgba(186, 230, 253, 0.55);
+      }
+    }
+
+    /* Orbital Rings around the Planet */
+    .dcs-planet-rings {
+      position: fixed;
+      left: 50%;
+      bottom: -75vw;
+      width: 118vw;
+      height: 118vw;
+      transform: translateX(-50%) rotateX(73deg) rotateZ(-10deg);
+      border-radius: 50%;
+      border: 1px dashed rgba(56, 189, 248, 0.32);
+      box-shadow:
+        0 0 40px rgba(56, 189, 248, 0.14),
+        inset 0 0 40px rgba(56, 189, 248, 0.14);
+      pointer-events: none;
+      z-index: 1;
+      animation: orbitSpin 80s linear infinite;
+    }
+    .dcs-planet-rings::before {
+      content: "";
+      position: absolute;
+      inset: 55px;
+      border-radius: 50%;
+      border: 1px solid rgba(245, 158, 11, 0.22);
+    }
+    @keyframes orbitSpin {
+      from { transform: translateX(-50%) rotateX(73deg) rotateZ(0deg); }
+      to   { transform: translateX(-50%) rotateX(73deg) rotateZ(360deg); }
+    }
+
+    /* Theater Surface Beacons on the Planet Curve */
+    .dcs-planet-beacons {
+      position: fixed;
+      left: 50%;
+      bottom: 4.5vh;
+      width: min(1050px, 90vw);
+      height: 180px;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 3;
+    }
+    .dcs-beacon {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Consolas', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: rgba(224, 242, 254, 0.88);
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
+    }
+    .dcs-beacon-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 12px #38bdf8, 0 0 24px #0284c7;
+      position: relative;
+    }
+    .dcs-beacon-dot::after {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 1px solid rgba(56, 189, 248, 0.7);
+      animation: beaconPing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .dcs-beacon.gold .dcs-beacon-dot {
+      background: #fbbf24;
+      box-shadow: 0 0 12px #fbbf24, 0 0 24px #d97706;
+    }
+    .dcs-beacon.gold .dcs-beacon-dot::after {
+      border-color: rgba(251, 191, 36, 0.75);
+    }
+    @keyframes beaconPing {
+      0% { transform: scale(0.7); opacity: 1; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+    .dcs-beacon-tag {
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(5, 14, 30, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.38);
+      backdrop-filter: blur(4px);
+      white-space: nowrap;
+    }
+    .dcs-beacon.gold .dcs-beacon-tag {
+      border-color: rgba(251, 191, 36, 0.45);
+      color: #fde68a;
+    }
+
+    /* Animated Radar Ring Behind the Center Card */
+    .dcs-radar-ring {
+      position: fixed;
+      top: 47%;
+      left: 50%;
+      width: 560px;
+      height: 560px;
+      margin-top: -280px;
+      margin-left: -280px;
+      border-radius: 50%;
+      border: 1px solid rgba(56, 189, 248, 0.16);
+      box-shadow:
+        0 0 90px rgba(56, 189, 248, 0.08),
+        inset 0 0 70px rgba(56, 189, 248, 0.06);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .dcs-radar-ring::before {
+      content: "";
+      position: absolute;
+      inset: 75px;
+      border-radius: 50%;
+      border: 1px dashed rgba(56, 189, 248, 0.16);
+    }
+    .dcs-radar-ring::after {
+      content: "";
+      position: absolute;
+      inset: 155px;
+      border-radius: 50%;
+      border: 1px solid rgba(245, 158, 11, 0.14);
+    }
+    .dcs-radar-sweep {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        transparent 295deg,
+        rgba(16, 185, 129, 0.03) 320deg,
+        rgba(56, 189, 248, 0.18) 356deg,
+        rgba(125, 211, 252, 0.42) 360deg
+      );
+      animation: radarSweep 6.5s linear infinite;
+    }
+    @keyframes radarSweep {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* =========================================================================
+       LEFT & RIGHT HOLOGRAPHIC COCKPIT MFD SIDE WINGS (Desktop)
+       ========================================================================= */
+    .dcs-hud-wing {
+      position: fixed;
+      top: 50%;
+      width: 280px;
+      transform: translateY(-54%);
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: linear-gradient(165deg, rgba(8, 20, 42, 0.62) 0%, rgba(4, 11, 24, 0.42) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.24);
+      box-shadow:
+        0 14px 36px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-family: 'Consolas', 'Courier New', monospace;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .dcs-hud-wing.left {
+      left: 3.2vw;
+      border-left: 3px solid rgba(56, 189, 248, 0.75);
+    }
+    .dcs-hud-wing.right {
+      right: 3.2vw;
+      border-right: 3px solid rgba(245, 158, 11, 0.75);
+    }
+    @media (max-width: 1180px) {
+      .dcs-hud-wing { display: none; }
+    }
+
+    .dcs-wing-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #38bdf8;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .dcs-hud-wing.right .dcs-wing-hd {
+      color: #fbbf24;
+      border-bottom-color: rgba(251, 191, 36, 0.22);
+    }
+    .dcs-wing-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #34d399;
+      font-size: 9px;
+    }
+    .dcs-wing-live::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: liveBlink 1.5s infinite alternate;
+    }
+    @keyframes liveBlink {
+      from { opacity: 0.4; }
+      to   { opacity: 1; }
+    }
+
+    .dcs-wing-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 7px 9px;
+      margin-bottom: 7px;
+      border-radius: 7px;
+      background: rgba(15, 23, 42, 0.58);
+      border: 1px solid rgba(56, 189, 248, 0.14);
+    }
+    .dcs-wing-item:last-child {
+      margin-bottom: 0;
+    }
+    .dcs-wing-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    .dcs-wing-sub {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 9.5px;
+      color: #94a3b8;
+    }
+    .dcs-badge-on {
+      color: #34d399;
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+    }
+    .dcs-badge-stby {
+      color: #fbbf24;
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+    }
+
+    /* Animated Telemetry Bars inside Right HUD Wing */
+    .dcs-telem-bar {
+      height: 4px;
+      width: 100%;
+      border-radius: 99px;
+      background: rgba(30, 41, 59, 0.85);
+      overflow: hidden;
+      margin-top: 3px;
+    }
+    .dcs-telem-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #0284c7, #38bdf8, #fbbf24);
+      animation: telemPulse 3.2s ease-in-out infinite alternate;
+    }
+    @keyframes telemPulse {
+      0%   { filter: brightness(0.9); }
+      100% { filter: brightness(1.35); }
+    }
+
+    /* Top HUD Compass Tape */
+    .dcs-hud-compass {
+      position: fixed;
+      top: 66px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      color: rgba(56, 189, 248, 0.85);
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.55);
+      pointer-events: none;
+      z-index: 2;
+      padding: 5px 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      background: rgba(4, 12, 26, 0.72);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), inset 0 0 14px rgba(56, 189, 248, 0.1);
+      backdrop-filter: blur(8px);
+    }
+    .dcs-hud-compass .hud-accent {
+      color: #fbbf24;
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
+    }
+    .dcs-hud-compass .hud-ok {
+      color: #34d399;
+      font-weight: 700;
+      text-shadow: 0 0 10px rgba(52, 211, 153, 0.55);
+    }
+
+    /* =========================================================================
+       SYMMETRICAL TOP BAR & ULTRA-SEXY GLASSMORPHIC LOGIN CARD
+       ========================================================================= */
+    header.shell-bar.login-bar {
+      position: relative;
+      z-index: 10;
+      background: rgba(4, 10, 22, 0.78) !important;
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.24) !important;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.45);
+    }
+
+    main.login-wrap {
+      position: relative;
+      z-index: 10;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100% !important;
+      max-width: 470px !important;
+      margin: auto !important;
+      padding: 20px !important;
+      animation: dcsCardEntry 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes dcsCardEntry {
+      from { opacity: 0; transform: translateY(20px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Brand Halo & Logo */
+    .login-hero {
+      position: relative;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin-bottom: 4px !important;
+      padding: 6px 20px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.14) 0%, transparent 75%);
+    }
+
+    .login-logo {
+      filter:
+        drop-shadow(0 0 14px rgba(245, 158, 11, 0.65))
+        drop-shadow(0 0 28px rgba(56, 189, 248, 0.45));
+      transition: transform 0.35s ease;
+    }
+    .login-hero:hover .login-logo {
+      transform: scale(1.05) rotate(-2deg);
+    }
+
+    main.login-wrap h1 {
+      text-align: center !important;
+      font-size: 28px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.04em !important;
+      background: linear-gradient(135deg, #ffffff 0%, #bae6fd 55%, #fbbf24 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 14px rgba(56, 189, 248, 0.35));
+      margin: 2px 0 4px !important;
+    }
+
+    main.login-wrap p.sub {
+      text-align: center !important;
+      color: #cbd5e1 !important;
+      font-size: 13.5px !important;
+      margin-bottom: 18px !important;
+      max-width: 410px !important;
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+    }
+
+    .login-grid,
+    .login-grid.solo {
+      width: 100% !important;
+      display: flex !important;
+      justify-content: center !important;
+    }
+
+    /* Ultra-Sleek Cockpit Glass Card */
+    .login-grid .card {
+      width: 100% !important;
+      max-width: 430px !important;
+      background: linear-gradient(165deg, rgba(10, 22, 46, 0.86) 0%, rgba(5, 12, 26, 0.92) 100%) !important;
+      border: 1px solid rgba(56, 189, 248, 0.38) !important;
+      border-radius: 16px !important;
+      box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.82),
+        0 0 45px rgba(56, 189, 248, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow: hidden;
+      position: relative;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .login-grid .card:focus-within,
+    .login-grid .card:hover {
+      border-color: rgba(56, 189, 248, 0.68) !important;
+      box-shadow:
+        0 28px 65px rgba(0, 0, 0, 0.88),
+        0 0 55px rgba(56, 189, 248, 0.26),
+        0 0 25px rgba(245, 158, 11, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+    }
+
+    /* Top Laser Accent Bar on Card */
+    .login-grid .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent 0%, #0ea5e9 22%, #fbbf24 50%, #38bdf8 78%, transparent 100%);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.8);
+    }
+
+    .login-grid .card .hd {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 15px 22px !important;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.18) !important;
+      background: rgba(15, 23, 42, 0.55) !important;
+    }
+
+    .login-grid .card .hd h2.ct {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase;
+      color: #e0f2fe !important;
+    }
+    .login-grid .card .hd h2.ct::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
+    }
+
+    .login-hud-tag {
+      font-family: 'Consolas', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .login-grid .card .bd {
+      padding: 22px 24px 24px !important;
+    }
+
+    .login-form label {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.1em !important;
+      text-transform: uppercase !important;
+      color: #93c5fd !important;
+      margin-bottom: 7px !important;
+    }
+
+    .login-form input[type="text"],
+    .login-form input[type="password"] {
+      width: 100% !important;
+      box-sizing: border-box !important;
+      padding: 12px 15px !important;
+      margin-bottom: 16px !important;
+      border-radius: 10px !important;
+      border: 1px solid rgba(56, 189, 248, 0.28) !important;
+      background: rgba(3, 8, 20, 0.82) !important;
+      color: #f8fafc !important;
+      font-size: 14px !important;
+      transition: all 0.22s ease !important;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+    }
+
+    .login-form input[type="text"]:focus,
+    .login-form input[type="password"]:focus {
+      border-color: #38bdf8 !important;
+      background: rgba(7, 16, 36, 0.95) !important;
+      box-shadow:
+        0 0 0 3px rgba(56, 189, 248, 0.22),
+        0 0 18px rgba(56, 189, 248, 0.25),
+        inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+      outline: none !important;
+    }
+
+    /* Afterburner Tactical Submit Button */
+    .login-btn {
+      position: relative;
+      overflow: hidden;
+      width: 100% !important;
+      padding: 13px 18px !important;
+      margin-top: 4px !important;
+      border-radius: 10px !important;
+      border: 1px solid rgba(125, 211, 252, 0.55) !important;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #1d4ed8 100%) !important;
+      color: #ffffff !important;
+      font-weight: 800 !important;
+      font-size: 14px !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase;
+      cursor: pointer !important;
+      box-shadow:
+        0 8px 25px rgba(2, 132, 199, 0.48),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+      transition: all 0.22s ease !important;
+    }
+
+    .login-btn::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -120%;
+      width: 65%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+      transform: skewX(-25deg);
+      animation: btnShimmer 4s infinite;
+    }
+    @keyframes btnShimmer {
+      0%, 60% { left: -120%; }
+      100%    { left: 160%; }
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      border-color: #bae6fd !important;
+      background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #2563eb 100%) !important;
+      box-shadow:
+        0 12px 32px rgba(14, 165, 233, 0.68),
+        0 0 20px rgba(245, 158, 11, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+    }
+  </style>
 </head>
 <body class="login-page">
+  <!-- Interactive 60FPS Tactical Fighter Jets, Contrails, Missiles & Stars Canvas -->
+  <canvas id="dcs-tactical-canvas" aria-hidden="true"></canvas>
+
+  <!-- DCS World Animated Planetary & Tactical Airspace Background -->
+  <div class="dcs-bg-canvas" aria-hidden="true">
+    <div class="dcs-planet-rings"></div>
+    <div class="dcs-planet-crest"></div>
+    <div class="dcs-planet">
+      <div class="dcs-planet-continents"></div>
+    </div>
+
+    <!-- Glowing Theater Surface Beacons on the Planet Curve -->
+    <div class="dcs-planet-beacons">
+      {% if fleet_servers is defined and fleet_servers and fleet_servers|length > 0 %}
+        {% set b0 = fleet_servers[0] %}
+        <div class="dcs-beacon gold" style="left: 50%; bottom: 52px; transform: translateX(-50%);">
+          <div class="dcs-beacon-dot"></div>
+          <div class="dcs-beacon-tag">{{ (b0.display_name or b0.name)|upper }}{% if b0.port %} • {{ b0.port }}{% endif %}</div>
+        </div>
+        {% if fleet_servers|length > 1 %}
+          {% set b1 = fleet_servers[1] %}
+          <div class="dcs-beacon" style="left: 16%; bottom: 18px;">
+            <div class="dcs-beacon-dot"></div>
+            <div class="dcs-beacon-tag">{{ (b1.display_name or b1.name)|upper }}{% if b1.port %} • {{ b1.port }}{% endif %}</div>
+          </div>
+        {% endif %}
+        {% if fleet_servers|length > 2 %}
+          {% set b2 = fleet_servers[2] %}
+          <div class="dcs-beacon" style="right: 14%; bottom: 18px;">
+            <div class="dcs-beacon-dot"></div>
+            <div class="dcs-beacon-tag">{{ (b2.display_name or b2.name)|upper }}{% if b2.port %} • {{ b2.port }}{% endif %}</div>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="dcs-beacon" style="left: 16%; bottom: 18px;">
+          <div class="dcs-beacon-dot"></div>
+          <div class="dcs-beacon-tag">SYRIA THEATER • 10308</div>
+        </div>
+        <div class="dcs-beacon gold" style="left: 50%; bottom: 52px; transform: translateX(-50%);">
+          <div class="dcs-beacon-dot"></div>
+          <div class="dcs-beacon-tag">CAUCASUS ACTIVE • 10309</div>
+        </div>
+        <div class="dcs-beacon" style="right: 14%; bottom: 18px;">
+          <div class="dcs-beacon-dot"></div>
+          <div class="dcs-beacon-tag">PERSIAN GULF • 10310</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Center Radar Sweep -->
+    <div class="dcs-radar-ring">
+      <div class="dcs-radar-sweep"></div>
+    </div>
+
+    <!-- Left Holographic Cockpit MFD Wing -->
+    <aside class="dcs-hud-wing left">
+      <div class="dcs-wing-hd">
+        <span>THEATER LINK-16</span>
+        <span class="dcs-wing-live">ONLINE</span>
+      </div>
+      {% if fleet_servers is defined and fleet_servers and fleet_servers|length > 0 %}
+        {% for s in fleet_servers %}
+        <div class="dcs-wing-item">
+          <div class="dcs-wing-row">
+            <span>{{ s.display_name or s.name }}</span>
+            {% if s.status.dot == 'run' %}
+            <span class="dcs-badge-on">● {{ _(s.status.word) }}</span>
+            {% else %}
+            <span class="dcs-badge-stby">○ {{ _(s.status.word) }}</span>
+            {% endif %}
+          </div>
+          <div class="dcs-wing-sub">
+            <span>{{ (s.map_name or 'DCS THEATER')|upper }}{% if s.port %} • PORT {{ s.port }}{% endif %}</span>
+            <span>{{ s.active_players }}/{{ s.max_players or 0 }} PILOTS</span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="dcs-wing-item">
+          <div class="dcs-wing-row">
+            <span>Caucasus Theater</span>
+            <span class="dcs-badge-on">● ACTIVE</span>
+          </div>
+          <div class="dcs-wing-sub">
+            <span>CAUCASUS • PORT 10308</span>
+            <span>SRS 5002</span>
+          </div>
+        </div>
+        <div class="dcs-wing-item">
+          <div class="dcs-wing-row">
+            <span>Syria Theater</span>
+            <span class="dcs-badge-stby">○ STANDBY</span>
+          </div>
+          <div class="dcs-wing-sub">
+            <span>SYRIA • PORT 10309</span>
+            <span>SRS 5003</span>
+          </div>
+        </div>
+        <div class="dcs-wing-item">
+          <div class="dcs-wing-row">
+            <span>Persian Gulf Theater</span>
+            <span class="dcs-badge-stby">○ STANDBY</span>
+          </div>
+          <div class="dcs-wing-sub">
+            <span>PERSIAN GULF • PORT 10310</span>
+            <span>SRS 5004</span>
+          </div>
+        </div>
+      {% endif %}
+    </aside>
+
+    <!-- Right Holographic Cockpit MFD Wing -->
+    <aside class="dcs-hud-wing right">
+      <div class="dcs-wing-hd">
+        <span>AWACS MAGIC // CAP</span>
+        <span class="dcs-wing-live">TRACKING</span>
+      </div>
+      <div class="dcs-wing-item">
+        <div class="dcs-wing-row">
+          <span>VIPER-1 / F-16C</span>
+          <span class="dcs-badge-on">FL280 • M0.94</span>
+        </div>
+        <div class="dcs-wing-sub">
+          <span>CAP SECTOR NORTH</span>
+          <span>WEAPONS FREE</span>
+        </div>
+        <div class="dcs-telem-bar"><div class="dcs-telem-fill" style="width: 88%;"></div></div>
+      </div>
+      <div class="dcs-wing-item">
+        <div class="dcs-wing-row">
+          <span>HORNET-2 / F/A-18C</span>
+          <span class="dcs-badge-on">FL240 • M0.91</span>
+        </div>
+        <div class="dcs-wing-sub">
+          <span>DATALINK CRYPTO</span>
+          <span>IFF MODE-4 OK</span>
+        </div>
+        <div class="dcs-telem-bar"><div class="dcs-telem-fill" style="width: 74%;"></div></div>
+      </div>
+      <div class="dcs-wing-item">
+        <div class="dcs-wing-row">
+          <span>BOGEY / SU-35S</span>
+          <span class="dcs-badge-stby" style="color:#f87171;">BRAA 085/42</span>
+        </div>
+        <div class="dcs-wing-sub">
+          <span>INTERCEPT VECTOR</span>
+          <span>FOX-3 TRACK</span>
+        </div>
+        <div class="dcs-telem-bar"><div class="dcs-telem-fill" style="width: 62%; background: linear-gradient(90deg, #ef4444, #f59e0b);"></div></div>
+      </div>
+    </aside>
+
+    <!-- Top HUD Compass Tape -->
+    <div class="dcs-hud-compass">
+      <span>◄ 345°</span>
+      <span class="hud-accent">HDG 000° N</span>
+      <span>015° ►</span>
+      <span>|</span>
+      <span>DCS WORLD ORBITAL TACTICAL AIRSPACE</span>
+      <span>|</span>
+      <span class="hud-ok">LINK-16 ONLINE</span>
+    </div>
+  </div>
+
   <header class="shell-bar login-bar">
-    {#  The TEXT brand only. The logo is the page's hero, below, at a size where its own wordmark is
-        legible; a second, 30px copy in this bar would be the same artwork twice on one screen.
-        Letting the hero carry the mark is also what keeps the bar the console's 58px height.  #}
     <div class="brand">
       <div><b>DCSServerBot</b><small>{% trans %}Admin Console{% endtrans %}</small></div>
     </div>
     <div class="spacer"></div>
     {% include "_language.html" %}
     {% include "_theme.html" %}
-    {#  The pill states something TRUE of this configuration — it is derived from the same value the
-        layout is, so it cannot claim a door that is not there.  #}
     <span class="pill"><span class="dot{{ ' run' if not doors.none else '' }}"
                              aria-hidden="true"></span>{{ _(doors.status_text) }}</span>
   </header>
 
   <main class="login-wrap">
-    {#  THE HERO: the brand logo at a size where its own "DCS / Server / Bot" wordmark is legible —
-        this is the first page a visitor sees, so the mark is the page's opening statement rather
-        than a 30px chip. `alt` names the product; the width/height attributes carry the file's own
-        3:2 aspect so the heading below does not jump while the image loads, and the displayed size
-        is the stylesheet's (`.login-logo`).  #}
     <div class="login-hero">
       <img class="login-logo" src="/static/logo-512.png" alt="DCSServerBot logo"
-           width="220" height="147">
+           width="210" height="140">
     </div>
     <h1>{% trans %}Sign in{% endtrans %}</h1>
 
-    {#  THE error line. It is rendered OUTSIDE the door cards on purpose: a refused or cancelled
-        sign-in must say so in every configuration, including the ones with no password door (a
-        message inside the local card would simply not render there).  #}
     {% if error %}<p class="login-error" role="alert">{{ _(error) }}</p>{% endif %}
 
     {% if doors.none %}
-    {#  No door at all: an explicit page (never a blank page, never an empty form). The console keeps
-        serving its API traffic — this is a legitimate mid-configuration state, logged CRITICALLY at
-        startup.  #}
     <section class="card login-unavailable" role="alert">
       <div class="hd"><h2 class="ct">{% trans %}No sign-in method is configured{% endtrans %}</h2></div>
       <div class="bd">
@@ -119,19 +923,26 @@
       <section class="card" aria-labelledby="door-local">
         <div class="hd">
           <h2 class="ct" id="door-local">{% trans %}Local account{% endtrans %}</h2>
+          <span class="login-hud-tag">IFF MODE-4</span>
           {% if doors.both %}<span class="tag">{% trans %}fallback{% endtrans %}</span>{% endif %}
         </div>
         <div class="bd">
           <form class="login-form" method="post" action="{{ login_path }}">
             <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
             <input type="hidden" name="next" value="{{ next_url }}">
-            <label for="username">{% trans %}Username{% endtrans %}</label>
+            <label for="username">
+              <span>{% trans %}Username{% endtrans %}</span>
+              <span style="font-family:Consolas,monospace;font-size:10px;color:#64748b;">CALLSIGN // ID</span>
+            </label>
             <input id="username" name="username" type="text" autocomplete="username"
                    autocapitalize="none" spellcheck="false" required{{ ' autofocus' if not doors.discord else '' }}>
-            <label for="password">{% trans %}Password{% endtrans %}</label>
+            <label for="password">
+              <span>{% trans %}Password{% endtrans %}</span>
+              <span style="font-family:Consolas,monospace;font-size:10px;color:#64748b;">CRYPTO KEY</span>
+            </label>
             <input id="password" name="password" type="password" autocomplete="current-password"
                    required>
-            <button class="login-btn" type="submit">{% trans %}Sign in{% endtrans %}</button>
+            <button class="login-btn" type="submit">{% trans %}Sign in{% endtrans %} &nbsp;▸</button>
           </form>
           {% if doors.discord %}
           <p class="login-note">{% trans %}For installs without a Discord bot, and for the day the OAuth app or the role config is the thing that broke.{% endtrans %}</p>
@@ -146,5 +957,254 @@
   {% if doors.both %}
   <footer class="login-foot">{% trans %}DCSServerBot Admin · not sure which to use? Discord — it is how accounts are made here.{% endtrans %}</footer>
   {% endif %}
+
+  <!-- 60FPS Tactical Fighter Squadron, Contrails, Afterburners & BVR Intercept Engine -->
+  <script>
+    (function () {
+      const canvas = document.getElementById('dcs-tactical-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let W = (canvas.width = window.innerWidth);
+      let H = (canvas.height = window.innerHeight);
+
+      window.addEventListener('resize', function () {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      });
+
+      const stars = Array.from({ length: 130 }, function () {
+        return {
+          x: Math.random(),
+          y: Math.random() * 0.72,
+          r: Math.random() * 1.5 + 0.4,
+          alpha: Math.random() * 0.7 + 0.2,
+          speed: Math.random() * 0.02 + 0.006,
+          phase: Math.random() * Math.PI * 2
+        };
+      });
+
+      const fleetSpecs = [
+        { callsign: 'VIPER-1 • F-16C', sub: 'FL280 • M0.95', color: '#38bdf8', glow: 'rgba(56,189,248,0.85)', x: 0.08, y: 0.18, vx: 0.52, vy: -0.08, turn: 0.0005, scale: 1.05 },
+        { callsign: 'VIPER-2 • WING',  sub: 'FL280 • TRAIL', color: '#38bdf8', glow: 'rgba(56,189,248,0.85)', x: 0.04, y: 0.21, vx: 0.52, vy: -0.08, turn: 0.0005, scale: 0.92 },
+        { callsign: 'HORNET-1 • CAP',  sub: 'FL250 • M0.91', color: '#34d399', glow: 'rgba(52,211,153,0.85)', x: 0.88, y: 0.24, vx: -0.46, vy: 0.07, turn: -0.0004, scale: 1.0 },
+        { callsign: 'EAGLE-1 • LEAD',  sub: 'FL310 • M1.14', color: '#fbbf24', glow: 'rgba(251,191,36,0.9)',  x: 0.18, y: 0.62, vx: 0.62, vy: -0.14, turn: -0.0006, scale: 1.08 },
+        { callsign: 'FALCON-2 • SEAD', sub: 'FL220 • AGM88', color: '#38bdf8', glow: 'rgba(56,189,248,0.85)', x: 0.78, y: 0.14, vx: -0.50, vy: 0.12, turn: 0.0005, scale: 0.95 },
+        { callsign: 'BOGEY • SU-35S',  sub: 'HOSTILE • M1.2', color: '#f87171', glow: 'rgba(248,113,113,0.9)', x: 0.92, y: 0.58, vx: -0.58, vy: -0.15, turn: 0.0007, scale: 1.05, hostile: true },
+        { callsign: 'BOGEY-2 • MIG31', sub: 'BRAA 270/38',   color: '#f87171', glow: 'rgba(248,113,113,0.9)', x: 0.96, y: 0.62, vx: -0.56, vy: -0.14, turn: 0.0007, scale: 0.94, hostile: true },
+        { callsign: 'MAGIC • AWACS',   sub: 'E-3A • FL360',  color: '#a78bfa', glow: 'rgba(167,139,250,0.85)', x: 0.25, y: 0.11, vx: 0.30, vy: 0.02, turn: 0.0002, scale: 1.12, awacs: true },
+        { callsign: 'STRIKE-1 • CAP',  sub: 'FL260 • FOX-3', color: '#34d399', glow: 'rgba(52,211,153,0.85)', x: 0.12, y: 0.44, vx: 0.48, vy: 0.09, turn: -0.0004, scale: 0.96 },
+        { callsign: 'TEXACO • TANKER', sub: 'KC-135 • FL200',color: '#fbbf24', glow: 'rgba(251,191,36,0.85)', x: 0.68, y: 0.40, vx: -0.34, vy: -0.04, turn: 0.0003, scale: 1.0 }
+      ];
+
+      const jets = fleetSpecs.map(function (s) {
+        return Object.assign({}, s, {
+          px: s.x * W,
+          py: s.y * H,
+          angle: Math.atan2(s.vy, s.vx),
+          speed: Math.hypot(s.vx, s.vy),
+          trail: []
+        });
+      });
+
+      const missiles = [];
+      function spawnMissile() {
+        const friendly = jets.filter(function (j) { return !j.hostile && !j.awacs; });
+        const bogeys = jets.filter(function (j) { return j.hostile; });
+        if (!friendly.length || !bogeys.length) return;
+        const shooter = friendly[Math.floor(Math.random() * friendly.length)];
+        const target = bogeys[Math.floor(Math.random() * bogeys.length)];
+        missiles.push({
+          x: shooter.px,
+          y: shooter.py,
+          target: target,
+          life: 0,
+          maxLife: 190,
+          trail: []
+        });
+      }
+      setInterval(spawnMissile, 4200);
+      setTimeout(spawnMissile, 1200);
+
+      function drawJetShape(ctx, scale, color, glow, isAwacs) {
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 12;
+
+        const grad = ctx.createLinearGradient(-20, 0, -4, 0);
+        grad.addColorStop(0, 'rgba(251, 191, 36, 0)');
+        grad.addColorStop(0.5, 'rgba(251, 191, 36, 0.75)');
+        grad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(-5, -1.8);
+        ctx.lineTo(-18 - Math.random() * 5, 0);
+        ctx.lineTo(-5, 1.8);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(11, 0);
+        ctx.lineTo(3, 2.2);
+        ctx.lineTo(-2, 8.5);
+        ctx.lineTo(-5.5, 8.2);
+        ctx.lineTo(-3.5, 2.4);
+        ctx.lineTo(-8.5, 4.8);
+        ctx.lineTo(-10, 4.2);
+        ctx.lineTo(-7.5, 0);
+        ctx.lineTo(-10, -4.2);
+        ctx.lineTo(-8.5, -4.8);
+        ctx.lineTo(-3.5, -2.4);
+        ctx.lineTo(-5.5, -8.2);
+        ctx.lineTo(-2, -8.5);
+        ctx.lineTo(3, -2.2);
+        ctx.closePath();
+        ctx.fill();
+
+        if (isAwacs) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.arc(-2, 0, 5.2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      let tick = 0;
+      function animate() {
+        tick++;
+        ctx.clearRect(0, 0, W, H);
+
+        for (let sIdx = 0; sIdx < stars.length; sIdx++) {
+          const st = stars[sIdx];
+          const a = st.alpha * (0.55 + 0.45 * Math.sin(tick * st.speed + st.phase));
+          ctx.fillStyle = 'rgba(224, 242, 254, ' + a.toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(st.x * W, st.y * H, st.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        for (let jIdx = 0; jIdx < jets.length; jIdx++) {
+          const j = jets[jIdx];
+          j.angle += Math.sin(tick * 0.008 + j.x * 10) * j.turn;
+          j.px += Math.cos(j.angle) * j.speed * 1.15;
+          j.py += Math.sin(j.angle) * j.speed * 1.15;
+
+          const margin = 90;
+          if (j.px > W + margin) j.px = -margin;
+          if (j.px < -margin) j.px = W + margin;
+          if (j.py > H * 0.76) {
+            j.angle = -Math.abs(j.angle) * 0.6 - 0.15;
+          }
+          if (j.py < 70) {
+            j.angle = Math.abs(j.angle) * 0.6 + 0.15;
+          }
+
+          j.trail.push({ x: j.px, y: j.py });
+          if (j.trail.length > 68) j.trail.shift();
+
+          if (j.trail.length > 2) {
+            for (let i = 1; i < j.trail.length; i++) {
+              const p0 = j.trail[i - 1];
+              const p1 = j.trail[i];
+              if (Math.hypot(p1.x - p0.x, p1.y - p0.y) > 40) continue;
+              const ratio = i / j.trail.length;
+              ctx.strokeStyle = j.hostile
+                ? 'rgba(248, 113, 113, ' + (ratio * 0.55).toFixed(3) + ')'
+                : 'rgba(125, 211, 252, ' + (ratio * 0.55).toFixed(3) + ')';
+              ctx.lineWidth = ratio * 2.2;
+              ctx.beginPath();
+              ctx.moveTo(p0.x, p0.y);
+              ctx.lineTo(p1.x, p1.y);
+              ctx.stroke();
+            }
+          }
+
+          if (j.awacs) {
+            const pulseR = (tick % 90) * 0.85;
+            const pulseA = Math.max(0, 1 - pulseR / 76) * 0.35;
+            ctx.strokeStyle = 'rgba(167, 139, 250, ' + pulseA.toFixed(3) + ')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(j.px, j.py, pulseR, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          ctx.save();
+          ctx.translate(j.px, j.py);
+          ctx.rotate(j.angle);
+          drawJetShape(ctx, j.scale, j.color, j.glow, j.awacs);
+          ctx.restore();
+
+          ctx.save();
+          ctx.strokeStyle = j.color;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(j.px - 9, j.py - 9, 18, 18);
+
+          ctx.beginPath();
+          ctx.moveTo(j.px + 9, j.py - 9);
+          ctx.lineTo(j.px + 16, j.py - 15);
+          ctx.stroke();
+
+          const tagX = j.px + 18;
+          const tagY = j.py - 26;
+          ctx.fillStyle = 'rgba(4, 11, 25, 0.76)';
+          ctx.strokeStyle = j.hostile ? 'rgba(248, 113, 113, 0.45)' : 'rgba(56, 189, 248, 0.35)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(tagX, tagY, 96, 22, 4);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.font = 'bold 8.5px Consolas, monospace';
+          ctx.fillStyle = j.color;
+          ctx.fillText(j.callsign, tagX + 5, tagY + 9);
+          ctx.font = '7.5px Consolas, monospace';
+          ctx.fillStyle = 'rgba(203, 213, 225, 0.85)';
+          ctx.fillText(j.sub, tagX + 5, tagY + 18);
+          ctx.restore();
+        }
+
+        for (let i = missiles.length - 1; i >= 0; i--) {
+          const m = missiles[i];
+          m.life++;
+          const dx = m.target.px - m.x;
+          const dy = m.target.py - m.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 14 || m.life > m.maxLife || dist > W * 0.7) {
+            missiles.splice(i, 1);
+            continue;
+          }
+          const speed = 2.4;
+          m.x += (dx / dist) * speed;
+          m.y += (dy / dist) * speed;
+          m.trail.push({ x: m.x, y: m.y });
+          if (m.trail.length > 28) m.trail.shift();
+
+          for (let k = 1; k < m.trail.length; k++) {
+            const p0 = m.trail[k - 1];
+            const p1 = m.trail[k];
+            const r = k / m.trail.length;
+            ctx.strokeStyle = 'rgba(251, 191, 36, ' + (r * 0.85).toFixed(3) + ')';
+            ctx.lineWidth = r * 1.8;
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(p1.x, p1.y);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    })();
+  </script>
 </body>
 </html>

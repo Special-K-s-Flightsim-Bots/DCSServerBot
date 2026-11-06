@@ -22,7 +22,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}DCSServerBot{% endblock %}</title>
+  <title>{% block title %}{% trans %}DCSServerBot Admin Console{% endtrans %}{% endblock %}</title>
   {#  The brand's logo, as a CACHEABLE STATIC REQUEST — never a data: URI (one would inline the
       image into every page and defeat the browser cache). It is the same 256px derivative the
       header mark reads, so the two share one request and one cache entry. See the note on

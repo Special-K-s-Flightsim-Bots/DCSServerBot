@@ -1893,3 +1893,80 @@ html[data-theme="light"] {
   font-size: 10.5px; letter-spacing: .06em; }
 .player-list .row.hd .t, .player-list .row.hd .w, .player-list .row.hd .d { font-family: inherit;
   font-size: inherit; color: inherit; }
+
+
+/* ================================================================
+ * Modern Tactical Glass & Glow Theme Enhancements
+ * ================================================================ */
+:root {
+  --ground: #080b10;
+  --ground-2: #0d121a;
+  --panel: #121924;
+  --panel-2: #182232;
+  --line: #223044;
+  --line-2: #2d4059;
+  --accent: #f0a830;
+  --accent-2: #d48817;
+  --run: #2ea043;
+  --ok: #2ea043;
+}
+
+.side {
+  background: linear-gradient(180deg, #0d131c 0%, #090d14 100%);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, .4);
+}
+
+.brand {
+  background: linear-gradient(90deg, rgba(240, 168, 48, .08), transparent);
+}
+
+.brand b {
+  color: #f8fafc;
+  font-size: 14.5px;
+  letter-spacing: .4px;
+  text-shadow: 0 1px 8px rgba(240, 168, 48, .25);
+}
+
+.brand small {
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.shell-bar, .top {
+  background: linear-gradient(180deg, #131b27 0%, #0d131c 100%);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .35);
+}
+
+.card {
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .04);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.card:hover {
+  border-color: #2f435e;
+}
+
+.card > .hd {
+  background: linear-gradient(180deg, #1a2434 0%, #131b27 100%);
+}
+
+.dot.run {
+  background: #3fb950;
+  box-shadow: 0 0 8px rgba(63, 185, 80, .65), 0 0 0 3px var(--run-halo);
+}
+
+.pill {
+  background: linear-gradient(180deg, #182232 0%, #121924 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+.nav a {
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+
+.nav a.on {
+  background: linear-gradient(90deg, rgba(240, 168, 48, .20), rgba(240, 168, 48, .03));
+  box-shadow: inset 3px 0 0 var(--accent);
+  font-weight: 600;
+}
