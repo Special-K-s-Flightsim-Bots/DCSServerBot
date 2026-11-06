@@ -46,6 +46,35 @@ log = logging.getLogger(__name__)
 
 #: the shell's own templates (shipped in the repo, never under the user's config/ directory)
 SHELL_TEMPLATES_DIR = Path(__file__).parent / "templates"
+#: the shell's own static directory — the files ``asset_version`` fingerprints.
+SHELL_STATIC_DIR = Path(__file__).parent / "static"
+
+#: computed once per process: the templates state it in every asset URL (``?v=<version>``).
+_ASSET_VERSION: str | None = None
+
+
+def asset_version() -> str:
+    """A token that changes whenever the shell's own static files do.
+
+    The console serves ``/static/<file>`` through ``app.frontend``, which states no ``Cache-Control``
+    of its own, so a browser may hold yesterday's script for a long while — and a fixed page then runs
+    OLD behaviour after an update, with nothing on screen to say so. Stating the version in the URL
+    makes an updated file a DIFFERENT URL, so the fix takes effect on the next page load.
+
+    The value is the newest modification time under the static directory, computed once: a deploy is
+    followed by a restart, and a restart is what rebuilds this. A directory that cannot be read answers
+    ``0`` rather than raising into every render.
+    """
+    global _ASSET_VERSION
+    if _ASSET_VERSION is None:
+        try:
+            newest = max((entry.stat().st_mtime_ns for entry in SHELL_STATIC_DIR.iterdir()
+                          if entry.is_file()), default=0)
+        except OSError:
+            newest = 0
+        _ASSET_VERSION = str(newest)
+    return _ASSET_VERSION
+
 
 #: Jinja's own translation extension: it makes ``{% trans %}`` and the ``_``/``gettext`` functions
 #: available to a template, reading whichever translations object was installed on the environment.
@@ -163,6 +192,9 @@ def build_environment(registrar=None, *, translations=None, language=None) -> En
     else:
         from . import i18n as i18n_module   # lazy: i18n imports this module for its markers
         environment.globals["schema_text"] = i18n_module.schema_text_for(language).gettext
+    # The ASSET VERSION every asset URL states (``?v=<version>``): a browser that cached an old
+    # script would otherwise keep running it after an update, silently.
+    environment.globals["asset_version"] = asset_version()
     # The dialog sentence GUARD (``confirm.html``'s ``say``): ONE place a translation meets its
     # placeholders, degrading a bad catalog line to English rather than raising. It closes over the
     # SAME translations object the environment installed, so it is the environment's language.
