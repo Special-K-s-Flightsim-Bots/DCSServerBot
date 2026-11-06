@@ -1,0 +1,134 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pl\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Commands to display and manage carrier traps"
+msgstr "Komendy do wyświetlania i zarządzania lądowaniami na lotniskowcu"
+
+msgid "Show carrier landing qualifications"
+msgstr "Pokaż kwalifikacje do lądowania na lotniskowcu"
+
+msgid "No carrier landings recorded for this user."
+msgstr "Brak zapisanych lądowań na lotniskowcu dla tego użytkownika."
+
+msgid "Select a trap for details"
+msgstr "Wybierz lądowanie, aby zobaczyć szczegóły"
+
+msgid "Select the plane for the trap"
+msgstr "Wybierz samolot dla lądowania"
+
+msgid "Display the current Greenieboard"
+msgstr "Wyświetl aktualną Greenieboard"
+
+msgid "Adds a trap to the Greenieboard"
+msgstr "Dodaje lądowanie do Greenieboard"
+
+msgid "You need to specify grades in your greenieboard.yaml to use {}!"
+msgstr "Aby użyć {}, musisz określić oceny w pliku greenieboard.yaml!"
+
+msgid "Trap added."
+msgstr "Lądowanie dodane."
+
+msgid "Aborted,"
+msgstr "Przerwano,"
+
+msgid "Time (HH24:MI)"
+msgstr "Czas (HH24:MI)"
+
+msgid "Grade"
+msgstr "Ocena"
+
+msgid "LSO Comment"
+msgstr "Komentarz LSO"
+
+msgid "Wire"
+msgstr "Lina"
+
+msgid "Enter the trap details"
+msgstr "Wprowadź szczegóły lądowania"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case musi być równe 1, 2 lub 3."
+
+msgid "Grade has to be one of {}."
+msgstr "Ocena musi być jedną z: {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "Lina musi mieć numer od 1 do 4."
+
+msgid "Resets all traps"
+msgstr "Resetuje wszystkie lądowania"
+
+msgid "Do you want to reset all traps?"
+msgstr "Czy chcesz zresetować wszystkie lądowania?"
+
+msgid "User {} is not linked!"
+msgstr "Użytkownik {} nie jest powiązany!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "Czy chcesz zresetować wszystkie lądowania użytkownika {}?"
+
+msgid "All traps reset."
+msgstr "Wszystkie lądowania zresetowane."
+
+msgid "Carrier Landing"
+msgstr "Lądowanie na lotniskowcu"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "Lądowanie na {place} z oceną {grade}."
+
+msgid "Date/Time"
+msgstr "Data/czas"
+
+msgid "Plane"
+msgstr "Samolot"
+
+msgid "Carrier"
+msgstr "Lotniskowiec"
+
+msgid "Points"
+msgstr "Punkty"
+
+msgid "LSO Grade: {}"
+msgstr "Ocena LSO: {}"
+
+msgid " (a little)\n"
+msgstr " (trochę)\n"
+
+msgid " (a lot!)\n"
+msgstr " (dużo!)\n"
+
+msgid " (ignored)\n"
+msgstr " (ignorowane)\n"
+
+msgid "Traps"
+msgstr "Lądowania"
+
+msgid "No data available."
+msgstr "Brak dostępnych danych."
+
+msgid "Avg"
+msgstr "Śr."
+
+msgid "\nThe most recent landing is added at the front.\nNight landings have round markers."
+msgstr "\nNajnowsze lądowanie jest dodawane z przodu.\nLądowania nocne mają okrągłe znaczniki."
+
+msgid "\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr "\nOstatnie zapisane lądowanie: {time:%y-%m-%d %H:%M:%S}"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
+msgstr "Aby użyć {}, musisz określić punktację w pliku greenieboard.yaml!"
+
+msgid "Draw landings right to left (default: True)"
+msgstr "Rysuj lądowania od prawej do lewej (domyślnie: True)"
+
+msgid "Aborted."
+msgstr "Przerwano."
+
+msgid "Aborted"
+msgstr "Przerwano"

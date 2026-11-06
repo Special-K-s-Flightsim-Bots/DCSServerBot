@@ -1,0 +1,110 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Display the Pretense stats"
+msgstr "Exibir as estatísticas do Pretense"
+
+msgid "No player_stats.json found on this server! Is Pretense active?"
+msgstr "Nenhum player_stats.json encontrado neste servidor! O Pretense está ativo?"
+
+msgid "Reset Pretense progress"
+msgstr "Redefinir o progresso do Pretense"
+
+msgid "Server {} needs to be shut down to reset the Pretense progress!"
+msgstr "O servidor {} precisa ser desligado para redefinir o progresso do Pretense!"
+
+msgid "Do you really want to reset the Pretense progress?"
+msgstr "Deseja realmente redefinir o progresso do Pretense?"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Pretense persistence reset."
+msgstr "Persistência do Pretense redefinida."
+
+msgid "Pretense statistics reset."
+msgstr "Estatísticas do Pretense redefinidas."
+
+msgid "Rankings as of <t:{}:f>:"
+msgstr "Classificação em <t:{}:f>:"
+
+msgid "Name"
+msgstr "Nome"
+
+msgid "Rank"
+msgstr "Patente"
+
+msgid "E-1 Airman basic"
+msgstr "E-1 Soldado recruta"
+
+msgid "E-2 Airman"
+msgstr "E-2 Soldado"
+
+msgid "E-3 Airman first class"
+msgstr "E-3 Soldado de primeira classe"
+
+msgid "E-4 Senior airman"
+msgstr "E-4 Cabo"
+
+msgid "E-5 Staff sergeant"
+msgstr "E-5 Sargento"
+
+msgid "E-6 Technical sergeant"
+msgstr "E-6 Sargento técnico"
+
+msgid "E-7 Master sergeant"
+msgstr "E-7 Sargento mestre"
+
+msgid "E-8 Senior master sergeant"
+msgstr "E-8 Sargento mestre sênior"
+
+msgid "E-9 Chief master sergeant"
+msgstr "E-9 Sargento mestre chefe"
+
+msgid "O-1 Second lieutenant"
+msgstr "O-1 Segundo-tenente"
+
+msgid "O-2 First lieutenant"
+msgstr "O-2 Primeiro-tenente"
+
+msgid "O-3 Captain"
+msgstr "O-3 Capitão"
+
+msgid "O-5 Lieutenant colonel"
+msgstr "O-5 Tenente-coronel"
+
+msgid "O-6 Colonel"
+msgstr "O-6 Coronel"
+
+msgid "O-7 Brigadier general"
+msgstr "O-7 General de brigada"
+
+msgid "O-8 Major general"
+msgstr "O-8 General de divisão"
+
+msgid "O-9 Lieutenant general"
+msgstr "O-9 Tenente-general"
+
+msgid "Commands to manage Pretense missions"
+msgstr "Comandos para gerenciar missões do Pretense"
+
+msgid "No {} found on this server! Is Pretense active?"
+msgstr "Nenhum {} encontrado neste servidor! O Pretense está ativo?"
+
+msgid "To which server do you want to upload to?"
+msgstr "Para qual servidor você deseja enviar?"
+
+msgid "Upload aborted."
+msgstr "Envio abortado."
+
+msgid "Pretense file {} uploaded."
+msgstr "Arquivo do Pretense {} enviado."
+
+msgid "Pretense file {} could not be uploaded!"
+msgstr "O arquivo do Pretense {} não pôde ser enviado!"

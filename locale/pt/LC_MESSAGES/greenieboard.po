@@ -1,0 +1,137 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to display and manage carrier traps"
+msgstr "Comandos para exibir e gerenciar pousos em porta-aviões"
+
+msgid "Show carrier landing qualifications"
+msgstr "Mostrar qualificações de pouso em porta-aviões"
+
+msgid "No carrier landings recorded for this user."
+msgstr "Nenhum pouso em porta-aviões registrado para este usuário."
+
+msgid "Select a trap for details"
+msgstr "Selecione um pouso para ver os detalhes"
+
+msgid "Select the plane for the trap"
+msgstr "Selecione o avião do pouso"
+
+msgid "Display the current Greenieboard"
+msgstr "Exibir o Greenieboard atual"
+
+msgid "Adds a trap to the Greenieboard"
+msgstr "Adiciona um pouso ao Greenieboard"
+
+msgid "You need to specify grades in your greenieboard.yaml to use {}!"
+msgstr "Você precisa especificar notas no seu greenieboard.yaml para usar {}!"
+
+msgid "Trap added."
+msgstr "Pouso adicionado."
+
+msgid "Aborted,"
+msgstr "Abortado,"
+
+msgid "Time (HH24:MI)"
+msgstr "Hora (HH24:MI)"
+
+msgid "Grade"
+msgstr "Nota"
+
+msgid "LSO Comment"
+msgstr "Comentário do LSO"
+
+msgid "Wire"
+msgstr "Cabo"
+
+msgid "Enter the trap details"
+msgstr "Insira os detalhes do pouso"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case precisa ser 1, 2 ou 3."
+
+msgid "Grade has to be one of {}."
+msgstr "A nota precisa ser uma destas: {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "O cabo precisa ser de 1 a 4."
+
+msgid "Resets all traps"
+msgstr "Redefinir todos os pousos"
+
+msgid "Do you want to reset all traps?"
+msgstr "Deseja redefinir todos os pousos?"
+
+msgid "User {} is not linked!"
+msgstr "O usuário {} não está vinculado!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "Deseja redefinir todos os pousos do usuário {}"
+
+msgid "All traps reset."
+msgstr "Todos os pousos foram redefinidos."
+
+msgid "Carrier Landing"
+msgstr "Pouso em porta-aviões"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "Pouso em {place} com nota {grade}."
+
+msgid "Date/Time"
+msgstr "Data/Hora"
+
+msgid "Plane"
+msgstr "Avião"
+
+msgid "Carrier"
+msgstr "Porta-aviões"
+
+msgid "Points"
+msgstr "Pontos"
+
+msgid "LSO Grade: {}"
+msgstr "Nota do LSO: {}"
+
+msgid " (a little)\n"
+msgstr " (um pouco)\n"
+
+msgid " (a lot!)\n"
+msgstr " (muito!)\n"
+
+msgid " (ignored)\n"
+msgstr " (ignorado)\n"
+
+msgid "Traps"
+msgstr "Pousos"
+
+msgid "No data available."
+msgstr "Nenhum dado disponível."
+
+msgid "Pilot"
+msgstr "Piloto"
+
+msgid "Avg"
+msgstr "Média"
+
+msgid "\nThe most recent landing is added at the front.\nNight landings have round markers."
+msgstr "\nO pouso mais recente é adicionado no início.\nPousos noturnos têm marcadores redondos."
+
+msgid "\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr "\nÚltimo pouso registrado: {time:%y-%m-%d %H:%M:%S}"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
+msgstr "Você precisa especificar as classificações no seu greenieboard.yaml para usar {}!"
+
+msgid "Draw landings right to left (default: True)"
+msgstr "Desenhar pousos da direita para a esquerda (padrão: True)"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Aborted"
+msgstr "Abortado"

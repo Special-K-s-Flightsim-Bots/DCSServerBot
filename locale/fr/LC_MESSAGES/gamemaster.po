@@ -1,0 +1,344 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Send a chat message to DCS"
+msgstr "Envoie un message de chat à DCS"
+
+msgid "Server {} is not running."
+msgstr "Le serveur {} n'est pas en cours d'exécution."
+
+msgid "Message sent."
+msgstr "Message envoyé."
+
+msgid "Sends a popup to a coalition\n"
+msgstr "Envoie un popup à une coalition\n"
+
+msgid "Sends a popup to all servers"
+msgstr "Envoie un popup à tous les serveurs"
+
+msgid "Message NOT sent to server {server} because it is {status}."
+msgstr "Message NON envoyé au serveur {server} car il est {status}."
+
+msgid "Message sent to server {}."
+msgstr "Message envoyé au serveur {}."
+
+msgid "Set or get a flag inside the mission"
+msgstr "Définir ou lire un flag dans la mission"
+
+msgid "Flag {flag} set to {value}."
+msgstr "Flag {flag} défini à {value}."
+
+msgid "Flag {flag} has value {value}."
+msgstr "Le flag {flag} a la valeur {value}."
+
+msgid "Set or get a mission variable"
+msgstr "Définir ou lire une variable de mission"
+
+msgid "Variable {name} set to {value}."
+msgstr "Variable {name} définie à {value}."
+
+msgid "Timeout while retrieving variable. Most likely a lua error occurred. Check your dcs.log."
+msgstr "Délai dépassé lors de la récupération de la variable. Une erreur lua s'est probablement produite. Vérifiez votre dcs.log."
+
+msgid "Variable {name} has value {value}."
+msgstr "La variable {name} a la valeur {value}."
+
+msgid "Variable {} is not set."
+msgstr "La variable {} n'est pas définie."
+
+msgid "Calls any function inside the mission"
+msgstr "Appelle n'importe quelle fonction dans la mission"
+
+msgid "Lua Script"
+msgstr "Script Lua"
+
+msgid "Enter your script here:"
+msgstr "Saisissez votre script ici :"
+
+msgid "Script sent."
+msgstr "Script envoyé."
+
+msgid "Loads a lua file into the mission"
+msgstr "Charge un fichier lua dans la mission"
+
+msgid "Script loaded."
+msgstr "Script chargé."
+
+msgid "Reset coalition cooldown"
+msgstr "Réinitialiser le délai de coalition"
+
+msgid "The coalition system is not enabled on this server."
+msgstr "Le système de coalitions n'est pas activé sur ce serveur."
+
+msgid "Do you want to reset the coalition-bindings from player {}?"
+msgstr "Voulez-vous réinitialiser les liaisons de coalition du joueur {} ?"
+
+msgid "Coalition bindings for player {} reset."
+msgstr "Liaisons de coalition du joueur {} réinitialisées."
+
+msgid "The bot is missing the \"Manage Roles\" permission!"
+msgstr "Le bot n'a pas la permission « Gérer les rôles » !"
+
+msgid "Reset all coalition cooldowns"
+msgstr "Réinitialiser tous les délais de coalition"
+
+msgid "Do you want to mass-reset all coalition-bindings from your players?"
+msgstr "Voulez-vous réinitialiser en masse toutes les liaisons de coalition de vos joueurs ?"
+
+msgid "Coalition bindings reset for all players on server {}."
+msgstr "Liaisons de coalition réinitialisées pour tous les joueurs du serveur {}."
+
+msgid "Coalition bindings reset for all players."
+msgstr "Liaisons de coalition réinitialisées pour tous les joueurs."
+
+msgid "Commands to manage DCS campaigns"
+msgstr "Commandes pour gérer les campagnes DCS"
+
+msgid "Name"
+msgstr "Nom"
+
+msgid "Start (UTC)"
+msgstr "Début (UTC)"
+
+msgid "End (UTC)"
+msgstr "Fin (UTC)"
+
+msgid "Format for {} needs to be yyyy-mm-dd hh24:mi!"
+msgstr "Le format de {} doit être yyyy-mm-dd hh24:mi !"
+
+msgid "Lists all (active) campaigns"
+msgstr "Liste toutes les campagnes (actives)"
+
+msgid "Display only active campaigns"
+msgstr "Afficher uniquement les campagnes actives"
+
+msgid "Campaign info"
+msgstr "Infos de la campagne"
+
+msgid "Campaign Overview"
+msgstr "Aperçu des campagnes"
+
+msgid "Edit Campaign"
+msgstr "Modifier la campagne"
+
+msgid "Campaign not found."
+msgstr "Campagne introuvable."
+
+msgid "Campaign {} updated."
+msgstr "Campagne {} mise à jour."
+
+msgid "Add a campaign"
+msgstr "Ajouter une campagne"
+
+msgid "Aborted."
+msgstr "Abandonné."
+
+msgid "Select all servers for this campaign"
+msgstr "Sélectionner tous les serveurs pour cette campagne"
+
+msgid "Campaign {} added."
+msgstr "Campagne {} ajoutée."
+
+msgid "A campaign is already configured for this timeframe!"
+msgstr "Une campagne est déjà configurée pour cette période !"
+
+msgid "A campaign with this name already exists!"
+msgstr "Une campagne portant ce nom existe déjà !"
+
+msgid "Add a server to an existing campaign\n"
+msgstr "Ajouter un serveur à une campagne existante\n"
+
+msgid "Server {server} added to campaign {campaign}."
+msgstr "Serveur {server} ajouté à la campagne {campaign}."
+
+msgid "Server {server} is already part of the campaign {campaign}!"
+msgstr "Le serveur {server} fait déjà partie de la campagne {campaign} !"
+
+msgid "Delete a server from a campaign\n"
+msgstr "Supprimer un serveur d'une campagne\n"
+
+msgid "Server {server} deleted from campaign {campaign}."
+msgstr "Serveur {server} supprimé de la campagne {campaign}."
+
+msgid "Delete a campaign"
+msgstr "Supprimer une campagne"
+
+msgid "Do you want to delete campaign \"{}\"?"
+msgstr "Voulez-vous supprimer la campagne « {} » ?"
+
+msgid "Campaign deleted."
+msgstr "Campagne supprimée."
+
+msgid "Start a campaign"
+msgstr "Démarrer une campagne"
+
+msgid "Campaign {} started."
+msgstr "Campagne {} démarrée."
+
+msgid "Stop a campaign"
+msgstr "Arrêter une campagne"
+
+msgid "Do you want to stop campaign \"{}\"?"
+msgstr "Voulez-vous arrêter la campagne « {} » ?"
+
+msgid "Campaign stopped."
+msgstr "Campagne arrêtée."
+
+msgid "Sends a message to a user"
+msgstr "Envoie un message à un utilisateur"
+
+msgid "User is not linked."
+msgstr "L'utilisateur n'est pas lié."
+
+msgid "Unknown user {}!"
+msgstr "Utilisateur inconnu {} !"
+
+msgid "Message will be displayed to the user."
+msgstr "Le message sera affiché à l'utilisateur."
+
+msgid "Lists active messages"
+msgstr "Liste les messages actifs"
+
+msgid "Edit or delete a user-message"
+msgstr "Modifier ou supprimer un message utilisateur"
+
+msgid "No messages found."
+msgstr "Aucun message trouvé."
+
+msgid "Error while updating embed!"
+msgstr "Erreur lors de la mise à jour de l'embed !"
+
+msgid "Error {} while reading JSON file!"
+msgstr "Erreur {} lors de la lecture du fichier JSON !"
+
+msgid "To which server do you want to upload this LUA to?"
+msgstr "Sur quel serveur voulez-vous téléverser ce LUA ?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Le fichier existe. Voulez-vous l'écraser ?"
+
+msgid "File {} could not be uploaded."
+msgstr "Le fichier {} n'a pas pu être téléversé."
+
+msgid "{num} LUA files uploaded. You can load any of them with {command} now."
+msgstr "{num} fichiers LUA téléversés. Vous pouvez en charger n'importe lequel avec {command} maintenant."
+
+msgid "join a coalition"
+msgstr "rejoindre une coalition"
+
+msgid "Usage: {prefix}{command} <blue|red>"
+msgstr "Utilisation : {prefix}{command} <blue|red>"
+
+msgid "You are a member of coalition {} already."
+msgstr "Vous êtes déjà membre d'une coalition {}."
+
+msgid "You can't join the {coalition} coalition in-between {lock_time} of leaving a coalition."
+msgstr "Vous ne pouvez pas rejoindre la coalition {coalition} avant {lock_time} après avoir quitté une coalition."
+
+msgid "Welcome to the {} side!"
+msgstr "Bienvenue du côté {} !"
+
+msgid "Your coalition password is {}"
+msgstr "Le mot de passe de votre coalition est {}"
+
+msgid "leave your coalition"
+msgstr "quitter votre coalition"
+
+msgid "You are not a member of any coalition. You can join one with {}join blue|red."
+msgstr "Vous n'êtes membre d'aucune coalition. Vous pouvez en rejoindre une avec {}join blue|red."
+
+msgid "You left the {} coalition!"
+msgstr "Vous avez quitté la coalition {} !"
+
+msgid "join the red side"
+msgstr "rejoindre le camp rouge"
+
+msgid "join the blue side"
+msgstr "rejoindre le camp bleu"
+
+msgid "displays your current coalition"
+msgstr "affiche votre coalition actuelle"
+
+msgid "You are a member of the {} coalition."
+msgstr "Vous êtes membre de la coalition {}."
+
+msgid "displays the coalition password"
+msgstr "affiche le mot de passe de la coalition"
+
+msgid "There is no password set for your coalition."
+msgstr "Aucun mot de passe n'est défini pour votre coalition."
+
+msgid "reads or sets a flag"
+msgstr "lit ou définit un flag"
+
+msgid "Usage: {prefix}{command} <flag> [value]"
+msgstr "Utilisation : {prefix}{command} <flag> [value]"
+
+msgid "Mass coalition leave for users"
+msgstr "Retrait de coalition en masse pour les utilisateurs"
+
+msgid "Usage: {}join <blue|red>"
+msgstr "Utilisation : {}join <blue|red>"
+
+msgid "Usage: {}flag <flag> [value]"
+msgstr "Utilisation : {}flag <flag> [value]"
+
+msgid "The message was sent to the following servers"
+msgstr "Le message a été envoyé aux serveurs suivants"
+
+msgid "Server"
+msgstr "Serveur"
+
+msgid "Message sent"
+msgstr "Message envoyé"
+
+msgid "Commands to manage user messages"
+msgstr "Commandes pour gérer les messages utilisateur"
+
+msgid "No."
+msgstr "Non."
+
+msgid "Receiver"
+msgstr "Destinataire"
+
+msgid "Time"
+msgstr "Heure"
+
+msgid "permission \"Manage Roles\" missing."
+msgstr "permission « Gérer les rôles » manquante."
+
+msgid "acknowledge a user message"
+msgstr "accuser réception d'un message utilisateur"
+
+msgid "No message found."
+msgstr "Aucun message trouvé."
+
+msgid "Message{} acknowledged."
+msgstr "Message{} pris en compte."
+
+msgid "Player {} ({}) acknowledged their message{}."
+msgstr "Le joueur {} ({}) a pris en compte son message{}."
+
+msgid "send a popup message"
+msgstr "envoyer un message popup"
+
+msgid "Usage: {prefix}{command} <all|red|blue> <message>"
+msgstr "Utilisation : {prefix}{command} <all|red|blue> <message>"
+
+msgid "Image URL"
+msgstr "URL de l'image"
+
+msgid "Campaign Info"
+msgstr "Infos de la campagne"
+
+msgid "Message for user {}"
+msgstr "Message pour l'utilisateur {}"
+
+msgid "No messages left."
+msgstr "Aucun message restant."

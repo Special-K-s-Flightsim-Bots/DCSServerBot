@@ -1,0 +1,89 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Clear Discord messages"
+msgstr "Cancella i messaggi di Discord"
+
+msgid "Delete messages older than x days (0 = all)"
+msgstr "Elimina i messaggi più vecchi di x giorni (0 = tutti)"
+
+msgid "Deleting messages ..."
+msgstr "Eliminazione dei messaggi in corso ..."
+
+msgid "All messages deleted."
+msgstr "Tutti i messaggi eliminati."
+
+msgid "Adds a role to a member"
+msgstr "Aggiunge un ruolo a un membro"
+
+msgid "Member {member} already has role {role}."
+msgstr "Il membro {member} ha già il ruolo {role}."
+
+msgid "Role {role} added to {member}."
+msgstr "Ruolo {role} aggiunto a {member}."
+
+msgid "You don't have permission to add role {role} to {member}."
+msgstr "Permessi insufficienti per aggiungere il ruolo {role} a {member}."
+
+msgid "Removes a role from a member"
+msgstr "Rimuove un ruolo da un membro"
+
+msgid "Member {member} doesn't have role {role}."
+msgstr "Il membro {member} non ha il ruolo {role}."
+
+msgid "Role {role} removed from {member}."
+msgstr "Ruolo {role} rimosso da {member}."
+
+msgid "You don't have permission to remove role {role} from {member}."
+msgstr "Permessi insufficienti per rimuovere il ruolo {role} da {member}."
+
+msgid "Run a healthcheck of your discord server"
+msgstr "Esegue un controllo di integrità del server Discord"
+
+msgid "Please give the bot __temporary__ administrative permissions in this Discord server to run this command."
+msgstr "Concedere al bot permessi di amministratore __temporanei__ in questo server Discord per eseguire questo comando."
+
+msgid "Admin Roles"
+msgstr "Ruoli amministratore"
+
+msgid "Members"
+msgstr "Membri"
+
+msgid "Elevated Roles"
+msgstr "Ruoli elevati"
+
+msgid "Everyone Ping"
+msgstr "Ping a tutti"
+
+msgid "External Apps"
+msgstr "App esterne"
+
+msgid "No critical permissions found."
+msgstr "Nessun permesso critico rilevato."
+
+msgid "Channels"
+msgstr "Canali"
+
+msgid "You allow everyone to view {} channels."
+msgstr "Tutti possono visualizzare {} canali."
+
+msgid "The recommended approach is to have one landing channel and a role for users."
+msgstr "L'approccio consigliato è avere un canale di ingresso e un ruolo per gli utenti."
+
+msgid "Public Channels"
+msgstr "Canali pubblici"
+
+msgid "Kicked for falling into the bot trap."
+msgstr "Espulso per essere caduto nella trappola per bot."
+
+msgid "Mentioning everyone"
+msgstr "Menziona tutti"
+
+msgid "Messages from this member will be ignored"
+msgstr "I messaggi di questo membro verranno ignorati"

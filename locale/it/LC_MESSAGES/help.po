@@ -1,0 +1,77 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Command: {}"
+msgstr "Comando: {}"
+
+msgid "Usage"
+msgstr "Utilizzo"
+
+msgid "<> mandatory, [] non-mandatory"
+msgstr "<> obbligatorio, [] facoltativo"
+
+msgid "{} Help"
+msgstr "Guida di {}"
+
+msgid "Command"
+msgstr "Comando"
+
+msgid "Description"
+msgstr "Descrizione"
+
+msgid "There are no commands for your role in this plugin."
+msgstr "Non ci sono comandi per il tuo ruolo in questo plugin."
+
+msgid "Use /help [command] if you want help for a specific command."
+msgstr "Usare /help [comando] per la guida su un comando specifico."
+
+msgid "Select the plugin you want help for"
+msgstr "Selezionare il plugin di cui si desidera la guida"
+
+msgid "The help command"
+msgstr "Il comando di aiuto"
+
+msgid "Command {} not found."
+msgstr "Comando {} non trovato."
+
+msgid "You don't have the permission to use this command."
+msgstr "Permessi insufficienti per usare questo comando."
+
+msgid "## DCSServerBot Commands"
+msgstr "## Comandi di DCSServerBot"
+
+msgid "Generate Documentation"
+msgstr "Genera documentazione"
+
+msgid "Please provide a role for channel output."
+msgstr "Specificare un ruolo per l'output nel canale."
+
+msgid "Unknown option {}!"
+msgstr "Opzione sconosciuta {}!"
+
+msgid "\nThe following bot commands can be used in this discord by members that have the {} role:\n_ _\n"
+msgstr "\nI seguenti comandi del bot possono essere usati in questo server Discord dai membri con il ruolo {}:\n_ _\n"
+
+msgid "\nThe following bot commands can be used in this discord:\n_ _\n"
+msgstr "\nI seguenti comandi del bot possono essere usati in questo server Discord:\n_ _\n"
+
+msgid "Please specify the format (channel or xls)."
+msgstr "Specificare il formato (channel o xls)."
+
+msgid "Do you want to generate the server documentation?"
+msgstr "Generare la documentazione del server?"
+
+msgid "The file may contain passwords!"
+msgstr "Il file potrebbe contenere password!"
+
+msgid "Aborted."
+msgstr "Operazione annullata."
+
+msgid "Your firewall ruleset:"
+msgstr "Regole del firewall:"

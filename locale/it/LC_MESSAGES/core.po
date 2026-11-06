@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Server is going down for a DCS update in {)}!"
+msgstr "Il server verrà arrestato per un aggiornamento di DCS tra {)}!"
+
+msgid "Server is going down to install a module in {}!"
+msgstr "Il server verrà arrestato per installare un modulo tra {}!"
+
+msgid "Server is going down to uninstall a module in {}!"
+msgstr "Il server verrà arrestato per disinstallare un modulo tra {}!"
+
+msgid "You are banned from this server. Reason: {}"
+msgstr "Accesso bannato da questo server. Motivo: {}"
+
+msgid "The server is full, please try again later."
+msgstr "Il server è pieno. Riprovare più tardi."
+
+msgid "Your player name contains invalid characters. Please change your name to join our server."
+msgstr "Il nome giocatore contiene caratteri non validi. Modificare il nome per poter accedere al server."
+
+msgid "Please change your default player name at the top right of the multiplayer selection list to an individual one!"
+msgstr "Modificare il nome giocatore predefinito, in alto a destra nell'elenco di selezione multiplayer, con uno individuale!"

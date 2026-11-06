@@ -1,0 +1,17 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Exports database tables as json."
+msgstr "Exporta tabelas do banco de dados como json."
+
+msgid "Database dumped to ./export"
+msgstr "Banco de dados exportado para ./export"
+
+msgid "The DBExporter plugin is deprecated. Please use Backup or RestAPI instead."
+msgstr "O plugin DBExporter está obsoleto. Por favor, use Backup ou RestAPI."

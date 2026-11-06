@@ -1,0 +1,425 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Commands to manage a DCS server"
+msgstr "Comandi per gestire un server DCS"
+
+msgid "List of all registered servers"
+msgstr "Elenco di tutti i server registrati"
+
+msgid "No servers registered."
+msgstr "Nessun server registrato."
+
+msgid "All Servers"
+msgstr "Tutti i server"
+
+msgid "Status"
+msgstr "Stato"
+
+msgid "Player"
+msgstr "Giocatore"
+
+msgid "Maintenance flag set."
+msgstr "Flag di manutenzione impostato."
+
+msgid "Starting DCS server, please wait ..."
+msgstr "Avvio del server DCS in corso, attendere ..."
+
+msgid "Using mission \"{}\" ..."
+msgstr "Uso della missione \"{}\" ..."
+
+msgid "Applying extensions"
+msgstr "Applicazione delle estensioni"
+
+msgid " to the original mission file ..."
+msgstr " al file di missione originale ..."
+
+msgid " to the current mission file ..."
+msgstr " al file di missione corrente ..."
+
+msgid "Starting without a mission ..."
+msgstr "Avvio senza missione ..."
+
+msgid "Launching ..."
+msgstr "Avvio in corso ..."
+
+msgid "Server \"{}\" started."
+msgstr "Server \"{}\" avviato."
+
+msgid "Server is in maintenance mode!\n"
+msgstr "Il server è in modalità manutenzione!\n"
+
+msgid "Server is in maintenance mode!\nUse {} to reset maintenance mode."
+msgstr "Il server è in modalità manutenzione!\nUsare {} per reimpostare la modalità manutenzione."
+
+msgid "Maintenance flag cleared."
+msgstr "Flag di manutenzione rimosso."
+
+msgid "Server started successfully."
+msgstr "Server avviato correttamente."
+
+msgid "The server crashed during startup. Trying again ({}/3) ..."
+msgstr "Il server si è arrestato in modo anomalo durante l'avvio. Nuovo tentativo ({}/3) ..."
+
+msgid "The server is crashing during startup. Check the dcs.log for errors."
+msgstr "Il server si arresta in modo anomalo durante l'avvio. Controllare dcs.log per gli errori."
+
+msgid "Timeout while launching. Please check if the server has started properly."
+msgstr "Timeout durante l'avvio. Verificare che il server sia stato avviato correttamente."
+
+msgid "Something went wrong. Please check the dcssb*.log."
+msgstr "Si è verificato un errore. Controllare dcssb*.log."
+
+msgid "Exception: {}"
+msgstr "Eccezione: {}"
+
+msgid "Launches a DCS server\n\n"
+msgstr "Avvia un server DCS\n\n"
+
+msgid "Change the mission based on the original uploaded mission file."
+msgstr "Cambia la missione in base al file di missione originale caricato."
+
+msgid "Server \"{name}\" is stopped.\nPlease use {command} instead."
+msgstr "Il server \"{name}\" è arrestato.\nUsare {command} invece."
+
+msgid "Server \"{name}\" is {status}.\nPlease wait or use {command} force instead."
+msgstr "Il server \"{name}\" è {status}.\nAttendere oppure usare {command} force."
+
+msgid "Server \"{}\" is started already."
+msgstr "Il server \"{}\" è già avviato."
+
+msgid "Launching DCS Server \"{}\\"
+msgstr "Avvio del server DCS \"{}\"\\"
+
+msgid "Shuts a DCS server down\n"
+msgstr "Arresta un server DCS\n"
+
+msgid "Deleted pending on-empty trigger."
+msgstr "Trigger in attesa di server vuoto eliminato."
+
+msgid "Killing the DCS server, please wait ..."
+msgstr "Terminazione forzata del server DCS in corso, attendere ..."
+
+msgid "Gracefully stopping the DCS server, please wait ..."
+msgstr "Arresto controllato del server DCS in corso, attendere ..."
+
+msgid "Wait until shut down ..."
+msgstr "Attendere fino all'arresto ..."
+
+msgid "DCS server \"{}\" shut down."
+msgstr "Server DCS \"{}\" arrestato."
+
+msgid "Server shut down successfully."
+msgstr "Server arrestato correttamente."
+
+msgid "Timeout while shutting down. Please check if the server has shut down properly."
+msgstr "Timeout durante l'arresto. Verificare che il server si sia arrestato correttamente."
+
+msgid "DCS server \"{}\" is already shut down."
+msgstr "Il server DCS \"{}\" è già arrestato."
+
+msgid "Server is in state {}.\n"
+msgstr "Il server è nello stato {}.\n"
+
+msgid "Server is in state {}.\nDo you want to force a shutdown?"
+msgstr "Il server è nello stato {}.\nForzare l'arresto?"
+
+msgid "Do you want to shut down server \"{}\"?"
+msgstr "Arrestare il server \"{}\"?"
+
+msgid "Aborted."
+msgstr "Operazione annullata."
+
+msgid "Shutdown postponed when server is empty."
+msgstr "Arresto posticipato a quando il server sarà vuoto."
+
+msgid "Shutting down DCS Server \"{}\\"
+msgstr "Arresto del server DCS \"{}\"\\"
+
+msgid "Restarts a DCS server\n\n"
+msgstr "Riavvia un server DCS\n\n"
+
+msgid "Do you want to restart DCS server \"{}\"?"
+msgstr "Riavviare il server DCS \"{}\"?"
+
+msgid "People are currently flying on this server!"
+msgstr "Ci sono giocatori in volo su questo server!"
+
+msgid "\nA restart is pending already. If you continue, the restart will be voided."
+msgstr "\nÈ già presente un riavvio in attesa. Se si continua, il riavvio verrà annullato."
+
+msgid "Restarting DCS Server \"{}\\"
+msgstr "Riavvio del server DCS \"{}\"\\"
+
+msgid "Already pending restart was cancelled."
+msgstr "Il riavvio già in attesa è stato annullato."
+
+msgid "!!! Server will restart in {} !!!"
+msgstr "!!! Il server verrà riavviato tra {} !!!"
+
+msgid "Restart is delayed for {}. Waiting ..."
+msgstr "Riavvio posticipato di {}. In attesa ..."
+
+msgid "!!! Server will restart NOW !!!"
+msgstr "!!! Il server verrà riavviato ORA !!!"
+
+msgid "Starts a stopped DCS server"
+msgstr "Avvia un server DCS arrestato"
+
+msgid "Starting server \"{}\" ..."
+msgstr "Avvio del server \"{}\" ..."
+
+msgid "Error while starting server \"{}\"!"
+msgstr "Errore durante l'avvio del server \"{}\"!"
+
+msgid "Please check manually, if the server has started.\n"
+msgstr "Verificare manualmente se il server è stato avviato.\n"
+
+msgid "Please check manually, if the server has started.\nIf not, check the dcs.log for errors."
+msgstr "Verificare manualmente se il server è stato avviato.\nIn caso contrario, controllare dcs.log per gli errori."
+
+msgid "Timeout while starting server \"{}\"!"
+msgstr "Timeout durante l'avvio del server \"{}\"!"
+
+msgid "Server \"{server}\" is shut down. Use {command} to start it up."
+msgstr "Il server \"{server}\" è arrestato. Usare {command} per avviarlo."
+
+msgid "Server \"{}\" is already started."
+msgstr "Il server \"{}\" è già avviato."
+
+msgid "Server \"{server}\" is still {status}, please wait ..."
+msgstr "Il server \"{server}\" è ancora {status}, attendere ..."
+
+msgid "Stops a running DCS server"
+msgstr "Arresta un server DCS in esecuzione"
+
+msgid "Do you want to stop server \"{}\"?"
+msgstr "Arrestare il server \"{}\"?"
+
+msgid "Stopping server \"{}\" ..."
+msgstr "Arresto del server \"{}\" ..."
+
+msgid "Server \"{}\" stopped."
+msgstr "Server \"{}\" arrestato."
+
+msgid "Timeout while stopping server \"{}\"!"
+msgstr "Timeout durante l'arresto del server \"{}\"!"
+
+msgid "Please check manually, if the server has stopped.\n"
+msgstr "Verificare manualmente se il server si è arrestato.\n"
+
+msgid "Please check manually, if the server has stopped.\nIf not, check the dcs.log for errors."
+msgstr "Verificare manualmente se il server si è arrestato.\nIn caso contrario, controllare dcs.log per gli errori."
+
+msgid "Change the password or coalition passwords of a DCS server"
+msgstr "Cambia la password o le password delle coalizioni di un server DCS"
+
+msgid "Enter Password"
+msgstr "Inserire la password"
+
+msgid "New password"
+msgstr "Nuova password"
+
+msgid " for coalition {}:"
+msgstr " per la coalizione {}:"
+
+msgid "Password will be changed on next server restart."
+msgstr "La password verrà cambiata al prossimo riavvio del server."
+
+msgid "Password changed."
+msgstr "Password cambiata."
+
+msgid "Configure a DCS server"
+msgstr "Configura un server DCS"
+
+msgid "It has to be stopped to change its configuration."
+msgstr "Deve essere arrestato per modificare la sua configurazione."
+
+msgid "Configuration for server \"{}\" updated."
+msgstr "Configurazione del server \"{}\" aggiornata."
+
+msgid "Rename a DCS server\n"
+msgstr "Rinomina un server DCS\n"
+
+msgid "Server \"{}\" has to be shut down for renaming."
+msgstr "Il server \"{}\" deve essere arrestato per la rinomina."
+
+msgid "The server has this name already. Aborted."
+msgstr "Il server ha già questo nome. Operazione annullata."
+
+msgid "Server \"{old_name}\" renamed to \"{new_name}\"."
+msgstr "Server \"{old_name}\" rinominato in \"{new_name}\"."
+
+msgid "Migrate a server from one instance to another"
+msgstr "Migra un server da un'istanza a un'altra"
+
+msgid "Server \"{server}\" is already bound to instance \"{node}:{instance}\"."
+msgstr "Il server \"{server}\" è già associato all'istanza \"{node}:{instance}\"."
+
+msgid "It will be unlinked from instance \"{}\" to allow the migration."
+msgstr "Verrà scollegato dall'istanza \"{}\" per consentire la migrazione."
+
+msgid "This is necessary to migrate the server."
+msgstr "Operazione necessaria per migrare il server."
+
+msgid "Server \"{server}\" migrated to instance \"{node}:{instance}\"."
+msgstr "Server \"{server}\" migrato all'istanza \"{node}:{instance}\"."
+
+msgid "Time until server / mission restart"
+msgstr "Tempo al riavvio del server / della missione"
+
+msgid "No restart configured for this server."
+msgstr "Nessun riavvio configurato per questo server."
+
+msgid "Server is in maintenance mode, it will not restart."
+msgstr "Il server è in modalità manutenzione, non verrà riavviato."
+
+msgid "Please try again in a minute."
+msgstr "Riprovare tra un minuto."
+
+msgid "Server \"{}\\"
+msgstr "Server \"{}\"\\"
+
+msgid "The mission on server \"{}\\"
+msgstr "La missione sul server \"{}\"\\"
+
+msgid "{item} will {what} {when1}{when2}"
+msgstr "{item} verrà {what} {when1}{when2}"
+
+msgid "restart"
+msgstr "riavviato"
+
+msgid "shutdown"
+msgstr "arrestato"
+
+msgid "now"
+msgstr "ora"
+
+msgid "if all players have left."
+msgstr "se tutti i giocatori hanno lasciato il server."
+
+msgid "after {}"
+msgstr "tra {}"
+
+msgid "immediately"
+msgstr "immediatamente"
+
+msgid ", if the mission is unpaused again."
+msgstr ", se la missione viene ripresa."
+
+msgid "Clear the temp directory"
+msgstr "Pulisci la directory temporanea"
+
+msgid "This is necessary to clear the temp directory."
+msgstr "Operazione necessaria per pulire la directory temporanea."
+
+msgid "Server \"{}\" cleaned up."
+msgstr "Server \"{}\" pulito."
+
+msgid "Locks a DCS server"
+msgstr "Blocca un server DCS"
+
+msgid "Server \"{}\" locked."
+msgstr "Server \"{}\" bloccato."
+
+msgid "Timeout while locking server \"{}\"!"
+msgstr "Timeout durante il blocco del server \"{}\"!"
+
+msgid "Unlocks a DCS server"
+msgstr "Sblocca un server DCS"
+
+msgid "Server \"{}\" unlocked."
+msgstr "Server \"{}\" sbloccato."
+
+msgid "Timeout while unlocking server \"{}\"!"
+msgstr "Timeout durante lo sblocco del server \"{}\"!"
+
+msgid "Commands to manage the Scheduler"
+msgstr "Comandi per gestire la pianificazione"
+
+msgid "Sets the server's maintenance flag"
+msgstr "Imposta il flag di manutenzione del server"
+
+msgid "Server is configured for a pending restart.\n"
+msgstr "Il server è configurato per un riavvio in attesa.\n"
+
+msgid "Server is configured for a pending restart.\nSetting the maintenance flag will abort this restart.\n"
+msgstr "Il server è configurato per un riavvio in attesa.\nImpostando il flag di manutenzione questo riavvio verrà annullato.\n"
+
+msgid "Server is configured for a pending restart.\nSetting the maintenance flag will abort this restart.\nAre you sure?"
+msgstr "Il server è configurato per un riavvio in attesa.\nImpostando il flag di manutenzione questo riavvio verrà annullato.\nConfermare?"
+
+msgid "Maintenance mode set for server \"{}\"."
+msgstr "Modalità manutenzione impostata per il server \"{}\"."
+
+msgid "Server \"{}\" is already in maintenance mode."
+msgstr "Il server \"{}\" è già in modalità manutenzione."
+
+msgid "Clears the server's maintenance flag"
+msgstr "Rimuove il flag di manutenzione del server"
+
+msgid "Maintenance mode cleared for server \"{}\"."
+msgstr "Modalità manutenzione rimossa per il server \"{}\"."
+
+msgid "Server \"{}\" is not in maintenance mode."
+msgstr "Il server \"{}\" non è in modalità manutenzione."
+
+msgid "enable maintenance mode"
+msgstr "abilita la modalità manutenzione"
+
+msgid "Maintenance mode enabled."
+msgstr "Modalità manutenzione abilitata."
+
+msgid "Maintenance mode is already active."
+msgstr "La modalità manutenzione è già attiva."
+
+msgid "disable maintenance mode"
+msgstr "disabilita la modalità manutenzione"
+
+msgid "Maintenance mode disabled."
+msgstr "Modalità manutenzione disabilitata."
+
+msgid "Maintenance mode wasn't enabled."
+msgstr "La modalità manutenzione non era abilitata."
+
+msgid "Time to the next restart"
+msgstr "Tempo al prossimo riavvio"
+
+msgid "Maintenance mode active, mission will not restart."
+msgstr "Modalità manutenzione attiva, la missione non verrà riavviata."
+
+msgid "The server"
+msgstr "Il server"
+
+msgid "The mission"
+msgstr "La missione"
+
+msgid "in {}"
+msgstr "tra {}"
+
+msgid "Pick weather presets for this launch"
+msgstr "Seleziona i preset meteo per questo avvio"
+
+msgid "Presets file to pick from (default: all files)"
+msgstr "File di preset da cui scegliere (predefinito: tutti i file)"
+
+msgid "Players"
+msgstr "Giocatori"
+
+msgid "DCS server \"{}\" started."
+msgstr "Server DCS \"{}\" avviato."
+
+msgid "New Password"
+msgstr "Nuova password"
+
+msgid "Aborted"
+msgstr "Operazione annullata"
+
+msgid ", if all players have left"
+msgstr ", se tutti i giocatori hanno lasciato il server"

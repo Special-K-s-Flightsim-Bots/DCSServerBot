@@ -1,0 +1,80 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Command: {}"
+msgstr "Commande : {}"
+
+msgid "Usage"
+msgstr "Utilisation"
+
+msgid "<> mandatory, [] non-mandatory"
+msgstr "<> obligatoire, [] facultatif"
+
+msgid "{} Help"
+msgstr "Aide {}"
+
+msgid "Command"
+msgstr "Commande"
+
+msgid "Description"
+msgstr "Descriptif"
+
+msgid "There are no commands for your role in this plugin."
+msgstr "Aucune commande n'est disponible pour votre rôle dans ce plugin."
+
+msgid "Use /help [command] if you want help for a specific command."
+msgstr "Utilisez /help [commande] si vous voulez de l'aide sur une commande précise."
+
+msgid "Select the plugin you want help for"
+msgstr "Sélectionnez le plugin pour lequel vous voulez de l'aide"
+
+msgid "The help command"
+msgstr "La commande d'aide"
+
+msgid "Command {} not found."
+msgstr "Commande {} introuvable."
+
+msgid "You don't have the permission to use this command."
+msgstr "Vous n'avez pas la permission d'utiliser cette commande."
+
+msgid "## DCSServerBot Commands"
+msgstr "## Commandes DCSServerBot"
+
+msgid "Generate Documentation"
+msgstr "Générer la documentation"
+
+msgid "Please provide a role for channel output."
+msgstr "Veuillez indiquer un rôle pour la sortie dans un salon."
+
+msgid "Unknown option {}!"
+msgstr "Option {} inconnue !"
+
+msgid "\nThe following bot commands can be used in this discord by members that have the {} role:\n_ _\n"
+msgstr "\nLes commandes de bot suivantes peuvent être utilisées sur ce serveur Discord par les membres ayant le rôle {} :\n_ _\n"
+
+msgid "\nThe following bot commands can be used in this discord:\n_ _\n"
+msgstr "\nLes commandes de bot suivantes peuvent être utilisées sur ce serveur Discord :\n_ _\n"
+
+msgid "Plugin"
+msgstr "Extension"
+
+msgid "Please specify the format (channel or xls)."
+msgstr "Veuillez préciser le format (salon ou xls)."
+
+msgid "Do you want to generate the server documentation?"
+msgstr "Voulez-vous générer la documentation du serveur ?"
+
+msgid "The file may contain passwords!"
+msgstr "Le fichier peut contenir des mots de passe !"
+
+msgid "Aborted."
+msgstr "Annulé."
+
+msgid "Your firewall ruleset:"
+msgstr "Votre jeu de règles de pare-feu :"

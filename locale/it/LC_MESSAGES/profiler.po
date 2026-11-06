@@ -1,0 +1,32 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Start profiler"
+msgstr "Avvia profiler"
+
+msgid "Profiler {} is already loaded."
+msgstr "Il profiler {} è già caricato."
+
+msgid "Starting profiler ..."
+msgstr "Avvio del profiler in corso ..."
+
+msgid "Stop profiler"
+msgstr "Arresta profiler"
+
+msgid "Stopping profiler ..."
+msgstr "Arresto del profiler in corso ..."
+
+msgid "Commands to control the profiling mechanism"
+msgstr "Comandi per controllare il meccanismo di profilazione"
+
+msgid "Profiling started."
+msgstr "Profilazione avviata."
+
+msgid "Profiling stopped."
+msgstr "Profilazione arrestata."

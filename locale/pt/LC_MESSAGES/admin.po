@@ -1,0 +1,1025 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to manage your DCS installations"
+msgstr "Comandos para gerenciar suas instalações do DCS"
+
+msgid "Bans a user by name or ucid"
+msgstr "Bane um usuário por nome ou ucid"
+
+msgid "Reason"
+msgstr "Motivo"
+
+msgid "Days (empty = forever)"
+msgstr "Dias (vazio = para sempre)"
+
+msgid "Ban Details"
+msgstr "Detalhes do ban"
+
+msgid "Member {} is not linked!"
+msgstr "O membro {} não está vinculado!"
+
+msgid "{} is not a valid UCID!"
+msgstr "{} não é um UCID válido!"
+
+msgid "Player {} banned on all servers"
+msgstr "Jogador {} banido em todos os servidores"
+
+msgid " for {} days."
+msgstr " por {} dias."
+
+msgid "Unbans a user by name or ucid"
+msgstr "Remove o ban de um usuário por nome ou ucid"
+
+msgid "Player {} unbanned on {}."
+msgstr "Ban do jogador {} removido em {}."
+
+msgid "Player {} was not banned on {}."
+msgstr "O jogador {} não estava banido em {}."
+
+msgid "Shows active bans"
+msgstr "Mostra os bans ativos"
+
+msgid "User with UCID {} is not banned."
+msgstr "O usuário com UCID {} não está banido."
+
+msgid "Ban Information"
+msgstr "Informações do ban"
+
+msgid "<unknown>"
+msgstr "<desconhecido>"
+
+msgid "never"
+msgstr "nunca"
+
+msgid "Banned by: {}"
+msgstr "Banido por: {}"
+
+msgid "Exp.: {}"
+msgstr "Expira: {}"
+
+msgid "Update your DCS installations"
+msgstr "Atualize suas instalações do DCS"
+
+msgid "Time in seconds to warn users before shutdown"
+msgstr "Tempo em segundos para avisar os usuários antes do desligamento"
+
+msgid "Can't get version information from ED, possible auth-server outage!"
+msgstr "Não é possível obter informações de versão da ED, possível indisponibilidade do servidor de autenticação!"
+
+msgid "Your installed version {version} is the latest on branch {branch}."
+msgstr "A versão instalada {version} é a mais recente no branch {branch}."
+
+msgid "Would you like to update from version {old_version}@{old_branch} to {new_version}@{new_branch}?\n"
+msgstr "Deseja atualizar da versão {old_version}@{old_branch} para {new_version}@{new_branch}?\n"
+
+msgid "Would you like to update from version {old_version}@{old_branch} to {new_version}@{new_branch}?\nAll running DCS servers will be shut down!"
+msgstr "Deseja atualizar da versão {old_version}@{old_branch} para {new_version}@{new_branch}?\nTodos os servidores DCS em execução serão desligados!"
+
+msgid "Updating DCS World to the newest version, please wait ..."
+msgstr "Atualizando o DCS World para a versão mais recente, aguarde ..."
+
+msgid "DCS updated to version {version}@{branch} on node {name}."
+msgstr "DCS atualizado para a versão {version}@{branch} no nó {name}."
+
+msgid "DCS World could not be updated on node {name} due to missing disk space!"
+msgstr "O DCS World não pôde ser atualizado no nó {name} devido à falta de espaço em disco!"
+
+msgid "DCS World updated to version {version}@{branch} on node {name}.\n"
+msgstr "DCS World atualizado para a versão {version}@{branch} no nó {name}.\n"
+
+msgid "DCS World updated to version {version}@{branch} on node {name}.\nThe updater has requested a **reboot** of the system!"
+msgstr "DCS World atualizado para a versão {version}@{branch} no nó {name}.\nO atualizador solicitou um **reinício** do sistema!"
+
+msgid "Error while updating DCS on node {name}, code={rc}"
+msgstr "Erro ao atualizar o DCS no nó {name}, code={rc}"
+
+msgid "The update takes longer than 10 minutes, please check back regularly, if it has finished."
+msgstr "A atualização leva mais de 10 minutos, verifique regularmente se ela terminou."
+
+msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
+msgstr "Não é possível atualizar o branch {}. Talvez seja necessário fornecer credenciais DCS válidas para isso."
+
+msgid "Install modules in your DCS server"
+msgstr "Instale módulos no seu servidor DCS"
+
+msgid "Shutdown all servers on node {} for the installation?"
+msgstr "Desligar todos os servidores no nó {} para a instalação?"
+
+msgid "Installing module {module} on node {node}, please wait ..."
+msgstr "Instalando o módulo {module} no nó {node}, aguarde ..."
+
+msgid "Module {module} installed on node {node}."
+msgstr "Módulo {module} instalado no nó {node}."
+
+msgid "Module {module} installation on node {node} failed with code {rc}."
+msgstr "A instalação do módulo {module} no nó {node} falhou com o código {rc}."
+
+msgid "Uninstall modules from your DCS server"
+msgstr "Desinstale módulos do seu servidor DCS"
+
+msgid "Shutdown all servers on node {} for the uninstallation?"
+msgstr "Desligar todos os servidores no nó {} para a desinstalação?"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Module {module} uninstalled on node {node}."
+msgstr "Módulo {module} desinstalado no nó {node}."
+
+msgid "Download files from your server"
+msgstr "Baixe arquivos do seu servidor"
+
+msgid "File {file} not found in directory {dir}."
+msgstr "Arquivo {file} não encontrado no diretório {dir}."
+
+msgid "File sent as a DM."
+msgstr "Arquivo enviado como DM."
+
+msgid "Here is your file:"
+msgstr "Aqui está o seu arquivo:"
+
+msgid "File too large. You need a higher boost level for your server."
+msgstr "Arquivo muito grande. Você precisa de um nível de boost maior para o seu servidor."
+
+msgid "File sent to the configured channel."
+msgstr "Arquivo enviado para o canal configurado."
+
+msgid "File copied to the specified location."
+msgstr "Arquivo copiado para o local especificado."
+
+msgid "Prune unused data in the database"
+msgstr "Remove dados não utilizados do banco de dados"
+
+msgid ":warning: Database Prune :warning:"
+msgstr ":warning: Limpeza do banco de dados :warning:"
+
+msgid "You are going to delete data from your database. Be advised.\n\n"
+msgstr "Você vai excluir dados do seu banco de dados. Atenção.\n\n"
+
+msgid "You are going to delete data from your database. Be advised.\n\nPlease select the data to be pruned:"
+msgstr "Você vai excluir dados do seu banco de dados. Atenção.\n\nSelecione os dados a serem removidos:"
+
+msgid "We are going to delete all data of user {}. Are you sure?"
+msgstr "Vamos excluir todos os dados do usuário {}. Tem certeza?"
+
+msgid "We are going to delete all data of server {}. Are you sure?"
+msgstr "Vamos excluir todos os dados do servidor {}. Tem certeza?"
+
+msgid "Data of user {} deleted."
+msgstr "Dados do usuário {} excluídos."
+
+msgid "Data of server {} deleted."
+msgstr "Dados do servidor {} excluídos."
+
+msgid "No players to prune."
+msgstr "Nenhum jogador para remover."
+
+msgid "This will delete {} players incl. their stats from the database.\n"
+msgstr "Isto vai excluir {} jogadores, incluindo suas estatísticas, do banco de dados.\n"
+
+msgid "This will delete {} players incl. their stats from the database.\nAre you sure?"
+msgstr "Isto vai excluir {} jogadores, incluindo suas estatísticas, do banco de dados.\nTem certeza?"
+
+msgid "This will delete all data older than {} days from the database.\n"
+msgstr "Isto vai excluir todos os dados mais antigos que {} dias do banco de dados.\n"
+
+msgid "This will delete all data older than {} days from the database.\nAre you sure?"
+msgstr "Isto vai excluir todos os dados mais antigos que {} dias do banco de dados.\nTem certeza?"
+
+msgid "All data older than {} days pruned."
+msgstr "Todos os dados mais antigos que {} dias foram removidos."
+
+msgid "Commands to manage your nodes"
+msgstr "Comandos para gerenciar seus nós"
+
+msgid "Statistics of your nodes"
+msgstr "Estatísticas dos seus nós"
+
+msgid "Status of all nodes"
+msgstr "Status de todos os nós"
+
+msgid "DCSServerBot Cluster Overview"
+msgstr "Visão geral do cluster DCSServerBot"
+
+msgid "🆕 Update available"
+msgstr "🆕 Atualização disponível"
+
+msgid "Instance"
+msgstr "Instância"
+
+msgid "Server"
+msgstr "Servidor"
+
+msgid "Do you want to {} all nodes?"
+msgstr "Deseja {} todos os nós?"
+
+msgid "Do you want to {method} node {node}?"
+msgstr "Deseja {method} o nó {node}?"
+
+msgid "upgrade"
+msgstr "atualizar"
+
+msgid "shutdown"
+msgstr "desligar"
+
+msgid "restart"
+msgstr "reiniciar"
+
+msgid "Node {node} - {method} sent."
+msgstr "Nó {node} - {method} enviado."
+
+msgid "All nodes are"
+msgstr "Todos os nós estão"
+
+msgid "Master is"
+msgstr "O master está"
+
+msgid " going to {} **NOW**."
+msgstr " vai {} **AGORA**."
+
+msgid "Shuts a specific node down"
+msgstr "Desliga um nó específico"
+
+msgid "Restarts a specific node"
+msgstr "Reinicia um nó específico"
+
+msgid "Shuts down all servers, enables maintenance"
+msgstr "Desliga todos os servidores, ativa a manutenção"
+
+msgid "Shuts all servers down (default: on)"
+msgstr "Desliga todos os servidores (padrão: ativado)"
+
+msgid "Node {} is now offline."
+msgstr "O nó {} agora está offline."
+
+msgid "Clears the maintenance mode for all servers"
+msgstr "Limpa o modo de manutenção de todos os servidores"
+
+msgid "Start all your servers (default: off)"
+msgstr "Inicia todos os seus servidores (padrão: desativado)"
+
+msgid "Node {} is now online."
+msgstr "O nó {} agora está online."
+
+msgid "Upgrade DCSServerBot"
+msgstr "Atualizar o DCSServerBot"
+
+msgid "There is no upgrade available for "
+msgstr "Não há atualização disponível para "
+
+msgid "your cluster"
+msgstr "seu cluster"
+
+msgid "node {}"
+msgstr "nó {}"
+
+msgid "You are trying to upgrade an agent node in a cluster. Are you really sure?"
+msgstr "Você está tentando atualizar um nó agent em um cluster. Tem certeza?"
+
+msgid "Run a shell command on a node"
+msgstr "Executa um comando de shell em um nó"
+
+msgid "```Command executed.```"
+msgstr "```Comando executado.```"
+
+msgid "Reloads a plugin"
+msgstr "Recarrega um plugin"
+
+msgid "Plugin {} reloaded."
+msgstr "Plugin {} recarregado."
+
+msgid "Plugin {} could not be reloaded, check the log for details."
+msgstr "O plugin {} não pôde ser recarregado, verifique o log para detalhes."
+
+msgid "All plugins reloaded."
+msgstr "Todos os plugins recarregados."
+
+msgid "One or more plugins could not be reloaded, check the log for details."
+msgstr "Um ou mais plugins não puderam ser recarregados, verifique o log para detalhes."
+
+msgid "Add/create an instance\n"
+msgstr "Adicionar/criar uma instância\n"
+
+msgid "Either select an existing instance or enter the name of a new one"
+msgstr "Selecione uma instância existente ou informe o nome de uma nova"
+
+msgid "Take this instance configuration as a reference"
+msgstr "Use esta configuração de instância como referência"
+
+msgid "Instance \"{}\" created.\nDo you want to configure a server for this instance?"
+msgstr "Instância \"{}\" criada.\nDeseja configurar um servidor para esta instância?"
+
+msgid "Server {server} assigned to instance {instance}."
+msgstr "Servidor {server} atribuído à instância {instance}."
+
+msgid "Instance {} created blank with no server assigned."
+msgstr "Instância {} criada vazia, sem servidor atribuído."
+
+msgid "Instance {instance} added to node {node}."
+msgstr "Instância {instance} adicionada ao nó {node}."
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:"
+msgstr "Instância {instance} adicionada ao nó {node}.Certifique-se de encaminhar as seguintes portas:"
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:```"
+msgstr "Instância {instance} adicionada ao nó {node}.Certifique-se de encaminhar as seguintes portas:```"
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:```- DCS Port:    {dcs_port} (TCP/UDP)"
+msgstr "Instância {instance} adicionada ao nó {node}.Certifique-se de encaminhar as seguintes portas:```- Porta DCS:    {dcs_port} (TCP/UDP)"
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:```- DCS Port:    {dcs_port} (TCP/UDP)- WebGUI Port: {webgui_port} (TCP)"
+msgstr "Instância {instance} adicionada ao nó {node}.Certifique-se de encaminhar as seguintes portas:```- Porta DCS:    {dcs_port} (TCP/UDP)- Porta WebGUI: {webgui_port} (TCP)"
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:```- DCS Port:    {dcs_port} (TCP/UDP)- WebGUI Port: {webgui_port} (TCP)```"
+msgstr "Instância {instance} adicionada ao nó {node}.Certifique-se de encaminhar as seguintes portas:```- Porta DCS:    {dcs_port} (TCP/UDP)- Porta WebGUI: {webgui_port} (TCP)```"
+
+msgid "Instance {instance} could not be added to node {node}, see log."
+msgstr "A instância {instance} não pôde ser adicionada ao nó {node}, veja o log."
+
+msgid "Delete an instance\n"
+msgstr "Excluir uma instância\n"
+
+msgid "The instance is in use by server \"{}\".\n"
+msgstr "A instância está em uso pelo servidor \"{}\".\n"
+
+msgid "The instance is in use by server \"{}\".\nDo you really want to delete it?"
+msgstr "A instância está em uso pelo servidor \"{}\".\nDeseja realmente excluí-la?"
+
+msgid "Do you really want to delete instance {}?"
+msgstr "Deseja realmente excluir a instância {}?"
+
+msgid "Do you want to remove the directory\n{}?"
+msgstr "Deseja remover o diretório\n{}?"
+
+msgid "Instance {instance} removed from node {node}."
+msgstr "Instância {instance} removida do nó {node}."
+
+msgid "Instance {} could not be deleted, because the directory is in use."
+msgstr "A instância {} não pôde ser excluída porque o diretório está em uso."
+
+msgid "Rename an instance\n"
+msgstr "Renomear uma instância\n"
+
+msgid "Server {} has to be shut down before renaming the instance!"
+msgstr "O servidor {} precisa ser desligado antes de renomear a instância!"
+
+msgid "Do you really want to rename instance {}?"
+msgstr "Deseja realmente renomear a instância {}?"
+
+msgid "Instance {old_name} renamed to {new_name}."
+msgstr "Instância {old_name} renomeada para {new_name}."
+
+msgid "Instance {} could not be renamed, because the directory is in use."
+msgstr "A instância {} não pôde ser renomeada porque o diretório está em uso."
+
+msgid "To which server do you want to upload this configuration to?"
+msgstr "Para qual servidor você deseja enviar esta configuração?"
+
+msgid "Error while uploading file to node {}!"
+msgstr "Erro ao enviar o arquivo para o nó {}!"
+
+msgid "Error while reading file from discord."
+msgstr "Erro ao ler o arquivo do Discord."
+
+msgid "Plugin {} re-loaded."
+msgstr "Plugin {} recarregado."
+
+msgid "To apply the new config by restarting a node or the whole cluster, use {}"
+msgstr "Para aplicar a nova configuração reiniciando um nó ou todo o cluster, use {}"
+
+msgid "A configuration change applies on the next node restart, not on a page reload."
+msgstr "Uma alteração de configuração é aplicada no próximo reinício do nó, não ao recarregar a página."
+
+msgid "Configuration file"
+msgstr "Arquivo de configuração"
+
+msgid "frontend is off — the service serves the REST API only: no page, no login, no session cookie. Set frontend: true."
+msgstr "O frontend está desativado — o serviço fornece apenas a REST API: sem página, sem login, sem cookie de sessão. Defina frontend: true."
+
+msgid "username and password"
+msgstr "nome de usuário e senha"
+
+msgid "break-glass credential"
+msgstr "credencial de emergência"
+
+msgid "The login block is empty — every page answers 403. Enable at least one of auth.local, auth.discord or auth.breakglass."
+msgstr "O bloco de login está vazio — todas as páginas respondem 403. Ative pelo menos um de auth.local, auth.discord ou auth.breakglass."
+
+msgid "Session secret"
+msgstr "Segredo da sessão"
+
+msgid "Public address"
+msgstr "Endereço público"
+
+msgid "Service"
+msgstr "Serviço"
+
+msgid "Next step"
+msgstr "Próximo passo"
+
+msgid "Inspects the configuration of the admin website"
+msgstr "Inspeciona a configuração do site de administração"
+
+msgid "frontend is on — the pages, the login and the session cookie are installed."
+msgstr "O frontend está ativado — as páginas, o login e o cookie de sessão estão instalados."
+
+msgid "session.secret is not set — a random key is generated at every start, so everyone is signed out when the node restarts. Set a secret of at least 32 characters."
+msgstr "session.secret não está definido — uma chave aleatória é gerada a cada inicialização, então todos são desconectados quando o nó reinicia. Defina um segredo de pelo menos 32 caracteres."
+
+msgid "auth.public_base_url is not set — redirect URIs are built from it, so a Discord login cannot return. Set the address your users open, e.g. https://dcs.example.com."
+msgstr "auth.public_base_url não está definido — as URIs de redirecionamento são construídas a partir dele, então um login do Discord não consegue retornar. Defina o endereço que seus usuários abrem, por exemplo https://dcs.example.com."
+
+msgid "The website runs on the master node only — this is not the master, so nothing is served here. Run the check on the master."
+msgstr "O site é executado apenas no nó master — este não é o master, então nada é servido aqui. Execute a verificação no master."
+
+msgid "The service is loaded but not running, so nothing answers on a port. Restart the node."
+msgstr "O serviço está carregado, mas não em execução, então nada responde em uma porta. Reinicie o nó."
+
+msgid "Website status"
+msgstr "Status do site"
+
+msgid "Shows which part of the website configuration is missing"
+msgstr "Mostra qual parte da configuração do site está faltando"
+
+msgid "{} found."
+msgstr "{} encontrado."
+
+msgid "session.secret is set ({} characters) — sessions survive a node restart."
+msgstr "session.secret está definido ({} caracteres) — as sessões sobrevivem a um reinício do nó."
+
+msgid "auth.public_base_url is {} — redirect URIs are built from it."
+msgstr "auth.public_base_url é {} — as URIs de redirecionamento são construídas a partir dele."
+
+msgid "The service is not loaded on this node — {} is read at startup. Restart the node."
+msgstr "O serviço não está carregado neste nó — {} é lido na inicialização. Reinicie o nó."
+
+msgid "The address is not known yet."
+msgstr "O endereço ainda não é conhecido."
+
+msgid "{} is missing — no website service exists without it. Run /webadmin setup to create it."
+msgstr "{} está faltando — não existe serviço de site sem ele. Execute /webadmin setup para criá-lo."
+
+msgid "Login is enabled for: {}."
+msgstr "O login está ativado para: {}."
+
+msgid "session.secret is only {} characters long — a key shorter than 32 characters is refused at startup. Use at least 32."
+msgstr "session.secret tem apenas {} caracteres — uma chave com menos de 32 caracteres é recusada na inicialização. Use pelo menos 32."
+
+msgid "auth.public_base_url is not an absolute http(s) address ({}) — redirect URIs are built from it."
+msgstr "auth.public_base_url não é um endereço http(s) absoluto ({}) — as URIs de redirecionamento são construídas a partir dele."
+
+msgid "auth.public_base_url points at this machine only ({}) — a Discord login comes back to this machine and nowhere else. Set the address your users open."
+msgstr "auth.public_base_url aponta apenas para esta máquina ({}) — um login do Discord retorna para esta máquina e para nenhum outro lugar. Defina o endereço que seus usuários abrem."
+
+msgid "The service is running on this node, port {}."
+msgstr "O serviço está em execução neste nó, porta {}."
+
+msgid "Open {}."
+msgstr "Abra {}."
+
+msgid "Not chosen yet — pick a sign-in mode from the list below."
+msgstr "Ainda não escolhido — selecione um modo de entrada na lista abaixo."
+
+msgid "Everything is collected — press the button below to write the configuration."
+msgstr "Tudo foi coletado — pressione o botão abaixo para gravar a configuração."
+
+msgid "Discord login and a local account"
+msgstr "Login do Discord e uma conta local"
+
+msgid "Pick how you sign in from the list below."
+msgstr "Selecione como você entra na lista abaixo."
+
+msgid "Fill in the form the wizard opened."
+msgstr "Preencha o formulário que o assistente abriu."
+
+msgid "The configuration keeps auth.discord.client_secret_key: discord_client_secret."
+msgstr "A configuração mantém auth.discord.client_secret_key: discord_client_secret."
+
+msgid "Client secret"
+msgstr "Segredo do cliente"
+
+msgid "Username"
+msgstr "Nome de usuário"
+
+msgid "Website setup"
+msgstr "Configuração do site"
+
+msgid "Turns the admin website on and stores the login secret"
+msgstr "Ativa o site de administração e armazena o segredo de login"
+
+msgid "Listen"
+msgstr "Escutar"
+
+msgid "How do you want to sign in?"
+msgstr "Como você deseja entrar?"
+
+msgid "Write the configuration"
+msgstr "Gravar a configuração"
+
+msgid "Step 1: address and port"
+msgstr "Etapa 1: endereço e porta"
+
+msgid "Step 2: Discord login"
+msgstr "Etapa 2: login do Discord"
+
+msgid "Step 2: local account"
+msgstr "Etapa 2: conta local"
+
+msgid "Local account"
+msgstr "Conta local"
+
+msgid "This node is not the master — the website runs on the master node only. Run /webadmin setup on the master node."
+msgstr "Este nó não é o master — o site é executado apenas no nó master. Execute /webadmin setup no nó master."
+
+msgid "Manual setup"
+msgstr "Configuração manual"
+
+msgid "Pick how you sign in first."
+msgstr "Selecione primeiro como você entra."
+
+msgid "The public address has to be an absolute http or https address."
+msgstr "O endereço público deve ser um endereço http ou https absoluto."
+
+msgid "The client secret is required."
+msgstr "O segredo do cliente é obrigatório."
+
+msgid "Nothing changed — {} already matches."
+msgstr "Nada mudou — {} já corresponde."
+
+msgid "{} was written."
+msgstr "{} foi gravado."
+
+msgid "This node is not the master — the website runs on the master node only. Run /webadmin setup on {}."
+msgstr "Este nó não é o master — o site é executado apenas no nó master. Execute /webadmin setup em {}."
+
+msgid "The configuration could not be written: {}"
+msgstr "A configuração não pôde ser gravada: {}"
+
+msgid "Store the client secret with:"
+msgstr "Armazene o segredo do cliente com:"
+
+msgid "The port has to be a whole number between {} and {}."
+msgstr "A porta deve ser um número inteiro entre {} e {}."
+
+msgid "The previous version is kept as {}."
+msgstr "A versão anterior é mantida como {}."
+
+msgid "A configuration change applies on the next node restart, not on a page reload: {}"
+msgstr "Uma alteração de configuração é aplicada no próximo reinício do nó, não ao recarregar a página: {}"
+
+msgid "Open the Discord Developer Portal, your application → OAuth2, and add the redirect URI {}."
+msgstr "Abra o Discord Developer Portal, sua aplicação → OAuth2, e adicione a URI de redirecionamento {}."
+
+msgid "Discord login"
+msgstr "Login do Discord"
+
+msgid "Port"
+msgstr "Porta"
+
+msgid "The bot's application id could not be read, so the Discord login cannot be configured here."
+msgstr "O application id do bot não pôde ser lido, então o login do Discord não pode ser configurado aqui."
+
+msgid "Inspects and sets up the admin website"
+msgstr "Inspeciona e configura o site de administração"
+
+msgid "auth.public_base_url is {} — plain http carries the login page and the session cookie in cleartext. Set an https address, or an address inside your own network."
+msgstr "auth.public_base_url é {} — http simples transporta a página de login e o cookie de sessão em texto puro. Defina um endereço https, ou um endereço dentro da sua própria rede."
+
+msgid "The client secret is stored under auth.discord.client_secret_key — the configuration file names that key only, never the value."
+msgstr "O segredo do cliente é armazenado em auth.discord.client_secret_key — o arquivo de configuração contém apenas o nome dessa chave, nunca o valor."
+
+msgid "Step 2: Discord login and a local account"
+msgstr "Etapa 2: login do Discord e uma conta local"
+
+msgid "Password"
+msgstr "Senha"
+
+msgid "A username is required."
+msgstr "Um nome de usuário é obrigatório."
+
+msgid "The password has to be at least {} characters long."
+msgstr "A senha deve ter pelo menos {} caracteres."
+
+msgid "The local account '{}' already exists — nothing was written. Change its password with the user password command instead."
+msgstr "A conta local '{}' já existe — nada foi gravado. Altere a senha dela com o comando de senha de usuário."
+
+msgid "The local account {} is set up; its password is the one you entered."
+msgstr "A conta local {} está configurada; a senha é a que você informou."
+
+msgid "The username has to be at most {} characters long."
+msgstr "O nome de usuário deve ter no máximo {} caracteres."
+
+msgid "The password has to be at most {} characters long."
+msgstr "A senha deve ter no máximo {} caracteres."
+
+msgid "The local account '{}' is not in the configuration any more — reload and pick again."
+msgstr "A conta local '{}' não está mais na configuração — recarregue e selecione novamente."
+
+msgid "The role(s) {} are not defined by this installation — nothing was written. Known roles: {}."
+msgstr "O(s) cargo(s) {} não são definidos por esta instalação — nada foi gravado. Cargos conhecidos: {}."
+
+msgid "The local account '{}' is the last one holding Admin — removing it would lock everyone out of the console. Give another account Admin first."
+msgstr "A conta local '{}' é a última com o cargo Admin — removê-la bloquearia o acesso de todos ao console. Conceda Admin a outra conta primeiro."
+
+msgid "Pick at least one role for the new account."
+msgstr "Selecione pelo menos um cargo para a nova conta."
+
+msgid "Local account removed"
+msgstr "Conta local removida"
+
+msgid "Account"
+msgstr "Conta"
+
+msgid "The REST API plugin was reloaded, so its routes are attached to the new application object."
+msgstr "O plugin REST API foi recarregado, então suas rotas estão anexadas ao novo objeto de aplicação."
+
+msgid "The REST API plugin is loaded on this node, but its reload failed, so its routes are still attached to the old application object — reload it by hand."
+msgstr "O plugin REST API está carregado neste nó, mas sua recarga falhou, então suas rotas ainda estão anexadas ao objeto de aplicação antigo — recarregue-o manualmente."
+
+msgid "The REST API plugin is not loaded on this node, so no routes had to be re-attached."
+msgstr "O plugin REST API não está carregado neste nó, então nenhuma rota precisou ser reanexada."
+
+msgid "session.secret is not set — every restart mints a new random session key, so this signs everyone out. Write session.secret first, or press the button again to confirm."
+msgstr "session.secret não está definido — cada reinício gera uma nova chave de sessão aleatória, então isto desconecta todos. Grave session.secret primeiro ou pressione o botão novamente para confirmar."
+
+msgid "The web console could not be restarted ({}). It is down until the bot is restarted."
+msgstr "O console web não pôde ser reiniciado ({}). Ele fica fora do ar até o bot reiniciar."
+
+msgid "The web console did not come back up — it is down until the bot is restarted. Check the bot's log for the service's error."
+msgstr "O console web não voltou a subir — ele fica fora do ar até o bot reiniciar. Verifique o log do bot para ver o erro do serviço."
+
+msgid "The web console was rebuilt and is running on port {}."
+msgstr "O console web foi reconstruído e está em execução na porta {}."
+
+msgid "The web console was rebuilt and is running."
+msgstr "O console web foi reconstruído e está em execução."
+
+msgid "Web console restart"
+msgstr "Reinício do console web"
+
+msgid "Result"
+msgstr "Resultado"
+
+msgid "Address"
+msgstr "Endereço"
+
+msgid "Restart anyway"
+msgstr "Reiniciar mesmo assim"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Nothing was restarted."
+msgstr "Nada foi reiniciado."
+
+msgid "Restart the web console"
+msgstr "Reiniciar o console web"
+
+msgid "Roles"
+msgstr "Cargos"
+
+msgid "New password"
+msgstr "Nova senha"
+
+msgid "Add a local account"
+msgstr "Adicionar uma conta local"
+
+msgid "Set a new password for {}"
+msgstr "Definir uma nova senha para {}"
+
+msgid "Pick a local account"
+msgstr "Selecione uma conta local"
+
+msgid "Account to remove"
+msgstr "Conta a remover"
+
+msgid "Account whose password to change"
+msgstr "Conta cuja senha será alterada"
+
+msgid "Delete it"
+msgstr "Excluir"
+
+msgid "Nothing was deleted."
+msgstr "Nada foi excluído."
+
+msgid "This node is not the master — the website runs on the master node only. Run {} on {}."
+msgstr "Este nó não é o master — o site é executado apenas no nó master. Execute {} em {}."
+
+msgid "This node is not the master — the website runs on the master node only. Run {} on the master node."
+msgstr "Este nó não é o master — o site é executado apenas no nó master. Execute {} no nó master."
+
+msgid "This installation defines no role names, so no account can be granted one."
+msgstr "Esta instalação não define nomes de cargos, então nenhuma conta pode receber um."
+
+msgid "Adds a local account to the admin website"
+msgstr "Adiciona uma conta local ao site de administração"
+
+msgid "The website configuration carries no local accounts."
+msgstr "A configuração do site não contém contas locais."
+
+msgid "Pick the local account to remove. This cannot be undone."
+msgstr "Selecione a conta local a remover. Isto não pode ser desfeito."
+
+msgid "Removes a local account from the admin website"
+msgstr "Remove uma conta local do site de administração"
+
+msgid "Delete the local account '{}'? This cannot be undone."
+msgstr "Excluir a conta local '{}'? Isto não pode ser desfeito."
+
+msgid "Pick the local account whose password you want to change."
+msgstr "Selecione a conta local cuja senha você deseja alterar."
+
+msgid "Sets a new password for a local account"
+msgstr "Define uma nova senha para uma conta local"
+
+msgid "Manages the local accounts that sign in to the admin website"
+msgstr "Gerencia as contas locais que fazem login no site de administração"
+
+msgid "Setup cancelled — nothing was written."
+msgstr "Configuração cancelada — nada foi gravado."
+
+msgid "You are going to delete data from your database. Be advised.\n"
+msgstr "Você vai excluir dados do seu banco de dados. Atenção.\n"
+
+msgid "Instance \"{}\" created.\n"
+msgstr "Instância \"{}\" criada.\n"
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:```- DCS Port:    "
+msgstr "Instância {instance} adicionada ao nó {node}.Certifique-se de encaminhar as seguintes portas:```- Porta DCS:    "
+
+msgid "Player {} unbanned on all servers."
+msgstr "Ban do jogador {} removido em todos os servidores."
+
+msgid "User"
+msgstr "Usuário"
+
+msgid "Banned by"
+msgstr "Banido por"
+
+msgid "Expires"
+msgstr "Expira"
+
+msgid "DCS World update on node {name} was aborted (check disk space)!"
+msgstr "A atualização do DCS World no nó {name} foi abortada (verifique o espaço em disco)!"
+
+msgid "Error while updating DCS on node {name}, code={rc}, message={message}"
+msgstr "Erro ao atualizar o DCS no nó {name}, code={rc}, message={message}"
+
+msgid "Repair your DCS installations"
+msgstr "Repare suas instalações do DCS"
+
+msgid "Do you want to run a DCS World repair on node {name}?"
+msgstr "Deseja executar um reparo do DCS World no nó {name}?"
+
+msgid "Repairing DCS World, please wait ..."
+msgstr "Reparando o DCS World, aguarde ..."
+
+msgid "DCS World repaired on node {}."
+msgstr "DCS World reparado no nó {}."
+
+msgid "Repair of DCS World failed on node {}."
+msgstr "O reparo do DCS World falhou no nó {}."
+
+msgid "The repair of DCS World was cancelled on node {name}."
+msgstr "O reparo do DCS World foi cancelado no nó {name}."
+
+msgid "You cannot run a DCS repair on a headless system without an active session!"
+msgstr "Você não pode executar um reparo do DCS em um sistema headless sem uma sessão ativa!"
+
+msgid "The repair takes longer than 10 minutes. It will generate an audit message when finished."
+msgstr "O reparo leva mais de 10 minutos. Ele gerará uma mensagem de auditoria quando terminar."
+
+msgid "Could not repair DCS World on node {name} due to a permission error: {error}"
+msgstr "Não foi possível reparar o DCS World no nó {name} devido a um erro de permissão: {error}"
+
+msgid "Info about your DCS installation"
+msgstr "Informações sobre sua instalação do DCS"
+
+msgid "There are no modules installed on this server."
+msgstr "Não há módulos instalados neste servidor."
+
+msgid "Installed modules on node {}"
+msgstr "Módulos instalados no nó {}"
+
+msgid "Module"
+msgstr "Módulo"
+
+msgid "You have been reported for trying to inject a relative path!"
+msgstr "Você foi reportado por tentar injetar um caminho relativo!"
+
+msgid "File {file} not found."
+msgstr "Arquivo {file} não encontrado."
+
+msgid "Channel {} not found, check your admin.yaml!"
+msgstr "Canal {} não encontrado, verifique seu admin.yaml!"
+
+msgid "Data of UCID {} deleted."
+msgstr "Dados do UCID {} excluídos."
+
+msgid "Are you sure you want to proceed?"
+msgstr "Tem certeza de que deseja continuar?"
+
+msgid "This will {} **all** nodes."
+msgstr "Isto vai {} **todos** os nós."
+
+msgid "Are you sure you want to {} node `{}`?"
+msgstr "Tem certeza de que deseja {} o nó `{}`?"
+
+msgid "Shutting down all servers on node {} ..."
+msgstr "Desligando todos os servidores no nó {} ..."
+
+msgid "All servers on node {} were shut down."
+msgstr "Todos os servidores no nó {} foram desligados."
+
+msgid "This will shutdown **all** servers on **all** nodes."
+msgstr "Isto vai desligar **todos** os servidores em **todos** os nós."
+
+msgid "This will shutdown **all** servers on node `{}`."
+msgstr "Isto vai desligar **todos** os servidores no nó `{}`."
+
+msgid "Timeout while starting server {}!"
+msgstr "Tempo esgotado ao iniciar o servidor {}!"
+
+msgid "Aborted"
+msgstr "Abortado"
+
+msgid "Timeout during shell command."
+msgstr "Tempo esgotado durante o comando de shell."
+
+msgid "Renaming instance {} to {}. This will take a bit, standby ..."
+msgstr "Renomeando a instância {} para {}. Isso levará um momento, aguarde ..."
+
+msgid "Instance {} could not be renamed, because the directory already exist."
+msgstr "A instância {} não pôde ser renomeada porque o diretório já existe."
+
+msgid "Instance {} could not be renamed: {}."
+msgstr "A instância {} não pôde ser renomeada: {}."
+
+msgid "Shows CPU topology"
+msgstr "Mostra a topologia da CPU"
+
+msgid "Make a node master"
+msgstr "Tornar um nó master"
+
+msgid "Node {} is the current master."
+msgstr "O nó {} é o master atual."
+
+msgid "Node {} is master already"
+msgstr "O nó {} já é master"
+
+msgid "Cannot change master, node {} has preferred master set."
+msgstr "Não é possível alterar o master, o nó {} tem um master preferencial definido."
+
+msgid "Requested master for node {}."
+msgstr "Master solicitado para o nó {}."
+
+msgid "Commands to manage your DCSServerBot plugins"
+msgstr "Comandos para gerenciar os plugins do seu DCSServerBot"
+
+msgid "Install Plugin"
+msgstr "Instalar plugin"
+
+msgid "Plugin {} could not be installed, check the log for details."
+msgstr "O plugin {} não pôde ser instalado, verifique o log para detalhes."
+
+msgid "Plugin {} installed."
+msgstr "Plugin {} instalado."
+
+msgid "\nPlease restart your DCS servers to apply the change."
+msgstr "\nReinicie seus servidores DCS para aplicar a alteração."
+
+msgid "Uninstall Plugin"
+msgstr "Desinstalar plugin"
+
+msgid "Plugin {} could not be uninstalled, check the log for details."
+msgstr "O plugin {} não pôde ser desinstalado, verifique o log para detalhes."
+
+msgid "Plugin {} uninstalled. Please restart your DCS servers to apply the change!"
+msgstr "Plugin {} desinstalado. Reinicie seus servidores DCS para aplicar a alteração!"
+
+msgid "Reload Plugin"
+msgstr "Recarregar plugin"
+
+msgid "Stop Plugin"
+msgstr "Parar plugin"
+
+msgid "Plugin {} is not running."
+msgstr "O plugin {} não está em execução."
+
+msgid "Plugin {} stopped."
+msgstr "Plugin {} parado."
+
+msgid "Plugin {} could not be stopped, check the log for details."
+msgstr "O plugin {} não pôde ser parado, verifique o log para detalhes."
+
+msgid "Start Plugin"
+msgstr "Iniciar plugin"
+
+msgid "Plugin {} is already started."
+msgstr "O plugin {} já está iniciado."
+
+msgid "You need to provide a supported plugin."
+msgstr "Você precisa fornecer um plugin suportado."
+
+msgid "Plugin {} started."
+msgstr "Plugin {} iniciado."
+
+msgid "Plugin {} could not be started, check the log for details."
+msgstr "O plugin {} não pôde ser iniciado, verifique o log para detalhes."
+
+msgid "Commands to manage your DCSServerBot extensions"
+msgstr "Comandos para gerenciar as extensões do seu DCSServerBot"
+
+msgid "{} Configuration"
+msgstr "Configuração de {}"
+
+msgid "Enable Extension"
+msgstr "Ativar extensão"
+
+msgid "Enabling extension {}..."
+msgstr "Ativando a extensão {}..."
+
+msgid "Extension {} enabled."
+msgstr "Extensão {} ativada."
+
+msgid "Failed to enable extension. See the log for details."
+msgstr "Falha ao ativar a extensão. Veja o log para detalhes."
+
+msgid "Failed to enable extension:\n{}"
+msgstr "Falha ao ativar a extensão:\n{}"
+
+msgid "Disable Extension"
+msgstr "Desativar extensão"
+
+msgid "Disabling extension {}..."
+msgstr "Desativando a extensão {}..."
+
+msgid "Extension {} disabled."
+msgstr "Extensão {} desativada."
+
+msgid "Failed to disable extension. See the log for details."
+msgstr "Falha ao desativar a extensão. Veja o log para detalhes."
+
+msgid "Failed to disable extension:\n{}"
+msgstr "Falha ao desativar a extensão:\n{}"
+
+msgid "List Extensions"
+msgstr "Listar extensões"
+
+msgid "Enabled extensions on server {}"
+msgstr "Extensões ativadas no servidor {}"
+
+msgid "Update Extension"
+msgstr "Atualizar extensão"
+
+msgid "Extension {} can not be updated."
+msgstr "A extensão {} não pode ser atualizada."
+
+msgid "Updating extension {}..."
+msgstr "Atualizando a extensão {}..."
+
+msgid "Extension {} updated."
+msgstr "Extensão {} atualizada."
+
+msgid "Extension {} not updated, check logfile."
+msgstr "A extensão {} não foi atualizada, verifique o arquivo de log."
+
+msgid "Extension {} is already up to date."
+msgstr "A extensão {} já está atualizada."
+
+msgid "Failed to update extension:\n{}"
+msgstr "Falha ao atualizar a extensão:\n{}"
+
+msgid "Repair Extension"
+msgstr "Reparar extensão"
+
+msgid "Extension {} can not be repaired."
+msgstr "A extensão {} não pode ser reparada."
+
+msgid "Reparing extension {}..."
+msgstr "Reparando a extensão {}..."
+
+msgid "Extension {} repaired."
+msgstr "Extensão {} reparada."
+
+msgid "Extension {} not repaired, check logfile."
+msgstr "A extensão {} não foi reparada, verifique o arquivo de log."
+
+msgid "Failed to repair extension:\n{}"
+msgstr "Falha ao reparar a extensão:\n{}"
+
+msgid "Configure Extension"
+msgstr "Configurar extensão"
+
+msgid "Extension {} configured."
+msgstr "Extensão {} configurada."
+
+msgid "No configuration available for extension {}"
+msgstr "Nenhuma configuração disponível para a extensão {}"

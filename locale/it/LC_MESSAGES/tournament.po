@@ -1,0 +1,710 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "# Members"
+msgstr "# Membri"
+
+msgid "# Players per Side"
+msgstr "# Giocatori per fazione"
+
+msgid "# Signups"
+msgstr "# Iscrizioni"
+
+msgid "## :warning: Attention all Squadron Leaders! :warning:\n"
+msgstr "## :warning: Attenzione a tutti i capi squadriglia! :warning:\n"
+
+msgid "## Error during the startup of server\n{}: Timeout"
+msgstr "## Errore durante l'avvio del server\n{}: Timeout"
+
+msgid "### Stand proud, {}!\n"
+msgstr "### Siate fieri, {}!\n"
+
+msgid "**Get your team ready!**\n"
+msgstr "**Preparate la vostra squadra!**\n"
+
+msgid ", this is your private channel during the upcoming match!"
+msgstr ", questo è il vostro canale privato durante la prossima partita!"
+
+msgid "- Creating squadron channels ..."
+msgstr "- Creazione dei canali squadriglia ..."
+
+msgid "- Match {} vs {} was marked as won by {} due to a forfeit."
+msgstr "- La partita {} vs {} è stata contrassegnata come vinta da {} per rinuncia."
+
+msgid ":warning: To participate in the tournament, your squadron must have an assigned role.\n"
+msgstr ":warning: Per partecipare al torneo, la vostra squadriglia deve avere un ruolo assegnato.\n"
+
+msgid ":warning: Your squadron does not have enough players to participate in the tournament yet."
+msgstr ":warning: La vostra squadriglia non ha ancora abbastanza giocatori per partecipare al torneo."
+
+msgid "A match is running on server {}!"
+msgstr "Una partita è in corso sul server {}!"
+
+msgid "A match is running."
+msgstr "Una partita è in corso."
+
+msgid "Aborted"
+msgstr "Annullato"
+
+msgid "Aborted."
+msgstr "Annullato."
+
+msgid "Accept"
+msgstr "Accetta"
+
+msgid "All sides have occupied their units. The match can start now!"
+msgstr "Tutte le fazioni hanno occupato le proprie unità. La partita può iniziare ora!"
+
+msgid "Application"
+msgstr "Candidatura"
+
+msgid "Application for Squadron \"{}\\"
+msgstr "Candidatura per la squadriglia \"{}\\"
+
+msgid "Apply to a tournament"
+msgstr "Candidatura a un torneo"
+
+msgid "Are you sure?\nYour settings will be directly applied to the next round."
+msgstr "Confermare?\nLe impostazioni verranno applicate direttamente al turno successivo."
+
+msgid "Blue"
+msgstr "Blu"
+
+msgid "Blue Wins"
+msgstr "Vittoria Blu"
+
+msgid "Can't generate new matches, not all matches of this stage have been flown yet."
+msgstr "Impossibile generare nuove partite, non tutte le partite di questa fase sono ancora state volate."
+
+msgid "Cancel"
+msgstr "Annulla"
+
+msgid "Closing the underlying campaign ..."
+msgstr "Chiusura della campagna sottostante ..."
+
+msgid "Coalition"
+msgstr "Coalizione"
+
+msgid "Commands to manage matches in a tournament"
+msgstr "Comandi per gestire le partite di un torneo"
+
+msgid "Commands to manage tickets in a tournament"
+msgstr "Comandi per gestire i biglietti di un torneo"
+
+msgid "Congratulations, you will be part of our upcoming tournament!"
+msgstr "Congratulazioni, farete parte del nostro prossimo torneo!"
+
+msgid "Count"
+msgstr "Numero"
+
+msgid "Create a manual match"
+msgstr "Crea una partita manuale"
+
+msgid "Create a new tournament"
+msgstr "Crea un nuovo torneo"
+
+msgid "Create a tournament"
+msgstr "Crea un torneo"
+
+msgid "Customize the next round"
+msgstr "Personalizza il prossimo turno"
+
+msgid "Delete a tournament"
+msgstr "Elimina un torneo"
+
+msgid "Do you really want to delete this tournament and all its data?"
+msgstr "Eliminare davvero questo torneo e tutti i suoi dati?"
+
+msgid "Do you really want to finish the match and make {} the winner?"
+msgstr "Concludere davvero la partita e dichiarare {} vincitore?"
+
+msgid "Do you really want to sell a tickets of type {} for {} credits?"
+msgstr "Vendere davvero un biglietto di tipo {} per {} crediti?"
+
+msgid "Do you want to generate new matches for tournament {}?"
+msgstr "Generare nuove partite per il torneo {}?"
+
+msgid "Do you want to import the data and overwrite your matches?"
+msgstr "Importare i dati e sovrascrivere le partite?"
+
+msgid "Do you want to inform players about the new tournament now?"
+msgstr "Informare ora i giocatori del nuovo torneo?"
+
+msgid "Do you want to re-generate your groups?"
+msgstr "Rigenerare i gruppi?"
+
+msgid "Do you want to start round {} of the match between\n{} and {}?"
+msgstr "Avviare il turno {} della partita tra\n{} e {}?"
+
+msgid "Draw"
+msgstr "Pareggio"
+
+msgid "Edit a match"
+msgstr "Modifica una partita"
+
+msgid "Enter a number"
+msgstr "Inserisci un numero"
+
+msgid "Error deleting tournament: {}"
+msgstr "Errore durante l'eliminazione del torneo: {}"
+
+msgid "Error during opening the channels: {}"
+msgstr "Errore durante l'apertura dei canali: {}"
+
+msgid "Error while processing the file: {}"
+msgstr "Errore durante l'elaborazione del file: {}"
+
+msgid "Error: This campaign is already stopped!"
+msgstr "Errore: questa campagna è già ferma!"
+
+msgid "Export matches"
+msgstr "Esporta partite"
+
+msgid "Finish a tournament"
+msgstr "Concludi un torneo"
+
+msgid "Generate bracket"
+msgstr "Genera tabellone"
+
+msgid "Generate matches"
+msgstr "Genera partite"
+
+msgid "Generating group matches for this tournament ..."
+msgstr "Generazione delle partite di girone per questo torneo ..."
+
+msgid "Generating knockout matches for this tournament ..."
+msgstr "Generazione delle partite a eliminazione diretta per questo torneo ..."
+
+msgid "How many {} do you want?"
+msgstr "Quanti {} servono?"
+
+msgid "IP:Port"
+msgstr "IP:Porta"
+
+msgid "Invalid date format. Use yyyy-mm-dd hh:mm:ss."
+msgstr "Formato data non valido. Usare aaaa-mm-gg hh:mm:ss."
+
+msgid "Invoice"
+msgstr "Fattura"
+
+msgid "Kicked due to early engagement."
+msgstr "Espulso per ingaggio anticipato."
+
+msgid "Kicked due to early takeoff."
+msgstr "Espulso per decollo anticipato."
+
+msgid "List matches"
+msgstr "Elenca partite"
+
+msgid "List tickets of a squadron"
+msgstr "Elenca i biglietti di una squadriglia"
+
+msgid "Match Setup"
+msgstr "Configurazione partita"
+
+msgid "Match created."
+msgstr "Partita creata."
+
+msgid "Match not updated."
+msgstr "Partita non aggiornata."
+
+msgid "Match time (yyyy-mm-dd hh:mm:ss)"
+msgstr "Orario della partita (aaaa-mm-gg hh:mm:ss)"
+
+msgid "Match times, comma separated in format HH:MM"
+msgstr "Orari delle partite, separati da virgola nel formato HH:MM"
+
+msgid "Match updated."
+msgstr "Partita aggiornata."
+
+msgid "Matches for Tournament {}"
+msgstr "Partite del torneo {}"
+
+msgid "No matches for tournament {} found."
+msgstr "Nessuna partita trovata per il torneo {}."
+
+msgid "No winner found yet, playing one decisive round!"
+msgstr "Nessun vincitore trovato finora, si gioca un turno decisivo!"
+
+msgid "Number of players"
+msgstr "Numero di giocatori"
+
+msgid "Number of players needs to be a number."
+msgstr "Il numero di giocatori deve essere un numero."
+
+msgid "Number of players needs to be at least 1."
+msgstr "Il numero di giocatori deve essere almeno 1."
+
+msgid "Number of rounds"
+msgstr "Numero di turni"
+
+msgid "Number of rounds needs to be a number."
+msgstr "Il numero di turni deve essere un numero."
+
+msgid "Number of rounds needs to be an odd value."
+msgstr "Il numero di turni deve essere un valore dispari."
+
+msgid "Number of rounds needs to be at least 3."
+msgstr "Il numero di turni deve essere almeno 3."
+
+msgid "Player {name} joined the match in their {unit}."
+msgstr "Il giocatore {name} è entrato nella partita con il proprio {unit}."
+
+msgid "Please enter a reason why you decided to reject this squadron."
+msgstr "Inserire il motivo per cui si è deciso di rifiutare questa squadriglia."
+
+msgid "Please enter a short summary of your group and why you want to "
+msgstr "Inserire un breve riepilogo del proprio gruppo e del motivo per cui si desidera "
+
+msgid "Please keep in mind that you can only use {} planes!"
+msgstr "Tenere presente che si possono usare solo {} aerei!"
+
+msgid "Preferred times (UTC)"
+msgstr "Orari preferiti (UTC)"
+
+msgid "Reason"
+msgstr "Motivo"
+
+msgid "Red"
+msgstr "Rosso"
+
+msgid "Red Wins"
+msgstr "Vittoria Rossa"
+
+msgid "Reject"
+msgstr "Rifiuta"
+
+msgid "Reject a squadron"
+msgstr "Rifiuta una squadriglia"
+
+msgid "Resetting all amended serverSettings.lua files ..."
+msgstr "Ripristino di tutti i file serverSettings.lua modificati ..."
+
+msgid "Role"
+msgstr "Ruolo"
+
+msgid "Round"
+msgstr "Turno"
+
+msgid "Round {} was a draw!"
+msgstr "Il turno {} è stato un pareggio!"
+
+msgid "Round: {}, {} : {}"
+msgstr "Turno: {}, {} : {}"
+
+msgid "Select the DCS terrains you own"
+msgstr "Selezionare i terreni DCS di cui si è in possesso"
+
+msgid "Select your preferred match times"
+msgstr "Selezionare gli orari di partita preferiti"
+
+msgid "Sell tickets for credits"
+msgstr "Vendita di biglietti in cambio di crediti"
+
+msgid "Server {} not found."
+msgstr "Server {} non trovato."
+
+msgid "Server {} shut down."
+msgstr "Server {} arrestato."
+
+msgid "Show squadron preferences"
+msgstr "Mostra le preferenze della squadriglia"
+
+msgid "Signup"
+msgstr "Iscrizione"
+
+msgid "Signup to a tournament"
+msgstr "Iscrizione a un torneo"
+
+msgid "Squadron ID not found."
+msgstr "ID squadriglia non trovato."
+
+msgid "Squadron admins, you can now choose your weapons for the next round!"
+msgstr "Amministratori della squadriglia, ora potete scegliere le armi per il prossimo turno!"
+
+msgid "Squadron already signed up for tournament."
+msgstr "La squadriglia è già iscritta al torneo."
+
+msgid "Squadron application handed in for tournament {}."
+msgstr "Candidatura della squadriglia presentata per il torneo {}."
+
+msgid "Squadron blue rounds won"
+msgstr "Turni vinti dalla squadriglia blu"
+
+msgid "Squadron red rounds won"
+msgstr "Turni vinti dalla squadriglia rossa"
+
+msgid "Squadron {name} won round {round}!"
+msgstr "La squadriglia {name} ha vinto il turno {round}!"
+
+msgid "Squadron {squadron} is the winner of the match!"
+msgstr "La squadriglia {squadron} è la vincitrice della partita!"
+
+msgid "Squadron {} accepted."
+msgstr "Squadriglia {} accettata."
+
+msgid "Squadron {} forfeit and withdrew from tournament {}."
+msgstr "La squadriglia {} ha dato rinuncia e si è ritirata dal torneo {}."
+
+msgid "Squadron {} rejected."
+msgstr "Squadriglia {} rifiutata."
+
+msgid "Squadron {} signed up for tournament {}, you can now {} them."
+msgstr "La squadriglia {} si è iscritta al torneo {}, ora è possibile {}."
+
+msgid "Start Date"
+msgstr "Data di inizio"
+
+msgid "Start a match"
+msgstr "Avvia una partita"
+
+msgid "State"
+msgstr "Stato"
+
+msgid "Status"
+msgstr "Stato"
+
+msgid "THE TOURNAMENT HAS FINISHED!"
+msgstr "IL TORNEO È TERMINATO!"
+
+msgid "Terrain"
+msgstr "Terreno"
+
+msgid "Terrain Preferences"
+msgstr "Preferenze terreno"
+
+msgid "Thank you for your purchase!"
+msgstr "Grazie per l'acquisto!"
+
+msgid "The data has been imported successfully."
+msgstr "I dati sono stati importati correttamente."
+
+msgid "The eliminiation phase is now running."
+msgstr "La fase a eliminazione è ora in corso."
+
+msgid "The filename has to be 'tournament_ID.xlsx'."
+msgstr "Il nome del file deve essere 'tournament_ID.xlsx'."
+
+msgid "The first party to lose all their units will be defeated, "
+msgstr "La prima fazione che perde tutte le proprie unità sarà sconfitta, "
+
+msgid "The group phase is now running."
+msgstr "La fase a gironi è ora in corso."
+
+msgid "The level of your match. If all matches on one level are finished, increase the level by one."
+msgstr "Il livello della partita. Se tutte le partite di un livello sono concluse, aumentare il livello di uno."
+
+msgid "The match is over: {} won!"
+msgstr "La partita è finita: {} ha vinto!"
+
+msgid "The match is starting NOW!"
+msgstr "La partita inizia ORA!"
+
+msgid "The match will continue with round {}."
+msgstr "La partita proseguirà con il turno {}."
+
+msgid "The next round will start in 10s!"
+msgstr "Il prossimo turno inizierà tra 10 s!"
+
+msgid "The provided campaign is already started.\n"
+msgstr "La campagna fornita è già avviata.\n"
+
+msgid "The round is over, please wait for the next one!"
+msgstr "Il turno è terminato, attendere il prossimo turno!"
+
+msgid "The round will start in {} minute{}.\n"
+msgstr "Il turno inizierà tra {} minut{}.\n"
+
+msgid "The round will start in {} second{}."
+msgstr "Il turno inizierà tra {} second{}."
+
+msgid "The server is now unpaused!\n"
+msgstr "Il server è ora di nuovo attivo!\n"
+
+msgid "The server will be unpaused, if all players have chosen their slots!"
+msgstr "Il server verrà riattivato quando tutti i giocatori avranno scelto il proprio slot!"
+
+msgid "The ticket {} does not exist."
+msgstr "Il biglietto {} non esiste."
+
+msgid "The tournament {} is finished."
+msgstr "Il torneo {} è concluso."
+
+msgid "There are only {} items available to buy."
+msgstr "Sono disponibili solo {} articoli da acquistare."
+
+msgid "There are unfinished matches. "
+msgstr "Ci sono partite non concluse. "
+
+msgid "There is a match running. Please wait for the round to finish."
+msgstr "C'è una partita in corso. Attendere la fine del turno."
+
+msgid "This match is over already. You can not start another round."
+msgstr "Questa partita è già conclusa. Non è possibile avviare un altro turno."
+
+msgid "This tournament is already finished!\n"
+msgstr "Questo torneo è già concluso!\n"
+
+msgid "This tournament is finished already!"
+msgstr "Questo torneo è già concluso!"
+
+msgid "This will overwrite any existing **unflown** matches!"
+msgstr "Questo sovrascriverà tutte le partite **non volate** esistenti!"
+
+msgid "Tickets"
+msgstr "Biglietti"
+
+msgid "Tickets of type {} are not for sale."
+msgstr "I biglietti di tipo {} non sono in vendita."
+
+msgid "Time Preferences"
+msgstr "Preferenze orarie"
+
+msgid "To win the match, a party must eliminate all enemy aircraft AND safely land "
+msgstr "Per vincere la partita, una fazione deve eliminare tutti gli aerei nemici E atterrare in sicurezza "
+
+msgid "Tournament"
+msgstr "Torneo"
+
+msgid "Tournament not found."
+msgstr "Torneo non trovato."
+
+msgid "Tournament {} created."
+msgstr "Torneo {} creato."
+
+msgid "Tournament {} deleted."
+msgstr "Torneo {} eliminato."
+
+msgid "Tournament {} exists already!"
+msgstr "Il torneo {} esiste già!"
+
+msgid "Unit {} is lost and will be permanently removed from the match."
+msgstr "L'unità {} è perduta e verrà rimossa definitivamente dalla partita."
+
+msgid "Verfiy Applications"
+msgstr "Verifica candidature"
+
+msgid "We have found no winner yet, continuing the match with another round!"
+msgstr "Non è stato ancora trovato un vincitore, la partita continua con un altro turno!"
+
+msgid "Win-Chance"
+msgstr "Probabilità di vittoria"
+
+msgid "Winner not updated."
+msgstr "Vincitore non aggiornato."
+
+msgid "Winner: {}"
+msgstr "Vincitore: {}"
+
+msgid "Withdraw from a tournament"
+msgstr "Ritiro da un torneo"
+
+msgid "You already made your choice. Wait for the next round!"
+msgstr "La scelta è già stata effettuata. Attendere il prossimo turno!"
+
+msgid "You are going to withdraw from a running tournament!\n"
+msgstr "Ci si sta per ritirare da un torneo in corso!\n"
+
+msgid "You are not a squadron member.\n"
+msgstr "Non si è membri di alcuna squadriglia.\n"
+
+msgid "You can **now** join the server."
+msgstr "Ora è possibile **accedere** al server."
+
+msgid "You can not choose during a running match!"
+msgstr "Non è possibile scegliere durante una partita in corso!"
+
+msgid "You can now use {} to chose your customizations!"
+msgstr "Ora è possibile usare {} per scegliere le personalizzazioni!"
+
+msgid "You can now use {} to chose your customizations!\n"
+msgstr "Ora è possibile usare {} per scegliere le personalizzazioni!\n"
+
+msgid "You can use each ticket only once, so use them wisely!"
+msgstr "Ogni biglietto può essere usato una sola volta, quindi usarli con saggezza!"
+
+msgid "You decided to not buy any customizations in this round."
+msgstr "Non è stata acquistata alcuna personalizzazione in questo turno."
+
+msgid "You do not have any tickets of this type."
+msgstr "Non ci sono biglietti di questo tipo."
+
+msgid "You do not have enough credits to buy {} items."
+msgstr "Crediti insufficienti per acquistare {} articoli."
+
+msgid "You do not have enough squadron credits to buy a choice."
+msgstr "Crediti di squadriglia insufficienti per acquistare una scelta."
+
+msgid "You have been eliminated from the tournament {}.\n"
+msgstr "Sei stato eliminato dal torneo {}.\n"
+
+msgid "You have been eliminated!"
+msgstr "Sei stato eliminato!"
+
+msgid "You have {} credit points left to spend."
+msgstr "Restano {} punti credito da spendere."
+
+msgid "You have {} to arm up your planes and get ready before the match starts."
+msgstr "Si hanno {} per armare i propri aerei e prepararsi prima dell'inizio della partita."
+
+msgid "You just finished the tournament!"
+msgstr "Hai appena concluso il torneo!"
+
+msgid "You must not share the password with anyone outside your squadron!\n"
+msgstr "Non condividere la password con nessuno al di fuori della propria squadriglia!\n"
+
+msgid "You need to be DCS Admin or GameMaster to upload data."
+msgstr "Per caricare i dati è necessario essere DCS Admin o GameMaster."
+
+msgid "You need to be an admin of the respective squadron to sign up.\n"
+msgstr "Per iscriversi è necessario essere amministratore della rispettiva squadriglia.\n"
+
+msgid "You sold a ticket of type {} and got {} credits back.\n"
+msgstr "Hai venduto un biglietto di tipo {} e hai ricevuto {} crediti.\n"
+
+msgid "You will be moved back to spectators in 60 seconds ..."
+msgstr "Verrai riportato tra gli spettatori tra 60 secondi ..."
+
+msgid "Your Squadron has been accepted!"
+msgstr "La tua squadriglia è stata accettata!"
+
+msgid "Your Squadron has been rejected!"
+msgstr "La tua squadriglia è stata rifiutata!"
+
+msgid "Your Tickets"
+msgstr "I tuoi biglietti"
+
+msgid "Your choices were saved.\n"
+msgstr "Le tue scelte sono state salvate.\n"
+
+msgid "Your next match against {name} starts <t:{time}:R>!"
+msgstr "La tua prossima partita contro {name} inizia <t:{time}:R>!"
+
+msgid "Your squadron does not have any tickets."
+msgstr "La tua squadriglia non possiede biglietti."
+
+msgid "Your squadron has been withdrawn from tournament {}."
+msgstr "La tua squadriglia si è ritirata dal torneo {}."
+
+msgid "Your squadron {squadron} was rejected from tournament {tournament}."
+msgstr "La tua squadriglia {squadron} è stata rifiutata dal torneo {tournament}."
+
+msgid "\n- Assigning coalitions ..."
+msgstr "\n- Assegnazione delle coalizioni ..."
+
+msgid "\n- Awaiting squadron choices ..."
+msgstr "\n- In attesa delle scelte delle squadriglie ..."
+
+msgid "\n- Preparing server {} ..."
+msgstr "\n- Preparazione del server {} ..."
+
+msgid "\n- Server {} ready, notifying teams ..."
+msgstr "\n- Server {} pronto, notifica alle squadre ..."
+
+msgid "\n- Setting passwords..."
+msgstr "\n- Impostazione delle password..."
+
+msgid "\n- Shutting down server {} ..."
+msgstr "\n- Arresto del server {} ..."
+
+msgid "\n- Starting server {} ..."
+msgstr "\n- Avvio del server {} ..."
+
+msgid "\n- Using mission {} ..."
+msgstr "\n- Uso della missione {} ..."
+
+msgid "\nServer will be shut down in 60 seonds ..."
+msgstr "\nIl server verrà arrestato tra 60 secondi ..."
+
+msgid "\nYou can use {} to sign up."
+msgstr "\nÈ possibile usare {} per iscriversi."
+
+msgid "\n\nYou can use the following tickets during the tournament to buy special customizations:"
+msgstr "\n\nDurante il torneo è possibile usare i seguenti biglietti per acquistare personalizzazioni speciali:"
+
+msgid "n/a"
+msgstr "n/d"
+
+msgid "## :warning: Attention all Squadron Leaders! :warning:\nA new tournament has been created:\n\n```{}```"
+msgstr "## :warning: Attenzione a tutti i capi squadriglia! :warning:\nÈ stato creato un nuovo torneo:\n\n```{}```"
+
+msgid "### Stand proud, {}!\n_Through fire and thunder you prevailed,\nWhen others faltered, you stood strong,\nVictory is where you belong!_"
+msgstr "### Siate fieri, {}!\n_Attraverso il fuoco e il tuono avete prevalso,\nQuando gli altri vacillavano, voi restavate saldi,\nLa vittoria è il vostro posto!_"
+
+msgid ":warning: To participate in the tournament, your squadron must have an assigned role.\nContact the tournament host to receive your role assignment."
+msgstr ":warning: Per partecipare al torneo, la vostra squadriglia deve avere un ruolo assegnato.\nContattare l'organizzatore del torneo per ricevere l'assegnazione del ruolo."
+
+msgid "Please enter a short summary of your group and why you want to participate in this tournament."
+msgstr "Inserire un breve riepilogo del proprio gruppo e del motivo per cui si desidera partecipare a questo torneo."
+
+msgid "The first party to lose all their units will be defeated, making the surviving party the winner of the match."
+msgstr "La prima fazione che perde tutte le proprie unità sarà sconfitta, rendendo la fazione superstite vincitrice della partita."
+
+msgid "The provided campaign is already started.\nAre you sure you want to create a tournament for it now?"
+msgstr "La campagna fornita è già avviata.\nCreare comunque un torneo per essa ora?"
+
+msgid "The round will start in {} minute{}.\nIf you takeoff/engage before this time is over, you will be kicked and cannot rejoin for this round!"
+msgstr "Il turno inizierà tra {} minut{}.\nSe si decolla o si ingaggia prima di questo momento, si verrà espulsi e non sarà possibile rientrare per questo turno!"
+
+msgid "There are unfinished matches. Do you really want to finish this tournament?"
+msgstr "Ci sono partite non concluse. Concludere davvero questo torneo?"
+
+msgid "To win the match, a party must eliminate all enemy aircraft AND safely land at least one of their own planes."
+msgstr "Per vincere la partita, una fazione deve eliminare tutti gli aerei nemici E atterrare in sicurezza con almeno uno dei propri aerei."
+
+msgid "You are going to withdraw from a running tournament!\nAll already scheduled matches will be marked as lost."
+msgstr "Ci si sta per ritirare da un torneo in corso!\nTutte le partite già pianificate saranno contrassegnate come perse."
+
+msgid "You are not a squadron member.\nPlease ask your squadron leader to add you."
+msgstr "Non si è membri di alcuna squadriglia.\nChiedere al proprio capo squadriglia di aggiungervi."
+
+msgid "You can now use {} to chose your customizations!\nIf you do not want to change anything, please run it and say 'Skip this round'"
+msgstr "Ora è possibile usare {} per scegliere le personalizzazioni!\nSe non si desidera cambiare nulla, eseguirlo e rispondere 'Skip this round'"
+
+msgid "You have been eliminated from the tournament {}.\nThank you for your participation!"
+msgstr "Sei stato eliminato dal torneo {}.\nGrazie per la partecipazione!"
+
+msgid "You must not share the password with anyone outside your squadron!\nYou will stay on the {} side throughout the whole match."
+msgstr "Non condividere la password con nessuno al di fuori della propria squadriglia!\nResterai nella fazione {} per tutta la durata della partita."
+
+msgid "You need to be an admin of the respective squadron to sign up.\n\nDISCLAIMER:\nWe will store player information during the tournament.\nThis includes account IDs and hashed IP addresses."
+msgstr "Per iscriversi è necessario essere amministratore della rispettiva squadriglia.\n\nAVVERTENZA:\nDurante il torneo verranno memorizzate informazioni sui giocatori.\nSono inclusi ID account e indirizzi IP con hash."
+
+msgid "You sold a ticket of type {} and got {} credits back.\nYour total squadron balance is {} credits."
+msgstr "Hai venduto un biglietto di tipo {} e hai ricevuto {} crediti.\nIl saldo totale della tua squadriglia è di {} crediti."
+
+msgid "Your choices were saved.\nIf you want them to be applied to the next round, press 'Confirm & Buy'."
+msgstr "Le tue scelte sono state salvate.\nPer applicarle al turno successivo, premere 'Confirm & Buy'."
+
+msgid "{} matches generated:"
+msgstr "{} partite generate:"
+
+msgid "Cannot start match due to an error: {}"
+msgstr "Impossibile avviare la partita a causa di un errore: {}"
+
+msgid "{} has to be used in the respective coalition channel."
+msgstr "{} deve essere usato nel rispettivo canale della coalizione."
+
+msgid "Delete a match"
+msgstr "Elimina una partita"
+
+msgid "Do you want to delete this match?"
+msgstr "Eliminare questa partita?"
+
+msgid "{} player {}: {}"
+msgstr "{} giocatore {}: {}"
+
+msgid "{} player {} shot an {} at {} player {}"
+msgstr "{} giocatore {} ha lanciato un {} contro {} giocatore {}"
+
+msgid "{} player {} hit {} player {}"
+msgstr "{} giocatore {} ha colpito {} giocatore {}"
+
+msgid "{} player {} is out!"
+msgstr "{} giocatore {} è fuori!"

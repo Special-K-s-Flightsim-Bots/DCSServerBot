@@ -1,0 +1,92 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to manage Tacview"
+msgstr "Comandos para gerenciar o Tacview"
+
+msgid "Configure Tacview"
+msgstr "Configurar o Tacview"
+
+msgid "Tacview not installed on server {}!"
+msgstr "O Tacview não está instalado no servidor {}!"
+
+msgid "Tacview configuration changed on server {}."
+msgstr "Configuração do Tacview alterada no servidor {}."
+
+msgid "Server {} needs to be shut down to configure Tacview."
+msgstr "O servidor {} precisa ser desligado para configurar o Tacview."
+
+msgid "Install Tacview"
+msgstr "Instalar o Tacview"
+
+msgid "Tacview already installed on server {}!"
+msgstr "O Tacview já está instalado no servidor {}!"
+
+msgid "Installing Tacview on server {} ..."
+msgstr "Instalando o Tacview no servidor {} ..."
+
+msgid "Tacview is not configured on node {}!"
+msgstr "O Tacview não está configurado no nó {}!"
+
+msgid "Tacview installed on server {}."
+msgstr "Tacview instalado no servidor {}."
+
+msgid "Tacview could not be installed on server {}!"
+msgstr "Não foi possível instalar o Tacview no servidor {}!"
+
+msgid "Server {} needs to be shut down to install Tacview."
+msgstr "O servidor {} precisa ser desligado para instalar o Tacview."
+
+msgid "Uninstall Tacview"
+msgstr "Desinstalar o Tacview"
+
+msgid "Uninstalling Tacview on server {} ..."
+msgstr "Desinstalando o Tacview no servidor {} ..."
+
+msgid "Tacview uninstalled on server {}."
+msgstr "Tacview desinstalado no servidor {}."
+
+msgid "Tacview could not be uninstalled on server {}!"
+msgstr "Não foi possível desinstalar o Tacview no servidor {}!"
+
+msgid "Server {} needs to be shut down to uninstall Tacview."
+msgstr "O servidor {} precisa ser desligado para desinstalar o Tacview."
+
+msgid "Tacview file for server {}"
+msgstr "Arquivo Tacview do servidor {}"
+
+msgid "Tacview updated to version {version} on instance {instance}."
+msgstr "Tacview atualizado para a versão {version} na instância {instance}."
+
+msgid "Download a Tacview"
+msgstr "Baixar um Tacview"
+
+msgid "The file exceeds the maximum allowed size on Discord. Aborted."
+msgstr "O arquivo excede o tamanho máximo permitido no Discord. Abortado."
+
+msgid "Tacview recording sent in a DM"
+msgstr "Gravação do Tacview enviada por DM"
+
+msgid "Tacview recording uploaded to channel {}"
+msgstr "Gravação do Tacview enviada para o canal {}"
+
+msgid "Error during upload. Check the log for details."
+msgstr "Erro durante o envio. Verifique o log para detalhes."
+
+msgid "Start realtime recording"
+msgstr "Iniciar gravação em tempo real"
+
+msgid "Tacview recording started."
+msgstr "Gravação do Tacview iniciada."
+
+msgid "Stop realtime recording"
+msgstr "Parar gravação em tempo real"
+
+msgid "Tacview recording stopped, file {} written."
+msgstr "Gravação do Tacview parada, arquivo {} gravado."

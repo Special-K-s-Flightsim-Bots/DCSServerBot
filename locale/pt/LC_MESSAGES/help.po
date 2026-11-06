@@ -1,0 +1,77 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Command: {}"
+msgstr "Comando: {}"
+
+msgid "Usage"
+msgstr "Uso"
+
+msgid "<> mandatory, [] non-mandatory"
+msgstr "<> obrigatório, [] não obrigatório"
+
+msgid "{} Help"
+msgstr "Ajuda de {}"
+
+msgid "Command"
+msgstr "Comando"
+
+msgid "Description"
+msgstr "Descrição"
+
+msgid "There are no commands for your role in this plugin."
+msgstr "Não há comandos para o seu cargo neste plugin."
+
+msgid "Use /help [command] if you want help for a specific command."
+msgstr "Use /help [comando] se quiser ajuda para um comando específico."
+
+msgid "Select the plugin you want help for"
+msgstr "Selecione o plugin para o qual deseja ajuda"
+
+msgid "The help command"
+msgstr "O comando de ajuda"
+
+msgid "Command {} not found."
+msgstr "Comando {} não encontrado."
+
+msgid "You don't have the permission to use this command."
+msgstr "Você não tem permissão para usar este comando."
+
+msgid "## DCSServerBot Commands"
+msgstr "## Comandos do DCSServerBot"
+
+msgid "Generate Documentation"
+msgstr "Gerar documentação"
+
+msgid "Please provide a role for channel output."
+msgstr "Por favor, forneça um cargo para a saída no canal."
+
+msgid "Unknown option {}!"
+msgstr "Opção desconhecida {}!"
+
+msgid "\nThe following bot commands can be used in this discord by members that have the {} role:\n_ _\n"
+msgstr "\nOs seguintes comandos do bot podem ser usados neste Discord por membros que possuem o cargo {}:\n_ _\n"
+
+msgid "\nThe following bot commands can be used in this discord:\n_ _\n"
+msgstr "\nOs seguintes comandos do bot podem ser usados neste Discord:\n_ _\n"
+
+msgid "Please specify the format (channel or xls)."
+msgstr "Por favor, especifique o formato (channel ou xls)."
+
+msgid "Do you want to generate the server documentation?"
+msgstr "Deseja gerar a documentação do servidor?"
+
+msgid "The file may contain passwords!"
+msgstr "O arquivo pode conter senhas!"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Your firewall ruleset:"
+msgstr "Suas regras de firewall:"

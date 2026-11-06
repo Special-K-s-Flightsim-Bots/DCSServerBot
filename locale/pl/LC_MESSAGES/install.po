@@ -1,0 +1,347 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pl\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "The bot can be set to the same language, which means, that all Discord and in-game messages will be in your language as well. Would you like me to configure the bot this way?"
+msgstr "Bota można ustawić na ten sam język, co oznacza, że wszystkie wiadomości na Discordzie i w grze będą również w Twoim języku. Czy skonfigurować bota w ten sposób?"
+
+msgid "\nFor a successful installation, you need to fulfill the following prerequisites:\n"
+msgstr "\nAby instalacja zakończyła się pomyślnie, należy spełnić następujące wymagania wstępne:\n"
+
+msgid "\nFor a successful installation, you need to fulfill the following prerequisites:\n\n"
+msgstr "\nAby instalacja zakończyła się pomyślnie, należy spełnić następujące wymagania wstępne:\n\n"
+
+msgid "\nFor a successful installation, you need to fulfill the following prerequisites:\n\n    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n"
+msgstr "\nAby instalacja zakończyła się pomyślnie, należy spełnić następujące wymagania wstępne:\n\n    1. Instalacja PostgreSQL ze strony https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n"
+
+msgid "\nFor a successful installation, you need to fulfill the following prerequisites:\n\n    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n    2. A Discord TOKEN for your bot from https://discord.com/developers/applications\n"
+msgstr "\nAby instalacja zakończyła się pomyślnie, należy spełnić następujące wymagania wstępne:\n\n    1. Instalacja PostgreSQL ze strony https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n    2. Token Discord dla Twojego bota ze strony https://discord.com/developers/applications\n"
+
+msgid "\nFor a successful installation, you need to fulfill the following prerequisites:\n\n    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n    2. A Discord TOKEN for your bot from https://discord.com/developers/applications\n\n"
+msgstr "\nAby instalacja zakończyła się pomyślnie, należy spełnić następujące wymagania wstępne:\n\n    1. Instalacja PostgreSQL ze strony https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n    2. Token Discord dla Twojego bota ze strony https://discord.com/developers/applications\n\n"
+
+msgid "Have you fulfilled all these requirements?"
+msgstr "Czy spełniono wszystkie te wymagania?"
+
+msgid "Aborted: missing requirements."
+msgstr "Przerwano: brakujące wymagania."
+
+msgid "\n1. [u]General Setup[/]"
+msgstr "\n1. [u]Konfiguracja ogólna[/]"
+
+msgid "Do you want your DCSServerBot being auto-updated?"
+msgstr "Czy DCSServerBot ma być aktualizowany automatycznie?"
+
+msgid "\n2. [u]Discord Setup[/]"
+msgstr "\n2. [u]Konfiguracja Discord[/]"
+
+msgid "Please enter your Discord Guild ID (right click on your Discord server, \"Copy Server ID\")"
+msgstr "Podaj ID serwera Discord (kliknij prawym przyciskiem na swój serwer Discord i wybierz \"Kopiuj ID serwera\")"
+
+msgid "Please enter your discord TOKEN (see documentation)"
+msgstr "Podaj swój token Discord (patrz dokumentacja)"
+
+msgid "Please enter your Owner ID (right click on your discord user, \"Copy User ID\")"
+msgstr "Podaj swoje ID właściciela (kliknij prawym przyciskiem na swojego użytkownika Discord i wybierz \"Kopiuj ID użytkownika\")"
+
+msgid "\nWe now need to setup your Discord roles and channels.\n"
+msgstr "\nNależy teraz skonfigurować role i kanały Discord.\n"
+
+msgid "\nWe now need to setup your Discord roles and channels.\nDCSServerBot creates a role mapping for your bot users. It has the following internal roles:"
+msgstr "\nNależy teraz skonfigurować role i kanały Discord.\nDCSServerBot tworzy mapowanie ról dla użytkowników bota. Ma następujące role wewnętrzne:"
+
+msgid "Users can delete data, change the bot, run commands on your server"
+msgstr "Użytkownicy mogą usuwać dane, zmieniać bota, uruchamiać polecenia na serwerze"
+
+msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
+msgstr "Użytkownicy mogą przesyłać misje, uruchamiać/zatrzymywać serwery DCS, wyrzucać/banować użytkowników itp."
+
+msgid "\n2. [u]Bot Setup[/]"
+msgstr "\n2. [u]Konfiguracja bota[/]"
+
+msgid "Please enter the name of your DCS group"
+msgstr "Podaj nazwę swojej grupy DCS"
+
+msgid "You now need to setup your users.\nDCSServerBot uses the following internal roles:"
+msgstr "Należy teraz skonfigurować użytkowników.\nDCSServerBot używa następujących ról wewnętrznych:"
+
+msgid "Which user(s) should get the [bold]{}[/] role?\n"
+msgstr "Który użytkownik (użytkownicy) ma otrzymać rolę [bold]{}[/]?\n"
+
+msgid "Which user(s) should get the [bold]{}[/] role?\nPlease enter a comma-separated list of UCIDs"
+msgstr "Który użytkownik (użytkownicy) ma otrzymać rolę [bold]{}[/]?\nPodaj listę UCID-ów oddzielonych przecinkami"
+
+msgid "[i]You can skip the Discord TOKEN, if you decide to do a non-Discord-installation.[/]"
+msgstr "[i]Możesz pominąć token Discord, jeśli zdecydujesz się na instalację bez Discorda.[/]"
+
+msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
+msgstr "Czy uruchomić DCSServerBot z obsługą Discorda (zalecane)?"
+
+msgid "Users can delete data and change the bot"
+msgstr "Użytkownicy mogą usuwać dane i zmieniać bota"
+
+msgid "Users can restart missions, kick/ban users, etc."
+msgstr "Użytkownicy mogą restartować misje, wyrzucać/banować użytkowników itp."
+
+msgid "Searching for existing DCS server configurations ..."
+msgstr "Wyszukiwanie istniejących konfiguracji serwerów DCS ..."
+
+msgid "Please enter the path to your DCS World installation"
+msgstr "Podaj ścieżkę do instalacji DCS World"
+
+msgid "Do you want to continue without a DCS installation being set?"
+msgstr "Czy kontynuować bez ustawionej instalacji DCS?"
+
+msgid "Directory not found. Please try again."
+msgstr "Nie znaleziono katalogu. Spróbuj ponownie."
+
+msgid "Searching for DCS installations ..."
+msgstr "Wyszukiwanie instalacji DCS ..."
+
+msgid "Other"
+msgstr "Inne"
+
+msgid "Please specify, which installation you want the bot to use.\n"
+msgstr "Wskaż, której instalacji ma używać bot.\n"
+
+msgid "Please specify, which installation you want the bot to use.\nChose \"Other\", if it is not in the list"
+msgstr "Wskaż, której instalacji ma używać bot.\nWybierz \"Inne\", jeśli nie ma jej na liście"
+
+msgid "Normal user, can pull statistics, ATIS, etc."
+msgstr "Zwykły użytkownik, może pobierać statystyki, ATIS itp."
+
+msgid "Please separate roles by comma, if you want to provide more than one.\n"
+msgstr "Jeśli chcesz podać więcej niż jedną rolę, oddziel je przecinkami.\n"
+
+msgid "Please separate roles by comma, if you want to provide more than one.\nYou can keep the defaults, if unsure and create the respective roles in your Discord server."
+msgstr "Jeśli chcesz podać więcej niż jedną rolę, oddziel je przecinkami.\nW razie wątpliwości możesz pozostawić wartości domyślne i utworzyć odpowiednie role na swoim serwerze Discord."
+
+msgid "Which role(s) in your discord should hold the [bold]{}[/] role?"
+msgstr "Która rola (role) na Twoim Discordzie ma mieć rolę [bold]{}[/]?"
+
+msgid "\nPlease provide a channel ID for audit events (optional)"
+msgstr "\nPodaj ID kanału dla zdarzeń audytu (opcjonalnie)"
+
+msgid "\nThe bot can either use a dedicated admin channel for each server or a central admin channel for all servers.\n"
+msgstr "\nBot może używać dedykowanego kanału administracyjnego dla każdego serwera lub centralnego kanału administracyjnego dla wszystkich serwerów.\n"
+
+msgid "\nThe bot can either use a dedicated admin channel for each server or a central admin channel for all servers.\nIf you want to use a central one, please provide the ID (optional)"
+msgstr "\nBot może używać dedykowanego kanału administracyjnego dla każdego serwera lub centralnego kanału administracyjnego dla wszystkich serwerów.\nJeśli chcesz użyć centralnego, podaj jego ID (opcjonalnie)"
+
+msgid "[red]A configuration for this nodes exists already![/]\n"
+msgstr "[red]Konfiguracja dla tego węzła już istnieje![/]\n"
+
+msgid "[red]A configuration for this nodes exists already![/]\nDo you want to overwrite it?"
+msgstr "[red]Konfiguracja dla tego węzła już istnieje![/]\nCzy ją nadpisać?"
+
+msgid "Aborted: configuration exists"
+msgstr "Przerwano: konfiguracja istnieje"
+
+msgid "[yellow]Configuration found, adding another node...[/]"
+msgstr "[yellow]Znaleziono konfigurację, dodawanie kolejnego węzła...[/]"
+
+msgid "\n{}. [u]Database Setup[/]"
+msgstr "\n{}. [u]Konfiguracja bazy danych[/]"
+
+msgid "[red]No PostgreSQL-database found on {host}:{port}![/]"
+msgstr "[red]Nie znaleziono bazy danych PostgreSQL na {host}:{port}![/]"
+
+msgid "Enter the hostname of your PostgreSQL-database"
+msgstr "Podaj nazwę hosta swojej bazy danych PostgreSQL"
+
+msgid "Enter the port to your PostgreSQL-database"
+msgstr "Podaj port swojej bazy danych PostgreSQL"
+
+msgid "Please enter the name of your PostgreSQL master database"
+msgstr "Podaj nazwę głównej bazy danych PostgreSQL"
+
+msgid "Please enter your PostgreSQL master user name"
+msgstr "Podaj nazwę głównego użytkownika PostgreSQL"
+
+msgid "Please enter your PostgreSQL master password (user={})"
+msgstr "Podaj główne hasło PostgreSQL (użytkownik={})"
+
+msgid "[yellow]Existing {} user found![/]"
+msgstr "[yellow]Znaleziono istniejącego użytkownika {}![/]"
+
+msgid "Do you remember the password of {}?"
+msgstr "Czy pamiętasz hasło użytkownika {}?"
+
+msgid "Please enter your password for user {}"
+msgstr "Podaj hasło dla użytkownika {}"
+
+msgid "[red]Wrong password! Try again ({}/3).[/]"
+msgstr "[red]Błędne hasło! Spróbuj ponownie ({}/3).[/]"
+
+msgid "[yellow]You have entered 3x a wrong password. I have reset it.[/]'"
+msgstr "[yellow]Trzykrotnie podano błędne hasło. Zostało zresetowane.[/]'"
+
+msgid "[green]- Database user and database created.[/]"
+msgstr "[green]- Utworzono użytkownika bazy danych i bazę danych.[/]"
+
+msgid "[red]Master password wrong. Please try again.[/]"
+msgstr "[red]Błędne hasło główne. Spróbuj ponownie.[/]"
+
+msgid "Aborted: No valid Database URL provided."
+msgstr "Przerwano: nie podano prawidłowego URL bazy danych."
+
+msgid "\n{}. [u]Node Setup[/]"
+msgstr "\n{}. [u]Konfiguracja węzła[/]"
+
+msgid "Aborted: No DCS installation found."
+msgstr "Przerwano: nie znaleziono instalacji DCS."
+
+msgid "Is {} a static IP-address for this node?"
+msgstr "Czy {} jest statycznym adresem IP tego węzła?"
+
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "Czy instalacja DCS ma być aktualizowana automatycznie przez bota?"
+
+msgid "Please enter the path to your DCS-SRS installation.\n"
+msgstr "Podaj ścieżkę do instalacji DCS-SRS.\n"
+
+msgid "Please enter the path to your DCS-SRS installation.\nPress ENTER, if there is none."
+msgstr "Podaj ścieżkę do instalacji DCS-SRS.\nNaciśnij ENTER, jeśli jej nie ma."
+
+msgid "DCS-SRS installation path: {}"
+msgstr "Ścieżka instalacji DCS-SRS: {}"
+
+msgid "DCS-SRS not configured."
+msgstr "DCS-SRS nie jest skonfigurowany."
+
+msgid "\n{}. [u]DCS Server Setup[/]"
+msgstr "\n{}. [u]Konfiguracja serwera DCS[/]"
+
+msgid "No configured DCS servers found."
+msgstr "Nie znaleziono skonfigurowanych serwerów DCS."
+
+msgid "\n[i]DCS server \"{}\" found.[/i]\n"
+msgstr "\n[i]Znaleziono serwer DCS \"{}\".[/i]\n"
+
+msgid "\n[i]DCS server \"{}\" found.[/i]\nWould you like to manage this server through DCSServerBot?"
+msgstr "\n[i]Znaleziono serwer DCS \"{}\".[/i]\nCzy chcesz zarządzać tym serwerem przez DCSServerBot?"
+
+msgid "Adding instance {instance} with server {name} ..."
+msgstr "Dodawanie instancji {instance} z serwerem {name} ..."
+
+msgid "[red]SRS configuration could not be created.\n"
+msgstr "[red]Nie udało się utworzyć konfiguracji SRS.\n"
+
+msgid "[red]SRS configuration could not be created.\nPlease copy your server.cfg to {} manually.[/]"
+msgstr "[red]Nie udało się utworzyć konfiguracji SRS.\nSkopiuj ręcznie swój server.cfg do {}.[/]"
+
+msgid "SRS configuration could not be created, manual setup necessary."
+msgstr "Nie udało się utworzyć konfiguracji SRS, konieczna konfiguracja ręczna."
+
+msgid "DCSServerBot uses up to {} channels per supported server:"
+msgstr "DCSServerBot używa do {} kanałów na obsługiwany serwer:"
+
+msgid "To display the mission and player status."
+msgstr "Do wyświetlania statusu misji i graczy."
+
+msgid "Optional: An in-game chat replication."
+msgstr "Opcjonalnie: replikacja czatu w grze."
+
+msgid "For admin commands."
+msgstr "Do poleceń administratora."
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n    - Czytaj wiadomości\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n    - Czytaj wiadomości\n    - Czytaj historię wiadomości\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n    - Add Reactions\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n    - Czytaj wiadomości\n    - Czytaj historię wiadomości\n    - Dodaj reakcje\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n    - Add Reactions\n    - Attach Files\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n    - Czytaj wiadomości\n    - Czytaj historię wiadomości\n    - Dodaj reakcje\n    - Załącz pliki\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n    - Add Reactions\n    - Attach Files\n    - Embed Links\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n    - Czytaj wiadomości\n    - Czytaj historię wiadomości\n    - Dodaj reakcje\n    - Załącz pliki\n    - Osadzaj linki\n"
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n    - Add Reactions\n    - Attach Files\n    - Embed Links\n    - Manage Messages\n\n"
+msgstr "\nKanał statusu powinien być czytelny dla wszystkich, a zapisywalny tylko przez bota.\nKanał czatu powinien być czytelny i zapisywalny dla wszystkich.\nKanał administracyjny — centralny lub nie — powinien być czytelny i zapisywalny tylko dla użytkowników Admin i DCS Admin.\n\nMożesz utworzyć te kanały teraz, ponieważ wkrótce zapytam o ich ID.\nAby działać, DCSServerBot potrzebuje na nich następujących uprawnień:\n\n    - Zobacz kanał\n    - Wyślij wiadomości\n    - Czytaj wiadomości\n    - Czytaj historię wiadomości\n    - Dodaj reakcje\n    - Załącz pliki\n    - Osadzaj linki\n    - Zarządzaj wiadomościami\n\n"
+
+msgid "Please enter the ID of your [bold]Status Channel[/]"
+msgstr "Podaj ID swojego [bold]kanału statusu[/]"
+
+msgid "Please enter the ID of your [bold]Chat Channel[/] (optional)"
+msgstr "Podaj ID swojego [bold]kanału czatu[/] (opcjonalnie)"
+
+msgid "Please enter the ID of your [bold]Admin Channel[/]"
+msgstr "Podaj ID swojego [bold]kanału administracyjnego[/]"
+
+msgid "Do you want DCSServerBot to autostart this server?"
+msgstr "Czy DCSServerBot ma automatycznie uruchamiać ten serwer?"
+
+msgid "Instance {} configured."
+msgstr "Skonfigurowano instancję {}."
+
+msgid "\n\nAll set. Writing / updating your config files now..."
+msgstr "\n\nGotowe. Zapisywanie / aktualizowanie plików konfiguracji..."
+
+msgid "- Created {}"
+msgstr "- Utworzono {}"
+
+msgid "{} written"
+msgstr "{} zapisano"
+
+msgid "[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]"
+msgstr "[red]Musisz przyznać DCSServerBotowi uprawnienia zapisu do {}, aby wyłączyć sanityzację Twojego MissionScripting.lua![/]"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\n"
+msgstr "\n[green]Podstawowa konfiguracja DCSServerBot została zakończona.[/]\n\n"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\nYou can now review the created configuration files below your config folder of your DCSServerBot-installation.\n"
+msgstr "\n[green]Podstawowa konfiguracja DCSServerBot została zakończona.[/]\n\nMożesz teraz przejrzeć utworzone pliki konfiguracji w katalogu config swojej instalacji DCSServerBot.\n"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\nYou can now review the created configuration files below your config folder of your DCSServerBot-installation.\nThere is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\n"
+msgstr "\n[green]Podstawowa konfiguracja DCSServerBot została zakończona.[/]\n\nMożesz teraz przejrzeć utworzone pliki konfiguracji w katalogu config swojej instalacji DCSServerBot.\nJest znacznie więcej do odkrycia i skonfigurowania, więc nie zapomnij zajrzeć do dokumentacji!\n\n"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\nYou can now review the created configuration files below your config folder of your DCSServerBot-installation.\nThere is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\nYou can start DCSServerBot with:\n\n"
+msgstr "\n[green]Podstawowa konfiguracja DCSServerBot została zakończona.[/]\n\nMożesz teraz przejrzeć utworzone pliki konfiguracji w katalogu config swojej instalacji DCSServerBot.\nJest znacznie więcej do odkrycia i skonfigurowania, więc nie zapomnij zajrzeć do dokumentacji!\n\nDCSServerBot można uruchomić za pomocą:\n\n"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\nYou can now review the created configuration files below your config folder of your DCSServerBot-installation.\nThere is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\nYou can start DCSServerBot with:\n\n    [bright_black]run.cmd[/]\n\n"
+msgstr "\n[green]Podstawowa konfiguracja DCSServerBot została zakończona.[/]\n\nMożesz teraz przejrzeć utworzone pliki konfiguracji w katalogu config swojej instalacji DCSServerBot.\nJest znacznie więcej do odkrycia i skonfigurowania, więc nie zapomnij zajrzeć do dokumentacji!\n\nDCSServerBot można uruchomić za pomocą:\n\n    [bright_black]run.cmd[/]\n\n"
+
+msgid "Installation finished."
+msgstr "Instalacja zakończona."
+
+msgid "\nAborted."
+msgstr "\nPrzerwano."
+
+msgid "\nSearching for DCS installations ..."
+msgstr "\nWyszukiwanie instalacji DCS ..."
+
+msgid "\n{}. {u]Node Setup[/]"
+msgstr "\n{}. {u]Konfiguracja węzła[/]"
+
+msgid "Please enter your PostgreSQL master password (user=postgres)"
+msgstr "Podaj główne hasło PostgreSQL (użytkownik=postgres)"
