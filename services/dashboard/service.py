@@ -13,13 +13,14 @@ from logging.handlers import QueueHandler, RotatingFileHandler
 from pathlib import Path
 from queue import Queue
 from rich import box
-from rich.align import Align
 from rich.console import Console, ConsoleOptions, RenderResult, ConsoleRenderable, Group
 from rich.layout import Layout
 from rich.live import Live
 from rich.logging import RichHandler
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from typing import TYPE_CHECKING
 
 from ..servicebus import ServiceBus
@@ -33,78 +34,73 @@ __all__ = [
 
 _ = get_translation("dashboard")
 
-DCS_LOGO = [
-    "██████╗  ██████╗███████╗    ██╗    ██╗ ██████╗ ██████╗ ██╗     ██████╗ ",
-    "██╔══██╗██╔════╝██╔════╝    ██║    ██║██╔═══██╗██╔══██╗██║     ██╔══██╗",
-    "██║  ██║██║     ███████╗    ██║ █╗ ██║██║   ██║██████╔╝██║     ██║  ██║",
-    "██║  ██║██║     ╚════██║    ██║███╗██║██║   ██║██╔══██╗██║     ██║  ██║",
-    "██████╔╝╚██████╗███████║    ╚███╔███╔╝╚██████╔╝██║  ██║███████╗██████╔╝",
-    "╚═════╝  ╚═════╝╚══════╝     ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═════╝ ",
-]
-
-STATUS_ICONS = {
-    Status.RUNNING: ("🟢", "bold bright_green"),
-    Status.LOADING: ("🟡", "bold bright_yellow"),
-    Status.PAUSED: ("🟡", "bold gold1"),
-    Status.STOPPED: ("🟠", "bold orange3"),
-    Status.SHUTDOWN: ("🔴", "bold bright_red"),
-    Status.SHUTTING_DOWN: ("🟡", "bold yellow"),
-    Status.UNREGISTERED: ("⚪", "dim grey62"),
+#: (glyph, state word, colour) per server state. Every glyph is a single cell: an emoji is
+#: double-width in Windows Terminal and shifts every column behind it.
+STATUS_CELLS: dict[Status, tuple[str, str, str]] = {
+    Status.RUNNING: ("●", _("Running"), "green3"),
+    Status.LOADING: ("◐", _("Loading"), "gold1"),
+    Status.PAUSED: ("◐", _("Paused"), "gold1"),
+    Status.STOPPED: ("○", _("Stopped"), "grey50"),
+    Status.SHUTDOWN: ("■", _("Shutdown"), "red1"),
+    Status.SHUTTING_DOWN: ("■", _("Shutdown"), "red1"),
+    Status.UNREGISTERED: ("○", _("Waiting"), "grey50"),
 }
 
+#: (label, style) per real level number; every mapped label fits the six-cell column. The styles
+#: are the old log renderer's ``logging.level.*`` palette.
+LEVEL_CELLS: dict[int, tuple[str, str]] = {
+    logging.DEBUG: ("DEBUG", "green"),
+    logging.INFO: ("INFO", "blue"),
+    logging.WARNING: ("WARN", "yellow"),
+    logging.ERROR: ("ERROR", "bold red"),
+    logging.CRITICAL: ("CRIT", "bold red"),
+}
 
-def _clean_log_prefix(msg: str) -> str:
-    msg = re.sub(r"^\s*(?:=>|->|-)\s*", "", msg.strip())
-    for emoji in ("🟢", "🟡", "🔴", "🟠", "⚪"):
-        msg = msg.replace(emoji, "")
-    return re.sub(r"\s{2,}", " ", msg).strip()
+#: states that show the running mission and a player count
+ACTIVE_STATES = (Status.RUNNING, Status.PAUSED, Status.LOADING)
 
 
-def _log_badge_and_module(record: logging.LogRecord, raw_msg: str, clean_msg: str) -> tuple[str, str, str]:
-    """Return (status_badge, module_label, styled_message) for symmetrical 4-column log rows."""
-    fn = (record.filename or "").lower()
-    low = raw_msg.lower()
+def _status_cell(status: Status) -> Text:
+    glyph, word, colour = STATUS_CELLS.get(
+        status, ("○", getattr(status, "name", str(status)).replace("_", " ").title(), "grey50"))
+    return Text(f"{glyph} {word}", style=colour)
 
-    if "webservice" in fn or "local.py" in fn or "routes.py" in fn or "web " in low or "signed in" in low or "signed out" in low:
-        mod = _("WEB UI")
-    elif "dcsserverbot" in fn or "discord" in low:
-        mod = _("DISCORD")
-    elif "commands.py" in fn or "scheduler" in fn:
-        mod = _("SCHEDULER")
-    elif "srs" in low or "srs" in fn:
-        mod = _("SRS RADIO")
-    elif "extension" in fn or "loganalyser" in low:
-        mod = _("EXTENSION")
-    elif "server" in fn or "service.py" in fn:
-        mod = _("SERVER")
-    else:
-        mod = _("SYSTEM")
 
-    if record.levelno >= logging.ERROR:
-        badge = f"[bold bright_red]{_('ERROR'):<6}[/]"
-        msg_styled = f"[bright_red]{clean_msg}[/]"
-    elif record.levelno >= logging.WARNING:
-        badge = f"[bold bright_yellow]{_('WARN'):<6}[/]"
-        msg_styled = f"[bright_yellow]{clean_msg}[/]"
-    elif "registered as down" in low or "shut down" in low or "stopped" in low:
-        badge = f"[bold bright_red]{_('DOWN'):<6}[/]"
-        msg_styled = f"[white]{clean_msg}[/]"
-    elif "starting up" in low or "searching for" in low or "registering" in low or "preparing" in low or "loading" in low:
-        badge = f"[bold gold1]{_('INIT'):<6}[/]"
-        msg_styled = f"[bright_white]{clean_msg}[/]"
-    elif "registered as up" in low or "started" in low or "signed in" in low or "loaded" in low:
-        badge = f"[bold bright_green]{_('ACTIVE'):<6}[/]"
-        msg_styled = f"[bold bright_white]{clean_msg}[/]"
-    else:
-        badge = f"[bold bright_cyan]{_('INFO'):<6}[/]"
-        msg_styled = f"[white]{clean_msg}[/]"
+def _level_cell(record: logging.LogRecord) -> Text:
+    label, style = LEVEL_CELLS.get(
+        record.levelno, (record.levelname, "dim"))
+    return Text(label, style=style)
 
-    msg_styled = re.sub(r'"([^"]+)"', r'[bold gold1]"\1"[/]', msg_styled)
-    return badge, mod, msg_styled
+
+def _max_players(server) -> int:
+    """The server's slot count, with the 61 -> 60 adjustment DCS' off-by-one needs."""
+    configured = int(server.settings.get('maxPlayers', 60))
+    return max(configured - 1, 1) if configured == 61 else max(configured, 1)
+
+
+def _mission_cell(server, filter_pattern: str) -> Text:
+    """The running mission in bold white, otherwise the last configured one in grey50."""
+    if server.status in ACTIVE_STATES and server.current_mission:
+        name = re.sub(filter_pattern, '', server.current_mission.name).strip()
+        return Text(name, style="bold white")
+    selected = server.settings.get('lastSelectedMission') or (
+        server.settings.get('missionList', [''])[0] if server.settings.get('missionList') else ''
+    )
+    name = os.path.splitext(os.path.basename(selected))[0] if selected else '—'
+    return Text(name, style="grey50")
+
+
+def _player_cell(server) -> Text:
+    """``<n> / <max>`` for an active server, an em dash otherwise."""
+    if server.status not in ACTIVE_STATES:
+        return Text("—", style="grey50")
+    count = server.num_players if server.num_players is not None else len(server.get_active_players())
+    maximum = _max_players(server)
+    return Text(f"{min(int(count), maximum):2d} / {maximum}", style="white")
 
 
 class HeaderWidget:
-    """Display header with clock."""
+    """Version, node role, DCS version, console address and clock."""
 
     def __init__(self, service: Dashboard):
         self.service = service
@@ -138,35 +134,33 @@ class HeaderWidget:
     def __rich__(self) -> Panel:
         config = self.service.get_config().get('header', {})
         grid = Table.grid(expand=True)
-        grid.add_column(justify="left", width=34, no_wrap=True)
+        grid.add_column(justify="left", width=38, no_wrap=True)
         grid.add_column(justify="center", ratio=1, no_wrap=True)
-        grid.add_column(justify="right", width=30, no_wrap=True)
+        grid.add_column(justify="right", width=20, no_wrap=True)
 
         prefix = ""
         if self.service.is_multinode():
-            if self.node.master:
-                prefix = f"{_('Cluster Master')} | "
-            else:
-                prefix = f"{_('Cluster Agent')} | "
-        left_msg = f"[bold bright_white]{prefix}DCSServerBot v{self.node.bot_version}.{self.node.sub_version}[/]"
+            prefix = f"{_('Cluster Master')} | " if self.node.master else f"{_('Cluster Agent')} | "
+        left = Text(f"{prefix}DCSServerBot {self.node.bot_version}.{self.node.sub_version}",
+                    style="bold white")
 
-        url = self.web_url
-        if url:
-            center_msg = f"[bold bright_cyan]{_('Web')}:[/] [underline bright_white]{url}[/]"
-        else:
-            center_msg = f"[bold bright_cyan]{_('Web')}:[/] [dim]—[/]"
+        parts = []
         if self.node.dcs_version:
-            center_msg = f"[bold bright_cyan]{_('DCS Version')}:[/] [bright_white]{self.node.dcs_version}[/]  [dim cyan]│[/]  " + center_msg
+            parts.append(Text(f"{_('DCS Version')}: {self.node.dcs_version}", style="white"))
+        if self.web_url:
+            parts.append(Text(f"{_('Web')}: {self.web_url}", style="underline white"))
+        else:
+            parts.append(Text(f"{_('Web')}: —", style="grey50"))
+        centre = Text("  │  ", style="grey50").join(parts)
 
         now = datetime.now()
-        time_str = now.strftime("%H:%M:%S").replace(":", "[blink]:[/]")
-        right_msg = f"[bold bright_white]{now.strftime('%d.%m.%Y')} • {time_str}[/]"
+        right = Text(f"{now.strftime('%d.%m.%Y')} {now.strftime('%H:%M:%S')}", style="white")
 
-        grid.add_row(left_msg, center_msg, right_msg)
+        grid.add_row(left, centre, right)
         return Panel(
             grid,
-            style=config.get("background", "white on deep_sky_blue4"),
-            border_style=config.get("border", "bright_cyan"),
+            style=config.get("background", "white on navy_blue"),
+            border_style=config.get("border", "white"),
             box=box.ROUNDED,
             padding=(0, 1),
         )
@@ -182,69 +176,57 @@ class ServersWidget:
 
     def __rich__(self) -> Panel:
         config = self.service.get_config().get("servers", {})
+        show_node = bool(self.node.master and self.service.is_multinode())
         table = Table(
             expand=True,
             show_edge=False,
             pad_edge=False,
-            header_style="bold gold1",
-            border_style="bright_blue",
+            box=box.SIMPLE_HEAD,
+            header_style="bold white",
         )
-        table.add_column(_("Status"), justify="left", width=15, no_wrap=True)
-        table.add_column(_("Server Name"), justify="left", width=29, no_wrap=True)
+        table.add_column(_("Status"), justify="left", width=11, no_wrap=True)
+        table.add_column(_("Server Name"), justify="left", width=22, no_wrap=True)
         table.add_column(_("Mission Name"), justify="left", ratio=1, no_wrap=True)
-        table.add_column(_("Players"), justify="center", width=10, no_wrap=True)
-        table.add_column(_("Port / SRS"), justify="center", width=18, no_wrap=True)
-        if self.service.node.master and self.service.is_multinode():
-            table.add_column(_("Node"), justify="center", width=12, no_wrap=True)
+        table.add_column(_("Players"), justify="right", width=9, no_wrap=True)
+        table.add_column(_("Port / SRS"), justify="center", width=15, no_wrap=True)
+        if show_node:
+            table.add_column(_("Node"), justify="center", width=8, no_wrap=True)
 
-        for server_name, server in self.bus.servers.items():
+        configured = running = offline = 0
+        for server in self.bus.servers.values():
             # do not show remote servers on agents or if hide_remote_servers is set
             if (not self.node.master or config.get('hide_remote_servers', False)) and server.is_remote:
                 continue
+            configured += 1
+            if server.status == Status.RUNNING:
+                running += 1
+            if server.status not in ACTIVE_STATES:
+                offline += 1
+
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
-            icon, style = STATUS_ICONS.get(server.status, ("⚪", "white"))
-            status_label = f"{icon} [{style}]{_(server.status.name.title())}[/]"
-
-            if server.current_mission:
-                mission_raw = re.sub(self.bus.filter['mission_name'], '', server.current_mission.name).strip()
-                mission_name = f"[bold bright_white]{mission_raw}[/]"
-            else:
-                _m = server.settings.get('lastSelectedMission') or (
-                    server.settings.get('missionList', [''])[0] if server.settings.get('missionList') else ''
-                )
-                mission_raw = os.path.splitext(os.path.basename(_m))[0] if _m else '—'
-                mission_name = f"[dim white]{mission_raw}[/]"
-
-            if server.status in (Status.RUNNING, Status.PAUSED, Status.LOADING):
-                n = server.num_players if server.num_players is not None else len(server.get_active_players())
-                max_p = max(int(server.settings.get('maxPlayers', 60)) - 1, 1) if int(server.settings.get('maxPlayers', 60)) == 61 else int(server.settings.get('maxPlayers', 60))
-                if n > 0:
-                    num_players = f"[bold bright_green]{n:2d} / {max_p}[/]"
-                else:
-                    num_players = f"[bright_white]{n:2d} / {max_p}[/]"
-            else:
-                num_players = "[dim]  —   [/]"
-
-            dcs_port = getattr(getattr(server.instance, 'dcs_port', None), 'port', None) or server.instance.locals.get('dcs_port', '-')
+            dcs_port = getattr(getattr(server.instance, 'dcs_port', None), 'port', None) \
+                or server.instance.locals.get('dcs_port', '-')
             srs_port = server.instance.locals.get('extensions', {}).get('SRS', {}).get('port', '-')
-            ports_str = f"[bright_cyan]{dcs_port}[/] [dim]│[/] [gold1]SRS:{srs_port}[/]"
+            cells = [
+                _status_cell(server.status),
+                Text(name, style="bold white" if server.status == Status.RUNNING else "white"),
+                _mission_cell(server, self.bus.filter['mission_name']),
+                _player_cell(server),
+                Text(f"{dcs_port} │ {srs_port}", style="white"),
+            ]
+            if show_node:
+                cells.append(Text(server.node.name, style="white"))
+            table.add_row(*cells)
 
-            name_styled = f"[bold bright_white]{name}[/]" if server.status == Status.RUNNING else f"[white]{name}[/]"
-
-            if self.service.node.master and self.service.is_multinode():
-                table.add_row(status_label, name_styled, mission_name, num_players, ports_str, server.node.name)
-            else:
-                table.add_row(status_label, name_styled, mission_name, num_players, ports_str)
-
+        subtitle = Text(f"{configured} {_('configured')}   {running} {_('running')}   "
+                        f"{offline} {_('offline')}", style="grey50")
         return Panel(
             table,
-            title=f"[bold bright_cyan] 🖥️  {_('DCS SERVER STATUS')} [/]",
-            title_align="left",
-            subtitle=f"[dim white]🟢 {_('Running')}   🟡 {_('Loading')}   🔴 {_('Shutdown')}[/]",
+            subtitle=subtitle,
             subtitle_align="right",
             padding=(0, 1),
-            style=config.get("background", "white on navy_blue"),
-            border_style=config.get("border", "bright_cyan"),
+            style=config.get("background", "white on dark_blue"),
+            border_style=config.get("border", "white"),
             box=box.ROUNDED,
         )
 
@@ -261,7 +243,8 @@ class NodeWidget:
 
     def __rich__(self) -> Panel:
         config = self.service.get_config().get("nodes", {})
-        table = Table(expand=True, show_edge=False)
+        table = Table(expand=True, show_edge=False, pad_edge=False, box=box.SIMPLE_HEAD,
+                      header_style="bold white")
         table.add_column(_("Node ([green]Master[/])"), justify="left")
         table.add_column(_("Servers"), justify="center")
         nodes: dict[str, Node | None] = {name: None for name in self.node.all_nodes.keys()}
@@ -274,17 +257,18 @@ class NodeWidget:
                 servers[server.node.name] += 1
         for name, node in nodes.items():  # type: Node
             if not node:
-                table.add_row(f"🔴 [grey54]{name}[/]", f"[grey54]{_('inactive')}[/]")
+                table.add_row(Text(f"○ {name}", style="grey50"), Text(_("inactive"), style="grey50"))
             elif node.master:
-                table.add_row(f"🟢 [green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
+                table.add_row(Text(f"● {node.name}", style="green3"),
+                              Text(f"{servers.get(node.name, 0)}/{len(node.instances)}", style="white"))
             else:
-                table.add_row(f"🟢 {node.name}", f"{servers[node.name]}/{len(node.instances)}")
+                table.add_row(Text(f"● {node.name}", style="white"),
+                              Text(f"{servers.get(node.name, 0)}/{len(node.instances)}", style="white"))
         return Panel(
             table,
-            title=f"[bold bright_cyan] {_('Nodes')} [/]",
-            padding=1,
-            style=config.get("background", "white on navy_blue"),
-            border_style=config.get("border", "bright_cyan"),
+            padding=(0, 1),
+            style=config.get("background", "white on dark_blue"),
+            border_style=config.get("border", "white"),
             box=box.ROUNDED,
         )
 
@@ -303,27 +287,39 @@ class RichQueueHandler(QueueHandler):
 class LogWidget:
     """Display log messages"""
 
+    #: column widths shared by a log row and its projected traceback
+    COLUMN_WIDTHS = (9, 6, 13, 20)
+
     def __init__(self, service: Dashboard):
         self.service = service
         self.queue = service.queue
         self.buffer: list[tuple[int, ConsoleRenderable]] = []
         self.handler = service.old_handler
         self.console = Console(record=True, file=io.StringIO())
-        config = self.service.get_config().get("log", {})
-        self.panel = Panel(
-            "",
-            title=f"[bold bright_cyan] 📋  {_('LIVE SYSTEM LOG')} [/]",
-            title_align="left",
-            subtitle=f"[dim white]{_('Time   │   Status   │   Module   │   Event Detail')}[/]",
-            subtitle_align="right",
+        self.panel = self._build_panel("")
+        self.previous_size = self.service.console.size
+        self.cwd = os.getcwd()
+
+    def _build_panel(self, content: ConsoleRenderable) -> Panel:
+        config = self.service.get_config()
+        return Panel(
+            content,
             padding=(0, 1),
-            style=config.get("background", "white on grey11"),
-            border_style=config.get("border", "bright_cyan"),
+            style=config.get("log", {}).get("background", "white on grey15"),
+            border_style=config.get("border", "white"),
             box=box.ROUNDED,
             expand=True,
         )
-        self.previous_size = self.service.console.size
-        self.cwd = os.getcwd()
+
+    def _row_grid(self) -> Table:
+        time_width, level_width, module_width, source_width = self.COLUMN_WIDTHS
+        grid = Table.grid(expand=True, padding=(0, 1))
+        grid.add_column(width=time_width, no_wrap=True)
+        grid.add_column(width=level_width, no_wrap=True)
+        grid.add_column(width=module_width, no_wrap=True)
+        grid.add_column(ratio=1)
+        grid.add_column(width=source_width, justify="right", no_wrap=True)
+        return grid
 
     def _fill_initial_buffer(self, height: int) -> None:
         if self.buffer:
@@ -390,46 +386,31 @@ class LogWidget:
 
     def _emit(self, record: logging.LogRecord) -> ConsoleRenderable:
         record = self._normalize_record(record)
-        raw_msg = getattr(record, "message", None) or record.getMessage()
-        clean_msg = _clean_log_prefix(raw_msg)
-        badge, mod, msg_styled = _log_badge_and_module(record, raw_msg, clean_msg)
-        ts = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
-
-        row = Table.grid(expand=True)
-        row.add_column(width=8, no_wrap=True)
-        row.add_column(width=3, justify="center", no_wrap=True)
-        row.add_column(width=9, no_wrap=True)
-        row.add_column(width=3, justify="center", no_wrap=True)
-        row.add_column(width=11, no_wrap=True)
-        row.add_column(width=3, justify="center", no_wrap=True)
-        row.add_column(ratio=1, no_wrap=True)
-
+        row = self._row_grid()
         row.add_row(
-            f"[dim bright_cyan]{ts}[/]",
-            "[dim blue]│[/]",
-            badge,
-            "[dim blue]│[/]",
-            f"[bold cyan]{mod:<11}[/]",
-            "[dim blue]│[/]",
-            msg_styled,
+            Text(datetime.fromtimestamp(record.created).strftime("%H:%M:%S"), style="dim cyan"),
+            _level_cell(record),
+            Text(record.name.rsplit(".", 1)[-1], style="grey50"),
+            Text.from_markup(escape(record.getMessage())),
+            Text(f"{record.filename}:{record.lineno}", style="grey50"),
         )
 
         exc_info = record.exc_info if record.exc_info and record.exc_info != (None, None, None) else None
-        if exc_info:
-            exc_type, exc_value, exc_traceback = exc_info
-            file, line, _func, trace = self._project_traceback(exc_traceback)
-            return Group(
-                row,
-                self.console.render_str(f"           [red]{exc_type.__name__}[/red]: {exc_value} [dim](at {file}:{line})[/dim]"),
-                *( [self.console.render_str("[dim]" + "\n".join(trace) + "[/dim]")] if trace else [] ),
-            )
+        if not exc_info:
+            return row
 
-        return row
+        exc_type, exc_value, exc_traceback = exc_info
+        file, line, _func, trace = self._project_traceback(exc_traceback)
+        lines = [Text(f"{exc_type.__name__}: {exc_value}", style="red1")]
+        lines.extend(Text(frame, style="grey50") for frame in trace)
+        block = self._row_grid()
+        for text in lines:
+            block.add_row("", "", "", text, "")
+        return Group(row, block)
 
     def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
         try:
             if not self.queue.empty() or self._check_size_change():
-                config = self.service.get_config()
                 max_displayable_height = max(1, options.max_height - 2)
 
                 while not self.queue.empty():
@@ -451,18 +432,7 @@ class LogWidget:
                 content = [renderable for _lines, renderable in self.buffer]
                 content.extend(self.console.render_str("") for _i in range(max_displayable_height - total_height_used))
 
-                self.panel = Panel(
-                    Group(*content),
-                    title=f"[bold bright_cyan] 📋  {_('LIVE SYSTEM LOG')} [/]",
-                    title_align="left",
-                    subtitle=f"[dim white]{_('Time   │   Status   │   Module   │   Event Detail')}[/]",
-                    subtitle_align="right",
-                    padding=(0, 1),
-                    style=config.get("log", {}).get("background", "white on grey11"),
-                    border_style=config.get("border", "bright_cyan"),
-                    box=box.ROUNDED,
-                    expand=True,
-                )
+                self.panel = self._build_panel(Group(*content))
 
             yield self.panel
         except Exception as ex:
@@ -505,13 +475,15 @@ class Dashboard(Service):
         layout = Layout()
         layout.split(
             Layout(self.header_widget, name="header", size=3),
-            Layout(self.servers_widget, name="main", size=len(self.bus.servers) + 5),
-            Layout(self.log_widget, name="log", ratio=2, minimum_size=5)
+            Layout(self.servers_widget, name="servers", ratio=1,
+                   minimum_size=len(self.bus.servers) + 4),
+            Layout(self.log_widget, name="log", ratio=2, minimum_size=8)
         )
         if self.node.master and self.is_multinode():
-            servers = ServersWidget(self)
-            nodes = NodeWidget(self)
-            layout['main'].split_row(Layout(servers, name="servers", ratio=2), Layout(nodes, name="nodes"))
+            layout['servers'].split_row(
+                Layout(self.servers_widget, name="servers_list", ratio=2),
+                Layout(NodeWidget(self), name="nodes")
+            )
         return layout
 
     def hook_logging(self):
@@ -533,155 +505,12 @@ class Dashboard(Service):
         self.log.root.removeHandler(self.log_handler)
         self.log.root.addHandler(self.old_handler)
 
-    async def _play_intro(self) -> None:
-        if not self.get_config().get("show_intro", True):
-            return
-        try:
-            steps = [
-                _("INITIALIZING TACTICAL HUD & TELEMETRY SYSTEMS..."),
-                _("CONNECTING TO POSTGRESQL TACTICAL DATABASE..."),
-                _("CALIBRATING SIMPLE RADIO STANDALONE (SRS)..."),
-                _("SYNCING DCS WORLD DEDICATED SERVERS..."),
-                _("TACTICAL COMMAND & DASHBOARD ONLINE!"),
-            ]
-            radar_frames = ["◜", "◝", "◞", "◟"]
-            compass_tapes = [
-                "◄── 330 ─── 345 ─── [ HDG 000° N ] ─── 015 ─── 030 ──►",
-                "◄── 335 ─── 350 ─── [ HDG 005° N ] ─── 020 ─── 035 ──►",
-                "◄── 340 ─── 355 ─── [ HDG 010° N ] ─── 025 ─── 040 ──►",
-                "◄── 335 ─── 350 ─── [ HDG 005° N ] ─── 020 ─── 035 ──►",
-            ]
-            jet_art = [
-                r"                      __|__                      ",
-                r"               --o--o--(_)--o--o--               ",
-                f"         ───────═══╡  {_('HUD LOCK')}  ╞═══───────      ",
-            ]
-            subtitle_banner = "  ".join(_("DEDICATED SERVER CONTROL SYSTEM"))
-            bot_ver = f"DCSServerBot v{self.node.bot_version}.{self.node.sub_version}"
-            node_info = f"{self.node.name} ({len(self.node.instances)})"
-
-            with Live(console=self.console, refresh_per_second=20, transient=True) as live:
-                for i in range(16):
-                    pct = min(100, int((i + 1) * (100 / 16)))
-                    status_txt = steps[min(len(steps) - 1, i // 3)]
-                    radar = radar_frames[i % len(radar_frames)]
-                    compass = compass_tapes[i % len(compass_tapes)]
-
-                    logo_colors = ["bright_cyan", "cyan", "deep_sky_blue1", "dodger_blue1", "gold1", "bright_yellow"]
-                    logo_lines = [
-                        f"[bold {logo_colors[(idx + i) % len(logo_colors)]}]{line}[/]"
-                        for idx, line in enumerate(DCS_LOGO)
-                    ]
-
-                    jet_offset = " " * ((i % 9) - 4 + 4)
-                    bar_width = 44
-                    filled = int(bar_width * pct / 100)
-                    bar = "[bold bright_green]" + "█" * filled + "[/][dim cyan]" + "░" * (bar_width - filled) + "[/]"
-
-                    telem = (
-                        f"[bold bright_cyan]{radar} {_('RADAR')}:[/] [bright_green]{_('ACTIVE')}[/]   │   "
-                        f"[bold bright_cyan]{_('DATALINK')}:[/] [bright_green]LINK-16 OK[/]   │   "
-                        f"[bold bright_cyan]{_('NODE')}:[/] [underline bright_white]{node_info}[/]"
-                    )
-
-                    hud_block = [
-                        f"[bold bright_green]{compass}[/]",
-                        "",
-                        *logo_lines,
-                        f"[bold gold1]━━━━━━  {subtitle_banner}  ━━━━━━[/]",
-                        "",
-                        f"[bold bright_cyan]{jet_offset}{jet_art[0]}[/]",
-                        f"[bold bright_white]{jet_offset}{jet_art[1]}[/]",
-                        f"[bold bright_green]{jet_offset}{jet_art[2]}[/]",
-                        "",
-                        telem,
-                        "",
-                        f"{bar}  [bold gold1]{pct:3d}%[/]",
-                        f"[bold bright_yellow]⚡ {status_txt}[/]",
-                    ]
-
-                    panel = Panel(
-                        Align.center("\n".join(hud_block)),
-                        title=f"[bold bright_cyan] ✈️  DCS WORLD  •  {bot_ver}  •  {_('TACTICAL HUD')} [/]",
-                        subtitle=f"[dim bright_cyan]{_('MIL-STD-1553B  •  COCKPIT INITIALIZATION SEQUENCE')}[/]",
-                        style="white on #050d1a",
-                        border_style="bright_cyan",
-                        box=box.DOUBLE_EDGE,
-                        padding=(1, 2),
-                    )
-                    live.update(panel)
-                    await asyncio.sleep(0.04)
-
-                # Phase 2: Dynamic Tactical Server Command Center overview from default bot instances/servers
-                lang_code = str(self.node.config.get("language", "en")).upper()
-                header_logo = [f"[bold bright_cyan]{line}[/]" for line in DCS_LOGO[:3]] + [
-                    f"[bold gold1]{line}[/]" for line in DCS_LOGO[3:]
-                ]
-                cmd_header = [
-                    "[bold bright_green]◄── 330 ─── 345 ─── [ HDG 000° N  •  ALT 25,000 FT  •  MACH 0.92 ] ─── 015 ─── 030 ──►[/]",
-                    "",
-                    *header_logo,
-                    f"[bold gold1]━━━━━━  {_('MISSION CONTROL CENTER')}  •  {_('ACTIVE LANGUAGE')}: {lang_code} [🟢]  ━━━━━━[/]",
-                    "",
-                ]
-
-                tbl = Table(
-                    show_header=True,
-                    header_style="bold gold1",
-                    border_style="bright_cyan",
-                    box=box.ROUNDED,
-                    style="on #09172e",
-                    padding=(0, 2),
-                )
-                tbl.add_column(_("ID"), justify="center", width=8)
-                tbl.add_column(_("INSTANCE / OPERATION"), justify="left", width=34)
-                tbl.add_column(_("TARGET SERVERS & PORT"), justify="left", width=38)
-
-                if self.bus and self.bus.servers:
-                    for idx, (srv_name, srv) in enumerate(self.bus.servers.items(), start=1):
-                        inst_name = getattr(srv.instance, "name", srv_name)
-                        dcs_port = getattr(getattr(srv.instance, "dcs_port", None), "port", None) or srv.instance.locals.get("dcs_port", "-")
-                        srs_port = srv.instance.locals.get("extensions", {}).get("SRS", {}).get("port", "-")
-                        tbl.add_row(
-                            f"🟢 [bold bright_green][{idx}][/]",
-                            f"[bold bright_white]{inst_name}[/]",
-                            f"[bright_cyan]{srv_name}  (:{dcs_port} │ SRS:{srs_port})[/]",
-                        )
-                else:
-                    for idx, inst in enumerate(self.node.instances.values(), start=1):
-                        dcs_port = inst.locals.get("dcs_port", "-")
-                        srs_port = inst.locals.get("extensions", {}).get("SRS", {}).get("port", "-")
-                        tbl.add_row(
-                            f"🟢 [bold bright_green][{idx}][/]",
-                            f"[bold bright_white]{inst.name}[/]",
-                            f"[bright_cyan]{inst.name}  (:{dcs_port} │ SRS:{srs_port})[/]",
-                        )
-
-                cmd_group = Group(
-                    Align.center("\n".join(cmd_header)),
-                    Align.center(tbl),
-                )
-                cmd_panel = Panel(
-                    cmd_group,
-                    title=f"[bold bright_cyan] ✈️  DCS WORLD  •  {_('TACTICAL SERVER COMMAND CENTER')} [/]",
-                    subtitle=f"[dim bright_green]🟢 {_('MASTER HUD READY')}   │   🌐 {_('NODE')}: {node_info}[/]",
-                    style="white on #050d1a",
-                    border_style="bright_cyan",
-                    box=box.DOUBLE_EDGE,
-                    padding=(1, 2),
-                )
-                live.update(cmd_panel)
-                await asyncio.sleep(0.8)
-        except Exception:
-            pass
-
     async def start(self):
         if not self.node.config.get('use_dashboard', True):
             return
         await super().start()
         self.bus = ServiceRegistry.get(ServiceBus)
         self.hook_logging()
-        await self._play_intro()
         self.create_widgets()
         self.layout = self.create_layout()
         self._layout_dirty = False

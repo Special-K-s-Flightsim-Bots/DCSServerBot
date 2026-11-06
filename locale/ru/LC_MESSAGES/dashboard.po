@@ -1,0 +1,80 @@
+# DRAFT RU CATALOG.
+# MACHINE-ASSISTED AND NOT REVIEWED BY A NATIVE SPEAKER.
+# Dashboard domain only (services/dashboard/service.py);
+# the console web UI lives in the webui domain.
+# Replace it with a real translator's work before relying on it.
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot\n"
+"Language: ru\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Running"
+msgstr "Работает"
+
+msgid "Loading"
+msgstr "Загрузка"
+
+msgid "Paused"
+msgstr "Пауза"
+
+msgid "Stopped"
+msgstr "Стоп"
+
+msgid "Shutdown"
+msgstr "Выключен"
+
+msgid "Waiting"
+msgstr "Ожидание"
+
+msgid "Cluster Master"
+msgstr "Мастер кластера"
+
+msgid "Cluster Agent"
+msgstr "Агент кластера"
+
+msgid "DCS Version"
+msgstr "Версия DCS"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Server Name"
+msgstr "Имя сервера"
+
+msgid "Mission Name"
+msgstr "Имя миссии"
+
+msgid "Players"
+msgstr "Игроки"
+
+msgid "Port / SRS"
+msgstr "Port / SRS"
+
+msgid "Node"
+msgstr "Узел"
+
+msgid "configured"
+msgstr "настроено"
+
+msgid "running"
+msgstr "работает"
+
+msgid "offline"
+msgstr "не в сети"
+
+msgid "Node ([green]Master[/])"
+msgstr "Узел ([green]Мастер[/])"
+
+msgid "Servers"
+msgstr "Серверы"
+
+msgid "inactive"
+msgstr "неактивен"
