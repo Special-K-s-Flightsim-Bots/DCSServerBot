@@ -68,7 +68,7 @@
       pointer-events: none;
       z-index: 1;
       overflow: hidden;
-      animation: planetBreathe 9s ease-in-out infinite alternate;
+      contain: strict;
     }
 
     /* Sunrise Crest Flare on the Planet Horizon */
@@ -80,9 +80,9 @@
       height: 18px;
       transform: translateX(-50%);
       background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98) 0%, rgba(125, 211, 252, 0.85) 30%, rgba(245, 158, 11, 0.45) 60%, transparent 100%);
-      filter: blur(3px);
       pointer-events: none;
       z-index: 2;
+      will-change: transform, opacity;
       animation: crestPulse 5s ease-in-out infinite alternate;
     }
     @keyframes crestPulse {
@@ -283,16 +283,15 @@
       transform: translateY(-54%);
       padding: 14px 16px;
       border-radius: 12px;
-      background: linear-gradient(165deg, rgba(8, 20, 42, 0.62) 0%, rgba(4, 11, 24, 0.42) 100%);
+      background: linear-gradient(165deg, rgba(8, 20, 42, 0.90) 0%, rgba(4, 11, 24, 0.86) 100%);
       border: 1px solid rgba(56, 189, 248, 0.24);
       box-shadow:
         0 14px 36px rgba(0, 0, 0, 0.55),
         inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
       font-family: 'Consolas', 'Courier New', monospace;
       pointer-events: none;
       z-index: 2;
+      contain: layout paint;
     }
     .dcs-hud-wing.left {
       left: 3.2vw;
@@ -395,11 +394,6 @@
       height: 100%;
       border-radius: 99px;
       background: linear-gradient(90deg, #0284c7, #38bdf8, #fbbf24);
-      animation: telemPulse 3.2s ease-in-out infinite alternate;
-    }
-    @keyframes telemPulse {
-      0%   { filter: brightness(0.9); }
-      100% { filter: brightness(1.35); }
     }
 
     /* Top HUD Compass Tape */
@@ -421,9 +415,8 @@
       padding: 5px 20px;
       border-radius: 999px;
       border: 1px solid rgba(56, 189, 248, 0.28);
-      background: rgba(4, 12, 26, 0.72);
+      background: rgba(4, 12, 26, 0.90);
       box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), inset 0 0 14px rgba(56, 189, 248, 0.1);
-      backdrop-filter: blur(8px);
     }
     .dcs-hud-compass .hud-accent {
       color: #fbbf24;
@@ -442,8 +435,7 @@
     header.shell-bar.login-bar {
       position: relative;
       z-index: 10;
-      background: rgba(4, 10, 22, 0.78) !important;
-      backdrop-filter: blur(14px);
+      background: rgba(4, 10, 22, 0.92) !important;
       border-bottom: 1px solid rgba(56, 189, 248, 0.24) !important;
       box-shadow: 0 4px 25px rgba(0, 0, 0, 0.45);
     }
@@ -521,28 +513,22 @@
     .login-grid .card {
       width: 100% !important;
       max-width: 430px !important;
-      background: linear-gradient(165deg, rgba(10, 22, 46, 0.86) 0%, rgba(5, 12, 26, 0.92) 100%) !important;
+      background: linear-gradient(165deg, rgba(10, 22, 46, 0.95) 0%, rgba(5, 12, 26, 0.97) 100%) !important;
       border: 1px solid rgba(56, 189, 248, 0.38) !important;
       border-radius: 16px !important;
       box-shadow:
         0 25px 60px rgba(0, 0, 0, 0.82),
         0 0 45px rgba(56, 189, 248, 0.16),
         inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
       overflow: hidden;
       position: relative;
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      contain: layout paint;
+      transition: border-color 0.2s ease;
     }
 
     .login-grid .card:focus-within,
     .login-grid .card:hover {
       border-color: rgba(56, 189, 248, 0.68) !important;
-      box-shadow:
-        0 28px 65px rgba(0, 0, 0, 0.88),
-        0 0 55px rgba(56, 189, 248, 0.26),
-        0 0 25px rgba(245, 158, 11, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
     }
 
     /* Top Laser Accent Bar on Card */
@@ -1028,17 +1014,11 @@
       function drawJetShape(ctx, scale, color, glow, isAwacs) {
         ctx.save();
         ctx.scale(scale, scale);
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 12;
 
-        const grad = ctx.createLinearGradient(-20, 0, -4, 0);
-        grad.addColorStop(0, 'rgba(251, 191, 36, 0)');
-        grad.addColorStop(0.5, 'rgba(251, 191, 36, 0.75)');
-        grad.addColorStop(1, '#ffffff');
-        ctx.fillStyle = grad;
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.8)';
         ctx.beginPath();
         ctx.moveTo(-5, -1.8);
-        ctx.lineTo(-18 - Math.random() * 5, 0);
+        ctx.lineTo(-17, 0);
         ctx.lineTo(-5, 1.8);
         ctx.closePath();
         ctx.fill();
@@ -1073,28 +1053,41 @@
       }
 
       let tick = 0;
-      function animate() {
+      let lastFrame = 0;
+      let isTyping = false;
+      let typingTimer = null;
+      document.addEventListener('keydown', function () {
+        isTyping = true;
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(function () { isTyping = false; }, 180);
+      }, { passive: true });
+
+      function animate(now) {
+        requestAnimationFrame(animate);
+        if (document.hidden || isTyping) return;
+        if (now - lastFrame < 33) return;
+        lastFrame = now;
         tick++;
         ctx.clearRect(0, 0, W, H);
 
+        ctx.fillStyle = 'rgba(224, 242, 254, 0.55)';
+        ctx.beginPath();
         for (let sIdx = 0; sIdx < stars.length; sIdx++) {
           const st = stars[sIdx];
-          const a = st.alpha * (0.55 + 0.45 * Math.sin(tick * st.speed + st.phase));
-          ctx.fillStyle = 'rgba(224, 242, 254, ' + a.toFixed(3) + ')';
-          ctx.beginPath();
+          ctx.moveTo(st.x * W + st.r, st.y * H);
           ctx.arc(st.x * W, st.y * H, st.r, 0, Math.PI * 2);
-          ctx.fill();
         }
+        ctx.fill();
 
         for (let jIdx = 0; jIdx < jets.length; jIdx++) {
           const j = jets[jIdx];
           j.angle += Math.sin(tick * 0.008 + j.x * 10) * j.turn;
-          j.px += Math.cos(j.angle) * j.speed * 1.15;
-          j.py += Math.sin(j.angle) * j.speed * 1.15;
+          j.px += Math.cos(j.angle) * j.speed * 1.4;
+          j.py += Math.sin(j.angle) * j.speed * 1.4;
 
           const margin = 90;
-          if (j.px > W + margin) j.px = -margin;
-          if (j.px < -margin) j.px = W + margin;
+          if (j.px > W + margin) { j.px = -margin; j.trail.length = 0; }
+          if (j.px < -margin) { j.px = W + margin; j.trail.length = 0; }
           if (j.py > H * 0.76) {
             j.angle = -Math.abs(j.angle) * 0.6 - 0.15;
           }
@@ -1103,29 +1096,23 @@
           }
 
           j.trail.push({ x: j.px, y: j.py });
-          if (j.trail.length > 68) j.trail.shift();
+          if (j.trail.length > 36) j.trail.shift();
 
           if (j.trail.length > 2) {
+            ctx.strokeStyle = j.hostile ? 'rgba(248, 113, 113, 0.38)' : 'rgba(125, 211, 252, 0.38)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(j.trail[0].x, j.trail[0].y);
             for (let i = 1; i < j.trail.length; i++) {
-              const p0 = j.trail[i - 1];
-              const p1 = j.trail[i];
-              if (Math.hypot(p1.x - p0.x, p1.y - p0.y) > 40) continue;
-              const ratio = i / j.trail.length;
-              ctx.strokeStyle = j.hostile
-                ? 'rgba(248, 113, 113, ' + (ratio * 0.55).toFixed(3) + ')'
-                : 'rgba(125, 211, 252, ' + (ratio * 0.55).toFixed(3) + ')';
-              ctx.lineWidth = ratio * 2.2;
-              ctx.beginPath();
-              ctx.moveTo(p0.x, p0.y);
-              ctx.lineTo(p1.x, p1.y);
-              ctx.stroke();
+              ctx.lineTo(j.trail[i].x, j.trail[i].y);
             }
+            ctx.stroke();
           }
 
           if (j.awacs) {
-            const pulseR = (tick % 90) * 0.85;
-            const pulseA = Math.max(0, 1 - pulseR / 76) * 0.35;
-            ctx.strokeStyle = 'rgba(167, 139, 250, ' + pulseA.toFixed(3) + ')';
+            const pulseR = (tick % 45) * 1.6;
+            const pulseA = Math.max(0, 1 - pulseR / 72) * 0.35;
+            ctx.strokeStyle = 'rgba(167, 139, 250, ' + pulseA.toFixed(2) + ')';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(j.px, j.py, pulseR, 0, Math.PI * 2);
@@ -1138,33 +1125,23 @@
           drawJetShape(ctx, j.scale, j.color, j.glow, j.awacs);
           ctx.restore();
 
-          ctx.save();
           ctx.strokeStyle = j.color;
           ctx.lineWidth = 1;
           ctx.strokeRect(j.px - 9, j.py - 9, 18, 18);
 
-          ctx.beginPath();
-          ctx.moveTo(j.px + 9, j.py - 9);
-          ctx.lineTo(j.px + 16, j.py - 15);
-          ctx.stroke();
-
-          const tagX = j.px + 18;
-          const tagY = j.py - 26;
-          ctx.fillStyle = 'rgba(4, 11, 25, 0.76)';
+          const tagX = j.px + 14;
+          const tagY = j.py - 22;
+          ctx.fillStyle = 'rgba(4, 11, 25, 0.85)';
+          ctx.fillRect(tagX, tagY, 94, 20);
           ctx.strokeStyle = j.hostile ? 'rgba(248, 113, 113, 0.45)' : 'rgba(56, 189, 248, 0.35)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.roundRect(tagX, tagY, 96, 22, 4);
-          ctx.fill();
-          ctx.stroke();
+          ctx.strokeRect(tagX, tagY, 94, 20);
 
           ctx.font = 'bold 8.5px Consolas, monospace';
           ctx.fillStyle = j.color;
-          ctx.fillText(j.callsign, tagX + 5, tagY + 9);
+          ctx.fillText(j.callsign, tagX + 4, tagY + 9);
           ctx.font = '7.5px Consolas, monospace';
           ctx.fillStyle = 'rgba(203, 213, 225, 0.85)';
-          ctx.fillText(j.sub, tagX + 5, tagY + 18);
-          ctx.restore();
+          ctx.fillText(j.sub, tagX + 4, tagY + 17);
         }
 
         for (let i = missiles.length - 1; i >= 0; i--) {
@@ -1177,33 +1154,28 @@
             missiles.splice(i, 1);
             continue;
           }
-          const speed = 2.4;
+          const speed = 3.2;
           m.x += (dx / dist) * speed;
           m.y += (dy / dist) * speed;
           m.trail.push({ x: m.x, y: m.y });
-          if (m.trail.length > 28) m.trail.shift();
+          if (m.trail.length > 16) m.trail.shift();
 
-          for (let k = 1; k < m.trail.length; k++) {
-            const p0 = m.trail[k - 1];
-            const p1 = m.trail[k];
-            const r = k / m.trail.length;
-            ctx.strokeStyle = 'rgba(251, 191, 36, ' + (r * 0.85).toFixed(3) + ')';
-            ctx.lineWidth = r * 1.8;
+          if (m.trail.length > 1) {
+            ctx.strokeStyle = 'rgba(251, 191, 36, 0.75)';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(p0.x, p0.y);
-            ctx.lineTo(p1.x, p1.y);
+            ctx.moveTo(m.trail[0].x, m.trail[0].y);
+            for (let k = 1; k < m.trail.length; k++) {
+              ctx.lineTo(m.trail[k].x, m.trail[k].y);
+            }
             ctx.stroke();
           }
           ctx.fillStyle = '#fef08a';
-          ctx.beginPath();
-          ctx.arc(m.x, m.y, 2.2, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.fillRect(m.x - 1.5, m.y - 1.5, 3, 3);
         }
-
-        requestAnimationFrame(animate);
       }
 
-      animate();
+      requestAnimationFrame(animate);
     })();
   </script>
 </body>
