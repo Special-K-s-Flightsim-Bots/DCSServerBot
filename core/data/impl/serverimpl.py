@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import atexit
 import importlib
 import inspect
 import json
@@ -13,6 +12,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import traceback
 
@@ -217,7 +217,10 @@ class ServerImpl(Server):
             row = cursor.fetchone()
             if row:
                 self._maintenance = row[0]
-        atexit.register(self.stop_observer)
+        # A threading exit hook, not atexit: threading._shutdown() joins the observer's non-daemon
+        # threads BEFORE it runs the atexit handlers, so an atexit stopper is reached only after
+        # the join that is waiting for it — the process then never exits.
+        threading._register_atexit(self.stop_observer)  # type: ignore[attr-defined]
 
     @override
     async def reload(self):

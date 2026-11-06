@@ -1,7 +1,6 @@
 import aiofiles
 import aiohttp
 import asyncio
-import atexit
 import certifi
 import discord
 import json
@@ -13,6 +12,7 @@ import subprocess
 import ssl
 import sys
 import tempfile
+import threading
 import time
 import zipfile
 
@@ -503,7 +503,10 @@ class SRS(InstallableExtension, FileSystemEventHandler):
             self.observer.schedule(self, path=os.path.dirname(path))
             self.observer.start()
             if self.first_run:
-                atexit.register(self.stop_observer)
+                # A threading exit hook, not atexit: threading._shutdown() joins the observer's
+                # non-daemon threads BEFORE it runs the atexit handlers, so an atexit stopper is
+                # reached only after the join that is waiting for it — the process never exits.
+                threading._register_atexit(self.stop_observer)  # type: ignore[attr-defined]
                 self.first_run = False
 
     def stop_observer(self):

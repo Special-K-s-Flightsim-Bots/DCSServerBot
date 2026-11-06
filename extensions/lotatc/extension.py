@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import atexit
 import certifi
 import ctypes
 import discord
@@ -12,6 +11,7 @@ import shutil
 import ssl
 import subprocess
 import sys
+import threading
 import xml.etree.ElementTree as ET
 
 from core import utils, Server, get_translation, InstallException, PortType, Port, InstallableExtension, Status
@@ -94,7 +94,10 @@ class LotAtc(InstallableExtension, FileSystemEventHandler):
             "blue": {},
             "red": {}
         }
-        atexit.register(self.stop_observer)
+        # A threading exit hook, not atexit: threading._shutdown() joins the observer's non-daemon
+        # threads BEFORE it runs the atexit handlers, so an atexit stopper is reached only after
+        # the join that is waiting for it — the process then never exits.
+        threading._register_atexit(self.stop_observer)  # type: ignore[attr-defined]
 
     @override
     def load_config(self) -> dict:
