@@ -1,0 +1,94 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Test the cloud-connection"
+msgstr "Bulut bağlantısını test edin"
+
+msgid "Checking cloud connection ..."
+msgstr "Bulut bağlantısı kontrol ediliyor ..."
+
+msgid "Cloud connection established."
+msgstr "Bulut bağlantısı kuruldu."
+
+msgid "\nCloud TOKEN configured and valid."
+msgstr "\nBulut TOKEN yapılandırıldı ve geçerli."
+
+msgid "\nCloud TOKEN configured, but invalid!"
+msgstr "\nBulut TOKEN yapılandırıldı ancak geçersiz!"
+
+msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nBulut istatistiklerini kullanmak istiyorsanız bir bulut TOKEN alın!"
+
+msgid "Cloud not connected!"
+msgstr "Bulut bağlantısı yok!"
+
+msgid "Resync statistics with the cloud"
+msgstr "İstatistikleri bulutla yeniden eşitleyin"
+
+msgid "No cloud sync configured!"
+msgstr "Bulut eşitlemesi yapılandırılmamış!"
+
+msgid "Resync with cloud triggered."
+msgstr "Bulut ile yeniden eşitleme başlatıldı."
+
+msgid "Generate Cloud Statistics"
+msgstr "Bulut İstatistikleri Oluştur"
+
+msgid "Cloud statistics are not activated in this Discord!"
+msgstr "Bu Discord sunucusunda bulut istatistikleri etkinleştirilmemiş!"
+
+msgid "Use {} to link your account."
+msgstr "Hesabınızı eşleştirmek için {} komutunu kullanın."
+
+msgid "No cloud-based statistics found for this user."
+msgstr "Bu kullanıcı için bulut tabanlı istatistik bulunamadı."
+
+msgid "List registered DCS servers"
+msgstr "Kayıtlı DCS sunucularını listele"
+
+msgid "\nCloud sync configured and valid."
+msgstr "\nCloud sync configured and valid."
+
+msgid "\nYou need a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nYou need a cloud TOKEN, if you want to use cloud statistics!"
+
+msgid "\nCloud sync is disabled. Set 'register' to true in cloud.yaml to enable it."
+msgstr "\nCloud sync is disabled. Set 'register' to true in cloud.yaml to enable it."
+
+msgid "DCS Servers"
+msgstr "DCS Sunucus"
+
+msgid "Address"
+msgstr "Address"
+
+msgid "Map"
+msgstr "Map"
+
+msgid "Mission"
+msgstr "Görev"
+
+msgid "Time"
+msgstr "Zaman"
+
+msgid "Restart in"
+msgstr "Restart in"
+
+msgid "No servers of this group are active."
+msgstr "No sunucus of this group are active."
+
+msgid "No server found with the name \"*{search}*\"."
+msgstr "No sunucu found with the name \"*{search}*\"."
+
+msgid "A potential Troublemaker joined your Server"
+msgstr "A potential Troublemaker joined your Sunucu"
+
+msgid "Player {} is banned on {} other multiplayer servers for\n{}"
+msgstr "Oyuncu {} is banned on {} other multioyuncu sunucus for\n{}"
+
+msgid "You might want to watch them closely."
+msgstr "You might want to watch them closely."

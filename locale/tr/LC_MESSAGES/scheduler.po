@@ -1,0 +1,403 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage a DCS server"
+msgstr "DCS sunucularını yönetmek için komutlar"
+
+msgid "List of all registered servers"
+msgstr "Kayıtlı tüm sunucuların listesi"
+
+msgid "No servers registered."
+msgstr "Kayıtlı sunucu yok."
+
+msgid "All Servers"
+msgstr "Tüm Sunucular"
+
+msgid "Server"
+msgstr "Sunucu"
+
+msgid "Status"
+msgstr "Durum"
+
+msgid "Player"
+msgstr "Oyuncular"
+
+msgid "Maintenance flag set."
+msgstr "Bakım modu etkinleştirildi."
+
+msgid "Starting DCS server, please wait ..."
+msgstr "DCS sunucusu başlatılıyor, lütfen bekleyin ..."
+
+msgid "Using mission \"{}\" ..."
+msgstr "\"{}\" görevi kullanılıyor ..."
+
+msgid "Applying extensions"
+msgstr "Eklentiler uygulanıyor"
+
+msgid " to the original mission file ..."
+msgstr " (orijinal görev dosyasına) ..."
+
+msgid " to the current mission file ..."
+msgstr " (mevcut görev dosyasına) ..."
+
+msgid "Starting without a mission ..."
+msgstr "Görev olmadan başlatılıyor ..."
+
+msgid "Launching ..."
+msgstr "Başlatılıyor ..."
+
+msgid "Server \"{}\" started."
+msgstr "\"{}\" sunucusu başlatıldı."
+
+msgid "Server is in maintenance mode!\nUse {} to reset maintenance mode."
+msgstr "Sunucu bakım modunda!\nBakım modunu kapatmak için {} komutunu kullanın."
+
+msgid "Maintenance flag cleared."
+msgstr "Bakım modu kapatıldı."
+
+msgid "Server started successfully."
+msgstr "Sunucu başarıyla başlatıldı."
+
+msgid "The server crashed during startup. Trying again ({}/3) ..."
+msgstr "Sunucu başlatma sırasında çöktü. Tekrar deneniyor ({}/3) ..."
+
+msgid "The server is crashing during startup. Check the dcs.log for errors."
+msgstr "Sunucu başlatma sırasında çöküyor. Hatalar için dcs.log dosyasını kontrol edin."
+
+msgid "Timeout while launching. Please check if the server has started properly."
+msgstr "Başlatma sırasında zaman aşımı. Lütfen sunucunun düzgün başlayıp başlamadığını kontrol edin."
+
+msgid "Something went wrong. Please check the dcssb*.log."
+msgstr "Bir şeyler ters gitti. Lütfen dcssb*.log dosyasını kontrol edin."
+
+msgid "Exception: {}"
+msgstr "İstisna (Hata): {}"
+
+msgid "Launches a DCS server\n\n"
+msgstr "Bir DCS sunucusunu başlatır (açık değilse çalıştırır)\n\n"
+
+msgid "Change the mission based on the original uploaded mission file."
+msgstr "Görevi, yüklenen orijinal görev dosyasına göre değiştirin."
+
+msgid "Server \"{name}\" is stopped.\nPlease use {command} instead."
+msgstr "\"{name}\" sunucusu durdurulmuş durumda.\nBunun yerine lütfen {command} komutunu kullanın."
+
+msgid "Server \"{name}\" is {status}.\nPlease wait or use {command} force instead."
+msgstr "\"{name}\" sunucusu {status} durumunda.\nLütfen bekleyin veya {command} force komutunu kullanın."
+
+msgid "Server \"{}\" is started already."
+msgstr "\"{}\" sunucusu zaten başlatılmış."
+
+msgid "Launching DCS Server \"{}\""
+msgstr "\"{}\" DCS Sunucusu Başlatılıyor"
+
+msgid "Shuts a DCS server down\n"
+msgstr "Bir DCS sunucusunu tamamen kapatır\n"
+
+msgid "Deleted pending on-empty trigger."
+msgstr "Bekleyen 'boşaldığında çalıştır' tetikleyicisi silindi."
+
+msgid "Killing the DCS server, please wait ..."
+msgstr "DCS sunucusu zorla kapatılıyor, lütfen bekleyin ..."
+
+msgid "Gracefully stopping the DCS server, please wait ..."
+msgstr "DCS sunucusu güvenli şekilde kapatılıyor, lütfen bekleyin ..."
+
+msgid "Wait until shut down ..."
+msgstr "Kapanana kadar bekleniyor ..."
+
+msgid "DCS server \"{}\" shut down."
+msgstr "\"{}\" DCS sunucusu kapatıldı."
+
+msgid "Server shut down successfully."
+msgstr "Sunucu başarıyla kapatıldı."
+
+msgid "Timeout while shutting down. Please check if the server has shut down properly."
+msgstr "Kapatma sırasında zaman aşımı. Lütfen sunucunun kapanıp kapanmadığını kontrol edin."
+
+msgid "DCS server \"{}\" is already shut down."
+msgstr "\"{}\" DCS sunucusu zaten kapalı."
+
+msgid "Server is in state {}.\nDo you want to force a shutdown?"
+msgstr "Sunucu {} durumunda.\nZorla kapatmak istiyor musunuz?"
+
+msgid "Do you want to shut down server \"{}\"?"
+msgstr "\"{}\" sunucusunu kapatmak istiyor musunuz?"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Shutdown postponed when server is empty."
+msgstr "Kapatma işlemi sunucu boşaldığında yapılmak üzere ertelendi."
+
+msgid "Shutting down DCS Server \"{}\""
+msgstr "\"{}\" DCS Sunucusu Kapatılıyor"
+
+msgid "Restarts a DCS server\n\n"
+msgstr "Bir DCS sunucusunu yeniden başlatır\n\n"
+
+msgid "Do you want to restart DCS server \"{}\"?"
+msgstr "\"{}\" DCS sunucusunu yeniden başlatmak istiyor musunuz?"
+
+msgid "People are currently flying on this server!"
+msgstr "Şu anda bu sunucuda uçan oyuncular var!"
+
+msgid "\nA restart is pending already. If you continue, the restart will be voided."
+msgstr "\nZaten bekleyen bir yeniden başlatma var. Devam ederseniz mevcut işlem iptal edilecektir."
+
+msgid "Restarting DCS Server \"{}\""
+msgstr "\"{}\" DCS Sunucusu Yeniden Başlatılıyor"
+
+msgid "Already pending restart was cancelled."
+msgstr "Bekleyen yeniden başlatma işlemi iptal edildi."
+
+msgid "!!! Server will restart in {} !!!"
+msgstr "!!! Sunucu {} içinde yeniden başlatılacak !!!"
+
+msgid "Restart is delayed for {}. Waiting ..."
+msgstr "Yeniden başlatma {} süreyle ertelendi. Bekleniyor ..."
+
+msgid "!!! Server will restart NOW !!!"
+msgstr "!!! Sunucu ŞİMDİ yeniden başlatılıyor !!!"
+
+msgid "Starts a stopped DCS server"
+msgstr "Durdurulmuş bir DCS sunucusunu başlatır"
+
+msgid "Starting server \"{}\" ..."
+msgstr "\"{}\" sunucusu başlatılıyor ..."
+
+msgid "Error while starting server \"{}\"!"
+msgstr "\"{}\" sunucusu başlatılırken hata oluştu!"
+
+msgid "Please check manually, if the server has started.\nIf not, check the dcs.log for errors."
+msgstr "Sunucunun başlayıp başlamadığını lütfen manuel olarak kontrol edin.\nBaşlamadıysa hatalar için dcs.log dosyasını inceleyin."
+
+msgid "Timeout while starting server \"{}\"!"
+msgstr "\"{}\" sunucusu başlatılırken zaman aşımı oluştu!"
+
+msgid "Server \"{server}\" is shut down. Use {command} to start it up."
+msgstr "\"{server}\" sunucusu kapalı. Açmak için {command} komutunu kullanın."
+
+msgid "Server \"{}\" is already started."
+msgstr "\"{}\" sunucusu zaten çalışıyor."
+
+msgid "Server \"{server}\" is still {status}, please wait ..."
+msgstr "\"{server}\" sunucusu hala {status} durumunda, lütfen bekleyin ..."
+
+msgid "Stops a running DCS server"
+msgstr "Çalışmakta olan bir DCS sunucusunu durdurur"
+
+msgid "Do you want to stop server \"{}\"?"
+msgstr "\"{}\" sunucusunu durdurmak istiyor musunuz?"
+
+msgid "Stopping server \"{}\" ..."
+msgstr "\"{}\" sunucusu durduruluyor ..."
+
+msgid "Server \"{}\" stopped."
+msgstr "\"{}\" sunucusu durduruldu."
+
+msgid "Timeout while stopping server \"{}\"!"
+msgstr "\"{}\" sunucusu durdurulurken zaman aşımı oluştu!"
+
+msgid "Please check manually, if the server has stopped.\nIf not, check the dcs.log for errors."
+msgstr "Sunucunun durup durmadığını lütfen manuel olarak kontrol edin.\nDurmadıysa hatalar için dcs.log dosyasını inceleyin."
+
+msgid "Change the password or coalition passwords of a DCS server"
+msgstr "Bir DCS sunucusunun şifresini veya koalisyon şifrelerini değiştirir"
+
+msgid "Enter Password"
+msgstr "Şifre Girin"
+
+msgid "New password"
+msgstr "Yeni şifre"
+
+msgid " for coalition {}:"
+msgstr " ({} koalisyonu için):"
+
+msgid "Password will be changed on next server restart."
+msgstr "Şifre bir sonraki sunucu yeniden başlatmasında değiştirilecektir."
+
+msgid "Password changed."
+msgstr "Şifre değiştirildi."
+
+msgid "Configure a DCS server"
+msgstr "Bir DCS sunucusunu yapılandırır"
+
+msgid "It has to be stopped to change its configuration."
+msgstr "Yapılandırmasını değiştirmek için sunucunun durdurulması gerekir."
+
+msgid "Configuration for server \"{}\" updated."
+msgstr "\"{}\" sunucusunun yapılandırması güncellendi."
+
+msgid "Rename a DCS server\n"
+msgstr "Bir DCS sunucusunu yeniden adlandırır\n"
+
+msgid "Server \"{}\" has to be shut down for renaming."
+msgstr "Yeniden adlandırmak için \"{}\" sunucusunun kapatılması gerekir."
+
+msgid "The server has this name already. Aborted."
+msgstr "Sunucu zaten bu isme sahip. İptal edildi."
+
+msgid "Server \"{old_name}\" renamed to \"{new_name}\"."
+msgstr "\"{old_name}\" sunucusu \"{new_name}\" olarak yeniden adlandırıldı."
+
+msgid "Migrate a server from one instance to another"
+msgstr "Bir sunucuyu bir örnekten (instance) diğerine taşır"
+
+msgid "Server \"{server}\" is already bound to instance \"{node}:{instance}\"."
+msgstr "\"{server}\" sunucusu zaten \"{node}:{instance}\" örneğine bağlı."
+
+msgid "It will be unlinked from instance \"{}\" to allow the migration."
+msgstr "Taşımaya izin vermek için \"{}\" örneğiyle bağlantısı kesilecek."
+
+msgid "This is necessary to migrate the server."
+msgstr "Sunucuyu taşımak için bu işlem gereklidir."
+
+msgid "Server \"{server}\" migrated to instance \"{node}:{instance}\"."
+msgstr "\"{server}\" sunucusu \"{node}:{instance}\" örneğine taşındı."
+
+msgid "Time until server / mission restart"
+msgstr "Sunucu / görev yeniden başlatmasına kalan süre"
+
+msgid "No restart configured for this server."
+msgstr "Bu sunucu için yapılandırılmış yeniden başlatma yok."
+
+msgid "Server is in maintenance mode, it will not restart."
+msgstr "Sunucu bakım modunda, yeniden başlatılmayacak."
+
+msgid "Please try again in a minute."
+msgstr "Lütfen bir dakika içinde tekrar deneyin."
+
+msgid "Server \"{}\""
+msgstr "Sunucu \"{}\""
+
+msgid "The mission on server \"{}\""
+msgstr "\"{}\" sunucusundaki görev"
+
+msgid "{item} will {what} {when1}{when2}"
+msgstr "{item} {when1} {what}{when2}"
+
+msgid "restart"
+msgstr "yeniden başlatmak"
+
+msgid "shutdown"
+msgstr "kapatmak"
+
+msgid "now"
+msgstr "şimdi"
+
+msgid "if all players have left."
+msgstr " (tüm oyuncular ayrıldığında)."
+
+msgid "after {}"
+msgstr "{} sonra"
+
+msgid "immediately"
+msgstr "hemen"
+
+msgid ", if the mission is unpaused again."
+msgstr " (görev tekrar devam ettirildiğinde)."
+
+msgid "Clear the temp directory"
+msgstr "Geçici (temp) dizini temizle"
+
+msgid "This is necessary to clear the temp directory."
+msgstr "Geçici dizini temizlemek için bu işlem gereklidir."
+
+msgid "Server \"{}\" cleaned up."
+msgstr "\"{}\" sunucusu temizlendi."
+
+msgid "Locks a DCS server"
+msgstr "Bir DCS sunucusunu kilitler"
+
+msgid "Server \"{}\" locked."
+msgstr "\"{}\" sunucusu kilitlendi."
+
+msgid "Timeout while locking server \"{}\"!"
+msgstr "\"{}\" sunucusu kilitlenirken zaman aşımı oluştu!"
+
+msgid "Unlocks a DCS server"
+msgstr "Bir DCS sunucusunun kilidini açar"
+
+msgid "Server \"{}\" unlocked."
+msgstr "\"{}\" sunucusunun kilidi açıldı."
+
+msgid "Timeout while unlocking server \"{}\"!"
+msgstr "\"{}\" sunucusunun kilidi açılırken zaman aşımı oluştu!"
+
+msgid "Commands to manage the Scheduler"
+msgstr "Zamanlayıcıyı (Scheduler) yönetmek için komutlar"
+
+msgid "Sets the server's maintenance flag"
+msgstr "Sunucuyu bakım moduna alır"
+
+msgid "Server is configured for a pending restart.\nSetting the maintenance flag will abort this restart.\nAre you sure?"
+msgstr "Sunucu bekleyen bir yeniden başlatma için ayarlanmış.\nBakım modunu açmak bu yeniden başlatmayı iptal edecektir.\nEmin misiniz?"
+
+msgid "Maintenance mode set for server \"{}\"."
+msgstr "\"{}\" sunucusu için bakım modu etkinleştirildi."
+
+msgid "Server \"{}\" is already in maintenance mode."
+msgstr "\"{}\" sunucusu zaten bakım modunda."
+
+msgid "Clears the server's maintenance flag"
+msgstr "Sunucunun bakım modunu kaldırır"
+
+msgid "Maintenance mode cleared for server \"{}\"."
+msgstr "\"{}\" sunucusu için bakım modu kaldırıldı."
+
+msgid "Server \"{}\" is not in maintenance mode."
+msgstr "\"{}\" sunucusu bakım modunda değil."
+
+msgid "enable maintenance mode"
+msgstr "bakım modunu etkinleştir"
+
+msgid "Maintenance mode enabled."
+msgstr "Bakım modu etkinleştirildi."
+
+msgid "Maintenance mode is already active."
+msgstr "Bakım modu zaten aktif."
+
+msgid "disable maintenance mode"
+msgstr "bakım modunu devre dışı bırak"
+
+msgid "Maintenance mode disabled."
+msgstr "Bakım modu devre dışı bırakıldı."
+
+msgid "Maintenance mode wasn't enabled."
+msgstr "Bakım modu etkin değildi."
+
+msgid "Time to the next restart"
+msgstr "Sonraki yeniden başlatmaya kalan süre"
+
+msgid "Maintenance mode active, mission will not restart."
+msgstr "Bakım modu aktif, görev yeniden başlatılmayacak."
+
+msgid "The server"
+msgstr "Sunucu"
+
+msgid "The mission"
+msgstr "Görev"
+
+msgid "in {}"
+msgstr "{} içinde"
+
+msgid "Players"
+msgstr "Oyuncus"
+
+msgid "DCS server \"{}\" started."
+msgstr "DCS sunucu \"{}\" started."
+
+msgid "New Password"
+msgstr "New Password"
+
+msgid "Aborted"
+msgstr "İptal Edildi"
+
+msgid ", if all players have left"
+msgstr ", if all oyuncus have left"

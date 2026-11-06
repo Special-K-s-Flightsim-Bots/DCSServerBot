@@ -1,0 +1,625 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to display pilot logbook statistics"
+msgstr "Pilot uçuş kayıt defteri (logbook) istatistiklerini görüntülemek için komutlar"
+
+msgid "Commands to manage logbook squadrons"
+msgstr "Uçuş kayıt defteri filolarını yönetmek için komutlar"
+
+msgid "Commands to manage pilot qualifications"
+msgstr "Pilot yeterliliklerini yönetmek için komutlar"
+
+msgid "Commands to manage pilot awards"
+msgstr "Pilot madalya/ödüllerini yönetmek için komutlar"
+
+msgid "Show pilot logbook statistics"
+msgstr "Pilot uçuş kayıt defteri istatistiklerini göster"
+
+msgid "User is not linked!"
+msgstr "User is not linked!"
+
+msgid "No logbook data found for this user."
+msgstr "No logbook data found for this user."
+
+msgid "Pilot Logbook"
+msgstr "Pilot Uçuş Kayıt Defteri (Logbook)"
+
+msgid "Statistics for {}"
+msgstr "{} için İstatistikler"
+
+msgid "Total Flight Time"
+msgstr "Toplam Uçuş Süresi"
+
+msgid "Total Kills"
+msgstr "Toplam İmha"
+
+msgid "Deaths"
+msgstr "Ölümler"
+
+msgid "Takeoffs"
+msgstr "Kalkışlar"
+
+msgid "Landings"
+msgstr "İnişler"
+
+msgid "Ejections"
+msgstr "Atlamalar (Eject)"
+
+msgid "Crashes"
+msgstr "Kazalar / Düşüşler"
+
+msgid "Show unified pilot information"
+msgstr "Birleştirilmiş pilot bilgilerini göster"
+
+msgid "Pilot Information: {}"
+msgstr "Pilot Information: {}"
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Rank"
+msgstr "Rütbe"
+
+msgid "Squadron(s)"
+msgstr "Filo(s)"
+
+msgid "Total Hours"
+msgstr "Total Hours"
+
+msgid "Last Joined"
+msgstr "Last Joined"
+
+msgid "Qualifications ({})"
+msgstr "Yeterliliks ({})"
+
+msgid "Qualifications"
+msgstr "Yeterliliks"
+
+msgid "None"
+msgstr "None"
+
+msgid "Awards ({})"
+msgstr "Ödül/Madalyas ({})"
+
+msgid "Awards"
+msgstr "Ödül/Madalyas"
+
+msgid "Create a new squadron"
+msgstr "Create a new filo"
+
+msgid "Squadron name (e.g., \"801 NAS\")"
+msgstr "Filo name (e.g., \"801 NAS\")"
+
+msgid "Short abbreviation (e.g., \"801\")"
+msgstr "Short abbreviation (e.g., \"801\")"
+
+msgid "Parent service (e.g., \"RN\", \"RAF\", \"AAC\")"
+msgstr "Parent service (e.g., \"RN\", \"RAF\", \"AAC\")"
+
+msgid "Squadron motto or description"
+msgstr "Filo motto or description"
+
+msgid "Squadron \"{}\" already exists!"
+msgstr "Filo \"{}\" zaten mevcut!"
+
+msgid "Squadron Created"
+msgstr "Filo Created"
+
+msgid "Squadron \"{}\" has been created."
+msgstr "Filo \"{}\" oluşturuldu."
+
+msgid "ID"
+msgstr "ID"
+
+msgid "Abbreviation"
+msgstr "Abbreviation"
+
+msgid "Description"
+msgstr "Açıklama"
+
+msgid "Show squadron information"
+msgstr "Show filo information"
+
+msgid "Squadron not found!"
+msgstr "Filo bulunamadı!"
+
+msgid "No description"
+msgstr "No description"
+
+msgid "Members"
+msgstr "Üyeler"
+
+msgid "Commanding Officer"
+msgstr "Commanding Officer"
+
+msgid "Executive Officer"
+msgstr "Executive Officer"
+
+msgid "Show squadron roster"
+msgstr "Show filo roster"
+
+msgid "Squadron \"{}\" has no members."
+msgstr "Filo \"{}\" has no members."
+
+msgid "Squadron Roster: {}"
+msgstr "Filo Roster: {}"
+
+msgid "Members ({})"
+msgstr "Members ({})"
+
+msgid "Assign a player to a squadron"
+msgstr "Assign a oyuncu to a filo"
+
+msgid "Squadron to assign to"
+msgstr "Filo to assign to"
+
+msgid "Discord user to assign"
+msgstr "Discord user to assign"
+
+msgid "Position in squadron (e.g., \"Pilot\", \"WSO\")"
+msgstr "Position in filo (e.g., \"Pilot\", \"WSO\")"
+
+msgid "User {} is not linked to DCS!"
+msgstr "User {} is not linked to DCS!"
+
+msgid "{} is already assigned to {}!"
+msgstr "{} is already assigned to {}!"
+
+msgid "Member Assigned"
+msgstr "Member Assigned"
+
+msgid "{} has been assigned to {}."
+msgstr "{} has been assigned to {}."
+
+msgid "Position"
+msgstr "Position"
+
+msgid "Set or update pilot service and rank"
+msgstr "Set or update pilot service and rank"
+
+msgid "Discord user"
+msgstr "Discord user"
+
+msgid "Military service (e.g., \"RN\", \"RAF\", \"AAC\")"
+msgstr "Military service (e.g., \"RN\", \"RAF\", \"AAC\")"
+
+msgid "Military rank (e.g., \"Lt\", \"Cdr\", \"Wg Cdr\")"
+msgstr "Military rank (e.g., \"Lt\", \"Cdr\", \"Wg Cdr\")"
+
+msgid "Pilot Updated"
+msgstr "Pilot Updated"
+
+msgid "Pilot info for {} has been set."
+msgstr "Pilot info for {} has been set."
+
+msgid "Remove a player from their squadron"
+msgstr "Remove a oyuncu from their filo"
+
+msgid "Squadron to remove from"
+msgstr "Filo to remove from"
+
+msgid "Member to remove"
+msgstr "Member to remove"
+
+msgid "Squadron or member not found!"
+msgstr "Filo or member bulunamadı!"
+
+msgid "Member Removed"
+msgstr "Member Removed"
+
+msgid "{} has been removed from {}."
+msgstr "{} has been removed from {}."
+
+msgid "Update a member's rank"
+msgstr "Update a member's rank"
+
+msgid "Squadron"
+msgstr "Filo"
+
+msgid "Member to promote"
+msgstr "Member to promote"
+
+msgid "New rank"
+msgstr "New rank"
+
+msgid "Member not found in squadron!"
+msgstr "Member bulunamadı in filo!"
+
+msgid "Rank Updated"
+msgstr "Rank Updated"
+
+msgid "{} has been promoted to {}."
+msgstr "{} has been promoted to {}."
+
+msgid "Set squadron commanding officer"
+msgstr "Set filo commanding officer"
+
+msgid "CO Assigned"
+msgstr "CO Assigned"
+
+msgid "{} is now Commanding Officer of {}."
+msgstr "{} is now Commanding Officer of {}."
+
+msgid "Set squadron executive officer"
+msgstr "Set filo executive officer"
+
+msgid "XO Assigned"
+msgstr "XO Assigned"
+
+msgid "{} is now Executive Officer of {}."
+msgstr "{} is now Executive Officer of {}."
+
+msgid "List all squadrons"
+msgstr "List all filos"
+
+msgid "No squadrons have been created yet."
+msgstr "No filos have been created yet."
+
+msgid "Squadrons"
+msgstr "Filos"
+
+msgid "All registered squadrons"
+msgstr "All registered filos"
+
+msgid "{} members"
+msgstr "{} members"
+
+msgid "Delete a squadron"
+msgstr "Delete a filo"
+
+msgid "Squadron Deleted"
+msgstr "Filo Deleted"
+
+msgid "Squadron \"{}\" has been deleted."
+msgstr "Filo \"{}\" silindi."
+
+msgid "Edit squadron details"
+msgstr "Edit filo details"
+
+msgid "Squadron to edit"
+msgstr "Filo to edit"
+
+msgid "New squadron name"
+msgstr "New filo name"
+
+msgid "New abbreviation"
+msgstr "New abbreviation"
+
+msgid "New parent service"
+msgstr "New parent service"
+
+msgid "New description"
+msgstr "New description"
+
+msgid "New logo URL"
+msgstr "New logo URL"
+
+msgid "Please provide at least one field to update."
+msgstr "Please provide at least one field to update."
+
+msgid "Squadron Updated"
+msgstr "Filo Updated"
+
+msgid "Squadron \"{}\" has been updated."
+msgstr "Filo \"{}\" güncellendi."
+
+msgid "Changes"
+msgstr "Changes"
+
+msgid "Create a new qualification"
+msgstr "Create a new yeterlilik"
+
+msgid "Qualification name (e.g., \"Carrier Qualified\", \"Night Vision\")"
+msgstr "Yeterlilik name (e.g., \"Carrier Qualified\", \"Night Vision\")"
+
+msgid "Description of the qualification"
+msgstr "Description of the yeterlilik"
+
+msgid "Aircraft type this applies to (leave empty for all)"
+msgstr "Aircraft type this applies to (leave empty for all)"
+
+msgid "Days until expiration (leave empty for permanent)"
+msgstr "Days until expiration (leave empty for permanent)"
+
+msgid "Qualification \"{}\" already exists!"
+msgstr "Yeterlilik \"{}\" zaten mevcut!"
+
+msgid "Qualification Created"
+msgstr "Yeterlilik Created"
+
+msgid "Qualification \"{}\" has been created."
+msgstr "Yeterlilik \"{}\" oluşturuldu."
+
+msgid "Aircraft Type"
+msgstr "Aircraft Type"
+
+msgid "Valid for"
+msgstr "Valid for"
+
+msgid "{} days"
+msgstr "{} days"
+
+msgid "Permanent"
+msgstr "Permanent"
+
+msgid "Show qualification details"
+msgstr "Show yeterlilik details"
+
+msgid "Qualification not found!"
+msgstr "Yeterlilik bulunamadı!"
+
+msgid "Holders"
+msgstr "Holders"
+
+msgid "Grant a qualification to a pilot"
+msgstr "Grant a yeterlilik to a pilot"
+
+msgid "Discord user to grant qualification to"
+msgstr "Discord user to grant yeterlilik to"
+
+msgid "Qualification to grant"
+msgstr "Yeterlilik to grant"
+
+msgid "{} already has qualification \"{}\"."
+msgstr "{} already has yeterlilik \"{}\"."
+
+msgid "Qualification Granted"
+msgstr "Yeterlilik Granted"
+
+msgid "{} has been granted \"{}\""
+msgstr "{} has been granted \"{}\""
+
+msgid "Expires"
+msgstr "Expires"
+
+msgid "Never"
+msgstr "Never"
+
+msgid "Revoke a qualification from a pilot"
+msgstr "Revoke a yeterlilik from a pilot"
+
+msgid "Discord user to revoke qualification from"
+msgstr "Discord user to revoke yeterlilik from"
+
+msgid "Qualification to revoke"
+msgstr "Yeterlilik to revoke"
+
+msgid "Qualification Revoked"
+msgstr "Yeterlilik Revoked"
+
+msgid "\"{}\" has been revoked from {}"
+msgstr "\"{}\" has been revoked from {}"
+
+msgid "Refresh a pilot's qualification expiration"
+msgstr "Refresh a pilot's yeterlilik expiration"
+
+msgid "Discord user to refresh qualification for"
+msgstr "Discord user to refresh yeterlilik for"
+
+msgid "Qualification to refresh"
+msgstr "Yeterlilik to refresh"
+
+msgid "Qualification \"{}\" is permanent and does not expire."
+msgstr "Yeterlilik \"{}\" is permanent and does not expire."
+
+msgid "{} does not have qualification \"{}\"."
+msgstr "{} does not have yeterlilik \"{}\"."
+
+msgid "Qualification Refreshed"
+msgstr "Yeterlilik Refreshed"
+
+msgid "\"{}\" has been refreshed for {}"
+msgstr "\"{}\" has been refreshed for {}"
+
+msgid "New Expiration"
+msgstr "New Expiration"
+
+msgid "List qualifications"
+msgstr "List yeterliliks"
+
+msgid "Show qualifications for a specific pilot (leave empty for all qualifications)"
+msgstr "Show yeterliliks for a specific pilot (leave empty for all yeterliliks)"
+
+msgid "{} has no qualifications."
+msgstr "{} has no yeterliliks."
+
+msgid "Qualifications for {}"
+msgstr "Yeterliliks for {}"
+
+msgid "No qualifications have been created yet."
+msgstr "No yeterliliks have been created yet."
+
+msgid "All defined qualifications"
+msgstr "All defined yeterliliks"
+
+msgid "{} holders, valid: {}"
+msgstr "{} holders, valid: {}"
+
+msgid "List qualifications expiring soon"
+msgstr "List yeterliliks expiring soon"
+
+msgid "Show qualifications expiring within this many days (default: 30)"
+msgstr "Show yeterliliks expiring within this many days (default: 30)"
+
+msgid "Filter by squadron (optional)"
+msgstr "Filter by filo (optional)"
+
+msgid "Filter by qualification type (optional)"
+msgstr "Filter by yeterlilik type (optional)"
+
+msgid "Qualifications expiring within {} days"
+msgstr "Yeterliliks expiring within {} days"
+
+msgid "Squadron: {}"
+msgstr "Filo: {}"
+
+msgid "Qualification: {}"
+msgstr "Yeterlilik: {}"
+
+msgid "No qualifications expiring within {} days{}."
+msgstr "No yeterliliks expiring within {} days{}."
+
+msgid " for the selected filters"
+msgstr " for the selected filters"
+
+msgid "Expiring Qualifications"
+msgstr "Expiring Yeterliliks"
+
+msgid "Pilots"
+msgstr "Pilots"
+
+msgid "Delete a qualification"
+msgstr "Delete a yeterlilik"
+
+msgid "Qualification Deleted"
+msgstr "Yeterlilik Deleted"
+
+msgid "Qualification \"{}\" has been deleted."
+msgstr "Yeterlilik \"{}\" silindi."
+
+msgid "Create a new award"
+msgstr "Create a new ödül/madalya"
+
+msgid "Award name (e.g., \"Distinguished Flying Cross\")"
+msgstr "Ödül/Madalya name (e.g., \"Distinguished Flying Cross\")"
+
+msgid "Description of what the award is for"
+msgstr "Description of what the ödül/madalya is for"
+
+msgid "Ribbon colors as JSON array (e.g., [\"#FF0000\", \"#FFFFFF\", \"#0000FF\"])"
+msgstr "Ribbon colors as JSON array (e.g., [\"#FF0000\", \"#FFFFFF\", \"#0000FF\"])"
+
+msgid "URL to award image (optional)"
+msgstr "URL to ödül/madalya image (optional)"
+
+msgid "Invalid ribbon_colors format. Must be a JSON array of color strings (max 20). Error: {}"
+msgstr "Invalid ribbon_colors format. Must be a JSON array of color strings (max 20). Error: {}"
+
+msgid "Award \"{}\" already exists!"
+msgstr "Ödül/Madalya \"{}\" zaten mevcut!"
+
+msgid "Award Created"
+msgstr "Ödül/Madalya Created"
+
+msgid "Award \"{}\" has been created."
+msgstr "Ödül/Madalya \"{}\" oluşturuldu."
+
+msgid "Show award details"
+msgstr "Show ödül/madalya details"
+
+msgid "Award not found!"
+msgstr "Ödül/Madalya bulunamadı!"
+
+msgid "Recipients"
+msgstr "Recipients"
+
+msgid "Auto-Grant"
+msgstr "Auto-Grant"
+
+msgid "Yes"
+msgstr "Yes"
+
+msgid "Grant an award to a pilot"
+msgstr "Grant an ödül/madalya to a pilot"
+
+msgid "Discord user to grant award to"
+msgstr "Discord user to grant ödül/madalya to"
+
+msgid "Award to grant"
+msgstr "Ödül/Madalya to grant"
+
+msgid "Citation or reason for the award (optional)"
+msgstr "Citation or reason for the ödül/madalya (optional)"
+
+msgid "Award Granted"
+msgstr "Ödül/Madalya Granted"
+
+msgid "{} has been awarded \"{}\""
+msgstr "{} has been ödül/madalyaed \"{}\""
+
+msgid "Citation"
+msgstr "Citation"
+
+msgid "Revoke an award from a pilot"
+msgstr "Revoke an ödül/madalya from a pilot"
+
+msgid "Discord user to revoke award from"
+msgstr "Discord user to revoke ödül/madalya from"
+
+msgid "Award to revoke"
+msgstr "Ödül/Madalya to revoke"
+
+msgid "{} does not have award \"{}\"."
+msgstr "{} does not have ödül/madalya \"{}\"."
+
+msgid "Award Revoked"
+msgstr "Ödül/Madalya Revoked"
+
+msgid "List awards"
+msgstr "List ödül/madalyas"
+
+msgid "Show awards for a specific pilot (leave empty for all awards)"
+msgstr "Show ödül/madalyas for a specific pilot (leave empty for all ödül/madalyas)"
+
+msgid "{} has no awards."
+msgstr "{} has no ödül/madalyas."
+
+msgid "Awards for {}"
+msgstr "Ödül/Madalyas for {}"
+
+msgid "Awards for {} (continued)"
+msgstr "Ödül/Madalyas for {} (continued)"
+
+msgid "No awards have been created yet."
+msgstr "No ödül/madalyas have been created yet."
+
+msgid "All defined awards ({} total)"
+msgstr "All defined ödül/madalyas ({} total)"
+
+msgid "Awards (continued)"
+msgstr "Ödül/Madalyas (continued)"
+
+msgid "{} recipients"
+msgstr "{} recipients"
+
+msgid "Delete an award"
+msgstr "Delete an ödül/madalya"
+
+msgid "Award Deleted"
+msgstr "Ödül/Madalya Deleted"
+
+msgid "Award \"{}\" has been deleted."
+msgstr "Ödül/Madalya \"{}\" silindi."
+
+msgid "Generate a ribbon rack for a pilot"
+msgstr "Generate a ribbon rack for a pilot"
+
+msgid "Discord user to generate ribbon rack for"
+msgstr "Discord user to generate ribbon rack for"
+
+msgid "Ribbon generation is not available. Missing PIL/numpy libraries."
+msgstr "Ribbon generation is not available. Missing PIL/numpy libraries."
+
+msgid "Failed to generate ribbon rack."
+msgstr "Failed to generate ribbon rack."
+
+msgid "Ribbon Rack"
+msgstr "Ribbon Rack"
+
+msgid "{} awards"
+msgstr "{} ödül/madalyas"
+
+msgid "Qualification(s) expired: {}"
+msgstr "Yeterlilik(s) expired: {}"
+
+msgid "Qualification(s) renewed: {}"
+msgstr "Yeterlilik(s) renewed: {}"
+
+msgid "Congratulations! You've earned qualification(s): {}"
+msgstr "Congratulations! You've earned yeterlilik(s): {}"

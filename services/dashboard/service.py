@@ -5,7 +5,7 @@ import logging
 import os
 import re
 
-from core import Service, ServiceRegistry, Status, NodeImpl
+from core import Service, ServiceRegistry, Status, NodeImpl, get_translation
 from datetime import datetime
 from logging.handlers import QueueHandler, RotatingFileHandler
 from queue import Queue
@@ -26,6 +26,8 @@ __all__ = [
     "Dashboard"
 ]
 
+_ = get_translation("dashboard")
+
 
 class HeaderWidget:
     """Display header with clock."""
@@ -43,12 +45,12 @@ class HeaderWidget:
         message = f"[b]"
         if self.service.is_multinode():
             if self.node.master:
-                message += "Cluster Master | "
+                message += f"{_('Cluster Master')} | "
             else:
-                message += "Cluster Agent | "
-        message += f"DCSServerBot Version {self.node.bot_version}.{self.node.sub_version}"
+                message += f"{_('Cluster Agent')} | "
+        message += f"{_('DCSServerBot Version')} {self.node.bot_version}.{self.node.sub_version}"
         if self.node.dcs_version:
-            message += f" | DCS Version {self.node.dcs_version}[/]"
+            message += f" | {_('DCS Version')} {self.node.dcs_version}[/]"
         grid.add_row(message, datetime.now().ctime().replace(":", "[blink]:[/]"))
         return Panel(grid, style=config.get("background", "white on navy_blue"),
                      border_style=config.get("border", "white"))
@@ -65,12 +67,12 @@ class ServersWidget:
     def __rich__(self) -> Panel:
         config = self.service.get_config().get("servers", {})
         table = Table(expand=True, show_edge=False)
-        table.add_column("Status", justify="center", min_width=8)
-        table.add_column("Server Name", justify="left", no_wrap=True)
-        table.add_column("Mission Name", justify="left", no_wrap=True)
-        table.add_column("Players", justify="center", min_width=4)
+        table.add_column(_("Status"), justify="center", min_width=8)
+        table.add_column(_("Server Name"), justify="left", no_wrap=True)
+        table.add_column(_("Mission Name"), justify="left", no_wrap=True)
+        table.add_column(_("Players"), justify="center", min_width=4)
         if self.service.node.master and self.service.is_multinode():
-            table.add_column("Node", justify="left", min_width=8)
+            table.add_column(_("Node"), justify="left", min_width=8)
         for server_name, server in self.bus.servers.items():
             # do not show remote servers on agents or if hide_remote_servers is set
             if (not self.node.master or config.get('hide_remote_servers', False)) and server.is_remote:
@@ -81,9 +83,9 @@ class ServersWidget:
             n = server.num_players if server.num_players is not None else len(server.get_active_players())
             num_players = f"{n+1}/{server.settings.get('maxPlayers', 16)}" if server.current_mission else "n/a"
             if self.service.node.master and self.service.is_multinode():
-                table.add_row(server.status.name.title(), name, mission_name, num_players, server.node.name)
+                table.add_row(_(server.status.name.title()), name, mission_name, num_players, server.node.name)
             else:
-                table.add_row(server.status.name.title(), name, mission_name, num_players)
+                table.add_row(_(server.status.name.title()), name, mission_name, num_players)
         return Panel(table, padding=1,
                      style=config.get("background", "white on dark_blue"),
                      border_style=config.get("border", "white"))
@@ -102,8 +104,8 @@ class NodeWidget:
     def __rich__(self) -> Panel:
         config = self.service.get_config().get("nodes", {})
         table = Table(expand=True, show_edge=False)
-        table.add_column("Node ([green]Master[/])", justify="left")
-        table.add_column("Servers", justify="left")
+        table.add_column(_("Node ([green]Master[/])"), justify="left")
+        table.add_column(_("Servers"), justify="left")
         nodes: dict[str, Node | None] = {name: None for name in self.node.all_nodes.keys()}
         servers: dict[str, int] = dict()
         for server in self.bus.servers.values():
@@ -114,7 +116,7 @@ class NodeWidget:
                 servers[server.node.name] += 1
         for name, node in nodes.items():  # type: Node
             if not node:
-                table.add_row(f"[grey54]{name}[/]", "[grey54]inactive[/]")
+                table.add_row(f"[grey54]{name}[/]", f"[grey54]{_('inactive')}[/]")
             elif node.master:
                 table.add_row(f"[green]{node.name}[/]", f"{servers[node.name]}/{len(node.instances)}")
             else:

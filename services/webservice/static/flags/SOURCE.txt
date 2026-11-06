@@ -10,6 +10,7 @@ Flag and globe SVG assets for the console's language control.
   es.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
   ru.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
   cn.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+  tr.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
 
 Add a language by dropping its SVG here and naming it in LANGUAGE_FLAGS
 (services/webservice/i18n.py); a language without an asset falls back to the globe.

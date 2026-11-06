@@ -1,0 +1,37 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "LSO Grade"
+msgstr "LSO Notu"
+
+msgid "Result for {player} at carrier {carriername} [{carriertype}]"
+msgstr "{player} için {carriername} [{carriertype}] gemisindeki sonuç"
+
+msgid "Grade"
+msgstr "Not"
+
+msgid "Points"
+msgstr "Puan"
+
+msgid "Details"
+msgstr "Detaylar"
+
+msgid "Groove"
+msgstr "Groove Süresi"
+
+msgid "Wire"
+msgstr "Halat (Wire)"
+
+msgid "Case"
+msgstr "Case"
+
+msgid "Wind"
+msgstr "Rüzgar"
+
+msgid "Aircraft"
+msgstr "Hava Aracı"

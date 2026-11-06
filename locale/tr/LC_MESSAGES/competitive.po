@@ -1,0 +1,163 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Display TrueSkill:tm: ratings"
+msgstr "TrueSkill:tm: derecelendirmelerini göster"
+
+msgid "TrueSkill:tm: rating: {rating:.2f}."
+msgstr "TrueSkill:tm: derecesi: {rating:.2f}."
+
+msgid "Display TrueSkill:tm: history"
+msgstr "TrueSkill:tm: geçmişini göster"
+
+msgid "User {} is not linked."
+msgstr "Kullanıcı {} eşleştirilmemiş."
+
+msgid "Delete TrueSkill:tm: ratings"
+msgstr "TrueSkill:tm: derecelendirmelerini sil"
+
+msgid "Do you really want to delete TrueSkill:tm: ratings for this user?"
+msgstr "Bu kullanıcı için TrueSkill:tm: derecelendirmelerini gerçekten silmek istiyor musunuz?"
+
+msgid "Do you really want to delete the TrueSkill:tm: ratings for all users?"
+msgstr "Tüm kullanıcılar için TrueSkill:tm: derecelendirmelerini gerçekten silmek istiyor musunuz?"
+
+msgid "TrueSkill:tm: ratings deleted."
+msgstr "TrueSkill:tm: derecelendirmeleri silindi."
+
+msgid "Regenerate TrueSkill:tm: ratings"
+msgstr "TrueSkill:tm: derecelendirmelerini yeniden oluştur"
+
+msgid "Do you want to regenerate the TrueSkill:tm: ratings for this user?"
+msgstr "Bu kullanıcı için TrueSkill:tm: derecelendirmelerini yeniden oluşturmak istiyor musunuz?"
+
+msgid "Do you really want to regenerate **all** TrueSkill:tm: ratings?"
+msgstr "**Tüm** TrueSkill:tm: derecelendirmelerini gerçekten yeniden oluşturmak istiyor musunuz?"
+
+msgid "Member is not linked to a player."
+msgstr "Üye bir oyuncuya eşleştirilmemiş."
+
+msgid "TrueSkill:tm: ratings deleted.\nGenerating new values now ..."
+msgstr "TrueSkill:tm: derecelendirmeleri silindi.\nYeni değerler oluşturuluyor ..."
+
+msgid "TrueSkill:tm: ratings regenerated."
+msgstr "TrueSkill:tm: derecelendirmeleri yeniden oluşturuldu."
+
+msgid "Your TrueSkill rating is: {}"
+msgstr "TrueSkill dereceniz: {}"
+
+msgid "You're not allowed to re-join the same match!"
+msgstr "Aynı maça tekrar katılmanıza izin verilmiyor!"
+
+msgid "Player {name} ({rating}) joined the {side} team!"
+msgstr "Oyuncu {name} ({rating}), {side} takımına katıldı!"
+
+msgid "The match is on! If you die, crash or leave now, you lose!"
+msgstr "Maç başladı! Şimdi ölürseniz, düşerseniz veya ayrılırsanız kaybedersiniz!"
+
+msgid "You won against {loser}! Your new rating is {rating}"
+msgstr "{loser} karşısında kazandınız! Yeni dereceniz: {rating}"
+
+msgid "You lost against {winner}! Your new rating is {rating}"
+msgstr "{winner} karşısında kaybettiniz! Yeni dereceniz: {rating}"
+
+msgid "Display your rating"
+msgstr "Derecenizi gösterir"
+
+msgid "The match is over, {} won!\n\nThe following players are still alive:\n"
+msgstr "Maç bitti, {} kazandı!\n\nAşağıdaki oyuncular hala hayatta:\n"
+
+msgid "\nThis is the log of your last match:\n"
+msgstr "\nSon maçınızın kaydı:\n"
+
+msgid "\nYour new rating is as follows:\n"
+msgstr "\nYeni dereceniz aşağıdaki gibidir:\n"
+
+msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
+msgstr "{killer} ({killer_module}), {victim} ({victim_module}) oyuncusunu {weapon} ile {what}"
+
+msgid "killed"
+msgstr "vurdu"
+
+msgid "team-killed"
+msgstr "dost ateşiyle vurdu"
+
+msgid "{player} in {module} died ({event})"
+msgstr "{player} ({module}) öldü ({event})"
+
+msgid "self-kill"
+msgstr "intihar"
+
+msgid "crash"
+msgstr "kaza/düşüş"
+
+msgid "eject"
+msgstr "fırlatma koltuğu (eject)"
+
+msgid "disconnect"
+msgstr "bağlantı koptu"
+
+msgid "change_slot"
+msgstr "slot değiştirdi"
+
+msgid "Use {} to link your account."
+msgstr "Hesabınızı eşleştirmek için {} komutunu kullanın."
+
+msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
+msgstr "TrueSkill:tm: rating of oyuncu {name}: {rating:.2f}."
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "This can take a while."
+msgstr "This can take a while."
+
+msgid "You need to link your account first."
+msgstr "You need to link your account first."
+
+msgid "You need to specify two different players."
+msgstr "You need to specify two different oyuncus."
+
+msgid "Compare Players"
+msgstr "Compare Oyuncus"
+
+msgid "You need to specify two different modules."
+msgstr "You need to specify two different modules."
+
+msgid "Compare Modules"
+msgstr "Compare Modules"
+
+msgid "The match will start in 1 minute."
+msgstr "The match will start in 1 minute."
+
+msgid "The match will start in 30 seconds."
+msgstr "The match will start in 30 seconds."
+
+msgid "The match will start in 10 seconds."
+msgstr "The match will start in 10 seconds."
+
+msgid "The match will start in {} minutes."
+msgstr "The match will start in {} minutes."
+
+msgid "The match will start in {} second{}."
+msgstr "The match will start in {} second{}."
+
+msgid "{} side lost due to not participarting {} seconds after {} side joined the match"
+msgstr "{} side lost due to not participarting {} seconds after {} side joined the match"
+
+msgid "Your squadron was credited with {} points because an enemy player bailed out!"
+msgstr "Your filo was credited with {} points because an enemy oyuncu bailed out!"
+
+msgid "You landed at the wrong place! You need to land at {}!"
+msgstr "You landed at the wrong place! You need to land at {}!"
+
+msgid "{player} landed at {place} and saved the win for the {side} side!"
+msgstr "{oyuncu} landed at {place} and saved the win for the {side} side!"
+
+msgid "The match is over, it is a draw!\n\n"
+msgstr "The match is over, it is a draw!\n\n"

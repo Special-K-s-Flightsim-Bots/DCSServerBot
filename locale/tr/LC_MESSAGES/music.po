@@ -1,0 +1,157 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage music in your (DCS) server"
+msgstr "DCS sunucunuzda müzik yayınını yönetmek için komutlar"
+
+msgid "Music Player"
+msgstr "Müzik Çalar"
+
+msgid "You don't have any playlists to play. Please create one with {}."
+msgstr "Çalınacak çalma listeniz yok. Lütfen {} ile bir tane oluşturun."
+
+msgid "Frequency"
+msgstr "Frekans"
+
+msgid "Coalition"
+msgstr "Koalisyon"
+
+msgid "Red"
+msgstr "Kırmızı"
+
+msgid "Blue"
+msgstr "Mavi"
+
+msgid "Neutral"
+msgstr "Tarafsız"
+
+msgid "n/a"
+msgstr "Yok"
+
+msgid " Now Playing "
+msgstr " Şu Anda Çalıyor "
+
+msgid "Title"
+msgstr "Başlık"
+
+msgid "Artist"
+msgstr "Sanatçı"
+
+msgid "Album"
+msgstr "Albüm"
+
+msgid " Playlist "
+msgstr " Çalma Listesi "
+
+msgid "- empty -"
+msgstr "- boş -"
+
+msgid "Pick a song from the list"
+msgstr "Listeden bir şarkı seçin"
+
+msgid "Use /music play to access all songs in the list.\n"
+msgstr "Listedeki tüm şarkılara erişmek için /music play komutunu kullanın.\n"
+
+msgid "Pick a playlist to play"
+msgstr "Çalmak için bir çalma listesi seçin"
+
+msgid "Stop"
+msgstr "Durdur"
+
+msgid "Play"
+msgstr "Oynat"
+
+msgid "Skip"
+msgstr "Atla"
+
+msgid "Repeat"
+msgstr "Tekrarla"
+
+msgid "Shuffle"
+msgstr "Karıştır"
+
+msgid "Change Settings for {}"
+msgstr "{} için Ayarları Değiştir"
+
+msgid "Frequency (xxx.xx)"
+msgstr "Frekans (xxx.xx)"
+
+msgid "Modulation (AM | FM)"
+msgstr "Modülasyon (AM | FM)"
+
+msgid "Volume"
+msgstr "Ses Seviyesi"
+
+msgid "Coalition (1=red | 2=blue)"
+msgstr "Koalisyon (1=kırmızı | 2=mavi)"
+
+msgid "Display Name"
+msgstr "Görünen Ad"
+
+msgid "Modulation must be one of AM | FM!"
+msgstr "Modülasyon AM veya FM olmalıdır!"
+
+msgid "Coalition must be 1 or 2!"
+msgstr "Koalisyon 1 veya 2 olmalıdır!"
+
+msgid "Play a song or a playlist\n"
+msgstr "Bir şarkı veya çalma listesi oynat\n"
+
+msgid "Server {} is not running."
+msgstr "{} sunucusu çalışmıyor."
+
+msgid "Now playing {} ..."
+msgstr "Şu anda çalıyor: {} ..."
+
+msgid "Radio {} started."
+msgstr "Radyo {} başlatıldı."
+
+msgid "Stop playing"
+msgstr "Çalmayı durdur"
+
+msgid "Radio {} stopped."
+msgstr "Radyo {} durduruldu."
+
+msgid "Commands to manage music playlists"
+msgstr "Müzik çalma listelerini yönetmek için komutlar"
+
+msgid "Add a song to a playlist"
+msgstr "Çalma listesine şarkı ekle"
+
+msgid "{title} has been added to playlist {playlist}."
+msgstr "{title}, {playlist} çalma listesine eklendi."
+
+msgid "Add all available songs to a playlist"
+msgstr "Mevcut tüm şarkıları çalma listesine ekle"
+
+msgid "Do you really want to add ALL songs to the playlist?"
+msgstr "TÜM şarkıları çalma listesine eklemek istediğinizden emin misiniz?"
+
+msgid "Remove a song from a playlist"
+msgstr "Çalma listesinden bir şarkıyı kaldır"
+
+msgid "{title} has been removed from playlist {playlist}."
+msgstr "{title}, {playlist} çalma listesinden kaldırıldı."
+
+msgid "Playlist {} deleted."
+msgstr "{} çalma listesi silindi."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Dosya zaten mevcut. Üzerine yazmak istiyor musunuz?"
+
+msgid "Song {} uploaded."
+msgstr "{} şarkısı yüklendi."
+
+msgid "Error {status} while reading file {file}!"
+msgstr "{file} dosyası okunurken {status} hatası oluştu!"
+
+msgid "Do you really want to add ALL songs from the `{}` folder to the playlist?"
+msgstr "Do you really want to add ALL songs from the `{}` folder to the playlist?"
+
+msgid "Playlist {} updated."
+msgstr "Playlist {} updated."

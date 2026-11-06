@@ -1,0 +1,37 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Logistics mission management"
+msgstr "Lojistik görev yönetimi"
+
+msgid "Create a new logistics task"
+msgstr "Yeni bir lojistik görevi oluştur"
+
+msgid "List logistics tasks"
+msgstr "Lojistik görevlerini listele"
+
+msgid "View details of a logistics task"
+msgstr "Bir lojistik görevinin detaylarını görüntüle"
+
+msgid "Approve a pending logistics request"
+msgstr "Bekleyen bir lojistik talebini onayla"
+
+msgid "Deny a pending logistics request"
+msgstr "Bekleyen bir lojistik talebini reddet"
+
+msgid "Cancel an active logistics task"
+msgstr "Aktif bir lojistik görevini iptal et"
+
+msgid "Assign a logistics task to a pilot"
+msgstr "Bir pilota lojistik görevi ata"
+
+msgid "Query warehouse inventory at a location"
+msgstr "Bir konumdaki depo envanterini sorgula"
+
+msgid "Compare inventory between two locations"
+msgstr "İki konum arasındaki envanteri karşılaştır"

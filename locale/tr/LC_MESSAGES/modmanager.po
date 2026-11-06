@@ -1,0 +1,184 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage custom mods in your DCS server"
+msgstr "DCS sunucunuzdaki özel modları yönetmek için komutlar"
+
+msgid "manage mods"
+msgstr "modları yönet"
+
+msgid "Shutting down {}, please wait ..."
+msgstr "{} kapatılıyor, lütfen bekleyin ..."
+
+msgid "**The following mods are currently installed:**"
+msgstr "**Şu anda yüklü olan modlar:**"
+
+msgid "Mod"
+msgstr "Mod"
+
+msgid "Version"
+msgstr "Sürüm"
+
+msgid "Update"
+msgstr "Güncelle"
+
+msgid "There are no mods installed."
+msgstr "Yüklü mod bulunmuyor."
+
+msgid "Select a mod to install / update"
+msgstr "Yüklemek / güncellemek için bir mod seçin"
+
+msgid "Select a mod to uninstall"
+msgstr "Kaldırmak için bir mod seçin"
+
+msgid "Download"
+msgstr "İndir"
+
+msgid "Shutdown"
+msgstr "Kapat"
+
+msgid "⚠️ Server {} needs to be shut down to change mods."
+msgstr "⚠️ Modları değiştirmek için {} sunucusunun kapatılması gerekiyor."
+
+msgid "Quit"
+msgstr "Çıkış"
+
+msgid "Updating mod {}, please wait ..."
+msgstr "{} modu güncelleniyor, lütfen bekleyin ..."
+
+msgid "Mod {mod}_v{version} could not be uninstalled!"
+msgstr "{mod}_v{version} modu kaldırılamadı!"
+
+msgid "Mod {mod}_v{version} could not be installed!"
+msgstr "{mod}_v{version} modu yüklenemedi!"
+
+msgid "Mod {} updated."
+msgstr "{} modu güncellendi."
+
+msgid "Installing mod {}, please wait ..."
+msgstr "{} modu yükleniyor, lütfen bekleyin ..."
+
+msgid "Installation of mod {} failed."
+msgstr "{} modunun kurulumu başarısız oldu."
+
+msgid "Mod {} installed."
+msgstr "{} modu yüklendi."
+
+msgid "Uninstalling mod {}, please wait ..."
+msgstr "{} modu kaldırılıyor, lütfen bekleyin ..."
+
+msgid "Mod {} uninstalled."
+msgstr "{} modu kaldırıldı."
+
+msgid "Download a new Mod"
+msgstr "Yeni bir Mod İndir"
+
+msgid "URL / GitHub Repo"
+msgstr "URL / GitHub Deposu"
+
+msgid "Destination (S=Saved Games / R=Root Folder)"
+msgstr "Hedef (S=Saved Games / R=Ana Oyun Klasörü)"
+
+msgid "Not a valid URL!"
+msgstr "Geçerli bir URL değil!"
+
+msgid "{} is not a valid URL!"
+msgstr "{} geçerli bir URL değil!"
+
+msgid "Downloading {} , please wait ..."
+msgstr "{} indiriliyor, lütfen bekleyin ..."
+
+msgid "Error: {}"
+msgstr "Hata: {}"
+
+msgid "Mod Manager"
+msgstr "Mod Yöneticisi"
+
+msgid "Install or uninstall mods to {}"
+msgstr "{} sunucusuna mod yükle veya kaldır"
+
+msgid "Install mods"
+msgstr "Mod yükle"
+
+msgid "Server {} needs to be shut down to install mods."
+msgstr "Mod yüklemek için {} sunucusunun kapatılması gerekiyor."
+
+msgid "Mod {} not found!"
+msgstr "{} modu bulunamadı!"
+
+msgid "Mod {mod}_v{version} is already installed!"
+msgstr "{mod}_v{version} modu zaten yüklü!"
+
+msgid "Updating mod {mod} from {current_version} to {new_version}, please wait ..."
+msgstr "{mod} modu {current_version} sürümünden {new_version} sürümüne güncelleniyor, lütfen bekleyin ..."
+
+msgid "Mod {mod} updated to version {version}."
+msgstr "{mod} modu {version} sürümüne güncellendi."
+
+msgid "Mod {mod} installed with version {version}."
+msgstr "{mod} modu {version} sürümüyle yüklendi."
+
+msgid "Uninstall mods"
+msgstr "Modları kaldır"
+
+msgid "Server {} needs to be shut down to uninstall mods."
+msgstr "Modları kaldırmak için {} sunucusunun kapatılması gerekiyor."
+
+msgid "List all installed mods"
+msgstr "Yüklü tüm modları listele"
+
+msgid "No mod installed on server {}."
+msgstr "{} sunucusunda yüklü mod yok."
+
+msgid "The following mods are installed on server {}:"
+msgstr "{} sunucusunda aşağıdaki modlar yüklü:"
+
+msgid "Folder"
+msgstr "Klasör"
+
+msgid "Download a mod"
+msgstr "Bir mod indir"
+
+msgid "GitHub repo link or download URL"
+msgstr "GitHub depo bağlantısı veya indirme URL'si"
+
+msgid "Downloading {mod}_v{version} from GitHub ..."
+msgstr "GitHub üzerinden {mod}_v{version} indiriliyor ..."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Dosya zaten mevcut. Üzerine yazmak istiyor musunuz?"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Error {code}: {mod}_v{version} {message}"
+msgstr "Hata {code}: {mod}_v{version} {message}"
+
+msgid "{file} downloaded. Use {command} to install it."
+msgstr "{file} indirildi. Yüklemek için {command} komutunu kullanın."
+
+msgid "Downloading {} ..."
+msgstr "{} indiriliyor ..."
+
+msgid "List was truncated."
+msgstr "List was truncated."
+
+msgid "Server {} needs to be shut down to change mods."
+msgstr "Sunucu {} needs to be shut down to change mods."
+
+msgid "Destination"
+msgstr "Destination"
+
+msgid "Multiple returns, use /{group} {name} instead."
+msgstr "Multiple returns, use /{group} {name} instead."
+
+msgid "Downloading {}, please wait ..."
+msgstr "Downloading {}, please wait ..."
+
+msgid "Can't connect to {url}: {message}"
+msgstr "Can't connect to {url}: {message}"
