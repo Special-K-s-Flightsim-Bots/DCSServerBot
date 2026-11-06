@@ -321,6 +321,8 @@ class Dashboard(Service):
         self.servers_widget = None
         self.log_widget = None
         self.stop_event = asyncio.Event()
+        #: set when the ROLE changed; the update loop rebuilds the layout on its next tick
+        self._layout_dirty = False
 
     def is_multinode(self):
         return len(self.node.all_nodes) > 1
@@ -366,6 +368,7 @@ class Dashboard(Service):
         self.hook_logging()
         self.create_widgets()
         self.layout = self.create_layout()
+        self._layout_dirty = False
         self.stop_event.clear()
         self.update_task = asyncio.create_task(self.update())
 
@@ -381,8 +384,16 @@ class Dashboard(Service):
 
     async def switch(self, master: bool):
         await super().switch(master)
-        await self.stop()
-        await self.start()
+        # The layout is the only role-dependent part (a master adds the node column and the node
+        # widgets), so the running update loop rebuilds it. Cycling this service instead would go
+        # through the registry cascade: the singleton is replaced, this instance is orphaned and
+        # BOTH of them render into the same terminal.
+        self._layout_dirty = True
+        if self.running and self.update_task and self.update_task.done():
+            # The renderer died on an exception and stopped its loop; revive it in place, which is
+            # what the old stop/start cycle did as a side effect.
+            self.stop_event.clear()
+            self.update_task = asyncio.create_task(self.update())
 
     async def update(self):
         try:
@@ -390,9 +401,10 @@ class Dashboard(Service):
             with Live(self.layout, refresh_per_second=1, screen=True) as live:
                 while not self.stop_event.is_set():
                     current_server_count = len(self.bus.servers)
-                    if current_server_count != previous_server_count:
+                    if self._layout_dirty or current_server_count != previous_server_count:
                         self.layout = self.create_layout()
                         live.update(self.layout)
+                        self._layout_dirty = False
                         previous_server_count = current_server_count
                     await asyncio.sleep(0.5)
         except Exception:
