@@ -59,6 +59,55 @@ LEVEL_CELLS: dict[int, tuple[str, str]] = {
 #: states that show the running mission and a player count
 ACTIVE_STATES = (Status.RUNNING, Status.PAUSED, Status.LOADING)
 
+#: placeholder for an unknown port
+PORT_PLACEHOLDER = "—"
+
+
+async def refresh_srs_ports(service: "Dashboard") -> None:
+    """Bring ``service.srs_ports`` in step with each server's status.
+
+    Called once per dashboard frame. The extension RPC (``run_on_extension('SRS', 'get_ports')``)
+    only runs when a server is seen for the first time or its status changed since the previous
+    frame: the SRS port changes only when the configuration or the SRS process changes, so a timer
+    would be hundreds of calls for a value that never moves. A server outside ``ACTIVE_STATES`` is
+    never queried and loses its cached port (the row shows the em dash). A server without the SRS
+    extension keeps the em dash silently, because SRS is optional. A failing server keeps the em
+    dash and never stops the refresh for the others; its failure is logged once, because the RPC
+    is only attempted on a status change.
+
+    ``bus.servers`` is a ``ThreadSafeDict``, whose ``__iter__`` yields ``(name, server)`` pairs
+    instead of keys, so every name list here comes from ``keys()``.
+    """
+    if service.srs_refreshing:
+        return
+    service.srs_refreshing = True
+    try:
+        servers = service.bus.servers
+        for name in set(service.srs_status) - set(servers.keys()):
+            service.srs_status.pop(name, None)
+            service.srs_ports.pop(name, None)
+        for server in servers.values():
+            if service.srs_status.get(server.name) == server.status:
+                continue
+            service.srs_status[server.name] = server.status
+            if server.status not in ACTIVE_STATES:
+                service.srs_ports.pop(server.name, None)
+                continue
+            try:
+                ports = await server.run_on_extension('SRS', 'get_ports')
+            except ValueError:
+                # the extension, or its get_ports, is not there: the row keeps the em dash
+                service.srs_ports[server.name] = PORT_PLACEHOLDER
+                continue
+            except Exception as ex:
+                service.srs_ports[server.name] = PORT_PLACEHOLDER
+                service.log.warning("SRS port unavailable for %s: %s", server.name, ex)
+                continue
+            port = ports.get('SRS Port') if isinstance(ports, dict) else None
+            service.srs_ports[server.name] = str(int(port)) if port is not None else PORT_PLACEHOLDER
+    finally:
+        service.srs_refreshing = False
+
 
 def _status_cell(status: Status) -> Text:
     glyph, word, colour = STATUS_CELLS.get(
@@ -206,7 +255,7 @@ class ServersWidget:
             name = re.sub(self.bus.filter['server_name'], '', server.name).strip()
             dcs_port = getattr(getattr(server.instance, 'dcs_port', None), 'port', None) \
                 or server.instance.locals.get('dcs_port', '-')
-            srs_port = server.instance.locals.get('extensions', {}).get('SRS', {}).get('port', '-')
+            srs_port = self.service.srs_ports.get(server.name, PORT_PLACEHOLDER)
             cells = [
                 _status_cell(server.status),
                 Text(name, style="bold white" if server.status == Status.RUNNING else "white"),
@@ -460,6 +509,15 @@ class Dashboard(Service):
         self.servers_widget = None
         self.log_widget = None
         self.stop_event = asyncio.Event()
+        #: cached SRS port per server name; filled by ``refresh_srs_ports`` over the RPC surface,
+        #: because the master's ``instance.locals`` copy is stale or absent for a remote server
+        self.srs_ports: dict[str, str] = {}
+        #: the status each server had at the previous frame; a change triggers a refetch
+        self.srs_status: dict[str, Status] = {}
+        #: guards against overlapping refreshes
+        self.srs_refreshing = False
+        #: the refresh scheduled from the update loop, cancelled when the service stops
+        self.srs_refresh_task: asyncio.Task | None = None
         #: set when the ROLE changed; the update loop rebuilds the layout on its next tick
         self._layout_dirty = False
 
@@ -482,7 +540,7 @@ class Dashboard(Service):
         if self.node.master and self.is_multinode():
             layout['servers'].split_row(
                 Layout(self.servers_widget, name="servers_list", ratio=2),
-                Layout(NodeWidget(self), name="nodes")
+                Layout(NodeWidget(self), name="nodes", size=34, ratio=0)
             )
         return layout
 
@@ -523,6 +581,13 @@ class Dashboard(Service):
         self.stop_event.set()
         if self.update_task and self.update_task is not asyncio.current_task():
             await self.update_task
+        task = getattr(self, 'srs_refresh_task', None)
+        if task and task is not asyncio.current_task() and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         self.unhook_logging()
         self.console.clear()
         await super().stop()
@@ -540,6 +605,20 @@ class Dashboard(Service):
             self.stop_event.clear()
             self.update_task = asyncio.create_task(self.update())
 
+    def _srs_status_changed(self) -> bool:
+        """True when any server's status differs from the previous frame's snapshot."""
+        bus = getattr(self, 'bus', None)
+        if bus is None:
+            return False
+        return {name: server.status for name, server in bus.servers.items()} \
+            != getattr(self, 'srs_status', {})
+
+    async def _run_srs_refresh(self):
+        try:
+            await refresh_srs_ports(self)
+        except Exception:
+            self.log.exception("SRS port refresh failed")
+
     async def update(self):
         try:
             previous_server_count = len(self.bus.servers)
@@ -551,6 +630,10 @@ class Dashboard(Service):
                         live.update(self.layout)
                         self._layout_dirty = False
                         previous_server_count = current_server_count
+                    # A status change is the only thing that can move the SRS port, so the RPC is
+                    # scheduled off the render loop and only when one is seen.
+                    if not getattr(self, 'srs_refreshing', False) and self._srs_status_changed():
+                        self.srs_refresh_task = asyncio.create_task(self._run_srs_refresh())
                     await asyncio.sleep(0.5)
         except Exception:
             self.log.exception("Dashboard update loop crashed")
