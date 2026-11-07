@@ -93,12 +93,8 @@ class Olympus(InstallableExtension):
         else:
             self.process = None
 
-        if self.version == '1.0.3':
-            self.backend_tag = 'server'
-            self.frontend_tag = 'client'
-        else:
-            self.backend_tag = 'backend'
-            self.frontend_tag = 'frontend'
+        self.backend_tag = 'backend'
+        self.frontend_tag = 'frontend'
 
     @override
     @property
@@ -110,14 +106,11 @@ class Olympus(InstallableExtension):
                 elements = elements[0:3]
             version = '.'.join(elements)
 
-        return version or '1.0.3'
+        return version
 
     @property
     def config_path(self) -> str:
-        if self.version == '1.0.3':
-            return os.path.join(self.home, 'olympus.json')
-        else:
-            return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
+        return os.path.join(self.server.instance.home, 'Config', 'olympus.json')
 
     @override
     def load_config(self) -> dict:
@@ -139,16 +132,10 @@ class Olympus(InstallableExtension):
                 "port": 3000,
                 "elevationProvider": elevation_provider
             }
-            if self.version == '1.0.3':
-                return {
-                    "server": backend,
-                    "client": frontend
-                }
-            else:
-                return {
-                    "backend": backend,
-                    "frontend": frontend
-                }
+            return {
+                "backend": backend,
+                "frontend": frontend
+            }
 
     @override
     def is_installed(self) -> bool:
@@ -210,7 +197,7 @@ class Olympus(InstallableExtension):
         type(self)._ws_ports[ws_port] = self.server.name
 
         self.locals = self.load_config()
-        default_address = '*' if self.version == '1.0.3' else 'localhost'
+        default_address = 'localhost'
         self.locals[self.backend_tag]['address'] = self.config.get(self.backend_tag, {}).get('address', default_address)
         self.locals[self.backend_tag]['port'] = server_port
         self.locals[self.frontend_tag]['port'] = client_port
@@ -268,11 +255,10 @@ class Olympus(InstallableExtension):
         try:
             if not await self.prepare_olympus_json():
                 return False
-            if self.version != '1.0.3':
-                await self.prepare_exports_lua()
+            await self.prepare_exports_lua()
             return await super().prepare()
         except Exception as ex:
-            self.log.error(f"Error during preparation of {self.name}: {str(ex)}")
+            self.log.exception(f"Error during preparation of {self.name}: {str(ex)}")
             return False
 
     @override
@@ -294,10 +280,7 @@ class Olympus(InstallableExtension):
                 frontend_exe = os.path.join(path, 'bin', 'www')
             if not os.path.exists(frontend_exe):
                 raise AttributeError(f"Path {frontend_exe} does not exist, can't launch Olympus!")
-            args = [self.nodejs, frontend_exe]
-            if self.version != '1.0.3':
-                args.append('--config')
-                args.append(self.config_path)
+            args = [self.nodejs, frontend_exe, '--config', self.config_path]
             self.log.debug("Launching {}".format(' '.join(args)))
             proc = ProcessManager().launch_process(
                 args,
