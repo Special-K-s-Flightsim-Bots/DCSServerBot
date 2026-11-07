@@ -2,11 +2,12 @@
   THE THEME CONTROL — one partial, rendered by the shell (base.html) and by the login page
   (login.html), which does not extend the shell and so cannot inherit it.
 
-  It is the SAME shape as the language control (`_language.html`): PLAIN LINKS, never a form and
-  never a script. Each option is a GET to the shell's own /theme route, which stores the choice in
-  its own cookie and sends the visitor back to `next`. That is deliberately session-free, so a
-  visitor can pick a theme on the login page BEFORE signing in — and the page stays fully usable
-  with JavaScript off (the theme is resolved by the SERVER and the markup already carries it).
+  It is PLAIN LINKS, never a form and never a script: each option is a GET to the shell's own /theme
+  route, which stores the choice in its own cookie and sends the visitor back to `next`. That is
+  deliberately session-free, so a visitor can pick a theme on the login page BEFORE signing in — and
+  the page stays fully usable with JavaScript off (the theme is resolved by the SERVER and the markup
+  already carries it). The language control (`_language.html`) carries its choices in a menu for the
+  same reason this one is only two icons: neither has room for a drawn word beside every option.
 
   EACH OPTION IS AN ICON (a sun for light, a moon for dark), never a drawn word: the mode's own name
   is still carried as the link's `title` (tooltip) and `aria-label` (accessible name), translated

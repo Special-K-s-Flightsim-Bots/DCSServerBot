@@ -2,18 +2,21 @@
   THE LANGUAGE CONTROL — one partial, rendered by the shell (base.html) and by the login page
   (login.html), which does not extend the shell and so cannot inherit it.
 
-  It is PLAIN LINKS, never a form and never a script: each option is a GET to the shell's own
-  /language route, which stores the choice in its own cookie and sends the visitor back to `next`.
-  That is deliberately session-free, so a visitor can pick a language on the login page BEFORE
-  signing in — and the page stays fully usable with JavaScript off.
+  IT IS A PILL PLUS A MENU. The pill draws the language IN FORCE (its flag and its own endonym) and
+  is the menu's trigger; the menu lists every language that has a `webui` catalog, one row each, the
+  current row ticked. A flat row of all flags stops fitting as languages are added, and a flag alone
+  never says which language it is — inside a menu there is room for both the flag and the name.
 
-  EACH OPTION IS A FLAG, NOT A NAME. More languages are coming, so a row of names would be too long;
-  each option is a small SVG flag (a neutral globe for English, the source language). The flag is a
-  real static SVG, never an emoji — Windows renders flag emoji as the two regional-indicator letters,
-  which would look broken on the maintainer's own machine. The language's OWN endonym is still
-  carried as the link's `title` (tooltip) and `aria-label` (accessible name), so hovering and a
-  screen reader still say which language it is even though the name is not drawn; the image itself is
-  decorative (`alt=""`), because the link already names it.
+  It is PLAIN LINKS, never a form and never a script: each row is a GET to the shell's own /language
+  route, which stores the choice in its own cookie and sends the visitor back to `next`. That is
+  deliberately session-free, so a visitor can pick a language on the login page BEFORE signing in —
+  and the page stays fully usable with JavaScript off. The menu is a native `popover` opened by its
+  button (`popovertarget`), which the browser also closes on Escape or a click outside; no script is
+  involved, and the top layer keeps it from being clipped by the bar.
+
+  Each flag is a real static SVG, never an emoji — Windows renders flag emoji as the two
+  regional-indicator letters, which would look broken on the maintainer's own machine. The language's
+  OWN endonym is the row's text, so the name is drawn from the language itself rather than translated.
 
   `language` is built by services.webservice.i18n.language_control and passed by every page that
   renders the shell; the `is defined` guard keeps the standalone renders a test makes (which pass no
@@ -21,13 +24,25 @@
   that have a `webui` catalog, so no option can render an untranslated page.
 -#}
 {% if language is defined and language %}
-<nav class="lang" aria-label="{{ _('Language') }}">
-  {%- for item in language.languages %}
-  <a class="lang-opt{{ ' on' if item.active else '' }}" hreflang="{{ item.code }}" title="{{ item.name }}"
-     aria-label="{{ item.name }}"
-     href="{{ language.action }}?lang={{ item.code }}&amp;next={{ language.next|urlencode }}"
-     {%- if item.active %} aria-current="true"{% endif %}><img class="flag" src="{{ item.flag }}" alt=""
-     width="20" height="15"></a>
-  {%- endfor %}
-</nav>
+<div class="langpick">
+  <button class="langchip" type="button" popovertarget="lang-menu" aria-haspopup="menu"
+          aria-label="{{ _('Language') }}: {{ language.current_name }}"
+          style="anchor-name: --lang-menu">
+    <img class="flag" src="{{ language.current_flag }}" alt="" width="20" height="15">
+    <span>{{ language.current_name }}</span>
+    <span class="caret" aria-hidden="true">&#9662;</span>
+  </button>
+  <div class="langmenu" id="lang-menu" popover role="menu" aria-label="{{ _('Language') }}"
+       style="position-anchor: --lang-menu">
+    {%- for item in language.languages %}
+    <a class="mi{{ ' on' if item.active else '' }}" role="menuitem" hreflang="{{ item.code }}"
+       href="{{ language.action }}?lang={{ item.code }}&amp;next={{ language.next|urlencode }}"
+       {%- if item.active %} aria-current="true"{% endif %}>
+      <img class="flag" src="{{ item.flag }}" alt="" width="20" height="15">
+      <span class="langname">{{ item.name }}</span>
+      {%- if item.active %}<span class="ck" aria-hidden="true">&#10003;</span>{% endif %}
+    </a>
+    {%- endfor %}
+  </div>
+</div>
 {% endif %}

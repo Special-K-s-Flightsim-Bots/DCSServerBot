@@ -82,7 +82,7 @@
   --nav-active: rgba(232, 163, 61, .16);        /* .nav a.on / .row-active gradient start */
   --nav-active-2: rgba(232, 163, 61, .03);      /* … and end */
   --bar-hd: #121924; --bar-hd2: #0f151d;        /* .shell-bar/.top gradient */
-  --flag-ring: rgba(255, 255, 255, .18);        /* .lang-opt img.flag hairline ring */
+  --flag-ring: rgba(255, 255, 255, .18);        /* .langchip / .langmenu flag hairline ring */
   --run-halo: rgba(63, 185, 80, .15);           /* .dot.run / .dot.pause / .dot.dead halos */
   --pause-halo: rgba(232, 163, 61, .15);
   --dead-halo: rgba(248, 81, 73, .15);
@@ -280,26 +280,50 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
   display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 99px;
   font-size: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2);
 }
-/* THE LANGUAGE CONTROL (services.webservice.i18n, templates/_language.html): one flat row of plain
- * links, sized like the pills beside it so it sits on the top bar without becoming a second chrome.
- * The ACTIVE language is the only one that is not dimmed, and it carries a faint panel of its own —
- * a colour plus a weight, never colour alone, so the current language is legible to a colourblind
- * reader and to a text-only one. It is present on every shell page and on the login page. */
-.lang { display: inline-flex; align-items: center; gap: 2px; }
-.lang-opt {
-  font-size: 12px; line-height: 1; padding: 5px 6px; border-radius: 7px; text-decoration: none;
-  color: var(--text-3); border: 1px solid transparent; display: inline-flex; align-items: center;
+/* THE LANGUAGE CONTROL (services.webservice.i18n, templates/_language.html): one pill naming the
+ * language in force (its flag plus its own endonym), sized like the pills beside it so it sits on the
+ * top bar without becoming a second chrome, and a menu of every language with a catalog. The menu is
+ * a POPOVER, painted in the browser's TOP LAYER — that is what keeps it from being clipped by the
+ * fixed-height bar — and it opens from its own button with no script (`popovertarget`), so the
+ * control still works with JavaScript off. `anchor-name`/`position-anchor` place it under its own
+ * trigger and align its right edge with the trigger's; where the browser has no anchor positioning
+ * the menu still opens in the top layer, centred and unclipped. */
+.langpick { display: inline-flex; }
+.langchip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px 4px 8px; font: inherit;
+  font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--text); cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 99px;
 }
-.lang-opt:hover { color: var(--text-2); border-color: var(--line-2); }
-.lang-opt.on { color: var(--text); font-weight: 600; background: var(--panel);
-  border-color: var(--line-2); }
-/* The option is a FLAG, not a name (see templates/_language.html): a small SVG box, the flag filling
- * it and the neutral globe (square) centred inside it. A faint ring keeps a pale flag legible on the
- * dark bar; the active one gets the accent ring instead, so "current" is not colour-alone on the
- * flag itself. Emoji are never used — Windows would draw the two regional-indicator letters. */
-.lang-opt img.flag { display: block; width: 20px; height: 15px; object-fit: contain;
-  border-radius: 2px; box-shadow: 0 0 0 1px var(--flag-ring); }
-.lang-opt.on img.flag { box-shadow: 0 0 0 1px var(--accent); }
+.langchip:hover { border-color: var(--accent-2); }
+.langchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.langchip .caret { color: var(--text-3); font-size: 9px; line-height: 1; }
+.langmenu { min-width: 208px; margin: 0; padding: 5px; inset: auto; text-align: left;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  box-shadow: 0 14px 30px var(--elev-sm); }
+/* The menu is placed under its trigger by CSS anchor positioning. A browser without it would
+ * otherwise fall back to the popover's own centred placement — the menu appearing across the middle
+ * of the screen — so a plain top-right position is declared FIRST as that fallback, and the anchored
+ * version (with its own literal fallbacks, for a trigger that carries no anchor-name) overrides it
+ * only where anchor() is understood. */
+.langmenu:popover-open { position: fixed; top: calc(var(--nav-h) + 8px); right: 16px;
+  margin-top: 6px; }
+@supports (top: anchor(bottom)) {
+  .langmenu:popover-open { top: anchor(bottom, calc(var(--nav-h) + 8px));
+    right: anchor(right, 16px); }
+}
+.langmenu .mi { display: flex; align-items: center; gap: 10px; padding: 7px 9px;
+  border-radius: var(--radius-s); color: var(--text); font-size: 12.5px; text-decoration: none; }
+.langmenu .mi:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
+.langmenu .mi:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.langmenu .mi .langname { flex: 1 1 auto; }
+.langmenu .mi.on .langname { font-weight: 600; }
+.langmenu .mi .ck { color: var(--accent); font-size: 11px; font-weight: 700; }
+/* The flag is a small SVG box, the flag filling it and the neutral globe (square) centred inside it.
+ * A faint ring keeps a pale flag legible on the dark bar, and the ring flips with the palette so it
+ * stays legible in the light theme. Emoji are never used — Windows would draw the two
+ * regional-indicator letters. */
+.langchip img.flag, .langmenu .mi img.flag { display: block; width: 20px; height: 15px;
+  object-fit: contain; border-radius: 2px; box-shadow: 0 0 0 1px var(--flag-ring); flex: 0 0 auto; }
 .envbar { font-size: 11.5px; color: var(--text-3); border-left: 2px solid var(--line-2);
   padding: 4px 0 4px 10px; }
 .envbar.live { color: var(--text-2); border-left-color: var(--accent); }
@@ -1688,11 +1712,10 @@ a.st-sw { text-decoration: none; }
 .st-core .r .rt { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
 /* ============================================================================ THE THEME SWITCH
- * The control that flips `data-theme` on <html> — the smallest honest one (there was NO switch
- * before; the attribute was hard-coded to "dark" in base.html and login.html). It is the SAME shape
- * as the language control (templates/_language.html): plain GET links to `/theme`, which stores the
- * choice in its own cookie and returns the visitor to the page they were on. No JavaScript, so the
- * page still renders fully with the script off — the theme is a SERVER-resolved preference.
+ * The control that flips `data-theme` on <html> — the smallest honest one. It is plain GET links to
+ * `/theme`, which stores the choice in its own cookie and returns the visitor to the page they were
+ * on. No JavaScript, so the page still renders fully with the script off — the theme is a
+ * SERVER-resolved preference.
  * Each option is an icon (sun / moon) whose accessible name is the mode's own word; the word is
  * translated through the catalog exactly like every other chrome string.
  */
