@@ -307,12 +307,19 @@ def _restrictions(server) -> tuple[LimitView, ...]:
 
 
 def _max_players(server) -> int | None:
-    """``settings.maxPlayers``, or ``None`` when the source carries no settings (a tolerant read —
-    ``settings`` is a dict, so it is not reachable through :func:`~.access.attr`)."""
+    """The slots a real player can take (``settings.maxPlayers`` less the bot's observer slot), or
+    ``None`` when the source carries no settings (a tolerant read — ``settings`` is a dict, so it is
+    not reachable through :func:`~.access.attr`)."""
     settings = safe(lambda: getattr(server, "settings", None), None)
     if not isinstance(settings, dict):
         return None
-    return as_int(settings.get("maxPlayers"))
+    configured = as_int(settings.get("maxPlayers"))
+    if configured is None:
+        return None
+    # imported inside the function, not at module level: this package renders without pulling
+    # core's client libraries in (see the readmodels purity pin)
+    from core.utils.helper import player_slots
+    return player_slots(configured)
 
 
 def _public_ip(server) -> str:

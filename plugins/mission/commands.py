@@ -2534,8 +2534,8 @@ class Mission(Plugin[MissionEventListener]):
                         name = re.sub('［.*］', f'［-］', name)
                 else:
                     players = server.get_active_players()
-                    current = len(players) + 1
-                    max_players = server.settings.get('maxPlayers') or 0
+                    current = len(players)
+                    max_players = utils.player_slots(server.settings.get('maxPlayers') or 0)
                     if name.find('［') == -1:
                         name = name + f'［{current}／{max_players}］'
                     else:

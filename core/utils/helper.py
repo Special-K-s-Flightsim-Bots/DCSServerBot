@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "parse_time",
+    "player_slots",
     "is_in_timeframe",
     "is_match_daystate",
     "str_to_class",
@@ -99,6 +100,20 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def player_slots(max_players: Any) -> int:
+    """The number of slots a real player can take.
+
+    The bot's own observer client always holds one slot of ``settings.maxPlayers``, so a server
+    that advertises the configured maximum is offering a seat nobody can join. Never below one, so
+    a missing or nonsensical value still renders a usable ceiling.
+    """
+    try:
+        configured = int(max_players)
+    except (TypeError, ValueError):
+        configured = 1
+    return max(configured - 1, 1)
 
 
 def parse_time(time_str: str, tz: tzinfo = None) -> datetime:

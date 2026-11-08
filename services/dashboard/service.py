@@ -7,6 +7,7 @@ import os
 import re
 
 from core import Service, ServiceRegistry, Status, NodeImpl, get_translation, DEFAULT_TAG
+from core.utils.helper import player_slots
 from core.utils.yaml_helper import new_yaml
 from datetime import datetime
 from logging.handlers import QueueHandler, RotatingFileHandler
@@ -153,9 +154,8 @@ def _level_cell(record: logging.LogRecord) -> Text:
 
 
 def _max_players(server) -> int:
-    """The server's slot count, with the 61 -> 60 adjustment DCS' off-by-one needs."""
-    configured = int(server.settings.get('maxPlayers', 60))
-    return max(configured - 1, 1) if configured == 61 else max(configured, 1)
+    """The slots a real player can take: the bot's observer client holds one of ``maxPlayers``."""
+    return player_slots(int(server.settings.get('maxPlayers', 60)))
 
 
 def _mission_cell(server, filter_pattern: str) -> Text:
