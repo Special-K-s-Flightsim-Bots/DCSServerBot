@@ -237,7 +237,10 @@ class ServersWidget:
         table.add_column(_("Server Name"), justify="left", width=22, no_wrap=True)
         table.add_column(_("Mission Name"), justify="left", ratio=1, no_wrap=True)
         table.add_column(_("Players"), justify="right", width=9, no_wrap=True)
-        table.add_column(_("Port / SRS"), justify="center", width=15, no_wrap=True)
+        # one cell holds two numbers, so the DCS field is padded to a fixed width and the column
+        # is left-justified: the separator then lands in the same column on every row instead of
+        # drifting with the length of the SRS value, and the header starts over the numbers
+        table.add_column(_("Port / SRS"), justify="left", width=15, no_wrap=True)
         if show_node:
             table.add_column(_("Node"), justify="center", width=8, no_wrap=True)
 
@@ -261,7 +264,7 @@ class ServersWidget:
                 Text(name, style="bold white" if server.status == Status.RUNNING else "white"),
                 _mission_cell(server, self.bus.filter['mission_name']),
                 _player_cell(server),
-                Text(f"{dcs_port} │ {srs_port}", style="white"),
+                Text(f"{dcs_port:>5} │ {srs_port}", style="white"),
             ]
             if show_node:
                 cells.append(Text(server.node.name, style="white"))
