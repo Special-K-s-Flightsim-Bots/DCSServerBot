@@ -21,6 +21,7 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from time import monotonic
 from typing import TYPE_CHECKING
 
 from ..servicebus import ServiceBus
@@ -62,6 +63,29 @@ ACTIVE_STATES = (Status.RUNNING, Status.PAUSED, Status.LOADING)
 #: placeholder for an unknown port
 PORT_PLACEHOLDER = "—"
 
+#: seconds before re-asking a server whose port the last attempt could not read. A server
+#: registers its extensions a moment after it starts, so the first lookup of a freshly started
+#: server can answer "extension not found"; without a retry that em dash outlives the status,
+#: which is the only other trigger.
+SRS_RETRY_SECONDS = 10
+
+#: consecutive retries after a failed lookup, then the server is left alone until its status
+#: changes again, so a server that has no SRS extension is not polled for the whole session
+SRS_RETRY_ATTEMPTS = 5
+
+
+def _srs_failed(service: "Dashboard", server, reason: str) -> None:
+    """Keep the em dash and schedule another attempt: a failed lookup is not an answer."""
+    service.srs_ports[server.name] = PORT_PLACEHOLDER
+    attempts = service.srs_retry.get(server.name, (0, 0.0))[0]
+    if attempts >= SRS_RETRY_ATTEMPTS:
+        service.srs_retry.pop(server.name, None)
+        service.log.warning("SRS port unavailable for %s: %s", server.name, reason)
+        return
+    service.srs_retry[server.name] = (attempts + 1, monotonic() + SRS_RETRY_SECONDS)
+    service.log.debug("SRS port not ready for %s (%s), retrying", server.name, reason)
+
+
 
 async def refresh_srs_ports(service: "Dashboard") -> None:
     """Bring ``service.srs_ports`` in step with each server's status.
@@ -69,11 +93,13 @@ async def refresh_srs_ports(service: "Dashboard") -> None:
     Called once per dashboard frame. The extension RPC (``run_on_extension('SRS', 'get_ports')``)
     only runs when a server is seen for the first time or its status changed since the previous
     frame: the SRS port changes only when the configuration or the SRS process changes, so a timer
-    would be hundreds of calls for a value that never moves. A server outside ``ACTIVE_STATES`` is
-    never queried and loses its cached port (the row shows the em dash). A server without the SRS
-    extension keeps the em dash silently, because SRS is optional. A failing server keeps the em
-    dash and never stops the refresh for the others; its failure is logged once, because the RPC
-    is only attempted on a status change.
+    would be hundreds of calls for a value that never moves. A lookup that FAILED is not such an
+    answer — it is retried ``SRS_RETRY_ATTEMPTS`` times, ``SRS_RETRY_SECONDS`` apart, because a
+    server registers its extensions after it starts. A server outside ``ACTIVE_STATES`` is never
+    queried and loses its cached port (the row shows the em dash). A server without the SRS
+    extension keeps the em dash silently, because SRS is optional; only a server that keeps failing
+    is logged, once, when its retries run out. A failing server never stops the refresh for the
+    others.
 
     ``bus.servers`` is a ``ThreadSafeDict``, whose ``__iter__`` yields ``(name, server)`` pairs
     instead of keys, so every name list here comes from ``keys()``.
@@ -83,26 +109,31 @@ async def refresh_srs_ports(service: "Dashboard") -> None:
     service.srs_refreshing = True
     try:
         servers = service.bus.servers
-        for name in set(service.srs_status) - set(servers.keys()):
+        for name in (set(service.srs_status) | set(service.srs_retry)) - set(servers.keys()):
             service.srs_status.pop(name, None)
             service.srs_ports.pop(name, None)
+            service.srs_retry.pop(name, None)
+        now = monotonic()
         for server in servers.values():
-            if service.srs_status.get(server.name) == server.status:
+            retry = service.srs_retry.get(server.name)
+            if service.srs_status.get(server.name) == server.status \
+                    and (retry is None or retry[1] > now):
                 continue
             service.srs_status[server.name] = server.status
             if server.status not in ACTIVE_STATES:
                 service.srs_ports.pop(server.name, None)
+                service.srs_retry.pop(server.name, None)
                 continue
             try:
                 ports = await server.run_on_extension('SRS', 'get_ports')
             except ValueError:
-                # the extension, or its get_ports, is not there: the row keeps the em dash
-                service.srs_ports[server.name] = PORT_PLACEHOLDER
+                # the extension, or its get_ports, is not there (yet): the row keeps the em dash
+                _srs_failed(service, server, "the SRS extension is not there")
                 continue
             except Exception as ex:
-                service.srs_ports[server.name] = PORT_PLACEHOLDER
-                service.log.warning("SRS port unavailable for %s: %s", server.name, ex)
+                _srs_failed(service, server, str(ex))
                 continue
+            service.srs_retry.pop(server.name, None)
             port = ports.get('SRS Port') if isinstance(ports, dict) else None
             service.srs_ports[server.name] = str(int(port)) if port is not None else PORT_PLACEHOLDER
     finally:
@@ -517,6 +548,8 @@ class Dashboard(Service):
         self.srs_ports: dict[str, str] = {}
         #: the status each server had at the previous frame; a change triggers a refetch
         self.srs_status: dict[str, Status] = {}
+        #: servers whose last lookup failed: (attempts used, monotonic deadline for the next try)
+        self.srs_retry: dict[str, tuple[int, float]] = {}
         #: guards against overlapping refreshes
         self.srs_refreshing = False
         #: the refresh scheduled from the update loop, cancelled when the service stops
@@ -616,6 +649,11 @@ class Dashboard(Service):
         return {name: server.status for name, server in bus.servers.items()} \
             != getattr(self, 'srs_status', {})
 
+    def _srs_retry_due(self) -> bool:
+        """True when a lookup that failed has waited out its retry delay."""
+        now = monotonic()
+        return any(deadline <= now for _, deadline in getattr(self, 'srs_retry', {}).values())
+
     async def _run_srs_refresh(self):
         try:
             await refresh_srs_ports(self)
@@ -634,8 +672,10 @@ class Dashboard(Service):
                         self._layout_dirty = False
                         previous_server_count = current_server_count
                     # A status change is the only thing that can move the SRS port, so the RPC is
-                    # scheduled off the render loop and only when one is seen.
-                    if not getattr(self, 'srs_refreshing', False) and self._srs_status_changed():
+                    # scheduled off the render loop and only when one is seen; a lookup that failed
+                    # is re-asked when its retry delay has run out.
+                    if not getattr(self, 'srs_refreshing', False) and \
+                            (self._srs_status_changed() or self._srs_retry_due()):
                         self.srs_refresh_task = asyncio.create_task(self._run_srs_refresh())
                     await asyncio.sleep(0.5)
         except Exception:
