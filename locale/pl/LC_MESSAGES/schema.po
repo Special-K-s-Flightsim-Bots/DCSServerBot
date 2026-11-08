@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-06 20:08+0100\n"
+"POT-Creation-Date: 2026-11-08 12:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pl\n"
@@ -18,7 +18,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #. punishment_schema:schema;element_schema.exemptions.discord.[0]
 #: plugins/punishment/schemas/punishment_schema.yaml:230
@@ -84,12 +84,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Tajny klucz dostępu AWS używany dla Amazon Polly."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:246
+#: services/webservice/schemas/webservice_schema.yaml:381
 msgid "Account name of the local console user."
 msgstr "Nazwa konta lokalnego użytkownika konsoli."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:235
+#: services/webservice/schemas/webservice_schema.yaml:370
 msgid "Accounts that may sign in with a username and password."
 msgstr "Konta, które mogą logować się nazwą użytkownika i hasłem."
 
@@ -542,7 +542,7 @@ msgid "Auto-add new mission files found in the missions folder."
 msgstr "Automatycznie dodaje nowe pliki misji znalezione w katalogu missions."
 
 #. servers_schema:regex;(.+).autoadd
-#: schemas/servers_schema.yaml:507
+#: schemas/servers_schema.yaml:525
 msgid "Auto-add uploaded missions to the mission list."
 msgstr "Automatycznie dodaje przesłane misje do listy misji."
 
@@ -836,6 +836,12 @@ msgstr "Kolor obramowania panelu serwerów."
 msgid "Bot directories that are zipped into the backup."
 msgstr "Katalogi bota pakowane do archiwum kopii zapasowej."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.title
+#: services/webservice/schemas/webservice_schema.yaml:256
+#, fuzzy
+msgid "Brand title of the site."
+msgstr "Styl tła panelu serwerów."
+
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.insert-key
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.insert-key
 #: extensions/realweather/schemas/realweather_schema.yaml:120
@@ -896,27 +902,27 @@ msgid "Central admin channel for alerts and reports."
 msgstr "Centralny kanał administratora dla alertów i raportów."
 
 #. servers_schema:regex;(.+).channels.blue_events
-#: schemas/servers_schema.yaml:633
+#: schemas/servers_schema.yaml:651
 msgid "Channel for blue coalition game events."
 msgstr "Kanał zdarzeń gry koalicji niebieskiej."
 
 #. servers_schema:regex;(.+).channels.events
-#: schemas/servers_schema.yaml:603
+#: schemas/servers_schema.yaml:621
 msgid "Channel for game events, split from chat."
 msgstr "Kanał zdarzeń gry, oddzielony od czatu."
 
 #. servers_schema:regex;(.+).channels.red_events
-#: schemas/servers_schema.yaml:645
+#: schemas/servers_schema.yaml:663
 msgid "Channel for red coalition game events."
 msgstr "Kanał zdarzeń gry koalicji czerwonej."
 
 #. servers_schema:regex;(.+).channels.blue
-#: schemas/servers_schema.yaml:627
+#: schemas/servers_schema.yaml:645
 msgid "Channel for the blue coalition chat."
 msgstr "Kanał czatu koalicji niebieskiej."
 
 #. servers_schema:regex;(.+).channels.chat
-#: schemas/servers_schema.yaml:597
+#: schemas/servers_schema.yaml:615
 msgid "Channel for the in-game chat replication."
 msgstr "Kanał replikacji czatu w grze."
 
@@ -926,12 +932,12 @@ msgid "Channel for the message; -1 sends it as a DM."
 msgstr "Kanał wiadomości; -1 wysyła ją jako DM."
 
 #. servers_schema:regex;(.+).channels.red
-#: schemas/servers_schema.yaml:639
+#: schemas/servers_schema.yaml:657
 msgid "Channel for the red coalition chat."
 msgstr "Kanał czatu koalicji czerwonej."
 
 #. servers_schema:regex;(.+).channels.status
-#: schemas/servers_schema.yaml:591
+#: schemas/servers_schema.yaml:609
 msgid "Channel for the server status and player embeds."
 msgstr "Kanał dla embedów statusu serwera i graczy."
 
@@ -978,7 +984,7 @@ msgid "Channel the squadron board is posted to."
 msgstr "Kanał, na którym publikowana jest tablica eskadry."
 
 #. servers_schema:regex;(.+).channels.admin
-#: schemas/servers_schema.yaml:609
+#: schemas/servers_schema.yaml:627
 msgid "Channel where admin commands for this server are run."
 msgstr "Kanał, w którym uruchamiane są komendy administratora dla tego serwera."
 
@@ -1003,7 +1009,7 @@ msgid "Chat command or game event triggered by this menu entry."
 msgstr "Komenda czatu lub zdarzenie gry wyzwalane przez ten wpis menu."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).chat
-#: services/music/schemas/music_schema.yaml:118
+#: services/music/schemas/music_schema.yaml:123
 msgid "Chat message for this radio, overrides the global one."
 msgstr "Wiadomość czatu dla tego radia, zastępuje globalną."
 
@@ -1044,7 +1050,7 @@ msgid "Check for AFK while a player sits in slot selection."
 msgstr "Sprawdza AFK, gdy gracz pozostaje w wyborze slota."
 
 #. servers_schema:regex;(.+).validate_missions
-#: schemas/servers_schema.yaml:512
+#: schemas/servers_schema.yaml:530
 msgid "Check that missions can load (maps, modules) before use."
 msgstr "Sprawdza, czy misje mogą się załadować (mapy, moduły) przed użyciem."
 
@@ -1061,7 +1067,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Czyści flagę konserwacji przy starcie serwera."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:306
+#: services/webservice/schemas/webservice_schema.yaml:441
 msgid "Client id of your Discord application."
 msgstr "Identyfikator klienta twojej aplikacji Discord."
 
@@ -1126,7 +1132,7 @@ msgid "Coalition SkyEye is active on."
 msgstr "Koalicja, po której stronie działa SkyEye."
 
 #. servers_schema:regex;(.+).coalitions
-#: schemas/servers_schema.yaml:669
+#: schemas/servers_schema.yaml:687
 msgid "Coalition handling for this server."
 msgstr "Obsługa koalicji dla tego serwera."
 
@@ -1241,7 +1247,7 @@ msgid "Core affinity assigned to the Sneaker process."
 msgstr "Powinowactwo rdzeni przypisane do procesu Sneaker."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity.quality
-#: schemas/nodes_schema.yaml:489
+#: schemas/nodes_schema.yaml:507
 msgid "Core quality for this instance (higher is better)."
 msgstr "Jakość rdzeni dla tej instancji (wyższa jest lepsza)."
 
@@ -1416,6 +1422,11 @@ msgstr "Instancje DCS działające w tym węźle."
 msgid "DCS port of this instance."
 msgstr "Port DCS tej instancji."
 
+#. mcpservice_schema:DEFAULT.transport
+#: services/mcpservice/schemas/mcpservice_schema.yaml:111
+msgid "DNS-rebinding allow-lists of the MCP transport."
+msgstr ""
+
 #. dashboard_schema:DEFAULT
 #: services/dashboard/schemas/dashboard_schema.yaml:7
 msgid "Dashboard settings applied to every node."
@@ -1565,7 +1576,7 @@ msgid "Delivery detection radius in meters."
 msgstr "Promień wykrywania dostarczenia w metrach."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).affinity
-#: schemas/nodes_schema.yaml:462
+#: schemas/nodes_schema.yaml:480
 msgid "Deprecated CPU affinity for DCS_Server.exe; use auto_affinity."
 msgstr "Przestarzałe powinowactwo CPU dla DCS_Server.exe; należy użyć auto_affinity."
 
@@ -1610,7 +1621,7 @@ msgid "Difficulty options.lua settings to apply."
 msgstr "Ustawienia Difficulty options.lua do zastosowania."
 
 #. servers_schema:regex;(.+).ignore_dirs
-#: schemas/servers_schema.yaml:494
+#: schemas/servers_schema.yaml:512
 msgid "Directories skipped during mission upload and add."
 msgstr "Katalogi pomijane podczas przesyłania i dodawania misji."
 
@@ -1631,7 +1642,7 @@ msgid "Directory holding the generated range and trap images."
 msgstr "Katalog przechowujący wygenerowane obrazy strzelań i pułapek."
 
 #. servers_schema:regex;(.+).ignore_dirs.[0]
-#: schemas/servers_schema.yaml:502
+#: schemas/servers_schema.yaml:520
 msgid "Directory name ignored during mission handling."
 msgstr "Nazwa katalogu ignorowana podczas obsługi misji."
 
@@ -1733,7 +1744,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "Odrzuca loty krótsze niż tyle minut."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:291
+#: services/webservice/schemas/webservice_schema.yaml:426
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Logowanie Discord OAuth; drugie wejście do konsoli."
 
@@ -1870,7 +1881,7 @@ msgid "Discord channel where the Pretense stats are posted."
 msgstr "Kanał Discord, na którym publikowane są statystyki Pretense."
 
 #. servers_schema:regex;(.+).channels
-#: schemas/servers_schema.yaml:581
+#: schemas/servers_schema.yaml:599
 msgid "Discord channels this server uses for its features."
 msgstr "Kanały Discord używane przez ten serwer dla jego funkcji."
 
@@ -1890,17 +1901,17 @@ msgid "Discord role granted when the achievement is reached."
 msgstr "Rola Discord przyznawana po osiągnięciu osiągnięcia."
 
 #. servers_schema:regex;(.+).coalitions.blue_role
-#: schemas/servers_schema.yaml:688
+#: schemas/servers_schema.yaml:706
 msgid "Discord role mapped to the blue coalition."
 msgstr "Rola Discord przypisana do koalicji niebieskiej."
 
 #. servers_schema:regex;(.+).coalitions.red_role
-#: schemas/servers_schema.yaml:693
+#: schemas/servers_schema.yaml:711
 msgid "Discord role mapped to the red coalition."
 msgstr "Rola Discord przypisana do koalicji czerwonej."
 
 #. servers_schema:regex;(.+).managed_by.[0]
-#: schemas/servers_schema.yaml:576
+#: schemas/servers_schema.yaml:594
 msgid "Discord role name allowed to manage this server."
 msgstr "Nazwa roli Discord uprawnionej do zarządzania tym serwerem."
 
@@ -1911,7 +1922,7 @@ msgid "Discord role name allowed to run the command."
 msgstr "Nazwa roli Discord uprawnionej do uruchomienia polecenia."
 
 #. servers_schema:regex;(.+).discord.[0]
-#: schemas/servers_schema.yaml:564
+#: schemas/servers_schema.yaml:582
 msgid "Discord role name allowed to use this server."
 msgstr "Nazwa roli Discord uprawnionej do korzystania z tego serwera."
 
@@ -1955,7 +1966,7 @@ msgid "Discord roles a player must have (prefix with ! to exclude)."
 msgstr "Role Discord, które gracz musi posiadać (poprzedź !, aby wykluczyć)."
 
 #. servers_schema:regex;(.+).managed_by
-#: schemas/servers_schema.yaml:569
+#: schemas/servers_schema.yaml:587
 msgid "Discord roles allowed to manage this server."
 msgstr "Role Discord uprawnione do zarządzania tym serwerem."
 
@@ -1971,7 +1982,7 @@ msgid "Discord roles allowed to run this command."
 msgstr "Role Discord uprawnione do uruchomienia tego polecenia."
 
 #. servers_schema:regex;(.+).discord
-#: schemas/servers_schema.yaml:557
+#: schemas/servers_schema.yaml:575
 msgid "Discord roles allowed to use this server."
 msgstr "Role Discord uprawnione do korzystania z tego serwera."
 
@@ -2108,7 +2119,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Ustawienia dostawcy zamiany tekstu na mowę ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:339
+#: services/webservice/schemas/webservice_schema.yaml:474
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Awaryjne poświadczenie administratora dla uszkodzonego dostawcy tożsamości."
 
@@ -2153,7 +2164,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "Włącz wykrywanie DDoS (wymaga NPCAP w Windows)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:301
+#: services/webservice/schemas/webservice_schema.yaml:436
 msgid "Enable Discord OAuth login."
 msgstr "Włącz logowanie przez Discord OAuth."
 
@@ -2293,7 +2304,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Włącz plugin competitive dla tego serwera."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:349
+#: services/webservice/schemas/webservice_schema.yaml:484
 msgid "Enable the emergency Admin credential."
 msgstr "Włącz awaryjne poświadczenie administratora."
 
@@ -2313,7 +2324,7 @@ msgid "Enable the logistics plugin for this server."
 msgstr "Włącz plugin logistyki dla tego serwera."
 
 #. servers_schema:regex;(.+).smart_bans
-#: schemas/servers_schema.yaml:550
+#: schemas/servers_schema.yaml:568
 msgid "Enable the smart ban system (IPv4 reuse detection)."
 msgstr "Włącz inteligentny system banów (wykrywanie ponownego użycia IPv4)."
 
@@ -2323,7 +2334,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Włącz funkcje turniejowe na tej instancji serwera."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:230
+#: services/webservice/schemas/webservice_schema.yaml:365
 msgid "Enable username/password login for the console."
 msgstr "Włącz logowanie nazwą użytkownika i hasłem dla konsoli."
 
@@ -2376,6 +2387,11 @@ msgstr "Zdarzenia niezgłaszane do kanału zdarzeń Discord."
 #: plugins/commands/schemas/commands_schema.yaml:10
 msgid "Executable or shell command to run."
 msgstr "Plik wykonywalny lub polecenie powłoki do uruchomienia."
+
+#. mcpservice_schema:schema;key_entry_jwt.jwt.key
+#: services/mcpservice/schemas/mcpservice_schema.yaml:58
+msgid "Expected signing key or issuer the token is checked against."
+msgstr ""
 
 #. dbexporter_schema:DEFAULT.autoexport
 #: plugins/dbexporter/schemas/dbexporter_schema.yaml:17
@@ -2441,6 +2457,11 @@ msgstr "Domyślna reguła uwierzytelniania dla punktów końcowych bez własnej.
 #: plugins/flightplan/schemas/flightplan_schema.yaml:38
 msgid "Fallback destination match distance in meters."
 msgstr "Domyślna odległość dopasowania miejsca docelowego w metrach."
+
+#. mcpservice_schema:schema;key_entry_jwt.label
+#: services/mcpservice/schemas/mcpservice_schema.yaml:42
+msgid "Fallback name of this client when the JWT carries no usable subject."
+msgstr ""
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0]
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:117
@@ -2817,6 +2838,11 @@ msgstr "Najwyższy poziom powiększenia, przy którym widoczna jest ta warstwa m
 msgid "Host address the DCS-gRPC server binds to."
 msgstr "Adres hosta, do którego wiąże się serwer DCS-gRPC."
 
+#. mcpservice_schema:DEFAULT.transport.allowed_hosts
+#: services/mcpservice/schemas/mcpservice_schema.yaml:120
+msgid "Host header values the surface answers; every other request is refused with 421."
+msgstr ""
+
 #. cloud_schema:DEFAULT.host
 #: plugins/cloud/schemas/cloud_schema.yaml:40
 msgid "Hostname of the cloud service."
@@ -2869,6 +2895,14 @@ msgstr "Sposób pokazywania wiadomości o dołączeniu, w czacie lub jako wyskak
 msgid "How the message is shown, in chat or as a popup."
 msgstr "Sposób pokazywania wiadomości, w czacie lub jako wyskakujące okno."
 
+#. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_observer
+#. servers_schema:regex;(.+).autoscan_observer
+#: schemas/nodes_schema.yaml:450 schemas/servers_schema.yaml:495
+msgid ""
+"How the missions folder is watched. auto uses polling when the folder is a network share (UNC, "
+"mapped drive or a junction into one) and file notifications otherwise."
+msgstr "Sposób obserwowania katalogu missions. auto używa odpytywania, gdy katalog jest udziałem sieciowym (UNC, mapowany dysk lub połączenie junction do niego), w przeciwnym razie powiadomień o plikach."
+
 #. motd_schema:schema;single_nudge.display_type
 #: plugins/motd/schemas/motd_schema.yaml:175
 msgid "How the nudge is shown, in chat or as a popup."
@@ -2920,12 +2954,12 @@ msgid "IPs always allowed through during firewall blocks."
 msgstr "Adresy IP zawsze przepuszczane podczas blokad zapory."
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:199
+#: services/webservice/schemas/webservice_schema.yaml:334
 msgid "Identity layer of the admin web UI; optional."
 msgstr "Warstwa tożsamości administracyjnego interfejsu web; opcjonalna."
 
 #. servers_schema:regex;(.+).chat_log
-#: schemas/servers_schema.yaml:650
+#: schemas/servers_schema.yaml:668
 msgid "In-game chat log written to disk for abuse checks."
 msgstr "Dziennik czatu w grze zapisywany na dysku do kontroli nadużyć."
 
@@ -2945,7 +2979,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "Wstrzyknij rzeczywistą pogodę do misji."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:313
+#: services/webservice/schemas/webservice_schema.yaml:448
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "Wbudowany sekret klienta Discord; używany, gdy nie ustawiono klucza."
 
@@ -2985,10 +3019,20 @@ msgstr "Interwał między automatycznymi zdjęciami."
 msgid "Interval between threat checks."
 msgstr "Interwał między kontrolami zagrożeń."
 
+#. mcpservice_schema:schema;key_entry_jwt.jwt.jwks_url
+#: services/mcpservice/schemas/mcpservice_schema.yaml:65
+msgid "JWKS endpoint the token's signing key is fetched from."
+msgstr ""
+
 #. restapi_schema:schema;auth.jwt
 #: plugins/restapi/schemas/restapi_schema.yaml:13
 msgid "JWT settings used to verify bearer tokens."
 msgstr "Ustawienia JWT używane do weryfikacji tokenów bearer."
+
+#. mcpservice_schema:schema;key_entry_jwt.jwt
+#: services/mcpservice/schemas/mcpservice_schema.yaml:48
+msgid "JWT verification of this client's bearer tokens."
+msgstr ""
 
 #. srs_schema:schema;instance_srs_schema.no_shutdown
 #. srs_schema:schema;node_srs_schema.no_shutdown
@@ -3059,7 +3103,7 @@ msgid "Kill message; may hold {points} and {victim}."
 msgstr "Wiadomość o zestrzeleniu; może zawierać {points} i {victim}."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).max_hung_minutes
-#: schemas/nodes_schema.yaml:456
+#: schemas/nodes_schema.yaml:474
 msgid "Kill the server after this many minutes of unresponsiveness."
 msgstr "Zamknij serwer po tylu minutach braku odpowiedzi."
 
@@ -3073,13 +3117,18 @@ msgstr "Definicje ocen LSO kluczowane symbolem oceny DCS."
 msgid "Label shown for this entry in the /download list."
 msgstr "Etykieta pokazywana dla tego wpisu na liście /download."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).lang
+#: services/webservice/schemas/webservice_schema.yaml:327
+msgid "Language the site renders in."
+msgstr ""
+
 #. servers_schema:regex;(.+).slot_spamming.check_time
 #: schemas/servers_schema.yaml:474
 msgid "Length of the observation window in seconds."
 msgstr "Długość okna obserwacji w sekundach."
 
 #. servers_schema:regex;(.+).coalitions.allow_players_pool
-#: schemas/servers_schema.yaml:683
+#: schemas/servers_schema.yaml:701
 msgid "Let players switch between unlocked coalitions."
 msgstr "Pozwól graczom przełączać się między odblokowanymi koalicjami."
 
@@ -3194,6 +3243,12 @@ msgstr "Wzorce Lua, które musi spełniać nazwa gracza, aby dołączyć."
 msgid "Lua tables to merge into the matched element."
 msgstr "Tabele Lua do scalenia z dopasowanym elementem."
 
+#. mcpservice_schema:DEFAULT
+#: services/mcpservice/schemas/mcpservice_schema.yaml:81
+#, fuzzy
+msgid "MCP surface settings; the service runs on the master node only."
+msgstr "Port TCP, na którym nasłuchuje usługa; unikalny dla węzła."
+
 #. main_schema:<root>
 #: schemas/main_schema.yaml:3
 msgid ""
@@ -3261,7 +3316,7 @@ msgid "Maximum concurrent tasks a single player may hold."
 msgstr "Maksymalna liczba współbieżnych zadań, które może mieć jeden gracz."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity.max_cores
-#: schemas/nodes_schema.yaml:483
+#: schemas/nodes_schema.yaml:501
 msgid "Maximum cores for this instance."
 msgstr "Maksymalna liczba rdzeni dla tej instancji."
 
@@ -3392,7 +3447,7 @@ msgid "Maximum number of times this choice can be picked."
 msgstr "Maksymalna liczba wyborów tego wyboru."
 
 #. servers_schema:regex;(.+).chat_log.size
-#: schemas/servers_schema.yaml:664
+#: schemas/servers_schema.yaml:682
 msgid "Maximum size of a chat log file in bytes."
 msgstr "Maksymalny rozmiar pliku dziennika czatu w bajtach."
 
@@ -3571,7 +3626,7 @@ msgid "Minimum cloud density (0-10)."
 msgstr "Minimalna gęstość chmur (0-10)."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity.min_cores
-#: schemas/nodes_schema.yaml:477
+#: schemas/nodes_schema.yaml:495
 msgid "Minimum cores for this instance."
 msgstr "Minimalna liczba rdzeni dla tej instancji."
 
@@ -3674,7 +3729,7 @@ msgid "Minutes RAM must stay high before warning."
 msgstr "Liczba minut, przez które RAM musi pozostawać wysoki przed ostrzeżeniem."
 
 #. servers_schema:regex;(.+).coalitions.lock_time
-#: schemas/servers_schema.yaml:678
+#: schemas/servers_schema.yaml:696
 msgid "Minutes a coalition stays locked after joining."
 msgstr "Liczba minut, przez które koalicja pozostaje zablokowana po dołączeniu."
 
@@ -3921,6 +3976,11 @@ msgstr "Nazwa pierwszego użytkownika technicznego serwera."
 msgid "Name of the session cookie."
 msgstr "Nazwa pliku cookie sesji."
 
+#. mcpservice_schema:schema;key_entry_static.label
+#: services/mcpservice/schemas/mcpservice_schema.yaml:15
+msgid "Name of this client, unique in the list and the tail of its audit token."
+msgstr ""
+
 #. music_schema:schema;element_schema.radios.regex;(.+).display_name
 #: services/music/schemas/music_schema.yaml:106
 msgid "Name of this radio as displayed in SRS."
@@ -3941,6 +4001,11 @@ msgstr "Nazwa wyświetlana dla rozszerzenia Olympus w embedzie statusu serwera."
 #: extensions/lotatc/schemas/lotatc_schema.yaml:86
 msgid "Name shown for this instance's LotAtc entry in the status embed."
 msgstr "Nazwa wyświetlana dla wpisu LotAtc tej instancji w embedzie statusu."
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).nav
+#: services/webservice/schemas/webservice_schema.yaml:301
+msgid "Nav page ids the site offers, in order."
+msgstr ""
 
 #. presets_schema:schema;modify_map.insert
 #: schemas/presets_schema.yaml:106
@@ -3992,7 +4057,7 @@ msgid "Number of CPU threads each Supertonic synthesizer may use."
 msgstr "Liczba wątków CPU, których może użyć każdy syntezator Supertonic."
 
 #. servers_schema:regex;(.+).chat_log.count
-#: schemas/servers_schema.yaml:659
+#: schemas/servers_schema.yaml:677
 msgid "Number of chat log files kept on disk."
 msgstr "Liczba plików dziennika czatu przechowywanych na dysku."
 
@@ -4054,7 +4119,7 @@ msgid "Numeric score used to rank this landing grade."
 msgstr "Ocena liczbowa używana do rankingowania tej oceny lądowania."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).priority
-#: schemas/nodes_schema.yaml:495
+#: schemas/nodes_schema.yaml:513
 msgid "OS process priority for DCS_Server.exe."
 msgstr "Priorytet procesu OS dla DCS_Server.exe."
 
@@ -4107,6 +4172,17 @@ msgstr "Przesunięcie stosowane do daty misji, np. 10d."
 #: extensions/realweather/schemas/realweather_schema.yaml:503
 msgid "Offset applied to the mission time, e.g. 0h5m."
 msgstr "Przesunięcie stosowane do czasu misji, np. 0h5m."
+
+#. webservice_schema:DEFAULT.sites
+#: services/webservice/schemas/webservice_schema.yaml:210
+#, fuzzy
+msgid "One block per public site, keyed by the site's name."
+msgstr "Jeden wpis na radio, kluczowany nazwą radia."
+
+#. mcpservice_schema:DEFAULT.keys
+#: services/mcpservice/schemas/mcpservice_schema.yaml:99
+msgid "One entry per MCP client; every entry carries label, level and exactly one credential."
+msgstr ""
 
 #. skyeye_schema:schema;skyeye_config.instances
 #: extensions/skyeye/schemas/skyeye_schema.yaml:260
@@ -4268,6 +4344,11 @@ msgstr "Opcjonalny proxy używany do połączenia z Discord."
 msgid "Ordered providers Real Weather fetches weather from."
 msgstr "Uporządkowani dostawcy, od których Real Weather pobiera pogodę."
 
+#. mcpservice_schema:DEFAULT.transport.allowed_origins
+#: services/mcpservice/schemas/mcpservice_schema.yaml:131
+msgid "Origin header values the surface accepts; empty accepts any origin."
+msgstr ""
+
 #. cloud_schema:DEFAULT.troublemakers.kick_threshold
 #: plugins/cloud/schemas/cloud_schema.yaml:106
 msgid "Other server bans needed to trigger a kick."
@@ -4284,12 +4365,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "Limit przepustowości sieci wychodzącej na klienta w bajtach/s."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:253
+#: services/webservice/schemas/webservice_schema.yaml:388
 msgid "PBKDF2 hash of the account's password."
 msgstr "Hash PBKDF2 hasła konta."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:359
+#: services/webservice/schemas/webservice_schema.yaml:494
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Hash PBKDF2 hasła awaryjnego."
 
@@ -4297,6 +4378,12 @@ msgstr "Hash PBKDF2 hasła awaryjnego."
 #: services/modmanager/schemas/modmanager_schema.yaml:13
 msgid "Package name, matching the OvGME folder or zip name."
 msgstr "Nazwa pakietu zgodna z nazwą katalogu lub zip OvGME."
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme
+#: services/webservice/schemas/webservice_schema.yaml:276
+#, fuzzy
+msgid "Palette overrides of the site."
+msgstr "Nadpisania ról według uprawnień w konsoli."
 
 #. commands_schema:schema;cmd_params_schema
 #: plugins/commands/schemas/commands_schema.yaml:57
@@ -4424,6 +4511,11 @@ msgstr "Ścieżka do elementów do iteracji (odniesienie)."
 msgid "Path to the instance's Saved Games directory."
 msgstr "Ścieżka do katalogu Saved Games instancji."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.logo
+#: services/webservice/schemas/webservice_schema.yaml:262
+msgid "Path to the site's logo image."
+msgstr ""
+
 #. funkman_schema:schema;default_schema.install
 #. greenieboard_schema:schema;default_schema.FunkMan.install
 #: plugins/funkman/schemas/funkman_schema.yaml:20
@@ -4497,7 +4589,7 @@ msgid "Per-event chat messages and sounds sent during a match."
 msgstr "Komunikaty czatu i dźwięki według zdarzeń wysyłane podczas meczu."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity
-#: schemas/nodes_schema.yaml:467
+#: schemas/nodes_schema.yaml:485
 msgid "Per-instance CPU affinity overrides."
 msgstr "Nadpisania powinowactwa CPU według instancji."
 
@@ -4669,7 +4761,7 @@ msgid "Polly speech engine to use, standard or neural."
 msgstr "Silnik mowy Polly do użycia, standard lub neural."
 
 #. music_schema:schema;element_schema.radios.regex;(.+).popup
-#: services/music/schemas/music_schema.yaml:112
+#: services/music/schemas/music_schema.yaml:117
 msgid "Popup for this radio, overrides the global one."
 msgstr "Popup dla tego radia, nadpisuje globalny."
 
@@ -4891,7 +4983,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "Publiczny URL wyświetlany graczom zamiast IP serwera."
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:211
+#: services/webservice/schemas/webservice_schema.yaml:346
 msgid "Public origin the console is reachable at."
 msgstr "Publiczny adres źródłowy, pod którym konsola jest osiągalna."
 
@@ -4929,6 +5021,11 @@ msgstr "Typ radia. Obsługiwany jest tylko SRSRadio."
 #: extensions/skyeye/schemas/skyeye_schema.yaml:192
 msgid "Radius in nautical miles that always counts as a threat."
 msgstr "Promień w milach morskich, który zawsze liczy się jako zagrożenie."
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.footer_html
+#: services/webservice/schemas/webservice_schema.yaml:268
+msgid "Raw HTML of the site's footer; empty renders none."
+msgstr ""
 
 #. firewall_schema:schema;element_schema.ddos_detection.action
 #: services/firewall/schemas/firewall_schema.yaml:39
@@ -5028,6 +5125,11 @@ msgstr "Odrzucaj klientów, których instalacja DCS nie jest czysta."
 msgid "Remaining battery percentage that triggers each action."
 msgstr "Procent pozostałej baterii wyzwalający każdą akcję."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.light
+#: services/webservice/schemas/webservice_schema.yaml:292
+msgid "Render the site in the light palette."
+msgstr ""
+
 #. servers_schema:regex;(.+).display_ai_chat
 #: schemas/servers_schema.yaml:311
 msgid "Replicate AI chat messages to the Discord chat channel."
@@ -5072,7 +5174,7 @@ msgid "Require a landing event to auto-complete a task."
 msgstr "Wymagaj zdarzenia lądowania do automatycznego ukończenia zadania."
 
 #. servers_schema:regex;(.+).accept_rules_on_join
-#: schemas/servers_schema.yaml:545
+#: schemas/servers_schema.yaml:563
 msgid "Require acknowledgement of the rules on join."
 msgstr "Wymagaj potwierdzenia regulaminu przy dołączaniu."
 
@@ -5082,7 +5184,7 @@ msgid "Require both credits and playtime instead of either."
 msgstr "Wymagaj zarówno kredytów, jak i czasu gry, zamiast jednego z nich."
 
 #. servers_schema:regex;(.+).force_voice
-#: schemas/servers_schema.yaml:532
+#: schemas/servers_schema.yaml:550
 msgid "Require players to join a Discord voice channel."
 msgstr "Wymagaj od graczy dołączenia do kanału głosowego Discord."
 
@@ -5152,7 +5254,7 @@ msgid "Role given while a member is online on a server."
 msgstr "Rola nadawana, gdy członek jest online na serwerze."
 
 #. servers_schema:regex;(.+).autorole
-#: schemas/servers_schema.yaml:517
+#: schemas/servers_schema.yaml:535
 msgid "Role granted to players online on this server."
 msgstr "Rola przyznawana graczom online na tym serwerze."
 
@@ -5167,7 +5269,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "Rola wspominana w wiadomości powitalnej."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:260
+#: services/webservice/schemas/webservice_schema.yaml:395
 msgid "Role names granted to this account, validated at startup."
 msgstr "Nazwy ról przyznanych temu kontu, sprawdzane przy starcie."
 
@@ -5263,7 +5365,7 @@ msgid "Rule that decides whether a voting passes."
 msgstr "Reguła decydująca, czy głosowanie przechodzi."
 
 #. servers_schema:regex;(.+).rules
-#: schemas/servers_schema.yaml:538
+#: schemas/servers_schema.yaml:556
 msgid "Rules text displayed to new players (needs MissionStats)."
 msgstr "Treść zasad wyświetlana nowym graczom (wymaga MissionStats)."
 
@@ -5338,14 +5440,20 @@ msgid "Scheduled actions and the cron times they run at."
 msgstr "Sekundy działania serwera z opcją PAUSE-on-start przed ponownym wstrzymaniem."
 
 #. servers_schema:regex;(.+).smooth_pause
-#: schemas/servers_schema.yaml:522
+#: schemas/servers_schema.yaml:540
 msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Sekundy działania serwera z PAUSE-on-start przed ponownym wstrzymaniem."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:332
+#: services/webservice/schemas/webservice_schema.yaml:467
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Sekundy buforowania rozwiązania członka bez intencji."
+
+#. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_stable_timeout
+#. servers_schema:regex;(.+).autoscan_stable_timeout
+#: schemas/nodes_schema.yaml:462 schemas/servers_schema.yaml:507
+msgid "Seconds a new mission file may keep growing before autoscan gives up on it."
+msgstr "Liczba sekund, przez które nowy plik misji może jeszcze rosnąć, zanim autoscan go pominie."
 
 #. motd_schema:schema;message_list.[0].display_time
 #. motd_schema:schema;on_birth.display_time
@@ -5355,6 +5463,11 @@ msgstr "Sekundy buforowania rozwiązania członka bez intencji."
 #: plugins/motd/schemas/motd_schema.yaml:122 plugins/motd/schemas/motd_schema.yaml:181
 msgid "Seconds a popup message stays visible."
 msgstr "Sekundy widoczności komunikatu popup."
+
+#. music_schema:schema;element_schema.radios.regex;(.+).startup_wait
+#: services/music/schemas/music_schema.yaml:111
+msgid "Seconds a track waits for SRS to be up before the attempt is given up."
+msgstr ""
 
 #. punishment_schema:schema;element_schema.forgive
 #: plugins/punishment/schemas/punishment_schema.yaml:111
@@ -5415,6 +5528,12 @@ msgstr "Sekundy między sprawdzeniami bliskości dostawy."
 #: schemas/nodes_schema.yaml:102
 msgid "Seconds between master and agent heartbeats."
 msgstr "Sekundy między sygnałami heartbeat węzła głównego i agenta."
+
+#. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_poll_interval
+#. servers_schema:regex;(.+).autoscan_poll_interval
+#: schemas/nodes_schema.yaml:456 schemas/servers_schema.yaml:501
+msgid "Seconds between polls of the missions folder (polling observer only)."
+msgstr "Liczba sekund między kolejnymi odpytaniami katalogu missions (tylko obserwator odpytujący)."
 
 #. webservice_schema:DEFAULT.dashboard.refresh_seconds
 #: services/webservice/schemas/webservice_schema.yaml:83
@@ -5477,7 +5596,7 @@ msgid "Seconds the voting stays open for players."
 msgstr "Sekundy, przez które głosowanie jest otwarte dla graczy."
 
 #. servers_schema:regex;(.+).lock_on_load
-#: schemas/servers_schema.yaml:527
+#: schemas/servers_schema.yaml:545
 msgid "Seconds to lock a server after a mission restart."
 msgstr "Sekundy blokady serwera po restarcie misji."
 
@@ -5512,7 +5631,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Sekundy bez przeciwnika, po których mecz zostaje wygrany."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:321
+#: services/webservice/schemas/webservice_schema.yaml:456
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Klucz magazynu sekretów przechowujący sekret klienta; ma pierwszeństwo przed wartością wpisaną."
 
@@ -5533,6 +5652,11 @@ msgstr "Wysyła anonimowe statystyki użycia do usługi chmurowej."
 #: services/webservice/schemas/webservice_schema.yaml:17
 msgid "Serve the API docs endpoints and uvicorn's access log."
 msgstr "Udostępnia punkty końcowe dokumentacji API i dziennik dostępu uvicorn."
+
+#. mcpservice_schema:DEFAULT.enabled
+#: services/mcpservice/schemas/mcpservice_schema.yaml:94
+msgid "Serve the MCP surface; false mounts nothing."
+msgstr ""
 
 #. main_schema:filter.server_name
 #: schemas/main_schema.yaml:160
@@ -5565,7 +5689,7 @@ msgid "Server(s) this command is restricted to."
 msgstr "Serwery, do których ograniczona jest ta komenda."
 
 #. servers_schema:regex;(.+).channels.audit
-#: schemas/servers_schema.yaml:621
+#: schemas/servers_schema.yaml:639
 msgid "Server-specific channel for audit events."
 msgstr "Kanał specyficzny dla serwera dla zdarzeń audytu."
 
@@ -5765,7 +5889,7 @@ msgid "Single-character prefix used for legacy chat commands."
 msgstr "Prefiks jednoliterowy używany dla starszych komend czatu."
 
 #. servers_schema:regex;(.+).no_coalition_chat
-#: schemas/servers_schema.yaml:698
+#: schemas/servers_schema.yaml:716
 msgid "Skip replicating red and blue chats to Discord."
 msgstr "Pomija replikowanie czatów czerwonych i niebieskich do Discord."
 
@@ -5857,6 +5981,11 @@ msgstr "Uruchamia serwer SRS razem z serwerem DCS."
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:70
 msgid "Starting balance and cap for squadron credits."
 msgstr "Początkowe saldo i limit kredytów eskadry."
+
+#. mcpservice_schema:schema;key_entry_static.key
+#: services/mcpservice/schemas/mcpservice_schema.yaml:22
+msgid "Static bearer token the client presents; compared in constant time."
+msgstr ""
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRealTimeTelemetryEnabled
 #. tacview_schema:schema;node_tacview_schema.tacviewRealTimeTelemetryEnabled
@@ -6033,6 +6162,11 @@ msgstr "Nazwa biletu zużywana przez ten wybór."
 msgid "Ticket types squadrons receive, keyed by ticket name."
 msgstr "Typy biletów otrzymywane przez eskadry, kluczowane nazwą biletu."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).tiles
+#: services/webservice/schemas/webservice_schema.yaml:315
+msgid "Tile ids the site's overview shows, in order."
+msgstr ""
+
 #. userstats_schema:schema;highscore_map.params.period
 #: plugins/userstats/schemas/userstats_schema.yaml:22
 msgid "Time period covered, e.g. day, month or a campaign name."
@@ -6090,6 +6224,23 @@ msgstr "Tytuł embedu ogłoszenia aktualizacji."
 #: plugins/missionstats/schemas/missionstats_schema.yaml:73
 msgid "Title used on the mission end embed."
 msgstr "Tytuł używany w embedzie końca misji."
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding
+#: services/webservice/schemas/webservice_schema.yaml:246
+msgid "Title, logo and footer of the site."
+msgstr ""
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.stylesheet
+#: services/webservice/schemas/webservice_schema.yaml:286
+msgid "Token-only stylesheet; relative to the config directory."
+msgstr ""
+
+#. mcpservice_schema:schema;key_entry_jwt.level
+#. mcpservice_schema:schema;key_entry_static.level
+#: services/mcpservice/schemas/mcpservice_schema.yaml:29
+#: services/mcpservice/schemas/mcpservice_schema.yaml:72
+msgid "Tool list this key is offered; an unknown level is refused."
+msgstr ""
 
 #. menus_schema:schema;command_menu_element.ucid
 #: schemas/menus_schema.yaml:46
@@ -6160,6 +6311,11 @@ msgstr "Szablon URL źródła danych wysokości."
 #: extensions/olympus/schemas/olympus_schema.yaml:301
 msgid "URL template of this map layer's tiles."
 msgstr "Szablon URL kafli tej warstwy mapy."
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).slug
+#: services/webservice/schemas/webservice_schema.yaml:231
+msgid "URL-safe path segment of the site; the root site's is empty."
+msgstr ""
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
 #: extensions/olympus/schemas/olympus_schema.yaml:178
@@ -6318,7 +6474,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "Użytkownik do logowania na serwerze NUT (opcjonalnie)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:216
+#: services/webservice/schemas/webservice_schema.yaml:351
 msgid "Username and password login for the console."
 msgstr "Logowanie nazwą użytkownika i hasłem do konsoli."
 
@@ -6333,7 +6489,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Nazwa użytkownika dla proxy, jeśli wymaga uwierzytelnienia."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:354
+#: services/webservice/schemas/webservice_schema.yaml:489
 msgid "Username of the emergency Admin account."
 msgstr "Nazwa użytkownika awaryjnego konta Administrator."
 
@@ -6343,7 +6499,7 @@ msgid "Username sent in the authentication header."
 msgstr "Nazwa użytkownika wysyłana w nagłówku uwierzytelniania."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).server_user
-#: schemas/nodes_schema.yaml:450
+#: schemas/nodes_schema.yaml:468
 msgid "Username shown as the sender of server-side messages."
 msgstr "Nazwa użytkownika wyświetlana jako nadawca wiadomości serwerowych."
 
@@ -6385,7 +6541,7 @@ msgid "Voice SkyEye uses for spoken messages."
 msgstr "Głos używany przez SkyEye w komunikatach mówionych."
 
 #. servers_schema:regex;(.+).channels.voice
-#: schemas/servers_schema.yaml:615
+#: schemas/servers_schema.yaml:633
 msgid "Voice channel players must join when force_voice is on."
 msgstr "Kanał głosowy, do którego gracze muszą dołączyć, gdy force_voice jest włączone."
 
@@ -6757,8 +6913,13 @@ msgstr "Niestandardowe komendy Discord, kluczowane nazwą komendy."
 msgid "Z-score above which traffic counts as anomalous."
 msgstr "Z-score, powyżej którego ruch jest uznawany za anomalny."
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).group_role
+#: services/webservice/schemas/webservice_schema.yaml:240
+msgid "managed_by token this site shows; absent only for the root site."
+msgstr ""
+
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:276
+#: services/webservice/schemas/webservice_schema.yaml:411
 msgid "managed_by values this account may see and act on."
 msgstr "Wartości managed_by, które to konto może widzieć i na których może działać."
 

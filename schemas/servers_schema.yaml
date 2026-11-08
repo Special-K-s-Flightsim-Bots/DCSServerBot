@@ -488,6 +488,24 @@ mapping:
         nullable: false
         desc: Scan for new missions and auto-add them to the list.
         example: "false"
+      autoscan_observer:
+        type: str
+        nullable: false
+        enum: ['auto', 'notify', 'polling']
+        desc: How the missions folder is watched. auto uses polling when the folder is a network share (UNC, mapped drive or a junction into one) and file notifications otherwise.
+        example: "auto"
+      autoscan_poll_interval:
+        type: int
+        nullable: false
+        range: {min: 1}
+        desc: Seconds between polls of the missions folder (polling observer only).
+        example: "3"
+      autoscan_stable_timeout:
+        type: int
+        nullable: false
+        range: {min: 1}
+        desc: Seconds a new mission file may keep growing before autoscan gives up on it.
+        example: "60"
       ignore_dirs:
         type: seq
         nullable: false
