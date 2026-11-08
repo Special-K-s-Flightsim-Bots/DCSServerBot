@@ -50,7 +50,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable, TYPE_CHECKING
+from typing import Any, Callable, Iterable, Sequence, TYPE_CHECKING
 
 from fastapi import APIRouter, FastAPI
 
@@ -60,9 +60,45 @@ if TYPE_CHECKING:  # pragma: no cover
     from jinja2 import Environment
 
 __all__ = ["NavItem", "NavGroup", "NAV_GROUPS", "NAV_GROUPS_BY_NAME", "Registration",
-           "RegistrationError", "Registrar", "RESERVED_PATHS", "RESERVED_PREFIXES"]
+           "RegistrationError", "Registrar", "RESERVED_PATHS", "RESERVED_PREFIXES",
+           "exclude_router", "include_router_counted"]
 
 log = logging.getLogger(__name__)
+
+
+# --------------------------------------------------------------------------- router installation
+
+def include_router_counted(app: FastAPI, router: APIRouter, *, prefix: str = "") -> list[Any]:
+    """``app.include_router(router, prefix=prefix)``, returning exactly the route object(s) THIS
+    include appended.
+
+    The include never appends the router's own routes: on the pinned pair it appends one
+    ``_IncludedRouter`` wrapper, on other versions one copied ``APIRoute`` per route. The returned
+    list is what :func:`exclude_router` must be given later — the router's own ``routes`` are not.
+
+    *prefix* is the include-time path prefix: every path the router declares is served under it.
+    """
+    before = list(app.routes)
+    app.include_router(router, prefix=prefix)
+    return [route for route in app.routes if not any(route is other for other in before)]
+
+
+def exclude_router(app: FastAPI, added: Sequence[Any]) -> int:
+    """Remove exactly the objects *added* from the app's route table, by identity.
+
+    Returns how many were removed. Identity and not equality: ``_IncludedRouter`` is a dataclass, so
+    ``list.remove`` can delete another owner's wrapper that compares equal.
+    """
+    routes = app.router.routes
+    removed = 0
+    for route in added:
+        for index, existing in enumerate(routes):
+            if existing is route:
+                del routes[index]
+                removed += 1
+                break
+    return removed
+
 
 #: Paths the shell owns. A contributor registering one of these is refused: with the pinned
 #: FastAPI a second registration on the same path wins silently, so a collision must be loud at
