@@ -6790,6 +6790,10 @@ msgstr "In der globalen DGSA-Bannliste geführt, die jede Installation abgleicht
 msgid "Admin Console"
 msgstr "Admin-Konsole"
 
+#: services/webservice/templates/base.html:25
+msgid "DCSServerBot Admin Console"
+msgstr "DCSServerBot Admin-Konsole"
+
 #: services/webservice/templates/base.html:100
 msgid "Sign out"
 msgstr "Abmelden"

@@ -1,0 +1,664 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "# Members"
+msgstr "Üye Sayısı"
+
+msgid "# Players per Side"
+msgstr "Taraf Başına Oyuncu"
+
+msgid "# Signups"
+msgstr "Kayıtlar"
+
+msgid "## :warning: Attention all Squadron Leaders! :warning:\nA new tournament has been created:\n\n```{}```"
+msgstr "## :warning: Attention all Filo Leaders! :warning:\nA new turnuva oluşturuldu:\n\n```{}```"
+
+msgid "## Error during the startup of server\n{}: Timeout"
+msgstr "## Error during the startup of sunucu\n{}: Timeout"
+
+msgid "### Stand proud, {}!\n_Through fire and thunder you prevailed,\nWhen others faltered, you stood strong,\nVictory is where you belong!_"
+msgstr "### Stand proud, {}!\n_Through fire and thunder you prevailed,\nWhen others faltered, you stood strong,\nVictory is where you belong!_"
+
+msgid "**Get your team ready!**\n"
+msgstr "**Get your team ready!**\n"
+
+msgid ", this is your private channel during the upcoming match!"
+msgstr ", this is your private channel during the upcoming match!"
+
+msgid "- Creating squadron channels ..."
+msgstr "- Creating filo channels ..."
+
+msgid "- Match {} vs {} was marked as won by {} due to a forfeit."
+msgstr "- Match {} vs {} was marked as won by {} due to a forfeit."
+
+msgid ":warning: To participate in the tournament, your squadron must have an assigned role.\nContact the tournament host to receive your role assignment."
+msgstr ":warning: To participate in the turnuva, your filo must have an assigned role.\nContact the turnuva host to receive your role assignment."
+
+msgid ":warning: Your squadron does not have enough players to participate in the tournament yet."
+msgstr ":warning: Your filo does not have enough oyuncus to participate in the turnuva yet."
+
+msgid "A match is running on server {}!"
+msgstr "A match is running on sunucu {}!"
+
+msgid "A match is running."
+msgstr "A match is running."
+
+msgid "Aborted"
+msgstr "İptal Edildi"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Accept"
+msgstr "Kabul Et"
+
+msgid "All sides have occupied their units. The match can start now!"
+msgstr "Tüm taraflar uçaklarına geçti. Maç şimdi başlayabilir!"
+
+msgid "Application"
+msgstr "Başvuru"
+
+msgid "Application for Squadron \"{}\""
+msgstr "\"{}\" Filosu için Başvuru"
+
+msgid "Apply to a tournament"
+msgstr "Bir turnuvaya başvur"
+
+msgid "Are you sure?\nYour settings will be directly applied to the next round."
+msgstr "Emin misiniz?\nYour settings will be directly applied to the next round."
+
+msgid "Blue"
+msgstr "Mavi"
+
+msgid "Blue Wins"
+msgstr "Mavi Kazandı"
+
+msgid "Can't generate new matches, not all matches of this stage have been flown yet."
+msgstr "Can't generate new matches, not all matches of this stage have been flown yet."
+
+msgid "Cancel"
+msgstr "İptal"
+
+msgid "Closing the underlying campaign ..."
+msgstr "Closing the underlying campaign ..."
+
+msgid "Coalition"
+msgstr "Koalisyon"
+
+msgid "Commands to manage matches in a tournament"
+msgstr "Turnuvadaki maçları yönetmek için komutlar"
+
+msgid "Commands to manage tickets in a tournament"
+msgstr "Turnuvadaki biletleri yönetmek için komutlar"
+
+msgid "Congratulations, you will be part of our upcoming tournament!"
+msgstr "Tebrikler, yaklaşan turnuvamızın bir parçası olacaksınız!"
+
+msgid "Count"
+msgstr "Adet"
+
+msgid "Create a manual match"
+msgstr "Manuel bir maç oluştur"
+
+msgid "Create a new tournament"
+msgstr "Yeni bir turnuva oluştur"
+
+msgid "Create a tournament"
+msgstr "Bir turnuva oluştur"
+
+msgid "Customize the next round"
+msgstr "Sonraki raundu özelleştir"
+
+msgid "Delete a tournament"
+msgstr "Bir turnuvayı sil"
+
+msgid "Do you really want to delete this tournament and all its data?"
+msgstr "Do you really want to delete this turnuva and all its data?"
+
+msgid "Do you really want to finish the match and make {} the winner?"
+msgstr "Do you really want to finish the match and make {} the winner?"
+
+msgid "Do you really want to sell a tickets of type {} for {} credits?"
+msgstr "Do you really want to sell a tickets of type {} for {} credits?"
+
+msgid "Do you want to generate new matches for tournament {}?"
+msgstr "Do you want to generate new matches for turnuva {}?"
+
+msgid "Do you want to import the data and overwrite your matches?"
+msgstr "Do you want to import the data and overwrite your matches?"
+
+msgid "Do you want to inform players about the new tournament now?"
+msgstr "Do you want to inform oyuncus about the new turnuva now?"
+
+msgid "Do you want to re-generate your groups?"
+msgstr "Do you want to re-generate your groups?"
+
+msgid "Do you want to start round {} of the match between\n{} and {}?"
+msgstr "Do you want to start round {} of the match between\n{} and {}?"
+
+msgid "Draw"
+msgstr "Berabere"
+
+msgid "Edit a match"
+msgstr "Bir maçı düzenle"
+
+msgid "Enter a number"
+msgstr "Enter a number"
+
+msgid "Error deleting tournament: {}"
+msgstr "Error deleting turnuva: {}"
+
+msgid "Error during opening the channels: {}"
+msgstr "Error during opening the channels: {}"
+
+msgid "Error while processing the file: {}"
+msgstr "Error while processing the file: {}"
+
+msgid "Error: This campaign is already stopped!"
+msgstr "Error: This campaign is already stopped!"
+
+msgid "Export matches"
+msgstr "Maçları dışa aktar"
+
+msgid "Finish a tournament"
+msgstr "Bir turnuvayı bitir"
+
+msgid "Generate bracket"
+msgstr "Eşleşme tablosu (bracket) oluştur"
+
+msgid "Generate matches"
+msgstr "Maçları oluştur"
+
+msgid "Generating group matches for this tournament ..."
+msgstr "Generating group matches for this turnuva ..."
+
+msgid "Generating knockout matches for this tournament ..."
+msgstr "Generating knockout matches for this turnuva ..."
+
+msgid "How many {} do you want?"
+msgstr "How many {} do you want?"
+
+msgid "IP:Port"
+msgstr "IP:Port"
+
+msgid "Invalid date format. Use yyyy-mm-dd hh:mm:ss."
+msgstr "Invalid date format. Use yyyy-mm-dd hh:mm:ss."
+
+msgid "Invoice"
+msgstr "Fatura"
+
+msgid "Kicked due to early engagement."
+msgstr "Erken angajman nedeniyle atıldı."
+
+msgid "Kicked due to early takeoff."
+msgstr "Erken kalkış nedeniyle atıldı."
+
+msgid "List matches"
+msgstr "Maçları listele"
+
+msgid "List tickets of a squadron"
+msgstr "Bir filonun biletlerini listele"
+
+msgid "Match Setup"
+msgstr "Maç Kurulumu"
+
+msgid "Match created."
+msgstr "Maç oluşturuldu."
+
+msgid "Match not updated."
+msgstr "Maç güncellenmedi."
+
+msgid "Match time (yyyy-mm-dd hh:mm:ss)"
+msgstr "Match time (yyyy-mm-dd hh:mm:ss)"
+
+msgid "Match times, comma separated in format HH:MM"
+msgstr "Match times, comma separated in format HH:MM"
+
+msgid "Match updated."
+msgstr "Maç güncellendi."
+
+msgid "Matches for Tournament {}"
+msgstr "{} Turnuvası Maçları"
+
+msgid "No matches for tournament {} found."
+msgstr "No matches for turnuva {} found."
+
+msgid "No winner found yet, playing one decisive round!"
+msgstr "No winner found yet, playing one decisive round!"
+
+msgid "Number of players"
+msgstr "Oyuncu sayısı"
+
+msgid "Number of players needs to be a number."
+msgstr "Number of oyuncus needs to be a number."
+
+msgid "Number of players needs to be at least 1."
+msgstr "Number of oyuncus needs to be at least 1."
+
+msgid "Number of rounds"
+msgstr "Raund sayısı"
+
+msgid "Number of rounds needs to be a number."
+msgstr "Number of rounds needs to be a number."
+
+msgid "Number of rounds needs to be an odd value."
+msgstr "Number of rounds needs to be an odd value."
+
+msgid "Number of rounds needs to be at least 3."
+msgstr "Number of rounds needs to be at least 3."
+
+msgid "Password"
+msgstr "Şifre"
+
+msgid "Player {name} joined the match in their {unit}."
+msgstr "Oyuncu {name} joined the match in their {unit}."
+
+msgid "Please enter a reason why you decided to reject this squadron."
+msgstr "Please enter a reason why you decided to reject this filo."
+
+msgid "Please enter a short summary of your group and why you want to participate in this tournament."
+msgstr "Please enter a short summary of your group and why you want to participate in this turnuva."
+
+msgid "Please keep in mind that you can only use {} planes!"
+msgstr "Please keep in mind that you can only use {} planes!"
+
+msgid "Preferred times (UTC)"
+msgstr "Tercih edilen saatler (UTC)"
+
+msgid "Reason"
+msgstr "Sebep"
+
+msgid "Red"
+msgstr "Kırmızı"
+
+msgid "Red Wins"
+msgstr "Kırmızı Kazandı"
+
+msgid "Reject"
+msgstr "Reddet"
+
+msgid "Reject a squadron"
+msgstr "Bir filoyu reddet"
+
+msgid "Resetting all amended serverSettings.lua files ..."
+msgstr "Resetting all amended sunucuSettings.lua files ..."
+
+msgid "Role"
+msgstr "Rol"
+
+msgid "Round"
+msgstr "Raund"
+
+msgid "Round {} was a draw!"
+msgstr "{}. Raund berabere bitti!"
+
+msgid "Round: {}, {} : {}"
+msgstr "Round: {}, {} : {}"
+
+msgid "Select the DCS terrains you own"
+msgstr "Select the DCS terrains you own"
+
+msgid "Select your preferred match times"
+msgstr "Select your preferred match times"
+
+msgid "Sell tickets for credits"
+msgstr "Kredi karşılığında bilet sat"
+
+msgid "Server"
+msgstr "Sunucu"
+
+msgid "Server {} not found."
+msgstr "Sunucu {} bulunamadı."
+
+msgid "Server {} shut down."
+msgstr "Sunucu {} shut down."
+
+msgid "Show squadron preferences"
+msgstr "Filo tercihlerini göster"
+
+msgid "Signup"
+msgstr "Kayıt Ol"
+
+msgid "Signup to a tournament"
+msgstr "Bir turnuvaya kayıt ol"
+
+msgid "Squadron ID not found."
+msgstr "Filo ID bulunamadı."
+
+msgid "Squadron admins, you can now choose your weapons for the next round!"
+msgstr "Filo admins, you can now choose your weapons for the next round!"
+
+msgid "Squadron already signed up for tournament."
+msgstr "Filo already signed up for turnuva."
+
+msgid "Squadron application handed in for tournament {}."
+msgstr "Filo application handed in for turnuva {}."
+
+msgid "Squadron blue rounds won"
+msgstr "Filo blue rounds won"
+
+msgid "Squadron red rounds won"
+msgstr "Filo red rounds won"
+
+msgid "Squadron {name} won round {round}!"
+msgstr "Filo {name} won round {round}!"
+
+msgid "Squadron {squadron} is the winner of the match!"
+msgstr "Filo {filo} is the winner of the match!"
+
+msgid "Squadron {} accepted."
+msgstr "Filo {} accepted."
+
+msgid "Squadron {} forfeit and withdrew from tournament {}."
+msgstr "Filo {} forfeit and withdrew from turnuva {}."
+
+msgid "Squadron {} rejected."
+msgstr "Filo {} rejected."
+
+msgid "Squadron {} signed up for tournament {}, you can now {} them."
+msgstr "Filo {} signed up for turnuva {}, you can now {} them."
+
+msgid "Start Date"
+msgstr "Başlangıç Tarihi"
+
+msgid "Start a match"
+msgstr "Bir maçı başlat"
+
+msgid "State"
+msgstr "Durum"
+
+msgid "Status"
+msgstr "Durum"
+
+msgid "THE TOURNAMENT HAS FINISHED!"
+msgstr "TURNUVA SONA ERDİ!"
+
+msgid "Terrain"
+msgstr "Harita"
+
+msgid "Terrain Preferences"
+msgstr "Harita Tercihleri"
+
+msgid "Thank you for your purchase!"
+msgstr "Satın alımınız için teşekkürler!"
+
+msgid "The data has been imported successfully."
+msgstr "The data has been imported successfully."
+
+msgid "The eliminiation phase is now running."
+msgstr "The eliminiation phase is now running."
+
+msgid "The filename has to be 'tournament_ID.xlsx'."
+msgstr "The filename has to be 'turnuva_ID.xlsx'."
+
+msgid "The first party to lose all their units will be defeated, making the surviving party the winner of the match."
+msgstr "The first party to lose all their units will be defeated, making the surviving party the winner of the match."
+
+msgid "The group phase is now running."
+msgstr "The group phase is now running."
+
+msgid "The level of your match. If all matches on one level are finished, increase the level by one."
+msgstr "The level of your match. If all matches on one level are finished, increase the level by one."
+
+msgid "The match is over: {} won!"
+msgstr "Maç bitti: {} kazandı!"
+
+msgid "The match is starting NOW!"
+msgstr "Maç ŞİMDİ başlıyor!"
+
+msgid "The match will continue with round {}."
+msgstr "The match will continue with round {}."
+
+msgid "The next round will start in 10s!"
+msgstr "The next round will start in 10s!"
+
+msgid "The provided campaign is already started.\nAre you sure you want to create a tournament for it now?"
+msgstr "The provided campaign is already started.\nAre you sure you want to create a turnuva for it now?"
+
+msgid "The round is over, please wait for the next one!"
+msgstr "The round is over, please wait for the next one!"
+
+msgid "The round will start in {} minute{}.\nIf you takeoff/engage before this time is over, you will be kicked and cannot rejoin for this round!"
+msgstr "The round will start in {} minute{}.\nIf you takeoff/engage before this time is over, you will be kicked and cannot rejoin for this round!"
+
+msgid "The round will start in {} second{}."
+msgstr "The round will start in {} second{}."
+
+msgid "The server is now unpaused!\n"
+msgstr "The sunucu is now unpaused!\n"
+
+msgid "The server will be unpaused, if all players have chosen their slots!"
+msgstr "The sunucu will be unpaused, if all oyuncus have chosen their slots!"
+
+msgid "The ticket {} does not exist."
+msgstr "The ticket {} does not exist."
+
+msgid "The tournament {} is finished."
+msgstr "The turnuva {} is finished."
+
+msgid "There are only {} items available to buy."
+msgstr "There are only {} items available to buy."
+
+msgid "There are unfinished matches. Do you really want to finish this tournament?"
+msgstr "There are unfinished matches. Do you really want to finish this turnuva?"
+
+msgid "There is a match running. Please wait for the round to finish."
+msgstr "There is a match running. Please wait for the round to finish."
+
+msgid "This match is over already. You can not start another round."
+msgstr "This match is over already. You can not start another round."
+
+msgid "This tournament is already finished!\n"
+msgstr "This turnuva is already finished!\n"
+
+msgid "This tournament is finished already!"
+msgstr "This turnuva is finished already!"
+
+msgid "This will overwrite any existing **unflown** matches!"
+msgstr "This will overwrite any existing **unflown** matches!"
+
+msgid "Tickets"
+msgstr "Biletler"
+
+msgid "Tickets of type {} are not for sale."
+msgstr "Tickets of type {} are not for sale."
+
+msgid "Time Preferences"
+msgstr "Zaman Tercihleri"
+
+msgid "To win the match, a party must eliminate all enemy aircraft AND safely land at least one of their own planes."
+msgstr "To win the match, a party must eliminate all enemy aircraft AND safely land at least one of their own planes."
+
+msgid "Tournament"
+msgstr "Turnuva"
+
+msgid "Tournament not found."
+msgstr "Turnuva bulunamadı."
+
+msgid "Tournament {} created."
+msgstr "{} turnuvası oluşturuldu."
+
+msgid "Tournament {} deleted."
+msgstr "{} turnuvası silindi."
+
+msgid "Tournament {} exists already!"
+msgstr "Turnuva {} exists already!"
+
+msgid "Unit {} is lost and will be permanently removed from the match."
+msgstr "Unit {} is lost and will be permanently removed from the match."
+
+msgid "Verfiy Applications"
+msgstr "Başvuruları Doğrula"
+
+msgid "We have found no winner yet, continuing the match with another round!"
+msgstr "We have found no winner yet, continuing the match with another round!"
+
+msgid "Win-Chance"
+msgstr "Kazanma Şansı"
+
+msgid "Winner not updated."
+msgstr "Winner not updated."
+
+msgid "Winner: {}"
+msgstr "Kazanan: {}"
+
+msgid "Withdraw from a tournament"
+msgstr "Turnuvadan çekil"
+
+msgid "You already made your choice. Wait for the next round!"
+msgstr "You already made your choice. Wait for the next round!"
+
+msgid "You are going to withdraw from a running tournament!\nAll already scheduled matches will be marked as lost."
+msgstr "You are going to withdraw from a running turnuva!\nAll already scheduled matches will be marked as lost."
+
+msgid "You are not a squadron member.\nPlease ask your squadron leader to add you."
+msgstr "You are not a filo member.\nPlease ask your filo leader to add you."
+
+msgid "You can **now** join the server."
+msgstr "You can **now** join the sunucu."
+
+msgid "You can not choose during a running match!"
+msgstr "You can not choose during a running match!"
+
+msgid "You can now use {} to chose your customizations!"
+msgstr "You can now use {} to chose your customizations!"
+
+msgid "You can now use {} to chose your customizations!\nIf you do not want to change anything, please run it and say 'Skip this round'"
+msgstr "You can now use {} to chose your customizations!\nIf you do not want to change anything, please run it and say 'Skip this round'"
+
+msgid "You can use each ticket only once, so use them wisely!"
+msgstr "You can use each ticket only once, so use them wisely!"
+
+msgid "You decided to not buy any customizations in this round."
+msgstr "You decided to not buy any customizations in this round."
+
+msgid "You do not have any tickets of this type."
+msgstr "You do not have any tickets of this type."
+
+msgid "You do not have enough credits to buy {} items."
+msgstr "You do not have enough credits to buy {} items."
+
+msgid "You do not have enough squadron credits to buy a choice."
+msgstr "You do not have enough filo credits to buy a choice."
+
+msgid "You have been eliminated from the tournament {}.\nThank you for your participation!"
+msgstr "You have been eliminated from the turnuva {}.\nThank you for your participation!"
+
+msgid "You have been eliminated!"
+msgstr "You have been eliminated!"
+
+msgid "You have {} credit points left to spend."
+msgstr "You have {} credit points left to spend."
+
+msgid "You have {} to arm up your planes and get ready before the match starts."
+msgstr "You have {} to arm up your planes and get ready before the match starts."
+
+msgid "You just finished the tournament!"
+msgstr "You just finished the turnuva!"
+
+msgid "You must not share the password with anyone outside your squadron!\nYou will stay on the {} side throughout the whole match."
+msgstr "You must not share the password with anyone outside your filo!\nYou will stay on the {} side throughout the whole match."
+
+msgid "You need to be DCS Admin or GameMaster to upload data."
+msgstr "You need to be DCS Admin or GameMaster to upload data."
+
+msgid "You need to be an admin of the respective squadron to sign up.\n\nDISCLAIMER:\nWe will store player information during the tournament.\nThis includes account IDs and hashed IP addresses."
+msgstr "You need to be an admin of the respective filo to sign up.\n\nDISCLAIMER:\nWe will store oyuncu information during the turnuva.\nThis includes account IDs and hashed IP addresses."
+
+msgid "You sold a ticket of type {} and got {} credits back.\nYour total squadron balance is {} credits."
+msgstr "You sold a ticket of type {} and got {} credits back.\nYour total filo balance is {} credits."
+
+msgid "You will be moved back to spectators in 60 seconds ..."
+msgstr "You will be moved back to spectators in 60 seconds ..."
+
+msgid "Your Squadron has been accepted!"
+msgstr "Filonuz kabul edildi!"
+
+msgid "Your Squadron has been rejected!"
+msgstr "Filonuz reddedildi!"
+
+msgid "Your Tickets"
+msgstr "Biletleriniz"
+
+msgid "Your choices were saved.\nIf you want them to be applied to the next round, press 'Confirm & Buy'."
+msgstr "Your choices were saved.\nIf you want them to be applied to the next round, press 'Confirm & Buy'."
+
+msgid "Your next match against {name} starts <t:{time}:R>!"
+msgstr "Your next match against {name} starts <t:{time}:R>!"
+
+msgid "Your squadron does not have any tickets."
+msgstr "Your filo does not have any tickets."
+
+msgid "Your squadron has been withdrawn from tournament {}."
+msgstr "Your filo has been withdrawn from turnuva {}."
+
+msgid "Your squadron {squadron} was rejected from tournament {tournament}."
+msgstr "Your filo {filo} was rejected from turnuva {turnuva}."
+
+msgid "\n- Assigning coalitions ..."
+msgstr "\n- Assigning coalitions ..."
+
+msgid "\n- Awaiting squadron choices ..."
+msgstr "\n- Awaiting filo choices ..."
+
+msgid "\n- Preparing server {} ..."
+msgstr "\n- Preparing sunucu {} ..."
+
+msgid "\n- Server {} ready, notifying teams ..."
+msgstr "\n- Sunucu {} ready, notifying teams ..."
+
+msgid "\n- Setting passwords..."
+msgstr "\n- Setting passwords..."
+
+msgid "\n- Shutting down server {} ..."
+msgstr "\n- Shutting down sunucu {} ..."
+
+msgid "\n- Starting server {} ..."
+msgstr "\n- Starting sunucu {} ..."
+
+msgid "\n- Using mission {} ..."
+msgstr "\n- Using görev {} ..."
+
+msgid "\nServer will be shut down in 60 seonds ..."
+msgstr "\nSunucu will be shut down in 60 seonds ..."
+
+msgid "\nYou can use {} to sign up."
+msgstr "\nYou can use {} to sign up."
+
+msgid "\n\nYou can use the following tickets during the tournament to buy special customizations:"
+msgstr "\n\nYou can use the following tickets during the turnuva to buy special customizations:"
+
+msgid "n/a"
+msgstr "Yok"
+
+msgid "{} matches generated:"
+msgstr "{} matches generated:"
+
+msgid "Cannot start match due to an error: {}"
+msgstr "Cannot start match due to an error: {}"
+
+msgid "{} has to be used in the respective coalition channel."
+msgstr "{} has to be used in the respective coalition channel."
+
+msgid "Delete a match"
+msgstr "Delete a match"
+
+msgid "Do you want to delete this match?"
+msgstr "Do you want to delete this match?"
+
+msgid "{} player {}: {}"
+msgstr "{} oyuncu {}: {}"
+
+msgid "{} player {} shot an {} at {} player {}"
+msgstr "{} oyuncu {} shot an {} at {} oyuncu {}"
+
+msgid "{} player {} hit {} player {}"
+msgstr "{} oyuncu {} hit {} oyuncu {}"
+
+msgid "{} player {} is out!"
+msgstr "{} oyuncu {} is out!"

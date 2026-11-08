@@ -1,0 +1,43 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Raised {total}{currency} from {goal}{currency}"
+msgstr "Raised {total}{currency} from {goal}{currency}"
+
+msgid "New Donation!"
+msgstr "New Donation!"
+
+msgid "Donor"
+msgstr "Donor"
+
+msgid "Anonymous"
+msgstr "Anonymous"
+
+msgid "Amount"
+msgstr "Amount"
+
+msgid "Message"
+msgstr "Message"
+
+msgid "New donation: {name} donated ${amount}!"
+msgstr "New donation: {name} donated ${amount}!"
+
+msgid "No charity campaigns configured."
+msgstr "No charity campaigns configured."
+
+msgid "Charity Status"
+msgstr "Charity Status"
+
+msgid "Total: {total}{currency}"
+msgstr "Total: {total}{currency}"
+
+msgid " / Goal: {goal}{currency} ({percent:.1f}%)"
+msgstr " / Goal: {goal}{currency} ({percent:.1f}%)"
+
+msgid "Error fetching status."
+msgstr "Error fetching status."

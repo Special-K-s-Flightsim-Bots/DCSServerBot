@@ -1,0 +1,526 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Flight Plan #{}"
+msgstr "Uçuş Planı #{}"
+
+msgid "Callsign: {}"
+msgstr "Callsign: {}"
+
+msgid "Status"
+msgstr "Durum"
+
+msgid "Aircraft"
+msgstr "Hava Aracı"
+
+msgid "Route"
+msgstr "Route"
+
+msgid "Alternate"
+msgstr "Alternate"
+
+msgid "Cruise"
+msgstr "Cruise"
+
+msgid "Speed"
+msgstr "Speed"
+
+msgid "ETD"
+msgstr "ETD"
+
+msgid "ETA"
+msgstr "ETA"
+
+msgid "Waypoints"
+msgstr "Waypoints"
+
+msgid "Route Notes"
+msgstr "Route Notes"
+
+msgid "Remarks"
+msgstr "Remarks"
+
+msgid "Commands to manage flight plans"
+msgstr "Uçuş planlarını yönetmek için komutlar"
+
+msgid "Manage user-defined waypoints"
+msgstr "Kullanıcı tanımlı dönüş noktalarını (waypoint) yönet"
+
+msgid "Manage navigation fixes"
+msgstr "Seyrüsefer noktalarını (fix) yönet"
+
+msgid "File a flight plan"
+msgstr "Bir uçuş planı doldur"
+
+msgid "Server for this flight plan"
+msgstr "Sunucu for this uçuş planı"
+
+msgid "Your callsign for this flight"
+msgstr "Your callsign for this flight"
+
+msgid "Aircraft type (e.g., F-16C, F/A-18C)"
+msgstr "Aircraft type (e.g., F-16C, F/A-18C)"
+
+msgid "Departure airfield, FARP, or ship"
+msgstr "Departure airfield, FARP, or ship"
+
+msgid "Destination airfield, FARP, or ship"
+msgstr "Destination airfield, FARP, or ship"
+
+msgid "Alternate airfield (optional)"
+msgstr "Alternate airfield (optional)"
+
+msgid "Comma-separated waypoints (e.g., \"PANTHER,38TLN123,@MYPOINT\")"
+msgstr "Comma-separated waypoints (e.g., \"PANTHER,38TLN123,@MYPOINT\")"
+
+msgid "Cruise altitude (e.g., FL300 or 30000)"
+msgstr "Cruise altitude (e.g., FL300 or 30000)"
+
+msgid "Cruise speed in knots or Mach (e.g., 450 or M0.85)"
+msgstr "Cruise speed in knots or Mach (e.g., 450 or M0.85)"
+
+msgid "Estimated departure time in HH:MM UTC"
+msgstr "Estimated departure time in HH:MM UTC"
+
+msgid "Additional remarks (optional)"
+msgstr "Additional remarks (optional)"
+
+msgid "You are not linked to DCS!"
+msgstr "You are not linked to DCS!"
+
+msgid "Server has no mission loaded or no airbases available."
+msgstr "Sunucu has no görev loaded or no airbases available."
+
+msgid "Invalid airbase selection."
+msgstr "Invalid airbase selection."
+
+msgid "Invalid altitude format. Use FL300 or 30000."
+msgstr "Invalid altitude format. Use FL300 or 30000."
+
+msgid "Invalid speed format. Use knots (e.g., 450) or Mach (e.g., M0.85)."
+msgstr "Invalid speed format. Use knots (e.g., 450) or Mach (e.g., M0.85)."
+
+msgid "Invalid ETD format. Use HH:MM or HHMM (UTC)."
+msgstr "Invalid ETD format. Use HH:MM or HHMM (UTC)."
+
+msgid "Flight Plan Filed"
+msgstr "Uçuş Planı Filed"
+
+msgid "Flight plan #{} has been filed."
+msgstr "Uçuş planı #{} has been filed."
+
+msgid "Callsign"
+msgstr "Callsign"
+
+msgid "View a flight plan"
+msgstr "Bir uçuş planını görüntüle"
+
+msgid "Flight plan to view"
+msgstr "Uçuş planı to view"
+
+msgid "Flight plan not found!"
+msgstr "Uçuş planı bulunamadı!"
+
+msgid "Flight Plan #{} - {}"
+msgstr "Uçuş Planı #{} - {}"
+
+msgid "List flight plans"
+msgstr "Uçuş planlarını listele"
+
+msgid "Filter by status (leave empty for all active plans)"
+msgstr "Filter by status (leave empty for all active plans)"
+
+msgid "Show flight plans for a specific pilot"
+msgstr "Show uçuş planıs for a specific pilot"
+
+msgid "No flight plans found."
+msgstr "No uçuş planıs found."
+
+msgid "Flight Plans"
+msgstr "Uçuş Planıs"
+
+msgid "Showing 10 of {} flight plans"
+msgstr "Showing 10 of {} uçuş planıs"
+
+msgid "Activate a filed flight plan"
+msgstr "Doldurulmuş bir uçuş planını etkinleştir"
+
+msgid "Flight plan not found or not yours!"
+msgstr "Uçuş planı bulunamadı or not yours!"
+
+msgid "Only filed flight plans can be activated. Current status: {}"
+msgstr "Only filed uçuş planıs can be activated. Current status: {}"
+
+msgid "Flight Plan Activated"
+msgstr "Uçuş Planı Activated"
+
+msgid "Flight plan #{} is now active."
+msgstr "Uçuş planı #{} artık aktif."
+
+msgid "Mark a flight plan as completed"
+msgstr "Bir uçuş planını tamamlandı olarak işaretle"
+
+msgid "Flight plan cannot be completed. Current status: {}"
+msgstr "Uçuş planı cannot be completed. Current status: {}"
+
+msgid "Flight Plan Completed"
+msgstr "Uçuş Planı Completed"
+
+msgid "Flight plan #{} has been marked as completed."
+msgstr "Uçuş planı #{} has been marked as completed."
+
+msgid "Cancel a flight plan"
+msgstr "Bir uçuş planını iptal et"
+
+msgid "Flight plan cannot be cancelled. Current status: {}"
+msgstr "Uçuş planı cannot be cancelled. Current status: {}"
+
+msgid "Flight Plan Cancelled"
+msgstr "Uçuş Planı Cancelled"
+
+msgid "Flight plan #{} has been cancelled."
+msgstr "Uçuş planı #{} iptal edildi."
+
+msgid "Plot flight plan on F10 map"
+msgstr "Uçuş planını F10 haritasında çiz"
+
+msgid "Flight plan to plot"
+msgstr "Uçuş planı to plot"
+
+msgid "Duration in seconds (default 30, 0 for permanent)"
+msgstr "Duration in seconds (default 30, 0 for permanent)"
+
+msgid "Flight plan has no associated server!"
+msgstr "Uçuş planı has no associated sunucu!"
+
+msgid "Server is not running!"
+msgstr "Sunucu is not running!"
+
+msgid "Flight plan #{} plotted on F10 map for {} seconds."
+msgstr "Uçuş planı #{} plotted on F10 map for {} seconds."
+
+msgid "Flight plan #{} plotted on F10 map (permanent)."
+msgstr "Uçuş planı #{} plotted on F10 map (permanent)."
+
+msgid "Flight Plan Plotted"
+msgstr "Uçuş Planı Plotted"
+
+msgid "Publish flight plan to Discord"
+msgstr "Uçuş planını Discord'da yayınla"
+
+msgid "Flight Plan Published"
+msgstr "Uçuş Planı Published"
+
+msgid "Flight plan #{} has been published to the flight plans channel."
+msgstr "Uçuş planı #{} has been published to the uçuş planıs channel."
+
+msgid "Cancel stale flight plans"
+msgstr "Eski uçuş planlarını iptal et"
+
+msgid "Consider plans stale after this many hours (default 24)"
+msgstr "Consider plans stale after this many hours (default 24)"
+
+msgid "Stale Plans Cancelled"
+msgstr "Stale Plans Cancelled"
+
+msgid "Cancelled {} stale flight plans."
+msgstr "Cancelled {} stale uçuş planıs."
+
+msgid "Add a user-defined waypoint"
+msgstr "Add a user-defined waypoint"
+
+msgid "Waypoint name (e.g., PANTHER)"
+msgstr "Waypoint name (e.g., PANTHER)"
+
+msgid "Coordinates (MGRS, DMS, or decimal lat/lon)"
+msgstr "Coordinates (MGRS, DMS, or decimal lat/lon)"
+
+msgid "Map theater (e.g., Caucasus, Syria)"
+msgstr "Map theater (e.g., Caucasus, Syria)"
+
+msgid "Altitude in feet (optional)"
+msgstr "Altitude in feet (optional)"
+
+msgid "Description (optional)"
+msgstr "Description (optional)"
+
+msgid "Could not parse coordinates: {}"
+msgstr "Could not parse coordinates: {}"
+
+msgid "A waypoint with that name already exists for this theater!"
+msgstr "A waypoint with that name zaten mevcut for this theater!"
+
+msgid "Waypoint Created"
+msgstr "Waypoint Created"
+
+msgid "Waypoint {} has been created."
+msgstr "Waypoint {} oluşturuldu."
+
+msgid "Coordinates"
+msgstr "Coordinates"
+
+msgid "Theater"
+msgstr "Theater"
+
+msgid "Altitude"
+msgstr "Altitude"
+
+msgid "List user-defined waypoints"
+msgstr "List user-defined waypoints"
+
+msgid "Filter by theater (optional)"
+msgstr "Filter by theater (optional)"
+
+msgid "No waypoints found."
+msgstr "No waypoints found."
+
+msgid "User Waypoints"
+msgstr "User Waypoints"
+
+msgid "Delete a user-defined waypoint"
+msgstr "Delete a user-defined waypoint"
+
+msgid "Waypoint not found or you do not have permission to delete it."
+msgstr "Waypoint bulunamadı or you do not have pergörev to delete it."
+
+msgid "Waypoint Deleted"
+msgstr "Waypoint Deleted"
+
+msgid "Waypoint {} has been deleted."
+msgstr "Waypoint {} silindi."
+
+msgid "List navigation fixes"
+msgstr "List navigation fixes"
+
+msgid "Filter by theater"
+msgstr "Filter by theater"
+
+msgid "No navigation fixes found."
+msgstr "No navigation fixes found."
+
+msgid "Navigation Fixes"
+msgstr "Navigation Fixes"
+
+msgid "Add a navigation fix"
+msgstr "Add a navigation fix"
+
+msgid "Fix identifier (e.g., ADLER, TSK)"
+msgstr "Fix identifier (e.g., ADLER, TSK)"
+
+msgid "Latitude in decimal degrees"
+msgstr "Latitude in decimal degrees"
+
+msgid "Longitude in decimal degrees"
+msgstr "Longitude in decimal degrees"
+
+msgid "Fix type"
+msgstr "Fix type"
+
+msgid "Map theater"
+msgstr "Map theater"
+
+msgid "Full name (optional)"
+msgstr "Full name (optional)"
+
+msgid "Frequency (optional, for VOR/NDB/TACAN)"
+msgstr "Frequency (optional, for VOR/NDB/TACAN)"
+
+msgid "A fix with that identifier already exists for this theater!"
+msgstr "A fix with that identifier zaten mevcut for this theater!"
+
+msgid "Navigation Fix Added"
+msgstr "Navigation Fix Added"
+
+msgid "Fix {} has been added."
+msgstr "Fix {} has been added."
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Position"
+msgstr "Position"
+
+msgid "Frequency"
+msgstr "Frekans"
+
+msgid "Delete a navigation fix"
+msgstr "Delete a navigation fix"
+
+msgid "Fix identifier"
+msgstr "Fix identifier"
+
+msgid "Navigation fix not found."
+msgstr "Navigation fix bulunamadı."
+
+msgid "Navigation Fix Deleted"
+msgstr "Navigation Fix Deleted"
+
+msgid "Fix {} has been deleted from {}."
+msgstr "Fix {} silindi from {}."
+
+msgid "Sync navigation fixes from OpenAIP for a theater"
+msgstr "Sync navigation fixes from OpenAIP for a theater"
+
+msgid "Map theater to sync fixes for"
+msgstr "Map theater to sync fixes for"
+
+msgid "OpenAIP API key not configured. Add `openaip.api_key` to flightplan plugin config."
+msgstr "OpenAIP API key not configured. Add `openaip.api_key` to flightplan plugin config."
+
+msgid "Unknown theater: {}. Available: {}"
+msgstr "Unknown theater: {}. Available: {}"
+
+msgid "OpenAIP API authentication failed. Check your API key."
+msgstr "OpenAIP API authentication failed. Check your API key."
+
+msgid "OpenAIP API error: {} {}"
+msgstr "OpenAIP API error: {} {}"
+
+msgid "Navigation Fixes Synced"
+msgstr "Navigation Fixes Synced"
+
+msgid "Synced navigation fixes from OpenAIP for {}."
+msgstr "Synced navigation fixes from OpenAIP for {}."
+
+msgid "Inserted"
+msgstr "Inserted"
+
+msgid "Updated"
+msgstr "Updated"
+
+msgid "Total Navaids"
+msgstr "Total Navaids"
+
+msgid "Failed to connect to OpenAIP API: {}"
+msgstr "Failed to connect to OpenAIP API: {}"
+
+msgid "Error syncing fixes: {}"
+msgstr "Error syncing fixes: {}"
+
+msgid "Count navigation fixes by theater"
+msgstr "Count navigation fixes by theater"
+
+msgid "No navigation fixes in database."
+msgstr "No navigation fixes in database."
+
+msgid "Navigation Fix Counts"
+msgstr "Navigation Fix Counts"
+
+msgid "Load seed navigation fixes from bundled data"
+msgstr "Load seed navigation fixes from bundled data"
+
+msgid "Seed file not found: {}"
+msgstr "Seed file bulunamadı: {}"
+
+msgid "Seed Data Loaded"
+msgstr "Seed Data Loaded"
+
+msgid "Navigation fixes loaded from seed file."
+msgstr "Navigation fixes loaded from seed file."
+
+msgid "Error loading seed data: {}"
+msgstr "Error loading seed data: {}"
+
+msgid "✈️ Flight Plan #{} - {}"
+msgstr "✈️ Uçuş Planı #{} - {}"
+
+msgid "Pilot"
+msgstr "Pilot"
+
+msgid "Via"
+msgstr "Via"
+
+msgid "Timeline"
+msgstr "Timeline"
+
+msgid "Flight plan #{} activated. Route: {} -> {}"
+msgstr "Uçuş planı #{} activated. Route: {} -> {}"
+
+msgid "Flight plan #{} completed. Welcome to {}."
+msgstr "Uçuş planı #{} completed. Welcome to {}."
+
+msgid "FLIGHT COMPLETE\n\nPlan #{} logged.\n{} -> {}"
+msgstr "FLIGHT COMPLETE\n\nPlan #{} logged.\n{} -> {}"
+
+msgid "Show flight plan commands"
+msgstr "Show uçuş planı commands"
+
+msgid "Show your active flight plan"
+msgstr "Show your active uçuş planı"
+
+msgid "You have no active flight plan."
+msgstr "You have no active uçuş planı."
+
+msgid "Plot flight plan on F10 map for 30 seconds"
+msgstr "Plot uçuş planı on F10 map for 30 seconds"
+
+msgid "Usage: -plotfp [plan_id]"
+msgstr "Usage: -plotfp [plan_id]"
+
+msgid "Flight plan not found."
+msgstr "Uçuş planı bulunamadı."
+
+msgid "Could not plot flight plan. Missing position data."
+msgstr "Could not plot uçuş planı. Missing position data."
+
+msgid "Quick file a flight plan: -fileplan <DEP> <DEST> [aircraft]"
+msgstr "Quick file a uçuş planı: -fileplan <DEP> <DEST> [aircraft]"
+
+msgid "Usage: -fileplan <departure> <destination> [aircraft]"
+msgstr "Usage: -fileplan <departure> <destination> [aircraft]"
+
+msgid "Flight plan #{} filed: {} -> {} ({})"
+msgstr "Uçuş planı #{} filed: {} -> {} ({})"
+
+msgid "Activate your filed flight plan"
+msgstr "Activate your filed uçuş planı"
+
+msgid "Usage: -activatefp [plan_id]"
+msgstr "Usage: -activatefp [plan_id]"
+
+msgid "No filed flight plan found."
+msgstr "No filed uçuş planı found."
+
+msgid "Flight plan #{} is already {}."
+msgstr "Uçuş planı #{} is already {}."
+
+msgid "Flight plan #{} activated."
+msgstr "Uçuş planı #{} activated."
+
+msgid "Complete your active flight plan"
+msgstr "Complete your active uçuş planı"
+
+msgid "No active flight plan found."
+msgstr "No active uçuş planı found."
+
+msgid "Flight plan #{} completed."
+msgstr "Uçuş planı #{} completed."
+
+msgid "Cancel your flight plan"
+msgstr "Cancel your uçuş planı"
+
+msgid "Flight plan #{} cancelled."
+msgstr "Uçuş planı #{} cancelled."
+
+msgid "No active flight plans."
+msgstr "No active uçuş planıs."
+
+msgid "No flight plans to plot."
+msgstr "No uçuş planıs to plot."
+
+msgid "Plotted {} flight plan(s) on F10 map.\nMarkers will disappear in {} seconds."
+msgstr "Plotted {} uçuş planı(s) on F10 map.\nMarkers will disappear in {} seconds."
+
+msgid "FLIGHT PLAN ACTIVATED\n\nPlan #{} is now active.\nRoute plotted on F10 map."
+msgstr "FLIGHT PLAN ACTIVATED\n\nPlan #{} artık aktif.\nRoute plotted on F10 map."
+
+msgid "FLIGHT COMPLETE\n\nPlan #{} completed.\nLogged to your record."
+msgstr "FLIGHT COMPLETE\n\nPlan #{} completed.\nLogged to your record."
+
+msgid "FLIGHT CANCELLED\n\nPlan #{} cancelled."
+msgstr "FLIGHT CANCELLED\n\nPlan #{} cancelled."

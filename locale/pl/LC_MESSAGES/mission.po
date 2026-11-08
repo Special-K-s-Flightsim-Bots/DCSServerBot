@@ -1,0 +1,1055 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pl\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Commands to manage a DCS mission"
+msgstr "Komendy do zarządzania misją DCS"
+
+msgid "Info about the running mission"
+msgstr "Informacje o uruchomionej misji"
+
+msgid "Manage the active mission"
+msgstr "Zarządzaj aktywną misją"
+
+msgid "Information about a specific airport"
+msgstr "Informacje o konkretnym lotnisku"
+
+msgid "airport"
+msgstr "lotnisko"
+
+msgid "Airport for ATIS information"
+msgstr "Lotnisko dla informacji ATIS"
+
+msgid "Server {} is not running."
+msgstr "Serwer {} nie jest uruchomiony."
+
+msgid "Shows briefing of the active mission"
+msgstr "Pokazuje briefing aktywnej misji"
+
+msgid "Restarts the current active mission\n"
+msgstr "Restartuje bieżącą aktywną misję\n"
+
+msgid "Rotates to the next mission\n"
+msgstr "Przełącza na następną misję\n"
+
+msgid "Can't restart server {server} as it is {status}!"
+msgstr "Nie można zrestartować serwera {server}, ponieważ jest {status}!"
+
+msgid "A restart is currently pending.\n"
+msgstr "Restart jest obecnie w toku.\n"
+
+msgid "A restart is currently pending.\nWould you still like to {} the mission?"
+msgstr "Restart jest obecnie w toku.\nCzy nadal chcesz {} misję?"
+
+msgid "restart"
+msgstr "zrestartować"
+
+msgid "rotate"
+msgstr "przełączyć"
+
+msgid "Do you really want to {} the mission?"
+msgstr "Czy naprawdę chcesz {} misję?"
+
+msgid "Mission will {}, when server is empty."
+msgstr "Misja zostanie {}, gdy serwer będzie pusty."
+
+msgid "!!! Mission will be {what} in {when}!!!"
+msgstr "!!! Misja zostanie {what} w {when}!!!"
+
+msgid "restarted"
+msgstr "zrestartowana"
+
+msgid "rotated"
+msgstr "przełączona"
+
+msgid "!!! Mission will be {} NOW !!!"
+msgstr "!!! Misja zostanie {} TERAZ !!!"
+
+msgid " Reason: {}"
+msgstr " Powód: {}"
+
+msgid "Mission will be {what} in {when} (warning users before)..."
+msgstr "Misja zostanie {what} w {when} (z ostrzeżeniem graczy wcześniej)..."
+
+msgid "Mission will {} now, please wait ..."
+msgstr "Misja zostanie {} teraz, proszę czekać ..."
+
+msgid "Mission {}."
+msgstr "Misja {}."
+
+msgid "Timeout while the mission {what}.\n"
+msgstr "Przekroczono limit czasu podczas {what} misji.\n"
+
+msgid "Timeout while the mission {what}.\nPlease check with {command}, if the mission is running."
+msgstr "Przekroczono limit czasu podczas {what} misji.\nSprawdź komendą {command}, czy misja jest uruchomiona."
+
+msgid "Loads a mission\n"
+msgstr "Ładuje misję\n"
+
+msgid "Can't load mission on server {server} as it is {status}!"
+msgstr "Nie można załadować misji na serwerze {server}, ponieważ jest {status}!"
+
+msgid "change"
+msgstr "zmienić"
+
+msgid "Mission {} will be loaded when server is empty or on the next restart."
+msgstr "Misja {} zostanie załadowana, gdy serwer będzie pusty lub przy następnym restarcie."
+
+msgid "Loading mission {} ..."
+msgstr "Ładowanie misji {} ..."
+
+msgid "Mission {} loaded."
+msgstr "Misja {} załadowana."
+
+msgid "Mission {} NOT loaded. Check that you have installed the pre-requisites (terrains, mods)."
+msgstr "Misja {} NIE została załadowana. Sprawdź, czy zainstalowano wymagania wstępne (tereny, mody)."
+
+msgid "Timeout while loading mission {}!"
+msgstr "Przekroczono limit czasu podczas ładowania misji {}!"
+
+msgid "Adds a mission to the list\n"
+msgstr "Dodaje misję do listy\n"
+
+msgid "path"
+msgstr "ścieżka"
+
+msgid "No mission found."
+msgstr "Nie znaleziono misji."
+
+msgid "Mission \"{}\" added."
+msgstr "Misja \"{}\" dodana."
+
+msgid "Do you want to load this mission?"
+msgstr "Czy chcesz załadować tę misję?"
+
+msgid "Deletes a mission from the list\n"
+msgstr "Usuwa misję z listy\n"
+
+msgid "You can't delete the running mission."
+msgstr "Nie można usunąć uruchomionej misji."
+
+msgid "Delete mission \"{}\" from the mission list?"
+msgstr "Usunąć misję \"{}\" z listy misji?"
+
+msgid "Mission \"{}\" removed from list."
+msgstr "Misja \"{}\" usunięta z listy."
+
+msgid "Delete \"{}\" also from disk?"
+msgstr "Usunąć \"{}\" również z dysku?"
+
+msgid "Mission \"{}\" deleted."
+msgstr "Misja \"{}\" usunięta."
+
+msgid "Mission \"{}\" was already deleted."
+msgstr "Misja \"{}\" została już usunięta."
+
+msgid "deleted mission {}"
+msgstr "usunięto misję {}"
+
+msgid "Timeout while deleting mission.\n"
+msgstr "Przekroczono limit czasu podczas usuwania misji.\n"
+
+msgid "Timeout while deleting mission.\nPlease reconfirm that the deletion was successful."
+msgstr "Przekroczono limit czasu podczas usuwania misji.\nPotwierdź ponownie, że usunięcie się powiodło."
+
+msgid "Pauses the current running mission"
+msgstr "Wstrzymuje bieżącą uruchomioną misję"
+
+msgid "Mission on server \"{}\" paused."
+msgstr "Misja na serwerze \"{}\" wstrzymana."
+
+msgid "Resumes the running mission"
+msgstr "Wznawia uruchomioną misję"
+
+msgid "Mission on server \"{}\" resumed."
+msgstr "Misja na serwerze \"{}\" wznowiona."
+
+msgid "Server \"{}\" is not paused."
+msgstr "Serwer \"{}\" nie jest wstrzymany."
+
+msgid "Server {server} is {status}, can't unpause."
+msgstr "Serwer {server} jest {status}, nie można wznowić."
+
+msgid "Modify mission with a preset\n"
+msgstr "Modyfikuje misję za pomocą presetu\n"
+
+msgid "Chose an alternate presets file"
+msgstr "Wybierz alternatywny plik presetów"
+
+msgid "No presets available, please configure them in {}."
+msgstr "Brak dostępnych presetów, skonfiguruj je w {}."
+
+msgid "There is an error in your {}. Please check the file structure."
+msgstr "W pliku {} jest błąd. Sprawdź strukturę pliku."
+
+msgid "Do you want to restart the server for a mission change?"
+msgstr "Czy chcesz zrestartować serwer, aby zmienić misję?"
+
+msgid "Mission will be changed when server is empty."
+msgstr "Misja zostanie zmieniona, gdy serwer będzie pusty."
+
+msgid "Changing mission ..."
+msgstr "Zmiana misji ..."
+
+msgid "The following preset were applied: {}."
+msgstr "Zastosowano następujący preset: {}."
+
+msgid "\nMission reloaded."
+msgstr "\nMisja przeładowana."
+
+msgid "Timeout during restart of mission!\n"
+msgstr "Przekroczono limit czasu podczas restartu misji!\n"
+
+msgid "Timeout during restart of mission!\nPlease check, if the mission is running or if it somehow got corrupted."
+msgstr "Przekroczono limit czasu podczas restartu misji!\nSprawdź, czy misja jest uruchomiona lub czy nie uległa uszkodzeniu."
+
+msgid "Save mission preset\n"
+msgstr "Zapisuje preset misji\n"
+
+msgid "Do you want to overwrite the existing preset \"{}\"?"
+msgstr "Czy chcesz nadpisać istniejący preset \"{}\"?"
+
+msgid "Preset \"{}\" added."
+msgstr "Preset \"{}\" dodany."
+
+msgid "Rollback to the original mission file after any modifications"
+msgstr "Przywraca oryginalny plik misji po wszelkich modyfikacjach"
+
+msgid "Please stop your server first to rollback the running mission."
+msgstr "Najpierw zatrzymaj serwer, aby przywrócić uruchomioną misję."
+
+msgid "No \".orig\" file there, the mission was never changed."
+msgstr "Brak pliku \".orig\" — misja nigdy nie została zmieniona."
+
+msgid "Mission {} has been rolled back."
+msgstr "Misja {} została przywrócona."
+
+msgid "Sets fog in the running mission"
+msgstr "Ustawia mgłę w uruchomionej misji"
+
+msgid "Thickness has to be in the range 100-5000"
+msgstr "Grubość musi mieścić się w zakresie 100-5000"
+
+msgid "Visibility has to be in the range 100-100000"
+msgstr "Widoczność musi mieścić się w zakresie 100-100000"
+
+msgid "Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:	{visibility:.2f}m"
+msgstr "Bieżące ustawienia mgły:\n- Grubość: {thickness:.2f}m\n- Widoczność:	{visibility:.2f}m"
+
+msgid "Runs a fog animation"
+msgstr "Uruchamia animację mgły"
+
+msgid "You have more than 25 presets created, you can only choose from 25!"
+msgstr "Utworzono więcej niż 25 presetów, można wybrać tylko 25!"
+
+msgid "There is no manual fog preset in your {}"
+msgstr "Brak ręcznego presetu mgły w {}"
+
+msgid "Commands to manage DCS players"
+msgstr "Komendy do zarządzania graczami DCS"
+
+msgid "Lists the current players"
+msgstr "Wyświetla bieżących graczy"
+
+msgid "Kicks a player\n"
+msgstr "Wyrzuca gracza\n"
+
+msgid "Player not found."
+msgstr "Nie znaleziono gracza."
+
+msgid "Player {name} (ucid={ucid}) kicked."
+msgstr "Gracz {name} (ucid={ucid}) wyrzucony."
+
+msgid "Bans an active player"
+msgstr "Banuje aktywnego gracza"
+
+msgid "Ban Details"
+msgstr "Szczegóły bana"
+
+msgid "Reason"
+msgstr "Powód"
+
+msgid "n/a"
+msgstr "n/d"
+
+msgid "Days (empty = forever)"
+msgstr "Dni (puste = na zawsze)"
+
+msgid "Player {} banned on all servers "
+msgstr "Gracz {} zbanowany na wszystkich serwerach "
+
+msgid "for {} days."
+msgstr "na {} dni."
+
+msgid "Moves a player to spectators\n"
+msgstr "Przenosi gracza do obserwatorów\n"
+
+msgid "You have been moved to spectators. Reason: {}"
+msgstr "Zostałeś przeniesiony do obserwatorów. Powód: {}"
+
+msgid "Player \"{}\" moved to spectators."
+msgstr "Gracz \"{}\" przeniesiony do obserwatorów."
+
+msgid "List of AFK players"
+msgstr "Lista graczy AFK"
+
+msgid "These players are AFK for more than {} minutes:"
+msgstr "Ci gracze są AFK dłużej niż {} minut:"
+
+msgid "Name"
+msgstr "Nazwa"
+
+msgid "Time"
+msgstr "Czas"
+
+msgid "Server"
+msgstr "Serwer"
+
+msgid "No player is AFK for more than {} minutes."
+msgstr "Żaden gracz nie jest AFK dłużej niż {} minut."
+
+msgid "Exempt player from AFK kicks"
+msgstr "Zwolnij gracza z wyrzucania za AFK"
+
+msgid "Do you want to permanently add this user to the AFK exemption list?"
+msgstr "Czy chcesz trwale dodać tego użytkownika do listy zwolnień AFK?"
+
+msgid "User added to the exemption list."
+msgstr "Użytkownik dodany do listy zwolnień."
+
+msgid "Player is on the list already. Do you want to remove them?"
+msgstr "Gracz już jest na liście. Czy chcesz go usunąć?"
+
+msgid "Aborted."
+msgstr "Przerwano."
+
+msgid "User removed from the exemption list."
+msgstr "Użytkownik usunięty z listy zwolnień."
+
+msgid "Sends a popup to a player\n"
+msgstr "Wysyła popup do gracza\n"
+
+msgid "Message sent."
+msgstr "Wiadomość wysłana."
+
+msgid "Sends a chat message to a player\n"
+msgstr "Wysyła wiadomość na czacie do gracza\n"
+
+msgid "Take a screenshot"
+msgstr "Zrób zrzut ekranu"
+
+msgid "Server can not take screenshots."
+msgstr "Serwer nie może robić zrzutów ekranu."
+
+msgid "Requesting screenshot ..."
+msgstr "Żądanie zrzutu ekranu ..."
+
+msgid "Timeout while waiting for screenshot!"
+msgstr "Przekroczono limit czasu oczekiwania na zrzut ekranu!"
+
+msgid "Screenshot of Player {}"
+msgstr "Zrzut ekranu gracza {}"
+
+msgid "Taken by"
+msgstr "Wykonany przez"
+
+msgid "Puts a player onto the watchlist"
+msgstr "Dodaje gracza do listy obserwowanych"
+
+msgid "Member {} is not linked!"
+msgstr "Członek {} nie jest powiązany!"
+
+msgid "Player {} was already on the watchlist."
+msgstr "Gracz {} był już na liście obserwowanych."
+
+msgid "Player {} is now on the watchlist."
+msgstr "Gracz {} jest teraz na liście obserwowanych."
+
+msgid "Removes a player from the watchlist"
+msgstr "Usuwa gracza z listy obserwowanych"
+
+msgid "Player {} removed from the watchlist."
+msgstr "Gracz {} usunięty z listy obserwowanych."
+
+msgid "Shows the watchlist"
+msgstr "Pokazuje listę obserwowanych"
+
+msgid "The watchlist is currently empty."
+msgstr "Lista obserwowanych jest obecnie pusta."
+
+msgid "These players are currently on the watchlist:"
+msgstr "Ci gracze są obecnie na liście obserwowanych:"
+
+msgid "Created by"
+msgstr "Utworzony przez"
+
+msgid "Commands to manage DCS groups"
+msgstr "Komendy do zarządzania grupami DCS"
+
+msgid "Sends a popup to a group\n"
+msgstr "Wysyła popup do grupy\n"
+
+msgid "Links a member to a DCS user"
+msgstr "Powiązuje członka z użytkownikiem DCS"
+
+msgid "This member is linked to this UCID already."
+msgstr "Ten członek jest już powiązany z tym UCID."
+
+msgid "Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?"
+msgstr "Członek {name} jest już powiązany z innym UCID ({ucid}). Czy chcesz zmienić powiązanie?"
+
+msgid "Member {name} linked to UCID {ucid}."
+msgstr "Członek {name} powiązany z UCID {ucid}."
+
+msgid "Unlinks a member or ucid"
+msgstr "Odpowiązuje członka lub ucid"
+
+msgid "Name of player, member or UCID"
+msgstr "Nazwa gracza, członka lub UCID"
+
+msgid "Member {name} unlinked from UCID {ucid}."
+msgstr "Członek {name} odpięty od UCID {ucid}."
+
+msgid "Player is not linked!"
+msgstr "Gracz nie jest powiązany!"
+
+msgid "Unknown player / member provided"
+msgstr "Podano nieznanego gracza / członka"
+
+msgid "Find a player by name"
+msgstr "Znajdź gracza po nazwie"
+
+msgid "last seen"
+msgstr "ostatnio widziany"
+
+msgid "No user found."
+msgstr "Nie znaleziono użytkownika."
+
+msgid "Select a User"
+msgstr "Wybierz użytkownika"
+
+msgid "Shows player information"
+msgstr "Pokazuje informacje o graczu"
+
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Ten użytkownik nie istnieje. Spróbuj {}, aby znaleźć go w danych historycznych."
+
+msgid "Shows inactive users"
+msgstr "Pokazuje nieaktywnych użytkowników"
+
+msgid "Check if 2 players are the same"
+msgstr "Sprawdź, czy 2 graczy to ta sama osoba"
+
+msgid "You have provided the same UCID twice."
+msgstr "Podano ten sam UCID dwukrotnie."
+
+msgid "Show players that could be linked"
+msgstr "Pokaż graczy, których można powiązać"
+
+msgid "Unlinked Players"
+msgstr "Niepowiązani gracze"
+
+msgid "These players could be possibly linked:"
+msgstr "Tych graczy można prawdopodobnie powiązać:"
+
+msgid "DCS Player"
+msgstr "Gracz DCS"
+
+msgid "Member"
+msgstr "Członek"
+
+msgid "Press a number to link this specific user."
+msgstr "Naciśnij numer, aby powiązać tego użytkownika."
+
+msgid "No unmatched member could be matched."
+msgstr "Nie udało się dopasować żadnego niedopasowanego członka."
+
+msgid "DCS player {player} linked to member {member}."
+msgstr "Gracz DCS {player} powiązany z członkiem {member}."
+
+msgid "Show possibly mislinked players"
+msgstr "Pokaż prawdopodobnie błędnie powiązanych graczy"
+
+msgid "Possible Mislinks"
+msgstr "Możliwe błędne powiązania"
+
+msgid "These players could be possibly mislinked:"
+msgstr "Ci gracze mogą być błędnie powiązani:"
+
+msgid "Press a number to unlink this specific user."
+msgstr "Naciśnij numer, aby odpiąć tego użytkownika."
+
+msgid "No mislinked players found."
+msgstr "Nie znaleziono błędnie powiązanych graczy."
+
+msgid "UCID {ucid} transferred from member {old_member} to member {new_member}."
+msgstr "UCID {ucid} przeniesiony od członka {old_member} do członka {new_member}."
+
+msgid "Link your DCS and Discord user"
+msgstr "Powiąż swojego użytkownika DCS i Discord"
+
+msgid "**Your secure TOKEN is: {token}**\n"
+msgstr "**Twój bezpieczny TOKEN to: {token}**\n"
+
+msgid "**Your secure TOKEN is: {token}**\nTo link your user, type in the following into the DCS chat of one of our servers:"
+msgstr "**Twój bezpieczny TOKEN to: {token}**\nAby powiązać użytkownika, wpisz poniższe polecenie w czacie DCS na jednym z naszych serwerów:"
+
+msgid "**Your secure TOKEN is: {token}**\nTo link your user, type in the following into the DCS chat of one of our servers:```{prefix}linkme {token}```\n\n"
+msgstr "**Twój bezpieczny TOKEN to: {token}**\nAby powiązać użytkownika, wpisz poniższe polecenie w czacie DCS na jednym z naszych serwerów:```{prefix}linkme {token}```\n\n"
+
+msgid "**Your secure TOKEN is: {token}**\nTo link your user, type in the following into the DCS chat of one of our servers:```{prefix}linkme {token}```\n\n**The TOKEN will expire in 2 days!**"
+msgstr "**Twój bezpieczny TOKEN to: {token}**\nAby powiązać użytkownika, wpisz poniższe polecenie w czacie DCS na jednym z naszych serwerów:```{prefix}linkme {token}```\n\n**TOKEN wygaśnie za 2 dni!**"
+
+msgid "You already have a verified DCS account!\n"
+msgstr "Masz już zweryfikowane konto DCS!\n"
+
+msgid "You already have a verified DCS account!\nAre you sure you want to re-link your account? (Ex: Switched from Steam to Standalone)"
+msgstr "Masz już zweryfikowane konto DCS!\nCzy na pewno chcesz ponownie powiązać konto? (np. po przejściu ze Steam na Standalone)"
+
+msgid "Shows inactive players"
+msgstr "Pokazuje nieaktywnych graczy"
+
+msgid "Validate the menus.yaml"
+msgstr "Waliduj plik menus.yaml"
+
+msgid "No menus.yaml found."
+msgstr "Nie znaleziono pliku menus.yaml."
+
+msgid "To which server do you want to upload this mission to?"
+msgstr "Na który serwer chcesz wysłać tę misję?"
+
+msgid "Upload aborted."
+msgstr "Wysyłanie przerwane."
+
+msgid "A mission is currently active.\n"
+msgstr "Misja jest obecnie aktywna.\n"
+
+msgid "A mission is currently active.\nDo you want me to stop the DCS-server to replace it?"
+msgstr "Misja jest obecnie aktywna.\nCzy chcesz, abym zatrzymał serwer DCS, aby ją zastąpić?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Plik istnieje. Czy chcesz go nadpisać?"
+
+msgid "Error while uploading: {}"
+msgstr "Błąd podczas wysyłania: {}"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
+msgstr "Misja \"{mission}\" wysłana na serwer {server} i NIE dodana."
+
+msgid "Mission \"{mission}\" uploaded to server {server}.\n"
+msgstr "Misja \"{mission}\" wysłana na serwer {server}.\n"
+
+msgid "Mission \"{mission}\" uploaded to server {server}.\nAs you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
+msgstr "Misja \"{mission}\" wysłana na serwer {server}.\nPonieważ masz włączone \"autoscan\", pojawienie się w liście misji może zająć kilka sekund."
+
+msgid "Error while uploading: File not found in severSettings.lua!"
+msgstr "Błąd podczas wysyłania: nie znaleziono pliku w severSettings.lua!"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and added."
+msgstr "Misja \"{mission}\" wysłana na serwer {server} i dodana."
+
+msgid "Do you want to apply extensions before mission start?"
+msgstr "Czy chcesz zastosować rozszerzenia przed startem misji?"
+
+msgid "Timeout while trying to load the mission."
+msgstr "Przekroczono limit czasu podczas próby załadowania misji."
+
+msgid "User {} unbanned on {}."
+msgstr "Użytkownik {} odbanowany na {}."
+
+msgid "User {} was not banned on {}."
+msgstr "Użytkownik {} nie był zbanowany na {}."
+
+msgid "The ban list is only available in the web console."
+msgstr "Lista banów jest dostępna tylko w konsoli webowej."
+
+msgid "The ban list is not available in this installation."
+msgstr "Lista banów nie jest dostępna w tej instalacji."
+
+msgid "The ban list could not be read: {}"
+msgstr "Nie udało się odczytać listy banów: {}"
+
+msgid "Timeout while lifting the ban."
+msgstr "Przekroczono limit czasu podczas zdejmowania bana."
+
+msgid "Failed to lift the ban: {}"
+msgstr "Nie udało się zdjąć bana: {}"
+
+msgid "No active ban for {} in your scope."
+msgstr "Brak aktywnego bana dla {} w Twoim zakresie."
+
+msgid "Ban lifted on {}."
+msgstr "Ban zdjęty na {}."
+
+msgid "'{}' is not a valid UCID."
+msgstr "\"{}\" nie jest prawidłowym UCID."
+
+msgid "A reason is required to ban a player."
+msgstr "Do zbanowania gracza wymagany jest powód."
+
+msgid "The reason is longer than {} characters."
+msgstr "Powód jest dłuższy niż {} znaków."
+
+msgid "Server '{}' is outside your scope."
+msgstr "Serwer \"{}\" jest poza Twoim zakresem."
+
+msgid "Player {} banned for {} days on {}."
+msgstr "Gracz {} zbanowany na {} dni na {}."
+
+msgid "Player {} banned permanently on {}."
+msgstr "Gracz {} zbanowany na stałe na {}."
+
+msgid "Timeout while adding the ban."
+msgstr "Przekroczono limit czasu podczas dodawania bana."
+
+msgid "Failed to add the ban: {}"
+msgstr "Nie udało się dodać bana: {}"
+
+msgid "The player list could not be read: {}"
+msgstr "Nie udało się odczytać listy graczy: {}"
+
+msgid "The ban could not be identified — open it from the list."
+msgstr "Nie udało się zidentyfikować bana — otwórz go z listy."
+
+msgid "A DGSA ban cannot be edited — it can only be lifted here."
+msgstr "Bana DGSA nie można edytować — można go tu tylko zdjąć."
+
+msgid "Ban on {} updated."
+msgstr "Ban na {} zaktualizowany."
+
+msgid "Timeout while editing the ban."
+msgstr "Przekroczono limit czasu podczas edycji bana."
+
+msgid "Failed to edit the ban: {}"
+msgstr "Nie udało się edytować bana: {}"
+
+msgid "Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it "
+msgstr "Wygasa musi być datą/czasem UTC w formacie YYYY-MM-DD HH:MM:SS — pozostaw je "
+
+msgid "Expires must be a UTC date/time such as YYYY-MM-DD HH:MM:SS — leave it empty for a permanent ban."
+msgstr "Wygasa musi być datą/czasem UTC w formacie YYYY-MM-DD HH:MM:SS — pozostaw je puste, aby ban był stały."
+
+msgid "Expires must be in the future — a past date would lift the ban. Leave it "
+msgstr "Wygasa musi być w przyszłości — data z przeszłości zdjęłaby bana. Pozostaw je "
+
+msgid "Expires must be in the future — a past date would lift the ban. Leave it empty for a permanent ban."
+msgstr "Wygasa musi być w przyszłości — data z przeszłości zdjęłaby bana. Pozostaw je puste, aby ban był stały."
+
+msgid "No preset was picked, so nothing was applied."
+msgstr "Nie wybrano żadnego presetu, więc nic nie zastosowano."
+
+msgid "One of the picked presets named a file this node no longer carries."
+msgstr "Jeden z wybranych presetów wskazywał plik, którego ten węzeł już nie posiada."
+
+msgid "One of the picked presets is not in its file any more."
+msgstr "Jednego z wybranych presetów nie ma już w jego pliku."
+
+msgid "The picked presets could not be applied."
+msgstr "Nie udało się zastosować wybranych presetów."
+
+msgid "Not done: a preset was picked, but this launch does not run the extensions, so nothing would apply it. Either run the extensions or clear the preset pick."
+msgstr "Nie wykonano: wybrano preset, ale to uruchomienie nie uruchamia rozszerzeń, więc nic by go nie zastosowało. Albo uruchom rozszerzenia, albo wyczyść wybór presetów."
+
+msgid "There are no presets to choose from."
+msgstr "Brak presetów do wyboru."
+
+msgid "Select the preset(s) you want to apply"
+msgstr "Wybierz presety, które chcesz zastosować"
+
+msgid "You picked {count} presets, but at most {limit} can be applied at once. Nothing was applied."
+msgstr "Wybrano {count} presetów, ale jednocześnie można zastosować najwyżej {limit}. Nic nie zastosowano."
+
+msgid "Presets file to pick from (default: all files)"
+msgstr "Plik presetów do wyboru (domyślnie: wszystkie pliki)"
+
+msgid "Cancelled — nothing was applied."
+msgstr "Anulowano — nic nie zastosowano."
+
+msgid "The pick timed out, so nothing was applied."
+msgstr "Upłynął limit czasu wyboru, więc nic nie zastosowano."
+
+msgid "A UCID is required."
+msgstr "Wymagany jest UCID."
+
+msgid "No watch entry for {} in your scope."
+msgstr "Brak wpisu obserwacji dla {} w Twoim zakresie."
+
+msgid "An empty reason is not an edit — remove the watch entry instead."
+msgstr "Pusty powód to nie edycja — usuń wpis obserwacji."
+
+msgid "The watch reason is longer than {} characters."
+msgstr "Powód obserwacji jest dłuższy niż {} znaków."
+
+msgid "Watch entry for {} removed."
+msgstr "Wpis obserwacji dla {} usunięty."
+
+msgid "The watch reason for {} was updated."
+msgstr "Powód obserwacji dla {} został zaktualizowany."
+
+msgid "The watchlist could not be written: {}"
+msgstr "Nie udało się zapisać listy obserwowanych: {}"
+
+msgid "Edit the watch reason"
+msgstr "Edytuj powód obserwacji"
+
+msgid "Edits the reason of a watchlist entry"
+msgstr "Edytuje powód wpisu na liście obserwowanych"
+
+msgid "A reason is required to put a player on the watchlist."
+msgstr "Do dodania gracza do listy obserwowanych wymagany jest powód."
+
+msgid "Player {} is not one of your players."
+msgstr "Gracz {} nie jest jednym z Twoich graczy."
+
+msgid "Liquids"
+msgstr "Płyny"
+
+msgid "unlimited"
+msgstr "bez limitu"
+
+msgid "Weapons"
+msgstr "Uzbrojenie"
+
+msgid "{} items each"
+msgstr "po {} szt."
+
+msgid "all other weapons"
+msgstr "cała reszta uzbrojenia"
+
+msgid "... and {} more types"
+msgstr "... i {} więcej typów"
+
+msgid "Aircraft"
+msgstr "Statki powietrzne"
+
+msgid "all other aircraft"
+msgstr "cała reszta statków powietrznych"
+
+msgid "Code"
+msgstr "Kod"
+
+msgid "Type"
+msgstr "Typ"
+
+msgid "Coalition"
+msgstr "Koalicja"
+
+msgid "Dynamic Spawns"
+msgstr "Dynamiczne spawny"
+
+msgid "available"
+msgstr "dostępne"
+
+msgid "Dynamic Hotstarts"
+msgstr "Dynamiczne hotstarty"
+
+msgid "Position"
+msgstr "Pozycja"
+
+msgid "Runways"
+msgstr "Pasy startowe"
+
+msgid "Runway"
+msgstr "Pas startowy"
+
+msgid "Course"
+msgstr "Kurs"
+
+msgid "Length (ft)"
+msgstr "Długość (ft)"
+
+msgid "Runway spawns"
+msgstr "Spawny na pasie startowym"
+
+msgid "Helicopter only spawns"
+msgstr "Spawny tylko dla śmigłowców"
+
+msgid "Hardened air shelter"
+msgstr "Wzmocniony schron lotniczy"
+
+msgid "Open/Shelter airplane only"
+msgstr "Tylko samoloty na otwartej przestrzeni/schronie"
+
+msgid "Small shelter"
+msgstr "Mały schron"
+
+msgid "Open air spawn"
+msgstr "Spawn na otwartej przestrzeni"
+
+msgid "Count"
+msgstr "Liczba"
+
+msgid "Warehouse"
+msgstr "Magazyn"
+
+msgid "You need to provide a mission!"
+msgstr "Musisz podać misję!"
+
+msgid "Permission denied while deleting mission \"{}\"."
+msgstr "Odmowa dostępu podczas usuwania misji \"{}\"."
+
+msgid "Error while applying preset {}: {}"
+msgstr "Błąd podczas stosowania presetu {}: {}"
+
+msgid "Can't load presets file {}."
+msgstr "Nie można załadować pliku presetów {}."
+
+msgid "There are no presets to chose from."
+msgstr "Brak presetów do wyboru."
+
+msgid "A restart is currently pending.\nWould you still like to modify the mission?"
+msgstr "Restart jest obecnie w toku.\nCzy nadal chcesz zmodyfikować misję?"
+
+msgid "Thickness of the fog [100-5000]m, to disable, set 0."
+msgstr "Grubość mgły [100-5000]m, aby wyłączyć, ustaw 0."
+
+msgid "Visibility of the fog [100-100000]m, to disable, set 0."
+msgstr "Widoczność mgły [100-100000]m, aby wyłączyć, ustaw 0."
+
+msgid "The following preset was applied: {}."
+msgstr "Zastosowano następujący preset: {}."
+
+msgid "Enables persistence"
+msgstr "Włącza persystencję"
+
+msgid "Please stop your server first to enable persistence of the running mission."
+msgstr "Najpierw zatrzymaj serwer, aby włączyć persystencję uruchomionej misji."
+
+msgid "No \".orig\" file found."
+msgstr "Nie znaleziono pliku \".orig\"."
+
+msgid "{} is currently in use. Aborted."
+msgstr "{} jest obecnie w użyciu. Przerwano."
+
+msgid "Persistence for mission {} enabled."
+msgstr "Persystencja dla misji {} włączona."
+
+msgid "Commands to manage airbases"
+msgstr "Komendy do zarządzania bazami lotniczymi"
+
+msgid "Information about a specific airbase"
+msgstr "Informacje o konkretnej bazie lotniczej"
+
+msgid "airbase"
+msgstr "baza lotnicza"
+
+msgid "Airbase for warehouse information"
+msgstr "Baza lotnicza dla informacji o magazynie"
+
+msgid "Error: {}"
+msgstr "Błąd: {}"
+
+msgid "Automatic Terminal Information Service (ATIS)"
+msgstr "Automatyczna usługa informacji terminala (ATIS)"
+
+msgid "Airbase for ATIS information"
+msgstr "Baza lotnicza dla informacji ATIS"
+
+msgid "Capture an airbase"
+msgstr "Przejmij bazę lotniczą"
+
+msgid "Airbase to capture"
+msgstr "Baza lotnicza do przejęcia"
+
+msgid "Airbase \"{}\" belonged to coalition {} already."
+msgstr "Baza lotnicza \"{}\" już należała do koalicji {}."
+
+msgid "Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!"
+msgstr "Baza lotnicza \"{}\": koalicja zmieniona na **{}**.\n:warning: Automatyczne przejmowanie jest teraz **wyłączone**!"
+
+msgid "Commands to manage warehouses"
+msgstr "Komendy do zarządzania magazynami"
+
+msgid "You are not allowed to view a warehouse item of the opposite coalition."
+msgstr "Nie masz uprawnień do przeglądania pozycji magazynu przeciwnej koalicji."
+
+msgid "Warehouse information for {}"
+msgstr "Informacje o magazynie dla {}"
+
+msgid "{} tons"
+msgstr "{} ton"
+
+msgid "{} pcs"
+msgstr "{} szt."
+
+msgid "Inventory for {}"
+msgstr "Stan magazynu dla {}"
+
+msgid "Do you really want to set all {} values in your warehouse to {}?"
+msgstr "Czy naprawdę chcesz ustawić wszystkie {} wartości w swoim magazynie na {}?"
+
+msgid "Set warehouses items"
+msgstr "Ustaw pozycje magazynów"
+
+msgid "Get warehouses items"
+msgstr "Pobierz pozycje magazynów"
+
+msgid "Export a warehouse"
+msgstr "Eksportuj magazyn"
+
+msgid "Export all possible wstypes"
+msgstr "Eksportuj wszystkie możliwe wstypes"
+
+msgid "Server {} is {}."
+msgstr "Serwer {} jest {}."
+
+msgid "Adds a player to the watchlist"
+msgstr "Dodaje gracza do listy obserwowanych"
+
+msgid "Locks a player"
+msgstr "Blokuje gracza"
+
+msgid "Player {} has been locked."
+msgstr "Gracz {} został zablokowany."
+
+msgid "Unlocks a player"
+msgstr "Odblokowuje gracza"
+
+msgid "Player has been unlocked."
+msgstr "Gracz został odblokowany."
+
+msgid "Mutes a player"
+msgstr "Wycisza gracza"
+
+msgid "Player {} has been muted."
+msgstr "Gracz {} został wyciszony."
+
+msgid "Unmutes a player"
+msgstr "Wyłącza wyciszenie gracza"
+
+msgid "Player has been unmuted."
+msgstr "Wyciszenie gracza zostało wyłączone."
+
+msgid "User not found."
+msgstr "Nie znaleziono użytkownika."
+
+msgid "Role {} not found!"
+msgstr "Nie znaleziono roli {}!"
+
+msgid "permission \"Manage Roles\" missing."
+msgstr "brak uprawnienia \"Zarządzaj rolami\"."
+
+msgid "The players never played at the same time."
+msgstr "Gracze nigdy nie grali w tym samym czasie."
+
+msgid "Commands to manage mission menus"
+msgstr "Komendy do zarządzania menu misji"
+
+msgid "Convert values"
+msgstr "Konwertuj wartości"
+
+msgid "Loading warehouse for airport {} ..."
+msgstr "Ładowanie magazynu dla lotniska {} ..."
+
+msgid "> uploading {} information ..."
+msgstr "> wysyłanie informacji {} ..."
+
+msgid "Warehouse at {} updated."
+msgstr "Magazyn w {} zaktualizowany."
+
+msgid "You need to be DCS Admin or GameMaster to upload data."
+msgstr "Aby wysłać dane, musisz być DCS Admin lub GameMaster."
+
+msgid "To which server do you want to upload?"
+msgstr "Na który serwer chcesz wysłać?"
+
+msgid "Server {} has to be running or paused."
+msgstr "Serwer {} musi być uruchomiony lub wstrzymany."
+
+msgid "Upload to all warehouses of this coalition:"
+msgstr "Wyślij do wszystkich magazynów tej koalicji:"
+
+msgid "Airport with ICAO {} not found."
+msgstr "Nie znaleziono lotniska o ICAO {}."
+
+msgid "Airport with name {} not found."
+msgstr "Nie znaleziono lotniska o nazwie {}."
+
+msgid "Do you want to load a new warehouse configuration?"
+msgstr "Czy chcesz załadować nową konfigurację magazynu?"
+
+msgid "This will replace the warehouse configuration for:\n{}"
+msgstr "Spowoduje to zastąpienie konfiguracji magazynu dla:\n{}"
+
+msgid "All data uploaded."
+msgstr "Wszystkie dane wysłane."
+
+msgid "Error while processing the file: {}"
+msgstr "Błąd podczas przetwarzania pliku: {}"
+
+msgid "A new mission is being set up. Try again in a bit."
+msgstr "Trwa przygotowywanie nowej misji. Spróbuj ponownie za chwilę."
+
+msgid "The server will be locked for a mission restart."
+msgstr "Serwer zostanie zablokowany na restart misji."
+
+msgid "User {} (ucid={})\nRejected due to inappropriate nickname."
+msgstr "Użytkownik {} (ucid={})\nOdrzucony z powodu nieodpowiedniego pseudonimu."
+
+msgid "User {} (ucid={})\nPotentially inappropriate nickname."
+msgstr "Użytkownik {} (ucid={})\nPotencjalnie nieodpowiedni pseudonim."
+
+msgid "Banned user rejected"
+msgstr "Odrzucono zbanowanego użytkownika"
+
+msgid "never"
+msgstr "nigdy"
+
+msgid "Possible ban-evasion detected"
+msgstr "Wykryto możliwe obejście bana"
+
+msgid "Do you want to replace the running mission?"
+msgstr "Czy chcesz zastąpić uruchomioną misję?"
+
+msgid "The server needs to be stopped."
+msgstr "Serwer musi zostać zatrzymany."
+
+msgid "Mission \"{mission}\" uploaded to server {server}."
+msgstr "Misja \"{mission}\" wysłana na serwer {server}."
+
+msgid "Loading mission \"{}\" ..."
+msgstr "Ładowanie misji \"{}\" ..."
+
+msgid "Mission \"{}\" NOT loaded."
+msgstr "Misja \"{}\" NIE została załadowana."
+
+msgid "Mission \"{}\" loaded."
+msgstr "Misja \"{}\" załadowana."
+
+msgid "Timeout while loading mission \"{}\"!"
+msgstr "Przekroczono limit czasu podczas ładowania misji \"{}\"!"
+
+msgid "Do you want to load the new mission?"
+msgstr "Czy chcesz załadować nową misję?"
+
+msgid "Auto Capture"
+msgstr "Auto przejmowanie"
+
+msgid "No Auto Capture"
+msgstr "Bez auto przejmowania"
+
+msgid "ATC On"
+msgstr "ATC włączone"
+
+msgid "ATC Off"
+msgstr "ATC wyłączone"
+
+msgid "Capture"
+msgstr "Przejmij"
+
+msgid "Download Inventory"
+msgstr "Pobierz stan magazynu"
+
+msgid "Cancel"
+msgstr "Anuluj"
+
+msgid "User {} banned on all servers "
+msgstr "Użytkownik {} zbanowany na wszystkich serwerach "
+
+msgid "Watch Details"
+msgstr "Szczegóły obserwacji"

@@ -432,8 +432,9 @@ class ServerView:
     #: :attr:`name` (the identity every route and link keys on). Defaulted for the same reason as
     #: ``maintenance``.
     display_name: str = ""
-    #: the slot ceiling (``settings.maxPlayers``), or ``None`` when the source does not carry it.
-    #: The overview card renders the player count as ``used / max`` like the embed's author line.
+    #: the slots a real player can take (``settings.maxPlayers`` less the bot's observer slot), or
+    #: ``None`` when the source does not carry it. The overview card renders the player count as
+    #: ``used / max`` like the embed's author line.
     max_players: int | None = None
     #: the current map (``Mission.map``), or ``None``. An embed field the overview card mirrors.
     map_name: str | None = None

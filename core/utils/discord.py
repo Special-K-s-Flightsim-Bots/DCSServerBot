@@ -300,8 +300,11 @@ class PagedSelectView(View):
     option's order in its page — never click order.
 
     ``min_values``/``max_values`` bound ONE page's tick, Discord's own select semantics; a caller
-    that needs a bound on the total checks the length of ``result``. A single page draws no paging
-    row, so the common case is a plain select with Clear, OK and Cancel.
+    that needs a bound on the total checks the length of ``result``. Both bounds are clamped to the
+    option count of the page being drawn, because Discord refuses a select whose ``max_values``
+    exceeds its ``options`` ("Must be N or more in length") — a short last page would otherwise make
+    the whole message unsendable. A single page draws no paging row, so the common case is a plain
+    select with Clear, OK and Cancel.
 
     ``cancelled`` is ``False`` on construction and ``True`` only when the Cancel button was pressed;
     a cancel stops the view at once and leaves ``result`` ``None``, exactly like a timeout, so the
@@ -333,8 +336,8 @@ class PagedSelectView(View):
         self._page: int = 0
         self._ticked: dict[int, set[str]] = {index: set() for index in range(len(pages))}
         self.picks.placeholder = placeholder
-        self.picks.min_values = 1 if min_values is None else min_values
-        self.picks.max_values = 1 if max_values is None else max_values
+        self._min_values: int = 1 if min_values is None else min_values
+        self._max_values: int = 1 if max_values is None else max_values
         if len(self._pages) == 1:
             for item in (self.prev_page, self.page_status, self.next_page):
                 self.remove_item(item)
@@ -353,11 +356,16 @@ class PagedSelectView(View):
     def _paint(self) -> None:
         """Redraw the current page and the paging row from the state the view keeps."""
         ticked = self._ticked[self._page]
+        page = self._pages[self._page]
         self.picks.options = [
             SelectOption(label=option.label, value=option.value, description=option.description,
                          emoji=option.emoji, default=option.value in ticked)
-            for option in self._pages[self._page]
+            for option in page
         ]
+        # Discord rejects a select whose bounds exceed the options it carries, so a page shorter
+        # than the caller's bound is drawn with the page's own count.
+        self.picks.max_values = min(self._max_values, len(page))
+        self.picks.min_values = min(self._min_values, self.picks.max_values)
         self.page_status.label = (f'page {self._page + 1}/{len(self._pages)} · '
                                   f'{len(self.chosen())} chosen')
         self.prev_page.disabled = self._page == 0

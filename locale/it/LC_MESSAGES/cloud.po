@@ -1,0 +1,95 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Test the cloud-connection"
+msgstr "Verifica la connessione cloud"
+
+msgid "Checking cloud connection ..."
+msgstr "Verifica della connessione cloud in corso ..."
+
+msgid "Cloud connection established."
+msgstr "Connessione cloud stabilita."
+
+msgid "\nCloud TOKEN configured and valid."
+msgstr "\nTOKEN cloud configurato e valido."
+
+msgid "\nCloud TOKEN configured, but invalid!"
+msgstr "\nTOKEN cloud configurato, ma non valido!"
+
+msgid "\nGet a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nOttieni un TOKEN cloud se si vogliono usare le statistiche cloud!"
+
+msgid "Cloud not connected!"
+msgstr "Cloud non connesso!"
+
+msgid "Resync statistics with the cloud"
+msgstr "Risincronizza le statistiche con il cloud"
+
+msgid "No cloud sync configured!"
+msgstr "Nessuna sincronizzazione cloud configurata!"
+
+msgid "Resync with cloud triggered."
+msgstr "Risincronizzazione con il cloud avviata."
+
+msgid "Generate Cloud Statistics"
+msgstr "Genera le statistiche cloud"
+
+msgid "Cloud statistics are not activated in this Discord!"
+msgstr "Le statistiche cloud non sono attivate in questo Discord!"
+
+msgid "Use {} to link your account."
+msgstr "Usa {} per collegare il proprio account."
+
+msgid "No cloud-based statistics found for this user."
+msgstr "Nessuna statistica cloud trovata per questo utente."
+
+msgid "List registered DCS servers"
+msgstr "Elenca i server DCS registrati"
+
+msgid "\nCloud sync configured and valid."
+msgstr "\nSincronizzazione cloud configurata e valida."
+
+msgid "\nYou need a cloud TOKEN, if you want to use cloud statistics!"
+msgstr "\nServe un TOKEN cloud se si vogliono usare le statistiche cloud!"
+
+msgid "\nCloud sync is disabled. Set 'register' to true in cloud.yaml to enable it."
+msgstr "\nLa sincronizzazione cloud è disabilitata. Imposta 'register' su true in cloud.yaml per abilitarla."
+
+msgid "DCS Servers"
+msgstr "Server DCS"
+
+msgid "Address"
+msgstr "Indirizzo"
+
+msgid "Map"
+msgstr "Mappa"
+
+msgid "Mission"
+msgstr "Missione"
+
+msgid "Time"
+msgstr "Ora"
+
+msgid "Restart in"
+msgstr "Riavvio tra"
+
+msgid "No servers of this group are active."
+msgstr "Nessun server di questo gruppo è attivo."
+
+msgid "No server found with the name \"*{search}*\"."
+msgstr "Nessun server trovato con il nome \"*{search}*\"."
+
+msgid "A potential Troublemaker joined your Server"
+msgstr "Un potenziale disturbatore si è unito al server"
+
+msgid "Player {} is banned on {} other multiplayer servers for\n{}"
+msgstr "Il giocatore {} è bannato su {} altri server multiplayer per\n{}"
+
+msgid "You might want to watch them closely."
+msgstr "Si consiglia di osservarlo attentamente."

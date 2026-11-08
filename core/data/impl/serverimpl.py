@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import atexit
 import importlib
 import inspect
 import json
@@ -9,10 +8,12 @@ import luadata
 import os
 import pkgutil
 import psutil
+import queue
 import shutil
 import sqlite3
 import sys
 import tempfile
+import threading
 import time
 import traceback
 
@@ -45,7 +46,9 @@ from typing import TYPE_CHECKING, Any, Iterable
 from typing_extensions import override
 from watchdog.events import (FileSystemEventHandler, DirCreatedEvent, FileCreatedEvent, DirDeletedEvent,
                              FileDeletedEvent, DirMovedEvent, FileMovedEvent)
-from watchdog.observers import Observer, ObserverType
+from watchdog.observers import Observer
+from watchdog.observers.api import BaseObserver
+from watchdog.observers.polling import PollingObserver
 
 from core.utils.yaml_helper import new_yaml
 
@@ -103,17 +106,40 @@ class RenameError(Exception):
 
 
 class MissionFileSystemEventHandler(FileSystemEventHandler):
+    """Feeds new and deleted ``.miz``/``.sav`` files into the server's mission list.
+
+    The watchdog callbacks do nothing but turn an event into a path and hand it to the worker: the
+    stability wait can take minutes on a slow share, and blocking the observer's emitter thread for
+    it would delay every other event by the same amount.
+
+    A path is in ``_queued`` from the moment it is accepted until the worker is done with it, so a
+    burst of duplicate notifications for one file adds it once.
+    """
+
     DEBOUNCE_WINDOW = 2.0           # seconds
     TEMP_SUFFIXES = ('.tmp', '.part', '.swp', '~')
     IGNORE_PREFIX = '.'             # hidden files
+    STABLE_SAMPLE = 0.5             # seconds between two size samples
 
-    def __init__(self, server, loop):
+    def __init__(self, server, loop, stable_timeout: float = 60.0):
         super().__init__()
         self.server = server
         self.log = server.log
         self.loop = loop
+        self.stable_timeout = stable_timeout
         self.deleted: dict[str, int] = {}
         self._seen: dict[str, float] = {}
+        self._queued: set[str] = set()
+        self._lock = threading.Lock()
+        self._stopped = threading.Event()
+        self._queue: queue.Queue[str | None] = queue.Queue()
+        self._worker = threading.Thread(target=self._work, name=f'autoscan-{server.name}', daemon=True)
+        self._worker.start()
+
+    def stop(self):
+        self._stopped.set()
+        self._queue.put(None)
+        self._worker.join(timeout=5)
 
     def _is_debounced(self, path):
         now = time.monotonic()
@@ -131,46 +157,38 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
             return False
         return path.endswith('.miz') or path.endswith('.sav')
 
-    def _wait_for_stable_file(self, path, timeout=5.0):
-        start = time.monotonic()
-        while time.monotonic() - start < timeout:
-            try:
-                size1 = os.path.getsize(path)
-            except FileNotFoundError:
-                return False
-            time.sleep(0.5)
-            try:
-                size2 = os.path.getsize(path)
-            except FileNotFoundError:
-                return False
-            if size1 == size2:
-                return True
-        return False
+    # ----------------------------------------------------------------------
+    # Watchdog callbacks: a path in, nothing else
+    # ----------------------------------------------------------------------
+    def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
+        if not event.is_directory:
+            self._handle_created(event.src_path)
+
+    def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
+        if not event.is_directory:
+            self._handle_deleted(event.src_path)
+
+    def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
+        # a rename leaves the old name behind and arrives under the new one
+        if not event.is_directory:
+            self._handle_deleted(event.src_path)
+            self._handle_created(event.dest_path)
 
     # ----------------------------------------------------------------------
     # Core handlers
     # ----------------------------------------------------------------------
-    def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
-        path = os.path.normpath(event.src_path)
+    def _handle_created(self, path: str | bytes) -> None:
+        path = os.fsdecode(os.path.normpath(path))
         if not self._is_valid_mission_file(path):
             return
-        if self._is_debounced(path):
-            return
+        with self._lock:
+            if path in self._queued or self._is_debounced(path):
+                return
+            self._queued.add(path)
+        self._queue.put(path)
 
-        if not self._wait_for_stable_file(path):
-            self.log.warning(f"File {path} never stabilized – skipping.")
-            return
-
-        if path in self.deleted:
-            idx = self.deleted.pop(path)
-            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=idx), self.loop)
-        else:
-            asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
-
-        self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
-
-    def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
-        path = os.path.normpath(event.src_path)
+    def _handle_deleted(self, path: str | bytes) -> None:
+        path = os.fsdecode(os.path.normpath(path))
         if not self._is_valid_mission_file(path):
             return
         missions = self.server.settings['missionList']
@@ -178,25 +196,80 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
             secondary = os.path.join(os.path.dirname(path), '.dcssb', os.path.basename(path))
             if secondary in missions:
                 path = secondary
-        if path in missions:
+        with self._lock:
+            if path not in missions:
+                self.log.debug(f"Mission file {path} got deleted from disk.")
+                return
             idx = missions.index(path) + 1
-            asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
             self.deleted[path] = idx
-            self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
-        else:
-            self.log.debug(f"Mission file {path} got deleted from disk.")
+        asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
+        self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
 
-    def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
-        self.on_deleted(event)
-        self.on_created(event)
+    # ----------------------------------------------------------------------
+    # Worker: one file at a time, off the emitter thread
+    # ----------------------------------------------------------------------
+    def _work(self):
+        while True:
+            path = self._queue.get()
+            try:
+                if path is None or self._stopped.is_set():
+                    return
+                self._add_pending(path)
+            except Exception as ex:
+                # the worker outlives one bad file: a raise here would stop autoscan for good
+                self.log.exception(ex)
+            finally:
+                if path is not None:
+                    with self._lock:
+                        self._queued.discard(path)
+                    self._queue.task_done()
+
+    def _add_pending(self, path: str) -> None:
+        if not self._wait_for_stable_file(path):
+            if not self._stopped.is_set():
+                self.log.warning(f"File {path} never stabilized – skipping.")
+            return
+        with self._lock:
+            idx = self.deleted.pop(path, None)
+        if idx is not None:
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=idx), self.loop)
+        else:
+            asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
+        self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
+
+    def _wait_for_stable_file(self, path: str) -> bool:
+        """True once *path* stops growing, False once it vanished or kept growing past the budget."""
+        start = time.monotonic()
+        try:
+            size = os.path.getsize(path)
+        except FileNotFoundError:
+            return False
+        while time.monotonic() - start < self.stable_timeout:
+            time.sleep(self.STABLE_SAMPLE)
+            if self._stopped.is_set():
+                return False
+            try:
+                new_size = os.path.getsize(path)
+            except FileNotFoundError:
+                return False
+            if new_size == size:
+                return True
+            size = new_size
+        return False
+
+
+def create_observer(polling: bool, poll_interval: float) -> BaseObserver:
+    """A polling observer where the OS cannot report changes reliably, the native one otherwise."""
+    return PollingObserver(timeout=poll_interval) if polling else Observer()
 
 
 @dataclass
 @DataObjectFactory.register()
 class ServerImpl(Server):
     bot: DCSServerBot | None = field(compare=False, init=False, repr=False, default=None)
-    event_handler: MissionFileSystemEventHandler = field(compare=False, repr=False, default=None)
-    observer: ObserverType = field(compare=False, repr=False, default=None)
+    event_handler: MissionFileSystemEventHandler | None = field(compare=False, repr=False, default=None)
+    observer: BaseObserver | None = field(compare=False, repr=False, default=None)
+    observer_mode: str | None = field(compare=False, repr=False, default=None)
     process: psutil.Process | None = field(default=None, repr=False, compare=False)
 
     @override
@@ -217,7 +290,10 @@ class ServerImpl(Server):
             row = cursor.fetchone()
             if row:
                 self._maintenance = row[0]
-        atexit.register(self.stop_observer)
+        # A threading exit hook, not atexit: threading._shutdown() joins the observer's non-daemon
+        # threads BEFORE it runs the atexit handlers, so an atexit stopper is reached only after
+        # the join that is waiting for it — the process then never exits.
+        threading._register_atexit(self.stop_observer)  # type: ignore[attr-defined]
 
     @override
     async def reload(self):
@@ -268,11 +344,19 @@ class ServerImpl(Server):
         self._prepare()
 
     def start_observer(self):
-        if not self.observer:
-            self.event_handler = MissionFileSystemEventHandler(self, asyncio.get_event_loop())
-            self.observer = Observer()
-            self.enable_autoscan()
-            self.observer.start()
+        mode, detail = self._resolve_observer_mode()
+        if self.observer:
+            if self.observer_mode == mode:
+                return
+            # the configured mode changed under a running observer (a reload): rebuild it
+            self.stop_observer()
+        self.event_handler = MissionFileSystemEventHandler(
+            self, asyncio.get_event_loop(), stable_timeout=self._seconds('autoscan_stable_timeout', 60.0))
+        self.observer = create_observer(mode == 'polling', self._seconds('autoscan_poll_interval', 3.0))
+        self.observer_mode = mode
+        self.enable_autoscan()
+        self.observer.start()
+        self.log.info(f'  => {self.name}: autoscan observer = {mode} ({detail}).')
 
     def stop_observer(self):
         if self.observer:
@@ -280,14 +364,39 @@ class ServerImpl(Server):
             self.observer.stop()
             self.observer.join(timeout=10)
             self.observer = None
+            self.observer_mode = None
+            if self.event_handler:
+                self.event_handler.stop()
+                self.event_handler = None
+
+    def _resolve_observer_mode(self) -> tuple[str, str]:
+        """The observer mode to run, plus the clause the startup log line states it with."""
+        mode = str(self.locals.get('autoscan_observer', 'auto')).strip().lower()
+        if mode not in ('auto', 'notify', 'polling'):
+            self.log.warning(f'  => {self.name}: unknown autoscan_observer "{mode}", falling back to auto.')
+            mode = 'auto'
+        if mode != 'auto':
+            return mode, 'configured'
+        missions_dir = self.instance.missions_dir if self.instance else ''
+        if not missions_dir:
+            return 'notify', 'no missions directory configured'
+        remote, resolved = utils.is_remote_path(missions_dir)
+        return ('polling' if remote else 'notify'), f'missions dir {resolved} is {"remote" if remote else "local"}'
+
+    def _seconds(self, key: str, default: float) -> float:
+        try:
+            return float(self.locals.get(key, default))
+        except (TypeError, ValueError):
+            self.log.warning(f'  => {self.name}: {key} is not a number, using {default:g}s.')
+            return default
 
     def enable_autoscan(self):
-        if not self.observer.emitters:
+        if self.observer and self.event_handler and not self.observer.emitters:
             self.observer.schedule(self.event_handler, self.instance.missions_dir, recursive=True)
             self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder enabled.')
 
     def disable_autoscan(self):
-        if self.observer.emitters:
+        if self.observer and self.observer.emitters:
             self.observer.unschedule_all()
             self.log.info(f'  => {self.name}: Auto-scanning for new miz files in Missions-folder disabled.')
 

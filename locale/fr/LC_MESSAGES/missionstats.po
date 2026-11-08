@@ -1,0 +1,557 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Display Mission Statistics"
+msgstr "Afficher les statistiques de mission"
+
+msgid "Mission statistics not initialized yet or not active for this server."
+msgstr "Les statistiques de mission ne sont pas encore initialisées ou ne sont pas actives pour ce serveur."
+
+msgid "Data can only be displayed in a private coalition channel!"
+msgstr "Les données ne peuvent être affichées que dans un canal de coalition privé !"
+
+msgid "Current Situation"
+msgstr "Situation actuelle"
+
+msgid "Airbases / FARPs\nPlanes\nHelicopters\nGround Units\nShips\nStructures"
+msgstr "Bases aériennes / FARP\nAvions\nHélicoptères\nUnités au sol\nNavires\nBâtiments"
+
+msgid "Achievements"
+msgstr "Réussites"
+
+msgid "Display statistics about sorties"
+msgstr "Afficher les statistiques des sorties"
+
+msgid "No sorties found for this player."
+msgstr "Aucune sortie trouvée pour ce joueur."
+
+msgid "Total Flighttime"
+msgstr "Temps de vol total"
+
+msgid "Flighttime is the time you were airborne from takeoff to landing / leave or\n"
+msgstr "Le temps de vol correspond au temps passé en vol, du décollage à l'atterrissage / la déconnexion ou\n"
+
+msgid "Module statistics"
+msgstr "Statistiques du module"
+
+msgid "You need to chose a module!"
+msgstr "Vous devez choisir un module !"
+
+msgid "Usages"
+msgstr "Utilisations"
+
+msgid "Total Playtime"
+msgstr "Temps de jeu total"
+
+msgid "Average Playtime"
+msgstr "Temps de jeu moyen"
+
+msgid "Gun"
+msgstr "Canon"
+
+msgid "Category {}"
+msgstr "Catégorie {}"
+
+msgid "Weapon"
+msgstr "Arme"
+
+msgid "Hits/Shot"
+msgstr "Touches/Tir"
+
+msgid "Kills/Shot"
+msgstr "Destructions/Tir"
+
+msgid "Refueling statistics"
+msgstr "Statistiques de ravitaillement"
+
+msgid "Refuelings"
+msgstr "Ravitaillements"
+
+msgid "No refuelings found for this user."
+msgstr "Aucun ravitaillement trouvé pour cet utilisateur."
+
+msgid "Find who killed you most"
+msgstr "Trouver qui vous a le plus abattu"
+
+msgid "Find who you've killed the most"
+msgstr "Trouver qui vous avez le plus abattu"
+
+msgid "Airplanes"
+msgstr "Avions"
+
+msgid "Helicopters"
+msgstr "Hélicoptères"
+
+msgid "Ground Units"
+msgstr "Unités au sol"
+
+msgid "Ships"
+msgstr "Navires"
+
+msgid "Structures"
+msgstr "Bâtiments"
+
+msgid "Unknown"
+msgstr "Inconnu"
+
+msgid "BLUE coalition has captured {}."
+msgstr "La coalition BLUE a capturé {}."
+
+msgid "BLUE coalition has captured {} from RED coalition."
+msgstr "La coalition BLUE a capturé {} à la coalition RED."
+
+msgid "RED coalition has captured {}."
+msgstr "La coalition RED a capturé {}."
+
+msgid "RED coalition has captured {} from BLUE coalition."
+msgstr "La coalition RED a capturé {} à la coalition BLUE."
+
+msgid "Flighttime is the time you were airborne from takeoff to landing / leave or\nairspawn to landing / leave."
+msgstr "Le temps de vol correspond au temps passé en vol, du décollage à l'atterrissage / la déconnexion ou\ndu spawn en vol à l'atterrissage / la déconnexion."
+
+msgid "(continued)"
+msgstr "(suite)"
+
+msgid "Page {} of {}"
+msgstr "Page {} sur {}"
+
+msgid "day"
+msgstr "jour"
+
+msgid "week"
+msgstr "semaine"
+
+msgid "month"
+msgstr "mois"
+
+msgid "Summary"
+msgstr "Résumé"
+
+msgid "After Action Report"
+msgstr "Rapport après action"
+
+msgid "No squadron"
+msgstr "Aucun escadron"
+
+msgid "generated {}"
+msgstr "généré le {}"
+
+msgid "Reporting period"
+msgstr "Période de référence"
+
+msgid "Overall"
+msgstr "Global"
+
+msgid "First sortie"
+msgstr "Première sortie"
+
+msgid "Last sortie"
+msgstr "Dernière sortie"
+
+msgid "Theatres"
+msgstr "Théâtres"
+
+msgid "Servers"
+msgstr "Serveurs"
+
+msgid "Mission Summary"
+msgstr "Résumé de la mission"
+
+msgid "{} never launched"
+msgstr "{} n'a jamais décollé"
+
+msgid "all launched"
+msgstr "tous ont décollé"
+
+msgid "Flight time"
+msgstr "Temps de vol"
+
+msgid "timed sortie"
+msgstr "sortie chronométrée"
+
+msgid "timed sorties"
+msgstr "sorties chronométrées"
+
+msgid "Avg. sortie"
+msgstr "Sortie moy."
+
+msgid "longest {}"
+msgstr "plus longue : {}"
+
+msgid "Missions flown"
+msgstr "Missions effectuées"
+
+msgid "theatre"
+msgstr "théâtre"
+
+msgid "theatres"
+msgstr "théâtres"
+
+msgid "Total kills"
+msgstr "Total des destructions"
+
+msgid "{} against players"
+msgstr "{} contre des joueurs"
+
+msgid "Air-to-air"
+msgstr "Air-air"
+
+msgid "planes & helicopters"
+msgstr "avions et hélicoptères"
+
+msgid "Air-to-ground"
+msgstr "Air-sol"
+
+msgid "units & structures"
+msgstr "unités et bâtiments"
+
+msgid "Naval"
+msgstr "Maritimes"
+
+msgid "ships"
+msgstr "navires"
+
+msgid "Aircraft lost"
+msgstr "Appareils perdus"
+
+msgid "none"
+msgstr "aucun"
+
+msgid "Kill / loss"
+msgstr "Destruction / perte"
+
+msgid "kills per aircraft lost"
+msgstr "destructions par appareil perdu"
+
+msgid "Return rate"
+msgstr "Taux de retour"
+
+msgid "safe landing"
+msgstr "atterrissage réussi"
+
+msgid "safe landings"
+msgstr "atterrissages réussis"
+
+msgid "Kills / sortie"
+msgstr "Destructions / sortie"
+
+msgid "average per launch"
+msgstr "moyenne par décollage"
+
+msgid "Shots fired"
+msgstr "Tirs effectués"
+
+msgid "weapon type"
+msgstr "type d'arme"
+
+msgid "weapon types"
+msgstr "types d'armes"
+
+msgid "Hit rate"
+msgstr "Taux de touche"
+
+msgid "hit"
+msgstr "touche"
+
+msgid "hits"
+msgstr "touches"
+
+msgid "Friendly fire"
+msgstr "Tir ami"
+
+msgid "{} own losses"
+msgstr "{} pertes amies"
+
+msgid "no own goals"
+msgstr "aucune perte amie"
+
+msgid "Refuellings"
+msgstr "Ravitaillements"
+
+msgid "completed A/A refuellings"
+msgstr "ravitaillements air-air effectués"
+
+msgid "Operational Highlights"
+msgstr "Faits marquants opérationnels"
+
+msgid "Most flown airframe: {} — {}, {} airborne"
+msgstr "Appareil le plus utilisé : {} — {}, {} en vol"
+
+msgid "Most successful airframe: {} — {} kills"
+msgstr "Appareil le plus efficace : {} — {} destructions"
+
+msgid "Most effective weapon: {} — {} kills from {} shots ({})"
+msgstr "Arme la plus efficace : {} — {} destructions pour {} tirs ({})"
+
+msgid "Best single sortie: {} kills in the {} on {}"
+msgstr "Meilleure sortie : {} destructions en {} sur {}"
+
+msgid "Primary area of operations: {} — {} over {}"
+msgstr "Zone d'opérations principale : {} — {} sur {}"
+
+msgid "Nemesis: {} — shot you down {}×, you got them {}×"
+msgstr "Némésis : {} — vous a abattu {}×, vous l'avez abattu {}×"
+
+msgid "Home plate: {} — used {}×"
+msgstr "Base de rattachement : {} — utilisée {}×"
+
+msgid "Sortie Analysis"
+msgstr "Analyse des sorties"
+
+msgid "Airframe Performance"
+msgstr "Performance des appareils"
+
+msgid "{} sorties · {} airborne"
+msgstr "{} sorties · {} en vol"
+
+msgid "Aircraft"
+msgstr "Appareil"
+
+msgid "Total time"
+msgstr "Temps total"
+
+msgid "Avg."
+msgstr "Moy."
+
+msgid "Longest"
+msgstr "Plus long"
+
+msgid "Lost"
+msgstr "Perdus"
+
+msgid "Kills"
+msgstr "Destructions"
+
+msgid "K/L"
+msgstr "D/M"
+
+msgid "Flight Hours by Airframe"
+msgstr "Heures de vol par appareil"
+
+msgid "hours"
+msgstr "heures"
+
+msgid "Sortie Outcomes"
+msgstr "Résultats des sorties"
+
+msgid "Outcome"
+msgstr "Résultat"
+
+msgid "Share"
+msgstr "Part"
+
+msgid "Activity Over Time"
+msgstr "Activité dans le temps"
+
+msgid "per {}"
+msgstr "par {}"
+
+msgid "flight hours"
+msgstr "heures de vol"
+
+msgid "Theatre Activity"
+msgstr "Activité par théâtre"
+
+msgid "Theatre"
+msgstr "Théâtre"
+
+msgid "Combat Effectiveness"
+msgstr "Efficacité au combat"
+
+msgid "Engagement Balance"
+msgstr "Équilibre des engagements"
+
+msgid "confirmed, hostiles only"
+msgstr "confirmées, hostiles uniquement"
+
+msgid "Killed by others"
+msgstr "Abattu par d'autres"
+
+msgid "{} by players"
+msgstr "{} par des joueurs"
+
+msgid "Kill / death"
+msgstr "Destruction / mort"
+
+msgid "against all threats"
+msgstr "contre toutes les menaces"
+
+msgid "{} friendly losses taken"
+msgstr "{} pertes amies subies"
+
+msgid "No engagements were recorded in this period."
+msgstr "Aucun engagement n'a été enregistré sur cette période."
+
+msgid "Kills by Target Category"
+msgstr "Destructions par catégorie de cible"
+
+msgid "Category"
+msgstr "Catégorie"
+
+msgid "kills"
+msgstr "destructions"
+
+msgid "Targets Destroyed"
+msgstr "Cibles détruites"
+
+msgid "{} distinct types"
+msgstr "{} types distincts"
+
+msgid "Showing the top {} of {} target types."
+msgstr "Affichage des {} premiers types de cibles sur {}."
+
+msgid "Target"
+msgstr "Cible"
+
+msgid "Threat Analysis"
+msgstr "Analyse des menaces"
+
+msgid "what brought you down"
+msgstr "ce qui vous a abattu"
+
+msgid "Threat"
+msgstr "Menace"
+
+msgid "Typical weapon"
+msgstr "Arme typique"
+
+msgid "Losses"
+msgstr "Pertes"
+
+msgid "Weapon Employment"
+msgstr "Emploi des armes"
+
+msgid "{} shots · {} hits · {} kills"
+msgstr "{} tirs · {} touches · {} destructions"
+
+msgid "Shots"
+msgstr "Tirs"
+
+msgid "Hits"
+msgstr "Touches"
+
+msgid "Kills/shot"
+msgstr "Destructions/tir"
+
+msgid "Accuracy by Weapon"
+msgstr "Précision par arme"
+
+msgid "weapons with at least two shots"
+msgstr "armes avec au moins deux tirs"
+
+msgid "hit rate (%)"
+msgstr "taux de touche (%)"
+
+msgid "Adversaries & Engagements"
+msgstr "Adversaires et engagements"
+
+msgid "Player vs. Player Record"
+msgstr "Bilan joueur contre joueur"
+
+msgid "{} won · {} lost · exchange {}"
+msgstr "{} gagnés · {} perdus · échange {}"
+
+msgid "Showing the top {} of {} opponents."
+msgstr "Affichage des {} premiers adversaires sur {}."
+
+msgid "Pilot"
+msgstr "Pilote"
+
+msgid "You killed"
+msgstr "Vous avez abattu"
+
+msgid "They killed you"
+msgstr "Ils vous ont abattu"
+
+msgid "Balance"
+msgstr "Équilibre"
+
+msgid "Exchange"
+msgstr "Échange"
+
+msgid "Engagement Log"
+msgstr "Journal des engagements"
+
+msgid "most recent first"
+msgstr "les plus récents en premier"
+
+msgid "Showing the {} most recent of {} engagements."
+msgstr "Affichage des {} engagements les plus récents sur {}."
+
+msgid "KILL"
+msgstr "DESTRUCTION"
+
+msgid "LOST"
+msgstr "PERTE"
+
+msgid "Time (UTC)"
+msgstr "Heure (UTC)"
+
+msgid "Result"
+msgstr "Résultat"
+
+msgid "Your aircraft"
+msgstr "Votre appareil"
+
+msgid "Opponent"
+msgstr "Adversaire"
+
+msgid "Missions Flown"
+msgstr "Missions effectuées"
+
+msgid "Server"
+msgstr "Serveur"
+
+msgid "Airfields Used"
+msgstr "Aérodromes utilisés"
+
+msgid "Airbase / FARP / Carrier"
+msgstr "Base aérienne / FARP / porte-avions"
+
+msgid "Movements"
+msgstr "Mouvements"
+
+msgid "A movement is a departure or a recovery."
+msgstr "Un mouvement est un départ ou un retour."
+
+msgid "Flight and combat debriefing for {}"
+msgstr "Débriefing de vol et de combat pour {}"
+
+msgid "Fix stale SHOT events"
+msgstr "Corriger les événements SHOT obsolètes"
+
+msgid "Generate an After Action Report"
+msgstr "Générer un rapport après action"
+
+msgid "Report user, default is caller"
+msgstr "Utilisateur du rapport, par défaut l'appelant"
+
+msgid "Time period, default is quarter"
+msgstr "Période, par défaut le trimestre"
+
+msgid "Here is your After Action Report, {}"
+msgstr "Voici votre rapport après action, {}"
+
+msgid "No data found to generate an After Action Report."
+msgstr "Aucune donnée trouvée pour générer un rapport après action."
+
+msgid "Event History"
+msgstr "Historique des événements"
+
+msgid "Date in format YYYY-MM-DD, default: now - 30d"
+msgstr "Date au format YYYY-MM-DD, par défaut : maintenant - 30j"
+
+msgid "Date in format YYYY-MM-DD, default: now"
+msgstr "Date au format YYYY-MM-DD, par défaut : maintenant"
+
+msgid "Use {} to link your account."
+msgstr "Utilisez {} pour lier votre compte."
+
+msgid "No events found for this player in this timeframe."
+msgstr "Aucun événement trouvé pour ce joueur sur cette période."

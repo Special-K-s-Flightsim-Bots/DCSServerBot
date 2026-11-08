@@ -18,11 +18,12 @@ from plugins.dks.views import RegisterView
 from plugins.dks.auth import TokenBearer
 from plugins.restapi.commands import RestAPI
 from starlette.requests import Request
-from typing import cast
+from typing import Any, cast
 from urllib.parse import quote, urlparse
 
 from services.bot import DCSServerBot
 from services.webservice import WebService
+from services.webservice.registry import exclude_router, include_router_counted
 
 from core.utils.yaml_helper import new_yaml
 
@@ -41,6 +42,9 @@ class DKS(Plugin):
         self.web_service: WebService | None = None
         self.app: FastAPI | None = None
         self.router: APIRouter | None = None
+        #: the route object(s) THIS plugin's include appended to the app (never the router's own
+        #: routes) — the only thing that can be removed again on unload
+        self._included: list[Any] = []
         # Simple OTP handling
         self._otp: str | None = None
         self._task: Task | None = None
@@ -52,10 +56,11 @@ class DKS(Plugin):
         asyncio.create_task(self.init_webservice())
 
     async def cog_unload(self) -> None:
-        if self.app and self.router:
-            for route in self.router.routes:
-                if route in self.app.routes:
-                    self.app.routes.remove(route)
+        # remove exactly what this instance installed, by identity: the previous handler would keep
+        # answering otherwise, with its own stale auth decisions
+        if self.app and self._included:
+            exclude_router(self.app, self._included)
+            self._included = []
         await super().cog_unload()
 
     async def init_webservice(self):
@@ -85,6 +90,9 @@ class DKS(Plugin):
             return
 
     def register_routes(self):
+        app = self.app
+        if app is None:
+            return
         self.router = APIRouter(prefix=self._get_prefix())
         if not self.router:
             return
@@ -109,7 +117,12 @@ class DKS(Plugin):
             dependencies=[Depends(TokenBearer(plugin=self, jwks_url=DKS_JWKS_URL, linked=True))]
         )
 
-        self.app.include_router(self.router)
+        # a router installed by an earlier call on THIS instance is replaced, not added to: its
+        # handlers carry that call's auth dependencies
+        if self._included:
+            exclude_router(app, self._included)
+            self._included = []
+        self._included = include_router_counted(app, self.router)
 
     @property
     def otp(self) -> str | None:

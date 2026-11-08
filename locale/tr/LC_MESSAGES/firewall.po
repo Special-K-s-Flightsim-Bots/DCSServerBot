@@ -1,0 +1,55 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "DDoS detection and protection commands"
+msgstr "DDoS detection and protection commands"
+
+msgid "Shows DDoS detection status and statistics"
+msgstr "Shows DDoS detection status and statistics"
+
+msgid "DDoS simulation commands"
+msgstr "DDoS simulation commands"
+
+msgid "Simulate a DDoS attack for testing"
+msgstr "Simulate a DDoS attack for testing"
+
+msgid "Stop a running DDoS simulation"
+msgstr "Stop a running DDoS simulation"
+
+msgid "Manage DDoS whitelist"
+msgstr "Manage DDoS whitelist"
+
+msgid "Add an IP to the DDoS whitelist"
+msgstr "Add an IP to the DDoS whitelist"
+
+msgid "Remove an IP from the DDoS whitelist"
+msgstr "Remove an IP from the DDoS whitelist"
+
+msgid "Manage DDoS blacklist"
+msgstr "Manage DDoS blacklist"
+
+msgid "Permanently block an IP address"
+msgstr "Permanently block an IP address"
+
+msgid "Remove an IP from the DDoS blacklist"
+msgstr "Remove an IP from the DDoS blacklist"
+
+msgid "Manually trigger DDoS blocking for a server or the whole node"
+msgstr "Manually trigger DDoS blocking for a sunucu or the whole node"
+
+msgid "No server or node specified"
+msgstr "No sunucu or node specified"
+
+msgid "Deactivate DDoS blocking for a server or the whole node"
+msgstr "Deactivate DDoS blocking for a sunucu or the whole node"
+
+msgid "Pause DDoS detection temporarily"
+msgstr "Pause DDoS detection temporarily"
+
+msgid "Resume paused DDoS detection"
+msgstr "Resume paused DDoS detection"

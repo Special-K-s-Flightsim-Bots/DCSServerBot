@@ -1,0 +1,49 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "User {} is not linked."
+msgstr "Kullanıcı {} eşleştirilmemiş."
+
+msgid "I'm going to **DELETE ALL STATISTICS** of user \"{}\".\n\nAre you sure?"
+msgstr "\"{}\" kullanıcısının **TÜM İSTATİSTİKLERİNİ SİLECEĞİM**.\n\nEmin misiniz?"
+
+msgid "Statistics for user \"{}\" have been wiped."
+msgstr "\"{}\" kullanıcısının istatistikleri sıfırlandı."
+
+msgid "Info about Squadron {}"
+msgstr "{} Filosu Hakkında Bilgi"
+
+msgid "You need to provide an existing user."
+msgstr "Mevcut bir kullanıcı belirtmelisiniz."
+
+msgid "Squadron has no campaign credits."
+msgstr "Filonun sefer kredisi yok."
+
+msgid "Campaign Credits for Squadron {}"
+msgstr "{} Filosu için Sefer Kredileri"
+
+msgid "Campaign"
+msgstr "Sefer (Campaign)"
+
+msgid "Credits"
+msgstr "Kredi"
+
+msgid "Time"
+msgstr "Zaman"
+
+msgid "Event"
+msgstr "Olay"
+
+msgid "Log shows the last 10 events only."
+msgstr "Kayıt yalnızca son 10 olayı gösterir."
+
+msgid "You don't have an active campaign."
+msgstr "Aktif bir seferiniz yok."
+
+msgid "{} points donated to squadron {}."
+msgstr "{} filosuna {} puan bağışlandı."

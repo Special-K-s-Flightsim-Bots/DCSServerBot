@@ -5,6 +5,7 @@ import asyncio
 import base64
 import builtins
 import certifi
+import ctypes
 import functools
 import hashlib
 import importlib
@@ -50,6 +51,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "parse_time",
+    "player_slots",
     "is_in_timeframe",
     "is_match_daystate",
     "str_to_class",
@@ -92,6 +94,7 @@ __all__ = [
     "show_dict_diff",
     "to_valid_pyfunc_name",
     "pg_interval_to_seconds",
+    "is_remote_path",
     "get_latest_postgres_version",
     "get_latest_python_version",
     "is_major_version_change",
@@ -99,6 +102,20 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def player_slots(max_players: Any) -> int:
+    """The number of slots a real player can take.
+
+    The bot's own observer client always holds one slot of ``settings.maxPlayers``, so a server
+    that advertises the configured maximum is offering a seat nobody can join. Never below one, so
+    a missing or nonsensical value still renders a usable ceiling.
+    """
+    try:
+        configured = int(max_players)
+    except (TypeError, ValueError):
+        configured = 1
+    return max(configured - 1, 1)
 
 
 def parse_time(time_str: str, tz: tzinfo = None) -> datetime:
@@ -1683,3 +1700,27 @@ def upgrade_message(installed: str | None = None, latest: str | None = None) -> 
                 f"This is a major version, so it is not applied automatically.\n"
                 f"Use /node upgrade or update.cmd to apply it.")
     return "New update for DCSServerBot available!\nUse /node upgrade or enable autoupdate to apply it."
+
+
+DRIVE_REMOTE = 4
+
+
+def is_remote_path(path: str) -> tuple[bool, str]:
+    """``(is_remote, resolved)`` for *path*, resolving junctions and symlinks first.
+
+    ``resolved`` is ``os.path.realpath(path)``. On Windows that goes through
+    ``GetFinalPathNameByHandleW``, so a local directory that reparse-points into a share comes back
+    as its ``\\\\server\\share\\...`` target and a path that only *looks* local is classified correctly.
+
+    Remote means: a UNC path, a mapped network drive, or a local reparse point resolving to either.
+    An unresolvable path (share offline, a component this account cannot traverse) is returned
+    unchanged and reported **local** — the call never raises, so a caller may classify at startup.
+    """
+    resolved = os.path.realpath(path)
+    if resolved.startswith(('\\\\', '//')):
+        return True, resolved
+    if sys.platform == 'win32':
+        drive = os.path.splitdrive(os.path.abspath(resolved))[0]
+        if drive and ctypes.windll.kernel32.GetDriveTypeW(ctypes.c_wchar_p(drive + '\\')) == DRIVE_REMOTE:
+            return True, resolved
+    return False, resolved

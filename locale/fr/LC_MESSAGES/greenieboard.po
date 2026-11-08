@@ -1,0 +1,134 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to display and manage carrier traps"
+msgstr "Commandes pour afficher et gérer les appontages sur porte-avions"
+
+msgid "Show carrier landing qualifications"
+msgstr "Afficher les qualifications d'appontage"
+
+msgid "No carrier landings recorded for this user."
+msgstr "Aucun appontage enregistré pour cet utilisateur."
+
+msgid "Select a trap for details"
+msgstr "Sélectionnez un appontage pour les détails"
+
+msgid "Select the plane for the trap"
+msgstr "Sélectionnez l'appareil pour l'appontage"
+
+msgid "Display the current Greenieboard"
+msgstr "Afficher le Greenieboard actuel"
+
+msgid "Adds a trap to the Greenieboard"
+msgstr "Ajoute un appontage au Greenieboard"
+
+msgid "You need to specify grades in your greenieboard.yaml to use {}!"
+msgstr "Vous devez spécifier des notes dans votre greenieboard.yaml pour utiliser {} !"
+
+msgid "Trap added."
+msgstr "Appontage ajouté."
+
+msgid "Aborted,"
+msgstr "Annulé,"
+
+msgid "Time (HH24:MI)"
+msgstr "Heure (HH24:MI)"
+
+msgid "Grade"
+msgstr "Note"
+
+msgid "LSO Comment"
+msgstr "Commentaire LSO"
+
+msgid "Wire"
+msgstr "Brin"
+
+msgid "Enter the trap details"
+msgstr "Saisissez les détails de l'appontage"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case doit être 1, 2 ou 3."
+
+msgid "Grade has to be one of {}."
+msgstr "La note doit être l'une des suivantes : {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "Le brin doit être compris entre 1 et 4."
+
+msgid "Resets all traps"
+msgstr "Réinitialise tous les appontages"
+
+msgid "Do you want to reset all traps?"
+msgstr "Voulez-vous réinitialiser tous les appontages ?"
+
+msgid "User {} is not linked!"
+msgstr "L'utilisateur {} n'est pas lié !"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "Voulez-vous réinitialiser tous les appontages de l'utilisateur {}"
+
+msgid "All traps reset."
+msgstr "Tous les appontages ont été réinitialisés."
+
+msgid "Carrier Landing"
+msgstr "Appontage"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "Appontage sur {place} avec la note {grade}."
+
+msgid "Date/Time"
+msgstr "Date/Heure"
+
+msgid "Plane"
+msgstr "Appareil"
+
+msgid "Carrier"
+msgstr "Porte-avions"
+
+msgid "LSO Grade: {}"
+msgstr "Note LSO : {}"
+
+msgid " (a little)\n"
+msgstr " (un peu)\n"
+
+msgid " (a lot!)\n"
+msgstr " (beaucoup !)\n"
+
+msgid " (ignored)\n"
+msgstr " (ignoré)\n"
+
+msgid "Traps"
+msgstr "Appontages"
+
+msgid "No data available."
+msgstr "Aucune donnée disponible."
+
+msgid "Pilot"
+msgstr "Pilote"
+
+msgid "Avg"
+msgstr "Moy."
+
+msgid "\nThe most recent landing is added at the front.\nNight landings have round markers."
+msgstr "\nL'appontage le plus récent est ajouté au début.\nLes appontages de nuit ont des marqueurs ronds."
+
+msgid "\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr "\nDernier appontage enregistré : {time:%y-%m-%d %H:%M:%S}"
+
+msgid "You need to specify ratings in your greenieboard.yaml to use {}!"
+msgstr "Vous devez spécifier des évaluations dans votre greenieboard.yaml pour utiliser {} !"
+
+msgid "Draw landings right to left (default: True)"
+msgstr "Dessiner les appontages de droite à gauche (par défaut : True)"
+
+msgid "Aborted."
+msgstr "Annulé."
+
+msgid "Aborted"
+msgstr "Annulé"

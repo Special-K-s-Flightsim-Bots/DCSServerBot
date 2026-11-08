@@ -1,0 +1,106 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage votes"
+msgstr "Oylamaları yönetmek için komutlar"
+
+msgid "Lists the current votes"
+msgstr "Mevcut aktif oylamaları listeler"
+
+msgid "Server"
+msgstr "Sunucu"
+
+msgid "Running Vote"
+msgstr "Devam Eden Oylama"
+
+msgid "Voters"
+msgstr "Oy Verenler"
+
+msgid "No running votes found."
+msgstr "Devam eden oylama bulunamadı."
+
+msgid "Create a vote"
+msgstr "Yeni bir oylama başlat"
+
+msgid "You are not authorized to create a vote."
+msgstr "Oylama başlatma yetkiniz yok."
+
+msgid "Use {} to link your account."
+msgstr "Hesabınızı eşleştirmek için {} komutunu kullanın."
+
+msgid "You don't have enough credits to create a vote!"
+msgstr "Oylama başlatmak için yeterli krediniz yok!"
+
+msgid "There is already a voting running on this server."
+msgstr "Bu sunucuda zaten devam eden bir oylama var."
+
+msgid "Vote for a mission change on server {}"
+msgstr "{} sunucusunda görev değişikliği için oy verin"
+
+msgid "Vote for a restart of server {}"
+msgstr "{} sunucusunun yeniden başlatılması için oy verin"
+
+msgid "Vote for a weather change on server {}"
+msgstr "{} sunucusunda hava durumu değişikliği için oy verin"
+
+msgid "Unknown vote type or vote type not configured."
+msgstr "Bilinmeyen veya yapılandırılmamış oylama türü."
+
+msgid "This vote will cost you {} credits."
+msgstr "Bu oylama size {} krediye mal olacak."
+
+msgid "Do you want to create a vote?"
+msgstr "Bir oylama başlatmak istiyor musunuz?"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "This option is not available at the moment."
+msgstr "Bu seçenek şu anda kullanılamıyor."
+
+msgid "{} created. It is open for {}"
+msgstr "{} oluşturuldu. {} süreyle açık kalacak."
+
+msgid "Your wish was executed immediately as the server was not populated.\n"
+msgstr "Sunucuda oyuncu olmadığı için isteğiniz hemen uygulandı.\n"
+
+msgid "Paid for a vote"
+msgstr "Oylama için ödendi"
+
+msgid "Cancel a vote"
+msgstr "Bir oylamayı iptal et"
+
+msgid "There is no voting running on this server."
+msgstr "Bu sunucuda devam eden bir oylama yok."
+
+msgid "Voting cancelled."
+msgstr "Oylama iptal edildi."
+
+msgid "Current leading vote: \"{}\""
+msgstr "Şu anda önde giden oy: \"{}\""
+
+msgid "Use {prefix}{command} <number> to vote for the change."
+msgstr "Değişikliğe oy vermek için {prefix}{command} <numara> yazın."
+
+msgid "You have {time} to vote."
+msgstr "Oy vermek için {time} süreniz var."
+
+msgid "You can only vote once!"
+msgstr "Yalnızca bir kez oy verebilirsiniz!"
+
+msgid "Your vote has been counted."
+msgstr "Oyunuz sayıldı."
+
+msgid "A voting is now open for another {time}!"
+msgstr "Oylama {time} süreyle daha açık!"
+
+msgid "Voting finished"
+msgstr "Oylama sona erdi"
+
+msgid " without any (active) participant."
+msgstr " (hiçbir aktif katılımcı olmadan)."

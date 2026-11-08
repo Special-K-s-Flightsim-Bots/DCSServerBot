@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-03 22:57+0100\n"
+"POT-Creation-Date: 2026-11-08 12:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #. punishment_schema:schema;element_schema.exemptions.discord.[0]
 #: plugins/punishment/schemas/punishment_schema.yaml:230
@@ -81,12 +81,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "用于 Amazon Polly 的 AWS 私有访问密钥。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:246
+#: services/webservice/schemas/webservice_schema.yaml:381
 msgid "Account name of the local console user."
 msgstr "本地控制台用户的账户名称。"
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:235
+#: services/webservice/schemas/webservice_schema.yaml:370
 msgid "Accounts that may sign in with a username and password."
 msgstr "可以使用用户名和密码登录的账户。"
 
@@ -539,7 +539,7 @@ msgid "Auto-add new mission files found in the missions folder."
 msgstr "自动添加任务文件夹中发现的新任务文件。"
 
 #. servers_schema:regex;(.+).autoadd
-#: schemas/servers_schema.yaml:507
+#: schemas/servers_schema.yaml:525
 msgid "Auto-add uploaded missions to the mission list."
 msgstr "自动将上传的任务添加到任务列表。"
 
@@ -833,6 +833,12 @@ msgstr "服务器面板的边框颜色。"
 msgid "Bot directories that are zipped into the backup."
 msgstr "压缩进备份的机器人目录。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.title
+#: services/webservice/schemas/webservice_schema.yaml:256
+#, fuzzy
+msgid "Brand title of the site."
+msgstr "服务器面板的背景样式。"
+
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.insert-key
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.insert-key
 #: extensions/realweather/schemas/realweather_schema.yaml:120
@@ -893,27 +899,27 @@ msgid "Central admin channel for alerts and reports."
 msgstr "用于警报和报告的中央管理频道。"
 
 #. servers_schema:regex;(.+).channels.blue_events
-#: schemas/servers_schema.yaml:633
+#: schemas/servers_schema.yaml:651
 msgid "Channel for blue coalition game events."
 msgstr "蓝方阵营游戏事件的频道。"
 
 #. servers_schema:regex;(.+).channels.events
-#: schemas/servers_schema.yaml:603
+#: schemas/servers_schema.yaml:621
 msgid "Channel for game events, split from chat."
 msgstr "游戏事件的频道，与聊天分开。"
 
 #. servers_schema:regex;(.+).channels.red_events
-#: schemas/servers_schema.yaml:645
+#: schemas/servers_schema.yaml:663
 msgid "Channel for red coalition game events."
 msgstr "红方阵营游戏事件的频道。"
 
 #. servers_schema:regex;(.+).channels.blue
-#: schemas/servers_schema.yaml:627
+#: schemas/servers_schema.yaml:645
 msgid "Channel for the blue coalition chat."
 msgstr "蓝方阵营聊天的频道。"
 
 #. servers_schema:regex;(.+).channels.chat
-#: schemas/servers_schema.yaml:597
+#: schemas/servers_schema.yaml:615
 msgid "Channel for the in-game chat replication."
 msgstr "游戏内聊天同步的频道。"
 
@@ -923,12 +929,12 @@ msgid "Channel for the message; -1 sends it as a DM."
 msgstr "消息的频道；-1 表示以私信发送。"
 
 #. servers_schema:regex;(.+).channels.red
-#: schemas/servers_schema.yaml:639
+#: schemas/servers_schema.yaml:657
 msgid "Channel for the red coalition chat."
 msgstr "红方阵营聊天的频道。"
 
 #. servers_schema:regex;(.+).channels.status
-#: schemas/servers_schema.yaml:591
+#: schemas/servers_schema.yaml:609
 msgid "Channel for the server status and player embeds."
 msgstr "服务器状态和玩家嵌入的频道。"
 
@@ -975,7 +981,7 @@ msgid "Channel the squadron board is posted to."
 msgstr "发布中队榜单的频道。"
 
 #. servers_schema:regex;(.+).channels.admin
-#: schemas/servers_schema.yaml:609
+#: schemas/servers_schema.yaml:627
 msgid "Channel where admin commands for this server are run."
 msgstr "运行此服务器管理命令的频道。"
 
@@ -1000,7 +1006,7 @@ msgid "Chat command or game event triggered by this menu entry."
 msgstr "此菜单项触发的聊天命令或游戏事件。"
 
 #. music_schema:schema;element_schema.radios.regex;(.+).chat
-#: services/music/schemas/music_schema.yaml:118
+#: services/music/schemas/music_schema.yaml:123
 msgid "Chat message for this radio, overrides the global one."
 msgstr "此无线电的聊天消息，覆盖全局消息。"
 
@@ -1041,7 +1047,7 @@ msgid "Check for AFK while a player sits in slot selection."
 msgstr "玩家处于席位选择界面时检查 AFK。"
 
 #. servers_schema:regex;(.+).validate_missions
-#: schemas/servers_schema.yaml:512
+#: schemas/servers_schema.yaml:530
 msgid "Check that missions can load (maps, modules) before use."
 msgstr "使用前检查任务能否加载（地图、模组）。"
 
@@ -1058,7 +1064,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "服务器启动时清除所有维护标记。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:306
+#: services/webservice/schemas/webservice_schema.yaml:441
 msgid "Client id of your Discord application."
 msgstr "你的 Discord 应用程序的客户端 ID。"
 
@@ -1123,7 +1129,7 @@ msgid "Coalition SkyEye is active on."
 msgstr "SkyEye 所在的阵营。"
 
 #. servers_schema:regex;(.+).coalitions
-#: schemas/servers_schema.yaml:669
+#: schemas/servers_schema.yaml:687
 msgid "Coalition handling for this server."
 msgstr "此服务器的阵营处理方式。"
 
@@ -1236,7 +1242,7 @@ msgid "Core affinity assigned to the Sneaker process."
 msgstr "分配给 Sneaker 进程的核心亲和性。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity.quality
-#: schemas/nodes_schema.yaml:489
+#: schemas/nodes_schema.yaml:507
 msgid "Core quality for this instance (higher is better)."
 msgstr "此实例的核心质量（越高越好）。"
 
@@ -1411,6 +1417,11 @@ msgstr "在此节点上运行的 DCS 实例。"
 msgid "DCS port of this instance."
 msgstr "此实例的 DCS 端口。"
 
+#. mcpservice_schema:DEFAULT.transport
+#: services/mcpservice/schemas/mcpservice_schema.yaml:111
+msgid "DNS-rebinding allow-lists of the MCP transport."
+msgstr ""
+
 #. dashboard_schema:DEFAULT
 #: services/dashboard/schemas/dashboard_schema.yaml:7
 msgid "Dashboard settings applied to every node."
@@ -1560,7 +1571,7 @@ msgid "Delivery detection radius in meters."
 msgstr "投送检测半径（米）。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).affinity
-#: schemas/nodes_schema.yaml:462
+#: schemas/nodes_schema.yaml:480
 msgid "Deprecated CPU affinity for DCS_Server.exe; use auto_affinity."
 msgstr "已弃用的 DCS_Server.exe CPU 亲和性；请使用 auto_affinity。"
 
@@ -1605,7 +1616,7 @@ msgid "Difficulty options.lua settings to apply."
 msgstr "要应用的 Difficulty options.lua 设置。"
 
 #. servers_schema:regex;(.+).ignore_dirs
-#: schemas/servers_schema.yaml:494
+#: schemas/servers_schema.yaml:512
 msgid "Directories skipped during mission upload and add."
 msgstr "上传和添加任务时跳过的目录。"
 
@@ -1626,7 +1637,7 @@ msgid "Directory holding the generated range and trap images."
 msgstr "存放生成的靶场和着舰图像的目录。"
 
 #. servers_schema:regex;(.+).ignore_dirs.[0]
-#: schemas/servers_schema.yaml:502
+#: schemas/servers_schema.yaml:520
 msgid "Directory name ignored during mission handling."
 msgstr "处理任务时忽略的目录名称。"
 
@@ -1728,7 +1739,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "丢弃短于该分钟数的飞行。"
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:291
+#: services/webservice/schemas/webservice_schema.yaml:426
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord OAuth 登录；进入控制台的第二道门。"
 
@@ -1865,7 +1876,7 @@ msgid "Discord channel where the Pretense stats are posted."
 msgstr "发布 Pretense 统计数据的 Discord 频道。"
 
 #. servers_schema:regex;(.+).channels
-#: schemas/servers_schema.yaml:581
+#: schemas/servers_schema.yaml:599
 msgid "Discord channels this server uses for its features."
 msgstr "此服务器用于其功能的 Discord 频道。"
 
@@ -1885,17 +1896,17 @@ msgid "Discord role granted when the achievement is reached."
 msgstr "达成成就时授予的 Discord 角色。"
 
 #. servers_schema:regex;(.+).coalitions.blue_role
-#: schemas/servers_schema.yaml:688
+#: schemas/servers_schema.yaml:706
 msgid "Discord role mapped to the blue coalition."
 msgstr "映射到蓝方阵营的 Discord 身份组。"
 
 #. servers_schema:regex;(.+).coalitions.red_role
-#: schemas/servers_schema.yaml:693
+#: schemas/servers_schema.yaml:711
 msgid "Discord role mapped to the red coalition."
 msgstr "映射到红方阵营的 Discord 身份组。"
 
 #. servers_schema:regex;(.+).managed_by.[0]
-#: schemas/servers_schema.yaml:576
+#: schemas/servers_schema.yaml:594
 msgid "Discord role name allowed to manage this server."
 msgstr "允许管理此服务器的 Discord 身份组名称。"
 
@@ -1906,7 +1917,7 @@ msgid "Discord role name allowed to run the command."
 msgstr "允许运行该命令的 Discord 身份组名称。"
 
 #. servers_schema:regex;(.+).discord.[0]
-#: schemas/servers_schema.yaml:564
+#: schemas/servers_schema.yaml:582
 msgid "Discord role name allowed to use this server."
 msgstr "允许使用此服务器的 Discord 身份组名称。"
 
@@ -1950,7 +1961,7 @@ msgid "Discord roles a player must have (prefix with ! to exclude)."
 msgstr "玩家必须拥有的 Discord 角色（前缀 ! 表示排除）。"
 
 #. servers_schema:regex;(.+).managed_by
-#: schemas/servers_schema.yaml:569
+#: schemas/servers_schema.yaml:587
 msgid "Discord roles allowed to manage this server."
 msgstr "允许管理此服务器的 Discord 身份组。"
 
@@ -1966,7 +1977,7 @@ msgid "Discord roles allowed to run this command."
 msgstr "允许运行此命令的 Discord 身份组。"
 
 #. servers_schema:regex;(.+).discord
-#: schemas/servers_schema.yaml:557
+#: schemas/servers_schema.yaml:575
 msgid "Discord roles allowed to use this server."
 msgstr "允许使用此服务器的 Discord 身份组。"
 
@@ -2103,7 +2114,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "ElevenLabs 文本转语音提供商设置。"
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:339
+#: services/webservice/schemas/webservice_schema.yaml:474
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "身份提供商损坏时使用的应急管理员凭据。"
 
@@ -2148,7 +2159,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "启用 DDoS 检测（Windows 上需要 NPCAP）。"
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:301
+#: services/webservice/schemas/webservice_schema.yaml:436
 msgid "Enable Discord OAuth login."
 msgstr "启用 Discord OAuth 登录。"
 
@@ -2288,7 +2299,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "为此服务器启用 competitive 插件。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:349
+#: services/webservice/schemas/webservice_schema.yaml:484
 msgid "Enable the emergency Admin credential."
 msgstr "启用应急管理员凭据。"
 
@@ -2308,7 +2319,7 @@ msgid "Enable the logistics plugin for this server."
 msgstr "为此服务器启用物流插件。"
 
 #. servers_schema:regex;(.+).smart_bans
-#: schemas/servers_schema.yaml:550
+#: schemas/servers_schema.yaml:568
 msgid "Enable the smart ban system (IPv4 reuse detection)."
 msgstr "启用智能封禁系统（IPv4 复用检测）。"
 
@@ -2318,7 +2329,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "在此服务器实例上启用锦标赛功能。"
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:230
+#: services/webservice/schemas/webservice_schema.yaml:365
 msgid "Enable username/password login for the console."
 msgstr "为控制台启用用户名/密码登录。"
 
@@ -2371,6 +2382,11 @@ msgstr "不报告到 Discord 事件动态的事件。"
 #: plugins/commands/schemas/commands_schema.yaml:10
 msgid "Executable or shell command to run."
 msgstr "要运行的可执行文件或 shell 命令。"
+
+#. mcpservice_schema:schema;key_entry_jwt.jwt.key
+#: services/mcpservice/schemas/mcpservice_schema.yaml:58
+msgid "Expected signing key or issuer the token is checked against."
+msgstr ""
 
 #. dbexporter_schema:DEFAULT.autoexport
 #: plugins/dbexporter/schemas/dbexporter_schema.yaml:17
@@ -2436,6 +2452,11 @@ msgstr "用于没有自身规则的端点的回退认证规则。"
 #: plugins/flightplan/schemas/flightplan_schema.yaml:38
 msgid "Fallback destination match distance in meters."
 msgstr "备选目的地匹配距离（米）。"
+
+#. mcpservice_schema:schema;key_entry_jwt.label
+#: services/mcpservice/schemas/mcpservice_schema.yaml:42
+msgid "Fallback name of this client when the JWT carries no usable subject."
+msgstr ""
 
 #. creditsystem_schema:schema;element_schema.points_per_kill.[0]
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:117
@@ -2812,6 +2833,11 @@ msgstr "显示此地图图层的最高缩放级别。"
 msgid "Host address the DCS-gRPC server binds to."
 msgstr "DCS-gRPC 服务器绑定的主机地址。"
 
+#. mcpservice_schema:DEFAULT.transport.allowed_hosts
+#: services/mcpservice/schemas/mcpservice_schema.yaml:120
+msgid "Host header values the surface answers; every other request is refused with 421."
+msgstr ""
+
 #. cloud_schema:DEFAULT.host
 #: plugins/cloud/schemas/cloud_schema.yaml:40
 msgid "Hostname of the cloud service."
@@ -2864,6 +2890,14 @@ msgstr "加入消息的显示方式，聊天中或弹窗。"
 msgid "How the message is shown, in chat or as a popup."
 msgstr "消息的显示方式，聊天中或弹窗。"
 
+#. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_observer
+#. servers_schema:regex;(.+).autoscan_observer
+#: schemas/nodes_schema.yaml:450 schemas/servers_schema.yaml:495
+msgid ""
+"How the missions folder is watched. auto uses polling when the folder is a network share (UNC, "
+"mapped drive or a junction into one) and file notifications otherwise."
+msgstr "任务文件夹的监视方式。auto 在网络共享（UNC、映射驱动器或指向它们的目录联接）时使用轮询，否则使用文件通知。"
+
 #. motd_schema:schema;single_nudge.display_type
 #: plugins/motd/schemas/motd_schema.yaml:175
 msgid "How the nudge is shown, in chat or as a popup."
@@ -2915,12 +2949,12 @@ msgid "IPs always allowed through during firewall blocks."
 msgstr "防火墙封禁期间始终放行的 IP。"
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:199
+#: services/webservice/schemas/webservice_schema.yaml:334
 msgid "Identity layer of the admin web UI; optional."
 msgstr "管理 Web UI 的身份层；可选。"
 
 #. servers_schema:regex;(.+).chat_log
-#: schemas/servers_schema.yaml:650
+#: schemas/servers_schema.yaml:668
 msgid "In-game chat log written to disk for abuse checks."
 msgstr "写入磁盘以供滥用检查的游戏内聊天日志。"
 
@@ -2940,7 +2974,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "将真实世界天气注入任务。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:313
+#: services/webservice/schemas/webservice_schema.yaml:448
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "内联的 Discord 客户端密钥；未设置密钥时使用。"
 
@@ -2980,10 +3014,20 @@ msgstr "自动态势图之间的间隔。"
 msgid "Interval between threat checks."
 msgstr "威胁检查之间的间隔。"
 
+#. mcpservice_schema:schema;key_entry_jwt.jwt.jwks_url
+#: services/mcpservice/schemas/mcpservice_schema.yaml:65
+msgid "JWKS endpoint the token's signing key is fetched from."
+msgstr ""
+
 #. restapi_schema:schema;auth.jwt
 #: plugins/restapi/schemas/restapi_schema.yaml:13
 msgid "JWT settings used to verify bearer tokens."
 msgstr "用于验证 bearer 令牌的 JWT 设置。"
+
+#. mcpservice_schema:schema;key_entry_jwt.jwt
+#: services/mcpservice/schemas/mcpservice_schema.yaml:48
+msgid "JWT verification of this client's bearer tokens."
+msgstr ""
 
 #. srs_schema:schema;instance_srs_schema.no_shutdown
 #. srs_schema:schema;node_srs_schema.no_shutdown
@@ -3002,6 +3046,13 @@ msgstr "在中队频道中保持实时成员列表。"
 #: plugins/greenieboard/schemas/greenieboard_schema.yaml:200
 msgid "Keep a persistent board posted in the channel."
 msgstr "在频道中保留常驻榜单的发布。"
+
+#. srs_schema:schema;element_schema.atc_frequency_range
+#: plugins/srs/schemas/srs_schema.yaml:59
+msgid ""
+"Keep only the airbase frequencies in this range (kHz) when atc_frequencies has no entry for the "
+"airbase type."
+msgstr ""
 
 #. missionstats_schema:schema;element_schema.mission_end.persistent
 #: plugins/missionstats/schemas/missionstats_schema.yaml:62
@@ -3045,7 +3096,7 @@ msgid "Kill message; may hold {points} and {victim}."
 msgstr "击杀消息；可包含 {points} 和 {victim}。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).max_hung_minutes
-#: schemas/nodes_schema.yaml:456
+#: schemas/nodes_schema.yaml:474
 msgid "Kill the server after this many minutes of unresponsiveness."
 msgstr "服务器无响应这么多分钟后将其终止。"
 
@@ -3059,13 +3110,18 @@ msgstr "以 DCS 评分符号为键的 LSO 评分定义。"
 msgid "Label shown for this entry in the /download list."
 msgstr "此条目在 /download 列表中显示的标签。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).lang
+#: services/webservice/schemas/webservice_schema.yaml:327
+msgid "Language the site renders in."
+msgstr ""
+
 #. servers_schema:regex;(.+).slot_spamming.check_time
 #: schemas/servers_schema.yaml:474
 msgid "Length of the observation window in seconds."
 msgstr "观察窗口的长度，单位为秒。"
 
 #. servers_schema:regex;(.+).coalitions.allow_players_pool
-#: schemas/servers_schema.yaml:683
+#: schemas/servers_schema.yaml:701
 msgid "Let players switch between unlocked coalitions."
 msgstr "允许玩家在已解锁的阵营之间切换。"
 
@@ -3180,6 +3236,12 @@ msgstr "玩家名称加入时必须匹配的 Lua 模式。"
 msgid "Lua tables to merge into the matched element."
 msgstr "要合并到匹配元素中的 Lua 表。"
 
+#. mcpservice_schema:DEFAULT
+#: services/mcpservice/schemas/mcpservice_schema.yaml:81
+#, fuzzy
+msgid "MCP surface settings; the service runs on the master node only."
+msgstr "服务监听的 TCP 端口；每个节点唯一。"
+
 #. main_schema:<root>
 #: schemas/main_schema.yaml:3
 msgid ""
@@ -3245,7 +3307,7 @@ msgid "Maximum concurrent tasks a single player may hold."
 msgstr "单个玩家可同时持有的最大任务数。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity.max_cores
-#: schemas/nodes_schema.yaml:483
+#: schemas/nodes_schema.yaml:501
 msgid "Maximum cores for this instance."
 msgstr "此实例的最大核心数。"
 
@@ -3376,7 +3438,7 @@ msgid "Maximum number of times this choice can be picked."
 msgstr "此选择可被选取的最大次数。"
 
 #. servers_schema:regex;(.+).chat_log.size
-#: schemas/servers_schema.yaml:664
+#: schemas/servers_schema.yaml:682
 msgid "Maximum size of a chat log file in bytes."
 msgstr "聊天日志文件的最大大小，单位为字节。"
 
@@ -3555,7 +3617,7 @@ msgid "Minimum cloud density (0-10)."
 msgstr "最小云层密度（0-10）。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity.min_cores
-#: schemas/nodes_schema.yaml:477
+#: schemas/nodes_schema.yaml:495
 msgid "Minimum cores for this instance."
 msgstr "此实例的最小核心数。"
 
@@ -3658,7 +3720,7 @@ msgid "Minutes RAM must stay high before warning."
 msgstr "警告前 RAM 必须持续过高的分钟数。"
 
 #. servers_schema:regex;(.+).coalitions.lock_time
-#: schemas/servers_schema.yaml:678
+#: schemas/servers_schema.yaml:696
 msgid "Minutes a coalition stays locked after joining."
 msgstr "加入后阵营保持锁定的分钟数。"
 
@@ -3905,6 +3967,11 @@ msgstr "服务器第一个技术用户的名称。"
 msgid "Name of the session cookie."
 msgstr "会话 Cookie 的名称。"
 
+#. mcpservice_schema:schema;key_entry_static.label
+#: services/mcpservice/schemas/mcpservice_schema.yaml:15
+msgid "Name of this client, unique in the list and the tail of its audit token."
+msgstr ""
+
 #. music_schema:schema;element_schema.radios.regex;(.+).display_name
 #: services/music/schemas/music_schema.yaml:106
 msgid "Name of this radio as displayed in SRS."
@@ -3925,6 +3992,11 @@ msgstr "在服务器状态嵌入中为 Olympus 扩展显示的名称。"
 #: extensions/lotatc/schemas/lotatc_schema.yaml:86
 msgid "Name shown for this instance's LotAtc entry in the status embed."
 msgstr "状态嵌入中此实例 LotAtc 条目显示的名称。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).nav
+#: services/webservice/schemas/webservice_schema.yaml:301
+msgid "Nav page ids the site offers, in order."
+msgstr ""
 
 #. presets_schema:schema;modify_map.insert
 #: schemas/presets_schema.yaml:106
@@ -3974,7 +4046,7 @@ msgid "Number of CPU threads each Supertonic synthesizer may use."
 msgstr "每个 Supertonic 合成器可使用的 CPU 线程数。"
 
 #. servers_schema:regex;(.+).chat_log.count
-#: schemas/servers_schema.yaml:659
+#: schemas/servers_schema.yaml:677
 msgid "Number of chat log files kept on disk."
 msgstr "磁盘上保留的聊天日志文件数量。"
 
@@ -4036,7 +4108,7 @@ msgid "Numeric score used to rank this landing grade."
 msgstr "用于为该着舰评分排名的数值分数。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).priority
-#: schemas/nodes_schema.yaml:495
+#: schemas/nodes_schema.yaml:513
 msgid "OS process priority for DCS_Server.exe."
 msgstr "DCS_Server.exe 的操作系统进程优先级。"
 
@@ -4089,6 +4161,17 @@ msgstr "应用于任务日期的偏移，例如 10d。"
 #: extensions/realweather/schemas/realweather_schema.yaml:503
 msgid "Offset applied to the mission time, e.g. 0h5m."
 msgstr "应用于任务时间的偏移，例如 0h5m。"
+
+#. webservice_schema:DEFAULT.sites
+#: services/webservice/schemas/webservice_schema.yaml:210
+#, fuzzy
+msgid "One block per public site, keyed by the site's name."
+msgstr "每台无线电一个条目，以无线电名称作为键。"
+
+#. mcpservice_schema:DEFAULT.keys
+#: services/mcpservice/schemas/mcpservice_schema.yaml:99
+msgid "One entry per MCP client; every entry carries label, level and exactly one credential."
+msgstr ""
 
 #. skyeye_schema:schema;skyeye_config.instances
 #: extensions/skyeye/schemas/skyeye_schema.yaml:260
@@ -4250,6 +4333,11 @@ msgstr "用于访问 Discord 的可选代理。"
 msgid "Ordered providers Real Weather fetches weather from."
 msgstr "Real Weather 获取天气的提供程序顺序。"
 
+#. mcpservice_schema:DEFAULT.transport.allowed_origins
+#: services/mcpservice/schemas/mcpservice_schema.yaml:131
+msgid "Origin header values the surface accepts; empty accepts any origin."
+msgstr ""
+
 #. cloud_schema:DEFAULT.troublemakers.kick_threshold
 #: plugins/cloud/schemas/cloud_schema.yaml:106
 msgid "Other server bans needed to trigger a kick."
@@ -4266,12 +4354,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "每个客户端的出站网络带宽限制，单位为字节/秒。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:253
+#: services/webservice/schemas/webservice_schema.yaml:388
 msgid "PBKDF2 hash of the account's password."
 msgstr "账户密码的 PBKDF2 哈希。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:359
+#: services/webservice/schemas/webservice_schema.yaml:494
 msgid "PBKDF2 hash of the emergency password."
 msgstr "应急密码的 PBKDF2 哈希。"
 
@@ -4279,6 +4367,12 @@ msgstr "应急密码的 PBKDF2 哈希。"
 #: services/modmanager/schemas/modmanager_schema.yaml:13
 msgid "Package name, matching the OvGME folder or zip name."
 msgstr "包名称，与 OvGME 文件夹或 zip 名称一致。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme
+#: services/webservice/schemas/webservice_schema.yaml:276
+#, fuzzy
+msgid "Palette overrides of the site."
+msgstr "要覆盖到匹配元素上的值。"
 
 #. commands_schema:schema;cmd_params_schema
 #: plugins/commands/schemas/commands_schema.yaml:57
@@ -4406,6 +4500,11 @@ msgstr "要遍历的元素路径（即引用）。"
 msgid "Path to the instance's Saved Games directory."
 msgstr "实例的 Saved Games 目录路径。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.logo
+#: services/webservice/schemas/webservice_schema.yaml:262
+msgid "Path to the site's logo image."
+msgstr ""
+
 #. funkman_schema:schema;default_schema.install
 #. greenieboard_schema:schema;default_schema.FunkMan.install
 #: plugins/funkman/schemas/funkman_schema.yaml:20
@@ -4479,7 +4578,7 @@ msgid "Per-event chat messages and sounds sent during a match."
 msgstr "对局期间按事件发送的聊天消息和声音。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).auto_affinity
-#: schemas/nodes_schema.yaml:467
+#: schemas/nodes_schema.yaml:485
 msgid "Per-instance CPU affinity overrides."
 msgstr "按实例的 CPU 亲和性覆盖设置。"
 
@@ -4651,7 +4750,7 @@ msgid "Polly speech engine to use, standard or neural."
 msgstr "要使用的 Polly 语音引擎，standard 或 neural。"
 
 #. music_schema:schema;element_schema.radios.regex;(.+).popup
-#: services/music/schemas/music_schema.yaml:112
+#: services/music/schemas/music_schema.yaml:117
 msgid "Popup for this radio, overrides the global one."
 msgstr "此无线电的弹窗，覆盖全局弹窗。"
 
@@ -4873,7 +4972,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "向玩家显示的公共 URL，替代服务器 IP。"
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:211
+#: services/webservice/schemas/webservice_schema.yaml:346
 msgid "Public origin the console is reachable at."
 msgstr "控制台可供访问的公共源。"
 
@@ -4911,6 +5010,11 @@ msgstr "无线电类型。仅支持 SRSRadio。"
 #: extensions/skyeye/schemas/skyeye_schema.yaml:192
 msgid "Radius in nautical miles that always counts as a threat."
 msgstr "始终视为威胁的半径（海里）。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.footer_html
+#: services/webservice/schemas/webservice_schema.yaml:268
+msgid "Raw HTML of the site's footer; empty renders none."
+msgstr ""
 
 #. firewall_schema:schema;element_schema.ddos_detection.action
 #: services/firewall/schemas/firewall_schema.yaml:39
@@ -5010,6 +5114,11 @@ msgstr "拒绝 DCS 安装不纯净的客户端。"
 msgid "Remaining battery percentage that triggers each action."
 msgstr "触发每项操作的剩余电量百分比。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.light
+#: services/webservice/schemas/webservice_schema.yaml:292
+msgid "Render the site in the light palette."
+msgstr ""
+
 #. servers_schema:regex;(.+).display_ai_chat
 #: schemas/servers_schema.yaml:311
 msgid "Replicate AI chat messages to the Discord chat channel."
@@ -5054,7 +5163,7 @@ msgid "Require a landing event to auto-complete a task."
 msgstr "要求有降落事件才能自动完成任务。"
 
 #. servers_schema:regex;(.+).accept_rules_on_join
-#: schemas/servers_schema.yaml:545
+#: schemas/servers_schema.yaml:563
 msgid "Require acknowledgement of the rules on join."
 msgstr "要求玩家加入时确认规则。"
 
@@ -5064,7 +5173,7 @@ msgid "Require both credits and playtime instead of either."
 msgstr "要求同时满足积分和游戏时长，而非二者之一。"
 
 #. servers_schema:regex;(.+).force_voice
-#: schemas/servers_schema.yaml:532
+#: schemas/servers_schema.yaml:550
 msgid "Require players to join a Discord voice channel."
 msgstr "要求玩家加入 Discord 语音频道。"
 
@@ -5134,7 +5243,7 @@ msgid "Role given while a member is online on a server."
 msgstr "成员在服务器上在线期间授予的角色。"
 
 #. servers_schema:regex;(.+).autorole
-#: schemas/servers_schema.yaml:517
+#: schemas/servers_schema.yaml:535
 msgid "Role granted to players online on this server."
 msgstr "授予本服务器在线玩家的角色。"
 
@@ -5149,7 +5258,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "欢迎消息中提及的角色。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:260
+#: services/webservice/schemas/webservice_schema.yaml:395
 msgid "Role names granted to this account, validated at startup."
 msgstr "授予此账户的角色名称，启动时校验。"
 
@@ -5245,7 +5354,7 @@ msgid "Rule that decides whether a voting passes."
 msgstr "决定投票是否通过的规则。"
 
 #. servers_schema:regex;(.+).rules
-#: schemas/servers_schema.yaml:538
+#: schemas/servers_schema.yaml:556
 msgid "Rules text displayed to new players (needs MissionStats)."
 msgstr "向新玩家显示的规则文本（需要 MissionStats）。"
 
@@ -5320,14 +5429,20 @@ msgid "Scheduled actions and the cron times they run at."
 msgstr "计划操作及其运行的 cron 时间。"
 
 #. servers_schema:regex;(.+).smooth_pause
-#: schemas/servers_schema.yaml:522
+#: schemas/servers_schema.yaml:540
 msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "启动即暂停的服务器再次暂停前运行的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:332
+#: services/webservice/schemas/webservice_schema.yaml:467
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "未启用 intent 时成员解析的缓存秒数。"
+
+#. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_stable_timeout
+#. servers_schema:regex;(.+).autoscan_stable_timeout
+#: schemas/nodes_schema.yaml:462 schemas/servers_schema.yaml:507
+msgid "Seconds a new mission file may keep growing before autoscan gives up on it."
+msgstr "新任务文件在自动扫描放弃等待之前允许继续增长的秒数。"
 
 #. motd_schema:schema;message_list.[0].display_time
 #. motd_schema:schema;on_birth.display_time
@@ -5337,6 +5452,11 @@ msgstr "未启用 intent 时成员解析的缓存秒数。"
 #: plugins/motd/schemas/motd_schema.yaml:122 plugins/motd/schemas/motd_schema.yaml:181
 msgid "Seconds a popup message stays visible."
 msgstr "弹窗消息保持可见的秒数。"
+
+#. music_schema:schema;element_schema.radios.regex;(.+).startup_wait
+#: services/music/schemas/music_schema.yaml:111
+msgid "Seconds a track waits for SRS to be up before the attempt is given up."
+msgstr ""
 
 #. punishment_schema:schema;element_schema.forgive
 #: plugins/punishment/schemas/punishment_schema.yaml:111
@@ -5397,6 +5517,12 @@ msgstr "投送接近检测之间的秒数。"
 #: schemas/nodes_schema.yaml:102
 msgid "Seconds between master and agent heartbeats."
 msgstr "主节点与代理节点心跳间隔的秒数。"
+
+#. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_poll_interval
+#. servers_schema:regex;(.+).autoscan_poll_interval
+#: schemas/nodes_schema.yaml:456 schemas/servers_schema.yaml:501
+msgid "Seconds between polls of the missions folder (polling observer only)."
+msgstr "轮询任务文件夹的间隔秒数（仅轮询观察器）。"
 
 #. webservice_schema:DEFAULT.dashboard.refresh_seconds
 #: services/webservice/schemas/webservice_schema.yaml:83
@@ -5459,7 +5585,7 @@ msgid "Seconds the voting stays open for players."
 msgstr "投票对玩家保持开放的秒数。"
 
 #. servers_schema:regex;(.+).lock_on_load
-#: schemas/servers_schema.yaml:527
+#: schemas/servers_schema.yaml:545
 msgid "Seconds to lock a server after a mission restart."
 msgstr "任务重启后锁定服务器的秒数。"
 
@@ -5494,7 +5620,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "没有对手玩家并赢得比赛的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:321
+#: services/webservice/schemas/webservice_schema.yaml:456
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "保存客户端密钥的密钥库键；优先于内联值。"
 
@@ -5515,6 +5641,11 @@ msgstr "向云服务发送匿名使用统计。"
 #: services/webservice/schemas/webservice_schema.yaml:17
 msgid "Serve the API docs endpoints and uvicorn's access log."
 msgstr "提供 API 文档端点以及 uvicorn 的访问日志。"
+
+#. mcpservice_schema:DEFAULT.enabled
+#: services/mcpservice/schemas/mcpservice_schema.yaml:94
+msgid "Serve the MCP surface; false mounts nothing."
+msgstr ""
 
 #. main_schema:filter.server_name
 #: schemas/main_schema.yaml:160
@@ -5547,7 +5678,7 @@ msgid "Server(s) this command is restricted to."
 msgstr "此命令限定用于的服务器。"
 
 #. servers_schema:regex;(.+).channels.audit
-#: schemas/servers_schema.yaml:621
+#: schemas/servers_schema.yaml:639
 msgid "Server-specific channel for audit events."
 msgstr "用于审计事件的服务器专属频道。"
 
@@ -5747,7 +5878,7 @@ msgid "Single-character prefix used for legacy chat commands."
 msgstr "用于旧版聊天命令的单字符前缀。"
 
 #. servers_schema:regex;(.+).no_coalition_chat
-#: schemas/servers_schema.yaml:698
+#: schemas/servers_schema.yaml:716
 msgid "Skip replicating red and blue chats to Discord."
 msgstr "跳过将红蓝阵营聊天转发到 Discord。"
 
@@ -5839,6 +5970,11 @@ msgstr "随 DCS 服务器一起启动 SRS 服务器。"
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:70
 msgid "Starting balance and cap for squadron credits."
 msgstr "中队积分的初始余额和上限。"
+
+#. mcpservice_schema:schema;key_entry_static.key
+#: services/mcpservice/schemas/mcpservice_schema.yaml:22
+msgid "Static bearer token the client presents; compared in constant time."
+msgstr ""
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRealTimeTelemetryEnabled
 #. tacview_schema:schema;node_tacview_schema.tacviewRealTimeTelemetryEnabled
@@ -6015,6 +6151,11 @@ msgstr "此选择消耗的票券名称。"
 msgid "Ticket types squadrons receive, keyed by ticket name."
 msgstr "中队获得的票券类型，以票券名称为键。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).tiles
+#: services/webservice/schemas/webservice_schema.yaml:315
+msgid "Tile ids the site's overview shows, in order."
+msgstr ""
+
 #. userstats_schema:schema;highscore_map.params.period
 #: plugins/userstats/schemas/userstats_schema.yaml:22
 msgid "Time period covered, e.g. day, month or a campaign name."
@@ -6072,6 +6213,23 @@ msgstr "更新公告嵌入的标题。"
 #: plugins/missionstats/schemas/missionstats_schema.yaml:73
 msgid "Title used on the mission end embed."
 msgstr "任务结束嵌入使用的标题。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding
+#: services/webservice/schemas/webservice_schema.yaml:246
+msgid "Title, logo and footer of the site."
+msgstr ""
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.stylesheet
+#: services/webservice/schemas/webservice_schema.yaml:286
+msgid "Token-only stylesheet; relative to the config directory."
+msgstr ""
+
+#. mcpservice_schema:schema;key_entry_jwt.level
+#. mcpservice_schema:schema;key_entry_static.level
+#: services/mcpservice/schemas/mcpservice_schema.yaml:29
+#: services/mcpservice/schemas/mcpservice_schema.yaml:72
+msgid "Tool list this key is offered; an unknown level is refused."
+msgstr ""
 
 #. menus_schema:schema;command_menu_element.ucid
 #: schemas/menus_schema.yaml:46
@@ -6143,6 +6301,11 @@ msgstr "高程数据源的 URL 模板。"
 msgid "URL template of this map layer's tiles."
 msgstr "此地图图层瓦片的 URL 模板。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).slug
+#: services/webservice/schemas/webservice_schema.yaml:231
+msgid "URL-safe path segment of the site; the root site's is empty."
+msgstr ""
+
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
 #: extensions/olympus/schemas/olympus_schema.yaml:178
 msgid "Unique TCP port for Olympus internal communication."
@@ -6167,6 +6330,13 @@ msgstr "此限制匹配的单位名称或 Lua 模式。"
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:81
 msgid "Unit type this restriction applies to, e.g. observer."
 msgstr "此限制适用的单位类型，例如 observer。"
+
+#. srs_schema:schema;element_schema.atc_exempt_unit_types
+#: plugins/srs/schemas/srs_schema.yaml:66
+msgid ""
+"Unit types with neither the ATC popup nor the takeoff check, e.g. aircraft with preset-only "
+"radios."
+msgstr ""
 
 #. nodes_schema:regex;(.+).DCS.allow_unsafe_api
 #: schemas/nodes_schema.yaml:358
@@ -6293,7 +6463,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "登录 NUT 服务器的用户（可选）。"
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:216
+#: services/webservice/schemas/webservice_schema.yaml:351
 msgid "Username and password login for the console."
 msgstr "控制台的用户名和密码登录。"
 
@@ -6308,7 +6478,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "代理的用户名（若需要身份验证）。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:354
+#: services/webservice/schemas/webservice_schema.yaml:489
 msgid "Username of the emergency Admin account."
 msgstr "应急管理员账户的用户名。"
 
@@ -6318,7 +6488,7 @@ msgid "Username sent in the authentication header."
 msgstr "在认证请求头中发送的用户名。"
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).server_user
-#: schemas/nodes_schema.yaml:450
+#: schemas/nodes_schema.yaml:468
 msgid "Username shown as the sender of server-side messages."
 msgstr "显示为服务器端消息发送者的用户名。"
 
@@ -6360,7 +6530,7 @@ msgid "Voice SkyEye uses for spoken messages."
 msgstr "SkyEye 用于语音消息的声音。"
 
 #. servers_schema:regex;(.+).channels.voice
-#: schemas/servers_schema.yaml:615
+#: schemas/servers_schema.yaml:633
 msgid "Voice channel players must join when force_voice is on."
 msgstr "当 force_voice 开启时玩家必须加入的语音频道。"
 
@@ -6732,8 +6902,13 @@ msgstr "自定义 Discord 命令，以命令名称为键。"
 msgid "Z-score above which traffic counts as anomalous."
 msgstr "高于该 Z 分数的流量即视为异常。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).group_role
+#: services/webservice/schemas/webservice_schema.yaml:240
+msgid "managed_by token this site shows; absent only for the root site."
+msgstr ""
+
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:276
+#: services/webservice/schemas/webservice_schema.yaml:411
 msgid "managed_by values this account may see and act on."
 msgstr "此账户可查看和操作的 managed_by 值。"
 

@@ -25,6 +25,9 @@ My Fancy Server: # Your server name, as displayed in the server list and listed 
   smooth_pause: 5               # Servers that are configured to PAUSE on startup will run for this amount of seconds until they are paused again (default 0 = off)
   ping_admin_on_crash: true     # Ping DCS Admin role in discord, when the server crashed. Default: true
   autoscan: false               # Enable autoscan for new missions (and auto-add them to the mission list). Default: false
+  autoscan_observer: auto       # How the missions folder is watched: auto | notify | polling. auto = polling on a network share (UNC, mapped drive, junction into one). Default: auto
+  autoscan_poll_interval: 3     # Seconds between polls of the missions folder (polling observer only). Default: 3
+  autoscan_stable_timeout: 60   # Seconds a new mission file may keep growing before autoscan gives up on it. Default: 60
   autorole: Fancy Players       # Optional: give people this role, if they are online on this server (overwrites autorole[online] in bot.yaml!).
   force_voice: false            # Optional: enforce the usage of a voice channel (users needs to be linked!) - default: false
   discord: # Optional: specify discord roles that are allowed to use this server

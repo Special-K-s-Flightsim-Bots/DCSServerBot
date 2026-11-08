@@ -1,0 +1,28 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Server is going down for a DCS update in {)}!"
+msgstr "Sunucu {)} içinde DCS güncellemesi için kapanıyor!"
+
+msgid "Server is going down to install a module in {}!"
+msgstr "Sunucu {} içinde modül kurulumu için kapanıyor!"
+
+msgid "Server is going down to uninstall a module in {}!"
+msgstr "Sunucu {} içinde modül kaldırma işlemi için kapanıyor!"
+
+msgid "You are banned from this server. Reason: {}"
+msgstr "Bu sunucudan yasaklandınız. Sebep: {}"
+
+msgid "The server is full, please try again later."
+msgstr "Sunucu dolu, lütfen daha sonra tekrar deneyin."
+
+msgid "Your player name contains invalid characters. Please change your name to join our server."
+msgstr "Oyuncu adınız geçersiz karakterler içeriyor. Sunucumuza katılmak için lütfen adınızı değiştirin."
+
+msgid "Please change your default player name at the top right of the multiplayer selection list to an individual one!"
+msgstr "Lütfen çok oyunculu seçim listesinin sağ üst köşesindeki varsayılan oyuncu adınızı kendinize özel bir adla değiştirin!"

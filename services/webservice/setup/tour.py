@@ -256,14 +256,45 @@ border-bottom:1px solid var(--line);background:var(--panel)}
 .brand b{font-size:15px;letter-spacing:.02em}
 .brand small{display:block;color:var(--text-3);font-size:11px;margin-top:1px}
 .spacer{flex:1 1 auto}
-.lang,.theme{display:flex;align-items:center;gap:4px}
-.lang-opt,.theme-opt{display:inline-flex;align-items:center;justify-content:center;width:30px;
+.theme{display:flex;align-items:center;gap:4px}
+.theme-opt{display:inline-flex;align-items:center;justify-content:center;width:30px;
 height:24px;border-radius:var(--radius-s);border:1px solid transparent;color:var(--text-3)}
-.lang-opt:hover,.theme-opt:hover{border-color:var(--line-2)}
-.lang-opt.on,.theme-opt.on{border-color:var(--line-2);background:var(--panel-2);
+.theme-opt:hover{border-color:var(--line-2)}
+.theme-opt.on{border-color:var(--line-2);background:var(--panel-2);
 box-shadow:0 0 0 1px var(--accent)}
-.lang-opt img{width:20px;height:15px;display:block;border-radius:2px}
 .theme-opt svg{width:16px;height:16px;display:block}
+/* The language control: one pill naming the language in force, opening a popover menu of every
+   language with a catalog. Popover, so the browser paints the menu in the top layer (the bar cannot
+   clip it) and closes it on Escape or outside click — no script; every row is a plain link. */
+.langpick{display:inline-flex}
+.langchip{display:inline-flex;align-items:center;gap:7px;padding:4px 9px 4px 8px;
+font-size:12px;font-weight:600;line-height:1.4;color:var(--text);cursor:pointer;
+background:var(--panel);border:1px solid var(--line-2);border-radius:99px}
+.langchip:hover{border-color:var(--accent-2);background:var(--panel)}
+.langchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.langchip .caret{color:var(--text-3);font-size:9px;line-height:1}
+.langmenu{min-width:208px;margin:0;padding:5px;inset:auto;text-align:left;background:var(--panel);
+border:1px solid var(--line-2);border-radius:var(--radius);box-shadow:0 14px 30px rgba(0,0,0,.45)}
+/* Anchored under its trigger; the plain top-right position is the fallback for a browser without
+   anchor positioning, which would otherwise centre the popover across the screen. */
+.langmenu:popover-open{position:fixed;top:calc(var(--nav-h) + 8px);right:16px;margin-top:6px}
+@supports (top:anchor(bottom)){.langmenu:popover-open{top:anchor(bottom,calc(var(--nav-h) + 8px));
+right:anchor(right,16px)}}
+.langmenu .mi,.langlist .mi{display:flex;align-items:center;gap:10px;padding:7px 9px;
+border-radius:var(--radius-s);color:var(--text);font-size:12.5px;text-decoration:none}
+.langmenu .mi:hover,.langlist .mi:hover{background:var(--panel-2);color:var(--text);
+text-decoration:none}
+.langmenu .mi:focus-visible,.langlist .mi:focus-visible{outline:2px solid var(--accent);
+outline-offset:-2px}
+.langmenu .mi .langname,.langlist .mi .langname{flex:1 1 auto}
+.langmenu .mi.on .langname,.langlist .mi.on .langname{font-weight:600}
+.langmenu .mi .ck,.langlist .mi .ck{color:var(--accent);font-size:11px;font-weight:700}
+.langchip img.flag,.langmenu .mi img.flag,.langlist .mi img.flag{width:20px;height:15px;
+display:block;border-radius:2px;flex:0 0 auto;box-shadow:0 0 0 1px var(--line-hover)}
+/* Step 1 asks the question, so its answer is a list of choices, not a popover. Two columns keep
+   ten languages in five even rows; a narrower auto-fit grid left the last row ragged. */
+.langlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;
+margin:0 0 4px}
 .tour{display:grid;grid-template-columns:var(--side-w) 1fr;align-items:start;
 min-height:calc(100vh - var(--nav-h))}
 .rail{margin:0;padding:14px 10px;border-right:1px solid var(--line)}
@@ -285,7 +316,6 @@ overflow:hidden}
 background:linear-gradient(180deg,var(--panel-2),var(--panel))}
 .card .hd h1{font-size:16px;margin:0;color:var(--text)}
 .card .bd{padding:16px}
-.flags{display:flex;align-items:center;gap:6px;margin:0 0 4px}
 label.switch{display:flex;gap:10px;align-items:flex-start;margin:14px 0;cursor:pointer}
 label.switch input{margin-top:3px}
 label.switch .help{display:block;color:var(--text-3);font-size:12.5px;margin-top:2px}
@@ -310,7 +340,8 @@ button:disabled:hover,button:disabled:active{background:var(--panel);color:var(-
    the help links that carry a documentation URL, the generated invite link) reads as the accent
    family — never the muted note grey it used to share — underlined, semibold, and at body size, so
    a link sitting inside the quiet 12px note/help copy is still legible and clearly a control rather
-   than part of the sentence. The icon toggles (``.lang-opt``/``.theme-opt``) and the rail rows carry
+   than part of the sentence. The language menu's rows (``.mi``), the theme icon toggles
+   (``.theme-opt``) and the rail rows carry
    their own colour and are untouched. */
 .link{color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:2px;
 font-size:14px}
@@ -483,25 +514,39 @@ def _the_style() -> str:
 # --------------------------------------------------------------------------------- the chrome
 
 def _flag_control(request: Request, lang: str, next_target: str) -> str:
-    """The language control: one flag per selectable language, the current one marked.
+    """The language control: a pill naming the current language, opening a menu of all of them.
 
     Plain GET links to :data:`LANGUAGE_PATH`, exactly like the shell's own control — no form, no
-    script, so it works with JavaScript off and before any session exists.
+    script, so it works with JavaScript off and before any session exists. The menu is a native
+    `popover` opened from its button, so the browser paints it in the top layer (the bar cannot clip
+    it) and closes it on Escape or a click outside without a script.
     """
-    options = []
+    rows = []
     for code in i18n.selectable_languages():
         name = i18n.display_name(code)
         asset = i18n.LANGUAGE_FLAGS.get(code, i18n.FLAG_NEUTRAL_ASSET)
         href = f"{LANGUAGE_PATH}?lang={code}&next={quote(next_target, safe='/')}"
-        active = ' aria-current="true"' if code == lang else ''
-        cls = "lang-opt on" if code == lang else "lang-opt"
-        options.append(
-            f'<a class="{cls}" hreflang="{escape(code)}" title="{escape(name)}" '
-            f'aria-label="{escape(name)}" href="{escape(href)}"{active}>'
-            f'<img class="flag" src="{FLAGS_PATH}/{escape(asset)}" alt="" width="20" '
-            f'height="15"></a>')
+        active = code == lang
+        marked = ' aria-current="true"' if active else ''
+        tick = '<span class="ck" aria-hidden="true">\u2713</span>' if active else ''
+        rows.append(
+            f'<a class="mi{" on" if active else ""}" role="menuitem" hreflang="{escape(code)}" '
+            f'href="{escape(href)}"{marked}>'
+            f'<img class="flag" src="{FLAGS_PATH}/{escape(asset)}" alt="" width="20" height="15">'
+            f'<span class="langname">{escape(name)}</span>{tick}</a>')
     label = i18n.translations_for(lang).gettext(T_LANGUAGE)
-    return f'<nav class="lang" aria-label="{escape(label)}">{"".join(options)}</nav>'
+    current_name = i18n.display_name(lang)
+    current_asset = i18n.LANGUAGE_FLAGS.get(lang, i18n.FLAG_NEUTRAL_ASSET)
+    return (
+        '<div class="langpick">'
+        '<button class="langchip" type="button" popovertarget="lang-menu" aria-haspopup="menu" '
+        f'aria-label="{escape(label)}: {escape(current_name)}" style="anchor-name:--lang-menu">'
+        f'<img class="flag" src="{FLAGS_PATH}/{escape(current_asset)}" alt="" width="20" height="15">'
+        f'<span>{escape(current_name)}</span>'
+        '<span class="caret" aria-hidden="true">\u25be</span></button>'
+        f'<div class="langmenu" id="lang-menu" popover role="menu" aria-label="{escape(label)}" '
+        f'style="position-anchor:--lang-menu">{"".join(rows)}</div>'
+        '</div>')
 
 
 _SUN = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
@@ -1207,8 +1252,27 @@ def _return_target(request: Request) -> str:
 
 
 def _flags_row(request: Request, lang: str, next_target: str) -> str:
-    """The answer's flag row on step 1 — the same control, pointing back at step 1."""
-    return f'<div class="flags">{_flag_control(request, lang, next_target)}</div>'
+    """Step 1's answer: the same languages as the top bar's menu, drawn as a list of choices.
+
+    The question asks which language the tour speaks, so the answer is a LIST the operator reads and
+    picks from — not a popover menu nested in a card. Each row is a plain GET link to
+    :data:`LANGUAGE_PATH`; the row in force carries a tick and ``aria-current``, so the answer is
+    marked by more than its colour.
+    """
+    rows = []
+    for code in i18n.selectable_languages():
+        name = i18n.display_name(code)
+        asset = i18n.LANGUAGE_FLAGS.get(code, i18n.FLAG_NEUTRAL_ASSET)
+        href = f"{LANGUAGE_PATH}?lang={code}&next={quote(next_target, safe='/')}"
+        active = code == lang
+        marked = ' aria-current="true"' if active else ''
+        tick = '<span class="ck" aria-hidden="true">\u2713</span>' if active else ''
+        rows.append(
+            f'<a class="mi{" on" if active else ""}" hreflang="{escape(code)}" '
+            f'href="{escape(href)}"{marked}>'
+            f'<img class="flag" src="{FLAGS_PATH}/{escape(asset)}" alt="" width="20" height="15">'
+            f'<span class="langname">{escape(name)}</span>{tick}</a>')
+    return f'<div class="langlist">{"".join(rows)}</div>'
 
 
 def _language_source_note(choice: language_step.LanguageChoice, translate) -> str:

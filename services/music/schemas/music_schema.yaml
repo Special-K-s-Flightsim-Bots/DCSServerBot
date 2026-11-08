@@ -105,6 +105,11 @@ schema;element_schema:
               range: {min: 1}
               desc: Name of this radio as displayed in SRS.
               example: "Jungle Beats"
+            startup_wait:
+              type: float
+              nullable: false
+              desc: Seconds a track waits for SRS to be up before the attempt is given up.
+              example: "60"
             popup:
               type: str
               nullable: false

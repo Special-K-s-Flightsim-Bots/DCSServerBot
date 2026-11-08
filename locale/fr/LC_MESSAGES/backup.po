@@ -1,0 +1,50 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Backup your data"
+msgstr "Sauvegardez vos données"
+
+msgid "Backup of {} started ..."
+msgstr "Sauvegarde de {} démarrée ..."
+
+msgid "Backup of {} completed."
+msgstr "Sauvegarde de {} terminée."
+
+msgid "Backup of {} failed. Please check log for details."
+msgstr "Échec de la sauvegarde de {}. Consultez le journal pour plus de détails."
+
+msgid "Restore your data from an existing backup"
+msgstr "Restaurez vos données depuis une sauvegarde existante"
+
+msgid "I am about to restore your {what} from {date}.\n"
+msgstr "Je vais restaurer votre {what} du {date}.\n"
+
+msgid "Aborted."
+msgstr "Annulé."
+
+msgid "Restore of {} triggered. The node will now restart."
+msgstr "Restauration de {} déclenchée. Le nœud va maintenant redémarrer."
+
+msgid "Recovery of {} failed. Please check log for details."
+msgstr "Échec de la récupération de {}. Consultez le journal pour plus de détails."
+
+msgid "Recover your data from an existing backup"
+msgstr "Récupérez vos données depuis une sauvegarde existante"
+
+msgid "I am going to recover your {what} from {date}.\n"
+msgstr "Je vais récupérer votre {what} du {date}.\n"
+
+msgid "Recovery of {} completed."
+msgstr "Récupération de {} terminée."
+
+msgid "I am about to restore your {what} from {date}.\nThis action will completely overwrite any existing data.\nAre you absolutely certain that you want to proceed?"
+msgstr "Je vais restaurer votre {what} du {date}.\nCette action écrasera entièrement toutes les données existantes.\nÊtes-vous absolument certain de vouloir continuer ?"
+
+msgid "Restore your data from existing backups"
+msgstr "Restaurez vos données depuis les sauvegardes existantes"

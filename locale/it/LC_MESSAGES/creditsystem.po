@@ -1,0 +1,182 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Commands to manage player credits"
+msgstr "Comandi per gestire i crediti dei giocatori"
+
+msgid "Shows your current credits"
+msgstr "Mostra i crediti attuali"
+
+msgid "You need the DCS Admin role to use this command!"
+msgstr "Serve il ruolo DCS Admin per usare questo comando!"
+
+msgid "Member {} is not linked to any DCS user!"
+msgstr "Il membro {} non è collegato ad alcun utente DCS!"
+
+msgid "Use {} to link your account."
+msgstr "Usare {} per collegare il proprio account."
+
+msgid "{} has no campaign credits."
+msgstr "{} non ha crediti di campagna."
+
+msgid "Campaign Credits for {}"
+msgstr "Crediti di campagna per {}"
+
+msgid "Campaign"
+msgstr "Campagna"
+
+msgid "Credits"
+msgstr "Crediti"
+
+msgid "Time"
+msgstr "Ora"
+
+msgid "Event"
+msgstr "Evento"
+
+msgid "Log shows the last 10 events only."
+msgstr "Il registro mostra solo gli ultimi 10 eventi."
+
+msgid "{} needs to properly link their DCS account to receive donations."
+msgstr "{} deve collegare correttamente il proprio account DCS per ricevere donazioni."
+
+msgid "It seems like there is no campaign running on your server(s)."
+msgstr "Sembra che non vi sia alcuna campagna in corso sul/sui server."
+
+msgid "Campaign Credits"
+msgstr "Crediti di campagna"
+
+msgid "Member {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "Con questa donazione il membro {} supererebbe i punti massimi configurati. Annullato."
+
+msgid "Donation from member {}"
+msgstr "Donazione dal membro {}"
+
+msgid "Credit points change by Admin {}"
+msgstr "Variazione dei punti credito da parte dell'Admin {}"
+
+msgid "You just received {} credit points from an Admin."
+msgstr "Ha appena ricevuto {} punti credito da un Admin."
+
+msgid ", you just received {} credit points from an Admin."
+msgstr ", ha appena ricevuto {} punti credito da un Admin."
+
+msgid "Your credits were decreased by {} credit points by an Admin."
+msgstr "I Suoi crediti sono stati ridotti di {} punti credito da un Admin."
+
+msgid ", your credits were decreased by {} credit points by an Admin."
+msgstr ", i Suoi crediti sono stati ridotti di {} punti credito da un Admin."
+
+msgid "Donated {credits} points to {name}."
+msgstr "Donati {credits} punti a {name}."
+
+msgid "Donate credits to another member"
+msgstr "Dona crediti a un altro membro"
+
+msgid "You can't donate to yourself."
+msgstr "Non può donare a se stesso."
+
+msgid "Your donation has to be > 0."
+msgstr "La donazione deve essere > 0."
+
+msgid "You need to properly link your DCS account to give donations!"
+msgstr "Deve collegare correttamente il proprio account DCS per effettuare donazioni!"
+
+msgid "You don't have any credit points to donate."
+msgstr "Non ha punti credito da donare."
+
+msgid "You can't donate {donation} credit points, you only have {total}!"
+msgstr "Non può donare {donation} punti credito, ne ha solo {total}!"
+
+msgid "Donation to member {}"
+msgstr "Donazione al membro {}"
+
+msgid "You just received {donation} credit points from {member}!"
+msgstr "Ha appena ricevuto {donation} punti credito da {member}!"
+
+msgid ", you just received {donation} credit points from {member}!"
+msgstr ", ha appena ricevuto {donation} punti credito da {member}!"
+
+msgid "Reset credits for a player or a whole campaign"
+msgstr "Azzera i crediti di un giocatore o di un'intera campagna"
+
+msgid "I'm going to delete the campaign credits of user\n"
+msgstr "Sto per eliminare i crediti di campagna dell'utente\n"
+
+msgid "I'm going to delete all campaign credits for the running campaign."
+msgstr "Sto per eliminare tutti i crediti di campagna della campagna in corso."
+
+msgid "Aborted."
+msgstr "Annullato."
+
+msgid "Campaign credits have been deleted."
+msgstr "I crediti di campagna sono stati eliminati."
+
+msgid "Initial points received"
+msgstr "Punti iniziali ricevuti"
+
+msgid "{name}, you currently have {credits} credit points."
+msgstr "{name}, ha attualmente {credits} punti credito."
+
+msgid "Unknown mission achievement"
+msgstr "Obiettivo di missione sconosciuto"
+
+msgid "for killing {}"
+msgstr "per aver distrutto {}"
+
+msgid "You currently have {} credit points"
+msgstr "Ha attualmente {} punti credito"
+
+msgid "Donate credits to another player"
+msgstr "Dona crediti a un altro giocatore"
+
+msgid "Usage: {prefix}{command} player points"
+msgstr "Uso: {prefix}{command} player points"
+
+msgid "Player {} not found."
+msgstr "Giocatore {} non trovato."
+
+msgid "Player {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "Con questa donazione il giocatore {} supererebbe i punti massimi configurati. Annullato."
+
+msgid "Donation to player {}"
+msgstr "Donazione al giocatore {}"
+
+msgid "Donation from player {}"
+msgstr "Donazione dal giocatore {}"
+
+msgid "You've donated {donation} credit points to player {name}."
+msgstr "Ha donato {donation} punti credito al giocatore {name}."
+
+msgid "Player {name} donated {donation} credit points to you!"
+msgstr "Il giocatore {name} Le ha donato {donation} punti credito!"
+
+msgid "Tip a GCI with points"
+msgstr "Assegna punti a un GCI"
+
+msgid "Usage: {prefix}{command} points [gci_number]"
+msgstr "Uso: {prefix}{command} points [gci_number]"
+
+msgid "There is currently no {} GCI active."
+msgstr "Al momento non è attivo alcun GCI {}."
+
+msgid "Multiple GCIs found, use \"{}tip points gci_number\"."
+msgstr "Trovati più GCI, usare \"{}tip points gci_number\"."
+
+msgid "You've donated {donation} credit points to GCI {name}."
+msgstr "Ha donato {donation} punti credito al GCI {name}."
+
+msgid "Usage: {}donate player points"
+msgstr "Uso: {}donate player points"
+
+msgid "Usage: {}tip points [gci_number]"
+msgstr "Uso: {}tip points [gci_number]"
+
+msgid "I'm going to delete the campaign credits of user\n{} for the running campaign."
+msgstr "Sto per eliminare i crediti di campagna dell'utente\n{} per la campagna in corso."

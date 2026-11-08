@@ -1,0 +1,233 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pl\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Member {member} banned by {banned_by} for {reason}."
+msgstr "Członek {member} zbanowany przez {banned_by} za {reason}."
+
+msgid "You have been banned from the DCS servers on {guild} for {reason} for the amount of {days} days."
+msgstr "Zostałeś zbanowany na serwerach DCS na {guild} za {reason} na {days} dni."
+
+msgid "Player {player} (ucid={ucid}) banned by {banned_by} for {reason}."
+msgstr "Gracz {player} (ucid={ucid}) zbanowany przez {banned_by} za {reason}."
+
+msgid "Player with ucid {ucid} banned by {banned_by} for {reason}."
+msgstr "Gracz o ucid {ucid} zbanowany przez {banned_by} za {reason}."
+
+msgid "Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}."
+msgstr "Gracz {player} (ucid={ucid}) wyrzucony przez {kicked_by} za {reason}."
+
+msgid "You've been kicked back to spectators because of: {}."
+msgstr "Zostałeś wyrzucony do widzów z powodu: {}."
+
+msgid "Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}."
+msgstr "Gracz {player} (ucid={ucid}) przeniesiony do widzów przez {spec_by} za {reason}."
+
+msgid "Punished for {}"
+msgstr "Ukarany za {}"
+
+msgid "{name}, you have been punished for: {reason}!\n"
+msgstr "{name}, zostałeś ukarany za: {reason}!\n"
+
+msgid "Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}."
+msgstr "Gracz {player} (ucid={ucid}) ukarany kredytami przez {punished_by} za {reason}."
+
+msgid "{name}, you have been punished for: {reason}!"
+msgstr "{name}, zostałeś ukarany za: {reason}!"
+
+msgid "{name}, check your fire: {reason}!"
+msgstr "{name}, kontroluj swój ogień: {reason}!"
+
+msgid "{name}, you have {points} punishment points."
+msgstr "{name}, masz {points} punktów karnych."
+
+msgid "Adds punishment points to a user\n"
+msgstr "Dodaje punkty karne użytkownikowi\n"
+
+msgid "User {} is not linked."
+msgstr "Użytkownik {} nie jest powiązany."
+
+msgid "The UCID provided is invalid."
+msgstr "Podany UCID jest nieprawidłowy."
+
+msgid "User punished with {} points."
+msgstr "Użytkownik ukarany {} punktami."
+
+msgid "punished user {ucid} with {points} points."
+msgstr "ukarano użytkownika {ucid} {points} punktami."
+
+msgid "Deletes a users punishment points"
+msgstr "Usuwa punkty karne użytkownika"
+
+msgid "This will delete all the punishment points for this user and unban them if they were banned.\n"
+msgstr "Spowoduje to usunięcie wszystkich punktów karnych tego użytkownika i zdjęcie bana, jeśli był zbanowany.\n"
+
+msgid "All punishment points deleted and player unbanned (if they were banned by the bot before)."
+msgstr "Wszystkie punkty karne usunięte, a gracz odbanowany (jeśli wcześniej został zbanowany przez bota)."
+
+msgid "forgave player {}"
+msgstr "wybaczono graczowi {}"
+
+msgid "Displays the current penalty points"
+msgstr "Wyświetla bieżące punkty karne"
+
+msgid "You need the DCS Admin role to show penalty points for other users."
+msgstr "Do wyświetlania punktów karnych innych użytkowników potrzebna jest rola DCS Admin."
+
+msgid "Member {} is not linked."
+msgstr "Członek {} nie jest powiązany."
+
+msgid "Use {} to link your Discord and DCS accounts first."
+msgstr "Najpierw użyj {}, aby powiązać swoje konta Discord i DCS."
+
+msgid "User has no penalty points."
+msgstr "Użytkownik nie ma punktów karnych."
+
+msgid "Penalty Points for {}"
+msgstr "Punkty karne dla {}"
+
+msgid "Total penalty points: {total:.2f}"
+msgstr "Łączne punkty karne: {total:.2f}"
+
+msgid "Time (UTC)"
+msgstr "Czas (UTC)"
+
+msgid "Event"
+msgstr "Zdarzenie"
+
+msgid "Points"
+msgstr "Punkty"
+
+msgid "Points decay over time, you might see different results on different days."
+msgstr "Punkty z czasem wygasają, w różne dni możesz widzieć różne wyniki."
+
+msgid "never"
+msgstr "nigdy"
+
+msgid "Ban expires"
+msgstr "Ban wygasa"
+
+msgid "Reason"
+msgstr "Powód"
+
+msgid "You are currently banned.\n"
+msgstr "Jesteś obecnie zbanowany.\n"
+
+msgid "Show last infractions of a user"
+msgstr "Pokaż ostatnie przewinienia użytkownika"
+
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Ten użytkownik nie istnieje. Spróbuj {}, aby znaleźć go w danych historycznych."
+
+msgid "{victim}, you are a victim of a friendly-fire event by player {offender}.\n"
+msgstr "{victim}, padłeś ofiarą zdarzenia friendly-fire ze strony gracza {offender}.\n"
+
+msgid "forgive another user for their infraction"
+msgstr "wybacz innemu użytkownikowi jego przewinienie"
+
+msgid "There is nothing to forgive (maybe too late?)"
+msgstr "Nie ma czego wybaczać (może za późno?)"
+
+msgid "{offender}, You have been forgiven by {victim} and you will not be punished for your recent actions."
+msgstr "{offender}, zostałeś wybaczony przez {victim} i nie zostaniesz ukarany za swoje ostatnie działania."
+
+msgid "You have chosen to forgive {} for their actions."
+msgstr "Wybrałeś wybaczenie {} za jego działania."
+
+msgid "displays your penalty points"
+msgstr "wyświetla twoje punkty karne"
+
+msgid "Penalty points can only be changed from the website."
+msgstr "Punkty karne można zmieniać tylko ze strony internetowej."
+
+msgid "You need the DCS Admin role to change penalty points."
+msgstr "Do zmiany punktów karnych potrzebna jest rola DCS Admin."
+
+msgid "Penalty points must be a whole number between {minimum} and {maximum}."
+msgstr "Punkty karne muszą być liczbą całkowitą z zakresu od {minimum} do {maximum}."
+
+msgid "A penalty change of 0 does nothing."
+msgstr "Zmiana punktów karnych o 0 nic nie robi."
+
+msgid "A UCID is 32 hexadecimal characters."
+msgstr "UCID składa się z 32 znaków szesnastkowych."
+
+msgid "The database is not available."
+msgstr "Baza danych jest niedostępna."
+
+msgid "The punishment plugin is not running, so the points cannot be applied."
+msgstr "Wtyczka kar nie działa, więc nie można zastosować punktów."
+
+msgid "The penalty points could not be recorded: {error}"
+msgstr "Nie udało się zapisać punktów karnych: {error}"
+
+msgid "The points were recorded, but the punishment could not be applied: {error}"
+msgstr "Punkty zostały zapisane, ale nie udało się zastosować kary: {error}"
+
+msgid "The penalty points could not be deleted: {error}"
+msgstr "Nie udało się usunąć punktów karnych: {error}"
+
+msgid "The penalty points were deleted, but the ban could not be lifted: {error}"
+msgstr "Punkty karne zostały usunięte, ale nie udało się zdjąć bana: {error}"
+
+msgid "This installation runs no server yet."
+msgstr "Ta instalacja nie uruchamia jeszcze żadnego serwera."
+
+msgid "The users punishment points have been reduced by {} points."
+msgstr "Punkty karne użytkownika zostały zmniejszone o {} punktów."
+
+msgid "changed punishment points of user {ucid} by {points} points."
+msgstr "zmieniono punkty karne użytkownika {ucid} o {points} punktów."
+
+msgid "{victim}, you are a victim of a {event} event by player {offender}.\n"
+msgstr "{victim}, padłeś ofiarą zdarzenia {event} ze strony gracza {offender}.\n"
+
+msgid "{name}, you have been punished for: {reason}!\nYour current credit points are: {points}"
+msgstr "{name}, zostałeś ukarany za: {reason}!\nTwoje obecne punkty kredytowe: {points}"
+
+msgid "This will delete all the punishment points for this user and unban them if they were banned.\nAre you sure?"
+msgstr "Spowoduje to usunięcie wszystkich punktów karnych tego użytkownika i zdjęcie bana, jeśli był zbanowany.\nCzy na pewno?"
+
+msgid "You are currently banned.\nPlease contact a member of the server staff, if you want to get unbanned."
+msgstr "Jesteś obecnie zbanowany.\nSkontaktuj się z członkiem personelu serwera, jeśli chcesz zostać odbanowany."
+
+msgid "{victim}, you are a victim of a friendly-fire event by player {offender}.\nIf you send {prefix}forgive in chat within the next {time} seconds, you can pardon the other player."
+msgstr "{victim}, padłeś ofiarą zdarzenia friendly-fire ze strony gracza {offender}.\nJeśli w ciągu najbliższych {time} sekund wyślesz na czacie {prefix}forgive, możesz wybaczyć drugiemu graczowi."
+
+msgid "Player {player} (ucid={ucid}) kicked from {server} by {kicked_by} for {reason}."
+msgstr "Gracz {player} (ucid={ucid}) wyrzucony z {server} przez {kicked_by} za {reason}."
+
+msgid "Player {player} (ucid={ucid}) moved to spectators on {server} by {spec_by} for {reason}."
+msgstr "Gracz {player} (ucid={ucid}) przeniesiony do widzów na {server} przez {spec_by} za {reason}."
+
+msgid "The user provided is invalid."
+msgstr "Podany użytkownik jest nieprawidłowy."
+
+msgid "{initiator}, your seat was unlocked."
+msgstr "{initiator}, twoje miejsce zostało odblokowane."
+
+msgid "{}, your aircraft must be fitted with a new ejection seat."
+msgstr "{}, twój samolot musi zostać wyposażony w nowy fotel wyrzucany."
+
+msgid "{}, your aircraft needs an inspection."
+msgstr "{}, twój samolot wymaga przeglądu."
+
+msgid "Please stand by for {}"
+msgstr "Proszę czekać na {}"
+
+msgid "{initiator}, you have been happily rescued and can join a new plane."
+msgstr "{initiator}, zostałeś szczęśliwie uratowany i możesz wsiąść do nowego samolotu."
+
+msgid "Player {} (ucid={}) disconnected and reconnected {} seconds after being shot at."
+msgstr "Gracz {} (ucid={}) rozłączył się i ponownie połączył {} sekund po tym, jak został ostrzelany."
+
+msgid "You have chosen to forgive {offender} for their actions."
+msgstr "Wybrałeś wybaczenie {offender} za jego działania."
+
+msgid "Player {victim} forgave player {offender} for their actions"
+msgstr "Gracz {victim} wybaczył graczowi {offender} jego działania"

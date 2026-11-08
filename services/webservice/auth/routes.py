@@ -380,10 +380,17 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
     token = session.get_csrf_token(request) if doors.password else ""
     # Rendered in the visitor's OWN language (the login page is where a choice is first wanted) and,
     # being a full document with its own chrome, it carries the shell's language control too.
+    from .. import readmodels
+    state = getattr(getattr(request, 'app', None), 'state', None)
+    try:
+        fleet_servers = readmodels.servers(readmodels.console_source(state))[:3]
+    except Exception:
+        fleet_servers = []
     html = i18n.render(
         request, LOGIN_TEMPLATE,
         login_path=LOGIN_PATH, csrf_field=session.CSRF_FIELD, csrf_token=token,
         next_url=next_url, error=error, doors=doors,
+        fleet_servers=fleet_servers,
         discord_url=discord_link(request, next_url) if doors.discord else None,
         discord_label=discord_oauth.CONTROL_LABEL, discord_scope=discord_oauth.SCOPE)
     return HTMLResponse(html, status_code=status_code)

@@ -5508,6 +5508,10 @@ msgstr "保存在 DGSA 全球封禁列表中，每个同步该列表的安装共
 msgid "Admin Console"
 msgstr "管理控制台"
 
+#: services/webservice/templates/base.html:25
+msgid "DCSServerBot Admin Console"
+msgstr "DCSServerBot 管理控制台"
+
 #: services/webservice/templates/base.html:100
 msgid "Sign out"
 msgstr "退出登录"

@@ -1,0 +1,88 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Clear Discord messages"
+msgstr "Discord mesajlarını temizle"
+
+msgid "Delete messages older than x days (0 = all)"
+msgstr "x günden eski mesajları sil (0 = tümü)"
+
+msgid "Deleting messages ..."
+msgstr "Mesajlar siliniyor ..."
+
+msgid "All messages deleted."
+msgstr "Tüm mesajlar silindi."
+
+msgid "Adds a role to a member"
+msgstr "Bir üyeye rol ekler"
+
+msgid "Member {member} already has role {role}."
+msgstr "{member} üyesi zaten {role} rolüne sahip."
+
+msgid "Role {role} added to {member}."
+msgstr "{role} rolü {member} üyesine eklendi."
+
+msgid "You don't have permission to add role {role} to {member}."
+msgstr "{member} üyesine {role} rolünü ekleme izniniz yok."
+
+msgid "Removes a role from a member"
+msgstr "Bir üyeden rol kaldırır"
+
+msgid "Member {member} doesn't have role {role}."
+msgstr "{member} üyesi {role} rolüne sahip değil."
+
+msgid "Role {role} removed from {member}."
+msgstr "{role} rolü {member} üyesinden kaldırıldı."
+
+msgid "You don't have permission to remove role {role} from {member}."
+msgstr "{member} üyesinden {role} rolünü kaldırma izniniz yok."
+
+msgid "Run a healthcheck of your discord server"
+msgstr "Discord sunucunuzun güvenlik/sağlık kontrolünü çalıştırın"
+
+msgid "Please give the bot __temporary__ administrative permissions in this Discord server to run this command."
+msgstr "Bu komutu çalıştırmak için lütfen bota bu Discord sunucusunda __geçici__ yönetici izni verin."
+
+msgid "Admin Roles"
+msgstr "Yönetici Rolleri"
+
+msgid "Members"
+msgstr "Üyeler"
+
+msgid "Elevated Roles"
+msgstr "Yükseltilmiş Roller"
+
+msgid "Everyone Ping"
+msgstr "Everyone Etiketi"
+
+msgid "External Apps"
+msgstr "Harici Uygulamalar"
+
+msgid "No critical permissions found."
+msgstr "Kritik bir izin açığı bulunamadı."
+
+msgid "Channels"
+msgstr "Kanallar"
+
+msgid "You allow everyone to view {} channels."
+msgstr "Herkesin {} kanalı görmesine izin veriyorsunuz."
+
+msgid "The recommended approach is to have one landing channel and a role for users."
+msgstr "Önerilen yaklaşım, tek bir karşılama kanalı ve kullanıcılar için bir rol bulundurmaktır."
+
+msgid "Public Channels"
+msgstr "Herkese Açık Kanallar"
+
+msgid "Kicked for falling into the bot trap."
+msgstr "Bot tuzağına düştüğü için atıldı."
+
+msgid "Mentioning everyone"
+msgstr "Everyone etiketleme"
+
+msgid "Messages from this member will be ignored"
+msgstr "Messages from this member will be ignored"

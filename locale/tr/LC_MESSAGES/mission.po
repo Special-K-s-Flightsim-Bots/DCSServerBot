@@ -1,0 +1,886 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage a DCS mission"
+msgstr "DCS görevlerini yönetmek için komutlar"
+
+msgid "Info about the running mission"
+msgstr "Çalışan görev hakkında bilgi"
+
+msgid "Manage the active mission"
+msgstr "Aktif görevi yönet"
+
+msgid "Information about a specific airport"
+msgstr "Belirli bir havaalanı/üs hakkında bilgi"
+
+msgid "airport"
+msgstr "havaalanı"
+
+msgid "Airport for ATIS information"
+msgstr "ATIS bilgisi alınacak havaalanı"
+
+msgid "Server {} is not running."
+msgstr "{} sunucusu çalışmıyor."
+
+msgid "Shows briefing of the active mission"
+msgstr "Aktif görevin brifingini gösterir"
+
+msgid "Restarts the current active mission\n"
+msgstr "Mevcut aktif görevi yeniden başlatır\n"
+
+msgid "Rotates to the next mission\n"
+msgstr "Sıradaki göreve geçer\n"
+
+msgid "Can't restart server {server} as it is {status}!"
+msgstr "{server} sunucusu {status} durumunda olduğu için yeniden başlatılamıyor!"
+
+msgid "A restart is currently pending.\nWould you still like to {} the mission?"
+msgstr "Şu anda bekleyen bir yeniden başlatma var.\nYine de görevi {} ister misiniz?"
+
+msgid "restart"
+msgstr "yeniden başlatmak"
+
+msgid "rotate"
+msgstr "değiştirmek (sıradaki göreve geçirmek)"
+
+msgid "Do you really want to {} the mission?"
+msgstr "Görevi gerçekten {} istiyor musunuz?"
+
+msgid "Mission will {}, when server is empty."
+msgstr "Sunucu boşaldığında görev {}."
+
+msgid "!!! Mission will be {what} in {when}!!!"
+msgstr "!!! Görev {when} içinde {what} !!!"
+
+msgid "restarted"
+msgstr "yeniden başlatılacak"
+
+msgid "rotated"
+msgstr "değiştirilecek"
+
+msgid "!!! Mission will be {} NOW !!!"
+msgstr "!!! Görev ŞİMDİ {} !!!"
+
+msgid " Reason: {}"
+msgstr " Sebep: {}"
+
+msgid "Mission will be {what} in {when} (warning users before)..."
+msgstr "Görev {when} içinde {what} (kullanıcılar önceden uyarılıyor)..."
+
+msgid "Mission will {} now, please wait ..."
+msgstr "Görev şimdi {}, lütfen bekleyin ..."
+
+msgid "Mission {}."
+msgstr "Görev {}."
+
+msgid "Timeout while the mission {what}.\nPlease check with {command}, if the mission is running."
+msgstr "Görev {what} sırasında zaman aşımı oluştu.\nGörevin çalışıp çalışmadığını lütfen {command} ile kontrol edin."
+
+msgid "Loads a mission\n"
+msgstr "Bir görev yükler\n"
+
+msgid "Can't load mission on server {server} as it is {status}!"
+msgstr "{server} sunucusu {status} durumunda olduğu için görev yüklenemiyor!"
+
+msgid "change"
+msgstr "değiştir"
+
+msgid "Mission {} will be loaded when server is empty or on the next restart."
+msgstr "{} görevi sunucu boşaldığında veya bir sonraki yeniden başlatmada yüklenecektir."
+
+msgid "Loading mission {} ..."
+msgstr "{} görevi yükleniyor ..."
+
+msgid "Mission {} loaded."
+msgstr "{} görevi yüklendi."
+
+msgid "Mission {} NOT loaded. Check that you have installed the pre-requisites (terrains, mods)."
+msgstr "{} görevi YÜKLENEMEDİ. Gerekli harita veya modların yüklü olduğundan emin olun."
+
+msgid "Timeout while loading mission {}!"
+msgstr "{} görevi yüklenirken zaman aşımı oluştu!"
+
+msgid "Adds a mission to the list\n"
+msgstr "Listeye bir görev ekler\n"
+
+msgid "path"
+msgstr "dosya_yolu"
+
+msgid "No mission found."
+msgstr "Görev bulunamadı."
+
+msgid "Mission \"{}\" added."
+msgstr "\"{}\" görevi eklendi."
+
+msgid "Do you want to load this mission?"
+msgstr "Bu görevi şimdi yüklemek istiyor musunuz?"
+
+msgid "Deletes a mission from the list\n"
+msgstr "Listeden bir görevi siler\n"
+
+msgid "You can't delete the running mission."
+msgstr "Çalışmakta olan görevi silemezsiniz."
+
+msgid "Delete mission \"{}\" from the mission list?"
+msgstr "\"{}\" görevi görev listesinden silinsin mi?"
+
+msgid "Mission \"{}\" removed from list."
+msgstr "\"{}\" görevi listeden kaldırıldı."
+
+msgid "Delete \"{}\" also from disk?"
+msgstr "\"{}\" dosyası diskten de silinsin mi?"
+
+msgid "Mission \"{}\" deleted."
+msgstr "\"{}\" görevi silindi."
+
+msgid "Mission \"{}\" was already deleted."
+msgstr "\"{}\" görevi zaten silinmişti."
+
+msgid "deleted mission {}"
+msgstr "{} görevini sildi"
+
+msgid "Timeout while deleting mission.\nPlease reconfirm that the deletion was successful."
+msgstr "Görev silinirken zaman aşımı oluştu.\nLütfen silme işleminin başarılı olduğunu kontrol edin."
+
+msgid "Pauses the current running mission"
+msgstr "Çalışmakta olan görevi duraklatır"
+
+msgid "Mission on server \"{}\" paused."
+msgstr "\"{}\" sunucusundaki görev duraklatıldı."
+
+msgid "Resumes the running mission"
+msgstr "Duraklatılmış görevi devam ettirir"
+
+msgid "Mission on server \"{}\" resumed."
+msgstr "\"{}\" sunucusundaki görev devam ettirildi."
+
+msgid "Server \"{}\" is not paused."
+msgstr "\"{}\" sunucusu duraklatılmış durumda değil."
+
+msgid "Server {server} is {status}, can't unpause."
+msgstr "{server} sunucusu {status} durumunda, devam ettirilemiyor."
+
+msgid "Modify mission with a preset\n"
+msgstr "Görevi bir ön ayar (preset) ile değiştir\n"
+
+msgid "Chose an alternate presets file"
+msgstr "Alternatif bir ön ayar (presets) dosyası seçin"
+
+msgid "No presets available, please configure them in {}."
+msgstr "Kullanılabilir ön ayar yok, lütfen {} içinde yapılandırın."
+
+msgid "There is an error in your {}. Please check the file structure."
+msgstr "{} dosyanızda bir hata var. Lütfen dosya yapısını kontrol edin."
+
+msgid "Do you want to restart the server for a mission change?"
+msgstr "Görev değişikliği için sunucuyu yeniden başlatmak istiyor musunuz?"
+
+msgid "Mission will be changed when server is empty."
+msgstr "Sunucu boşaldığında görev değiştirilecektir."
+
+msgid "Changing mission ..."
+msgstr "Görev değiştiriliyor ..."
+
+msgid "The following preset were applied: {}."
+msgstr "Aşağıdaki ön ayarlar uygulandı: {}."
+
+msgid "\nMission reloaded."
+msgstr "\nGörev yeniden yüklendi."
+
+msgid "Timeout during restart of mission!\nPlease check, if the mission is running or if it somehow got corrupted."
+msgstr "Görevin yeniden başlatılması sırasında zaman aşımı!\nLütfen görevin çalışıp çalışmadığını veya bozulup bozulmadığını kontrol edin."
+
+msgid "Save mission preset\n"
+msgstr "Görev ön ayarını (preset) kaydet\n"
+
+msgid "Do you want to overwrite the existing preset \"{}\"?"
+msgstr "Mevcut \"{}\" ön ayarının üzerine yazmak istiyor musunuz?"
+
+msgid "Preset \"{}\" added."
+msgstr "\"{}\" ön ayarı eklendi."
+
+msgid "Rollback to the original mission file after any modifications"
+msgstr "Değişikliklerden sonra orijinal görev dosyasına geri dön"
+
+msgid "Please stop your server first to rollback the running mission."
+msgstr "Çalışan görevi geri almak için lütfen önce sunucunuzu durdurun."
+
+msgid "No \".orig\" file there, the mission was never changed."
+msgstr "\".orig\" dosyası bulunamadı, görev üzerinde değişiklik yapılmamış."
+
+msgid "Mission {} has been rolled back."
+msgstr "{} görevi orijinal haline geri alındı."
+
+msgid "Sets fog in the running mission"
+msgstr "Çalışan görevde sis ayarlarını yapar"
+
+msgid "Thickness has to be in the range 100-5000"
+msgstr "Kalınlık 100-5000 aralığında olmalıdır"
+
+msgid "Visibility has to be in the range 100-100000"
+msgstr "Görüş mesafesi 100-100000 aralığında olmalıdır"
+
+msgid "Current Fog Settings:\n- Thickness: {thickness:.2f}m\n- Visibility:\t{visibility:.2f}m"
+msgstr "Mevcut Sis Ayarları:\n- Kalınlık: {thickness:.2f}m\n- Görüş Mesafesi:\t{visibility:.2f}m"
+
+msgid "Runs a fog animation"
+msgstr "Sis animasyonu çalıştırır"
+
+msgid "You have more than 25 presets created, you can only choose from 25!"
+msgstr "25'ten fazla ön ayar oluşturdunuz, yalnızca 25 tanesinden seçim yapabilirsiniz!"
+
+msgid "There is no manual fog preset in your {}"
+msgstr "{} dosyanızda manuel sis ön ayarı yok"
+
+msgid "Commands to manage DCS players"
+msgstr "DCS oyuncularını yönetmek için komutlar"
+
+msgid "Lists the current players"
+msgstr "Mevcut aktif oyuncuları listeler"
+
+msgid "Kicks a player\n"
+msgstr "Bir oyuncuyu sunucudan atar (kick)\n"
+
+msgid "Player not found."
+msgstr "Oyuncu bulunamadı."
+
+msgid "Player {name} (ucid={ucid}) kicked."
+msgstr "Oyuncu {name} (ucid={ucid}) sunucudan atıldı."
+
+msgid "Bans an active player"
+msgstr "Aktif bir oyuncuyu yasaklar (banlar)"
+
+msgid "Ban Details"
+msgstr "Yasaklama (Ban) Detayları"
+
+msgid "Reason"
+msgstr "Sebep"
+
+msgid "n/a"
+msgstr "Yok"
+
+msgid "Days (empty = forever)"
+msgstr "Gün sayısı (boş bırakılırsa = süresiz)"
+
+msgid "Player {} banned on all servers "
+msgstr "Oyuncu {} tüm sunucularda yasaklandı "
+
+msgid "for {} days."
+msgstr "({} gün süreyle)."
+
+msgid "Moves a player to spectators\n"
+msgstr "Bir oyuncuyu izleyicilere (spectators) taşır\n"
+
+msgid "You have been moved to spectators. Reason: {}"
+msgstr "İzleyicilere taşındınız. Sebep: {}"
+
+msgid "Player \"{}\" moved to spectators."
+msgstr "Oyuncu \"{}\" izleyicilere taşındı."
+
+msgid "List of AFK players"
+msgstr "AFK (hareketsiz) oyuncuların listesi"
+
+msgid "These players are AFK for more than {} minutes:"
+msgstr "Bu oyuncular {} dakikadan uzun süredir AFK:"
+
+msgid "Name"
+msgstr "Ad"
+
+msgid "Time"
+msgstr "Zaman"
+
+msgid "Server"
+msgstr "Sunucu"
+
+msgid "No player is AFK for more than {} minutes."
+msgstr "{} dakikadan uzun süredir AFK olan oyuncu yok."
+
+msgid "Exempt player from AFK kicks"
+msgstr "Oyuncuyu AFK atılmalarından muaf tut"
+
+msgid "Do you want to permanently add this user to the AFK exemption list?"
+msgstr "Bu kullanıcıyı kalıcı olarak AFK muafiyet listesine eklemek istiyor musunuz?"
+
+msgid "User added to the exemption list."
+msgstr "Kullanıcı muafiyet listesine eklendi."
+
+msgid "Player is on the list already. Do you want to remove them?"
+msgstr "Oyuncu zaten listede. Listeden çıkarmak istiyor musunuz?"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "User removed from the exemption list."
+msgstr "Kullanıcı muafiyet listesinden çıkarıldı."
+
+msgid "Sends a popup to a player\n"
+msgstr "Bir oyuncuya açılır pencere (popup) mesajı gönderir\n"
+
+msgid "Message sent."
+msgstr "Mesaj gönderildi."
+
+msgid "Sends a chat message to a player\n"
+msgstr "Bir oyuncuya sohbet mesajı gönderir\n"
+
+msgid "Take a screenshot"
+msgstr "Ekran görüntüsü al"
+
+msgid "Server can not take screenshots."
+msgstr "Sunucu ekran görüntüsü alamıyor."
+
+msgid "Requesting screenshot ..."
+msgstr "Ekran görüntüsü isteniyor ..."
+
+msgid "Timeout while waiting for screenshot!"
+msgstr "Ekran görüntüsü beklenirken zaman aşımı oluştu!"
+
+msgid "Screenshot of Player {}"
+msgstr "Oyuncu {} Ekran Görüntüsü"
+
+msgid "Taken by"
+msgstr "Alan"
+
+msgid "Puts a player onto the watchlist"
+msgstr "Bir oyuncuyu izleme listesine (watchlist) alır"
+
+msgid "Member {} is not linked!"
+msgstr "Üye {} eşleştirilmemiş!"
+
+msgid "Player {} was already on the watchlist."
+msgstr "Oyuncu {} zaten izleme listesindeydi."
+
+msgid "Player {} is now on the watchlist."
+msgstr "Oyuncu {} artık izleme listesinde."
+
+msgid "Removes a player from the watchlist"
+msgstr "Bir oyuncuyu izleme listesinden çıkarır"
+
+msgid "Player {} removed from the watchlist."
+msgstr "Oyuncu {} izleme listesinden çıkarıldı."
+
+msgid "Shows the watchlist"
+msgstr "İzleme listesini (watchlist) gösterir"
+
+msgid "The watchlist is currently empty."
+msgstr "İzleme listesi şu anda boş."
+
+msgid "These players are currently on the watchlist:"
+msgstr "Şu anda izleme listesinde olan oyuncular:"
+
+msgid "UCID"
+msgstr "UCID"
+
+msgid "Created by"
+msgstr "Ekleyen"
+
+msgid "Commands to manage DCS groups"
+msgstr "DCS gruplarını yönetmek için komutlar"
+
+msgid "Sends a popup to a group\n"
+msgstr "Bir gruba açılır pencere (popup) mesajı gönderir\n"
+
+msgid "Links a member to a DCS user"
+msgstr "Bir Discord üyesini bir DCS oyuncusuyla eşleştirir"
+
+msgid "This member is linked to this UCID already."
+msgstr "Bu üye zaten bu UCID ile eşleştirilmiş."
+
+msgid "Member {name} is linked to another UCID ({ucid}) already. Do you want to relink?"
+msgstr "{name} üyesi zaten başka bir UCID ({ucid}) ile eşleştirilmiş. Yeniden eşleştirmek istiyor musunuz?"
+
+msgid "Member {name} linked to UCID {ucid}."
+msgstr "{name} üyesi {ucid} UCID numarasıyla eşleştirildi."
+
+msgid "Unlinks a member or ucid"
+msgstr "Bir üyenin veya UCID'nin eşleştirmesini kaldırır"
+
+msgid "Name of player, member or UCID"
+msgstr "Oyuncu adı, üye veya UCID"
+
+msgid "Member {name} unlinked from UCID {ucid}."
+msgstr "{name} üyesinin {ucid} UCID eşleştirmesi kaldırıldı."
+
+msgid "Player is not linked!"
+msgstr "Oyuncu eşleştirilmemiş!"
+
+msgid "Unknown player / member provided"
+msgstr "Bilinmeyen oyuncu / üye girildi"
+
+msgid "Find a player by name"
+msgstr "İsme göre oyuncu bul"
+
+msgid "last seen"
+msgstr "son görülme"
+
+msgid "No user found."
+msgstr "Kullanıcı bulunamadı."
+
+msgid "Select a User"
+msgstr "Bir Kullanıcı Seçin"
+
+msgid "Shows player information"
+msgstr "Oyuncu bilgilerini gösterir"
+
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Bu kullanıcı mevcut değil. Geçmiş verilerde bulmak için {} komutunu deneyin."
+
+msgid "Shows inactive users"
+msgstr "Pasif kullanıcıları gösterir"
+
+msgid "Check if 2 players are the same"
+msgstr "2 oyuncunun aynı kişi olup olmadığını kontrol et"
+
+msgid "You have provided the same UCID twice."
+msgstr "Aynı UCID'yi iki kez girdiniz."
+
+msgid "Show players that could be linked"
+msgstr "Eşleştirilebilecek oyuncuları göster"
+
+msgid "Unlinked Players"
+msgstr "Eşleştirilmemiş Oyuncular"
+
+msgid "These players could be possibly linked:"
+msgstr "Bu oyuncular muhtemelen eşleştirilebilir:"
+
+msgid "ID"
+msgstr "ID"
+
+msgid "DCS Player"
+msgstr "DCS Oyuncusu"
+
+msgid "Member"
+msgstr "Discord Üyesi"
+
+msgid "Press a number to link this specific user."
+msgstr "Belirli bir kullanıcıyı eşleştirmek için bir numaraya basın."
+
+msgid "No unmatched member could be matched."
+msgstr "Eşleştirilebilecek üye bulunamadı."
+
+msgid "DCS player {player} linked to member {member}."
+msgstr "DCS oyuncusu {player}, {member} üyesiyle eşleştirildi."
+
+msgid "Show possibly mislinked players"
+msgstr "Yanlış eşleştirilmiş olabilecek oyuncuları göster"
+
+msgid "Possible Mislinks"
+msgstr "Olası Yanlış Eşleştirmeler"
+
+msgid "These players could be possibly mislinked:"
+msgstr "Bu oyuncular yanlış eşleştirilmiş olabilir:"
+
+msgid "Press a number to unlink this specific user."
+msgstr "Bu kullanıcının eşleştirmesini kaldırmak için bir numaraya basın."
+
+msgid "No mislinked players found."
+msgstr "Yanlış eşleştirilmiş oyuncu bulunamadı."
+
+msgid "UCID {ucid} transferred from member {old_member} to member {new_member}."
+msgstr "{ucid} UCID numarası {old_member} üyesinden {new_member} üyesine aktarıldı."
+
+msgid "Link your DCS and Discord user"
+msgstr "DCS ve Discord hesabınızı eşleştirin"
+
+msgid "**Your secure TOKEN is: {token}**\nTo link your user, type in the following into the DCS chat of one of our servers:```{prefix}linkme {token}```\n\n**The TOKEN will expire in 2 days!**"
+msgstr "**Güvenli EŞLEŞTİRME KODUNUZ (TOKEN): {token}**\nHesabınızı eşleştirmek için sunucularımızdan birinde DCS oyun içi sohbetine (chat) şunu yazın:```{prefix}linkme {token}```\n\n**Bu kodun süresi 2 gün içinde dolacaktır!**"
+
+msgid "You already have a verified DCS account!\nAre you sure you want to re-link your account? (Ex: Switched from Steam to Standalone)"
+msgstr "Zaten doğrulanmış bir DCS hesabınız var!\nHesabınızı yeniden eşleştirmek istediğinizden emin misiniz? (Örn: Steam sürümünden Standalone sürümüne geçiş)"
+
+msgid "Shows inactive players"
+msgstr "Pasif oyuncuları gösterir"
+
+msgid "Validate the menus.yaml"
+msgstr "menus.yaml dosyasını doğrula"
+
+msgid "No menus.yaml found."
+msgstr "menus.yaml bulunamadı."
+
+msgid "To which server do you want to upload this mission to?"
+msgstr "Bu görevi hangi sunucuya yüklemek istiyorsunuz?"
+
+msgid "Upload aborted."
+msgstr "Yükleme iptal edildi."
+
+msgid "A mission is currently active.\nDo you want me to stop the DCS-server to replace it?"
+msgstr "Şu anda bir görev aktif.\nDeğiştirmek için DCS sunucusunu durdurmamı ister misiniz?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Dosya zaten mevcut. Üzerine yazmak istiyor musunuz?"
+
+msgid "Error while uploading: {}"
+msgstr "Yükleme sırasında hata: {}"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and NOT added."
+msgstr "\"{mission}\" görevi {server} sunucusuna yüklendi ancak listeye EKLENMEDİ."
+
+msgid "Mission \"{mission}\" uploaded to server {server}.\nAs you have \"autoscan\" enabled, it might take some seconds to appear in your mission list."
+msgstr "\"{mission}\" görevi {server} sunucusuna yüklendi.\n\"autoscan\" etkin olduğu için görev listenizde görünmesi birkaç saniye sürebilir."
+
+msgid "Error while uploading: File not found in severSettings.lua!"
+msgstr "Yükleme sırasında hata: Dosya serverSettings.lua içinde bulunamadı!"
+
+msgid "Mission \"{mission}\" uploaded to server {server} and added."
+msgstr "\"{mission}\" görevi {server} sunucusuna yüklendi ve görev listesine eklendi."
+
+msgid "Do you want to apply extensions before mission start?"
+msgstr "Görev başlamadan önce eklentileri (extensions) uygulamak istiyor musunuz?"
+
+msgid "Timeout while trying to load the mission."
+msgstr "Görev yüklenmeye çalışılırken zaman aşımı oluştu."
+
+msgid "Liquids"
+msgstr "Liquids"
+
+msgid "unlimited"
+msgstr "unlimited"
+
+msgid "Weapons"
+msgstr "Weapons"
+
+msgid "{} items each"
+msgstr "{} items each"
+
+msgid "all other weapons"
+msgstr "all other weapons"
+
+msgid "... and {} more types"
+msgstr "... and {} more types"
+
+msgid "Aircraft"
+msgstr "Hava Aracı"
+
+msgid "all other aircraft"
+msgstr "all other aircraft"
+
+msgid "Code"
+msgstr "Code"
+
+msgid "Type"
+msgstr "Type"
+
+msgid "Coalition"
+msgstr "Koalisyon"
+
+msgid "Dynamic Spawns"
+msgstr "Dynamic Spawns"
+
+msgid "available"
+msgstr "available"
+
+msgid "Dynamic Hotstarts"
+msgstr "Dynamic Hotstarts"
+
+msgid "Position"
+msgstr "Position"
+
+msgid "Runways"
+msgstr "Runways"
+
+msgid "Runway"
+msgstr "Runway"
+
+msgid "Course"
+msgstr "Course"
+
+msgid "Length (ft)"
+msgstr "Length (ft)"
+
+msgid "Runway spawns"
+msgstr "Runway spawns"
+
+msgid "Helicopter only spawns"
+msgstr "Helicopter only spawns"
+
+msgid "Hardened air shelter"
+msgstr "Hardened air shelter"
+
+msgid "Open/Shelter airplane only"
+msgstr "Open/Shelter airplane only"
+
+msgid "Small shelter"
+msgstr "Small shelter"
+
+msgid "Open air spawn"
+msgstr "Open air spawn"
+
+msgid "Parking"
+msgstr "Parking"
+
+msgid "Count"
+msgstr "Adet"
+
+msgid "Warehouse"
+msgstr "Warehouse"
+
+msgid "You need to provide a mission!"
+msgstr "You need to provide a görev!"
+
+msgid "Permission denied while deleting mission \"{}\"."
+msgstr "Pergörev denied while deleting görev \"{}\"."
+
+msgid "Error while applying preset {}: {}"
+msgstr "Error while applying preset {}: {}"
+
+msgid "Can't load presets file {}."
+msgstr "Can't load presets file {}."
+
+msgid "There are no presets to chose from."
+msgstr "There are no presets to chose from."
+
+msgid "A restart is currently pending.\nWould you still like to modify the mission?"
+msgstr "A restart is currently pending.\nWould you still like to modify the görev?"
+
+msgid "Thickness of the fog [100-5000]m, to disable, set 0."
+msgstr "Thickness of the fog [100-5000]m, to disable, set 0."
+
+msgid "Visibility of the fog [100-100000]m, to disable, set 0."
+msgstr "Visibility of the fog [100-100000]m, to disable, set 0."
+
+msgid "The following preset was applied: {}."
+msgstr "The following preset was applied: {}."
+
+msgid "Enables persistence"
+msgstr "Enables persistence"
+
+msgid "Please stop your server first to enable persistence of the running mission."
+msgstr "Please stop your sunucu first to enable persistence of the running görev."
+
+msgid "No \".orig\" file found."
+msgstr "No \".orig\" file found."
+
+msgid "{} is currently in use. Aborted."
+msgstr "{} is currently in use. Aborted."
+
+msgid "Persistence for mission {} enabled."
+msgstr "Persistence for görev {} enabled."
+
+msgid "Commands to manage airbases"
+msgstr "Yönetim komutları: airbases"
+
+msgid "Information about a specific airbase"
+msgstr "Information about a specific airbase"
+
+msgid "airbase"
+msgstr "airbase"
+
+msgid "Airbase for warehouse information"
+msgstr "Airbase for warehouse information"
+
+msgid "Error: {}"
+msgstr "Hata: {}"
+
+msgid "Automatic Terminal Information Service (ATIS)"
+msgstr "Automatic Terminal Information Service (ATIS)"
+
+msgid "Airbase for ATIS information"
+msgstr "Airbase for ATIS information"
+
+msgid "Capture an airbase"
+msgstr "Capture an airbase"
+
+msgid "Airbase to capture"
+msgstr "Airbase to capture"
+
+msgid "Airbase \"{}\" belonged to coalition {} already."
+msgstr "Airbase \"{}\" belonged to coalition {} already."
+
+msgid "Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!"
+msgstr "Airbase \"{}\": Coalition changed to **{}**.\n:warning: Auto-capturing is now **disabled**!"
+
+msgid "Commands to manage warehouses"
+msgstr "Yönetim komutları: warehouses"
+
+msgid "You are not allowed to view a warehouse item of the opposite coalition."
+msgstr "You are not allowed to view a warehouse item of the opposite coalition."
+
+msgid "Warehouse information for {}"
+msgstr "Warehouse information for {}"
+
+msgid "{} tons"
+msgstr "{} tons"
+
+msgid "{} pcs"
+msgstr "{} pcs"
+
+msgid "Inventory for {}"
+msgstr "Inventory for {}"
+
+msgid "Do you really want to set all {} values in your warehouse to {}?"
+msgstr "Do you really want to set all {} values in your warehouse to {}?"
+
+msgid "Set warehouses items"
+msgstr "Set warehouses items"
+
+msgid "Get warehouses items"
+msgstr "Get warehouses items"
+
+msgid "Export a warehouse"
+msgstr "Export a warehouse"
+
+msgid "Export all possible wstypes"
+msgstr "Export all possible wstypes"
+
+msgid "Server {} is {}."
+msgstr "Sunucu {} is {}."
+
+msgid "Adds a player to the watchlist"
+msgstr "Adds a oyuncu to the watchlist"
+
+msgid "Locks a player"
+msgstr "Locks a oyuncu"
+
+msgid "Player {} has been locked."
+msgstr "Oyuncu {} has been locked."
+
+msgid "Unlocks a player"
+msgstr "Unlocks a oyuncu"
+
+msgid "Player has been unlocked."
+msgstr "Oyuncu has been unlocked."
+
+msgid "Mutes a player"
+msgstr "Mutes a oyuncu"
+
+msgid "Player {} has been muted."
+msgstr "Oyuncu {} has been muted."
+
+msgid "Unmutes a player"
+msgstr "Unmutes a oyuncu"
+
+msgid "Player has been unmuted."
+msgstr "Oyuncu has been unmuted."
+
+msgid "User not found."
+msgstr "User bulunamadı."
+
+msgid "Role {} not found!"
+msgstr "Role {} bulunamadı!"
+
+msgid "permission \"Manage Roles\" missing."
+msgstr "pergörev \"Manage Roles\" missing."
+
+msgid "The players never played at the same time."
+msgstr "The oyuncus never played at the same time."
+
+msgid "Commands to manage mission menus"
+msgstr "Yönetim komutları: görev menus"
+
+msgid "Convert values"
+msgstr "Convert values"
+
+msgid "Loading warehouse for airport {} ..."
+msgstr "Loading warehouse for airport {} ..."
+
+msgid "> uploading {} information ..."
+msgstr "> uploading {} information ..."
+
+msgid "Warehouse at {} updated."
+msgstr "Warehouse at {} updated."
+
+msgid "You need to be DCS Admin or GameMaster to upload data."
+msgstr "You need to be DCS Admin or GameMaster to upload data."
+
+msgid "To which server do you want to upload?"
+msgstr "To which sunucu do you want to upload?"
+
+msgid "Server {} has to be running or paused."
+msgstr "Sunucu {} has to be running or paused."
+
+msgid "Upload to all warehouses of this coalition:"
+msgstr "Upload to all warehouses of this coalition:"
+
+msgid "Airport with ICAO {} not found."
+msgstr "Airport with ICAO {} bulunamadı."
+
+msgid "Airport with name {} not found."
+msgstr "Airport with name {} bulunamadı."
+
+msgid "Do you want to load a new warehouse configuration?"
+msgstr "Do you want to load a new warehouse configuration?"
+
+msgid "This will replace the warehouse configuration for:\n{}"
+msgstr "This will replace the warehouse configuration for:\n{}"
+
+msgid "All data uploaded."
+msgstr "All data uploaded."
+
+msgid "Error while processing the file: {}"
+msgstr "Error while processing the file: {}"
+
+msgid "A new mission is being set up. Try again in a bit."
+msgstr "A new görev is being set up. Try again in a bit."
+
+msgid "The server will be locked for a mission restart."
+msgstr "The sunucu will be locked for a görev restart."
+
+msgid "User {} (ucid={})\nRejected due to inappropriate nickname."
+msgstr "User {} (ucid={})\nRejected due to inappropriate nickname."
+
+msgid "User {} (ucid={})\nPotentially inappropriate nickname."
+msgstr "User {} (ucid={})\nPotentially inappropriate nickname."
+
+msgid "Banned user rejected"
+msgstr "Banned user rejected"
+
+msgid "never"
+msgstr "asla (süresiz)"
+
+msgid "Possible ban-evasion detected"
+msgstr "Possible ban-evasion detected"
+
+msgid "Do you want to replace the running mission?"
+msgstr "Do you want to replace the running görev?"
+
+msgid "The server needs to be stopped."
+msgstr "The sunucu needs to be stopped."
+
+msgid "Mission \"{mission}\" uploaded to server {server}."
+msgstr "Görev \"{görev}\" uploaded to sunucu {sunucu}."
+
+msgid "Loading mission \"{}\" ..."
+msgstr "Loading görev \"{}\" ..."
+
+msgid "Mission \"{}\" NOT loaded."
+msgstr "Görev \"{}\" NOT loaded."
+
+msgid "Mission \"{}\" loaded."
+msgstr "Görev \"{}\" loaded."
+
+msgid "Timeout while loading mission \"{}\"!"
+msgstr "Timeout while loading görev \"{}\"!"
+
+msgid "Do you want to load the new mission?"
+msgstr "Do you want to load the new görev?"
+
+msgid "Auto Capture"
+msgstr "Auto Capture"
+
+msgid "No Auto Capture"
+msgstr "No Auto Capture"
+
+msgid "ATC On"
+msgstr "ATC On"
+
+msgid "ATC Off"
+msgstr "ATC Off"
+
+msgid "Capture"
+msgstr "Capture"
+
+msgid "Download Inventory"
+msgstr "Download Inventory"
+
+msgid "Cancel"
+msgstr "İptal"
+
+msgid "User {} banned on all servers "
+msgstr "User {} banned on all sunucus "
+
+msgid "Watch Details"
+msgstr "Watch Details"

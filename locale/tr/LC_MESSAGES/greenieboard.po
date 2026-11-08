@@ -1,0 +1,136 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to display and manage carrier traps"
+msgstr "Uçak gemisi inişlerini (trap) görüntülemek ve yönetmek için komutlar"
+
+msgid "Show carrier landing qualifications"
+msgstr "Uçak gemisi iniş yeterliliklerini göster"
+
+msgid "No carrier landings recorded for this user."
+msgstr "Bu kullanıcı için kaydedilmiş uçak gemisi inişi yok."
+
+msgid "Select a trap for details"
+msgstr "Detaylar için bir iniş (trap) seçin"
+
+msgid "Select the plane for the trap"
+msgstr "İniş için uçağı seçin"
+
+msgid "Display the current Greenieboard"
+msgstr "Mevcut Greenieboard tablosunu göster"
+
+msgid "Adds a trap to the Greenieboard"
+msgstr "Greenieboard tablosuna bir iniş ekler"
+
+msgid "You need to specify grades in your greenieboard.yaml to use {}!"
+msgstr "{} kullanmak için greenieboard.yaml dosyanızda dereceleri (grades) belirtmelisiniz!"
+
+msgid "Trap added."
+msgstr "İniş (trap) eklendi."
+
+msgid "Aborted,"
+msgstr "İptal edildi,"
+
+msgid "Time (HH24:MI)"
+msgstr "Saat (SS:DD)"
+
+msgid "Case"
+msgstr "Case"
+
+msgid "Grade"
+msgstr "Not"
+
+msgid "LSO Comment"
+msgstr "LSO Yorumu"
+
+msgid "Wire"
+msgstr "Halat (Wire)"
+
+msgid "Enter the trap details"
+msgstr "İniş detaylarını girin"
+
+msgid "Case needs to be one of 1, 2 or 3."
+msgstr "Case değeri 1, 2 veya 3 olmalıdır."
+
+msgid "Grade has to be one of {}."
+msgstr "Not şunlardan biri olmalıdır: {}."
+
+msgid "Wire needs to be one of 1 to 4."
+msgstr "Halat (Wire) 1 ile 4 arasında olmalıdır."
+
+msgid "Resets all traps"
+msgstr "Tüm uçak gemisi iniş kayıtlarını sıfırlar"
+
+msgid "Do you want to reset all traps?"
+msgstr "Tüm iniş kayıtlarını sıfırlamak istiyor musunuz?"
+
+msgid "User {} is not linked!"
+msgstr "User {} is not linked!"
+
+msgid "Do you want to reset all traps for user {}"
+msgstr "{} kullanıcısı için tüm iniş kayıtlarını sıfırlamak istiyor musunuz?"
+
+msgid "All traps reset."
+msgstr "Tüm iniş kayıtları sıfırlandı."
+
+msgid "Carrier Landing"
+msgstr "Uçak Gemisi İnişi"
+
+msgid "Landing on {place} with grade {grade}."
+msgstr "{place} gemisine {grade} notuyla iniş."
+
+msgid "Date/Time"
+msgstr "Tarih/Saat"
+
+msgid "Plane"
+msgstr "Uçak"
+
+msgid "Carrier"
+msgstr "Uçak Gemisi"
+
+msgid "Points"
+msgstr "Puan"
+
+msgid "LSO Grade: {}"
+msgstr "LSO Notu: {}"
+
+msgid " (a little)\n"
+msgstr " (biraz)\n"
+
+msgid " (a lot!)\n"
+msgstr " (çok fazla!)\n"
+
+msgid " (ignored)\n"
+msgstr " (yoksayıldı)\n"
+
+msgid "Traps"
+msgstr "İnişler (Traps)"
+
+msgid "No data available."
+msgstr "Veri mevcut değil."
+
+msgid "Pilot"
+msgstr "Pilot"
+
+msgid "Avg"
+msgstr "Ort."
+
+msgid "\nThe most recent landing is added at the front.\nNight landings have round markers."
+msgstr "\nEn son iniş en başa eklenir.\nGece inişleri yuvarlak işaretlidir."
+
+msgid "\nLast recorded trap: {time:%y-%m-%d %H:%M:%S}"
+msgstr "\nSon kaydedilen iniş: {time:%y-%m-%d %H:%M:%S}"
+
+msgid "Draw landings right to left (default: True)"
+msgstr "Draw landings right to left (default: True)"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Aborted"
+msgstr "İptal Edildi"

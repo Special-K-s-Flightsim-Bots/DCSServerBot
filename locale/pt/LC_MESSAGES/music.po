@@ -1,0 +1,152 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to manage music in your (DCS) server"
+msgstr "Comandos para gerenciar música no seu servidor (DCS)"
+
+msgid "Music Player"
+msgstr "Reprodutor de música"
+
+msgid "You don't have any playlists to play. Please create one with {}."
+msgstr "Você não tem nenhuma playlist para reproduzir. Crie uma com {}."
+
+msgid "Frequency"
+msgstr "Frequência"
+
+msgid "Coalition"
+msgstr "Coalizão"
+
+msgid "Red"
+msgstr "Vermelho"
+
+msgid "Blue"
+msgstr "Azul"
+
+msgid "Neutral"
+msgstr "Neutro"
+
+msgid "n/a"
+msgstr "n/d"
+
+msgid " Now Playing "
+msgstr " Tocando agora "
+
+msgid "Title"
+msgstr "Título"
+
+msgid "Artist"
+msgstr "Artista"
+
+msgid "Album"
+msgstr "Álbum"
+
+msgid "- empty -"
+msgstr "- vazio -"
+
+msgid "Pick a song from the list"
+msgstr "Escolha uma música da lista"
+
+msgid "Use /music play to access all songs in the list.\n"
+msgstr "Use /music play para acessar todas as músicas da lista.\n"
+
+msgid "Pick a playlist to play"
+msgstr "Escolha uma playlist para reproduzir"
+
+msgid "Stop"
+msgstr "Parar"
+
+msgid "Play"
+msgstr "Reproduzir"
+
+msgid "Skip"
+msgstr "Pular"
+
+msgid "Repeat"
+msgstr "Repetir"
+
+msgid "Shuffle"
+msgstr "Aleatório"
+
+msgid "Change Settings for {}"
+msgstr "Alterar configurações de {}"
+
+msgid "Frequency (xxx.xx)"
+msgstr "Frequência (xxx.xx)"
+
+msgid "Modulation (AM | FM)"
+msgstr "Modulação (AM | FM)"
+
+msgid "Coalition (1=red | 2=blue)"
+msgstr "Coalizão (1=vermelho | 2=azul)"
+
+msgid "Display Name"
+msgstr "Nome de exibição"
+
+msgid "Modulation must be one of AM | FM!"
+msgstr "A modulação deve ser AM | FM!"
+
+msgid "Coalition must be 1 or 2!"
+msgstr "A coalizão deve ser 1 ou 2!"
+
+msgid "Play a song or a playlist\n"
+msgstr "Reproduzir uma música ou uma playlist\n"
+
+msgid "Server {} is not running."
+msgstr "O servidor {} não está em execução."
+
+msgid "Now playing {} ..."
+msgstr "Tocando agora {} ..."
+
+msgid "Radio {} started."
+msgstr "Rádio {} iniciado."
+
+msgid "Stop playing"
+msgstr "Parar reprodução"
+
+msgid "Radio {} stopped."
+msgstr "Rádio {} parado."
+
+msgid "Commands to manage music playlists"
+msgstr "Comandos para gerenciar playlists de música"
+
+msgid "Add a song to a playlist"
+msgstr "Adicionar uma música a uma playlist"
+
+msgid "{title} has been added to playlist {playlist}."
+msgstr "{title} foi adicionada à playlist {playlist}."
+
+msgid "Add all available songs to a playlist"
+msgstr "Adicionar todas as músicas disponíveis a uma playlist"
+
+msgid "Do you really want to add ALL songs to the playlist?"
+msgstr "Deseja realmente adicionar TODAS as músicas à playlist?"
+
+msgid "Remove a song from a playlist"
+msgstr "Remover uma música de uma playlist"
+
+msgid "{title} has been removed from playlist {playlist}."
+msgstr "{title} foi removida da playlist {playlist}."
+
+msgid "Playlist {} deleted."
+msgstr "Playlist {} excluída."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "O arquivo já existe. Deseja sobrescrevê-lo?"
+
+msgid "Song {} uploaded."
+msgstr "Música {} enviada."
+
+msgid "Error {status} while reading file {file}!"
+msgstr "Erro {status} ao ler o arquivo {file}!"
+
+msgid "Do you really want to add ALL songs from the `{}` folder to the playlist?"
+msgstr "Deseja realmente adicionar TODAS as músicas da pasta `{}` à playlist?"
+
+msgid "Playlist {} updated."
+msgstr "Playlist {} atualizada."

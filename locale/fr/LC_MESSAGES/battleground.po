@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "DCSBattleground commands"
+msgstr "Commandes DCSBattleground"
+
+msgid "Push MGRS coordinates with screenshots to DCS Battleground"
+msgstr "Envoyez des coordonnées MGRS avec captures d'écran vers DCS Battleground"
+
+msgid "The second parameter needs to be a MGRS coordinate (ex: 38TLN0274366889)."
+msgstr "Le second paramètre doit être une coordonnée MGRS (ex : 38TLN0274366889)."
+
+msgid "Recon data added - {side} side - {server}"
+msgstr "Données de reconnaissance ajoutées - camp {side} - {server}"
+
+msgid "Coalitions have to be enabled and you need to use this command in one of your coalition channels!"
+msgstr "Les coalitions doivent être activées et vous devez utiliser cette commande dans l'un de vos salons de coalition !"
+
+msgid "Delete recon data on a specified server"
+msgstr "Supprime les données de reconnaissance d'un serveur donné"
+
+msgid "Recon data deleted for server {}."
+msgstr "Données de reconnaissance supprimées pour le serveur {}."

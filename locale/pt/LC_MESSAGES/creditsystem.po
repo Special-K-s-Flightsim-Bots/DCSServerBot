@@ -1,0 +1,182 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to manage player credits"
+msgstr "Comandos para gerenciar os créditos dos jogadores"
+
+msgid "Shows your current credits"
+msgstr "Mostra seus créditos atuais"
+
+msgid "You need the DCS Admin role to use this command!"
+msgstr "Você precisa do cargo DCS Admin para usar este comando!"
+
+msgid "Member {} is not linked to any DCS user!"
+msgstr "O membro {} não está vinculado a nenhum usuário DCS!"
+
+msgid "Use {} to link your account."
+msgstr "Use {} para vincular sua conta."
+
+msgid "{} has no campaign credits."
+msgstr "{} não tem créditos de campanha."
+
+msgid "Campaign Credits for {}"
+msgstr "Créditos de Campanha de {}"
+
+msgid "Campaign"
+msgstr "Campanha"
+
+msgid "Credits"
+msgstr "Créditos"
+
+msgid "Time"
+msgstr "Hora"
+
+msgid "Event"
+msgstr "Evento"
+
+msgid "Log shows the last 10 events only."
+msgstr "O log mostra apenas os últimos 10 eventos."
+
+msgid "{} needs to properly link their DCS account to receive donations."
+msgstr "{} precisa vincular corretamente sua conta DCS para receber doações."
+
+msgid "It seems like there is no campaign running on your server(s)."
+msgstr "Parece que não há nenhuma campanha em execução no(s) seu(s) servidor(es)."
+
+msgid "Campaign Credits"
+msgstr "Créditos de Campanha"
+
+msgid "Member {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "O membro {} ultrapassaria o máximo de pontos configurado com esta doação. Abortado."
+
+msgid "Donation from member {}"
+msgstr "Doação do membro {}"
+
+msgid "Credit points change by Admin {}"
+msgstr "Alteração de pontos de crédito pelo Admin {}"
+
+msgid "You just received {} credit points from an Admin."
+msgstr "Você acabou de receber {} pontos de crédito de um Admin."
+
+msgid ", you just received {} credit points from an Admin."
+msgstr ", você acabou de receber {} pontos de crédito de um Admin."
+
+msgid "Your credits were decreased by {} credit points by an Admin."
+msgstr "Seus créditos foram reduzidos em {} pontos de crédito por um Admin."
+
+msgid ", your credits were decreased by {} credit points by an Admin."
+msgstr ", seus créditos foram reduzidos em {} pontos de crédito por um Admin."
+
+msgid "Donated {credits} points to {name}."
+msgstr "Doou {credits} pontos para {name}."
+
+msgid "Donate credits to another member"
+msgstr "Doar créditos para outro membro"
+
+msgid "You can't donate to yourself."
+msgstr "Você não pode doar para si mesmo."
+
+msgid "Your donation has to be > 0."
+msgstr "Sua doação deve ser > 0."
+
+msgid "You need to properly link your DCS account to give donations!"
+msgstr "Você precisa vincular corretamente sua conta DCS para fazer doações!"
+
+msgid "You don't have any credit points to donate."
+msgstr "Você não tem nenhum ponto de crédito para doar."
+
+msgid "You can't donate {donation} credit points, you only have {total}!"
+msgstr "Você não pode doar {donation} pontos de crédito, você só tem {total}!"
+
+msgid "Donation to member {}"
+msgstr "Doação para o membro {}"
+
+msgid "You just received {donation} credit points from {member}!"
+msgstr "Você acabou de receber {donation} pontos de crédito de {member}!"
+
+msgid ", you just received {donation} credit points from {member}!"
+msgstr ", você acabou de receber {donation} pontos de crédito de {member}!"
+
+msgid "Reset credits for a player or a whole campaign"
+msgstr "Redefinir os créditos de um jogador ou de uma campanha inteira"
+
+msgid "I'm going to delete the campaign credits of user\n"
+msgstr "Vou excluir os créditos de campanha do usuário\n"
+
+msgid "I'm going to delete all campaign credits for the running campaign."
+msgstr "Vou excluir todos os créditos de campanha da campanha em execução."
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Campaign credits have been deleted."
+msgstr "Os créditos de campanha foram excluídos."
+
+msgid "Initial points received"
+msgstr "Pontos iniciais recebidos"
+
+msgid "{name}, you currently have {credits} credit points."
+msgstr "{name}, você tem atualmente {credits} pontos de crédito."
+
+msgid "Unknown mission achievement"
+msgstr "Conquista de missão desconhecida"
+
+msgid "for killing {}"
+msgstr "por abater {}"
+
+msgid "You currently have {} credit points"
+msgstr "Você tem atualmente {} pontos de crédito"
+
+msgid "Donate credits to another player"
+msgstr "Doar créditos para outro jogador"
+
+msgid "Usage: {prefix}{command} player points"
+msgstr "Uso: {prefix}{command} player points"
+
+msgid "Player {} not found."
+msgstr "Jogador {} não encontrado."
+
+msgid "Player {} would overrun the configured maximum points with this donation. Aborted."
+msgstr "O jogador {} ultrapassaria o máximo de pontos configurado com esta doação. Abortado."
+
+msgid "Donation to player {}"
+msgstr "Doação para o jogador {}"
+
+msgid "Donation from player {}"
+msgstr "Doação do jogador {}"
+
+msgid "You've donated {donation} credit points to player {name}."
+msgstr "Você doou {donation} pontos de crédito para o jogador {name}."
+
+msgid "Player {name} donated {donation} credit points to you!"
+msgstr "O jogador {name} doou {donation} pontos de crédito para você!"
+
+msgid "Tip a GCI with points"
+msgstr "Dar gorjeta a um GCI com pontos"
+
+msgid "Usage: {prefix}{command} points [gci_number]"
+msgstr "Uso: {prefix}{command} points [gci_number]"
+
+msgid "There is currently no {} GCI active."
+msgstr "No momento não há {} GCI ativo."
+
+msgid "Multiple GCIs found, use \"{}tip points gci_number\"."
+msgstr "Vários GCIs encontrados, use \"{}tip points gci_number\"."
+
+msgid "You've donated {donation} credit points to GCI {name}."
+msgstr "Você doou {donation} pontos de crédito para o GCI {name}."
+
+msgid "Usage: {}donate player points"
+msgstr "Uso: {}donate player points"
+
+msgid "Usage: {}tip points [gci_number]"
+msgstr "Uso: {}tip points [gci_number]"
+
+msgid "I'm going to delete the campaign credits of user\n{} for the running campaign."
+msgstr "Vou excluir os créditos de campanha do usuário\n{} da campanha em execução."

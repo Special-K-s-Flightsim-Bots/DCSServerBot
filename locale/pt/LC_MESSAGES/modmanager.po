@@ -1,0 +1,182 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to manage custom mods in your DCS server"
+msgstr "Comandos para gerenciar mods personalizados no seu servidor DCS"
+
+msgid "manage mods"
+msgstr "gerenciar mods"
+
+msgid "Shutting down {}, please wait ..."
+msgstr "Desligando {}, por favor aguarde ..."
+
+msgid "**The following mods are currently installed:**"
+msgstr "**Os seguintes mods estão instalados no momento:**"
+
+msgid "Version"
+msgstr "Versão"
+
+msgid "Update"
+msgstr "Atualizar"
+
+msgid "There are no mods installed."
+msgstr "Não há mods instalados."
+
+msgid "Select a mod to install / update"
+msgstr "Selecione um mod para instalar / atualizar"
+
+msgid "Select a mod to uninstall"
+msgstr "Selecione um mod para desinstalar"
+
+msgid "Download"
+msgstr "Baixar"
+
+msgid "Shutdown"
+msgstr "Desligar"
+
+msgid "⚠️ Server {} needs to be shut down to change mods."
+msgstr "⚠️ O servidor {} precisa ser desligado para alterar mods."
+
+msgid "Quit"
+msgstr "Sair"
+
+msgid "Updating mod {}, please wait ..."
+msgstr "Atualizando o mod {}, por favor aguarde ..."
+
+msgid "Mod {mod}_v{version} could not be uninstalled!"
+msgstr "Não foi possível desinstalar o mod {mod}_v{version}!"
+
+msgid "Mod {mod}_v{version} could not be installed!"
+msgstr "Não foi possível instalar o mod {mod}_v{version}!"
+
+msgid "Mod {} updated."
+msgstr "Mod {} atualizado."
+
+msgid "Installing mod {}, please wait ..."
+msgstr "Instalando o mod {}, por favor aguarde ..."
+
+msgid "Installation of mod {} failed."
+msgstr "A instalação do mod {} falhou."
+
+msgid "Mod {} installed."
+msgstr "Mod {} instalado."
+
+msgid "Uninstalling mod {}, please wait ..."
+msgstr "Desinstalando o mod {}, por favor aguarde ..."
+
+msgid "Mod {} uninstalled."
+msgstr "Mod {} desinstalado."
+
+msgid "Download a new Mod"
+msgstr "Baixar um novo mod"
+
+msgid "URL / GitHub Repo"
+msgstr "URL / Repositório GitHub"
+
+msgid "Destination (S=Saved Games / R=Root Folder)"
+msgstr "Destino (S=Saved Games / R=Pasta raiz)"
+
+msgid "Not a valid URL!"
+msgstr "URL inválida!"
+
+msgid "{} is not a valid URL!"
+msgstr "{} não é uma URL válida!"
+
+msgid "Downloading {} , please wait ..."
+msgstr "Baixando {} , por favor aguarde ..."
+
+msgid "Error: {}"
+msgstr "Erro: {}"
+
+msgid "Mod Manager"
+msgstr "Gerenciador de Mods"
+
+msgid "Install or uninstall mods to {}"
+msgstr "Instalar ou desinstalar mods em {}"
+
+msgid "Install mods"
+msgstr "Instalar mods"
+
+msgid "Server {} needs to be shut down to install mods."
+msgstr "O servidor {} precisa ser desligado para instalar mods."
+
+msgid "Mod {} not found!"
+msgstr "Mod {} não encontrado!"
+
+msgid "Mod {mod}_v{version} is already installed!"
+msgstr "O mod {mod}_v{version} já está instalado!"
+
+msgid "Updating mod {mod} from {current_version} to {new_version}, please wait ..."
+msgstr "Atualizando o mod {mod} da versão {current_version} para {new_version}, por favor aguarde ..."
+
+msgid "Mod {mod} updated to version {version}."
+msgstr "Mod {mod} atualizado para a versão {version}."
+
+msgid "Mod {mod} installed with version {version}."
+msgstr "Mod {mod} instalado com a versão {version}."
+
+msgid "Uninstall mods"
+msgstr "Desinstalar mods"
+
+msgid "Server {} needs to be shut down to uninstall mods."
+msgstr "O servidor {} precisa ser desligado para desinstalar mods."
+
+msgid "List all installed mods"
+msgstr "Listar todos os mods instalados"
+
+msgid "No mod installed on server {}."
+msgstr "Nenhum mod instalado no servidor {}."
+
+msgid "The following mods are installed on server {}:"
+msgstr "Os seguintes mods estão instalados no servidor {}:"
+
+msgid "Folder"
+msgstr "Pasta"
+
+msgid "Download a mod"
+msgstr "Baixar um mod"
+
+msgid "GitHub repo link or download URL"
+msgstr "Link do repositório GitHub ou URL de download"
+
+msgid "Downloading {mod}_v{version} from GitHub ..."
+msgstr "Baixando {mod}_v{version} do GitHub ..."
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "O arquivo já existe. Deseja sobrescrevê-lo?"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "Error {code}: {mod}_v{version} {message}"
+msgstr "Erro {code}: {mod}_v{version} {message}"
+
+msgid "{file} downloaded. Use {command} to install it."
+msgstr "{file} baixado. Use {command} para instalá-lo."
+
+msgid "Downloading {} ..."
+msgstr "Baixando {} ..."
+
+msgid "List was truncated."
+msgstr "A lista foi truncada."
+
+msgid "Server {} needs to be shut down to change mods."
+msgstr "O servidor {} precisa ser desligado para alterar mods."
+
+msgid "Destination"
+msgstr "Destino"
+
+msgid "Multiple returns, use /{group} {name} instead."
+msgstr "Vários resultados, use /{group} {name} em vez disso."
+
+msgid "Downloading {}, please wait ..."
+msgstr "Baixando {}, por favor aguarde ..."
+
+msgid "Can't connect to {url}: {message}"
+msgstr "Não é possível conectar a {url}: {message}"

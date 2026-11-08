@@ -99,9 +99,22 @@ If you have more than 10.000 player, you have to set `privileged_intents: false`
             await self.audit(message="Discord Bot stopped.")
         except Exception:
             pass
+        self._cancel_delayed_ready()
         self.log.info('- Unloading Plugins ...')
         await super().close()
         self.log.info("- Plugins unloaded.")
+
+    def _cancel_delayed_ready(self) -> None:
+        """Cancel the delayed-ready tasks the connection may still be running.
+
+        ``ConnectionState._delay_ready`` dispatches ``ready`` when it ends, and ``Client.close()``
+        leaves ``Client.loop`` unset, so a task that outlives the close raises on that dispatch.
+        """
+        state = self._connection
+        tasks = [getattr(state, '_ready_task', None), *getattr(state, '_ready_tasks', {}).values()]
+        for task in tasks:
+            if task and not task.done():
+                task.cancel()
 
     @tasks.loop(seconds=30)
     async def audit_poll(self):

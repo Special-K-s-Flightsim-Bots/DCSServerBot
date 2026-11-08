@@ -1,0 +1,73 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Running"
+msgstr "Çalışıyor"
+
+msgid "Loading"
+msgstr "Yükleme"
+
+msgid "Paused"
+msgstr "Durakladı"
+
+msgid "Stopped"
+msgstr "Durdu"
+
+msgid "Shutdown"
+msgstr "Kapalı"
+
+msgid "Waiting"
+msgstr "Beklemede"
+
+msgid "Cluster Master"
+msgstr "Ana Sunucu (Master)"
+
+msgid "Cluster Agent"
+msgstr "İstemci (Agent)"
+
+msgid "DCS Version"
+msgstr "DCS Sürüm"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Status"
+msgstr "Durum"
+
+msgid "Server Name"
+msgstr "Sunucu Adı"
+
+msgid "Mission Name"
+msgstr "Görev (Mission)"
+
+msgid "Players"
+msgstr "Oyuncular"
+
+msgid "Port / SRS"
+msgstr "Port / SRS"
+
+msgid "Node"
+msgstr "Oturum"
+
+msgid "configured"
+msgstr "yapılandırılmış"
+
+msgid "running"
+msgstr "çalışıyor"
+
+msgid "offline"
+msgstr "çevrimdışı"
+
+msgid "Node ([green]Master[/])"
+msgstr "Oturum ([green]Ana[/])"
+
+msgid "Servers"
+msgstr "Sunucular"
+
+msgid "inactive"
+msgstr "pasif"

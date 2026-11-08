@@ -1,0 +1,628 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage your DCS installations"
+msgstr "DCS kurulumlarınızı yönetmek için komutlar"
+
+msgid "Bans a user by name or ucid"
+msgstr "Bir kullanıcıyı isim veya UCID ile yasaklar (banlar)"
+
+msgid "Reason"
+msgstr "Sebep"
+
+msgid "Days (empty = forever)"
+msgstr "Gün sayısı (boş bırakılırsa = süresiz)"
+
+msgid "Ban Details"
+msgstr "Yasaklama (Ban) Detayları"
+
+msgid "Member {} is not linked!"
+msgstr "Üye {} eşleştirilmemiş!"
+
+msgid "{} is not a valid UCID!"
+msgstr "{} geçerli bir UCID değil!"
+
+msgid "Player {} banned on all servers"
+msgstr "Oyuncu {} tüm sunucularda yasaklandı"
+
+msgid " for {} days."
+msgstr " ({} gün süreyle)."
+
+msgid "Unbans a user by name or ucid"
+msgstr "Bir kullanıcının yasağını isim veya UCID ile kaldırır"
+
+msgid "Player {} unbanned on all servers."
+msgstr "Oyuncu {} için tüm sunuculardaki yasak kaldırıldı."
+
+msgid "Shows active bans"
+msgstr "Aktif yasaklamaları (banları) gösterir"
+
+msgid "User with UCID {} is not banned."
+msgstr "{} UCID numaralı kullanıcı yasaklı değil."
+
+msgid "Ban Information"
+msgstr "Yasaklama Bilgisi"
+
+msgid "<unknown>"
+msgstr "<bilinmiyor>"
+
+msgid "never"
+msgstr "asla (süresiz)"
+
+msgid "Banned by: {}"
+msgstr "Yasaklayan: {}"
+
+msgid "Exp.: {}"
+msgstr "Bitiş: {}"
+
+msgid "Update your DCS installations"
+msgstr "DCS kurulumlarınızı güncelleyin"
+
+msgid "Time in seconds to warn users before shutdown"
+msgstr "Kapatmadan önce kullanıcıları uyarmak için saniye cinsinden süre"
+
+msgid "Can't get version information from ED, possible auth-server outage!"
+msgstr "ED sunucularından sürüm bilgisi alınamıyor, olası doğrulama sunucusu kesintisi!"
+
+msgid "Your installed version {version} is the latest on branch {branch}."
+msgstr "Kurulu sürümünüz ({version}), {branch} dalındaki en güncel sürümdür."
+
+msgid "Would you like to update from version {old_version}@{old_branch} to {new_version}@{new_branch}?\nAll running DCS servers will be shut down!"
+msgstr "{old_version}@{old_branch} sürümünden {new_version}@{new_branch} sürümüne güncellemek ister misiniz?\nÇalışan tüm DCS sunucuları kapatılacaktır!"
+
+msgid "Updating DCS World to the newest version, please wait ..."
+msgstr "DCS World en yeni sürüme güncelleniyor, lütfen bekleyin ..."
+
+msgid "DCS updated to version {version}@{branch} on node {name}."
+msgstr "{name} düğümünde DCS {version}@{branch} sürümüne güncellendi."
+
+msgid "DCS World could not be updated on node {name} due to missing disk space!"
+msgstr "Yetersiz disk alanı nedeniyle {name} düğümünde DCS World güncellenemedi!"
+
+msgid "DCS World updated to version {version}@{branch} on node {name}.\nThe updater has requested a **reboot** of the system!"
+msgstr "{name} düğümünde DCS World {version}@{branch} sürümüne güncellendi.\nGüncelleyici sistemin **yeniden başlatılmasını** talep etti!"
+
+msgid "Error while updating DCS on node {name}, code={rc}"
+msgstr "{name} düğümünde DCS güncellenirken hata oluştu, kod={rc}"
+
+msgid "The update takes longer than 10 minutes, please check back regularly, if it has finished."
+msgstr "Güncelleme 10 dakikadan uzun sürüyor, tamamlanıp tamamlanmadığını lütfen düzenli olarak kontrol edin."
+
+msgid "Can't update branch {}. You might need to provide proper DCS credentials to do so."
+msgstr "{} dalı güncellenemiyor. Bunun için geçerli DCS hesap bilgileri girmeniz gerekebilir."
+
+msgid "Install modules in your DCS server"
+msgstr "DCS sunucunuza modül/harita yükleyin"
+
+msgid "Shutdown all servers on node {} for the installation?"
+msgstr "Kurulum için {} düğümündeki tüm sunucular kapatılsın mı?"
+
+msgid "Installing module {module} on node {node}, please wait ..."
+msgstr "{node} düğümüne {module} modülü yükleniyor, lütfen bekleyin ..."
+
+msgid "Module {module} installed on node {node}."
+msgstr "{node} düğümüne {module} modülü yüklendi."
+
+msgid "Module {module} installation on node {node} failed with code {rc}."
+msgstr "{node} düğümüne {module} modülü yüklemesi {rc} koduyla başarısız oldu."
+
+msgid "Uninstall modules from your DCS server"
+msgstr "DCS sunucunuzdan modül/harita kaldırın"
+
+msgid "Shutdown all servers on node {} for the uninstallation?"
+msgstr "Kaldırma işlemi için {} düğümündeki tüm sunucular kapatılsın mı?"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Module {module} uninstalled on node {node}."
+msgstr "{node} düğümünden {module} modülü kaldırıldı."
+
+msgid "Download files from your server"
+msgstr "Sunucunuzdan dosya/log indirin"
+
+msgid "File {file} not found in directory {dir}."
+msgstr "{dir} dizininde {file} dosyası bulunamadı."
+
+msgid "File sent as a DM."
+msgstr "Dosya özel mesaj (DM) olarak gönderildi."
+
+msgid "Here is your file:"
+msgstr "İşte dosyanız:"
+
+msgid "File too large. You need a higher boost level for your server."
+msgstr "Dosya çok büyük. Sunucunuz için daha yüksek bir Discord Takviye (Boost) seviyesi gerekiyor."
+
+msgid "File sent to the configured channel."
+msgstr "Dosya yapılandır된 kanala gönderildi."
+
+msgid "File copied to the specified location."
+msgstr "Dosya belirtilen konuma kopyalandı."
+
+msgid "Prune unused data in the database"
+msgstr "Veritabanındaki kullanılmayan eski verileri temizleyin"
+
+msgid ":warning: Database Prune :warning:"
+msgstr ":warning: Veritabanı Temizliği :warning:"
+
+msgid "You are going to delete data from your database. Be advised.\n\nPlease select the data to be pruned:"
+msgstr "Veritabanınızdan veri silmek üzeresiniz. Dikkatli olun.\n\nLütfen temizlenecek veriyi seçin:"
+
+msgid "We are going to delete all data of user {}. Are you sure?"
+msgstr "{} kullanıcısına ait tüm verileri sileceğiz. Emin misiniz?"
+
+msgid "We are going to delete all data of server {}. Are you sure?"
+msgstr "{} sunucusuna ait tüm verileri sileceğiz. Emin misiniz?"
+
+msgid "Data of user {} deleted."
+msgstr "{} kullanıcısının verileri silindi."
+
+msgid "Data of server {} deleted."
+msgstr "{} sunucusunun verileri silindi."
+
+msgid "No players to prune."
+msgstr "Temizlenecek oyuncu bulunamadı."
+
+msgid "This will delete {} players incl. their stats from the database.\nAre you sure?"
+msgstr "Bu işlem {} oyuncuyu ve istatistiklerini veritabanından silecektir.\nEmin misiniz?"
+
+msgid "This will delete all data older than {} days from the database.\nAre you sure?"
+msgstr "Bu işlem veritabanından {} günden eski tüm verileri silecektir.\nEmin misiniz?"
+
+msgid "All data older than {} days pruned."
+msgstr "{} günden eski tüm veriler temizlendi."
+
+msgid "Commands to manage your nodes"
+msgstr "Düğümlerinizi (Node) yönetmek için komutlar"
+
+msgid "Statistics of your nodes"
+msgstr "Düğümlerinizin istatistikleri"
+
+msgid "Status of all nodes"
+msgstr "Tüm düğümlerin durumu"
+
+msgid "DCSServerBot Cluster Overview"
+msgstr "DCSServerBot Küme (Cluster) Genel Bakışı"
+
+msgid "🆕 Update available"
+msgstr "🆕 Güncelleme mevcut"
+
+msgid "Instance"
+msgstr "Örnek (Instance)"
+
+msgid "Server"
+msgstr "Sunucu"
+
+msgid "Status"
+msgstr "Durum"
+
+msgid "Do you want to {} all nodes?"
+msgstr "Tüm düğümleri {} istiyor musunuz?"
+
+msgid "Do you want to {method} node {node}?"
+msgstr "{node} düğümünü {method} istiyor musunuz?"
+
+msgid "upgrade"
+msgstr "yükseltmek (güncellemek)"
+
+msgid "shutdown"
+msgstr "kapatmak"
+
+msgid "restart"
+msgstr "yeniden başlatmak"
+
+msgid "Node {node} - {method} sent."
+msgstr "Düğüm {node} - {method} komutu gönderildi."
+
+msgid "All nodes are"
+msgstr "Tüm düğümler"
+
+msgid "Master is"
+msgstr "Ana düğüm (Master)"
+
+msgid " going to {} **NOW**."
+msgstr " **ŞİMDİ** {} işlemine geçiyor."
+
+msgid "Shuts a specific node down"
+msgstr "Belirli bir düğümü kapatır"
+
+msgid "Restarts a specific node"
+msgstr "Belirli bir düğümü yeniden başlatır"
+
+msgid "Shuts down all servers, enables maintenance"
+msgstr "Tüm sunucuları kapatır ve bakım modunu etkinleştirir"
+
+msgid "Shuts all servers down (default: on)"
+msgstr "Tüm sunucuları kapatır (varsayılan: açık)"
+
+msgid "Node {} is now offline."
+msgstr "{} düğümü artık çevrimdışı."
+
+msgid "Clears the maintenance mode for all servers"
+msgstr "Tüm sunucular için bakım modunu temizler"
+
+msgid "Start all your servers (default: off)"
+msgstr "Tüm sunucularınızı başlatır (varsayılan: kapalı)"
+
+msgid "Node {} is now online."
+msgstr "{} düğümü artık çevrimiçi."
+
+msgid "Upgrade DCSServerBot"
+msgstr "DCSServerBot'u güncelleyin"
+
+msgid "There is no upgrade available for "
+msgstr "Şunun için kullanılabilir güncelleme yok: "
+
+msgid "your cluster"
+msgstr "kümeniz"
+
+msgid "node {}"
+msgstr "düğüm {}"
+
+msgid "You are trying to upgrade an agent node in a cluster. Are you really sure?"
+msgstr "Kümedeki bir uç düğümü (agent) güncellemeye çalışıyorsunuz. Gerçekten emin misiniz?"
+
+msgid "Run a shell command on a node"
+msgstr "Bir düğüm üzerinde kabuk (shell) komutu çalıştırın"
+
+msgid "```Command executed.```"
+msgstr "```Komut çalıştırıldı.```"
+
+msgid "Reloads a plugin"
+msgstr "Bir eklentiyi (plugin) yeniden yükler"
+
+msgid "Plugin {} reloaded."
+msgstr "{} eklentisi yeniden yüklendi."
+
+msgid "Plugin {} could not be reloaded, check the log for details."
+msgstr "{} eklentisi yeniden yüklenemedi, detaylar için günlüğü (log) kontrol edin."
+
+msgid "All plugins reloaded."
+msgstr "Tüm eklentiler yeniden yüklendi."
+
+msgid "One or more plugins could not be reloaded, check the log for details."
+msgstr "Bir veya daha fazla eklenti yeniden yüklenemedi, detaylar için günlüğü kontrol edin."
+
+msgid "Add/create an instance\n"
+msgstr "Yeni bir sunucu örneği (instance) ekle/oluştur\n"
+
+msgid "Either select an existing instance or enter the name of a new one"
+msgstr "Mevcut bir örneği seçin veya yeni bir örnek adı girin"
+
+msgid "Take this instance configuration as a reference"
+msgstr "Bu örnek yapılandırmasını referans olarak al"
+
+msgid "Instance \"{}\" created.\nDo you want to configure a server for this instance?"
+msgstr "\"{}\" örneği oluşturuldu.\nBu örnek için bir sunucu yapılandırmak ister misiniz?"
+
+msgid "Server {server} assigned to instance {instance}."
+msgstr "{server} sunucusu {instance} örneğine atandı."
+
+msgid "Instance {} created blank with no server assigned."
+msgstr "{} örneği sunucu atanmadan boş olarak oluşturuldu."
+
+msgid "Instance {instance} added to node {node}.Please make sure you forward the following ports:```- DCS Port:    {dcs_port} (TCP/UDP)- WebGUI Port: {webgui_port} (TCP)```"
+msgstr "{instance} örneği {node} düğümüne eklendi. Lütfen aşağıdaki portları yönlendirdiğinizden emin olun:```- DCS Portu:    {dcs_port} (TCP/UDP)- WebGUI Portu: {webgui_port} (TCP)```"
+
+msgid "Instance {instance} could not be added to node {node}, see log."
+msgstr "{instance} örneği {node} düğümüne eklenemedi, günlüğe bakın."
+
+msgid "Delete an instance\n"
+msgstr "Bir sunucu örneğini (instance) sil\n"
+
+msgid "The instance is in use by server \"{}\".\nDo you really want to delete it?"
+msgstr "Bu örnek \"{}\" sunucusu tarafından kullanılıyor.\nGerçekten silmek istiyor musunuz?"
+
+msgid "Do you really want to delete instance {}?"
+msgstr "{} örneğini gerçekten silmek istiyor musunuz?"
+
+msgid "Do you want to remove the directory\n{}?"
+msgstr "{}\ndizinini de silmek istiyor musunuz?"
+
+msgid "Instance {instance} removed from node {node}."
+msgstr "{instance} örneği {node} düğümünden kaldırıldı."
+
+msgid "Instance {} could not be deleted, because the directory is in use."
+msgstr "Dizin kullanımda olduğu için {} örneği silinemedi."
+
+msgid "Rename an instance\n"
+msgstr "Bir sunucu örneğini yeniden adlandır\n"
+
+msgid "Server {} has to be shut down before renaming the instance!"
+msgstr "Örneği yeniden adlandırmadan önce {} sunucusu kapatılmalıdır!"
+
+msgid "Do you really want to rename instance {}?"
+msgstr "{} örneğini gerçekten yeniden adlandırmak istiyor musunuz?"
+
+msgid "Instance {old_name} renamed to {new_name}."
+msgstr "{old_name} örneği {new_name} olarak yeniden adlandırıldı."
+
+msgid "Instance {} could not be renamed, because the directory is in use."
+msgstr "Dizin kullanımda olduğu için {} örneği yeniden adlandırılamadı."
+
+msgid "To which server do you want to upload this configuration to?"
+msgstr "Bu yapılandırmayı hangi sunucuya yüklemek istiyorsunuz?"
+
+msgid "Error while uploading file to node {}!"
+msgstr "{} düğümüne dosya yüklenirken hata oluştu!"
+
+msgid "Error while reading file from discord."
+msgstr "Discord'dan dosya okunurken hata oluştu."
+
+msgid "Plugin {} re-loaded."
+msgstr "{} eklentisi yeniden yüklendi."
+
+msgid "To apply the new config by restarting a node or the whole cluster, use {}"
+msgstr "Bir düğümü veya tüm kümeyi yeniden başlatarak yeni yapılandırmayı uygulamak için {} kullanın"
+
+msgid "User"
+msgstr "User"
+
+msgid "Banned by"
+msgstr "Banned by"
+
+msgid "Expires"
+msgstr "Expires"
+
+msgid "DCS World update on node {name} was aborted (check disk space)!"
+msgstr "DCS World update on node {name} was aborted (check disk space)!"
+
+msgid "Error while updating DCS on node {name}, code={rc}, message={message}"
+msgstr "Error while updating DCS on node {name}, code={rc}, message={message}"
+
+msgid "Repair your DCS installations"
+msgstr "Repair your DCS installations"
+
+msgid "Do you want to run a DCS World repair on node {name}?"
+msgstr "Do you want to run a DCS World repair on node {name}?"
+
+msgid "Repairing DCS World, please wait ..."
+msgstr "Repairing DCS World, please wait ..."
+
+msgid "DCS World repaired on node {}."
+msgstr "DCS World repaired on node {}."
+
+msgid "Repair of DCS World failed on node {}."
+msgstr "Repair of DCS World failed on node {}."
+
+msgid "The repair of DCS World was cancelled on node {name}."
+msgstr "The repair of DCS World was cancelled on node {name}."
+
+msgid "You cannot run a DCS repair on a headless system without an active session!"
+msgstr "You cannot run a DCS repair on a headless system without an active session!"
+
+msgid "The repair takes longer than 10 minutes. It will generate an audit message when finished."
+msgstr "The repair takes longer than 10 minutes. It will generate an audit message when finished."
+
+msgid "Could not repair DCS World on node {name} due to a permission error: {error}"
+msgstr "Could not repair DCS World on node {name} due to a pergörev error: {error}"
+
+msgid "Info about your DCS installation"
+msgstr "Info about your DCS installation"
+
+msgid "There are no modules installed on this server."
+msgstr "There are no modules installed on this sunucu."
+
+msgid "Installed modules on node {}"
+msgstr "Installed modules on node {}"
+
+msgid "Module"
+msgstr "Modül / Uçak"
+
+msgid "You have been reported for trying to inject a relative path!"
+msgstr "You have been reported for trying to inject a relative path!"
+
+msgid "File {file} not found."
+msgstr "File {file} bulunamadı."
+
+msgid "Channel {} not found, check your admin.yaml!"
+msgstr "Channel {} bulunamadı, check your admin.yaml!"
+
+msgid "Data of UCID {} deleted."
+msgstr "Data of UCID {} deleted."
+
+msgid "Are you sure you want to proceed?"
+msgstr "Are you sure you want to proceed?"
+
+msgid "This will {} **all** nodes."
+msgstr "This will {} **all** nodes."
+
+msgid "Are you sure you want to {} node `{}`?"
+msgstr "Are you sure you want to {} node `{}`?"
+
+msgid "Shutting down all servers on node {} ..."
+msgstr "Shutting down all sunucus on node {} ..."
+
+msgid "All servers on node {} were shut down."
+msgstr "All sunucus on node {} were shut down."
+
+msgid "This will shutdown **all** servers on **all** nodes."
+msgstr "This will shutdown **all** sunucus on **all** nodes."
+
+msgid "This will shutdown **all** servers on node `{}`."
+msgstr "This will shutdown **all** sunucus on node `{}`."
+
+msgid "Timeout while starting server {}!"
+msgstr "Timeout while starting sunucu {}!"
+
+msgid "Aborted"
+msgstr "İptal Edildi"
+
+msgid "Timeout during shell command."
+msgstr "Timeout during shell command."
+
+msgid "Renaming instance {} to {}. This will take a bit, standby ..."
+msgstr "Renaming instance {} to {}. This will take a bit, standby ..."
+
+msgid "Instance {} could not be renamed, because the directory already exist."
+msgstr "Instance {} could not be renamed, because the directory already exist."
+
+msgid "Instance {} could not be renamed: {}."
+msgstr "Instance {} could not be renamed: {}."
+
+msgid "Shows CPU topology"
+msgstr "Shows CPU topology"
+
+msgid "Make a node master"
+msgstr "Make a node master"
+
+msgid "Node {} is the current master."
+msgstr "Node {} is the current master."
+
+msgid "Node {} is master already"
+msgstr "Node {} is master already"
+
+msgid "Cannot change master, node {} has preferred master set."
+msgstr "Cannot change master, node {} has preferred master set."
+
+msgid "Requested master for node {}."
+msgstr "Requested master for node {}."
+
+msgid "Commands to manage your DCSServerBot plugins"
+msgstr "Yönetim komutları: your DCSSunucuBot plugins"
+
+msgid "Install Plugin"
+msgstr "Install Plugin"
+
+msgid "Plugin {} could not be installed, check the log for details."
+msgstr "Plugin {} could not be installed, check the log for details."
+
+msgid "Plugin {} installed."
+msgstr "Plugin {} installed."
+
+msgid "\nPlease restart your DCS servers to apply the change."
+msgstr "\nPlease restart your DCS sunucus to apply the change."
+
+msgid "Uninstall Plugin"
+msgstr "Uninstall Plugin"
+
+msgid "Plugin {} could not be uninstalled, check the log for details."
+msgstr "Plugin {} could not be uninstalled, check the log for details."
+
+msgid "Plugin {} uninstalled. Please restart your DCS servers to apply the change!"
+msgstr "Plugin {} uninstalled. Please restart your DCS sunucus to apply the change!"
+
+msgid "Reload Plugin"
+msgstr "Reload Plugin"
+
+msgid "Stop Plugin"
+msgstr "Stop Plugin"
+
+msgid "Plugin {} is not running."
+msgstr "Plugin {} is not running."
+
+msgid "Plugin {} stopped."
+msgstr "Plugin {} stopped."
+
+msgid "Plugin {} could not be stopped, check the log for details."
+msgstr "Plugin {} could not be stopped, check the log for details."
+
+msgid "Start Plugin"
+msgstr "Start Plugin"
+
+msgid "Plugin {} is already started."
+msgstr "Plugin {} is already started."
+
+msgid "You need to provide a supported plugin."
+msgstr "You need to provide a supported plugin."
+
+msgid "Plugin {} started."
+msgstr "Plugin {} started."
+
+msgid "Plugin {} could not be started, check the log for details."
+msgstr "Plugin {} could not be started, check the log for details."
+
+msgid "Commands to manage your DCSServerBot extensions"
+msgstr "Yönetim komutları: your DCSSunucuBot extensions"
+
+msgid "{} Configuration"
+msgstr "{} Configuration"
+
+msgid "Enable Extension"
+msgstr "Enable Extension"
+
+msgid "Enabling extension {}..."
+msgstr "Enabling extension {}..."
+
+msgid "Extension {} enabled."
+msgstr "Extension {} enabled."
+
+msgid "Failed to enable extension. See the log for details."
+msgstr "Failed to enable extension. See the log for details."
+
+msgid "Failed to enable extension:\n{}"
+msgstr "Failed to enable extension:\n{}"
+
+msgid "Disable Extension"
+msgstr "Disable Extension"
+
+msgid "Disabling extension {}..."
+msgstr "Disabling extension {}..."
+
+msgid "Extension {} disabled."
+msgstr "Extension {} disabled."
+
+msgid "Failed to disable extension. See the log for details."
+msgstr "Failed to disable extension. See the log for details."
+
+msgid "Failed to disable extension:\n{}"
+msgstr "Failed to disable extension:\n{}"
+
+msgid "List Extensions"
+msgstr "List Extensions"
+
+msgid "Enabled extensions on server {}"
+msgstr "Enabled extensions on sunucu {}"
+
+msgid "Update Extension"
+msgstr "Update Extension"
+
+msgid "Extension {} can not be updated."
+msgstr "Extension {} can not be updated."
+
+msgid "Updating extension {}..."
+msgstr "Updating extension {}..."
+
+msgid "Extension {} updated."
+msgstr "Extension {} updated."
+
+msgid "Extension {} not updated, check logfile."
+msgstr "Extension {} not updated, check logfile."
+
+msgid "Extension {} is already up to date."
+msgstr "Extension {} is already up to date."
+
+msgid "Failed to update extension:\n{}"
+msgstr "Failed to update extension:\n{}"
+
+msgid "Repair Extension"
+msgstr "Repair Extension"
+
+msgid "Extension {} can not be repaired."
+msgstr "Extension {} can not be repaired."
+
+msgid "Reparing extension {}..."
+msgstr "Reparing extension {}..."
+
+msgid "Extension {} repaired."
+msgstr "Extension {} repaired."
+
+msgid "Extension {} not repaired, check logfile."
+msgstr "Extension {} not repaired, check logfile."
+
+msgid "Failed to repair extension:\n{}"
+msgstr "Failed to repair extension:\n{}"
+
+msgid "Configure Extension"
+msgstr "Configure Extension"
+
+msgid "Extension {} configured."
+msgstr "Extension {} configured."
+
+msgid "No configuration available for extension {}"
+msgstr "No configuration available for extension {}"

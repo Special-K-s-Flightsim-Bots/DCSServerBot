@@ -136,7 +136,7 @@
 {% call tile(kind, off=off, extra=extra) %}
   {{ tile_head(kind_word, glyph(kind), scope) }}
   <h3 class="st-name">{{ name }}</h3>
-  {% if description %}<p class="st-desc clamp2">{{ description }}</p>{% endif %}
+  {% if description %}<p class="st-desc clamp2">{{ _(description) }}</p>{% endif %}
   {% if body %}{{ body }}{% endif %}
   {% if warn %}<div class="st-warn" role="status">{{ _(warn) }}{% if warn_body %}{{ warn_body }}{% endif %}</div>{% endif %}
   {{ tile_foot(sw, cog_url, cog_title or name, trash_url, trash_title, yaml_url, yaml_title or name) }}
@@ -175,8 +175,8 @@
       {% for option in options %}
       {% set tip_id = 'st-add-tip-' ~ kind ~ '-' ~ loop.index %}
       <li class="st-add-item">
-        <div class="st-add-name"{% if option.description %} tabindex="0" title="{{ option.description }}" aria-describedby="{{ tip_id }}"{% endif %}>{{ option.name }}</div>
-        <span class="st-add-sr" id="{{ tip_id }}">{{ option.description }}</span>
+        <div class="st-add-name"{% if option.description %} tabindex="0" title="{{ _(option.description) }}" aria-describedby="{{ tip_id }}"{% endif %}>{{ option.name }}</div>
+        <span class="st-add-sr" id="{{ tip_id }}">{{ _(option.description) }}</span>
         {{ switch_control(option.switch, labeled=False) }}
       </li>
       {% endfor %}

@@ -1,0 +1,28 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Commands to manage custom commands"
+msgstr "Özel komutları yönetmek için komutlar"
+
+msgid "Show running processes"
+msgstr "Çalışan işlemleri göster"
+
+msgid "No running processes."
+msgstr "Çalışan işlem yok."
+
+msgid "Terminate a running process"
+msgstr "Çalışan bir işlemi sonlandır"
+
+msgid "No such process or process terminated."
+msgstr "Böyle bir işlem yok veya işlem zaten sonlandırıldı."
+
+msgid "Process terminated."
+msgstr "İşlem sonlandırıldı."
+
+msgid "Process NOT terminated."
+msgstr "İşlem sonlandırılamadı."

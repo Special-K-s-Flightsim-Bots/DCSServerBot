@@ -6755,6 +6755,10 @@ msgstr ""
 msgid "Admin Console"
 msgstr "Consola de administración"
 
+#: services/webservice/templates/base.html:25
+msgid "DCSServerBot Admin Console"
+msgstr "Consola de administración de DCSServerBot"
+
 #: services/webservice/templates/base.html:100
 msgid "Sign out"
 msgstr "Cerrar sesión"

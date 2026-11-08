@@ -1,0 +1,250 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "The bot can be set to the same language, which means, that all Discord and in-game messages will be in your language as well. Would you like me to configure the bot this way?"
+msgstr "Bot aynı dile ayarlanabilir; bu sayede tüm Discord ve oyun içi mesajlar da sizin dilinizde olur. Botu bu şekilde yapılandırmamı ister misiniz?"
+
+msgid "\nFor a successful installation, you need to fulfill the following prerequisites:\n\n    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n    2. A Discord TOKEN for your bot from https://discord.com/developers/applications\n\n"
+msgstr "\nFor a successful installation, you need to fulfill the following prerequisites:\n\n    1. Installation of PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads\n    2. A Discord TOKEN for your bot from https://discord.com/developers/applications\n\n"
+
+msgid "Have you fulfilled all these requirements?"
+msgstr "Tüm bu gereksinimleri karşıladınız mı?"
+
+msgid "Aborted: missing requirements."
+msgstr "İptal edildi: eksik gereksinimler."
+
+msgid "\n1. [u]General Setup[/]"
+msgstr "\n1. [u]Genel Kurulum[/]"
+
+msgid "Do you want your DCSServerBot being auto-updated?"
+msgstr "DCSServerBot'un otomatik güncellenmesini istiyor musunuz?"
+
+msgid "\n2. [u]Discord Setup[/]"
+msgstr "\n2. [u]Discord Kurulumu[/]"
+
+msgid "Please enter your Discord Guild ID (right click on your Discord server, \"Copy Server ID\")"
+msgstr "Lütfen Discord Sunucu Kimliğinizi (Guild ID) girin (Discord sunucunuza sağ tıklayıp \"Sunucu ID'sini Kopyala\")"
+
+msgid "Please enter your discord TOKEN (see documentation)"
+msgstr "Lütfen Discord TOKEN değerinizi girin"
+
+msgid "Please enter your Owner ID (right click on your discord user, \"Copy User ID\")"
+msgstr "Lütfen Sahip Kimliğinizi (Owner ID) girin (Discord kullanıcınıza sağ tıklayıp \"Kullanıcı ID'sini Kopyala\")"
+
+msgid "\nWe now need to setup your Discord roles and channels.\nDCSServerBot creates a role mapping for your bot users. It has the following internal roles:"
+msgstr "\nWe now need to setup your Discord roles and channels.\nDCSSunucuBot creates a role mapping for your bot users. It has the following internal roles:"
+
+msgid "Users can delete data, change the bot, run commands on your server"
+msgstr "Kullanıcılar verileri silebilir, botu değiştirebilir, sunucunuzda komut çalıştırabilir"
+
+msgid "Users can upload missions, start/stop DCS servers, kick/ban users, etc."
+msgstr "Kullanıcılar görev yükleyebilir, DCS sunucularını başlatıp durdurabilir, oyuncuları atabilir/yasaklayabilir vb."
+
+msgid "\n2. [u]Bot Setup[/]"
+msgstr "\n2. [u]Bot Kurulumu[/]"
+
+msgid "Please enter the name of your DCS group"
+msgstr "Lütfen DCS grubunuzun adını girin"
+
+msgid "You now need to setup your users.\nDCSServerBot uses the following internal roles:"
+msgstr "You now need to setup your users.\nDCSSunucuBot uses the following internal roles:"
+
+msgid "Which user(s) should get the [bold]{}[/] role?\nPlease enter a comma-separated list of UCIDs"
+msgstr "Which user(s) should get the [bold]{}[/] role?\nPlease enter a comma-separated list of UCIDs"
+
+msgid "[i]You can skip the Discord TOKEN, if you decide to do a non-Discord-installation.[/]"
+msgstr "[i]You can skip the Discord TOKEN, if you decide to do a non-Discord-installation.[/]"
+
+msgid "Do you want to run DCSServerBot with Discord support (recommended)?"
+msgstr "DCSServerBot'u Discord desteğiyle çalıştırmak istiyor musunuz (önerilen)?"
+
+msgid "Users can delete data and change the bot"
+msgstr "Kullanıcılar verileri silebilir ve botu değiştirebilir"
+
+msgid "Users can restart missions, kick/ban users, etc."
+msgstr "Kullanıcılar görevleri yeniden başlatabilir, oyuncuları atabilir/yasaklayabilir vb."
+
+msgid "Searching for existing DCS server configurations ..."
+msgstr "Mevcut DCS sunucu yapılandırmaları aranıyor ..."
+
+msgid "Please enter the path to your DCS World installation"
+msgstr "Lütfen DCS World kurulum klasörünüzün yolunu girin"
+
+msgid "Do you want to continue without a DCS installation being set?"
+msgstr "DCS kurulumu ayarlanmadan devam etmek istiyor musunuz?"
+
+msgid "Directory not found. Please try again."
+msgstr "Dizin bulunamadı. Lütfen tekrar deneyin."
+
+msgid "Searching for DCS installations ..."
+msgstr "DCS kurulumları aranıyor ..."
+
+msgid "Other"
+msgstr "Diğer"
+
+msgid "Please specify, which installation you want the bot to use.\nChose \"Other\", if it is not in the list"
+msgstr "Please specify, which installation you want the bot to use.\nChose \"Other\", if it is not in the list"
+
+msgid "Normal user, can pull statistics, ATIS, etc."
+msgstr "Normal kullanıcı, istatistikleri, ATIS bilgilerini vb. çekebilir."
+
+msgid "Please separate roles by comma, if you want to provide more than one.\nYou can keep the defaults, if unsure and create the respective roles in your Discord server."
+msgstr "Please separate roles by comma, if you want to provide more than one.\nYou can keep the defaults, if unsure and create the respective roles in your Discord sunucu."
+
+msgid "Which role(s) in your discord should hold the [bold]{}[/] role?"
+msgstr "Discord sunucunuzdaki hangi rol(ler) [bold]{}[/] yetkisine sahip olmalı?"
+
+msgid "\nPlease provide a channel ID for audit events (optional)"
+msgstr "\nLütfen denetim (audit) kayıtları için bir kanal ID'si girin (isteğe bağlı)"
+
+msgid "\nThe bot can either use a dedicated admin channel for each server or a central admin channel for all servers.\nIf you want to use a central one, please provide the ID (optional)"
+msgstr "\nThe bot can either use a dedicated admin channel for each sunucu or a central admin channel for all sunucus.\nIf you want to use a central one, please provide the ID (optional)"
+
+msgid "[red]A configuration for this nodes exists already![/]\nDo you want to overwrite it?"
+msgstr "[red]Bu düğüm için zaten bir yapılandırma mevcut![/]\nÜzerine yazmak istiyor musunuz?"
+
+msgid "Aborted: configuration exists"
+msgstr "İptal edildi: yapılandırma mevcut"
+
+msgid "[yellow]Configuration found, adding another node...[/]"
+msgstr "[yellow]Yapılandırma bulundu, başka bir düğüm ekleniyor...[/]"
+
+msgid "\n{}. [u]Database Setup[/]"
+msgstr "\n{}. [u]Veritabanı Kurulumu[/]"
+
+msgid "[red]No PostgreSQL-database found on {host}:{port}![/]"
+msgstr "[red]{host}:{port} adresinde PostgreSQL veritabanı bulunamadı![/]"
+
+msgid "Enter the hostname of your PostgreSQL-database"
+msgstr "PostgreSQL veritabanınızın sunucu adını (hostname) girin"
+
+msgid "Enter the port to your PostgreSQL-database"
+msgstr "PostgreSQL veritabanınızın portunu girin"
+
+msgid "Please enter the name of your PostgreSQL master database"
+msgstr "Lütfen PostgreSQL ana veritabanınızın adını girin"
+
+msgid "Please enter your PostgreSQL master user name"
+msgstr "Lütfen PostgreSQL ana kullanıcı adınızı girin"
+
+msgid "Please enter your PostgreSQL master password (user={})"
+msgstr "Lütfen PostgreSQL ana şifrenizi girin (kullanıcı={})"
+
+msgid "[yellow]Existing {} user found![/]"
+msgstr "[yellow]Mevcut {} kullanıcısı bulundu![/]"
+
+msgid "Do you remember the password of {}?"
+msgstr "{} kullanıcısının şifresini hatırlıyor musunuz?"
+
+msgid "Please enter your password for user {}"
+msgstr "Lütfen {} kullanıcısı için şifrenizi girin"
+
+msgid "[red]Wrong password! Try again ({}/3).[/]"
+msgstr "[red]Yanlış şifre! Tekrar deneyin ({}/3).[/]"
+
+msgid "[yellow]You have entered 3x a wrong password. I have reset it.[/]'"
+msgstr "[yellow]You have entered 3x a wrong password. I have reset it.[/]'"
+
+msgid "[green]- Database user and database created.[/]"
+msgstr "[green]- Veritabanı kullanıcısı ve veritabanı oluşturuldu.[/]"
+
+msgid "[red]Master password wrong. Please try again.[/]"
+msgstr "[red]Ana şifre yanlış. Lütfen tekrar deneyin.[/]"
+
+msgid "Aborted: No valid Database URL provided."
+msgstr "İptal edildi: Geçerli bir Veritabanı URL'si girilmedi."
+
+msgid "\n{}. [u]Node Setup[/]"
+msgstr "\n{}. [u]Düğüm Kurulumu[/]"
+
+msgid "Aborted: No DCS installation found."
+msgstr "İptal edildi: DCS kurulumu bulunamadı."
+
+msgid "Is {} a static IP-address for this node?"
+msgstr "{} bu düğüm için sabit (statik) bir IP adresi mi?"
+
+msgid "Do you want your DCS installation being auto-updated by the bot?"
+msgstr "DCS kurulumunuzun bot tarafından otomatik güncellenmesini istiyor musunuz?"
+
+msgid "Please enter the path to your DCS-SRS installation.\nPress ENTER, if there is none."
+msgstr "Lütfen DCS-SRS kurulum yolunu girin.\nYoksa ENTER tuşuna basın."
+
+msgid "DCS-SRS installation path: {}"
+msgstr "DCS-SRS kurulum yolu: {}"
+
+msgid "DCS-SRS not configured."
+msgstr "DCS-SRS yapılandırılmadı."
+
+msgid "\n{}. [u]DCS Server Setup[/]"
+msgstr "\n{}. [u]DCS Sunucu Kurulumu[/]"
+
+msgid "No configured DCS servers found."
+msgstr "Yapılandırılmış DCS sunucusu bulunamadı."
+
+msgid "\n[i]DCS server \"{}\" found.[/i]\nWould you like to manage this server through DCSServerBot?"
+msgstr "\n[i]DCS sunucusu \"{}\" bulundu.[/i]\nBu sunucuyu DCSServerBot üzerinden yönetmek ister misiniz?"
+
+msgid "Adding instance {instance} with server {name} ..."
+msgstr "{name} sunucusu ile {instance} örneği ekleniyor ..."
+
+msgid "[red]SRS configuration could not be created.\nPlease copy your server.cfg to {} manually.[/]"
+msgstr "[red]SRS configuration could not be created.\nPlease copy your sunucu.cfg to {} manually.[/]"
+
+msgid "SRS configuration could not be created, manual setup necessary."
+msgstr "SRS configuration could not be created, manual setup necessary."
+
+msgid "DCSServerBot uses up to {} channels per supported server:"
+msgstr "DCSSunucuBot uses up to {} channels per supported sunucu:"
+
+msgid "To display the mission and player status."
+msgstr "Görev ve oyuncu durumunu göstermek için."
+
+msgid "Optional: An in-game chat replication."
+msgstr "İsteğe bağlı: Oyun içi sohbet yansıtması."
+
+msgid "For admin commands."
+msgstr "Yönetici komutları için."
+
+msgid "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSServerBot needs the following permissions on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n    - Add Reactions\n    - Attach Files\n    - Embed Links\n    - Manage Messages\n\n"
+msgstr "\nThe Status Channel should be readable by everyone and only writable by the bot.\nThe Chat Channel should be readable and writable by everyone.\nThe Admin channel - central or not - should only be readable and writable by Admin and DCS Admin users.\n\nYou can create these channels now, as I will ask for the IDs in a bit.\nDCSSunucuBot needs the following pergörevs on them to work:\n\n    - View Channel\n    - Send Messages\n    - Read Messages\n    - Read Message History\n    - Add Reactions\n    - Attach Files\n    - Embed Links\n    - Manage Messages\n\n"
+
+msgid "Please enter the ID of your [bold]Status Channel[/]"
+msgstr "Lütfen [bold]Durum Kanalınızın (Status Channel)[/] ID'sini girin"
+
+msgid "Please enter the ID of your [bold]Chat Channel[/] (optional)"
+msgstr "Lütfen [bold]Sohbet Kanalınızın (Chat Channel)[/] ID'sini girin (isteğe bağlı)"
+
+msgid "Please enter the ID of your [bold]Admin Channel[/]"
+msgstr "Lütfen [bold]Yönetici Kanalınızın (Admin Channel)[/] ID'sini girin"
+
+msgid "Do you want DCSServerBot to autostart this server?"
+msgstr "DCSServerBot'un bu sunucuyu otomatik başlatmasını istiyor musunuz?"
+
+msgid "Instance {} configured."
+msgstr "{} örneği yapılandırıldı."
+
+msgid "\n\nAll set. Writing / updating your config files now..."
+msgstr "\n\nHer şey hazır. Yapılandırma dosyalarınız şimdi yazılıyor / güncelleniyor..."
+
+msgid "- Created {}"
+msgstr "- {} oluşturuldu"
+
+msgid "{} written"
+msgstr "{} yazıldı"
+
+msgid "[red]You need to give DCSServerBot write permissions on {} to desanitize your MissionScripting.lua![/]"
+msgstr "[red]You need to give DCSSunucuBot write pergörevs on {} to desanitize your GörevScripting.lua![/]"
+
+msgid "\n[green]Your basic DCSServerBot configuration is finished.[/]\n\nYou can now review the created configuration files below your config folder of your DCSServerBot-installation.\nThere is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\nYou can start DCSServerBot with:\n\n    [bright_black]run.cmd[/]\n\n"
+msgstr "\n[green]Your basic DCSSunucuBot configuration is finished.[/]\n\nYou can now review the created configuration files below your config folder of your DCSSunucuBot-installation.\nThere is much more to explore and to configure, so please don't forget to have a look at the documentation!\n\nYou can start DCSSunucuBot with:\n\n    [bright_black]run.cmd[/]\n\n"
+
+msgid "Installation finished."
+msgstr "Kurulum tamamlandı."
+
+msgid "\nAborted."
+msgstr "\nİptal edildi."

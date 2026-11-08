@@ -294,7 +294,8 @@ class LocalAuthBackend(AuthBackend):
         if not verify_password(password, user.password_hash):
             log.warning("auth: refusing a local login for %r - bad password", username)
             return None
-        log.info("auth: %r signed in with the local backend", username)
+        # the successful sign-in is recorded by the route that creates the session (``auth.routes``),
+        # once per login and for every password backend -- this method logs refusals only.
         return self._identity(user)
 
     def _identity(self, user: LocalUser) -> Identity:

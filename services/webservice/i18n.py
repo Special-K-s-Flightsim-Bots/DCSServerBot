@@ -37,13 +37,16 @@ is not an error and is never echoed: it simply yields ``None`` and the next sour
 is consulted. A visitor therefore cannot make the console look for ``../../etc/passwd`` or a
 language that does not exist.
 
-THE CONTROL SHOWS FLAGS, NOT NAMES. With more languages coming, a row of names is too long, so each
-option is a small SVG flag (a neutral globe for English, the source language) with the language's own
-endonym kept as its ``title``/``aria-label`` — the name is not drawn, but hovering and a screen reader
-still say which language it is. Flag EMOJI are deliberately NOT used (Windows renders them as the two
-regional-indicator letters, so the control would look broken on the maintainer's own machine); the
-assets are vendored SVG files (see ``static/flags/``). Only languages with a compiled ``webui``
-catalog are offered, and the control stays plain links, so it works with JavaScript off.
+THE CONTROL NAMES THE CURRENT LANGUAGE, THEN LISTS THE REST. The top bar carries ONE pill — the
+language in force, drawn as its flag plus its own endonym — and the pill opens a menu with one row
+per selectable language (flag + endonym, the current row ticked). A flat row of every flag no longer
+fits as languages are added, and a flag alone never says which language it is; the menu can afford
+both. Each row is still a plain GET link to :data:`LANGUAGE_PATH`, and the menu is a native
+``popover`` opened from its button, so the control works with JavaScript off. The current language's
+flag is a neutral globe for English (the source language), never a national flag. Flag EMOJI are
+deliberately NOT used (Windows renders them as the two regional-indicator letters, so the control
+would look broken on the maintainer's own machine); the assets are vendored SVG files (see
+``static/flags/``). Only languages with a compiled ``webui`` catalog are offered.
 
 NO LEAK BETWEEN REQUESTS. The console runs **inside the bot's own process**, so a global
 ``install_gettext_translations``/``set_language`` would bleed the console's language into the bot's
@@ -114,7 +117,10 @@ MESSAGES_PATH = "/i18n/messages.js"
 #: somebody who does not read the current language. A catalog with no entry here still appears in
 #: the control, labelled by its code — a new catalog is never hidden for want of a name.
 LANGUAGE_NAMES: dict[str, str] = {"en": "English", "de": "Deutsch", "es": "Español", "ru": "Русский",
-                                 "cn": "中文"}
+                                 "cn": "中文", "tr": "Türkçe", "fr": "Français",
+                                 "it": "Italiano",
+                                 "pt": "Português (Brasil)",
+                                 "pl": "Polski"}
 
 #: the static area the flag SVGs are served from (the shell's own asset path, served by the same
 #: gated frontend every other asset uses; spelled here rather than imported from ``shell`` because
@@ -130,7 +136,8 @@ FLAG_NEUTRAL_ASSET = "globe.svg"
 #: public-domain / MIT artwork only; see ``static/flags/SOURCE.txt`` beside the files. Windows does
 #: not render flag EMOJI (it falls back to the two regional-indicator letters), which is exactly why
 #: these are real SVG files and not emoji. A code absent here gets the neutral globe.
-LANGUAGE_FLAGS: dict[str, str] = {"de": "de.svg", "es": "es.svg", "ru": "ru.svg", "cn": "cn.svg"}
+LANGUAGE_FLAGS: dict[str, str] = {"de": "de.svg", "es": "es.svg", "ru": "ru.svg", "cn": "cn.svg",
+                                  "tr": "tr.svg", "fr": "fr.svg", "it": "it.svg", "pt": "pt.svg", "pl": "pl.svg"}
 
 
 def flag_asset(code: str) -> str:
@@ -510,13 +517,16 @@ def language_control(request: Request) -> dict:
     trusted from the client.
     """
     current = resolve_language(request)
+    options = [{"code": code, "name": display_name(code), "flag": flag_asset(code),
+                "active": code == current}
+               for code in selectable_languages()]
     return {
         "current": current,
+        "current_name": display_name(current),
+        "current_flag": flag_asset(current),
         "action": LANGUAGE_PATH,
         "next": _return_path(request),
-        "languages": [{"code": code, "name": display_name(code), "flag": flag_asset(code),
-                       "active": code == current}
-                      for code in selectable_languages()],
+        "languages": options,
     }
 
 

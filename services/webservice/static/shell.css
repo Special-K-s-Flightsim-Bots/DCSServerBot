@@ -82,7 +82,7 @@
   --nav-active: rgba(232, 163, 61, .16);        /* .nav a.on / .row-active gradient start */
   --nav-active-2: rgba(232, 163, 61, .03);      /* … and end */
   --bar-hd: #121924; --bar-hd2: #0f151d;        /* .shell-bar/.top gradient */
-  --flag-ring: rgba(255, 255, 255, .18);        /* .lang-opt img.flag hairline ring */
+  --flag-ring: rgba(255, 255, 255, .18);        /* .langchip / .langmenu flag hairline ring */
   --run-halo: rgba(63, 185, 80, .15);           /* .dot.run / .dot.pause / .dot.dead halos */
   --pause-halo: rgba(232, 163, 61, .15);
   --dead-halo: rgba(248, 81, 73, .15);
@@ -111,6 +111,19 @@
   --login-line: #a9711f; --login-text: #1a1204; --login-hover: #c98f34; --login-lead: #3a3320;
   --login-ring: rgba(232, 163, 61, .12);        /* .login-grid .card.lead inset ring */
   --sw-off: #26313f; --sw-on: #2c4a30; --sw-on-line: #3d6b44;  /* .st-sw tile track */
+  /* the DEPTH cues — gradients, shadows and the one glow, so a second palette is declared here
+   * rather than re-typed into a rule (a shadow tuned for a black ground is invisible on white) */
+  --side-top: #0d131c; --side-bottom: #090d14;  /* .side gradient */
+  --side-shadow: 4px 0 20px rgba(0, 0, 0, .4);
+  --brand-wash: rgba(240, 168, 48, .08);        /* .brand gradient */
+  --brand-strong: #f8fafc;                      /* .brand b */
+  --brand-glow: 0 1px 8px rgba(240, 168, 48, .25);
+  --bar-shadow: 0 2px 14px rgba(0, 0, 0, .35);  /* .shell-bar / .top */
+  --card-shadow: 0 6px 22px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .04);
+  --card-hover-line: #2f435e;                   /* .card:hover border */
+  --run-glow: 0 0 8px rgba(63, 185, 80, .65);   /* .dot.run glow (the halo token is separate) */
+  --pill-top: #182232; --pill-bottom: #121924;  /* .pill gradient */
+  --pill-inset: rgba(255, 255, 255, .05);
 }
 
 * { box-sizing: border-box; }
@@ -151,17 +164,22 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
   display: flex;
   flex-direction: column;
 }
-.brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px;
-  border-bottom: 1px solid var(--line); }
-.brand img.brand-logo { height: 60px; width: auto; display: block; flex: 0 0 auto; }
+.brand { display: flex; gap: 10px; align-items: center; flex: 0 0 auto;
+  height: var(--nav-h); padding: 0 16px; border-bottom: 1px solid var(--line); }
+.brand img.brand-logo { height: 34px; width: auto; display: block; flex: 0 0 auto; }
 /* The brand mark is THE PROJECT'S OWN LOGO (services/webservice/static/logo.png), served from a
  * DOWNSCALED derivative: `logo-256.png` here and as the favicon, so the two share one request and
  * one cache entry. A FIXED HEIGHT with `width: auto` is what preserves the artwork's 3:2 aspect at
- * every viewport (a fixed width would stretch it). At 40px the mark draws ~60px wide at the file's
- * 3:2 aspect, from a 256px-wide derivative -- still ~4x the drawn width, so it stays sharp on a 2x
- * display. 40px is a third taller than the 30px it grew from, so the brand row is now taller than
- * before; that is expected. The height is stated ONCE, here; the element's own width and
- * height attributes are only a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
+ * every viewport (a fixed width would stretch it). At 34px the mark draws ~51px wide at the file's
+ * 3:2 aspect, from a 256px-wide derivative -- still ~5x the drawn width, so it stays sharp on a 2x
+ * display. The height is stated ONCE, here; the element's own width and height attributes are only
+ * a pre-CSS aspect hint. The 2.1 MB master is served by NO page.
+ *
+ * THE ROW IS `--nav-h`, NOT A PADDED BAND: the brand row's bottom border has to land on the same
+ * line as the top bar's, so the logo and the product name sit in the band above the nav exactly as
+ * they do in the login page's bar. A mark taller than the bar pushed the row past it and the two
+ * edges disagreed. `flex: 0 0 auto` pins it for the same reason the bar pins itself — a long nav
+ * would otherwise shrink it.
  *
  * TO REGENERATE the derivatives (never logo.png itself — it is the canonical master, byte-for-byte
  * what was supplied) from the repository root, with Pillow on the interpreter:
@@ -262,26 +280,50 @@ option:checked, option:hover { background: var(--accent); color: var(--ground); 
   display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 99px;
   font-size: 12px; border: 1px solid var(--line-2); background: var(--panel); color: var(--text-2);
 }
-/* THE LANGUAGE CONTROL (services.webservice.i18n, templates/_language.html): one flat row of plain
- * links, sized like the pills beside it so it sits on the top bar without becoming a second chrome.
- * The ACTIVE language is the only one that is not dimmed, and it carries a faint panel of its own —
- * a colour plus a weight, never colour alone, so the current language is legible to a colourblind
- * reader and to a text-only one. It is present on every shell page and on the login page. */
-.lang { display: inline-flex; align-items: center; gap: 2px; }
-.lang-opt {
-  font-size: 12px; line-height: 1; padding: 5px 6px; border-radius: 7px; text-decoration: none;
-  color: var(--text-3); border: 1px solid transparent; display: inline-flex; align-items: center;
+/* THE LANGUAGE CONTROL (services.webservice.i18n, templates/_language.html): one pill naming the
+ * language in force (its flag plus its own endonym), sized like the pills beside it so it sits on the
+ * top bar without becoming a second chrome, and a menu of every language with a catalog. The menu is
+ * a POPOVER, painted in the browser's TOP LAYER — that is what keeps it from being clipped by the
+ * fixed-height bar — and it opens from its own button with no script (`popovertarget`), so the
+ * control still works with JavaScript off. `anchor-name`/`position-anchor` place it under its own
+ * trigger and align its right edge with the trigger's; where the browser has no anchor positioning
+ * the menu still opens in the top layer, centred and unclipped. */
+.langpick { display: inline-flex; }
+.langchip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px 4px 8px; font: inherit;
+  font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--text); cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 99px;
 }
-.lang-opt:hover { color: var(--text-2); border-color: var(--line-2); }
-.lang-opt.on { color: var(--text); font-weight: 600; background: var(--panel);
-  border-color: var(--line-2); }
-/* The option is a FLAG, not a name (see templates/_language.html): a small SVG box, the flag filling
- * it and the neutral globe (square) centred inside it. A faint ring keeps a pale flag legible on the
- * dark bar; the active one gets the accent ring instead, so "current" is not colour-alone on the
- * flag itself. Emoji are never used — Windows would draw the two regional-indicator letters. */
-.lang-opt img.flag { display: block; width: 20px; height: 15px; object-fit: contain;
-  border-radius: 2px; box-shadow: 0 0 0 1px var(--flag-ring); }
-.lang-opt.on img.flag { box-shadow: 0 0 0 1px var(--accent); }
+.langchip:hover { border-color: var(--accent-2); }
+.langchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.langchip .caret { color: var(--text-3); font-size: 9px; line-height: 1; }
+.langmenu { min-width: 208px; margin: 0; padding: 5px; inset: auto; text-align: left;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+  box-shadow: 0 14px 30px var(--elev-sm); }
+/* The menu is placed under its trigger by CSS anchor positioning. A browser without it would
+ * otherwise fall back to the popover's own centred placement — the menu appearing across the middle
+ * of the screen — so a plain top-right position is declared FIRST as that fallback, and the anchored
+ * version (with its own literal fallbacks, for a trigger that carries no anchor-name) overrides it
+ * only where anchor() is understood. */
+.langmenu:popover-open { position: fixed; top: calc(var(--nav-h) + 8px); right: 16px;
+  margin-top: 6px; }
+@supports (top: anchor(bottom)) {
+  .langmenu:popover-open { top: anchor(bottom, calc(var(--nav-h) + 8px));
+    right: anchor(right, 16px); }
+}
+.langmenu .mi { display: flex; align-items: center; gap: 10px; padding: 7px 9px;
+  border-radius: var(--radius-s); color: var(--text); font-size: 12.5px; text-decoration: none; }
+.langmenu .mi:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
+.langmenu .mi:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.langmenu .mi .langname { flex: 1 1 auto; }
+.langmenu .mi.on .langname { font-weight: 600; }
+.langmenu .mi .ck { color: var(--accent); font-size: 11px; font-weight: 700; }
+/* The flag is a small SVG box, the flag filling it and the neutral globe (square) centred inside it.
+ * A faint ring keeps a pale flag legible on the dark bar, and the ring flips with the palette so it
+ * stays legible in the light theme. Emoji are never used — Windows would draw the two
+ * regional-indicator letters. */
+.langchip img.flag, .langmenu .mi img.flag { display: block; width: 20px; height: 15px;
+  object-fit: contain; border-radius: 2px; box-shadow: 0 0 0 1px var(--flag-ring); flex: 0 0 auto; }
 .envbar { font-size: 11.5px; color: var(--text-3); border-left: 2px solid var(--line-2);
   padding: 4px 0 4px 10px; }
 .envbar.live { color: var(--text-2); border-left-color: var(--accent); }
@@ -1670,11 +1712,10 @@ a.st-sw { text-decoration: none; }
 .st-core .r .rt { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
 /* ============================================================================ THE THEME SWITCH
- * The control that flips `data-theme` on <html> — the smallest honest one (there was NO switch
- * before; the attribute was hard-coded to "dark" in base.html and login.html). It is the SAME shape
- * as the language control (templates/_language.html): plain GET links to `/theme`, which stores the
- * choice in its own cookie and returns the visitor to the page they were on. No JavaScript, so the
- * page still renders fully with the script off — the theme is a SERVER-resolved preference.
+ * The control that flips `data-theme` on <html> — the smallest honest one. It is plain GET links to
+ * `/theme`, which stores the choice in its own cookie and returns the visitor to the page they were
+ * on. No JavaScript, so the page still renders fully with the script off — the theme is a
+ * SERVER-resolved preference.
  * Each option is an icon (sun / moon) whose accessible name is the mode's own word; the word is
  * translated through the catalog exactly like every other chrome string.
  */
@@ -1762,6 +1803,20 @@ html[data-theme="light"] {
   --login-line: #a9711f; --login-text: #ffffff; --login-hover: #8a5a10; --login-lead: #e3d7b4;
   --login-ring: rgba(154, 90, 5, .14);
   --sw-off: #d4dbe5; --sw-on: #bfe3c6; --sw-on-line: #7bbf8a;
+
+  /* the depth cues: a shadow tuned for black is invisible on white, and a glow reads as a smudge,
+   * so the light set is lighter, tighter and grey-tinted rather than a copy of the dark one */
+  --side-top: #ffffff; --side-bottom: #f7f9fb;
+  --side-shadow: 4px 0 20px rgba(15, 23, 42, .10);
+  --brand-wash: rgba(154, 90, 5, .07);
+  --brand-strong: #0f172a;
+  --brand-glow: none;
+  --bar-shadow: 0 2px 14px rgba(15, 23, 42, .08);
+  --card-shadow: 0 6px 18px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255, 255, 255, .7);
+  --card-hover-line: #93a3b7;
+  --run-glow: 0 0 8px rgba(26, 127, 55, .35);
+  --pill-top: #ffffff; --pill-bottom: #eef1f6;
+  --pill-inset: rgba(255, 255, 255, .8);
 
   /* the settings-tile kind signatures (declared in the tile block above) also flip */
   --kind-plugin: var(--accent); --kind-service: var(--link); --kind-ext: #0d7f74;
@@ -1893,3 +1948,59 @@ html[data-theme="light"] {
   font-size: 10.5px; letter-spacing: .06em; }
 .player-list .row.hd .t, .player-list .row.hd .w, .player-list .row.hd .d { font-family: inherit;
   font-size: inherit; color: inherit; }
+
+
+/* ================================================================
+ * Tactical glass & glow — the depth cues (gradients, shadows, glows)
+ * the shell wears on top of the palette. Every colour here is a TOKEN,
+ * declared once with the palette above and overridden by
+ * html[data-theme="light"], so both themes get the same construction
+ * and neither one is a re-typed copy of the other.
+ * ================================================================ */
+.side {
+  background: linear-gradient(180deg, var(--side-top) 0%, var(--side-bottom) 100%);
+  box-shadow: var(--side-shadow);
+}
+
+.brand {
+  background: linear-gradient(90deg, var(--brand-wash), transparent);
+}
+
+.brand b {
+  color: var(--brand-strong);
+  font-size: 14.5px;
+  letter-spacing: .4px;
+  text-shadow: var(--brand-glow);
+}
+
+.brand small {
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: .04em;
+}
+
+.shell-bar, .top {
+  box-shadow: var(--bar-shadow);
+}
+
+.card {
+  box-shadow: var(--card-shadow);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.card:hover {
+  border-color: var(--card-hover-line);
+}
+
+.dot.run {
+  box-shadow: var(--run-glow), 0 0 0 3px var(--run-halo);
+}
+
+.pill {
+  background: linear-gradient(180deg, var(--pill-top) 0%, var(--pill-bottom) 100%);
+  box-shadow: inset 0 1px 0 var(--pill-inset);
+}
+
+.nav a {
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}

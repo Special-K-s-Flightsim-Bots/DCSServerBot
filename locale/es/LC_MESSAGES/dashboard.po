@@ -1,0 +1,79 @@
+# DRAFT ES CATALOG.
+# MACHINE-ASSISTED AND NOT REVIEWED BY A NATIVE SPEAKER.
+# Dashboard domain only (services/dashboard/service.py);
+# the console web UI lives in the webui domain.
+# Replace it with a real translator's work before relying on it.
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot\n"
+"Language: es\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Running"
+msgstr "En marcha"
+
+msgid "Loading"
+msgstr "Cargando"
+
+msgid "Paused"
+msgstr "En pausa"
+
+msgid "Stopped"
+msgstr "Detenido"
+
+msgid "Shutdown"
+msgstr "Apagado"
+
+msgid "Waiting"
+msgstr "Pendiente"
+
+msgid "Cluster Master"
+msgstr "Maestro del clúster"
+
+msgid "Cluster Agent"
+msgstr "Agente del clúster"
+
+msgid "DCS Version"
+msgstr "Versión de DCS"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Status"
+msgstr "Estado"
+
+msgid "Server Name"
+msgstr "Nombre del servidor"
+
+msgid "Mission Name"
+msgstr "Nombre de la misión"
+
+msgid "Players"
+msgstr "Jugadores"
+
+msgid "Port / SRS"
+msgstr "Port / SRS"
+
+msgid "Node"
+msgstr "Nodo"
+
+msgid "configured"
+msgstr "configurados"
+
+msgid "running"
+msgstr "en ejecución"
+
+msgid "offline"
+msgstr "sin conexión"
+
+msgid "Node ([green]Master[/])"
+msgstr "Nodo ([green]Maestro[/])"
+
+msgid "Servers"
+msgstr "Servidores"
+
+msgid "inactive"
+msgstr "inactivo"

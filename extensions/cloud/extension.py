@@ -6,6 +6,7 @@ import shutil
 import ssl
 
 from core import Extension, Server, DEFAULT_TAG
+from core.utils.helper import player_slots
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
@@ -100,8 +101,8 @@ class Cloud(Extension):
                 "password": (self.server.settings.get('password', '') != ''),
                 "theatre": self.server.current_mission.map,
                 "dcs_version": self.node.dcs_version,
-                "num_players": len(self.server.get_active_players()) + 1,
-                "max_players": int(self.server.settings.get('maxPlayers', 16)),
+                "num_players": len(self.server.get_active_players()),
+                "max_players": player_slots(self.server.settings.get('maxPlayers', 16)),
                 "mission": self.server.current_mission.name,
                 "date": self.server.current_mission.date.strftime("%Y-%m-%d") if isinstance(self.server.current_mission.date, datetime) else self.server.current_mission.date,
                 "start_time": int(self.server.current_mission.start_time),

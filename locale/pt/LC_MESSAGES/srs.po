@@ -1,0 +1,98 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Commands to manage DCS-SRS"
+msgstr "Comandos para gerenciar o DCS-SRS"
+
+msgid "List of active SRS users"
+msgstr "Lista de usuários SRS ativos"
+
+msgid "You are not allowed to see the {} players."
+msgstr "Você não tem permissão para ver os jogadores de {}."
+
+msgid "{} Players on SRS"
+msgstr "{} jogadores no SRS"
+
+msgid "Name"
+msgstr "Nome"
+
+msgid "Radios"
+msgstr "Rádios"
+
+msgid "Only the first 2 radios are displayed per user."
+msgstr "Apenas os 2 primeiros rádios são exibidos por usuário."
+
+msgid "No {} players on SRS."
+msgstr "Nenhum jogador {} no SRS."
+
+msgid "Send a TTS message"
+msgstr "Enviar uma mensagem TTS"
+
+msgid "The server to send the TTS message to"
+msgstr "O servidor para o qual enviar a mensagem TTS"
+
+msgid "The message to send"
+msgstr "A mensagem a enviar"
+
+msgid "Limit the frequencies to this player"
+msgstr "Limitar as frequências a este jogador"
+
+msgid "Limit the frequencies to this coalition"
+msgstr "Limitar as frequências a esta coalizão"
+
+msgid "The frequency to send the message to"
+msgstr "A frequência para a qual enviar a mensagem"
+
+msgid "Message sent."
+msgstr "Mensagem enviada."
+
+msgid "Failed to send TTS message."
+msgstr "Falha ao enviar a mensagem TTS."
+
+msgid "Update DCS-SRS"
+msgstr "Atualizar DCS-SRS"
+
+msgid "Extension SRS is not loaded on server {}"
+msgstr "A extensão SRS não está carregada no servidor {}"
+
+msgid "DCS-SRS update to version {} available!"
+msgstr "Atualização do DCS-SRS para a versão {} disponível!"
+
+msgid "Do you want to update DCS-SRS now?"
+msgstr "Deseja atualizar o DCS-SRS agora?"
+
+msgid "This will terminate all DCS-SRS servers on node {}!"
+msgstr "Isto encerrará todos os servidores DCS-SRS no nó {}!"
+
+msgid "Aborted."
+msgstr "Abortado."
+
+msgid "DCS-SRS updated to version {}."
+msgstr "DCS-SRS atualizado para a versão {}."
+
+msgid "Failed to update DCS-SRS. See log for defails."
+msgstr "Falha ao atualizar o DCS-SRS. Consulte o log para detalhes."
+
+msgid "No update for DCS-SRS available."
+msgstr "Nenhuma atualização do DCS-SRS disponível."
+
+msgid "Repair DCS-SRS"
+msgstr "Reparar DCS-SRS"
+
+msgid "Extension SRS is not active on server {}"
+msgstr "A extensão SRS não está ativa no servidor {}"
+
+msgid "Do you want to repair DCS-SRS now?"
+msgstr "Deseja reparar o DCS-SRS agora?"
+
+msgid "DCS-SRS repaired on node {}."
+msgstr "DCS-SRS reparado no nó {}."
+
+msgid "Please contact ATC on {}"
+msgstr "Contate o ATC em {}"

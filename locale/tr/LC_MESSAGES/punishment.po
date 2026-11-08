@@ -1,0 +1,181 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Member {member} banned by {banned_by} for {reason}."
+msgstr "{member} üyesi, {banned_by} tarafından {reason} sebebiyle yasaklandı."
+
+msgid "You have been banned from the DCS servers on {guild} for {reason} for the amount of {days} days."
+msgstr "{guild} üzerindeki DCS sunucularından {reason} sebebiyle {days} gün süreyle yasaklandınız."
+
+msgid "Player {player} (ucid={ucid}) banned by {banned_by} for {reason}."
+msgstr "Oyuncu {player} (ucid={ucid}), {banned_by} tarafından {reason} sebebiyle yasaklandı."
+
+msgid "Player with ucid {ucid} banned by {banned_by} for {reason}."
+msgstr "{ucid} UCID numaralı oyuncu, {banned_by} tarafından {reason} sebebiyle yasaklandı."
+
+msgid "Player {player} (ucid={ucid}) kicked by {kicked_by} for {reason}."
+msgstr "Oyuncu {player} (ucid={ucid}), {kicked_by} tarafından {reason} sebebiyle sunucudan atıldı."
+
+msgid "You've been kicked back to spectators because of: {}."
+msgstr "Şu sebeple izleyicilere geri gönderildiniz: {}."
+
+msgid "Player {player} (ucid={ucid}) moved to spectators by {spec_by} for {reason}."
+msgstr "Oyuncu {player} (ucid={ucid}), {spec_by} tarafından {reason} sebebiyle izleyicilere taşındı."
+
+msgid "Punished for {}"
+msgstr "{} sebebiyle cezalandırıldı"
+
+msgid "{name}, you have been punished for: {reason}!\nYour current credit points are: {points}"
+msgstr "{name}, şu sebeple cezalandırıldınız: {reason}!\nMevcut kredi puanınız: {points}"
+
+msgid "Player {player} (ucid={ucid}) punished with credits by {punished_by} for {reason}."
+msgstr "Oyuncu {player} (ucid={ucid}), {punished_by} tarafından {reason} sebebiyle kredi kesintisiyle cezalandırıldı."
+
+msgid "{name}, you have been punished for: {reason}!"
+msgstr "{name}, şu sebeple cezalandırıldınız: {reason}!"
+
+msgid "{name}, check your fire: {reason}!"
+msgstr "{name}, ateşinize dikkat edin (Dost Ateşi): {reason}!"
+
+msgid "{name}, you have {points} punishment points."
+msgstr "{name}, {points} ceza puanınız var."
+
+msgid "Adds punishment points to a user\n"
+msgstr "Bir kullanıcıya ceza puanı ekler\n"
+
+msgid "User {} is not linked."
+msgstr "Kullanıcı {} eşleştirilmemiş."
+
+msgid "The UCID provided is invalid."
+msgstr "Girilen UCID geçersiz."
+
+msgid "User punished with {} points."
+msgstr "Kullanıcı {} ceza puanı ile cezalandırıldı."
+
+msgid "punished user {ucid} with {points} points."
+msgstr "{ucid} kullanıcısını {points} puan ile cezalandırdı."
+
+msgid "Deletes a users punishment points"
+msgstr "Bir kullanıcının ceza puanlarını siler"
+
+msgid "This will delete all the punishment points for this user and unban them if they were banned.\nAre you sure?"
+msgstr "Bu işlem kullanıcının tüm ceza puanlarını silecek ve eğer yasaklanmışsa yasağını kaldıracaktır.\nEmin misiniz?"
+
+msgid "All punishment points deleted and player unbanned (if they were banned by the bot before)."
+msgstr "Tüm ceza puanları silindi ve oyuncunun yasağı (eğer bot tarafından yasaklandıysa) kaldırıldı."
+
+msgid "forgave player {}"
+msgstr "{} oyuncusunu affetti"
+
+msgid "Displays the current penalty points"
+msgstr "Mevcut ceza puanlarını gösterir"
+
+msgid "You need the DCS Admin role to show penalty points for other users."
+msgstr "Diğer kullanıcıların ceza puanlarını görmek için DCS Admin rolüne sahip olmalısınız."
+
+msgid "Member {} is not linked."
+msgstr "Member {} is not linked."
+
+msgid "Use {} to link your Discord and DCS accounts first."
+msgstr "Önce Discord ve DCS hesaplarınızı eşleştirmek için {} komutunu kullanın."
+
+msgid "User has no penalty points."
+msgstr "Kullanıcının ceza puanı yok."
+
+msgid "Penalty Points for {}"
+msgstr "{} için Ceza Puanları"
+
+msgid "Total penalty points: {total:.2f}"
+msgstr "Toplam ceza puanı: {total:.2f}"
+
+msgid "Time (UTC)"
+msgstr "Zaman (UTC)"
+
+msgid "Event"
+msgstr "Olay"
+
+msgid "Points"
+msgstr "Puan"
+
+msgid "Points decay over time, you might see different results on different days."
+msgstr "Ceza puanları zamanla azalır, farklı günlerde farklı sonuçlar görebilirsiniz."
+
+msgid "never"
+msgstr "asla (süresiz)"
+
+msgid "Ban expires"
+msgstr "Yasak bitişi"
+
+msgid "Reason"
+msgstr "Sebep"
+
+msgid "You are currently banned.\nPlease contact a member of the server staff, if you want to get unbanned."
+msgstr "Şu anda yasaklısınız.\nYasağınızın kaldırılmasını istiyorsanız lütfen sunucu yetkilileriyle iletişime geçin."
+
+msgid "Show last infractions of a user"
+msgstr "Bir kullanıcının son ihlallerini göster"
+
+msgid "This user does not exist. Try {} to find them in the historic data."
+msgstr "Bu kullanıcı mevcut değil. Geçmiş verilerde bulmak için {} komutunu deneyin."
+
+msgid "{victim}, you are a victim of a friendly-fire event by player {offender}.\nIf you send {prefix}forgive in chat within the next {time} seconds, you can pardon the other player."
+msgstr "{victim}, oyuncu {offender} tarafından gerçekleştirilen bir dost ateşi (friendly-fire) olayının kurbanı oldunuz.\nÖnümüzdeki {time} saniye içinde sohbete {prefix}forgive yazarsanız diğer oyuncuyu affedebilirsiniz."
+
+msgid "forgive another user for their infraction"
+msgstr "başka bir kullanıcıyı ihlali için affet"
+
+msgid "There is nothing to forgive (maybe too late?)"
+msgstr "Affedilecek bir durum yok (belki süre dolmuştur?)"
+
+msgid "{offender}, You have been forgiven by {victim} and you will not be punished for your recent actions."
+msgstr "{offender}, {victim} tarafından affedildiniz ve son eyleminiz için ceza almayacaksınız."
+
+msgid "You have chosen to forgive {} for their actions."
+msgstr "{} oyuncusunu eylemlerinden dolayı affetmeyi seçtiniz."
+
+msgid "displays your penalty points"
+msgstr "ceza puanlarınızı gösterir"
+
+msgid "Player {player} (ucid={ucid}) kicked from {server} by {kicked_by} for {reason}."
+msgstr "Oyuncu {oyuncu} (ucid={ucid}) kicked from {sunucu} by {kicked_by} for {reason}."
+
+msgid "Player {player} (ucid={ucid}) moved to spectators on {server} by {spec_by} for {reason}."
+msgstr "Oyuncu {oyuncu} (ucid={ucid}) moved to spectators on {sunucu} by {spec_by} for {reason}."
+
+msgid "The users punishment points have been reduced by {} points."
+msgstr "The users punishment points have been reduced by {} points."
+
+msgid "changed punishment points of user {ucid} by {points} points."
+msgstr "changed punishment points of user {ucid} by {points} points."
+
+msgid "The user provided is invalid."
+msgstr "The user provided is invalid."
+
+msgid "{initiator}, your seat was unlocked."
+msgstr "{initiator}, your seat was unlocked."
+
+msgid "{}, your aircraft must be fitted with a new ejection seat."
+msgstr "{}, your aircraft must be fitted with a new ejection seat."
+
+msgid "{}, your aircraft needs an inspection."
+msgstr "{}, your aircraft needs an inspection."
+
+msgid "Please stand by for {}"
+msgstr "Please stand by for {}"
+
+msgid "{initiator}, you have been happily rescued and can join a new plane."
+msgstr "{initiator}, you have been happily rescued and can join a new plane."
+
+msgid "Player {} (ucid={}) disconnected and reconnected {} seconds after being shot at."
+msgstr "Oyuncu {} (ucid={}) disconnected and reconnected {} seconds after being shot at."
+
+msgid "You have chosen to forgive {offender} for their actions."
+msgstr "You have chosen to forgive {offender} for their actions."
+
+msgid "Player {victim} forgave player {offender} for their actions"
+msgstr "Oyuncu {victim} forgave oyuncu {offender} for their actions"

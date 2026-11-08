@@ -10,6 +10,15 @@ Flag and globe SVG assets for the console's language control.
   es.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
   ru.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
   cn.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+  tr.svg     — flag-icons (https://github.com/lipis/flag-icons), MIT licence. Unchanged.
+  fr.svg     — the French tricolour, drawn here as three plain rectangles (no third-party artwork,
+               no licence to carry): the same 640x480 frame and colours as the flag-icons set so it
+               sits level with its neighbours.
+  it.svg     — the Italian tricolour, drawn the same way (three plain rectangles, 640x480).
+  pt.svg     — the Brazilian flag, drawn here as its three plain shapes (green field, yellow
+               rhombus, blue disc) — the stars and the motto band are left out on purpose, because at
+               20px they are noise and hand-drawing them invites mistakes.
+  pl.svg     — the Polish flag: two plain horizontal halves (white, crimson), 640x480.
 
 Add a language by dropping its SVG here and naming it in LANGUAGE_FLAGS
 (services/webservice/i18n.py); a language without an asset falls back to the globe.

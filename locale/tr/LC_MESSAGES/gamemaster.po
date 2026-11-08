@@ -1,0 +1,346 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot 3.x\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Send a chat message to DCS"
+msgstr "DCS içine sohbet mesajı gönder"
+
+msgid "Server {} is not running."
+msgstr "{} sunucusu çalışmıyor."
+
+msgid "Message sent."
+msgstr "Mesaj gönderildi."
+
+msgid "Sends a popup to a coalition\n"
+msgstr "Bir koalisyona açılır pencere (popup) mesajı gönderir\n"
+
+msgid "Sends a popup to all servers"
+msgstr "Tüm sunuculara açılır pencere (popup) mesajı gönderir"
+
+msgid "Message NOT sent to server {server} because it is {status}."
+msgstr "Sunucu {status} durumunda olduğu için {server} sunucusuna mesaj GÖNDERİLMEDİ."
+
+msgid "Message sent to server {}."
+msgstr "{} sunucusuna mesaj gönderildi."
+
+msgid "Set or get a flag inside the mission"
+msgstr "Görev içindeki bir bayrağı (flag) ayarla veya oku"
+
+msgid "Flag {flag} set to {value}."
+msgstr "Bayrak (Flag) {flag}, {value} olarak ayarlandı."
+
+msgid "Flag {flag} has value {value}."
+msgstr "Bayrak (Flag) {flag} değeri: {value}."
+
+msgid "Set or get a mission variable"
+msgstr "Bir görev değişkenini ayarla veya oku"
+
+msgid "Variable {name} set to {value}."
+msgstr "{name} değişkeni {value} olarak ayarlandı."
+
+msgid "Timeout while retrieving variable. Most likely a lua error occurred. Check your dcs.log."
+msgstr "Değişken alınırken zaman aşımı oluştu. Büyük olasılıkla bir Lua hatası meydana geldi. dcs.log dosyasını kontrol edin."
+
+msgid "Variable {name} has value {value}."
+msgstr "{name} değişkeninin değeri: {value}."
+
+msgid "Variable {} is not set."
+msgstr "{} değişkeni ayarlanmamış."
+
+msgid "Calls any function inside the mission"
+msgstr "Görev içinde herhangi bir Lua fonksiyonunu çağırır"
+
+msgid "Lua Script"
+msgstr "Lua Betiği (Script)"
+
+msgid "Enter your script here:"
+msgstr "Betiğinizi buraya girin:"
+
+msgid "Script sent."
+msgstr "Betik gönderildi."
+
+msgid "Loads a lua file into the mission"
+msgstr "Göreve bir Lua dosyası yükler"
+
+msgid "Script loaded."
+msgstr "Betik yüklendi."
+
+msgid "Reset coalition cooldown"
+msgstr "Koalisyon bekleme süresini sıfırla"
+
+msgid "The coalition system is not enabled on this server."
+msgstr "Bu sunucuda koalisyon sistemi etkin değil."
+
+msgid "Do you want to reset the coalition-bindings from player {}?"
+msgstr "{} oyuncusunun koalisyon bağını sıfırlamak istiyor musunuz?"
+
+msgid "Coalition bindings for player {} reset."
+msgstr "{} oyuncusu için koalisyon bağı sıfırlandı."
+
+msgid "The bot is missing the \"Manage Roles\" permission!"
+msgstr "Botun \"Rolleri Yönet\" izni eksik!"
+
+msgid "Reset all coalition cooldowns"
+msgstr "Tüm koalisyon bekleme sürelerini sıfırla"
+
+msgid "Do you want to mass-reset all coalition-bindings from your players?"
+msgstr "Oyuncularınızın tüm koalisyon bağlarını topluca sıfırlamak istiyor musunuz?"
+
+msgid "Coalition bindings reset for all players on server {}."
+msgstr "{} sunucusundaki tüm oyuncular için koalisyon bağları sıfırlandı."
+
+msgid "Coalition bindings reset for all players."
+msgstr "Tüm oyuncular için koalisyon bağları sıfırlandı."
+
+msgid "Commands to manage DCS campaigns"
+msgstr "DCS seferlerini (campaigns) yönetmek için komutlar"
+
+msgid "Name"
+msgstr "Ad"
+
+msgid "Start (UTC)"
+msgstr "Başlangıç (UTC)"
+
+msgid "End (UTC)"
+msgstr "Bitiş (UTC)"
+
+msgid "Description"
+msgstr "Açıklama"
+
+msgid "Format for {} needs to be yyyy-mm-dd hh24:mi!"
+msgstr "{} için biçim yyyy-aa-gg ss:dd olmalıdır!"
+
+msgid "Lists all (active) campaigns"
+msgstr "Tüm (aktif) seferleri listeler"
+
+msgid "Display only active campaigns"
+msgstr "Yalnızca aktif seferleri göster"
+
+msgid "Campaign info"
+msgstr "Sefer bilgisi"
+
+msgid "Campaign Overview"
+msgstr "Sefer Genel Bakışı"
+
+msgid "Edit Campaign"
+msgstr "Seferi Düzenle"
+
+msgid "Campaign not found."
+msgstr "Sefer bulunamadı."
+
+msgid "Campaign {} updated."
+msgstr "{} seferi güncellendi."
+
+msgid "Add a campaign"
+msgstr "Yeni bir sefer ekle"
+
+msgid "Aborted."
+msgstr "İptal edildi."
+
+msgid "Select all servers for this campaign"
+msgstr "Bu sefer için tüm sunucuları seçin"
+
+msgid "Campaign {} added."
+msgstr "{} seferi eklendi."
+
+msgid "A campaign is already configured for this timeframe!"
+msgstr "Bu zaman aralığı için zaten bir sefer yapılandırılmış!"
+
+msgid "A campaign with this name already exists!"
+msgstr "Bu isimde bir sefer zaten mevcut!"
+
+msgid "Add a server to an existing campaign\n"
+msgstr "Mevcut bir sefere sunucu ekle\n"
+
+msgid "Server {server} added to campaign {campaign}."
+msgstr "{server} sunucusu {campaign} seferine eklendi."
+
+msgid "Server {server} is already part of the campaign {campaign}!"
+msgstr "{server} sunucusu zaten {campaign} seferinin bir parçası!"
+
+msgid "Delete a server from a campaign\n"
+msgstr "Bir seferden sunucu sil\n"
+
+msgid "Server {server} deleted from campaign {campaign}."
+msgstr "{server} sunucusu {campaign} seferinden silindi."
+
+msgid "Delete a campaign"
+msgstr "Bir seferi sil"
+
+msgid "Do you want to delete campaign \"{}\"?"
+msgstr "\"{}\" seferini silmek istiyor musunuz?"
+
+msgid "Campaign deleted."
+msgstr "Sefer silindi."
+
+msgid "Start a campaign"
+msgstr "Bir seferi başlat"
+
+msgid "Campaign {} started."
+msgstr "{} seferi başlatıldı."
+
+msgid "Stop a campaign"
+msgstr "Bir seferi durdur"
+
+msgid "Do you want to stop campaign \"{}\"?"
+msgstr "\"{}\" seferini durdurmak istiyor musunuz?"
+
+msgid "Campaign stopped."
+msgstr "Sefer durduruldu."
+
+msgid "Sends a message to a user"
+msgstr "Bir kullanıcıya mesaj gönderir"
+
+msgid "User is not linked."
+msgstr "Kullanıcı eşleştirilmemiş."
+
+msgid "Unknown user {}!"
+msgstr "Bilinmeyen kullanıcı {}!"
+
+msgid "Message will be displayed to the user."
+msgstr "Mesaj kullanıcıya gösterilecektir."
+
+msgid "Lists active messages"
+msgstr "Aktif mesajları listeler"
+
+msgid "Edit or delete a user-message"
+msgstr "Bir kullanıcı mesajını düzenle veya sil"
+
+msgid "No messages found."
+msgstr "Mesaj bulunamadı."
+
+msgid "Error while updating embed!"
+msgstr "Gömülü mesaj (embed) güncellenirken hata oluştu!"
+
+msgid "Error {} while reading JSON file!"
+msgstr "JSON dosyası okunurken {} hatası oluştu!"
+
+msgid "To which server do you want to upload this LUA to?"
+msgstr "Bu LUA dosyasını hangi sunucuya yüklemek istiyorsunuz?"
+
+msgid "File exists. Do you want to overwrite it?"
+msgstr "Dosya zaten mevcut. Üzerine yazmak istiyor musunuz?"
+
+msgid "File {} could not be uploaded."
+msgstr "{} dosyası yüklenemedi."
+
+msgid "{num} LUA files uploaded. You can load any of them with {command} now."
+msgstr "{num} LUA dosyası yüklendi. Şimdi {command} komutuyla istediğinizi yükleyebilirsiniz."
+
+msgid "join a coalition"
+msgstr "bir koalisyona katıl"
+
+msgid "Usage: {prefix}{command} <blue|red>"
+msgstr "Kullanım: {prefix}{command} <blue|red>"
+
+msgid "You are a member of coalition {} already."
+msgstr "Zaten {} koalisyonunun üyesisiniz."
+
+msgid "You can't join the {coalition} coalition in-between {lock_time} of leaving a coalition."
+msgstr "Bir koalisyondan ayrıldıktan sonra {lock_time} içinde {coalition} koalisyonuna katılamazsınız."
+
+msgid "Welcome to the {} side!"
+msgstr "{} tarafına hoş geldiniz!"
+
+msgid "Your coalition password is {}"
+msgstr "Koalisyon şifreniz: {}"
+
+msgid "leave your coalition"
+msgstr "koalisyonunuzdan ayrılın"
+
+msgid "You are not a member of any coalition. You can join one with {}join blue|red."
+msgstr "Herhangi bir koalisyonun üyesi değilsiniz. {}join blue|red komutuyla katılabilirsiniz."
+
+msgid "You left the {} coalition!"
+msgstr "{} koalisyonundan ayrıldınız!"
+
+msgid "join the red side"
+msgstr "kırmızı tarafa katıl"
+
+msgid "join the blue side"
+msgstr "mavi tarafa katıl"
+
+msgid "displays your current coalition"
+msgstr "mevcut koalisyonunuzu gösterir"
+
+msgid "You are a member of the {} coalition."
+msgstr "{} koalisyonunun üyesisiniz."
+
+msgid "displays the coalition password"
+msgstr "koalisyon şifresini gösterir"
+
+msgid "There is no password set for your coalition."
+msgstr "Koalisyonunuz için belirlenmiş bir şifre yok."
+
+msgid "reads or sets a flag"
+msgstr "bir bayrağı (flag) okur veya ayarlar"
+
+msgid "<flag> [value]"
+msgstr "<bayrak> [değer]"
+
+msgid "Usage: {prefix}{command} <flag> [value]"
+msgstr "Kullanım: {prefix}{command} <bayrak> [değer]"
+
+msgid "The message was sent to the following servers"
+msgstr "The message was sent to the following sunucus"
+
+msgid "Server"
+msgstr "Sunucu"
+
+msgid "Message sent"
+msgstr "Message sent"
+
+msgid "Commands to manage user messages"
+msgstr "Yönetim komutları: user messages"
+
+msgid "Messages"
+msgstr "Messages"
+
+msgid "No."
+msgstr "No."
+
+msgid "Receiver"
+msgstr "Receiver"
+
+msgid "Time"
+msgstr "Zaman"
+
+msgid "permission \"Manage Roles\" missing."
+msgstr "pergörev \"Manage Roles\" missing."
+
+msgid "acknowledge a user message"
+msgstr "acknowledge a user message"
+
+msgid "No message found."
+msgstr "No message found."
+
+msgid "Message{} acknowledged."
+msgstr "Message{} acknowledged."
+
+msgid "Player {} ({}) acknowledged their message{}."
+msgstr "Oyuncu {} ({}) acknowledged their message{}."
+
+msgid "send a popup message"
+msgstr "send a popup message"
+
+msgid "Usage: {prefix}{command} <all|red|blue> <message>"
+msgstr "Usage: {prefix}{command} <all|red|blue> <message>"
+
+msgid "Image URL"
+msgstr "Image URL"
+
+msgid "Campaign Info"
+msgstr "Campaign Info"
+
+msgid "Message for user {}"
+msgstr "Message for user {}"
+
+msgid "Message"
+msgstr "Message"
+
+msgid "No messages left."
+msgstr "No messages left."

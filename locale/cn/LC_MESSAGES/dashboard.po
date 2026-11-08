@@ -1,0 +1,78 @@
+# DRAFT CN CATALOG.
+# MACHINE-ASSISTED AND NOT REVIEWED BY A NATIVE SPEAKER.
+# Dashboard domain only (services/dashboard/service.py);
+# the console web UI lives in the webui domain.
+# Replace it with a real translator's work before relying on it.
+msgid ""
+msgstr ""
+"Project-Id-Version: DCSServerBot\n"
+"Language: cn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Loading"
+msgstr "加载中"
+
+msgid "Paused"
+msgstr "已暂停"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Shutdown"
+msgstr "已关机"
+
+msgid "Waiting"
+msgstr "等待中"
+
+msgid "Cluster Master"
+msgstr "集群主节点"
+
+msgid "Cluster Agent"
+msgstr "集群代理"
+
+msgid "DCS Version"
+msgstr "DCS 版本"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Server Name"
+msgstr "服务器名称"
+
+msgid "Mission Name"
+msgstr "任务名称"
+
+msgid "Players"
+msgstr "玩家"
+
+msgid "Port / SRS"
+msgstr "Port / SRS"
+
+msgid "Node"
+msgstr "节点"
+
+msgid "configured"
+msgstr "已配置"
+
+msgid "running"
+msgstr "运行中"
+
+msgid "offline"
+msgstr "离线"
+
+msgid "Node ([green]Master[/])"
+msgstr "节点 ([green]主节点[/])"
+
+msgid "Servers"
+msgstr "服务器"
+
+msgid "inactive"
+msgstr "未激活"

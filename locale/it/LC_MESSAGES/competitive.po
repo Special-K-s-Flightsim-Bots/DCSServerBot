@@ -1,0 +1,167 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Display TrueSkill:tm: ratings"
+msgstr "Visualizza le valutazioni TrueSkill:tm"
+
+msgid "TrueSkill:tm: rating: {rating:.2f}."
+msgstr "Valutazione TrueSkill:tm: {rating:.2f}."
+
+msgid "Display TrueSkill:tm: history"
+msgstr "Visualizza la cronologia TrueSkill:tm"
+
+msgid "User {} is not linked."
+msgstr "L'utente {} non è collegato."
+
+msgid "Delete TrueSkill:tm: ratings"
+msgstr "Elimina le valutazioni TrueSkill:tm"
+
+msgid "Do you really want to delete TrueSkill:tm: ratings for this user?"
+msgstr "Eliminare davvero le valutazioni TrueSkill:tm di questo utente?"
+
+msgid "Do you really want to delete the TrueSkill:tm: ratings for all users?"
+msgstr "Eliminare davvero le valutazioni TrueSkill:tm di tutti gli utenti?"
+
+msgid "TrueSkill:tm: ratings deleted."
+msgstr "Valutazioni TrueSkill:tm eliminate."
+
+msgid "Regenerate TrueSkill:tm: ratings"
+msgstr "Rigenera le valutazioni TrueSkill:tm"
+
+msgid "Do you want to regenerate the TrueSkill:tm: ratings for this user?"
+msgstr "Rigenerare le valutazioni TrueSkill:tm di questo utente?"
+
+msgid "Do you really want to regenerate **all** TrueSkill:tm: ratings?"
+msgstr "Rigenerare davvero **tutte** le valutazioni TrueSkill:tm?"
+
+msgid "Member is not linked to a player."
+msgstr "Il membro non è collegato a un giocatore."
+
+msgid "TrueSkill:tm: ratings deleted.\nGenerating new values now ..."
+msgstr "Valutazioni TrueSkill:tm eliminate.\nGenerazione dei nuovi valori in corso ..."
+
+msgid "TrueSkill:tm: ratings regenerated."
+msgstr "Valutazioni TrueSkill:tm rigenerate."
+
+msgid "Your TrueSkill rating is: {}"
+msgstr "La tua valutazione TrueSkill è: {}"
+
+msgid "You're not allowed to re-join the same match!"
+msgstr "Non è consentito rientrare nella stessa partita!"
+
+msgid "Player {name} ({rating}) joined the {side} team!"
+msgstr "Il giocatore {name} ({rating}) si è unito alla squadra {side}!"
+
+msgid "The match is on! If you die, crash or leave now, you lose!"
+msgstr "La partita è iniziata! Se muori, ti schianti o esci ora, perdi!"
+
+msgid "You won against {loser}! Your new rating is {rating}"
+msgstr "Hai vinto contro {loser}! La tua nuova valutazione è {rating}"
+
+msgid "You lost against {winner}! Your new rating is {rating}"
+msgstr "Hai perso contro {winner}! La tua nuova valutazione è {rating}"
+
+msgid "Display your rating"
+msgstr "Visualizza la tua valutazione"
+
+msgid "The match is over, {} won!\n\n"
+msgstr "La partita è finita, ha vinto {}!\n\n"
+
+msgid "\nThis is the log of your last match:\n"
+msgstr "\nQuesto è il registro della tua ultima partita:\n"
+
+msgid "\nYour new rating is as follows:\n"
+msgstr "\nLa tua nuova valutazione è la seguente:\n"
+
+msgid "{killer} in {killer_module} {what} {victim} in {victim_module} with {weapon}"
+msgstr "{killer} in {killer_module} ha {what} {victim} in {victim_module} con {weapon}"
+
+msgid "killed"
+msgstr "abbattuto"
+
+msgid "team-killed"
+msgstr "abbattuto per fuoco amico"
+
+msgid "{player} in {module} died ({event})"
+msgstr "{player} in {module} è morto ({event})"
+
+msgid "self-kill"
+msgstr "autoabbattimento"
+
+msgid "crash"
+msgstr "schianto"
+
+msgid "eject"
+msgstr "eiezione"
+
+msgid "disconnect"
+msgstr "disconnessione"
+
+msgid "Display your TrueSkill:tm: rating"
+msgstr "Visualizza la tua valutazione TrueSkill:tm"
+
+msgid "Use {} to link your account."
+msgstr "Usa {} per collegare il tuo account."
+
+msgid "TrueSkill:tm: rating of player {name}: {rating:.2f}."
+msgstr "Valutazione TrueSkill:tm del giocatore {name}: {rating:.2f}."
+
+msgid "The match is over, {} won!\n\nThe following players are still alive:\n"
+msgstr "La partita è finita, ha vinto {}!\n\nI seguenti giocatori sono ancora vivi:\n"
+
+msgid "Aborted."
+msgstr "Annullato."
+
+msgid "This can take a while."
+msgstr "L'operazione può richiedere un po' di tempo."
+
+msgid "You need to link your account first."
+msgstr "Devi prima collegare il tuo account."
+
+msgid "You need to specify two different players."
+msgstr "È necessario specificare due giocatori diversi."
+
+msgid "Compare Players"
+msgstr "Confronta giocatori"
+
+msgid "You need to specify two different modules."
+msgstr "È necessario specificare due moduli diversi."
+
+msgid "Compare Modules"
+msgstr "Confronta moduli"
+
+msgid "The match will start in 1 minute."
+msgstr "La partita inizierà tra 1 minuto."
+
+msgid "The match will start in 30 seconds."
+msgstr "La partita inizierà tra 30 secondi."
+
+msgid "The match will start in 10 seconds."
+msgstr "La partita inizierà tra 10 secondi."
+
+msgid "The match will start in {} minutes."
+msgstr "La partita inizierà tra {} minuti."
+
+msgid "The match will start in {} second{}."
+msgstr "La partita inizierà tra {} second{}."
+
+msgid "{} side lost due to not participarting {} seconds after {} side joined the match"
+msgstr "Lo schieramento {} ha perso per non aver partecipato {} secondi dopo che lo schieramento {} si è unito alla partita"
+
+msgid "Your squadron was credited with {} points because an enemy player bailed out!"
+msgstr "Alla tua squadriglia sono stati accreditati {} punti perché un giocatore nemico si è lanciato!"
+
+msgid "You landed at the wrong place! You need to land at {}!"
+msgstr "Sei atterrato nel posto sbagliato! Devi atterrare a {}!"
+
+msgid "{player} landed at {place} and saved the win for the {side} side!"
+msgstr "{player} è atterrato a {place} e ha salvato la vittoria per lo schieramento {side}!"
+
+msgid "The match is over, it is a draw!\n\n"
+msgstr "La partita è finita, è un pareggio!\n\n"

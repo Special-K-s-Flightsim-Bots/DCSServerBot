@@ -65,8 +65,10 @@ class BreakglassAuthBackend(AuthBackend):
         if not verify_password(password, self._password_hash):
             log.warning("auth: refusing a break-glass login - bad password")
             return None
-        log.warning("auth: %r signed in with the BREAK-GLASS credential - disable "
-                    "auth.breakglass.enabled again once it is no longer needed.", username)
+        # the sign-in itself is logged by ``auth.routes``; this line is the notice that the
+        # break-glass credential is in use and should be switched off again.
+        log.warning("auth: the BREAK-GLASS credential was used - disable "
+                    "auth.breakglass.enabled again once it is no longer needed.")
         return self._identity()
 
     def _identity(self) -> Identity:
