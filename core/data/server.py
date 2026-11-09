@@ -125,6 +125,22 @@ class Server(DataObject, ABC):
     def status(self, status: Status | str):
         self.set_status(status)
 
+    def reconcile_status(self, status: Status | str):
+        """Apply a status reported by the other side of a handshake, without publishing it back.
+
+        ``Unregistered`` states that the reporting side does not know yet, so it never replaces a
+        status this object already holds; a concrete status is applied. The write deliberately
+        bypasses ``set_status``: a handshake reconciles this copy, it does not issue an order to
+        the reporting node.
+        """
+        new_status = status if isinstance(status, Status) else Status(status)
+        if new_status == Status.UNREGISTERED or new_status == self._status:
+            return
+        self.last_seen = datetime.now(timezone.utc)
+        self._status = new_status
+        self.status_change.set()
+        self.status_change.clear()
+
     @property
     def mission_id(self) -> int:
         if not self._mission_id:
