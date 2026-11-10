@@ -604,7 +604,14 @@ class ServerImpl(Server):
             self.start_observer()
 
     def _get_current_mission_file(self) -> str | None:
-        if not self.current_mission or not self.current_mission.filename:
+        # The mission DCS last reported is only usable while the file is still there: it can be
+        # replaced, renamed or deleted while the server is down, and a crash or a forced shutdown
+        # keeps ``current_mission`` alive. Handing a dead path to a caller fails on its first copy.
+        filename = self.current_mission.filename if self.current_mission else None
+        if filename and not os.path.exists(filename):
+            self.log.warning(f"Current mission {filename} could not be found!")
+            filename = None
+        if not filename:
             settings = self.settings
             try:
                 start_index = int(settings.get('listStartIndex', 1))
@@ -612,8 +619,6 @@ class ServerImpl(Server):
                 start_index = settings['listStartIndex'] = 1
             if settings['missionList'] and start_index <= len(settings['missionList']):
                 filename = settings['missionList'][start_index - 1]
-            else:
-                filename = None
             if not filename or not os.path.exists(filename):
                 for idx, filename in enumerate(settings['missionList']):
                     if os.path.exists(filename):
@@ -623,8 +628,6 @@ class ServerImpl(Server):
                         self.log.warning(f"Non-existent mission {filename} in your missionList!")
                 else:
                     filename = None
-        else:
-            filename = self.current_mission.filename
         return os.path.normpath(filename) if filename else None
 
     @override
@@ -1334,6 +1337,12 @@ class ServerImpl(Server):
                             dirty = True
 
                 source_filename = utils.get_orig_file(selected_filename) if use_orig else selected_filename
+                # A source that is gone cannot be rewritten: name it and carry on with the mission as
+                # configured. Startup prunes a mission file that no longer exists from the list, so
+                # failing the whole launch here would only hide a mission that CAN start.
+                if not source_filename or not os.path.exists(source_filename):
+                    self.log.warning(f"Mission file {selected_filename} not found - mission rewrite skipped.")
+                    return mission
                 temp_dir = tempfile.mkdtemp(prefix='dcssb-mission-')
                 tmp_filename = os.path.join(temp_dir, os.path.basename(selected_filename))
                 new_filename = tmp_filename
@@ -1372,10 +1381,13 @@ class ServerImpl(Server):
                 except Exception as ex:
                     self.log.exception(ex)
                     if use_orig:
-                        writable_filename = utils.create_writable_mission(selected_filename)
+                        # never re-copy a source that may be the very thing that failed: check it
+                        # first and fall back to the unmodified mission instead of raising again
                         orig_filename = utils.get_orig_file(selected_filename)
-                        shutil.copy2(orig_filename, writable_filename)
-                        return writable_filename
+                        if orig_filename and os.path.exists(orig_filename):
+                            writable_filename = utils.create_writable_mission(selected_filename)
+                            shutil.copy2(orig_filename, writable_filename)
+                            return writable_filename
                     return mission
 
                 finally:

@@ -391,6 +391,10 @@ def get_orig_file(filename: str, *, create_file: bool = True) -> str | None:
     orig_file = os.path.join(os.path.dirname(mission_file), '.dcssb', os.path.basename(mission_file)) + '.orig'
     if not os.path.exists(orig_file):
         if create_file:
+            # a source that is gone cannot be backed up: name it, instead of letting the copy fail
+            # with a bare OSError that says nothing about WHICH mission is missing
+            if not os.path.exists(filename):
+                raise FileNotFoundError(f"Mission file not found: {filename}")
             dirname = os.path.join(os.path.dirname(orig_file))
             os.makedirs(dirname, exist_ok=True)
             # make an initial backup
