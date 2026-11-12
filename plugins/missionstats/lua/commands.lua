@@ -4,7 +4,7 @@ local dcsbot= base.dcsbot
 
 function dcsbot.getMissionSituation(json)
     log.write('DCSServerBot', log.DEBUG, 'Missionstats: getMissionSituation()')
-    net.dostring_in('mission', 'a_do_script("dcsbot.getMissionSituation(\\"' .. json.channel .. '\\")")')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getMissionSituation(' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.enableMissionStats(json)

@@ -9,26 +9,26 @@ end
 
 function dcsbot.do_script_file(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: do_script_file()')
-    net.dostring_in('mission', 'a_do_script("dofile(\\"' .. lfs.writedir():gsub('\\', '/') .. json.file .. '\\")")')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dofile(' .. utils.basicSerialize(lfs.writedir():gsub('\\', '/') .. json.file) .. ')') .. ')')
 end
 
 function dcsbot.setFlag(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: setFlag()')
 	if json.value then
-		net.dostring_in('mission', 'a_set_flag_value("' .. json.flag .. '", ' .. json.value .. ')')
+		net.dostring_in('mission', 'a_set_flag_value(' .. utils.basicSerialize(json.flag) .. ', ' .. tonumber(json.value) .. ')')
 	else
-	    net.dostring_in('mission', 'a_set_flag("' .. json.flag .. '")')
+	    net.dostring_in('mission', 'a_set_flag(' .. utils.basicSerialize(json.flag) .. ')')
 	end
 end
 
 function dcsbot.getFlag(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: getFlag()')
-    net.dostring_in('mission', 'a_do_script("dcsbot.getFlag(\\"' .. json.flag ..'\\", \\"' .. json.channel .. '\\")")')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getFlag(' .. utils.basicSerialize(json.flag) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.clearFlag(json)
     log.write('DCSServerBot', log.DEBUG, 'GameMaster: clearFlag()')
-	net.dostring_in('mission', 'a_clear_flag("' .. json.flag .. '")')
+	net.dostring_in('mission', 'a_clear_flag(' .. utils.basicSerialize(json.flag) .. ')')
 end
 
 function dcsbot.getVariable(json)
@@ -84,5 +84,5 @@ end
 
 function dcsbot.removeMarker(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: removeMarker()')
-    net.dostring_in('mission', 'a_do_script("trigger.action.removeMark(' .. json.id .. ')")')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('trigger.action.removeMark(' .. tonumber(json.id) .. ')') .. ')')
 end
