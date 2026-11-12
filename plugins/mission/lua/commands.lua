@@ -1,6 +1,6 @@
-local base 	= _G
+local base 		= _G
 local Terrain   = base.require('terrain')
-local UC   	= base.require("utils_common")
+local UC   		= base.require("utils_common")
 local Weather   = base.require('Weather')
 local magvar    = base.require("magvar")
 local dcsbot	= base.dcsbot
@@ -307,17 +307,17 @@ end
 
 function dcsbot.getAirbase(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getAirbase()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getAirbase("' .. json.name .. '", "' .. json.channel ..'")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getAirbase(' .. utils.basicSerialize(json.name) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.captureAirbase(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: captureAirbase()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.captureAirbase("' .. json.name .. '", ' .. json.coalition .. ', "' .. json.channel ..'")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.captureAirbase(' .. utils.basicSerialize(json.name) .. ', ' .. tonumber(json.coalition) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 local function repr(obj)
   if type(obj) ~= "table" then
-    return tostring(obj)
+    return utils.basicSerialize(obj)
   end
 
   local parts = {"{"}
@@ -339,9 +339,9 @@ function dcsbot.getWarehouseItem(json)
     if type(json.item) == "table" then
         item = repr(json.item)
     else
-        item = '"' .. json.item .. '"'
+        item = utils.basicSerialize(json.item)
     end
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseItem("' .. json.name .. '", ' .. item .. ', "' .. json.channel ..'")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseItem(' .. utils.basicSerialize(json.name) .. ', ' .. item .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.setWarehouseItem(json)
@@ -350,29 +350,29 @@ function dcsbot.setWarehouseItem(json)
     if type(json.item) == "table" then
         item = repr(json.item)
     else
-        item = '"' .. json.item .. '"'
+        item = utils.basicSerialize(json.item)
     end
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseItem("' .. json.name .. '", ' .. item .. ', ' .. json.value .. ', "' .. json.channel ..'")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseItem(' .. utils.basicSerialize(json.name) .. ', ' .. item .. ', ' .. tonumber(json.value) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.getWarehouseLiquid(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getWarehouseLiquid()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseLiquid("' .. json.name .. '", ' .. json.item .. ', "' .. json.channel ..'")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getWarehouseLiquid(' .. utils.basicSerialize(json.name) .. ', ' .. tonumber(json.item) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.setWarehouseLiquid(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setWarehouseLiquid()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseLiquid("' .. json.name .. '", ' .. json.item .. ', ' .. json.value .. ', "' .. json.channel ..'")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setWarehouseLiquid(' .. utils.basicSerialize(json.name) .. ', ' .. tonumber(json.item) .. ', ' .. tonumber(json.value) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.setAutoCapture(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setAutoCapture()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setAutoCapture("' .. json.name .. '", ' .. tostring(json.value) .. ')') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setAutoCapture(' .. utils.basicSerialize(json.name) .. ', ' .. (json.value and 'true' or 'false') .. ')') .. ')')
 end
 
 function dcsbot.setRadioSilentMode(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setRadioSilentMode()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setRadioSilentMode("' .. json.name .. '", ' .. tostring(json.value) .. ')') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setRadioSilentMode(' .. utils.basicSerialize(json.name) .. ', ' .. (json.value and 'true' or 'false') .. ')') .. ')')
 end
 
 function dcsbot.listMissions(json)
@@ -1039,7 +1039,7 @@ end
 
 function dcsbot.getMissionUnit(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getMissionUnit()')
-    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getMissionUnit("' .. json.name .. '", "' .. json.channel .. '")') .. ')')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getMissionUnit(' .. utils.basicSerialize(json.name) .. ', ' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.sendChatMessage(json)
@@ -1083,7 +1083,7 @@ end
 
 function dcsbot.playSound(json)
 	log.write('DCSServerBot', log.DEBUG, 'Mission: playSound()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.playSound2("' .. json.to .. '", "' .. json.id .. '", ' .. utils.basicSerialize(json.sound) .. ')') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.playSound2(' .. utils.basicSerialize(json.to) .. ', ' .. utils.basicSerialize(json.id) .. ', ' .. utils.basicSerialize(json.sound) .. ')') .. ')')
 end
 
 local function setUserRoles(json)
@@ -1100,7 +1100,7 @@ local function setUserRoles(json)
     if name then
         local script = ''
         if json.discord_id then
-            script = script .. 'dcsbot._setDiscordID(' .. utils.basicSerialize(name) .. ', "' .. json.discord_id .. '")\n'
+            script = script .. 'dcsbot._setDiscordID(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(json.discord_id) .. ')\n'
         end
         script = script .. 'dcsbot._setUserRoles(' .. utils.basicSerialize(name) .. ', ' .. utils.basicSerialize(net.lua2json(json.roles)) .. ')'
         net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
@@ -1120,14 +1120,14 @@ end
 
 function dcsbot.addExtension(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: addExtension()')
-    local script = 'dcsbot._addExtension("' .. json.extension .. '")'
+    local script = 'dcsbot._addExtension(' .. utils.basicSerialize(json.extension) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
     dcsbot.extensions[json.extension] = True
 end
 
 function dcsbot.removeExtension(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: removeExtension()')
-    local script = 'dcsbot._removeExtension("' .. json.extension .. '")'
+    local script = 'dcsbot._removeExtension(' .. utils.basicSerialize(json.extension) .. ')'
     net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize(script) .. ')')
     dcsbot.extensions[json.extension] = nil
 end
@@ -1269,32 +1269,32 @@ end
 
 function dcsbot.setFog(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setFog()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFog(' .. json.visibility .. ',' .. json.thickness .. ',"' .. json.channel .. '")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFog(' .. tonumber(json.visibility) .. ',' .. tonumber(json.thickness) .. ',' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.getFog(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: getFog()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getFog("' .. json.channel .. '")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.getFog(' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.setFogAnimation(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: setFogAnimation()')
     local animation = '{'
     for _i, value in pairs(json.values) do
-        animation = animation .. '{' .. value[1] .. ',' .. value[2] .. ',' .. value[3] .. '},'
+        animation = animation .. '{' .. tonumber(value[1]) .. ',' .. tonumber(value[2]) .. ',' .. tonumber(value[3]) .. '},'
     end
     animation = animation .. '}'
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFogAnimation(' .. animation .. ',"' .. json.channel .. '")') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.setFogAnimation(' .. animation .. ',' .. utils.basicSerialize(json.channel) .. ')') .. ')')
 end
 
 function dcsbot.createMenu(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: createMenu()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.createMenu(' .. json.playerID .. ',' .. json.groupID .. ',' .. utils.basicSerialize(net.lua2json(json.menu)) .. ')') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.createMenu(' .. tonumber(json.playerID) .. ',' .. tonumber(json.groupID) .. ',' .. utils.basicSerialize(net.lua2json(json.menu)) .. ')') .. ')')
 end
 
 function dcsbot.deleteMenu(json)
     log.write('DCSServerBot', log.DEBUG, 'Mission: deleteMenu()')
-	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.deleteMenu(' .. json.groupID .. ')') .. ')')
+	net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('dcsbot.deleteMenu(' .. tonumber(json.groupID) .. ')') .. ')')
 end
 
 function dcsbot.endMission(json)

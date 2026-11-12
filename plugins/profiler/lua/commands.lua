@@ -9,10 +9,10 @@ end
 
 function dcsbot.startProfiling(json)
     log.write('DCSServerBot', log.DEBUG, 'Profiler: startProfiling()')
-    net.dostring_in('mission', 'a_do_script("start_profiling(\\"' .. (json.channel or -1) .. '\\", ' .. tostring(json.verbose or false) .. ', ' .. tostring(json.memory or false) .. ', ' .. tostring(json.interval or 10000) .. ')")')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('start_profiling(' .. utils.basicSerialize(json.channel or -1) .. ', ' .. tostring(json.verbose or false) .. ', ' .. tostring(json.memory or false) .. ', ' .. tonumber(json.interval or 10000) .. ')') .. ')')
 end
 
 function dcsbot.stopProfiling(json)
     log.write('DCSServerBot', log.DEBUG, 'Profiler: stopProfiling()')
-    net.dostring_in('mission', 'a_do_script("stop_profiling(\\"' .. (json.channel or -1) .. '\\")")')
+    net.dostring_in('mission', 'a_do_script(' .. utils.basicSerialize('stop_profiling(' .. utils.basicSerialize(json.channel or -1) .. ')') .. ')')
 end
