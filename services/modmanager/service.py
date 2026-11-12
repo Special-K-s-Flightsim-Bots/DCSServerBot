@@ -183,7 +183,7 @@ class ModManagerService(Service):
                     try:
                         if not installed:
                             reference = server.node if folder == Folder.RootFolder else server
-                            blocking = self._blocking_servers(reference, folder)
+                            blocking = await self._blocking_servers(reference, folder)
                             if blocking:
                                 self.log.warning(
                                     f"  - Server {server.name} cannot auto-install package {package['name']}: "
@@ -863,7 +863,26 @@ class ModManagerService(Service):
         """The servers registered in this process; empty when the service has no bus registry."""
         return list(getattr(getattr(self, 'bus', None), 'servers', {}).values())
 
-    def _blocking_servers(self, reference: Server | Node, folder: Folder) -> list[str]:
+    async def _holds_folder(self, server: Server) -> bool:
+        """Whether ``server``'s DCS instance holds its game folder.
+
+        Every recorded state but ``SHUTDOWN`` holds it. ``UNREGISTERED`` says only that this process
+        holds no live registration, so the folder is decided by the process itself: ``is_running()``
+        answering False means nothing of that instance has the files open. A probe that raises counts
+        as holding the folder.
+        """
+        status = getattr(server, 'status', None)
+        if status != Status.UNREGISTERED:
+            return status != Status.SHUTDOWN
+        try:
+            return bool(await server.is_running())
+        except Exception as ex:
+            self.log.warning(
+                f"- The DCS process of server {getattr(server, 'name', '?')} could not be checked ({ex}), "
+                f"counted as running.")
+            return True
+
+    async def _blocking_servers(self, reference: Server | Node, folder: Folder) -> list[str]:
         """Names of the servers whose state forbids a write to ``folder`` on ``reference``.
 
         ``RootFolder`` is the node's DCS installation: every server on that node must be down.
@@ -871,17 +890,19 @@ class ModManagerService(Service):
         """
         if folder == Folder.SavedGames:
             server = cast(Server, reference)
-            return [] if server.status == Status.SHUTDOWN else [server.name]
+            return [server.name] if await self._holds_folder(server) else []
         node_name = cast(Node, reference).name
-        return sorted(
-            server.name for server in self._registry_servers()
-            if getattr(getattr(server, 'node', None), 'name', None) == node_name
-            and server.status != Status.SHUTDOWN
-        )
+        blocking = []
+        for server in self._registry_servers():
+            if getattr(getattr(server, 'node', None), 'name', None) != node_name:
+                continue
+            if await self._holds_folder(server):
+                blocking.append(server.name)
+        return sorted(blocking)
 
-    def _gate_open(self, reference: Server | Node, folder: Folder) -> bool:
+    async def _gate_open(self, reference: Server | Node, folder: Folder) -> bool:
         """Whether a write to ``folder`` on ``reference`` may start; a closed gate names its blockers."""
-        blocking = self._blocking_servers(reference, folder)
+        blocking = await self._blocking_servers(reference, folder)
         if blocking:
             self.log.warning(
                 f"- {folder.value} is held by server(s) {', '.join(blocking)}. "
@@ -904,7 +925,7 @@ class ModManagerService(Service):
         else:
             reference = server.node
             directory = '.' + server.node.name
-        if not self._gate_open(reference, folder):
+        if not await self._gate_open(reference, folder):
             return False
         self.log.info(f"Installing package {package_name}_v{version} ...")
         path = self._package_dir(folder)
@@ -920,7 +941,7 @@ class ModManagerService(Service):
         if identity is None:
             return False
         package_name, version = identity
-        if not self._gate_open(node, folder):
+        if not await self._gate_open(node, folder):
             return False
         self.log.info(f"Installing root-package {package_name}_v{version} ...")
         path = self._package_dir(folder)
@@ -1028,7 +1049,7 @@ class ModManagerService(Service):
         if folder == Folder.RootFolder:
             # the node's gate is read once, inside the method that runs on the node
             return await self.uninstall_root_package(server.node, package_name, version, force, repo)
-        if not self._gate_open(server, folder):
+        if not await self._gate_open(server, folder):
             return False
         self.log.info(f"Uninstalling package {package_name}_v{version} ...")
         config = self.get_config()
@@ -1057,7 +1078,7 @@ class ModManagerService(Service):
         if identity is None:
             return False
         package_name, version = identity
-        if not self._gate_open(node, folder):
+        if not await self._gate_open(node, folder):
             return False
         self.log.info(f"Uninstalling root-package {package_name}_v{version} ...")
         config = self.get_config()

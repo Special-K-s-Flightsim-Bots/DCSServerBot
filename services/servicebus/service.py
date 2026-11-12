@@ -718,7 +718,7 @@ class ServiceBus(Service):
                 server.instance.locals['webgui_port'] = webgui_port
                 self.servers[server_name] = server
             server.maintenance = maintenance
-            server.status = Status(status)
+            server.reconcile_status(status)
             server.settings = settings
             server.options = options
             # to support remote channel configs (for remote testing)
@@ -998,6 +998,11 @@ class ServiceBus(Service):
 
         elif 'params' in data:
             for key, value in data['params'].items():
+                # ``Unregistered`` states that the SENDER does not know yet, so an inbound one never
+                # lowers a status this side already holds. Every other key is written as it arrives.
+                if key == 'status' and value == Status.UNREGISTERED.value and \
+                        getattr(obj, 'status', Status.UNREGISTERED) != Status.UNREGISTERED:
+                    continue
                 setattr(obj, key, value)
 
         return None

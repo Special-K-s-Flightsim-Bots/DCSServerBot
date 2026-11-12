@@ -13,8 +13,8 @@ dcsbot.red_slots    = dcsbot.red_slots or {}
 dcsbot.blue_slots   = dcsbot.blue_slots or {}
 dcsbot.whitelist    = dcsbot.whitelist or {}
 
-local mission            = mission or {}
-mission.last_landing     = {}
+local mission = {}
+mission.last_landing = {}
 mission.last_change_slot = {}
 mission.num_change_slots = {}
 mission.last_collision   = {}
@@ -217,7 +217,7 @@ function mission.onMissionLoadEnd()
         date = Sim.getCurrentMission().mission.date
     }
 
-    num_slots_red = 0
+    local num_slots_red = 0
     local availableSlots = Sim.getAvailableSlots("red")
     dcsbot.red_slots = {}
     if availableSlots ~= nil then
@@ -227,7 +227,7 @@ function mission.onMissionLoadEnd()
         end
     end
 
-    num_slots_blue = 0
+    local num_slots_blue = 0
     availableSlots = Sim.getAvailableSlots("blue")
     dcsbot.blue_slots = {}
     if availableSlots ~= nil then
