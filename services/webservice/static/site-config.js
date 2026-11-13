@@ -319,12 +319,15 @@
       const target = event && event.target;
       return Boolean(target && typeof target.name === 'string' && target.name);
     };
-    /* THE MARK'S PLACEMENT IS ALREADY PAINTED. Its pills move the hero's own class in the frame the
-     * moment they are pressed (see `bindPreview`), so reloading the pane would redraw the whole site
-     * a second time to show a class that is already there. The draft is still posted — what the pane
-     * renders next time must carry the new side — and only the repaint is skipped. */
+    /* A CONTROL THE FRAME ALREADY FOLLOWS. The mark's placement and the palette are painted into the
+     * frame the moment they are pressed — the pills move the hero's own class, the tiles carry their
+     * own sheet in `data-sc-preset-sheet` — so re-rendering the pane would redraw the whole site to
+     * show something already there. That redraw is not free: the box blanks for a frame while the new
+     * document decodes, and the branding images are what flicker. The draft is still posted — what the
+     * pane renders next time must carry the change — and only the repaint is skipped. */
     const painted = (event) => Boolean(event && event.target && event.target.matches
-                                       && event.target.matches('input[data-sc-mark-side-option]'));
+      && event.target.matches('input[data-sc-mark-side-option], input[data-sc-preset-sheet], '
+        + 'input[name$=".theme.preset"], input[name$=".theme.light"]'));
     /* A ROW WHOSE TEXT IS THE SERVER'S TO DRAW. `branding.welcome` and `branding.logo` have no
      * element in the frame that holds their value — the hero's paragraph is composed with the
      * community's name, and the mark's file is read by the server — so there is nothing to write into
