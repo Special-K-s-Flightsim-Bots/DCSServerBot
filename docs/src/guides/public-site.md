@@ -6,9 +6,9 @@ port and the database with the console, but not its login — every page of it i
 without a session, a role or a capability. Visitors get the community's numbers, a leaderboard, a
 search over the pilots and a profile per pilot; nobody can change anything from it.
 
-The site is switched on with `frontend: true` plus a `sites:` block in
-`config/services/webservice.yaml`. Without a served root site the console keeps the site root and
-nothing about the public site is served at `/`.
+The site is switched on with `frontend: true` plus a `sites:` block in `config/site.yaml` — the file
+the console's **Public site** page owns. Without a served root site the console keeps the site root
+and nothing about the public site is served at `/`.
 
 ## What it serves
 
@@ -36,21 +36,39 @@ Two addresses do **not** exist, and the site is deliberate about both:
 
 ## Turning it on
 
-The block lives under `DEFAULT:` in `config/services/webservice.yaml`, beside `frontend:`,
-`session:` and `auth:`. This is a complete, minimal, working configuration:
+Two ways in, and both write the same file:
+
+- **In the console:** Settings → **Public site** → *Add a site*. Pick what it shows (every
+  `managed_by` token `servers.yaml` names, or *The site root*), type the name it carries in the file
+  and the segment it answers on, and press *Add the site*. The console appends the entry to
+  `config/site.yaml` and opens that site's card.
+- **By hand:** `config/site.yaml` is a small document holding one `sites:` block. This is complete
+  and minimal:
 
 ```yaml
-# config/services/webservice.yaml
-DEFAULT:
-  frontend: true
-  sites:
-    root: {}
+# config/site.yaml
+sites:
+  root: {}
 ```
 
 `root: {}` is the smallest valid block: the site with no group token, served at `/`, showing the
 servers that declare no `managed_by`, every page id in the menu and the shipped look. `root:` with
 nothing under it is YAML `null` and is refused (`sites.root: must be a map (the site's own block)`) —
 write the braces.
+
+Both routes need `frontend: true` in `config/services/webservice.yaml`; that switch installs the web
+UI, and the site block decides what it serves.
+
+!!! note "The setup tour does not create a site"
+    The tour ends with your servers configured. A public site is added afterwards — in the console,
+    or by writing the file above.
+
+!!! note "The block's older home"
+    An installation that has never used the console's page may still carry `sites:` under `DEFAULT:`
+    in `config/services/webservice.yaml`. That block is read **only while `config/site.yaml` does not
+    exist**; the moment the file exists it is the only source, and the console warns when both carry
+    a block. The Public site page shows the legacy entries, and its first save writes them to
+    `config/site.yaml` — so opening the page once and saving is the migration.
 
 !!! warning "An enabled root site moves the console"
     The Command Center moves to `/console` only while an ENABLED site is SERVED at the site root —
@@ -71,9 +89,34 @@ write the braces.
     `/static`.
 
     `enabled` is a STRUCTURAL key: it decides which routes exist, so it takes effect through the
-    console's apply rather than through a page load. A save on the Site settings page offers that
+    console's apply rather than through a page load. A save on the Public site page offers that
     apply, and the apply rebuilds the site table in place, so a site switched off or on takes effect
     at once — no bot restart. See [Applying the change](#applying-the-change).
+
+## The Sites page
+
+Settings → **Public site** is the console page that owns `config/site.yaml`. Every site is one card,
+and the card's header leads with the address a visitor types — `/` for the root site, `/guards` for a
+site whose slug is `guards` — beside the name the file gives it.
+
+- **The box is the site itself**, drawn by the console: it follows the form *before* you save, so a
+  palette, a mark, a section or a sentence can be judged without writing the file. A site added this
+  session draws there too, although its own address only exists after the console's apply.
+- **The fields are the keys below.** `enabled` and `slug` are structural: a save that changes either
+  offers the apply that rebuilds the site table in place — no bot restart (see
+  [Applying the change](#applying-the-change)).
+- **The mark:** *Upload an image* stores one picture at four sizes and wins over everything;
+  *Remove* falls back to `branding.logo`; with neither set the site draws the shipped product mark.
+  See [Where a site's logo is read from](#where-a-sites-logo-is-read-from).
+- **Expert mode**, at the foot of the page, is this file in an editor with a live check: a document
+  that does not parse, a key this release does not know (named with its path), a site the loader
+  would refuse, and an empty document are all refused, and nothing is written on a refusal.
+- **Add a site**, beside it, appends one entry instead of replacing the file. Both blocks are the
+  installation Admin's.
+
+A managing scope may edit the content of its own site — the copy, the palette, the mark — while the
+structure of the installation's sites (adding one, changing an address, the file itself) stays the
+Admin's.
 
 ### The keys of a site block
 
@@ -225,7 +268,7 @@ A site's palette has three sources, and a `theme` block names at most one of the
 | Key | Type | Default | Meaning |
 |:----|:-----|:--------|:--------|
 | `preset` | string | none — the shipped palette | The id of a shipped preset: `brass` (the shipped look), `slate`, `midnight` or `parchment`. A light preset sets the page's colour scheme with it. An id this build does not ship warns once and falls back to the shipped palette. |
-| `sheet` | string | none — the shipped palette | The LEAF file name of a `.css` file in the site's asset folder (`site/` under the configuration directory), uploaded on the Site settings page — which always stores it as `theme.css`. It is served **exactly as written**, with no validation; see [An uploaded sheet is served as written](#an-uploaded-sheet-is-served-as-written). A name whose file is not there is refused at startup, naming the key and the file. |
+| `sheet` | string | none — the shipped palette | The LEAF file name of a `.css` file in the site's asset folder (`site/` under the configuration directory), uploaded on the Public site page — which always stores it as `theme.css`. It is served **exactly as written**, with no validation; see [An uploaded sheet is served as written](#an-uploaded-sheet-is-served-as-written). A name whose file is not there is refused at startup, naming the key and the file. |
 | `expert` | string | none — the shipped palette | The body of one `:root` rule: `--name: value;` declarations, one per line, at most 8 KB. The server wraps the text in `:root { … }`, so a selector cannot be expressed at all. |
 | `light` | boolean | `false` | Sets `data-theme="light"` on the `<html>` element instead of `data-theme="dark"`. |
 
@@ -247,8 +290,8 @@ build itself ships.
 
 #### An uploaded sheet is served as written
 
-`theme.sheet` is the third source, and the only one that is **not** checked. The Site settings page
-(Site settings → the palette block → *Your own sheet*) takes a `.css` file and stores it in the
+`theme.sheet` is the third source, and the only one that is **not** checked. The Public site page
+(Public site → the palette block → *Your own sheet*) takes a `.css` file and stores it in the
 site's asset folder as `theme.css`; `<site>/theme.css` then answers that file byte for byte.
 
 What the page does check is the upload, not the CSS:
@@ -349,7 +392,7 @@ DEFAULT:
 
 The `expert` value is the body of the sheet: the server wraps it in `:root { … }` and serves it at
 `<site>/theme.css`. `theme: {preset: slate}` does the same job with a shipped sheet, in one line, and
-`theme: {sheet: theme.css}` serves the `.css` file the Site settings page uploaded.
+`theme: {sheet: theme.css}` serves the `.css` file the Public site page uploaded.
 
 ```
 config/
@@ -366,7 +409,7 @@ medals' surroundings, links — turns from brass to blue, and the footer reads
 ### Applying the change
 
 - The `sites:` block's STRUCTURE — which sites exist, their slugs, their switches — is applied when
-  the console's apply runs, not when a browser merely reloads. A save on the Site settings page
+  the console's apply runs, not when a browser merely reloads. A save on the Public site page
   offers that apply, and the apply rebuilds the site table in place, so a site switched off or on,
   or re-addressed, takes effect at once — no bot restart. A hand edit of `site.yaml` on disk takes
   effect when the apply is pressed, and not before: a browser reload alone re-reads nothing.

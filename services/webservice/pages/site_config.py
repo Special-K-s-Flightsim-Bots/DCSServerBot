@@ -112,7 +112,7 @@ __all__ = [
     "SITE_PREVIEW_TITLE", "SITE_PREVIEW_OFF",
     "SiteAccess", "site_access", "site_in_scope", "form_tree", "card_field",
     "site_catalog", "page_context", "capabilities", "nav_items", "declare", "add_routes",
-    "known_roles", "site_document", "SiteYamlEmpty",
+    "known_roles", "site_document", "SiteYamlEmpty", "SiteSchemaRefusal", "SITE_SCHEMA_PATH",
 ]
 
 log = logging.getLogger(__name__)
@@ -184,10 +184,20 @@ SITE_DRAFT_BODY_BYTES = 256 * 1024
 #: the keys a running console cannot change without rebuilding its route table.
 SITE_STRUCTURAL_KEYS: tuple[str, ...] = sites.STRUCTURAL_FIELDS
 
-#: the shipped schema the ``sites:`` block is described by. The site file itself carries no schema of
-#: its own: this page hands the block to the loader's own parser before writing, and the schema is
-#: read here only for the FORM (labels, kinds, defaults, the closed ``sections:`` mapping).
+#: the shipped schema the ``sites:`` block is described by. The page reads it for the FORM (labels,
+#: kinds, defaults, the closed ``sections:`` mapping), and :data:`SITE_SCHEMA_PATH` describes the
+#: site FILE itself — the same block, at the document root, for the save and the Expert Mode check.
 _SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "webservice_schema.yaml"
+
+#: the schema of ``config/site.yaml``: the ``sites:`` block at the document root. The block is ALSO
+#: described inside the web service's schema (that file is the legacy home every install reads until
+#: ``site.yaml`` exists), and a test keeps the two copies identical — one authority, two addresses.
+#:
+#: It sits BESIDE the service's ``schemas/`` directory, not inside it: every ``*.yaml`` in that
+#: directory is one schema SET for ``services/webservice.yaml`` (``core/services/base.py`` reads them
+#: all together), and a second file declaring its own root would be merged into that set and refused
+#: as a duplicate key.
+SITE_SCHEMA_PATH = Path(__file__).resolve().parents[1] / "site_schema.yaml"
 
 #: the section ids' display names, in the order :data:`services.webservice.sites.SECTION_IDS` numbers
 #: them. A LABEL table only — the vocabulary is the model's constant, pinned by a test.
@@ -1978,19 +1988,41 @@ def _file_text(path: Path) -> str:
         return ""
 
 
+class SiteSchemaRefusal(Exception):
+    """A document the shipped schema refuses: the pykwalify detail, already a readable sentence."""
+
+
+def _refuse_against_schema(text: str, path: Path) -> None:
+    """Hand the document to the bot's own validator with the site file's schema.
+
+    The schema is what knows a key the release does not have, so a typo is refused by NAME
+    (``site.yaml: Key 'titel' was not defined. Path: '/sites/root/branding'``) instead of being
+    noticed only when the loader trips over its value. Structure only: slugs, role tokens, palette
+    conflicts and the closed section/nav/tile vocabularies stay the loader's to refuse.
+    """
+    try:
+        configwrite.validate_against_schema(text, [str(SITE_SCHEMA_PATH)], path=path)
+    except configwrite.ConfigValidationError as ex:
+        detail = " ".join(str(ex.errors or "").split())
+        raise SiteSchemaRefusal(f"{path.name}: {detail}" if detail else str(ex)) from None
+
+
 def site_document(text: str, path: Path, config_dir, roles: list[str]):
     """The posted text as a document the console would install, or a refusal by exception.
 
-    Raises :class:`configwrite.ConfigParseError` for YAML that does not parse,
-    :class:`SiteYamlEmpty` for an empty document and :class:`sites.SiteConfigError` for a ``sites:``
-    block the loader's own parser refuses. ONE reader for the save and the live check, so the two
-    can never disagree about a document.
+    Three passes, and the ORDER is the message the operator reads: the document must parse
+    (:class:`configwrite.ConfigParseError`), carry a ``sites:`` block this installation can install
+    (:class:`sites.SiteConfigError`), and satisfy the shipped schema (:class:`SiteSchemaRefusal`) —
+    the last one names a key the schema does not know, which the loader's own parser would otherwise
+    refuse only after the masking errors of a wrong type. ONE reader for the save and the live check,
+    so the two can never disagree about a document.
     """
     document = configwrite.load_config_form_text(text, path=path)
     if document is None:
         raise SiteYamlEmpty()
     if not isinstance(document, Mapping):
         raise sites.SiteConfigError(f"{path.name}: must be a map carrying a 'sites:' block")
+    _refuse_against_schema(text, path)
     sites.parse_sites(document.get("sites"), known_roles=roles, config_dir=config_dir)
     return document
 
@@ -3076,7 +3108,8 @@ def add_routes(router: APIRouter) -> APIRouter:
             result = configwrite.save_config_file(path, document, schemas=[],
                                                   expect_revision=revision,
                                                   applies=configwrite.APPLIES_ON_RESTART)
-        except (SiteYamlEmpty, configwrite.ConfigParseError, sites.SiteConfigError) as ex:
+        except (SiteYamlEmpty, SiteSchemaRefusal, configwrite.ConfigParseError,
+                sites.SiteConfigError) as ex:
             return _refuse_detail(request, _site_refusal(request, ex))
         except configwrite.StaleConfigRevision:
             return _refuse(request, SITE_REFUSED_STALE)
@@ -3112,7 +3145,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             site_document(text, path, config_dir, known_roles(config_dir))
         except configwrite.ConfigParseError as ex:
             return JSONResponse({"ok": False, "message": str(ex), "line": ex.line})
-        except (SiteYamlEmpty, sites.SiteConfigError) as ex:
+        except (SiteYamlEmpty, SiteSchemaRefusal, sites.SiteConfigError) as ex:
             return JSONResponse({"ok": False, "message": _site_refusal(request, ex)})
         return JSONResponse({"ok": True})
 

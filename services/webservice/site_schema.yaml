@@ -1,0 +1,315 @@
+# The site document: config/site.yaml, the file the console's Site settings page owns.
+#
+# The SAME block is still accepted inside config/services/webservice.yaml under DEFAULT.sites for an
+# installation that has not moved yet: that file is read only while config/site.yaml is absent, and
+# the console says so when both exist. A new installation keeps the block here.
+type: map
+nullable: false
+mapping:
+  # The public site's views of the cluster's servers (services/webservice/sites.py). One block
+  # per site, keyed by the site's name. Membership is NOT declared here: servers.yaml's
+  # `managed_by` is the only authority — a site with a `group_role` shows the servers whose
+  # managed_by names that token, and the site named `root` shows the servers that declare no
+  # managed_by at all. The block is parsed and validated ONCE at service startup, and every
+  # refusal names the offending key: an unknown tile or nav page id, an unknown key, a
+  # duplicate or non-URL-safe slug, a theme block that names two palettes, or a group_role
+  # that matches no managed_by value in servers.yaml. The nav page ids and tile ids are the
+  # code's own vocabulary (sites.NAV_PAGE_IDS / sites.TILE_IDS), deliberately not repeated
+  # here.
+  # A CONFIGURED block moves the admin console from `/` to `/console`, because the public site
+  # takes the site root; the login page (`/auth/login`) and the console's other installation-wide
+  # paths keep their addresses, so a bookmark to the door still works. Removing the block — or
+  # leaving it empty — keeps the console at `/`.
+  sites:
+    type: map
+    nullable: true
+    desc: One block per public site, keyed by the site's name.
+    example: |
+      root:
+        slug: ""
+        branding: {title: Community}
+        nav: [overview, leaderboard]
+      group1:
+        slug: group1
+        group_role: "5th Guards"
+    mapping:
+      regex;(.+):
+        type: map
+        nullable: false
+        mapping:
+          # The URL path segment the site is served under. Default: the site's own name. The
+          # root site must leave it empty ("" — it is served at the site root); any other value
+          # must be URL-safe ([a-z0-9][a-z0-9-]*), unique, and must not collide with a path or
+          # prefix the shell already owns (/login, /logout, /static, /auth).
+          slug:
+            type: str
+            nullable: true
+            desc: URL-safe path segment of the site; the root site's is empty.
+            example: "\"group1\""
+          # The managed_by token (a role NAME or role ID, as written in servers.yaml) whose
+          # servers this site shows. Required for every site except `root`, which takes no
+          # token. A value no server names is refused at startup: the site would grant nobody
+          # and serve an empty page with nothing to report it.
+          group_role:
+            type: text
+            nullable: true
+            desc: managed_by token this site shows; absent only for the root site.
+            example: "\"5th Guards\""
+          # Default: true. Whether the site is served at all. A disabled site keeps its
+          # branding, sections and theme for the season it comes back, but no route is
+          # registered for it — a reload of the console applies that.
+          enabled:
+            type: bool
+            nullable: true
+            default: true
+            desc: Whether the public site is served.
+            example: "true"
+          # Default: false. Written by the site settings page's avatar upload and by its
+          # remove action; do not edit it by hand. It says that the site's four re-encoded
+          # PNGs exist (config/site/avatar-<size>.png at 32, 64, 128 and 256 pixels).
+          avatar:
+            type: bool
+            nullable: true
+            default: false
+            desc: Set by the site's avatar upload; not meant to be edited by hand.
+            example: "true"
+          # The words and the mark the site wears. Every key is optional.
+          branding:
+            type: map
+            nullable: true
+            desc: Title, logo and footer of the site.
+            example: |
+              title: Community
+              logo: config/site/crest.png
+            mapping:
+              # Default: DCSServerBot
+              title:
+                type: str
+                nullable: true
+                desc: Brand title of the site.
+                example: "\"Community\""
+              # Default: none (the hero greets with the Discord guild's name, then main.yaml's
+              # guild_name, then the title). The name the overview's hero greets a visitor
+              # with, after "Welcome to". One line of plain TEXT, printed escaped: no
+              # "<"/">", no line breaks, at most 60 characters. Any other value is refused at
+              # startup.
+              community_name:
+                type: str
+                nullable: true
+                desc: The community's name, as the hero's greeting uses it.
+                example: "\"5th Guards\""
+                # Default: none (the site keeps the shipped sentence). The line the overview
+                # prints beside the hero's headline. One line of plain TEXT, printed escaped: no
+                # "<"/">", no line breaks, at most 280 characters. `%(community)s` is the only
+                # placeholder and is filled with the community's name; any other `%(...)s` is
+                # refused at startup.
+              welcome:
+                type: str
+                nullable: true
+                desc: One-line welcome text; %(community)s is filled with the community's name.
+                example: "\"%(community)s flies the Caucasus on Tuesday nights.\""
+              # Default: right. Which side of the hero's headline the community's mark is
+              # drawn on. `left` | `right`; any other value is refused at startup. It governs
+              # the hero's mark only — the bar's small mark never moves.
+              mark_side:
+                type: str
+                nullable: true
+                enum: [left, right]
+                desc: Side of the hero's headline the mark is drawn on.
+                example: "\"left\""
+              # Default: none (the site ships no logo of its own)
+              logo:
+                type: str
+                nullable: true
+                desc: Path to the site's logo image.
+                example: "config/site/crest.png"
+              # LEGACY, ACCEPTED AND IGNORED. The footer's text is the product's fixed
+              # attribution ("Powered by DCSServerBot"), so this key has no effect on the page
+              # and the editor no longer offers it. It stays in the schema so a file that still
+              # carries it validates and loads; whatever it holds is dropped.
+              copyright:
+                type: str
+                nullable: true
+                desc: Deprecated and ignored — the footer carries the fixed attribution.
+                example: "\"Community\""
+              # Default: [] (the footer carries no links). The only markup a footer carries: a
+              # label and a target, where the target is an http(s)/mailto URL or a path
+              # beginning with "/". Any other shape is refused at startup.
+              footer_links:
+                type: seq
+                nullable: true
+                desc: The footer's links, in declaration order.
+                example: |
+                  - {label: Imprint, href: "/imprint"}
+                  - {label: Discord, href: "https://discord.gg/example"}
+                sequence:
+                  - type: map
+                    mapping:
+                      label:
+                        type: str
+                        required: true
+                        desc: The words a visitor reads.
+                        example: "Imprint"
+                      href:
+                        type: str
+                        required: true
+                        desc: Where the link leads.
+                        example: "/imprint"
+          # A site's palette overrides. A palette is TOKEN-ONLY where a preset or the expert
+          # block declares it: those may re-declare custom properties and never a component
+          # rule. An uploaded sheet is served as written and is not checked at all.
+          theme:
+            type: map
+            nullable: true
+            desc: Palette overrides of the site.
+            example: |
+              preset: brass
+              light: false
+            mapping:
+              # Default: none (the shipped palette). The id of a shipped preset. `preset`,
+              # `sheet` and `expert` are three spellings of one intent: a block sets at most ONE
+              # of them, and one that sets two is refused at startup. A preset this build no
+              # longer ships warns once and falls back to the shipped palette.
+              preset:
+                type: str
+                nullable: true
+                desc: Id of a shipped palette preset; at most one theme source may be set.
+                example: "\"paper\""
+              # Default: none. The LEAF name of a .css file in the site's asset folder, which the
+              # site serves as written — no validation, no wrapping. At most one of `preset`,
+              # `sheet` and `expert` may be set, and a name whose file is not there is refused at
+              # startup.
+              sheet:
+                type: str
+                nullable: true
+                desc: Leaf name of an uploaded palette sheet in the site's asset folder; served as written.
+                example: "\"theme.css\""
+              # Default: none. The body of ONE `:root` rule: `--name: value;` declarations only,
+              # never a selector, never an `@`-rule or `url()`, at most 8 KB. At most one of
+              # `preset`, `sheet` and `expert` may be set.
+              expert:
+                type: str
+                nullable: true
+                desc: Body of one :root rule of token declarations; at most 8 KB.
+                example: |
+                  --accent: #e8b04b;
+              # Default: false (the dark palette)
+              light:
+                type: bool
+                nullable: true
+                desc: Render the site in the light palette.
+                example: "false"
+          # The pages the site offers in its navigation, in order. Default: every page id the
+          # site vocabulary declares (overview, leaderboard, squadrons, players). An unknown id
+          # is refused at startup, and a single string is refused too — it would iterate as
+          # characters.
+          nav:
+            type: seq
+            nullable: true
+            desc: Nav page ids the site offers, in order.
+            example: |
+              - overview
+              - leaderboard
+              - squadrons
+              - players
+            sequence:
+              - type: str
+          # The tiles the site's overview shows, in order. Default: every tile id the site
+          # vocabulary declares (active_week, online_now, playtime_total, avg_session,
+          # peak_hour). An unknown id is refused at startup.
+          tiles:
+            type: seq
+            nullable: true
+            desc: Tile ids the site's overview shows, in order.
+            example: |
+              - active_week
+              - online_now
+            sequence:
+              - type: str
+          # Default: every section on. A map of id -> true/false: an id the map does not name is
+          # ON, so a site that declares nothing shows everything and a section added later is
+          # on for every site. A section that is off is neither rendered nor read. Two reads
+          # always run, because the bands above the sections need them: the hero's figure and
+          # the standings' denominator come from the community totals, and the live band's
+          # servers-up and pilots-flying figures from the server board — so `community: false`
+          # hides the readouts row, and `servers: false` the server table, never those bands.
+          sections:
+            type: map
+            nullable: true
+            desc: Which overview sections the site shows; an absent id is on. A section that is off is neither rendered nor read, except the server board — the live band above the sections prints its figures. The hero figure always stays.
+            example: |
+              season: false
+              squadrons: false
+            mapping:
+              community:
+                type: bool
+                nullable: true
+                desc: The community readouts band of the overview.
+                example: "true"
+              season:
+                type: bool
+                nullable: true
+                desc: The season panel (hours and sorties per week).
+                example: "true"
+              standings:
+                type: bool
+                nullable: true
+                desc: The top-pilots standings table.
+                example: "true"
+              aircraft:
+                type: bool
+                nullable: true
+                desc: The most-flown aircraft panel.
+                example: "true"
+              when_we_fly:
+                type: bool
+                nullable: true
+                desc: The hours-flown-by-hour-of-day panel; shares its row with the aircraft panel.
+                example: "true"
+              squadrons:
+                type: bool
+                nullable: true
+                desc: The squadrons section; needs the CreditSystem plugin.
+                example: "false"
+              servers:
+                type: bool
+                nullable: true
+                desc: The server board of the overview.
+                example: "true"
+          # Default: every metric. The leaderboard metrics the site offers — a pick from the
+          # metric vocabulary (playtime, air_targets, ships, air_defence, ground_targets,
+          # kd_ratio, pvp_kd_ratio). An unknown id is refused at startup, and a control for a
+          # board the site does not offer is never rendered. The board opens on the site's own
+          # character's first choice among these, so a site that drops playtime still opens on
+          # a board it ranks.
+          metrics:
+            type: seq
+            nullable: true
+            desc: Leaderboard metric ids the site offers; the board opens on the character's first choice among them, else the first one listed.
+            example: |
+              - playtime
+              - kd_ratio
+            sequence:
+              - type: str
+          # Default: en. A code with no web UI catalog is refused at startup, so a typo cannot
+          # render the site in English silently.
+          lang:
+            type: str
+            nullable: true
+            default: en
+            desc: Language the site renders in.
+            example: "\"en\""
+          # Default: pvpve. The kind of community this site is, which decides which figures the
+          # pages LEAD with — never which figures exist. `pvp` leads with the player-versus-
+          # player record (PvP kills, the PvP ratio), `pve` with the targets and the airframe
+          # hours, `pvpve` with both side by side. It is a DECLARED value and is never derived
+          # from the data. Any other value is refused at startup.
+          character:
+            type: str
+            nullable: true
+            enum: [pvp, pve, pvpve]
+            default: pvpve
+            desc: The kind of community the site is; decides which figures lead and which metric the board opens on.
+            example: "\"pvpve\""
+  # The identity layer of the admin web UI (services/webservice/auth/). Optional: without it
+  # every non-public page is refused (deny by default), which is the safe direction.

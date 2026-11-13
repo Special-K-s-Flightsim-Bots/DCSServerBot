@@ -49,6 +49,13 @@ A save tells you what it costs before you make it: a plugin configuration reload
 place and nothing restarts, while a change to `main.yaml`, `nodes.yaml`, `servers.yaml` or a service
 configuration restarts the affected node. [Configuration](configure.md) has the full table.
 
+**Public site** (Settings → Public site) is the one page that sits between the two: its content —
+title, copy, palette, sections, mark — is read per request and shows on the page at once, while the
+**structure** of the installation's sites (a site added, its address, its on/off switch) takes the
+console's apply, which rebuilds the site table in place without a bot restart. The page is also the
+editor for `config/site.yaml`, with an Expert mode and an *Add a site* block at its foot. The
+[public site guide](guides/public-site.md) covers both.
+
 !!! note
     The website listens on the machine the bot runs on. If you reach it from outside, put it behind a
     reverse proxy with TLS — it is an admin interface, not a public page.
