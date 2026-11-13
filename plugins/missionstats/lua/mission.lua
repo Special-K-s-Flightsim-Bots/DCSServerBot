@@ -143,6 +143,7 @@ local AAR = {
     timer_id  = nil,
     tasks     = {},      -- [unit_id] = { unit, fuel_prev, base, t_base, ticks, confirmed }
     real      = {},      -- [unit_id] = true while DCS itself reported the START
+    link      = {},      -- [unit_id] = tanker unit the aircraft is working; outlives the task
     SCAN      = 30,      -- s between tanker-table refreshes
     RANGE     = 100,     -- m, true 3D distance that counts as "on the tanker"
     tankers   = {},
@@ -188,6 +189,7 @@ local function aar_sample(uid, unit)
         t.t_base = timer.getTime()
         t.ticks  = 0
         t.tanker, t.tanker_dist = AAR.findTanker(unit)
+        AAR.link[uid] = t.tanker or AAR.link[uid]
         AAR.emitStart(unit, t)   -- the single emit site: first positive rise
     end
 
@@ -195,16 +197,19 @@ local function aar_sample(uid, unit)
 end
 
 local function aar_tick()
+    local seen = {}
     for _, side in ipairs({coalition.side.BLUE, coalition.side.RED}) do
         for _, group in ipairs(coalition.getGroups(side, Group.Category.AIRPLANE) or {}) do
             for _, unit in ipairs(group:getUnits()) do
                 if unit and unit:isExist() and AAR.canRefuel(unit) then
                     local uid = unit:getID()
+                    seen[uid] = true
                     if unit:inAir() then
                         aar_sample(uid, unit)
                     else
                         AAR.tasks[uid] = nil      -- on the ground (airbase refuel!) => no session
                         AAR.real[uid]  = nil
+                        AAR.link[uid]  = nil
                     end
                 end
             end
@@ -218,6 +223,13 @@ local function aar_tick()
             AAR.real[uid]  = nil
         end
     end
+    -- A link is meant to survive its task, so it is collected against the units
+    -- this scan still sees rather than against a stored object.
+    for uid in pairs(AAR.link) do
+        if not seen[uid] then
+            AAR.link[uid] = nil
+        end
+    end
     return timer.getTime() + AAR.INTERVAL
 end
 
@@ -225,18 +237,29 @@ end
 -- 2) the closer: S_EVENT_REFUELING_STOP builds the comment
 -- --------------------------------------------------------------
 local function aar_onStop(unit)
-    local uid = unit:getID()
-    local t   = AAR.tasks[uid]
+    local uid  = unit:getID()
+    local t    = AAR.tasks[uid]
+    local link = AAR.link[uid]
     AAR.tasks[uid] = nil                  -- next boom/basket contact re-baselines
     AAR.real[uid]  = nil
+    AAR.link[uid]  = nil
+
+    -- The tanker is resolved before the baseline check: a missing baseline costs
+    -- the fuel figures, never the tanker. A unit no session was tracked for is
+    -- reported as untracked, so the caller can tell it apart from a receiver.
+    local untracked = not (t and t.base) and not link
+    local tanker = (t and t.tanker) or link
+    if not tanker or not tanker:isExist() then
+        tanker = AAR.findTanker(unit)
+    end
     if not t or not t.base then
-        return nil                        -- nothing known -> comment stays empty
+        return nil, tanker, untracked   -- no fuel figures, tanker still reported
     end
 
     local to     = unit:getFuel() or 0
     local gained = to - t.base
     if gained <= AAR.THRESHOLD then
-        return nil                        -- touched the basket, took nothing
+        return nil, tanker, false       -- touched the basket, took nothing
     end
 
     local full = nil
@@ -249,7 +272,7 @@ local function aar_onStop(unit)
     local r4   = function(x) return math.floor(x * 10000 + 0.5) / 10000 end
     local tolbs = function(x) return math.floor(x * mass * 2.20462 + 0.5) end
 
-    t.tanker = t.tanker or AAR.findTanker(unit)
+    t.tanker = tanker
     return net.lua2json({
         gained    = r4(gained),                                   -- fraction of internal capacity
         lbs       = tolbs(gained),                                -- fuel taken
@@ -342,7 +365,7 @@ function AAR.findTanker(unit, range)               -- nearest, TRUE 3D, lazy ref
     local p = unit:getPoint()
     local best, bestd
     for _, t in ipairs(AAR.tankers) do
-        if t:isExist() then
+        if t ~= unit and t:isExist() then
             local q = t:getPoint()
             local d = math.sqrt((p.x-q.x)^2 + (p.y-q.y)^2 + (p.z-q.z)^2)
             if d <= (range or AAR.RANGE) and (not bestd or d < bestd) then best, bestd = t, d end
@@ -532,11 +555,19 @@ function onMissionEvent(event)
                 -- no snapshot (reload / missed START) -> no comment rather than a guessed number
 
             elseif event.id == world.event.S_EVENT_REFUELING then
-                -- SP / non-dedicated server -> DCS reports the START itself
                 local uid = unit:getID()
+                -- DCS raises this for the tanker itself too, naming the tanker as its
+                -- own target. No fuel changes hands, so it is not a refuelling.
+                if event.target and event.target.getID and event.target:getID() == uid then
+                    return
+                end
+                -- SP / non-dedicated server -> DCS reports the START itself
                 AAR.real[uid] = true                 -- aar_sample() must not synthesise
                 local t = AAR.tasks[uid]
                 local tanker, ds =  AAR.findTanker(event.initiator)
+                if tanker then
+                    AAR.link[uid] = tanker
+                end
                 if t then
                     t.tanker, t.tanker_dist = tanker, ds
                     if t.start_sent then
@@ -548,7 +579,13 @@ function onMissionEvent(event)
                 end
 
             elseif event.id == world.event.S_EVENT_REFUELING_STOP then
-                local comment, tanker = aar_onStop(unit)        -- also clears AAR.real[uid]
+                local comment, tanker, untracked = aar_onStop(unit)
+                -- DCS raises this half for the tanker as well: a tanker no session was
+                -- tracked for is reporting itself, and a row with neither fuel figures
+                -- nor a tanker records nothing.
+                if not comment and (not tanker or (untracked and aar_isTanker(unit))) then
+                    return
+                end
                 msg.comment = comment
                 if not event.target and tanker then
                     tanker_target = tanker
