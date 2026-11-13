@@ -218,10 +218,28 @@
       }
       frame.src = address();
     };
+    /* WHAT THE LAST DRAFT CARRIED, so a press that changes nothing is not a second round trip. One
+     * `change` follows every `input` on the control the operator just left, and a field that already
+     * redrew the frame on its last keystroke must not redraw it again on blur. */
+    const signature = () => {
+      const pairs = [];
+      const data = body();
+      if (data && typeof data.forEach === 'function') {
+        data.forEach((value, name) => pairs.push(name + '\u0000' + value));
+      }
+      pairs.sort();
+      return pairs.join('\u0001');
+    };
+    let sent = signature();
+    const moved = () => signature() !== sent;
     const draft = async (repaint) => {
+      const seen = signature();
       const stored = await post(null);
-      if (stored && repaint) {
-        reload();
+      if (stored) {
+        sent = seen;
+        if (repaint) {
+          reload();
+        }
       }
       return stored;
     };
@@ -307,15 +325,32 @@
      * renders next time must carry the new side — and only the repaint is skipped. */
     const painted = (event) => Boolean(event && event.target && event.target.matches
                                        && event.target.matches('input[data-sc-mark-side-option]'));
+    /* A ROW WHOSE TEXT IS THE SERVER'S TO DRAW. `branding.welcome` and `branding.logo` have no
+     * element in the frame that holds their value — the hero's paragraph is composed with the
+     * community's name, and the mark's file is read by the server — so there is nothing to write into
+     * the document. The box follows them the only way it can: the draft is posted and the frame
+     * re-rendered. It happens on `input`, not only on blur, because an operator who has just typed a
+     * sentence should see it without having to leave the field. */
+    const redraws = (event) => {
+      const target = event && event.target;
+      const row = target && target.closest ? target.closest('.sc-brand-row') : null;
+      return Boolean(row && !row.getAttribute('data-sc-drives'));
+    };
     form.addEventListener('input', (event) => {
       if (edited(event)) {
-        queue(false);
+        queue(redraws(event));
       }
     });
     form.addEventListener('change', (event) => {
-      if (edited(event)) {
-        queue(!painted(event));
+      if (!edited(event)) {
+        return;
       }
+      /* A BLUR IS NOT AN EDIT: `change` follows the last `input` of the control being left, so when
+       * the fields still hold what the last draft carried, the frame already shows them. */
+      if (!moved() && !painted(event)) {
+        return;
+      }
+      queue(redraws(event) || !painted(event));
     });
     form.addEventListener('reorder-moved', () => queue(true));
     form.addEventListener('submit', () => {

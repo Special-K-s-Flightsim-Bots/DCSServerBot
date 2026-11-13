@@ -649,7 +649,8 @@ def pool() -> Any:
 
 def render_site_page(request: Request, site: Any, template: str, *, active: str = "",
                      resolved: Any = None, search_value: str = "", status_code: int = 200,
-                     who: Any = ..., demo: bool = False, **context: Any) -> HTMLResponse:
+                     who: Any = ..., demo: bool = False, inline_sheet: bool = False,
+                     **context: Any) -> HTMLResponse:
     """Render one page of *site* through the shell template and the language in force.
 
     THE LANGUAGE IN FORCE, THE SITE'S LANGUAGE AS THE FALLBACK: precedence is the visitor's stored
@@ -723,6 +724,13 @@ def render_site_page(request: Request, site: Any, template: str, *, active: str 
             language_control=None,
             signed_in=False,
         )
+    elif inline_sheet:
+        # THE CARD'S PREVIEW OF A SERVED SITE. The document is the site's own — its links, its chip,
+        # its language control — but the palette is composed FROM THE CONTEXT rather than fetched at
+        # ``/theme.css``: that route answers the SAVED sheet, so a draft that changes the preset would
+        # paint the frame and then be overwritten by the file's colours on the next reload. Composed
+        # here, the sheet is the one the draft describes, and no address is added to the document.
+        values["theme_sheet"] = _demo_sheet(resolved, config_dir)
     markup = environment.get_template(template).render(**values, **context)
     return HTMLResponse(markup, status_code=status_code)
 
@@ -1000,7 +1008,10 @@ def _add_preview_route(router: APIRouter, site: Any) -> str:
             if not _serves_today(site):
                 raise HTTPException(status_code=404)
             return render_site_page(request, site, PREVIEW_TEMPLATE)
-        return render_site_page(request, site, PREVIEW_TEMPLATE,
+        # THE PALETTE RIDES IN THE DOCUMENT, as it does in the mock: with a draft in hand the frame is
+        # re-rendered on every press, and a ``/theme.css`` link would answer the SAVED sheet — the
+        # preset would paint and then be replaced by the file's colours one reload later.
+        return render_site_page(request, site, PREVIEW_TEMPLATE, inline_sheet=True,
                                 resolved=draft_context(request, site, block))
 
     router.add_api_route(path, chrome_preview, methods=["GET"], response_class=HTMLResponse,
