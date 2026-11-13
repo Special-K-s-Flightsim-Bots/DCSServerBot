@@ -479,7 +479,7 @@ def _library(success: bool, message: str, *, payload: dict | None = None) -> Mus
 # ── the READS ─────────────────────────────────────────────────────────────
 
 
-@action
+@action(kind="read")
 async def list_music_playlists(ctx: Any, *, node_name: str = "",
                                refresh: bool = False) -> MusicPlaylistsResult:
     """List every playlist with its track count, its total length, its missing tracks and its radios.
@@ -523,7 +523,7 @@ async def list_music_playlists(ctx: Any, *, node_name: str = "",
                       playlists=rows)
 
 
-@action
+@action(kind="read")
 async def get_music_playlist(ctx: Any, *, playlist: str, node_name: str = "",
                              refresh: bool = False) -> MusicPlaylistResult:
     """Read ONE playlist: its tracks in playback order, with the tags and the presence of each file.
@@ -562,7 +562,7 @@ async def get_music_playlist(ctx: Any, *, playlist: str, node_name: str = "",
                      playlist=name, node_name=label, found=found)
 
 
-@action
+@action(kind="read")
 async def read_music_library(ctx: Any, *, node_name: str = "",
                              refresh: bool = False) -> MusicLibraryResult:
     """Read ONE node's music library: the folder tree with per-folder counts and the files with tags.
@@ -595,7 +595,7 @@ async def read_music_library(ctx: Any, *, node_name: str = "",
     return answer
 
 
-@action
+@action(kind="read")
 async def get_music_radios(ctx: Any, *, server_name: str) -> MusicRadioResult:
     """Read every radio configured for ONE server: its settings, its state and its current track.
 

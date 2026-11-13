@@ -75,7 +75,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import i18n, permissions, session
+from .. import i18n, mount, permissions, session
 from ..auth import local as local_auth
 from ..registry import NavItem
 from . import actions as actions_page
@@ -168,6 +168,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     )),
     (i18n._("Administration"), (
         "settings.view", "settings.write", "settings.file.view", "settings.file.write",
+        "site.view", "site.write", "site.structure", "site.expert",
         CAPABILITY_VIEW, CAPABILITY_WRITE,
     )),
 )
@@ -194,6 +195,11 @@ DESCRIPTIONS: dict[str, str] = {
     "scheduler.view": i18n._("a server's schedule"),
     "scheduler.write": i18n._("create and edit a server's schedule"),
     "scheduler.expert": i18n._("Expert Mode and the shared scheduler default"),
+    "site.view": i18n._("the public site's settings page, for the sites you hold"),
+    "site.write": i18n._("edit the content of a site you hold: branding, character, pages, sections, "
+                         "metrics, language and the preset"),
+    "site.structure": i18n._("a site's address, its role and its on/off switch — the console reloads"),
+    "site.expert": i18n._("write a site's expert CSS sheet"),
     "missions.view": i18n._("the mission list of a server"),
     "missions.load": i18n._("load a mission onto a server"),
     "missions.activate": i18n._("activate a mission and restart the server into it"),
@@ -801,8 +807,8 @@ def access_context(request: Request) -> dict:
         "pills": dashboard_page.status_pills(state),
         "style": STYLE,
         "script": SCRIPT,
-        "page_path": ACCESS_PATH,
-        "save_path": SAVE_PATH,
+        "page_path": mount.url(ACCESS_PATH),
+        "save_path": mount.url(SAVE_PATH),
         "roles": [name for name in role_model(config_dir) if name != "Admin"],
         "rows": rows,
         "filter_field": QUERY_FILTER,
@@ -863,7 +869,7 @@ async def _save(request: Request) -> RedirectResponse:
             log.info("Access save refused as well: %s", _refusal_fragment(refusal))
         audit = await _audit(request, refusals=refusals)
         _notice(request, refusal_sentence(refusals[0]), ok=False, refusal=True, audit=audit)
-        return RedirectResponse(ACCESS_PATH, status_code=303)
+        return RedirectResponse(mount.url(ACCESS_PATH), status_code=303)
 
     entries = entries_from_candidate(candidate)
     previous = dict(permissions.APPLIED_OVERRIDES)
@@ -878,11 +884,11 @@ async def _save(request: Request) -> RedirectResponse:
                     config_path_for(config_dir))
         audit = await _audit(request, refused=AUDIT_STALE)
         _notice(request, SAVE_REFUSED_STALE, ok=False, refusal=True, audit=audit)
-        return RedirectResponse(ACCESS_PATH, status_code=303)
+        return RedirectResponse(mount.url(ACCESS_PATH), status_code=303)
     except configwrite.ConfigWriteError as ex:
         _notice(request, i18n._("Nothing was saved: %(reason)s") % {"reason": str(ex)},
                 ok=False, refusal=True)
-        return RedirectResponse(ACCESS_PATH, status_code=303)
+        return RedirectResponse(mount.url(ACCESS_PATH), status_code=303)
 
     applied_ok = True
     try:
@@ -897,13 +903,13 @@ async def _save(request: Request) -> RedirectResponse:
     changes = _changed_cells(previous, applied)
     if not result.changed and not changes:
         _notice(request, NOTICE_NO_CHANGE, ok=True, refusal=True)
-        return RedirectResponse(ACCESS_PATH, status_code=303)
+        return RedirectResponse(mount.url(ACCESS_PATH), status_code=303)
 
     audit = await _audit(request, changes)
     message = (NOTICE_SAVED % {"count": len(changes)} if applied_ok
                else NOTICE_SAVED_ON_RESTART % {"count": len(changes)})
     _notice(request, message, ok=True, refusal=True, audit=audit)
-    return RedirectResponse(ACCESS_PATH, status_code=303)
+    return RedirectResponse(mount.url(ACCESS_PATH), status_code=303)
 
 
 def _changed_cells(before: Mapping[str, tuple[Iterable[str], bool]],

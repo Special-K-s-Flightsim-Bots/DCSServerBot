@@ -46,7 +46,7 @@ from fastapi.responses import HTMLResponse
 
 from core.actions import read_action
 
-from .. import i18n, permissions, readmodels
+from .. import i18n, mount, permissions, readmodels
 from ..registry import NavItem
 from . import dashboard as dashboard_page
 
@@ -294,7 +294,7 @@ def _query(*, period: str, server: str | None) -> dict[str, str]:
 
 def _here(period: str, server: str | None) -> str:
     """The path plus query for one (period, scope) pair."""
-    return f"{STATISTICS_PATH}?{urlencode(_query(period=period, server=server))}"
+    return f"{mount.url(STATISTICS_PATH)}?{urlencode(_query(period=period, server=server))}"
 
 
 def _chips(period: str, href) -> list[dict]:

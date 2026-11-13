@@ -611,6 +611,47 @@ validation on the write is the final word.
 
 ---
 
+## The public site
+
+The site surface is the console's separate, unauthenticated face: one route tree per site in the
+`webservice.yaml` `sites:` block, registered under the owner `site` with an EMPTY prefix
+(`site_pages.register`), so the console's mount never moves a site path. Every route below is
+declared `public` (`permissions.PUBLIC`): no session, no capability and no scope — an anonymous
+visitor and a signed-in member read the same page, and the only per-identity difference is the
+shell's chip and the figures of `/me`.
+
+`<site>` in the table is the site's own prefix: `""` for the root site and `/<slug>` for a group
+site, so `/rankings` is the root site's leaderboard page and `/group1/rankings` the same page of
+`group1`. Every path is built by `site_pages.site_url`; no page module spells a site root.
+
+No site path may be one the legacy REST API claims: `plugins/restapi` registers its surface at its
+configured `prefix:`, which defaults to `""` (the site root), and a peer's normal route WINS a shared
+path over a site page's low-priority route. The addresses in `site_pages.NAV_PATHS` therefore stay off
+that surface — the leaderboard page is at `/rankings`, not at the API's `/leaderboard` — and
+`tests/test_webui_site_public_route.py` compares every declared address with the plugin's own route
+list, so a page added on an API path fails instead of answering the API's refusal.
+
+| Page | Route | Capability | Read |
+|------|-------|------------|------|
+| Overview | `GET <site>/` | `public` | `community_totals`, `activity_over_time`, `server_board`, `leaderboard` (playtime / all) and `squadrons` (`services/webservice/site_reads.py`), all bounded to the site's servers |
+| Leaderboard | `GET <site>/rankings` | `public` | `leaderboard` (metric, period, offset, sort column and sort direction from the query string; the column and direction are whitelisted in the read) |
+| Pilot search | `GET <site>/players` | `public` | `pilot_search` (query, offset from the query string) |
+| Pilot profile | `GET <site>/player/{ucid}` | `public` | `pilot_profile` for one UCID |
+| My statistics | `GET <site>/me` | `public` | `my_statistics` for the request's own identity; anonymous visitors get the sign-in control, never a redirect |
+
+Two asset routes exist beside the pages: `GET <site>/theme.css` serves the site's palette sheet
+(the `theme.preset` sheet, or the `theme.expert` block wrapped in one `:root` rule) and
+`GET <site>/logo.png` serves `branding.logo` (a raster suffix only). Both are `public`; the logo
+route reads one file from the config directory per request.
+
+**There is NO write route on this surface.** The site reads; a visitor cannot post, change or
+store anything through it, and the only interactive element that leaves the page is the sign-in
+control, which uses the console's existing auth routes. A write belongs to the console, behind its
+capability and scope gates.
+
+The nav is declared once in `site_pages` (`NAV_PATHS`, `NAV_LABELS`, `SERVED_NAV_IDS`): a site's
+`nav:` list selects and orders the ids, and an id without a served page renders no entry.
+
 ## The Statistics page (GET /statistics)
 
 The console's period view: is the community growing, do new players stay, when do they fly, which

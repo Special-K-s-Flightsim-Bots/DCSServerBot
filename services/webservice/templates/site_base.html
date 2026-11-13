@@ -1,0 +1,75 @@
+{#-
+  The public site's shell — the ONE owner of the site's page chrome.
+
+  A site page extends this and supplies its own `content` (and, optionally, `title`). The top bar
+  carries the site's own branding and the site's own menu, the page ground is the site's stage, and
+  the footer carries the product's fixed attribution plus the site's own links.
+
+  WHAT THIS TEMPLATE NEVER DOES:
+  * it NEVER spells a site root: every address it emits comes from `site_pages.site_url` or from the
+    nav entries built there, so the same document serves the root site (`/`) and a group's site
+    (`/group1`) without a second copy;
+  * it NEVER takes the footer's text from configuration: `Powered by DCSServerBot` is literal text
+    here, not a `{% trans %}` body and not a site value, so it reads the same in every language and
+    no site can override it;
+  * it reads `language` — the language IN FORCE for this render: the visitor's stored `dcssb_lang`
+    choice first, the SITE's declared `site.lang` second (see `site_pages.render_site_page`), so
+    the document's language and its strings cannot disagree.
+
+  The brand mark is the ICON ONLY (`/static/logo-mark.png`), never the shipped lockup: the lockup
+  carries the product's name inside the image, which beside the site title reads as a second logo.
+  A site that declares its own `branding.logo` shows that image instead.
+
+  The asset path (`/static/…`) is the installation's fixed surface and keeps its address under every
+  mount; it is not built from the site's prefix.
+-#}
+<!DOCTYPE html>
+<html lang="{{ language|default(site.lang, true) }}" data-theme="{{ 'light' if site.theme.light else 'dark' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site.branding.title }}{% endblock %}</title>
+  <link rel="icon" type="image/png" href="/static/logo-mark.png">
+  <link rel="stylesheet" href="/static/site.css?v={{ asset_version }}">
+  {% if theme_sheet %}<link rel="stylesheet" href="{{ theme_sheet }}">{% endif %}
+  {% block head %}{% endblock %}
+</head>
+<body{% block body_attrs %}{% endblock %}>
+<header class="top"><div class="in">
+  <a class="brand" href="{{ home_href }}">
+    {% if logo_href %}<img src="{{ logo_href }}" alt="">{% else %}<img class="brand-logo" src="/static/logo-mark.png" alt="">{% endif %}
+    <span><b>{{ site.branding.title }}</b><small>{% trans %}Community record{% endtrans %}</small></span>
+  </a>
+  <nav class="nav" aria-label="{% trans %}Site{% endtrans %}">
+    {% for item in nav %}<a href="{{ item.href }}"{% if item.active %} class="on" aria-current="page"{% endif %}>{{ _(item.label) }}</a>{% endfor %}
+  </nav>
+  <form class="search" method="get" action="{{ search_href }}" role="search" data-search="{{ search_json_href }}">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+    <input type="search" id="q" name="q" value="{{ search_value }}" placeholder="{{ _('Find a pilot') }}" aria-label="{{ _('Find a pilot') }}">
+    <button type="submit" aria-label="{{ _('Search') }}">{{ _('Search') }}</button>
+  </form>
+  {% if chip %}
+  <span class="who"><a href="{{ chip.me_href }}" title="{{ _('My statistics') }}">{{ chip.name }}</a></span>
+  {% if chip.console_href %}<a class="btn btn-sm" href="{{ chip.console_href }}">{% trans %}Command Center{% endtrans %}</a>{% endif %}
+  {% elif sign_in_href %}<a class="btn btn-sm" href="{{ sign_in_href }}">{% trans %}Sign in{% endtrans %}</a>
+  {% endif %}
+  {#- the language pill and its popover, beside the sign-in chip; `language_control` is the SITE's
+      own control (site_pages.render_site_page), and the partial's own `is defined` guard keeps a
+      standalone render without a request from drawing a control that has nowhere to point. -#}
+  {% if language_control is defined and language_control %}{% with language = language_control %}{% include "_language.html" %}{% endwith %}{% endif %}
+</div></header>
+
+{% block content %}{% endblock %}
+
+<footer class="foot"><div class="in">
+  {#- THE PRODUCT'S ATTRIBUTION: one literal line, identical in every language and for every site,
+      and no configuration value reaches it — a site adds its own anchors beside it and can neither
+      change, shorten nor hide it. -#}
+  <span class="foot-text">Powered by DCSServerBot</span>
+  <span class="sp"></span>
+  {% for link in site.branding.footer_links %}<a href="{{ link.href }}"{% if link.href.startswith('http') %} rel="noopener"{% endif %}>{{ link.label }}</a>{% endfor %}
+</div></footer>
+<script src="/static/site-search.js?v={{ asset_version }}" defer></script>
+<script src="/static/site-picker.js?v={{ asset_version }}" defer></script>
+</body>
+</html>

@@ -56,12 +56,14 @@
     var editorHost = aside.querySelector("[data-cfg-yaml-editor]");
     var status = aside.querySelector("[data-cfg-yaml-status]");
     var badge = aside.querySelector("[data-cfg-yaml-badge]");
-    /* THE FORM THE CARRIERS LIVE IN. The settings pages carry a marker (`data-async` / `.cfg-form`);
-     * a page that owns the panel inside its own form (the presets wizard, the preset editor) has
-     * neither, so the panel's own ancestor form is the last resort — `closest` is null on the settings
-     * pages (their aside sits OUTSIDE the form), so the two markers stay the first answer there. */
-    var form = document.querySelector("form[data-async]") || document.querySelector(".cfg-form")
-               || (aside.closest ? aside.closest("form") : null);
+    /* THE FORM THE CARRIERS LIVE IN. A page that owns the panel inside its own form (the presets
+     * wizard, the preset editor, the Site settings page — whose cards each own a form of their own)
+     * answers through the panel's nearest ancestor form; the settings pages carry a marker
+     * (`data-async` / `.cfg-form`) and their aside sits OUTSIDE the form, so `closest` is null there
+     * and the two markers are the answer. `closest` is tried FIRST because a page with several
+     * marked forms would otherwise hand the panel a sibling's carriers. */
+    var form = (aside.closest ? aside.closest("form") : null)
+               || document.querySelector("form[data-async]") || document.querySelector(".cfg-form");
     if (!editorHost || !status || !form) { return; }
     if (typeof CodeMirror === "undefined") { return; }
 

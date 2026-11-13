@@ -643,7 +643,7 @@ async def _rename_server(ctx: Any, server: Any, new_name: str) -> str | None:
     return None
 
 
-@action
+@action(kind="read")
 async def get_server_config(ctx: Any, server_name: str) -> ServerConfigResult:
     """Read ONE server's DCS configuration — the flat ``serverSettings.lua`` shape.
 
@@ -1174,7 +1174,7 @@ async def _read_coalition_plaintext(server: Any) -> tuple[Any, Any]:
     return row[0], row[1]
 
 
-@action
+@action(kind="read")
 async def get_server_coalitions(ctx: Any, server_name: str) -> ServerConfigResult:
     """Read ONE server's coalition passwords — the cleartext the bot holds, plus which hashes are set.
 

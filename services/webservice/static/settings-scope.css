@@ -157,3 +157,783 @@
 .st-yaml { font-family: var(--font-mono); font-size: 11px; line-height: 1.55; background: var(--well);
   border: 1px solid var(--line); border-radius: var(--radius-s); padding: 10px; color: var(--text-2);
   max-height: 460px; overflow: auto; white-space: pre; }
+
+/* ============================================================ the Site settings page (.sc-*) */
+/* ONE CARD PER SITE, each its own <form>. The card body reuses the shared field rows above; this
+ * section adds only what a site card draws that no other page does: the summary row, the pill
+ * group, the switch lists, the preset gallery and the expert editor. */
+
+.sc-head { padding-bottom: 4px; }
+.sc-cards { display: flex; flex-direction: column; gap: 14px; }
+.sc-card { background: var(--panel); }
+/* THE TWO ADMIN-ONLY BLOCKS at the foot of the page: the add form's three rows and the YAML panel,
+ * which is the shipped `.cfg-yaml` panel (shell.css) given the page's card gap and a top margin. The
+ * add block is an `.st-block` and NOT an `.sc-card`: a card is a SITE, and every pin that counts one
+ * counts `details.sc-card`. */
+.sc-cards + .sc-add, .sc-cards + .sc-yamlform { margin-top: 14px; }
+.sc-add { background: var(--panel); }
+.sc-add-grid { display: flex; flex-direction: column; gap: 10px; padding: 4px 13px 0; }
+.sc-add-grid .st-w { flex: 1 1 260px; }
+.sc-add-grid .st-in { width: 100%; }
+.sc-add .sc-actions { padding: 10px 13px 13px; }
+.sc-yamlform .sc-actions { padding: 8px 0 0; }
+.sc-sum { gap: 12px; flex-wrap: wrap; row-gap: 8px; }
+/* The controls' own row wraps rather than overflowing: a card can be narrower than the three facts
+ * (the console's shell has no narrow frame, so a phone viewport leaves the card ~140 px). Nothing
+ * wraps at any width the page is designed for — the address absorbs the difference first. */
+.sc-sum .r { flex-wrap: wrap; justify-content: flex-end; }
+
+/* THE CARD'S HEADER LINE — the site's name, its address and its switch, in one row. `.st-block >
+ * summary` is the bar (flex, gap 10, `11px 13px`) and `.r` carries `margin-left: auto`; the controls
+ * therefore end on the header's own right edge without this block placing anything. Every colour,
+ * radius, family and weight below is a token `shell.css` already declares. */
+.sc-idaddr { display: inline-flex; align-items: center; flex: 0 0 auto;
+  background: var(--ground-2); border: 1px solid var(--line-2); border-radius: var(--radius-s); }
+.sc-idaddr:focus-within { border-color: var(--accent); }
+.sc-idaddr .sl { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-3);
+  padding: 0 1px 0 8px; }
+.sc-idaddr .st-in { width: 15ch; padding: 5px 8px 5px 1px; border: 0; border-radius: 0;
+  background: transparent; }
+.sc-idaddr .st-in:focus-visible { outline: 0; }
+
+/* THE ADDRESS CHIP — the site's address, read-only, leading the row. The shipped `.st-chip` with a
+ * colour ROLE of its own, drawn the way this console already draws an accent mark (`.tag.a` in
+ * access.css): the accent as the ink, its own tint as the ground, and a lighter accent as the border
+ * so a read-only chip does not take a control's weight. `--k`/`--kw` are the names `.st-chip.k` reads,
+ * so the role travels with the chip and a second palette needs no second declaration. */
+.sc-sum .st-chip.sc-addr { --k: var(--accent);
+  --kw: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* the role is bound to the properties here, because the row's own `.k` rule
+   * (`.st-block > summary .k`) out-specifies `.st-chip.k` and would keep the value in --text */
+  color: var(--k); border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: var(--kw);
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 15px;
+  padding: 2px 9px 2px 6px; gap: 0;
+  /* it may shrink, it may not push the switch: 30 ch is the chip's measure, not the row's */
+  flex: 0 1 auto; min-width: 0; max-width: 30ch; }
+.sc-sum .st-chip.sc-addr .sl { color: var(--text-3); margin-right: 1px; }
+/* THE KEY, ONE STEP BACK — the row is read by the address now, so the config key is the small mono
+ * label it already is, in the muted text tone instead of the brightest one (`.st-block > summary
+ * .k` prints it in --text, which beats the address beside it). */
+.sc-sum > .k.mono { color: var(--text-2); }
+
+/* the path is the one part allowed to be cut: a long slug keeps the row one row, and the field at
+ * the row's right end still carries every character of it */
+.sc-sum .st-chip.sc-addr .pt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* THE SITE AT THE ROOT — its address IS the mount sign, and one glyph in a pill reads as an empty
+ * value. The chip is given the width of a four-character address and centres it, so "/" sits in a
+ * chip of the same height and the same fill as "/testers" and is visibly a value. */
+.sc-sum .st-chip.sc-addr-root { min-width: 4.6ch; justify-content: center; }
+/* the lone "/" is the whole value there, so it is drawn at the chip's own strength: the mount sign is
+ * dimmed only when a path follows it and the path is the bright part */
+.sc-sum .st-chip.sc-addr-root .sl { color: inherit; }
+
+/* THE SWITCH — `.st-sw`'s 34 × 18 drawing (a 12 px dot and the state word beside it) worn by a LABEL
+ * whose checkbox is the control: the box posts the two values the row always posted, it tabs, and
+ * `role="switch"` names it. The box is pinned over the track, 7 px above and below it, so the hit area
+ * is 32 px tall while the drawing stays 18. */
+.sc-idsw { position: relative; }
+.sc-idsw input[type="checkbox"] { position: absolute; top: -7px; right: 0; bottom: -7px; left: 0;
+  width: 100%; height: auto; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
+.sc-idsw input[type="checkbox"]:focus-visible + .bx { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+.sc-idsw .wd { line-height: 18px; }
+/* The track and the word follow the BOX, not the render — the box is the only source of the state, so
+ * a site switched off on the page moves and says so before anything is saved. The section rows read
+ * their box the same way; `.on` is deliberately NOT drawn on this label. */
+.sc-idsw .wd .off { display: none; }
+.sc-idsw:has(input[type="checkbox"]:not(:checked)) .wd .on { display: none; }
+.sc-idsw:has(input[type="checkbox"]:not(:checked)) .wd .off { display: inline; }
+.sc-idsw:has(input[type="checkbox"]:checked) { color: var(--text); }
+.sc-idsw:has(input[type="checkbox"]:checked) .bx { background: var(--sw-on);
+  border-color: var(--sw-on-line); }
+.sc-idsw:has(input[type="checkbox"]:checked) .bx i { left: auto; right: 2px; background: var(--run); }
+
+/* The two character chips fold before the line would squeeze them: the Character block states both of
+ * them in full, in words, a screen below. The ADDRESS does not fold with them — it is the identity the
+ * row is read by and is stated nowhere else on the row. */
+@media (max-width: 1050px) { .sc-sum .st-chip:not(.sc-addr) { display: none; } }
+
+/* THE NARROW CARD — the controls take their own row and the address takes the width the flag and the
+ * switch leave, because the field is the one thing on the line a thumb types into. The right edge is
+ * the header's own in both models. The field's width starts at 0 so it can shrink below a text
+ * input's intrinsic 20-character width; `min-width: 5ch` is the floor it may not pass. */
+@media (max-width: 560px) {
+  .sc-sum .r { flex: 1 1 100%; margin-left: 0; }
+  .sc-idaddr { flex: 1 1 auto; min-width: 0; }
+  .sc-idaddr .st-in { width: 0; flex: 1 1 auto; min-width: 5ch; }
+}
+.sc-form > .bd { padding: 4px 13px 13px; }
+.sc-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 0 13px 13px; }
+
+/* THE PILL GROUP: one exclusive choice per line, the node selector's own idiom. */
+.sc-seg { flex-wrap: wrap; }
+.sc-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; font-size: 12px;
+  color: var(--text-2); background: var(--ground-2); border: 1px solid var(--line-2);
+  border-radius: 999px; cursor: pointer; }
+.sc-pill:has(input:checked) { color: var(--login-text); border-color: var(--login-line);
+  background: linear-gradient(180deg, var(--accent), var(--accent-2)); font-weight: 600; }
+.sc-pill input { margin: 0; }
+
+/* THE SWITCH LISTS: one row per id, the label on the left and the id printed verbatim beside it. */
+.sc-switches { flex-direction: column; align-items: stretch; gap: 6px; }
+.sc-switch { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  gap: 9px; font-size: 12.5px; color: var(--text-2); }
+.sc-switch input { margin: 0; }
+.sc-switch .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+
+/* ======================================== THE CHARACTER CARD AND THE TWO LISTS IT WRITES (.sc-char*)
+ * The pills keep the console's exclusive-choice idiom above them; under them the card states what
+ * the character MEANS, and the two lists it writes are drawn side by side. No colour is declared
+ * here — every value is a shipped token. */
+.sc-charpills { justify-content: flex-start; }
+.sc-charwhat { font-size: 13px; color: var(--text); margin: 10px 0 0; max-width: 92ch; }
+.sc-charnote { font-size: 12.5px; color: var(--text-2); margin: 6px 0 0; max-width: 88ch; }
+/* what a press does with scripts off — the honest sentence, always rendered */
+.sc-noscript { font-size: 11.5px; color: var(--text-3); margin: 8px 0 0; max-width: 88ch; }
+/* ONE sentence per list saying why those rows are off — never the same sentence beside three rows */
+.sc-offnote { font-size: 11px; color: var(--text-3); margin: 9px 0 0; padding-top: 7px;
+  border-top: 1px dashed var(--line-2); max-width: 62ch; }
+.sc-offnote[hidden] { display: none; }
+/* the divergence between the pressed character's set and the lists as they now stand */
+.sc-changed { display: flex; align-items: center; gap: 7px; font-size: 11.5px;
+  color: var(--warn-text); margin: 8px 0 0; }
+.sc-changed[hidden] { display: none; }
+.sc-changed b { font-weight: 600; }
+.sc-charsets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+/* a list is a FIELDSET: the dissolved "What to show" heading survives as the two legends */
+.sc-set { margin: 0; padding: 0; border: 0; min-width: 0; }
+.sc-set legend { padding: 0; margin-bottom: 8px; font-size: 11px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.sc-set legend .key { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0;
+  text-transform: none; }
+.sc-set .sc-switch { padding: 4px 0; border-top: 1px solid var(--line); }
+.sc-set .sc-switch input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; }
+.sc-set .sc-switch.off { color: var(--text-3); }
+.sc-set .sc-switch.off > span:first-of-type { text-decoration: line-through; }
+
+/* THE PRESET GALLERY: four tiles; each previews the palette its own sheet declares. */
+.sc-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(126px, 1fr)); gap: 8px;
+  justify-content: flex-start; }
+.sc-tile { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 9px 10px;
+  cursor: pointer; border: 1px solid var(--line-2); border-radius: var(--radius-s);
+  background: var(--ground-2); }
+/* The radio is taken out of the flow but STAYS INSIDE THE TILE: without a positioned ancestor its
+ * containing block is the document, so focusing it on a press scrolls the WINDOW past the page's
+ * content and the operator sees a blank screen. `position: relative` on the tile pins it. */
+.sc-tile input { position: absolute; opacity: 0; pointer-events: none; }
+.sc-tile.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-2); }
+/* the tile's "In use" badge states the palette the site is on: every tile carries one and only the
+ * pressed tile draws it, so a press moves the statement with no re-render. The UA's `[hidden]` rule
+ * is restated here — an author `display` on the badge would otherwise paint a second one. */
+.sc-tile .st-badge { align-self: flex-start; }
+.sc-tile .st-badge[hidden] { display: none; }
+.sc-tile-name { font-size: 12px; color: var(--text); }
+.sc-sw-bar { display: flex; height: 22px; border-radius: 3px; overflow: hidden;
+  border: 1px solid var(--line); }
+.sc-sw-bar i { flex: 1 1 0; display: block; }
+
+/* ============================================================ §11 · THE PAGE (.sc-page)
+ * The card's body is TWO COLUMNS: the blocks in the page's order, and the site's own document beside
+ * them. The panel is a SIBLING of the editing column — never a child of a block — because a sticky
+ * child of a card that clips is pinned to the card, not to the page. Every value here is a shipped
+ * token or a measure the design states; no colour is declared. */
+.sc-page { display: grid; grid-template-columns: minmax(0, 1fr) 640px; gap: 22px; align-items: start; }
+.sc-edcol { min-width: 0; display: flex; flex-direction: column; }
+
+/* ONE BLOCK: a hairline, a heading row, its content. On a page of eight blocks one bordered panel
+ * reads as a warning box, so the page divides blocks with a hairline. */
+.sc-sec { padding: 9px 0 11px; border-top: 1px solid var(--line); }
+.sc-sec:first-of-type { border-top: 0; padding-top: 2px; }
+.sc-sechd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 8px; }
+.sc-sechd h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.sc-sechd .sp { margin-left: auto; }
+.sc-say { font-size: 11.5px; line-height: 1.5; color: var(--text-3); }
+
+/* INSIDE the editing column the label sits ABOVE its control: the shipped `.cfg-field` is
+ * `18rem + 1fr`, which in a 462 px column leaves 150 px of label and reads as two unrelated things. */
+.sc-edcol .cfg-field { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+/* a control's measure: 420 px, the width the design states */
+.sc-edcol .cfg-control .cfg-input,
+.sc-edcol .cfg-control textarea,
+.sc-edcol .cfg-control select { max-width: 420px; }
+.sc-edcol .cfg-rowbox { max-width: 420px; }
+/* the row's own line: what the value above it changes in this card's own frame */
+.sc-drives { margin: 3px 0 0; font-size: 11.5px; color: var(--text-3); max-width: 62ch; }
+.sc-drives .st-flag { margin-left: 6px; }
+.sc-brand-row { padding-bottom: 2px; }
+
+/* ==================================================== §E · THE MARK'S SLOT (.sc-av)
+ * The card's first row: a 96 px well beside the sentence that state is true in. Nothing here
+ * declares a colour — every value is a shipped token. */
+.sc-av { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: start;
+  padding: 0 0 12px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+.sc-av-slot { width: 96px; height: 96px; border-radius: var(--radius-s); border: 1px solid var(--line-2);
+  background: var(--ground-2); display: grid; place-items: center; overflow: hidden; }
+.sc-av-slot img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* the state that is NOT the site's own upload yet: a dashed edge says "this is a fallback" */
+.sc-av-slot.sc-av-dashed { border-style: dashed; }
+.sc-av-b .nm { font-size: 13px; font-weight: 600; }
+.sc-av-b .kk { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+.sc-av-b .kk .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.sc-av-b .kk .desc { font-size: 11.5px; color: var(--text-3); }
+.sc-av-b .hp { font-size: 11.5px; color: var(--text-3); margin: 4px 0 0; max-width: 62ch; }
+/* the resolution order is a footnote, not a control: it sits under the sentence it qualifies */
+.sc-av-order { font-size: 11px; color: var(--text-3); margin: 4px 0 0; max-width: 62ch;
+  padding-left: 9px; border-left: 2px solid var(--line); }
+.sc-av-cap { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-3);
+  margin: 6px 0 0; max-width: 62ch; }
+/* THE FOUR PREVIEWS ARE THE FILES. Each box IS its size — never a scaled drawing of one file — and
+ * they are bottom-aligned so a 32 px mark sits on the same line as the 256 one. */
+.sc-av-pre { display: flex; align-items: flex-end; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.sc-av-pre figure { margin: 0; text-align: center; flex: 0 0 auto; }
+.sc-av-pre .bx { border: 1px solid var(--line); border-radius: 3px; background: var(--ground-2);
+  display: grid; place-items: center; overflow: hidden; }
+.sc-av-pre .bx img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; }
+.sc-av-pre .s32 { width: 32px; height: 32px; }
+.sc-av-pre .s64 { width: 64px; height: 64px; }
+.sc-av-pre .s128 { width: 128px; height: 128px; }
+.sc-av-pre .s256 { width: 256px; height: 256px; }
+.sc-av-pre figcaption { font-family: var(--font-mono); font-size: 10px; color: var(--text-3);
+  margin-top: 4px; }
+.sc-av-in { font-size: 11px; color: var(--text-3); margin: 10px 0 0; max-width: 62ch; }
+.sc-av-acts { position: relative;
+  display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+.sc-av-acts[hidden], .sc-av-confirm[hidden] { display: none; }
+/* THE PICKER IS ONE CONTROL. The native file input posts (and with scripts off it is the whole
+ * path), so it stays in the DOM and in the tab order — clipped to a 1 px square rather than
+ * `display:none`/`visibility:hidden`, which would take it out of the keyboard's reach. The console's
+ * own button beside it is the `label[for]` bound to it, and the focus ring lands on that label (the
+ * clipped input can never draw one).
+ *
+ * IT SITS INSIDE THE ROW IT BELONGS TO: `top`/`left` are pinned to the acts row's own origin, whose
+ * `position: relative` is what makes that row the containing block. A clipped box left at its static
+ * position inside a scroll container (`MAIN.wrap`) is laid out against the initial containing block
+ * and lands a pane-scroll below the trigger — it then stretches the document past the viewport and
+ * becomes a focus-scroll target, so pressing the trigger scrolls the page. Pinned at the row's
+ * origin it occupies 1 px of the row it is drawn in and can move nothing. */
+.sc-av-file { position: absolute; top: 0; left: 0; width: 1px; height: 1px; margin: 0; padding: 0;
+  border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sc-av-pick { cursor: pointer; }
+.sc-av-file:focus-visible + .sc-av-pick { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sc-av-confirm { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 8px;
+  padding: 8px 10px; border: 1px solid var(--line-2); border-radius: var(--radius-s);
+  background: var(--ground-2); }
+.sc-av-confirm p { margin: 0; font-size: 11.5px; color: var(--text-2); flex: 1 1 100%; }
+
+/* THE HERO'S PLACEMENT: a label with its two pills, the same exclusive-choice idiom as the
+ * character card's row. The pills themselves are `.sc-pill`, declared above. */
+.sc-markside { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px;
+  align-items: start; margin: 10px 0 0; padding: 0 0 12px; border-bottom: 1px solid var(--line); }
+.sc-markside .nm { font-size: 13px; font-weight: 600; }
+.sc-markside .kk { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+.sc-markside .kk .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.sc-markside .hp { font-size: 11.5px; color: var(--text-3); margin: 4px 0 0; max-width: 62ch; }
+
+/* ==================================================== §11 · THE ONE PREVIEW (.sc-site)
+ * A box the site's own document is rendered into. It is not scaled — the box's width IS the site's
+ * viewport width, so the site's own breakpoints draw what a visitor at that width would see, and no
+ * text is resampled. It holds the frame's top edge while the column scrolls past: it is a sibling of
+ * that column, and nothing above it in the card clips. */
+.sc-site { position: sticky; top: 12px; align-self: start; min-width: 0; }
+.sc-sitehd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 8px; }
+.sc-sitehd .t { font-size: 12px; font-weight: 600; }
+.sc-sitehd .sp { margin-left: auto; }
+.sc-pv-box { border: 1px solid var(--line); border-radius: var(--radius-s); overflow: hidden;
+  background: var(--ground); height: 400px; }
+/* the box is INERT: it draws the site, it is not a second place to browse it — no pointer events,
+ * and no tab stop on the frame itself (the markup carries `tabindex="-1"`). The panel's `Open ↗` is
+ * the one door to the real thing. */
+.sc-pv-box iframe { width: 100%; height: 400px; border: 0; display: block; pointer-events: none; }
+.sc-pv-cap { font-size: 11.5px; color: var(--text-3); margin: 8px 0 0; max-width: 62ch; }
+/* the box follows the FORM, not the file, until Save: that sentence sits under the frame and is the
+ * one thing a screenshot of this pane cannot tell, so it carries a mark as well as words. */
+.sc-pv-draft { font-size: 11.5px; color: var(--text-2); margin: 8px 0 0; max-width: 62ch;
+  display: flex; align-items: baseline; gap: 7px; }
+.sc-pv-draft::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--accent); transform: translateY(-1px); }
+/* a site that serves nothing mounts no frame, so the box itself states the off-state: the same box,
+ * with words in it the height can hold. Two classes, so this wins over the caption rule above. */
+.sc-pv-box.sc-pv-off { display: flex; align-items: center; justify-content: center; padding: 0 20px;
+  text-align: center; font-size: 12.5px; line-height: 1.65; color: var(--text-3); margin: 0; }
+
+/* THE MOCK: the box draws the file's site, so the frame is the same frame — but nothing it shows is
+ * served from the site's own address yet, and the sentence under it says so. The accent marks it as
+ * an explanation rather than the caption of a live document. */
+.sc-pv-box.sc-pv-mock { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent); }
+.sc-pv-cap.sc-pv-mocknote { color: color-mix(in srgb, var(--accent) 62%, var(--text-3)); }
+/* what feeds the frame, and the one block that feeds it nothing */
+.sc-sitewrites { margin: 9px 0 0; padding: 9px 0 0; border-top: 1px solid var(--line);
+  font-size: 11px; line-height: 1.6; color: var(--text-3); }
+.sc-sitenone { margin: 6px 0 0; font-size: 11px; line-height: 1.6; color: var(--text-3); }
+
+/* ============================================ §11.6 · THE SITE ITSELF (.sc-ident)
+ * The three structural rows change no pixel, so they are folded to one line at the foot of the
+ * column. Native <details>, so the fold works with JavaScript off. */
+.sc-ident { border: 1px solid var(--line); border-radius: var(--radius-s); margin: 4px 0 0; }
+.sc-ident > summary { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 8px 11px; cursor: pointer; font-size: 12px; list-style: none; }
+.sc-ident > summary::-webkit-details-marker { display: none; }
+.sc-ident > summary .cv { font-size: 9px; color: var(--text-3); transition: transform .12s; }
+.sc-ident[open] > summary .cv { transform: rotate(90deg); }
+.sc-ident > summary .sp { margin-left: auto; }
+.sc-identbd { padding: 11px; border-top: 1px solid var(--line); }
+
+/* ==================================================== §C · THE LIST BLOCKS (.sc-blk, .sc-row)
+ * Three blocks, and the shapes the design states: the one-line explanation with its key, the line
+ * about entries, a drawing of the thing at a 660 px measure, then the rows at that same measure.
+ * No colour is declared below — every value is a shipped token. */
+
+/* THE BLOCK: one per leaf, separated from the next by the drawing's own rule. */
+.sc-blk { margin: 0 0 4px; }
+.sc-blk + .sc-blk { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+/* what the block produces, with the schema key as the mono tail */
+.sc-what { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 12.5px;
+  color: var(--text-2); margin: 2px 0 4px; max-width: 96ch; }
+.sc-what .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+/* what an entry needs — for the closed sets, "there is nothing to add" */
+.sc-need { font-size: 11.5px; color: var(--text-3); margin: 0 0 10px; max-width: 96ch; }
+
+/* THE DRAWING: the bar with its slots, or the five tiles. A switched-off slot is struck and dashed;
+ * a switched-off tile carries a dashed edge at .3 opacity. It is a picture of the page, never a
+ * control: nothing in it is focusable or clickable. */
+.sc-draw { border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--ground-2);
+  padding: 9px 10px; margin: 8px 0 10px; max-width: 660px; }
+.sc-draw .cap { font-size: 10.5px; color: var(--text-3); font-family: var(--font-mono);
+  margin-bottom: 7px; letter-spacing: .04em; }
+.sc-draw .bar { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line);
+  border-radius: 3px; background: var(--panel); padding: 7px 9px; }
+.sc-draw .bar .mk { width: 16px; height: 16px; border-radius: 2px; border: 1px solid var(--line-2);
+  flex: 0 0 auto; }
+.sc-draw .bar .ttl { font-size: 11.5px; color: var(--text-2); }
+.sc-draw .bar .sp { margin-left: auto; }
+.sc-draw .bar .slot { font-size: 10.5px; color: var(--text-2); border-bottom: 1px solid var(--line-2);
+  padding-bottom: 1px; }
+.sc-draw .bar .slot.on { color: var(--text); border-bottom-color: var(--accent); }
+.sc-draw .bar .slot.out { color: var(--text-3); border-bottom-style: dashed;
+  text-decoration: line-through; }
+.sc-draw .tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.sc-draw .tiles .tl { border: 1px solid var(--line); border-radius: 3px; background: var(--panel);
+  padding: 7px 8px; }
+.sc-draw .tiles .tl .v { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.sc-draw .tiles .tl .k { font-size: 9.5px; color: var(--text-3); margin-top: 2px; }
+.sc-draw .tiles .tl.out { opacity: .3; border-style: dashed; background: transparent; }
+
+/* THE ROWS: the grip (16), the order number (26), label + id, the switch (88) — the width of the
+ * drawing above them. The number is a CSS counter, so a drop renumbers with no script and the number
+ * can never state a position the list no longer has. */
+.sc-list { counter-reset: sc-item; }
+.sc-row { display: grid; grid-template-columns: 16px 26px minmax(0, 1fr) 88px; gap: 10px;
+  align-items: center; margin-bottom: 7px; max-width: 660px; counter-increment: sc-item; }
+.sc-row .ord { font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+  text-align: right; }
+.sc-row .ord::before { content: counter(sc-item); }
+/* THE GRIP: the same glyph, colour, cursor and focus ring as the missions row it is — it is the same
+ * handle, drawn by the same script. It is the row's only pointer target and a tab stop, so the row
+ * moves by mouse or by Alt+Up / Alt+Down on the focused grip. */
+.sc-row .grip { color: var(--text-3); cursor: grab; line-height: 1.5; text-align: center;
+  user-select: none; touch-action: none; }
+.sc-row .grip:hover { color: var(--text); }
+.sc-row .grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px;
+  border-radius: var(--radius-s); color: var(--text); }
+.sc-row .grip:active { cursor: grabbing; }
+.sc-row .lblx { font-size: 12.5px; color: var(--text-2); }
+.sc-row .lblx .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+  margin-left: 4px; }
+.sc-row .sw-slot { display: flex; justify-content: flex-end; }
+/* the switch, its word beside it: the word is redrawn from the box's own state, so a row switched
+ * off on the page says so before anything is saved */
+.sc-sl { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-3);
+  cursor: pointer; }
+.sc-sl input { margin: 0; accent-color: var(--accent); width: 14px; height: 14px; }
+.sc-sl .lb .off { display: none; }
+.sc-row:has(input[type="checkbox"]:not(:checked)) .sc-sl .on { display: none; }
+.sc-row:has(input[type="checkbox"]:not(:checked)) .sc-sl .off { display: inline; }
+
+/* A SWITCHED-OFF ROW STAYS WHERE IT IS, struck and dimmed: it is hidden, not deleted, and it has no
+ * stored position (the sequence holds the shown ids only) — so after a reload it is drawn after the
+ * shown rows, in vocabulary order. The `:has()` rule is the same styling for a row switched off on
+ * the page, before the save. */
+.sc-row.parked { opacity: .55; }
+.sc-row.parked .lblx { text-decoration: line-through; }
+.sc-list .sc-row:has(input[type="checkbox"]:not(:checked)) { opacity: .55; }
+.sc-list .sc-row:has(input[type="checkbox"]:not(:checked)) .lblx { text-decoration: line-through; }
+
+/* THE EMPTY STATE OF THE ONE BLOCK THAT TAKES ENTRIES: the sentence, the shape of one row, then the
+ * Add — never a bare button. The two field shapes are drawn, not interactive. */
+.sc-blk .sc-empty { border: 1px dashed var(--line-2); border-radius: var(--radius-s);
+  padding: 11px 12px; background: transparent; }
+.sc-blk .sc-empty .h { font-size: 12.5px; color: var(--text-2); max-width: 76ch; margin: 0; }
+.sc-blk .sc-empty .sh { display: flex; gap: 8px; margin: 8px 0 0; }
+.sc-blk .sc-empty .sh .fld { height: 26px; border: 1px solid var(--line); border-radius: 3px;
+  background: var(--ground-2); flex: 1 1 auto; }
+.sc-blk .sc-empty .sh .fld.n { flex: 0 0 120px; }
+.sc-blk .sc-empty .cfg-add { margin-top: 9px; }
+
+/* THE FOOTER LINKS' OWN ROW: the shipped generated row (a 150 px label, the address, the entry's ✕),
+ * inside the branding card's field column. */
+.sc-seq { display: flex; flex-direction: column; gap: 6px; max-width: 620px; }
+.sc-cfgrow { display: flex; align-items: center; gap: 8px; }
+.sc-cfgrow .st-in:first-child { flex: 0 0 150px; width: 150px; }
+.sc-cfgrow .st-in.mono { flex: 1 1 auto; width: auto; font-family: var(--font-mono); }
+/* the Add and its note sit on ONE line, and both are the container's own children: `configgen.js`
+ * inserts a new row BEFORE the Add, so the Add cannot live in a wrapper of its own. */
+.sc-seq > .cfg-add { display: inline-flex; vertical-align: middle; margin-top: 2px; }
+.sc-seq > .st-note { display: inline-block; vertical-align: middle; margin: 4px 0 0 8px; }
+
+/* THE ALL-OFF SENTENCE: what the page would look like with the whole set switched off. It is always
+ * drawn — it states a case, not a current value. */
+.sc-blk .sc-offnote { margin: 9px 0 0; }
+
+/* ==================================================== §D · THE EXPERT SHEET (.sc-x, .sc-sheet)
+ * The row becomes a block of the card's own width: its bar (the badge, the count, the two controls),
+ * the sheet at 460 px with a 52 px gutter, the verdict's reserved line, and the foot. No colour is
+ * declared below — every value is a shipped token. */
+
+/* THE COLUMN: one column, so the bar, the sheet and the foot span the card. */
+.sc-x { width: 100%; }
+.sc-xbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+.sc-xbar .l { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sc-xbar .when { font-size: 11.5px; color: var(--text-3); }
+.sc-xbar .r { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sc-xbar .st-btn[disabled] { opacity: .5; cursor: default; border-color: var(--line-2); }
+
+/* THE SHEET: the editor's frame, and it carries the console's own editor theme (`.cfg-editor` in
+ * shell.css) so the sheet's tokens are painted by the same rules the YAML editor uses. The gutter is
+ * the editor's own — 52 px, right-aligned numbers on the panel tone, separated by one hairline — and
+ * the text runs at 12.5 px mono on a 20 px line. Each rule below restates one the theme declares for
+ * a taller editor, at this sheet's own measures. */
+.sc-sheet { border: 1px solid var(--line-2); border-radius: var(--radius-s); overflow: hidden;
+  background: var(--well); margin-bottom: 9px; }
+.sc-sheet .CodeMirror { height: 460px; background: var(--well); color: var(--text);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 20px; }
+.sc-sheet .CodeMirror-gutters { width: 52px; box-sizing: border-box; background: var(--panel-2);
+  border-right: 1px solid var(--line); }
+.sc-sheet .CodeMirror-linenumber { color: var(--text-3); font-size: 11.5px; line-height: 20px;
+  padding-right: 10px; width: 42px; }
+.sc-sheet .CodeMirror-lines { padding: 8px 0; }
+.sc-sheet .CodeMirror pre.CodeMirror-line { padding: 0 14px; }
+.sc-sheet .CodeMirror-cursor { border-left: 1px solid var(--accent); }
+.sc-sheet .CodeMirror-selected { background: var(--sel-wash); }
+.sc-sheet .CodeMirror-focused .CodeMirror-selected { background: var(--sel-wash2); }
+.sc-sheet .CodeMirror-activeline-background { background: var(--line-wash); }
+/* THE CSS MODE'S OWN TOKENS. The vendored 5.65.16 mode spells a declaration's name `cm-property`, a
+ * selector `cm-tag`, and — because a custom property is a VARIABLE to the mode and not a declaration
+ * — the sheet's own `--name` `cm-variable-2`, with the pseudo-class in a selector `cm-variable-3` and
+ * a value's function name `cm-callee`. The sheet's content is that first class, so it reads as body
+ * text; the selector classes are reachable only on a falsified line, so they are the pause amber.
+ * They live HERE rather than in shell.css because the CSS mode exists only on this page, and because
+ * the console's sheet is shared with every other page. The class names are pinned against the
+ * vendored mode by a test: a class the mode never emits is a rule that paints nothing. */
+.cfg-editor .CodeMirror .cm-property,
+.cfg-editor .CodeMirror .cm-variable-2 { color: var(--text); }
+.cfg-editor .CodeMirror .cm-tag,
+.cfg-editor .CodeMirror .cm-variable-3 { color: var(--pause); }
+.cfg-editor .CodeMirror .cm-callee { color: var(--text); }
+/* the plain control, before (or instead of) the editor: same measure, same type, so the sheet does
+ * not jump when the editor takes its place. The editor keeps it in the form HIDDEN, so its `[hidden]`
+ * state must win over this rule's own `display` */
+.sc-sheet textarea { display: block; width: 100%; height: 460px; box-sizing: border-box;
+  margin: 0; padding: 8px 14px; border: 0; resize: none; background: var(--well); color: var(--text);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 20px; white-space: pre;
+  overflow: auto; }
+.sc-sheet textarea[hidden] { display: none; }
+
+/* THE REFUSAL'S MARKER, drawn from tokens: the offending line's gutter cell and the line itself each
+ * take a 2 px danger inset and the error wash. Both classes are added by the page's script
+ * (`addLineClass(n, 'gutter', 'sc-refused')` / `addLineClass(n, 'background', 'sc-refused-wash')`), so
+ * they mark the line the validator named and no other. */
+.sc-sheet .CodeMirror-gutter-wrapper.sc-refused,
+.sc-sheet .CodeMirror-gutter-background.sc-refused { background: var(--err-wash);
+  box-shadow: inset 2px 0 0 var(--danger); }
+.sc-sheet .CodeMirror-gutter-wrapper.sc-refused .CodeMirror-linenumber { color: var(--danger);
+  font-weight: 700; }
+.sc-sheet .CodeMirror-linebackground.sc-refused-wash { background: var(--err-wash);
+  box-shadow: inset 2px 0 0 var(--danger); }
+
+/* THE VERDICT'S LINE. Its height is RESERVED whether or not it has something to say: a slot that
+ * grows when a refusal arrives moves everything under it, and a moving sheet under a stationary caret
+ * is how a fix lands on the wrong row. The sentence wraps inside the slot; the slot never collapses. */
+.sc-verdict { display: block; min-height: 34px; font-size: 11.5px; line-height: 17px;
+  color: var(--text-3); margin: 0 0 6px; }
+.sc-verdict.ok { color: var(--run); }
+.sc-verdict.bad { color: var(--danger); }
+
+/* THE FOOT: the key, the grammar in one line, and the bound with the count beside it. */
+.sc-xfoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sc-xfoot .key { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.sc-xfoot .sp { margin-left: auto; }
+
+/* ================================================================ the widths of the page */
+/* BESIDE while the editing column can still hold its own measure next to the box */
+@media (max-width: 1359px) {
+  .sc-page { grid-template-columns: minmax(0, 1fr) 440px; gap: 18px; }
+}
+/* ABOVE the blocks: the column is narrower than the box, so the box goes first and pins to the
+ * frame's top edge. A FLEX COLUMN, not a single-column grid: a sticky child of a grid is confined to
+ * its own row and cannot travel. A block jumped to from a link lands under the strip, never behind
+ * it, because every block carries the strip's own height as its scroll margin. */
+@media (max-width: 1130px) {
+  .sc-page { display: flex; flex-direction: column; gap: 14px; }
+  .sc-site { order: -1; position: sticky; top: 0; z-index: 6; align-self: stretch;
+    padding: 8px 0 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .sc-site .sc-pv-box, .sc-site .sc-pv-box iframe { height: 250px; }
+  .sc-sitewrites, .sc-sitenone { display: none; }
+  /* a block jumped to from a link lands under the strip, not behind it: the strip is 359 tall here.
+   * The sheet and the wizard are their own anchor targets (`#sc-sheet-…`, `#sc-wiz-…`), so they
+   * carry the same margin as the blocks that hold them. */
+  .sc-edcol > *, .sc-expert, .sc-x, .sc-wiz { scroll-margin-top: 367px; }
+}
+@media (max-width: 620px) {
+  /* the strip is 264 tall here */
+  .sc-edcol > *, .sc-expert, .sc-x, .sc-wiz { scroll-margin-top: 272px; }
+  .sc-site .sc-pv-box, .sc-site .sc-pv-box iframe { height: 210px; }
+  .sc-site .sc-pv-box { margin-top: 6px; }
+  /* the panel is 264 px here: a four-line caption inside it is a quarter of the screen for a fact
+   * the header states, and the document chip goes with it — the name and `Open ↗` stay */
+  .sc-site .sc-pv-cap { display: none; }
+  .sc-sitehd .st-chip { display: none; }
+  .sc-sechd h3 { font-size: 12.5px; }
+}
+@media (max-width: 820px) {
+  /* §E: the slot folds to 72 px and the sentence takes the width back */
+  .sc-av { grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
+  .sc-av-slot { width: 72px; height: 72px; }
+  .sc-av-pre { gap: 7px; }
+  /* the placement row stacks: the pills take the width under their label */
+  .sc-markside { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  /* the two lists stack: 5 and 7 rows of switches side by side do not fit a phone's card */
+  .sc-charsets { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  /* §C's rows keep the grip at 16 px and give the rest of the width to the label; the tile drawing
+   * folds to three across so five tiles are not 60 px wide each */
+  .sc-row { grid-template-columns: 16px 20px minmax(0, 1fr) 78px; gap: 6px; max-width: none; }
+  .sc-draw .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sc-cfgrow { flex-wrap: wrap; }
+  .sc-cfgrow .st-in:first-child { flex: 1 1 150px; width: auto; }
+  /* §D's sheet keeps its 460 px height and folds its type one step: a 52 px gutter and a 20 px line
+   * are the wide frame's measures */
+  .sc-sheet .CodeMirror, .sc-sheet textarea { font-size: 11.5px; line-height: 19px; }
+  .sc-sheet .CodeMirror-gutters { width: 44px; }
+  .sc-sheet .CodeMirror-linenumber { width: 34px; font-size: 11px; line-height: 19px; }
+  .sc-sheet .CodeMirror pre.CodeMirror-line { padding: 0 12px; }
+  .sc-sheet textarea { padding: 8px 12px; }
+  .sc-xbar .r { margin-left: 0; }
+}
+@media (max-width: 520px) {
+  /* THE CONSOLE SHELL'S RAIL owns 248 px of a phone's width, so a card here is barely 114 px: the
+   * number, the id and the switch's word are dropped before the row's label, which is the one thing
+   * a reader came for. Nothing else changes — the grip still orders the row and Save still writes it. */
+  .sc-row { grid-template-columns: 16px minmax(0, 1fr) auto; }
+  .sc-row .ord { display: none; }
+  .sc-row .lblx .key { display: none; }
+  .sc-sl .lb { display: none; }
+}
+
+/* ============================================ §1 · THE PALETTE BLOCK (.sc-pal*)
+ * ONE block with three panels: the gallery at rest, and the wizard's two steps behind the gallery's
+ * door. Exactly one panel is drawn and none of them carries a frame of its own — the block is a block
+ * of the page, and a panel inside a panel reads as a warning box. Every colour and family below is a
+ * shipped token: the block declares no palette of its own, because it is about the one a site wears. */
+
+/* the inner wrapper exists so the panels can be switched; it draws nothing */
+.sc-palblock { margin: 0; }
+.sc-palpanel[hidden] { display: none; }
+
+/* THE HEAD'S THREE-WAY VALUE: the path or the count, machine-read and allowed to be clipped — a long
+ * stylesheet path pushes the say-line to the next row rather than squeezing it */
+.sc-sechd .val { font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+  max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the palette's head carries the chips and the value, so its say-line takes the row under them */
+[data-sc-block="palette"] .sc-sechd .sc-say { flex-basis: 100%; }
+/* THE HEAD CARRIES NO CONTROL: a site with a sheet ends its say-line with a plain anchor onto the
+ * block that draws that sheet, which is where the switch lives */
+.sc-palfoot { font-size: 11.5px; color: var(--text-2); text-decoration: underline;
+  text-underline-offset: 2px; }
+
+/* (a) AT REST: the gallery and the block's one rule */
+.sc-palgallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* THE SIXTH TILE IS A DOOR, not a sixth palette: dashed, no radio, and it says where it goes */
+.sc-tile.sc-new { border-style: dashed; background: transparent; align-items: stretch;
+  text-align: left; font: inherit; color: var(--text-2); cursor: pointer; }
+.sc-tile.sc-new:hover, .sc-tile.sc-new:focus-visible { border-color: var(--accent);
+  color: var(--text); outline: none; }
+.sc-newbar { display: block; height: 22px; border-radius: 3px; border: 1px dashed var(--line-2); }
+.sc-tile.sc-new .start-key { margin-top: auto; }
+
+/* THE BLOCK'S ONE RULE, stated once and always visible under the gallery */
+.sc-palrule { margin: 12px 0 0; padding-top: 11px; border-top: 1px solid var(--line);
+  font-size: 11.5px; line-height: 1.55; color: var(--text-3); max-width: 72ch; }
+.sc-palrule b { color: var(--text-2); font-weight: 600; }
+
+/* ====================================================== §2 · THE PALETTE WIZARD (.sc-wiz)
+ * The gallery's door shows this and nothing else does: the two steps are PANELS of the block, so the
+ * wizard draws no frame, no margin and no body of its own — its bar and its foot are the panel's own
+ * hairlines. */
+.sc-wiz { margin: 0; }
+.sc-wiz[hidden] { display: none; }
+.sc-wizbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 0 0 10px; margin-bottom: 11px; border-bottom: 1px solid var(--line); }
+.sc-wizbar .when { font-size: 11.5px; color: var(--text-3); }
+.sc-wizbar .r { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.sc-wizin { padding: 0; }
+.sc-wizlead { margin: 0 0 11px; font-size: 12px; line-height: 1.55; color: var(--text-2);
+  max-width: 92ch; }
+
+/* (a) the three starting points are ROWS at this measure: three 147 px columns cannot hold a
+ * sentence, and the sentence is the difference between the three */
+.sc-startgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sc-startgrid.rows { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.sc-start { gap: 7px; padding: 11px 12px; }
+.sc-start .sc-tile-name { font-size: 12.5px; font-weight: 600; }
+.sc-start.off { opacity: .55; }
+.start-key { font-size: 10.5px; color: var(--text-3); }
+.start-say { font-size: 11.5px; line-height: 1.45; color: var(--text-2); }
+.sc-start .sc-sw-bar { height: 18px; }
+.sc-startgrid.rows .sc-start { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 10px; align-items: center; padding: 9px 11px; }
+.sc-startgrid.rows .sc-sw-bar { height: 26px; }
+.sc-startgrid.rows .start-say { grid-column: 2 / -1; margin-top: -2px; }
+.sc-startgrid.rows .sc-tile-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+/* the base colour's own row: the picker, the hex it prints, and the scheme it derives for */
+.sc-base { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); }
+.sc-baselbl { font-size: 12px; font-weight: 600; }
+.sc-basecol { width: 46px; height: 30px; padding: 2px; border: 1px solid var(--line-2);
+  border-radius: 3px; background: var(--panel-2); cursor: pointer; }
+.sc-basehex { width: 118px; font-size: 12.5px; }
+.sc-nodepick { display: flex; gap: 6px; margin-left: auto; }
+.sc-nodepick button { font: inherit; font-size: 11.5px; color: var(--text-3); cursor: pointer;
+  padding: 4px 10px; border: 1px solid var(--line-2); border-radius: 99px;
+  background: transparent; }
+.sc-nodepick button.on { border-color: var(--accent); color: var(--accent); }
+.sc-wizcross { margin: 10px 0 0; font-size: 11px; color: var(--text-3); max-width: 84ch; }
+
+/* (b) the six steps: the swatch, the token names and every hex, the tested pair and its ratio */
+.sc-wizsplit { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.sc-steps { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.sc-step { display: grid; grid-template-columns: 44px minmax(0, 1fr) 108px; gap: 12px;
+  align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.sc-step:first-of-type { border-top: 0; }
+.sc-step .sw { width: 44px; height: 44px; border-radius: 3px;
+  border: 1px solid var(--line-2); display: block; }
+/* THE SWATCH IS THE PICKER: the shipped 44 px square with the UA's chrome removed, so it reads as
+ * the colour and nothing else. Pressing it opens the picker and the site beside it moves on input. */
+.sc-step .sc-pick { appearance: none; -webkit-appearance: none; padding: 0;
+  background: transparent; cursor: pointer; }
+.sc-step .sc-pick::-webkit-color-swatch-wrapper { padding: 0; }
+.sc-step .sc-pick::-webkit-color-swatch { border: 0; border-radius: 2px; }
+.sc-step .sc-pick:hover { border-color: var(--accent); }
+.sc-step .sc-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sc-step .nm { display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 600; color: var(--text); }
+.sc-step .nm .nm-name { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.sc-step .nm .no { font-size: 10.5px; color: var(--text-3); font-weight: 400;
+  margin-right: 8px; }
+/* the step's name line carries the disclosure: one press opens the declarations it writes */
+.sc-more { margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 10.5px; color: var(--text-3); cursor: pointer;
+  padding: 1px 5px; border: 1px solid transparent; border-radius: 3px; background: transparent; }
+.sc-more:hover { color: var(--text); border-color: var(--line-2); }
+.sc-more .cv { font-size: 9px; line-height: 1; }
+.sc-step.is-open .sc-more { color: var(--text-2); }
+/* OPEN: the 44 px swatch gives its place to the declarations themselves — every one of them carries
+ * its own picker and its own hex, so the big swatch would be the first token stated twice */
+.sc-step.is-open { grid-template-columns: minmax(0, 1fr) 92px; row-gap: 0; align-items: start; }
+.sc-step.is-open > .sc-pick { display: none; }
+.sc-step.is-open > .tx { grid-column: 1; }
+.sc-step.is-open .hx { display: none; }
+/* the declarations behind one step: the picker, the hex, the name, and what the name means */
+.sc-toks { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 5px;
+  margin: 7px 0 3px; padding: 9px 10px; border: 1px solid var(--line);
+  border-radius: var(--radius-s); background: var(--panel); }
+.sc-toks[hidden] { display: none; }
+.sc-tok { display: grid; grid-template-columns: 26px 88px 96px minmax(0, 1fr); gap: 8px;
+  align-items: center; }
+.sc-tokpick { appearance: none; -webkit-appearance: none; width: 26px; height: 22px; padding: 0;
+  border: 1px solid var(--line-2); border-radius: 2px; background: transparent; cursor: pointer; }
+.sc-tokpick::-webkit-color-swatch-wrapper { padding: 0; }
+.sc-tokpick::-webkit-color-swatch { border: 0; border-radius: 1px; }
+.sc-tokpick:disabled { cursor: default; opacity: .75; }
+.sc-tokhex { width: 88px; font-size: 11px; padding: 3px 6px; }
+.sc-tokhex:disabled { color: var(--text-2); }
+.sc-toknm { font-size: 11px; color: var(--text); }
+.sc-toksaid { font-size: 11px; line-height: 1.4; color: var(--text-3); }
+.sc-toksaid .mv { color: var(--text-2); }
+/* the pair a step's edit is judged by, under its own declarations */
+.sc-tokpair { margin: 4px 0 0; padding-top: 7px; border-top: 1px dashed var(--line-2);
+  font-size: 11px; color: var(--text-3); }
+.sc-tokpair b { color: var(--text-2); font-weight: 600; }
+/* an edit under AA: the shipped warning box in the panel's own strip, above the steps — the sentence
+ * and its two answers in one place, and the step's chip red where the value is */
+.sc-wizbody .st-warn { margin: 0 0 10px; }
+.sc-wizbody .st-warn b { color: var(--text); font-weight: 700; }
+.sc-step .tk { font-size: 10.5px; color: var(--text-3); margin-top: 1px; }
+.sc-step .hx { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.sc-step .rt { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.sc-step .rt .pr { font-size: 10.5px; color: var(--text-3); text-align: right;
+  white-space: nowrap; }
+.sc-consts { margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px;
+  font-size: 11px; line-height: 1.5; color: var(--text-3); max-width: 78ch; }
+
+/* A PALETTE THAT WAS READ IS REPORTED: the strip above the six rows says they are measured as they
+ * stand, so nothing in the panel looks like a derivation. */
+.sc-stored { margin: 0 0 10px; padding: 8px 10px; font-size: 11.5px; line-height: 1.5;
+  color: var(--text-2); border: 1px solid var(--line-2); border-left: 3px solid var(--accent);
+  border-radius: var(--radius-s); background: var(--panel); }
+.sc-stored[hidden] { display: none; }
+
+/* the numbers the rule moved, and the base that had to become another colour: the warning's own box
+ * and the pair of answers it asks for */
+.sc-adj-note { margin: 0 0 4px; font-size: 11.5px; line-height: 1.5; color: var(--text-3);
+  max-width: 82ch; }
+.sc-adj { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+
+/* the foot: the note, the way back and the handoff */
+.sc-wizfoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line); }
+.sc-wizfoot .sc-note { margin: 0; font-size: 11.5px; color: var(--text-3); max-width: 74ch;
+  line-height: 1.5; }
+.sc-wizfoot .sp { margin-left: auto; }
+.sc-wizfoot .st-btn[disabled] { opacity: .5; cursor: default; border-color: var(--line-2); }
+
+/* (c) the handoff: the strip that states the sheet is the wizard's, above the gallery it leaves */
+.sc-handed { margin: 4px 0 10px; }
+.sc-handed[hidden] { display: none; }
+.sc-handedbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 12px; border: 1px solid var(--accent); border-radius: var(--radius-s);
+  background: var(--ground-2); }
+.sc-handedbar .when { font-size: 11.5px; color: var(--text-2); }
+.sc-handedbar .r { margin-left: auto; }
+
+/* ============================================ §4 · THE SHEET'S CLOSED STATE (.sc-palclosed)
+ * Where the sheet would be: one dashed strip saying the sheet is stored, how much, and that the box
+ * being unticked clears nothing. A site with no sheet says that instead, in one sentence. Both are
+ * drawn by the script from the box and the carrier; with scripts off the sheet itself is drawn and
+ * neither of these appears. */
+.sc-palclosed { display: block; margin: 0; padding: 8px 10px; font-size: 11.5px; line-height: 1.5;
+  color: var(--text-3); border: 1px dashed var(--line-2); border-radius: var(--radius-s); }
+.sc-palclosed b { color: var(--text-2); font-weight: 600; }
+.sc-palclosed[hidden] { display: none; }
+.sc-palnone { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--text-3);
+  max-width: 92ch; }
+.sc-palnone[hidden] { display: none; }
+
+/* the sheet's own two paragraphs sit above the block; the strip takes their measure */
+.sc-expert .sc-palclosed, .sc-expert .sc-palnone { margin-top: 2px; }
+
+@media (max-width: 820px) {
+  .sc-startgrid { grid-template-columns: minmax(0, 1fr); }
+  .sc-palgallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sc-startgrid.rows .sc-start { grid-template-columns: 44px minmax(0, 1fr); }
+  .sc-startgrid.rows .sc-sw-bar { height: 22px; }
+  .sc-startgrid.rows .start-say { grid-column: 1 / -1; }
+  .sc-step { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 10px; }
+  .sc-step .sw { width: 32px; height: 32px; }
+  /* the pair stays named: a bare '5.20:1' on a phone is a number about nothing */
+  .sc-step .rt .pr { font-size: 10px; }
+  /* the head's value is clipped harder: a phone's row has no room for 40 characters */
+  .sc-sechd .val { max-width: 22ch; }
+}

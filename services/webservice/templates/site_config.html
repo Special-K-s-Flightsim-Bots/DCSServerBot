@@ -1,0 +1,907 @@
+{#-
+  THE SITE SETTINGS PAGE — one card per public site, one save per card.
+
+  The card's ORDINARY fields are the schema's own leaves: `configgen` built the tree from the
+  shipped schema's `sites:` rule, and `render_field` (shared with every generated page) draws each
+  one. The groups a generated control would describe badly are HAND-RENDERED from their code-side
+  vocabulary, so the DEFAULT is visible: `enabled`, `character`, the section switches, the offered
+  metrics, the preset gallery and the expert sheet. Their posted names are the ordinary leaves
+  (`f.sites.<site>.<path>`), so the save path is the shared one and a value outside the vocabulary is
+  refused by the tree, by the closed schema mapping and by the loader's parser.
+
+  THE PAGE IS TWO COLUMNS AND ONE PREVIEW: the blocks in their order — branding, palette, character,
+  menu & tiles, footer links, pages, the site itself, expert mode — in the editing column, and the
+  site's own document beside it. The panel is a SIBLING of that column, never a child of a block, so
+  it can hold the frame's top edge while the column scrolls past; it is mounted once and never
+  unmounted, and every block's `data-sc-drives` row resolves against ITS OWN card's frame —
+  a page with two cards has two frames, and neither writes into the other.
+  `static/site-config.js` is what writes into it.
+
+  `slug`, `group_role` and `enabled` are STRUCTURAL: the console fixes a site's address, its role and
+  its routes when it installs, so those three carry the reload badge and only the Admin sees them.
+  The address and the switch are the card's own HEADER row; `group_role` alone is folded at the foot,
+  because it is the one of the three that changes no pixel.
+
+  EVERY chrome word is `{% trans %}`-marked or came in through the page context's `labels`;
+  a field's LABEL is its schema KEY, printed verbatim (a schema carries identifiers, not prose).
+-#}
+{% extends "base.html" %}
+{% from "_config_fields.html" import render_field %}
+
+{% block content %}
+<div class="st-head sc-head">
+  <div class="t1">
+    <h1>{% trans %}Public site{% endtrans %}</h1>
+  </div>
+  <div class="rt">
+    <span class="cfg-badge mono">{{ file_name }}</span>
+  </div>
+</div>
+<p class="st-lead">{{ lead }}</p>
+
+{% include "_notice.html" %}
+
+{% if error %}
+<div class="notice bad" role="status">
+  <span class="dot dead" aria-hidden="true"></span>
+  <span class="notice-msg">{{ _(labels.read_failed) }} {{ error }}</span>
+</div>
+{% endif %}
+
+{% if not cards and not error %}
+<div class="notice" role="status">
+  <span class="dot" aria-hidden="true"></span>
+  <span class="notice-msg">{{ empty }}</span>
+</div>
+{% endif %}
+
+<div class="sc-cards">
+{% for card in cards %}
+{#-  THE OPEN CARD IS THE ONE THE URL NAMES. A save answers with its own site, so the operator lands
+     on the card whose Save was pressed instead of at the top of the list, where the FIRST site's
+     switch sits — pressing Save on the third card and being shown the first one reads as "it saved
+     the wrong site". With no name in the URL the first card opens, as before.  -#}
+<details class="sc-card st-block" data-sc-card="{{ card.key }}" {{ 'open' if loop.first or card.key == open_site }}>
+  {#-  THE IDENTITY LINE — the site's name, its address and its switch, in the card's own header. The
+       address and the switch are the card's ONLY copies: the form is a sibling below this summary, so
+       both reach it by `form="sc-save-<token>"` (the same device §E's mark controls use), and a
+       press inside the summary does not toggle the card.  -#}
+  <summary class="sc-sum">
+    {#-  THE ADDRESS — the string a visitor types, read-only in this row: the site at the root's "/",
+         a site's own slug after the "/", a group's fixed prefix. It leads the row because it is what
+         the card is recognised by; the key below it is the config's own name for the same site.  -#}
+    {% if card.site.is_root %}
+    <span class="st-chip k sc-addr sc-addr-root" title="{{ _(labels.root_slug) }}"><span class="sl" aria-hidden="true">/</span></span>
+    {% elif card.structure %}
+    <span class="st-chip k sc-addr" title="{{ _(labels.address) }}"><span class="sl" aria-hidden="true">/</span><span class="pt">{{ card.site.slug }}</span></span>
+    {% else %}
+    <span class="st-chip k sc-addr" title="{{ _(labels.address) }}"><span class="sl" aria-hidden="true">/</span><span class="pt">{{ card.prefix.lstrip('/') }}</span></span>
+    {% endif %}
+    <span class="k mono">{{ card.key }}</span>
+    <span class="st-chip k" data-sc-character-chip>{{ _(card.character_label) }}</span>
+    <span class="st-chip" data-sc-character-count>{{ card.character_count }}</span>
+    <span class="r">
+      {% if card.site.is_root %}
+      <span class="st-note">{{ _(labels.root_slug) }}</span>
+      {% elif card.structure %}
+      <span class="sc-idaddr">
+        <span class="sl" aria-hidden="true">/</span>
+        <input class="st-in mono" type="text" name="f.sites.{{ card.token }}.slug"
+               value="{{ card.site.slug }}" form="sc-save-{{ card.token }}"
+               aria-label="{{ _(labels.address) }}" title="{{ _(labels.address) }}">
+      </span>
+      {% endif %}
+      {% if card.structure %}<span class="st-flag">{{ _(labels.needs_reload) }}</span>{% endif %}
+      {% if card.structure %}
+      <label class="st-sw sc-idsw" title="{{ _(labels.enabled_hint) }}">
+        <input type="hidden" name="f.sites.{{ card.token }}.enabled" value="0"
+               form="sc-save-{{ card.token }}">
+        <input type="checkbox" role="switch" name="f.sites.{{ card.token }}.enabled" value="1"
+               form="sc-save-{{ card.token }}" aria-label="{{ _(labels.enabled) }}"
+               {{ 'checked' if card.enabled }}>
+        <span class="bx" aria-hidden="true"><i></i></span>
+        {#-  the word and the track are redrawn from the BOX's state, so a site switched off on the
+             page says so before anything is saved — the same two-span `:has()` device the section
+             rows use. Both words are existing msgids.  -#}
+        <span class="wd"><span class="on">{{ _(labels.on) }}</span><span class="off">{{ _(labels.off) }}</span></span>
+      </label>
+      {% else %}
+      <span class="st-sw off-fixed{{ ' on' if card.enabled }}">
+        <span class="bx" aria-hidden="true"><i></i></span>
+        <span class="wd">{{ _(labels.on) if card.enabled else _(labels.off) }}</span>
+      </span>
+      {% endif %}
+    </span>
+  </summary>
+
+  <form class="sc-form" id="sc-save-{{ card.token }}" method="post" action="{{ save_path }}" data-async>
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+    <input type="hidden" name="{{ key_field }}" value="{{ card.key }}">
+
+    <div class="bd">
+      <div class="sc-page">
+        <div class="sc-edcol">
+
+          {#-  1 · BRANDING — the mark and five leaves. The box this block used to carry is the PAGE's
+               now: the block is its heading, the mark and its rows, and nothing else. Every row prints
+               ONE line naming the element the value changes and carries that element's selector
+               (`data-sc-drives`), which `static/site-config.js` resolves inside this card's own frame.  -#}
+          <section class="sc-sec" data-sc-block="branding">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.branding) }}</h3>
+              <span class="st-chip k">{{ card.branding_count }} {{ _(labels.fields) }}</span>
+            </div>
+            {#-  §E · THE MARK — the card's first row: ONE state at a time (the shipped mark, the file
+                 `branding.logo` names, or the uploaded mark) with the sentence that state is true in
+                 and the controls that move between them. The three previews are the ACTUAL files at
+                 their own pixels — the point is that the operator meets the 32 px file a chip draws.
+                 The upload and the removal post to their own two routes; their controls name the
+                 mark's form below with `form="…"`, because a form cannot be nested inside the card's
+                 save form.  -#}
+            <div class="sc-av" data-sc-mark="{{ card.mark.state }}">
+              <div class="sc-av-slot{{ ' sc-av-dashed' if card.mark.state == 'logo' }}">
+                <img src="{{ card.mark.src }}" alt="{{ card.mark.alt }}" width="96" height="96">
+              </div>
+              <div class="sc-av-b">
+                <div class="nm">{{ _(labels.mark) }}</div>
+                <div class="kk"><span class="key mono">{{ keys.avatar }}</span><span class="desc">{{ _(labels.mark_desc) }}</span></div>
+                <p class="hp">{{ card.mark.sentence }}</p>
+                {% if card.mark.state == 'logo' %}<p class="sc-av-cap">{{ card.mark.from_logo }}</p>{% endif %}
+                <p class="sc-av-order">{{ card.mark.order }}</p>
+                {% if card.mark.uploaded %}
+                <div class="sc-av-pre" data-sc-mark-previews>
+                  {% for preview in card.mark.previews %}
+                  <figure><div class="bx s{{ preview.size }}"><img src="{{ preview.src }}" alt="{{ preview.alt }}" width="{{ preview.size }}" height="{{ preview.size }}"></div><figcaption>{{ preview.size }}</figcaption></figure>
+                  {% endfor %}
+                </div>
+                <p class="sc-av-cap">{{ card.mark.files }}</p>
+                {% endif %}
+                {% if card.write %}
+                {#-  THE PICKER IS ONE CONTROL: the native file input stays in the DOM (it is what posts,
+                     and with scripts off it is the whole path) but is drawn not at all — clipped to a
+                     square, never `display:none`, so the keyboard still reaches it. The console's own
+                     button is the label bound to it, and the line above states the accepted formats
+                     until a file is chosen and the file's name after (`static/site-config.js`).  -#}
+                <p class="sc-av-in" data-sc-file-status data-sc-file-chosen="{{ card.mark.chosen }}">{{ card.mark.input }}</p>
+                <div class="sc-av-acts" data-sc-mark-acts>
+                  <input class="sc-av-file" type="file" id="sc-av-file-{{ card.token }}" name="{{ avatar_field }}" form="sc-mark-{{ card.token }}" accept="{{ card.mark.accept }}" aria-label="{{ card.mark.choose }}">
+                  <label class="st-btn sm sc-av-pick" for="sc-av-file-{{ card.token }}">{{ card.mark.choose }}</label>
+                  <button class="st-btn sm" type="submit" form="sc-mark-{{ card.token }}">{{ card.mark.upload_label }}</button>
+                  <button class="st-btn sm" type="submit" form="sc-mark-{{ card.token }}" formaction="{{ remove_path }}" data-sc-mark-remove {{ 'disabled' if not card.mark.uploaded }}>{{ _(labels.remove) }}</button>
+                </div>
+                {#- the inline confirm: hidden until the Remove is pressed; with scripts off the plain
+                     Remove above is the whole path and this block is never reached -#}
+                <div class="sc-av-confirm" data-sc-mark-confirm hidden>
+                  <p>{{ card.mark.confirm }}</p>
+                  <button class="st-btn sm pri" type="submit" form="sc-mark-{{ card.token }}" formaction="{{ remove_path }}">{{ _(labels.remove) }}</button>
+                  <button class="st-btn sm" type="button" data-sc-mark-cancel>{% trans %}Cancel{% endtrans %}</button>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {#-  THE HERO'S PLACEMENT — the mark's side, as two pills in the character card's own
+                 idiom. It posts the ordinary `branding.mark_side` leaf, so Save writes it and the
+                 parser refuses any value but left/right. It governs the hero's mark only.  -#}
+            <div class="sc-markside" data-sc-mark-side="{{ card.mark_side }}">
+              <div>
+                <div class="nm">{{ card.mark_side_label }}</div>
+                <div class="kk"><span class="key mono">{{ 'branding.mark_side' }}</span></div>
+                <p class="hp">{{ card.mark_side_q }}</p>
+              </div>
+              <div class="sc-seg" role="radiogroup" aria-label="{{ card.mark_side_label }}">
+                {% for ident, label in card.mark_sides %}
+                <label class="sc-pill">
+                  <input type="radio" name="f.sites.{{ card.token }}.branding.mark_side" value="{{ ident }}" data-sc-mark-side-option="{{ ident }}" {{ 'checked' if ident == card.mark_side }}>
+                  <span>{{ label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <p class="sc-av-cap">{{ card.mark_side_note }}</p>
+            {% for row in card.branding_rows if row.kind != 'links' %}
+            <div class="sc-brand-row" data-sc-leaf="{{ row.leaf }}" data-sc-drives="{{ row.selector }}" data-sc-kind="{{ row.kind }}">
+              {{ render_field(row.field, card.vals, card.rows, card.customs, card.elements, card.choices, 1, {}, card.hidden, card.picks, card.removable) }}
+              <p class="sc-drives">
+                {{ row.line }}
+                {% if row.flag %}<span class="st-flag">{{ row.flag }}</span>{% endif %}
+              </p>
+            </div>
+            {% endfor %}
+          </section>
+
+          {#-  2 · PALETTE — ONE block with three panels: at rest the shipped presets as swatch tiles
+               and the "or build a palette" door; step 1 and step 2 of the wizard are PANELS of this
+               same block (and of the card's own preview), not a block of their own. The head states
+               the two-way truth ONCE — which of a shipped preset and an expert sheet this site
+               names, the key in force and its value — and carries NO control:
+               Expert Mode belongs to the block that draws the sheet, at the foot of the page, so a
+               site that has a sheet gets an anchor onto it instead of a switch far from its effect.
+               At most ONE of preset and expert may be set; the parser names both when a card
+               states them together.  -#}
+          <section class="sc-sec" data-sc-block="palette" data-sc-pal="{{ card.palette_payload }}" data-sc-pal-scheme="{{ card.wizard.scheme }}">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.palette) }}</h3>
+              <span class="st-chip" data-sc-pal-words>{{ card.palette_state.words }}</span>
+              <span class="val" data-sc-pal-key>{{ card.palette_state.key }}</span>
+              <span class="val" data-sc-pal-value>{{ card.palette_state.value }}</span>
+              <span class="sp"></span>
+              <span class="sc-say" data-sc-pal-say>{{ card.palette_say }}</span>
+              {#-  WHERE THE CONTROL IS: a site that stores a sheet is told the switch for it sits on
+                   the block that draws it, at the foot of the page — the head states the palette and
+                   points at the control; it carries none.  -#}
+              {% if card.expert_allowed and card.expert_ticked %}
+              <a class="sc-palfoot" href="#sc-expert-{{ card.token }}">{{ _(labels.palette_foot) }}</a>
+              {% endif %}
+            </div>
+
+            <div class="sc-palblock">
+              {#-  (a) AT REST: the gallery and the block's one rule.  -#}
+              <div class="sc-palpanel" data-sc-pal-panel="rest">
+                {#-  ONE TILE PER PALETTE, EVERY ONE OF THEM STATING ITS OWN STATE. A site that names
+                     a sheet marks NO preset — the header says which one in words —
+                     and `static/site-config.js` repaints the badge from the radio a press checked.  -#}
+                <div class="sc-gallery sc-palgallery">
+                  <label class="sc-tile {{ 'on' if card.palette_state.id == 'preset' and not card.preset }}" data-sc-preset-tile>
+                    <input type="radio" name="f.sites.{{ card.token }}.theme.preset" value="" data-sc-preset-sheet="{{ card.shipped_paint }}" {{ 'checked' if card.palette_state.id == 'preset' and not card.preset }}>
+                    <span class="sc-tile-name">{% trans %}Shipped palette{% endtrans %}</span>
+                    <span class="st-badge default" data-sc-preset-badge {{ 'hidden' if card.palette_state.id != 'preset' or card.preset }}>{{ _(labels.in_use) }}</span>
+                  </label>
+                  {% for preset in card.presets %}
+                  <label class="sc-tile {{ 'on' if card.palette_state.id == 'preset' and preset.id == card.preset }}" data-sc-preset-tile>
+                    <input type="radio" name="f.sites.{{ card.token }}.theme.preset" value="{{ preset.id }}" data-sc-preset-sheet="{{ preset.paint }}" {{ 'checked' if card.palette_state.id == 'preset' and preset.id == card.preset }}>
+                    <span class="sc-sw-bar">
+                      {% for colour in preset.swatches %}<i style="background: {{ colour }}" aria-hidden="true"></i>{% endfor %}
+                    </span>
+                    <span class="sc-tile-name">{{ preset.label }}</span>
+                    <span class="st-badge default" data-sc-preset-badge {{ 'hidden' if card.palette_state.id != 'preset' or preset.id != card.preset }}>{{ _(labels.in_use) }}</span>
+                  </label>
+                  {% endfor %}
+                  {% if card.expert_allowed %}
+                  {#-  THE DOOR — a `<button>`, not a radio: a preset is a choice inside one exclusive
+                       set, and building one is not a sixth member of that set.  -#}
+                  <button type="button" class="sc-tile sc-new" data-pal-start>
+                    <span class="sc-newbar" aria-hidden="true"></span>
+                    <span class="sc-tile-name">{{ _(labels.palette_door) }}</span>
+                    <span class="start-key mono">{{ _(labels.palette_door_key) }}</span>
+                  </button>
+                  {% endif %}
+                </div>
+
+                {% for leaf in card.light_fields %}{{ render_field(leaf, card.vals, card.rows, card.customs, card.elements, card.choices, 1, {}, card.hidden, card.picks, card.removable) }}{% endfor %}
+
+                {#-  THE SITE'S OWN SHEET — the third palette source, drawn with the MARK'S anatomy
+                     rather than a control of its own: the native file input is clipped (it posts, and
+                     with scripts off it is the whole path), the console's own button is its label, the
+                     line above states the bounds until a file is chosen and the file's name after, and
+                     the Remove asks once inline. `static/site-config.js` binds this row by the same
+                     `data-sc-mark`/`data-sc-file-status` attributes the mark uses, so there is one
+                     picker and one confirm on the page, not two. The controls post to the sheet's own
+                     form at the foot of the card (`form="sc-sheet-…"`), because a form cannot be
+                     nested inside the card's save form. The notes say plainly what the page does NOT
+                     do: the sheet is served as written.  -#}
+                <div class="sc-av-b sc-sheet" data-sc-sheet="{{ card.sheet.state }}">
+                  <div class="nm">{{ _(labels.sheet) }}</div>
+                  <div class="kk"><span class="key mono">{{ 'theme.sheet' }}</span><span class="desc">{{ _(labels.sheet_desc) }}</span></div>
+                  <p class="hp">{{ card.sheet.sentence }}</p>
+                  <p class="sc-av-order">{{ card.sheet.note }}</p>
+                  {% if card.write %}
+                  <p class="sc-av-in" data-sc-file-status data-sc-file-chosen="{{ card.sheet.chosen }}">{{ card.sheet.input }}</p>
+                  <div class="sc-av-acts" data-sc-mark-acts>
+                    <input class="sc-av-file" type="file" id="sc-sheet-file-{{ card.token }}" name="{{ sheet_file_field }}" form="sc-sheet-{{ card.token }}" accept="{{ card.sheet.accept }}" aria-label="{{ card.sheet.choose }}">
+                    <label class="st-btn sm sc-av-pick" for="sc-sheet-file-{{ card.token }}">{{ card.sheet.choose }}</label>
+                    <button class="st-btn sm" type="submit" form="sc-sheet-{{ card.token }}">{{ card.sheet.upload_label }}</button>
+                    <button class="st-btn sm" type="submit" form="sc-sheet-{{ card.token }}" formaction="{{ sheet_remove_path }}" data-sc-mark-remove {{ 'disabled' if not card.sheet.uploaded }}>{{ _(labels.remove) }}</button>
+                  </div>
+                  <div class="sc-av-confirm" data-sc-mark-confirm hidden>
+                    <p>{{ card.sheet.confirm }}</p>
+                    <button class="st-btn sm pri" type="submit" form="sc-sheet-{{ card.token }}" formaction="{{ sheet_remove_path }}">{{ _(labels.remove) }}</button>
+                    <button class="st-btn sm" type="button" data-sc-mark-cancel>{% trans %}Cancel{% endtrans %}</button>
+                  </div>
+                  {% endif %}
+                </div>
+
+                {#-  THE BLOCK'S ONE RULE, stated once and always visible under the gallery.  -#}
+                <p class="sc-palrule"><b>{{ _(labels.palette_rule_b) }}</b> {{ _(labels.palette_rule) }}</p>
+              </div>
+
+              {% if card.expert_allowed %}
+              {#-  (b) §2 · THE WIZARD — a UI over the sheet at the foot of this page and nothing
+                   else, and PANELS of this block: one is drawn at a time and the card's own frame
+                   repaints rather than reloading. Step 1 is where the palette starts (a shipped
+                   palette, the palette this site wears now read off the frame's own root, one colour
+                   and a scheme); step 2 is the six steps with the token names, the hex of every value
+                   and the measured contrast of the tested pair; the handoff writes the declarations
+                   into the textarea at the foot and stops there. `static/site-palette-wizard.js`
+                   carries the derivation; the sentences below are the page module's, rendered once
+                   into the payload the script reads. Nothing is posted by any control here — the
+                   wizard's radios carry no name, so a Save posts the sheet and nothing else.
+                   DRAWN ONLY WHEN IT CAN DERIVE: the block is hidden in the markup and the door is
+                   the only thing that shows it, so a page with scripts off keeps the sheet and loses
+                   the wizard — a wizard that cannot derive is a form that lies.  -#}
+              <div class="sc-wiz" id="sc-wiz-{{ card.token }}" data-sc-wizard="{{ card.wizard_json }}" hidden>
+                <div class="sc-wizbody one" data-sc-wiz-body="1">
+                  <div class="sc-wizbar">
+                    <span class="st-badge default">{{ _(labels.wizard) }}</span>
+                    <span class="when" data-sc-wiz-where>{{ card.wizard.step1 }}</span>
+                    <span class="r"><button type="button" class="st-btn sm" data-sc-wiz-close>{{ _(labels.wizard_close) }}</button></span>
+                  </div>
+                  <div class="sc-wizin">
+                    <p class="sc-wizlead">{{ card.wizard.lead }}</p>
+                    <div class="sc-startgrid rows">
+                      {% for tile in card.wizard.tiles %}
+                      <label class="sc-tile sc-start{{ ' on' if tile.on }}" data-sc-wiz-start="{{ tile.id }}">
+                        <input type="radio" value="{{ tile.id }}" {{ 'checked' if tile.on }}>
+                        <span class="sc-sw-bar">{% for colour in tile.swatches %}<i style="background: {{ colour }}" aria-hidden="true"></i>{% endfor %}</span>
+                        <span class="sc-tile-name">{{ tile.name }}</span>
+                        <span class="start-key mono">{{ tile.key }}</span>
+                        <span class="start-say">{{ tile.say }}</span>
+                      </label>
+                      {% endfor %}
+                    </div>
+                    <div class="sc-base">
+                      <label class="sc-baselbl" for="sc-wiz-base-{{ card.token }}">{{ _(labels.wizard_base) }}</label>
+                      <input class="sc-basecol" id="sc-wiz-base-{{ card.token }}" type="color"
+                             value="{{ card.wizard.base }}" data-sc-wiz-color aria-label="{{ _(labels.wizard_base) }}">
+                      <input class="st-in mono sc-basehex" type="text" value="{{ card.wizard.base }}"
+                             spellcheck="false" data-sc-wiz-hex aria-label="{{ _(labels.wizard_base) }}">
+                      <div class="sc-nodepick" role="radiogroup" aria-label="{{ _(labels.wizard_scheme) }}">
+                        {% for ident, label in card.wizard.schemes %}
+                        <button type="button" class="st-note{{ ' on' if ident == card.wizard.scheme }}"
+                                data-sc-wiz-scheme value="{{ ident }}">{{ label }}</button>
+                        {% endfor %}
+                      </div>
+                    </div>
+                    <p class="sc-note" data-sc-wiz-now hidden>{{ card.wizard.now_missing }}</p>
+                    <p class="sc-note sc-wizcross">{{ card.wizard.now_say }}</p>
+                  </div>
+                  <div class="sc-wizfoot">
+                    <p class="sc-note">{{ card.wizard.rule }}</p>
+                    <span class="sp"></span>
+                    <button type="button" class="st-btn pri" data-sc-wiz-derive>{{ _(labels.wizard_derive) }}</button>
+                  </div>
+                </div>
+
+                <div class="sc-wizbody" data-sc-wiz-body="2" hidden>
+                  <div class="sc-wizbar">
+                    <span class="st-badge default">{{ _(labels.wizard) }}</span>
+                    <span class="when" data-sc-wiz-where>{{ card.wizard.step2 }}</span>
+                    <span class="r"><button type="button" class="st-btn sm" data-sc-wiz-back>{{ _(labels.wizard_back) }}</button></span>
+                  </div>
+                  <div class="sc-wizin">
+                    {#-  a palette that was READ is REPORTED: the strip says the six rows are measured
+                         as they stand, so nothing here looks like a derivation.  -#}
+                    <div class="sc-stored" data-sc-wiz-stored hidden>{{ card.wizard.words.reported }}</div>
+                    <div class="sc-steps">
+                      <div class="st-warn" data-sc-wiz-warn hidden>
+                        <b>{{ _(labels.wizard_warn_b) }}</b> <span data-sc-wiz-warn-say></span>
+                        <span class="sc-adj">
+                          <button type="button" class="st-btn sm" data-sc-wiz-accept></button>
+                          <button type="button" class="st-btn sm" data-sc-wiz-pick>{{ _(labels.wizard_pick) }}</button>
+                          <button type="button" class="st-btn sm" data-sc-wiz-keep hidden></button>
+                        </span>
+                      </div>
+                      <div data-sc-wiz-moves hidden></div>
+                      {% for step in card.wizard.steps %}
+                      <div class="sc-step" data-sc-wiz-step="{{ step.id }}">
+                        <input class="sw sc-pick" type="color" data-sc-wiz-pick="{{ step.id }}"
+                               aria-label="{{ step.tokens.split(' · ')[0] }}">
+                        <div class="tx">
+                          <div class="nm">
+                            <span class="no mono">{{ step.no }}</span>
+                            <span class="nm-name">{{ step.name }}</span>
+                            <button type="button" class="sc-more" data-sc-wiz-more="{{ step.id }}"
+                                    aria-expanded="false" title="{{ _(labels.wizard_more) }}"><span class="cv">▾</span></button>
+                          </div>
+                          <div class="tk mono">{{ step.tokens }}</div>
+                          <div class="hx mono" data-sc-wiz-hex></div>
+                        </div>
+                        <div class="rt">
+                          <span class="st-chip k" data-sc-wiz-ratio></span>
+                          <div class="pr mono" data-sc-wiz-pair></div>
+                        </div>
+                        <div class="sc-toks" data-sc-wiz-toks="{{ step.id }}" hidden>
+                          {% for name in step.tokens.split(' · ') %}
+                          <div class="sc-tok" data-sc-wiz-tok="{{ name }}">
+                            <input class="sc-tokpick" type="color" data-sc-wiz-tokpick="{{ name }}"
+                                   aria-label="{{ name }}">
+                            <input class="st-in mono sc-tokhex" type="text" spellcheck="false"
+                                   data-sc-wiz-tokhex="{{ name }}" aria-label="{{ name }}">
+                            <span class="sc-toknm mono">{{ name }}</span>
+                            <span class="sc-toksaid" data-sc-wiz-toksaid="{{ name }}"></span>
+                          </div>
+                          {% endfor %}
+                          <p class="sc-tokpair" data-sc-wiz-tokpair="{{ step.id }}"></p>
+                        </div>
+                      </div>
+                      {% endfor %}
+                      <p class="sc-consts" data-sc-wiz-consts>{{ card.wizard.consts }}</p>
+                    </div>
+                  </div>
+                  <div class="sc-wizfoot">
+                    <p class="sc-note" data-sc-wiz-foot>{{ card.wizard.foot }}</p>
+                    <span class="sp"></span>
+                    <button type="button" class="st-btn" data-sc-wiz-back>{{ _(labels.wizard_back) }}</button>
+                    <button type="button" class="st-btn pri" data-sc-wiz-use>{{ _(labels.wizard_use) }}</button>
+                  </div>
+                </div>
+              </div>
+
+              {#-  THE HANDOFF. The sheet is the page's last block: this strip states that the wizard
+                   wrote it and that no preset is applied any more, and its one control returns to
+                   the six steps (the wizard keeps its palette in memory, so Back is not a
+                   re-derivation).  -#}
+              <div class="sc-handed" data-sc-handed hidden>
+                <div class="sc-handedbar">
+                  <span class="when">{{ card.wizard.handed }}</span>
+                  <span class="r"><a class="st-btn sm" href="#sc-wiz-{{ card.token }}" data-sc-wiz-again>{{ _(labels.wizard_again) }}</a></span>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </section>
+
+          {#-  3 · CHARACTER — the one control the page has that decides OTHER controls. The pills
+               state the stored character; under them sit the ONE sentence saying what that character
+               means, the sentence saying what a press does (and what it does with scripts off), the
+               divergence line, and the TWO LISTS the character writes. `static/site-config.js`
+               repaints the lists from the JSON table the lists carry — the table's one home is the
+               page module, so a press copies nothing and posts nothing. The block's last line is the
+               honest one: it changes no pixel of the card's own preview.  -#}
+          <section class="sc-sec" data-sc-block="character">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.character) }}</h3>
+            </div>
+            <div class="st-row">
+              {#-  the row's name is the block's QUESTION: the block's own `<h3>` above already says
+                   "Character", and a second copy of the title would read as the same word twice.  -#}
+              <div class="st-lab">
+                <div class="nm">{{ _(labels.character_q) }}</div>
+                <div class="kk"><span class="key mono">{{ keys.character }}</span></div>
+              </div>
+              <div class="st-w sc-seg sc-charpills" role="radiogroup" aria-label="{{ _(labels.character) }}">
+                {% for ident, label, note in card.characters %}
+                <label class="sc-pill" title="{{ note }}">
+                  <input type="radio" name="f.sites.{{ card.token }}.character" value="{{ ident }}" data-sc-character="{{ ident }}" {{ 'checked' if ident == card.character }}>
+                  <span>{{ _(label) }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <p class="sc-charwhat" data-sc-character-what>{{ card.character_what }}</p>
+            <p class="sc-charnote">{{ _(labels.character_behaviour) }}</p>
+            <p class="sc-noscript">{{ _(labels.character_nojs) }}</p>
+            <p class="sc-changed" data-sc-character-changed hidden>
+              <span class="dot pause" aria-hidden="true"></span><span data-sc-character-changed-text></span>
+            </p>
+
+            <div class="sc-charsets" data-sc-character-sets="{{ card.character_sets }}">
+              <fieldset class="sc-set">
+                <legend>{{ _(labels.sections) }} <span class="key mono">{{ keys.sections }}</span></legend>
+                {% for ident, label, on in card.section_switches %}
+                <label class="sc-switch {{ '' if on else 'off' }}" data-sc-row="{{ ident }}">
+                  <input type="hidden" name="f.sites.{{ card.token }}.sections.{{ ident }}" value="0">
+                  <input type="checkbox" role="switch" name="f.sites.{{ card.token }}.sections.{{ ident }}" value="1" data-sc-section="{{ ident }}" {{ 'checked' if on }}>
+                  <span>{{ _(label) }}</span>
+                  <span class="key mono">{{ ident }}</span>
+                </label>
+                {% endfor %}
+                <p class="sc-offnote" data-sc-why-sections {{ 'hidden' if not card.why_sections }}>{{ card.why_sections }}</p>
+              </fieldset>
+              <fieldset class="sc-set">
+                <legend>{{ _(labels.metrics) }} <span class="key mono">{{ keys.metrics }}</span></legend>
+                <input type="hidden" name="f.sites.{{ card.token }}.metrics" value="">
+                {% for ident, label, on in card.metric_switches %}
+                <label class="sc-switch {{ '' if on else 'off' }}" data-sc-row="{{ ident }}">
+                  <input type="checkbox" name="f.sites.{{ card.token }}.metrics" value="{{ ident }}" data-sc-metric="{{ ident }}" {{ 'checked' if on }}>
+                  <span>{{ _(label) }}</span>
+                  <span class="key mono">{{ ident }}</span>
+                </label>
+                {% endfor %}
+                <p class="sc-offnote" data-sc-why-metrics {{ 'hidden' if not card.why_metrics }}>{{ card.why_metrics }}</p>
+              </fieldset>
+            </div>
+            <p class="sc-drives">{{ _(labels.character_box) }}</p>
+          </section>
+
+          {#-  4 · THE MENU AND THE TILES (§C) — two CLOSED SETS: every id of the vocabulary is
+               always drawn, so neither block has an Add and neither has a ✕. Each row's order control
+               is the console's shared grip (`static/reorder.js` in its LOCAL mode: the row moves, Save
+               writes the order), and the order number is a CSS counter, so a drop renumbers the rows
+               with no script. The first block's order IS the bar the card's own frame draws.  -#}
+          <section class="sc-sec" data-sc-block="menu">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.menu_tiles) }}</h3>
+            </div>
+            {% for block in card.closed_sets %}
+            <div class="sc-blk" data-sc-set="{{ block.name }}"
+                 {%- if block.drives %} data-sc-drives="{{ block.drives }}" data-sc-kind="order" data-sc-order="{{ block.order }}"{% endif %}>
+              <p class="sc-what">{{ block.what }} <span class="key mono">{{ block.key }}</span></p>
+              <p class="sc-need">{{ block.need }}</p>
+              <div class="sc-draw">
+                <div class="cap">{{ block.caption }}</div>
+                {% if block.kind == 'bar' %}
+                <div class="bar">
+                  <span class="mk" aria-hidden="true"></span><span class="ttl">{{ card.brand_name }}</span><span class="sp"></span>
+                  {% for row in block.rows %}<span class="slot {{ 'on' if row.on else 'out' }}">{{ row.label }}</span>{% endfor %}
+                </div>
+                {% else %}
+                <div class="tiles">
+                  {% for row in block.rows %}<div class="tl{{ ' out' if not row.on }}"><div class="v">—</div><div class="k">{{ row.label }}</div></div>{% endfor %}
+                </div>
+                {% endif %}
+              </div>
+              <div class="sc-list" data-reorder data-reorder-body>
+                {#- the empty value STATES the block: every row switched off then posts an empty list -#}
+                <input type="hidden" name="{{ block.field }}" value="">
+                {% for row in block.rows %}
+                <div class="sc-row{{ ' parked' if not row.on }}" data-reorder-row data-reorder-id="{{ row.id }}">
+                  <span class="grip" data-reorder-handle tabindex="0" title="{% trans %}Drag to reorder{% endtrans %}" aria-label="{% trans %}Drag to reorder, or press Alt+Up or Alt+Down{% endtrans %}">⠿</span>
+                  <span class="ord" aria-hidden="true"></span>
+                  <span class="lblx">{{ row.label }} <span class="key mono">{{ row.id }}</span></span>
+                  <span class="sw-slot">
+                    <label class="sc-sl">
+                      <input type="checkbox" role="switch" name="{{ block.field }}" value="{{ row.id }}" {{ 'checked' if row.on }} aria-label="{{ row.label }}">
+                      <span class="lb"><span class="on">{{ _(labels.shown) }}</span><span class="off">{{ _(labels.hidden) }}</span></span>
+                    </label>
+                  </span>
+                </div>
+                {% endfor %}
+              </div>
+              <p class="sc-offnote">{{ block.off }}</p>
+            </div>
+            {% endfor %}
+          </section>
+
+          {#-  5 · FOOTER LINKS — the ONE block that takes new entries, next to the one it writes. Its
+               two lines replace the generic drive line, and its rows are hand-drawn as the design's
+               row — a 150 px label, an address across the rest, the entry's ✕ — while keeping the
+               generated sequence's own contract (`data-cfg-seq`, `__n`, `data-cfg-template`), so
+               `configgen.js` still adds, removes and renumbers them and the save still reads the same
+               leaf names.  -#}
+          <section class="sc-sec" data-sc-block="links">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.links) }}</h3>
+              <span class="st-chip k">{{ card.footer_links.leaf }}</span>
+            </div>
+            <div class="sc-blk" data-sc-links data-sc-leaf="{{ card.footer_links.leaf }}"
+                 data-sc-drives="{{ card.footer_links.selector }}" data-sc-kind="links">
+              <p class="sc-what">{{ card.footer_links.what }} <span class="key mono">{{ card.footer_links.leaf }}</span></p>
+              <p class="sc-need sc-drives">{{ card.footer_links.need }}</p>
+              {% if not card.footer_links.rows %}<div class="sc-empty">
+                <p class="h">{{ card.footer_links.empty }}</p>
+                <div class="sh" aria-hidden="true"><span class="fld n"></span><span class="fld"></span></div>
+              {% endif %}
+                <div class="sc-seq" data-cfg-seq="{{ card.footer_links.seq }}">
+                  <input type="hidden" name="{{ card.footer_links.count }}" value="{{ card.footer_links.rows | length }}" data-cfg-count>
+                  {% for link in card.footer_links.rows %}
+                  <div class="cfg-row sc-cfgrow" data-cfg-row data-index="{{ loop.index0 }}">
+                    <input class="st-in" type="text" name="{{ card.footer_links.name }}.{{ loop.index0 }}.label" value="{{ link.label }}" aria-label="{{ card.footer_links.entry_label }}" placeholder="{{ card.footer_links.entry_label }}">
+                    <input class="st-in mono" type="text" name="{{ card.footer_links.name }}.{{ loop.index0 }}.href" value="{{ link.href }}" aria-label="{{ _(labels.entry_address) }}" placeholder="{{ _(labels.entry_address_hint) }}">
+                    <button type="button" class="cfg-x" data-cfg-remove aria-label="{{ _(labels.remove) }}">✕</button>
+                  </div>
+                  {% endfor %}
+                  <template data-cfg-template>
+                    <div class="cfg-row sc-cfgrow" data-cfg-row data-index="0">
+                      <input class="st-in" type="text" name="{{ card.footer_links.name }}.0.label" value="" aria-label="{{ card.footer_links.entry_label }}" placeholder="{{ card.footer_links.entry_label }}">
+                      <input class="st-in mono" type="text" name="{{ card.footer_links.name }}.0.href" value="" aria-label="{{ _(labels.entry_address) }}" placeholder="{{ _(labels.entry_address_hint) }}">
+                      <button type="button" class="cfg-x" data-cfg-remove aria-label="{{ _(labels.remove) }}">✕</button>
+                    </div>
+                  </template>
+                  {#- the Add is the container's OWN child: `configgen.js` inserts a new row BEFORE it -#}
+                  <button type="button" class="cfg-add" data-cfg-add>{{ card.footer_links.add }}</button>
+                  <span class="st-note">{{ card.footer_links.note }}</span>
+                </div>
+              {% if not card.footer_links.rows %}</div>{% endif %}
+            </div>
+          </section>
+
+          {#-  6 · PAGES — the language leaf. The nav page ids and the overview tiles are the block
+               above (their uniform vocabulary is drawn from the code, not from a generated row
+               list).  -#}
+          <section class="sc-sec" data-sc-block="pages">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.pages) }}</h3>
+            </div>
+            {% for leaf in card.pages_fields %}{{ render_field(leaf, card.vals, card.rows, card.customs, card.elements, card.choices, 1, {}, card.hidden, card.picks, card.removable) }}{% endfor %}
+          </section>
+
+          {#-  7 · THE SITE ITSELF — the role alone. The address and the switch are the card's own header
+               row now; `group_role` is the one structural key that changes no pixel, so it is the one
+               folded here. READ-ONLY on purpose for a group admin: membership is computed per request
+               from each server's `managed_by`, so a second place to set it would disagree.  -#}
+          <details class="sc-ident" data-sc-block="identity">
+            <summary>
+              <span class="cv" aria-hidden="true">▸</span>
+              <span class="k">{{ _(labels.identity) }}</span>
+              <span class="sp"></span>
+              <span class="sc-say">{{ _(labels.identity_note) }}</span>
+            </summary>
+            <div class="sc-identbd">
+              <div class="st-row">
+                <div class="st-lab">
+                  <div class="nm">{{ _(labels.servers) }}</div>
+                  <div class="kk"><span class="key mono">{{ keys.group_role }}</span>
+                    {% if card.structure %}<span class="st-flag">{{ _(labels.needs_reload) }}</span>{% endif %}
+                  </div>
+                  <div class="hp">{{ _(labels.servers_hint) }}</div>
+                </div>
+                <div class="st-w">
+                  {% if card.site.is_root %}
+                  <span class="st-ro">{{ _(labels.root_servers) }}</span>
+                  {% elif card.structure %}
+                  <input class="st-in mono" type="text" name="f.sites.{{ card.token }}.group_role" value="{{ card.site.group_role or '' }}">
+                  {% else %}
+                  <span class="st-ro">{{ card.site.group_role }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        {#-  · THE PREVIEW — each card mounts its site's own document at `/chrome-preview` once and never
+             unmounts it, a sibling of the editing column so it can hold the frame's top edge while the
+             column scrolls past. It is not a drawing: this card's blocks write into THIS frame, and
+             `static/site-config.js` resolves every `data-sc-drives` row against the frame of its own
+             form — a page with two cards has two frames and neither writes into the other.
+             The frame is INERT (`pointer-events: none`, `tabindex="-1"`), which is why the panel
+             carries the one door to the real thing.  -#}
+        <aside class="sc-site" aria-label="{{ _(labels.panel) }}"
+               data-sc-site data-sc-draft-url="{{ draft_path }}"
+               data-sc-draft-clear="{{ draft_clear_field }}"
+               data-sc-preview-url="{{ card.preview_url }}"
+               data-sc-preview-title="{{ _(labels.preview_title) }}"
+               data-sc-preview-off="{{ _(labels.preview_off) }}">
+          {#-  A SITE THAT IS SWITCHED OFF SERVES NOTHING, so its panel mounts no frame and offers no
+               door: the box then states the off-state as its BODY — the pane is empty because the
+               site is off, not a caption under a broken frame. The address and the off-state's own
+               words are carried on the panel, so `static/site-config.js` can mount the frame the
+               moment the operator flips the switch (posting its draft first) and put the off-state
+               back when they flip it away again.  -#}
+          <div class="sc-sitehd">
+            <span class="t">{{ _(labels.panel) }}</span>
+            {% if card.enabled %}
+            <span class="st-chip k">{{ _(labels.panel_doc if card.live else labels.panel_mock) }}</span>
+            <span class="sp"></span>
+            {% if card.live %}
+            <a class="st-btn sm" href="{{ card.preview_url }}" target="_blank" rel="noopener">{{ _(labels.panel_open) }}</a>
+            {% endif %}
+            {% endif %}
+          </div>
+          {% if card.enabled %}
+          <div class="sc-pv-box{{ ' sc-pv-mock' if card.mock }}">
+            <iframe src="{{ card.preview_url }}" title="{{ _(labels.preview_title) }}" tabindex="-1" data-sc-preview></iframe>
+          </div>
+          {% if card.mock %}
+          {#-  THE MOCK: this site has no address of its own yet (the bot registers addresses at
+               startup), so the box draws what the FILE describes, in the shell's own chrome, from
+               the console's demo document. The sentence is the one thing the drawing cannot say.  -#}
+          <p class="sc-pv-cap sc-pv-mocknote" data-sc-pv-mock="1">{{ _(labels.preview_mock) }}</p>
+          {% endif %}
+          <p class="sc-pv-cap">{{ _(labels.panel_cap) }}</p>
+          <p class="sc-sitewrites">{{ _(labels.panel_writes) }}</p>
+          <p class="sc-sitenone">{{ _(labels.panel_none) }}</p>
+          {% else %}
+          <div class="sc-pv-box sc-pv-off" role="status" data-sc-pv-off>{{ _(labels.preview_off) }}</div>
+          {% endif %}
+          {#-  THE BOX IS A DRAFT: it follows the values in the form, before Save, and the sentence
+               says so in both states — the one thing a screenshot of this pane cannot tell.  -#}
+          <p class="sc-pv-draft">{{ _(labels.panel_draft) }}</p>
+        </aside>
+      </div>
+
+      {#-  8 · EXPERT MODE (§D) — the last block, at the card's FULL width: the bar that names the
+           copy, the sheet itself, the verdict's reserved line and the foot. It sits outside the
+           page's two columns because a sheet is code and code wants lines — and because that is the
+           one screen where the frame does not stand beside it. The control in the form is the
+           TEXTAREA (it posts either way); `static/site-config.js` replaces it on screen with a
+           CodeMirror instance over the same text, and the textarea stays in the form hidden, so a
+           page with scripts off still posts a sheet and the save still refuses an invalid one.
+           The block is DRAWN whenever the form has the control; whether the sheet is on screen is the
+           bar's own Expert Mode box, which is a view control and never the carrier: unticking hides
+           the sheet and states it — a stored sheet keeps its value, still posts, and is not cleared.
+           The prefill is a TRANSCRIPTION of the shipped sheet — declared in the bar, never inside
+           the text, because a marker comment would itself be refused.  -#}
+      {% if card.expert_allowed %}
+      <section class="sc-expert" id="sc-expert-{{ card.token }}" data-sc-block="expert">
+        <div class="sc-sechd">
+          <h3>{{ _(labels.expert_mode) }}</h3>
+          <span class="st-chip k">{{ keys.theme_expert }}</span>
+          {#-  §4.1 · EXPERT MODE: the console's own idiom (`.st-expert`), ticked exactly when the
+               site's palette IS an expert sheet. It sits on the bar of the block it reveals — the
+               sheet — so the control is beside its effect. No `name`: it posts nothing, and a Save
+               posts the sheet whether the box is ticked or not.  -#}
+          <label class="st-expert">
+            <input type="checkbox" role="switch" data-sc-expert-toggle {{ 'checked' if card.expert_ticked }}>
+            {{ _(labels.expert_toggle) }}
+          </label>
+          <span class="sp"></span>
+          <span class="sc-say">{{ _(labels.expert_say) }}</span>
+        </div>
+        <p class="sc-what">{{ _(labels.expert) }}</p>
+        <p class="sc-need">{{ _(labels.expert_linked) }}</p>
+        <div class="sc-x" id="sc-sheet-{{ card.token }}" data-sc-expert="{{ card.expert_data }}"
+             data-sc-x-url="{{ validate_path }}" data-sc-x-csrf="{{ csrf_field }}"
+             data-sc-x-token="{{ csrf_token }}" data-sc-x-field="{{ sheet_field }}">
+          <div class="sc-xbar">
+            <div class="l">
+              <span class="st-badge default" data-sc-x-badge>{{ card.expert_badge }}</span>
+              <span class="when" data-sc-x-when>{{ card.expert_when }}</span>
+            </div>
+            <div class="r">
+              <button type="button" class="st-btn sm" data-sc-x-load {{ 'disabled' if card.expert_copy }}>{{ _(labels.expert_load) }}</button>
+              <button type="button" class="st-btn sm" data-sc-x-check>{{ _(labels.check) }}</button>
+            </div>
+          </div>
+          <div class="sc-sheet cfg-editor">
+            <textarea class="st-in mono" name="f.sites.{{ card.token }}.theme.expert" rows="20"
+                      spellcheck="false" aria-label="{{ _(labels.expert) }}"
+                      data-sc-x-text>{{ card.expert }}</textarea>
+          </div>
+          <div class="sc-verdict" id="sc-verdict-{{ card.token }}" role="status" aria-live="polite"
+               data-sc-x-verdict></div>
+          <div class="sc-xfoot">
+            <span class="key mono">{{ keys.theme_expert }}</span>
+            <span class="st-note">{{ _(labels.expert_grammar) }}</span>
+            <span class="sp"></span>
+            <span class="st-note" data-sc-x-count>{{ card.expert_count }}</span>
+          </div>
+        </div>
+        {#-  THE CLOSED STATE STILL STATES THE SHEET — one dashed strip where the sheet would be, and
+             one sentence when there is no sheet at all. Both are drawn by the script from the box and
+             the carrier, so a page with scripts off shows the sheet itself and neither of these.  -#}
+        <p class="sc-palclosed" data-sc-expert-stored hidden>{{ card.expert_stored }}</p>
+        <p class="sc-palnone" data-sc-expert-none hidden>{{ card.expert_none }}</p>
+      </section>
+      {% else %}
+      {#-  A GROUP ADMIN'S SHEET — one row, where the block would be: `theme.expert` is the
+           installation admin's to write.  -#}
+      <section class="sc-expert" data-sc-block="expert">
+        <div class="sc-sechd">
+          <h3>{{ _(labels.expert_mode) }}</h3>
+        </div>
+        <div class="st-row">
+          <div class="st-lab">
+            <div class="nm">{{ _(labels.wizard_group) }}</div>
+            <div class="kk"><span class="key mono">{{ keys.theme_expert }}</span><span class="st-flag">{{ _(labels.wizard_group_flag) }}</span></div>
+            <div class="hp">{{ card.wizard_group_hint }}</div>
+          </div>
+          <div class="st-w"><span class="st-ro">{{ _(labels.wizard_group_ro) }}</span></div>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+
+    {% if card.write %}
+    <div class="sc-actions">
+      <button type="submit" class="st-btn pri">{% trans %}Save{% endtrans %}</button>
+    </div>
+    {% endif %}
+  </form>
+  {% if card.write %}
+  {#-  §E · THE MARK'S OWN FORM. A form cannot be nested inside the card's save form, and the mark's
+       controls must post to their own routes: the slot's file input and buttons name THIS element
+       with `form="…"`, which is the spec's one way to give a control a form it does not descend
+       from. It carries the session's CSRF field and the page's revision, so a post is the same
+       guarded write as every other on this page, and with scripts off the browser posts it.  -#}
+  <form class="sc-mark" id="sc-mark-{{ card.token }}" method="post" action="{{ upload_path }}"
+        enctype="multipart/form-data">
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+    <input type="hidden" name="{{ key_field }}" value="{{ card.key }}">
+  </form>
+  {#-  THE SHEET'S OWN FORM, for the same reason: the palette block's picker and its Remove name THIS
+       element with `form="…"`, so each posts to the sheet's doors with the session's CSRF field and
+       the page's revision, and with scripts off the browser posts it like any other form.  -#}
+  <form class="sc-mark" id="sc-sheet-{{ card.token }}" method="post" action="{{ sheet_upload_path }}"
+        enctype="multipart/form-data">
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+    <input type="hidden" name="{{ key_field }}" value="{{ card.key }}">
+  </form>
+  {% endif %}
+</details>
+{% endfor %}
+</div>
+
+{#-  THE TWO ADMIN-ONLY BLOCKS. Each is rendered only for a request that holds its capability
+     (`site.structure` for the add form, `site.expert` for the file) and each route checks the same
+     capability again: a block that is merely not drawn is not a guard. The add block is OPEN when
+     the page has no card, because then it is the only thing an operator can do here.  -#}
+{% if structure_allowed %}
+<details class="sc-add st-block" data-sc-add {{ 'open' if not cards }}>
+  <summary class="sc-sum">
+    <span class="k mono sc-add-glyph" aria-hidden="true">+</span>
+    <span class="k">{{ _(labels.add) }}</span>
+    <span class="r"><span class="st-note">{{ _(labels.add_lead) }}</span></span>
+  </summary>
+  <form class="sc-addform" method="post" action="{{ add_path }}" data-async>
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+    <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+    <div class="sc-add-grid">
+      <div class="st-row">
+        <div class="st-lab">
+          <div class="nm">{{ _(labels.add_key) }}</div>
+          <div class="hp">{{ _(labels.add_key_hint) }}</div>
+        </div>
+        <div class="st-w">
+          <input class="st-in mono" type="text" name="{{ add_key_field }}" required
+                 pattern="[a-z0-9][a-z0-9-]*" spellcheck="false" autocomplete="off">
+        </div>
+      </div>
+      <div class="st-row">
+        <div class="st-lab">
+          <div class="nm">{{ _(labels.add_role) }}</div>
+          <div class="hp">{{ _(labels.add_role_hint) }}</div>
+        </div>
+        <div class="st-w">
+          <select class="st-in" name="{{ add_role_field }}">
+            <option value="">{{ _(labels.add_root) }}</option>
+            {% for role in roles %}<option value="{{ role }}">{{ role }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="st-row">
+        <div class="st-lab">
+          <div class="nm">{{ _(labels.address) }}</div>
+          <div class="hp">{{ _(labels.add_slug_hint) }}</div>
+        </div>
+        <div class="st-w">
+          <input class="st-in mono" type="text" name="{{ add_slug_field }}" spellcheck="false"
+                 autocomplete="off">
+        </div>
+      </div>
+    </div>
+    <div class="sc-actions">
+      <button type="submit" class="st-btn pri">{{ _(labels.add_submit) }}</button>
+    </div>
+  </form>
+</details>
+{% endif %}
+
+{% if expert_file_allowed %}
+{#-  THE FILE, AS YAML — the console's shipped Expert Mode panel, reused as it stands: the read-only
+     view, the toggle, the status line and `static/settings-yaml.js` over CodeMirror. The carriers
+     live INSIDE this page's own form (the cards each own theirs), which is the form the script
+     resolves through the panel's own ancestor.  -#}
+<form class="sc-yamlform" method="post" action="{{ yaml_path }}">
+  <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
+  <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+  <input type="hidden" name="{{ expert_field }}" value="0" data-cfg-expert>
+  <textarea name="{{ yaml_field }}" data-cfg-yaml-text hidden aria-hidden="true"></textarea>
+  <aside class="cfg-yaml sc-yaml" data-cfg-yaml data-validate-url="{{ yaml_validate_path }}">
+    <div class="cfg-yaml-head">
+      <h3>{% trans %}The file, as YAML{% endtrans %}</h3>
+      <span class="cfg-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
+      <label class="cfg-expert"><input type="checkbox" role="switch" data-cfg-expert-toggle> {% trans %}Expert Mode{% endtrans %}</label>
+    </div>
+    <div class="cfg-hint cfg-expert-hint">{{ _(labels.yaml_checked) }}</div>
+    <div class="cfg-hint cfg-expert-hint">{{ _(labels.yaml_applies) }}</div>
+    <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
+    <pre class="yaml mono" data-cfg-yaml-readonly>{{ yaml }}</pre>
+    <div class="cfg-editor" data-cfg-yaml-editor hidden></div>
+    <div class="sc-actions">
+      <button type="submit" class="st-btn pri">{% trans %}Save{% endtrans %}</button>
+    </div>
+  </aside>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/static/settings-scope.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/codemirror/codemirror.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/css/css.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/configgen.js?v={{ asset_version }}" defer></script>
+<script src="/static/settings-yaml.js?v={{ asset_version }}" defer></script>
+<script src="/static/reorder.js?v={{ asset_version }}" defer></script>
+<script src="/static/site-config.js?v={{ asset_version }}" defer></script>
+<script src="/static/site-palette-wizard.js?v={{ asset_version }}" defer></script>
+{% endblock %}

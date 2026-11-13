@@ -1,0 +1,45 @@
+/* parchment.css — warm light, cream panels, a brown accent, serif headings.
+ *
+ * Custom properties only. The ground is a paper tone rather than a grey, the panels are lighter than
+ * the ground the way a page is lighter than its desk, and the display face is a serif with old-style
+ * figures — the record-book look a classic squadron reads.
+ *
+ * Contrast on --ground (#efe6d2): --fg 12.7:1, --fg-2 7.8:1, --fg-3 5.3:1, --brass 5.8:1.
+ */
+:root {
+  --ground:     #efe6d2;
+  --stage:      #e8dcc2;
+  --band:       #e2d3b4;
+  --panel:      #fbf5e7;
+  --panel-2:    #f4ecda;
+  --line:       #d5c3a1;
+  --line-2:     #bda781;
+  --black:      #1b1409;
+
+  --fg:         #2b2116;
+  --fg-2:       #4f4231;
+  --fg-3:       #6b5a42;
+
+  --brass:      #7a4e1b;
+  --brass-dim:  #ad8450;
+  --brass-wash: rgba(122, 78, 27, .09);
+  --brass-hi:   #5c3912;
+  --sage:       #6d7a58;
+
+  --wash:       rgba(43, 33, 22, .05);
+  --hair:       rgba(43, 33, 22, .09);
+  --hero-glow:  rgba(122, 78, 27, .12);
+  --hero-sage:  rgba(109, 122, 88, .07);
+  --pulse-ring: rgba(122, 78, 27, .45);
+  --pulse-none: rgba(122, 78, 27, 0);
+  --pulse-edge: rgba(122, 78, 27, .30);
+
+  --medal-ink:    #2b1f0a;
+  --medal-gold:   linear-gradient(160deg, #f3da93, #bd9420);
+  --medal-silver: linear-gradient(160deg, #ece6d8, #9b9585);
+  --medal-bronze: linear-gradient(160deg, #dfab7d, #96602c);
+
+  --disp: "Iowan Old Style", "Palatino Linotype", Palatino, "Bitstream Charter", Georgia, "DejaVu Serif", serif;
+  --body: "Ubuntu Sans", "Ubuntu", "DejaVu Sans", system-ui, sans-serif;
+  --mono: "Ubuntu Mono", "DejaVu Sans Mono", monospace;
+}

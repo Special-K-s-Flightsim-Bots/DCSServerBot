@@ -48,7 +48,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from .. import i18n, permissions, readmodels
+from .. import mount, i18n, permissions, readmodels
 from . import dashboard as dashboard_page
 
 __all__ = [
@@ -366,8 +366,8 @@ def page_context(request: Request) -> dict | None:
     # are the ones the page itself RESOLVED (``dashboard.load_context``), never raw parameters.
     carried.update(getattr(request.state, "load_params", None) or {})
     query = urlencode(carried)
-    return {"stream": f"{DASHBOARD_STREAM_PATH}?{query}",
-            "fragments": f"{DASHBOARD_FRAGMENTS_PATH}?{query}"}
+    return {"stream": mount.url(f"{DASHBOARD_STREAM_PATH}?{query}"),
+            "fragments": mount.url(f"{DASHBOARD_FRAGMENTS_PATH}?{query}")}
 
 
 def _environment(request: Request):

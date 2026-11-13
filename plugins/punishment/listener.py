@@ -592,6 +592,18 @@ class PunishmentEventListener(EventListener["Punishment"]):
     async def disablePunishments(self, server: Server, _: dict) -> None:
         self.active_servers.discard(server.name)
 
+    async def _cheater_detected(self, server: Server, player: Player):
+        from services.bot import BotService
+
+        await self.bus.ban(player.ucid, banned_by=self.plugin_name, reason="Cheating")
+        bot = cast(BotService, ServiceRegistry.get(BotService))
+        await bot.alert(
+            title="Cheater detected!",
+            message=f"Player {player.display_name} ({player.ucid}) was banned "
+                    f"for cheating with weapons. Please report them to DGSA.",
+            server=server
+        )
+
     @event(name="onMissionEvent")
     async def onMissionEvent(self, server: Server, data: dict) -> None:
         config = self.get_config(server)
@@ -646,16 +658,7 @@ class PunishmentEventListener(EventListener["Punishment"]):
                 # ... (check for cheaters) ...
                 distance = data.get('distance', -1)
                 if data.get('weapon', {}).get('name', 'Gun') == 'Gun' and distance > 10000:
-                    from services.bot import BotService
-
-                    await self.bus.ban(initiator.ucid, banned_by=self.plugin_name, reason="Cheating")
-                    bot = cast(BotService, ServiceRegistry.get(BotService))
-                    await bot.alert(
-                        title="Cheater detected!",
-                        message=f"Player {initiator.display_name} ({initiator.ucid}) was banned "
-                                f"for cheating with weapons. Please report them to DGSA.",
-                        server=server
-                    )
+                    await self._cheater_detected(server, initiator)
                     return
 
                 # ... that shot before

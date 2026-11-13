@@ -2,7 +2,7 @@
 
 A save writes a file. Whether the RUNNING bot picks it up is decided by WHICH file was written, so the
 mapping lives here and is derived from the resolved path — never from anything a request can name.
-There are exactly three outcomes:
+There are exactly four outcomes:
 
 * ``config/plugins/<plugin>.yaml`` — reload THAT plugin in place. Nothing restarts.
 * ``main.yaml``, ``servers.yaml``, ``nodes.yaml``, ``config/services/<service>.yaml`` — the BOT restarts
@@ -10,6 +10,9 @@ There are exactly three outcomes:
   that names no node (``main.yaml``'s global keys, an un-scoped service block, adding or removing a
   plugin through ``opt_plugins``) restarts the MASTER node; ``nodes.yaml`` restarts the node whose block
   the page edited.
+* ``site.yaml`` — the public site's settings file, which the console reads on every request. Applying
+  it is a RE-READ of that file: no plugin is reloaded, no bot restarts, and it applies with the bot
+  stopped entirely.
 * everything else — a preset, a mission list, any file read when a mission is prepared — is applied by
   the next launch. It gets NO control and one sentence saying so.
 
@@ -22,6 +25,10 @@ Traps
   retarget a restart.
 * The reload/restart runs in the HTTP response's BACKGROUND: ending the process that is serving the
   answer would cut it off mid-flight.
+* The console re-read runs DETACHED, off the response's own lifecycle: a re-read the response awaited
+  would hold its connection open for as long as the work takes. The site settings SAVE is the one
+  caller that waits for it (:func:`apply_console`): its own answer must report whether the console
+  moved, and it has no confirmation page to defer the work to.
 * An offer is bound to the file's revision. A save that changed nothing offers no button, and an offer
   the file has outrun is refused rather than applied blind.
 """
@@ -47,20 +54,21 @@ from core.actions import HEADLESS_BOT_MODULE, action_available, audit_action, ca
     can_record_audit
 from core.utils import configwrite
 
-from . import i18n, permissions, session
+from . import i18n, mount, permissions, session
 from .pages import actions as actions_page
 
 log = logging.getLogger(__name__)
 
 __all__ = [
-    "TARGET_PLUGIN", "TARGET_RESTART", "TARGET_NONE", "ApplyTarget",
+    "TARGET_PLUGIN", "TARGET_RESTART", "TARGET_NONE", "TARGET_CONSOLE", "ApplyTarget",
+    "SITE_FILE", "SITE_FILES", "CONSOLE_CLAIM", "site_file_for",
     "APPLY_PATH", "APPLY_ASK_PATH", "APPLY_FIELD", "APPLY_KIND_FIELD", "APPLY_NAME_FIELD",
     "APPLY_ACTION_FIELD", "APPLY_ACTION_APPLY", "APPLY_ACTION_DECLINE", "APPLY_CONFIRM_TEMPLATE",
     "OFFER_KEY", "OFFER_MAX_PENDING", "APPLY_LABEL", "APPLY_TITLE", "CONFIRM_TITLE",
     "OWNER", "capabilities", "add_routes", "register",
     "resolve_target", "master_name", "node_label", "offer", "stored_offer", "take_offer",
     "target_of", "describe", "owed", "pending", "confirmation", "preflight", "execute",
-    "audit_available", "in_flight", "reset_in_flight",
+    "apply_console", "audit_available", "in_flight", "reset_in_flight",
 ]
 
 #: the two routes of the door. ``APPLY_ASK_PATH`` renders the confirmation; ``APPLY_PATH`` runs it.
@@ -68,10 +76,13 @@ __all__ = [
 APPLY_PATH = "/settings/apply"
 APPLY_ASK_PATH = APPLY_PATH + "/ask"
 
-#: the three shapes an apply target can take.
+#: the four shapes an apply target can take.
 TARGET_PLUGIN = "plugin"
 TARGET_RESTART = "restart"
 TARGET_NONE = "none"
+#: the target that needs NO bot work: the console reads its settings file per request, so applying one
+#: means reading it again.
+TARGET_CONSOLE = "console"
 
 #: the config sub-directory whose ``<stem>.yaml`` files are plugin configurations.
 PLUGIN_DIR = "plugins"
@@ -81,6 +92,18 @@ SERVICE_DIR = "services"
 BOOT_FILES = frozenset({"main.yaml", "servers.yaml", "nodes.yaml"})
 #: the bot-wide file whose change names a NODE (every other one restarts the master).
 NODE_FILE = "nodes.yaml"
+
+#: the public site's settings file — the file the Site settings page owns, beside ``nodes.yaml``.
+SITE_FILE = "site.yaml"
+#: the spellings the site file is accepted under, like every other config file here.
+SITE_FILES = frozenset({SITE_FILE, "site.yml"})
+#: the directories a site file may live in, as config-relative directory parts: the config root, and
+#: the directory the services' own configuration files live in. EVERY place a ``site.yaml`` is accepted
+#: comes from this tuple — there is no second path convention beside it.
+_SITE_DIRS: tuple[tuple[str, ...], ...] = ((), (SERVICE_DIR,))
+#: the in-flight key a console re-read claims. It is bracketed, so it can never be a node name and a
+#: console re-read can never refuse a restart of a node that happens to be called "console".
+CONSOLE_CLAIM = f"<{TARGET_CONSOLE}>"
 
 #: the confirm form's own field names. The token is the console's ONE confirm-token contract
 #: (``pages.actions.CONFIRM_FIELD``); the two identity fields re-read the OFFER, and the action field
@@ -100,8 +123,9 @@ APPLY_CONFIRM_TEMPLATE = "apply_confirm.html"
 OFFER_KEY = "_apply_offers"
 OFFER_MAX_PENDING = 4
 
-#: the restarts this process has already started. A second press while one is in flight is refused
-#: rather than queued: the process is about to end, so a queue would never drain.
+#: the applies this process has already started, keyed by node (a restart) or by
+#: :data:`CONSOLE_CLAIM` (a console re-read). A second press while one is in flight is refused rather
+#: than queued: a restart ends the process, so a queue would never drain.
 _IN_FLIGHT: set[str] = set()
 _IN_FLIGHT_LOCK = threading.Lock()
 
@@ -131,6 +155,15 @@ RESTART_DETAIL = i18n._(
 RESTART_GO = i18n._("Restart the bot on node %(node)s")
 MASTER_NODE = i18n._("the master node")
 
+#: the console target's own words: the public site's settings file, read again. Nothing is reloaded
+#: and nothing restarts — no DCS server is touched, so there is no fleet warning to render.
+CONSOLE_HEADING = i18n._("Re-read the site settings now?")
+CONSOLE_DETAIL = i18n._(
+    "The public site's settings file is read again for the pages this console serves. Nothing is "
+    "reloaded or restarted and no DCS server goes down.")
+CONSOLE_GO = i18n._("Re-read the site settings")
+CONSOLE_TARGET = i18n._("the site settings")
+
 #: the sentence a DECLINED apply leaves, so nobody believes a written change is live.
 OWED_RELOAD = i18n._("The change is in the file and takes effect after the %(plugin)s plugin is "
                      "reloaded.")
@@ -143,6 +176,8 @@ PENDING_RELOAD = i18n._("Reloading the %(plugin)s plugin — this page reloads o
 PENDING_RESTART = i18n._(
     "Restarting the bot on %(node)s — its DCS servers go down with it. This page reloads once now; "
     "if the console does not answer yet, reload it again in a moment.")
+PENDING_CONSOLE = i18n._("Re-reading the site settings. The public site follows on its next page "
+                         "load; nothing is reloaded or restarted.")
 
 #: the refusals. Each one leaves the file as it was written and nothing restarted.
 REFUSED_STALE = i18n._("Nothing was applied: this confirmation is no longer valid. Save the change "
@@ -171,6 +206,21 @@ REFUSED_PLUGIN_NOT_LOADED = i18n._(
 REFUSED_UNKNOWN_NODE = i18n._("Nothing was restarted: this installation knows no node named "
                               "%(node)s.")
 REFUSED_IN_FLIGHT = i18n._("Nothing was restarted: a restart of %(node)s is already in flight.")
+REFUSED_CONSOLE_IN_FLIGHT = i18n._("Nothing was applied: the site settings are already being "
+                                   "re-read.")
+#: the console re-read this process cannot perform, and WHICH piece is missing — the three answers
+#: :func:`_console_reread` gives. The reason is a technical phrase, interpolated unserialised and
+#: logged verbatim beside the refusal (the :data:`REFUSED_UNREACHABLE_WHY` pattern): a sentence that
+#: only said "could not be re-read" would send the operator looking for a fault in the file.
+REFUSED_CONSOLE_UNREACHABLE = i18n._(
+    "The file holds the change, but the console could not re-read it — %(reason)s. The sites that "
+    "were installed keep serving; nothing was reloaded or restarted.")
+WHY_NO_CONSOLE_APP = "this process holds no console application to re-read the site settings on"
+WHY_NO_CONSOLE_REGISTRAR = "this console application carries no route table to rebuild the site's " \
+                           "pages on"
+#: the step after the two above: the pieces were there and the rebuild itself raised. Its sentence is
+#: :data:`REFUSED_CONSOLE_UNREACHABLE` with this reason, like the other two.
+WHY_REBUILD_FAILED = "the console could not rebuild the site's pages from the file"
 REFUSED_LAUNCH_ONLY = i18n._("Nothing was applied: this file is read when a mission is prepared, so "
                              "it applies at the next launch.")
 REFUSED_UNCLASSIFIED = i18n._("Nothing was applied: no apply action is defined for this file.")
@@ -229,11 +279,36 @@ def resolve_target(path, config_dir, *, node: str = "") -> ApplyTarget:
     suffix = relative.suffix.lower()
     if len(parts) == 2 and parts[0] == PLUGIN_DIR and suffix in (".yaml", ".yml"):
         return ApplyTarget(TARGET_PLUGIN, plugin=relative.stem)
+    if _is_site_file(parts):
+        # THE ONE EXCEPTION in these directories: the console reads this file per request, so a save
+        # to it neither reloads a plugin nor restarts a bot.
+        return ApplyTarget(TARGET_CONSOLE)
     if len(parts) == 2 and parts[0] == SERVICE_DIR and suffix in (".yaml", ".yml"):
         return ApplyTarget(TARGET_RESTART, node=node)
     if len(parts) == 1 and relative.name in BOOT_FILES:
         return ApplyTarget(TARGET_RESTART, node=node if relative.name == NODE_FILE else "")
     return ApplyTarget(TARGET_NONE, reason=REFUSED_LAUNCH_ONLY)
+
+
+def _is_site_file(parts) -> bool:
+    """Whether config-relative *parts* name a site file in one of :data:`_SITE_DIRS`."""
+    return bool(parts) and parts[-1] in SITE_FILES and tuple(parts[:-1]) in _SITE_DIRS
+
+
+def site_file_for(config_dir, name: str):
+    """The site file called *name* among the directories a site file may live in, or ``None``.
+
+    The ONE resolver for "where is the site file": the same :data:`_SITE_DIRS` the door classifies
+    with, so a path that resolves to :data:`TARGET_CONSOLE` is a path this finds, and no second path
+    convention can grow beside it.
+    """
+    if name not in SITE_FILES:
+        return None
+    for directory in _SITE_DIRS:
+        candidate = Path(config_dir).joinpath(*directory, name)
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def master_name() -> str:
@@ -315,7 +390,8 @@ def offer(request, *, path, config_dir, kind: str, name: str, node: str = "",
             "kind_field": APPLY_KIND_FIELD, "name_field": APPLY_NAME_FIELD,
             "token_field": APPLY_FIELD, "token": token,
             "action_field": APPLY_ACTION_FIELD, "action_value": APPLY_ACTION_APPLY,
-            "action": APPLY_PATH, "ask_action": APPLY_ASK_PATH, "label": APPLY_LABEL}
+            "action": mount.url(APPLY_PATH), "ask_action": mount.url(APPLY_ASK_PATH),
+            "label": APPLY_LABEL}
 
 
 def stored_offer(request, kind: str, name: str) -> dict | None:
@@ -355,13 +431,18 @@ def describe(request, target: ApplyTarget) -> dict:
     """The plain-words copy for ONE target: heading, warning, detail, the go label, the target name.
 
     A plugin says what a reload does and that nothing goes down; a restart names the node and says
-    its servers go down with it. The words never say "apply" alone.
+    its servers go down with it; the console says the public site's settings file is read again and
+    that nothing at all goes down. The words never say "apply" alone.
     """
     if target.kind == TARGET_PLUGIN:
         values = {"plugin": target.plugin}
         return {"heading": _say(request, RELOAD_HEADING, **values), "warning": "",
                 "detail": _say(request, RELOAD_DETAIL), "go": _say(request, RELOAD_GO, **values),
                 "target": target.plugin}
+    if target.kind == TARGET_CONSOLE:
+        return {"heading": _say(request, CONSOLE_HEADING), "warning": "",
+                "detail": _say(request, CONSOLE_DETAIL), "go": _say(request, CONSOLE_GO),
+                "target": _say(request, CONSOLE_TARGET)}
     name = node_label(request, target.node or master_name())
     values = {"node": name}
     # the warning is rendered with |safe (its msgid carries no markup, but the template trusts it),
@@ -373,16 +454,29 @@ def describe(request, target: ApplyTarget) -> dict:
 
 
 def owed(request, target: ApplyTarget) -> str:
-    """What is still owed after a DECLINED apply, in the target's own words."""
+    """What is still owed after a DECLINED apply, in the target's own words.
+
+    The CONSOLE target owes NOTHING and answers the empty string: the site file is read per request,
+    so a written change is live as soon as it is written. Do not "helpfully" give it a reload
+    sentence — there is nothing left to run, and the caller shows no notice when this is empty.
+    """
     if target.kind == TARGET_PLUGIN:
         return _say(request, OWED_RELOAD, plugin=target.plugin)
     if target.kind == TARGET_RESTART:
         return _say(request, OWED_RESTART, node=node_label(request, target.node or master_name()))
+    if target.kind == TARGET_CONSOLE:
+        return ""
     return _say(request, OWED_LAUNCH)
 
 
 def pending(request, target: ApplyTarget, *, audited: bool = True) -> str:
-    """The state the landing page carries while the background work runs (and the audit disclosure)."""
+    """The state the landing page carries while the background work runs (and the audit disclosure).
+
+    A console re-read is not an action and writes no audit row, so its sentence carries no audit
+    disclosure whatever *audited* says.
+    """
+    if target.kind == TARGET_CONSOLE:
+        return _say(request, PENDING_CONSOLE)
     if target.kind == TARGET_PLUGIN:
         message = _say(request, PENDING_RELOAD, plugin=target.plugin)
     else:
@@ -409,7 +503,7 @@ def confirmation(request, record: dict, *, back: str) -> dict:
         "nav_groups": _nav_groups(request, back),
         "dialog": {
             **copy,
-            "path": APPLY_PATH,
+            "path": mount.url(APPLY_PATH),
             "csrf_field": session.CSRF_FIELD,
             "csrf_token": session.get_csrf_token(request),
             "confirm_field": APPLY_FIELD,
@@ -452,7 +546,7 @@ def in_flight(node: str) -> bool:
 
 
 def mark_in_flight(node: str) -> bool:
-    """Claim *node* for one restart; ``False`` when one is already claimed."""
+    """Claim *node* (or :data:`CONSOLE_CLAIM`) for one apply; ``False`` when one is already claimed."""
     with _IN_FLIGHT_LOCK:
         if node in _IN_FLIGHT:
             return False
@@ -567,6 +661,59 @@ def _extension(plugin: str) -> str:
     return f"plugins.{plugin.lower()}.commands"
 
 
+def _claim_key(target: ApplyTarget) -> str:
+    """The in-flight key ONE target claims while its apply runs, or ``""`` for one that needs none."""
+    if target.kind == TARGET_CONSOLE:
+        return CONSOLE_CLAIM
+    if target.kind == TARGET_RESTART:
+        return target.node or master_name()
+    return ""
+
+
+def in_flight_sentence(request, target: ApplyTarget) -> str:
+    """The refusal for a second press while ONE target's apply is already running."""
+    if target.kind == TARGET_CONSOLE:
+        return _say(request, REFUSED_CONSOLE_IN_FLIGHT)
+    return _say(request, REFUSED_IN_FLIGHT, node=node_label(request, target.node or master_name()))
+
+
+def _console_reread(request, app: Any = None) -> tuple[Any, str]:
+    """``(app, "")`` when the console re-read can run here, else ``(None, the sentence naming why)``.
+
+    THE ONE ANSWER BOTH SIDES READ: :func:`preflight` refuses with it and :func:`_reread_sites`
+    re-checks the two pieces it can when it runs, so the door cannot accept a re-read the executor
+    then drops on the floor. Three answers, in the order the executor needs them:
+
+    * no console application — the request's own application IS the console, and the registry is only
+      the fallback for a caller with no request, so its absence means there is nowhere to run;
+    * an application with no ``webui_registrar`` — nothing to swap the site's route table on;
+    * a site file :func:`services.webservice.site_pages.catalog_from_file` refuses — the parser's own
+      sentence is carried into the refusal, because the file is the operator's to fix.
+
+    Every answer is logged at warning with the SAME prefix and the same reason phrase the operator
+    reads, so the log names which of the three fired without a second guess.
+
+    Never raises. *request* may be ``None``.
+    """
+    from . import site_pages as site_pages_module
+    from . import sites as sites_module
+
+    app = app or getattr(request, "app", None) or _console_app()
+    if app is None:
+        log.warning("Apply: cannot re-read the site settings - %s.", WHY_NO_CONSOLE_APP)
+        return None, _say(request, REFUSED_CONSOLE_UNREACHABLE, reason=WHY_NO_CONSOLE_APP)
+    if getattr(getattr(app, "state", None), "webui_registrar", None) is None:
+        log.warning("Apply: cannot re-read the site settings - %s.", WHY_NO_CONSOLE_REGISTRAR)
+        return None, _say(request, REFUSED_CONSOLE_UNREACHABLE, reason=WHY_NO_CONSOLE_REGISTRAR)
+    try:
+        site_pages_module.catalog_from_file(app)
+    except sites_module.SiteConfigError as ex:
+        reason = f"the site settings file cannot be served: {ex}"
+        log.warning("Apply: cannot re-read the site settings - %s.", reason)
+        return None, _say(request, REFUSED_CONSOLE_UNREACHABLE, reason=reason)
+    return app, ""
+
+
 def preflight(request, target: ApplyTarget, *, ctx: Any = None) -> str:
     """The refusal sentence for *target* BEFORE anything is scheduled, or ``""`` when it may run.
 
@@ -591,6 +738,15 @@ def preflight(request, target: ApplyTarget, *, ctx: Any = None) -> str:
                         or "-")
             return _say(request, REFUSED_PLUGIN_NOT_LOADED, plugin=target.plugin)
         return ""
+    if target.kind == TARGET_CONSOLE:
+        # NOTHING ABOUT THE BOT IS ASKED: the site file belongs to the console, and it is read by the
+        # console's own process. A stopped (or absent) bot is not a reason to refuse it.
+        if in_flight(CONSOLE_CLAIM):
+            return _say(request, REFUSED_CONSOLE_IN_FLIGHT)
+        # WHAT IS ASKED IS THE RE-READ ITSELF: a door that accepts a re-read this process cannot run
+        # leaves the operator with a "Re-reading…" notice and a site that still answers 404.
+        _app, refusal = _console_reread(request)
+        return refusal
     if target.kind == TARGET_RESTART:
         node = target.node or master_name()
         if not node or (ctx is not None and ctx.resolve_node(node) is None):
@@ -608,22 +764,29 @@ def preflight(request, target: ApplyTarget, *, ctx: Any = None) -> str:
     return _say(request, target.reason or REFUSED_UNCLASSIFIED)
 
 
-async def execute(target: ApplyTarget, ctx: Any) -> bool | None:
-    """Apply ONE target; the plugin reload's outcome, or ``None`` for a restart.
+async def execute(target: ApplyTarget, ctx: Any, *, app: Any = None) -> bool | None:
+    """Apply ONE target; the plugin reload's outcome, or ``None`` for a restart and for the console.
 
     A RESTART runs in the response's background: it ends the process that is answering, so the answer
     has to be sent first. A PLUGIN RELOAD does not — it rebuilds one cog in this very process in a few
     milliseconds, so the apply route awaits it and the page it lands on already reads the new
     configuration. Sending the operator to a page that renders the OLD plan, and hoping they reload
     once the background work happens to be done, is a page that lies about its own state.
+
+    The CONSOLE target runs DETACHED (:func:`_detached`): the file is already written and the only work
+    is the re-read, so the response must not wait for it. *app* is the application the saving request
+    ran on, passed in by the door: the re-read runs on THAT application, which is the one serving the
+    console, and the registry lookup is only the fallback for a caller that has none.
     """
-    node = target.node or master_name() if target.kind == TARGET_RESTART else ""
+    claim = _claim_key(target)
     try:
         if target.kind == TARGET_PLUGIN:
             ok, _label = await _reload_plugin(target.plugin, ctx)
             return ok
         if target.kind == TARGET_RESTART:
-            await _restart_node(node, ctx)
+            await _restart_node(claim, ctx)
+        elif target.kind == TARGET_CONSOLE:
+            await _reread_sites(app)
         return None
     except asyncio.CancelledError:         # pragma: no cover - the loop is ending anyway
         raise
@@ -631,8 +794,115 @@ async def execute(target: ApplyTarget, ctx: Any) -> bool | None:
         log.exception("Apply: applying the change for %s failed.", target)
         return False if target.kind == TARGET_PLUGIN else None
     finally:
-        if node:
-            _join_in_flight(node)
+        if claim:
+            _join_in_flight(claim)
+
+
+#: how long a detached apply waits before it starts, so the redirect's answer reaches the browser
+#: first. Short enough that a re-read is still the same second as the press.
+_DETACHED_DELAY = 0.25
+
+#: the detached apply tasks this process runs, kept referenced so the event loop cannot collect one
+#: mid-flight and dropped the moment it finishes.
+_DETACHED: set[asyncio.Task] = set()
+
+
+def _detached(target: ApplyTarget, ctx: Any, *, app: Any = None) -> None:
+    """Start ONE apply OFF the response's own lifecycle — never inside it.
+
+    The response redirects and is done; this task outlives it. That is the whole point: work the
+    response awaits holds its connection open for as long as the work takes. *app* is the console
+    application the request ran on; it is handed to :func:`execute` so the re-read happens on the
+    application that answered, not on whatever a registry lookup returns later.
+    """
+    async def runner() -> None:
+        try:
+            await asyncio.sleep(_DETACHED_DELAY)
+            await execute(target, ctx, app=app)
+        except asyncio.CancelledError:    # pragma: no cover - the loop is ending anyway
+            raise
+        except Exception:                 # pragma: no cover - execute() guards its own body
+            log.exception("Apply: the detached apply for %s failed.", target)
+
+    task = asyncio.create_task(runner())
+    _DETACHED.add(task)
+    task.add_done_callback(_DETACHED.discard)
+
+
+def _console_app() -> Any:
+    """The console's own ASGI app from the service registry, or ``None``. Never raises."""
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.webservice.service import WebService
+
+        service = ServiceRegistry.get(WebService)
+    except Exception:                      # no registry, no service module
+        return None
+    return getattr(service, "app", None)
+
+
+async def _reread_sites(app: Any = None) -> bool:
+    """Rebuild the public site's route table from its settings file, for the console it serves.
+
+    The file is already written; reading it again IS the apply. ``site_pages.rebuild`` builds the
+    whole new site table and swaps it in with one assignment — it never rebuilds the application —
+    so a site switched off, switched on or re-addressed takes effect on the next request. The build
+    runs off the event loop because it is the only part that can take measurable time (a YAML parse
+    plus the site parser) while the console serves its pages from that same loop.
+
+    *app* is the application the saving request ran on (the door passes it); ``_console_app()`` is
+    the fallback for a caller without one. A missing application or route table is logged with the
+    reason the door's own refusal names, so the log and the sentence an operator saw agree.
+    """
+    from . import site_pages
+
+    if app is None:
+        app = _console_app()
+    if app is None:
+        log.warning("Apply: cannot re-read the site settings - %s.", WHY_NO_CONSOLE_APP)
+        return False
+    registrar = getattr(getattr(app, "state", None), "webui_registrar", None)
+    if registrar is None:
+        log.warning("Apply: cannot re-read the site settings - %s.", WHY_NO_CONSOLE_REGISTRAR)
+        return False
+    await asyncio.to_thread(site_pages.rebuild, registrar, app)
+    log.info("Apply: the public site's route table was rebuilt from its settings file.")
+    return True
+
+
+async def apply_console(request, *, app: Any = None) -> str:
+    """Re-read the site settings NOW on the console application and report the outcome.
+
+    The empty string means the re-read ran, so the file's structure is live on the next request. A
+    non-empty answer is the refusal sentence naming the piece that stopped it — the same sentence
+    :func:`preflight` gives the door, from the same three checks plus the rebuild itself.
+
+    This runs BEFORE the response, because the caller's save has no confirmation step to hide
+    behind: the file is written and the running console is what the operator expects to have moved.
+    The re-read claims :data:`CONSOLE_CLAIM` for its duration, so a double submit cannot run two of
+    them at once, and it runs on *app* — the application the saving request answered on — off the
+    event loop. The claim is released however this returns.
+    """
+    target = ApplyTarget(TARGET_CONSOLE)
+    if not mark_in_flight(CONSOLE_CLAIM):
+        log.warning("Apply: the site settings were already being re-read - this save was not "
+                    "applied.")
+        return in_flight_sentence(request, target)
+    try:
+        resolved, refusal = _console_reread(request, app=app)
+        if resolved is None:
+            return refusal
+        try:
+            rebuilt = await _reread_sites(resolved)
+        except Exception:                  # noqa: BLE001 - the sentence names the step
+            log.exception("Apply: cannot re-read the site settings - %s.", WHY_REBUILD_FAILED)
+            return _say(request, REFUSED_CONSOLE_UNREACHABLE, reason=WHY_REBUILD_FAILED)
+        if not rebuilt:
+            log.warning("Apply: cannot re-read the site settings - %s.", WHY_NO_CONSOLE_REGISTRAR)
+            return _say(request, REFUSED_CONSOLE_UNREACHABLE, reason=WHY_NO_CONSOLE_REGISTRAR)
+        return ""
+    finally:
+        _join_in_flight(CONSOLE_CLAIM)
 
 
 async def _reload_plugin(plugin: str, ctx: Any) -> tuple[bool, str]:
@@ -700,7 +970,8 @@ def _settings():
 def _back(record) -> str:
     """Where a refusal returns to: the page the save came from, from the SESSION's own offer."""
     settings_page = _settings()
-    return settings_page.readmodels.text((record or {}).get("back")) or settings_page.SETTINGS_PATH
+    return (settings_page.readmodels.text((record or {}).get("back"))
+            or mount.url(settings_page.SETTINGS_PATH))
 
 
 def _record_of(request, form):
@@ -717,6 +988,11 @@ def _file_path(request, kind: str, name: str):
     if kind == settings_page.KIND_NODES:
         return (settings_page.config_dir(request) / settings_page.NODES_YAML_NAME
                 if name == settings_page.NODES_YAML_NAME else None)
+    # THE SITE FILE HAS NO PAGE LISTING YET: it is not one of the Settings area's global files, so it
+    # is found by the door's OWN site-file resolver — the same ``_SITE_DIRS`` the target comes from.
+    site = site_file_for(settings_page.config_dir(request), name)
+    if site is not None:
+        return site
     try:
         return settings_page.resolve_file(request, kind, name).path
     except HTTPException:
@@ -777,7 +1053,11 @@ def add_routes(router: APIRouter) -> APIRouter:
         target = target_of(record)
         if settings_page.readmodels.text(form.get(APPLY_ACTION_FIELD)) != APPLY_ACTION_APPLY:
             take_offer(request, kind, name)
-            settings_page._notice(request, owed(request, target), ok=True, refusal=True)
+            still_owed = owed(request, target)
+            # A target that owes nothing leaves no notice: there is nothing left to run, and the page
+            # the operator lands on already reads the file the change is in.
+            if still_owed:
+                settings_page._notice(request, still_owed, ok=True, refusal=True)
             return RedirectResponse(back, status_code=303)
         posted = settings_page.readmodels.text(form.get(APPLY_FIELD))
         if not hmac.compare_digest(str(record.get("token") or ""), posted):
@@ -790,14 +1070,12 @@ def add_routes(router: APIRouter) -> APIRouter:
         if refusal:
             take_offer(request, kind, name)
             return _refused(request, refusal, back)
-        if target.restarts:
-            node = target.node or master_name()
-            if not mark_in_flight(node):
-                take_offer(request, kind, name)
-                return _refused(request,
-                                i18n.translate(request, REFUSED_IN_FLIGHT, node=node), back)
+        claim = _claim_key(target)
+        if claim and not mark_in_flight(claim):
+            take_offer(request, kind, name)
+            return _refused(request, in_flight_sentence(request, target), back)
         take_offer(request, kind, name)
-        if not target.restarts:
+        if target.kind == TARGET_PLUGIN:
             # A PLUGIN RELOAD IS AWAITED: it ends in this process and takes milliseconds, so the page
             # the operator lands on is rendered AFTER it and shows the configuration that is now live.
             ok = await execute(target, ctx)
@@ -810,7 +1088,13 @@ def add_routes(router: APIRouter) -> APIRouter:
         settings_page._notice(request, pending(request, target, audited=audit_available()),
                               ok=True, refusal=True, pending=True, reload=back)
         response = RedirectResponse(back, status_code=303)
-        response.background = BackgroundTask(execute, target, ctx)
+        if target.kind == TARGET_CONSOLE:
+            # THE RE-READ IS DETACHED, never the response's own background task: the file is written,
+            # so nothing in this answer may wait for it. The application this request is running on
+            # travels with it: that is the console the re-read must land on.
+            _detached(target, ctx, app=request.app)
+        else:
+            response.background = BackgroundTask(execute, target, ctx)
         return response
 
     return router

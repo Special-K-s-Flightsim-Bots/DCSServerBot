@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-08 12:08+0100\n"
+"POT-Creation-Date: 2026-11-13 01:12+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -81,12 +81,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "用于 Amazon Polly 的 AWS 私有访问密钥。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:381
+#: services/webservice/schemas/webservice_schema.yaml:551
 msgid "Account name of the local console user."
 msgstr "本地控制台用户的账户名称。"
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:370
+#: services/webservice/schemas/webservice_schema.yaml:540
 msgid "Accounts that may sign in with a username and password."
 msgstr "可以使用用户名和密码登录的账户。"
 
@@ -808,6 +808,11 @@ msgstr "屏蔽名字中含有脏话的玩家。"
 msgid "Block slots until the player has SRS activated."
 msgstr "在玩家激活 SRS 前阻止其使用席位。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.expert
+#: services/webservice/schemas/webservice_schema.yaml:378
+msgid "Body of one :root rule of token declarations; at most 8 KB."
+msgstr ":root 规则中的令牌声明内容；最多 8 KB。"
+
 #. discord_schema:schema;element_schema.reaction.message
 #: plugins/discord/schemas/discord_schema.yaml:117
 msgid "Body text of the reaction message."
@@ -834,10 +839,9 @@ msgid "Bot directories that are zipped into the backup."
 msgstr "压缩进备份的机器人目录。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).branding.title
-#: services/webservice/schemas/webservice_schema.yaml:256
-#, fuzzy
+#: services/webservice/schemas/webservice_schema.yaml:274
 msgid "Brand title of the site."
-msgstr "服务器面板的背景样式。"
+msgstr "站点的品牌标题。"
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.insert-key
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.insert-key
@@ -1064,7 +1068,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "服务器启动时清除所有维护标记。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:441
+#: services/webservice/schemas/webservice_schema.yaml:611
 msgid "Client id of your Discord application."
 msgstr "你的 Discord 应用程序的客户端 ID。"
 
@@ -1575,6 +1579,11 @@ msgstr "投送检测半径（米）。"
 msgid "Deprecated CPU affinity for DCS_Server.exe; use auto_affinity."
 msgstr "已弃用的 DCS_Server.exe CPU 亲和性；请使用 auto_affinity。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.copyright
+#: services/webservice/schemas/webservice_schema.yaml:318
+msgid "Deprecated and ignored — the footer carries the fixed attribution."
+msgstr ""
+
 #. scheduler_schema:schema;action_map.local_times
 #: plugins/scheduler/schemas/scheduler_schema.yaml:14
 msgid "Deprecated; use the times setting instead."
@@ -1739,7 +1748,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "丢弃短于该分钟数的飞行。"
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:426
+#: services/webservice/schemas/webservice_schema.yaml:596
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord OAuth 登录；进入控制台的第二道门。"
 
@@ -2114,7 +2123,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "ElevenLabs 文本转语音提供商设置。"
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:474
+#: services/webservice/schemas/webservice_schema.yaml:655
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "身份提供商损坏时使用的应急管理员凭据。"
 
@@ -2159,7 +2168,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "启用 DDoS 检测（Windows 上需要 NPCAP）。"
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:436
+#: services/webservice/schemas/webservice_schema.yaml:606
 msgid "Enable Discord OAuth login."
 msgstr "启用 Discord OAuth 登录。"
 
@@ -2299,7 +2308,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "为此服务器启用 competitive 插件。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:484
+#: services/webservice/schemas/webservice_schema.yaml:665
 msgid "Enable the emergency Admin credential."
 msgstr "启用应急管理员凭据。"
 
@@ -2329,7 +2338,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "在此服务器实例上启用锦标赛功能。"
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:365
+#: services/webservice/schemas/webservice_schema.yaml:535
 msgid "Enable username/password login for the console."
 msgstr "为控制台启用用户名/密码登录。"
 
@@ -2948,8 +2957,13 @@ msgstr "此实例监听的 IP 和端口；若非单进程则必需。"
 msgid "IPs always allowed through during firewall blocks."
 msgstr "防火墙封禁期间始终放行的 IP。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.preset
+#: services/webservice/schemas/webservice_schema.yaml:361
+msgid "Id of a shipped palette preset; at most one theme source may be set."
+msgstr "内置配色预设的 ID；最多只能设置一个主题来源。"
+
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:334
+#: services/webservice/schemas/webservice_schema.yaml:504
 msgid "Identity layer of the admin web UI; optional."
 msgstr "管理 Web UI 的身份层；可选。"
 
@@ -2974,7 +2988,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "将真实世界天气注入任务。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:448
+#: services/webservice/schemas/webservice_schema.yaml:618
 msgid "Inline Discord client secret; used when no key is set."
 msgstr "内联的 Discord 客户端密钥；未设置密钥时使用。"
 
@@ -3111,9 +3125,21 @@ msgid "Label shown for this entry in the /download list."
 msgstr "此条目在 /download 列表中显示的标签。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).lang
-#: services/webservice/schemas/webservice_schema.yaml:327
+#: services/webservice/schemas/webservice_schema.yaml:485
 msgid "Language the site renders in."
 msgstr ""
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).metrics
+#: services/webservice/schemas/webservice_schema.yaml:473
+msgid ""
+"Leaderboard metric ids the site offers; the board opens on the character's first choice among "
+"them, else the first one listed."
+msgstr "站点提供的排行榜指标标识；榜单以该站点社区类型的首个偏好打开，否则以列出的第一个打开。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).theme.sheet
+#: services/webservice/schemas/webservice_schema.yaml:370
+msgid "Leaf name of an uploaded palette sheet in the site's asset folder; served as written."
+msgstr "站点资源文件夹中已上传配色样式表的文件名；按原样提供。"
 
 #. servers_schema:regex;(.+).slot_spamming.check_time
 #: schemas/servers_schema.yaml:474
@@ -3238,9 +3264,8 @@ msgstr "要合并到匹配元素中的 Lua 表。"
 
 #. mcpservice_schema:DEFAULT
 #: services/mcpservice/schemas/mcpservice_schema.yaml:81
-#, fuzzy
 msgid "MCP surface settings; the service runs on the master node only."
-msgstr "服务监听的 TCP 端口；每个节点唯一。"
+msgstr "MCP 接口设置；该服务只在主节点上运行。"
 
 #. main_schema:<root>
 #: schemas/main_schema.yaml:3
@@ -3994,7 +4019,7 @@ msgid "Name shown for this instance's LotAtc entry in the status embed."
 msgstr "状态嵌入中此实例 LotAtc 条目显示的名称。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).nav
-#: services/webservice/schemas/webservice_schema.yaml:301
+#: services/webservice/schemas/webservice_schema.yaml:394
 msgid "Nav page ids the site offers, in order."
 msgstr ""
 
@@ -4163,10 +4188,9 @@ msgid "Offset applied to the mission time, e.g. 0h5m."
 msgstr "应用于任务时间的偏移，例如 0h5m。"
 
 #. webservice_schema:DEFAULT.sites
-#: services/webservice/schemas/webservice_schema.yaml:210
-#, fuzzy
+#: services/webservice/schemas/webservice_schema.yaml:211
 msgid "One block per public site, keyed by the site's name."
-msgstr "每台无线电一个条目，以无线电名称作为键。"
+msgstr "每个公开站点一个配置块，以站点名称为键。"
 
 #. mcpservice_schema:DEFAULT.keys
 #: services/mcpservice/schemas/mcpservice_schema.yaml:99
@@ -4192,6 +4216,12 @@ msgstr "一个提醒块，或用于不同延时的提醒块列表。"
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:71
 msgid "One restriction entry."
 msgstr "一个限制条目。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.welcome
+#: services/webservice/schemas/webservice_schema.yaml:294
+#, python-format
+msgid "One-line welcome text; %(community)s is filled with the community's name."
+msgstr "单行欢迎文本；%(community)s 会替换为社区名称。"
 
 #. flightplan_schema:schema;auto_lifecycle_schema.require_departure_match
 #: plugins/flightplan/schemas/flightplan_schema.yaml:33
@@ -4354,12 +4384,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "每个客户端的出站网络带宽限制，单位为字节/秒。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:388
+#: services/webservice/schemas/webservice_schema.yaml:558
 msgid "PBKDF2 hash of the account's password."
 msgstr "账户密码的 PBKDF2 哈希。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:494
+#: services/webservice/schemas/webservice_schema.yaml:675
 msgid "PBKDF2 hash of the emergency password."
 msgstr "应急密码的 PBKDF2 哈希。"
 
@@ -4369,10 +4399,9 @@ msgid "Package name, matching the OvGME folder or zip name."
 msgstr "包名称，与 OvGME 文件夹或 zip 名称一致。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).theme
-#: services/webservice/schemas/webservice_schema.yaml:276
-#, fuzzy
+#: services/webservice/schemas/webservice_schema.yaml:349
 msgid "Palette overrides of the site."
-msgstr "要覆盖到匹配元素上的值。"
+msgstr "站点的调色板覆盖项。"
 
 #. commands_schema:schema;cmd_params_schema
 #: plugins/commands/schemas/commands_schema.yaml:57
@@ -4501,7 +4530,7 @@ msgid "Path to the instance's Saved Games directory."
 msgstr "实例的 Saved Games 目录路径。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).branding.logo
-#: services/webservice/schemas/webservice_schema.yaml:262
+#: services/webservice/schemas/webservice_schema.yaml:309
 msgid "Path to the site's logo image."
 msgstr ""
 
@@ -4972,7 +5001,7 @@ msgid "Public URL shown to players instead of the server IP."
 msgstr "向玩家显示的公共 URL，替代服务器 IP。"
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:346
+#: services/webservice/schemas/webservice_schema.yaml:516
 msgid "Public origin the console is reachable at."
 msgstr "控制台可供访问的公共源。"
 
@@ -5010,11 +5039,6 @@ msgstr "无线电类型。仅支持 SRSRadio。"
 #: extensions/skyeye/schemas/skyeye_schema.yaml:192
 msgid "Radius in nautical miles that always counts as a threat."
 msgstr "始终视为威胁的半径（海里）。"
-
-#. webservice_schema:DEFAULT.sites.regex;(.+).branding.footer_html
-#: services/webservice/schemas/webservice_schema.yaml:268
-msgid "Raw HTML of the site's footer; empty renders none."
-msgstr ""
 
 #. firewall_schema:schema;element_schema.ddos_detection.action
 #: services/firewall/schemas/firewall_schema.yaml:39
@@ -5115,7 +5139,7 @@ msgid "Remaining battery percentage that triggers each action."
 msgstr "触发每项操作的剩余电量百分比。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).theme.light
-#: services/webservice/schemas/webservice_schema.yaml:292
+#: services/webservice/schemas/webservice_schema.yaml:385
 msgid "Render the site in the light palette."
 msgstr ""
 
@@ -5258,7 +5282,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "欢迎消息中提及的角色。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:395
+#: services/webservice/schemas/webservice_schema.yaml:565
 msgid "Role names granted to this account, validated at startup."
 msgstr "授予此账户的角色名称，启动时校验。"
 
@@ -5434,7 +5458,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "启动即暂停的服务器再次暂停前运行的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:467
+#: services/webservice/schemas/webservice_schema.yaml:637
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "未启用 intent 时成员解析的缓存秒数。"
 
@@ -5620,7 +5644,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "没有对手玩家并赢得比赛的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:456
+#: services/webservice/schemas/webservice_schema.yaml:626
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "保存客户端密钥的密钥库键；优先于内联值。"
 
@@ -5636,6 +5660,11 @@ msgstr "应用于你所有 DCS 服务器的区段。"
 #: plugins/cloud/schemas/cloud_schema.yaml:62
 msgid "Send anonymous usage statistics to the cloud service."
 msgstr "向云服务发送匿名使用统计。"
+
+#. webservice_schema:DEFAULT.auth.discord.auto_start
+#: services/webservice/schemas/webservice_schema.yaml:648
+msgid "Send anonymous visitors straight into Discord sign-in."
+msgstr ""
 
 #. webservice_schema:DEFAULT.debug
 #: services/webservice/schemas/webservice_schema.yaml:17
@@ -5691,6 +5720,11 @@ msgstr "管理 Web UI 的会话 Cookie 设置。"
 #: services/webservice/schemas/webservice_schema.yaml:130
 msgid "Session lifetime in seconds."
 msgstr "会话生存时间，以秒为单位。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).avatar
+#: services/webservice/schemas/webservice_schema.yaml:259
+msgid "Set by the site's avatar upload; not meant to be edited by hand."
+msgstr "由站点头像上传设置；不应手动编辑。"
 
 #. nodes_schema:regex;(.+).cluster.cloud_drive
 #: schemas/nodes_schema.yaml:119
@@ -5851,6 +5885,11 @@ msgstr "在重启或轮换前关闭 DCS 服务器。"
 #: plugins/voting/schemas/restart_schema.yaml:13
 msgid "Shut the server down instead of a soft restart."
 msgstr "关闭服务器，而非软重启。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.mark_side
+#: services/webservice/schemas/webservice_schema.yaml:303
+msgid "Side of the hero's headline the mark is drawn on."
+msgstr ""
 
 #. punishment_schema:schema;element_schema.exemptions.side
 #: plugins/punishment/schemas/punishment_schema.yaml:236
@@ -6126,20 +6165,75 @@ msgstr "与积分相关的游戏内消息文本模板。"
 msgid "The action to run and its parameters."
 msgstr "要运行的操作及其参数。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.community
+#: services/webservice/schemas/webservice_schema.yaml:432
+msgid "The community readouts band of the overview."
+msgstr "概览页的社区数据条。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.community_name
+#: services/webservice/schemas/webservice_schema.yaml:284
+msgid "The community's name, as the hero's greeting uses it."
+msgstr ""
+
 #. backup_schema:backups
 #: services/backup/schemas/backup_schema.yaml:18
 msgid "The database, servers and bot backup jobs."
 msgstr "数据库、服务器和机器人的备份任务。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.footer_links
+#: services/webservice/schemas/webservice_schema.yaml:326
+msgid "The footer's links, in declaration order."
+msgstr ""
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.when_we_fly
+#: services/webservice/schemas/webservice_schema.yaml:452
+msgid "The hours-flown-by-hour-of-day panel; shares its row with the aircraft panel."
+msgstr "按一天中的小时统计飞行时长的面板；与机型面板共用一行。"
 
 #. dks_schema:schema;dks_schema.key
 #: extensions/dks/schemas/dks_schema.yaml:30
 msgid "The install code from your server's page in DKS."
 msgstr ""
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).character
+#: services/webservice/schemas/webservice_schema.yaml:497
+msgid "The kind of community the site is; decides which figures lead and which metric the board opens on."
+msgstr "该站点属于哪类社区；决定哪些数字排在前面，以及榜单以哪个指标打开。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.aircraft
+#: services/webservice/schemas/webservice_schema.yaml:447
+msgid "The most-flown aircraft panel."
+msgstr "最常驾驶机型面板。"
+
 #. dks_schema:schema;dks_schema.name
 #: extensions/dks/schemas/dks_schema.yaml:14
 msgid "The name shown for the extension."
 msgstr "为该扩展显示的名称。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.season
+#: services/webservice/schemas/webservice_schema.yaml:437
+msgid "The season panel (hours and sorties per week)."
+msgstr "赛季面板（每周飞行时长与出动架次）。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.servers
+#: services/webservice/schemas/webservice_schema.yaml:462
+msgid "The server board of the overview."
+msgstr "概览页的服务器面板。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.squadrons
+#: services/webservice/schemas/webservice_schema.yaml:457
+msgid "The squadrons section; needs the CreditSystem plugin."
+msgstr "中队区块；需要 CreditSystem 插件。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.standings
+#: services/webservice/schemas/webservice_schema.yaml:442
+msgid "The top-pilots standings table."
+msgstr "顶尖飞行员积分榜表格。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.footer_links.[0].label
+#: services/webservice/schemas/webservice_schema.yaml:336
+msgid "The words a visitor reads."
+msgstr ""
 
 #. tournament_schema:schema;element_schema.presets.regex;(.+).ticket
 #: plugins/tournament/schemas/tournament_schema.yaml:198
@@ -6152,7 +6246,7 @@ msgid "Ticket types squadrons receive, keyed by ticket name."
 msgstr "中队获得的票券类型，以票券名称为键。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).tiles
-#: services/webservice/schemas/webservice_schema.yaml:315
+#: services/webservice/schemas/webservice_schema.yaml:408
 msgid "Tile ids the site's overview shows, in order."
 msgstr ""
 
@@ -6215,13 +6309,8 @@ msgid "Title used on the mission end embed."
 msgstr "任务结束嵌入使用的标题。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).branding
-#: services/webservice/schemas/webservice_schema.yaml:246
+#: services/webservice/schemas/webservice_schema.yaml:265
 msgid "Title, logo and footer of the site."
-msgstr ""
-
-#. webservice_schema:DEFAULT.sites.regex;(.+).theme.stylesheet
-#: services/webservice/schemas/webservice_schema.yaml:286
-msgid "Token-only stylesheet; relative to the config directory."
 msgstr ""
 
 #. mcpservice_schema:schema;key_entry_jwt.level
@@ -6302,7 +6391,7 @@ msgid "URL template of this map layer's tiles."
 msgstr "此地图图层瓦片的 URL 模板。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).slug
-#: services/webservice/schemas/webservice_schema.yaml:231
+#: services/webservice/schemas/webservice_schema.yaml:232
 msgid "URL-safe path segment of the site; the root site's is empty."
 msgstr ""
 
@@ -6463,7 +6552,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "登录 NUT 服务器的用户（可选）。"
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:351
+#: services/webservice/schemas/webservice_schema.yaml:521
 msgid "Username and password login for the console."
 msgstr "控制台的用户名和密码登录。"
 
@@ -6478,7 +6567,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "代理的用户名（若需要身份验证）。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:489
+#: services/webservice/schemas/webservice_schema.yaml:670
 msgid "Username of the emergency Admin account."
 msgstr "应急管理员账户的用户名。"
 
@@ -6692,6 +6781,11 @@ msgstr "下载的 Tacview 文件上传到哪里。"
 msgid "Where the files are sent, such as a path or channel ID."
 msgstr "文件发送的位置，例如路径或频道 ID。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).branding.footer_links.[0].href
+#: services/webservice/schemas/webservice_schema.yaml:341
+msgid "Where the link leads."
+msgstr ""
+
 #. modmanager_schema:schema;package_schema.[0].source
 #: services/modmanager/schemas/modmanager_schema.yaml:26
 msgid "Where the package is installed to on the server."
@@ -6782,6 +6876,11 @@ msgstr "该参数是否必须提供。"
 msgid "Whether the persistence extension is enabled."
 msgstr "是否启用持久化扩展。"
 
+#. webservice_schema:DEFAULT.sites.regex;(.+).enabled
+#: services/webservice/schemas/webservice_schema.yaml:250
+msgid "Whether the public site is served."
+msgstr "是否提供公共站点。"
+
 #. modmanager_schema:schema;modmanager_schema.enabled
 #: extensions/modmanager/schemas/modmanager_schema.yaml:8
 msgid "Whether the required-mods extension is enabled."
@@ -6791,6 +6890,14 @@ msgstr "是否启用 required-mods 扩展。"
 #: plugins/creditsystem/schemas/creditsystem_schema.yaml:133
 msgid "Whether the victim must be an AI unit or a human player."
 msgstr "受害者必须是 AI 单位还是真人玩家。"
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections
+#: services/webservice/schemas/webservice_schema.yaml:424
+msgid ""
+"Which overview sections the site shows; an absent id is on. A section that is off is neither "
+"rendered nor read, except the server board — the live band above the sections prints its figures."
+" The hero figure always stays."
+msgstr "站点显示哪些概览分区；缺少的标识视为开启。关闭的分区既不渲染也不查询，服务器面板除外 — 分区上方的实时条会显示它的数字。主数字始终保留。"
 
 #. skyeye_schema:schema;skyeye_config.whisper-model
 #: extensions/skyeye/schemas/skyeye_schema.yaml:122
@@ -6903,15 +7010,33 @@ msgid "Z-score above which traffic counts as anomalous."
 msgstr "高于该 Z 分数的流量即视为异常。"
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).group_role
-#: services/webservice/schemas/webservice_schema.yaml:240
+#: services/webservice/schemas/webservice_schema.yaml:241
 msgid "managed_by token this site shows; absent only for the root site."
 msgstr ""
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:411
+#: services/webservice/schemas/webservice_schema.yaml:581
 msgid "managed_by values this account may see and act on."
 msgstr "此账户可查看和操作的 managed_by 值。"
 
 #~ msgid "Dust haze density from 0 (none) to 10 (thick)."
 #~ msgstr "沙尘霾密度，从 0（无）到 10（浓）。"
+
+#~ msgid "Leaderboard metric ids the site offers."
+#~ msgstr "站点提供的排行榜指标 ID。"
+
+#~ msgid "Plain text of the site's footer, rendered escaped; empty renders none."
+#~ msgstr ""
+
+#~ msgid "Raw HTML of the site's footer; empty renders none."
+#~ msgstr ""
+
+#~ msgid "The holder the footer's copyright line names, printed as text."
+#~ msgstr ""
+
+#~ msgid "Token-only stylesheet; relative to the config directory."
+#~ msgstr ""
+
+#~ msgid "Which overview sections the site shows; an absent id is on."
+#~ msgstr "站点显示哪些概览区块；未列出的 ID 默认开启。"
 

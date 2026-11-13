@@ -1,0 +1,272 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's pilot profile — one pilot by UCID.
+
+  Every figure below is a value `pages/site_player.view()` composed from
+  `site_reads.pilot_profile`'s answer. The page renders the pilot's name, figures derived from the
+  statistics tables, the competitive plugin's rating when its tables exist, and links to the other
+  pilots of the same Discord link — never a Discord id, an address, a ban or watch state.
+
+  THE ORDER IS THE SITE'S CHARACTER. `model.readouts` and `model.combat` arrive already ordered by
+  `sites.<name>.character` (pvp / pve / pvpve), and the character is stated in one line in the
+  masthead's tags, so a visitor knows why the page leads with those numbers. The rating block is
+  emitted only when `model.rating` is set: without the competitive plugin the discipline panel
+  spans the full width and no empty panel is left behind.
+
+  THE RATING CHART has three shapes, chosen by what the read recorded: `model.rating.chart` (two or
+  more updates — band, μ polyline, end marker, three ticks, up to three dates), `model.rating.single`
+  (one update — a ±σ bar and its mark, no line, one full date) and neither, which renders the empty
+  sentence. The geometry is percent of a 0–100 box stretched to the plot, the tick and date labels
+  are page text, and the whole figure carries one `role="img"` sentence that states the value, the
+  confidence and the direction of change.
+
+  An unknown UCID arrives with the not-found model and answers 404.
+-#}
+{% block title %}{% if model.not_found %}{% trans %}Pilot not found{% endtrans %}{% else %}{{ model.name }}{% endif %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+{#- One date, composed from the site's catalog: the pattern carries the month and the order the
+    language wants, the figures are the model's own. -#}
+{% macro rcdate(label) -%}
+{{- _(label.pattern).format(day=label.day, year=label.year) -}}
+{%- endmacro %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Public record · no account needed{% endtrans %}</div>
+      <h1>{% if model.not_found %}{% trans %}Pilot not found{% endtrans %}{% else %}{{ model.name }}{% endif %}</h1>
+      {% if model.found %}
+      <div class="meta">{% if model.last_flown %}<span>{% trans when=model.last_flown %}last flown {{ when }}{% endtrans %}</span>{% endif %}</div>
+      <div class="tags">
+        <span class="tag">{{ _(model.character_line) }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+{% if model.not_found %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}No pilot answers to this address{% endtrans %}</h2></div>
+      <p class="note">{% trans %}Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead.{% endtrans %}</p>
+      <p><a class="btn" href="{{ model.search_href }}">{% trans %}Find a pilot{% endtrans %}</a></p>
+    </section>
+  </section>
+{% elif model.unavailable %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+  </section>
+{% else %}
+  <div class="strip five" style="margin-top:var(--sp-4)">
+    {% for readout in model.readouts %}
+    <div class="readout">
+      <div class="v">{{ readout.value }}{% if readout.unit %}<small>{{ _(readout.unit) }}</small>{% endif %}</div>
+      <div class="k">{{ _(readout.label) }}</div>
+      {#- a character may withhold a cell's note (the air-kills cell on a PvE site), so the line is
+          rendered only when the model carries one -#}
+      {% if readout.note %}<div class="q">{% if readout.note is mapping %}{{ say(readout.note) }}{% else %}{{ _(readout.note) }}{% endif %}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">01</span><h2>{% trans %}How they fight{% endtrans %}</h2>
+      <span class="meta">{% trans %}all time{% endtrans %}</span></div>
+    <p class="intro">{% trans %}What they shot down, split by who flew it: other players, or the mission's own air and ground forces.{% endtrans %}</p>
+    <div class="grid">
+      {% for panel in model.combat %}
+      <section class="panel c{{ panel.span }}">
+        <div class="hd"><h2>{{ _(panel.title) }}</h2></div>
+        <div class="fig-grid{% if panel.figures | length > 2 %} three{% endif %}">
+          {% for figure in panel.figures %}
+          <div>
+            <div class="pfig">{{ figure.value }}</div>
+            <div class="lbl">{{ _(figure.label) }}</div>
+            {% if figure.note %}<div class="sub">{{ say(figure.note) }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">02</span><h2>{% trans %}How they fly{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.discipline.sorties %}{{ count }} sorties{% endtrans %}</span></div>
+    <div class="grid">
+      <section class="panel {% if model.rating %}c7{% else %}c12{% endif %}">
+        <div class="hd"><h2>{% trans %}Flight discipline{% endtrans %}</h2>
+          <span class="meta">{% trans landings=model.discipline.landings, takeoffs=model.discipline.takeoffs %}{{ landings }} landings of {{ takeoffs }} takeoffs{% endtrans %}</span></div>
+        <ul class="hbars disc">
+          {% for row in model.discipline.rows %}
+          <li>
+            <div class="row"><span class="nm">{{ _(row.label) }}</span><span class="vv">{{ row.rate }}%</span></div>
+            <div class="track"><b style="width:{{ row.rate }}%"></b></div>
+            <div class="sub">{% trans count=row.value %}{{ count }} recorded{% endtrans %}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="note plain">{% trans %}Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots.{% endtrans %}</p>
+      </section>
+      {% if model.rating %}
+      <section class="panel c5" id="rating">
+        <div class="hd"><h2>{% trans %}Competitive rating{% endtrans %}</h2><span class="meta">{% trans %}TrueSkill · global{% endtrans %}</span></div>
+        <div class="readout rating">
+          <div class="v">{{ model.rating.value }}<small>σ {{ model.rating.sigma }}</small></div>
+          <div class="k">{% trans %}Conservative rating{% endtrans %}</div>
+          <div class="q">{{ say(model.rating.note) }}</div>
+        </div>
+        {%- if model.rating.chart %}
+        {%- set chart = model.rating.chart %}
+        {%- set when = rcdate(chart.aria_move.date) %}
+        <figure class="rc">
+          <div class="rc-legend" aria-hidden="true">
+            <span class="k"><i class="sw"></i>μ</span>
+            <span class="k"><i class="sw band"></i>±σ</span>
+          </div>
+          <div class="rc-frame" role="img" aria-label="{{ _(chart.aria_head.pattern).format(mu=chart.aria_head.mu, sigma=chart.aria_head.sigma) }} {{ _(chart.aria_move.pattern).format(delta=chart.aria_move.delta, date=when) }}">
+            <div class="rc-y" aria-hidden="true">
+              {%- for tick in chart.ticks %}
+              <span class="tick" style="top:{{ tick.top }}%"></span>
+              {%- endfor %}
+              {%- for tick in chart.ticks %}
+              <span class="v" style="top:{{ tick.top }}%">{{ tick.text }}</span>
+              {%- endfor %}
+            </div>
+            <div class="rc-plot" aria-hidden="true">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+                <path class="rc-band" d="{{ chart.band }}"/>
+                <polyline class="rc-line" points="{{ chart.line }}"/>
+              </svg>
+              <span class="rc-mark" style="left:{{ chart.point.x }}%;top:{{ chart.point.y }}%"></span>
+            </div>
+            <div class="rc-x" aria-hidden="true">
+              {%- for label in chart.labels %}
+              <span class="{{ label.place }}" style="left:{{ label.at }}%">{{ rcdate(label) }}</span>
+              {%- endfor %}
+            </div>
+          </div>
+          <figcaption>{{ _(chart.caption.pattern) }} {{ _(chart.caption.move.pattern).format(delta=chart.caption.move.delta) }}</figcaption>
+        </figure>
+        {%- elif model.rating.single %}
+        {%- set single = model.rating.single %}
+        <figure class="rc">
+          <div class="rc-frame" role="img" aria-label="{{ _(single.aria.pattern).format(mu=single.aria.mu, sigma=single.aria.sigma, date=rcdate(single.aria.date)) }}">
+            <div class="rc-y" aria-hidden="true">
+              {%- for tick in single.ticks %}
+              <span class="tick" style="top:{{ tick.top }}%"></span>
+              {%- endfor %}
+              {%- for tick in single.ticks %}
+              <span class="v" style="top:{{ tick.top }}%">{{ tick.text }}</span>
+              {%- endfor %}
+            </div>
+            <div class="rc-plot" aria-hidden="true">
+              <span class="rc-whisk" style="left:{{ single.point.x }}%;top:{{ single.bar.top }}%;height:{{ single.bar.height }}%"></span>
+              <span class="rc-mark" style="left:{{ single.point.x }}%;top:{{ single.point.y }}%"></span>
+            </div>
+            <div class="rc-x" aria-hidden="true">
+              <span class="{{ single.label.place }}" style="left:{{ single.label.at }}%">{{ rcdate(single.label) }}</span>
+            </div>
+          </div>
+          <figcaption>{{ _(single.caption) }}</figcaption>
+        </figure>
+        {%- else %}
+        <p class="rc-empty">{{ _(model.rating.empty_text) }}</p>
+        {%- endif %}
+        <p class="note plain">{% trans %}One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site.{% endtrans %}</p>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">03</span><h2>{% trans %}What they fly{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.airframes | length %}{{ count }} airframes{% endtrans %}</span></div>
+    <div class="grid">
+      <section class="panel c7">
+        <div class="hd"><h2>{% trans %}Airframe hours{% endtrans %}</h2><span class="meta">{% if model.most_flown %}{% trans %}Most flown{% endtrans %}: {{ model.most_flown }}{% else %}{% trans %}on this site's servers{% endtrans %}{% endif %}</span></div>
+        {% if model.airframes %}
+        <ul class="hbars">
+          {% for airframe in model.airframes %}
+          <li>
+            <div class="row"><span class="nm">{{ airframe.name }}</span><span class="vv">{{ airframe.hours }} {% trans %}h{% endtrans %}</span></div>
+            <div class="track"><b style="width:{{ airframe.share }}%"></b></div>
+            <div class="sub">{% trans count=airframe.sessions %}{{ count }} sessions{% endtrans %}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="note plain">{% trans %}Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most.{% endtrans %}</p>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded for this pilot on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+
+      <section class="panel c5">
+        <div class="hd"><h2>{% trans %}Sessions per server{% endtrans %}</h2><span class="meta">{% trans %}all time{% endtrans %}</span></div>
+        {% if model.servers %}
+        <table class="tbl">
+          <thead><tr><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Playtime{% endtrans %}</th><th class="r">{% trans %}Sessions{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for server in model.servers %}
+            <tr><td><span class="nm">{{ server.name }}</span></td><td class="r">{{ server.hours }} {% trans %}h{% endtrans %}</td><td class="r">{{ server.sessions }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded for this pilot on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">04</span><h2>{% trans %}Recent sorties{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.recent | length %}{{ count }} sessions{% endtrans %}</span></div>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Last flights{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+        {% if model.recent %}
+        <table class="tbl recent">
+          <thead><tr><th>{% trans %}Date{% endtrans %}</th><th>{% trans %}Aircraft{% endtrans %}</th><th class="hide-sm">{% trans %}Mission{% endtrans %}</th><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Duration{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for sortie in model.recent %}
+            <tr><td>{{ sortie.date }}</td><td><span class="nm">{{ sortie.aircraft }}</span></td><td class="hide-sm">{{ sortie.mission }}</td><td>{{ sortie.server }}</td><td class="r dur">{{ sortie.hours }} {% trans %}h{% endtrans %} {{ sortie.minutes }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded for this pilot on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+
+  {% if model.linked %}
+  <section class="sect">
+    <div class="sect-head"><span class="no">05</span><h2>{% trans %}Also known as{% endtrans %}</h2>
+      <span class="meta">{% trans %}one Discord account, several player IDs{% endtrans %}</span></div>
+    <p class="intro">{% trans %}The same Discord account has flown under more than one player ID. Each name opens that profile.{% endtrans %}</p>
+    <section class="panel">
+      <ul class="hbars">
+        {% for pilot in model.linked %}
+        <li><div class="row"><a class="nm" href="{{ pilot.href }}">{{ pilot.name }}</a></div></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </section>
+  {% endif %}
+
+  <section class="sect">
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}Is this you?{% endtrans %}</h2><span class="meta">{% trans %}Discord link{% endtrans %}</span></div>
+      <p class="note"><b>{% trans %}Public profile.{% endtrans %}</b> {% trans %}This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures.{% endtrans %}</p>
+      <p><a class="btn" href="{{ model.leaderboard_href }}">{% trans %}Back to the leaderboard{% endtrans %}</a></p>
+    </section>
+  </section>
+{% endif %}
+</main>
+{% endblock %}

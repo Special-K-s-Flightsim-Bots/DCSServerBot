@@ -14,6 +14,20 @@ What is behind that login:
 - plugin pages: plugins register their own through the WebService, so the menu grows with the
   plugins you enable
 
+## Signing in
+
+An anonymous visitor to any guarded page — the site root included — is shown this console's own
+**login page**, carrying the page they were refused on. The page renders a door for every sign-in
+method the installation has enabled: a username/password form, a *Sign in with Discord* button, or
+both.
+
+A Discord-only installation shows the same page, with only the Discord button on it: its own button
+starts the OAuth flow, so the visitor always sees where they are signing in. Setting
+`auth.discord.auto_start: true` in `config/services/webservice.yaml` (default `false`) restores the
+immediate jump: a refused page then sends the visitor straight into the Discord provider, with no
+page in between. The key has no effect when a username/password backend is configured — the login
+page is where the visitor chooses, and the console never picks a door for them.
+
 ## Mission list
 
 ![The mission list of one server](assets/images/mission-list.png){ loading=lazy }
@@ -46,3 +60,28 @@ local users), and putting it on the internet behind HTTPS with nginx or Caddy.
 
 - [Web frontend on Linux](guides/webservice-frontend-linux.md) — Debian/Ubuntu or Fedora/RHEL
 - [Web frontend on Windows](guides/webservice-frontend-windows.md) — nginx with win-acme, or Caddy
+
+Beside the console, the same service can serve a public, read-only statistics site for your
+community — see [Public site](guides/public-site.md) for turning it on, branding it, and embedding
+it in a website you already run.
+
+## A public site's footer
+
+The footer is two things and nothing else: the product's attribution, `Powered by DCSServerBot`, and
+the site's own links. The attribution is **fixed and not configurable** — it is literal text in the
+site's shell template, the same wording in every language, with no key that sets it, shortens it or
+hides it. A site adds `branding.footer_links` beside it (an `http(s)`/`mailto` URL or a path on this
+installation), and those anchors are the whole of what a site can put in the footer. The old
+`branding.copyright` key is accepted in an existing file but ignored.
+
+## A public site's palette
+
+A site names its palette one of three ways, and at most one at a time: a shipped preset (`brass`,
+`slate`, `midnight`, `parchment`), a `.css` file uploaded on the site's own settings card, or an
+expert sheet written there. The uploaded file is stored with the site's assets
+(`config/site/theme.css`) and is served **exactly as written** — nothing checks it, so it may carry
+`@font-face`, `url()` and component rules, and the browser loads what it names from this
+installation's own origin. It replaces the retired `theme.stylesheet` path field: you pick a file
+instead of typing a path. The upload is limited to a `.css` name, UTF-8 bytes and 256 KB; a
+re-upload replaces it, and removing it returns the site to its preset. The
+[public site guide](guides/public-site.md#theme) has the keys and the rest.

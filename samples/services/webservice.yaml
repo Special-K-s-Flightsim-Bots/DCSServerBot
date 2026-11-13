@@ -18,6 +18,136 @@ DEFAULT:
     live: true            # Serve the live stream (default: true). Off = the page is not live.
     refresh_seconds: 2    # How often the fragments are re-rendered and pushed, in seconds (default: 2)
     stream_clients: 16    # Most concurrent live streams; past it a client gets its snapshot and the stream closes (default: 16)
+  # The public site: one block per SITE, each a view of a subset of the cluster's servers.
+  # Membership is NOT declared here — `servers.yaml`'s `managed_by` is the only authority:
+  #   - a site with a `group_role` shows the servers whose managed_by names that token;
+  #   - the site named `root` shows the servers that declare NO managed_by at all;
+  #   - a server naming two tokens belongs to both of those sites, and to no other.
+  # The block is parsed and validated at service startup, and again whenever the site settings are
+  # applied, and every refusal names the offending key (an unknown tile or nav page id, a theme
+  # block naming two palettes, an unknown key, a duplicate or non-URL-safe slug, or a group_role
+  # that matches no managed_by value in servers.yaml). A refused block at startup stops the admin
+  # web UI from installing: a site that renders an empty page because of a typo is worse than a
+  # service that will not start. A file that cannot be parsed at apply time changes nothing: the
+  # installed sites keep serving.
+  # Every key below is optional except a site's own name, and the default is stated beside it.
+  # A first URL segment that names no configured slug answers 404 — a mistyped address never falls
+  # back to the root site, or a visitor would be shown a group they are not in.
+  # ENABLING THIS BLOCK MOVES THE CONSOLE: the public site takes the site root, so the admin console
+  # is served at `/console/...` from then on and its dashboard is `/console` (the login page stays
+  # at `/auth/login`). DISABLING it — the block absent or empty — leaves the console dashboard at `/`.
+  #
+  # WHERE THIS BLOCK LIVES NOW: the site settings screen writes it to config/site.yaml (the same
+  # folder as this file, beside `nodes.yaml`). This file is the legacy home: its `sites:` block is
+  # read only while config/site.yaml does not exist, and one warning names both files. The keys are
+  # unchanged, so an existing block keeps working once it is moved across.
+  # sites:
+  #   root:                       # the site with no group token; shows the untagged servers
+  #     slug: ""                  # default "" — served at the site root. Required to be empty here;
+  #                               #   how the root site is mounted is decided separately.
+  #     enabled: true             # default true — false keeps every other key but serves no page:
+  #                               #   no route is registered for a disabled site (the console's
+  #                               #   apply rebuilds the table, so the switch is live, no restart)
+  #     avatar: false             # default false — written by the settings screen's avatar upload
+  #                               #   and its remove action, never by hand: it says that the site's
+  #                               #   three re-encoded PNGs exist (config/site/avatar-<size>.png at
+  #                               #   32, 64 and 128 pixels)
+  #     branding:
+  #       title: DCSServerBot     # default DCSServerBot
+  #       community_name: ""      # default none — the name the overview's hero greets with, after
+  #                               #   "Welcome to". With none it is the connected Discord guild's
+  #                               #   name, then main.yaml's `guild_name`, then the title. One line
+  #                               #   of plain TEXT, rendered escaped: no "<"/">", no line breaks,
+  #                               #   at most 60 characters (anything else is refused at startup).
+  #       welcome: ""             # default none — the sentence the overview prints under the hero's
+  #                               #   headline. One line of plain TEXT, rendered escaped: no
+  #                               #   "<"/">", no line breaks, at most 280 characters. `%(community)s`
+  #                               #   is the ONLY placeholder and is filled with the community's name
+  #                               #   (the same name the greeting above uses); any other `%(...)s`
+  #                               #   is refused at startup.
+  #       logo: ""                # default none — path to the site's logo image
+  #       mark_side: right        # default right — which side of the hero's headline the
+  #                               #   community's mark is drawn on: left | right. Any other value
+  #                               #   is refused at startup. It governs the hero's mark only; the
+  #                               #   bar's small mark never moves.
+  #                               # LEGACY, accepted and IGNORED: `copyright` names the footer's holder
+  #                               #   in older files. The footer's text is the product's fixed
+  #                               #   attribution ("Powered by DCSServerBot"), so the key has no
+  #                               #   effect and no control offers it; it is still read so a file that
+  #                               #   carries it keeps loading.
+  #       footer_links: []        # default [] — the footer's links, in order, right of the fixed
+  #                               #   attribution. The only markup a
+  #                               #   footer carries: each entry is {label, href}, and href is an
+  #                               #   http(s)/mailto URL or a path beginning with "/" (any other
+  #                               #   value is refused at startup). Example:
+  #                               #     footer_links:
+  #                               #       - {label: Imprint, href: "/imprint"}
+  #                               #       - {label: Discord, href: "https://discord.gg/…"}
+  #     theme:
+  #       preset: ""              # default none — the id of a shipped palette preset. `preset`,
+  #                               #   `sheet` and `expert` are three spellings of one intent: at
+  #                               #   most ONE of them may be set, and a block setting two is refused
+  #                               #   at startup. A preset this build no longer ships warns once and
+  #                               #   falls back to the shipped palette.
+  #       sheet: ""               # default none — the LEAF name of a .css file uploaded for this
+  #                               #   site, inside the site's asset folder (`site/` under the config
+  #                               #   directory; the Site settings page stores it as `theme.css`).
+  #                               #   It is served AS WRITTEN: no validation, so it may carry
+  #                               #   @font-face, url() and component rules, and the browser loads it
+  #                               #   from this installation's own origin. A name whose file is not
+  #                               #   there is refused at startup, naming the key and the file.
+  #       expert: ""              # default none — the body of ONE `:root` rule: `--name: value;`
+  #                               #   declarations only, never a selector, never an `@`-rule and
+  #                               #   never `url()`, at most 8 KB. It is stored in this file as a
+  #                               #   YAML literal block (`expert: |`), so the whole variant keeps
+  #                               #   the one write path.
+  #       light: false            # default false — render the light palette instead of the dark one
+  #     nav:                      # default every nav page id this build serves, in this order.
+  #                               #   Only ids with a built page belong here: an id with no page
+  #                               #   renders no entry, and a nav link that answers 404 is worse
+  #                               #   than an absent one.
+  #       - overview
+  #       - leaderboard
+  #       - players             # `squadrons` is NOT listed: its list and detail pages are not
+  #                               #   built yet, so a `- squadrons` entry would lead nowhere.
+  #     tiles:                    # default every tile id, in this order
+  #       - active_week
+  #       - online_now
+  #       - playtime_total
+  #       - avg_session
+  #       - peak_hour
+  #     lang: en                  # default en — a web UI language code; a code with no catalog is
+  #                               #   refused at startup
+  #     sections:                 # default every section on. A map of id -> true/false, and an id
+  #                               #   the map does not name is ON — so a site that declares nothing
+  #                               #   shows everything. A switched-off section is neither rendered
+  #                               #   nor queried; `community: false` hides the readouts row, not the
+  #                               #   hero's headline. The ids: community, season, standings,
+  #                               #   aircraft, when_we_fly, squadrons, servers. An unknown id is
+  #                               #   refused at startup. Example:
+  #                               #     sections:
+  #                               #       squadrons: false   # the CreditSystem plugin is not installed
+  #                               #       season: false
+  #     metrics:                  # default every metric the read layer can rank, in this order.
+  #                               #   The leaderboard boards the site offers; a control for a board
+  #                               #   the site does not offer is never rendered. Example:
+  #                               #     metrics: [playtime, air_targets, ships, air_defence,
+  #                               #               ground_targets, kd_ratio, pvp_kd_ratio]
+  #     character: pvpve          # default pvpve — the kind of community this site is, which
+  #                               #   decides which figures a page LEADS with (never which figures
+  #                               #   exist): pvp = the player-versus-player record first, pve =
+  #                               #   the targets and airframe hours first, pvpve = both side by
+  #                               #   side. One of exactly pvp, pve, pvpve; anything else is
+  #                               #   refused at startup. It is a DECLARED value, never derived
+  #                               #   from the data.
+  #   group1:                     # any name; every site except `root` needs a group_role
+  #     slug: group1              # default the site's own name — URL-safe ([a-z0-9][a-z0-9-]*),
+  #                               #   unique, and never one of the shell's own paths (/login,
+  #                               #   /logout, /static, /auth)
+  #     group_role: "5th Guards"  # the managed_by token this site shows: a role NAME or role ID,
+  #                               #   exactly as servers.yaml writes it. A value no server names is
+  #                               #   refused at startup (the site would serve nobody, silently).
+  #     branding: {title: 5th Guards}   # branding, theme, nav, tiles and lang as above
   # Session cookie of the admin web UI. Every value is explicit: nothing is derived from a request,
   # so the cookie behaves the same behind a reverse proxy as it does on localhost.
   session:
@@ -104,6 +234,13 @@ DEFAULT:
       # guild therefore loses the capability within this window - not at cookie expiry. With the
       # intent ON the bot's live member list is used and this key does nothing.
       # member_ttl: 60
+      #
+      # Whether an anonymous visitor to a guarded page is sent STRAIGHT into the Discord flow
+      # instead of the login page. Default false: the login page is shown, and its own Discord
+      # button starts the flow - the visitor always sees where they are signing in to. Only
+      # exactly `true` turns the jump on, and only when Discord is the ONLY door: with a
+      # username/password backend configured the login page is where the visitor chooses.
+      # auto_start: false
     # One Admin credential for the day the identity provider is what broke. Same store and format
     # as auth.local. Refused unless `enabled: true` is set explicitly; disable it again once used.
     breakglass:

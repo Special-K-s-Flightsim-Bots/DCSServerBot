@@ -1,0 +1,284 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's overview — the site root.
+
+  Every figure below is a value `pages/site_overview.view()` composed from the five scoped reads of
+  `site_reads`; no number here is typed by hand or taken from a sample. Every string a visitor reads
+  is a `{% trans %}` string in the `webui` domain.
+
+  The server picker in the live band is a plain GET form: it submits `?server=<name>` at this page,
+  "All servers" submits the empty value and clears the scope. The select's own value states the
+  scope in force. With JavaScript `static/site-picker.js` submits the form on change; without it the
+  `noscript` button is the submit control.
+
+  EVERY SECTION IS BEHIND ITS SITE'S SWITCH. `model.sections.<id>` carries a section's printed number
+  when the site renders it and nothing at all when it does not, so each band below is wrapped in
+  `{% if model.sections.<id> %}` — the number is the switch. A switched-off section is not rendered
+  and its read was not run. The hero and the live band stand outside every switch.
+-#}
+{% block content %}
+{#- The chart's SVG, rendered once per geometry. Both geometries are built from the same weekly
+    buckets by `pages/site_overview.chart()`, so the two figures cannot disagree; only the viewBox
+    and the number of x labels differ. -#}
+{% macro chart_svg(chart, variant) %}
+<svg class="chart {{ variant }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{{ _('Hours flown per week') }}">
+  {% for g in chart.gridlines %}
+  <line class="grid-l" x1="{{ chart.left }}" y1="{{ g.y }}" x2="{{ chart.right }}" y2="{{ g.y }}"/>
+  <text x="{{ chart.left - 7 }}" y="{{ g.y + 3.4 }}" text-anchor="end">{{ g.label }}</text>
+  <line class="tick" x1="{{ chart.left - 4 }}" y1="{{ g.y }}" x2="{{ chart.left }}" y2="{{ g.y }}"/>
+  {% endfor %}
+  <path class="area" d="{{ chart.area }}"/>
+  <path class="line" d="{{ chart.line }}"/>
+  {% for p in chart.points %}<circle class="{{ 'pt-peak' if p.peak else 'pt' }}" cx="{{ p.x }}" cy="{{ p.y }}" r="{{ 3 if p.peak else 2.2 }}"/>{% endfor %}
+  {% if chart.peak %}<text class="val-peak" x="{{ chart.peak.x }}" y="{{ chart.peak.y - 9 }}" text-anchor="middle">{{ chart.peak.hours }}</text>{% endif %}
+  {% for l in chart.xlabels %}<text x="{{ l.x }}" y="{{ chart.bottom + 20 }}" text-anchor="middle">{{ l.text }}</text>{% endfor %}
+  <line class="axis" x1="{{ chart.left }}" y1="{{ chart.bottom }}" x2="{{ chart.right }}" y2="{{ chart.bottom }}"/>
+</svg>
+{% endmacro %}
+{#- A bar chart's SVG, rendered once per geometry from `pages/site_overview.bars_chart()`. The two
+    geometries are built from the same entries, so the heights and the peak cannot disagree. The
+    bars are read as a shape: no bar carries its value, and the panel's foot states the peak. -#}
+{% macro bars_svg(chart, variant, label) %}
+<svg class="chart {{ variant }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="{{ label }}">
+  {% for b in chart.bars %}
+  <rect class="bar{{ ' now' if b.now else '' }}" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="2"/>
+  {% endfor %}
+  <line class="axis" x1="{{ chart.left }}" y1="{{ chart.bottom }}" x2="{{ chart.right }}" y2="{{ chart.bottom }}"/>
+  {% for l in chart.xlabels %}<text x="{{ l.x }}" y="{{ chart.bottom + 20 }}" text-anchor="middle">{{ l.text }}</text>{% endfor %}
+</svg>
+{% endmacro %}
+{% include "_site_hero.html" %}
+
+<div class="liveband"><div class="in">
+  <span class="tag"><span class="dot pulse" aria-hidden="true"></span>{% trans %}Live{% endtrans %}</span>
+  <div class="facts">
+    <span><b>{{ model.live.pilots_flying }}</b>{% trans %}pilots in the air{% endtrans %}</span>
+    <span><b>{% trans up=model.live.servers_up, total=model.live.servers_total %}{{ up }} of {{ total }}{% endtrans %}</b>{% trans %}servers up{% endtrans %}</span>
+    <span><b>{{ model.live.active_this_week }}</b>{% trans %}pilots this week{% endtrans %}</span>
+  </div>
+  <form class="pickbar" method="get" action="{{ model.picker.action }}" role="search">
+    <label class="pick-lbl" for="site-server">{% trans %}Server{% endtrans %}</label>
+    <select class="pick" id="site-server" name="{{ model.picker.param }}" data-autosubmit>
+      {% for option in model.picker.options %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}
+    </select>
+    <noscript><button class="pick-go" type="submit">{% trans %}Show{% endtrans %}</button></noscript>
+  </form>
+</div></div>
+
+<section class="giant"><div class="in">
+  <div>
+    <div class="lbl k">{% trans %}Hours in the air{% endtrans %}</div>
+    <div class="v">{{ model.hero.hours }}<small>{% trans %}h{% endtrans %}</small></div>
+  </div>
+  <div>
+    <p>{% trans %}Our pilots' time in the air on these servers, from the first mission to today.{% endtrans %}</p>
+    <div class="src">{{ model.picker.scope }} · {% trans %}since the beginning{% endtrans %}</div>
+  </div>
+</div></section>
+
+{% if model.sections.community %}
+<div class="boundary"><div class="in">
+  <span class="no">{{ model.sections.community }}</span>
+  <h2>{% trans %}This community{% endtrans %}</h2>
+  <span class="meta">{{ model.picker.scope }} · {% trans %}all time{% endtrans %}</span>
+</div>
+<div class="in"><div class="ticks" aria-hidden="true"></div></div>
+</div>
+{% endif %}
+
+<main class="in">
+  {% if unavailable %}
+  <section class="sect">
+    <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+  </section>
+  {% endif %}
+
+  {% if model.sections.community %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <div class="strip">
+      {% for r in model.readouts %}
+      <div class="readout">
+        <div class="v">{{ r.value }}{% if r.unit %}<small>{{ _(r.unit) }}</small>{% endif %}</div>
+        <div class="k">{{ _(r.label) }}</div>
+        {% if r.change is not none %}<div class="q">{% trans count=r.change %}{{ count }} vs. last week{% endtrans %}</div>{% endif %}
+        {% if r.share is not none %}<div class="bar"><i class="{{ r.tone }}" style="width:{{ r.share }}%"></i></div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if model.sections.season %}
+  <section class="sect">
+    <div class="sect-head"><span class="no">{{ model.sections.season }}</span><h2>{% trans %}The season so far{% endtrans %}</h2>
+      <span class="meta">{% trans weeks=model.activity.weeks %}{{ weeks }} weeks{% endtrans %}</span></div>
+    <div class="grid">
+      <section class="panel c6">
+        <div class="hd"><h2>{% trans %}Hours per week{% endtrans %}</h2><span class="meta">{{ model.activity.chart.range }}</span></div>
+        {% if model.activity.chart.empty %}
+        <p class="note">{% trans %}This window holds no recorded session yet.{% endtrans %}</p>
+        {% else %}
+        <div class="chart-wrap">
+          {{ chart_svg(model.activity.chart, 'is-wide') }}
+          {{ chart_svg(model.activity.chart_narrow, 'is-narrow') }}
+        </div>
+        <p class="note">{% trans %}A week with no session is drawn at zero, never left out: a gap in the line is a quiet week, not missing data.{% endtrans %}</p>
+        {% endif %}
+        <div class="pfoot">
+          <div class="fig-grid four">
+            <div><div class="pfig">{{ model.activity.figures.combined }}<small>{% trans %}h{% endtrans %}</small></div><div class="lbl">{% trans %}This season{% endtrans %}</div></div>
+            <div><div class="pfig">{{ model.activity.figures.busiest }}<small>{% trans %}h{% endtrans %}</small></div><div class="lbl">{% trans week=model.activity.figures.busiest_week %}Busiest · {{ week }}{% endtrans %}</div></div>
+            <div><div class="pfig">{{ model.activity.figures.average }}<small>{% trans %}h{% endtrans %}</small></div><div class="lbl">{% trans %}Average week{% endtrans %}</div></div>
+            <div><div class="pfig">{{ model.activity.figures.quietest }}<small>{% trans %}h{% endtrans %}</small></div><div class="lbl">{% trans week=model.activity.figures.quietest_week %}Quietest · {{ week }}{% endtrans %}</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel c6">
+        <div class="hd"><h2>{% trans %}Sorties per week{% endtrans %}</h2><span class="meta">{{ model.sorties.chart.range }}</span></div>
+        {% if model.sorties.empty %}
+        <p class="note">{% trans %}This window holds no recorded sortie yet.{% endtrans %}</p>
+        {% else %}
+        <div class="chart-wrap">
+          {{ bars_svg(model.sorties.chart, 'is-wide', _('Sorties flown per week')) }}
+          {{ bars_svg(model.sorties.chart_narrow, 'is-narrow', _('Sorties flown per week')) }}
+        </div>
+        <p class="note">{% trans %}One bar per week of the same window, the current week drawn in the brighter fill.{% endtrans %}</p>
+        {% endif %}
+        <div class="pfoot">
+          <div class="fig-grid four">
+            <div><div class="pfig">{{ model.sorties.figures.total }}</div><div class="lbl">{% trans %}Sorties{% endtrans %}</div></div>
+            <div><div class="pfig">{{ model.sorties.figures.busiest }}</div><div class="lbl">{% trans week=model.sorties.figures.busiest_week %}Busiest · {{ week }}{% endtrans %}</div></div>
+            <div><div class="pfig">{{ model.sorties.figures.average }}</div><div class="lbl">{% trans %}Average week{% endtrans %}</div></div>
+            <div><div class="pfig">{% if model.sorties.figures.change is not none %}{{ model.sorties.figures.change }}<small>{% trans %}%{% endtrans %}</small>{% else %}—{% endif %}</div><div class="lbl">{% trans %}vs. the first week{% endtrans %}</div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if model.sections.standings %}
+  <section class="sect" id="standings">
+    <div class="sect-head"><span class="no">{{ model.sections.standings }}</span><h2>{% trans %}The standings{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.standings.known %}{{ count }} pilots{% endtrans %}</span></div>
+    <p class="intro">{% trans %}Who has flown the most on these servers.{% endtrans %}</p>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Top pilots · playtime{% endtrans %}</h2><span class="meta">{% trans shown=model.standings.shown, known=model.standings.known %}top {{ shown }} of {{ known }}{% endtrans %}</span></div>
+        {% if model.standings.rows %}
+        <table class="tbl">
+          <thead><tr><th>#</th><th>{% trans %}Pilot{% endtrans %}</th><th class="r">{% trans %}Playtime{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for row in model.standings.rows %}
+            <tr{% if row.medal %} class="podium"{% endif %}><td class="rk">{% if row.medal %}<span class="medal {{ row.medal }}">{{ row.position }}</span>{% else %}{{ row.rank }}{% endif %}</td><td>{% if row.href %}<a class="nm" href="{{ row.href }}">{{ row.name }}</a>{% else %}<span class="nm">{{ row.name }}</span>{% endif %}</td><td class="r">{{ row.hours }} {% trans %}h{% endtrans %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if model.sections.aircraft or model.sections.when_we_fly %}
+  <section class="sect">
+    <div class="sect-head"><span class="no">{{ model.sections.aircraft or model.sections.when_we_fly }}</span><h2>{% if model.sections.aircraft %}{% trans %}The aircraft{% endtrans %}{% else %}{% trans %}When we fly{% endtrans %}{% endif %}</h2>
+      <span class="meta">{% trans %}all time{% endtrans %}</span></div>
+    <div class="grid">
+      {% if model.sections.aircraft %}
+      <section class="panel {{ 'c6' if model.sections.when_we_fly else 'c12' }}">
+        <div class="hd"><h2>{% trans %}Most flown{% endtrans %}</h2><span class="meta">{% trans %}hours{% endtrans %}</span></div>
+        {% if model.aircraft.empty %}
+        <p class="note">{% trans %}No aircraft has been flown on these servers yet.{% endtrans %}</p>
+        {% else %}
+        <ul class="hbars aircraft">
+          {% for aircraft in model.aircraft.rows %}
+          <li>
+            <div class="row"><span class="nm">{{ aircraft.slot }}</span><span class="vv">{% trans hours=aircraft.hours %}{{ hours }} h{% endtrans %}</span></div>
+            <div class="track"><b style="width:{{ aircraft.share }}%"></b></div>
+            <div class="sub">{% trans sorties=aircraft.sorties %}{{ sorties }} sorties{% endtrans %}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if model.sections.when_we_fly %}
+      <section class="panel {{ 'c6' if model.sections.aircraft else 'c12' }}">
+        <div class="hd"><h2>{% trans %}When we fly{% endtrans %}</h2><span class="meta">{% trans %}hours flown by hour · UTC{% endtrans %}</span></div>
+        {% if model.hours.empty %}
+        <p class="note">{% trans %}No sortie has been recorded on these servers yet.{% endtrans %}</p>
+        {% else %}
+        <div class="chart-wrap">
+          {{ bars_svg(model.hours.chart, 'is-wide', _('hours flown by hour · UTC')) }}
+          {{ bars_svg(model.hours.chart_narrow, 'is-narrow', _('hours flown by hour · UTC')) }}
+        </div>
+        <p class="note">{% trans %}Every bar is one UTC hour: flight time is split across the hours each session actually spanned.{% endtrans %}</p>
+        {% endif %}
+        <div class="pfoot">
+          <div class="fig-grid four">
+            <div><div class="pfig">{{ model.hours.figures.peak_hour or "—" }}</div><div class="lbl">{% trans %}Peak hour{% endtrans %}</div></div>
+            <div><div class="pfig">{{ _(model.hours.figures.busiest_day) if model.hours.figures.busiest_day else "—" }}</div><div class="lbl">{% trans %}Busiest day{% endtrans %}</div></div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if model.squadrons_section %}
+  <section class="sect">
+    <div class="sect-head"><span class="no">{{ model.sections.squadrons }}</span><h2>{% trans %}The squadrons{% endtrans %}</h2>
+      <span class="meta">{% trans %}campaign points{% endtrans %}</span></div>
+    <p class="intro">{% trans %}The squadrons that fly here.{% endtrans %}</p>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Campaign points{% endtrans %}</h2><span class="meta">{% trans %}scaled to the leader{% endtrans %}</span></div>
+        <ul class="hbars">
+          {% for squadron in model.squadrons %}
+          <li>
+            <div class="row"><span class="nm">{{ squadron.name }}</span><span class="vv">{{ squadron.points }}</span></div>
+            <div class="track"><b style="width:{{ squadron.share }}%"></b></div>
+            <div class="sub">{% trans members=squadron.members %}{{ members }} members{% endtrans %}{% if squadron.rating %} · {% trans %}rating{% endtrans %} {{ squadron.rating }}{% endif %}</div>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if model.sections.servers %}
+  <section class="sect" id="servers">
+    <div class="sect-head"><span class="no">{{ model.sections.servers }}</span><h2>{% trans %}The servers{% endtrans %}</h2>
+      <span class="meta">{{ _(model.window_label) }}</span></div>
+    <section class="panel c12" style="grid-column:1/-1">
+      <div class="hd"><h2>{% trans %}Server board{% endtrans %}</h2><span class="meta">{% trans up=model.live.servers_up, total=model.live.servers_total %}{{ up }} of {{ total }} up{% endtrans %}</span></div>
+      {% if model.servers %}
+      <table class="tbl">
+        <thead><tr><th>{% trans %}State{% endtrans %}</th><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Flying{% endtrans %}</th><th class="r">{% trans %}Playtime{% endtrans %}</th><th class="r hide-sm">{% trans %}Sorties{% endtrans %}</th></tr></thead>
+        <tbody>
+          {% for row in model.servers %}
+          <tr>
+            <td><span class="state"><span class="dot{% if not row.online %} quiet{% endif %}" aria-hidden="true"></span><b>{% if row.online %}{% trans %}Up{% endtrans %}{% else %}{% trans %}Off{% endtrans %}{% endif %}</b></span></td>
+            <td>{% if row.href %}<a class="nm" href="{{ row.href }}">{{ row.server_name }}</a>{% else %}<span class="nm">{{ row.server_name }}</span>{% endif %}</td>
+            <td class="r">{{ row.players_online }}</td>
+            <td class="r">{{ row.playtime }} {% trans %}h{% endtrans %}</td>
+            <td class="r hide-sm">{{ row.sorties }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="note">{% trans %}This site has no server of its own yet.{% endtrans %}</p>
+      {% endif %}
+    </section>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

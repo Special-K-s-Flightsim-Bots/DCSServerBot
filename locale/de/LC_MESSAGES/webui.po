@@ -742,8 +742,6 @@ msgid "Pick the preset file, then the preset inside it."
 msgstr "Erst die Preset-Datei wählen, dann das Preset darin."
 
 
-
-
 #: services/webservice/pages/actions.py:744
 msgid "Create your own weather"
 msgstr "Eigenes Wetter erstellen"
@@ -835,8 +833,6 @@ msgid ""
 msgstr ""
 "Nicht ausgeführt (das ist keine Preset-Datei, die dieser Node auflistet —"
 " öffne den Dialog neu und wähle eine aus der Liste)."
-
-
 
 
 #: services/webservice/pages/actions.py:800
@@ -3137,6 +3133,150 @@ msgstr "Laufzeit"
 msgid "Players"
 msgstr "Spieler"
 
+#: services/webservice/templates/site_overview.html:150
+msgid "%"
+msgstr "%"
+
+#: services/webservice/templates/site_overview.html:159
+#, python-format
+msgid "%(count)s pilots"
+msgstr "%(count)s Piloten"
+
+#: services/webservice/templates/site_overview.html:192
+#, python-format
+msgid "%(hours)s h"
+msgstr "%(hours)s Std."
+
+#: services/webservice/templates/site_overview.html:194
+#, python-format
+msgid "%(sorties)s sorties"
+msgstr "%(sorties)s Einsätze"
+
+#: services/webservice/templates/site_overview.html:111
+#, python-format
+msgid "%(weeks)s weeks"
+msgstr "%(weeks)s Wochen"
+
+#: services/webservice/pages/site_overview.py:501
+msgid "Average sortie"
+msgstr "Durchschnittlicher Einsatz"
+
+#: services/webservice/templates/site_overview.html:215
+msgid "Busiest day"
+msgstr "Geschäftigster Tag"
+
+#: services/webservice/pages/site_leaderboard.py:121
+msgid "Crashes"
+msgstr "Abstürze"
+
+#: services/webservice/templates/site_overview.html:209
+msgid "Every bar is one UTC hour: flight time is split across the hours each session actually spanned."
+msgstr "Jeder Balken ist eine UTC-Stunde: die Flugzeit wird auf die Stunden aufgeteilt, die eine Sitzung tatsächlich umfasste."
+
+#: services/webservice/templates/site_leaderboard.html:18
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
+msgstr "Alle Piloten auf diesen Servern, mit den Zahlen hinter dem Rang. Wähle eine Kennzahl oder sortiere eine Spalte."
+
+#: services/webservice/pages/site_overview.py:505
+msgid "Flew this week"
+msgstr "Diese Woche geflogen"
+
+#: services/webservice/templates/site_overview.html:114
+msgid "Hours per week"
+msgstr "Stunden pro Woche"
+
+#: services/webservice/pages/site_leaderboard.py:123
+msgid "Most flown"
+msgstr "Meistgeflogen"
+
+#: services/webservice/templates/site_overview.html:187
+msgid "No aircraft has been flown on these servers yet."
+msgstr "Auf diesen Servern wurde noch kein Flugzeug geflogen."
+
+#: services/webservice/templates/site_overview.html:204
+msgid "No sortie has been recorded on these servers yet."
+msgstr "Auf diesen Servern wurde noch kein Einsatz aufgezeichnet."
+
+#: services/webservice/templates/site_overview.html:143
+msgid "One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Ein Balken pro Woche desselben Zeitraums, die aktuelle Woche in der helleren Füllung."
+
+#: services/webservice/templates/site_overview.html:76
+msgid "Our pilots' time in the air on these servers, from the first mission to today."
+msgstr "Die Flugzeit unserer Piloten auf diesen Servern, von der ersten Mission bis heute."
+
+#: services/webservice/templates/site_overview.html:49
+msgid "Our servers, our pilots, our missions. Every sortie flown here is written down — who flew, what they flew, and how it ended."
+msgstr "Unsere Server, unsere Piloten, unsere Missionen. Jeder hier geflogene Einsatz wird aufgeschrieben — wer flog, womit, und wie er endete."
+
+#: services/webservice/templates/site_overview.html:214
+msgid "Peak hour"
+msgstr "Spitzenstunde"
+
+#: services/webservice/pages/site_leaderboard.py:120
+msgid "PvP"
+msgstr "PvP"
+
+#~ msgid "Sorties by hour of day"
+#~ msgstr "Einsätze nach Tagesstunde"
+
+#: services/webservice/templates/site_overview.html:140
+msgid "Sorties flown per week"
+msgstr "Geflogene Einsätze pro Woche"
+
+#: services/webservice/templates/site_overview.html:135
+msgid "Sorties per week"
+msgstr "Einsätze pro Woche"
+
+#: services/webservice/templates/site_overview.html:181
+msgid "The aircraft"
+msgstr "Die Flugzeuge"
+
+#: services/webservice/templates/site_overview.html:226
+msgid "The squadrons that fly here."
+msgstr "Die Staffeln, die hier fliegen."
+
+#: services/webservice/templates/site_overview.html:83
+msgid "This community"
+msgstr "Diese Community"
+
+#: services/webservice/templates/site_overview.html:126
+msgid "This season"
+msgstr "Diese Saison"
+
+#: services/webservice/templates/site_overview.html:137
+msgid "This window holds no recorded sortie yet."
+msgstr "Dieser Zeitraum enthält noch keinen aufgezeichneten Einsatz."
+
+#: services/webservice/site_pages.py:147
+#, python-format
+msgid "Welcome to %(community)s"
+msgstr "Willkommen bei %(community)s"
+
+#: services/webservice/templates/site_overview.html:202
+msgid "When we fly"
+msgstr "Wann wir fliegen"
+
+#: services/webservice/templates/site_overview.html:160
+msgid "Who has flown the most on these servers."
+msgstr "Wer auf diesen Servern am meisten geflogen ist."
+
+#: services/webservice/templates/site_overview.html:185
+msgid "hours"
+msgstr "Stunden"
+
+#: services/webservice/templates/site_overview.html:77
+msgid "since the beginning"
+msgstr "seit Beginn"
+
+#: services/webservice/templates/site_overview.html:201
+msgid "hours flown by hour · UTC"
+msgstr "Flugstunden pro Stunde · UTC"
+
+#: services/webservice/templates/site_overview.html:150
+msgid "vs. the first week"
+msgstr "ggü. der ersten Woche"
+
 #~ msgid ""
 #~ "Everyone online right now, across every server. Search by name or UCID. A"
 #~ " row you may act on offers Message: an in-game popup or a chat line."
@@ -3765,8 +3905,6 @@ msgstr ""
 #~ "ihrer Reihenfolge zusammengeführt, wie es der Node immer tat. Ohne "
 #~ "JavaScript zeigt die Liste die Presets jeder Datei unter ihrem eigenen "
 #~ "Dateinamen."
-
-
 
 
 #: services/webservice/pages/presets.py:1194
@@ -6787,12 +6925,12 @@ msgstr "In der globalen DGSA-Bannliste geführt, die jede Installation abgleicht
 
 #: services/webservice/templates/base.html:47
 #: services/webservice/templates/login.html:40
-msgid "Admin Console"
-msgstr "Admin-Konsole"
+msgid "Command Center"
+msgstr "Kommandozentrale"
 
 #: services/webservice/templates/base.html:25
-msgid "DCSServerBot Admin Console"
-msgstr "DCSServerBot Admin-Konsole"
+msgid "DCSServerBot Command Center"
+msgstr "DCSServerBot Kommandozentrale"
 
 #: services/webservice/templates/base.html:100
 msgid "Sign out"
@@ -7024,12 +7162,6 @@ msgstr ""
 #: services/webservice/templates/settings_scope.html:107
 msgid "The file, as YAML"
 msgstr "Die Datei als YAML"
-
-#: services/webservice/templates/node_page.html:107
-#: services/webservice/templates/settings.html:120
-#: services/webservice/templates/settings_scope.html:110
-msgid "Expert Mode"
-msgstr ""
 
 #: services/webservice/templates/node_page.html:111
 #: services/webservice/templates/settings.html:124
@@ -9376,6 +9508,35 @@ msgstr "Das %(plugin)s-Plugin wurde neu geladen, die Änderung ist aktiv."
 msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
 msgstr "Das %(plugin)s-Plugin konnte NICHT neu geladen werden — die Datei enthält die Änderung, der laufende Bot nicht. Starte den Bot neu, um sie anzuwenden."
 
+#: services/webservice/config_apply.py
+msgid "Re-read the site settings now?"
+msgstr "Website-Einstellungen jetzt neu einlesen?"
+
+#: services/webservice/config_apply.py
+msgid "The public site's settings file is read again for the pages this console serves. Nothing is reloaded or restarted and no DCS server goes down."
+msgstr "Die Einstellungsdatei der öffentlichen Website wird für die Seiten dieser Konsole neu eingelesen. Nichts wird neu geladen oder neu gestartet, und kein DCS-Server geht dabei herunter."
+
+#: services/webservice/config_apply.py
+msgid "Re-read the site settings"
+msgstr "Website-Einstellungen neu einlesen"
+
+#: services/webservice/config_apply.py
+msgid "the site settings"
+msgstr "die Website-Einstellungen"
+
+#: services/webservice/config_apply.py
+msgid "Re-reading the site settings. The public site follows on its next page load; nothing is reloaded or restarted."
+msgstr "Website-Einstellungen werden neu eingelesen. Die öffentliche Website folgt beim nächsten Seitenaufruf; nichts wird neu geladen oder neu gestartet."
+
+#: services/webservice/config_apply.py
+msgid "Nothing was applied: the site settings are already being re-read."
+msgstr "Nichts wurde angewendet: die Website-Einstellungen werden bereits neu eingelesen."
+
+#: services/webservice/config_apply.py
+msgid "The file holds the change, but the console could not re-read it — %(reason)s. The sites that were installed keep serving; nothing was reloaded or restarted."
+msgstr "Die Datei enthält die Änderung, aber die Konsole konnte sie nicht erneut lesen — %(reason)s. Die zuvor installierten Sites werden weiter ausgeliefert; nichts wurde neu geladen oder neu gestartet."
+
+
 #: services/webservice/scheduler_plan.py
 msgid "Stop the DCS server process"
 msgstr "DCS-Server-Prozess beenden"
@@ -11570,3 +11731,1521 @@ msgstr "Wie dicht der Staubnebel ist, nach der Skala des Staub-Reglers im Missio
 #: services/webservice/pages/player_detail.py
 msgid "Penalty points are not tracked, because the punishment plugin is not active."
 msgstr "Strafpunkte werden nicht erfasst, weil das Punishment-Plugin nicht aktiv ist."
+
+# ---------------------------------------------------------------- the public site
+# The site's own chrome: the shell (site_base.html), the overview page and the nav
+# labels its pages declare. Machine-assisted and not reviewed by a native speaker.
+
+msgid "Leaderboard"
+msgstr "Rangliste"
+
+msgid "Squadrons"
+msgstr "Staffeln"
+
+msgid "Pilots"
+msgstr "Piloten"
+
+msgid "Sorties flown"
+msgstr "Geflogene Einsätze"
+
+msgid "recorded takeoffs"
+msgstr "erfasste Starts"
+
+msgid "Sessions recorded"
+msgstr "Erfasste Sitzungen"
+
+msgid "Community record"
+msgstr "Community-Chronik"
+
+msgid "Site"
+msgstr "Website"
+
+msgid "Command Center"
+msgstr "Kommandozentrale"
+
+msgid "Live"
+msgstr "Live"
+
+msgid "pilots in the air"
+msgstr "Piloten in der Luft"
+
+msgid "%(up)s of %(total)s"
+msgstr "%(up)s von %(total)s"
+
+msgid "servers up"
+msgstr "Server online"
+
+msgid "pilots this week"
+msgstr "Piloten diese Woche"
+
+msgid "Hours in the air"
+msgstr "Stunden in der Luft"
+
+msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
+msgstr "Die Statistikdatenbank ist noch nicht verfügbar, daher zeigt diese Seite keine Zahlen. Sie füllt sich, sobald der Bot verbunden ist."
+
+msgid "%(count)s vs. last week"
+msgstr "%(count)s gegenüber letzter Woche"
+
+msgid "The season so far"
+msgstr "Die Saison bisher"
+
+msgid "This window holds no recorded session yet."
+msgstr "In diesem Zeitfenster ist noch keine Sitzung erfasst."
+
+msgid "Hours flown per week"
+msgstr "Geflogene Stunden pro Woche"
+
+msgid "A week with no session is drawn at zero, never left out: a gap in the line is a quiet week, not missing data."
+msgstr "Eine Woche ohne Sitzung wird bei null gezeichnet, nie ausgelassen: eine Lücke in der Linie ist eine ruhige Woche, kein fehlender Wert."
+
+msgid "Busiest · %(week)s"
+msgstr "Stärkste · %(week)s"
+
+msgid "Average week"
+msgstr "Durchschnittswoche"
+
+msgid "Quietest · %(week)s"
+msgstr "Ruhigste · %(week)s"
+
+msgid "The standings"
+msgstr "Die Bestenliste"
+
+msgid "Top pilots · playtime"
+msgstr "Top-Piloten · Flugzeit"
+
+msgid "top %(shown)s of %(known)s"
+msgstr "Top %(shown)s von %(known)s"
+
+msgid "Pilot"
+msgstr "Pilot"
+
+msgid "No session has been recorded on this site's servers yet."
+msgstr "Auf den Servern dieser Seite wurde noch keine Sitzung erfasst."
+
+msgid "The squadrons"
+msgstr "Die Staffeln"
+
+msgid "campaign points"
+msgstr "Kampagnenpunkte"
+
+msgid "Campaign points"
+msgstr "Kampagnenpunkte"
+
+msgid "scaled to the leader"
+msgstr "am Führenden skaliert"
+
+msgid "%(members)s members"
+msgstr "%(members)s Mitglieder"
+
+msgid "rating"
+msgstr "Rating"
+
+msgid "The servers"
+msgstr "Die Server"
+
+msgid "Server board"
+msgstr "Server-Übersicht"
+
+msgid "%(up)s of %(total)s up"
+msgstr "%(up)s von %(total)s online"
+
+msgid "Flying"
+msgstr "Im Flug"
+
+msgid "Sorties"
+msgstr "Einsätze"
+
+msgid "Up"
+msgstr "Online"
+
+msgid "Off"
+msgstr "Offline"
+
+msgid "Public data."
+msgstr "Öffentliche Daten."
+
+msgid "This site has no server of its own yet."
+msgstr "Diese Seite hat noch keinen eigenen Server."
+
+msgid "%(count)s airframes"
+msgstr "%(count)s Luftfahrzeuge"
+
+msgid "%(count)s servers"
+msgstr "%(count)s Server"
+
+msgid "%(count)s sessions"
+msgstr "%(count)s Sitzungen"
+
+msgid "%(days)s days"
+msgstr "%(days)s Tage"
+
+msgid "Air Defence"
+msgstr "Luftverteidigung"
+
+msgid "Air Targets"
+msgstr "Luftziele"
+
+msgid "Airframe hours"
+msgstr "Flugstunden je Muster"
+
+msgid "Also known as"
+msgstr "Auch bekannt als"
+
+msgid "Back to the first page"
+msgstr "Zurück zur ersten Seite"
+
+msgid "Back to the leaderboard"
+msgstr "Zurück zur Rangliste"
+
+msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
+msgstr "Die Balken sind auf die Flugzeit dieses Piloten skaliert; der längste Balken ist das meistgeflogene Muster."
+
+msgid "Discord link"
+msgstr "Discord-Verknüpfung"
+
+msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
+msgstr "Entweder ist die Adresse falsch geschrieben, oder dieser Pilot hat keine Sitzung auf den Servern dieser Seite. Suche stattdessen nach einem Namen."
+
+msgid "Find a pilot"
+msgstr "Piloten finden"
+
+msgid "Ground Targets"
+msgstr "Bodenziele"
+
+msgid "Is this you?"
+msgstr "Bist du das?"
+
+msgid "KD-Ratio"
+msgstr "K/D-Verhältnis"
+
+msgid "Longest Playtimes"
+msgstr "Längste Flugzeiten"
+
+msgid "Metric"
+msgstr "Kennzahl"
+
+msgid "No pilot answers to this address"
+msgstr "Kein Pilot antwortet auf diese Adresse"
+
+msgid "No pilot has a figure on this board yet. Try another metric, server or period."
+msgstr "Noch kein Pilot hat einen Wert auf dieser Rangliste. Wähle eine andere Kennzahl, einen anderen Server oder Zeitraum."
+
+msgid "No pilot's name contains that. Try fewer letters."
+msgstr "Kein Pilotenname enthält das. Versuche es mit weniger Buchstaben."
+
+msgid "No search yet: type part of a pilot's name in the search box above."
+msgstr "Noch keine Suche: Tippe einen Teil eines Pilotennamens in das Suchfeld oben."
+
+msgid "No session has been recorded for this pilot on this site's servers yet."
+msgstr "Für diesen Piloten ist auf den Servern dieser Seite noch keine Sitzung erfasst."
+
+msgid "Page"
+msgstr "Seite"
+
+msgid "Pilot not found"
+msgstr "Pilot nicht gefunden"
+
+msgid "Pilot search"
+msgstr "Pilotensuche"
+
+msgid "Pilots whose name contains “%(query)s”"
+msgstr "Piloten, deren Name „%(query)s“ enthält"
+
+msgid "Public profile."
+msgstr "Öffentliches Profil."
+
+msgid "Public record · no account needed"
+msgstr "Öffentliches Verzeichnis · kein Konto nötig"
+
+msgid "PvP-KD-Ratio"
+msgstr "PvP-K/D-Verhältnis"
+
+msgid "Ranked"
+msgstr "Rangliste"
+
+msgid "Ranking · %(metric)s"
+msgstr "Rangliste · %(metric)s"
+
+msgid "Sessions per server"
+msgstr "Sitzungen je Server"
+
+msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
+msgstr "Dasselbe Discord-Konto ist unter mehr als einer Spieler-ID geflogen. Jeder Name öffnet das jeweilige Profil."
+
+msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
+msgstr "Die drei Zeitfenster sind Monat, Quartal und Jahr der Statistik-Engine, angeboten als 30, 90 und 365 Tage."
+
+msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
+msgstr "Das sieht jeder für einen Piloten ohne Anmeldung: Name, Staffel, Flugzeit und die Kampfzahlen."
+
+msgid "This page holds no rows; the board ends earlier."
+msgstr "Diese Seite enthält keine Zeilen; die Rangliste endet früher."
+
+msgid "This page holds no rows; the result ends earlier."
+msgstr "Diese Seite enthält keine Zeilen; das Ergebnis endet früher."
+
+msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
+msgstr "Tippe die ersten Buchstaben eines Namens in das Suchfeld oben. Die Suche findet den Namensanfang, nicht eine beliebige Stelle."
+
+msgid "Unknown"
+msgstr "Unbekannt"
+
+msgid "What they fly"
+msgstr "Was sie fliegen"
+
+msgid "all time"
+msgstr "gesamte Zeit"
+
+msgid "last flown %(when)s"
+msgstr "zuletzt geflogen %(when)s"
+
+msgid "on this site's servers"
+msgstr "auf den Servern dieser Seite"
+
+msgid "one Discord account, several player IDs"
+msgstr "ein Discord-Konto, mehrere Spieler-IDs"
+
+msgid "recorded"
+msgstr "erfasst"
+
+msgid "rows %(first)s – %(last)s"
+msgstr "Zeilen %(first)s – %(last)s"
+
+msgid "{count} deaths"
+msgstr "{count} Verluste"
+
+msgid "{count} in PvP"
+msgstr "{count} im PvP"
+
+msgid "Bars are scaled to your own flying, so the longest bar is the airframe you fly most."
+msgstr "Die Balken sind auf deine eigenen Flugstunden skaliert: der längste Balken ist das Muster, das du am meisten fliegst."
+
+msgid "My statistics"
+msgstr "Meine Statistik"
+
+msgid "No record on these servers"
+msgstr "Kein Eintrag auf diesen Servern"
+
+msgid "No session has been recorded for this account on this site's servers yet."
+msgstr "Für dieses Konto wurde auf den Servern dieser Seite noch keine Session aufgezeichnet."
+
+msgid "Open my public profile"
+msgstr "Mein öffentliches Profil öffnen"
+
+msgid "Public profile"
+msgstr "Öffentliches Profil"
+
+msgid "Public view"
+msgstr "Öffentliche Ansicht"
+
+msgid "Sign in to see your own record"
+msgstr "Melde dich an, um deinen eigenen Eintrag zu sehen"
+
+msgid "Signed in"
+msgstr "Angemeldet"
+
+msgid "Signed out"
+msgstr "Abgemeldet"
+
+msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
+msgstr "Das Konto, mit dem du angemeldet bist, ist mit keiner Spieler-ID verknüpft, die auf den Servern dieser Seite geflogen ist. Eine andere Seite dieser Community hat deinen Eintrag vielleicht; diese nicht."
+
+msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
+msgstr "Die Zahlen oben sind dieselben, die jeder in deinem öffentlichen Profil liest: Name, Flugzeit und die Kampfzahlen. Keine Discord-ID, keine IP-Adresse (nicht einmal ihr Hash), keine E-Mail, kein Bann- oder Watch-Status, keine Moderationshistorie."
+
+msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
+msgstr "Dieselben Sessions, gezählt nach dem Server, auf dem sie liefen. Nur die Server dieser Seite erscheinen."
+
+msgid "This installation has no sign-in method enabled."
+msgstr "Diese Installation hat keine Anmeldemethode aktiviert."
+
+msgid "This is you"
+msgstr "Das bist du"
+
+msgid "This page shows the figures of the account you sign in with, counted on this site's servers. Everything else on the site stays open without an account."
+msgstr "Diese Seite zeigt die Zahlen des Kontos, mit dem du angemeldet bist, gezählt auf den Servern dieser Seite. Alles andere auf der Seite bleibt ohne Konto offen."
+
+msgid "What others see"
+msgstr "Was andere sehen"
+
+msgid "What you fly"
+msgstr "Was du fliegst"
+
+msgid "Where you fly"
+msgstr "Wo du fliegst"
+
+msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
+msgstr "Wohin deine Stunden gingen, Muster für Muster, so wie das Statistik-Plugin sie pro Slot aufzeichnet."
+
+msgid "these figures are yours, counted on this site's servers."
+msgstr "diese Zahlen gehören dir, gezählt auf den Servern dieser Seite."
+
+msgid "this account has no record on this site's servers."
+msgstr "dieses Konto hat keinen Eintrag auf den Servern dieser Seite."
+
+msgid "%(count)s deaths"
+msgstr "%(count)s Verluste"
+
+msgid "%(count)s recorded"
+msgstr "%(count)s erfasst"
+
+msgid "%(count)s sorties"
+msgstr "%(count)s Einsätze"
+
+msgid "%(landings)s landings of %(takeoffs)s takeoffs"
+msgstr "%(landings)s Landungen von %(takeoffs)s Starts"
+
+msgid "Air kills"
+msgstr "Luftabschüsse"
+
+msgid "Competitive rating"
+msgstr "Wettkampfwertung"
+
+msgid "Conservative rating"
+msgstr "Konservative Wertung"
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "Duration"
+msgstr "Dauer"
+
+msgid "Flight discipline"
+msgstr "Flugdisziplin"
+
+msgid "How they fight"
+msgstr "Wie sie kämpfen"
+
+msgid "How they fly"
+msgstr "Wie sie fliegen"
+
+msgid "Last flights"
+msgstr "Letzte Flüge"
+
+msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
+msgstr "Eine Wertung pro Pilot, geführt vom Competitive-Plugin. Sie hat keine Server-Spalte, ist also auf jeder Seite derselbe Wert."
+
+msgid "PvE community"
+msgstr "PvE-Community"
+
+msgid "PvP K/D"
+msgstr "PvP-K/D"
+
+msgid "PvP and PvE community"
+msgstr "PvP- und PvE-Community"
+
+msgid "PvP community"
+msgstr "PvP-Community"
+
+msgid "PvP kills"
+msgstr "PvP-Abschüsse"
+
+msgid "PvP record"
+msgstr "PvP-Bilanz"
+
+msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "Die Raten beziehen sich auf die eigenen Einsätze dieses Piloten; der Balken zeigt die Rate, keine Platzierung gegen andere Piloten."
+
+msgid "Recent sorties"
+msgstr "Letzte Einsätze"
+
+msgid "Targets hit"
+msgstr "Zerstörte Ziele"
+
+msgid "TrueSkill · global"
+msgstr "TrueSkill · global"
+
+msgid "What they shot down, split by who flew it: other players, or the mission's own air and ground forces."
+msgstr "Was sie abgeschossen haben, getrennt danach, wer es flog: andere Spieler oder die Luft- und Bodenkräfte der Mission selbst."
+
+msgid "newest first"
+msgstr "neueste zuerst"
+
+msgid "{count} PvP deaths"
+msgstr "{count} PvP-Verluste"
+
+msgid "{count} per sortie"
+msgstr "{count} pro Einsatz"
+
+msgid "{count} total kills"
+msgstr "{count} Abschüsse gesamt"
+
+msgid "{mu} μ · {count} rating updates"
+msgstr "{mu} μ · {count} Wertungs-Updates"
+
+msgid "January {year}"
+msgstr "Januar {year}"
+
+msgid "February {year}"
+msgstr "Februar {year}"
+
+msgid "March {year}"
+msgstr "März {year}"
+
+msgid "April {year}"
+msgstr "April {year}"
+
+msgid "May {year}"
+msgstr "Mai {year}"
+
+msgid "June {year}"
+msgstr "Juni {year}"
+
+msgid "July {year}"
+msgstr "Juli {year}"
+
+msgid "August {year}"
+msgstr "August {year}"
+
+msgid "September {year}"
+msgstr "September {year}"
+
+msgid "October {year}"
+msgstr "Oktober {year}"
+
+msgid "November {year}"
+msgstr "November {year}"
+
+msgid "December {year}"
+msgstr "Dezember {year}"
+
+msgid "{day} January"
+msgstr "{day}. Januar"
+
+msgid "{day} February"
+msgstr "{day}. Februar"
+
+msgid "{day} March"
+msgstr "{day}. März"
+
+msgid "{day} April"
+msgstr "{day}. April"
+
+msgid "{day} May"
+msgstr "{day}. Mai"
+
+msgid "{day} June"
+msgstr "{day}. Juni"
+
+msgid "{day} July"
+msgstr "{day}. Juli"
+
+msgid "{day} August"
+msgstr "{day}. August"
+
+msgid "{day} September"
+msgstr "{day}. September"
+
+msgid "{day} October"
+msgstr "{day}. Oktober"
+
+msgid "{day} November"
+msgstr "{day}. November"
+
+msgid "{day} December"
+msgstr "{day}. Dezember"
+
+msgid "{day} January {year}"
+msgstr "{day}. Januar {year}"
+
+msgid "{day} February {year}"
+msgstr "{day}. Februar {year}"
+
+msgid "{day} March {year}"
+msgstr "{day}. März {year}"
+
+msgid "{day} April {year}"
+msgstr "{day}. April {year}"
+
+msgid "{day} May {year}"
+msgstr "{day}. Mai {year}"
+
+msgid "{day} June {year}"
+msgstr "{day}. Juni {year}"
+
+msgid "{day} July {year}"
+msgstr "{day}. Juli {year}"
+
+msgid "{day} August {year}"
+msgstr "{day}. August {year}"
+
+msgid "{day} September {year}"
+msgstr "{day}. September {year}"
+
+msgid "{day} October {year}"
+msgstr "{day}. Oktober {year}"
+
+msgid "{day} November {year}"
+msgstr "{day}. November {year}"
+
+msgid "{day} December {year}"
+msgstr "{day}. Dezember {year}"
+
+msgid "Rating {mu}, confidence plus or minus {sigma}."
+msgstr "Wertung {mu}, Konfidenz plus oder minus {sigma}."
+
+msgid "Up {delta} points since {date}."
+msgstr "Seit {date} um {delta} Punkte gestiegen."
+
+msgid "Down {delta} points since {date}."
+msgstr "Seit {date} um {delta} Punkte gefallen."
+
+msgid "Unchanged since {date}."
+msgstr "Unverändert seit {date}."
+
+msgid "Up {delta} points across this span."
+msgstr "Über diesen Zeitraum um {delta} Punkte gestiegen."
+
+msgid "Down {delta} points across this span."
+msgstr "Über diesen Zeitraum um {delta} Punkte gefallen."
+
+msgid "Flat across this span."
+msgstr "Über diesen Zeitraum unverändert."
+
+msgid "μ is the expected rating; the band is ±σ, the confidence around it."
+msgstr "μ ist die erwartete Wertung; das Band ist ±σ, die Konfidenz darum."
+
+msgid "Rating {mu}, confidence plus or minus {sigma}, recorded once on {date}. No earlier values exist, so there is no trend to draw."
+msgstr "Wertung {mu}, Konfidenz plus oder minus {sigma}, einmalig erfasst am {date}. Es gibt keine früheren Werte, also keinen Verlauf zu zeichnen."
+
+msgid "Recorded once — too few for a trend. The bar is ±σ, the confidence the plugin holds in this rating."
+msgstr "Einmalig erfasst — zu wenig für einen Verlauf. Der Balken ist ±σ, die Konfidenz, die das Plugin in diese Wertung hat."
+
+msgid "No rating update has been recorded yet. The figure above is what the plugin holds now."
+msgstr "Es wurde noch keine Wertungsänderung erfasst. Die Zahl oben ist das, was das Plugin derzeit hält."
+
+msgid "{mu} μ"
+msgstr "{mu} μ"
+
+
+msgid "A site that is switched off registers no routes: the console reloads and its address answers \"not found\" until it is back on."
+msgstr "Eine abgeschaltete Site registriert keine Routen: die Konsole lädt neu, und ihre Adresse antwortet mit „nicht gefunden\", bis sie wieder an ist."
+
+msgid "A site's servers are the ones whose managed_by names this token (servers.yaml is the only authority)."
+msgstr "Die Server einer Site sind die, deren managed_by dieses Token nennt (servers.yaml ist die einzige Quelle)."
+
+msgid "Address"
+msgstr "Adresse"
+
+msgid "Both sides of the record lead, side by side."
+msgstr "Beide Seiten der Bilanz führen, Seite an Seite."
+
+msgid "Branding"
+msgstr "Auftritt"
+
+msgid "Character"
+msgstr "Charakter"
+
+msgid "Check"
+msgstr "Prüfen"
+
+msgid "Every public site this console serves: what it shows, what it looks like, and whether it is on. A site's content shows on its next page load; its address, its role and its switch need the console to reload."
+msgstr "Jede öffentliche Site dieser Konsole: was sie zeigt, wie sie aussieht und ob sie an ist. Der Inhalt einer Site erscheint beim nächsten Seitenaufruf; Adresse, Rolle und Schalter brauchen ein Neuladen der Konsole."
+
+msgid "Expert sheet"
+msgstr "Experten-CSS"
+
+msgid "In use"
+msgstr "In Gebrauch"
+
+msgid "No site is configured yet, so there is nothing to edit here."
+msgstr "Es ist noch keine Site konfiguriert, hier gibt es also nichts zu bearbeiten."
+
+msgid "No such site."
+msgstr "Keine solche Site."
+
+msgid "Nothing was written: "
+msgstr "Nichts wurde geschrieben: "
+
+msgid "Open the public site"
+msgstr "Öffentliche Site öffnen"
+
+msgid "Pages"
+msgstr "Seiten"
+
+msgid "Public site"
+msgstr "Öffentliche Site"
+
+msgid "PvE"
+msgstr "PvE"
+
+msgid "PvP and PvE"
+msgstr "PvP und PvE"
+
+msgid "Saved — shown on the site immediately; nothing is reloaded or restarted."
+msgstr "Gespeichert — sofort auf der Site sichtbar; nichts wird neu geladen oder neu gestartet."
+
+msgid "Saved — the console re-read the site settings file, so the site's address, role or switch is live now. Nothing is reloaded or restarted."
+msgstr "Gespeichert — die Konsole hat die Datei der Site-Einstellungen neu gelesen, daher sind Adresse, Rolle oder Schalter der Site jetzt live. Nichts wird neu geladen oder neu gestartet."
+
+msgid "Shipped palette"
+msgstr "Mitgelieferte Palette"
+
+msgid "The expert sheet is the Admin's to write, so nothing was written."
+msgstr "Das Experten-CSS schreibt nur der Admin, es wurde also nichts geschrieben."
+
+msgid "The player-versus-player record leads."
+msgstr "Die Spieler-gegen-Spieler-Bilanz führt."
+
+msgid "The site settings could not be read."
+msgstr "Die Site-Einstellungen konnten nicht gelesen werden."
+
+msgid "This form names another site's fields, so nothing was written."
+msgstr "Dieses Formular nennt Felder einer anderen Site, es wurde also nichts geschrieben."
+
+msgid "This site's address, its role and its switch are the Admin's to change, so nothing was written."
+msgstr "Adresse, Rolle und Schalter dieser Site ändert nur der Admin, es wurde also nichts geschrieben."
+
+msgid "Top pilots"
+msgstr "Top-Piloten"
+
+msgid "Use this preset"
+msgstr "Dieses Preset verwenden"
+
+msgid "What a pilot flew leads."
+msgstr "Was ein Pilot geflogen ist, führt."
+
+msgid "What kind of community is this?"
+msgstr "Was für eine Community ist das?"
+
+msgid "You can change only your own site's content, so nothing was written."
+msgstr "Du kannst nur den Inhalt deiner eigenen Site ändern, es wurde also nichts geschrieben."
+
+msgid "needs a reload"
+msgstr "braucht ein Neuladen"
+
+msgid "served at the site root"
+msgstr "am Site-Root ausgeliefert"
+
+msgid "the servers that declare no managed_by"
+msgstr "die Server, die kein managed_by nennen"
+
+msgid "the public site's settings page, for the sites you hold"
+msgstr "die Einstellungsseite der öffentlichen Site, für die Sites, die du hältst"
+
+msgid "edit the content of a site you hold: branding, character, pages, sections, metrics, language and the preset"
+msgstr "den Inhalt einer Site bearbeiten, die du hältst: Auftritt, Charakter, Seiten, Abschnitte, Kennzahlen, Sprache und das Preset"
+
+msgid "a site's address, its role and its on/off switch — the console reloads"
+msgstr "Adresse, Rolle und An/Aus-Schalter einer Site — die Konsole lädt neu"
+
+msgid "write a site's expert CSS sheet"
+msgstr "das Experten-CSS einer Site schreiben"
+
+#: services/webservice/pages/site_config.py
+msgid "The brand line in the site's top bar, on every page — and the tab's title."
+msgstr "Die Markenzeile in der Kopfleiste der Site, auf jeder Seite — und der Titel des Tabs."
+
+#: services/webservice/pages/site_config.py
+msgid "The hero's headline: the name on its own line in the accent colour. Empty, the hero falls back to the Discord guild's name, then the title."
+msgstr "Die Überschrift des Heros: der Name in einer eigenen Zeile in der Akzentfarbe. Leer greift der Hero auf den Namen der Discord-Gilde und dann auf den Titel zurück."
+
+#: services/webservice/pages/site_config.py
+msgid "The anchors in the footer, right of the attribution — one per entry: a label and an address."
+msgstr "Die Anker im Fuß, rechts der festen Namensnennung — einer pro Eintrag: eine Beschriftung und eine Adresse."
+
+#: services/webservice/pages/site_config.py
+msgid "The image in the top bar, left of the title — served from the saved file, so it changes on Save, not as you type."
+msgstr "Das Bild in der Kopfleiste, links vom Titel — aus der gespeicherten Datei ausgeliefert, ändert es sich beim Speichern, nicht beim Tippen."
+
+#: services/webservice/pages/site_config.py
+msgid "The site's top bar, hero and footer, drawn from the values beside it"
+msgstr "Kopfleiste, Hero und Fuß der Site, aus den Werten daneben gezeichnet"
+
+#: services/webservice/pages/site_config.py
+msgid "This site is switched off, so its own page is not served — the box comes back with it."
+msgstr "Diese Site ist ausgeschaltet, also wird ihre eigene Seite nicht ausgeliefert — mit ihr kommt die Box zurück."
+
+#: services/webservice/pages/site_config.py
+msgid "What the overview shows"
+msgstr "Was die Übersicht zeigt"
+
+#: services/webservice/pages/site_config.py
+msgid "What the leaderboard ranks"
+msgstr "Was die Rangliste bewertet"
+
+#: services/webservice/pages/site_config.py
+msgid "A fight-night community: the site shows who is winning the fights — the ladder, the airframes, the op nights and the servers — and it ranks fights, not strike work."
+msgstr "Eine Fight-Night-Community: die Site zeigt, wer die Kämpfe gewinnt — die Rangliste, die Luftfahrzeuge, die Op-Nächte und die Server — und sie bewertet Kämpfe, nicht Bodenarbeit."
+
+#: services/webservice/pages/site_config.py
+msgid "A co-op community: the site shows what it flies and builds — the activity curve, the airframes, the campaign and the op nights — and it does not rank pilots against each other."
+msgstr "Eine Koop-Community: die Site zeigt, was sie fliegt und aufbaut — die Aktivitätskurve, die Luftfahrzeuge, die Kampagne und die Op-Nächte — und sie stellt Piloten nicht gegeneinander."
+
+#: services/webservice/pages/site_config.py
+msgid "A community that does both: every section the build has, and every metric it can rank."
+msgstr "Eine Community, die beides macht: jeder Abschnitt, den der Build hat, und jede Kennzahl, die er bewerten kann."
+
+#: services/webservice/pages/site_config.py
+msgid "Off for PvP: the season curve and the squadrons — a duel community's story is the ladder, not a weekly hours curve, and a fight night runs no campaign."
+msgstr "Für PvP aus: die Saisonkurve und die Staffeln — die Geschichte einer Duell-Community ist die Rangliste, keine Wochenstundenkurve, und eine Fight Night fliegt keine Kampagne."
+
+#: services/webservice/pages/site_config.py
+msgid "Withdrawn for PvP: ships, air defence and ground targets — the site ranks fights, not strike work."
+msgstr "Für PvP entzogen: Schiffe, Luftverteidigung und Bodenzielle — die Site bewertet Kämpfe, nicht Bodenarbeit."
+
+#: services/webservice/pages/site_config.py
+msgid "Off for PvE: top pilots — a co-op site does not rank its pilots against each other."
+msgstr "Für PvE aus: Top-Piloten — eine Koop-Site stellt ihre Piloten nicht gegeneinander."
+
+#: services/webservice/pages/site_config.py
+msgid "Withdrawn for PvE: the PvP ratio — there are no player-versus-player kills to rank."
+msgstr "Für PvE entzogen: die PvP-Quote — es gibt keine Spieler-gegen-Spieler-Abschüsse zu bewerten."
+
+#: services/webservice/pages/site_config.py
+msgid "Pressing a character rewrites the two lists below, now, before anything is saved — Save keeps the result. A switch you moved by hand stays where you left it until a character is pressed again."
+msgstr "Ein Druck auf einen Charakter schreibt die beiden Listen darunter sofort neu, bevor irgendetwas gespeichert ist — Speichern behält das Ergebnis. Ein von Hand umgelegter Schalter bleibt, wo du ihn gelassen hast, bis wieder ein Charakter gedrückt wird."
+
+#: services/webservice/pages/site_config.py
+msgid "With JavaScript off a press only saves the character: the two lists keep the values stored here, and the player page still follows the character."
+msgstr "Ohne JavaScript speichert ein Druck nur den Charakter: die beiden Listen behalten die hier gespeicherten Werte, und die Spielerseite folgt weiterhin dem Charakter."
+
+#: services/webservice/pages/site_config.py
+msgid "Edited by hand — these are no longer exactly the %(name)s set."
+msgstr "Von Hand geändert — das ist nicht mehr genau der %(name)s-Satz."
+
+#: services/webservice/pages/site_config.py
+msgid "%(sections)s of %(sectionsTotal)s sections · %(metrics)s of %(metricsTotal)s metrics"
+msgstr "%(sections)s von %(sectionsTotal)s Abschnitten · %(metrics)s von %(metricsTotal)s Kennzahlen"
+
+
+#: services/webservice/pages/site_config.py
+msgid "The menu and the tiles"
+msgstr "Das Menü und die Kacheln"
+
+#: services/webservice/pages/site_config.py
+msgid "The links in the site's top bar, left to right, after the brand."
+msgstr "Die Links in der oberen Leiste der Site, von links nach rechts, nach der Marke."
+
+#: services/webservice/pages/site_config.py
+msgid "An entry is one of the pages the build serves — %(ids)s. There is nothing to add: the list is the set, so the block sets the order and which of them appear."
+msgstr "Ein Eintrag ist eine der Seiten, die dieser Build ausliefert — %(ids)s. Es gibt nichts hinzuzufügen: die Liste ist die Menge, also bestimmt der Block die Reihenfolge und welche erscheinen."
+
+#: services/webservice/pages/site_config.py
+msgid "the site's top bar"
+msgstr "die obere Leiste der Site"
+
+#: services/webservice/pages/site_config.py
+msgid "Every page switched off: the bar carries the brand alone. The site still serves the overview at its own address, so a visitor is never stranded."
+msgstr "Alle Seiten ausgeschaltet: die Leiste trägt nur noch die Marke. Die Site liefert die Übersicht weiterhin unter ihrer eigenen Adresse aus, ein Besucher bleibt also nie stehen."
+
+#: services/webservice/pages/site_config.py
+msgid "The strip of figures under the hero, before the %(count)s sections."
+msgstr "Der Streifen mit den Zahlen unter dem Hero, vor den %(count)s Abschnitten."
+
+#: services/webservice/pages/site_config.py
+msgid "An entry is one of the figures the build can compute — %(ids)s. There is nothing to add either; the block sets the order and which appear. A tile switched off closes its gap instead of leaving a hole."
+msgstr "Ein Eintrag ist eine der Zahlen, die dieser Build berechnen kann — %(ids)s. Auch hier gibt es nichts hinzuzufügen; der Block bestimmt die Reihenfolge und welche erscheinen. Eine ausgeschaltete Kachel schließt ihre Lücke, statt ein Loch zu lassen."
+
+#: services/webservice/pages/site_config.py
+msgid "the overview's tile strip"
+msgstr "der Kachelstreifen der Übersicht"
+
+#: services/webservice/pages/site_config.py
+msgid "Every tile switched off: the strip is dropped, and the first section follows the hero directly."
+msgstr "Alle Kacheln ausgeschaltet: der Streifen entfällt, und der erste Abschnitt folgt direkt auf den Hero."
+
+#: services/webservice/pages/site_config.py
+msgid "The anchors in the footer strip, right of the attribution."
+msgstr "Die Verweise im Footer-Streifen, rechts der festen Namensnennung."
+
+#: services/webservice/pages/site_config.py
+msgid "Each entry needs a label and an address — a full http(s)://, a mailto:, or a path on this installation."
+msgstr "Jeder Eintrag braucht eine Bezeichnung und eine Adresse — ein vollständiges http(s)://, ein mailto: oder einen Pfad auf dieser Installation."
+
+#: services/webservice/pages/site_config.py
+msgid "No footer links yet. The footer shows the attribution alone — a Discord invite or the mission board belongs here."
+msgstr "Noch keine Footer-Links. Der Footer zeigt nur die feste Namensnennung — eine Discord-Einladung oder das Missionsbrett gehört hierher."
+
+#: services/webservice/pages/site_config.py
+msgid "+ Add a link"
+msgstr "+ Link hinzufügen"
+
+#: services/webservice/pages/site_config.py
+msgid "a label, then an address"
+msgstr "eine Bezeichnung, dann eine Adresse"
+
+#: services/webservice/pages/site_config.py
+msgid "shown"
+msgstr "sichtbar"
+
+#: services/webservice/pages/site_config.py
+msgid "hidden"
+msgstr "verborgen"
+
+#: services/webservice/pages/site_config.py
+msgid "Label"
+msgstr "Bezeichnung"
+
+#: services/webservice/pages/site_config.py
+msgid "https://…, mailto:… or /path"
+msgstr "https://…, mailto:… oder /pfad"
+
+#: services/webservice/pages/site_config.py
+msgid "Active this week"
+msgstr "Diese Woche aktiv"
+
+#: services/webservice/pages/site_config.py
+msgid "Flying now"
+msgstr "Jetzt im Flug"
+
+#: services/webservice/pages/site_config.py
+msgid "Average session"
+msgstr "Durchschnittliche Sitzung"
+
+#: services/webservice/pages/site_config.py
+msgid "Busiest hour"
+msgstr "Stoßzeit"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "copy of %(name)s"
+msgstr "Kopie von %(name)s"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "copy of %(name)s · not stored"
+msgstr "Kopie von %(name)s · nicht gespeichert"
+
+#: services/webservice/pages/site_config.py
+msgid "edited"
+msgstr "bearbeitet"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"%(declarations)s declarations · %(lines)s lines · linked after the site's"
+" own sheet"
+msgstr "%(declarations)s Deklarationen · %(lines)s Zeilen · nach dem"
+" eigenen Blatt der Site gelinkt"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"%(declarations)s declarations · %(lines)s lines · shown, not stored — the shipped copy "
+"for reading; it is kept only when you change it"
+msgstr "%(declarations)s Deklarationen · %(lines)s Zeilen · angezeigt, nicht gespeichert — die mitgelieferte Kopie zum Lesen; sie bleibt nur erhalten, wenn du sie änderst"
+
+#: services/webservice/pages/site_config.py
+msgid "Load the shipped sheet"
+msgstr "Mitgeliefertes Stylesheet laden"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"Replace this sheet with the %(declarations)s declarations of %(name)s? "
+"This cannot be undone."
+msgstr ""
+"Dieses Stylesheet durch die %(declarations)s Deklarationen von %(name)s "
+"ersetzen? Das lässt sich nicht rückgängig machen."
+
+#: services/webservice/pages/site_config.py
+msgid ""
+"The sheet is linked after the site's own stylesheet, so a token declared "
+"there wins."
+msgstr ""
+"Das Stylesheet wird nach dem eigenen Stylesheet der Site geladen, ein "
+"dort deklariertes Token gewinnt also."
+
+#: services/webservice/pages/site_config.py
+msgid ""
+"One --name: value; declaration per line. The sheet is wrapped in one "
+"rule, so a selector, a comment and an import are each refused by name."
+msgstr ""
+"Eine Deklaration --name: value; pro Zeile. Das Stylesheet wird in eine "
+"Regel gefasst, daher werden Selektor, Kommentar und Import jeweils "
+"namentlich abgelehnt."
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "%(allowed)s characters allowed · %(used)s used"
+msgstr "%(allowed)s Zeichen erlaubt · %(used)s belegt"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"Accepted — %(declarations)s declarations, %(characters)s characters. "
+"Saving writes them as this site's own sheet."
+msgstr ""
+"Angenommen — %(declarations)s Deklarationen, %(characters)s Zeichen. "
+"Speichern schreibt sie als eigenes Stylesheet dieser Site."
+
+msgid "The mark was uploaded — the site shows it on its next page load."
+msgstr "Die Marke wurde hochgeladen — die Site zeigt sie beim nächsten Seitenaufruf."
+
+msgid "The uploaded mark was removed — the site draws branding.logo, or the shipped "
+"mark when none is set."
+msgstr "Die hochgeladene Marke wurde entfernt — die Site zeichnet branding.logo, "
+"oder die mitgelieferte Marke, wenn keine gesetzt ist."
+
+msgid "That file is not an image this page accepts: upload a PNG, a JPEG or a WebP."
+msgstr "Diese Datei ist kein Bild, das diese Seite annimmt: lade ein PNG, ein JPEG "
+"oder ein WebP hoch."
+
+#, python-format
+msgid "That file is larger than the %(limit)s this page accepts, so nothing was "
+"written."
+msgstr "Diese Datei ist größer als die %(limit)s, die diese Seite annimmt, es wurde "
+"also nichts geschrieben."
+
+#, python-format
+msgid "That image is %(pixels)s pixels; the mark accepts at most %(limit)s, so "
+"nothing was written."
+msgstr "Dieses Bild hat %(pixels)s Pixel; die Marke nimmt höchstens %(limit)s an, es "
+"wurde also nichts geschrieben."
+
+msgid "That image decodes to more pixels than the mark accepts, so nothing was "
+"written."
+msgstr "Dieses Bild entpackt sich zu mehr Pixeln, als die Marke annimmt, es wurde "
+"also nichts geschrieben."
+
+msgid "This site's settings file cannot be read, so nothing was written."
+msgstr "Die Einstellungsdatei dieser Site kann nicht gelesen werden, es wurde also "
+"nichts geschrieben."
+
+msgid "Your role cannot change this site's mark, so nothing was written."
+msgstr "Deine Rolle kann die Marke dieser Site nicht ändern, es wurde also nichts "
+"geschrieben."
+
+msgid "You can upload a mark only for your own site, so nothing was written."
+msgstr "Du kannst eine Marke nur für deine eigene Site hochladen, es wurde also "
+"nichts geschrieben."
+
+msgid "The mark"
+msgstr "Die Marke"
+
+msgid "The image beside the site's name in the top bar."
+msgstr "Das Bild neben dem Namen der Site in der oberen Leiste."
+
+msgid "The site's current mark"
+msgstr "Die aktuelle Marke der Site"
+
+msgid "branding.logo is not set, so the shipped mark is drawn until one is "
+"uploaded."
+msgstr "branding.logo ist nicht gesetzt, daher wird die mitgelieferte Marke "
+"gezeichnet, bis eine hochgeladen wird."
+
+msgid "branding.logo names the file the site draws today; uploading an image "
+"replaces it."
+msgstr "branding.logo nennt die Datei, die die Site heute zeichnet; ein "
+"hochgeladenes Bild ersetzt sie."
+
+msgid "The site draws the uploaded mark first, then branding.logo, then the "
+"shipped mark."
+msgstr "Die Site zeichnet zuerst die hochgeladene Marke, dann branding.logo, "
+"dann die mitgelieferte Marke."
+
+msgid "from branding.logo"
+msgstr "aus branding.logo"
+
+msgid "Upload an image"
+msgstr "Ein Bild hochladen"
+
+msgid "Replace"
+msgstr "Ersetzen"
+
+#, python-format
+msgid "PNG, JPEG or WebP, up to %(limit)s; the upload re-encodes it to the "
+"four sizes below."
+msgstr "PNG, JPEG oder WebP, bis zu %(limit)s; der Upload kodiert es auf die "
+"vier Größen unten neu."
+
+#, python-format
+msgid "Written beside the site's settings: %(files)s."
+msgstr "Neben den Einstellungen der Site geschrieben: %(files)s."
+
+msgid "Remove the uploaded mark? The site falls back to branding.logo."
+msgstr "Die hochgeladene Marke entfernen? Die Site fällt auf branding.logo "
+"zurück."
+
+#, python-format
+msgid "The uploaded mark, %(size)s pixels"
+msgstr "Die hochgeladene Marke, %(size)s Pixel"
+
+msgid "That upload could not be read as a form, so nothing was written."
+msgstr "Dieser Upload konnte nicht als Formular gelesen werden, es wurde also "
+"nichts geschrieben."
+
+msgid "Choose an image"
+msgstr "Ein Bild auswählen"
+
+#, python-format
+msgid "Selected: %(name)s"
+msgstr "Ausgewählt: %(name)s"
+
+#: services/webservice/pages/site_config.py
+msgid "Placement"
+msgstr "Platzierung"
+
+#: services/webservice/pages/site_config.py
+msgid "Which side of the hero's headline the mark sits on. The bar's small mark never moves."
+msgstr "Auf welcher Seite der Hero-Überschrift die Marke sitzt. Die kleine Marke in der Kopfleiste bewegt sich nie."
+
+#: services/webservice/pages/site_config.py
+msgid "Left"
+msgstr "Links"
+
+#: services/webservice/pages/site_config.py
+msgid "Right"
+msgstr "Rechts"
+
+#: services/webservice/pages/site_config.py
+msgid "The hero draws the mark at 128 px on a desktop, 96 on a tablet and 72 on a phone, where it takes a row of its own."
+msgstr "Der Hero zeichnet die Marke mit 128 px auf dem Desktop, 96 auf dem Tablet und 72 auf dem Telefon, wo sie eine eigene Zeile einnimmt."
+
+#: services/webservice/pages/site_config.py
+msgid "The hero's paragraph under the headline. %(community)s is filled with the community's name; empty, the hero prints its shipped sentence."
+msgstr "Der Absatz des Heros unter der Überschrift. %(community)s wird durch den Namen der Community ersetzt; leer gibt der Hero seinen mitgelieferten Satz aus."
+
+msgid "Palette wizard"
+msgstr "Farbpaletten-Assistent"
+
+msgid "A palette is twenty-three declarations over six steps — seventeen derived, six carried as they are. Pick what it starts from; the wizard derives the rest, tests every pair against AA, and hands the result to the sheet below — where it stays editable and where Check and Save already are."
+msgstr "Eine Palette sind dreiundzwanzig Deklarationen über sechs Schritte — siebzehn abgeleitet, sechs unverändert übernommen. Wähle den Ausgangspunkt; der Assistent leitet den Rest ab, prüft jedes Paar gegen AA und übergibt das Ergebnis an das Blatt unten — wo es bearbeitbar bleibt und wo Prüfen und Speichern schon sind."
+
+msgid "Every step is tested on the ground it lands on. A base that cannot reach 4.5:1 as the accent is moved, and the move is shown — never clamped in silence."
+msgstr "Jeder Schritt wird auf dem Grund geprüft, auf dem er landet. Ein Grundton, der als Akzent keine 4.5:1 erreicht, wird verschoben, und die Verschiebung wird gezeigt — niemals stillschweigend begrenzt."
+
+msgid "Derive six steps →"
+msgstr "Sechs Schritte ableiten →"
+
+msgid "Base colour"
+msgstr "Grundfarbe"
+
+msgid "The page the palette is derived for"
+msgstr "Die Seite, für die die Palette abgeleitet wird"
+
+msgid "Dark page"
+msgstr "Dunkle Seite"
+
+msgid "Light page"
+msgstr "Helle Seite"
+
+msgid "← Back to the wizard"
+msgstr "← Zurück zum Assistenten"
+
+msgid "Use these colours"
+msgstr "Diese Farben verwenden"
+
+msgid "Six steps, twenty-three declarations, ten pairs tested. Use these colours writes them into the sheet below — nothing is saved until the card's own Save."
+msgstr "Sechs Schritte, dreiundzwanzig Deklarationen, zehn geprüfte Paare. Diese Farben verwenden schreibt sie in das Blatt unten — gespeichert wird erst mit Speichern auf der Karte."
+
+msgid "The site's own preview is not loaded, so its palette cannot be read: the box above answers only when the site is enabled."
+msgstr "Die eigene Vorschau der Site ist nicht geladen, daher lässt sich ihre Palette nicht lesen: das Feld oben antwortet nur, wenn die Site aktiviert ist."
+
+msgid "Read from the site's own document: a sheet from another origin cannot be read, and then the tokens have to be reported by hand."
+msgstr "Gelesen aus dem eigenen Dokument der Site: ein Blatt von einer anderen Origin lässt sich nicht lesen, dann müssen die Tokens von Hand eingetragen werden."
+
+msgid "The wizard's answer is in the sheet below. The four presets above are no longer applied, and no preset is marked in use — a site names one palette, and this is it."
+msgstr "Die Antwort des Assistenten steht im Blatt unten. Die vier Presets oben gelten nicht mehr, und keines ist als in Gebrauch markiert — eine Site nennt eine Palette, und das ist sie."
+
+msgid "The base cannot be used as it is."
+msgstr "Der Grundton ist so nicht verwendbar."
+
+msgid "Pick another"
+msgstr "Anderen wählen"
+
+msgid "Use %(hex)s"
+msgstr "%(hex)s verwenden"
+
+msgid "Carried unchanged, and named so: --sage, --hero-sage and the three --pulse-* washes (green means live, whatever the palette), --black, the four medal declarations and the three font families."
+msgstr "Unverändert übernommen und benannt: --sage, --hero-sage und die drei --pulse-*-Washes (grün heißt live, welche Palette auch immer), --black, die vier Medaillen-Deklarationen und die drei Schriftfamilien."
+
+msgid "ground"
+msgstr "Grund"
+
+msgid "panel"
+msgstr "Panel"
+
+msgid "line"
+msgstr "Linie"
+
+msgid "accent"
+msgstr "Akzent"
+
+msgid "text"
+msgstr "Text"
+
+msgid "text steps"
+msgstr "Textstufen"
+
+msgid "A shipped palette"
+msgstr "Eine mitgelieferte Palette"
+
+msgid "Reads %(file)s as the starting point — the sheet this build ships. ← Presets goes back to the gallery to choose another."
+msgstr "Liest %(file)s als Ausgangspunkt — das Sheet, das dieser Build mitliefert. ← Presets geht zurück zur Galerie, um ein anderes zu wählen."
+
+msgid "The palette this site wears now"
+msgstr "Die Palette, die diese Site heute trägt"
+
+msgid "the resolved sheet"
+msgstr "das aufgelöste Blatt"
+
+msgid "Read from the page itself: the colours a visitor is looking at today, as a starting point."
+msgstr "Aus der Seite selbst gelesen: die Farben, die ein Besucher heute sieht, als Ausgangspunkt."
+
+msgid "One colour"
+msgstr "Eine Farbe"
+
+msgid "a base colour"
+msgstr "eine Grundfarbe"
+
+msgid "Pick the colour the site is about; the wizard derives the other seventeen from its hue."
+msgstr "Wähle die Farbe, um die es auf der Site geht; der Assistent leitet die anderen siebzehn aus ihrem Farbton ab."
+
+msgid "The sheet below"
+msgstr "Das Blatt unten"
+
+msgid "This site's own sheet, read back: the six steps are its values, and Back returns to them."
+msgstr "Das eigene Blatt dieser Site, zurückgelesen: die sechs Schritte sind seine Werte, und Zurück führt zu ihnen."
+
+msgid "%(token)s moved L %(from)s → %(to)s to reach %(ratio)s:1 on %(against)s (was %(was)s:1, %(role)s needs %(needs)s:1)."
+msgstr "%(token)s verschoben L %(from)s → %(to)s, um %(ratio)s:1 auf %(against)s zu erreichen (war %(was)s:1, %(role)s braucht %(needs)s:1)."
+
+msgid "%(token)s could not reach %(needs)s:1 on %(against)s at any lightness."
+msgstr "%(token)s konnte auf %(against)s bei keiner Helligkeit %(needs)s:1 erreichen."
+
+msgid "The base %(base)s was used as the accent (%(accent)s, lightness %(from)s → %(to)s to clear --panel)."
+msgstr "Der Grundton %(base)s wurde als Akzent verwendet (%(accent)s, Helligkeit %(from)s → %(to)s, um --panel zu bestehen)."
+
+msgid "The accent's chroma was raised from %(from)s to %(to)s, so a grey still carries a hue."
+msgstr "Die Chroma des Akzents wurde von %(from)s auf %(to)s angehoben, damit auch ein Grau einen Farbton trägt."
+
+msgid "The base cannot be used as it is. %(base)s sits at OKLCH lightness %(from)s; an accent on this ground needs %(to)s to clear 4.5:1 on the panel, so every step below is built from %(accent)s instead — lightness %(from)s → %(to)s, a different colour and not a nudge."
+msgstr "Der Grundton ist so nicht verwendbar. %(base)s liegt bei OKLCH-Helligkeit %(from)s; ein Akzent auf diesem Grund braucht %(to)s, um 4.5:1 auf dem Panel zu bestehen, daher ist jeder Schritt unten aus %(accent)s gebaut — Helligkeit %(from)s → %(to)s, eine andere Farbe und kein Schubs."
+
+msgid "Accepted — %(declarations)s declarations, %(pairs)s pairs tested, every one at or above AA. Nothing is saved until Save."
+msgstr "Angenommen — %(declarations)s Deklarationen, %(pairs)s geprüfte Paare, alle mindestens AA. Gespeichert wird erst mit Speichern."
+
+msgid "A palette of your own"
+msgstr "Eine eigene Palette"
+
+msgid "Admin only"
+msgstr "Nur Admin"
+
+msgid "A palette is written into the site's file by an installation admin. Ask for one: the sheet it carries is theirs to edit."
+msgstr "Eine Palette schreibt ein Installations-Admin in die Datei der Site. Bitte darum: das Blatt darin ist seins zum Bearbeiten."
+
+msgid "Not available to a group admin"
+msgstr "Für einen Gruppen-Admin nicht verfügbar"
+
+msgid "from the wizard"
+msgstr "vom Assistenten"
+
+msgid "written by the wizard · linked after the site's own sheet"
+msgstr "vom Assistenten geschrieben · nach dem eigenen Blatt der Site gelinkt"
+
+msgid "The site"
+msgstr "Die Site"
+
+
+msgid "its own document · %(path)s"
+msgstr "ihr eigenes Dokument · %(path)s"
+
+
+msgid "Open ↗"
+msgstr "Öffnen ↗"
+
+
+msgid "The site's own document at the box's width — bar, hero, footer. Not a drawing: the page's blocks write into this one frame, and it is the only preview here."
+msgstr "Das eigene Dokument der Site in der Breite des Kastens — Leiste, Hero, Footer. Kein Bild: die Blöcke dieser Seite schreiben in diesen einen Rahmen, und er ist die einzige Vorschau hier."
+
+
+msgid "Writes into it: %(branding)s — the mark, the bar's name, the hero's headline and paragraph · %(palette)s — every colour in it · %(links)s — the footer's anchors, beside the attribution · %(menu)s — the bar's nav, in this order."
+msgstr "Schreibt hinein: %(branding)s — das Zeichen, den Namen in der Leiste, die Überschrift und den Absatz des Hero · %(palette)s — jede Farbe darin · %(links)s — die Anker im Fuß, neben der festen Namensnennung · %(menu)s — die Navigation der Leiste, in dieser Reihenfolge."
+
+
+msgid "Character changes nothing here: it decides the bands below the hero, which the box's height does not reach."
+msgstr "Der Charakter ändert hier nichts: er bestimmt die Bänder unter dem Hero, die die Höhe des Kastens nicht erreicht."
+
+
+msgid "Palette"
+msgstr "Palette"
+
+
+msgid "Footer links"
+msgstr "Footer-Verweise"
+
+
+msgid "fields"
+msgstr "Felder"
+
+
+msgid "The site itself"
+msgstr "Die Site selbst"
+
+
+msgid "not part of the look"
+msgstr "nicht Teil des Aussehens"
+
+
+msgid "Nothing in the box changes: the character decides the bands below the hero, and which figures the leaderboard ranks. The box draws the bar, the hero and the footer — and no band."
+msgstr "Im Kasten ändert sich nichts: der Charakter bestimmt die Bänder unter dem Hero und welche Zahlen die Rangliste sortiert. Der Kasten zeichnet die Leiste, den Hero und den Footer — und kein Band."
+
+msgid "A shipped preset"
+msgstr "Ein mitgeliefertes Preset"
+
+msgid "An expert sheet"
+msgstr "Ein Experten-Sheet"
+
+msgid "%(declarations)s declarations"
+msgstr "%(declarations)s Deklarationen"
+
+msgid "One palette, one choice — the box at the foot of the page shows it as you press a palette."
+msgstr "Eine Palette, eine Wahl — die Box am Fuß der Seite zeigt sie, sobald du eine Palette drückst."
+
+msgid "The sheet is open at the foot of this page."
+msgstr "Das Sheet ist am Fuß dieser Seite geöffnet."
+msgid "Expert mode — at the foot of the page"
+msgstr "Expertenmodus — am Fuß der Seite"
+
+msgid "Or build a palette"
+msgstr "Oder eine Palette bauen"
+
+msgid "three starting points →"
+msgstr "drei Ausgangspunkte →"
+
+msgid "One palette, one choice."
+msgstr "Eine Palette, eine Wahl."
+
+#: services/webservice/pages/site_config.py
+msgid "A shipped preset, an uploaded sheet or the expert sheet — at most one, and the header above says which one this site names. A save that would name two is refused, and nothing is written."
+msgstr "Ein mitgeliefertes Preset, ein hochgeladenes Sheet oder das Experten-Sheet — höchstens eines, und die Kopfzeile oben sagt, welches diese Site nennt. Ein Speichern, das zwei nennen würde, wird abgelehnt, und nichts wird geschrieben."
+
+msgid "Expert Mode"
+msgstr "Expertenmodus"
+
+msgid "The expert sheet is stored — %(declarations)s declarations, %(used)s of %(allowed)s characters. Expert Mode is closed, so the sheet is not drawn: it still posts exactly as it stands, and the box being unticked clears nothing. Tick it to read or edit the sheet."
+msgstr "Das Experten-Sheet ist gespeichert — %(declarations)s Deklarationen, %(used)s von %(allowed)s Zeichen. Der Expertenmodus ist geschlossen, also wird das Sheet nicht gezeichnet: es wird trotzdem genau so gesendet, wie es dasteht, und das Abwählen der Box löscht nichts. Wähle sie an, um das Sheet zu lesen oder zu bearbeiten."
+
+#: services/webservice/pages/site_config.py
+#: services/webservice/pages/site_config.py
+msgid "No expert sheet. The site's palette is whichever of the preset and the uploaded sheet the header above states. Tick Expert Mode above to read the shipped transcription — it is shown, not stored, and it is kept only when you change it and save. The sheet is read and checked here at the card's full width, because a sheet is code and code wants lines."
+msgstr "Kein Experten-Sheet. Die Palette der Site ist das Preset oder das hochgeladene Sheet, das die Kopfzeile oben nennt. Wähle Expertenmodus oben an, um die mitgelieferte Transkription zu lesen — sie wird angezeigt, nicht gespeichert, und sie bleibt nur erhalten, wenn du sie änderst und speicherst. Das Sheet wird hier auf der vollen Breite der Karte gelesen und geprüft, denn ein Sheet ist Code und Code will Zeilen."
+
+msgid "the sheet is code: read and checked here, at the card's full width"
+msgstr "das Sheet ist Code: hier gelesen und geprüft, über die volle Breite der Karte"
+
+msgid "← Presets"
+msgstr "← Presets"
+
+msgid "These six steps are measured as they stand: nothing here is derived, nothing is moved, and nothing is rewritten until you press Use these colours."
+msgstr "Diese sechs Schritte werden gemessen, wie sie dastehen: hier wird nichts abgeleitet, nichts verschoben und nichts umgeschrieben, bis du „Diese Farben verwenden“ drückst."
+
+msgid "Step 1 · the starting point"
+msgstr "Schritt 1 · der Ausgangspunkt"
+
+msgid "Step 2 · the six steps"
+msgstr "Schritt 2 · die sechs Schritte"
+
+msgid "← Step 1"
+msgstr "← Schritt 1"
+
+#: services/webservice/pages/site_config.py
+msgid "The declarations this step writes"
+msgstr "Die Deklarationen, die dieser Schritt schreibt"
+
+#: services/webservice/pages/site_config.py
+msgid "the page's own colour"
+msgstr "die eigene Farbe der Seite"
+
+#: services/webservice/pages/site_config.py
+msgid "the accent — eyebrow, links, the name"
+msgstr "der Akzent — Überzeile, Links, der Name"
+
+#: services/webservice/pages/site_config.py
+msgid "follows %(token)s · L %(offset)s"
+msgstr "folgt %(token)s · L %(offset)s"
+
+#: services/webservice/pages/site_config.py
+msgid "moved L %(from)s → %(to)s"
+msgstr "verschoben L %(from)s → %(to)s"
+
+#: services/webservice/pages/site_config.py
+msgid "the step you are editing"
+msgstr "der Schritt, den du bearbeitest"
+
+#: services/webservice/pages/site_config.py
+msgid "under AA"
+msgstr "unter AA"
+
+#: services/webservice/pages/site_config.py
+msgid "The value you set is %(before)s. The nearest value that clears it is %(hex)s (%(ratio)s:1 on %(against)s, %(ground)s:1 on the ground), L %(from)s → %(to)s — it clears the other pairs this edit broke as well."
+msgstr "Der Wert, den du gesetzt hast, ist %(before)s. Der nächste Wert,"
+" der ihn besteht, ist %(hex)s (%(ratio)s:1 auf %(against)s, %(ground)s:1"
+" auf dem Grund), L %(from)s → %(to)s — er besteht auch die anderen Paare,"
+" die diese Änderung gebrochen hat."
+
+#: services/webservice/pages/site_config.py
+msgid "Keep my %(hex)s"
+msgstr "Mein %(hex)s behalten"
+
+#: services/webservice/pages/site_config.py
+msgid "The value %(hex)s cannot be moved into AA at any lightness: the row keeps it and the verdict refuses it."
+msgstr "Der Wert %(hex)s lässt sich bei keiner Helligkeit in AA bringen:"
+" die Zeile behält ihn, und das Urteil lehnt ihn ab."
+
+#: services/webservice/pages/site_config.py
+msgid "Six steps, twenty-three declarations, ten pairs tested — %(count)s under AA. The value is the operator's and the sheet carries it; Use these colours is held until you answer."
+msgstr "Sechs Schritte, dreiundzwanzig Deklarationen, zehn geprüfte Paare —"
+" %(count)s unter AA. Der Wert gehört dem Betreiber, und das Blatt trägt"
+" ihn; Diese Farben verwenden ist gesperrt, bis du antwortest."
+
+#: services/webservice/pages/site_config.py
+msgid "The sheet was uploaded — the site's preview reloads with it."
+msgstr "Das Sheet wurde hochgeladen — die Vorschau der Site lädt es mit."
+
+#: services/webservice/pages/site_config.py
+msgid "The uploaded sheet was removed — the site falls back to its preset."
+msgstr "Das hochgeladene Sheet wurde entfernt — die Site fällt auf ihr Preset zurück."
+
+#: services/webservice/pages/site_config.py
+msgid "That file is not a .css sheet: this page accepts a CSS file."
+msgstr "Diese Datei ist kein .css-Sheet: diese Seite nimmt eine CSS-Datei an."
+
+#: services/webservice/pages/site_config.py
+msgid "That sheet is larger than the %(limit)s this page accepts, so nothing was written."
+msgstr "Dieses Sheet ist größer als die %(limit)s, die diese Seite annimmt, es wurde also nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "That file is not UTF-8 text, so nothing was written."
+msgstr "Diese Datei ist kein UTF-8-Text, es wurde also nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "Your role cannot change this site's palette, so nothing was written."
+msgstr "Deine Rolle kann die Palette dieser Site nicht ändern, es wurde also nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "You can upload a sheet only for your own site, so nothing was written."
+msgstr "Du kannst ein Sheet nur für deine eigene Site hochladen, es wurde also nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "Your own sheet"
+msgstr "Dein eigenes Sheet"
+
+#: services/webservice/pages/site_config.py
+msgid "A .css file the site serves as its palette, stored with the site's assets."
+msgstr "Eine .css-Datei, die die Site als ihre Palette ausliefert und die bei den Assets der Site liegt."
+
+#: services/webservice/pages/site_config.py
+msgid "The sheet is served exactly as you wrote it — nothing is checked. It may carry @font-face, url() and component rules, and the browser loads what it names from this installation's own origin. The expert sheet below is the validated path."
+msgstr "Das Sheet wird genau so ausgeliefert, wie du es geschrieben hast — nichts wird geprüft. Es darf @font-face, url() und Komponentenregeln enthalten, und der Browser lädt, was es nennt, vom eigenen Origin dieser Installation. Das Experten-Sheet unten ist der geprüfte Weg."
+
+#: services/webservice/pages/site_config.py
+msgid "The site serves the uploaded file %(name)s."
+msgstr "Die Site liefert die hochgeladene Datei %(name)s aus."
+
+#: services/webservice/pages/site_config.py
+msgid "No sheet uploaded. The site serves the palette the header above states."
+msgstr "Kein Sheet hochgeladen. Die Site liefert die Palette, die die Kopfzeile oben nennt."
+
+#: services/webservice/pages/site_config.py
+msgid "Upload a sheet"
+msgstr "Sheet hochladen"
+
+#: services/webservice/pages/site_config.py
+msgid "Replace the sheet"
+msgstr "Sheet ersetzen"
+
+#: services/webservice/pages/site_config.py
+msgid "Choose a sheet"
+msgstr "Sheet auswählen"
+
+#: services/webservice/pages/site_config.py
+msgid "A .css file, UTF-8, at most %(limit)s."
+msgstr "Eine .css-Datei, UTF-8, höchstens %(limit)s."
+
+#: services/webservice/pages/site_config.py
+msgid "Remove this site's uploaded sheet? The site falls back to its preset."
+msgstr "Das hochgeladene Sheet dieser Site entfernen? Die Site fällt auf ihr Preset zurück."
+
+#: services/webservice/pages/site_config.py
+msgid "An uploaded sheet"
+msgstr "Ein hochgeladenes Sheet"
+
+#: services/webservice/pages/site_config.py
+msgid "Your uploaded sheet is in force — replace or remove it below."
+msgstr "Dein hochgeladenes Sheet ist in Kraft — ersetze oder entferne es unten."
+
+#: services/webservice/pages/site_config.py
+msgid "A draft: the box follows the values in the form, and nothing is written until you save."
+msgstr "Ein Entwurf: das Fenster folgt den Werten im Formular, und nichts wird geschrieben, bis du speicherst."
+
+#: services/webservice/shell.py
+msgid "Page not found"
+msgstr "Seite nicht gefunden"
+
+#: services/webservice/shell.py
+msgid "This address does not exist. Check the link, or use the menu to find what you were looking for."
+msgstr "Diese Adresse gibt es nicht. Prüfe den Link oder nutze das Menü, um das Gesuchte zu finden."
+
+#: services/webservice/pages/site_config.py
+msgid "Add a site"
+msgstr "Eine Site hinzufügen"
+
+#: services/webservice/pages/site_config.py
+msgid "A new site is one entry in this file: its name, the servers it shows and the segment it answers on."
+msgstr "Eine neue Site ist ein Eintrag in dieser Datei: ihr Name, die Server, die sie zeigt, und das Segment, unter dem sie antwortet."
+
+#: services/webservice/pages/site_config.py
+msgid "Name in the file"
+msgstr "Name in der Datei"
+
+#: services/webservice/pages/site_config.py
+msgid "Lowercase letters, digits and inner dashes, starting with a letter or digit. This is the site's key, not its address."
+msgstr "Kleinbuchstaben, Ziffern und innere Bindestriche, beginnend mit einem Buchstaben oder einer Ziffer. Das ist der Schlüssel der Site, nicht ihre Adresse."
+
+#: services/webservice/pages/site_config.py
+msgid "The servers it shows"
+msgstr "Die Server, die sie zeigt"
+
+#: services/webservice/pages/site_config.py
+msgid "Every value servers.yaml names in a server's managed_by, and nothing else: a site's servers are the ones whose managed_by names its role."
+msgstr "Jeder Wert, den servers.yaml in einem managed_by eines Servers nennt, und sonst nichts: die Server einer Site sind die, deren managed_by ihre Rolle nennt."
+
+#: services/webservice/pages/site_config.py
+msgid "The site root"
+msgstr "Die Site-Wurzel"
+
+#: services/webservice/pages/site_config.py
+msgid "The segment after \"/\" a visitor types. Empty for the site root; a site other than the root cannot be saved without one."
+msgstr "Das Segment nach \"/\", das ein Besucher eintippt. Leer für die Site-Wurzel; eine Site, die nicht die Wurzel ist, lässt sich ohne eines nicht speichern."
+
+#: services/webservice/pages/site_config.py
+msgid "Add the site"
+msgstr "Site hinzufügen"
+
+#: services/webservice/pages/site_config.py
+msgid "Adding a site is the installation Admin's, so nothing was written."
+msgstr "Eine Site hinzuzufügen ist Sache des Installations-Admins, es wurde also nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "'%(key)s' is not a site name: lowercase letters, digits and inner dashes, starting with a letter or digit. Nothing was written."
+msgstr "'%(key)s' ist kein Site-Name: Kleinbuchstaben, Ziffern und innere Bindestriche, beginnend mit einem Buchstaben oder einer Ziffer. Es wurde nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "A site named '%(key)s' is already in this file, so nothing was written."
+msgstr "Eine Site namens '%(key)s' steht bereits in dieser Datei, es wurde also nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "A site other than the site root needs the segment it answers on, so nothing was written."
+msgstr "Eine Site, die nicht die Wurzel ist, braucht das Segment, unter dem sie antwortet; es wurde nichts geschrieben."
+
+#: services/webservice/pages/site_config.py
+msgid "Every change is checked by this file's own parser, and a document that does not pass cannot be saved."
+msgstr "Jede Änderung wird vom eigenen Parser dieser Datei geprüft, und ein Dokument, das ihn nicht besteht, lässt sich nicht speichern."
+
+#: services/webservice/pages/site_config.py
+msgid "A save writes this file; the console reads it again on the next bot restart."
+msgstr "Ein Speichern schreibt diese Datei; die Konsole liest sie beim nächsten Neustart des Bots erneut."
+
+#: services/webservice/pages/site_config.py
+msgid "Editing this file is the installation Admin's, so nothing was written."
+msgstr "Diese Datei zu bearbeiten ist Sache des Installations-Admins, es wurde also nichts geschrieben."
+
+msgid "drawn from your file"
+msgstr "aus deiner Datei gezeichnet"
+
+msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
+msgstr "Diese Site hat noch keine eigene Adresse — so wird sie aussehen. Sie antwortet, sobald der Bot neu startet."

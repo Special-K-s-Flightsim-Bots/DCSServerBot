@@ -38,7 +38,7 @@ from fastapi.responses import HTMLResponse
 
 from core.actions import read_action
 
-from .. import i18n, readmodels
+from .. import mount, i18n, readmodels
 from ..readmodels import players as player_model
 from ..readmodels.views import PAGE_PARAM, normalise_page, view_params
 from . import lists as lists_page
@@ -141,7 +141,8 @@ def _link(carry: dict, show: str, page_number: int | None = None) -> str:
         query[SHOW_PARAM] = show
     if page_number is not None and page_number > 1:
         query[PAGE_PARAM] = str(page_number)
-    return f"{PLAYERS_PATH}?{urlencode(query)}" if query else PLAYERS_PATH
+    root = mount.url(PLAYERS_PATH)
+    return f"{root}?{urlencode(query)}" if query else root
 
 
 def _view_options(carry: dict, show: str) -> dict:
@@ -245,7 +246,7 @@ async def players_context(request: Request) -> dict:
         "total": view.total,
         "shown": len(rows),
         "filtered": show != SHOW_ALL,
-        "detail_prefix": PLAYERS_DETAIL_PREFIX,
+        "detail_prefix": mount.url(PLAYERS_DETAIL_PREFIX),
         "paging": _paging(carry, show, view),
         "empty_matched": PLAYERS_EMPTY_MATCHED,
         "empty_view": PLAYERS_EMPTY_VIEW,

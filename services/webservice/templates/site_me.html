@@ -1,0 +1,146 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's "my statistics" — the signed-in visitor's own record on THIS site's servers.
+
+  Every figure below is a value `pages/site_me.view()` composed from `site_reads.my_statistics`'
+  answer. The page opens with the coloured "this is you" band, so the figures below it can never be
+  mistaken for another pilot's, and a viewer with no record here still gets the page — never a
+  refusal: the same figures are already public on the pilot profile.
+
+  Signed out, the page is the door and nothing else: one sign-in control, no figure, no redirect.
+-#}
+{% block title %}{% trans %}My statistics{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+{% if not model.signed_in %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Signed out{% endtrans %}</div>
+      <h1>{% trans %}My statistics{% endtrans %}</h1>
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}Sign in to see your own record{% endtrans %}</h2></div>
+      <p class="note">{% trans %}This page shows the figures of the account you sign in with, counted on this site's servers. Everything else on the site stays open without an account.{% endtrans %}</p>
+      {% if model.sign_in_href %}
+      <p><a class="btn btn-solid" href="{{ model.sign_in_href }}">{% trans %}Sign in{% endtrans %}</a></p>
+      {% else %}
+      <p class="note plain">{% trans %}This installation has no sign-in method enabled.{% endtrans %}</p>
+      {% endif %}
+    </section>
+  </section>
+</main>
+{% else %}
+<div class="self"><div class="in">
+  <span class="stamp">{% trans %}This is you{% endtrans %}</span>
+  <p><b>{{ model.name }}</b> — {% if model.found %}{% trans %}these figures are yours, counted on this site's servers.{% endtrans %}{% else %}{% trans %}this account has no record on this site's servers.{% endtrans %}{% endif %}</p>
+  <span class="sp">
+    {% if model.public_href %}<a href="{{ model.public_href }}">{% trans %}Public view{% endtrans %} ↗</a>{% endif %}
+    <form method="post" action="{{ model.sign_out.path }}"><input type="hidden" name="{{ model.sign_out.csrf_field }}" value="{{ model.sign_out.csrf_token }}"><button type="submit">{% trans %}Sign out{% endtrans %}</button></form>
+  </span>
+</div></div>
+
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans %}Signed in{% endtrans %}</div>
+      <h1>{{ model.name }}</h1>
+      <div class="meta">{% if model.last_flown %}<span>{% trans when=model.last_flown %}last flown {{ when }}{% endtrans %}</span>{% endif %}</div>
+      <div class="tags">
+        <span class="tag hot">{% trans %}This is you{% endtrans %}</span>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+{% if model.unavailable %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+  </section>
+{% elif not model.found %}
+  <section class="sect" style="padding-top:var(--sp-4)">
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}No record on these servers{% endtrans %}</h2></div>
+      <p class="note">{% trans %}The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not.{% endtrans %}</p>
+      <p><a class="btn" href="{{ model.leaderboard_href }}">{% trans %}Back to the leaderboard{% endtrans %}</a></p>
+    </section>
+  </section>
+{% else %}
+  <div class="strip five" style="margin-top:var(--sp-4)">
+    {% for readout in model.readouts %}
+    <div class="readout">
+      <div class="v">{{ readout.value }}{% if readout.unit %}<small>{{ _(readout.unit) }}</small>{% endif %}</div>
+      <div class="k">{{ _(readout.label) }}</div>
+      <div class="q">{% if readout.note is mapping %}{{ say(readout.note) }}{% else %}{{ _(readout.note) }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">01</span><h2>{% trans %}What you fly{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.airframes | length %}{{ count }} airframes{% endtrans %}</span></div>
+    <p class="intro">{% trans %}Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot.{% endtrans %}</p>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Airframe hours{% endtrans %}</h2><span class="meta">{% trans %}on this site's servers{% endtrans %}</span></div>
+        {% if model.airframes %}
+        <ul class="hbars">
+          {% for airframe in model.airframes %}
+          <li>
+            <div class="row"><span class="nm">{{ airframe.name }}</span><span class="vv">{{ airframe.hours }} {% trans %}h{% endtrans %}</span></div>
+            <div class="track"><b style="width:{{ airframe.share }}%"></b></div>
+            <div class="sub">{% trans count=airframe.sessions %}{{ count }} sessions{% endtrans %}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="note plain">{% trans %}Bars are scaled to your own flying, so the longest bar is the airframe you fly most.{% endtrans %}</p>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded for this account on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">02</span><h2>{% trans %}Where you fly{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.servers | length %}{{ count }} servers{% endtrans %}</span></div>
+    <p class="intro">{% trans %}The same sessions counted by the server they ran on. Only this site's servers appear.{% endtrans %}</p>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Sessions per server{% endtrans %}</h2><span class="meta">{% trans %}all time{% endtrans %}</span></div>
+        {% if model.servers %}
+        <table class="tbl">
+          <thead><tr><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Playtime{% endtrans %}</th><th class="r">{% trans %}Sessions{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for server in model.servers %}
+            <tr><td><span class="nm">{{ server.name }}</span></td><td class="r">{{ server.hours }} {% trans %}h{% endtrans %}</td><td class="r">{{ server.sessions }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded for this account on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+
+  <section class="sect">
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}What others see{% endtrans %}</h2><span class="meta">{% trans %}Public profile{% endtrans %}</span></div>
+      <p class="note">{% trans %}The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history.{% endtrans %}</p>
+      {% if model.public_href %}<p><a class="btn" href="{{ model.public_href }}">{% trans %}Open my public profile{% endtrans %}</a></p>{% endif %}
+    </section>
+  </section>
+{% endif %}
+</main>
+{% endif %}
+{% endblock %}

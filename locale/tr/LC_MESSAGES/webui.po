@@ -766,14 +766,6 @@ msgstr "{mission} görevinden okundu"
 msgid "The mission's weather could not be read."
 msgstr "Görevin hava durumu okunamadı."
 
-#: services/webservice/pages/actions.py:764
-msgid ""
-"This server has no current mission, so there is nothing to apply a weather "
-"preset to."
-msgstr ""
-"Bu sunucuda mevcut bir görev olmadığından hava durumu ön ayarının "
-"uygulanacağı bir şey yok."
-
 #: services/webservice/pages/actions.py:777
 msgid "Or create a temporary preset"
 msgstr "Veya geçici bir ön ayar oluşturun"
@@ -6734,8 +6726,8 @@ msgstr ""
 
 #: services/webservice/templates/base.html:47
 #: services/webservice/templates/login.html:40
-msgid "Admin Console"
-msgstr "Yönetim Konsolu"
+msgid "Command Center"
+msgstr "Komuta Merkezi"
 
 #: services/webservice/templates/base.html:100
 msgid "Sign out"
@@ -6964,12 +6956,6 @@ msgstr ""
 #: services/webservice/templates/settings_scope.html:107
 msgid "The file, as YAML"
 msgstr "YAML olarak dosya"
-
-#: services/webservice/templates/node_page.html:107
-#: services/webservice/templates/settings.html:120
-#: services/webservice/templates/settings_scope.html:110
-msgid "Expert Mode"
-msgstr "Uzman Modu"
 
 #: services/webservice/templates/node_page.html:111
 #: services/webservice/templates/settings.html:124
@@ -9591,6 +9577,35 @@ msgstr ""
 "%(plugin)s eklentisi yeniden yüklenemedi — değişiklik dosyada kayıtlı ancak "
 "çalışan botta etkin değil. Uygulamak için botu yeniden başlatın."
 
+#: services/webservice/config_apply.py
+msgid "Re-read the site settings now?"
+msgstr "Site ayarları şimdi yeniden okunsun mu?"
+
+#: services/webservice/config_apply.py
+msgid "The public site's settings file is read again for the pages this console serves. Nothing is reloaded or restarted and no DCS server goes down."
+msgstr "Genel sitenin ayar dosyası, bu konsolun sunduğu sayfalar için yeniden okunur. Hiçbir şey yeniden yüklenmez veya yeniden başlatılmaz ve hiçbir DCS sunucusu kapanmaz."
+
+#: services/webservice/config_apply.py
+msgid "Re-read the site settings"
+msgstr "Site ayarlarını yeniden oku"
+
+#: services/webservice/config_apply.py
+msgid "the site settings"
+msgstr "site ayarları"
+
+#: services/webservice/config_apply.py
+msgid "Re-reading the site settings. The public site follows on its next page load; nothing is reloaded or restarted."
+msgstr "Site ayarları yeniden okunuyor. Genel site bir sonraki sayfa yüklemesinde güncellenir; hiçbir şey yeniden yüklenmez veya yeniden başlatılmaz."
+
+#: services/webservice/config_apply.py
+msgid "Nothing was applied: the site settings are already being re-read."
+msgstr "Hiçbir şey uygulanmadı: site ayarları zaten yeniden okunuyor."
+
+#: services/webservice/config_apply.py
+msgid "The file holds the change, but the console could not re-read it — %(reason)s. The sites that were installed keep serving; nothing was reloaded or restarted."
+msgstr "Dosya değişikliği içeriyor, ancak konsol onu yeniden okuyamadı — %(reason)s. Daha önce kurulmuş siteler sunulmaya devam ediyor; hiçbir şey yeniden yüklenmedi veya yeniden başlatılmadı."
+
+
 #: services/webservice/scheduler_plan.py
 msgid "Stop the DCS server process"
 msgstr "DCS sunucu işlemini durdur"
@@ -11992,474 +12007,152 @@ msgstr ""
 "şekliyle toz pusunun ne kadar yoğun olduğu: 984 ila 65 617 ft, 300 ila 20 "
 "000 m."
 
-msgid "DCSServerBot Admin Console"
-msgstr "DCSServerBot Yönetim Paneli"
-
-msgid ""
-"This plugin supports administrative commands that are needed to operate a "
-"DCS server remotely."
-msgstr ""
-"Bir DCS sunucusunu uzaktan yönetmek için gereken yönetimsel komutları "
-"sağlar."
-
-msgid "This plugin can only be used together with the Backup Service."
-msgstr ""
-"Bu eklenti yalnızca Yedekleme Servisi (Backup Service) ile birlikte "
-"kullanılabilir."
-
-msgid "The Battleground plugin adds commands for the DCSBattleground tool."
-msgstr "DCSBattleground aracı için komutlar ve entegrasyon ekler."
-
-msgid ""
-"This plugin is designed to track GoFundMe campaigns and report new donations"
-" both to Discord and in-game"
-msgstr ""
-"GoFundMe bağış kampanyalarını takip eder ve yeni bağışları hem Discord hem "
-"de oyun içinde bildirir."
-
-msgid ""
-"When using DCSServerBot in your Discord and with your DCS servers, people "
-"gather lots of statistics. As people often"
-msgstr ""
-"Sunucularınızdaki oyuncu istatistiklerini ve küresel veritabanı "
-"senkronizasyonunu bulut üzerinden yönetir."
-
-msgid ""
-"This plugin is a very low level plugin that lets you generate your own "
-"discord commands, based on a descriptive language."
-msgstr ""
-"Tanımlayıcı bir yapılandırma ile kendi özel Discord komutlarınızı "
-"oluşturmanızı sağlar."
-
-msgid ""
-"With this plugin you can increase your PvP-fun and rank players and teams "
-"according to the famous"
-msgstr ""
-"PvP rekabetini artırır; oyuncuları ve takımları TrueSkill derecelendirme "
-"sistemine göre sıralar."
-
-msgid ""
-"This plugin adds credits to the bot. People can gain credits atm by killing "
-"stuff."
-msgstr ""
-"Bota kredi puanı sistemi ekler; oyuncular hedefleri imha ederek ve görev "
-"tamamlayarak kredi kazanır."
-
-msgid ""
-"This plugin will dump the whole DCSServerBot database every hour to "
-"./export/ tablename .json files for further"
-msgstr ""
-"Veritabanındaki tüm tabloları her saat başı ./export/ klasörüne JSON "
-"formatında dışa aktarır."
-
-msgid ""
-"Simple event debugger for DCS callbacks and DCS mission events. It dumps the"
-" whole event structure for debug purposes."
-msgstr ""
-"DCS geri çağrıları ve görev olayları için hata ayıklayıcı; tüm olay yapısını"
-" incelenmek üzere kaydeder."
-
-msgid "Add some helper commands to your Discord server."
-msgstr "Discord sunucunuza ek yardımcı yönetim ve moderasyon komutları ekler."
-
-msgid ""
-"This plugin will help you connect your DCSServerBot to the Digital Kneeboard"
-" Simulator."
-msgstr ""
-"DCSServerBot kurulumunuzu Digital Kneeboard Simulator (DKS) sistemine "
-"bağlamanızı sağlar."
-
-msgid "This plugin provides DDoS protection for your DCS servers."
-msgstr "DCS sunucularınız için güvenlik duvarı ve DDoS koruması sağlar."
-
-msgid ""
-"An IFR-style flight planning system for DCSServerBot with Discord "
-"integration, F10 map visualization, and navigation fix support. File, "
-"activate, and track flight plans with waypoints, altitudes, and timing."
-msgstr ""
-"Discord entegrasyonu, F10 harita görselleştirmesi ve rota noktası desteğiyle"
-" IFR tarzı uçuş planlama sistemi."
-
-msgid ""
-"This plugin adds support for the Moose Funkman protocol. You need to install"
-" FunkMan for it to work."
-msgstr ""
-"Moose Funkman protokolü desteği ekler (çalışması için FunkMan kurulu "
-"olmalıdır)."
-
-msgid ""
-"The GameMaster plugin adds commands that help you to interact with a running"
-" mission by either different kinds of"
-msgstr ""
-"Çalışmakta olan bir görevle gerçek zamanlı etkileşim kurmanızı, mesaj ve "
-"bayrak yönetmenizi sağlar."
-
-msgid ""
-"This plugin allows you to have a (optional: persistent) greenieboard for the"
-" top x (default: 10) players and to give"
-msgstr ""
-"Uçak gemisi iniş puanlarını (LSO) takip eder ve en iyi pilotlar için kalıcı "
-"Greenieboard tablosu oluşturur."
-
-msgid ""
-"This is the help plugin. It provides interactive help in Discord and the in-"
-"game chat."
-msgstr ""
-"Discord ve oyun içi sohbet üzerinden etkileşimli komut yardımı sağlar."
-
-msgid ""
-"A comprehensive pilot logbook and squadron management plugin for "
-"DCSServerBot. Provides military-style record keeping"
-msgstr ""
-"Pilot uçuş kayıt defteri (logbook), filo yönetimi, rütbe ve madalya takip "
-"sistemi sağlar."
-
-msgid ""
-"A comprehensive logistics mission system for DCSServerBot with full DCS in-"
-"game integration. Create, manage, and track cargo delivery missions with F10"
-" map markers, in-game chat commands, and automatic delivery detection."
-msgstr ""
-"F10 harita işaretleri, oyun içi sohbet komutları ve otomatik teslimat "
-"algılama ile kapsamlı lojistik görev sistemi."
-
-msgid "LotAtc is a famous GCI tool for DCS World."
-msgstr ""
-"DCS World için popüler yer kontrol / GCI (LotAtc) entegrasyonu sağlar."
-
-msgid ""
-"The mission plugin adds commands for amending the mission list, persistent "
-"mission- and player-embeds to be displayed"
-msgstr ""
-"Görev listesini yönetme, görev yükleme/değiştirme ve Discord üzerinde canlı "
-"sunucu/oyuncu durumu gösterme eklentisi."
-
-msgid ""
-"When enabled, this plugin will generate a persistent mission statistics "
-"embed to be displayed in the status channels and"
-msgstr ""
-"Etkinleştirildiğinde durum kanallarında kalıcı ve canlı görev istatistikleri"
-" tablosu oluşturur."
-
-msgid ""
-"This plugin belongs to the ModManager Service that lets you install "
-"additional"
-msgstr ""
-"Sunucularınıza ek uçak ve paket modları kurmanızı sağlayan ModManager "
-"servisinin kontrol eklentisidir."
-
-msgid ""
-"This is a default plugin of DCSServerBot. It gathers load statistics of your"
-" DCS server."
-msgstr ""
-"DCSServerBot varsayılan izleme eklentisidir; sunucu yük, performans ve "
-"donanım istatistiklerini toplar."
-
-msgid ""
-"This plugin adds a message of the day to the server, that is displayed "
-"either on join or when you hop into a plane."
-msgstr ""
-"Sunucuya katılımda veya uçağa geçildiğinde oyunculara gösterilen Günün "
-"Mesajı (MOTD) sistemini ekler."
-
-msgid "This plugin is the Discord interface to the Music Service."
-msgstr ""
-"Müzik Servisi (SRS üzerinden müzik yayını) için Discord kontrol arayüzü "
-"sağlar."
-
-msgid ""
-"With this plugin, you can display persistent status update embeds for your "
-"Pretense missions."
-msgstr ""
-"Pretense dinamik sefer görevleriniz için Discord üzerinde kalıcı durum "
-"tabloları gösterir."
-
-msgid "This plugin adds lua profiling functionality to DCSServerBot."
-msgstr ""
-"DCSServerBot için Lua performans ve profil analizi işlevselliği ekler."
-
-msgid ""
-"The DCSServerBot auto-ban, auto-kick, auto-move-back-to-spectators module, "
-"based on the player's behavior and the"
-msgstr ""
-"Dost ateşi ve kural ihlallerine göre otomatik yasaklama, sunucudan atma veya"
-" izleyicilere çekme (ceza) modülü."
-
-msgid ""
-"With this plugin, you can apply real weather supplied by DCS-real-weather"
-msgstr ""
-"DCS-real-weather kullanarak görevlerinize gerçek zamanlı hava durumu "
-"verileri uygular."
-
-msgid ""
-"This API provides a very simple RestAPI that you can use together with the "
-"WebService."
-msgstr ""
-"WebService ile birlikte kullanabileceğiniz dış erişim RestAPI uç noktaları "
-"sağlar."
-
-msgid "A class where all your discord commands should go."
-msgstr "Özel eklenti geliştirmek için örnek şablon eklentisi."
-
-msgid ""
-"With this plugin you can decide when to run your DCS servers, when to run "
-"which mission and how long a specific mission"
-msgstr ""
-"DCS sunucularınızın ne zaman çalışacağını, hangi görevin ne kadar süreyle "
-"döneceğini ve otomatik yeniden başlatmaları planlar."
-
-msgid ""
-"SkyEye is an AI-powered GCI bot for DCS World, to which you can talk to "
-"using SRS."
-msgstr ""
-"SRS telsizi üzerinden sesli konuşabileceğiniz yapay zeka destekli GCI / "
-"AWACS botu (SkyEye)."
-
-msgid ""
-"This plugin is designed for slot blocking and offers multiple usage options."
-msgstr ""
-"Kredi, puan veya Discord rolüne göre uçak slotlarını kısıtlama (slot "
-"bloklama) sistemi."
-
-msgid "SimpleRadioStandalone (DCS-SRS) is a radio solution for DCS World."
-msgstr ""
-"DCS World için SimpleRadioStandalone (DCS-SRS) telsiz entegrasyonu ve "
-"otomatik bağlantı kontrolü."
-
-msgid "Tacview is a famous flight analysis tool for DCS World."
-msgstr "DCS World için popüler uçuş kaydı ve analiz aracı (Tacview) yönetimi."
-
-msgid ""
-"This plugin allows you to run tournaments supported by DCSServerBot. It is "
-"based on many other concepts of the bot, so"
-msgstr ""
-"DCSServerBot destekli turnuvalar, eşleşmeler ve karşılaşmalar düzenlemenizi "
-"sağlar."
-
-msgid ""
-"DCSServerBot comes with a built-in, database driven statistics system. It "
-"allows users to show their own"
-msgstr ""
-"Veritabanı tabanlı yerleşik oyuncu istatistikleri, uçuş süreleri ve skor "
-"tablosu sistemi."
-
-msgid ""
-"This plugin enables a voting system for users. People can choose from "
-"several voting options. DCSServerBot comes with"
-msgstr ""
-"Oyuncuların görev, hava durumu veya sunucu seçenekleri için oyun içinden "
-"oylama yapmasını sağlar."
-
-msgid ""
-"The backup service can be used to back up your bot configuration, the "
-"database and whatever you want to back up from"
-msgstr ""
-"Bot yapılandırmanızı, veritabanınızı ve sunucu dosyalarınızı otomatik olarak"
-" yedekleme servisi."
-
-msgid ""
-"This is the Discord bot implementation, the one that's providing all the "
-"commands and embeds that are displayed in your"
-msgstr ""
-"Discord sunucunuzdaki tüm komutları, durum kartlarını ve bildirimleri "
-"sağlayan ana Discord bot servisi."
-
-msgid ""
-"The cleanup service is your cleaning lady, that deletes all the unnecessary "
-"stuff from your disk or discord channels"
-msgstr ""
-"Diskteki eski kayıt/log dosyalarını ve Discord kanallarındaki gereksiz "
-"mesajları otomatik temizleyen servis."
-
-msgid ""
-"The cron service can restart your server, reboot the PC, send popup "
-"warnings, or generate reports at any scheduled"
-msgstr ""
-"Belirlenen zamanlarda sunucuyu yeniden başlatma, bilgisayarı kapatma, uyarı "
-"gönderme veya rapor üretme servisi."
-
-msgid ""
-"The dashboard is a nice overlay over your CMD window, that runs "
-"DCSServerBot. It displays the current status of your"
-msgstr ""
-"Komut satırı (CMD) penceresinde sunucuların ve sistem günlüklerinin canlı "
-"durumunu gösteren terminal paneli."
-
-msgid ""
-"This service controls the Windows Firewall for your DCS servers and all "
-"registered applications."
-msgstr ""
-"DCS sunucularınız ve kayıtlı uygulamalarınız için Windows Güvenlik Duvarı "
-"kurallarını yöneten servis."
-
-msgid ""
-"This is the ModManager service, which lets you install packaged "
-"modifications (mods) to your DCS server."
-msgstr ""
-"Paketlenmiş modifikasyonları (modları) DCS sunucularınıza kurmanızı ve "
-"yönetmenizi sağlayan servis."
-
-msgid "This service monitors the health of your DCS servers."
-msgstr ""
-"DCS sunucularınızın sağlığını, yanıt durumunu, donanım kaynaklarını ve disk "
-"alanını izleyen servis."
-
-msgid ""
-"The music service allows you to play music (mp3 files as of now) via defined"
-" DCS-SRS"
-msgstr ""
-"Belirlenen DCS-SRS telsiz frekansları üzerinden MP3 müzik yayını yapmanızı "
-"sağlayan servis."
-
-msgid "This is the communication-hub of DCSServerBot."
-msgstr ""
-"DCSServerBot ile DCS sunucuları ve oturumlar (node) arasındaki ana iletişim "
-"merkezi."
-
-msgid ""
-"If your server is battery-backed, this service handles the graceful shutdown"
-" of your DCS servers and your PC in case of"
-msgstr ""
-"Kesintisiz güç kaynağı (UPS) bağlıysa, elektrik kesintisinde sunucuları ve "
-"bilgisayarı güvenli şekilde kapatır."
-
-msgid ""
-"The webservice service runs an HTTP server inside the bot on the master "
-"node. It carries two"
-msgstr ""
-"Ana oturumda (master node) Web Yönetim Panelini ve HTTP/API sunucusunu "
-"çalıştıran servis."
-
-msgid "Used by the Cloud-plugin for updating the cloud server list."
-msgstr ""
-"Bulut eklentisi tarafından bulut sunucu listesini ve istatistiklerini "
-"güncellemek için kullanılır."
-
-msgid "Digital Kneeboard Simulator (DKS) is a planning and debrief suite for"
-msgstr "DCS World için planlama ve uçuş sonu değerlendirme (debrief) paketi."
-
-msgid ""
-"If you want to enable persistence for your missions, DSMC is one way to go."
-msgstr ""
-"Görevlerinizde saha kalıcılığını (persistence) etkinleştirmek için DSMC "
-"entegrasyonu."
-
-msgid ""
-"Simple extension to clone or update a given repository into a directory on "
-"your server."
-msgstr ""
-"Sunucunuzdaki bir dizine GitHub deposu klonlamak veya otomatik güncellemek "
-"için uzantı."
-
-msgid ""
-"DCS-gRPC is a communication library, that is somehow similar to what "
-"DCSServerBot does"
-msgstr ""
-"DCS sunucularıyla gRPC protokolü üzerinden iletişim kurmayı sağlayan uzantı."
-
-msgid ""
-"This extension provides integration with the HoundTTS text-to-speech engine "
-"for use with your DCS World server."
-msgstr ""
-"DCS World sunucunuzda HoundTTS metin okuma (text-to-speech) motoru "
-"entegrasyonu sağlar."
-
-msgid ""
-"Lardoon is another web-server-based application that provides a nice search"
-msgstr ""
-"Tacview kayıtlarını indeksleyen ve web üzerinden arama/izleme imkanı sunan "
-"Lardoon uzantısı."
-
-msgid "This is a default extension loaded in any case."
-msgstr ""
-"Her durumda otomatik yüklenen varsayılan sunucu günlük (log) analiz "
-"uzantısı."
-
-msgid ""
-"Another famous extension for DCS is LotAtc by D'Art. If you think about any "
-"kind of proper"
-msgstr ""
-"DCS için gelişmiş radar ve yer kontrol (GCI/ATC) yazılımı LotAtc sunucu "
-"uzantısı."
-
-msgid ""
-"One of the primary features of DCSServerBot is its ability to allow users to"
-" use any standard missions,"
-msgstr ""
-"Standart görev dosyalarını (.miz) başlatmadan önce hava durumu, saat ve ön "
-"ayarlarla otomatik düzenleyen uzantı."
-
-msgid ""
-"This little extension checks, if you have any requiredModules in your miz "
-"file and shows them in the server status"
-msgstr ""
-"Görev dosyasındaki (.miz) zorunlu modülleri kontrol eder ve sunucu durum "
-"bilgisinde gösterir."
-
-msgid "DCS Olympus is a free and open-source mod for DCS that enables dynamic"
-msgstr ""
-"DCS için tarayıcı üzerinden gerçek zamanlı birim kontrolü sağlayan açık "
-"kaynaklı DCS Olympus uzantısı."
-
-msgid ""
-"This extension allows you to persist mission information over the course of "
-"a mission / server restart."
-msgstr ""
-"Görev ve sunucu yeniden başlatmaları arasında görev ilerlemesini (Foothold "
-"vb.) koruyan kalıcılık uzantısı."
-
-msgid ""
-"Pretense is a dynamic campaign system built by Dzsek. Unfortunately he "
-"dropped"
-msgstr ""
-"Pretense dinamik sefer görevlerinin ilerlemesini ve istatistiklerini takip "
-"eden uzantı."
-
-msgid ""
-"If you want to use real-time weather in your missions, you can do that by "
-"using DCS-real-weather."
-msgstr ""
-"Görevlerinizde gerçek zamanlı meteoroloji verilerini (DCS-real-weather) "
-"uygulayan uzantı."
-
-msgid ""
-"Well, this \"sneaked\" in here somehow. Many people were asking for a moving"
-" map, and I looked at several solutions."
-msgstr ""
-"Tarayıcı üzerinden canlı hareketli harita (moving map) görünümü sağlayan "
-"Sneaker uzantısı."
-
-msgid ""
-"SimpleRadioStandalone (DCS-SRS) is an awesome tool built by CiriBob, who "
-"dedicates a lot of work and this"
-msgstr ""
-"DCS-SRS sesli telsiz sunucusunu otomatik başlatan, yapılandıran ve izleyen "
-"uzantı."
-
-msgid ""
-"Many servers run Tacview to help people analyse their flight path, weapons "
-"employment and"
-msgstr ""
-"Uçuş rotası ve mühimmat kullanımı analizi için Tacview uçuş kayıtlarını "
-"(ACMI) yöneten uzantı."
-
-msgid ""
-"Simple extension to upload a trackfile on mission change to either Discord "
-"or a path (e.g. cloud drive)."
-msgstr ""
-"Görev değişiminde DCS .trk kayıt dosyasını Discord kanalına veya bulut "
-"klasörüne yükleyen uzantı."
-
-msgid ""
-"If you want to use the built-in VoiceChat system of DCS, you can use the "
-"VoiceChat extension."
-msgstr ""
-"DCS World yerleşik sesli sohbet (Voice Chat) sistemini etkinleştiren uzantı."
-
-msgid ""
-"If you want to use the built-in Voice Chat system of DCS, you can use the "
-"VoiceChat extension."
-msgstr ""
-"DCS World yerleşik sesli sohbet (Voice Chat) sistemini etkinleştiren uzantı."
+msgid "DCSServerBot Command Center"
+msgstr "DCSServerBot Komuta Merkezi"
+
+#: services/webservice/templates/site_overview.html:150
+msgid "%"
+msgstr "%"
+
+#: services/webservice/templates/site_overview.html:159
+#, python-format
+msgid "%(count)s pilots"
+msgstr "%(count)s pilot"
+
+#: services/webservice/templates/site_overview.html:192
+#, python-format
+msgid "%(hours)s h"
+msgstr "%(hours)s sa"
+
+#: services/webservice/templates/site_overview.html:194
+#, python-format
+msgid "%(sorties)s sorties"
+msgstr "%(sorties)s sorti"
+
+#: services/webservice/templates/site_overview.html:111
+#, python-format
+msgid "%(weeks)s weeks"
+msgstr "%(weeks)s hafta"
+
+#: services/webservice/pages/site_overview.py:501
+msgid "Average sortie"
+msgstr "Ortalama sorti"
+
+#: services/webservice/templates/site_overview.html:215
+msgid "Busiest day"
+msgstr "En yoğun gün"
+
+#: services/webservice/pages/site_leaderboard.py:121
+msgid "Crashes"
+msgstr "Kazalar"
+
+#: services/webservice/templates/site_overview.html:209
+msgid "Every bar is one UTC hour: flight time is split across the hours each session actually spanned."
+msgstr "Her çubuk bir UTC saatidir: uçuş süresi, her oturumun gerçekte kapsadığı saatlere bölünür."
+
+#: services/webservice/templates/site_leaderboard.html:18
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
+msgstr "Bu sunuculardaki tüm pilotlar, sıralamanın arkasındaki sayılarla. Bir ölçüt seçin ya da herhangi bir sütunu sıralayın."
+
+#: services/webservice/pages/site_overview.py:505
+msgid "Flew this week"
+msgstr "Bu hafta uçtu"
+
+#: services/webservice/templates/site_overview.html:114
+msgid "Hours per week"
+msgstr "Haftalık saat"
+
+#: services/webservice/pages/site_leaderboard.py:123
+msgid "Most flown"
+msgstr "En çok uçulan"
+
+#: services/webservice/templates/site_overview.html:187
+msgid "No aircraft has been flown on these servers yet."
+msgstr "Bu sunucularda henüz hiçbir uçakla uçulmadı."
+
+#: services/webservice/templates/site_overview.html:204
+msgid "No sortie has been recorded on these servers yet."
+msgstr "Bu sunucularda henüz hiçbir sorti kaydedilmedi."
+
+#: services/webservice/templates/site_overview.html:143
+msgid "One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "Aynı dönemin her haftası için bir çubuk, içinde bulunulan hafta daha açık dolguyla."
+
+#: services/webservice/templates/site_overview.html:76
+msgid "Our pilots' time in the air on these servers, from the first mission to today."
+msgstr "Pilotlarımızın bu sunucularda havada geçirdiği süre, ilk görevden bugüne."
+
+#: services/webservice/templates/site_overview.html:49
+msgid "Our servers, our pilots, our missions. Every sortie flown here is written down — who flew, what they flew, and how it ended."
+msgstr "Bizim sunucularımız, pilotlarımız, görevlerimiz. Burada uçulan her sorti kaydedilir — kim uçtu, neyle uçtu ve nasıl bitti."
+
+#: services/webservice/templates/site_overview.html:214
+msgid "Peak hour"
+msgstr "Yoğun saat"
+
+#: services/webservice/pages/site_leaderboard.py:120
+msgid "PvP"
+msgstr "PvP"
+
+#~ msgid "Sorties by hour of day"
+#~ msgstr "Günün saatine göre sortiler"
+
+#: services/webservice/templates/site_overview.html:140
+msgid "Sorties flown per week"
+msgstr "Haftalık uçulan sortiler"
+
+#: services/webservice/templates/site_overview.html:135
+msgid "Sorties per week"
+msgstr "Haftalık sortiler"
+
+#: services/webservice/templates/site_overview.html:181
+msgid "The aircraft"
+msgstr "Uçaklar"
+
+#: services/webservice/templates/site_overview.html:226
+msgid "The squadrons that fly here."
+msgstr "Burada uçan filolar."
+
+#: services/webservice/templates/site_overview.html:83
+msgid "This community"
+msgstr "Bu topluluk"
+
+#: services/webservice/templates/site_overview.html:126
+msgid "This season"
+msgstr "Bu sezon"
+
+#: services/webservice/templates/site_overview.html:137
+msgid "This window holds no recorded sortie yet."
+msgstr "Bu dönemde henüz kaydedilmiş bir sorti yok."
+
+#: services/webservice/site_pages.py:147
+#, python-format
+msgid "Welcome to %(community)s"
+msgstr "Hoş geldin, %(community)s"
+
+#: services/webservice/templates/site_overview.html:202
+msgid "When we fly"
+msgstr "Ne zaman uçuyoruz"
+
+#: services/webservice/templates/site_overview.html:160
+msgid "Who has flown the most on these servers."
+msgstr "Bu sunucularda en çok kim uçtu."
+
+#: services/webservice/templates/site_overview.html:185
+msgid "hours"
+msgstr "saat"
+
+#: services/webservice/templates/site_overview.html:77
+msgid "since the beginning"
+msgstr "başlangıçtan beri"
+
+#: services/webservice/templates/site_overview.html:201
+msgid "hours flown by hour · UTC"
+msgstr "saate göre uçuş saatleri · UTC"
+
+#: services/webservice/templates/site_overview.html:150
+msgid "vs. the first week"
+msgstr "ilk haftaya göre"
 
 #~ msgid ""
 #~ "Everyone online right now, across every server. Search by name or UCID. A "
@@ -12504,3 +12197,1516 @@ msgstr "Başlangıçta yüklenen: {mission}"
 
 msgid "Penalty points are not tracked, because the punishment plugin is not active."
 msgstr "Ceza (punishment) eklentisi aktif olmadığı için ceza puanları takip edilmiyor."
+
+# ---------------------------------------------------------------- the public site
+# The site's own chrome: the shell (site_base.html), the overview page and the nav
+# labels its pages declare. Machine-assisted and not reviewed by a native speaker.
+
+msgid "Leaderboard"
+msgstr "Liderlik tablosu"
+
+msgid "Squadrons"
+msgstr "Filolar"
+
+msgid "Pilots"
+msgstr "Pilotlar"
+
+msgid "Sorties flown"
+msgstr "Uçulan sortiler"
+
+msgid "recorded takeoffs"
+msgstr "kaydedilen kalkışlar"
+
+msgid "Sessions recorded"
+msgstr "Kaydedilen oturumlar"
+
+msgid "Community record"
+msgstr "Topluluk kaydı"
+
+msgid "Site"
+msgstr "Site"
+
+msgid "Command Center"
+msgstr "Komuta Merkezi"
+
+msgid "Live"
+msgstr "Canlı"
+
+msgid "pilots in the air"
+msgstr "pilot havada"
+
+msgid "%(up)s of %(total)s"
+msgstr "%(up)s / %(total)s"
+
+msgid "servers up"
+msgstr "sunucu açık"
+
+msgid "pilots this week"
+msgstr "pilot bu hafta"
+
+msgid "Hours in the air"
+msgstr "Havada geçen saat"
+
+msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
+msgstr "İstatistik veritabanı henüz kullanılamıyor, bu yüzden sayfa hiçbir sayı göstermiyor. Bot bağlanır bağlanmaz dolar."
+
+msgid "%(count)s vs. last week"
+msgstr "%(count)s geçen haftaya göre"
+
+msgid "The season so far"
+msgstr "Sezonun bugüne kadarı"
+
+msgid "This window holds no recorded session yet."
+msgstr "Bu pencerede henüz kaydedilmiş oturum yok."
+
+msgid "Hours flown per week"
+msgstr "Haftalık uçulan saat"
+
+msgid "A week with no session is drawn at zero, never left out: a gap in the line is a quiet week, not missing data."
+msgstr "Oturumu olmayan hafta sıfırda çizilir, asla atlanmaz: çizgideki boşluk eksik veri değil, sakin bir haftadır."
+
+msgid "Busiest · %(week)s"
+msgstr "En yoğun · %(week)s"
+
+msgid "Average week"
+msgstr "Ortalama hafta"
+
+msgid "Quietest · %(week)s"
+msgstr "En sakin · %(week)s"
+
+msgid "The standings"
+msgstr "Liderlik tablosu"
+
+msgid "Top pilots · playtime"
+msgstr "En iyi pilotlar · uçuş süresi"
+
+msgid "top %(shown)s of %(known)s"
+msgstr "%(known)s pilotun ilk %(shown)s tanesi"
+
+msgid "Pilot"
+msgstr "Pilot"
+
+msgid "No session has been recorded on this site's servers yet."
+msgstr "Bu sitenin sunucularında henüz hiç oturum kaydedilmedi."
+
+msgid "The squadrons"
+msgstr "Filolar"
+
+msgid "campaign points"
+msgstr "kampanya puanı"
+
+msgid "Campaign points"
+msgstr "Kampanya puanı"
+
+msgid "scaled to the leader"
+msgstr "lidere göre ölçekli"
+
+msgid "%(members)s members"
+msgstr "%(members)s üye"
+
+msgid "rating"
+msgstr "derecelendirme"
+
+msgid "The servers"
+msgstr "Sunucular"
+
+msgid "Server board"
+msgstr "Sunucu panosu"
+
+msgid "%(up)s of %(total)s up"
+msgstr "%(up)s / %(total)s açık"
+
+msgid "Flying"
+msgstr "Havada"
+
+msgid "Sorties"
+msgstr "Sorti"
+
+msgid "Up"
+msgstr "Açık"
+
+msgid "Off"
+msgstr "Kapalı"
+
+msgid "Public data."
+msgstr "Herkese açık veri."
+
+msgid "This site has no server of its own yet."
+msgstr "Bu sitenin henüz kendi sunucusu yok."
+
+msgid "%(count)s airframes"
+msgstr "%(count)s hava aracı"
+
+msgid "%(count)s servers"
+msgstr "%(count)s sunucu"
+
+msgid "%(count)s sessions"
+msgstr "%(count)s oturum"
+
+msgid "%(days)s days"
+msgstr "%(days)s gün"
+
+msgid "Air Defence"
+msgstr "Hava savunması"
+
+msgid "Air Targets"
+msgstr "Hava hedefleri"
+
+msgid "Airframe hours"
+msgstr "Hava aracı saatleri"
+
+msgid "Also known as"
+msgstr "Diğer adları"
+
+msgid "Back to the first page"
+msgstr "İlk sayfaya dön"
+
+msgid "Back to the leaderboard"
+msgstr "Sıralamaya dön"
+
+msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
+msgstr "Çubuklar bu pilotun uçuş süresine göre ölçeklenir; en uzun çubuk en çok uçtuğu hava aracıdır."
+
+msgid "Discord link"
+msgstr "Discord bağlantısı"
+
+msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
+msgstr "Ya adres yanlış yazıldı ya da bu pilotun bu sitenin sunucularında hiç oturumu yok. Bunun yerine adla pilot arayın."
+
+msgid "Find a pilot"
+msgstr "Pilot bul"
+
+msgid "Ground Targets"
+msgstr "Kara hedefleri"
+
+msgid "Is this you?"
+msgstr "Bu siz misiniz?"
+
+msgid "KD-Ratio"
+msgstr "K/D oranı"
+
+msgid "Longest Playtimes"
+msgstr "En uzun oynama süreleri"
+
+msgid "Metric"
+msgstr "Ölçüt"
+
+msgid "No pilot answers to this address"
+msgstr "Bu adrese karşılık gelen pilot yok"
+
+msgid "No pilot has a figure on this board yet. Try another metric, server or period."
+msgstr "Bu tabloda henüz hiçbir pilotun değeri yok. Başka bir ölçüt, sunucu veya dönem deneyin."
+
+msgid "No pilot's name contains that. Try fewer letters."
+msgstr "Hiçbir pilot adı bunu içermiyor. Daha az harf deneyin."
+
+msgid "No search yet: type part of a pilot's name in the search box above."
+msgstr "Henüz arama yok: yukarıdaki arama kutusuna bir pilot adının bir bölümünü yazın."
+
+msgid "No session has been recorded for this pilot on this site's servers yet."
+msgstr "Bu pilot için bu sitenin sunucularında henüz hiç oturum kaydedilmedi."
+
+msgid "Page"
+msgstr "Sayfa"
+
+msgid "Pilot not found"
+msgstr "Pilot bulunamadı"
+
+msgid "Pilot search"
+msgstr "Pilot arama"
+
+msgid "Pilots whose name contains “%(query)s”"
+msgstr "Adı “%(query)s” içeren pilotlar"
+
+msgid "Public profile."
+msgstr "Herkese açık profil."
+
+msgid "Public record · no account needed"
+msgstr "Herkese açık kayıt · hesap gerekmez"
+
+msgid "PvP-KD-Ratio"
+msgstr "PvP K/D oranı"
+
+msgid "Ranked"
+msgstr "Sıralama"
+
+msgid "Ranking · %(metric)s"
+msgstr "Sıralama · %(metric)s"
+
+msgid "Sessions per server"
+msgstr "Sunucu başına oturum"
+
+msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
+msgstr "Aynı Discord hesabı birden fazla oyuncu kimliğiyle uçmuş. Her ad ilgili profili açar."
+
+msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
+msgstr "Üç dönem, istatistik motorunun kendi ay, çeyrek ve yılıdır; 30, 90 ve 365 gün olarak sunulur."
+
+msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
+msgstr "Bir pilot için giriş yapmadan herkesin gördüğü şey budur: ad, filo, uçuş süresi ve muharebe verileri."
+
+msgid "This page holds no rows; the board ends earlier."
+msgstr "Bu sayfada satır yok; tablo daha önce bitiyor."
+
+msgid "This page holds no rows; the result ends earlier."
+msgstr "Bu sayfada satır yok; sonuç daha önce bitiyor."
+
+msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
+msgstr "Yukarıdaki arama kutusuna bir adın ilk harflerini yazın. Arama, adın herhangi bir yerini değil başlangıcını eşler."
+
+msgid "Unknown"
+msgstr "Bilinmiyor"
+
+msgid "What they fly"
+msgstr "Ne uçuyorlar"
+
+msgid "all time"
+msgstr "tüm zamanlar"
+
+msgid "last flown %(when)s"
+msgstr "son uçuş %(when)s"
+
+msgid "on this site's servers"
+msgstr "bu sitenin sunucularında"
+
+msgid "one Discord account, several player IDs"
+msgstr "tek Discord hesabı, birden fazla oyuncu kimliği"
+
+msgid "recorded"
+msgstr "kayıtlı"
+
+msgid "rows %(first)s – %(last)s"
+msgstr "satırlar %(first)s – %(last)s"
+
+msgid "{count} deaths"
+msgstr "{count} kayıp"
+
+msgid "{count} in PvP"
+msgstr "PvP'de {count}"
+
+msgid "Bars are scaled to your own flying, so the longest bar is the airframe you fly most."
+msgstr "Çubuklar kendi uçuş saatlerinize göre ölçeklenir, bu yüzden en uzun çubuk en çok uçtuğunuz modüldür."
+
+msgid "My statistics"
+msgstr "İstatistiklerim"
+
+msgid "No record on these servers"
+msgstr "Bu sunucularda kayıt yok"
+
+msgid "No session has been recorded for this account on this site's servers yet."
+msgstr "Bu hesap için bu sitenin sunucularında henüz hiç oturum kaydedilmedi."
+
+msgid "Open my public profile"
+msgstr "Herkese açık profilimi aç"
+
+msgid "Public profile"
+msgstr "Herkese açık profil"
+
+msgid "Public view"
+msgstr "Herkese açık görünüm"
+
+msgid "Sign in to see your own record"
+msgstr "Kendi kaydınızı görmek için giriş yapın"
+
+msgid "Signed in"
+msgstr "Giriş yapıldı"
+
+msgid "Signed out"
+msgstr "Çıkış yapıldı"
+
+msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
+msgstr "Giriş yaptığınız hesap, bu sitenin sunucularında uçmuş hiçbir oyuncu kimliğine bağlı değil. Bu topluluğun başka bir sitesinde kaydınız olabilir; burada yok."
+
+msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
+msgstr "Yukarıdaki sayılar herkesin herkese açık profilinizde okuduğu sayılardır: ad, uçuş süresi ve muharebe sayıları. Discord kimliği yok, IP adresi (hash'i bile) yok, e-posta yok, ban veya izleme durumu yok, moderasyon geçmişi yok."
+
+msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
+msgstr "Aynı oturumlar, üzerinde geçtikleri sunucuya göre sayılmış. Yalnızca bu sitenin sunucuları görünür."
+
+msgid "This installation has no sign-in method enabled."
+msgstr "Bu kurulumda hiçbir giriş yöntemi etkin değil."
+
+msgid "This is you"
+msgstr "Bu sizsiniz"
+
+msgid "This page shows the figures of the account you sign in with, counted on this site's servers. Everything else on the site stays open without an account."
+msgstr "Bu sayfa, giriş yaptığınız hesabın sayılarını bu sitenin sunucularında sayılmış olarak gösterir. Sitenin geri kalanı hesap olmadan açık kalır."
+
+msgid "What others see"
+msgstr "Başkalarının gördükleri"
+
+msgid "What you fly"
+msgstr "Ne uçuyorsunuz"
+
+msgid "Where you fly"
+msgstr "Nerede uçuyorsunuz"
+
+msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
+msgstr "Saatlerinizin nereye gittiği, modül modül, istatistik eklentisinin her slot için kaydettiği gibi."
+
+msgid "these figures are yours, counted on this site's servers."
+msgstr "bu sayılar sizin, bu sitenin sunucularında sayıldı."
+
+msgid "this account has no record on this site's servers."
+msgstr "bu hesabın bu sitenin sunucularında kaydı yok."
+
+msgid "%(count)s deaths"
+msgstr "%(count)s kayıp"
+
+msgid "%(count)s recorded"
+msgstr "%(count)s kayıtlı"
+
+msgid "%(count)s sorties"
+msgstr "%(count)s sorti"
+
+msgid "%(landings)s landings of %(takeoffs)s takeoffs"
+msgstr "%(takeoffs)s kalkıştan %(landings)s iniş"
+
+msgid "Air kills"
+msgstr "Hava zaferleri"
+
+msgid "Competitive rating"
+msgstr "Rekabetçi derecelendirme"
+
+msgid "Conservative rating"
+msgstr "Tutucu derecelendirme"
+
+msgid "Date"
+msgstr "Tarih"
+
+msgid "Duration"
+msgstr "Süre"
+
+msgid "Flight discipline"
+msgstr "Uçuş disiplini"
+
+msgid "How they fight"
+msgstr "Nasıl savaşıyorlar"
+
+msgid "How they fly"
+msgstr "Nasıl uçuyorlar"
+
+msgid "Last flights"
+msgstr "Son uçuşlar"
+
+msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
+msgstr "Pilot başına tek derecelendirme, rekabet eklentisi tarafından tutulur. Sunucu sütunu yoktur, bu yüzden her sitede aynı değerdir."
+
+msgid "PvE community"
+msgstr "PvE topluluğu"
+
+msgid "PvP K/D"
+msgstr "PvP K/D"
+
+msgid "PvP and PvE community"
+msgstr "PvP ve PvE topluluğu"
+
+msgid "PvP community"
+msgstr "PvP topluluğu"
+
+msgid "PvP kills"
+msgstr "PvP zaferleri"
+
+msgid "PvP record"
+msgstr "PvP karnesi"
+
+msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "Oranlar bu pilotun kendi sortilerine göredir; çubuk oranı gösterir, diğer pilotlara karşı bir sıralamayı değil."
+
+msgid "Recent sorties"
+msgstr "Son sortiler"
+
+msgid "Targets hit"
+msgstr "Vurulan hedefler"
+
+msgid "TrueSkill · global"
+msgstr "TrueSkill · global"
+
+msgid "What they shot down, split by who flew it: other players, or the mission's own air and ground forces."
+msgstr "Neyi düşürdüler, kimin kullandığına göre ayrılmış: diğer oyuncular ya da görevin kendi hava ve kara kuvvetleri."
+
+msgid "newest first"
+msgstr "en yeniler önce"
+
+msgid "{count} PvP deaths"
+msgstr "{count} PvP kaybı"
+
+msgid "{count} per sortie"
+msgstr "sorti başına {count}"
+
+msgid "{count} total kills"
+msgstr "toplam {count} zafer"
+
+msgid "{mu} μ · {count} rating updates"
+msgstr "{mu} μ · {count} derecelendirme güncellemesi"
+
+msgid "January {year}"
+msgstr "Ocak {year}"
+
+msgid "February {year}"
+msgstr "Şubat {year}"
+
+msgid "March {year}"
+msgstr "Mart {year}"
+
+msgid "April {year}"
+msgstr "Nisan {year}"
+
+msgid "May {year}"
+msgstr "Mayıs {year}"
+
+msgid "June {year}"
+msgstr "Haziran {year}"
+
+msgid "July {year}"
+msgstr "Temmuz {year}"
+
+msgid "August {year}"
+msgstr "Ağustos {year}"
+
+msgid "September {year}"
+msgstr "Eylül {year}"
+
+msgid "October {year}"
+msgstr "Ekim {year}"
+
+msgid "November {year}"
+msgstr "Kasım {year}"
+
+msgid "December {year}"
+msgstr "Aralık {year}"
+
+msgid "{day} January"
+msgstr "{day} Ocak"
+
+msgid "{day} February"
+msgstr "{day} Şubat"
+
+msgid "{day} March"
+msgstr "{day} Mart"
+
+msgid "{day} April"
+msgstr "{day} Nisan"
+
+msgid "{day} May"
+msgstr "{day} Mayıs"
+
+msgid "{day} June"
+msgstr "{day} Haziran"
+
+msgid "{day} July"
+msgstr "{day} Temmuz"
+
+msgid "{day} August"
+msgstr "{day} Ağustos"
+
+msgid "{day} September"
+msgstr "{day} Eylül"
+
+msgid "{day} October"
+msgstr "{day} Ekim"
+
+msgid "{day} November"
+msgstr "{day} Kasım"
+
+msgid "{day} December"
+msgstr "{day} Aralık"
+
+msgid "{day} January {year}"
+msgstr "{day} Ocak {year}"
+
+msgid "{day} February {year}"
+msgstr "{day} Şubat {year}"
+
+msgid "{day} March {year}"
+msgstr "{day} Mart {year}"
+
+msgid "{day} April {year}"
+msgstr "{day} Nisan {year}"
+
+msgid "{day} May {year}"
+msgstr "{day} Mayıs {year}"
+
+msgid "{day} June {year}"
+msgstr "{day} Haziran {year}"
+
+msgid "{day} July {year}"
+msgstr "{day} Temmuz {year}"
+
+msgid "{day} August {year}"
+msgstr "{day} Ağustos {year}"
+
+msgid "{day} September {year}"
+msgstr "{day} Eylül {year}"
+
+msgid "{day} October {year}"
+msgstr "{day} Ekim {year}"
+
+msgid "{day} November {year}"
+msgstr "{day} Kasım {year}"
+
+msgid "{day} December {year}"
+msgstr "{day} Aralık {year}"
+
+msgid "Rating {mu}, confidence plus or minus {sigma}."
+msgstr "Puan {mu}, güven artı eksi {sigma}."
+
+msgid "Up {delta} points since {date}."
+msgstr "{date} tarihinden beri {delta} puan arttı."
+
+msgid "Down {delta} points since {date}."
+msgstr "{date} tarihinden beri {delta} puan azaldı."
+
+msgid "Unchanged since {date}."
+msgstr "{date} tarihinden beri değişmedi."
+
+msgid "Up {delta} points across this span."
+msgstr "Bu aralıkta {delta} puan arttı."
+
+msgid "Down {delta} points across this span."
+msgstr "Bu aralıkta {delta} puan azaldı."
+
+msgid "Flat across this span."
+msgstr "Bu aralıkta değişmedi."
+
+msgid "μ is the expected rating; the band is ±σ, the confidence around it."
+msgstr "μ beklenen puandır; bant ±σ, yani onun etrafındaki güven."
+
+msgid "Rating {mu}, confidence plus or minus {sigma}, recorded once on {date}. No earlier values exist, so there is no trend to draw."
+msgstr "Puan {mu}, güven artı eksi {sigma}, yalnızca bir kez {date} tarihinde kaydedildi. Daha eski bir değer yok, bu yüzden çizilecek bir eğilim de yok."
+
+msgid "Recorded once — too few for a trend. The bar is ±σ, the confidence the plugin holds in this rating."
+msgstr "Yalnızca bir kez kaydedildi — eğilim için çok az. Çubuk ±σ, eklentinin bu puana duyduğu güven."
+
+msgid "No rating update has been recorded yet. The figure above is what the plugin holds now."
+msgstr "Henüz hiçbir puan güncellemesi kaydedilmedi. Yukarıdaki sayı, eklentinin şu anda tuttuğu değerdir."
+
+msgid "{mu} μ"
+msgstr "{mu} μ"
+
+
+msgid "A site that is switched off registers no routes: the console reloads and its address answers \"not found\" until it is back on."
+msgstr "Kapalı bir site hiçbir yol kaydetmez: konsol yeniden yüklenir ve site tekrar açılana kadar adresi \"bulunamadı\" yanıtı verir."
+
+msgid "A site's servers are the ones whose managed_by names this token (servers.yaml is the only authority)."
+msgstr "Bir sitenin sunucuları, managed_by değeri bu tokenı adlandıranlardır (tek yetkili servers.yaml'dır)."
+
+msgid "Address"
+msgstr "Adres"
+
+msgid "Both sides of the record lead, side by side."
+msgstr "Kaydın iki tarafı da yan yana öne çıkar."
+
+msgid "Branding"
+msgstr "Marka"
+
+msgid "Character"
+msgstr "Karakter"
+
+msgid "Check"
+msgstr "Denetle"
+
+msgid "Every public site this console serves: what it shows, what it looks like, and whether it is on. A site's content shows on its next page load; its address, its role and its switch need the console to reload."
+msgstr "Bu konsolun sunduğu her genel site: ne gösterdiği, nasıl göründüğü ve açık olup olmadığı. Bir sitenin içeriği sonraki sayfa yüklemesinde görünür; adresi, rolü ve anahtarı konsolun yeniden yüklenmesini gerektirir."
+
+msgid "Expert sheet"
+msgstr "Uzman sayfası"
+
+msgid "In use"
+msgstr "Kullanımda"
+
+msgid "No site is configured yet, so there is nothing to edit here."
+msgstr "Henüz hiçbir site yapılandırılmadı, burada düzenlenecek bir şey yok."
+
+msgid "No such site."
+msgstr "Böyle bir site yok."
+
+msgid "Nothing was written: "
+msgstr "Hiçbir şey yazılmadı: "
+
+msgid "Open the public site"
+msgstr "Genel siteyi aç"
+
+msgid "Pages"
+msgstr "Sayfalar"
+
+msgid "Public site"
+msgstr "Genel site"
+
+msgid "PvE"
+msgstr "PvE"
+
+msgid "PvP and PvE"
+msgstr "PvP ve PvE"
+
+msgid "Saved — shown on the site immediately; nothing is reloaded or restarted."
+msgstr "Kaydedildi — sitede hemen görünür; hiçbir şey yeniden yüklenmez veya yeniden başlatılmaz."
+
+msgid "Saved — the console re-read the site settings file, so the site's address, role or switch is live now. Nothing is reloaded or restarted."
+msgstr "Kaydedildi — konsol site ayarları dosyasını yeniden okudu; sitenin adresi, rolü veya anahtarı artık etkin. Hiçbir şey yeniden yüklenmez veya yeniden başlatılmaz."
+
+msgid "Shipped palette"
+msgstr "Gelen palet"
+
+msgid "The expert sheet is the Admin's to write, so nothing was written."
+msgstr "Uzman sayfasını yalnızca yönetici yazar, bu yüzden hiçbir şey yazılmadı."
+
+msgid "The player-versus-player record leads."
+msgstr "Oyuncuya karşı oyuncu kaydı öne çıkar."
+
+msgid "The site settings could not be read."
+msgstr "Site ayarları okunamadı."
+
+msgid "This form names another site's fields, so nothing was written."
+msgstr "Bu form başka bir sitenin alanlarını adlandırıyor, bu yüzden hiçbir şey yazılmadı."
+
+msgid "This site's address, its role and its switch are the Admin's to change, so nothing was written."
+msgstr "Bu sitenin adresini, rolünü ve anahtarını yalnızca yönetici değiştirir, bu yüzden hiçbir şey yazılmadı."
+
+msgid "Top pilots"
+msgstr "En iyi pilotlar"
+
+msgid "Use this preset"
+msgstr "Bu ön ayarı kullan"
+
+msgid "What a pilot flew leads."
+msgstr "Bir pilotun uçtuğu öne çıkar."
+
+msgid "What kind of community is this?"
+msgstr "Bu nasıl bir topluluk?"
+
+msgid "You can change only your own site's content, so nothing was written."
+msgstr "Yalnızca kendi sitenizin içeriğini değiştirebilirsiniz, bu yüzden hiçbir şey yazılmadı."
+
+msgid "needs a reload"
+msgstr "yeniden yükleme gerekir"
+
+msgid "served at the site root"
+msgstr "sitenin kökünde sunulur"
+
+msgid "the servers that declare no managed_by"
+msgstr "managed_by bildirmeyen sunucular"
+
+msgid "the public site's settings page, for the sites you hold"
+msgstr "yönettiğiniz siteler için genel site ayarları sayfası"
+
+msgid "edit the content of a site you hold: branding, character, pages, sections, metrics, language and the preset"
+msgstr "yönettiğiniz bir sitenin içeriğini düzenleme: marka, karakter, sayfalar, bölümler, ölçütler, dil ve ön ayar"
+
+msgid "a site's address, its role and its on/off switch — the console reloads"
+msgstr "bir sitenin adresi, rolü ve açma/kapama anahtarı — konsol yeniden yüklenir"
+
+msgid "write a site's expert CSS sheet"
+msgstr "bir sitenin uzman CSS sayfasını yazma"
+
+#: services/webservice/pages/site_config.py
+msgid "The brand line in the site's top bar, on every page — and the tab's title."
+msgstr "Marka satırı, sitenin üst çubuğunda, her sayfada — ve sekmenin başlığı."
+
+#: services/webservice/pages/site_config.py
+msgid "The hero's headline: the name on its own line in the accent colour. Empty, the hero falls back to the Discord guild's name, then the title."
+msgstr "Hero başlığı: ad, vurgu renginde kendi satırında. Boşsa hero, Discord sunucusunun adına, sonra başlığa düşer."
+
+#: services/webservice/pages/site_config.py
+msgid "The anchors in the footer, right of the attribution — one per entry: a label and an address."
+msgstr "Alt bilgideki bağlantılar, sabit atfın sağında — her girdi için bir tane: bir etiket ve bir adres."
+
+#: services/webservice/pages/site_config.py
+msgid "The image in the top bar, left of the title — served from the saved file, so it changes on Save, not as you type."
+msgstr "Üst çubuktaki görsel, başlığın solunda — kaydedilmiş dosyadan sunulur: Kaydet'te değişir, yazarken değil."
+
+#: services/webservice/pages/site_config.py
+msgid "The site's top bar, hero and footer, drawn from the values beside it"
+msgstr "Sitenin üst çubuğu, hero'su ve alt bilgisi, yanlarındaki değerlerle çizilmiş"
+
+#: services/webservice/pages/site_config.py
+msgid "This site is switched off, so its own page is not served — the box comes back with it."
+msgstr "Bu site kapalı, dolayısıyla kendi sayfası sunulmuyor — kutu onunla birlikte geri gelir."
+
+#: services/webservice/pages/site_config.py
+msgid "What the overview shows"
+msgstr "Genel bakışta neler gösterilir"
+
+#: services/webservice/pages/site_config.py
+msgid "What the leaderboard ranks"
+msgstr "Liderlik tablosu neyi sıralar"
+
+#: services/webservice/pages/site_config.py
+msgid "A fight-night community: the site shows who is winning the fights — the ladder, the airframes, the op nights and the servers — and it ranks fights, not strike work."
+msgstr "Bir savaş gecesi topluluğu: site dövüşleri kimin kazandığını gösterir — sıralama, hava araçları, operasyon geceleri ve sunucular — ve dövüşleri sıralar, taarruz işini değil."
+
+#: services/webservice/pages/site_config.py
+msgid "A co-op community: the site shows what it flies and builds — the activity curve, the airframes, the campaign and the op nights — and it does not rank pilots against each other."
+msgstr "Bir kooperatif topluluğu: site neyle uçtuğunu ve ne inşa ettiğini gösterir — etkinlik eğrisi, hava araçları, kampanya ve operasyon geceleri — ve pilotları birbirine karşı sıralamaz."
+
+#: services/webservice/pages/site_config.py
+msgid "A community that does both: every section the build has, and every metric it can rank."
+msgstr "İkisini de yapan bir topluluk: derlemenin sahip olduğu her bölüm ve sıralayabildiği her ölçüt."
+
+#: services/webservice/pages/site_config.py
+msgid "Off for PvP: the season curve and the squadrons — a duel community's story is the ladder, not a weekly hours curve, and a fight night runs no campaign."
+msgstr "PvP için kapalı: sezon eğrisi ve filolar — bir düello topluluğunun hikâyesi sıralamadır, haftalık saat eğrisi değil, ve bir savaş gecesi kampanya yürütmez."
+
+#: services/webservice/pages/site_config.py
+msgid "Withdrawn for PvP: ships, air defence and ground targets — the site ranks fights, not strike work."
+msgstr "PvP için kaldırıldı: gemiler, hava savunması ve kara hedefleri — site dövüşleri sıralar, taarruz işini değil."
+
+#: services/webservice/pages/site_config.py
+msgid "Off for PvE: top pilots — a co-op site does not rank its pilots against each other."
+msgstr "PvE için kapalı: en iyi pilotlar — bir kooperatif sitesi pilotlarını birbirine karşı sıralamaz."
+
+#: services/webservice/pages/site_config.py
+msgid "Withdrawn for PvE: the PvP ratio — there are no player-versus-player kills to rank."
+msgstr "PvE için kaldırıldı: PvP oranı — sıralanacak oyuncuya karşı oyuncu düşürmesi yok."
+
+#: services/webservice/pages/site_config.py
+msgid "Pressing a character rewrites the two lists below, now, before anything is saved — Save keeps the result. A switch you moved by hand stays where you left it until a character is pressed again."
+msgstr "Bir karaktere basmak aşağıdaki iki listeyi hemen yeniden yazar, hiçbir şey kaydedilmeden önce — Kaydet sonucu korur. Elle değiştirdiğiniz bir anahtar, bir karaktere yeniden basılana kadar kaldığınız yerde kalır."
+
+#: services/webservice/pages/site_config.py
+msgid "With JavaScript off a press only saves the character: the two lists keep the values stored here, and the player page still follows the character."
+msgstr "JavaScript kapalıyken basmak yalnızca karakteri kaydeder: iki liste burada saklanan değerleri korur ve oyuncu sayfası karakteri izlemeye devam eder."
+
+#: services/webservice/pages/site_config.py
+msgid "Edited by hand — these are no longer exactly the %(name)s set."
+msgstr "Elle düzenlendi — bu artık tam olarak %(name)s kümesi değil."
+
+#: services/webservice/pages/site_config.py
+msgid "%(sections)s of %(sectionsTotal)s sections · %(metrics)s of %(metricsTotal)s metrics"
+msgstr "%(sectionsTotal)s bölümün %(sections)s tanesi · %(metricsTotal)s ölçütün %(metrics)s tanesi"
+
+
+#: services/webservice/pages/site_config.py
+msgid "The menu and the tiles"
+msgstr "Menü ve kutucuklar"
+
+#: services/webservice/pages/site_config.py
+msgid "The links in the site's top bar, left to right, after the brand."
+msgstr "Sitenin üst çubuğundaki bağlantılar, markadan sonra soldan sağa."
+
+#: services/webservice/pages/site_config.py
+msgid "An entry is one of the pages the build serves — %(ids)s. There is nothing to add: the list is the set, so the block sets the order and which of them appear."
+msgstr "Bir giriş, bu derlemenin sunduğu sayfalardan biridir — %(ids)s. Eklenecek bir şey yok: liste zaten kümenin kendisi, bu yüzden blok sırayı ve hangilerinin görüneceğini belirler."
+
+#: services/webservice/pages/site_config.py
+msgid "the site's top bar"
+msgstr "sitenin üst çubuğu"
+
+#: services/webservice/pages/site_config.py
+msgid "Every page switched off: the bar carries the brand alone. The site still serves the overview at its own address, so a visitor is never stranded."
+msgstr "Tüm sayfalar kapalı: çubuk yalnızca markayı taşır. Site genel bakışı kendi adresinde sunmaya devam eder, böylece ziyaretçi asla ortada kalmaz."
+
+#: services/webservice/pages/site_config.py
+msgid "The strip of figures under the hero, before the %(count)s sections."
+msgstr "Hero'nun altındaki rakam şeridi, %(count)s bölümden önce."
+
+#: services/webservice/pages/site_config.py
+msgid "An entry is one of the figures the build can compute — %(ids)s. There is nothing to add either; the block sets the order and which appear. A tile switched off closes its gap instead of leaving a hole."
+msgstr "Bir giriş, bu derlemenin hesaplayabildiği rakamlardan biridir — %(ids)s. Burada da eklenecek bir şey yok; blok sırayı ve hangilerinin görüneceğini belirler. Kapatılan bir kutucuk boşluk bırakmak yerine aralığını kapatır."
+
+#: services/webservice/pages/site_config.py
+msgid "the overview's tile strip"
+msgstr "genel bakışın kutucuk şeridi"
+
+#: services/webservice/pages/site_config.py
+msgid "Every tile switched off: the strip is dropped, and the first section follows the hero directly."
+msgstr "Tüm kutucuklar kapalı: şerit kaldırılır ve ilk bölüm doğrudan hero'nun ardından gelir."
+
+#: services/webservice/pages/site_config.py
+msgid "The anchors in the footer strip, right of the attribution."
+msgstr "Alt bilgi şeridindeki bağlantılar, sabit atfın sağında."
+
+#: services/webservice/pages/site_config.py
+msgid "Each entry needs a label and an address — a full http(s)://, a mailto:, or a path on this installation."
+msgstr "Her giriş bir etiket ve bir adres ister — tam bir http(s)://, bir mailto: ya da bu kurulumdaki bir yol."
+
+#: services/webservice/pages/site_config.py
+msgid "No footer links yet. The footer shows the attribution alone — a Discord invite or the mission board belongs here."
+msgstr "Henüz alt bilgi bağlantısı yok. Alt bilgi yalnızca sabit atfı gösterir — bir Discord daveti ya da görev panosu buraya aittir."
+
+#: services/webservice/pages/site_config.py
+msgid "+ Add a link"
+msgstr "+ Bağlantı ekle"
+
+#: services/webservice/pages/site_config.py
+msgid "a label, then an address"
+msgstr "önce etiket, sonra adres"
+
+#: services/webservice/pages/site_config.py
+msgid "shown"
+msgstr "görünür"
+
+#: services/webservice/pages/site_config.py
+msgid "hidden"
+msgstr "gizli"
+
+#: services/webservice/pages/site_config.py
+msgid "Label"
+msgstr "Etiket"
+
+#: services/webservice/pages/site_config.py
+msgid "https://…, mailto:… or /path"
+msgstr "https://…, mailto:… veya /yol"
+
+#: services/webservice/pages/site_config.py
+msgid "Active this week"
+msgstr "Bu hafta aktif"
+
+#: services/webservice/pages/site_config.py
+msgid "Flying now"
+msgstr "Şu anda uçuşta"
+
+#: services/webservice/pages/site_config.py
+msgid "Average session"
+msgstr "Ortalama oturum"
+
+#: services/webservice/pages/site_config.py
+msgid "Busiest hour"
+msgstr "En yoğun saat"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "copy of %(name)s"
+msgstr "%(name)s kopyası"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "copy of %(name)s · not stored"
+msgstr "%(name)s kopyası · saklanmadı"
+
+#: services/webservice/pages/site_config.py
+msgid "edited"
+msgstr "düzenlendi"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"%(declarations)s declarations · %(lines)s lines · linked after the site's"
+" own sheet"
+msgstr "%(declarations)s bildirim · %(lines)s satır · sitenin kendi"
+" sayfasından sonra bağlanır"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"%(declarations)s declarations · %(lines)s lines · shown, not stored — the shipped copy "
+"for reading; it is kept only when you change it"
+msgstr "%(declarations)s bildirim · %(lines)s satır · gösterildi, saklanmadı — okumak için sağlanan kopya; yalnızca değiştirdiğinde korunur"
+
+#: services/webservice/pages/site_config.py
+msgid "Load the shipped sheet"
+msgstr "Birlikte gelen sayfayı yükle"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"Replace this sheet with the %(declarations)s declarations of %(name)s? "
+"This cannot be undone."
+msgstr ""
+"Bu sayfa %(name)s dosyasının %(declarations)s bildirimiyle değiştirilsin "
+"mi? Bu geri alınamaz."
+
+#: services/webservice/pages/site_config.py
+msgid ""
+"The sheet is linked after the site's own stylesheet, so a token declared "
+"there wins."
+msgstr ""
+"Sayfa, sitenin kendi sayfasından sonra yüklenir; orada bildirilen bir "
+"token kazanır."
+
+#: services/webservice/pages/site_config.py
+msgid ""
+"One --name: value; declaration per line. The sheet is wrapped in one "
+"rule, so a selector, a comment and an import are each refused by name."
+msgstr ""
+"Her satırda bir --name: value; bildirimi. Sayfa tek bir kurala sarılır; "
+"bu yüzden seçici, yorum ve import adlarıyla reddedilir."
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "%(allowed)s characters allowed · %(used)s used"
+msgstr "%(allowed)s karaktere izin var · %(used)s kullanıldı"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"Accepted — %(declarations)s declarations, %(characters)s characters. "
+"Saving writes them as this site's own sheet."
+msgstr ""
+"Kabul edildi — %(declarations)s bildirim, %(characters)s karakter. "
+"Kaydetme bunları sitenin kendi sayfası olarak yazar."
+
+msgid "The mark was uploaded — the site shows it on its next page load."
+msgstr "Marka yüklendi — site onu bir sonraki sayfa yüklemesinde gösterir."
+
+msgid "The uploaded mark was removed — the site draws branding.logo, or the shipped "
+"mark when none is set."
+msgstr "Yüklenen marka kaldırıldı — site branding.logo'yu, o da yoksa birlikte gelen "
+"markayı çizer."
+
+msgid "That file is not an image this page accepts: upload a PNG, a JPEG or a WebP."
+msgstr "Bu dosya bu sayfanın kabul ettiği bir görsel değil: bir PNG, JPEG veya WebP "
+"yükleyin."
+
+#, python-format
+msgid "That file is larger than the %(limit)s this page accepts, so nothing was "
+"written."
+msgstr "Bu dosya bu sayfanın kabul ettiği %(limit)s sınırından büyük, bu yüzden "
+"hiçbir şey yazılmadı."
+
+#, python-format
+msgid "That image is %(pixels)s pixels; the mark accepts at most %(limit)s, so "
+"nothing was written."
+msgstr "Bu görsel %(pixels)s piksel; marka en fazla %(limit)s kabul eder, bu yüzden "
+"hiçbir şey yazılmadı."
+
+msgid "That image decodes to more pixels than the mark accepts, so nothing was "
+"written."
+msgstr "Bu görsel markanın kabul ettiğinden daha fazla piksele çözülüyor, bu yüzden "
+"hiçbir şey yazılmadı."
+
+msgid "This site's settings file cannot be read, so nothing was written."
+msgstr "Bu sitenin ayar dosyası okunamıyor, bu yüzden hiçbir şey yazılmadı."
+
+msgid "Your role cannot change this site's mark, so nothing was written."
+msgstr "Rolünüz bu sitenin markasını değiştiremez, bu yüzden hiçbir şey yazılmadı."
+
+msgid "You can upload a mark only for your own site, so nothing was written."
+msgstr "Markayı yalnızca kendi siteniz için yükleyebilirsiniz, bu yüzden hiçbir şey "
+"yazılmadı."
+
+msgid "The mark"
+msgstr "İşaret"
+
+msgid "The image beside the site's name in the top bar."
+msgstr "Üst çubukta sitenin adının yanındaki görsel."
+
+msgid "The site's current mark"
+msgstr "Sitenin geçerli işareti"
+
+msgid "branding.logo is not set, so the shipped mark is drawn until one is "
+"uploaded."
+msgstr "branding.logo ayarlı değil, bu yüzden bir görsel yüklenene kadar "
+"birlikte gelen işaret çizilir."
+
+msgid "branding.logo names the file the site draws today; uploading an image "
+"replaces it."
+msgstr "branding.logo, sitenin bugün çizdiği dosyayı adlandırır; bir görsel "
+"yüklemek onu değiştirir."
+
+msgid "The site draws the uploaded mark first, then branding.logo, then the "
+"shipped mark."
+msgstr "Site önce yüklenen işareti, sonra branding.logo dosyasını, en son "
+"birlikte gelen işareti çizer."
+
+msgid "from branding.logo"
+msgstr "branding.logo kaynağından"
+
+msgid "Upload an image"
+msgstr "Bir görsel yükle"
+
+msgid "Replace"
+msgstr "Değiştir"
+
+#, python-format
+msgid "PNG, JPEG or WebP, up to %(limit)s; the upload re-encodes it to the "
+"four sizes below."
+msgstr "PNG, JPEG veya WebP, en fazla %(limit)s; yükleme onu aşağıdaki dört "
+"boyuta yeniden kodlar."
+
+#, python-format
+msgid "Written beside the site's settings: %(files)s."
+msgstr "Sitenin ayarlarının yanına yazıldı: %(files)s."
+
+msgid "Remove the uploaded mark? The site falls back to branding.logo."
+msgstr "Yüklenen işaret kaldırılsın mı? Site branding.logo dosyasına geri "
+"döner."
+
+#, python-format
+msgid "The uploaded mark, %(size)s pixels"
+msgstr "Yüklenen işaret, %(size)s piksel"
+
+msgid "That upload could not be read as a form, so nothing was written."
+msgstr "Bu yükleme form olarak okunamadı, bu yüzden hiçbir şey yazılmadı."
+
+msgid "Choose an image"
+msgstr "Bir görsel seç"
+
+#, python-format
+msgid "Selected: %(name)s"
+msgstr "Seçilen: %(name)s"
+
+#: services/webservice/pages/site_config.py
+msgid "Placement"
+msgstr "Konum"
+
+#: services/webservice/pages/site_config.py
+msgid "Which side of the hero's headline the mark sits on. The bar's small mark never moves."
+msgstr "İşaretin hero başlığının hangi tarafında durduğu. Üst çubuktaki küçük işaret asla hareket etmez."
+
+#: services/webservice/pages/site_config.py
+msgid "Left"
+msgstr "Sol"
+
+#: services/webservice/pages/site_config.py
+msgid "Right"
+msgstr "Sağ"
+
+#: services/webservice/pages/site_config.py
+msgid "The hero draws the mark at 128 px on a desktop, 96 on a tablet and 72 on a phone, where it takes a row of its own."
+msgstr "Hero işareti masaüstünde 128 px, tablette 96 px ve telefonda 72 px olarak çizer; telefonda kendi satırını alır."
+
+#: services/webservice/pages/site_config.py
+msgid "The hero's paragraph under the headline. %(community)s is filled with the community's name; empty, the hero prints its shipped sentence."
+msgstr "Hero başlığının altındaki paragraf. %(community)s topluluk adıyla değiştirilir; boşsa hero kendi varsayılan cümlesini yazar."
+
+msgid "Palette wizard"
+msgstr "Palet sihirbazı"
+
+msgid "A palette is twenty-three declarations over six steps — seventeen derived, six carried as they are. Pick what it starts from; the wizard derives the rest, tests every pair against AA, and hands the result to the sheet below — where it stays editable and where Check and Save already are."
+msgstr "Bir palet, altı adımda yirmi üç bildirimdir — on yedisi türetilir, altısı olduğu gibi taşınır. Nereden başlayacağınızı seçin; sihirbaz gerisini türetir, her çifti AA'ya göre ölçer ve sonucu aşağıdaki sayfaya verir — orada düzenlenebilir kalır ve Denetle ile Kaydet zaten oradadır."
+
+msgid "Every step is tested on the ground it lands on. A base that cannot reach 4.5:1 as the accent is moved, and the move is shown — never clamped in silence."
+msgstr "Her adım, üzerine düştüğü zeminde ölçülür. Vurgu olarak 4,5:1'e ulaşamayan bir temel renk kaydırılır ve kaydırma gösterilir — asla sessizce kırpılmaz."
+
+msgid "Derive six steps →"
+msgstr "Altı adımı türet →"
+
+msgid "Base colour"
+msgstr "Temel renk"
+
+msgid "The page the palette is derived for"
+msgstr "Paletin türetildiği sayfa"
+
+msgid "Dark page"
+msgstr "Koyu sayfa"
+
+msgid "Light page"
+msgstr "Açık sayfa"
+
+msgid "← Back to the wizard"
+msgstr "← Sihirbaza dön"
+
+msgid "Use these colours"
+msgstr "Bu renkleri kullan"
+
+msgid "Six steps, twenty-three declarations, ten pairs tested. Use these colours writes them into the sheet below — nothing is saved until the card's own Save."
+msgstr "Altı adım, yirmi üç bildirim, on ölçülmüş çift. Bu renkleri kullan bunları aşağıdaki sayfaya yazar — kartın kendi Kaydet'i olmadan hiçbir şey kaydedilmez."
+
+msgid "The site's own preview is not loaded, so its palette cannot be read: the box above answers only when the site is enabled."
+msgstr "Sitenin kendi önizlemesi yüklenmediği için paleti okunamıyor: yukarıdaki kutu yalnızca site etkinken yanıt verir."
+
+msgid "Read from the site's own document: a sheet from another origin cannot be read, and then the tokens have to be reported by hand."
+msgstr "Sitenin kendi belgesinden okunur: başka bir origin'den gelen sayfa okunamaz, o zaman token'lar elle girilmelidir."
+
+msgid "The wizard's answer is in the sheet below. The four presets above are no longer applied, and no preset is marked in use — a site names one palette, and this is it."
+msgstr "Sihirbazın yanıtı aşağıdaki sayfada. Yukarıdaki dört ön ayar artık uygulanmıyor ve hiçbiri kullanımda işaretli değil — bir site tek palet belirtir, o da budur."
+
+msgid "The base cannot be used as it is."
+msgstr "Temel renk olduğu gibi kullanılamaz."
+
+msgid "Pick another"
+msgstr "Başka seç"
+
+msgid "Use %(hex)s"
+msgstr "%(hex)s kullan"
+
+msgid "Carried unchanged, and named so: --sage, --hero-sage and the three --pulse-* washes (green means live, whatever the palette), --black, the four medal declarations and the three font families."
+msgstr "Olduğu gibi taşınır ve adıyla anılır: --sage, --hero-sage ve üç --pulse-* yıkaması (yeşil canlı demektir, palet ne olursa olsun), --black, dört madalya bildirimi ve üç yazı tipi ailesi."
+
+msgid "ground"
+msgstr "zemin"
+
+msgid "panel"
+msgstr "panel"
+
+msgid "line"
+msgstr "çizgi"
+
+msgid "accent"
+msgstr "vurgu"
+
+msgid "text"
+msgstr "metin"
+
+msgid "text steps"
+msgstr "metin adımları"
+
+msgid "A shipped palette"
+msgstr "Hazır palet"
+
+msgid "Reads %(file)s as the starting point — the sheet this build ships. ← Presets goes back to the gallery to choose another."
+msgstr "%(file)s dosyasını başlangıç noktası olarak okur — bu derlemenin getirdiği sayfa. ← Paletler başka bir tane seçmek için galeriye döner."
+
+msgid "The palette this site wears now"
+msgstr "Bu sitenin şu an giydiği palet"
+
+msgid "the resolved sheet"
+msgstr "çözümlenmiş sayfa"
+
+msgid "Read from the page itself: the colours a visitor is looking at today, as a starting point."
+msgstr "Sayfanın kendisinden okunur: bir ziyaretçinin bugün gördüğü renkler, başlangıç noktası olarak."
+
+msgid "One colour"
+msgstr "Tek renk"
+
+msgid "a base colour"
+msgstr "bir temel renk"
+
+msgid "Pick the colour the site is about; the wizard derives the other seventeen from its hue."
+msgstr "Sitenin anlattığı rengi seçin; sihirbaz diğer on yediyi tonundan türetir."
+
+msgid "The sheet below"
+msgstr "Aşağıdaki sayfa"
+
+msgid "This site's own sheet, read back: the six steps are its values, and Back returns to them."
+msgstr "Bu sitenin kendi sayfası, geri okunmuş: altı adım onun değerleridir ve Geri onlara döner."
+
+msgid "%(token)s moved L %(from)s → %(to)s to reach %(ratio)s:1 on %(against)s (was %(was)s:1, %(role)s needs %(needs)s:1)."
+msgstr "%(token)s L %(from)s → %(to)s kaydırıldı; %(against)s üzerinde %(ratio)s:1 için (önce %(was)s:1, %(role)s %(needs)s:1 ister)."
+
+msgid "%(token)s could not reach %(needs)s:1 on %(against)s at any lightness."
+msgstr "%(token)s hiçbir açıklıkta %(against)s üzerinde %(needs)s:1'e ulaşamadı."
+
+msgid "The base %(base)s was used as the accent (%(accent)s, lightness %(from)s → %(to)s to clear --panel)."
+msgstr "Temel renk %(base)s vurgu olarak kullanıldı (%(accent)s, --panel'i geçmek için açıklık %(from)s → %(to)s)."
+
+msgid "The accent's chroma was raised from %(from)s to %(to)s, so a grey still carries a hue."
+msgstr "Vurgunun chroma değeri %(from)s → %(to)s yükseltildi, böylece bir gri de ton taşır."
+
+msgid "The base cannot be used as it is. %(base)s sits at OKLCH lightness %(from)s; an accent on this ground needs %(to)s to clear 4.5:1 on the panel, so every step below is built from %(accent)s instead — lightness %(from)s → %(to)s, a different colour and not a nudge."
+msgstr "Temel renk olduğu gibi kullanılamaz. %(base)s OKLCH açıklığı %(from)s değerinde; bu zeminde bir vurgunun panelde 4,5:1'i geçmesi için %(to)s gerekir, bu yüzden aşağıdaki her adım %(accent)s üzerine kuruldu — açıklık %(from)s → %(to)s, başka bir renk, ufak bir dokunuş değil."
+
+msgid "Accepted — %(declarations)s declarations, %(pairs)s pairs tested, every one at or above AA. Nothing is saved until Save."
+msgstr "Kabul edildi — %(declarations)s bildirim, %(pairs)s ölçülmüş çift, hepsi AA ve üzeri. Kaydet'e basmadan hiçbir şey kaydedilmez."
+
+msgid "A palette of your own"
+msgstr "Kendi paletiniz"
+
+msgid "Admin only"
+msgstr "Yalnızca yönetici"
+
+msgid "A palette is written into the site's file by an installation admin. Ask for one: the sheet it carries is theirs to edit."
+msgstr "Paleti sitenin dosyasına kurulum yöneticisi yazar. Bir tane isteyin: içerdiği sayfa düzenlemek için onundur."
+
+msgid "Not available to a group admin"
+msgstr "Grup yöneticisi için kullanılamaz"
+
+msgid "from the wizard"
+msgstr "sihirbazdan"
+
+msgid "written by the wizard · linked after the site's own sheet"
+msgstr "sihirbaz tarafından yazıldı · sitenin kendi sayfasından sonra bağlanır"
+
+msgid "The site"
+msgstr "Site"
+
+
+msgid "its own document · %(path)s"
+msgstr "kendi belgesi · %(path)s"
+
+
+msgid "Open ↗"
+msgstr "Aç ↗"
+
+
+msgid "The site's own document at the box's width — bar, hero, footer. Not a drawing: the page's blocks write into this one frame, and it is the only preview here."
+msgstr "Sitenin kendi belgesi, kutunun genişliğinde — çubuk, hero, altbilgi. Bir çizim değil: bu sayfanın blokları bu tek çerçeveye yazar ve buradaki tek önizleme odur."
+
+
+msgid "Writes into it: %(branding)s — the mark, the bar's name, the hero's headline and paragraph · %(palette)s — every colour in it · %(links)s — the footer's anchors, beside the attribution · %(menu)s — the bar's nav, in this order."
+msgstr "İçine yazar: %(branding)s — işaret, çubuktaki ad, kahramanın başlığı ve paragrafı · %(palette)s — içindeki her renk · %(links)s — alt bilgideki bağlantılar, sabit atfın yanında · %(menu)s — çubuğun gezinmesi, bu sırayla."
+
+
+msgid "Character changes nothing here: it decides the bands below the hero, which the box's height does not reach."
+msgstr "Karakter burada hiçbir şeyi değiştirmez: hero'nun altındaki kuşakları belirler, kutunun yüksekliği oraya ulaşmaz."
+
+
+msgid "Palette"
+msgstr "Palet"
+
+
+msgid "Footer links"
+msgstr "Altbilgi bağlantıları"
+
+
+msgid "fields"
+msgstr "alan"
+
+
+msgid "The site itself"
+msgstr "Sitenin kendisi"
+
+
+msgid "not part of the look"
+msgstr "görünümün parçası değil"
+
+
+msgid "Nothing in the box changes: the character decides the bands below the hero, and which figures the leaderboard ranks. The box draws the bar, the hero and the footer — and no band."
+msgstr "Kutuda hiçbir şey değişmez: karakter hero'nun altındaki kuşakları ve sıralamanın hangi sayıları dizdiğini belirler. Kutu çubuğu, hero'yu ve altbilgiyi çizer — hiçbir kuşak çizmez."
+
+msgid "A shipped preset"
+msgstr "Paketle gelen hazır palet"
+
+msgid "An expert sheet"
+msgstr "Uzman sayfası"
+
+msgid "%(declarations)s declarations"
+msgstr "%(declarations)s bildirim"
+
+msgid "One palette, one choice — the box at the foot of the page shows it as you press a palette."
+msgstr "Tek palet, tek seçim — sayfanın altındaki kutu bir palete bastığında onu gösterir."
+
+msgid "The sheet is open at the foot of this page."
+msgstr "Sayfa, bu sayfanın altında açık."
+msgid "Expert mode — at the foot of the page"
+msgstr "Uzman modu — sayfanın altında"
+
+msgid "Or build a palette"
+msgstr "Ya da bir palet oluştur"
+
+msgid "three starting points →"
+msgstr "üç başlangıç noktası →"
+
+msgid "One palette, one choice."
+msgstr "Tek palet, tek seçim."
+
+#: services/webservice/pages/site_config.py
+msgid "A shipped preset, an uploaded sheet or the expert sheet — at most one, and the header above says which one this site names. A save that would name two is refused, and nothing is written."
+msgstr "Paketle gelen bir ön ayar, yüklenen bir stil sayfası ya da uzman stil sayfası — en fazla biri ve yukarıdaki başlık bu sitenin hangisini belirttiğini söyler. İki tanesini belirten bir kayıt reddedilir ve hiçbir şey yazılmaz."
+
+msgid "Expert Mode"
+msgstr "Uzman modu"
+
+msgid "The expert sheet is stored — %(declarations)s declarations, %(used)s of %(allowed)s characters. Expert Mode is closed, so the sheet is not drawn: it still posts exactly as it stands, and the box being unticked clears nothing. Tick it to read or edit the sheet."
+msgstr "Uzman sayfası kayıtlı — %(declarations)s bildirim, %(allowed)s karakterin %(used)s kadarı. Uzman modu kapalı, bu yüzden sayfa çizilmez: yine de olduğu gibi gönderilir ve kutunun işaretini kaldırmak hiçbir şeyi silmez. Sayfayı okumak veya düzenlemek için kutuyu işaretle."
+
+#: services/webservice/pages/site_config.py
+#: services/webservice/pages/site_config.py
+msgid "No expert sheet. The site's palette is whichever of the preset and the uploaded sheet the header above states. Tick Expert Mode above to read the shipped transcription — it is shown, not stored, and it is kept only when you change it and save. The sheet is read and checked here at the card's full width, because a sheet is code and code wants lines."
+msgstr "Uzman stil sayfası yok. Sitenin paleti, yukarıdaki başlığın belirttiği ön ayar ya da yüklenmiş stil sayfasıdır. Paketle gelen dökümü okumak için yukarıdaki Uzman Modu'nu işaretleyin — gösterilir, saklanmaz ve yalnızca değiştirip kaydettiğinizde kalır. Stil sayfası burada, kartın tam genişliğinde okunur ve denetlenir, çünkü stil sayfası koddur ve kod satır ister."
+
+msgid "the sheet is code: read and checked here, at the card's full width"
+msgstr "sayfa koddur: burada, kartın tam genişliğinde okunur ve denetlenir"
+
+msgid "← Presets"
+msgstr "← Paletler"
+
+msgid "These six steps are measured as they stand: nothing here is derived, nothing is moved, and nothing is rewritten until you press Use these colours."
+msgstr "Bu altı adım olduğu gibi ölçülür: burada hiçbir şey türetilmez, hiçbir şey taşınmaz ve sen Bu renkleri kullan'a basana kadar hiçbir şey yeniden yazılmaz."
+
+msgid "Step 1 · the starting point"
+msgstr "Adım 1 · başlangıç noktası"
+
+msgid "Step 2 · the six steps"
+msgstr "Adım 2 · altı adım"
+
+msgid "← Step 1"
+msgstr "← Adım 1"
+
+#: services/webservice/pages/site_config.py
+msgid "The declarations this step writes"
+msgstr "Bu adımın yazdığı bildirimler"
+
+#: services/webservice/pages/site_config.py
+msgid "the page's own colour"
+msgstr "sayfanın kendi rengi"
+
+#: services/webservice/pages/site_config.py
+msgid "the accent — eyebrow, links, the name"
+msgstr "vurgu — üst başlık, bağlantılar, ad"
+
+#: services/webservice/pages/site_config.py
+msgid "follows %(token)s · L %(offset)s"
+msgstr "%(token)s izler · L %(offset)s"
+
+#: services/webservice/pages/site_config.py
+msgid "moved L %(from)s → %(to)s"
+msgstr "L %(from)s → %(to)s kaydırıldı"
+
+#: services/webservice/pages/site_config.py
+msgid "the step you are editing"
+msgstr "düzenlediğiniz adım"
+
+#: services/webservice/pages/site_config.py
+msgid "under AA"
+msgstr "AA altında"
+
+#: services/webservice/pages/site_config.py
+msgid "The value you set is %(before)s. The nearest value that clears it is %(hex)s (%(ratio)s:1 on %(against)s, %(ground)s:1 on the ground), L %(from)s → %(to)s — it clears the other pairs this edit broke as well."
+msgstr "Ayarladığınız değer %(before)s. Onu geçen en yakın değer %(hex)s"
+" (%(against)s üzerinde %(ratio)s:1, zeminde %(ground)s:1), L %(from)s →"
+" %(to)s — bu düzenlemenin bozduğu diğer çiftleri de geçer."
+
+#: services/webservice/pages/site_config.py
+msgid "Keep my %(hex)s"
+msgstr "%(hex)s değerimi koru"
+
+#: services/webservice/pages/site_config.py
+msgid "The value %(hex)s cannot be moved into AA at any lightness: the row keeps it and the verdict refuses it."
+msgstr "%(hex)s değeri hiçbir açıklıkta AA'ya taşınamaz: satır onu korur ve"
+" karar onu reddeder."
+
+#: services/webservice/pages/site_config.py
+msgid "Six steps, twenty-three declarations, ten pairs tested — %(count)s under AA. The value is the operator's and the sheet carries it; Use these colours is held until you answer."
+msgstr "Altı adım, yirmi üç bildirim, on ölçülmüş çift — %(count)s AA"
+" altında. Değer operatörün ve sayfa onu taşır; Bu renkleri kullan, siz"
+" yanıtlayana kadar bekletilir."
+
+#: services/webservice/pages/site_config.py
+msgid "The sheet was uploaded — the site's preview reloads with it."
+msgstr "Stil sayfası yüklendi — sitenin önizlemesi onunla yeniden yüklenir."
+
+#: services/webservice/pages/site_config.py
+msgid "The uploaded sheet was removed — the site falls back to its preset."
+msgstr "Yüklenen stil sayfası kaldırıldı — site kendi ön ayarına döner."
+
+#: services/webservice/pages/site_config.py
+msgid "That file is not a .css sheet: this page accepts a CSS file."
+msgstr "Bu dosya bir .css stil sayfası değil: bu sayfa bir CSS dosyası kabul eder."
+
+#: services/webservice/pages/site_config.py
+msgid "That sheet is larger than the %(limit)s this page accepts, so nothing was written."
+msgstr "Bu stil sayfası, bu sayfanın kabul ettiği %(limit)s sınırından büyük, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "That file is not UTF-8 text, so nothing was written."
+msgstr "Bu dosya UTF-8 metni değil, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "Your role cannot change this site's palette, so nothing was written."
+msgstr "Rolünüz bu sitenin paletini değiştiremez, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "You can upload a sheet only for your own site, so nothing was written."
+msgstr "Bir stil sayfasını yalnızca kendi siteniz için yükleyebilirsiniz, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "Your own sheet"
+msgstr "Kendi stil sayfanız"
+
+#: services/webservice/pages/site_config.py
+msgid "A .css file the site serves as its palette, stored with the site's assets."
+msgstr "Sitenin paleti olarak sunduğu, sitenin varlıklarıyla birlikte saklanan bir .css dosyası."
+
+#: services/webservice/pages/site_config.py
+msgid "The sheet is served exactly as you wrote it — nothing is checked. It may carry @font-face, url() and component rules, and the browser loads what it names from this installation's own origin. The expert sheet below is the validated path."
+msgstr "Stil sayfası tam olarak yazdığınız gibi sunulur — hiçbir şey denetlenmez. @font-face, url() ve bileşen kuralları içerebilir ve tarayıcı adını verdiği şeyleri bu kurulumun kendi kaynağından yükler. Aşağıdaki uzman stil sayfası doğrulanan yoldur."
+
+#: services/webservice/pages/site_config.py
+msgid "The site serves the uploaded file %(name)s."
+msgstr "Site, yüklenen %(name)s dosyasını sunar."
+
+#: services/webservice/pages/site_config.py
+msgid "No sheet uploaded. The site serves the palette the header above states."
+msgstr "Stil sayfası yüklenmedi. Site, yukarıdaki başlığın belirttiği paleti sunar."
+
+#: services/webservice/pages/site_config.py
+msgid "Upload a sheet"
+msgstr "Stil sayfası yükle"
+
+#: services/webservice/pages/site_config.py
+msgid "Replace the sheet"
+msgstr "Stil sayfasını değiştir"
+
+#: services/webservice/pages/site_config.py
+msgid "Choose a sheet"
+msgstr "Stil sayfası seç"
+
+#: services/webservice/pages/site_config.py
+msgid "A .css file, UTF-8, at most %(limit)s."
+msgstr "Bir .css dosyası, UTF-8, en fazla %(limit)s."
+
+#: services/webservice/pages/site_config.py
+msgid "Remove this site's uploaded sheet? The site falls back to its preset."
+msgstr "Bu sitenin yüklenen stil sayfası kaldırılsın mı? Site kendi ön ayarına döner."
+
+#: services/webservice/pages/site_config.py
+msgid "An uploaded sheet"
+msgstr "Yüklenmiş bir stil sayfası"
+
+#: services/webservice/pages/site_config.py
+msgid "Your uploaded sheet is in force — replace or remove it below."
+msgstr "Yüklediğiniz stil sayfası yürürlükte — aşağıdan değiştirin veya kaldırın."
+
+#: services/webservice/pages/site_config.py
+msgid "A draft: the box follows the values in the form, and nothing is written until you save."
+msgstr "Taslak: kutu formdaki değerleri izler ve siz kaydedene kadar hiçbir şey yazılmaz."
+
+#: services/webservice/shell.py
+msgid "Page not found"
+msgstr "Sayfa bulunamadı"
+
+#: services/webservice/shell.py
+msgid "This address does not exist. Check the link, or use the menu to find what you were looking for."
+msgstr "Bu adres mevcut değil. Bağlantıyı kontrol edin veya aradığınızı bulmak için menüyü kullanın."
+
+#: services/webservice/pages/site_config.py
+msgid "Add a site"
+msgstr "Bir site ekle"
+
+#: services/webservice/pages/site_config.py
+msgid "A new site is one entry in this file: its name, the servers it shows and the segment it answers on."
+msgstr "Yeni bir site bu dosyada tek bir girdidir: adı, gösterdiği sunucular ve yanıt verdiği segment."
+
+#: services/webservice/pages/site_config.py
+msgid "Name in the file"
+msgstr "Dosyadaki ad"
+
+#: services/webservice/pages/site_config.py
+msgid "Lowercase letters, digits and inner dashes, starting with a letter or digit. This is the site's key, not its address."
+msgstr "Küçük harfler, rakamlar ve iç tireler; bir harf veya rakamla başlar. Bu sitenin anahtarıdır, adresi değil."
+
+#: services/webservice/pages/site_config.py
+msgid "The servers it shows"
+msgstr "Gösterdiği sunucular"
+
+#: services/webservice/pages/site_config.py
+msgid "Every value servers.yaml names in a server's managed_by, and nothing else: a site's servers are the ones whose managed_by names its role."
+msgstr "servers.yaml'ın bir sunucunun managed_by alanında adlandırdığı her değer ve başka hiçbir şey: bir sitenin sunucuları, managed_by'ı onun rolünü adlandıranlardır."
+
+#: services/webservice/pages/site_config.py
+msgid "The site root"
+msgstr "Site kökü"
+
+#: services/webservice/pages/site_config.py
+msgid "The segment after \"/\" a visitor types. Empty for the site root; a site other than the root cannot be saved without one."
+msgstr "Ziyaretçinin yazdığı \"/\" sonrası segment. Site kökü için boş; kök olmayan bir site onsuz kaydedilemez."
+
+#: services/webservice/pages/site_config.py
+msgid "Add the site"
+msgstr "Siteyi ekle"
+
+#: services/webservice/pages/site_config.py
+msgid "Adding a site is the installation Admin's, so nothing was written."
+msgstr "Site eklemek kurulum yöneticisinin işidir, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "'%(key)s' is not a site name: lowercase letters, digits and inner dashes, starting with a letter or digit. Nothing was written."
+msgstr "'%(key)s' bir site adı değil: küçük harfler, rakamlar ve iç tireler; bir harf veya rakamla başlar. Hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "A site named '%(key)s' is already in this file, so nothing was written."
+msgstr "'%(key)s' adlı bir site bu dosyada zaten var, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "A site other than the site root needs the segment it answers on, so nothing was written."
+msgstr "Kök olmayan bir site yanıt verdiği segmenti gerektirir, bu yüzden hiçbir şey yazılmadı."
+
+#: services/webservice/pages/site_config.py
+msgid "Every change is checked by this file's own parser, and a document that does not pass cannot be saved."
+msgstr "Her değişiklik bu dosyanın kendi ayrıştırıcısıyla denetlenir ve geçmeyen bir belge kaydedilemez."
+
+#: services/webservice/pages/site_config.py
+msgid "A save writes this file; the console reads it again on the next bot restart."
+msgstr "Kaydetmek bu dosyayı yazar; konsol onu botun bir sonraki yeniden başlatmasında yeniden okur."
+
+#: services/webservice/pages/site_config.py
+msgid "Editing this file is the installation Admin's, so nothing was written."
+msgstr "Bu dosyayı düzenlemek kurulum yöneticisinin işidir, bu yüzden hiçbir şey yazılmadı."
+
+msgid "drawn from your file"
+msgstr "dosyanızdan çizildi"
+
+msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
+msgstr "Bu sitenin henüz kendi adresi yok — görünümü böyle olacak. Bot yeniden başlatılınca yanıt verir."

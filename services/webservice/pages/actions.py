@@ -38,7 +38,7 @@ from core.utils.presets import (PRESET_PAIR_SEPARATOR, REFUSAL_NO_PICK, REFUSAL_
                                 REFUSAL_UNKNOWN_PRESET, preset_file_is_safe, preset_names_of,
                                 preset_option_value, resolve_picked_values, split_preset_entry)
 
-from .. import i18n, permissions, readmodels, session
+from .. import i18n, mount, permissions, readmodels, session
 # THE ONE WEATHER FIELD TABLE (``services/webservice/weather_fields.py``): the launch dialog's
 # temporary preset draws its controls from the SAME rows the presets wizard renders, so the two
 # surfaces cannot drift into two sets of labels, units or ranges.
@@ -3277,7 +3277,7 @@ def _control(action: WriteAction, name: str, token: str, origin: str, busy: bool
     else:
         title = _sentence(action.tip, server=name)
         aria = _sentence(action.aria, server=name)
-    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+    return {"path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
             "label": action.label, "icon": action.key, "title": title,
             "aria": aria, "hint": action.hint,
             "danger": action.danger, "server": name, "busy": busy,
@@ -3670,7 +3670,7 @@ def dcs_versions_path(node_name: str) -> str:
     never into a shell command — so a name carrying a ``/`` resolves while nothing it contains
     reaches the disk or a process.
     """
-    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/dcs/versions"
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}/dcs/versions")
 
 
 def _declared_dcs_block(node_name: str) -> dict | None:
@@ -3956,7 +3956,7 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab
     ``busy`` marks a write THIS control started and is still waiting for (the strip animates it); it
     is a per-row, per-control fact like ``attention``, never a declaration field.
     """
-    return {"path": action.path + CONFIRM_SUFFIX,
+    return {"path": mount.url(action.path + CONFIRM_SUFFIX),
             "label": action.label, "icon": action.key, "title": _sentence(action.tip, node=name),
             "aria": _sentence(action.aria, node=name), "hint": action.hint,
             "danger": action.danger, "node": name, "attention": bool(attention),
@@ -4249,7 +4249,7 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
     """
     values = {"server": server_name, "player": player_name}
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.confirm else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.confirm else action.path),
         "label": action.label, "icon": action.icon,
         "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "hint": action.hint, "danger": action.danger,
@@ -4328,7 +4328,7 @@ def _ban_control(action: BanAction, row, token: str, origin: str,
     """
     values = {"player": readmodels.text(getattr(row, "name", ""))}
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": action.icon,
         "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "danger": bool(action.danger),
@@ -4415,7 +4415,7 @@ def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: 
     values = {"player": player_name}
     sentence = DIRECTORY_BAN_SENTENCE if action.key == BAN_ADD_ACTION.key else action.aria
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": DIRECTORY_GLYPHS[action.key],
         "title": _sentence(sentence, **values), "aria": _sentence(sentence, **values),
         "danger": bool(action.danger),
@@ -4493,7 +4493,7 @@ def _watch_control(action: WatchAction, ucid: str, player_name: str, token: str,
     """
     values = {"player": player_name}
     return {
-        "path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+        "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": action.icon,
         "title": _sentence(action.tip, **values), "aria": _sentence(action.aria, **values),
         "hint": action.hint, "danger": bool(action.danger),
@@ -4649,7 +4649,7 @@ def confirm_context(request: Request, action: WriteAction, name: str, players: i
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence((action.go_title_empty if empty else "") or action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": name,
         #: the CONSEQUENCE's target, as the dialog's own sentence names it (``pages/actions``): the
         #: resolved object's label, never a field the browser sent. A server dialog targets the
@@ -4798,7 +4798,7 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": server_name,
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
@@ -4912,7 +4912,7 @@ def ban_confirm_context(request: Request, action: BanAction, row, token: str, or
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab,
@@ -5601,7 +5601,7 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
         "detail_notes": tuple(detail_notes),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": label,
         "target": _sentence(i18n._("{label} (node)"), label=label),
         "hidden": _hidden_fields(origin, tab, ("node", name)),
@@ -7331,7 +7331,7 @@ async def mission_confirm_context(request: Request, action: WriteAction, server:
         "detail_notes": (),
         "go": go,
         "go_title": _sentence(action.go_title, **escape_values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": server_name,
         "target": target,
         "hidden": tuple(hidden),
@@ -7972,7 +7972,7 @@ def ban_add_dialog_context(request: Request, action: BanAction, origin: str, tab
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": {"msgid": BAN_ADD_TARGET, "params": {}},
         "hidden": _hidden_fields(origin, tab, *carry),
@@ -8060,7 +8060,7 @@ def ban_edit_dialog_context(request: Request, action: BanAction, row, origin: st
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, player=label),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         #: the target line names the RESOLVED player and its ucid — the pair the entry is identified
         #: by — as ONE plain string of operator data (it is never translated).
@@ -8162,7 +8162,7 @@ def watch_add_dialog_context(request: Request, action: WatchAction, detail, orig
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
@@ -8217,7 +8217,7 @@ def watch_remove_dialog_context(request: Request, action: WatchAction, detail, t
         "detail_notes": _watch_note(watch),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
@@ -8274,7 +8274,7 @@ def watch_edit_dialog_context(request: Request, action: WatchAction, detail, ori
         "detail_notes": _watch_note(watch),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, player=html.escape(label)),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": label,
         "hidden": _hidden_fields(origin, tab, ("ucid", ucid)),
@@ -8349,7 +8349,7 @@ def penalty_dialog_context(request: Request, action: PenaltyAction, ucid: str, l
         "detail_notes": (),
         "go": _sentence(action.go),
         "go_title": _sentence(action.go_title, **values),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         "target": html.escape(label),
         "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
@@ -8460,7 +8460,7 @@ def page_controls(request: Request, table: str, origin: str) -> dict | None:
         return None
     if not action_available(action.qualname):
         return None
-    return {"path": action.path + CONFIRM_SUFFIX if action.dialog else action.path,
+    return {"path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
             "label": action.label, "title": _sentence(action.tip), "aria": _sentence(action.aria),
             "csrf_field": session.CSRF_FIELD, "csrf_token": session.get_csrf_token(request),
             "origin_field": ORIGIN_FIELD, "origin": origin,
@@ -8525,7 +8525,7 @@ def add_dialog_context(request: Request, action: WriteAction, origin: str, tab: 
         "detail_notes": (),
         "go": _sentence(i18n._("Add server")),
         "go_title": _sentence(i18n._("Add the server — it is created, not started")),
-        "path": action.path,
+        "path": mount.url(action.path),
         "server": "",
         #: the TARGET is what is being created — an operator-facing phrase rather than a name, so the
         #: template's own "Target: …" sentence still reads as a sentence.
@@ -9848,7 +9848,7 @@ def _servers_path() -> str:
     own constant, never a typed string."""
     from . import servers as servers_page
 
-    return servers_page.SERVERS_PATH
+    return mount.url(servers_page.SERVERS_PATH)
 
 
 def origin_path(request: Request, posted: Any, section_default: str) -> str:
@@ -9911,7 +9911,7 @@ def tabbed_origin(origin: str, tab: Any) -> str:
     from urllib.parse import urlencode
 
     key = posted_tab(tab)
-    if origin == dashboard_page.DASHBOARD_PATH and key:
+    if origin == mount.url(dashboard_page.DASHBOARD_PATH) and key:
         return f"{origin}?{urlencode({'tab': key})}"
     return origin
 
@@ -9953,21 +9953,21 @@ def _players_path() -> str:
     """Where a PLAYER write redirects back to: the Players page's own constant."""
     from . import players as players_page
 
-    return players_page.PLAYERS_PATH
+    return mount.url(players_page.PLAYERS_PATH)
 
 
 def _bans_path() -> str:
     """Where a BAN-ENTRY write redirects back to: the Bans page's own constant."""
     from . import bans as bans_page
 
-    return bans_page.BANS_PATH
+    return mount.url(bans_page.BANS_PATH)
 
 
 def _nodes_path() -> str:
     """Where a NODE write redirects back to: the Nodes page's own constant, never a typed string."""
     from . import nodes as nodes_page
 
-    return nodes_page.NODES_PATH
+    return mount.url(nodes_page.NODES_PATH)
 
 
 class _Cluster:

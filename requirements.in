@@ -53,6 +53,9 @@ lupa==2.8
 # Matplotlib: Python 2D plotting library
 matplotlib==3.11.2
 
+# MCP: MCP Python SDK
+mcp==2.3.0
+
 # MGRS: Python library for handling MGRS conversions
 mgrs==1.7.0
 
@@ -141,6 +144,3 @@ uvicorn==0.54.0
 
 # Watchdog: API library and shell utilities to monitor file system events
 watchdog==7.0.0
-
-# wxPython: GUI library to build Windows-like UI components
-# wxpython==4.2.3

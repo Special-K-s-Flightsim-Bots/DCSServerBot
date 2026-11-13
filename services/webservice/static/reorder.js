@@ -20,6 +20,19 @@
  * row). A refusal is shown in the list's own card and the rows are put back, so the DOM never claims
  * an order the server did not save.
  *
+ * TWO MODES, DECIDED BY ONE ATTRIBUTE:
+ *
+ *  * `data-reorder` WITH `data-reorder-url` — the list writes its own order: one POST per drop, the
+ *    status line, and the restore when the answer is a refusal or the network is gone.
+ *  * `data-reorder` WITHOUT `data-reorder-url` — LOCAL: the rows live inside a form whose Save carries
+ *    the order, so a drop (or an Alt+Arrow move) only moves the row inside the container. No request,
+ *    no status line, no restore: the DOM state IS the payload. The container is told after each move
+ *    with a bubbling `reorder-moved` event (detail: the ids in their new DOM order) so a listener can
+ *    repaint whatever it draws from that order. NO SHIPPED PAGE LISTENS TODAY — the lists that run
+ *    this mode renumber their rows with a CSS counter — so the event is the hook a page opts into,
+ *    not a callback anything depends on. Keep dispatching it: a page that draws row numbers itself
+ *    (rather than in CSS) subscribes here instead of re-reading the DOM after the drop.
+ *
  * TWO OPTIONAL ATTRIBUTES A LIST MAY CARRY:
  *
  *  * `data-reorder-params` — a url-encoded string of STATIC fields every request must also carry
@@ -123,11 +136,31 @@
     }
   }
 
+  /* A LIST WITH NO URL WRITES NOTHING ITSELF: the page carries the order in its own form, so the move
+     it just made IS the new state and the container is told about it. `reorder-moved` is the hook for
+     a page that repaints from the order; no shipped page subscribes today (their lists renumber with
+     a CSS counter), so it stays a pure notification. */
+  function local(table) {
+    return !table.getAttribute("data-reorder-url");
+  }
+
+  function announce(table, body) {
+    if (!table.dispatchEvent || !window.CustomEvent) {
+      return;
+    }
+    table.dispatchEvent(new CustomEvent("reorder-moved", {
+      bubbles: true,
+      detail: { ids: rowIds(body) }
+    }));
+  }
+
   /* ONE WRITE PER GESTURE: the whole new order, or nothing. `before` is the order the list read when
-     the gesture started, so a move that changed nothing posts nothing and a refusal puts it back. */
+     the gesture started, so a move that changed nothing posts nothing and a refusal puts it back. A
+     LOCAL list posts nothing at all — it only reports the move. */
   function commit(table, body, before) {
     var after = rowIds(body);
     if (after.join("\u0000") === before.join("\u0000")) { return; }
+    if (local(table)) { announce(table, body); return; }
     var line = statusLine(table);
     line.textContent = "";
     post(table, after).then(function (answer) {

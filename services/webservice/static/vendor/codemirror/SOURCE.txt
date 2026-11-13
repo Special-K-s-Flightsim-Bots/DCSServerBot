@@ -3,10 +3,12 @@ CodeMirror 5 — vendored source record
 
 WHAT IS HERE, AND WHY IT IS VENDORED
 ------------------------------------
-The Settings page's Expert Mode editor (see `services/webservice/static/settings-yaml.js`
-and `services/webservice/templates/settings.html`) uses CodeMirror 5 for two things and
-two things only: YAML SYNTAX HIGHLIGHTING while the operator types, and the line-oriented
-marking of the lines a validation refusal names.
+Two editors use CodeMirror 5: the Settings page's Expert Mode (see
+`services/webservice/static/settings-yaml.js` and
+`services/webservice/templates/settings.html`) for YAML SYNTAX HIGHLIGHTING while the
+operator types and the line-oriented marking of the lines a validation refusal names, and
+the Site settings page's expert sheet (`services/webservice/static/site-config.js` and
+`templates/site_config.html`) for the same two things over a CSS token sheet.
 
 It is VENDORED ON PURPOSE — the console must work with NO NETWORK. No CDN is referenced
 by any page or script; the files below are served from the shell's own `/static` area
@@ -20,7 +22,11 @@ FILES
   codemirror.min.js        CodeMirror 5 core                 (lib/codemirror.js)
   codemirror.min.css       CodeMirror 5 default stylesheet  (lib/codemirror.css)
   mode/yaml.min.js         the YAML mode                    (mode/yaml/yaml.js)
+  mode/css/css.min.js      the CSS mode                     (mode/css/css.js)
   LICENSE                  the upstream MIT licence, verbatim
+
+Both modes come from the SAME release as the core: a mode compiled against a different
+minor version can call a tokenizer helper the core no longer carries.
 
 The shell's own dark theme overrides the default stylesheet's colours (see the
 `CodeMirror` rules at the foot of `services/webservice/static/shell.css`); the vendored
@@ -32,7 +38,20 @@ VERSION AND PROVENANCE
   source:   https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js
             https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css
             https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js
+            https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js
   licence:  https://raw.githubusercontent.com/codemirror/codemirror5/5.65.16/LICENSE
+
+  mode/css/css.min.js sha256: ee0ce00f346a6d7e345a74ab32f2cc600e8b7df878b28715d7d52192fa274eee
+
+The CSS mode was checked against the same release's `mode/css/css.js` (npm
+`codemirror@5.65.16`) by tokenizing the shipped brass sheet and a refusal line with both
+files in a browser: the emitted token classes are identical. The classes it uses for this
+project's content are `cm-variable-2` (a custom property's NAME — the mode treats `--x` as
+a variable, not a declaration), `cm-property` (a declaration inside a rule), `cm-tag` and
+`cm-variable-3` (a selector and its pseudo-class), `cm-callee` (a value's function name),
+`cm-atom`, `cm-number`, `cm-string`, `cm-keyword` (`!important`), `cm-def` (an at-rule) and
+`cm-comment`.
+
 
 LICENCE
 -------

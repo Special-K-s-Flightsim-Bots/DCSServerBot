@@ -101,7 +101,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 
-from .. import i18n, permissions, readmodels
+from .. import i18n, mount, permissions, readmodels
 from ..readmodels import dcslog as dcs_log
 from . import dashboard as dashboard_page
 from . import lists as lists_page
@@ -191,7 +191,7 @@ def log_download_path(node_name: str) -> str:
     decodes it again (``{node}`` is a path parameter), so the name the handler resolves is the name
     that was rendered.
     """
-    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/log"
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}/log")
 
 
 def log_download_control(node_name: str, roles, manager: bool = False) -> dict | None:
@@ -228,12 +228,12 @@ def log_view_path(node_name: str) -> str:
     another. Encoded exactly as :func:`log_download_path` encodes, and decoded again by the route's
     ``{node}`` parameter.
     """
-    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/log/view"
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}/log/view")
 
 
 def node_log_window_path(node_name: str) -> str:
     """The URL of *node_name*'s window endpoint — the follower's own request base (L-viewer)."""
-    return f"/nodes/{quote(readmodels.text(node_name), safe='')}/log/window"
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}/log/window")
 
 
 def log_view_control(node_name: str, roles, manager: bool = False) -> dict | None:

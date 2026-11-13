@@ -1,0 +1,109 @@
+{% extends "site_base.html" %}
+{#-
+  The public site's leaderboard — one metric, one server scope, one period, one sortable table.
+
+  Every figure below is a value `pages/site_leaderboard.view()` composed from
+  `site_reads.leaderboard`'s answer; no number here is typed by hand. The controls and the column
+  headers are links that carry the read's own parameters, so a filtered board is linkable, each
+  control keeps the current order, and a header re-orders by its own column.
+
+  THE RANKED FIGURE IS THE METRIC'S OWN: `model.metric_value` is each row's `value` from the read's
+  answer, the figure the read ranked that row on, and `model.metric_column` says whether it needs a
+  column of its own — the table prints it right after the pilot when it does, and marks the metric's
+  own column (`ranked`) when the figure is already there. A ratio metric (KD-Ratio, PvP-KD-Ratio)
+  prints two decimals, `pages.site_leaderboard.figure()`'s rule, never a count.
+-#}
+{% block title %}{% trans %}Leaderboard{% endtrans %} — {{ site.branding.title }}{% endblock %}
+{% block content %}
+{% set metric_label = _(model.metric_label) %}
+<div class="stage-area"><div class="in">
+  <div class="phead">
+    <div>
+      <div class="lbl hot">{% trans metric=metric_label %}Ranking · {{ metric }}{% endtrans %}</div>
+      <h1>{% trans %}Leaderboard{% endtrans %}</h1>
+      <p class="sub">{% trans %}Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column.{% endtrans %}</p>
+    </div>
+    <div class="side">
+      <div class="lbl">{% trans %}Page{% endtrans %}</div>
+      <div class="big">{{ model.page }}</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="seam"><div class="in"><div class="ticks" aria-hidden="true"></div></div></div>
+
+<main class="in">
+  <div class="controls">
+    <div class="ctlrows">
+      <div class="ctlrow"><span class="ctl-lbl">{% trans %}Metric{% endtrans %}</span>
+        <div class="seg">
+        {% for option in model.metric_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+        </div>
+      </div>
+      <div class="ctlrow"><span class="ctl-lbl">{% trans %}Server{% endtrans %}</span>
+        <div class="seg">
+        {% for option in model.server_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{{ _(option.label) }}</a>{% endfor %}
+        </div>
+      </div>
+      <div class="ctlrow"><span class="ctl-lbl">{% trans %}Period{% endtrans %}</span>
+        <div class="seg">
+        {% for option in model.period_options %}<a href="{{ option.href }}"{% if option.on %} class="on" aria-current="true"{% endif %}>{% if option.days %}{% trans days=option.days %}{{ days }} days{% endtrans %}{% else %}{% trans %}All time{% endtrans %}{% endif %}</a>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ticks" aria-hidden="true" style="margin:10px 0 var(--gap)"></div>
+
+  <section class="sect" style="padding-top:0">
+    <section class="panel">
+      <div class="hd"><h2>{% trans %}Ranked{% endtrans %} · {{ metric_label }}</h2><span class="meta">{% if model.rows %}{% trans first=model.first, last=model.last %}rows {{ first }} – {{ last }}{% endtrans %}{% endif %}</span></div>
+      {% if model.unavailable %}
+      <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+      {% elif model.rows %}
+      <table class="tbl">
+        <thead><tr>
+          {% for column in model.columns %}
+          <th{% if column.classes %} class="{{ column.classes }}"{% endif %}{% if column.aria_sort %} aria-sort="{{ column.aria_sort }}"{% endif %}>
+            {% if column.sortable %}<a href="{{ column.href }}">{{ _(column.label) }}<span class="arrow" aria-hidden="true">{% if column.active %}{% if column.direction == "asc" %}↑{% else %}↓{% endif %}{% else %}↕{% endif %}</span></a>{% else %}{{ _(column.label) }}{% endif %}
+          </th>
+          {% endfor %}
+        </tr></thead>
+        <tbody>
+          {% for row in model.rows %}
+          <tr{% if row.medal %} class="podium"{% endif %}>
+            <td class="rk">{% if row.medal %}<span class="medal {{ row.medal }}">{{ row.position }}</span>{% else %}{{ row.rank }}{% endif %}</td>
+            <td>{% if row.href %}<a class="nm" href="{{ row.href }}">{{ row.name }}</a>{% else %}<span class="nm">{{ row.name }}</span>{% endif %}</td>
+            {% if model.metric_column %}<td class="r ranked">{{ row.metric_value }}</td>{% endif %}
+            <td class="r">{{ row.figures.playtime }} {% trans %}h{% endtrans %}</td>
+            <td class="r hide-sm">{{ row.figures.sorties }}</td>
+            <td class="r hide-sm">{{ row.figures.takeoffs }}</td>
+            <td class="r hide-sm">{{ row.figures.landings }}</td>
+            <td class="r">{{ row.figures.kills }}</td>
+            <td class="r hide-sm">{{ row.figures.pvp }}</td>
+            <td class="r hide-sm">{{ row.figures.crashes }}</td>
+            <td class="r hide-sm">{{ row.figures.ejections }}</td>
+            <td class="air hide-sm">{{ row.aircraft }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="note">{% if model.past_end %}{% trans %}This page holds no rows; the board ends earlier.{% endtrans %} <a href="{{ model.first_href }}">{% trans %}Back to the first page{% endtrans %}</a>.{% else %}{% trans %}No pilot has a figure on this board yet. Try another metric, server or period.{% endtrans %}{% endif %}</p>
+      {% endif %}
+    </section>
+
+    <div class="ctlrows" style="margin-top:var(--sp-3)">
+      <div class="ctlrow"><span class="ctl-lbl">{% trans %}Page{% endtrans %}</span>
+        <div class="seg">
+        {% if model.prev_href %}<a href="{{ model.prev_href }}">← {% trans %}Previous{% endtrans %}</a>{% endif %}
+        <a class="on" aria-current="page">{{ model.page }}</a>
+        {% if model.next_href %}<a href="{{ model.next_href }}">{% trans %}Next{% endtrans %} →</a>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <p class="note">{% trans %}The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days.{% endtrans %}</p>
+  </section>
+</main>
+{% endblock %}

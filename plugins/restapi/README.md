@@ -58,8 +58,41 @@ DEFAULT:
         remote: jwt
 ```
 
+### Machine API v1 (`/api/v1`)
+
+A second, versioned surface serves the action rows on a fixed `/api/v1` prefix. It reads two keys:
+
+```yaml
+# config/plugins/restapi.yaml
+DEFAULT:
+  api_v1:
+    enabled: true             # false mounts no /api/v1 route at all (default: true)
+  endpoints:
+    v1/servers:               # the row's key is 'v1/' + its path without the leading slash
+      enabled: true           # false leaves that one route unregistered
+      security:
+        local: api_key        # optional: a policy may RAISE the class floor, never lower it
+        trusted: api_key
+        remote: jwt
+    v1/servers/{server_name}/start:
+      security:
+        remote: jwt
+```
+
+> [!IMPORTANT]
+> `security.default.local: none` does **not** open a v1 write. The effective requirement is
+> `max(class floor, configured policy)`, so a `lifecycle` route such as
+> `POST /api/v1/servers/{server_name}/stop` needs an API key even on loopback. Only `read` routes
+> run keyless. The legacy routes keep their configured behaviour.
+
+A legacy `endpoints` key never governs a v1 row: `/servers` is `servers` on the legacy surface and
+`v1/servers` here. A legacy key that spells a v1 row's path is reported with a WARNING at mount time.
+The routes, the auth order, the floors and the response envelope are documented in
+[API Documentation](API.md#machine-api-v1).
+
 > [!WARNING]
 > Do NOT use a prefix if you work with the DCS Statistics Dasboard!
+
 
 ## RestAPI
 The following commands are available through the API. For detailed parameter definitions, response models, and schemas, see [API Documentation](API.md).

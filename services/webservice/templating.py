@@ -199,6 +199,10 @@ def build_environment(registrar=None, *, translations=None, language=None) -> En
     # placeholders, degrading a bad catalog line to English rather than raising. It closes over the
     # SAME translations object the environment installed, so it is the environment's language.
     environment.globals[SENTENCE_GLOBAL] = _sentence_global(installed)
+    # THE CONSOLE'S MOUNT (``mount.url``): a template that must name a console page builds the
+    # address through this, so no document hardcodes a path that moves when a public site owns ``/``.
+    from . import mount as mount_module
+    environment.globals["console_url"] = mount_module.url
     # The config generator's UNIQUE view key (``configgen.view_id``): a regex container shares its
     # ``name`` with a sibling container in the same mapping, so the per-container view maps (rows,
     # customs, elements, choices, sections) are keyed by this id and the control macros look it up

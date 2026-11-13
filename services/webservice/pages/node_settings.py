@@ -52,8 +52,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import (catalog, config_apply, configgen, i18n, permissions, plugin_registry, readmodels,
-                scopes, session, validation)
+from .. import (catalog, config_apply, configgen, i18n, mount, permissions, plugin_registry,
+                   readmodels, scopes, session, validation)
 from . import actions as actions_page
 from . import dashboard as dashboard_page
 from . import nodes as nodes_page
@@ -544,7 +544,7 @@ def node_page_url(node_name: str) -> str:
     """The URL of *node_name*'s node page — the name as ONE percent-encoded path segment."""
     from urllib.parse import quote
 
-    return f"/nodes/{quote(readmodels.text(node_name), safe='')}"
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}")
 
 
 # --------------------------------------------------------- the extension CONFIGURATION destination
@@ -563,15 +563,15 @@ def node_extension_url(node_name: str, ext_name: str) -> str:
     """The URL of ONE extension's configuration for *node_name* — each name one path segment."""
     from urllib.parse import quote
 
-    return (f"/nodes/{quote(readmodels.text(node_name), safe='')}"
-            f"/extensions/{quote(readmodels.text(ext_name), safe='')}")
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}"
+                    f"/extensions/{quote(readmodels.text(ext_name), safe='')}")
 
 
 def _node_extension_validate_url(node_name: str, ext_name: str) -> str:
     from urllib.parse import quote
 
-    return (f"/actions/nodes/{quote(readmodels.text(node_name), safe='')}"
-            f"/extensions/{quote(readmodels.text(ext_name), safe='')}/validate")
+    return mount.url(f"/actions/nodes/{quote(readmodels.text(node_name), safe='')}"
+                    f"/extensions/{quote(readmodels.text(ext_name), safe='')}/validate")
 
 
 def _extension_catalog() -> tuple[dict[str, str], dict[str, str]]:
@@ -666,7 +666,7 @@ def _node_page_validate_url(node_name: str) -> str:
     """The URL of *node_name*'s Expert Mode validator — one percent-encoded path segment."""
     from urllib.parse import quote
 
-    return f"/actions/nodes/{quote(readmodels.text(node_name), safe='')}/validate"
+    return mount.url(f"/actions/nodes/{quote(readmodels.text(node_name), safe='')}/validate")
 
 
 def _rebase_instance(field: configgen.Field, node_name: str, instance: str) -> configgen.Field:

@@ -64,7 +64,7 @@ from markupsafe import escape
 from core.actions import ActionContext, call_action, read_action
 from core.const import DEFAULT_TAG
 
-from .. import i18n, permissions, readmodels, session
+from .. import i18n, mount, permissions, readmodels, session
 from ..readmodels import mods as mod_model
 from . import dashboard as dashboard_page
 from . import nodes as nodes_page
@@ -228,7 +228,7 @@ declare()
 
 def node_page_url(node_name: str) -> str:
     """The node's root-mods page URL for *node_name*."""
-    return NODE_PAGE_PATH.replace("{node}", quote(str(node_name), safe=""))
+    return mount.url(NODE_PAGE_PATH.replace("{node}", quote(str(node_name), safe="")))
 
 
 def _owner_url(owner: str, target: str, verb: str, *, run: bool) -> str:
@@ -236,7 +236,7 @@ def _owner_url(owner: str, target: str, verb: str, *, run: bool) -> str:
     base = (_DIALOG_BASE.replace("{owner}", owner)
             .replace("{target}", quote(str(target), safe="")))
     url = f"{base}/{verb}"
-    return f"{url}/run" if run else url
+    return mount.url(f"{url}/run" if run else url)
 
 
 def dialog_url(owner: str, target: str, verb: str) -> str:
@@ -269,7 +269,7 @@ def releases_url(owner: str, target: str) -> str:
     """The release read's URL for ONE owner and ONE target — where the dialog's script asks."""
     base = (_DIALOG_BASE.replace("{owner}", owner)
             .replace("{target}", quote(str(target), safe="")))
-    return f"{base}/{_RELEASES_SEGMENT}"
+    return mount.url(f"{base}/{_RELEASES_SEGMENT}")
 
 
 def _page_of(owner: str, target: str) -> str:

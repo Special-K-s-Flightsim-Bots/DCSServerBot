@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS players (
     muted BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_players_discord_id ON players(discord_id);
+CREATE INDEX IF NOT EXISTS idx_players_name_lower ON players (LOWER(name));
 CREATE TABLE players_hist (
     id SERIAL PRIMARY KEY,
     ucid TEXT NOT NULL,

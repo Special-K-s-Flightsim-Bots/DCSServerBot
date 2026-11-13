@@ -1,0 +1,137 @@
+# One key entry has exactly one credential: a static key, or a JWT block. The two variants are
+# separate partial schemas because the credential keys are MUTUALLY EXCLUSIVE: within one variant the
+# other variant's key is an undefined key (a misspelling, not an extra option), so an entry that
+# carries a JWT and no static key validates here and an entry that carries both does not.
+schema;key_entry_static:
+  type: map
+  nullable: false
+  mapping:
+    label:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+      desc: Name of this client, unique in the list and the tail of its audit token.
+      example: "claude-desktop"
+    key:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      desc: Static bearer token the client presents; compared in constant time.
+      example: "***"
+    level:
+      type: str
+      required: true
+      nullable: false
+      enum: [read, control]
+      desc: Tool list this key is offered; an unknown level is refused.
+      example: "read"
+
+schema;key_entry_jwt:
+  type: map
+  nullable: false
+  mapping:
+    label:
+      type: str
+      required: true
+      nullable: false
+      range: {min: 1}
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+      desc: Fallback name of this client when the JWT carries no usable subject.
+      example: "cloud"
+    jwt:
+      type: map
+      required: true
+      nullable: false
+      desc: JWT verification of this client's bearer tokens.
+      example: |
+        key: https://cloud.example.com/api/v1
+        jwks_url: https://cloud.example.com/api/v1/.well-known/jwks.json
+      mapping:
+        key:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: Expected signing key or issuer the token is checked against.
+          example: "https://cloud.example.com/api/v1"
+        jwks_url:
+          type: str
+          required: true
+          nullable: false
+          range: {min: 1}
+          desc: JWKS endpoint the token's signing key is fetched from.
+          example: "https://cloud.example.com/api/v1/.well-known/jwks.json"
+    level:
+      type: str
+      required: true
+      nullable: false
+      enum: [read, control]
+      desc: Tool list this key is offered; an unknown level is refused.
+      example: "control"
+
+type: map
+nullable: false
+mapping:
+  DEFAULT:
+    type: map
+    nullable: false
+    desc: MCP surface settings; the service runs on the master node only.
+    example: |
+      enabled: true
+      keys:
+        - label: claude-desktop
+          key: a-long-random-token
+          level: control
+      transport:
+        allowed_hosts: ["dcs.example.com", "100.64.0.5:*"]
+    mapping:
+      enabled:
+        type: bool
+        nullable: false
+        desc: Serve the MCP surface; false mounts nothing.
+        example: "true"
+      keys:
+        type: seq
+        nullable: true
+        desc: One entry per MCP client; every entry carries label, level and exactly one credential.
+        example: |
+          - label: dashboard
+            key: a-long-random-token
+            level: read
+        sequence:
+          - type: any
+            func: any_of
+            enum: [key_entry_static, key_entry_jwt]
+      transport:
+        type: map
+        nullable: true
+        desc: DNS-rebinding allow-lists of the MCP transport.
+        example: |
+          allowed_hosts: ["dcs.example.com"]
+          allowed_origins: ["https://claude.ai"]
+        mapping:
+          allowed_hosts:
+            type: seq
+            required: true
+            nullable: false
+            desc: Host header values the surface answers; every other request is refused with 421.
+            example: |
+              - dcs.example.com
+              - 100.64.0.5:*
+            sequence:
+              - type: str
+                nullable: false
+                range: {min: 1}
+          allowed_origins:
+            type: seq
+            nullable: true
+            desc: Origin header values the surface accepts; empty accepts any origin.
+            example: |
+              - https://claude.ai
+            sequence:
+              - type: str
+                nullable: false
+                range: {min: 1}

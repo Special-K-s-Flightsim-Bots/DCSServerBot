@@ -27,8 +27,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
 
-
-
 #: services/webservice/catalog.py:77
 msgid "per node"
 msgstr ""
@@ -5505,12 +5503,12 @@ msgid ""
 msgstr "保存在 DGSA 全球封禁列表中，每个同步该列表的安装共享"
 
 #: services/webservice/templates/login.html:40
-msgid "Admin Console"
-msgstr "管理控制台"
+msgid "Command Center"
+msgstr "指挥中心"
 
 #: services/webservice/templates/base.html:25
-msgid "DCSServerBot Admin Console"
-msgstr "DCSServerBot 管理控制台"
+msgid "DCSServerBot Command Center"
+msgstr "DCSServerBot 指挥中心"
 
 #: services/webservice/templates/base.html:100
 msgid "Sign out"
@@ -5696,10 +5694,6 @@ msgstr "无法读取此文件，因此无法显示其字段。请在专家模式
 #: services/webservice/templates/settings_scope.html:107
 msgid "The file, as YAML"
 msgstr "以 YAML 表示的文件"
-
-#: services/webservice/templates/settings_scope.html:110
-msgid "Expert Mode"
-msgstr ""
 
 #: services/webservice/templates/settings_scope.html:114
 msgid ""
@@ -7761,6 +7755,35 @@ msgstr "已重新加载 %(plugin)s 插件，更改已生效。"
 msgid "The %(plugin)s plugin could NOT be reloaded — the file holds the change, the running bot does not. Restart the bot to apply it."
 msgstr "无法重新加载 %(plugin)s 插件——文件已包含更改，但正在运行的机器人没有。请重启机器人以应用更改。"
 
+#: services/webservice/config_apply.py
+msgid "Re-read the site settings now?"
+msgstr "现在重新读取站点设置？"
+
+#: services/webservice/config_apply.py
+msgid "The public site's settings file is read again for the pages this console serves. Nothing is reloaded or restarted and no DCS server goes down."
+msgstr "此控制台所服务的页面会重新读取公开站点的设置文件。不会重新加载或重启任何内容，也不会有 DCS 服务器下线。"
+
+#: services/webservice/config_apply.py
+msgid "Re-read the site settings"
+msgstr "重新读取站点设置"
+
+#: services/webservice/config_apply.py
+msgid "the site settings"
+msgstr "站点设置"
+
+#: services/webservice/config_apply.py
+msgid "Re-reading the site settings. The public site follows on its next page load; nothing is reloaded or restarted."
+msgstr "正在重新读取站点设置。公开站点将在下次加载页面时更新；不会重新加载或重启任何内容。"
+
+#: services/webservice/config_apply.py
+msgid "Nothing was applied: the site settings are already being re-read."
+msgstr "未应用任何更改：站点设置正在重新读取中。"
+
+#: services/webservice/config_apply.py
+msgid "The file holds the change, but the console could not re-read it — %(reason)s. The sites that were installed keep serving; nothing was reloaded or restarted."
+msgstr "文件已保存改动，但控制台无法重新读取它 — %(reason)s。此前已安装的站点继续提供服务；未重新加载或重启任何内容。"
+
+
 #: services/webservice/scheduler_plan.py
 msgid "Stop the DCS server process"
 msgstr "停止 DCS 服务器进程"
@@ -8063,7 +8086,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Ejections"
-msgstr ""
+msgstr "弹射"
 
 #: services/webservice/pages/player_detail.py
 msgid "Event"
@@ -8115,7 +8138,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "K/D"
-msgstr ""
+msgstr "击杀/死亡比"
 
 #: services/webservice/pages/player_detail.py
 msgid "Killed by AI"
@@ -8127,7 +8150,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Kills"
-msgstr ""
+msgstr "击杀"
 
 #: services/webservice/pages/player_detail.py
 msgid "Kills by target type"
@@ -8143,7 +8166,7 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Landings"
-msgstr ""
+msgstr "降落"
 
 #: services/webservice/pages/player_detail.py
 msgid "Lifting one leaves the other untouched: lifting the ban keeps the watch entry, and removing the watch keeps the ban running until it expires."
@@ -8195,7 +8218,7 @@ msgstr "罚分"
 
 #: services/webservice/pages/player_detail.py
 msgid "Period"
-msgstr ""
+msgstr "时段"
 
 #: services/webservice/pages/player_detail.py
 msgid "Permanent · no expiry"
@@ -8239,11 +8262,11 @@ msgstr ""
 
 #: services/webservice/pages/player_detail.py
 msgid "Sessions"
-msgstr ""
+msgstr "场次"
 
 #: services/webservice/pages/player_detail.py
 msgid "Ships"
-msgstr ""
+msgstr "舰船"
 
 #: services/webservice/pages/player_detail.py
 msgid "Side"
@@ -8255,7 +8278,7 @@ msgstr "统计"
 
 #: services/webservice/pages/player_detail.py
 msgid "Takeoffs"
-msgstr ""
+msgstr "起飞"
 
 #: services/webservice/pages/player_detail.py
 msgid "Teamkills"
@@ -9899,3 +9922,1637 @@ msgstr "沙尘霾的浓度，按任务编辑器沙尘控件的刻度：984 至 6
 #: services/webservice/pages/player_detail.py
 msgid "Penalty points are not tracked, because the punishment plugin is not active."
 msgstr "不记录处罚分，因为 punishment 插件未启用。"
+
+# ---------------------------------------------------------------- the public site
+# The site's own chrome: the shell (site_base.html), the overview page and the nav
+# labels its pages declare. Machine-assisted and not reviewed by a native speaker.
+
+msgid "Leaderboard"
+msgstr "排行榜"
+
+msgid "Squadrons"
+msgstr "中队"
+
+msgid "Pilots"
+msgstr "飞行员"
+
+msgid "Sorties flown"
+msgstr "出动架次"
+
+msgid "recorded takeoffs"
+msgstr "已记录的起飞"
+
+msgid "Sessions recorded"
+msgstr "已记录会话"
+
+msgid "Community record"
+msgstr "社区记录"
+
+msgid "Site"
+msgstr "站点"
+
+msgid "Command Center"
+msgstr "指挥中心"
+
+msgid "Live"
+msgstr "实时"
+
+msgid "pilots in the air"
+msgstr "名飞行员在空中"
+
+msgid "%(up)s of %(total)s"
+msgstr "%(up)s / %(total)s"
+
+msgid "servers up"
+msgstr "台服务器在线"
+
+msgid "pilots this week"
+msgstr "名飞行员本周在线"
+
+msgid "Hours in the air"
+msgstr "飞行小时"
+
+msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
+msgstr "统计数据库尚不可用，因此本页不显示任何数字。机器人连接后就会填充。"
+
+msgid "%(count)s vs. last week"
+msgstr "较上周 %(count)s"
+
+msgid "The season so far"
+msgstr "本赛季至今"
+
+msgid "This window holds no recorded session yet."
+msgstr "这一窗口内还没有任何已记录的会话。"
+
+msgid "Hours flown per week"
+msgstr "每周飞行小时"
+
+msgid "A week with no session is drawn at zero, never left out: a gap in the line is a quiet week, not missing data."
+msgstr "没有会话的一周画在零点，绝不省略：线上的空档意味着安静的一周，而不是数据缺失。"
+
+msgid "Busiest · %(week)s"
+msgstr "最忙 · %(week)s"
+
+msgid "Average week"
+msgstr "平均每周"
+
+msgid "Quietest · %(week)s"
+msgstr "最闲 · %(week)s"
+
+msgid "The standings"
+msgstr "排行榜"
+
+msgid "Top pilots · playtime"
+msgstr "顶尖飞行员 · 飞行时长"
+
+msgid "top %(shown)s of %(known)s"
+msgstr "%(known)s 人中的前 %(shown)s 人"
+
+msgid "Pilot"
+msgstr "飞行员"
+
+msgid "No session has been recorded on this site's servers yet."
+msgstr "本站点的服务器上还没有记录任何会话。"
+
+msgid "The squadrons"
+msgstr "中队"
+
+msgid "campaign points"
+msgstr "战役积分"
+
+msgid "Campaign points"
+msgstr "战役积分"
+
+msgid "scaled to the leader"
+msgstr "按领先者缩放"
+
+msgid "%(members)s members"
+msgstr "%(members)s 名成员"
+
+msgid "rating"
+msgstr "评分"
+
+msgid "The servers"
+msgstr "服务器"
+
+msgid "Server board"
+msgstr "服务器面板"
+
+msgid "%(up)s of %(total)s up"
+msgstr "%(up)s / %(total)s 在线"
+
+msgid "Flying"
+msgstr "在空中"
+
+msgid "Sorties"
+msgstr "架次"
+
+msgid "Up"
+msgstr "在线"
+
+msgid "Off"
+msgstr "离线"
+
+msgid "Public data."
+msgstr "公开数据。"
+
+msgid "This site has no server of its own yet."
+msgstr "本站点还没有自己的服务器。"
+
+msgid "%(count)s airframes"
+msgstr "%(count)s 种机型"
+
+msgid "%(count)s servers"
+msgstr "%(count)s 个服务器"
+
+msgid "%(count)s sessions"
+msgstr "%(count)s 场次"
+
+msgid "%(days)s days"
+msgstr "%(days)s 天"
+
+msgid "Air Defence"
+msgstr "防空"
+
+msgid "Air Targets"
+msgstr "空中目标"
+
+msgid "Airframe hours"
+msgstr "机型小时"
+
+msgid "Also known as"
+msgstr "又名"
+
+msgid "Back to the first page"
+msgstr "返回第一页"
+
+msgid "Back to the leaderboard"
+msgstr "返回排行榜"
+
+msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
+msgstr "条形按该飞行员自己的飞行时间缩放，最长的一条是他飞得最多的机型。"
+
+msgid "Discord link"
+msgstr "Discord 关联"
+
+msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
+msgstr "要么地址输错了，要么该飞行员从未在本站服务器上飞行。请改用姓名搜索飞行员。"
+
+msgid "Find a pilot"
+msgstr "查找飞行员"
+
+msgid "Ground Targets"
+msgstr "地面目标"
+
+msgid "Is this you?"
+msgstr "这是你吗？"
+
+msgid "KD-Ratio"
+msgstr "击杀/死亡比"
+
+msgid "Longest Playtimes"
+msgstr "最长游戏时间"
+
+msgid "Metric"
+msgstr "指标"
+
+msgid "No pilot answers to this address"
+msgstr "此地址没有对应的飞行员"
+
+msgid "No pilot has a figure on this board yet. Try another metric, server or period."
+msgstr "本榜单上还没有任何飞行员的数据。请换一个指标、服务器或时段。"
+
+msgid "No pilot's name contains that. Try fewer letters."
+msgstr "没有名字包含这些字母的飞行员。请少输入几个字母。"
+
+msgid "No search yet: type part of a pilot's name in the search box above."
+msgstr "尚未搜索：在上方搜索框中输入飞行员名字的一部分。"
+
+msgid "No session has been recorded for this pilot on this site's servers yet."
+msgstr "尚未在本站服务器上记录到该飞行员的任何场次。"
+
+msgid "Page"
+msgstr "页"
+
+msgid "Pilot not found"
+msgstr "未找到飞行员"
+
+msgid "Pilot search"
+msgstr "飞行员搜索"
+
+msgid "Pilots whose name contains “%(query)s”"
+msgstr "名字包含“%(query)s”的飞行员"
+
+msgid "Public profile."
+msgstr "公开资料。"
+
+msgid "Public record · no account needed"
+msgstr "公开记录 · 无需账号"
+
+msgid "PvP-KD-Ratio"
+msgstr "PvP 击杀/死亡比"
+
+msgid "Ranked"
+msgstr "排名"
+
+msgid "Ranking · %(metric)s"
+msgstr "排名 · %(metric)s"
+
+msgid "Sessions per server"
+msgstr "各服务器场次"
+
+msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
+msgstr "同一个 Discord 账号使用过多个玩家 ID。每个名字都会打开对应的资料页。"
+
+msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
+msgstr "三个时段是统计引擎自身的月、季度和年，分别以 30、90 和 365 天呈现。"
+
+msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
+msgstr "任何人无需登录就能看到这些：名字、中队、飞行时长和战斗数据。"
+
+msgid "This page holds no rows; the board ends earlier."
+msgstr "本页没有数据行；榜单在更早的页面结束。"
+
+msgid "This page holds no rows; the result ends earlier."
+msgstr "本页没有数据行；结果在更早的页面结束。"
+
+msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
+msgstr "在上方搜索框中输入名字的前几个字母。搜索只匹配名字的开头，不匹配中间部分。"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "What they fly"
+msgstr "飞什么"
+
+msgid "all time"
+msgstr "全部时间"
+
+msgid "last flown %(when)s"
+msgstr "最近飞行 %(when)s"
+
+msgid "on this site's servers"
+msgstr "在本站服务器上"
+
+msgid "one Discord account, several player IDs"
+msgstr "一个 Discord 账号，多个玩家 ID"
+
+msgid "recorded"
+msgstr "已记录"
+
+msgid "rows %(first)s – %(last)s"
+msgstr "第 %(first)s – %(last)s 行"
+
+msgid "{count} deaths"
+msgstr "被击落 {count} 次"
+
+msgid "{count} in PvP"
+msgstr "其中 PvP {count}"
+
+msgid "Bars are scaled to your own flying, so the longest bar is the airframe you fly most."
+msgstr "条形按你自己的飞行时长缩放，最长的一条就是你飞得最多的机型。"
+
+msgid "My statistics"
+msgstr "我的统计"
+
+msgid "No record on these servers"
+msgstr "这些服务器上没有记录"
+
+msgid "No session has been recorded for this account on this site's servers yet."
+msgstr "本站服务器上尚未记录该账号的任何会话。"
+
+msgid "Open my public profile"
+msgstr "打开我的公开资料页"
+
+msgid "Public profile"
+msgstr "公开资料"
+
+msgid "Public view"
+msgstr "公开视图"
+
+msgid "Sign in to see your own record"
+msgstr "登录后查看你自己的记录"
+
+msgid "Signed in"
+msgstr "已登录"
+
+msgid "Signed out"
+msgstr "已退出"
+
+msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
+msgstr "你登录的账号没有关联任何在本站服务器上飞行过的玩家 ID。这个社区的其它站点也许有你的记录；本站没有。"
+
+msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
+msgstr "上面的数字就是任何人在你的公开资料页上看到的数字：名字、飞行时长和战斗数字。没有 Discord ID，没有 IP 地址（连它的哈希也没有），没有邮箱，没有封禁或监视状态，没有管理历史。"
+
+msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
+msgstr "同样的会话按它们所在的服务器统计。只显示本站的服务器。"
+
+msgid "This installation has no sign-in method enabled."
+msgstr "此安装没有启用任何登录方式。"
+
+msgid "This is you"
+msgstr "这就是你"
+
+msgid "This page shows the figures of the account you sign in with, counted on this site's servers. Everything else on the site stays open without an account."
+msgstr "本页显示你登录的账号的数字，按本站服务器统计。站点的其余部分无需账号即可访问。"
+
+msgid "What others see"
+msgstr "别人看到的"
+
+msgid "What you fly"
+msgstr "你飞什么"
+
+msgid "Where you fly"
+msgstr "你在哪里飞"
+
+msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
+msgstr "你的时长去了哪里，按机型逐一统计，正如统计插件按 slot 记录的那样。"
+
+msgid "these figures are yours, counted on this site's servers."
+msgstr "这些数字属于你，按本站服务器统计。"
+
+msgid "this account has no record on this site's servers."
+msgstr "该账号在本站服务器上没有记录。"
+
+
+#: services/webservice/templates/site_overview.html:150
+msgid "%"
+msgstr "%"
+
+#: services/webservice/templates/site_overview.html:159
+#, python-format
+msgid "%(count)s pilots"
+msgstr "%(count)s 名飞行员"
+
+#: services/webservice/templates/site_overview.html:192
+#, python-format
+msgid "%(hours)s h"
+msgstr "%(hours)s 小时"
+
+#: services/webservice/templates/site_overview.html:194
+#, python-format
+msgid "%(sorties)s sorties"
+msgstr "%(sorties)s 架次"
+
+#: services/webservice/templates/site_overview.html:111
+#, python-format
+msgid "%(weeks)s weeks"
+msgstr "%(weeks)s 周"
+
+#: services/webservice/pages/site_overview.py:501
+msgid "Average sortie"
+msgstr "平均出击"
+
+#: services/webservice/templates/site_overview.html:215
+msgid "Busiest day"
+msgstr "最忙的一天"
+
+#: services/webservice/pages/site_leaderboard.py:121
+msgid "Crashes"
+msgstr "坠机"
+
+#: services/webservice/templates/site_overview.html:209
+msgid "Every bar is one UTC hour: flight time is split across the hours each session actually spanned."
+msgstr "每根柱子代表一个 UTC 小时：飞行时间按每次会话实际跨越的小时拆分。"
+
+#: services/webservice/templates/site_leaderboard.html:18
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
+msgstr "这些服务器的所有飞行员，以及排名背后的数字。选择一个指标，或按任意列排序。"
+
+#: services/webservice/pages/site_overview.py:505
+msgid "Flew this week"
+msgstr "本周飞行"
+
+#: services/webservice/templates/site_overview.html:114
+msgid "Hours per week"
+msgstr "每周小时"
+
+#: services/webservice/pages/site_leaderboard.py:123
+msgid "Most flown"
+msgstr "最常飞"
+
+#: services/webservice/templates/site_overview.html:187
+msgid "No aircraft has been flown on these servers yet."
+msgstr "这些服务器上还没有人飞过任何机型。"
+
+#: services/webservice/templates/site_overview.html:204
+msgid "No sortie has been recorded on these servers yet."
+msgstr "这些服务器上还没有记录任何架次。"
+
+#: services/webservice/templates/site_overview.html:143
+msgid "One bar per week of the same window, the current week drawn in the brighter fill."
+msgstr "同一时间范围内每周一根柱子，当前一周用更亮的填充。"
+
+#: services/webservice/templates/site_overview.html:76
+msgid "Our pilots' time in the air on these servers, from the first mission to today."
+msgstr "我们的飞行员在这些服务器上的飞行时间，从第一次任务到今天。"
+
+#: services/webservice/templates/site_overview.html:49
+msgid "Our servers, our pilots, our missions. Every sortie flown here is written down — who flew, what they flew, and how it ended."
+msgstr "我们的服务器、我们的飞行员、我们的任务。这里飞过的每个架次都有记录——谁飞的、飞的什么、结果如何。"
+
+#: services/webservice/templates/site_overview.html:214
+msgid "Peak hour"
+msgstr "高峰时段"
+
+#: services/webservice/pages/site_leaderboard.py:120
+msgid "PvP"
+msgstr "PvP"
+
+#~ msgid "Sorties by hour of day"
+#~ msgstr "按一天中的小时分列的架次"
+
+#: services/webservice/templates/site_overview.html:140
+msgid "Sorties flown per week"
+msgstr "每周飞行的架次"
+
+#: services/webservice/templates/site_overview.html:135
+msgid "Sorties per week"
+msgstr "每周架次"
+
+#: services/webservice/templates/site_overview.html:181
+msgid "The aircraft"
+msgstr "机型"
+
+#: services/webservice/templates/site_overview.html:226
+msgid "The squadrons that fly here."
+msgstr "在这里飞行的中队。"
+
+#: services/webservice/templates/site_overview.html:83
+msgid "This community"
+msgstr "这个社区"
+
+#: services/webservice/templates/site_overview.html:126
+msgid "This season"
+msgstr "本赛季"
+
+#: services/webservice/templates/site_overview.html:137
+msgid "This window holds no recorded sortie yet."
+msgstr "这个时间范围内还没有记录任何架次。"
+
+#: services/webservice/site_pages.py:147
+#, python-format
+msgid "Welcome to %(community)s"
+msgstr "欢迎来到 %(community)s"
+
+#: services/webservice/templates/site_overview.html:202
+msgid "When we fly"
+msgstr "我们何时飞行"
+
+#: services/webservice/templates/site_overview.html:160
+msgid "Who has flown the most on these servers."
+msgstr "谁在这些服务器上飞得最多。"
+
+#: services/webservice/templates/site_overview.html:185
+msgid "hours"
+msgstr "小时"
+
+#: services/webservice/templates/site_overview.html:77
+msgid "since the beginning"
+msgstr "从最初到现在"
+
+#: services/webservice/templates/site_overview.html:201
+msgid "hours flown by hour · UTC"
+msgstr "按小时统计的飞行时长 · UTC"
+
+#: services/webservice/templates/site_overview.html:150
+msgid "vs. the first week"
+msgstr "与第一周相比"
+
+msgid "%(count)s deaths"
+msgstr "被击落 %(count)s 次"
+
+msgid "%(count)s recorded"
+msgstr "已记录 %(count)s 次"
+
+msgid "%(count)s sorties"
+msgstr "%(count)s 架次"
+
+msgid "%(landings)s landings of %(takeoffs)s takeoffs"
+msgstr "%(takeoffs)s 次起飞、%(landings)s 次降落"
+
+msgid "Air kills"
+msgstr "空中击杀"
+
+msgid "Competitive rating"
+msgstr "竞技评分"
+
+msgid "Conservative rating"
+msgstr "保守评分"
+
+msgid "Date"
+msgstr "日期"
+
+msgid "Duration"
+msgstr "时长"
+
+msgid "Flight discipline"
+msgstr "飞行纪律"
+
+msgid "How they fight"
+msgstr "如何作战"
+
+msgid "How they fly"
+msgstr "如何飞行"
+
+msgid "Last flights"
+msgstr "最近飞行"
+
+msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
+msgstr "每位飞行员一个评分，由竞技插件维护。它没有服务器列，因此在每个站点上都是同一数值。"
+
+msgid "PvE community"
+msgstr "PvE 社区"
+
+msgid "PvP K/D"
+msgstr "PvP K/D"
+
+msgid "PvP and PvE community"
+msgstr "PvP 与 PvE 社区"
+
+msgid "PvP community"
+msgstr "PvP 社区"
+
+msgid "PvP kills"
+msgstr "PvP 击杀"
+
+msgid "PvP record"
+msgstr "PvP 战绩"
+
+msgid "Rates are of this pilot's own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "百分比基于该飞行员自己的架次；条形表示比例，而不是与其他飞行员的排名。"
+
+msgid "Recent sorties"
+msgstr "近期架次"
+
+msgid "Targets hit"
+msgstr "命中目标"
+
+msgid "TrueSkill · global"
+msgstr "TrueSkill · 全局"
+
+msgid "What they shot down, split by who flew it: other players, or the mission's own air and ground forces."
+msgstr "他们击落了什么，按驾驶者区分：其他玩家，或任务自带的空中和地面力量。"
+
+msgid "newest first"
+msgstr "最新在前"
+
+msgid "{count} PvP deaths"
+msgstr "PvP 被击落 {count} 次"
+
+msgid "{count} per sortie"
+msgstr "每架次 {count}"
+
+msgid "{count} total kills"
+msgstr "总击杀 {count}"
+
+msgid "{mu} μ · {count} rating updates"
+msgstr "{mu} μ · {count} 次评分更新"
+
+msgid "January {year}"
+msgstr "{year}年1月"
+
+msgid "February {year}"
+msgstr "{year}年2月"
+
+msgid "March {year}"
+msgstr "{year}年3月"
+
+msgid "April {year}"
+msgstr "{year}年4月"
+
+msgid "May {year}"
+msgstr "{year}年5月"
+
+msgid "June {year}"
+msgstr "{year}年6月"
+
+msgid "July {year}"
+msgstr "{year}年7月"
+
+msgid "August {year}"
+msgstr "{year}年8月"
+
+msgid "September {year}"
+msgstr "{year}年9月"
+
+msgid "October {year}"
+msgstr "{year}年10月"
+
+msgid "November {year}"
+msgstr "{year}年11月"
+
+msgid "December {year}"
+msgstr "{year}年12月"
+
+msgid "{day} January"
+msgstr "1月{day}日"
+
+msgid "{day} February"
+msgstr "2月{day}日"
+
+msgid "{day} March"
+msgstr "3月{day}日"
+
+msgid "{day} April"
+msgstr "4月{day}日"
+
+msgid "{day} May"
+msgstr "5月{day}日"
+
+msgid "{day} June"
+msgstr "6月{day}日"
+
+msgid "{day} July"
+msgstr "7月{day}日"
+
+msgid "{day} August"
+msgstr "8月{day}日"
+
+msgid "{day} September"
+msgstr "9月{day}日"
+
+msgid "{day} October"
+msgstr "10月{day}日"
+
+msgid "{day} November"
+msgstr "11月{day}日"
+
+msgid "{day} December"
+msgstr "12月{day}日"
+
+msgid "{day} January {year}"
+msgstr "{year}年1月{day}日"
+
+msgid "{day} February {year}"
+msgstr "{year}年2月{day}日"
+
+msgid "{day} March {year}"
+msgstr "{year}年3月{day}日"
+
+msgid "{day} April {year}"
+msgstr "{year}年4月{day}日"
+
+msgid "{day} May {year}"
+msgstr "{year}年5月{day}日"
+
+msgid "{day} June {year}"
+msgstr "{year}年6月{day}日"
+
+msgid "{day} July {year}"
+msgstr "{year}年7月{day}日"
+
+msgid "{day} August {year}"
+msgstr "{year}年8月{day}日"
+
+msgid "{day} September {year}"
+msgstr "{year}年9月{day}日"
+
+msgid "{day} October {year}"
+msgstr "{year}年10月{day}日"
+
+msgid "{day} November {year}"
+msgstr "{year}年11月{day}日"
+
+msgid "{day} December {year}"
+msgstr "{year}年12月{day}日"
+
+msgid "Rating {mu}, confidence plus or minus {sigma}."
+msgstr "评分 {mu}，置信度正负 {sigma}。"
+
+msgid "Up {delta} points since {date}."
+msgstr "自{date}起上升 {delta} 分。"
+
+msgid "Down {delta} points since {date}."
+msgstr "自{date}起下降 {delta} 分。"
+
+msgid "Unchanged since {date}."
+msgstr "自{date}起未变化。"
+
+msgid "Up {delta} points across this span."
+msgstr "在此期间上升 {delta} 分。"
+
+msgid "Down {delta} points across this span."
+msgstr "在此期间下降 {delta} 分。"
+
+msgid "Flat across this span."
+msgstr "在此期间未变化。"
+
+msgid "μ is the expected rating; the band is ±σ, the confidence around it."
+msgstr "μ 是期望评分；带状区域是 ±σ，即围绕它的置信度。"
+
+msgid "Rating {mu}, confidence plus or minus {sigma}, recorded once on {date}. No earlier values exist, so there is no trend to draw."
+msgstr "评分 {mu}，置信度正负 {sigma}，仅在{date}记录过一次。没有更早的数值，因此没有可绘制的趋势。"
+
+msgid "Recorded once — too few for a trend. The bar is ±σ, the confidence the plugin holds in this rating."
+msgstr "仅记录过一次——不足以形成趋势。竖条是 ±σ，即插件对该评分的置信度。"
+
+msgid "No rating update has been recorded yet. The figure above is what the plugin holds now."
+msgstr "尚未记录任何评分更新。上方的数字是插件当前保存的值。"
+
+msgid "{mu} μ"
+msgstr "{mu} μ"
+
+
+msgid "A site that is switched off registers no routes: the console reloads and its address answers \"not found\" until it is back on."
+msgstr "关闭的站点不注册任何路由：控制台会重新加载，在它重新开启之前，其地址会回答“未找到”。"
+
+msgid "A site's servers are the ones whose managed_by names this token (servers.yaml is the only authority)."
+msgstr "站点的服务器是那些 managed_by 列出该令牌的服务器（servers.yaml 是唯一依据）。"
+
+msgid "Address"
+msgstr "地址"
+
+msgid "Both sides of the record lead, side by side."
+msgstr "记录的两面并排呈现。"
+
+msgid "Branding"
+msgstr "品牌"
+
+msgid "Character"
+msgstr "类型"
+
+msgid "Check"
+msgstr "检查"
+
+msgid "Every public site this console serves: what it shows, what it looks like, and whether it is on. A site's content shows on its next page load; its address, its role and its switch need the console to reload."
+msgstr "本控制台服务的每个公开站点：它显示什么、外观如何以及是否启用。站点的内容在下次页面加载时生效；其地址、角色和开关需要控制台重新加载。"
+
+msgid "Expert sheet"
+msgstr "专家样式表"
+
+msgid "In use"
+msgstr "使用中"
+
+msgid "No site is configured yet, so there is nothing to edit here."
+msgstr "尚未配置任何站点，因此这里没有可编辑的内容。"
+
+msgid "No such site."
+msgstr "没有该站点。"
+
+msgid "Nothing was written: "
+msgstr "未写入任何内容："
+
+msgid "Open the public site"
+msgstr "打开公开站点"
+
+msgid "Pages"
+msgstr "页面"
+
+msgid "Public site"
+msgstr "公开站点"
+
+msgid "PvE"
+msgstr "PvE"
+
+msgid "PvP and PvE"
+msgstr "PvP 与 PvE"
+
+msgid "Saved — shown on the site immediately; nothing is reloaded or restarted."
+msgstr "已保存 — 立即在站点上生效；不会重新加载或重启任何内容。"
+
+msgid "Saved — the console re-read the site settings file, so the site's address, role or switch is live now. Nothing is reloaded or restarted."
+msgstr "已保存 — 控制台已重新读取站点设置文件，站点的地址、角色或开关现已生效。没有重新加载或重启任何内容。"
+
+msgid "Shipped palette"
+msgstr "内置配色"
+
+msgid "The expert sheet is the Admin's to write, so nothing was written."
+msgstr "专家样式表仅限管理员编写，因此未写入任何内容。"
+
+msgid "The player-versus-player record leads."
+msgstr "以玩家对玩家的战绩开头。"
+
+msgid "The site settings could not be read."
+msgstr "无法读取站点设置。"
+
+msgid "This form names another site's fields, so nothing was written."
+msgstr "此表单引用了另一个站点的字段，因此未写入任何内容。"
+
+msgid "This site's address, its role and its switch are the Admin's to change, so nothing was written."
+msgstr "此站点的地址、角色和开关仅限管理员更改，因此未写入任何内容。"
+
+msgid "Top pilots"
+msgstr "顶尖飞行员"
+
+msgid "Use this preset"
+msgstr "使用此预设"
+
+msgid "What a pilot flew leads."
+msgstr "以飞行员所飞机型开头。"
+
+msgid "What kind of community is this?"
+msgstr "这是什么样的社区？"
+
+msgid "You can change only your own site's content, so nothing was written."
+msgstr "你只能更改自己站点的内容，因此未写入任何内容。"
+
+msgid "needs a reload"
+msgstr "需要重新加载"
+
+msgid "served at the site root"
+msgstr "在站点根路径提供"
+
+msgid "the servers that declare no managed_by"
+msgstr "未声明 managed_by 的服务器"
+
+msgid "the public site's settings page, for the sites you hold"
+msgstr "公开站点的设置页面，限于你管理的站点"
+
+msgid "edit the content of a site you hold: branding, character, pages, sections, metrics, language and the preset"
+msgstr "编辑你管理的站点内容：品牌、类型、页面、分区、指标、语言和预设"
+
+msgid "a site's address, its role and its on/off switch — the console reloads"
+msgstr "站点的地址、角色和开关 — 控制台会重新加载"
+
+msgid "write a site's expert CSS sheet"
+msgstr "编写站点的专家 CSS 样式表"
+
+#: services/webservice/pages/site_config.py
+msgid "The brand line in the site's top bar, on every page — and the tab's title."
+msgstr "站点顶栏中的品牌行，出现在每个页面上 — 以及标签页的标题。"
+
+#: services/webservice/pages/site_config.py
+msgid "The hero's headline: the name on its own line in the accent colour. Empty, the hero falls back to the Discord guild's name, then the title."
+msgstr "hero 区的标题：名称单独一行、使用强调色。留空时，hero 会依次回退到 Discord 服务器的名称，再到标题。"
+
+#: services/webservice/pages/site_config.py
+msgid "The anchors in the footer, right of the attribution — one per entry: a label and an address."
+msgstr "页脚中的链接，位于固定署名右侧 — 每条一项：一个标签和一个地址。"
+
+#: services/webservice/pages/site_config.py
+msgid "The image in the top bar, left of the title — served from the saved file, so it changes on Save, not as you type."
+msgstr "顶栏中的图像，位于标题左侧 — 由已保存的文件提供，因此在保存时改变，而不是在输入时。"
+
+#: services/webservice/pages/site_config.py
+msgid "The site's top bar, hero and footer, drawn from the values beside it"
+msgstr "站点的顶栏、hero 区和页脚，用旁边的值绘制"
+
+#: services/webservice/pages/site_config.py
+msgid "This site is switched off, so its own page is not served — the box comes back with it."
+msgstr "此站点已关闭，因此它自己的页面不会被提供 — 打开后这个方框就会回来。"
+
+#: services/webservice/pages/site_config.py
+msgid "What the overview shows"
+msgstr "总览显示的内容"
+
+#: services/webservice/pages/site_config.py
+msgid "What the leaderboard ranks"
+msgstr "排行榜排名的内容"
+
+#: services/webservice/pages/site_config.py
+msgid "A fight-night community: the site shows who is winning the fights — the ladder, the airframes, the op nights and the servers — and it ranks fights, not strike work."
+msgstr "一个对抗之夜社区：网站展示谁在对抗中胜出——排行榜、机型、行动之夜和服务器——它排名对抗，而不是对地打击。"
+
+#: services/webservice/pages/site_config.py
+msgid "A co-op community: the site shows what it flies and builds — the activity curve, the airframes, the campaign and the op nights — and it does not rank pilots against each other."
+msgstr "一个合作社区：网站展示它飞什么、建什么——活跃曲线、机型、战役和行动之夜——它不把飞行员彼此排名。"
+
+#: services/webservice/pages/site_config.py
+msgid "A community that does both: every section the build has, and every metric it can rank."
+msgstr "两者兼有的社区：构建提供的每个版块，以及它能排名的每项指标。"
+
+#: services/webservice/pages/site_config.py
+msgid "Off for PvP: the season curve and the squadrons — a duel community's story is the ladder, not a weekly hours curve, and a fight night runs no campaign."
+msgstr "PvP 下关闭：赛季曲线和中队——决斗社区的故事是排行榜，不是每周小时曲线，对抗之夜也不跑战役。"
+
+#: services/webservice/pages/site_config.py
+msgid "Withdrawn for PvP: ships, air defence and ground targets — the site ranks fights, not strike work."
+msgstr "PvP 下撤下：舰船、防空和地面目标——网站排名对抗，而不是对地打击。"
+
+#: services/webservice/pages/site_config.py
+msgid "Off for PvE: top pilots — a co-op site does not rank its pilots against each other."
+msgstr "PvE 下关闭：顶尖飞行员——合作网站不把飞行员彼此排名。"
+
+#: services/webservice/pages/site_config.py
+msgid "Withdrawn for PvE: the PvP ratio — there are no player-versus-player kills to rank."
+msgstr "PvE 下撤下：PvP 比率——没有玩家对玩家的击落可供排名。"
+
+#: services/webservice/pages/site_config.py
+msgid "Pressing a character rewrites the two lists below, now, before anything is saved — Save keeps the result. A switch you moved by hand stays where you left it until a character is pressed again."
+msgstr "按下一个角色会立即重写下面两个列表，此时尚未保存任何内容——保存才会保留结果。手动拨动的开关会停在原处，直到再次按下某个角色。"
+
+#: services/webservice/pages/site_config.py
+msgid "With JavaScript off a press only saves the character: the two lists keep the values stored here, and the player page still follows the character."
+msgstr "关闭 JavaScript 时，按下只保存角色：两个列表保持这里存储的值，玩家页面仍然跟随该角色。"
+
+#: services/webservice/pages/site_config.py
+msgid "Edited by hand — these are no longer exactly the %(name)s set."
+msgstr "已手动修改——这已不再完全是 %(name)s 集合。"
+
+#: services/webservice/pages/site_config.py
+msgid "%(sections)s of %(sectionsTotal)s sections · %(metrics)s of %(metricsTotal)s metrics"
+msgstr "%(sectionsTotal)s 个版块中的 %(sections)s 个 · %(metricsTotal)s 项指标中的 %(metrics)s 项"
+
+
+#: services/webservice/pages/site_config.py
+msgid "The menu and the tiles"
+msgstr "菜单与信息块"
+
+#: services/webservice/pages/site_config.py
+msgid "The links in the site's top bar, left to right, after the brand."
+msgstr "站点顶栏中的链接，位于品牌之后，从左到右。"
+
+#: services/webservice/pages/site_config.py
+msgid "An entry is one of the pages the build serves — %(ids)s. There is nothing to add: the list is the set, so the block sets the order and which of them appear."
+msgstr "一个条目就是本版本提供的页面之一 —— %(ids)s。没有可添加的：列表就是全集，因此该块只决定顺序以及显示哪些。"
+
+#: services/webservice/pages/site_config.py
+msgid "the site's top bar"
+msgstr "站点顶栏"
+
+#: services/webservice/pages/site_config.py
+msgid "Every page switched off: the bar carries the brand alone. The site still serves the overview at its own address, so a visitor is never stranded."
+msgstr "所有页面都关闭：顶栏只剩品牌。站点仍在其自身地址提供概览页，因此访客不会被困住。"
+
+#: services/webservice/pages/site_config.py
+msgid "The strip of figures under the hero, before the %(count)s sections."
+msgstr "主视觉下方的数据条，位于 %(count)s 个区块之前。"
+
+#: services/webservice/pages/site_config.py
+msgid "An entry is one of the figures the build can compute — %(ids)s. There is nothing to add either; the block sets the order and which appear. A tile switched off closes its gap instead of leaving a hole."
+msgstr "一个条目就是本版本能计算的数值之一 —— %(ids)s。同样没有可添加的；该块只决定顺序以及显示哪些。关闭的图块会收起空隙，而不是留下空洞。"
+
+#: services/webservice/pages/site_config.py
+msgid "the overview's tile strip"
+msgstr "概览页的图块条"
+
+#: services/webservice/pages/site_config.py
+msgid "Every tile switched off: the strip is dropped, and the first section follows the hero directly."
+msgstr "所有图块都关闭：该条被去掉，第一个区块直接跟在主视觉之后。"
+
+#: services/webservice/pages/site_config.py
+msgid "The anchors in the footer strip, right of the attribution."
+msgstr "页脚条中的锚点，位于固定署名右侧。"
+
+#: services/webservice/pages/site_config.py
+msgid "Each entry needs a label and an address — a full http(s)://, a mailto:, or a path on this installation."
+msgstr "每个条目需要一个名称和一个地址 —— 完整的 http(s)://、mailto:，或本安装内的路径。"
+
+#: services/webservice/pages/site_config.py
+msgid "No footer links yet. The footer shows the attribution alone — a Discord invite or the mission board belongs here."
+msgstr "还没有页脚链接。页脚只显示固定署名 —— Discord 邀请或任务板应该放在这里。"
+
+#: services/webservice/pages/site_config.py
+msgid "+ Add a link"
+msgstr "+ 添加链接"
+
+#: services/webservice/pages/site_config.py
+msgid "a label, then an address"
+msgstr "先名称，再地址"
+
+#: services/webservice/pages/site_config.py
+msgid "shown"
+msgstr "显示"
+
+#: services/webservice/pages/site_config.py
+msgid "hidden"
+msgstr "隐藏"
+
+#: services/webservice/pages/site_config.py
+msgid "Label"
+msgstr "名称"
+
+#: services/webservice/pages/site_config.py
+msgid "https://…, mailto:… or /path"
+msgstr "https://…、mailto:… 或 /path"
+
+#: services/webservice/pages/site_config.py
+msgid "Active this week"
+msgstr "本周活跃"
+
+#: services/webservice/pages/site_config.py
+msgid "Flying now"
+msgstr "正在飞行"
+
+#: services/webservice/pages/site_config.py
+msgid "Average session"
+msgstr "平均时长"
+
+#: services/webservice/pages/site_config.py
+msgid "Busiest hour"
+msgstr "最忙时段"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "copy of %(name)s"
+msgstr "%(name)s 的副本"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "copy of %(name)s · not stored"
+msgstr "%(name)s 的副本 · 未保存"
+
+#: services/webservice/pages/site_config.py
+msgid "edited"
+msgstr "已修改"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"%(declarations)s declarations · %(lines)s lines · linked after the site's"
+" own sheet"
+msgstr "%(declarations)s 条声明 · %(lines)s 行 · 在站点自身样式表之后加载"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"%(declarations)s declarations · %(lines)s lines · shown, not stored — the shipped copy "
+"for reading; it is kept only when you change it"
+msgstr "%(declarations)s 条声明 · %(lines)s 行 · 仅显示，未保存——随附副本仅供阅读；只有在你修改时才会保留"
+
+#: services/webservice/pages/site_config.py
+msgid "Load the shipped sheet"
+msgstr "载入随附样式表"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"Replace this sheet with the %(declarations)s declarations of %(name)s? "
+"This cannot be undone."
+msgstr "用 %(name)s 的 %(declarations)s 条声明替换此样式表？此操作无法撤销。"
+
+#: services/webservice/pages/site_config.py
+msgid ""
+"The sheet is linked after the site's own stylesheet, so a token declared "
+"there wins."
+msgstr "该样式表在站点自身样式表之后加载，因此在那里声明的令牌优先。"
+
+#: services/webservice/pages/site_config.py
+msgid ""
+"One --name: value; declaration per line. The sheet is wrapped in one "
+"rule, so a selector, a comment and an import are each refused by name."
+msgstr "每行一条 --name: value; 声明。样式表被包在一条规则里，因此选择器、注释和 import 都会被逐个点名拒绝。"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid "%(allowed)s characters allowed · %(used)s used"
+msgstr "允许 %(allowed)s 个字符 · 已用 %(used)s"
+
+#: services/webservice/pages/site_config.py
+#, python-format
+msgid ""
+"Accepted — %(declarations)s declarations, %(characters)s characters. "
+"Saving writes them as this site's own sheet."
+msgstr "已接受 — %(declarations)s 条声明、%(characters)s 个字符。保存后会写成本站点自己的样式表。"
+
+msgid "The mark was uploaded — the site shows it on its next page load."
+msgstr "标识已上传 — 站点会在下一次加载页面时显示它。"
+
+msgid "The uploaded mark was removed — the site draws branding.logo, or the shipped "
+"mark when none is set."
+msgstr "已移除上传的标识 — 站点会绘制 branding.logo，未设置时则绘制内置标识。"
+
+msgid "That file is not an image this page accepts: upload a PNG, a JPEG or a WebP."
+msgstr "该文件不是本页面接受的图片：请上传 PNG、JPEG 或 WebP。"
+
+#, python-format
+msgid "That file is larger than the %(limit)s this page accepts, so nothing was "
+"written."
+msgstr "该文件大于本页面接受的 %(limit)s，因此没有写入任何内容。"
+
+#, python-format
+msgid "That image is %(pixels)s pixels; the mark accepts at most %(limit)s, so "
+"nothing was written."
+msgstr "该图像为 %(pixels)s 像素；标识最多接受 %(limit)s，因此没有写入任何内容。"
+
+msgid "That image decodes to more pixels than the mark accepts, so nothing was "
+"written."
+msgstr "该图像解码后的像素数超过标识允许的上限，因此没有写入任何内容。"
+
+msgid "This site's settings file cannot be read, so nothing was written."
+msgstr "无法读取该站点的设置文件，因此没有写入任何内容。"
+
+msgid "Your role cannot change this site's mark, so nothing was written."
+msgstr "你的角色无法更改该站点的标识，因此没有写入任何内容。"
+
+msgid "You can upload a mark only for your own site, so nothing was written."
+msgstr "你只能为自己的站点上传标识，因此没有写入任何内容。"
+
+msgid "The mark"
+msgstr "标志"
+
+msgid "The image beside the site's name in the top bar."
+msgstr "顶栏中站点名称旁的图像。"
+
+msgid "The site's current mark"
+msgstr "站点当前的标志"
+
+msgid "branding.logo is not set, so the shipped mark is drawn until one is "
+"uploaded."
+msgstr "未设置 branding.logo，因此在有人上传之前绘制随附的标志。"
+
+msgid "branding.logo names the file the site draws today; uploading an image "
+"replaces it."
+msgstr "branding.logo 指定了站点当前绘制的文件；上传图像会替换它。"
+
+msgid "The site draws the uploaded mark first, then branding.logo, then the "
+"shipped mark."
+msgstr "站点先绘制已上传的标志，然后是 branding.logo，最后是随附的标志。"
+
+msgid "from branding.logo"
+msgstr "来自 branding.logo"
+
+msgid "Upload an image"
+msgstr "上传图像"
+
+msgid "Replace"
+msgstr "替换"
+
+#, python-format
+msgid "PNG, JPEG or WebP, up to %(limit)s; the upload re-encodes it to the "
+"four sizes below."
+msgstr "PNG、JPEG 或 WebP，最大 %(limit)s；上传会将其重新编码为下方四种尺寸。"
+
+#, python-format
+msgid "Written beside the site's settings: %(files)s."
+msgstr "写在站点设置旁边：%(files)s。"
+
+msgid "Remove the uploaded mark? The site falls back to branding.logo."
+msgstr "移除已上传的标志？站点将回退到 branding.logo。"
+
+#, python-format
+msgid "The uploaded mark, %(size)s pixels"
+msgstr "已上传的标志，%(size)s 像素"
+
+msgid "That upload could not be read as a form, so nothing was written."
+msgstr "该上传无法作为表单读取，因此没有写入任何内容。"
+
+msgid "Choose an image"
+msgstr "选择图片"
+
+#, python-format
+msgid "Selected: %(name)s"
+msgstr "已选择：%(name)s"
+
+#: services/webservice/pages/site_config.py
+msgid "Placement"
+msgstr "位置"
+
+#: services/webservice/pages/site_config.py
+msgid "Which side of the hero's headline the mark sits on. The bar's small mark never moves."
+msgstr "社区标记位于主视觉标题的哪一侧。顶栏中的小标记从不移动。"
+
+#: services/webservice/pages/site_config.py
+msgid "Left"
+msgstr "左"
+
+#: services/webservice/pages/site_config.py
+msgid "Right"
+msgstr "右"
+
+#: services/webservice/pages/site_config.py
+msgid "The hero draws the mark at 128 px on a desktop, 96 on a tablet and 72 on a phone, where it takes a row of its own."
+msgstr "主视觉在桌面端以 128 px 绘制标记，平板端 96 px，手机端 72 px，并独占一行。"
+
+#: services/webservice/pages/site_config.py
+msgid "The hero's paragraph under the headline. %(community)s is filled with the community's name; empty, the hero prints its shipped sentence."
+msgstr "主视觉标题下方的段落。%(community)s 会被替换为社区名称；为空时，主视觉输出其内置句子。"
+
+msgid "Palette wizard"
+msgstr "调色板向导"
+
+msgid "A palette is twenty-three declarations over six steps — seventeen derived, six carried as they are. Pick what it starts from; the wizard derives the rest, tests every pair against AA, and hands the result to the sheet below — where it stays editable and where Check and Save already are."
+msgstr "调色板是六个步骤里的二十三个声明——十七个推导而来，六个原样带入。选定起点；向导推导其余部分，按 AA 逐一检验每一对，并把结果交给下方样式表——它在那里仍可编辑，检查与保存也早已在那里。"
+
+msgid "Every step is tested on the ground it lands on. A base that cannot reach 4.5:1 as the accent is moved, and the move is shown — never clamped in silence."
+msgstr "每一步都在它落下的底色上检验。作为强调色达不到 4.5:1 的基础色会被移动，移动会显示出来——绝不悄悄夹取。"
+
+msgid "Derive six steps →"
+msgstr "推导六个步骤 →"
+
+msgid "Base colour"
+msgstr "基础色"
+
+msgid "The page the palette is derived for"
+msgstr "推导所用到的页面"
+
+msgid "Dark page"
+msgstr "深色页面"
+
+msgid "Light page"
+msgstr "浅色页面"
+
+msgid "← Back to the wizard"
+msgstr "← 返回向导"
+
+msgid "Use these colours"
+msgstr "使用这些颜色"
+
+msgid "Six steps, twenty-three declarations, ten pairs tested. Use these colours writes them into the sheet below — nothing is saved until the card's own Save."
+msgstr "六个步骤、二十三个声明、十对检验。使用这些颜色会把它们写进下方样式表——在卡片上按保存之前，什么都不会保存。"
+
+msgid "The site's own preview is not loaded, so its palette cannot be read: the box above answers only when the site is enabled."
+msgstr "站点自己的预览尚未载入，因此读不到它的调色板：只有站点启用时，上方框内才有内容。"
+
+msgid "Read from the site's own document: a sheet from another origin cannot be read, and then the tokens have to be reported by hand."
+msgstr "读取自站点自己的文档：来自其他源的样式表读不到，那时标记只能手工填写。"
+
+msgid "The wizard's answer is in the sheet below. The four presets above are no longer applied, and no preset is marked in use — a site names one palette, and this is it."
+msgstr "向导的结果在下方样式表里。上方的四个预设不再生效，也没有任何一个标为使用中——一个站点只指明一套调色板，就是这一套。"
+
+msgid "The base cannot be used as it is."
+msgstr "基础色不能这样使用。"
+
+msgid "Pick another"
+msgstr "另选一个"
+
+msgid "Use %(hex)s"
+msgstr "使用 %(hex)s"
+
+msgid "Carried unchanged, and named so: --sage, --hero-sage and the three --pulse-* washes (green means live, whatever the palette), --black, the four medal declarations and the three font families."
+msgstr "原样带入，并逐一点名：--sage、--hero-sage 以及三个 --pulse-* 淡色（无论调色板如何，绿色都表示在线）、--black、四个奖牌声明以及三个字体系列。"
+
+msgid "ground"
+msgstr "底色"
+
+msgid "panel"
+msgstr "面板"
+
+msgid "line"
+msgstr "线条"
+
+msgid "accent"
+msgstr "强调色"
+
+msgid "text"
+msgstr "文字"
+
+msgid "text steps"
+msgstr "文字层级"
+
+msgid "A shipped palette"
+msgstr "内置调色板"
+
+msgid "Reads %(file)s as the starting point — the sheet this build ships. ← Presets goes back to the gallery to choose another."
+msgstr "以 %(file)s 作为起点——这是本构建附带的样式表。← 预设返回画廊以选择另一个。"
+
+msgid "The palette this site wears now"
+msgstr "此站点目前穿的调色板"
+
+msgid "the resolved sheet"
+msgstr "解析后的样式表"
+
+msgid "Read from the page itself: the colours a visitor is looking at today, as a starting point."
+msgstr "读自页面本身：访客今天看到的颜色，作为起点。"
+
+msgid "One colour"
+msgstr "一种颜色"
+
+msgid "a base colour"
+msgstr "一个基础色"
+
+msgid "Pick the colour the site is about; the wizard derives the other seventeen from its hue."
+msgstr "选择站点所要表达的颜色；向导会从它的色相推导其余十七个。"
+
+msgid "The sheet below"
+msgstr "下方的样式表"
+
+msgid "This site's own sheet, read back: the six steps are its values, and Back returns to them."
+msgstr "此站点自己的样式表，回读而来：六个步骤就是它的取值，返回即回到它们。"
+
+msgid "%(token)s moved L %(from)s → %(to)s to reach %(ratio)s:1 on %(against)s (was %(was)s:1, %(role)s needs %(needs)s:1)."
+msgstr "%(token)s 已移动 L %(from)s → %(to)s，在 %(against)s 上达到 %(ratio)s:1（原为 %(was)s:1，%(role)s 需要 %(needs)s:1）。"
+
+msgid "%(token)s could not reach %(needs)s:1 on %(against)s at any lightness."
+msgstr "%(token)s 在任何亮度下都无法在 %(against)s 上达到 %(needs)s:1。"
+
+msgid "The base %(base)s was used as the accent (%(accent)s, lightness %(from)s → %(to)s to clear --panel)."
+msgstr "基础色 %(base)s 用作强调色（%(accent)s，亮度 %(from)s → %(to)s，以通过 --panel）。"
+
+msgid "The accent's chroma was raised from %(from)s to %(to)s, so a grey still carries a hue."
+msgstr "强调色的彩度从 %(from)s 提高到 %(to)s，好让灰色也带上色相。"
+
+msgid "The base cannot be used as it is. %(base)s sits at OKLCH lightness %(from)s; an accent on this ground needs %(to)s to clear 4.5:1 on the panel, so every step below is built from %(accent)s instead — lightness %(from)s → %(to)s, a different colour and not a nudge."
+msgstr "基础色不能这样使用。%(base)s 的 OKLCH 亮度为 %(from)s；这个底色上的强调色需要 %(to)s 才能在面板上通过 4.5:1，因此下方每一步都由 %(accent)s 构建——亮度 %(from)s → %(to)s，是另一种颜色，不是微调。"
+
+msgid "Accepted — %(declarations)s declarations, %(pairs)s pairs tested, every one at or above AA. Nothing is saved until Save."
+msgstr "已接受——%(declarations)s 个声明、%(pairs)s 对检验，全部达到或超过 AA。在按保存之前什么都不会保存。"
+
+msgid "A palette of your own"
+msgstr "你自己的调色板"
+
+msgid "Admin only"
+msgstr "仅管理员"
+
+msgid "A palette is written into the site's file by an installation admin. Ask for one: the sheet it carries is theirs to edit."
+msgstr "调色板由安装管理员写入站点文件。请向管理员索取：其中的样式表由他们编辑。"
+
+msgid "Not available to a group admin"
+msgstr "对分组管理员不可用"
+
+msgid "from the wizard"
+msgstr "来自向导"
+
+msgid "written by the wizard · linked after the site's own sheet"
+msgstr "由向导写入 · 链接在站点自己的样式表之后"
+
+msgid "The site"
+msgstr "站点"
+
+
+msgid "its own document · %(path)s"
+msgstr "它自己的文档 · %(path)s"
+
+
+msgid "Open ↗"
+msgstr "打开 ↗"
+
+
+msgid "The site's own document at the box's width — bar, hero, footer. Not a drawing: the page's blocks write into this one frame, and it is the only preview here."
+msgstr "站点自己的文档，取框的宽度：栏、hero、页脚。不是画出来的：本页的各个块都写入这一个框架，它是这里唯一的预览。"
+
+
+msgid "Writes into it: %(branding)s — the mark, the bar's name, the hero's headline and paragraph · %(palette)s — every colour in it · %(links)s — the footer's anchors, beside the attribution · %(menu)s — the bar's nav, in this order."
+msgstr "写入其中：%(branding)s — 标记、栏中的名称、主视觉的标题和段落 · %(palette)s — 其中的每种颜色 · %(links)s — 页脚中的链接，位于固定署名旁 · %(menu)s — 栏中的导航，按此顺序。"
+
+
+msgid "Character changes nothing here: it decides the bands below the hero, which the box's height does not reach."
+msgstr "角色在这里什么都不改：它决定 hero 以下的条带，而框的高度到不了那里。"
+
+
+msgid "Palette"
+msgstr "调色板"
+
+
+msgid "Footer links"
+msgstr "页脚链接"
+
+
+msgid "fields"
+msgstr "个字段"
+
+
+msgid "The site itself"
+msgstr "站点本身"
+
+
+msgid "not part of the look"
+msgstr "不属于外观"
+
+
+msgid "Nothing in the box changes: the character decides the bands below the hero, and which figures the leaderboard ranks. The box draws the bar, the hero and the footer — and no band."
+msgstr "框里什么都不变：角色决定 hero 以下的条带，以及排行榜按哪些数字排序。框只画栏、hero 和页脚——不画任何条带。"
+
+msgid "A shipped preset"
+msgstr "内置预设"
+
+msgid "An expert sheet"
+msgstr "专家样式表"
+
+msgid "%(declarations)s declarations"
+msgstr "%(declarations)s 条声明"
+
+msgid "One palette, one choice — the box at the foot of the page shows it as you press a palette."
+msgstr "一种调色板，一个选择——页面底部的方框会在你按下调色板时显示它。"
+
+msgid "The sheet is open at the foot of this page."
+msgstr "样式表在本页底部打开。"
+msgid "Expert mode — at the foot of the page"
+msgstr "专家模式 — 在页面底部"
+
+msgid "Or build a palette"
+msgstr "或者自己构建一套"
+
+msgid "three starting points →"
+msgstr "三个起点 →"
+
+msgid "One palette, one choice."
+msgstr "一种调色板，一个选择。"
+
+#: services/webservice/pages/site_config.py
+msgid "A shipped preset, an uploaded sheet or the expert sheet — at most one, and the header above says which one this site names. A save that would name two is refused, and nothing is written."
+msgstr "随附预设、已上传的样式表或专家样式表——最多一个，上方标题会说明此站点指定的是哪一个。会指定两个的保存会被拒绝，且不写入任何内容。"
+
+msgid "Expert Mode"
+msgstr "专家模式"
+
+msgid "The expert sheet is stored — %(declarations)s declarations, %(used)s of %(allowed)s characters. Expert Mode is closed, so the sheet is not drawn: it still posts exactly as it stands, and the box being unticked clears nothing. Tick it to read or edit the sheet."
+msgstr "专家样式表已保存——%(declarations)s 条声明，%(used)s / %(allowed)s 个字符。专家模式已关闭，所以不绘制样式表：它仍按原样提交，取消勾选不会清除任何内容。勾选它可以阅读或编辑样式表。"
+
+#: services/webservice/pages/site_config.py
+#: services/webservice/pages/site_config.py
+msgid "No expert sheet. The site's palette is whichever of the preset and the uploaded sheet the header above states. Tick Expert Mode above to read the shipped transcription — it is shown, not stored, and it is kept only when you change it and save. The sheet is read and checked here at the card's full width, because a sheet is code and code wants lines."
+msgstr "没有专家样式表。站点的配色是上方标题所述的预设或已上传的样式表。勾选上方的专家模式可阅读随附的转录——它只是显示，不会被保存，只有你修改并保存后才会保留。样式表在这里按卡片的整个宽度阅读和校验，因为样式表就是代码，而代码需要行。"
+
+msgid "the sheet is code: read and checked here, at the card's full width"
+msgstr "样式表是代码：在这里读取和检查，占卡片全宽"
+
+msgid "← Presets"
+msgstr "← 预设"
+
+msgid "These six steps are measured as they stand: nothing here is derived, nothing is moved, and nothing is rewritten until you press Use these colours."
+msgstr "这六个步骤按原样测量：这里不推导、不移动，也不重写任何内容，直到你按下“使用这些颜色”。"
+
+msgid "Step 1 · the starting point"
+msgstr "第 1 步 · 起点"
+
+msgid "Step 2 · the six steps"
+msgstr "第 2 步 · 六个步骤"
+
+msgid "← Step 1"
+msgstr "← 第 1 步"
+
+#: services/webservice/pages/site_config.py
+msgid "The declarations this step writes"
+msgstr "此步骤写入的声明"
+
+#: services/webservice/pages/site_config.py
+msgid "the page's own colour"
+msgstr "页面自身的颜色"
+
+#: services/webservice/pages/site_config.py
+msgid "the accent — eyebrow, links, the name"
+msgstr "强调色——小标题、链接、名称"
+
+#: services/webservice/pages/site_config.py
+msgid "follows %(token)s · L %(offset)s"
+msgstr "跟随 %(token)s · L %(offset)s"
+
+#: services/webservice/pages/site_config.py
+msgid "moved L %(from)s → %(to)s"
+msgstr "已移动 L %(from)s → %(to)s"
+
+#: services/webservice/pages/site_config.py
+msgid "the step you are editing"
+msgstr "你正在编辑的步骤"
+
+#: services/webservice/pages/site_config.py
+msgid "under AA"
+msgstr "低于 AA"
+
+#: services/webservice/pages/site_config.py
+msgid "The value you set is %(before)s. The nearest value that clears it is %(hex)s (%(ratio)s:1 on %(against)s, %(ground)s:1 on the ground), L %(from)s → %(to)s — it clears the other pairs this edit broke as well."
+msgstr "你设置的值是 %(before)s。能通过检验的最近值是 %(hex)s（在 %(against)s 上"
+" %(ratio)s:1，在底色上 %(ground)s:1），L %(from)s → %(to)s——它也能通过这次编辑破坏的其他配对。"
+
+#: services/webservice/pages/site_config.py
+msgid "Keep my %(hex)s"
+msgstr "保留我的 %(hex)s"
+
+#: services/webservice/pages/site_config.py
+msgid "The value %(hex)s cannot be moved into AA at any lightness: the row keeps it and the verdict refuses it."
+msgstr "值 %(hex)s 在任何亮度下都无法进入 AA：该行保留它，判定拒绝它。"
+
+#: services/webservice/pages/site_config.py
+msgid "Six steps, twenty-three declarations, ten pairs tested — %(count)s under AA. The value is the operator's and the sheet carries it; Use these colours is held until you answer."
+msgstr "六个步骤、二十三个声明、十对检验——%(count)s 低于 AA。值属于操作者，样式表承载它；在你回答之前，使用这些颜色保持挂起。"
+
+#: services/webservice/pages/site_config.py
+msgid "The sheet was uploaded — the site's preview reloads with it."
+msgstr "样式表已上传 — 站点预览会随之重新加载。"
+
+#: services/webservice/pages/site_config.py
+msgid "The uploaded sheet was removed — the site falls back to its preset."
+msgstr "已上传的样式表已移除 — 站点回到它的预设。"
+
+#: services/webservice/pages/site_config.py
+msgid "That file is not a .css sheet: this page accepts a CSS file."
+msgstr "该文件不是 .css 样式表：本页只接受 CSS 文件。"
+
+#: services/webservice/pages/site_config.py
+msgid "That sheet is larger than the %(limit)s this page accepts, so nothing was written."
+msgstr "该样式表超过本页接受的 %(limit)s，因此没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "That file is not UTF-8 text, so nothing was written."
+msgstr "该文件不是 UTF-8 文本，因此没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "Your role cannot change this site's palette, so nothing was written."
+msgstr "你的角色不能更改此站点的配色，因此没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "You can upload a sheet only for your own site, so nothing was written."
+msgstr "你只能为自己的站点上传样式表，因此没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "Your own sheet"
+msgstr "你自己的样式表"
+
+#: services/webservice/pages/site_config.py
+msgid "A .css file the site serves as its palette, stored with the site's assets."
+msgstr "一个 .css 文件，站点将它作为配色使用，并与站点的资源一起存放。"
+
+#: services/webservice/pages/site_config.py
+msgid "The sheet is served exactly as you wrote it — nothing is checked. It may carry @font-face, url() and component rules, and the browser loads what it names from this installation's own origin. The expert sheet below is the validated path."
+msgstr "样式表完全按你写的内容提供——不做任何校验。它可以包含 @font-face、url() 与组件规则，浏览器会从本安装自己的源加载它指定的内容。下方的专家样式表是经过校验的路径。"
+
+#: services/webservice/pages/site_config.py
+msgid "The site serves the uploaded file %(name)s."
+msgstr "站点提供已上传的文件 %(name)s。"
+
+#: services/webservice/pages/site_config.py
+msgid "No sheet uploaded. The site serves the palette the header above states."
+msgstr "尚未上传样式表。站点使用上方标题所述的配色。"
+
+#: services/webservice/pages/site_config.py
+msgid "Upload a sheet"
+msgstr "上传样式表"
+
+#: services/webservice/pages/site_config.py
+msgid "Replace the sheet"
+msgstr "替换样式表"
+
+#: services/webservice/pages/site_config.py
+msgid "Choose a sheet"
+msgstr "选择样式表"
+
+#: services/webservice/pages/site_config.py
+msgid "A .css file, UTF-8, at most %(limit)s."
+msgstr "一个 .css 文件，UTF-8，最大 %(limit)s。"
+
+#: services/webservice/pages/site_config.py
+msgid "Remove this site's uploaded sheet? The site falls back to its preset."
+msgstr "移除此站点已上传的样式表？站点会回到它的预设。"
+
+#: services/webservice/pages/site_config.py
+msgid "An uploaded sheet"
+msgstr "已上传的样式表"
+
+#: services/webservice/pages/site_config.py
+msgid "Your uploaded sheet is in force — replace or remove it below."
+msgstr "你上传的样式表正在生效——在下方替换或移除它。"
+
+#: services/webservice/pages/site_config.py
+msgid "A draft: the box follows the values in the form, and nothing is written until you save."
+msgstr "草稿：预览窗口会跟随表单中的值，保存之前不会写入任何内容。"
+
+#: services/webservice/shell.py
+msgid "Page not found"
+msgstr "页面未找到"
+
+#: services/webservice/shell.py
+msgid "This address does not exist. Check the link, or use the menu to find what you were looking for."
+msgstr "此地址不存在。请检查链接，或使用菜单查找所需内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "Add a site"
+msgstr "添加站点"
+
+#: services/webservice/pages/site_config.py
+msgid "A new site is one entry in this file: its name, the servers it shows and the segment it answers on."
+msgstr "一个新站点就是这个文件里的一条记录：它的名字、它展示的服务器，以及它响应的路径段。"
+
+#: services/webservice/pages/site_config.py
+msgid "Name in the file"
+msgstr "文件中的名字"
+
+#: services/webservice/pages/site_config.py
+msgid "Lowercase letters, digits and inner dashes, starting with a letter or digit. This is the site's key, not its address."
+msgstr "小写字母、数字和中间的连字符，以字母或数字开头。这是站点的键名，不是它的地址。"
+
+#: services/webservice/pages/site_config.py
+msgid "The servers it shows"
+msgstr "它展示的服务器"
+
+#: services/webservice/pages/site_config.py
+msgid "Every value servers.yaml names in a server's managed_by, and nothing else: a site's servers are the ones whose managed_by names its role."
+msgstr "servers.yaml 中任何服务器 managed_by 所写的值，别的都不行：一个站点的服务器，就是 managed_by 写了它角色的那些。"
+
+#: services/webservice/pages/site_config.py
+msgid "The site root"
+msgstr "站点根"
+
+#: services/webservice/pages/site_config.py
+msgid "The segment after \"/\" a visitor types. Empty for the site root; a site other than the root cannot be saved without one."
+msgstr "访客输入 \"/\" 之后的那一段。站点根为空；不是根的站点缺少它就无法保存。"
+
+#: services/webservice/pages/site_config.py
+msgid "Add the site"
+msgstr "添加站点"
+
+#: services/webservice/pages/site_config.py
+msgid "Adding a site is the installation Admin's, so nothing was written."
+msgstr "添加站点属于安装管理员的权限，所以没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "'%(key)s' is not a site name: lowercase letters, digits and inner dashes, starting with a letter or digit. Nothing was written."
+msgstr "'%(key)s' 不是站点名：小写字母、数字和中间的连字符，以字母或数字开头。没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "A site named '%(key)s' is already in this file, so nothing was written."
+msgstr "这个文件里已经有名为 '%(key)s' 的站点，所以没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "A site other than the site root needs the segment it answers on, so nothing was written."
+msgstr "不是根的站点需要它响应的路径段，所以没有写入任何内容。"
+
+#: services/webservice/pages/site_config.py
+msgid "Every change is checked by this file's own parser, and a document that does not pass cannot be saved."
+msgstr "每次修改都由这个文件自己的解析器检查，通不过的文档无法保存。"
+
+#: services/webservice/pages/site_config.py
+msgid "A save writes this file; the console reads it again on the next bot restart."
+msgstr "保存会写入这个文件；控制台会在机器人下次重启时重新读取。"
+
+#: services/webservice/pages/site_config.py
+msgid "Editing this file is the installation Admin's, so nothing was written."
+msgstr "编辑这个文件属于安装管理员的权限，所以没有写入任何内容。"
+
+msgid "drawn from your file"
+msgstr "根据你的文件绘制"
+
+msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
+msgstr "该站点还没有自己的地址——这是它将来的样子。机器人重启后即可访问。"

@@ -1,0 +1,52 @@
+/* site-preview.css — THE PREVIEW DOCUMENT'S GEOMETRY, and nothing else.
+ *
+ * The document it styles is the site's own chrome: `site.css` plus the palette sheet the site's
+ * theme resolves to — the same files a visitor loads. This sheet only fits that chrome into the
+ * settings card's box. The page becomes three rows (bar, hero, footer) with the hero taking what the
+ * other two leave, so the box never shows an empty band and the footer is always visible. The hero's
+ * own viewport-height floor is removed: a preview cannot claim a viewport it does not have.
+ *
+ * It is loaded by `site_preview.html` ALONE and by no public page: a colour, a font or a border here
+ * would be a second palette beside the site's.
+ */
+
+html, body.pv { height: 100%; }
+
+body.pv {
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%; min-height: 0; overflow: hidden;
+}
+body.pv > * { min-height: 0; }
+
+/* THE SHELL'S OWN PARTS ARE NOT THE SITE'S BRANDING. The search box, the visitor's chip, the
+ * console's door and the language pill are drawn from the shell's session, not from the site's
+ * configuration — drawing them would say the operator can change them. The box shows the bar, the
+ * hero and the footer, and those only. */
+.pv .search, .pv .who, .pv .langpick, .pv .top .in > .btn { display: none; }
+
+/* the bar and the footer stand in the flow of a document that cannot scroll */
+.pv .top { position: static; }
+.pv .foot { position: static; margin: 0; }
+
+/* the hero's three rows stack from the top instead of splitting the space it was given */
+.pv .hero .in {
+  min-height: 0; align-content: start;
+  grid-template-rows: auto auto auto; row-gap: var(--sp-3);
+  padding-top: var(--sp-0v); padding-bottom: var(--sp-0v);
+}
+
+/* the footer's parts stay the flex items of the bar, wherever they are edited from */
+.pv .foot .in { flex-wrap: wrap; row-gap: var(--sp-1); }
+
+/* ============================================================ THE STRIP (the box at 210 px)
+ * At the phone the box is 210 px tall — a quarter of the screen — so the document draws the three
+ * things the page's fields write and a visitor meets first: the bar with the mark and the name, the
+ * community's name, the sentence under it. It drops the menu row (the Menu & Tiles block draws it),
+ * the footer (the Footer links block), and the eyebrow (its accent is already the headline's second
+ * line). The query is the BOX's own height, not the window's: the document is loaded into a frame the
+ * page sized, so 210 is the phone's strip and 400 or 250 is the whole chrome. */
+@media (max-height: 230px) {
+  .pv .top .nav { display: none; }
+  .pv .foot { display: none; }
+  .pv .hero .eyebrow { display: none; }
+}

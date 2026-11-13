@@ -85,6 +85,8 @@ key                          default   meaning
 ``member_ttl``               ``60``    seconds a per-request member resolution may be served from
                                        memory when the bot has no member list (intents off);
                                        clamped to ``1..3600`` with a warning
+``auto_start``               ``false`` send an anonymous visitor STRAIGHT into the flow instead of
+                                       the login page (which renders the Discord button itself)
 ============================ ========= =======================================================
 
 SECRET PRECEDENCE, pinned by the lead and pinned by tests: ``enabled`` gates everything;
@@ -155,6 +157,7 @@ __all__ = [
     "MAX_RESPONSE_BYTES", "AVATAR_SIZE",
     "SITE_ROOT", "GENERIC_MESSAGE", "DISABLED_MESSAGE", "CANCELLED_MESSAGE", "SECRET_STORE_DIR",
     "DEFAULT_MEMBER_TTL", "MIN_MEMBER_TTL", "MAX_MEMBER_TTL", "NO_MEMBERS_INTENT_REASON",
+    "AUTO_START_DEFAULT",
     "LOOKUP_LABELS", "DiscordAuthError", "DiscordSettings", "DiscordOAuthBackend",
     "DiscordSecretReader", "MemberLookup", "discord_backend", "parse_discord_config",
     "role_names_for_member", "resolve_member", "members_intent_available",
@@ -267,6 +270,10 @@ CANCELLED_MESSAGE = "Sign-in with Discord was cancelled."
 #: the label and look of the login page's second door (read by templates/login.html). Wrapped for
 #: translation (identity marker: the runtime value stays this English label).
 CONTROL_LABEL = i18n._("Sign in with Discord")
+
+#: whether an anonymous visitor is sent straight into the flow by default. OFF: the login page is
+#: the door, and its own button starts the flow (``auth.discord.auto_start`` turns the jump on).
+AUTO_START_DEFAULT = False
 
 #: the repo's pickle secret store, relative to the config dir (``config/.secret/<key>.pkl``)
 SECRET_STORE_DIR = ".secret"
@@ -822,6 +829,7 @@ class DiscordSettings:
     client_secret: str
     public_base_url: str
     member_ttl: int = DEFAULT_MEMBER_TTL
+    auto_start: bool = AUTO_START_DEFAULT
 
 
 def _validated_member_ttl(value) -> int:
@@ -925,9 +933,13 @@ def parse_discord_config(discord_config, *, config_dir: str | Path,
                          "auth.discord.client_secret (inline) or auth.discord.client_secret_key "
                          f"(a key in {SECRET_STORE_DIR}/<key>.pkl).")
 
+    # Only exactly `true` turns the immediate jump on, the same rule `enabled` follows: a truthy
+    # string from a hand-edited file must not silently change where an anonymous visitor lands.
     return DiscordSettings(client_id=client_id, client_secret=secret,
                            public_base_url=_validated_base_url(public_base_url),
-                           member_ttl=_validated_member_ttl(discord_config.get("member_ttl")))
+                           member_ttl=_validated_member_ttl(discord_config.get("member_ttl")),
+                           auto_start=discord_config.get("auto_start",
+                                                         AUTO_START_DEFAULT) is True)
 
 
 # --------------------------------------------------------------------------- the backend
@@ -967,6 +979,11 @@ class DiscordOAuthBackend(AuthBackend):
     @property
     def member_ttl(self) -> int:
         return self._settings.member_ttl
+
+    @property
+    def auto_start(self) -> bool:
+        """``auth.discord.auto_start``: whether a refused page jumps straight into the flow."""
+        return self._settings.auto_start
 
     def redirect_uri(self) -> str:
         """The redirect URI Discord must call back: config only, never a request header."""

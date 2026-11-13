@@ -54,7 +54,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, \
     StreamingResponse
 
-from .. import i18n, permissions, readmodels, scheduler_plan, session, weather_fields
+from .. import i18n, mount, permissions, readmodels, scheduler_plan, session, weather_fields
 # THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
 # route below and the cloud-preset routes in ``pages/presets`` read it from the SAME module.
 from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, preset_image_file
@@ -834,7 +834,7 @@ def mission_download_path(server_name: str) -> str:
     into a directory component. A name carrying a ``/`` is encoded here (``%2F``) and decoded again by
     the route's ``{name:path}`` parameter, exactly as the page URL is.
     """
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/missions/download"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/missions/download")
 
 
 def mission_rows(data: dict, server_name: str) -> list[dict]:
@@ -971,12 +971,12 @@ def _safe_filename(name: str) -> str:
 
 def log_window_path(server_name: str) -> str:
     """The URL of *server_name*'s log-window endpoint — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/window"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/window")
 
 
 def server_status_path(server_name: str) -> str:
     """The URL of *server_name*'s status endpoint — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/status"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/status")
 
 
 class _LogUnavailable(Exception):
@@ -1303,7 +1303,7 @@ def debug_plugin_active(node) -> bool:
 
 def log_download_path(server_name: str) -> str:
     """The URL of *server_name*'s log-artifact download BASE — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/download"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/log/download")
 
 
 def _human_size(size) -> str:
@@ -1699,7 +1699,7 @@ def preset_image_path(server_name: str) -> str:
     that server's reported weather and is resolved by the route, so nothing a link carries can name a
     file.
     """
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/preset.png"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/preset.png")
 
 
 def _preset_image_refuse(status_code: int, sentence: str) -> PlainTextResponse:
@@ -1781,7 +1781,7 @@ MISSION_WEATHER_NODE_OFFLINE = ("Node '{node}' is offline or unknown, so its mis
 
 def mission_weather_path(server_name: str) -> str:
     """The URL of *server_name*'s mission-weather read — the name as ONE percent-encoded segment."""
-    return f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/mission.json"
+    return mount.url(f"/fleet/{quote(readmodels.text(server_name), safe='')}/weather/mission.json")
 
 
 def _weather_refuse(status_code: int, sentence: str) -> PlainTextResponse:
@@ -2652,12 +2652,12 @@ async def _music_tab_context(request: Request, server_name: str) -> dict:
 
 def music_tab_stream_path(server_name: str) -> str:
     """The URL of *server_name*'s music stream — the name as ONE percent-encoded segment."""
-    return f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/stream"
+    return mount.url(f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/stream")
 
 
 def music_tab_fragments_path(server_name: str) -> str:
     """The URL of *server_name*'s music fragments — the polling fallback of the same region."""
-    return f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/fragments"
+    return mount.url(f"/api/server/{quote(readmodels.text(server_name), safe='')}/music/fragments")
 
 
 def music_tab_live(request: Request, server_name: str) -> dict | None:

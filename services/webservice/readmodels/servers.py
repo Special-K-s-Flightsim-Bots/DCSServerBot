@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
+from .. import mount
 from .access import attr, as_int, port_number, safe, text
 from .model import (NO_SERVERS_MESSAGE, LimitView, ServerView, WeatherView, format_duration,
                     status_view)
@@ -47,7 +48,7 @@ def server_url(name, *, tab: str = "") -> str:
     carry (a space, ``&``, ``#``, ``?``, ``/``), so a name round-trips through the URL segment
     instead of truncating it or opening a query string. ``tab`` names the tab to open on.
     """
-    url = f"{SERVERS_HREF_PREFIX}{quote(str(name), safe='')}"
+    url = mount.url(f"{SERVERS_HREF_PREFIX}{quote(str(name), safe='')}")
     return f"{url}?tab={tab}" if tab else url
 
 

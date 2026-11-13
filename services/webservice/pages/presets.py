@@ -59,7 +59,7 @@ from core.utils.presets import (CONFIG_LABEL, PRESET_DIR, PRESET_FILE_GLOB, PRES
                                 PresetRead, list_preset_files, preset_file_label, preset_names_of,
                                 preset_read_key, read_preset_documents)
 
-from .. import dcs_clouds, dcs_halo, dcs_install, i18n, permissions, session, weather_fields
+from .. import dcs_clouds, dcs_halo, dcs_install, i18n, mount, permissions, session, weather_fields
 from ..registry import NavItem
 from . import actions as actions_page
 from . import dashboard as dashboard_page
@@ -433,12 +433,12 @@ PRESETS_CLOUD_IMAGE_PATH = "/presets/clouds/{node}/{name}.png"
 
 def clouds_list_path(node: str) -> str:
     """The cloud-preset list URL of *node* — the node as ONE percent-encoded path segment."""
-    return f"/presets/clouds/{quote(str(node), safe='')}.json"
+    return mount.url(f"/presets/clouds/{quote(str(node), safe='')}.json")
 
 
 def cloud_image_path(node: str, name: str) -> str:
     """The plate URL of cloud preset *name* on *node* — both as ONE percent-encoded segment each."""
-    return f"/presets/clouds/{quote(str(node), safe='')}/{quote(str(name), safe='')}.png"
+    return mount.url(f"/presets/clouds/{quote(str(node), safe='')}/{quote(str(name), safe='')}.png")
 
 
 #: the halo-preset LIST for one node — a JSON read of that node's vendor file, answering BOTH its
@@ -451,12 +451,12 @@ PRESETS_HALO_IMAGE_PATH = "/presets/halo/{node}/{name}.png"
 
 def halo_list_path(node: str) -> str:
     """The halo-preset list URL of *node* — the node as ONE percent-encoded path segment."""
-    return f"/presets/halo/{quote(str(node), safe='')}.json"
+    return mount.url(f"/presets/halo/{quote(str(node), safe='')}.json")
 
 
 def halo_image_path(node: str, name: str) -> str:
     """The plate URL of halo preset *name* on *node* — both as ONE percent-encoded segment each."""
-    return f"/presets/halo/{quote(str(node), safe='')}/{quote(str(name), safe='')}.png"
+    return mount.url(f"/presets/halo/{quote(str(node), safe='')}/{quote(str(name), safe='')}.png")
 
 
 #: THE HALO'S OFF VALUE. ``core/mizfile.py`` defaults ``weather.halo`` to ``{"preset": "off"}``, so
@@ -760,9 +760,14 @@ def preset_value_for(shape: str, values: Mapping[str, str], combination: str,
     return preset_map_from_values(values, existing, fog_rows_stated=fog_rows_stated)
 
 
+def _presets_root() -> str:
+    """The presets page's address as the browser must use it — the console's mount included."""
+    return mount.url(PRESETS_PATH)
+
+
 def wizard_url(name: str) -> str:
     """The preset's wizard URL — the name as ONE percent-encoded path segment."""
-    return PRESETS_WIZARD_PATH.format(name=quote(name, safe=""))
+    return mount.url(PRESETS_WIZARD_PATH.format(name=quote(name, safe="")))
 
 
 def display_path(config: Path, path: Path) -> str:
@@ -1038,7 +1043,7 @@ def _filter_url(value: str, query: str, file: str = "") -> str:
     The ``file`` rides even when it is empty: an empty one is the "All files" tab, and omitting the
     parameter would fall back to the page's default tab (``presets.yaml``).
     """
-    url = f"{PRESETS_PATH}?kind={quote(value, safe='')}&file={quote(file, safe='/')}"
+    url = f"{_presets_root()}?kind={quote(value, safe='')}&file={quote(file, safe='/')}"
     if query:
         url += f"&q={quote(query, safe='')}"
     return url
@@ -1046,7 +1051,7 @@ def _filter_url(value: str, query: str, file: str = "") -> str:
 
 def removal_url(name: str) -> str:
     """The confirm page's URL for *name* — a GET on this page that writes nothing."""
-    return f"{PRESETS_PATH}?remove={quote(name, safe='')}"
+    return f"{_presets_root()}?remove={quote(name, safe='')}"
 
 
 def preset_tab_url(file: str, *, kind: str = FILTER_ALL, query: str = "") -> str:
@@ -1056,7 +1061,7 @@ def preset_tab_url(file: str, *, kind: str = FILTER_ALL, query: str = "") -> str
         params.append(f"kind={quote(kind, safe='')}")
     if query:
         params.append(f"q={quote(query, safe='')}")
-    return PRESETS_PATH + (f"?{'&'.join(params)}" if params else "")
+    return _presets_root() + (f"?{'&'.join(params)}" if params else "")
 
 
 # ------------------------------------------------------------------- the node's cloud presets, read
@@ -1803,34 +1808,35 @@ def new_preset_url(file: str = "") -> str:
     file when the install offers it, and on its usual default when it does not.
     """
     if not file:
-        return PRESETS_NEW_PATH
-    return f"{PRESETS_NEW_PATH}?file={quote(file, safe='/')}"
+        return mount.url(PRESETS_NEW_PATH)
+    return mount.url(f"{PRESETS_NEW_PATH}?file={quote(file, safe='/')}")
 
 
 def wizard_base(name: str) -> str:
     """The wizard's own URL for *name*, or the new-preset URL when *name* is empty."""
-    return PRESETS_WIZARD_PATH.format(name=quote(name, safe="")) if name else PRESETS_NEW_PATH
+    return mount.url(PRESETS_WIZARD_PATH.format(name=quote(name, safe=""))
+                     if name else PRESETS_NEW_PATH)
 
 
 def wizard_validate_url(name: str) -> str:
     """The wizard editor's validate URL for *name* — the new-preset URL when *name* is empty."""
-    return (PRESETS_WIZARD_VALIDATE_PATH.format(name=quote(name, safe=""))
-            if name else PRESETS_NEW_VALIDATE_PATH)
+    return mount.url(PRESETS_WIZARD_VALIDATE_PATH.format(name=quote(name, safe=""))
+                     if name else PRESETS_NEW_VALIDATE_PATH)
 
 
 def preset_yaml_url(name: str) -> str:
     """The one-block editor's URL for preset *name* — the name as ONE percent-encoded segment."""
-    return PRESETS_YAML_PATH.format(name=quote(str(name), safe=""))
+    return mount.url(PRESETS_YAML_PATH.format(name=quote(str(name), safe="")))
 
 
 def preset_yaml_validate_url(name: str) -> str:
     """That page's own check URL — a READ that answers the editor's JSON verdict."""
-    return PRESETS_YAML_VALIDATE_PATH.format(name=quote(str(name), safe=""))
+    return mount.url(PRESETS_YAML_VALIDATE_PATH.format(name=quote(str(name), safe="")))
 
 
 def preset_yaml_save_url(name: str) -> str:
     """That page's own save URL — the ONE write that replaces this preset's block."""
-    return PRESETS_YAML_SAVE_PATH.format(name=quote(str(name), safe=""))
+    return mount.url(PRESETS_YAML_SAVE_PATH.format(name=quote(str(name), safe="")))
 
 
 def preset_block_document(config: Path, name: str) -> dict | None:
@@ -3756,7 +3762,7 @@ def add_routes(router: APIRouter) -> APIRouter:
                                                  manager=permissions.manages_console(request)),
             user=dashboard_page.identity_summary(request),
             style=PRESETS_STYLE,
-            path=PRESETS_PATH,
+            path=mount.url(PRESETS_PATH),
         )
 
         # THE ONE REMOVAL DOOR: a GET that SHOWS a preset and every reference to it. Nothing is
@@ -4036,7 +4042,7 @@ def add_routes(router: APIRouter) -> APIRouter:
                                                  manager=permissions.manages_console(request)),
             user=dashboard_page.identity_summary(request),
             style=PRESETS_STYLE,
-            path=PRESETS_PATH,
+            path=mount.url(PRESETS_PATH),
             rail_head=WIZARD_RAIL_HEAD,
             back_label=WIZARD_BACK,
             next_label=WIZARD_NEXT,
@@ -4132,14 +4138,14 @@ def add_routes(router: APIRouter) -> APIRouter:
                                                  manager=permissions.manages_console(request)),
             user=dashboard_page.identity_summary(request),
             style=PRESETS_STYLE,
-            path=PRESETS_PATH,
+            path=mount.url(PRESETS_PATH),
         )
         html = i18n.render(
             request, PRESETS_YAML_TEMPLATE, **shell,
             preset=block,
             save_path=preset_yaml_save_url(block["name"]),
             validate_url=preset_yaml_validate_url(block["name"]),
-            back_url=PRESETS_PATH,
+            back_url=mount.url(PRESETS_PATH),
             csrf_field=session.CSRF_FIELD,
             csrf_token=session.get_csrf_token(request),
             revision_field=PRESETS_REVISION_FIELD,
@@ -4182,7 +4188,8 @@ def add_routes(router: APIRouter) -> APIRouter:
 
         found = find_preset_file(config, name)
         if found is None:
-            return _refuse_write(request, PRESETS_REFUSED_UNKNOWN, PRESETS_PATH, name=name)
+            return _refuse_write(request, PRESETS_REFUSED_UNKNOWN, mount.url(PRESETS_PATH),
+                                 name=name)
         path, _label, key = found
         redirect = preset_yaml_url(key)
 
@@ -4499,12 +4506,13 @@ def add_routes(router: APIRouter) -> APIRouter:
         matched = ""
         if action == PRESETS_ACTION_REMOVE:
             if not original:
-                return _refuse_write(request, PRESETS_REFUSED_NO_NAME, PRESETS_PATH)
+                return _refuse_write(request, PRESETS_REFUSED_NO_NAME, mount.url(PRESETS_PATH))
             found = find_preset_file(config, original)
             if found is None:
-                return _refuse_write(request, PRESETS_REFUSED_UNKNOWN, PRESETS_PATH, name=original)
+                return _refuse_write(request, PRESETS_REFUSED_UNKNOWN,
+                                     mount.url(PRESETS_PATH), name=original)
             path, label, matched = found
-            redirect = PRESETS_PATH
+            redirect = mount.url(PRESETS_PATH)
         else:
             if not new_name:
                 return _refuse_write(request, PRESETS_REFUSED_NO_NAME, wizard_base(original))

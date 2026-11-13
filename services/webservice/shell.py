@@ -38,7 +38,8 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import auth, contributors, i18n, permissions, session, templating, theme
+from . import (auth, contributors, i18n, mount, permissions, redirects, session, sites, templating,
+               theme)
 from .auth import routes as auth_routes
 from .registry import Registrar
 
@@ -54,10 +55,12 @@ SHELL_STATIC_DIR = Path(__file__).parent / "static"
 
 #: the statuses the access gate refuses with. Registered by STATUS through one factory, so a second
 #: status cannot grow its own bespoke answer (and the API face stays byte-identical for every one).
-#: TWO statuses, two faces: 403 is the definitive refusal (an HTML page for a browser, JSON
-#: otherwise); 503 is the RETRYABLE refusal — the identity could not be verified YET — whose page
-#: face retries itself. Both go through :func:`refusal_response`, which branches on the status.
-REFUSED_STATUSES: tuple[int, ...] = (403, permissions.RETRYABLE_STATUS)
+#: A PAGE for the browser, JSON for the caller that reads it. 403 is the definitive refusal; 404 is a
+#: dead link, which a person is owed a page for and which is no business of the JSON caller;
+#: :data:`permissions.RETRYABLE_STATUS` is the RETRYABLE refusal — the identity could not be verified
+#: YET — whose page face retries itself. Every one goes through :func:`refusal_response`, which
+#: branches on the status.
+REFUSED_STATUSES: tuple[int, ...] = (403, 404, permissions.RETRYABLE_STATUS)
 
 _STATE_ATTR = "webui_registrar"
 
@@ -106,6 +109,16 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
         log.debug("Admin web shell already installed on this application, reusing its registrar.")
         return existing
 
+    # THE SITE CONFIGURATION is parsed and validated BEFORE anything is installed: a block that
+    # cannot be served (an unknown tile, a group_role no server names) raises here, so the shell is
+    # never installed and the service reports why instead of serving an empty site.
+    catalog = sites.install_sites(app, config, config_dir=getattr(node, "config_dir", None))
+    # WHERE THE CONSOLE LIVES, decided once: an ENABLED root site owns the site root, so the console
+    # moves to its own mount; with no enabled root site (no catalog, or the root site switched off)
+    # the console keeps ``/``. Nothing below this line decides it again — the registrar applies the
+    # prefix to every page registration and ``mount.url`` builds the addresses pages emit.
+    console_prefix = mount.install_console_mount(app, catalog)
+
     # The capability tables are PROCESS state and this application is not: a stop()/start() or a
     # master/agent switch builds a NEW app in the same process, which re-declares every capability
     # the previous install already declared. With an override still applied that re-declaration is
@@ -116,7 +129,7 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
         log.debug("Admin web shell install: restored %d capability(ies) to their declarations before "
                   "the rebuild re-declares them: %s.", len(dropped), ", ".join(sorted(dropped)))
 
-    registrar = Registrar(app)
+    registrar = Registrar(app, console_prefix=console_prefix)
     # The service's own config, where a PAGE can read it. The log panel's default level lives in
     # webservice.yaml, and a route has no other way to reach it: the constructor argument is not
     # stored anywhere, and reading the YAML again from a request handler would bypass the schema
@@ -134,11 +147,21 @@ def install_shell(app: FastAPI, node=None, config: dict | None = None) -> Regist
     # project's own ``config`` directory.
     app.state.webui_config_dir = getattr(node, "config_dir", None) or "config"
     session.install_session_middleware(app, config)
+    # ``<path>/`` answers a 308 to ``<path>`` before routing, so a pasted address with a slash
+    # behaves like the one without (see ``redirects``). Installed here because the shell is what
+    # knows which addresses exist: without a registrar there is nothing to redirect.
+    redirects.install_trailing_slash_redirect(app)
     auth.install_auth(app, node, config)
     _install_refusal_handlers(app)
     registrar.register_assets(SHELL_ASSET_PATH, SHELL_STATIC_DIR, permissions.PUBLIC)
     core_router, core_capabilities, core_nav = _core_router()
     registrar.register_pages("shell", core_router, nav=core_nav, capabilities=core_capabilities)
+    # THE PUBLIC SITE'S PAGE TREE (see site_pages): one route per configured site page, registered
+    # under its own owner with an EMPTY prefix, so the site's addresses are exactly what the site's
+    # own prefix builds and the console's mount never moves them. An empty catalog registers nothing
+    # and the console keeps ``/``.
+    from . import site_pages as site_pages_module
+    site_pages_module.register(registrar, catalog)
     # The WRITE surface, under its own owner (see pages/actions.py): registered right after the
     # shell's pages so a path collision is refused loudly here rather than silently winning later.
     from .pages import actions as actions_page
@@ -249,7 +272,7 @@ def _discover_actions(node=None) -> None:
 
 
 def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
-    """The shell's own router, its capability declaration, and its navigation.
+    """The shell's router, its capability declaration and the console's navigation.
 
     The shell owns the reserved surface: ``/auth/login`` and ``/auth/logout`` plus the core
     pages here, all registered under the owner name ``shell`` — because the registrar reserves
@@ -261,9 +284,11 @@ def _core_router() -> tuple[APIRouter, dict[str, str], tuple]:
     ``PUBLIC`` explicitly: with an app-level deny-by-default gate, an undeclared route is refused,
     so the login page must name its capability or nobody could reach the door.
 
-    A page module owns its own capability, nav item and copy; this function only hands the router
-    over, which is what keeps "one owner per page" true while the shell stays the single place that
-    knows what the reserved surface consists of.
+    ONE router for both surfaces, because the registrar's mount does the selecting: the door, the
+    language switch, the message map and the theme switch are in
+    :data:`services.webservice.mount.FIXED_PATHS` and keep their installation-level addresses,
+    while every page here is mounted under the console's prefix. A page module owns its own
+    capability, nav item and copy; this function only hands the router over.
     """
     from .pages import access as access_page
     from .pages import audit as audit_page
@@ -434,6 +459,17 @@ def refusal_response(request, exc, *, status_code: int | None = None):
     # the standalone pages are composed in Python, so their copy is translated AT RENDER through the
     # request's own per-language environment (see :func:`_page_language_and_translator`).
     language, translate = _page_language_and_translator(request)
+    if status == 404:
+        # A MISSING ADDRESS IS NOT A REFUSAL. Nothing was denied and nothing was written, so the page
+        # carries no "was my work saved?" question and — the rule this branch exists for — the visitor
+        # is NEVER sent to a login door for it: a dead link on a public site would otherwise bounce an
+        # anonymous reader to a login page that has nothing to do with what they asked for.
+        # ``console_prefix`` answers "is a public site served at /": the console only moves under a
+        # prefix of its own while one is, so a non-empty prefix is that fact stated by the mount.
+        return HTMLResponse(refusal_page(status, language=language, translate=translate,
+                                         site_at_root=bool(mount.console_prefix(
+                                             getattr(request, "app", None)))),
+                            status_code=status)
     if status == permissions.RETRYABLE_STATUS:
         # The visitor could not be verified *right now* — the bot has just started and is
         # rebuilding its member view. The generic refusal page would wrongly say "access denied"
@@ -525,11 +561,18 @@ _REFUSAL_STYLE = """<style>
 
 
 def refusal_page(status_code: int, *, wrote: bool = False,
-                 language: str = i18n.BASE_LANGUAGE, translate=None) -> str:
+                 language: str = i18n.BASE_LANGUAGE, translate=None,
+                 site_at_root: bool = False) -> str:
     """The HTML a browser is refused with. Takes no request data — see :func:`refusal_response`.
 
     ``wrote`` swaps the sentence a person reads after SUBMITTING something: "was my work saved?" is
     the only question they have, and a refusal raised before the handler means the answer is no.
+
+    The copy is chosen by STATUS: a 404 says the address is not there and asks no question about the
+    visitor's access, every other status keeps the access refusal.
+
+    ``site_at_root`` — a public site is served at ``/`` — changes only a 404's way out: the offer is
+    the site, at ``/``. Every other case offers the console's own start page.
 
     The copy is composed in Python, so it is translated AT RENDER: ``translate`` is the request's own
     ``_`` (the per-language environment's, see :func:`_page_language_and_translator`) and ``language``
@@ -537,21 +580,38 @@ def refusal_page(status_code: int, *, wrote: bool = False,
     so the standalone document is byte-for-byte what it was when no request context exists.
     """
     _ = translate or i18n._
-    message = (_("Your request could not be completed, and nothing was saved.")
-               if wrote else
-               _("Your account does not have access to this page."))
+    if status_code == 404:
+        heading = _("Page not found")
+        title = heading
+        message = _("This address does not exist. Check the link, or use the menu to find what you "
+                    "were looking for.")
+        # THE WAY OUT IS THE SITE ROOT, NEVER THE CONSOLE'S OWN MOUNT. While a public site is served
+        # at ``/`` the console lives under a prefix of its own, and a reader who followed a dead link
+        # has no business being sent into the admin console: the offer is the public site. With no
+        # site at the root, ``/`` IS the console's start page, so one address answers both cases.
+        if site_at_root:
+            way_out = f'<p><a href="/">{_("Open the public site")}</a></p>'
+        else:
+            way_out = f'<p><a href="{mount.url("/")}">{_("Return to the dashboard")}</a></p>'
+    else:
+        heading = _("Access denied")
+        title = _("access denied")
+        message = (_("Your request could not be completed, and nothing was saved.")
+                   if wrote else
+                   _("Your account does not have access to this page."))
+        way_out = f'<p><a href="{mount.url("/")}">{_("Return to the dashboard")}</a></p>'
     return (
         "<!doctype html>\n"
         f'<html lang="{language}">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>{status_code} - {_('access denied')}</title>\n"
+        f"<title>{status_code} - {title}</title>\n"
         f'<link rel="stylesheet" href="{SHELL_ASSET_PATH}/shell.css">\n'
         f"{_REFUSAL_STYLE}\n"
         '</head>\n<body>\n<main class="refusal">\n'
-        f"<h1>{_('Access denied')}</h1>\n"
+        f"<h1>{heading}</h1>\n"
         f"<p>{message}</p>\n"
         f'<p class="refusal-status">HTTP {status_code}</p>\n'
-        f'<p><a href="/">{_("Return to the dashboard")}</a></p>\n'
+        f"{way_out}\n"
         "</main>\n</body>\n</html>\n"
     )
 

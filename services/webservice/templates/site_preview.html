@@ -1,0 +1,25 @@
+{#-
+  THE PREVIEW — the site's own document, the overview's hero for its content and nothing else.
+
+  Served by the site itself at `site_pages.CHROME_PREVIEW_PATH`, so the settings card's box holds the
+  site, not a drawing of it: the shell (`site_base.html`) brings the site's own sheet, the palette its
+  theme resolves to, its brand, its nav and its footer, and this template adds the one band the card
+  is about. It is NOT a nav page and nothing links to it.
+
+  The hero below is byte-for-byte the overview's own hero block, so the box cannot drift from the page
+  a visitor sees; `site_preview.css` then fits the three bands (bar, hero, footer) into the box.
+
+  `body_attrs` is the block `site_base.html` exposes for exactly this: the preview's sheet keys on
+  `body.pv`, and no public page carries a class on `<body>`.
+-#}
+{% extends "site_base.html" %}
+
+{% block body_attrs %} class="pv"{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/site-preview.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+{% include "_site_hero.html" %}
+{% endblock %}

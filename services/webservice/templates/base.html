@@ -22,7 +22,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% trans %}DCSServerBot Admin Console{% endtrans %}{% endblock %}</title>
+  <title>{% block title %}{% trans %}DCSServerBot Command Center{% endtrans %}{% endblock %}</title>
   {#  The brand's logo, as a CACHEABLE STATIC REQUEST — never a data: URI (one would inline the
       image into every page and defeat the browser cache). It is the same 256px derivative the
       header mark reads, so the two share one request and one cache entry. See the note on
@@ -38,9 +38,9 @@
 </head>
 <body class="shell">
   {% import "_icons.html" as icons %}
-  {#  THE NAV SPRITE, ONCE PER DOCUMENT: the twelve symbols the sidebar draws (a group heading's and an
-      entry's glyph), defined at the top of the body so every `<use href="#i-…">` below resolves against
-      this one copy. It is zero-sized and `aria-hidden` — it draws nothing itself.  #}
+  {#  THE NAV SPRITE, ONCE PER DOCUMENT: the twelve symbols the sidebar draws for its entries,
+      defined at the top of the body so every `<use href="#i-…">` below resolves against this one
+      copy. It is zero-sized and `aria-hidden` — it draws nothing itself.  #}
   {{ icons.nav_sprite() }}
   <aside class="side">
     <div class="brand">
@@ -54,18 +54,20 @@
           itself is CSS's job (shell.css, one rule) — never the attributes.  #}
       <img class="brand-logo" src="/static/logo-256.png" alt="DCSServerBot logo"
            width="45" height="30">
-      <div><b>DCSServerBot</b><small>{% trans %}Admin Console{% endtrans %}</small></div>
+      <div><b>DCSServerBot</b><small>{% trans %}Command Center{% endtrans %}</small></div>
     </div>
     <nav class="nav">
-      {#  THE RAIL: the shell's group order, each heading over its own visible entries. The glyph is
-          DECORATION and every one is `aria-hidden`; the word is the name, and a heading left with no
-          entry is never passed here at all (`pages.dashboard.nav_groups` drops it). A glyph name the
-          sprite does not carry renders an empty icon column, so an entry added before its drawing
-          exists still renders with its label aligned.  #}
+      {#  THE RAIL: the shell's group order, each heading over its own visible entries. A heading is
+          the LABEL ALONE, printed on the rail's gutter — it carries no glyph and no icon column, so
+          nothing in a heading line stands where a link's glyph stands (`shell.css`, `.nav .grp`). An
+          entry's glyph is DECORATION and every one is `aria-hidden`; the word is the name, and a
+          heading left with no entry is never passed here at all (`pages.dashboard.nav_groups` drops
+          it). A glyph name the sprite does not carry renders an empty icon column, so an entry added
+          before its drawing exists still renders with its label aligned.  #}
       {% for group in (nav_groups if nav_groups is defined else []) %}
-      <div class="grp">{{ icons.nav_group_glyph(group.glyph if group.glyph is defined else '') }}{{ _(group.label) }}</div>
+      <div class="grp">{{ _(group.label) }}</div>
       {% for item in group.links %}
-      <a class="{{ 'on' if item.active else '' }}" href="{{ item.url }}">{{ icons.nav_glyph(item.glyph if item.glyph is defined else '') }}{{ _(item.label) }}</a>
+      <a class="{{ 'on' if item.active else '' }}" href="{{ item.url }}"{% if item.new_tab is defined and item.new_tab %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ icons.nav_glyph(item.glyph if item.glyph is defined else '') }}{{ _(item.label) }}</a>
       {% endfor %}
       {% endfor %}
     </nav>

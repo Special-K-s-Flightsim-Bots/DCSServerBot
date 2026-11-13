@@ -44,7 +44,7 @@ from fastapi.responses import HTMLResponse
 
 from core.actions import action_available, read_action
 
-from .. import i18n, permissions, readmodels, session
+from .. import mount, i18n, permissions, readmodels, session
 from ..readmodels import bans as ban_model
 from ..readmodels import players as player_model
 from . import dashboard as dashboard_page
@@ -174,7 +174,7 @@ TWO_RECORDS = i18n._("Lifting one leaves the other untouched: lifting the ban ke
 
 def player_path(ucid: str, *suffix: str) -> str:
     """The URL of *ucid*'s page — the overview when nothing follows, else one TAB's path."""
-    base = f"/players/{ucid}"
+    base = mount.url(f"/players/{ucid}")
     return "/".join((base, *suffix)) if suffix else base
 
 
