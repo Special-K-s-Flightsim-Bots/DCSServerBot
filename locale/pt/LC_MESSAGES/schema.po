@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-14 10:59+0100\n"
+"POT-Creation-Date: 2026-11-14 15:32-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pt\n"
@@ -1556,6 +1556,11 @@ msgstr "Define um grupo VIP com slots reservados e membros nomeados."
 #: extensions/tacview/schemas/tacview_schema.yaml:235
 msgid "Delay in seconds before telemetry is played back."
 msgstr "Atraso em segundos antes da reprodução da telemetria."
+
+#. dks_schema:schema;dks_schema.acmiMinSeconds
+#: extensions/dks/schemas/dks_schema.yaml:68
+msgid "Delete Tacview files shorter than this. Default, Tacview's \"auto discard flights\", else 10."
+msgstr ""
 
 #. userstats_schema:schema;element_schema.wipe_stats_on_leave
 #: plugins/userstats/schemas/userstats_schema.yaml:71
@@ -5084,6 +5089,13 @@ msgstr "Substituições TOML e configurações de registro do Real Weather."
 msgid "Real Weather mission processing options."
 msgstr "Opções de processamento de missão do Real Weather."
 
+#. dks_schema:schema;dks_schema.rtt
+#: extensions/dks/schemas/dks_schema.yaml:35
+msgid ""
+"Real-time telemetry (Tacview clients connect to the server). Default, what Tacview did on this "
+"instance, else off."
+msgstr ""
+
 #. bot_schema:message_ban
 #: services/bot/schemas/bot_schema.yaml:81
 msgid "Reason shown to Discord-banned players joining a server."
@@ -6234,6 +6246,16 @@ msgstr "O painel das aeronaves mais voadas."
 msgid "The name shown for the extension."
 msgstr "O nome exibido para a extensão."
 
+#. dks_schema:schema;dks_schema.rttPassword
+#: extensions/dks/schemas/dks_schema.yaml:46
+msgid "The real-time telemetry password. Default, Tacview's, else none."
+msgstr ""
+
+#. dks_schema:schema;dks_schema.rttPort
+#: extensions/dks/schemas/dks_schema.yaml:41
+msgid "The real-time telemetry port. Default, Tacview's, else 42674."
+msgstr ""
+
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.season
 #: services/webservice/schemas/webservice_schema.yaml:437
 msgid "The season panel (hours and sorties per week)."
@@ -6797,6 +6819,11 @@ msgstr "Quando o backup do banco de dados é executado."
 msgid "When the server backup runs."
 msgstr "Quando o backup do servidor é executado."
 
+#. dks_schema:schema;dks_schema.acmiDir
+#: extensions/dks/schemas/dks_schema.yaml:62
+msgid "Where Tacview files go. Default, Tacview's export folder, else Documents\\Tacview."
+msgstr ""
+
 #. tacview_schema:schema;element_schema.upload
 #: plugins/tacview/schemas/tacview_schema.yaml:19
 msgid "Where downloaded Tacview files are uploaded to."
@@ -7012,6 +7039,16 @@ msgstr "Grava a saída de depuração do DCS-gRPC no registro do bot."
 #: extensions/houndtts/schemas/houndtts_schema.yaml:18
 msgid "Write HoundTTS debug output to the bot log."
 msgstr "Grava a saída de depuração do HoundTTS no registro do bot."
+
+#. dks_schema:schema;dks_schema.acmi
+#: extensions/dks/schemas/dks_schema.yaml:51
+msgid "Write a Tacview file (.acmi) per mission. Default, what Tacview did on this instance, else off."
+msgstr ""
+
+#. dks_schema:schema;dks_schema.acmiPerClient
+#: extensions/dks/schemas/dks_schema.yaml:56
+msgid "Write a Tacview file per connected player as well."
+msgstr ""
 
 #. pretense_schema:schema;pretense_schema.randomize
 #: extensions/pretense/schemas/pretense_schema.yaml:19
