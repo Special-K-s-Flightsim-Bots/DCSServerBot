@@ -217,14 +217,20 @@ DEFAULT:
     # It is built from `auth.public_base_url` and NEVER from a request, so a proxy cannot move it.
     #
     # The client secret comes from `client_secret_key` (a key in the bot's secret store,
-    # config/.secret/<key>.pkl) WHEN THAT KEY IS SET; otherwise from the inline `client_secret`.
-    # Enabled with neither — or with a store key that is absent — the service REFUSES to install
-    # the backend and logs why, rather than starting a login that cannot complete.
+    # config/.secret/<key>.pkl) WHEN THAT KEY IS SET; otherwise from the inline `client_secret`;
+    # otherwise from the DEFAULT store key, config/.secret/discord_client_secret.pkl.
+    #   An inline `client_secret` is MOVED into that store on the next start (the bot token's own
+    # treatment) and the key is dropped from this file — so writing it here once is enough, and it
+    # does not stay in plain text. `client_secret_key` then needs no entry at all: the default key
+    # is what the move writes to. A value written here REPLACES what the store holds, so writing a
+    # new secret and restarting is how it is changed.
+    # Enabled with no secret anywhere — or with a store key that is absent — the service REFUSES to
+    # install the backend and logs why, rather than starting a login that cannot complete.
     discord:
       enabled: false                      # default: nothing is enabled unless this is `true`
       # client_id: 123456789012345678     # the Discord application's client id
       # client_secret_key: discord_client_secret   # preferred: wins over client_secret
-      # client_secret: "..."              # inline alternative (used only when no key is named)
+      # client_secret: "..."              # inline alternative; moved to the store at startup
       #
       # How long (seconds, default 60, clamped to 1..3600) a per-request member resolution may be
       # served from memory when the bot runs WITHOUT the Server Members Intent

@@ -13710,3 +13710,7 @@ msgstr "dosyanızdan çizildi"
 
 msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
 msgstr "Bu sitenin henüz kendi adresi yok — görünümü böyle olacak. Bot yeniden başlatılınca yanıt verir."
+
+#: services/webservice/i18n.py
+msgid "example"
+msgstr "örnek"

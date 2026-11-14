@@ -80,6 +80,7 @@ from . import community as community_step
 from . import console as console_step
 from . import database as db_step
 from . import discord as discord_step
+from .discord import CLIENT_SECRET_KEY
 from . import join as join_step
 from . import node as node_step
 from . import plugins as plugins_step
@@ -228,8 +229,8 @@ CLUSTER_SECRET = Target(key="clusterdb_password", relpath=".secret/clusterdb.pkl
 #: The console's Discord client secret, in the installer's secret store. Written only when the Web
 #: console is enabled AND the Discord login is configured, into the exact key the OAuth backend reads
 #: (``auth.discord.client_secret_key``).
-DISCORD_CLIENT_SECRET = Target(key="discord_client_secret",
-                               relpath=".secret/discord_client_secret.pkl", schema=None)
+DISCORD_CLIENT_SECRET = Target(key=CLIENT_SECRET_KEY,
+                               relpath=f".secret/{CLIENT_SECRET_KEY}.pkl", schema=None)
 
 #: The configuration files, in the order they are written. ``main.yaml`` is NOT here on purpose:
 #: it is written last, after every file below it succeeded — see :func:`plan`.

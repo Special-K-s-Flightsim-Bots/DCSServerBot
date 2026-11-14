@@ -611,15 +611,18 @@ mapping:
                 desc: Client id of your Discord application.
                 example: "123456789012345678"
               # the client secret INLINE. Precedence: `client_secret_key` wins when it is set,
-              # otherwise this value is used.
+              # otherwise this value is used. A value written here is MOVED into the secret store
+              # on the next start and this key is dropped from the file.
               client_secret:
                 type: str
                 nullable: true
-                desc: Inline Discord client secret; used when no key is set.
+                desc: Inline Discord client secret; moved to the secret store at startup.
                 example: "***"
               # the NAME of a key in the bot's secret store (config/.secret/<key>.pkl, written by
-              # utils.set_password). When set it WINS over `client_secret`. An enabled backend
-              # with neither, or with a key the store does not hold, is refused loudly at startup.
+              # utils.set_password). When set it WINS over `client_secret`. Default
+              # `discord_client_secret`, so the key may be left out: that is where an inline secret
+              # is moved to. An enabled backend with no secret anywhere, or with a key the store
+              # does not hold, is refused loudly at startup.
               client_secret_key:
                 type: str
                 nullable: true

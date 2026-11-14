@@ -39,8 +39,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import (catalog, config_apply, configgen, i18n, mount, permissions, plugin_registry,
-                readmodels,
+from .. import (catalog, config_apply, config_hints, configgen, i18n, mount, permissions,
+                plugin_registry, readmodels,
                 scheduler_plan, scope as identity_scope, scopes, session, validation)
 from ..registry import NavItem
 from . import actions as actions_page
@@ -51,6 +51,7 @@ __all__ = [
     "SETTINGS_SAVE_PATH", "SETTINGS_VALIDATE_PATH", "SETTINGS_REVISION_FIELD",
     "SETTINGS_EXPERT_FIELD", "SETTINGS_YAML_FIELD",
     "SETTINGS_FILE_PATH", "SETTINGS_FILE_SAVE_PATH", "SETTINGS_VALIDATE_FILE_PATH",
+    "SETTINGS_HINTS_PATH", "SETTINGS_HINTS_FILE_PATH",
     "SETTINGS_MAIN_PATH", "SETTINGS_SERVICE_TOGGLE_PATH", "SETTINGS_FORM_MAX_FIELDS",
     "SETTINGS_ADD_BLOCK_PATH", "SETTINGS_APPLY_PATH", "SETTINGS_APPLY_ASK_PATH", "KIND_NODES",
     "KIND_MAIN", "KIND_SERVICE", "KIND_PLUGIN", "KIND_LABELS",
@@ -103,6 +104,13 @@ SETTINGS_VALIDATE_PATH = "/actions/settings/validate"
 SETTINGS_FILE_PATH = "/settings/{kind}/{name}"
 SETTINGS_FILE_SAVE_PATH = "/actions/settings/config/{kind}/{name}"
 SETTINGS_VALIDATE_FILE_PATH = "/actions/settings/validate/{kind}/{name}"
+
+#: THE COMPLETION HINTS. A read of the schema tree as JSON (:mod:`services.webservice.config_hints`):
+#: the literal path serves ``main.yaml``'s tree, the parameterised one that file's own tree, rooted at
+#: ``?node=<name>`` when a node is selected. A hint is a READ, so both paths are declared with the
+#: view capabilities — they are not part of the write flow the validate routes belong to.
+SETTINGS_HINTS_PATH = "/actions/settings/hints"
+SETTINGS_HINTS_FILE_PATH = "/actions/settings/hints/{kind}/{name}"
 
 #: THE MAIN CONFIG PAGE'S OWN URL. ``/settings`` is now the tile LANDING page, so ``main.yaml``'s
 #: generated form — like every other file's — lives behind its cogwheel at the generic file URL.
@@ -779,9 +787,11 @@ def capabilities() -> dict[str, str]:
     declared = {SETTINGS_PATH: SETTINGS_VIEW_CAPABILITY,
                 SETTINGS_SAVE_PATH: SETTINGS_WRITE_CAPABILITY,
                 SETTINGS_VALIDATE_PATH: SETTINGS_WRITE_CAPABILITY,
+                SETTINGS_HINTS_PATH: SETTINGS_VIEW_CAPABILITY,
                 SETTINGS_FILE_PATH: SETTINGS_FILE_VIEW_CAPABILITY,
                 SETTINGS_FILE_SAVE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
                 SETTINGS_VALIDATE_FILE_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
+                SETTINGS_HINTS_FILE_PATH: SETTINGS_FILE_VIEW_CAPABILITY,
                 SETTINGS_SERVICE_TOGGLE_PATH: SETTINGS_WRITE_CAPABILITY,
                 SETTINGS_ADD_BLOCK_PATH: SETTINGS_FILE_WRITE_CAPABILITY,
                 SCHEDULER_SAVE_PATH: SCHEDULER_WRITE_CAPABILITY,
@@ -1332,6 +1342,22 @@ def scoped_write_guard(request: Request, entry: GlobalFile,
     # a node-less (single-node) reading: the WHOLE file is the unit; only foreign nodes are forbidden.
     return False, [], frozenset(cluster - set(options))
 
+
+
+def carried_node_names(request: Request, entry: GlobalFile) -> list[str]:
+    """The NODE names *entry*'s file carries — the reading a scoped save places a node with.
+
+    A node name is never invented here: it is one of the blocks the FILE declares, read through the
+    SAME scope list the tabs, the node selector and :func:`scoped_write_guard` are built from, so a
+    caller cannot address a block the file does not hold.
+    """
+    if entry.primary_schema is None:
+        return []
+    document = _document_or_none(entry.path)
+    if not isinstance(document, dict):
+        return []
+    scope_list = _scoped_scope_list(request, entry, document, _node_names(config_dir(request)))
+    return scopes.node_options(scope_list)
 
 
 def scoped_context(request: Request, entry: GlobalFile, current_url: str,
@@ -2171,7 +2197,8 @@ def add_routes(router: APIRouter) -> APIRouter:
 
     site_config_page.add_routes(router)
 
-    def _render(request: Request, page: dict, *, save_path: str, validate_path: str):
+    def _render(request: Request, page: dict, *, save_path: str, validate_path: str,
+                hints_path: str):
         registrar = getattr(request.app.state, "webui_registrar", None)
         roles = permissions.role_names_for(request)
         template = SETTINGS_SCOPE_TEMPLATE if page.get("scoped") else SETTINGS_TEMPLATE
@@ -2187,6 +2214,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             user=dashboard_page.identity_summary(request),
             save_path=save_path,
             validate_path=validate_path,
+            hints_path=hints_path,
             revision_field=SETTINGS_REVISION_FIELD,
             expert_field=SETTINGS_EXPERT_FIELD,
             yaml_field=SETTINGS_YAML_FIELD,
@@ -2262,6 +2290,7 @@ def add_routes(router: APIRouter) -> APIRouter:
         page = load_file_page(request, kind, name, tab, node)
         save_path = mount.url(SETTINGS_FILE_SAVE_PATH.format(kind=kind, name=name))
         validate_path = mount.url(SETTINGS_VALIDATE_FILE_PATH.format(kind=kind, name=name))
+        hints_path = mount.url(SETTINGS_HINTS_FILE_PATH.format(kind=kind, name=name))
         chosen = page.get("selected_node") or ""
         if chosen:
             from urllib.parse import quote
@@ -2269,7 +2298,36 @@ def add_routes(router: APIRouter) -> APIRouter:
             query = f"?node={quote(chosen)}"
             save_path += query
             validate_path += query
-        return _render(request, page, save_path=save_path, validate_path=validate_path)
+            hints_path += query
+        return _render(request, page, save_path=save_path, validate_path=validate_path,
+                       hints_path=hints_path)
+
+    def _hints(request: Request, schema_files, *, container=()) -> JSONResponse:
+        """The schema tree as hints JSON: no page, never a write, and never cached by the browser."""
+        return JSONResponse(config_hints.payload(schema_files, container=container, request=request),
+                            headers={"Cache-Control": "no-store"})
+
+    @router.get(SETTINGS_HINTS_PATH)
+    async def settings_hints(request: Request):
+        """``main.yaml``'s completion hints — the whole tree, rooted at the document's own keys."""
+        return _hints(request, _schema_files())
+
+    @router.get(SETTINGS_HINTS_FILE_PATH)
+    async def settings_hints_file(request: Request, kind: str, name: str, node: str = ""):
+        """One global file's completion hints — through that file's OWN schema files.
+
+        ``?node=<name>`` roots the payload at that node's block, because a scoped page's Expert Mode
+        document IS that node's slice. The name is resolved AGAINST THE KEYS THE FILE CARRIES — the
+        reading a scoped save places a node with — and only then handed to the schema tree, so a name
+        the file does not carry answers an empty path map: never an invented-key block, and never the
+        whole document.
+        """
+        require_file_capability(request, kind, write=False)
+        entry = resolve_file(request, kind, name)
+        node_name = readmodels.text(node).strip()
+        if node_name and node_name not in carried_node_names(request, entry):
+            return JSONResponse({"paths": {}}, headers={"Cache-Control": "no-store"})
+        return _hints(request, list(entry.schema_files), container=(node_name,) if node_name else ())
 
     @router.post(SETTINGS_VALIDATE_PATH,
                  dependencies=[Depends(session.csrf_protect_with(SETTINGS_FORM_MAX_FIELDS))])

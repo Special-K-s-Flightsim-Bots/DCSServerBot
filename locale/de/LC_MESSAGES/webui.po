@@ -13249,3 +13249,7 @@ msgstr "aus deiner Datei gezeichnet"
 
 msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
 msgstr "Diese Site hat noch keine eigene Adresse — so wird sie aussehen. Sie antwortet, sobald der Bot neu startet."
+
+#: services/webservice/i18n.py
+msgid "example"
+msgstr "Beispiel"

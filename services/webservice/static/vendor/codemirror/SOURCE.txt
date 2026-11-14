@@ -23,14 +23,18 @@ FILES
   codemirror.min.css       CodeMirror 5 default stylesheet  (lib/codemirror.css)
   mode/yaml.min.js         the YAML mode                    (mode/yaml/yaml.js)
   mode/css/css.min.js      the CSS mode                     (mode/css/css.js)
+  addon/hint/show-hint.js  the completion popup             (addon/hint/show-hint.min.js)
+  addon/hint/show-hint.css the popup's own stylesheet       (addon/hint/show-hint.css)
   LICENSE                  the upstream MIT licence, verbatim
 
-Both modes come from the SAME release as the core: a mode compiled against a different
-minor version can call a tokenizer helper the core no longer carries.
+Every file comes from the SAME release as the core: a mode or an addon compiled against a different
+minor version can call a helper the core no longer carries. An upgrade is therefore an ALL-OR-NOTHING
+swap of the whole directory from one release.
 
 The shell's own dark theme overrides the default stylesheet's colours (see the
 `CodeMirror` rules at the foot of `services/webservice/static/shell.css`); the vendored
-CSS is left BYTE-FOR-BYTE as upstream shipped it, so an upgrade is a plain file swap.
+CSS is left BYTE-FOR-BYTE as upstream shipped it, so an upgrade is a plain file swap. The completion
+popup's list, its rows and its selected row are restated from the shell's tokens the same way.
 
 VERSION AND PROVENANCE
 ----------------------
@@ -39,9 +43,17 @@ VERSION AND PROVENANCE
             https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css
             https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js
             https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js
+            https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js
+            https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.css
   licence:  https://raw.githubusercontent.com/codemirror/codemirror5/5.65.16/LICENSE
 
-  mode/css/css.min.js sha256: ee0ce00f346a6d7e345a74ab32f2cc600e8b7df878b28715d7d52192fa274eee
+  mode/css/css.min.js sha256:         ee0ce00f346a6d7e345a74ab32f2cc600e8b7df878b28715d7d52192fa274eee
+  addon/hint/show-hint.js sha256:     463814bdf21e4985890473c4424f69eb150e10d0817deb6e7cdad4ab379fd352
+  addon/hint/show-hint.css sha256:    9058c1c14fcdae199b490bb6214f36a216b9ce84d7df2084830ebb6a60337651
+
+`show-hint.js` is the MINIFIED addon served under the plain name the pages load; it is the upstream
+file verbatim, as is the addon's stylesheet. Both are pinned by `tests/test_webui_configgen_hints.py`,
+which re-hashes them against the sha256 above.
 
 The CSS mode was checked against the same release's `mode/css/css.js` (npm
 `codemirror@5.65.16`) by tokenizing the shipped brass sheet and a refusal line with both

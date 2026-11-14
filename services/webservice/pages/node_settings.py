@@ -52,8 +52,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from core.utils import configwrite
 
-from .. import (catalog, config_apply, configgen, i18n, mount, permissions, plugin_registry,
-                   readmodels, scopes, session, validation)
+from .. import (catalog, config_apply, config_hints, configgen, i18n, mount, permissions,
+                plugin_registry, readmodels, scopes, session, validation)
 from . import actions as actions_page
 from . import dashboard as dashboard_page
 from . import nodes as nodes_page
@@ -63,7 +63,8 @@ from . import settings as settings_page
 __all__ = [
     "NODE_SETTINGS_PATH", "NODE_SETTINGS_CAPABILITY", "NODE_SETTINGS_ROLES",
     "NODE_SETTINGS_TITLE", "NODE_SETTINGS_LEAD", "NODES_YAML_NAME", "NODES_SCHEMA_PATH",
-    "NODE_PAGE_PATH", "NODE_PAGE_VALIDATE_PATH", "NODE_PAGE_TEMPLATE",
+    "NODE_PAGE_PATH", "NODE_PAGE_VALIDATE_PATH", "NODE_PAGE_HINTS_PATH", "NODE_PAGE_TEMPLATE",
+    "NODE_EXTENSION_PATH", "NODE_EXTENSION_VALIDATE_PATH", "NODE_EXTENSION_HINTS_PATH",
     "NODE_PAGE_SECTION_SETTINGS", "NODE_PAGE_SECTION_EXTENSIONS", "NODE_PAGE_EXTENSION_KIND",
     "NODE_PAGE_SCOPE_NODE", "NODE_PAGE_SCOPE_INSTANCE",
     "NODE_PAGE_SCOPE_FIELD", "NODE_PAGE_SCOPE_DEFAULT", "NODE_PAGE_SCOPE_INSTANCE_PREFIX",
@@ -123,8 +124,11 @@ def capabilities() -> dict[str, str]:
     return {NODE_SETTINGS_PATH: NODE_SETTINGS_CAPABILITY,
             NODE_PAGE_PATH: NODE_SETTINGS_CAPABILITY,
             NODE_PAGE_VALIDATE_PATH: NODE_SETTINGS_CAPABILITY,
+            # a hint is a READ of the schema, so it carries the PAGE's capability — never a write
+            NODE_PAGE_HINTS_PATH: NODE_SETTINGS_CAPABILITY,
             NODE_EXTENSION_PATH: NODE_SETTINGS_CAPABILITY,
-            NODE_EXTENSION_VALIDATE_PATH: NODE_SETTINGS_CAPABILITY}
+            NODE_EXTENSION_VALIDATE_PATH: NODE_SETTINGS_CAPABILITY,
+            NODE_EXTENSION_HINTS_PATH: NODE_SETTINGS_CAPABILITY}
 
 
 def nav_items():
@@ -286,6 +290,10 @@ NODE_PAGE_PATH = "/nodes/{node}"
 #: The Expert Mode validator route for the node page. Same contract as the Settings area's validator:
 #: a POST carrying the posted slice, answered with a structured JSON verdict and writing nothing.
 NODE_PAGE_VALIDATE_PATH = "/actions/nodes/{node}/validate"
+#: THE COMPLETION HINTS for the node page's Expert Mode editor: a read of ``nodes_schema.yaml`` as
+#: JSON (:mod:`services.webservice.config_hints`), rooted at the DOCUMENT root — the editor's slice is
+#: ``{<node>: block}``, so its root key is the node name the schema's ``regex;(.+)`` block names.
+NODE_PAGE_HINTS_PATH = "/actions/nodes/{node}/hints"
 NODE_PAGE_TEMPLATE = "node_page.html"
 
 #: the two section headings on a tab (the settings form, then the extensions).
@@ -556,6 +564,10 @@ def node_page_url(node_name: str) -> str:
 # and the fields are the SAME ``f.<node>.extensions.<Name>…`` names the node page always used.
 NODE_EXTENSION_PATH = "/nodes/{node}/extensions/{name}"
 NODE_EXTENSION_VALIDATE_PATH = "/actions/nodes/{node}/extensions/{name}/validate"
+#: THE COMPLETION HINTS for an extension page's Expert Mode editor: the same ``nodes_schema.yaml``
+#: tree, rooted at the DOCUMENT root — that editor's slice is ``{<node>: block}`` as well (the block
+#: the page's save merges back is a top-level key of ``nodes.yaml``).
+NODE_EXTENSION_HINTS_PATH = "/actions/nodes/{node}/extensions/{name}/hints"
 NODE_EXTENSION_TEMPLATE = "settings_scope.html"
 
 
@@ -572,6 +584,28 @@ def _node_extension_validate_url(node_name: str, ext_name: str) -> str:
 
     return mount.url(f"/actions/nodes/{quote(readmodels.text(node_name), safe='')}"
                     f"/extensions/{quote(readmodels.text(ext_name), safe='')}/validate")
+
+
+def _node_extension_hints_url(node_name: str, ext_name: str) -> str:
+    """The URL of ONE extension's completion hints — each name one percent-encoded segment."""
+    from urllib.parse import quote
+
+    return mount.url(NODE_EXTENSION_HINTS_PATH.format(
+        node=quote(readmodels.text(node_name), safe=""),
+        name=quote(readmodels.text(ext_name), safe="")))
+
+
+def nodes_hints(request: Request) -> JSONResponse:
+    """``nodes.yaml``'s schema tree as hints JSON, rooted at the document's own keys.
+
+    The instrument is the ONE payload builder (:mod:`services.webservice.config_hints`); the container
+    is the EMPTY one — the file's root — because both node surfaces hand the editor a top-level-key
+    slice (``{<node>: block}``), whose root key is the node name the schema's ``regex;(.+)`` names.
+    A reader gets no file content here, only the schema: never a write, never a cached body.
+    """
+    return JSONResponse(config_hints.payload(configgen.schema_files_for(NODES_SCHEMA_PATH),
+                                             request=request),
+                        headers={"Cache-Control": "no-store"})
 
 
 def _extension_catalog() -> tuple[dict[str, str], dict[str, str]]:
@@ -667,6 +701,14 @@ def _node_page_validate_url(node_name: str) -> str:
     from urllib.parse import quote
 
     return mount.url(f"/actions/nodes/{quote(readmodels.text(node_name), safe='')}/validate")
+
+
+def _node_page_hints_url(node_name: str) -> str:
+    """The URL of *node_name*'s completion hints — one percent-encoded path segment."""
+    from urllib.parse import quote
+
+    return mount.url(NODE_PAGE_HINTS_PATH.format(
+        node=quote(readmodels.text(node_name), safe="")))
 
 
 def _rebase_instance(field: configgen.Field, node_name: str, instance: str) -> configgen.Field:
@@ -1299,6 +1341,7 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
         "revision": configwrite.config_revision(path),
         "save_path": f"{node_page_url(node_name)}?tab={tab_index}",
         "validate_path": _node_page_validate_url(node_name),
+        "hints_path": _node_page_hints_url(node_name),
         "scope_carrier": NODE_PAGE_SCOPE_FIELD,
         "scope_value": scope_value,
     }
@@ -2135,6 +2178,20 @@ def add_routes(router: APIRouter) -> APIRouter:
         return JSONResponse(settings_page.validate_slice(request, payload, path, schema_files,
                                                          [doc_key]))
 
+    @router.get(NODE_PAGE_HINTS_PATH)
+    async def node_page_hints(request: Request, node: str):
+        """The node page's completion hints — the schema tree, never the file and never a write.
+
+        The page's OWN read gate answers here: the capability is declared on the route, and a node
+        outside the caller's view is the console's 404 — the same pair the page itself applies, since
+        the hints describe only the schema and a visible node's editor is what fetches them.
+        """
+        requested = readmodels.text(node)
+        if _viewed_node(dashboard_page.request_source(request), requested) is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        return nodes_hints(request)
+
     # ------------------------------------------------------ the extension CONFIG page (the cogwheel)
     def _canonical_extension(ext_name: str) -> str | None:
         """The schema key *ext_name* names, case-insensitively — or ``None`` (the console's 404)."""
@@ -2161,6 +2218,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             "notice": actions_page.pop_notice(request),
             "save_path": f"{base_url}?tab={tab}",
             "validate_path": _node_extension_validate_url(node_name, ext_name),
+            "hints_path": _node_extension_hints_url(node_name, ext_name),
             "revision_field": settings_page.SETTINGS_REVISION_FIELD,
             "expert_field": settings_page.SETTINGS_EXPERT_FIELD,
             "yaml_field": settings_page.SETTINGS_YAML_FIELD,
@@ -2219,5 +2277,18 @@ def add_routes(router: APIRouter) -> APIRouter:
         payload = "" if text is None else str(text)
         return JSONResponse(settings_page.validate_slice(request, payload, path, schema_files,
                                                          [doc_key]))
+
+    @router.get(NODE_EXTENSION_HINTS_PATH)
+    async def node_extension_hints(request: Request, node: str, name: str):
+        """ONE extension page's completion hints — the schema tree, resolved exactly as its page is.
+
+        A node outside the caller's view is the console's 404 and an extension the catalog does not
+        declare is the same answer, so the URL a page carries cannot be replayed at another target.
+        """
+        _extension_node(request, node)
+        if _canonical_extension(name) is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        return nodes_hints(request)
 
     return router

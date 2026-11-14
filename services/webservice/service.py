@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from services.servicebus import ServiceBus
+from services.webservice.auth.discord_oauth import secure_client_secret
 from services.webservice.shell import create_app, frontend_enabled, install_shell
 from starlette.requests import Request
 from typing_extensions import override
@@ -26,8 +27,24 @@ DEFAULT_PORT = 9876
 @ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
 class WebService(Service):
 
+    def _secure_client_secret(self) -> bool:
+        """Move ``auth.discord.client_secret`` into the secret store; True when it was moved.
+
+        Returns whether the config changed, and the caller writes the file. ``frontend: false``
+        does not exempt it: that switch skips the LOGIN, not the secret sitting in plain text.
+        """
+        block = self.locals.get(DEFAULT_TAG) or {}
+        auth = block.get('auth') if isinstance(block, dict) else None
+        discord = auth.get('discord') if isinstance(auth, dict) else None
+        if not secure_client_secret(discord, config_dir=self.node.config_dir):
+            return False
+        self.log.info(f"  - {self.name}: Discord client secret found, removing it from yaml ...")
+        return True
+
     def __init__(self, node: NodeImpl):
         super().__init__(node)
+        if self._secure_client_secret():
+            self.save_config()
         cfg = self.get_config()
         if not cfg:
             legacy_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')

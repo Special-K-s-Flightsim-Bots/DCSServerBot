@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 01:12+0100\n"
+"POT-Creation-Date: 2026-11-14 10:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -2131,7 +2131,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Paramètres du fournisseur de synthèse vocale ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:655
+#: services/webservice/schemas/webservice_schema.yaml:658
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Identifiant d'administrateur de secours pour un fournisseur d'identité défaillant."
 
@@ -2316,7 +2316,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Activer le plugin competitive pour ce serveur."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:665
+#: services/webservice/schemas/webservice_schema.yaml:668
 msgid "Enable the emergency Admin credential."
 msgstr "Activer l'identifiant d'administrateur de secours."
 
@@ -2999,8 +2999,9 @@ msgid "Inject real-world weather into the mission."
 msgstr "Injecter la météo réelle dans la mission."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:618
-msgid "Inline Discord client secret; used when no key is set."
+#: services/webservice/schemas/webservice_schema.yaml:619
+#, fuzzy
+msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "Secret client Discord en ligne ; utilisé lorsqu'aucune clé n'est définie."
 
 #. srs_schema:schema;instance_srs_schema.autoconnect
@@ -4411,7 +4412,7 @@ msgid "PBKDF2 hash of the account's password."
 msgstr "Hachage PBKDF2 du mot de passe du compte."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:675
+#: services/webservice/schemas/webservice_schema.yaml:678
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Hachage PBKDF2 du mot de passe d'urgence."
 
@@ -5482,7 +5483,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Secondes pendant lesquelles un serveur PAUSE-on-start s'exécute avant de se remettre en pause."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:637
+#: services/webservice/schemas/webservice_schema.yaml:640
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Secondes de mise en cache d'une résolution de membre sans l'intent."
 
@@ -5674,7 +5675,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Secondes sans joueur adverse qui font gagner la partie."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:626
+#: services/webservice/schemas/webservice_schema.yaml:629
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Clé du magasin de secrets contenant le client secret ; prioritaire sur la valeur inline."
 
@@ -5692,7 +5693,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "Envoie des statistiques d'usage anonymes au service cloud."
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:648
+#: services/webservice/schemas/webservice_schema.yaml:651
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -6601,7 +6602,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Nom d'utilisateur pour le proxy, s'il nécessite une authentification."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:670
+#: services/webservice/schemas/webservice_schema.yaml:673
 msgid "Username of the emergency Admin account."
 msgstr "Nom d'utilisateur du compte administrateur d'urgence."
 

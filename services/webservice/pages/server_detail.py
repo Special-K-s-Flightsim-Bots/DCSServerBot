@@ -54,7 +54,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, \
     StreamingResponse
 
-from .. import i18n, mount, permissions, readmodels, scheduler_plan, session, weather_fields
+from .. import (config_hints, i18n, mount, permissions, readmodels, scheduler_plan, session,
+                weather_fields)
 # THE console's ONE DCS-install path rule (root lookup, name-shape refusal, read cap): the thumbnail
 # route below and the cloud-preset routes in ``pages/presets`` read it from the SAME module.
 from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, preset_image_file
@@ -241,6 +242,9 @@ SCHEDULER_STEP_LABELS: tuple[tuple[str, str, str], ...] = (
 #: the scheduler file the tab reads, in the Settings area's own vocabulary (a plugin's global config)
 SCHEDULER_FILE_KIND = settings_page.KIND_PLUGIN
 SCHEDULER_FILE_NAME = "scheduler"
+#: THE REVIEW PANEL'S COMPLETION HINTS — a read of the scheduler plugin's OWN schema as JSON
+#: (:mod:`services.webservice.config_hints`), a sibling of the check that panel posts to.
+SCHEDULER_HINTS_PATH = settings_page.SCHEDULER_SAVE_PATH + "/hints"
 
 #: what the tab has to say about itself, as four exclusive states. ``plan`` is the only one that
 #: renders a plan; the other three each render their own sentence and a way to Settings, because a
@@ -814,7 +818,11 @@ def capabilities() -> dict[str, str]:
             # THE MISSION-WEATHER READ is a read of the server's own mission (the launch dialog's
             # prefill), so it carries the SAME predicate for the same reason — a caller who may not
             # open the page may not read its server's mission either.
-            MISSION_WEATHER_PATH: SERVER_DETAIL_CAPABILITY}
+            MISSION_WEATHER_PATH: SERVER_DETAIL_CAPABILITY,
+            # THE SCHEDULER PANEL'S COMPLETION HINTS are a READ of the scheduler's SCHEMA, drawn for
+            # whoever the panel is drawn for: the scheduler area's own view capability, with its
+            # scope resolved in the route.
+            SCHEDULER_HINTS_PATH: settings_page.SCHEDULER_VIEW_CAPABILITY}
 
 
 def nav_items():
@@ -1685,6 +1693,20 @@ def add_server_status_route(router: APIRouter) -> APIRouter:
     return router
 
 
+def add_scheduler_hints_route(router: APIRouter) -> APIRouter:
+    """Add THE Scheduler review panel's completion-hints route (``GET``).
+
+    A READ of the scheduler plugin's own schema, declared on the server page's capability set with
+    ``scheduler.view`` (:data:`SCHEDULER_HINTS_PATH`) — the panel that fetches it is drawn for the same
+    audience. The scope and the section ride in the query, exactly as they do on the check URL.
+    """
+    @router.get(SCHEDULER_HINTS_PATH, name="scheduler-hints")
+    async def scheduler_config_hints(request: Request) -> Response:
+        return scheduler_hints(request)
+
+    return router
+
+
 # --------------------------------------------------------------------------- the Overview tab's data
 # The card's facts that are NOT a read of the process: the server's extension render, the live fog
 # reading behind its visibility and the scheduler's per-server plan. Each is an RPC or a plugin
@@ -2031,6 +2053,47 @@ def scheduler_file(request: Request):
         return None
 
 
+def scheduler_hints_url(server_name: str, *, shared: bool = False) -> str:
+    """The review panel's completion-hints URL — the server it edits, and the section it edits.
+
+    The scope rides in the query exactly as it does on the panel's check URL, because the panel posts
+    its text and nothing else; ``shared`` is the same carrier the wizard keeps its section in, so the
+    hints of the ``DEFAULT`` sheet are the ``DEFAULT`` block's.
+    """
+    query = {settings_page.SCHEDULER_SCOPE_FIELD: readmodels.text(server_name)}
+    if shared:
+        query[scheduler_plan.SHARED_FIELD] = "1"
+    return mount.url(SCHEDULER_HINTS_PATH) + "?" + urlencode(query)
+
+
+def scheduler_hints(request: Request) -> JSONResponse:
+    """The review panel's completion hints: the schema tree, rooted at the BLOCK being edited.
+
+    The container is read from the same two symbols the save reads — the file's ``DEFAULT`` key while
+    the panel edits the shared section, otherwise ``scheduler_block_key(server)``, the path the write
+    guard resolves — so the keys offered are the keys that block may carry and never the whole file's.
+    A scope naming no server this caller may view answers an empty path map, never a tree rooted
+    somewhere else; nothing here reads the scheduler file.
+    """
+    entry = scheduler_file(request)
+    if entry is None:
+        raise HTTPException(status_code=404)
+    scope = readmodels.text(request.query_params.get(settings_page.SCHEDULER_SCOPE_FIELD)).strip()
+    server = dashboard_page.server_named(request, scope) if scope else None
+    access = settings_page.scheduler_access(request, server) if server is not None else None
+    if access is None or not access.view:
+        return JSONResponse({"paths": {}}, headers={"Cache-Control": "no-store"})
+    if scheduler_plan.shared_target(request.query_params):
+        if not access.shared:
+            return JSONResponse({"paths": {}}, headers={"Cache-Control": "no-store"})
+        container = scheduler_plan.SHARED_KEY
+    else:
+        container = settings_page.scheduler_block_key(server)
+    return JSONResponse(config_hints.payload(list(entry.schema_files), container=container,
+                                            request=request),
+                        headers={"Cache-Control": "no-store"})
+
+
 def _scheduler_document(entry) -> dict:
     """The scheduler file's document with its comments, or ``{}`` when it cannot be read.
 
@@ -2274,6 +2337,9 @@ async def _scheduler_tab_context(request: Request, server, server_name: str) -> 
         "scheduler_expert_field": settings_page.SETTINGS_EXPERT_FIELD,
         "scheduler_validate_url": (settings_page.SCHEDULER_VALIDATE_PATH + "?"
                                    + urlencode({settings_page.SCHEDULER_SCOPE_FIELD: server_name})),
+        # THE PANEL'S COMPLETION SOURCE: the scheduler schema, rooted at the block this sheet writes —
+        # the server's own block, or ``DEFAULT`` while the shared section is the one being edited.
+        "scheduler_hints_url": scheduler_hints_url(server_name, shared=shared),
         "scheduler_save_url": settings_page.SCHEDULER_SAVE_PATH,
         "scheduler_scope_field": settings_page.SCHEDULER_SCOPE_FIELD,
         "scheduler_scope_name": server_name,
@@ -2453,6 +2519,7 @@ def add_routes(router: APIRouter) -> APIRouter:
     add_preset_image_route(router)
     add_mission_weather_route(router)
     add_music_tab_stream_routes(router)
+    add_scheduler_hints_route(router)
 
     @router.get(SERVER_DETAIL_PATH, response_class=HTMLResponse, name="page-server-detail")
     async def server_detail(request: Request, name: str):

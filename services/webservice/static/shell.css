@@ -1278,17 +1278,21 @@ a.srv-name:hover { text-decoration: underline; color: var(--accent); }
  * Which rule wins where: Firefox — the standard pair (the only pair it understands); Chromium and
  * Safari — the WebKit pair (and they never even parse the standard pair, because the @supports
  * condition is false there); any engine with neither — its own default bar.
+ *
+ * THE THREE READERS are the log, `.sbar` (a box that scrolls on both axes) and the completion popup
+ * (`ul.CodeMirror-hints`, a body-level element the addon builds and the editor never contains), so
+ * the popup's bar is this same widget rather than the platform's white one.
  */
 @supports not selector(::-webkit-scrollbar) {
-  :is(.log, .sbar) { scrollbar-width: thin;
+  :is(.log, .sbar, ul.CodeMirror-hints) { scrollbar-width: thin;
     scrollbar-color: var(--sbar-thumb) var(--sbar-track); }
 }
-:is(.log, .sbar)::-webkit-scrollbar { width: var(--sbar); height: var(--sbar); }
-:is(.log, .sbar)::-webkit-scrollbar-track { background: var(--sbar-track); }
-:is(.log, .sbar)::-webkit-scrollbar-thumb { background: var(--sbar-thumb);
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar { width: var(--sbar); height: var(--sbar); }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-track { background: var(--sbar-track); }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-thumb { background: var(--sbar-thumb);
   border: 2px solid var(--sbar-track); border-radius: 6px; background-clip: padding-box; }
-:is(.log, .sbar)::-webkit-scrollbar-corner { background: var(--sbar-track); }
-:is(.log, .sbar)::-webkit-scrollbar-button { width: 0; height: 0; display: none; }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-corner { background: var(--sbar-track); }
+:is(.log, .sbar, ul.CodeMirror-hints)::-webkit-scrollbar-button { width: 0; height: 0; display: none; }
 /* ===========================================================================
    THE SCHEMA-DRIVEN CONFIG PAGE (the Settings page): the generated form, its
    controls, and the YAML panel (read-only, or the Expert Mode editor).
@@ -1507,6 +1511,34 @@ pre.yaml { background: var(--ground-2); border: 1px solid var(--line); border-ra
 .cfg-editor .CodeMirror .cm-def, .cfg-editor .CodeMirror .cm-variable { color: var(--text); }
 .cfg-editor .CodeMirror .cm-meta { color: var(--pause); }
 .cfg-editor .CodeMirror .cm-error { color: var(--danger); }
+
+/* THE COMPLETION POPUP (the vendored `show-hint` addon): the list, its rows and the selected row,
+ * restated from the shell's own tokens — the vendored stylesheet paints a white menu and is not
+ * touched. The vendored `max-height: 20em` and `overflow-y: auto` are left alone, so a long list
+ * scrolls inside the popup rather than growing it.
+ *
+ * THE POPUP IS A BODY-LEVEL ELEMENT, NOT A CHILD OF THE EDITOR. The addon builds
+ * `<ul class="CodeMirror-hints">` and appends it to `document.body` (its `container` option defaults
+ * to null and nothing in this console sets one), so `.cfg-editor` is never among its ancestors: a
+ * rule written `.cfg-editor .CodeMirror-hints` matches nothing, however plausible it reads. These
+ * selectors therefore START AT THE LIST.
+ *
+ * THE ELEMENT QUALIFIER IS LOAD-BEARING. shell.css is linked before the addon's own sheet (the page's
+ * `head` block comes after the base's), so at equal specificity the vendored literal wins the tie —
+ * which is why the old `.cfg-editor` step was not merely wrong but load-bearing. One element on the
+ * left (`ul`, `li`) adds the 0,0,1 that keeps the palette in front without re-introducing an
+ * ancestor the popup does not have.
+ *
+ * A ROW CARRIES TWO LINES IN ONE TEXT NODE — the key line (`key · label · required · set`) and the
+ * field's schema prose beneath it — so the key line is coloured by `::first-line` and the prose by
+ * the row's own colour; there are no per-line elements to reach for. */
+ul.CodeMirror-hints { background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--text-2); font-family: var(--font-mono);
+  font-size: .74rem; line-height: 1.45; box-shadow: 0 6px 18px var(--elev-sm); }
+ul.CodeMirror-hints li.CodeMirror-hint { color: var(--text-2); white-space: pre;
+  padding: .1rem .35rem; border-radius: var(--radius-s); }
+ul.CodeMirror-hints li.CodeMirror-hint::first-line { color: var(--text); }
+ul.CodeMirror-hints li.CodeMirror-hint-active { background: var(--sel-wash2); color: var(--text); }
 
 /* ================================================================================ SETTINGS TILES
  * The Settings LANDING page: a grid of tiles in place of the old list of YAML filenames. Namespaced

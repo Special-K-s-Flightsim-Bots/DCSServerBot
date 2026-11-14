@@ -11556,3 +11556,7 @@ msgstr "根据你的文件绘制"
 
 msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
 msgstr "该站点还没有自己的地址——这是它将来的样子。机器人重启后即可访问。"
+
+#: services/webservice/i18n.py
+msgid "example"
+msgstr "示例"

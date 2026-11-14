@@ -13197,3 +13197,7 @@ msgstr "dibujado desde tu archivo"
 
 msgid "This site has no address of its own yet — this is what it will look like. It answers once the bot restarts."
 msgstr "Este sitio aún no tiene dirección propia: así es como se verá. Responderá cuando se reinicie el bot."
+
+#: services/webservice/i18n.py
+msgid "example"
+msgstr "ejemplo"

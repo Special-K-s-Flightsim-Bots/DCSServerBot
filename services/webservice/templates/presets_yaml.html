@@ -21,7 +21,8 @@
 {% block title %}{{ _(title) }} — DCSServerBot{% endblock %}
 {#-  THE VENDORED EDITOR'S STYLESHEET, loaded after the shell's, exactly as the settings pages load it.  -#}
 {% block head %}<link rel="stylesheet" href="/static/{{ style }}">
-<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">{% endblock %}
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/addon/hint/show-hint.css?v={{ asset_version }}">{% endblock %}
 {% block content %}
 
 <div class="page-head">
@@ -43,7 +44,7 @@
   {% if convert_hint %}<p class="ps-yaml-hint ps-yaml-convert">{{ _(convert_hint) }}</p>{% endif %}
 
   <section class="ps-yaml" data-cfg-yaml data-cfg-yaml-source="textarea"
-           data-validate-url="{{ validate_url }}">
+           data-validate-url="{{ validate_url }}" data-hints-url="{{ hints_url }}">
     <div class="cfg-yaml-status" data-cfg-yaml-status role="status" aria-live="polite"></div>
     {#-  THE SOURCE, AND THE EDITOR BESIDE IT. A hidden `<textarea>` still posts its value (only
         `disabled` stops it), which is what lets ONE form carry the block with the script and without
@@ -62,7 +63,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
-<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
-<script src="/static/settings-yaml.js" defer></script>
+<script src="/static/vendor/codemirror/codemirror.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/addon/hint/show-hint.js?v={{ asset_version }}" defer></script>
+<script src="/static/settings-yaml.js?v={{ asset_version }}" defer></script>
 {% endblock %}

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-13 01:12+0100\n"
+"POT-Creation-Date: 2026-11-14 10:59+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: pl\n"
@@ -2128,7 +2128,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Ustawienia dostawcy zamiany tekstu na mowę ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:655
+#: services/webservice/schemas/webservice_schema.yaml:658
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Awaryjne poświadczenie administratora dla uszkodzonego dostawcy tożsamości."
 
@@ -2313,7 +2313,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Włącz plugin competitive dla tego serwera."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:665
+#: services/webservice/schemas/webservice_schema.yaml:668
 msgid "Enable the emergency Admin credential."
 msgstr "Włącz awaryjne poświadczenie administratora."
 
@@ -2996,8 +2996,9 @@ msgid "Inject real-world weather into the mission."
 msgstr "Wstrzyknij rzeczywistą pogodę do misji."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:618
-msgid "Inline Discord client secret; used when no key is set."
+#: services/webservice/schemas/webservice_schema.yaml:619
+#, fuzzy
+msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "Wbudowany sekret klienta Discord; używany, gdy nie ustawiono klucza."
 
 #. srs_schema:schema;instance_srs_schema.autoconnect
@@ -4405,7 +4406,7 @@ msgid "PBKDF2 hash of the account's password."
 msgstr "Hash PBKDF2 hasła konta."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:675
+#: services/webservice/schemas/webservice_schema.yaml:678
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Hash PBKDF2 hasła awaryjnego."
 
@@ -5474,7 +5475,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Sekundy działania serwera z PAUSE-on-start przed ponownym wstrzymaniem."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:637
+#: services/webservice/schemas/webservice_schema.yaml:640
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Sekundy buforowania rozwiązania członka bez intencji."
 
@@ -5660,7 +5661,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Sekundy bez przeciwnika, po których mecz zostaje wygrany."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:626
+#: services/webservice/schemas/webservice_schema.yaml:629
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Klucz magazynu sekretów przechowujący sekret klienta; ma pierwszeństwo przed wartością wpisaną."
 
@@ -5678,7 +5679,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "Wysyła anonimowe statystyki użycia do usługi chmurowej."
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:648
+#: services/webservice/schemas/webservice_schema.yaml:651
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -6585,7 +6586,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Nazwa użytkownika dla proxy, jeśli wymaga uwierzytelnienia."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:670
+#: services/webservice/schemas/webservice_schema.yaml:673
 msgid "Username of the emergency Admin account."
 msgstr "Nazwa użytkownika awaryjnego konta Administrator."
 

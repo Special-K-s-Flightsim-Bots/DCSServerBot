@@ -321,7 +321,7 @@
         badge says what the panel is while the editor is off; the status line is the server's verdict.
         The textarea below the read-only text is the SAME block: with the script off it is the editor
         (its value posts), and the script hides it once the editor can replace it. -#}
-    <aside class="st-aside sw-yaml" data-cfg-yaml data-validate-url="{{ scheduler_validate_url }}">
+    <aside class="st-aside sw-yaml" data-cfg-yaml data-validate-url="{{ scheduler_validate_url }}" data-hints-url="{{ scheduler_hints_url }}">
       <div class="hd">
         <h3>{% trans %}This server's block, as YAML{% endtrans %}</h3><span class="sp"></span>
         <span class="st-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
@@ -362,10 +362,12 @@
     the editor with JavaScript off, so it is hidden only once CodeMirror is actually there — the same
     gate `static/settings-yaml.js` opens with, so a vendor file that fails to load leaves the page
     editable instead of empty. The listener runs after the deferred scripts. -#}
-<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">
-<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
-<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
-<script src="/static/settings-yaml.js" defer></script>
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/addon/hint/show-hint.css?v={{ asset_version }}">
+<script src="/static/vendor/codemirror/codemirror.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/addon/hint/show-hint.js?v={{ asset_version }}" defer></script>
+<script src="/static/settings-yaml.js?v={{ asset_version }}" defer></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     if (typeof CodeMirror === "undefined") { return; }

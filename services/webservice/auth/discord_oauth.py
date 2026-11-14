@@ -78,10 +78,12 @@ key                          default   meaning
 ============================ ========= =======================================================
 ``enabled``                  ``false`` nothing is enabled unless this is exactly ``true``
 ``client_id``                —         the Discord application's client id
-``client_secret``            —         the client secret, INLINE
+``client_secret``            —         the client secret, INLINE. A startup migration moves it
+                                       into the store and drops the key
 ``client_secret_key``        —         the name of a key in the repo's secret store,
                                        ``config/.secret/<key>.pkl`` (``utils.get_password``);
-                                       **when set it WINS** over ``client_secret``
+                                       **when set it WINS** over ``client_secret``. Defaults to
+                                       :data:`DEFAULT_CLIENT_SECRET_KEY`, so it may be omitted
 ``member_ttl``               ``60``    seconds a per-request member resolution may be served from
                                        memory when the bot has no member list (intents off);
                                        clamped to ``1..3600`` with a warning
@@ -91,7 +93,9 @@ key                          default   meaning
 
 SECRET PRECEDENCE, pinned by the lead and pinned by tests: ``enabled`` gates everything;
 ``client_id`` is required when enabled; the secret comes from ``client_secret_key`` **if that key
-is set**, otherwise from the inline ``client_secret``. If neither yields a secret, or a named store
+is set**, otherwise from the inline ``client_secret``, otherwise from the store key
+``client_secret_key`` would have named by default (:data:`DEFAULT_CLIENT_SECRET_KEY`). The inline
+value is therefore never shadowed by a stored one. If neither yields a secret, or a named store
 key does not exist, the install is refused LOUDLY at startup (``ValueError``) rather than starting
 a login that cannot complete — an enabled backend that cannot work is discovered in the login
 attempt, which is exactly the wrong moment. The secret-store helper is imported INSIDE
@@ -157,7 +161,7 @@ __all__ = [
     "MAX_RESPONSE_BYTES", "AVATAR_SIZE",
     "SITE_ROOT", "GENERIC_MESSAGE", "DISABLED_MESSAGE", "CANCELLED_MESSAGE", "SECRET_STORE_DIR",
     "DEFAULT_MEMBER_TTL", "MIN_MEMBER_TTL", "MAX_MEMBER_TTL", "NO_MEMBERS_INTENT_REASON",
-    "AUTO_START_DEFAULT",
+    "AUTO_START_DEFAULT", "DEFAULT_CLIENT_SECRET_KEY", "secure_client_secret",
     "LOOKUP_LABELS", "DiscordAuthError", "DiscordSettings", "DiscordOAuthBackend",
     "DiscordSecretReader", "MemberLookup", "discord_backend", "parse_discord_config",
     "role_names_for_member", "resolve_member", "members_intent_available",
@@ -277,6 +281,11 @@ AUTO_START_DEFAULT = False
 
 #: the repo's pickle secret store, relative to the config dir (``config/.secret/<key>.pkl``)
 SECRET_STORE_DIR = ".secret"
+
+#: the store key the client secret is kept under when the config names none. It is the key an
+#: inline ``client_secret`` is moved to at startup, so a config that never spells
+#: ``client_secret_key`` still resolves the secret it stored.
+DEFAULT_CLIENT_SECRET_KEY = "discord_client_secret"
 
 #: the reader a deployment uses: ``get_password(key, config_dir)`` from ``core.utils.os``
 DiscordSecretReader = Callable[[str, "str | Path"], str]
@@ -860,8 +869,8 @@ def _validated_member_ttl(value) -> int:
     return value
 
 
-def _secret_from_store(key: str, config_dir: str | Path) -> str:
-    """Read a secret from ``config/.secret/<key>.pkl`` through ``utils.get_password``.
+def _read_store(key: str, config_dir: str | Path) -> str:
+    """The value stored under *key*, or ``""`` when the store holds none.
 
     Imported INSIDE the function on purpose: the store is read only when a secret is actually
     needed, and ``core.utils.os`` drags in the bot's ``core`` package — a heavy dependency for a
@@ -871,12 +880,45 @@ def _secret_from_store(key: str, config_dir: str | Path) -> str:
     from core.utils.os import get_password
 
     try:
-        return str(get_password(key, config_dir=str(config_dir)))
+        return str(get_password(key, config_dir=str(config_dir)) or "")
     except ValueError:
+        return ""
+
+
+def _secret_from_store(key: str, config_dir: str | Path) -> str:
+    """Read a secret from ``config/.secret/<key>.pkl``; a missing key is a loud refusal."""
+    secret = _read_store(key, config_dir)
+    if not secret:
         raise ValueError(f"auth.discord.client_secret_key names '{key}', but there is no "
                          f"{SECRET_STORE_DIR}/{key}.pkl in the config directory. Store it with "
                          f"`python -c \"from core.utils.os import set_password; "
                          f"set_password('{key}', '<the secret>')\"`.")
+    return secret
+
+
+def secure_client_secret(discord_config, *, config_dir: str | Path) -> bool:
+    """Move an inline ``client_secret`` into the secret store; True when the block changed.
+
+    The store key is the configured ``client_secret_key``, else :data:`DEFAULT_CLIENT_SECRET_KEY`.
+    The inline key is popped from the block, so the caller's write leaves the secret behind in the
+    yaml exactly once.
+
+    A value the store already holds is REPLACED, exactly as the bot token's move replaces
+    ``token.pkl``: while the yaml still carries the key, that value is the one the operator means,
+    and a stale stored secret that ignores it is a login nobody can fix from the config. An
+    ``auth.discord`` block that is absent or not a mapping is left alone.
+    """
+    if not isinstance(discord_config, dict):
+        return False
+    inline = discord_config.get("client_secret")
+    if not isinstance(inline, str) or not inline.strip():
+        return False
+    key = str(discord_config.get("client_secret_key") or "").strip() or DEFAULT_CLIENT_SECRET_KEY
+    from core.utils.os import set_password
+
+    set_password(key, inline.strip(), config_dir=str(config_dir))
+    discord_config.pop("client_secret", None)
+    return True
 
 
 def _validated_base_url(public_base_url) -> str:
@@ -917,21 +959,31 @@ def parse_discord_config(discord_config, *, config_dir: str | Path,
     # PRECEDENCE (pinned by the lead): the NAMED STORE KEY wins when it is set; the inline value
     # is the fallback. A named key that yields nothing is a refusal, not a silent fallback to the
     # inline value: the operator asked for a specific secret and did not get it.
+    #
+    # With NEITHER spelled, the DEFAULT store key is read: that is where an inline secret is moved
+    # to at startup (``secure_client_secret``), so the yaml needs to name nothing at all. The
+    # inline value is tried before the default key, never after: a file that still carries one has
+    # not been migrated yet, and its own value is the one the operator wrote.
+    reader = secret_reader or _secret_from_store
     inline = discord_config.get("client_secret")
     key = str(discord_config.get("client_secret_key") or "").strip()
     secret = ""
     if key:
-        reader = secret_reader or _secret_from_store
         secret = str(reader(key, config_dir) or "").strip()
         if not secret:
             raise ValueError(f"auth.discord.client_secret_key names '{key}', but the secret store "
                              f"holds no value for it ({SECRET_STORE_DIR}/{key}.pkl).")
     elif isinstance(inline, str) and inline.strip():
         secret = inline.strip()
+    else:
+        try:
+            secret = str(reader(DEFAULT_CLIENT_SECRET_KEY, config_dir) or "").strip()
+        except ValueError:
+            secret = ""
     if not secret:
         raise ValueError("auth.discord.enabled is true but no client secret is configured: set "
-                         "auth.discord.client_secret (inline) or auth.discord.client_secret_key "
-                         f"(a key in {SECRET_STORE_DIR}/<key>.pkl).")
+                         "auth.discord.client_secret (inline), set auth.discord.client_secret_key, "
+                         f"or store it under {SECRET_STORE_DIR}/{DEFAULT_CLIENT_SECRET_KEY}.pkl.")
 
     # Only exactly `true` turns the immediate jump on, the same rule `enabled` follows: a truthy
     # string from a hand-edited file must not silently change where an anonymous visitor lands.

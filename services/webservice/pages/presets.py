@@ -59,7 +59,8 @@ from core.utils.presets import (CONFIG_LABEL, PRESET_DIR, PRESET_FILE_GLOB, PRES
                                 PresetRead, list_preset_files, preset_file_label, preset_names_of,
                                 preset_read_key, read_preset_documents)
 
-from .. import dcs_clouds, dcs_halo, dcs_install, i18n, mount, permissions, session, weather_fields
+from .. import (config_hints, dcs_clouds, dcs_halo, dcs_install, i18n, mount, permissions, session,
+                weather_fields)
 from ..registry import NavItem
 from . import actions as actions_page
 from . import dashboard as dashboard_page
@@ -406,6 +407,9 @@ PRESETS_WIZARD_PATH = "/presets/preset/{name}/wizard"
 #: verdict the Settings editor's check answers with — nothing is validated in the browser and nothing
 #: is written. It is a sibling of the wizard path, so the two can never drift.
 PRESETS_WIZARD_VALIDATE_PATH = PRESETS_WIZARD_PATH + "/validate"
+#: THE WIZARD'S COMPLETION HINTS — a read of ``presets_schema.yaml`` as JSON
+#: (:mod:`services.webservice.config_hints`), beside the check the same panel posts to.
+PRESETS_WIZARD_HINTS_PATH = PRESETS_WIZARD_PATH + "/hints"
 
 #: THE EXPERT-DSL PRESET'S OWN EDITOR. One page per preset: the preset's name and the file it lives
 #: in, ONE YAML editor holding that preset's own block (its top-level key plus its value), a Save and
@@ -414,6 +418,8 @@ PRESETS_WIZARD_VALIDATE_PATH = PRESETS_WIZARD_PATH + "/validate"
 PRESETS_YAML_PATH = "/presets/preset/{name}/yaml"
 #: the editor's check: a READ that answers the same JSON verdict the other editors answer with.
 PRESETS_YAML_VALIDATE_PATH = PRESETS_YAML_PATH + "/validate"
+#: the editor's completion hints: the schema tree as JSON, the same read-only shape the check has.
+PRESETS_YAML_HINTS_PATH = PRESETS_YAML_PATH + "/hints"
 #: THE WRITE: the ONE preset's block, through ``configwrite.patch_config_file`` — schema-validated,
 #: atomic, ``.bak``-keeping and revision-guarded, exactly like every other config write.
 PRESETS_YAML_SAVE_PATH = PRESETS_YAML_PATH + "/save"
@@ -1469,6 +1475,9 @@ PRESETS_NEW_PATH = "/presets/new"
 #: the check for a NEW preset: the SAME editor, but there is no open name to hold the document to, so
 #: the document's own single key IS the name (there is nothing to rename away from).
 PRESETS_NEW_VALIDATE_PATH = PRESETS_NEW_PATH + "/validate"
+#: the completion hints for that same editor on a NEW preset: the same tree, since the document a
+#: new preset's review step posts is one preset's block too.
+PRESETS_NEW_HINTS_PATH = PRESETS_NEW_PATH + "/hints"
 PRESETS_WIZARD_TEMPLATE = "presets_wizard.html"
 
 WIZARD_STEP_TIME = "time"
@@ -1824,9 +1833,32 @@ def wizard_validate_url(name: str) -> str:
                      if name else PRESETS_NEW_VALIDATE_PATH)
 
 
+def wizard_hints_url(name: str) -> str:
+    """The wizard editor's completion-hints URL for *name* — the new-preset URL when it is empty."""
+    return mount.url(PRESETS_WIZARD_HINTS_PATH.format(name=quote(name, safe=""))
+                     if name else PRESETS_NEW_HINTS_PATH)
+
+
+def presets_hints(request: Request) -> JSONResponse:
+    """The preset schema tree as hints JSON — the ONE payload builder, rooted at the file's root.
+
+    Both preset surfaces hand the editor a ONE-PRESET document (``{<name>: block}``), so its root key
+    is the preset name the schema's own ``regex;(.+)`` entry names: the container is the empty one and
+    the block's keys are reached through that entry. Nothing here reads a preset, a name or a file —
+    the answer is the schema alone, a read that is never cached by the browser.
+    """
+    return JSONResponse(config_hints.payload(preset_schema_files(), request=request),
+                        headers={"Cache-Control": "no-store"})
+
+
 def preset_yaml_url(name: str) -> str:
     """The one-block editor's URL for preset *name* — the name as ONE percent-encoded segment."""
     return mount.url(PRESETS_YAML_PATH.format(name=quote(str(name), safe="")))
+
+
+def preset_yaml_hints_url(name: str) -> str:
+    """That page's own completion-hints URL — one percent-encoded name segment."""
+    return mount.url(PRESETS_YAML_HINTS_PATH.format(name=quote(str(name), safe="")))
 
 
 def preset_yaml_validate_url(name: str) -> str:
@@ -3663,6 +3695,8 @@ async def build_wizard_context(request: Request, config: Path, *, name: str, ste
         "expert_note": WIZARD_EXPERT_NOTE,
         # THE EDITOR'S OWN CHECK: the panel carries this URL, and the shared script POSTs to it.
         "validate_url": wizard_validate_url(name),
+        # THE PANEL'S COMPLETION SOURCE: the same schema tree the settings editors complete from.
+        "hints_url": wizard_hints_url(name),
         "can_save": bool(chosen_file),
         "action_field": PRESETS_ACTION_FIELD,
         "action_save": PRESETS_ACTION_SAVE,
@@ -3721,6 +3755,11 @@ def capabilities() -> dict[str, str]:
             # the PAGE's capability, not the write capability. The save stays the ONE write route.
             PRESETS_WIZARD_VALIDATE_PATH: PRESETS_CAPABILITY,
             PRESETS_NEW_VALIDATE_PATH: PRESETS_CAPABILITY,
+            # the completion hints are the same kind of read as the checks above: the PAGE's capability,
+            # never the write one — they serve the schema, not the preset
+            PRESETS_WIZARD_HINTS_PATH: PRESETS_CAPABILITY,
+            PRESETS_NEW_HINTS_PATH: PRESETS_CAPABILITY,
+            PRESETS_YAML_HINTS_PATH: PRESETS_CAPABILITY,
             # the one-block editor: the page and its check are reads of one preset; the save is the
             # area's write capability, the same one every other preset write requires.
             PRESETS_YAML_PATH: PRESETS_CAPABILITY,
@@ -4145,6 +4184,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             preset=block,
             save_path=preset_yaml_save_url(block["name"]),
             validate_url=preset_yaml_validate_url(block["name"]),
+            hints_url=preset_yaml_hints_url(block["name"]),
             back_url=mount.url(PRESETS_PATH),
             csrf_field=session.CSRF_FIELD,
             csrf_token=session.get_csrf_token(request),
@@ -4157,6 +4197,11 @@ def add_routes(router: APIRouter) -> APIRouter:
             cancel_label=WIZARD_CANCEL,
         )
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+    @router.get(PRESETS_YAML_HINTS_PATH)
+    async def _presets_yaml_hints(request: Request, name: str):
+        """The one-block editor's completion hints — the schema tree, never the preset."""
+        return presets_hints(request)
 
     @router.post(PRESETS_YAML_VALIDATE_PATH, dependencies=[Depends(session.csrf_protect)])
     async def _presets_yaml_validate(request: Request, name: str):
@@ -4299,6 +4344,16 @@ def add_routes(router: APIRouter) -> APIRouter:
     def _text(value: Any) -> str:
         """A posted form value as text — ``""`` for an absent one, never ``"None"``."""
         return "" if value is None else str(value)
+
+    @router.get(PRESETS_WIZARD_HINTS_PATH)
+    async def _presets_wizard_hints(request: Request, name: str):
+        """The wizard's completion hints for the ONE open preset — the schema tree, nothing read."""
+        return presets_hints(request)
+
+    @router.get(PRESETS_NEW_HINTS_PATH)
+    async def _presets_new_hints(request: Request):
+        """The wizard's completion hints for a NEW preset — the same tree; the key IS the name."""
+        return presets_hints(request)
 
     @router.post(PRESETS_WIZARD_VALIDATE_PATH, dependencies=[Depends(session.csrf_protect)])
     async def _presets_wizard_validate(request: Request, name: str):

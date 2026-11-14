@@ -671,6 +671,13 @@ JS_MESSAGES: dict[str, str] = {
     "yaml.checking": _("Checking…"),
     "yaml.ok": _("Valid."),
     "yaml.editing": _("editing"),
+    # the completion popup over the schema's tree (static/settings-yaml.js): the two marks a row can
+    # carry and the word that names the row inserting a block's example. They reuse the catalogs'
+    # EXISTING "required" and "set" msgids — those words are already translated everywhere — so only
+    # "example" is a new msgid in the nine catalogs.
+    "yaml.hint.required": _("required"),
+    "yaml.hint.set": _("set"),
+    "yaml.hint.example": _("example"),
 }
 
 #: the ONE substitution helper the served script installs. It LOOKS A KEY UP and replaces ``{name}``

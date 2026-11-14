@@ -100,7 +100,7 @@
         {% endif %}
       </div>
     </div>
-    <aside class="st-aside" data-cfg-yaml data-validate-url="{{ validate_path }}">
+    <aside class="st-aside" data-cfg-yaml data-validate-url="{{ validate_path }}" data-hints-url="{{ hints_path }}">
       <div class="hd"><h3>{% trans %}The file, as YAML{% endtrans %}</h3><span class="sp"></span>
         <span class="st-badge" data-cfg-yaml-badge>{% trans %}read-only{% endtrans %}</span>
         {% if not readonly %}
@@ -142,12 +142,14 @@
 
 {% block head %}
 <link rel="stylesheet" href="/static/settings-scope.css">
-<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css">
+<link rel="stylesheet" href="/static/vendor/codemirror/codemirror.min.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/static/vendor/codemirror/addon/hint/show-hint.css?v={{ asset_version }}">
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/vendor/codemirror/codemirror.min.js" defer></script>
-<script src="/static/vendor/codemirror/mode/yaml.min.js" defer></script>
+<script src="/static/vendor/codemirror/codemirror.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/mode/yaml.min.js?v={{ asset_version }}" defer></script>
+<script src="/static/vendor/codemirror/addon/hint/show-hint.js?v={{ asset_version }}" defer></script>
 <script src="/static/configgen.js" defer></script>
-<script src="/static/settings-yaml.js" defer></script>
+<script src="/static/settings-yaml.js?v={{ asset_version }}" defer></script>
 {% endblock %}
