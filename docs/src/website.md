@@ -14,6 +14,10 @@ What is behind that login:
 - plugin pages: plugins register their own through the WebService, so the menu grows with the
   plugins you enable
 
+Which role may reach which control is the **Access** page — a matrix per role, with `Admin` always on:
+
+![The Access page: which role reaches which control](assets/images/webservice-access.webp){ loading=lazy }
+
 ## Signing in
 
 An anonymous visitor to any guarded page — the site root included — is shown this console's own
@@ -62,9 +66,12 @@ editor for `config/site.yaml`, with an Expert mode and an *Add a site* block at 
 
 ## Setting it up
 
-Two step-by-step guides carry it end to end: the session secret, the login you choose (Discord or
-local users), and putting it on the internet behind HTTPS with nginx or Caddy.
+`/webadmin setup` in Discord is the shortcut: it asks for the address, the port and the login you
+want, writes `config/services/webservice.yaml` itself and offers to rebuild the console — no file
+editing at all. The guides below are the same setup by hand, with every step and every option.
 
+- [Quick start (Windows)](guides/webservice-quickstart.md) — from "switched off" to a working login
+  page in about five minutes, plus HTTPS on top
 - [Web frontend on Linux](guides/webservice-frontend-linux.md) — Debian/Ubuntu or Fedora/RHEL
 - [Web frontend on Windows](guides/webservice-frontend-windows.md) — nginx with win-acme, or Caddy
 

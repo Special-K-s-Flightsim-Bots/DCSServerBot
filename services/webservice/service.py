@@ -9,7 +9,6 @@ from core import Service, ServiceRegistry, NodeImpl, DEFAULT_TAG, Port, PortType
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
-from pathlib import Path
 from services.servicebus import ServiceBus
 from services.webservice.shell import create_app, frontend_enabled, install_shell
 from starlette.requests import Request
@@ -17,6 +16,11 @@ from typing_extensions import override
 from uvicorn import Config
 
 from core.utils.yaml_helper import new_yaml
+
+#: The listener and port the service uses when the config states neither, and the values a config
+#: auto-created for the REST API plugin is written with.
+DEFAULT_LISTEN = '0.0.0.0'
+DEFAULT_PORT = 9876
 
 
 @ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
@@ -26,8 +30,8 @@ class WebService(Service):
         super().__init__(node)
         cfg = self.get_config()
         if not cfg:
-            old_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
-            if os.path.exists(old_config):
+            legacy_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
+            if os.path.exists(legacy_config):
                 self.install()
                 self.locals = self.read_locals()
                 cfg = self.get_config()
@@ -49,8 +53,8 @@ class WebService(Service):
             self.app = self._create_app()
             self.config = Config(
                 app=self.app,
-                host=cfg.get('listen', '0.0.0.0'),
-                port=cfg.get('port', 9876),
+                host=cfg.get('listen', DEFAULT_LISTEN),
+                port=cfg.get('port', DEFAULT_PORT),
                 workers=1,
                 log_level=logging.WARNING,
                 log_config=None,
@@ -63,26 +67,19 @@ class WebService(Service):
             self.app = None
 
     def install(self):
-        old_config = os.path.join(self.node.config_dir, 'plugins', 'restapi.yaml')
-        new_config = os.path.join(self.node.config_dir, 'services', 'webservice.yaml')
-        if os.path.exists(old_config) and not os.path.exists(new_config):
-            old = new_yaml().load(Path(old_config).read_text(encoding='utf-8'))
-            new = old.copy()
-            if 'prefix' in old.get(DEFAULT_TAG, {}):
-                old[DEFAULT_TAG] = {
-                    'prefix': new[DEFAULT_TAG].pop('prefix')
-                }
-            else:
-                old = {}
+        """Create the service config a REST API installation needs, and nothing else.
 
-            if old:
-                with open(old_config, mode='w', encoding='utf-8') as old_out:
-                    new_yaml().dump(old, old_out)
-            else:
-                os.remove(old_config)
-            if new:
-                with open(new_config, mode='w', encoding='utf-8') as new_out:
-                    new_yaml().dump(new, new_out)
+        The file carries the two keys that start the HTTP server, at the values the service itself
+        falls back to. A REST API's own settings — ``auth``, ``security``, ``endpoints``,
+        ``prefix`` — are NOT part of this file: they belong to ``plugins/restapi.yaml``, which is
+        the file the plugin reads, and this schema refuses them.
+        """
+        new_config = os.path.join(self.node.config_dir, 'services', 'webservice.yaml')
+        if os.path.exists(new_config):
+            return
+        os.makedirs(os.path.dirname(new_config), exist_ok=True)
+        with open(new_config, mode='w', encoding='utf-8') as new_out:
+            new_yaml().dump({DEFAULT_TAG: {'listen': DEFAULT_LISTEN, 'port': DEFAULT_PORT}}, new_out)
 
     def _create_app(self) -> FastAPI:
         """Create the FastAPI app and install the admin web shell on it.
