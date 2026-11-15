@@ -1,0 +1,4 @@
+NODE1:
+  Instance1:
+    schedule:
+      00-24: YYYYYYY

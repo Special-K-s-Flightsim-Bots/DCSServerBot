@@ -1,0 +1,9 @@
+owner: 200000000000000002
+privileged_intents: true
+roles:
+  Admin:
+  - Admin
+  DCS Admin:
+  - DCS Admin
+  DCS:
+  - '@everyone'

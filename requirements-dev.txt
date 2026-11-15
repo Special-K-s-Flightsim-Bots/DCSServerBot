@@ -1,0 +1,10 @@
+pytest==9.2.0
+pytest-asyncio==1.4.1.post1
+pytest-cov==7.1.0
+pytest-randomly==5.0.0
+pytest-testmon==2.3.0
+pytest-xdist==3.8.0
+httpx==0.28.1
+babel==2.18.0
+PyYAML==6.0.3
+playwright==1.65.0
