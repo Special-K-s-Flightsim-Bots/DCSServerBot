@@ -429,3 +429,30 @@ def test_the_instance_server_name_is_not_guessed_from_the_instance_name(monkeypa
     assert node_settings_page._instance_server_name(object(), "dcs-a-01", "Syria") == "SRS-1"
     assert node_settings_page._instance_server_name(object(), "dcs-a-01", "Caucasus") == ""
     assert node_settings_page._instance_server_name(object(), "dcs-b-01", "Syria") == ""
+
+
+# ── THE DISCOVERY ITSELF ──────────────────────────────────────────────────────────────────────────
+
+def test_the_extension_discovery_runs_and_finds_the_shipped_extensions():
+    """``ServerImpl._find_extensions`` is what the ``+ Add`` list and the readiness read: it must RUN.
+
+    It reaches ``importlib``, ``pkgutil`` and ``inspect`` at module level (discovery is a filesystem
+    walk over ``extensions/``), so a cleanup that drops any of those three as "unused" leaves the bot
+    booting fine and this path raising ``NameError`` the first time the console asks. Nothing else in
+    the suite calls it, which is why the pin lives here rather than on a route.
+    """
+    import asyncio
+    import types
+
+    import core.commandline as commandline
+    from core.data.impl.serverimpl import ServerImpl
+
+    commandline.COMMAND_LINE_ARGS = types.SimpleNamespace(node="master", config="config")
+    instance = object.__new__(ServerImpl)
+
+    everything = asyncio.run(ServerImpl._find_extensions(instance))
+    assert {"Olympus", "SRS", "LotAtc"} <= set(everything), sorted(everything)
+
+    installable = asyncio.run(ServerImpl._find_extensions(instance, only_installable=True))
+    assert {"Olympus", "SRS", "LotAtc"} <= set(installable), sorted(installable)
+    assert "LogAnalyser" not in installable, "a non-installable extension was offered for install"
