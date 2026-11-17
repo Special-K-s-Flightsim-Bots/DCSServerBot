@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import posixpath
-import re
 import secrets
 import threading
 import time
@@ -517,17 +516,10 @@ MISSION_LIST_OFFLINE_ONLY = "Missions can only be changed while the server is no
 MISSIONS_BULK_DELETE_STATES: tuple[str, ...] = (
     "UNREGISTERED", "SHUTDOWN", "SHUTTING_DOWN", "STOPPED", "PAUSED", "RUNNING")
 
-#: The sentence the bulk remove refuses a ``LOADING`` POST with — owned by
-#: ``plugins.mission.actions.MISSION_DELETE_LOADING_REFUSAL``; the console keeps its OWN copy so the
-#: generic web surface never imports a plugin module (a test pins the two equal).
-MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
-
-#: The sentence EVERY mission write refuses in ``LOADING`` / ``SHUTTING_DOWN`` with — the two states
-#: in which DCS writes ``serverSettings.lua`` itself, so a bot write made then races its own copy.
-#: Owned by ``core/data/impl/serverimpl.py`` (``MISSION_LIST_BUSY_REFUSAL``); the console keeps its
-#: OWN copy so the generic web surface never imports a plugin module (a test pins the copies equal).
-MISSION_LIST_BUSY_REFUSAL = ("The mission list cannot be changed while the server is starting up "
-                             "or shutting down.")
+#: The two refusal sentences the mission writes share with the bot and the chat plugin. They live in
+#: :mod:`core.data.const`, which all three surfaces import, so one wording serves every door an
+#: operator can knock on; re-exported here because this page names them.
+from core.data.const import MISSION_DELETE_LOADING_REFUSAL, MISSION_LIST_BUSY_REFUSAL
 
 #: The states an UPLOAD is accepted in: every state except ``LOADING`` and ``SHUTTING_DOWN``. DCS
 #: writes ``serverSettings.lua`` itself in both of those windows, so an upload that adds a mission to
