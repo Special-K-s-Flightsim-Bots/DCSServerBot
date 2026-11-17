@@ -297,15 +297,17 @@ _ADD_ROW = re.compile(
     r'<li class="st-add-item">\s*'
     r'<div class="st-add-name"[^>]*>([^<]+)</div>\s*'
     r'<span class="st-add-sr"[^>]*>([^<]*)</span>\s*'
-    r'(<form class="st-swform" method="post" action="[^"]*">.*?</form>)\s*'
+    r'(<form class="st-swform" method="post" action="[^"]*">.*?</form>|<a class="st-sw"[^>]*>.*?</a>)\s*'
     r'</li>', re.DOTALL)
 
 
 def _add_rows(page: str) -> list[tuple[str, str, str]]:
-    """``(name, description-or-'', add form)`` for every row of the ONE ``+ Add`` list, in order.
+    """``(name, description-or-'', control)`` for every row of the ONE ``+ Add`` list, in order.
 
     The description is the row's TOOLTIP source: the text of the visually-hidden ``st-add-sr`` copy
-    the name's ``aria-describedby`` points at (the very text the native ``title`` also carries).
+    the name's ``aria-describedby`` points at (the very text the native ``title`` also carries). A
+    row's control is the one-click add form, or a link to the item's own page when the block it would
+    write cannot pass that page's schema from its defaults.
     """
     match = _ADD_LIST.search(page)
     return _ADD_ROW.findall(match.group(1)) if match else []
@@ -403,9 +405,15 @@ async def test_the_add_list_carries_no_tile_shell(node_dir, node_data, settings_
         await _login(client, "staff")
         node_page_html = await _get(client, _page_url("dcs-a-01"))
 
-    for body in (list_body(settings_page_html), list_body(node_page_html)):
-        for shell in ("st-tile", "st-kind", "st-top", "st-name", "st-desc", "st-foot",
-                      "st-cog", "st-trash", "st-scope", "st-badge"):
+    for body, shells in ((list_body(settings_page_html),
+                          ("st-tile", "st-kind", "st-top", "st-name", "st-desc", "st-foot",
+                           "st-cog", "st-trash", "st-scope", "st-badge")),
+                         (list_body(node_page_html),
+                          # ``st-badge`` is NOT a tile shell here: a row's name carries the item's
+                          # scope badge, never the card's own markup
+                          ("st-tile", "st-kind", "st-top", "st-name", "st-desc", "st-foot",
+                           "st-cog", "st-trash", "st-scope"))):
+        for shell in shells:
             assert shell not in body, f"tile shell markup {shell!r} leaked into the + Add list"
         # one NAME element per row, no more, no less
         assert body.count('<div class="st-add-name"') == body.count('<li class="st-add-item">')

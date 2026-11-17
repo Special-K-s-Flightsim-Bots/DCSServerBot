@@ -62,7 +62,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from markupsafe import escape
 
 from core.actions import ActionContext, call_action, read_action
-from core.const import DEFAULT_TAG
 
 from .. import i18n, mount, permissions, readmodels, session
 from ..readmodels import mods as mod_model

@@ -47,17 +47,12 @@ log = logging.getLogger(__name__)
 #: language at CALL time (``core.translations``), never at import.
 _ = get_translation(__name__.split('.')[1])
 
-#: The states in which a mission write is refused on EVERY transport. DCS holds ``net.missionlist``
-#: in memory from ``LOADING`` until it exits, and writes ``serverSettings.lua`` itself while it loads
-#: and while it shuts down; a bot write made then races DCS's own copy of the same file.
-MISSION_LIST_BUSY_STATES = (Status.LOADING, Status.SHUTTING_DOWN)
-
-#: The sentence every surface refuses with, so an operator cannot tell which door refused. The rule
-#: lives in ``core.data.impl.serverimpl`` (:data:`MISSION_LIST_BUSY_REFUSAL`); this module and the
-#: console carry their OWN copies so neither the plugin nor the generic web surface imports the
-#: other, and a test pins all copies equal.
-MISSION_LIST_BUSY_REFUSAL = ("The mission list cannot be changed while the server is starting up "
-                             "or shutting down.")
+#: The states in which a mission write is refused on EVERY transport, and the ONE sentence every
+#: surface refuses with — both live in :mod:`core.data.const`, which this plugin, the bot's writer and
+#: the console all import, so the wording and the rule cannot drift between the doors an operator can
+#: knock on. Re-exported here (``__all__``) because callers name them from this module.
+from core.data.const import (MISSION_DELETE_LOADING_REFUSAL, MISSION_LIST_BUSY_REFUSAL,
+                             MISSION_LIST_BUSY_STATES)
 
 #: The refusal wordings a caller may import by NAME instead of reaching into the module.
 __all__ = ["MISSION_LIST_BUSY_REFUSAL", "MISSION_DELETE_LOADING_REFUSAL"]
@@ -4459,9 +4454,8 @@ MISSION_LIST_ONLINE_STATES = (Status.LOADING, Status.STOPPED, Status.PAUSED, Sta
 #: takes the FILE branch, so DCS reverts the removal on load. Every other state sticks.
 MISSION_DELETE_REFUSED_STATES = (Status.LOADING,)
 
-#: The sentence a ``LOADING`` bulk-removal POST is answered with — and the console's own copy of it
-#: (the generic web surface never imports a plugin module; a test pins the two together).
-MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
+#: The sentence a ``LOADING`` bulk-removal POST is answered with — owned by
+#: :mod:`core.data.const` (imported at the top), the one home the console reads too.
 
 #: The sentence a mission write refuses with when the row the console rendered no longer names the
 #: mission the FRESH snapshot puts at that position — the list changed between render and POST.

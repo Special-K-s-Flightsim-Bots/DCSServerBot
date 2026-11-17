@@ -57,14 +57,16 @@ async def _get(client, path):
 
 _ADD_LIST = re.compile(r'<ul class="st-add-list">(.*?)</ul>', re.DOTALL)
 #: ONE add row: the name div (with the optional tooltip attributes), the visually-hidden description
-#: copy, the existing add form. The description is the row's TOOLTIP source and is NEVER a visible
+#: copy, then the ONE control. The description is the row's TOOLTIP source and is NEVER a visible
 #: clipped element inside the row (there is no ``st-add-desc``), so a regression that brings a clipped
-#: line back simply stops matching.
+#: line back simply stops matching. The control is a POST form when one click can write the block, and
+#: a LINK to the extension's own page when the block cannot pass that page's schema from defaults —
+#: either way it is ONE control and the row carries no field.
 _ADD_ROW = re.compile(
     r'<li class="st-add-item">\s*'
     r'<div class="st-add-name"([^>]*)>([^<]+)</div>\s*'
     r'<span class="st-add-sr"[^>]*>([^<]*)</span>\s*'
-    r'(<form class="st-swform" method="post" action="[^"]*">.*?</form>)\s*'
+    r'(<form class="st-swform" method="post" action="[^"]*">.*?</form>|<a class="st-sw"[^>]*>.*?</a>)\s*'
     r'</li>', re.DOTALL)
 
 
@@ -74,7 +76,7 @@ def _add_body(page: str) -> str:
 
 
 def _add_rows(page: str) -> list[dict]:
-    """Every add row: its name, its name-div attributes, its description copy and its form."""
+    """Every add row: its name, its name-div attributes, its description copy and its control."""
     return [{"attrs": a, "name": n, "description": d, "form": f}
             for a, n, d, f in _ADD_ROW.findall(_add_body(page))]
 
@@ -192,8 +194,11 @@ async def test_the_add_rows_carry_no_state_word(node_dir, node_data):  # noqa: F
     assert "Load off" not in body and "Not configured" not in body, "the state word is back"
     for row in _add_rows(page):
         assert ">Load off<" not in row["form"] and ">Not configured<" not in row["form"]
-        # the icon-only control is STILL named (title + aria-label), so nothing became anonymous
-        assert 'aria-label="' in row["form"] and 'title="' in row["form"], row["form"]
+        # the control is still NAMED, and still never by a state: an extension's add control says
+        # "Add" in its own visible word (it writes a block and enables nothing), a plugin's stays
+        # icon-only and is named by title + aria-label
+        assert 'title="' in row["form"], row["form"]
+        assert 'aria-label="' in row["form"] or ">Add<" in row["form"], row["form"]
 
 
 # ==================================== 5. adding writes exactly that block, everything else identical

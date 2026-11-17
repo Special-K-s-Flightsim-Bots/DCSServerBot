@@ -224,10 +224,15 @@ async def test_offline_runs_when_the_question_is_accepted(admin_commands, monkey
 
 class _UpgradeCog(_Cog):
     """The slice ``/node upgrade`` touches: this node, its servers, the two group runners and the two ways a
-    question can be asked (its own, and ``run_on_nodes``')."""
+    question can be asked (its own, and the shared node-lifecycle one)."""
 
     def __init__(self, *, is_major: bool, servers: tuple = ()):
+        from plugins.admin.commands import Admin
+
         super().__init__(['master-node'])
+        # the shared node-lifecycle question is an Admin method: bind the real one, so the count of
+        # questions asked is the count the command really asks
+        self._confirm_node_operation = types.MethodType(Admin._confirm_node_operation, self)
         self.bot = types.SimpleNamespace(servers={server.name: server for server in servers})
         self.upgraded: list = []
         self.offlines: list = []
@@ -256,8 +261,8 @@ class _UpgradeCog(_Cog):
 @pytest.mark.asyncio
 async def test_a_plain_upgrade_still_asks(admin_commands, monkeypatch):
     """This is the case the confirmation had been removed from: a cluster upgrade that is not major, with
-    nothing else asking. ``run_on_nodes`` owns the question there, so ``confirm`` must reach it as True —
-    passing False unconditionally is exactly what left the operator with no question at all."""
+    nothing else asking. The shared node-lifecycle question owns that case, so it must be asked — passing
+    ``confirm=False`` unconditionally is exactly what left the operator with no question at all."""
     asked = []
 
     async def declined(interaction, question, **kwargs):
@@ -267,11 +272,11 @@ async def test_a_plain_upgrade_still_asks(admin_commands, monkeypatch):
     monkeypatch.setattr(admin_commands.utils, 'get_ephemeral', lambda interaction: True)
     monkeypatch.setattr(admin_commands.utils, 'yn_question', declined)
     cog = _UpgradeCog(is_major=False)
-    cog.run_on_nodes = types.MethodType(admin_commands.Admin.run_on_nodes, cog)
     await admin_commands.Admin.upgrade.callback(cog, _Interaction(), None)
     assert len(asked) == 1, 'a plain upgrade must still ask'
     assert 'sure' in asked[0] or 'really' in asked[0]
-    assert cog.upgraded == [], 'and nothing may be upgraded when it is declined'
+    assert cog.offlines == [], 'and nothing may be upgraded when it is declined'
+    assert cog.upgraded == [], 'no upgrade runs when it is declined'
 
 
 @pytest.mark.asyncio
@@ -285,15 +290,15 @@ async def test_an_accepted_upgrade_asks_once_and_then_upgrades(admin_commands, m
     monkeypatch.setattr(admin_commands.utils, 'get_ephemeral', lambda interaction: True)
     monkeypatch.setattr(admin_commands.utils, 'yn_question', accepted)
     cog = _UpgradeCog(is_major=False)
-    cog.run_on_nodes = types.MethodType(admin_commands.Admin.run_on_nodes, cog)
     await admin_commands.Admin.upgrade.callback(cog, _Interaction(), None)
     assert len(asked) == 1
-    assert cog.upgraded == [True]
+    assert cog.offlines == [('upgrade_node', {'force': False})], \
+        'the upgrade reaches the action with force off by default'
 
 
 @pytest.mark.asyncio
 async def test_a_major_upgrade_with_servers_is_asked_once_not_twice(admin_commands, monkeypatch):
-    """The major path asks ONE combined question (offline + upgrade) and then passes confirm=False. That is the
+    """The major path asks ONE combined question (offline + upgrade) and then does not ask again. That is the
     only case where a second question is wrong — and it must not become a case where there is none."""
     asked = []
 
@@ -305,9 +310,8 @@ async def test_a_major_upgrade_with_servers_is_asked_once_not_twice(admin_comman
     monkeypatch.setattr(admin_commands.utils, 'yn_question', accepted)
     running = types.SimpleNamespace(name='WW2', status=Status.RUNNING)
     cog = _UpgradeCog(is_major=True, servers=(running,))
-    cog.run_on_nodes = types.MethodType(admin_commands.Admin.run_on_nodes, cog)
     await admin_commands.Admin.upgrade.callback(cog, _Interaction(), None)
     assert len(asked) == 1, 'one question for the offline step and the upgrade together'
     assert 'MAJOR' in asked[0]
-    assert cog.offlines == [('take_node_offline', {'maintenance': True})]
-    assert cog.upgraded == [True]
+    assert cog.offlines == [('take_node_offline', {'maintenance': True}),
+                            ('upgrade_node', {'force': False})]

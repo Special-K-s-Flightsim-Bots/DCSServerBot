@@ -21,8 +21,9 @@ Pinned here over the REAL app:
 * a value set there saves and reopens;
 * a no-op save is BYTE-IDENTICAL;
 * a value-carrying removal still needs the render's acknowledgement;
-* the instance-tab view of that extension is exactly what the report claims (a tab per block that
-  EXISTS, none for an instance that does not override — the operator never sees one block twice);
+* the instance-tab view of that extension is exactly what the report claims (a tab per instance of the
+  node; an instance that does not override shows the form its save would create, so the operator is
+  never shown one block twice);
 * the reverse (a node-scoped extension's instance block) still renders its instance partial.
 """
 from __future__ import annotations
@@ -242,9 +243,10 @@ async def test_a_removal_on_the_node_wide_block_needs_its_acknowledgement(logged
 @pytest.mark.asyncio
 async def test_the_node_wide_block_and_its_instance_override_are_two_tabs(logged_dir, node_data):  # noqa: F811
     """THE INHERITANCE BEHAVIOUR CHOSEN. An instance-scoped extension configured at the NODE level shows
-    ONE node-wide tab (its per-node default) and, ADDITIONALLY, one tab per instance that ALSO configures
-    it (an override). An instance that does NOT configure it gets NO tab — the operator is never shown
-    the same block twice, and the node-wide default is visible once, editable once."""
+    ONE node-wide tab (its per-node default) and, ADDITIONALLY, one tab per instance of that node — an
+    instance that already configures it shows ITS block, and one that does not shows the form that
+    CREATES it. An instance is never shown twice, and the node-wide default is visible once.
+    """
     app = _app(logged_dir)
     async with asgi_client(app) as client:
         await _login(client, "staff")
@@ -252,14 +254,19 @@ async def test_the_node_wide_block_and_its_instance_override_are_two_tabs(logged
         node_tab = await _get(client, _url("dcs-a-01", "LogAnalyser", 0))
         syria_tab = await _get(client, _url("dcs-a-01", "LogAnalyser", 1))
         b = await _get(client, _url("dcs-b-01", "LogAnalyser"))
- # dcs-a-01: node-wide + Syria (which overrides) — two tabs, no Caucasus/Nevada
-    assert _tab_labels(a) == ["dcs-a-01", "dcs-a-01 + Syria"], _tab_labels(a)
+ # dcs-a-01: node-wide + Syria (which overrides) + Caucasus (which does not configure it yet)
+    assert _tab_labels(a) == ["dcs-a-01", "dcs-a-01 + Syria", "dcs-a-01 + Caucasus"], _tab_labels(a)
  # the node-wide tab carries the NODE-wide path; the instance tab the INSTANCE path — never swapped
     assert "f.dcs-a-01.extensions.LogAnalyser.enabled" in _field_names(node_tab)
     assert "f.dcs-a-01.instances.Syria.extensions.LogAnalyser.enabled" in _field_names(syria_tab)
     assert "f.dcs-a-01.instances.Syria.extensions.LogAnalyser.enabled" not in _field_names(node_tab)
- # dcs-b-01 configures LogAnalyser NOWHERE -> no block -> read-only, honest reason
+ # dcs-b-01 configures LogAnalyser NOWHERE: its instance tab renders the form and says it CREATES it
     assert "f.dcs-b-01.extensions.LogAnalyser" not in _field_names(b)
+    assert html.unescape(node_settings_page.NODE_EXTENSION_CREATE_NOTE) in html.unescape(b)
+    # every setting it could carry is reachable (the picker is how an absent optional is added), and
+    # the page is NOT read-only — the save is the door that creates the block
+    assert "enabled" in _picker_options(b)
+    assert "<span class=\"notice-msg\">" + node_settings_page.NODE_EXTENSION_UNCONFIGURED not in b
 
 
 # ============================================== 6. the reverse: a node-scoped extension on an instance

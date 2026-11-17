@@ -24,6 +24,7 @@ instance switch still being a POST, and the fallback path still writing the flag
 """
 from __future__ import annotations
 
+import asyncio
 import html
 import types
 
@@ -256,14 +257,16 @@ async def test_a_crafted_enable_or_disable_on_an_incomplete_card_is_refused(node
 @pytest.mark.asyncio
 async def test_add_seeds_the_dicts_declared_defaults(node_dir, node_data):  # noqa: F811
     """The ``+ Add`` control writes the block seeded from the extension's OWN dict ``default`` values
-    (never an invented value, never a schema ``example``), so one click yields a card whose values are
-    editable in place: SRS's node dict declares ``installation``, ``beta`` and ``autoupdate``.
+    (never an invented value, never a schema ``example``) PLUS ``enabled: false`` — an add writes a
+    block and enables nothing, and an absent flag reads as ON. SRS's node dict declares
+    ``installation``, ``beta`` and ``autoupdate``.
     """
     from core.utils import str_to_class
 
     declared = str_to_class("extensions.srs.extension.SRS").NODE_CONFIG_DICT
     expected = {key: spec["default"] for key, spec in declared.items() if "default" in spec}
     assert expected, "SRS declares no defaults to seed"
+    expected["enabled"] = False
 
     _write_nodes(node_dir, _nodes(srs_node_block=False))
     app = _app(node_dir)
@@ -280,11 +283,10 @@ async def test_add_seeds_the_dicts_declared_defaults(node_dir, node_data):  # no
 
 
 @pytest.mark.asyncio
-async def test_an_add_whose_required_key_has_no_default_is_refused_and_names_it(
-        node_dir, node_data):  # noqa: F811
-    """GitHub's ``repo`` declares no default, so a block created from the card could never be valid:
-    the ADD is REFUSED before the patch, the file stays byte-identical, and the sentence names the key
-    and the way out (Expert Mode) instead of letting the schema refusal speak in pykwalify's words.
+async def test_an_add_whose_required_key_has_no_default_is_a_LINK_not_a_click(node_dir, node_data):  # noqa: F811
+    """DKS's ``key`` declares no default, so a block created from the bare seed could never be valid:
+    its row is a LINK to the extension's page (where the key is typed), and a crafted ``add`` is
+    REFUSED before the patch with the file byte-identical — in OUR words, never pykwalify's sentence.
     """
     _write_nodes(node_dir, _nodes())
     path = node_dir / "nodes.yaml"
@@ -293,6 +295,10 @@ async def test_an_add_whose_required_key_has_no_default_is_refused_and_names_it(
     async with asgi_client(app) as client:
         await _login(client, "staff")
         page = await _get(client, _page_url("dcs-a-01", tab=1))
+        row = _add_option_form(page, "DKS")
+        assert row == {}, "DKS is offered as a one-click write"
+        assert "/nodes/dcs-a-01/extensions/DKS?scope=instance:Syria" in page, \
+            "DKS is not a link to its own page for this instance"
         reply = await _switch(client, "dcs-a-01", 1, "DKS",
                               node_settings_page.NODE_PAGE_EXTENSION_ADD,
                               node_settings_page.NODE_PAGE_SCOPE_INSTANCE_PREFIX + "Syria", page)
@@ -300,8 +306,8 @@ async def test_an_add_whose_required_key_has_no_default_is_refused_and_names_it(
     assert reply.status_code == 303, reply.text
     assert path.read_text(encoding="utf-8") == before, "a refused add wrote to the file"
     body = html.unescape(shown)
-    assert "no default value is declared for key" in body, "the refusal is not stated"
-    assert "Expert Mode" in body, "the refusal does not name the way out"
+    assert "was not added" in body, "the refusal is not stated"
+    assert "Cannot find required key" not in body, "the raw schema text reached the operator"
 
 
 # ============================================================ 5. the live switch and its fallback
@@ -309,18 +315,25 @@ async def test_an_add_whose_required_key_has_no_default_is_refused_and_names_it(
 @pytest.mark.asyncio
 async def test_the_live_enable_calls_the_action_with_the_pair_read_from_the_file(
         node_dir, node_data, monkeypatch):  # noqa: F811
-    """When ``enable_extension`` is available the switch does NOT patch the file: it calls the action
-    with the instance's SERVER NAME and the ``{"Node", "Instance"}`` pair read from ``nodes.yaml`` (the
-    process's ``locals`` are stale until its node restarts, which is what that parameter exists for),
-    and renders ``result.message`` in the console's one-shot notice — success and refusal alike.
+    """When ``enable_extension`` is available the switch does NOT patch the file: it hands the action to
+    a BACKGROUND job (:mod:`services.webservice.extension_switch`) with the instance's SERVER NAME and
+    the ``{"Node", "Instance"}`` pair read from ``nodes.yaml`` (the process's ``locals`` are stale until
+    its node restarts, which is what that parameter exists for).
+
+    The POST answers at once — the action can be a minutes-long install — so the page shows the "turning
+    on" sentence and the card shows the switch in flight; the action's own ``result.message`` arrives as
+    the notice on the render AFTER the job finishes, which is what the second GET below asserts once the
+    job is released.
     """
     _write_nodes(node_dir, _nodes(srs_installation=node_dir.as_posix()))
     path = node_dir / "nodes.yaml"
     before = path.read_text(encoding="utf-8")
     calls: list[dict] = []
+    gate = asyncio.Event()
 
     async def fake_call(qualname, ctx, **params):
         calls.append({"qualname": qualname, "params": params})
+        await gate.wait()                       # held open like a slow install
         return types.SimpleNamespace(success=True, message="live-action-message")
 
     monkeypatch.setattr(node_settings_page, "action_available", lambda _q: True)
@@ -334,6 +347,11 @@ async def test_the_live_enable_calls_the_action_with_the_pair_read_from_the_file
         reply = await _switch(client, "dcs-a-01", 1, "SRS",
                               node_settings_page.NODE_PAGE_EXTENSION_ENABLE,
                               node_settings_page.NODE_PAGE_SCOPE_INSTANCE_PREFIX + "Syria", page)
+        # ANSWERED WHILE THE ACTION STILL RUNS — the switch is a background job now
+        working = await _get(client, _page_url("dcs-a-01", tab=1))
+        assert "data-switch-busy" in working, "the card does not show the switch in flight"
+        gate.set()
+        await asyncio.sleep(0.05)
         shown = await _get(client, _page_url("dcs-a-01", tab=1))
     assert reply.status_code == 303, reply.text
     assert len(calls) == 1, calls
@@ -346,6 +364,7 @@ async def test_the_live_enable_calls_the_action_with_the_pair_read_from_the_file
     assert params["config"]["Instance"]["port"] == 5002
     # the action writes the flag, so the console patches nothing
     assert path.read_text(encoding="utf-8") == before, "the live branch patched the file"
+    # the action's own sentence arrives as the notice on the render AFTER the job finished
     assert "live-action-message" in html.unescape(shown), "result.message is not the notice"
 
 

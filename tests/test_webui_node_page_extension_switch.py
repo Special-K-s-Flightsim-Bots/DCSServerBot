@@ -534,8 +534,9 @@ async def test_a_switch_naming_an_instance_scoped_extension_at_the_node_wide_sco
         node_dir, node_data):  # noqa: F811
     """THE WIDENING. ``Persistence`` is instance-scoped, and the runtime HONOURS a node-level block for
     it (``core/data/impl/serverimpl.py`` merges the node-level block UNDER the instance-level one, for
-    any name). So a node-wide switch may name it: the empty block is written to the node's OWN
-    ``extensions`` map, and every other node, scope and block is byte-for-byte what it was."""
+    any name). So a node-wide switch may name it: the block is written to the node's OWN ``extensions``
+    map — with NO seeded values (that scope's dict declares none) and ``enabled: false``, because an add
+    writes and never enables — and every other node, scope and block is byte-for-byte what it was."""
     path = node_dir / "nodes.yaml"
     before = path.read_text(encoding="utf-8")
     app = _app(node_dir)
@@ -547,7 +548,9 @@ async def test_a_switch_naming_an_instance_scoped_extension_at_the_node_wide_sco
                               node_settings_page.NODE_PAGE_SCOPE_DEFAULT, page)
     assert reply.status_code == 303, reply.text
     after = path.read_text(encoding="utf-8")
-    assert "Persistence: {}" in _block(after, "dcs-a-01"), "the node-wide block was not written"
+    written = _extension_block(after, "dcs-a-01", "Persistence")
+    assert written, "the node-wide block was not written"
+    assert "enabled: false" in written, f"an add wrote an enabled block: {written}"
     assert _extension_block(after, "dcs-a-01", "RealWeather") == \
         _extension_block(before, "dcs-a-01", "RealWeather")
     assert _block(after, "dcs-b-01") == _block(before, "dcs-b-01")
@@ -647,10 +650,16 @@ def test_the_add_helper_refuses_a_non_mapping_block_slot():
         node_settings_page._add_extension_block(doc_mid, ("n", "extensions", "SRS"))
     assert doc_mid["n"]["extensions"] == 5
 
-    # the helper's NORMAL job still works: an absent slot is created empty, intermediates included
+    # the helper's NORMAL job still works: an absent slot is created, intermediates included, and the
+    # created block is SWITCHED OFF (``enabled: false`` — an absent key means ON to the loader)
     doc_new = CommentedMap({"n": CommentedMap()})
     node_settings_page._add_extension_block(doc_new, ("n", "extensions", "SRS"))
-    assert doc_new["n"]["extensions"]["SRS"] == {}
+    assert doc_new["n"]["extensions"]["SRS"] == {"enabled": False}
+    # …unless the scope's schema does not declare the flag: then NO key is invented
+    doc_bare = CommentedMap({"n": CommentedMap()})
+    node_settings_page._add_extension_block(doc_bare, ("n", "extensions", "SRS"), {"port": 5002},
+                                           enabled=None)
+    assert doc_bare["n"]["extensions"]["SRS"] == {"port": 5002}
 
 
 @pytest.mark.asyncio

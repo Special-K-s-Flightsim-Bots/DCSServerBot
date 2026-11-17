@@ -27,7 +27,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from .. import i18n, site_reads
+from .. import site_reads
 from ..readmodels.views import PAGE_PARAM, normalise_page
 from ..site_pages import (NAV_PATHS, SEARCH_JSON_PATH, player_url, pool, render_site_page,
                           resolve_site, site_url)

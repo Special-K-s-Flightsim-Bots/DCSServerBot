@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
-import inspect
 import json
 import luadata
 import os
-import pkgutil
 import psutil
 import queue
 import shutil
@@ -28,7 +25,9 @@ from core import utils, Server
 from core.const import MAX_SAFE_INTEGER
 from core.extension import InstallableExtension
 from core.data.dataobject import DataObjectFactory
-from core.data.const import Status, Channel, Coalition
+from core.data.const import (MISSION_DELETE_LOADING_REFUSAL, MISSION_LIST_BUSY_REFUSAL,
+                             MISSION_LIST_BUSY_STATES, Status, Channel, Coalition)
+
 from core.data.node import UploadStatus
 from core.data.resource_window import ResourceWindows
 from core.extension import Extension, InstallException
@@ -61,7 +60,12 @@ DEFAULT_EXTENSIONS = {
     "Cloud": {}
 }
 
-__all__ = ["ServerImpl", "RenameError", "PortConflictError", "ResourceInUseError", "ServerAlreadyRunningError"]
+#: The busy windows (``MISSION_LIST_BUSY_STATES``) and the one refusal wording
+#: (``MISSION_LIST_BUSY_REFUSAL``) live in :mod:`core.data.const`, imported above and re-exported in
+#: ``__all__`` for the callers that name them from this module.
+
+__all__ = ["ServerImpl", "RenameError", "PortConflictError", "ResourceInUseError", "ServerAlreadyRunningError",
+           "MISSION_LIST_BUSY_STATES", "MISSION_LIST_BUSY_REFUSAL", "MISSION_DELETE_LOADING_REFUSAL"]
 
 
 class ServerAlreadyRunningError(Exception):
@@ -177,6 +181,23 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
     # ----------------------------------------------------------------------
     # Core handlers
     # ----------------------------------------------------------------------
+    def _schedule(self, coro, *, what: str, path: str) -> None:
+        """Run one mission write on the bot's loop, reporting a refusal instead of raising."""
+        asyncio.run_coroutine_threadsafe(self._apply(coro, what=what, path=path), self.loop)
+
+    async def _apply(self, coro, *, what: str, path: str) -> None:
+        """Await *coro* and answer a refusal with one log line — never with a raise.
+
+        A refusal means the file event could not be applied while the server was busy. It must not
+        reach the observer: a raise in a watchdog callback kills the subscription, and only a
+        restart restores it. A raise inside a scheduled future is never seen at all.
+        """
+        try:
+            await coro
+        except RuntimeError as ex:
+            self.log.info("Autoscan: the %s of %s on server %s was refused: %s",
+                          what, path, self.server.name, ex)
+
     def _handle_created(self, path: str | bytes) -> None:
         path = os.fsdecode(os.path.normpath(path))
         if not self._is_valid_mission_file(path):
@@ -202,7 +223,7 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
                 return
             idx = missions.index(path) + 1
             self.deleted[path] = idx
-        asyncio.run_coroutine_threadsafe(self.server.deleteMission(idx), self.loop)
+        self._schedule(self.server.deleteMission(idx), what="delete", path=path)
         self.log.info(f"=> Mission {os.path.basename(path)[:-4]} deleted from server {self.server.name}.")
 
     # ----------------------------------------------------------------------
@@ -232,9 +253,9 @@ class MissionFileSystemEventHandler(FileSystemEventHandler):
         with self._lock:
             idx = self.deleted.pop(path, None)
         if idx is not None:
-            asyncio.run_coroutine_threadsafe(self.server.addMission(path, idx=idx), self.loop)
+            self._schedule(self.server.addMission(path, idx=idx), what="add", path=path)
         else:
-            asyncio.run_coroutine_threadsafe(self.server.addMission(path), self.loop)
+            self._schedule(self.server.addMission(path), what="add", path=path)
         self.log.info(f"=> New mission {os.path.basename(path)[:-4]} added to server {self.server.name}.")
 
     def _wait_for_stable_file(self, path: str) -> bool:
@@ -1260,6 +1281,19 @@ class ServerImpl(Server):
                 )
             return self.process is not None
 
+    async def _mission_write_refused(self) -> bool:
+        """Whether a mission-list write must be refused right now.
+
+        The file belongs to DCS while its PROCESS is up: it holds ``net.missionlist`` in memory and
+        rewrites ``serverSettings.lua`` itself on load and on its way out. ``Status.LOADING`` also
+        covers the window in which a scheduler marks a server LOADING *before* it launches DCS, where
+        the process is not up yet and the pointer must still be written — so the state alone is not
+        the question, the process is.
+        """
+        if self.status not in MISSION_LIST_BUSY_STATES:
+            return False
+        return await self.is_running()
+
     async def _terminate(self) -> None:
         try:
             if not self.process or not self.process.is_running():
@@ -1421,6 +1455,10 @@ class ServerImpl(Server):
             missions_dir: str | None = None,
             force: bool = False
     ) -> UploadStatus:
+        if await self._mission_write_refused():
+            # nothing is scanned, nothing is written and ``addMission`` is never reached: a file
+            # landing now would be recorded in a settings write DCS overwrites itself.
+            return UploadStatus.BUSY
         if not missions_dir:
             missions_dir = self.instance.missions_dir
         filename = os.path.normpath(os.path.join(missions_dir, filename))
@@ -1522,9 +1560,12 @@ class ServerImpl(Server):
             mission_id = 1
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs({"command": "setStartIndex", "id": mission_id})
-        # The pointer is written in BOTH branches: the DCS command moves ``net.missionlist`` in the
-        # running process, but the bot's own cache — what ``getStartIndex`` and the mission list read
-        # — would otherwise keep the old index until a restart.
+        elif await self._mission_write_refused():
+            # the pointer write below lands in DCS's own copy of ``serverSettings.lua`` while it loads
+            raise RuntimeError(MISSION_LIST_BUSY_REFUSAL)
+        # The pointer is written in every branch that is not refused: the DCS command moves
+        # ``net.missionlist`` in the running process, but the bot's own cache — what ``getStartIndex``
+        # and the mission list read — would otherwise keep the old index until a restart.
         self.settings['listStartIndex'] = mission_id
 
     @override
@@ -1563,6 +1604,11 @@ class ServerImpl(Server):
     @override
     async def addMission(self, path: str, *, idx: int = -1, autostart: bool = False) -> list[str]:
         path = os.path.normpath(path)
+        # The WHOLE body is a mission-list write: the already-in-list branch moves the pointer and the
+        # ``mission in missions`` branch delegates to ``replaceMission``, so the guard sits ahead of
+        # both reads instead of inside the file branch only.
+        if await self._mission_write_refused():
+            raise RuntimeError(MISSION_LIST_BUSY_REFUSAL)
         # the OTHER spelling of this mission — its primary and its ``.dcssb`` copy are ONE mission. The
         # marker is a path COMPONENT (``logical_mission_path``), never a substring, so a directory whose
         # NAME merely contains ``.dcssb`` (``foo.dcssbbar``) is not mistaken for a copy.
@@ -1624,6 +1670,8 @@ class ServerImpl(Server):
             data = await self.send_to_dcs_sync({"command": "deleteMission", "id": mission_id})
             self.settings['missionList'] = [os.path.normpath(x) for x in data['missionList']]
         else:
+            if await self._mission_write_refused():
+                raise RuntimeError(MISSION_LIST_BUSY_REFUSAL)
             missions = self.settings['missionList']
             missions.pop(mission_id - 1)
             self.settings['missionList'] = missions
@@ -1651,12 +1699,16 @@ class ServerImpl(Server):
         """Replace ``self.settings['missionList']`` with *missions* in ONE write.
 
         The ONE writer of the mission ORDER. It is **offline only**: while the DCS process is up
-        (``{LOADING, STOPPED, PAUSED, RUNNING}``) it holds ``net.missionlist`` — the list AND the
-        index — in memory and re-syncs the file from its own copy on every load and after every
-        add/delete reply (``_load_mission_list`` / ``:1245`` / ``:1262``), so a file write made then
-        is SILENTLY REVERTED. The file is authoritative only in
-        ``{UNREGISTERED, SHUTDOWN, SHUTTING_DOWN}``; anywhere else this REFUSES (the method is the
-        last line, not the first — callers gate the control too).
+        (``LOADING`` / ``STOPPED`` / ``PAUSED`` / ``RUNNING`` with a process) it holds
+        ``net.missionlist`` — the list AND the index — in memory and re-syncs the file from its own copy
+        on every load and after every add/delete reply (``_load_mission_list`` / ``:1245`` / ``:1262``),
+        so a file write made then is SILENTLY REVERTED. The file is authoritative only in
+        ``{UNREGISTERED, SHUTDOWN}``; ``SHUTTING_DOWN`` with the process still up is refused too
+        (:data:`MISSION_LIST_BUSY_STATES` via :meth:`_mission_write_refused`), because DCS writes
+        ``serverSettings.lua`` itself on its way out and a write made then races that copy. A
+        ``LOADING`` / ``SHUTTING_DOWN`` server whose process has already exited is writable.
+        Anywhere else this REFUSES (the method is the last line, not the first — callers gate the
+        control too).
 
         It validates before it writes, so nobody can put a wrong list in by calling it:
 
@@ -1674,7 +1726,9 @@ class ServerImpl(Server):
         ``.dcssb`` file DCS reports as current are recognised as one mission), falling back to 1 (or
         0 for an empty list). Both ``listStartIndex`` and ``current`` are set.
         """
-        if self.status in [Status.LOADING, Status.STOPPED, Status.PAUSED, Status.RUNNING]:
+        if await self._mission_write_refused():
+            raise RuntimeError(MISSION_LIST_BUSY_REFUSAL)
+        if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             raise RuntimeError("The mission list can only be changed while the server is not "
                                "running.")
 
@@ -1721,6 +1775,8 @@ class ServerImpl(Server):
         if self.status in [Status.STOPPED, Status.PAUSED, Status.RUNNING]:
             await self.send_to_dcs_sync({"command": "replaceMission", "index": mission_id, "path": path})
         else:
+            if await self._mission_write_refused():
+                raise RuntimeError(MISSION_LIST_BUSY_REFUSAL)
             missions: list[str] = self.settings['missionList']
             missions[mission_id - 1] = path
             self.settings['missionList'] = missions

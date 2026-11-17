@@ -16,7 +16,8 @@ Pinned here, over the REAL app:
 * a hand-written path is its own CHECKED row, so an untouched page can never drop it — in either shape;
 * a typed path is stored verbatim;
 * an untouched page saves the document byte-identically;
-* the node-wide block AND an instance block both render the control;
+* the node-wide block AND an instance block both render the control (the node scope is the page's
+  FIRST tab, then one per instance — so ``dcs-a-01``'s Syria block is ``?tab=1``);
 * every OTHER field renders exactly as before (the same extension's ``timezone`` and another
   extension's boolean pair), so the change is one field's control and nothing else.
 """
@@ -168,7 +169,7 @@ async def test_the_remote_node_says_its_files_cannot_be_listed_here(presets_dir,
     async with asgi_client(app) as client:
         await _login(client, "staff")
         remote = await _get(client, _url("dcs-b-01"))
-        master = await _get(client, _url("dcs-a-01", tab=0))
+        master = await _get(client, _url("dcs-a-01", tab=1))
     assert "not the master" in remote, "a remote node's field does not say its files cannot be listed"
     assert "not the master" not in master, "the master's own field claims its files cannot be listed"
     for page in (remote, master):
@@ -194,7 +195,7 @@ async def test_the_field_offers_a_row_per_known_file_plus_a_free_text_row(preset
     app = _app(presets_dir)
     async with asgi_client(app) as client:
         await _login(client, "staff")
-        page = await _get(client, _url("dcs-a-01", tab=0))
+        page = await _get(client, _url("dcs-a-01", tab=1))
     rows = _rows(page, INSTANCE_PATH)
     labels = [label for label, _checked in rows]
     assert labels[0] == "config/presets.yaml", labels
@@ -215,7 +216,7 @@ async def test_the_setting_is_offered_even_when_the_block_does_not_carry_it(pres
     app = _app(presets_dir)
     async with asgi_client(app) as client:
         await _login(client, "staff")
-        page = await _get(client, _url("dcs-a-01", tab=0))
+        page = await _get(client, _url("dcs-a-01", tab=1))
     rows = _rows(page, INSTANCE_PATH)
     assert rows, "the presets control is not rendered on a block that does not set it"
     assert not any(checked for _label, checked in rows), "an unset field rendered a checked row"
@@ -229,7 +230,7 @@ async def test_the_setting_is_offered_even_when_the_block_does_not_carry_it(pres
 async def test_one_checked_file_saves_a_string(presets_dir, presets_data):  # noqa: F811
     path: Path = presets_dir / "nodes.yaml"
     app = _app(presets_dir)
-    url = _url("dcs-a-01", tab=0)
+    url = _url("dcs-a-01", tab=1)
     async with asgi_client(app) as client:
         await _login(client, "staff")
         page = await _get(client, url)
@@ -244,7 +245,7 @@ async def test_one_checked_file_saves_a_string(presets_dir, presets_data):  # no
 async def test_two_checked_files_save_a_list_in_the_order_shown(presets_dir, presets_data):  # noqa: F811
     path: Path = presets_dir / "nodes.yaml"
     app = _app(presets_dir)
-    url = _url("dcs-a-01", tab=0)
+    url = _url("dcs-a-01", tab=1)
     async with asgi_client(app) as client:
         await _login(client, "staff")
         page = await _get(client, url)
@@ -263,7 +264,7 @@ async def test_unchecking_every_file_removes_the_key(presets_dir, presets_data):
     ``presets.yaml`` in the instance's own config directory."""
     path: Path = presets_dir / "nodes.yaml"
     app = _app(presets_dir)
-    url = _url("dcs-a-01", tab=0)
+    url = _url("dcs-a-01", tab=1)
     async with asgi_client(app) as client:
         await _login(client, "staff")
         page = await _get(client, url)
@@ -281,7 +282,7 @@ async def test_a_hand_written_string_is_its_own_checked_row_and_survives(presets
     path: Path = presets_dir / "nodes.yaml"
     before = path.read_bytes()
     app = _app(presets_dir)
-    url = _url("dcs-a-01", tab=0)
+    url = _url("dcs-a-01", tab=1)
     async with asgi_client(app) as client:
         await _login(client, "staff")
         page = await _get(client, url)
@@ -318,7 +319,7 @@ async def test_a_hand_written_list_survives_an_untouched_save(presets_dir, prese
 async def test_a_path_typed_into_the_free_row_is_saved_verbatim(presets_dir, presets_data):  # noqa: F811
     path: Path = presets_dir / "nodes.yaml"
     app = _app(presets_dir)
-    url = _url("dcs-a-01", tab=0)
+    url = _url("dcs-a-01", tab=1)
     typed = "MyPresets/odd name.yaml"
     async with asgi_client(app) as client:
         await _login(client, "staff")
@@ -335,7 +336,7 @@ async def test_an_untouched_page_saves_the_document_byte_identically(presets_dir
     path: Path = presets_dir / "nodes.yaml"
     before = path.read_bytes()
     app = _app(presets_dir)
-    url = _url("dcs-a-01", tab=0)
+    url = _url("dcs-a-01", tab=1)
     async with asgi_client(app) as client:
         await _login(client, "staff")
         page = await _get(client, url)
@@ -367,7 +368,7 @@ async def test_no_other_field_renders_differently(presets_dir, presets_data):  #
     app = _app(presets_dir)
     async with asgi_client(app) as client:
         await _login(client, "staff")
-        page = await _get(client, _url("dcs-a-01", tab=0))
+        page = await _get(client, _url("dcs-a-01", tab=1))
     timezone = re.search(
         r'<input type="text" name="f\.dcs-a-01\.instances\.Syria\.extensions\.MizEdit\.timezone"', page)
     assert timezone, "another MizEdit field lost its ordinary control"

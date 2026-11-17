@@ -598,20 +598,20 @@ def _playlist_rows(playlists: list[dict], radios_by_pair: dict, *, request: Requ
         row = {
             "name": name,
             "url": playlist_url(name),
-            # the row's ONE door names what it does: the name and this glyph both open the editor
             "edit_title": {"msgid": EDIT_TITLE, "params": {"name": name}},
             "tracks": int(entry.get("tracks") or 0),
             "length": _span(entry.get("seconds")),
             "missing": int(entry.get("missing") or 0),
-            "missing_sentence": (i18n.translate(request, FACT_MISSING,
-                                                count=int(entry.get("missing") or 0))
-                                 if entry.get("missing") else ""),
+            "missing_sentence": (
+                i18n.translate(request, FACT_MISSING, count=int(entry.get("missing") or 0))
+                if entry.get("missing") else ""
+            ),
             "used": [f"{_text(pair.get('server'))} › {_text(pair.get('radio'))}" for pair in used],
             "on_air": on_air,
-            "controls": [],
+            "controls": _playlist_controls(
+                request, name, token=token, may_write=may_write, may_control=may_control, running=running
+            )
         }
-        row["controls"] = _playlist_controls(request, name, token=token, may_write=may_write,
-                                             may_control=may_control, running=running)
         rows.append(row)
     return rows
 

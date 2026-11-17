@@ -259,7 +259,9 @@ async def test_a_node_wide_write_of_an_instance_scoped_extension_round_trips(nod
         # POST-SAVE RE-READ
         again = await _get(client, _page_url("dcs-a-01"))
     after = path.read_text(encoding="utf-8")
-    assert "Persistence: {}" in _block(after, "dcs-a-01"), "the node-wide block was not written"
+    written = _block(after, "dcs-a-01")
+    assert "Persistence:" in written, "the node-wide block was not written"
+    assert "enabled: false" in written, "the add wrote an enabled block"
     # survives the re-read: a card now, and no longer an add choice
     assert _ext_card(again, "Persistence") is not None, "the written block vanished on re-read"
     assert "Persistence" not in _add_options(again), "the written extension was still offered"

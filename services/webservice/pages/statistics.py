@@ -386,10 +386,11 @@ def _axis(peak: float) -> tuple[float, float]:
     step = 10.0 * magnitude
     for factor in (1, 2, 2.5, 5, 10):
         candidate = factor * magnitude
+        if target > candidate or candidate != int(candidate):
+            continue
         # a fractional step would print an axis of 2.5s: only carry the factor that stays whole
-        if target <= candidate and candidate == int(candidate):
-            step = float(candidate)
-            break
+        step = float(candidate)
+        break
     return step * math.ceil(peak / step), step
 
 

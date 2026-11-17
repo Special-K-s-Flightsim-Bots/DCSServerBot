@@ -239,9 +239,11 @@ def test_the_stylesheet_animates_the_class_and_opts_out_of_motion():
     css = Path(actions_page.__file__).parent.parent.joinpath("static", "shell.css").read_text(
         encoding="utf-8")
     keyframes = re.findall(r"@keyframes\s+([\w-]+)", css)
-    # TWO animations: the pressed control's pulse and the music player's loading dot. Each one ships
-    # with its own reduced-motion opt-out, right below its rule.
-    assert keyframes == ["act-busy", "dot-spin"], f"the console's animations: {keyframes}"
+    # THREE animations: the pressed control's pulse, the music player's loading dot, and the extension
+    # switch's pulse while its action runs in the background. Each one ships with its own
+    # reduced-motion opt-out, right below its rule.
+    assert keyframes == ["act-busy", "dot-spin", "st-sw-pulse"], \
+        f"the console's animations: {keyframes}"
     assert re.search(r"\.act-btn\.busy[^{]*\{[^}]*animation:\s*act-busy", css), \
         "the busy class must run the keyframes"
     assert re.search(r"\.mi\.busy[^{]*\{[^}]*animation:\s*act-busy", css), \
@@ -256,6 +258,10 @@ def test_the_stylesheet_animates_the_class_and_opts_out_of_motion():
     # the loading dot is the second animation and carries the same opt-out, on its own selector
     assert re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.dot\.spin\s*"
                      r"\{\s*animation:\s*none", css), "the loading dot must opt out of motion"
+    # the extension switch's in-flight pulse is the third, with its own opt-out on its own selector
+    assert re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.st-sw\.busy\s+"
+                     r"\.bx\s*\{\s*animation:\s*none", css), \
+        "the in-flight switch must opt out of motion"
  # THE ROW MARKER IS STATIC: the row carries a marker, never a pulse.
     marker = re.search(r"td\.acts \.act-strip\.busy[^{]*\{([^}]*)\}", css)
     assert marker, "the row marker needs its own rule"

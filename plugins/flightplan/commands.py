@@ -863,8 +863,10 @@ class FlightPlan(Plugin[FlightPlanEventListener]):
 
         async with self.apool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cursor:
-                query_parts = ["SELECT fp.*, p.name as pilot_name FROM flightplan_plans fp"]
-                query_parts.append("JOIN players p ON fp.player_ucid = p.ucid")
+                query_parts = [
+                    "SELECT fp.*, p.name as pilot_name FROM flightplan_plans fp",
+                    "JOIN players p ON fp.player_ucid = p.ucid"
+                ]
                 conditions = []
                 params = []
 

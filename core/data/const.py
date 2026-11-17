@@ -8,6 +8,9 @@ __all__ = [
     "Channel",
     "PortType",
     "Port",
+    "MISSION_LIST_BUSY_STATES",
+    "MISSION_LIST_BUSY_REFUSAL",
+    "MISSION_DELETE_LOADING_REFUSAL",
 ]
 
 
@@ -96,3 +99,25 @@ class Port:
     @staticmethod
     def from_dict(data: dict) -> Any: # TODO: Self
         return Port(data['port'], PortType(data['typ']), public=data.get('public', False))
+
+
+# ══ THE MISSION LIST'S BUSY WINDOWS ══════════════════════════════════════════════════════════════
+# One home for the rule and its wording: the bot's writer refuses with them, the chat plugin gates
+# its controls with them, and the console does the same — all three import THIS object, so a wording
+# cannot drift between the doors an operator can knock on.
+
+#: The states in which DCS's own process, when it is up, holds the mission list. DCS keeps
+#: ``net.missionlist`` in memory from LOADING until it exits and writes ``serverSettings.lua`` itself
+#: while it loads and on its way out, so a bot write made then races DCS's own copy of that file. The
+#: state alone is not the refusal — the writer asks the process too, because a server marked LOADING
+#: whose DCS has not launched yet, or SHUTTING_DOWN whose process is already gone, is writable.
+MISSION_LIST_BUSY_STATES: tuple[Status, ...] = (Status.LOADING, Status.SHUTTING_DOWN)
+
+#: The sentence every surface refuses a mission-list write with, so an operator cannot tell which
+#: door refused it.
+MISSION_LIST_BUSY_REFUSAL = ("The mission list cannot be changed while the server is starting up "
+                            "or shutting down.")
+
+#: The sentence a bulk remove refuses a LOADING server with, where the list itself could still be
+#: written later but the files behind it are being read right now.
+MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."

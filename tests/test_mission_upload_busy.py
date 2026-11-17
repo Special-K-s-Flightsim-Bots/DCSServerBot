@@ -27,6 +27,7 @@ from core import Status, UploadStatus
 from core.data.impl.serverimpl import (
     MISSION_LIST_BUSY_REFUSAL as BOT_REFUSAL,
 )
+import core.data.const as core_const
 from plugins.mission.upload import MissionUploadHandler
 from plugins.restapi.commands import RestAPI
 from services.webservice.pages import actions as console_actions
@@ -47,9 +48,31 @@ BUSY_STATES = (Status.LOADING, Status.SHUTTING_DOWN)
 # ------------------------------------------------------------------------------ the one sentence
 
 def test_the_bot_the_plugin_and_the_console_refuse_with_the_same_sentence():
-    assert mission_actions.MISSION_LIST_BUSY_REFUSAL == BOT_REFUSAL
-    assert console_actions.MISSION_LIST_BUSY_REFUSAL == BOT_REFUSAL
+    """ONE object, not three equal strings: every surface imports :mod:`core.data.const`'s copy."""
+    assert mission_actions.MISSION_LIST_BUSY_REFUSAL is BOT_REFUSAL
+    assert console_actions.MISSION_LIST_BUSY_REFUSAL is BOT_REFUSAL
+    assert BOT_REFUSAL is core_const.MISSION_LIST_BUSY_REFUSAL
     assert "MISSION_LIST_BUSY_REFUSAL" in mission_actions.__all__, "the plugin re-exports the wording"
+
+
+def test_the_wording_is_defined_once_in_the_whole_source_tree():
+    """A second literal is a second place to edit: the sentence lives in ONE module, imported by all."""
+    import pathlib
+
+    sentence = "The mission list cannot be changed while the server is starting up"
+    root = pathlib.Path(__file__).parent.parent
+    holders = sorted(p.relative_to(root).as_posix()
+                     for sub in ("core", "plugins", "services")
+                     for p in (root / sub).rglob("*.py")
+                     if sentence in p.read_text(encoding="utf-8", errors="ignore"))
+    assert holders == ["core/data/const.py"], f"the refusal is written in {holders}"
+
+    deletable = "Missions cannot be removed while the server is loading."
+    holders = sorted(p.relative_to(root).as_posix()
+                     for sub in ("core", "plugins", "services")
+                     for p in (root / sub).rglob("*.py")
+                     if deletable in p.read_text(encoding="utf-8", errors="ignore"))
+    assert holders == ["core/data/const.py"], f"the bulk-remove refusal is written in {holders}"
 
 
 def test_the_refusal_names_both_states_plainly():

@@ -42,7 +42,7 @@ from core import DEFAULT_TAG, Group, ServiceProxy, ServiceRegistry, command, get
 from core.utils import configwrite
 from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import YAMLError
-from services.webservice.auth.local import BUILTIN_ROLE_NAMES, known_role_names
+from services.webservice.auth.local import known_role_names
 from services.webservice.service import WebService
 from services.webservice.session import cookie_is_secure
 from services.webservice.setup.console import MAX_PASSWORD_LENGTH, hash_password

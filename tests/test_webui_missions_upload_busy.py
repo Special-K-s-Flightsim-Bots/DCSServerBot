@@ -256,13 +256,14 @@ async def test_the_same_post_uploads_on_the_ordinary_path(config_dir, clean_regi
     assert os.path.normpath(server.configured[-1]).endswith("Inbound.miz")
 
 
-# ------------------------------------------------------------ 5. one sentence, three copies
+# ------------------------------------------------------------ 5. one sentence, one object
 
 def test_the_upload_refusal_is_the_sentence_every_surface_uses():
-    """Console, plugin and core carry one string, and the console's upload copy is that string."""
+    """Console, plugin and core name ONE string, and the console's upload copy is that same object."""
     assert SENTENCE == BOT_REFUSAL
-    assert SENTENCE == mission_actions.MISSION_LIST_BUSY_REFUSAL
-    assert SENTENCE == actions_page.MISSION_LIST_BUSY_REFUSAL
+    assert SENTENCE is mission_actions.MISSION_LIST_BUSY_REFUSAL
+    assert SENTENCE is actions_page.MISSION_LIST_BUSY_REFUSAL
+    assert actions_page.MISSIONS_UPLOAD_BUSY_REFUSAL is SENTENCE, "the upload alias is the same object"
     assert "MISSIONS_UPLOAD_BUSY_REFUSAL" in actions_page.__all__
     assert "MISSIONS_UPLOAD_STATES" in actions_page.__all__
     for busy in (Status.LOADING.name, Status.SHUTTING_DOWN.name):
