@@ -95,7 +95,9 @@ __all__ = [
     "NODE_RESTART_CAPABILITY", "NODE_SHUTDOWN_CAPABILITY", "NODE_UPGRADE_CAPABILITY",
     "NODE_OFFLINE_CAPABILITY", "NODE_ONLINE_CAPABILITY",
     "NODE_IN_SERVICE", "NODE_MAINTENANCE", "NODE_POWER_OFF", "NODE_POWER_ON",
-    "NOTE_NO_CHECK",
+    "NOTE_NO_CHECK", "NOTE_UPDATE_RUNNING",
+    "FORCE_FIELD", "FORCE_LABEL", "FORCE_HELP", "FORCE_OPTION",
+    "UPDATE_RUNNING_NOTE", "UPDATE_CHECK_UNKNOWN", "UPDATE_CHECKED_AT",
     "WriteAction", "PlayerAction", "NodeAction", "BanAction", "NodeOption", "SelectField", "SelectOption",
     "SERVER_ACTIONS", "PLAYER_ACTIONS", "NODE_ACTIONS", "BAN_ACTIONS",
     # the SERVER CREATION pair: the row-level DELETE and the page-level ADD
@@ -159,11 +161,12 @@ __all__ = [
     "MISSIONS_LOAD_CAPABILITY", "MISSIONS_UPLOAD_CAPABILITY",
     "MISSIONS_ADD_PATH", "MISSIONS_DELETE_PATH", "MISSIONS_LOAD_PATH", "MISSIONS_UPLOAD_PATH",
     "MISSIONS_REORDER_CAPABILITY", "MISSIONS_REORDER_PATH", "MISSIONS_BULK_DELETE_PATH",
-    "MISSIONS_BULK_DELETE_STATES", "MISSION_DELETE_LOADING_REFUSAL",
+    "MISSIONS_BULK_DELETE_STATES", "MISSION_DELETE_LOADING_REFUSAL", "MISSION_LIST_BUSY_REFUSAL",
     "MISSIONS_ACTIVATE_CAPABILITY", "MISSIONS_ACTIVATE_PATH", "MISSIONS_ACTIVATE_STATES",
     "MISSION_ACTIVE_LOADING_REFUSAL", "MISSIONS_ACTIVATE_SELECTION_REFUSAL",
     "MISSION_DIRECTION_FIELD", "MISSION_LIST_OFFLINE_STATES", "MISSION_LIST_OFFLINE_ONLY",
     "MISSION_ORDER_FIELD",
+    "MISSIONS_UPLOAD_STATES", "MISSIONS_UPLOAD_BUSY_REFUSAL",
     "MISSION_FIELD", "MISSION_NAME_FIELD", "MISSION_PATH_FIELD", "MISSION_FILE_FIELD",
     "MISSION_AUTOSTART_FIELD", "MISSION_LOAD_FIELD", "MISSION_DISK_FIELD",
     "MISSIONS_UPLOAD_MAX_BYTES", "mission_index_required",
@@ -330,6 +333,29 @@ NODE_MAINTENANCE = "maintenance"
 NODE_POWER_OFF = "servers-up"
 NODE_POWER_ON = "servers-down"
 NOTE_NO_CHECK = upgrade_signal.NOTE_NO_CHECK
+#: THE ROW'S WARNING while the cached DCS update check says an update IS in flight: the update has
+#: already stopped this node's servers, so the row states it before anybody presses a control. It is
+#: the cache module's OWN wording (``services/webservice/upgrade.py``), so the row and the dialog
+#: cannot describe the same fact two ways.
+NOTE_UPDATE_RUNNING = upgrade_signal.NOTE_UPDATE_RUNNING
+
+# ── the FORCE box ──────────────────────────────────────────────────────────
+#: The form field AND the action parameter of the three lifecycle controls' override — one string, so
+#: the route cannot post one thing and the action read another.
+FORCE_FIELD = "force"
+FORCE_LABEL = i18n._("Force — run it even while a DCS update is running")
+FORCE_HELP = i18n._("Off by default. An update in flight already stopped this node's servers; forcing "
+                    "this leaves them stopped and its installer running.")
+#: THE DIALOG SENTENCES the force box is explained by, one per cached state, plus the stamp that says
+#: HOW OLD the value is. Rendered as ``_sentence`` records: the dialog is the one place the cache's
+#: timestamp can be shown, and a stale answer must read as stale rather than as live.
+UPDATE_RUNNING_NOTE = i18n._("A DCS update is running on this node — its servers were stopped for it "
+                             "and stay stopped until it finishes. Ticking Force runs this operation "
+                             "anyway, leaving those servers stopped and the installer running.")
+UPDATE_CHECK_UNKNOWN = i18n._("Whether a DCS update is running on this node is not known yet: the "
+                              "background check has not answered, so nothing here claims there is "
+                              "none.")
+UPDATE_CHECKED_AT = i18n._("Last DCS update check: {when}.")
 
 PAUSE_PATH = "/actions/server/pause"
 UNPAUSE_PATH = "/actions/server/unpause"
@@ -495,6 +521,27 @@ MISSIONS_BULK_DELETE_STATES: tuple[str, ...] = (
 #: ``plugins.mission.actions.MISSION_DELETE_LOADING_REFUSAL``; the console keeps its OWN copy so the
 #: generic web surface never imports a plugin module (a test pins the two equal).
 MISSION_DELETE_LOADING_REFUSAL = "Missions cannot be removed while the server is loading."
+
+#: The sentence EVERY mission write refuses in ``LOADING`` / ``SHUTTING_DOWN`` with — the two states
+#: in which DCS writes ``serverSettings.lua`` itself, so a bot write made then races its own copy.
+#: Owned by ``core/data/impl/serverimpl.py`` (``MISSION_LIST_BUSY_REFUSAL``); the console keeps its
+#: OWN copy so the generic web surface never imports a plugin module (a test pins the copies equal).
+MISSION_LIST_BUSY_REFUSAL = ("The mission list cannot be changed while the server is starting up "
+                             "or shutting down.")
+
+#: The states an UPLOAD is accepted in: every state except ``LOADING`` and ``SHUTTING_DOWN``. DCS
+#: writes ``serverSettings.lua`` itself in both of those windows, so an upload that adds a mission to
+#: the rotation races its own copy of that file. Deliberately STRICTER than
+#: :data:`MISSION_LIST_OFFLINE_STATES`, which counts ``SHUTTING_DOWN`` as safe: that gate serves the
+#: reorder, and a reorder writes a list, not a file beside DCS's exit write.
+MISSIONS_UPLOAD_STATES: tuple[str, ...] = (
+    "UNREGISTERED", "SHUTDOWN", "STOPPED", "PAUSED", "RUNNING")
+
+#: The sentence the tab shows where it omits the upload control, and the route refuses a POST with.
+#: The SAME sentence every mission write refuses a busy server with, aliased rather than retyped so
+#: the upload's gate cannot drift from the console's other copy; a test pins it equal to the
+#: plugin's and the core's.
+MISSIONS_UPLOAD_BUSY_REFUSAL = MISSION_LIST_BUSY_REFUSAL
 
 #: THE ACTIVATE WRITE'S STATE GATE: every state EXCEPT ``LOADING``. The bot's ``setStartIndex``
 #: routes to DCS in ``{STOPPED, PAUSED, RUNNING}`` and writes the file otherwise; in ``LOADING`` the
@@ -2282,6 +2329,10 @@ class NodeAction:
     #: DCS update's version pick is filled from the node ON DEMAND, so its page loads one script of
     #: its own. Empty means the shared template, which is every other node control.
     template: str = ""
+    #: THE COMMAND'S OWN OPTION, the checkbox its dialog draws (``confirm.html`` through
+    #: :func:`node_dialog_inputs`) — the DCS update's announce box, and the FORCE box the three
+    #: lifecycle controls share (:data:`FORCE_OPTION`). ``field`` is BOTH the form field's name and
+    #: the ACTION parameter's name.
     option: NodeOption | None = None
     heading: str = ""
     tip: str = ""
@@ -2292,6 +2343,13 @@ class NodeAction:
     master_note: str = ""
     go: str = ""
     go_title: str = ""
+
+
+#: THE ONE FORCE BOX the three lifecycle controls share. ONE :class:`NodeOption` read by restart,
+#: shutdown and upgrade, so the override cannot be worded two ways on three dialogs that all mean the
+#: same thing: an update in flight owns the installation, and forcing the operation cuts it in half.
+#: Its ``field`` is the ACTION's own parameter (``force``), which is why one declaration is enough.
+FORCE_OPTION = NodeOption(field=FORCE_FIELD, label=FORCE_LABEL, default=False, help=FORCE_HELP)
 
 
 #: The NODE row's controls: **restart · shut down · upgrade** and the
@@ -2320,9 +2378,14 @@ class NodeAction:
 #: ``check=True`` so it is offered only while that cache says True (and the row says "no update check
 #: yet" while the value is unknown). See the Upgrade entry's ``detail`` and
 #: ``services/webservice/upgrade.py``.
+#:
+#: ALL THREE CARRY THE SAME FORCE BOX (:data:`FORCE_OPTION`): an action refused because a DCS update
+#: is in flight can be repeated past that guard, and the box is where the operator says so. The
+#: warnings about that update come from the SAME cached check the row is warned by
+#: (:func:`_node_note`, :func:`node_confirm_context`), never from a node call made while rendering.
 NODE_ACTIONS: tuple[NodeAction, ...] = (
     NodeAction(key="restart", capability=NODE_RESTART_CAPABILITY, qualname="restart_node",
-               path="/actions/node/restart", label=i18n._("Restart"),
+               path="/actions/node/restart", label=i18n._("Restart"), option=FORCE_OPTION,
                tip=i18n._("Restart node — every server on {node} goes down while the node restarts"),
                aria=i18n._("Restart node {node}"),
                hint=i18n._("every server on the node goes down"),
@@ -2337,7 +2400,7 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
                go=i18n._("Restart node"),
                go_title=i18n._("Restart {node} — every server on it goes down")),
     NodeAction(key="shutdown", capability=NODE_SHUTDOWN_CAPABILITY, qualname="shutdown_node",
-               path="/actions/node/shutdown", label=i18n._("Shut down"),
+               path="/actions/node/shutdown", label=i18n._("Shut down"), option=FORCE_OPTION,
                tip=i18n._("Shut down node — every server on {node} goes down and nothing brings it back"),
                aria=i18n._("Shut down node {node}"),
                hint=i18n._("every server on the node goes down, for good"),
@@ -2354,6 +2417,7 @@ NODE_ACTIONS: tuple[NodeAction, ...] = (
                go_title=i18n._("Shut down {node} — every server on it goes down")),
     NodeAction(key="upgrade", capability=NODE_UPGRADE_CAPABILITY, qualname="upgrade_node",
                path="/actions/node/upgrade", label=i18n._("Upgrade"), check=True,
+               option=FORCE_OPTION,
                tip=i18n._("Upgrade node — update DCSServerBot on {node} and restart it; every server on "
                    "it goes down"),
                aria=i18n._("Upgrade node {node}"),
@@ -3533,7 +3597,8 @@ def node_controls(request: Request, origin: str, *, tab: str = "") -> dict[str, 
                                           declares_dcs=key.casefold() in declared_dcs))
         # THE HONEST STATEMENT for a check-gated control whose value is UNKNOWN: the
         # control is NOT offered, and the row says why rather than leaving the person to guess.
-        note = _upgrade_note(key, roles, manager)
+        # The same slot carries the warning while a DCS update is in flight.
+        note = _node_note(key, roles, manager)
         # A row is kept when it has ANYTHING to render: an offered write, the unknown-check note, the
         # two log read controls, the node page link or the mods door. The reads and the two page
         # links need no plugin, so an install whose ``admin`` actions are absent still follows and
@@ -3614,6 +3679,42 @@ def _node_offered(action: NodeAction, name: str, roles: frozenset[str], manager:
     if getattr(action, "check", False) and upgrade_signal.pending(name) is not True:
         return False
     return True
+
+
+def _force_actions() -> tuple[NodeAction, ...]:
+    """The node controls that declare the FORCE box — read off the declarations, never a second list."""
+    return tuple(action for action in NODE_ACTIONS
+                 if any(option.field == FORCE_FIELD for option in dialog_options(action)))
+
+
+def _declares_force(action: NodeAction) -> bool:
+    """Whether ONE control's dialog carries the force box (:data:`FORCE_OPTION`)."""
+    return any(option.field == FORCE_FIELD for option in dialog_options(action))
+
+
+def _node_note(name: str, roles: frozenset[str], manager: bool) -> str:
+    """The row's ONE line about the node's CACHED background checks — or nothing at all.
+
+    Two statements share the slot, in this order:
+
+    * **a DCS update is running** (:data:`NOTE_UPDATE_RUNNING`), from the cached in-flight check.
+      It comes FIRST because it describes something that already happened to the node — its servers
+      were stopped for the update — and it is the fact a person about to press a lifecycle control
+      has to read. Gated by the same predicates the controls themselves carry, so a caller who could
+      not be offered one of them is told nothing about the node's installation;
+    * **no update check yet** (:data:`NOTE_NO_CHECK`), the Upgrade gate's own honest unknown
+      (:func:`_upgrade_note`), unchanged.
+
+    Both are dict lookups: nothing here asks a node, and an UNKNOWN in-flight value carries NO line —
+    the row does not claim an update is running, and it does not claim there is none either; the
+    dialog the click opens is where the unknown state is stated in words.
+    """
+    if upgrade_signal.progress_running(name) is True \
+            and any(permissions.allows(action.capability, roles, manager=manager)
+                    and action_available(action.qualname)
+                    for action in _force_actions()):
+        return NOTE_UPDATE_RUNNING
+    return _upgrade_note(name, roles, manager)
 
 
 def _upgrade_note(name: str, roles: frozenset[str], manager: bool) -> str:
@@ -5540,7 +5641,11 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
       makes this page a form rather than a yes/no. The dialog a POST that skipped it is refused
       against is still this one (``action.confirm``), and for the pair's non-destructive half it is a
       form that runs the operation directly — the mockup's own rule (offline confirms, online does
-      not).
+      not);
+    * a control carrying the FORCE box (restart, shutdown, upgrade) states the CACHED in-flight DCS
+      update in its detail notes: this node's servers are stopped for an update that is still
+      running, and forcing the operation leaves them that way. The value and its timestamp come from
+      ``services/webservice/upgrade.py`` — a dict lookup, never a node call.
 
     The warning is assembled HERE with :func:`html.escape`, as its two siblings' are: the node name
     is config data and the copy must not be able to inject markup. A node action with NO warning
@@ -5568,6 +5673,20 @@ def node_confirm_context(request: Request, action: NodeAction, name: str, node: 
             # field the browser sent, and it is present only for a check-gated control.
             detail_notes.append(_sentence(i18n._("Last update check: {when}."),
                                           when=_checked_text(when)))
+    if _declares_force(action):
+        # THE IN-FLIGHT DCS UPDATE, from the SAME cache the row is warned by — a dict lookup, never a
+        # node call. Three readings of one value, and each says which it is: an update IS running
+        # (what the force box would cut in half), the value is UNKNOWN (so nothing here claims there
+        # is none), and — whenever the poller has answered at all — WHEN it answered, so the reader
+        # never mistakes a cached answer for a live one.
+        running = upgrade_signal.progress_running(name)
+        when = upgrade_signal.progress_checked_at(name)
+        if running is True:
+            detail_notes.append(_sentence(UPDATE_RUNNING_NOTE))
+        elif running is None:
+            detail_notes.append(_sentence(UPDATE_CHECK_UNKNOWN))
+        if when is not None:
+            detail_notes.append(_sentence(UPDATE_CHECKED_AT, when=_checked_text(when)))
     # THE CONTROL'S OWN PAGE FACTS, for a dialog that declares a TEMPLATE of its own. The DCS update
     # is the one control whose version pick is filled AFTER the page is open: its page reads these off
     # the served document — the read's URL, the two field names, the INSTALLED branch/version (so the
@@ -6984,6 +7103,39 @@ async def _read_upload_capped(upload: Any, limit: int) -> bytes | None:
             return None
 
 
+async def _busy_upload_refusal(request: Request, action: WriteAction) -> RedirectResponse | None:
+    """The upload route's QUERY-ONLY refusal: the sentence and the tab when the named server is busy.
+
+    THE SERVER IS READ FROM THE QUERY STRING, which the tab's own upload form carries beside the body
+    (``?server=<name>``), so the gate answers before this route reads the file part: nothing is
+    staged and the action is never called. IT DOES NOT SAVE THE TRANSFER: the route is declared with
+    ``Depends(session.csrf_protect)``, and that dependency reads the token out of the form
+    (``session.read_csrf_token`` calls ``await request.form()``), so the whole multipart — the file
+    part included — is parsed and buffered before this function runs. What the gate saves is the
+    staging and the action call; the bytes have already arrived. The action's own gate stays the
+    second line of defence for a caller that sends no query and refuses identically.
+
+    ``None`` for everything else — no name, no identity, a name this caller cannot resolve — because
+    the body path below owns those answers (identity, scope, unknown target) and must speak them
+    once, with its own notice/403 shapes, rather than twice.
+    """
+    name = readmodels.text(request.query_params.get(SERVER_CONFIG_FIELD))
+    if not name:
+        return None
+    identity = _identity(request)
+    if identity is None:
+        return None
+    ctx = _context(request, identity)
+    resolution = await ctx.resolve_scoped_server(name)
+    if not resolution.is_found or state_of(getattr(resolution.server, "status", None)) \
+            in MISSIONS_UPLOAD_STATES:
+        return None
+    _remember_notice(request, action, ActionResult(success=False,
+                                                   message=MISSIONS_UPLOAD_BUSY_REFUSAL))
+    canonical = readmodels.text(readmodels.safe(lambda: getattr(resolution.server, "name", ""))) or name
+    return RedirectResponse(_mission_back_path(canonical), status_code=303)
+
+
 def _mission_upload_handler(action: WriteAction):
     """The route for ``missions.upload`` — a MULTIPART form (the file + its two load options).
 
@@ -6992,11 +7144,18 @@ def _mission_upload_handler(action: WriteAction):
     The upload's two load options (``autostart`` = load at next start, ``load`` = load now) ride the
     same POST and are handed to the action, which owns the load handling.
 
-    THE CAP IS REFUSED AS THE SIZE CROSSES IT, never after the whole file has been buffered:
+    A BUSY SERVER (``LOADING`` / ``SHUTTING_DOWN``) IS REFUSED BEFORE ANYTHING IS STAGED — see
+    :func:`_busy_upload_refusal`: DCS writes ``serverSettings.lua`` itself in both of those windows,
+    so an upload then races its own copy of that file. The body has already been parsed when the gate
+    runs (the route's CSRF dependency reads the token out of the form), so the gate saves the staging
+    and the action call, never the transfer.
 
-    1. the request's DECLARED ``Content-Length`` is checked BEFORE the body is parsed — a body that
-       cannot fit the cap (plus the multipart envelope) is refused with a 413 without the console
-       ever reading it;
+    THE CAP IS REFUSED BEFORE ANY BYTE IS READ OUT OF THE PARSED PART, never after the whole file has
+    been copied into this handler's buffer:
+
+    1. the request's DECLARED ``Content-Length`` is checked first — a body that cannot fit the cap
+       (plus the multipart envelope) is refused with a 413 before the file part is read out of the
+       already-parsed form, so it is never copied out and never staged;
     2. the parsed part's own size (``UploadFile.size``, the bytes Starlette counted for the part) is
        checked before the file is read at all — an oversized file is refused, never ``read()``;
     3. the bytes are then read in CHUNKS with a running total, so a body that lied about its length
@@ -7007,12 +7166,16 @@ def _mission_upload_handler(action: WriteAction):
     cannot tell which of the two surfaces refused.
     """
     async def handle(request: Request) -> RedirectResponse:
+        busy = await _busy_upload_refusal(request, action)
+        if busy is not None:
+            return busy
         declared_body = request.headers.get("content-length")
         if declared_body and declared_body.isdigit() \
                 and int(declared_body) > MISSIONS_UPLOAD_MAX_BYTES + _MULTIPART_ENVELOPE_BYTES:
-            # The BODY alone cannot fit the cap: refuse BEFORE ``request.form()`` buffers it. No
-            # server name is known yet (it is a field IN the body), so this is the one mission
-            # refusal that cannot be a notice on the tab.
+            # The BODY alone cannot fit the cap: refuse before the file part is copied out of the
+            # parsed form, so no byte of it is held here or staged. The target to hang a notice on
+            # the tab under would have to come from the body, so this is the one mission refusal
+            # answered with a 413 instead.
             raise HTTPException(status_code=413, detail=_upload_cap_message())
         form = await request.form()
         resolved = await _resolve_mission_write(request, form, action)
@@ -8785,8 +8948,10 @@ def _node_handler(action: NodeAction):
       :meth:`core.actions.ActionContext.resolve_scoped_node` — the seam's node twin, which keeps the
       not-found/not-permitted distinction for the same reason the server one does;
     * the OPTION: an action declaring one (``NodeAction.option``) reads it out of the same body and
-      hands it to the action as its own parameter (``shutdown`` / ``startup``) — one name for the
-      field and the parameter, so the route cannot post one thing and the action read another.
+      hands it to the action as its own parameter — ``announce`` for the DCS update, and ``force``
+      for the three lifecycle controls, which is what lets an operator repeat an operation past the
+      action's in-flight-update guard. One name for the field and the parameter, so the route cannot
+      post one thing and the action read another.
 
     ``action.confirm`` decides whether this route demands the one-shot token: the LIFECYCLE trio and
     the pair's offline half do, so a POST that skipped the dialog is refused; the online half does

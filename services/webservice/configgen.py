@@ -264,6 +264,12 @@ class Field:
     #: never hardcoded. Empty (``()``) when the pattern is not a finite list of literals (an
     #: unbounded ``regex;(.+)``, a ``\d+``, a time range), which keeps the honest "Add entry" fallback.
     alternatives: tuple = ()
+    #: TRUE for a ``regex;`` SECTION the schema marks ``required: true`` — pykwalify then refuses a
+    #: block in which NO key of the container's ``alternatives`` is present. Deliberately NOT
+    #: :attr:`required`, which is the form's ONE always-shown signal (:func:`is_mandatory`): a section
+    #: the page only offers through a picker is the editor's own look, and a surface that must ASK for
+    #: a required section does not get to change that look.
+    section_required: bool = False
     #: the pykwalify partial name the rule ``include:``d (``None`` when the rule was not an include)
     include: str | None = None
     #: the schema's OWN prose for this field (``desc:``), translated at RENDER time through the
@@ -676,6 +682,7 @@ def _children_from_mapping(mapping: dict, partials: dict, included_files: dict, 
             sub = _field("regex", child_rule, partials, included_files, path + ("*",),
                          regex=pattern, _seen=_seen)
             children.append(Field(key=child_key, kind=KIND_REGEX, path=path,
+                                  section_required=sub.required,
                                   element=sub, regex=pattern, alternatives=names,
                                   kind_label=SECTION_LABEL if names else KIND_LABELS[KIND_REGEX]))
         else:
@@ -1336,6 +1343,16 @@ def _coerce(field: Field, text: str) -> Any:
     return text
 
 
+def coerce_value(field: Field, text: str) -> Any:
+    """The Python value a posted string means for *field* — the ONE typing a save applies.
+
+    Public so a surface that merges posted values WITHOUT :func:`apply_form` (an extension's add form,
+    whose block is seeded rather than edited in place) types them by exactly the same rule as a save:
+    a bool, an int/float, a list, or text. Never a second spelling of the rule.
+    """
+    return _coerce(field, text)
+
+
 def _parse_structure(text: str) -> Any:
     """The STRUCTURE a posted ``func`` value means: the text parsed as YAML (a container's edit form).
 
@@ -1552,10 +1569,25 @@ def find_field(tree: Field, tokens: tuple) -> Field | None:
     return None
 
 
+def _path_template_matches(template: tuple, tokens: tuple) -> bool:
+    """Whether a tree PATH (which may carry ``*`` / ``regex;`` variable tokens) addresses *tokens*.
+
+    The extension save tree is built from a SCHEMA, so its node and instance steps stay variable
+    (``('*', 'instances', '*', 'extensions', 'Olympus')``) while the form posts the concrete names it
+    rendered. Comparing those two tuples for equality can never succeed, which is why a container's
+    ``__entries`` companion was refused as unplaceable on every extension page carrying a ``regex;``
+    key (Olympus's ``backend|server`` and ``frontend|client`` sections among them).
+    """
+    if len(template) != len(tokens):
+        return False
+    return all(expected == token or expected == "*" or expected.startswith("regex;")
+               for expected, token in zip(template, tokens))
+
+
 def _custom_entry_context(tree: Field, stated: dict[str, list[str]]) -> list[tuple]:
     """Per regex container a save touches, what the form said about its entries.
 
-    Returns ``(field, rendered, surviving, new_keys, covered)`` per container that posted its
+    Returns ``(field, rendered, surviving, new_keys, covered, base)`` per container that posted its
     ``__entries`` companion:
 
     * ``rendered`` — the ENCODED keys the page said it RENDERED (the ``__entries`` companion, newline
@@ -1567,7 +1599,16 @@ def _custom_entry_context(tree: Field, stated: dict[str, list[str]]) -> list[tup
     * ``covered`` — the ENCODED keys the container's mapping covers by NAME (its literal siblings,
       re-derived SERVER-SIDE from the schema tree by :func:`_literal_sibling_keys` — the SAME filter
       the render path applies). These are the keys that are never an operator entry, so a forged or
-      stale ``__entries`` naming one (or ``DEFAULT``) must never delete it.
+      stale ``__entries`` naming one (or ``DEFAULT``) must never delete it;
+    * ``base`` — the CONCRETE document path the form posted. The container's own ``field.path`` is the
+      schema TEMPLATE (``*`` for the node and instance steps), which addresses no document: the
+      deletion pass reads the entries' parent by *base*, never by the template.
+
+    ONE PARENT MAY CARRY SEVERAL CONTAINERS (``backend|server`` AND ``frontend|client`` on Olympus),
+    and each renders an ``__entries``/``__key`` companion under that same parent path, so the posted
+    companions name the parent, not the container. They are therefore split per container by their
+    own allowed names: a fixed-alternative container takes the entries and new keys its list names,
+    and a key no sibling names is still REFUSED.
 
     A ``__entries`` companion the tree cannot place is REFUSED (:class:`UnknownFieldError`), like every
     other stated field — never silently ignored.
@@ -1578,12 +1619,16 @@ def _custom_entry_context(tree: Field, stated: dict[str, list[str]]) -> list[tup
         if not raw or raw[-1] != ENTRIES_COMPANION:
             continue
         base = _decode_tokens(raw[:-1])
-        field = next((f for f in flatten(tree) if f.kind == KIND_REGEX and f.path == base), None)
-        if field is None:
+        containers = [f for f in flatten(tree)
+                      if f.kind == KIND_REGEX and _path_template_matches(f.path, base)]
+        if not containers:
             raise UnknownFieldError(name)
-        covered = frozenset(encode_token(key) for key in _literal_sibling_keys(tree, field))
+        covered = frozenset(encode_token(key) for key in _literal_sibling_keys(tree, containers[0]))
         base_raw = raw[:-1]
-        rendered = [token for token in "".join(str(v) for v in values).split("\n") if token != ""]
+        # ONE INPUT PER CONTAINER under the same parent path, each carrying its keys newline-joined:
+        # the posted values are joined the same way, never concatenated (which would fuse the last key
+        # of one container onto the first of the next).
+        rendered = [token for token in "\n".join(str(v) for v in values).split("\n") if token != ""]
         surviving = set()
         for other in stated:
             oraw = tuple(other.split("."))
@@ -1592,15 +1637,31 @@ def _custom_entry_context(tree: Field, stated: dict[str, list[str]]) -> list[tup
                 surviving.add(oraw[-2])
         key_control = ".".join(base_raw + (KEY_COMPANION,))
         new_keys = [str(v).strip() for v in stated.get(key_control, []) if str(v).strip()]
-        # A FIXED-ALTERNATIVE container accepts ONLY its schema-named sections as new keys: the page
-        # offers exactly those, so a posted key outside the list is forged or stale and is REFUSED
-        # (nothing written) rather than adding a key the schema does not name.
-        if field.alternatives:
-            allowed = set(field.alternatives)
+        shared = len(containers) > 1
+        if shared:
+            # EVERY new key must belong to some sibling, or the post names a section the schema does
+            # not offer here — the same refusal a single container makes for its own list.
+            named = {key for container in containers for key in (container.alternatives or ())}
             for key in new_keys:
-                if key not in allowed:
+                if key not in named:
                     raise UnknownFieldError(name)
-        out.append((field, rendered, surviving, new_keys, covered))
+        for field in containers:
+            allowed = set(field.alternatives) if field.alternatives else None
+            own_rendered = ([token for token in rendered if token in allowed]
+                            if shared and allowed is not None else rendered)
+            own_new = ([key for key in new_keys if key in allowed]
+                       if shared and allowed is not None else new_keys)
+            entry_covered = (frozenset(encode_token(key) for key in _literal_sibling_keys(tree, field))
+                             if shared else covered)
+            # A FIXED-ALTERNATIVE container accepts ONLY its schema-named sections as new keys: the page
+            # offers exactly those, so a posted key outside the list is forged or stale and is REFUSED
+            # (nothing written) rather than adding a key the schema does not name.
+            if field.alternatives:
+                permitted = set(field.alternatives)
+                for key in own_new:
+                    if key not in permitted:
+                        raise UnknownFieldError(name)
+            out.append((field, own_rendered, surviving, own_new, entry_covered, base))
     return out
 
 
@@ -1611,7 +1672,7 @@ def _refuse_custom_entry_collisions(context: list[tuple]) -> None:
     overwrite it — silent data loss. A new key matching a rendered-but-REMOVED entry is allowed (that
     is a delete-and-recreate of the operator's own entry, no surviving value is lost).
     """
-    for _field, _rendered, surviving, new_keys, _covered in context:
+    for _field, _rendered, surviving, new_keys, _covered, _base in context:
         seen: set[str] = set()
         for key in new_keys:
             encoded = encode_token(key)
@@ -1633,8 +1694,8 @@ def _delete_removed_custom_entries(document: Any, context: list[tuple]) -> None:
     top-level regex) is never an operator entry, so a forged or stale ``__entries`` naming one deletes
     NOTHING. The client's list is INTERSECTED with what the schema says is deletable, never trusted.
     """
-    for field, rendered, surviving, new_keys, covered in context:
-        parent = value_at(document, field.path)
+    for field, rendered, surviving, new_keys, covered, base in context:
+        parent = value_at(document, base)
         if not isinstance(parent, dict):
             continue
         recreated = {encode_token(key) for key in new_keys}

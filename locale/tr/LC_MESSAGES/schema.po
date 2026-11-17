@@ -7078,3 +7078,6 @@ msgstr "Bu hesabın görebileceği ve işlem yapabileceği managed_by değerleri
 #~ msgid "Which overview sections the site shows; an absent id is on."
 #~ msgstr "Sitenin hangi genel bakış bölümlerini gösterdiği; eksik kimlik açık sayılır."
 
+
+msgid "Whether this extension is enabled on this node."
+msgstr "Bu uzantının bu düğümde etkin olup olmadığı."

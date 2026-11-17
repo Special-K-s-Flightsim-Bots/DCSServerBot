@@ -6,6 +6,8 @@ from core import UploadStatus, utils, get_translation, Status, Server
 from core.utils.discord import ServerUploadHandler
 from typing import TYPE_CHECKING
 
+from .actions import MISSION_LIST_BUSY_REFUSAL
+
 if TYPE_CHECKING:
     from .commands import Mission
 
@@ -24,6 +26,11 @@ class MissionUploadHandler(ServerUploadHandler):
             ctx = await self.bot.get_context(self.message)
             mission_rewrite = self.server.locals.get('mission_rewrite', True)
             rc = await self.server.uploadMission(att.filename, att.url, force=self.overwrite, missions_dir=directory)
+            if rc == UploadStatus.BUSY:
+                # the retry below passes ``force=True``; a busy state is not a file problem, so the
+                # answer is the sentence and the write is not attempted again.
+                await self.channel.send(MISSION_LIST_BUSY_REFUSAL)
+                return rc
             if rc in [UploadStatus.FILE_IN_USE, UploadStatus.WRITE_ERROR]:
                 question = _("Do you want to replace the running mission?")
                 message = None

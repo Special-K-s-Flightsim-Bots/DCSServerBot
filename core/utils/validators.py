@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 # Lock to avoid race conditions while parsing
 _pykwalify_lock = threading.RLock()
 
+#: The ``func:`` helpers pykwalify loads are defined in THIS file, and pykwalify resolves a relative
+#: extension path against the process working directory. Stated absolutely, beside the module, the
+#: extension is found whatever directory the bot (or a test run) is started from.
+EXTENSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'validators.py')
+
 Text = int | str
 
 _types: dict[Any, str] = {
@@ -238,7 +243,7 @@ def _load_schema(include_name: str, _path: str) -> str:
 
 def _validate_schema(schema, value, path):
     with _pykwalify_lock:
-        c = Core(source_data=value, schema_data=schema, extensions=['core/utils/validators.py'])
+        c = Core(source_data=value, schema_data=schema, extensions=[EXTENSION_FILE])
         try:
             c.validate()
         except SchemaError as ex:
@@ -482,7 +487,7 @@ def check_main_structure(value, _rule_obj, path) -> str | bool:
 def validate(source_file: str, schema_files: list[str], *, raise_exception: bool = False):
     with _pykwalify_lock:
         c = Core(source_file=source_file, schema_files=schema_files, file_encoding='utf-8',
-                 extensions=['core/utils/validators.py'])
+                 extensions=[EXTENSION_FILE])
         try:
             c.validate(raise_exception=True)
         except PyKwalifyException as ex:

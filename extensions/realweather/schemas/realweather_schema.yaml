@@ -3,6 +3,11 @@ schema;node_realweather_schema:
   nullable: false
   allowempty: true
   mapping:
+    enabled:
+      type: bool
+      nullable: false
+      desc: Whether this extension is enabled on this node.
+      example: "true"
     name:
       type: str
       nullable: false

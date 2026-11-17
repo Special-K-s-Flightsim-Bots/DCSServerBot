@@ -626,3 +626,43 @@ msgstr "Extension {} configured."
 
 msgid "No configuration available for extension {}"
 msgstr "No configuration available for extension {}"
+
+#: plugins/admin/webadmin.py
+msgid "Public address (http:// if no SSL)"
+msgstr "Genel adres (SSL yoksa http://)"
+
+#: plugins/admin/webadmin.py
+msgid "The session cookie is marked Secure when this address is https://, and left alone for http://. A Secure cookie is not sent back over plain HTTP, so the sign-in would not stick — use http:// while there is no certificate in front of the console."
+msgstr "Bu adres https:// olduğunda oturum çerezi Secure olarak işaretlenir, http:// için olduğu gibi bırakılır. Secure çerez düz HTTP üzerinden geri gönderilmez, bu yüzden oturum açma kalıcı olmaz: konsolun önünde sertifika yokken http:// kullanın."
+
+#: plugins/admin/webadmin.py
+msgid "Sign-in cookie"
+msgstr "Oturum çerezi"
+
+#: plugins/admin/webadmin.py
+msgid "The public address is not known yet, so whether the cookie's Secure flag matches it cannot be checked."
+msgstr "Genel adres henüz bilinmiyor, bu yüzden çerezin Secure işaretinin ona uyup uymadığı denetlenemiyor."
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is not a boolean ({}) — the service refuses the session block, so no cookie is set at all."
+msgstr "session.https_only bir mantıksal değer değil ({}): servis session bloğunu reddediyor, bu yüzden hiç çerez ayarlanmıyor."
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is set"
+msgstr "session.https_only ayarlanmış"
+
+#: plugins/admin/webadmin.py
+msgid "session.https_only is not set, and a non-loopback listen makes it Secure"
+msgstr "session.https_only ayarlanmamış ve loopback dışı bir listen onu Secure yapıyor"
+
+#: plugins/admin/webadmin.py
+msgid "The session cookie is marked Secure, but the address is {} ({}). A browser does not send a Secure cookie back over plain HTTP: the sign-in appears to work and the next page is signed out again. Set session.https_only: false in {}, or open the console over https://."
+msgstr "Oturum çerezi Secure olarak işaretli, ancak adres {} ({}). Tarayıcı Secure bir çerezi düz HTTP üzerinden geri göndermez: oturum açma başarılı görünür ve sonraki sayfa yine oturumsuz gelir. {} içinde session.https_only: false ayarlayın veya konsolu https:// üzerinden açın."
+
+#: plugins/admin/webadmin.py
+msgid "The address is {} but the session cookie is not marked Secure ({}). It then travels in cleartext on any plain http hop in front of the reverse proxy. Set session.https_only: true in {}."
+msgstr "Adres {}, ancak oturum çerezi Secure olarak işaretli değil ({}). Bu durumda ters proxy önündeki her düz http atlamasında açık metin olarak gider. {} içinde session.https_only: true ayarlayın."
+
+#: plugins/admin/webadmin.py
+msgid "The cookie's Secure flag matches {} — a sign-in sticks over this address."
+msgstr "Çerezin Secure işareti {} ile uyumlu: bu adres üzerinden oturum açma kalıcı olur."

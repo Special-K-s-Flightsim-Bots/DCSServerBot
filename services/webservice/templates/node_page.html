@@ -125,11 +125,9 @@
   <div class="st-grid">
     {% for ext in extensions %}
     {% set ext_scope %}{% if ext.default %}<span class="st-badge default">{{ _(extension_default_badge) }}</span>{% else %}<span class="st-badge">{{ _(ext.scope_label) }}</span>{% endif %}{% endset %}
-    {% set ext_warn_body %}{% if ext.confirm %}<pre class="st-warn-yaml">{{ ext.discard }}</pre>{% endif %}{% endset %}
     {{ tile_card('ext', ext.kind_label, ext.name, ext.description, ext.switch,
                  cog_url=ext.cog_url, scope=ext_scope, extra=(' is-default' if ext.default else ''),
-                 off=(not ext.enabled),
-                 warn=(extension_remove_warning if ext.confirm else ''), warn_body=ext_warn_body,
+                 off=(not ext.enabled), warn=ext.warn,
                  trash_url=ext.trash_url, trash_title=ext.trash_title) }}
     {% endfor %}
     {#- THE "+ ADD" TILE IS ALWAYS DRAWN: when nothing is left to add it

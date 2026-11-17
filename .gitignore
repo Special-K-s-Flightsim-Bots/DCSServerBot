@@ -2,6 +2,7 @@
 __pycache__/
 *.db
 *.pid
+*.pkl
 Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 *.csv
 .stignore
@@ -23,3 +24,11 @@ Scripts/net/DCSServerBot/DCSServerBotConfig.lua
 reference/
 /.junie/
 version.sha
+
+# Test run artefacts
+.pytest_cache/
+.testmondata*
+.coverage
+.coverage.*
+htmlcov/
+*.zip

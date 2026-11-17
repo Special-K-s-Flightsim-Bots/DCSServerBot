@@ -237,6 +237,15 @@ class NodeProxy(Node):
         }, node=self.name, timeout=timeout)
 
     @override
+    async def dcs_update_in_progress(self) -> bool:
+        timeout = 60 if not self.slow_system else 120
+        return await self.bus.send_to_node_sync({
+            "command": "rpc",
+            "object": "Node",
+            "method": "dcs_update_in_progress"
+        }, node=self.name, timeout=timeout)
+
+    @override
     async def shell_command(self, cmd: str, timeout: int = 60) -> tuple[str, str] | None:
         _timeout = 60 if not self.slow_system else 120
         return await self.bus.send_to_node_sync({

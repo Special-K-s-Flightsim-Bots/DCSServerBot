@@ -447,6 +447,10 @@ def _probe_local_postgres(timeout: float) -> bool | None:
         sock.settimeout(timeout)
         try:
             sock.connect((DEFAULT_HOST, LOCAL_POSTGRES_PORT))
+        except (ConnectionRefusedError, ConnectionResetError):
+            # caught by TYPE: Windows numbers a refusal WSAECONNREFUSED (10061), never POSIX' 111, so
+            # an errno comparison alone answers "no answer" on a Windows host where nothing listens
+            return False
         except OSError as ex:
             if ex.errno in (errno.ECONNREFUSED, errno.ECONNRESET):
                 return False

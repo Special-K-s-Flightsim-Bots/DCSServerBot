@@ -30,7 +30,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.162.7
+fastapi==0.163.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -124,7 +124,7 @@ scapy==2.8.0
 sqlparse==0.6.1
 
 # Telnetlib3: Connect to telnet services (for NUT)
-telnetlib3==5.0.1
+telnetlib3==5.0.2
 
 # TimezoneFinder: Find the right timezones for a given coordinate
 tzfpy[tzdata]==2.1.2

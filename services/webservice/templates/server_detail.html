@@ -645,12 +645,24 @@
 
 {#- UPLOAD — a file coming from the OPERATOR's own computer into the server's missions directory.
     The label carries it: nothing here looks like an add, and nothing about an add
-    looks like this. -#}
+    looks like this.
+
+    OFFERED ONLY IN THE STATES DCS DOES NOT WRITE ``serverSettings.lua`` ITSELF
+    (``MISSIONS_UPLOAD_STATES``): while the server starts up or shuts down DCS owns that file, so an
+    uploaded mission would land in a write DCS overwrites. In those two states the card is ABSENT and
+    the refusal sentence stands where it would have been — never drawn disabled — and only for a
+    viewer who may upload at all: without ``missions.upload`` nothing here is drawn in ANY state.
+
+    THE FORM CARRIES THE SERVER IN THE QUERY BESIDE THE BODY: the route reads the query, so a busy
+    server is refused before anything is staged and before the action is called. The bytes have
+    already arrived by then — the route's CSRF dependency parses the whole form, file part included —
+    so what this gate saves is the staging and the action call, not the transfer. The hidden field
+    stays the write's own target — the query is the early gate's copy. -#}
 {% if missions_upload_allowed %}
 <div class="card">
   <div class="hd"><h3>{% trans %}Upload a mission file{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}from your computer{% endtrans %}</span></div>
   <div class="bd">
-    <form class="cfg-form" method="post" action="{{ missions_upload_path }}" enctype="multipart/form-data">
+    <form class="cfg-form" method="post" action="{{ missions_upload_path }}?{{ missions_server_field }}={{ missions_server|urlencode }}" enctype="multipart/form-data">
       <input type="hidden" name="{{ missions_server_field }}" value="{{ missions_server }}">
       <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
       {% set up_lab %}
@@ -680,6 +692,14 @@
       {{ editor.field_row('', up_lab, up_ctl, cls='cfg-upload') }}
     </form>
   </div>
+</div>
+{% elif missions_upload_capable %}
+{#- THE BUSY STATES: the card is OMITTED and the refusal says why, in the upload's OWN sentence
+    (never the reorder's, never a capability problem). Same three classes as the card above, no new
+    style. -#}
+<div class="card">
+  <div class="hd"><h3>{% trans %}Upload a mission file{% endtrans %}</h3><div class="spacer"></div><span class="tag">{% trans %}from your computer{% endtrans %}</span></div>
+  <div class="bd"><div class="sub">{{ missions_upload_reason }}</div></div>
 </div>
 {% endif %}
 

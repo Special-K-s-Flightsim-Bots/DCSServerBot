@@ -90,6 +90,17 @@ FAILED_LOGIN_MESSAGE = i18n._("Sign-in failed. Check your username and password 
 THROTTLED_LOGIN_MESSAGE = i18n._(
     "Too many failed sign-in attempts. Wait {seconds} seconds and try again.")
 
+#: What the page says when the console is configured HTTPS-only but this request arrived over plain
+#: HTTP. Nothing was refused in that case: the sign-in succeeds, the cookie is marked Secure, and a
+#: browser then declines to send it back — so the next request lands here again and the page looks
+#: dead (dead language control, dead form). Naming the mismatch is the only observable difference.
+#: Behind a reverse proxy the scheme is the one the proxy forwards (uvicorn trusts X-Forwarded-Proto
+#: from a loopback peer), so a correctly terminated install does not see this.
+HTTPS_MISMATCH_MESSAGE = i18n._(
+    "This console is set to HTTPS-only (session.https_only), but it was opened over plain HTTP, so "
+    "the browser will not keep the sign-in cookie. Open it over https://, or set "
+    "session.https_only: false in config/services/webservice.yaml.")
+
 #: what a direct POST to the password door is refused with when no username/password backend is
 #: enabled. A REFUSAL, not a login attempt: the door is off, so the request never reaches a
 #: credential check. (It flows through the ONE refusal handler, so a non-browser caller keeps the
@@ -447,6 +458,14 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
 
     ``error`` is a GENERIC sentence; the reason a sign-in was refused belongs in the log.
     """
+    # A console marked HTTPS-only that is opened over plain HTTP cannot hold a sign-in: its cookie
+    # is Secure and the browser will not send it back. Say so on the page rather than letting the
+    # visitor retype a correct password into what looks like a dead form.
+    if error is None:
+        settings = getattr(getattr(getattr(request, 'app', None), 'state', None),
+                           'webui_session_settings', None) or {}
+        if settings.get('https_only') and request.url.scheme != 'https':
+            error = HTTPS_MISMATCH_MESSAGE
     # THE DOORS are what the page is built from, and they are read from the SAME backends the
     # server enforces against (see LoginDoors).
     doors = login_doors(request)

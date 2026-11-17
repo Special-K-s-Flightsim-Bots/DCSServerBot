@@ -7058,3 +7058,6 @@ msgstr "Значения managed_by, которые эта учётная зап
 #~ msgid "Which overview sections the site shows; an absent id is on."
 #~ msgstr "Какие разделы обзора показывает сайт; отсутствующий идентификатор считается включённым."
 
+
+msgid "Whether this extension is enabled on this node."
+msgstr "Включено ли это расширение на этом узле."

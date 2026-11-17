@@ -40,8 +40,12 @@ offered no cogwheel.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 import secrets
+import time
+from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -50,15 +54,20 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
+from core.actions import action_available, call_action
 from core.utils import configwrite
 
-from .. import (catalog, config_apply, config_hints, configgen, i18n, mount, permissions,
-                plugin_registry, readmodels, scopes, session, validation)
+from .. import (catalog, config_apply, config_hints, configgen, extension_switch, i18n, mount,
+                permissions, plugin_registry, readmodels, scopes, session, validation)
 from . import actions as actions_page
 from . import dashboard as dashboard_page
 from . import nodes as nodes_page
 from . import presets as presets_page
 from . import settings as settings_page
+#: the confirmation page every destructive console action uses — the ONE name, owned by the action
+#: module; the removal dialog below renders THAT template (there is no second dialog template and no
+#: client-side modal).
+from .actions import CONFIRM_TEMPLATE
 
 __all__ = [
     "NODE_SETTINGS_PATH", "NODE_SETTINGS_CAPABILITY", "NODE_SETTINGS_ROLES",
@@ -71,20 +80,29 @@ __all__ = [
     "NODE_PAGE_EXTENSION_UNCONFIGURED",
     "NODE_PAGE_EXTENSION_FIELD", "NODE_PAGE_EXTENSION_ACTION_FIELD",
     "NODE_PAGE_EXTENSION_ADD", "NODE_PAGE_EXTENSION_REMOVE",
-    "NODE_PAGE_EXTENSION_ON", "NODE_PAGE_EXTENSION_OFF",
-    "NODE_PAGE_EXTENSION_TURN_ON", "NODE_PAGE_EXTENSION_TURN_OFF", "NODE_PAGE_EXTENSION_KEEP",
+    "NODE_PAGE_EXTENSION_OFF", "NODE_PAGE_EXTENSION_TURN_ON", "NODE_PAGE_EXTENSION_TURN_OFF",
     "NODE_PAGE_EXTENSION_DEFAULT_BADGE", "NODE_PAGE_EXTENSION_ENABLED", "NODE_PAGE_EXTENSION_DISABLED",
     "NODE_PAGE_EXTENSION_DISABLE", "NODE_PAGE_EXTENSION_ENABLE",
+    "NODE_PAGE_EXTENSION_ENABLE_ACTION", "NODE_PAGE_EXTENSION_DISABLE_ACTION",
+    "NODE_PAGE_EXTENSION_NEEDS_SETUP", "NODE_PAGE_EXTENSION_INCOMPLETE",
+    "NODE_PAGE_EXTENSION_KEY_ON_NODE_TAB", "NODE_PAGE_EXTENSION_KEY_ON_INSTANCE_TAB",
+    "NODE_PAGE_EXTENSION_NOT_READY", "NODE_PAGE_EXTENSION_ADD_NEEDS_SETUP",
+    "NODE_PAGE_EXTENSION_ADD_LABEL", "NODE_PAGE_EXTENSION_ADD_LINK", "NODE_EXTENSION_CREATE_NOTE",
+    "NODE_EXTENSION_CREATE_REJECTED",
+    "NODE_PAGE_DICT_SCOPE_NODE", "NODE_PAGE_DICT_SCOPE_INSTANCE",
     "NODE_PAGE_EXTENSION_TURNED_OFF", "NODE_PAGE_EXTENSION_TURNED_ON",
-    "NODE_PAGE_EXTENSION_REMOVE_WARNING", "NODE_PAGE_EXTENSION_ADDED", "NODE_PAGE_EXTENSION_REMOVED",
+    "NODE_PAGE_EXTENSION_REMOVE_TITLE", "NODE_PAGE_EXTENSION_REMOVE_PAGE_TITLE",
+    "NODE_PAGE_EXTENSION_REMOVE_HEADING", "NODE_PAGE_EXTENSION_REMOVE_DETAIL",
+    "NODE_PAGE_EXTENSION_DISCARD_WARNING", "NODE_PAGE_EXTENSION_REMOVE_BLOCK",
+    "NODE_PAGE_EXTENSION_ADDED", "NODE_PAGE_EXTENSION_REMOVED",
     "NODE_PAGE_EXTENSION_ADD_EXISTS", "NODE_PAGE_EXTENSION_REMOVE_ABSENT",
     "NODE_PAGE_EXTENSION_ALL_CONFIGURED",
-    "NODE_PAGE_EXTENSION_WARN_FIELD", "NODE_PAGE_EXTENSION_ACK_FIELD",
+    "NODE_PAGE_EXTENSION_REMOVE_PATH", "NODE_PAGE_EXTENSION_ACK_FIELD",
     "SAVE_REFUSED_FOREIGN_SCOPE", "SAVE_REFUSED_UNKNOWN_SCOPE", "SAVE_REFUSED_NO_NODE_BLOCK",
     "SAVE_REFUSED_UNKNOWN_EXTENSION", "SAVE_REFUSED_EXTENSION_ACK",
     "mint_extension_ack", "validate_extension_ack", "spend_extension_ack", "_extension_ack_binding",
     "node_settings_control", "node_tree", "nodes_yaml_path",
-    "node_page_url", "node_page_context", "save_node", "scope_save_tree",
+    "node_page_url", "node_extension_remove_url", "node_page_context", "save_node", "scope_save_tree",
     "capabilities", "nav_items", "add_routes",
 ]
 
@@ -126,9 +144,13 @@ def capabilities() -> dict[str, str]:
             NODE_PAGE_VALIDATE_PATH: NODE_SETTINGS_CAPABILITY,
             # a hint is a READ of the schema, so it carries the PAGE's capability — never a write
             NODE_PAGE_HINTS_PATH: NODE_SETTINGS_CAPABILITY,
+            # the switch-state poll is a READ of this node's in-flight switches: the PAGE's capability
+            NODE_PAGE_SWITCH_STATE_PATH: NODE_SETTINGS_CAPABILITY,
             NODE_EXTENSION_PATH: NODE_SETTINGS_CAPABILITY,
             NODE_EXTENSION_VALIDATE_PATH: NODE_SETTINGS_CAPABILITY,
-            NODE_EXTENSION_HINTS_PATH: NODE_SETTINGS_CAPABILITY}
+            NODE_EXTENSION_HINTS_PATH: NODE_SETTINGS_CAPABILITY,
+            # opening the removal dialog is not a lesser right than the write it leads to
+            NODE_PAGE_EXTENSION_REMOVE_PATH: NODE_SETTINGS_CAPABILITY}
 
 
 def nav_items():
@@ -294,6 +316,10 @@ NODE_PAGE_VALIDATE_PATH = "/actions/nodes/{node}/validate"
 #: JSON (:mod:`services.webservice.config_hints`), rooted at the DOCUMENT root — the editor's slice is
 #: ``{<node>: block}``, so its root key is the node name the schema's ``regex;(.+)`` block names.
 NODE_PAGE_HINTS_PATH = "/actions/nodes/{node}/hints"
+#: THE SWITCH'S OWN POLL — what a card whose extension is switching on asks for, every few seconds,
+#: until the server says the job is done. A READ: it reports the in-flight jobs of ONE node
+#: (:mod:`services.webservice.extension_switch`) and writes nothing, so it needs no CSRF token.
+NODE_PAGE_SWITCH_STATE_PATH = "/nodes/{node}/_switch-state"
 NODE_PAGE_TEMPLATE = "node_page.html"
 
 #: the two section headings on a tab (the settings form, then the extensions).
@@ -310,6 +336,10 @@ NODE_PAGE_SCOPE_NODE = i18n._(
 NODE_PAGE_SCOPE_INSTANCE = i18n._(
     "This block changes only <b>%(scope)s</b>. It INHERITS everything it does not set from the "
     "node's own block — nothing is copied.")
+#: the two scope NAMES the tab strip shows, as msgids — the removal dialog names the scope with the
+#: SAME words ("Node-wide" / "Instance <name>"), so the page and its dialog cannot drift.
+NODE_PAGE_SCOPE_NODE_LABEL = i18n._("Node-wide")
+NODE_PAGE_SCOPE_INSTANCE_LABEL = i18n._("Instance %(name)s")
 
 #: THE ACTIVE-SCOPE CARRIER. The tabs are a SERVER-SIDE selection (``?tab=<n>``), but a SAVE must know
 #: which scope a form came from WITHOUT inferring it from the posted fields — inference writes a
@@ -349,75 +379,148 @@ NODE_PAGE_EXTENSION_UNCONFIGURED = i18n._(
     "in Expert Mode, then it becomes editable here.")
 
 # --------------------------------------------------------------- the extension card's ON/OFF switch
-# THE CARD SET COMES FROM THE SCHEMA, THE CARD STATE FROM THE FILE. Every extension a scope's schema
-# declares is shown as a card (``_extension_sections``); whether its block is PRESENT in that scope's
-# ``extensions`` mapping of ``nodes.yaml`` is the card's ON/OFF state — exactly how a plugin tile reads
-# its state from ``main.yaml``'s ``opt_plugins``. Turning a card ON writes that extension's EMPTY block
-# into the scope (the shape the Settings area's "+ Add block" door writes); turning it OFF REMOVES the
-# block. A removal is destructive when the block carries values, so the switch first shows an INLINE
-# warning (``?warn_ext=<name>``) naming exactly what will be discarded — never a silent write. Both
-# actions go through the SAME scoped save (:func:`save_node`) and the SAME whole-document patch, so the
-# scope guard (a foreign node, instance or out-of-scope extension is refused with nothing written), the
-# no-op rule (an already-on/off card changes nothing) and the byte-identical-elsewhere promise all hold
-# unchanged.
+# THE CARD SET COMES FROM THE SCHEMA, THE CARD STATE FROM THE FILE AND THE RUNTIME. Every extension a
+# scope's schema declares is shown as a card (``_extension_sections``); an UNCONFIGURED non-default
+# extension is a choice of the ONE "+ Add" tile, which writes its block SEEDED from the ``default``
+# values its own dict declares for that scope. A CONFIGURED extension
+# is switched with the plain, NON-DESTRUCTIVE ``disable``/``enable`` actions: they WRITE
+# ``enabled: false`` / ``enabled: true`` into the selected scope's block and DELETE nothing, which the
+# runtime reads for EVERY extension (``core/extension.py``: ``enabled`` = ``config.get('enabled',
+# True)``). REMOVING a block is a different, destructive write and lives behind the console's own
+# confirmation dialog (:data:`NODE_PAGE_EXTENSION_REMOVE_PATH`), never behind the switch.
+#
+# THE SWITCH IS INSTANCE-TAB ONLY and it is GATED ON COMPUTED READINESS: the Node-wide tab's cards show
+# the shared values and carry no control (ON/OFF writes the Instance scope), and an instance card whose
+# required values are still empty draws the switch in the shared component's non-actionable state next
+# to a warning (see :func:`_extension_missing_keys`).
+#
+# Both switch actions go through the SAME scoped save (:func:`save_node`) and the SAME whole-document
+# patch, so the scope guard (a foreign node, instance or out-of-scope extension is refused with nothing
+# written), the no-op rule (an unchanged value leaves the file byte-identical) and the
+# byte-identical-elsewhere promise all hold unchanged.
 NODE_PAGE_EXTENSION_FIELD = "_ext"
 NODE_PAGE_EXTENSION_ACTION_FIELD = "_ext_action"
 NODE_PAGE_EXTENSION_ADD = "add"
 NODE_PAGE_EXTENSION_REMOVE = "remove"
-#: THE TWO ACTIONS A DEFAULT EXTENSION'S SWITCH USES (see :func:`_extension_switch`). A DEFAULT
+#: THE TWO ACTIONS THE SWITCH USES, for EVERY extension (see :func:`_extension_switch`). A DEFAULT
 #: extension — one the runtime loads even with no ``nodes.yaml`` block (``DEFAULT_EXTENSIONS``, merged
 #: by ``core/data/impl/serverimpl.py``'s ``load_extension``/``init_extensions``) — is NOT turned off by
 #: removing its block: an absent block means "default on", so the extension would come straight back.
-#: Its OFF therefore WRITES the value the loader reads to turn it off — ``enabled: false``
-#: (``core/extension.py``: ``enabled`` = ``config.get('enabled', True)``) — into the correct scope's
-#: block, and its ON writes ``enabled: true``. Neither action ever DELETES the block.
+#: Its OFF therefore WRITES the value the loader reads to turn it off — ``enabled: false`` — into the
+#: correct scope's block, and its ON writes ``enabled: true``. Neither action ever DELETES the block,
+#: which is why the same pair serves a CONFIGURED non-default extension too: its block keeps every
+#: value it holds while it is switched off.
 NODE_PAGE_EXTENSION_DISABLE = "disable"
 NODE_PAGE_EXTENSION_ENABLE = "enable"
-#: the query parameter the switch's turn-OFF link carries (``?warn_ext=<name>``): the warning step.
-NODE_PAGE_EXTENSION_WARN_FIELD = "warn_ext"
-#: THE ACKNOWLEDGEMENT the warning step MINTS and the confirm form posts back. The warning render (a
-#: GET carrying ``?warn_ext=<name>``) shows the block's own contents AND mints a random token bound to
-#: exactly the (node, scope, extension) it warned about; that token rides in the hidden field
-#: :data:`NODE_PAGE_EXTENSION_ACK_FIELD` of the confirm form, and the ``remove`` save REFUSES with
+#: THE ACKNOWLEDGEMENT the confirmation dialog MINTS and its form posts back. The dialog's GET shows the
+#: block's own contents AND mints a random token bound to exactly the (node, scope, extension) it
+#: displayed, stamped with the file revision; that token rides in the hidden field
+#: :data:`NODE_PAGE_EXTENSION_ACK_FIELD` of the dialog's form, and the ``remove`` save REFUSES with
 #: nothing written unless it presents a token that matches THAT binding. This is what makes the
 #: "never a silent write" claim a SERVER rule rather than a UI one: a value-carrying block cannot be
-#: removed by a bare POST, only by one that presents an acknowledgement a warning produced (see
+#: removed by a bare POST, only by one that presents an acknowledgement the dialog produced (see
 #: :func:`mint_extension_ack` / :func:`validate_extension_ack`).
 NODE_PAGE_EXTENSION_ACK_FIELD = "_ext_ack"
-#: the switch's two labels (the card's own STATE) and the two controls beside the warning.
-NODE_PAGE_EXTENSION_ON = i18n._("Configured")
+#: the card's own STATE word and the two switch controls.
 NODE_PAGE_EXTENSION_OFF = i18n._("Not configured")
 NODE_PAGE_EXTENSION_TURN_ON = i18n._("Turn on")
 NODE_PAGE_EXTENSION_TURN_OFF = i18n._("Turn off")
-NODE_PAGE_EXTENSION_KEEP = i18n._("Keep it")
 #: THE DEFAULT MARKER — the SAME one-word badge a default PLUGIN tile carries (reused verbatim, so
 #: the two surfaces cannot drift and no second style is invented). A default extension shows it
 #: whatever its block says, because it is part of the runtime's own set.
 NODE_PAGE_EXTENSION_DEFAULT_BADGE = plugin_registry.DEFAULT_BADGE
-#: THE TWO STATE WORDS A DEFAULT EXTENSION'S SWITCH SHOWS. A default extension's state is the
-#: RUNTIME's (enabled/disabled), not the file's (configured/not configured): an unconfigured default
-#: extension is ON, so "Configured"/"Not configured" would be the very lie this fixes.
+#: THE TWO STATE WORDS EVERY CONFIGURED CARD'S SWITCH SHOWS. The state is the RUNTIME's
+#: (enabled/disabled), not the file's (configured/not configured): an unconfigured default extension
+#: runs, and a configured non-default one can be switched off without losing its block, so
+#: "Configured"/"Not configured" would be the very lie this fixes.
 NODE_PAGE_EXTENSION_ENABLED = i18n._("Enabled")
 NODE_PAGE_EXTENSION_DISABLED = i18n._("Disabled")
-#: the notices a default extension's switch leaves (translated AND interpolated at the route).
+#: THE THIRD CARD STATE'S WORD — a block exists but a required value of its scope is still empty, so
+#: the switch is drawn in the shared component's NON-ACTIONABLE state (``switch_control``'s
+#: ``off-fixed`` span: no form, no POST). See :func:`_extension_missing_keys`.
+NODE_PAGE_EXTENSION_NEEDS_SETUP = i18n._("Needs setup")
+#: THE ONE-LINE WARNING an incomplete card carries (``tile_card(warn=…)``), naming the EMPTY required
+#: keys and the tab each one is filled on. Readiness is COMPUTED (the extension's own
+#: ``NODE_CONFIG_DICT`` / ``CONFIG_DICT`` ``required: True`` flags, the schema only as the fallback),
+#: never inferred from the presence of a block.
+NODE_PAGE_EXTENSION_INCOMPLETE = i18n._("Not ready to switch on — %(keys)s.")
+NODE_PAGE_EXTENSION_KEY_ON_NODE_TAB = i18n._("%(keys)s must be set on the Node-wide tab")
+NODE_PAGE_EXTENSION_KEY_ON_INSTANCE_TAB = i18n._("%(keys)s must be set on this extension's own tab")
+#: the sentence the switch's save shows when an enable/disable is posted for an extension that is not
+#: ready: REFUSED, nothing written — the same discipline the scope guard already applies.
+NODE_PAGE_EXTENSION_NOT_READY = i18n._(
+    "No change was saved: the extension %(name)s is not ready to switch on — %(keys)s. Nothing was "
+    "written.")
+#: the sentence an ADD shows when the scope's schema cannot create the extension's block from its own
+#: defaults — a block it would have to ASK for values it cannot seed. REFUSED, nothing written: the
+#: only door that can create such a block is the extension's own page, where the fields have room.
+NODE_PAGE_EXTENSION_ADD_NEEDS_SETUP = i18n._(
+    "The extension %(name)s was not added: this scope cannot create its block from defaults. Nothing "
+    "was written — open the extension's own page and save the values there.")
+#: the same refusal when a seeded value did not pass the schema — still refused, still nothing written.
+NODE_PAGE_EXTENSION_ADD_REJECTED = i18n._(
+    "The extension %(name)s was not added: its values did not pass the check. Nothing was written.")
+#: THE SWITCH IN FLIGHT. An enable runs the extension's own ``install()``/``prepare()``, which for one
+#: that ships a package is a pip install: minutes. The save hands that to a background job
+#: (:mod:`services.webservice.extension_switch`) and these are the three things the operator reads —
+#: the label the disabled switch wears while it runs, and the sentence the save leaves behind for it.
+NODE_PAGE_EXTENSION_BUSY_ENABLE = i18n._("Enabling…")
+NODE_PAGE_EXTENSION_BUSY_DISABLE = i18n._("Disabling…")
+NODE_PAGE_EXTENSION_BUSY_TITLE = i18n._("This is running now — the switch unlocks when it is done")
+NODE_PAGE_EXTENSION_SWITCH_STARTED = i18n._(
+    "Turning %(name)s on — installing can take a few minutes. The switch stays locked until it is "
+    "done and the result follows here.")
+NODE_PAGE_EXTENSION_SWITCH_STOPPED = i18n._(
+    "Turning %(name)s off — the switch stays locked until it is done and the result follows here.")
+#: A SECOND attempt while the job runs: REFUSED, nothing started — this is the server's answer, so it
+#: holds for a second click, a second tab and a second operator alike.
+NODE_PAGE_EXTENSION_SWITCH_BUSY = i18n._(
+    "%(name)s is already being switched — wait for it to finish. Nothing was started.")
+#: THE ADD ROW'S OWN WORD. Its control writes a block and enables nothing, so it is "Add" — never
+#: "Turn on", which reads as an enable and made a working add report itself as a broken switch.
+NODE_PAGE_EXTENSION_ADD_LABEL = i18n._("Add")
+#: THE ADD ENTRY THAT CANNOT WRITE. When the block a scope would seed cannot pass the schema's own
+#: required checks, the row's control is a LINK to that extension's page for the same scope instead of
+#: a one-click write — this is the link's tooltip, and the destination is where the values are entered.
+NODE_PAGE_EXTENSION_ADD_LINK = i18n._("Set up on the extension's page")
+#: THE TWO SCOPES an extension's own dicts are read per (``NODE_CONFIG_DICT`` / ``CONFIG_DICT``). A key
+#: of the first is filled on the Node-wide tab, a key of the second on the extension's own tab.
+NODE_PAGE_DICT_SCOPE_NODE = "node"
+NODE_PAGE_DICT_SCOPE_INSTANCE = "instance"
+#: THE TWO ACTIONS the switch calls WHEN the bot is up. They run the extension's OWN
+#: ``enable()``/``disable()`` (install, prepare, startup / shutdown) inside the server, which a config
+#: write cannot do; with no action available (the bot is down) the switch falls back to the
+#: ``nodes.yaml`` patch below.
+NODE_PAGE_EXTENSION_ENABLE_ACTION = "enable_extension"
+NODE_PAGE_EXTENSION_DISABLE_ACTION = "disable_extension"
+#: the notices the switch leaves (translated AND interpolated at the route).
 NODE_PAGE_EXTENSION_TURNED_OFF = i18n._(
-    "Turned off the default extension %(name)s for this scope — it will not load there.")
+    "Turned off the extension %(name)s for this scope — it will not load there.")
 NODE_PAGE_EXTENSION_TURNED_ON = i18n._(
-    "Turned on the default extension %(name)s for this scope.")
-#: THE INLINE WARNING a card shows BEFORE its block is removed. The content it will discard (the block's
-#: own YAML) is printed VERBATIM beneath this sentence — operator data is never translated.
-NODE_PAGE_EXTENSION_REMOVE_WARNING = i18n._(
-    "Turning this off REMOVES this extension's block from this scope. Everything it holds right now "
-    "is discarded:")
-#: the notices the switch's write leaves (translated AND interpolated at the route, like the Add-block
-#: notices, because they carry the extension's name).
+    "Turned on the extension %(name)s for this scope.")
+#: the notices the switch's other writes leave (translated AND interpolated at the route, like the
+#: Add-block notices, because they carry the extension's name).
 NODE_PAGE_EXTENSION_ADDED = i18n._(
-    "Added the extension %(name)s to this scope as an empty block.")
+    "Added the extension %(name)s to this scope with its default values.")
 NODE_PAGE_EXTENSION_REMOVED = i18n._("Removed the extension %(name)s from this scope.")
 NODE_PAGE_EXTENSION_ADD_EXISTS = i18n._(
     "The extension %(name)s is already configured for this scope — nothing was added.")
 NODE_PAGE_EXTENSION_REMOVE_ABSENT = i18n._(
     "The extension %(name)s is not configured for this scope — nothing was removed.")
+#: THE SENTENCES OF THE REMOVAL DIALOG. They are sentence records: the msgid carries ``{name}``-style
+#: holes, filled where the page renders (``templating.SENTENCE_GLOBAL``), so a per-request name never
+#: goes through the catalog. The discarded block is printed VERBATIM: operator data is never
+#: translated, and it is escaped before it rides the record's markup (see
+#: :func:`_extension_remove_dialog`).
+NODE_PAGE_EXTENSION_REMOVE_TITLE = i18n._("Remove the block")
+NODE_PAGE_EXTENSION_REMOVE_PAGE_TITLE = i18n._("Remove the {name} extension from {node}")
+NODE_PAGE_EXTENSION_REMOVE_HEADING = i18n._("Remove the {name} extension from {scope}?")
+NODE_PAGE_EXTENSION_REMOVE_DETAIL = i18n._(
+    "The block is removed from nodes.yaml for {scope}. The bot log records the removal and your name.")
+NODE_PAGE_EXTENSION_DISCARD_WARNING = i18n._(
+    "Everything this block holds is discarded — no value in it is kept.")
+NODE_PAGE_EXTENSION_REMOVE_BLOCK = i18n._(
+    "The block, exactly as it is discarded: <pre class=\"st-warn-yaml\">{yaml}</pre>")
 #: the sentence the ONE "+ Add" tile shows when the selected scope already configures EVERY extension
 #: its schema offers. The tile is STILL drawn — a control that vanishes silently is worse than one
 #: that says why — in an explicit, NON-INTERACTIVE "all configured" state
@@ -430,13 +533,13 @@ SAVE_REFUSED_UNKNOWN_EXTENSION = i18n._(
     "No change was saved: this page did not name an extension of the tab you were editing, so there "
     "is nothing to write. Reload the page and try again — nothing was written.")
 #: the sentence a REMOVAL shows when it does not carry a valid acknowledgement for exactly the block
-#: it names. The warning step mints that acknowledgement; a bare POST (one that never rendered the
-#: warning, one that raced the warning, or one minted for a DIFFERENT block) is refused here with
-#: nothing written. This is the server-side half of "never a silent write".
+#: it names. The confirmation dialog mints that acknowledgement; a bare POST (one that never opened
+#: the dialog, one that raced it, or one minted for a DIFFERENT block) is refused here with nothing
+#: written. This is the server-side half of "never a silent write".
 SAVE_REFUSED_EXTENSION_ACK = i18n._(
-    "Nothing was removed: this removal did not carry the acknowledgement the warning produces, so "
-    "the extension's block was left exactly as it was. Open the extension's switch, read the warning "
-    "that shows what will be discarded, and confirm from there.")
+    "Nothing was removed: this removal did not carry the acknowledgement the confirmation page "
+    "produces, so the extension's block was left exactly as it was. Open the extension's trashcan, "
+    "read what will be discarded, and confirm from there.")
 
 
 #: the session key the minted acknowledgements live under. The store is a plain ``{binding: token}``
@@ -539,13 +642,23 @@ def spend_extension_ack(request: Request, doc_key: str, scope_value: str, ext_na
 
 
 NODE_EXTENSION_UNCONFIGURED = i18n._(
-    "This extension is not configured for this node yet, so there is nothing to edit here. Turn it "
-    "on from the node page first.")
+    "This extension is not configured for this scope yet, so there is nothing to switch here. "
+    "Configure it on the extension's own page first.")
+#: the state a scope WITHOUT a block renders: its schema form, with this sentence over it, because the
+#: save CREATES the block there (the same scope guard, the same whole-document patch, the same
+#: validation and ``.bak`` as any other save).
+NODE_EXTENSION_CREATE_NOTE = i18n._(
+    "This scope does not configure this extension yet. Fill in what it needs and save — the save "
+    "creates the block here.")
+#: the refusal a CREATING page save shows: it names the field the operator must fix, instead of the
+#: validator's own line. Nothing was written — the whole-document patch aborts before the write.
+NODE_EXTENSION_CREATE_REJECTED = i18n._(
+    "The block was not created: %(fields)s did not pass the check. Nothing was written.")
 #: the sentence over an extension page's tabs. Unlike a plugin/service file there is no shared
 #: ``DEFAULT`` block: each tab IS one scope's block of ``nodes.yaml``.
 NODE_EXTENSION_SCOPE_NOTE = i18n._(
     "Each tab is this extension's block for one scope — the node's own block, then one per instance "
-    "that configures it. Nothing is copied between them.")
+    "of that node. Nothing is copied between them.")
 
 
 def node_page_url(node_name: str) -> str:
@@ -569,6 +682,18 @@ NODE_EXTENSION_VALIDATE_PATH = "/actions/nodes/{node}/extensions/{name}/validate
 #: the page's save merges back is a top-level key of ``nodes.yaml``).
 NODE_EXTENSION_HINTS_PATH = "/actions/nodes/{node}/extensions/{name}/hints"
 NODE_EXTENSION_TEMPLATE = "settings_scope.html"
+#: THE REMOVAL DIALOG's path — the trashcan's target, and the ONLY place a removal's acknowledgement is
+#: minted. It renders the console's shared confirmation page (``confirm.html``), which posts the
+#: ``remove`` action back to the node page's own save with the token this render bound to that block.
+NODE_PAGE_EXTENSION_REMOVE_PATH = "/nodes/{node}/extensions/{name}/remove"
+
+
+def node_extension_remove_url(node_name: str, ext_name: str, tab: int) -> str:
+    """The URL of the confirmation dialog for ONE extension's block on ONE tab — names as segments."""
+    from urllib.parse import quote
+
+    return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}"
+                    f"/extensions/{quote(readmodels.text(ext_name), safe='')}/remove?tab={tab}")
 
 
 def node_extension_url(node_name: str, ext_name: str) -> str:
@@ -577,6 +702,18 @@ def node_extension_url(node_name: str, ext_name: str) -> str:
 
     return mount.url(f"/nodes/{quote(readmodels.text(node_name), safe='')}"
                     f"/extensions/{quote(readmodels.text(ext_name), safe='')}")
+
+
+def _extension_scope_url(node_name: str, ext_name: str, instance: str | None) -> str:
+    """The URL of ONE extension's page for ONE scope — the "`+ Add`" link's target.
+
+    The scope is named by the console's own carrier vocabulary (``default`` / ``instance:<name>``) rather
+    than by a tab index: an index is a POSITION in a list the page builds from the file, so it would
+    move the moment a scope is created or removed. The page resolves the name against its own tabs.
+    """
+    scope_value = (NODE_PAGE_SCOPE_DEFAULT if instance is None
+                   else NODE_PAGE_SCOPE_INSTANCE_PREFIX + readmodels.text(instance))
+    return f"{node_extension_url(node_name, ext_name)}?scope={quote(scope_value, safe=':')}"
 
 
 def _node_extension_validate_url(node_name: str, ext_name: str) -> str:
@@ -627,54 +764,69 @@ def _extension_catalog() -> tuple[dict[str, str], dict[str, str]]:
     return descriptions, scopes_map
 
 
-def _extension_switch(name: str, configured: bool, confirm: bool, tab_url: str,
-                      csrf: str, revision: str, ack: str = "", *,
-                      is_default: bool = False, enabled: bool = True) -> dict:
+def _extension_switch(name: str, configured: bool, tab_url: str, csrf: str, revision: str, *,
+                      is_default: bool = False, enabled: bool = True,
+                      ready: bool = True, add: bool = False,
+                      busy=None) -> dict:
     """The ON/OFF switch row model for one extension card — the SAME shape a plugin tile's switch uses.
 
-    A CONFIGURED extension is ON: its switch is a LINK into the inline warning step (``?warn_ext=``),
-    the SAME two-step a DEFAULT plugin's switch-off uses. The confirm step (after opening the warning)
-    is a FORM posting the ``remove`` action through this page's own save — and carrying the
-    acknowledgement the warning minted (*ack*, :data:`NODE_PAGE_EXTENSION_ACK_FIELD`), so the save can
-    verify the operator actually saw the warning before the block is removed. An UNCONFIGURED extension
-    is OFF: its switch is a FORM posting the ``add`` action (writing the extension's EMPTY block). Both
-    actions go through the SAME scoped save, so the scope guard, the no-op rule and the
-    byte-identical-elsewhere promise all hold — the save route handles the switch and nothing else.
+    A CONFIGURED extension (and a DEFAULT one, which runs with no block at all) is switched by a FORM
+    posting the ``disable`` action when it is enabled and the ``enable`` action when it is not. Neither
+    write deletes anything — ``enabled: false`` / ``enabled: true`` is written into the selected
+    scope's block, the value ``core/extension.py`` reads for EVERY extension — so the switch is
+    NON-DESTRUCTIVE and the state word follows *enabled*, the runtime's answer, never whether a block is
+    present. REMOVING a block is a different write and has its own door (the trashcan and its
+    confirmation dialog); the switch never points at it.
 
-    A DEFAULT extension (*is_default*, a name in ``DEFAULT_EXTENSIONS``) is a THIRD case: it is ON
-    unless its block says ``enabled: false`` (``core/extension.py``), so removing its block would NOT
-    turn it off — an absent block means "default on". Its switch therefore WRITES the value the loader
-    reads: OFF posts the ``disable`` action (``enabled: false``), ON posts the ``enable`` action
-    (``enabled: true``), both through the SAME scoped save. Neither deletes the block, so neither needs
-    the removal warning (nothing is discarded), and the STATE WORD follows *enabled* — the runtime's
-    answer — never whether the block is present.
+    An UNCONFIGURED non-default extension is OFF: its switch is a FORM posting the ``add`` action
+    (writing the extension's block seeded from its own dict's defaults). Every action rides the SAME
+    scoped save, so the scope guard, the no-op rule and the byte-identical-elsewhere promise all
+    hold — the save route handles the switch and nothing else.
+
+    *add* names that last control by what it DOES: an add WRITES a block and enables nothing, so it
+    reads "Add" (label and tooltip) — never "Turn on", which made a working add report itself as a
+    broken switch. A configured card's own words are untouched.
+
+    *ready* FALSE is the third state: the scope carries the block but a required value of it is still
+    empty, so the switch is drawn in the shared component's NON-ACTIONABLE state (``static`` →
+    ``switch_control``'s ``off-fixed`` span: no form, no POST). The locked card's warning names the
+    missing keys and the tab holding them, and the cogwheel beside it already opens the door — so the
+    lock adds no control and no style.
+
+    *busy* is a RUNNING :class:`~services.webservice.extension_switch.SwitchJob` for this extension: the
+    action is installing/preparing it in the background, so the switch is drawn in the SAME component's
+    ``busy`` state — no form, no POST, the box pulsing and the elapsed time counting up beside the
+    label. It wins over every other state (the job is the newest truth) and it is the only state the
+    page polls: ``data-switch-state`` names the endpoint that reports the job, and the page reloads
+    itself once the server says nothing is running, which is when the result notice arrives.
     """
-    from urllib.parse import quote
-
+    if busy is not None:
+        return {"type": "busy",
+                "label": (NODE_PAGE_EXTENSION_BUSY_ENABLE
+                          if busy.action == NODE_PAGE_EXTENSION_ENABLE
+                          else NODE_PAGE_EXTENSION_BUSY_DISABLE),
+                "title": NODE_PAGE_EXTENSION_BUSY_TITLE,
+                "since": busy.started, "key": busy.state_key,
+                "state_url": mount.url(NODE_PAGE_SWITCH_STATE_PATH.replace(
+                    "{node}", _url_node(tab_url)))}
+    if not ready:
+        return {"type": "static", "label": NODE_PAGE_EXTENSION_NEEDS_SETUP}
     common = [(session.CSRF_FIELD, csrf),
               (settings_page.SETTINGS_REVISION_FIELD, revision),
               (NODE_PAGE_SCOPE_FIELD, _switch_scope_from_tab(tab_url)),
               (NODE_PAGE_EXTENSION_FIELD, name)]
-    if is_default:
+    if configured or is_default:
         action = NODE_PAGE_EXTENSION_DISABLE if enabled else NODE_PAGE_EXTENSION_ENABLE
         return {"type": "form", "action": tab_url,
                 "fields": common + [(NODE_PAGE_EXTENSION_ACTION_FIELD, action)],
                 "label": NODE_PAGE_EXTENSION_ENABLED if enabled else NODE_PAGE_EXTENSION_DISABLED,
                 "title": NODE_PAGE_EXTENSION_TURN_OFF if enabled else NODE_PAGE_EXTENSION_TURN_ON,
                 "on": bool(enabled)}
-    if confirm:
-        return {"type": "form", "action": tab_url,
-                "fields": common + [(NODE_PAGE_EXTENSION_ACTION_FIELD, NODE_PAGE_EXTENSION_REMOVE),
-                                    (NODE_PAGE_EXTENSION_ACK_FIELD, ack)],
-                "label": NODE_PAGE_EXTENSION_TURN_OFF, "title": NODE_PAGE_EXTENSION_TURN_OFF,
-                "on": False, "cancel_url": tab_url, "cancel_label": NODE_PAGE_EXTENSION_KEEP}
-    if configured:
-        return {"type": "link",
-                "href": f"{tab_url}&{NODE_PAGE_EXTENSION_WARN_FIELD}={quote(name, safe='')}",
-                "label": NODE_PAGE_EXTENSION_ON, "title": NODE_PAGE_EXTENSION_TURN_OFF, "on": True}
     return {"type": "form", "action": tab_url,
             "fields": common + [(NODE_PAGE_EXTENSION_ACTION_FIELD, NODE_PAGE_EXTENSION_ADD)],
-            "label": NODE_PAGE_EXTENSION_OFF, "title": NODE_PAGE_EXTENSION_TURN_ON, "on": False}
+            "label": NODE_PAGE_EXTENSION_ADD_LABEL if add else NODE_PAGE_EXTENSION_OFF,
+            "title": NODE_PAGE_EXTENSION_ADD_LABEL if add else NODE_PAGE_EXTENSION_TURN_ON,
+            "on": False}
 
 
 def _switch_scope_from_tab(tab_url: str) -> str:
@@ -694,6 +846,30 @@ def _switch_scope_from_tab(tab_url: str) -> str:
     # empty for a non-default tab (the route reads ``?tab=`` when the carrier is absent).
     return NODE_PAGE_SCOPE_DEFAULT if index <= 0 else ""
 
+
+def _node_page_back_url(request: Request, node_name: str) -> str:
+    """Where a node-page save returns to: the SAME tab the form was posted from.
+
+    A save answers with a redirect, and the form posts to the tab's own URL (``?tab=<n>``), so the tab
+    index is on the request. Dropping it sent every save back to the Node-wide tab — visible now that a
+    switch's in-flight state lives on the instance tab it was pressed on, and it also threw an operator
+    out of the tab they were editing.
+    """
+    url = node_page_url(node_name)
+    raw = readmodels.text(request.query_params.get("tab"))
+    if raw.isdigit() and int(raw) > 0:
+        return f"{url}?tab={int(raw)}"
+    return url
+
+
+def _url_node(tab_url: str) -> str:
+    """``tab_url``'s own node name, quoted as ONE path step (what the poll endpoint's URL needs)."""
+    from urllib.parse import quote, urlparse
+
+    parts = [part for part in urlparse(tab_url).path.split("/") if part]
+    if "nodes" not in parts or parts.index("nodes") + 1 >= len(parts):
+        return ""
+    return quote(readmodels.text(parts[parts.index("nodes") + 1]), safe="")
 
 
 def _node_page_validate_url(node_name: str) -> str:
@@ -909,20 +1085,18 @@ def _extension_enabled(is_default: bool, configured: bool, block_enabled: bool |
                        inherited_enabled: bool | None) -> bool:
     """The RUNTIME state of an extension in the selected scope — what the loader would answer.
 
-    A NON-default extension is loaded only when its block is present in the scope's own ``extensions``
-    map, so its state is simply *configured*. A DEFAULT extension is loaded even with no block, so it is
-    ON unless a block explicitly says ``enabled: false``; on an INSTANCE tab the instance's own block
-    wins and otherwise the NODE block is inherited (``load_extension`` merges the node block UNDER the
-    instance one — ``core/data/impl/serverimpl.py``), so *inherited_enabled* is the node block's answer
-    (``None`` for the node-wide tab, which has no parent).
+    Present in this scope AND not effectively disabled. "Present" is *configured* for a non-default
+    extension and always true for a DEFAULT one (it runs with no block at all). The effective flag is
+    the block's own ``enabled`` when it states one (``False`` IS a value — that is why
+    :func:`_block_enabled` answers ``None`` for "unstated"); otherwise the INHERITED value: on an
+    INSTANCE tab the node block's answer (``load_extension`` merges the node block UNDER the instance
+    one — ``core/data/impl/serverimpl.py``), and ``None`` on the node-wide tab, which has no parent.
     """
-    if not is_default:
-        return configured
-    if block_enabled is not None:
-        return block_enabled
-    if inherited_enabled is not None:
-        return inherited_enabled
-    return True
+    present = bool(configured or is_default)
+    effective = block_enabled if block_enabled is not None else inherited_enabled
+    if effective is False:
+        return False
+    return present
 
 
 def _restrict_extensions(field: configgen.Field | None, configured) -> configgen.Field | None:
@@ -970,13 +1144,313 @@ def _extension_base(doc_key: str, instance: str | None, ext_name: str) -> tuple:
 _ABSENT = object()
 
 
-def _add_extension_block(document, base: tuple) -> None:
-    """Create the EMPTY block at *base* in *document*, making any missing intermediate maps.
+# ------------------------------------------------------------------ READINESS: a block is not readiness
+# THE RUNTIME IS TOLD WHAT AN EXTENSION NEEDS IN TWO PLACES THAT DISAGREE. Its own ``NODE_CONFIG_DICT``
+# / ``CONFIG_DICT`` marks each field ``required: True`` — exactly what the Discord command's modal asks
+# for before it enables — while its schema marks some of the same keys ``required: true`` and MANY ARE
+# MISSING IT (an SRS node block with no ``installation`` validates CLEAN, while a GitHub block without
+# ``repo``/``target`` is refused). So the extension's OWN dict is the authority, and the schema is read
+# only for a scope the extension declares no dict for. ``enabled`` is not a required key anywhere.
+#: ``(lower-cased name, scope) → that scope's declared dict`` — ``None`` when the extension's class
+#: could not be resolved (an import failure, or a module that is not installed here). MEMOISED per
+#: process: a page must not import every extension module per request, and the answer cannot change
+#: while the process runs.
+_EXTENSION_DICTS: dict[tuple[str, str], dict | None] = {}
+#: the DICT attribute each scope reads. A key of the first is filled on the Node-wide tab, a key of the
+#: second on the extension's own instance tab.
+_EXTENSION_SCOPE_DICTS = {NODE_PAGE_DICT_SCOPE_NODE: "NODE_CONFIG_DICT",
+                          NODE_PAGE_DICT_SCOPE_INSTANCE: "CONFIG_DICT"}
 
-    This is the write a card's turn-ON performs: the extension's block is created EMPTY (the same shape
-    the Settings area's "+ Add block" door writes) and the schema validation on the write decides whether
-    that empty shape is a valid one. A block that already exists is left EXACTLY as it is — an already-on
-    card's switch is a no-op, never a replacement (which would discard its values).
+
+def _extension_config_dict(name: str, scope: str) -> dict | None:
+    """The extension's OWN config dict for *scope* — ``NODE_CONFIG_DICT`` or ``CONFIG_DICT``.
+
+    ``None`` means the class could not be resolved, or it declares no dict for that scope; an EMPTY
+    dict is a declaration too (``Extension.CONFIG_DICT = {}`` — the scope needs nothing). The lookup is
+    wrapped so a failing import can never raise into a render, and MEMOISED, so a page resolves each
+    extension once per process rather than once per card.
+    """
+    cache_key = (readmodels.text(name).lower(), scope)
+    if cache_key in _EXTENSION_DICTS:
+        return _EXTENSION_DICTS[cache_key]
+    found: dict | None = None
+    try:
+        from core.utils import str_to_class
+
+        cls = str_to_class(f"extensions.{cache_key[0]}.extension.{name}")
+        declared = getattr(cls, _EXTENSION_SCOPE_DICTS.get(scope, ""), None) if cls else None
+        if isinstance(declared, dict):
+            found = dict(declared)
+    except Exception:  # noqa: BLE001 - an unresolvable extension is judged by its schema instead
+        found = None
+    _EXTENSION_DICTS[cache_key] = found
+    return found
+
+
+def _extension_required_keys(name: str, scope: str, fields=()) -> tuple[tuple[str, str], ...]:
+    """The ``(key, tab)`` pairs *scope* requires a VALUE for — the extension's own dict first.
+
+    ``tab`` is the scope token the value is filled in (:data:`NODE_PAGE_DICT_SCOPE_NODE` for a key of
+    ``NODE_CONFIG_DICT``, :data:`NODE_PAGE_DICT_SCOPE_INSTANCE` for one of ``CONFIG_DICT``), which the
+    card's warning turns into the tab's own label. The schema's ``required: true`` is consulted ONLY
+    when the extension declares no dict for that scope, and *fields* is then that scope's schema
+    controls (already resolved by the caller) — an extension the schema does not name needs nothing.
+    """
+    declared = _extension_config_dict(name, scope)
+    if declared is not None:
+        return tuple((str(key), scope) for key, spec in declared.items()
+                     if isinstance(spec, dict) and spec.get("required")
+                     and str(key) != "enabled")
+    return tuple((str(field.key), scope) for field in fields or ()
+                 if getattr(field, "required", False) and str(field.key) != "enabled")
+
+
+def _extension_defaults(name: str, scope: str) -> dict:
+    """The DECLARED ``default`` values of the extension's dict for *scope* — nothing else.
+
+    These are what an ADD seeds a new block with, so one click yields a card whose values are editable
+    in place: never an invented value, and never a schema ``example`` (an illustration, not a default).
+    A key whose spec declares no ``default`` is absent from the answer, which is what makes an
+    extension with a defaultless required key (GitHub's ``repo``) unaddable from the card.
+    """
+    declared = _extension_config_dict(name, scope) or {}
+    return {str(key): deepcopy(spec["default"]) for key, spec in declared.items()
+            if isinstance(spec, dict) and "default" in spec}
+
+
+# ------------------------------------------------ THE ADD'S OWN REQUIREMENT PLAN
+# THE PLAN DECIDES WHAT THE "+ Add" ROW IS. A new block is seeded from the extension's own dict defaults;
+# whatever that seed cannot satisfy decides between the two controls:
+#
+# * nothing unsatisfied → the row is a one-click WRITE of the seed;
+# * anything unsatisfied → the row is a LINK to the extension's own page, where the fields have room and
+#   the save creates the block. A requirement is a required key nothing declares a default for (GitHub's
+#   ``repo``), a required ``regex;(a|b)`` SECTION block (Olympus's instance port blocks, which pykwalify
+#   answers with ``Cannot find required key 'regex;(backend|server)'`` and which a flat required-key walk
+#   cannot see), and a declared default the schema's OWN ``func`` rejects on this machine (Olympus's
+#   ``nodejs`` where NodeJS is not installed).
+#: the leaf kinds a requirement can be — the kinds the ONE ``control`` macro renders as an input. A map /
+#: seq / regex / chooser is either a fixed-alternative SECTION (always a requirement when required) or
+#: not something a single control could ask for: the plan collects keys, never a new control type.
+_ADD_ASKABLE_KINDS = frozenset({configgen.KIND_BOOL, configgen.KIND_NUMBER, configgen.KIND_TEXT,
+                                configgen.KIND_MULTILINE, configgen.KIND_SELECT, configgen.KIND_LIST,
+                                configgen.KIND_FUNC})
+
+
+def _validator_rule(name: str):
+    """The bot's OWN validator named *name* (``core/utils/validators.py``), or ``None``.
+
+    The schema's ``func:`` names a function THAT module exports, so a default is judged by calling
+    the real rule — never by a copy of it. A name this page cannot drive (a layout ``func``, an
+    unknown string) answers ``None``, and the default is then taken at its word.
+    """
+    from core.utils import validators
+
+    found = getattr(validators, name, None)
+    return found if callable(found) else None
+
+
+def _default_accepted(field: configgen.Field, value) -> bool:
+    """Whether the schema's OWN ``func`` ACCEPTS a declared ``default`` — the seedability test.
+
+    A default is only seedable when the extension will not start on a value the schema refuses, so a
+    ``func: dir_exists`` default on a machine without that directory is ASKED FOR instead of written.
+    The rule is the bot's own (its ``{...}`` replacement exemption included), called with the path this
+    block would occupy — which is what tells the validator whether the path is checkable at all. The
+    ``ports`` memo a port rule books is restored afterwards: judging a default is not a save.
+    """
+    rule = _validator_rule(str(field.func or ""))
+    if rule is None:
+        return True
+    from core.utils import validators
+
+    path = "/" + "/".join(str(token) for token in field.path)
+    booked = dict(validators.ports)
+    try:
+        answer = rule(value, None, path)
+    except Exception:  # noqa: BLE001 - a rule this page cannot drive never condemns a default
+        return True
+    finally:
+        validators.ports.clear()
+        validators.ports.update(booked)
+    return not isinstance(answer, str)
+
+
+def _extension_add_plan(ext_name: str, fields, scope: str) -> tuple[configgen.Field, ...]:
+    """What an ADD of *ext_name* in *scope* would have to ASK FOR — empty when one click can write it.
+
+    *fields* is the scope's schema controls for the extension (:func:`_tab_extension_fields`), i.e. the
+    SAME tree the extension's own configuration page renders. A requirement is anything the block an
+    add SEEDS cannot satisfy:
+
+    * the extension's own dict WINS for a key it declares — a required key WITH a declared ``default``
+      is seeded and is no requirement, one without a default is;
+    * a required LEAF no dict declares a default for is a requirement;
+    * a declared ``default`` the schema's own ``func`` REJECTS is not seedable either, so it is one;
+    * a required FIXED-ALTERNATIVE container is one, which is the requirement pykwalify reports as a
+      missing ``regex;`` key (``Cannot find required key 'regex;(backend|server)'``).
+
+    ``enabled`` is never a requirement: it is not a value the schema requires of a new block.
+
+    THIS IS ALSO THE ADD/LINK SPLIT. An EMPTY plan means the seeded block is what the schema's own
+    required checks demand, so the ``+ Add`` row is a one-click write
+    (:func:`_add_extension_block`); a non-empty one means no click can produce a valid block, so the
+    row is a LINK to the extension's own page, where the fields have room and the save creates the
+    block. The split is decided by the SCHEMA's requirements, never by an extension's name.
+    """
+    declared = _extension_config_dict(ext_name, scope) or {}
+    plan: list[configgen.Field] = []
+    for field in fields:
+        key = str(field.key)
+        raw = declared.get(key)
+        spec: dict = raw if isinstance(raw, dict) else {}
+        if field.kind == configgen.KIND_REGEX:
+            if field.section_required and "default" not in spec:
+                plan.append(field)
+            continue
+        if key == "enabled" or field.kind not in _ADD_ASKABLE_KINDS:
+            continue
+        if not (spec.get("required") if spec else field.required):
+            continue
+        if "default" not in spec or not _default_accepted(field, spec["default"]):
+            plan.append(field)
+    return tuple(plan)
+
+
+def _is_empty(value) -> bool:
+    """Whether a required key's value is EMPTY: absent, ``None``, or a blank (whitespace-only) string.
+
+    ``False``, ``0`` and an empty list are VALUES — a declared bool default is a decision the operator
+    made, not a hole, and treating it as missing would lock every extension whose required key is a
+    switch.
+    """
+    if value is _ABSENT or value is None:
+        return True
+    return isinstance(value, str) and not value.strip()
+
+
+def _extension_missing_keys(name: str, fields=(), *, node_block=None, instance_block=None,
+                            node_scope: bool = True) -> list[tuple[str, str]]:
+    """The required keys still EMPTY for one extension in the selected scope, each with its tab.
+
+    The value a key carries is the EFFECTIVE one: the instance block merged OVER the node block, the
+    order ``ServerImpl.load_extension`` resolves an extension's config in — so a node-level default
+    satisfies a required key and an instance-level value wins over it.
+
+    *node_scope* FALSE skips the node-scope lookup: the node-scope fallback judges by the node
+    schema's controls, and an extension the two schema blocks declare INSTANCE-only has no node
+    controls of its own (its keys are filled on the extension's own tab, which is where they must be
+    reported).
+    """
+    effective: dict = {}
+    for block in (node_block, instance_block):
+        if isinstance(block, dict):
+            effective.update(block)
+    missing: list[tuple[str, str]] = []
+    for scope, applies in ((NODE_PAGE_DICT_SCOPE_NODE, node_scope),
+                           (NODE_PAGE_DICT_SCOPE_INSTANCE, True)):
+        if not applies:
+            continue
+        for key, tab in _extension_required_keys(name, scope, fields):
+            if _is_empty(effective.get(key, _ABSENT)):
+                missing.append((key, tab))
+    return missing
+
+
+def _missing_keys_sentence(request: Request, missing) -> str:
+    """The card's ONE warning line: the empty required keys, grouped by the tab that holds them.
+
+    Translated AND interpolated here, like the switch's notices: the row model carries the finished
+    sentence, so the template's ``_(…)`` on it is a lookup miss that leaves it exactly as written.
+    """
+    grouped = {NODE_PAGE_DICT_SCOPE_NODE: [], NODE_PAGE_DICT_SCOPE_INSTANCE: []}
+    for key, tab in missing:
+        grouped[tab].append(key)
+    parts = []
+    if grouped[NODE_PAGE_DICT_SCOPE_NODE]:
+        parts.append(i18n.translate(request, NODE_PAGE_EXTENSION_KEY_ON_NODE_TAB,
+                                    keys=", ".join(grouped[NODE_PAGE_DICT_SCOPE_NODE])))
+    if grouped[NODE_PAGE_DICT_SCOPE_INSTANCE]:
+        parts.append(i18n.translate(request, NODE_PAGE_EXTENSION_KEY_ON_INSTANCE_TAB,
+                                    keys=", ".join(grouped[NODE_PAGE_DICT_SCOPE_INSTANCE])))
+    return i18n.translate(request, NODE_PAGE_EXTENSION_INCOMPLETE, keys="; ".join(parts))
+
+
+def _declares_node_scope(ext_name: str) -> bool:
+    """Whether the two schema blocks place the extension on the NODE (or on both scopes).
+
+    The node-scope readiness FALLBACK judges by the node schema's controls, and an extension the
+    schemas declare INSTANCE-only has none of its own there — its keys are filled on the extension's
+    own tab, which is where a missing one must be reported.
+    """
+    _, scopes = _extension_catalog()
+    return scopes.get(readmodels.text(ext_name).lower()) in (catalog.SCOPE_NODE, catalog.SCOPE_BOTH)
+
+
+def _tab_extension_fields(doc_key: str, instance: str | None, ext_name: str) -> tuple:
+    """One extension's schema controls in the SELECTED scope — the fallback readiness judges by them.
+
+    Only reached when the extension's class could not be resolved (see
+    :func:`_extension_required_keys`); a name the scope's schema does not place yields ``()``, and the
+    write's own schema validation still decides in that case.
+    """
+    element = node_tree(doc_key).children[0]
+    container = (_node_wide_extensions(element, doc_key) if instance is None
+                 else _instance_extensions(element, doc_key, instance))
+    if container is None:
+        return ()
+    child = next((candidate for candidate in container.children
+                  if str(candidate.key) == ext_name), None)
+    return tuple(child.children) if child is not None else ()
+
+
+def _extension_config_pair(document, doc_key: str, instance: str, ext_name: str) -> dict:
+    """The ``{"Node": …, "Instance": …}`` pair for ONE extension, read from the FILE.
+
+    The pair is what ``Server.config_extension`` reads and writes, and the enable action needs it
+    because the extension's config is merged OVER the process's ``locals`` — which stay as they were
+    when this process read them. A block that is absent or not a mapping reads as ``{}``.
+    """
+    key = _document_node_key(document, doc_key) or doc_key
+    node_block = configgen.value_at(document, (key, "extensions", ext_name))
+    inst_block = configgen.value_at(document, (key, "instances", instance, "extensions", ext_name))
+    return {"Node": dict(node_block) if isinstance(node_block, dict) else {},
+            "Instance": dict(inst_block) if isinstance(inst_block, dict) else {}}
+
+
+def _instance_server_name(request: Request, node_name: str, instance: str) -> str:
+    """The NAME of the server running *instance* on *node_name* in this console's own view, or ``""``.
+
+    ``""`` is the honest "no server object here" — a node whose bot is down, or a headless run — which
+    is exactly when the live extension action cannot run and the config-write fallback must.
+    """
+    source = dashboard_page.request_source(request)
+    wanted_instance = readmodels.text(instance)
+    wanted_node = readmodels.text(node_name)
+    for server in getattr(source, "servers", ()) or ():
+        name = readmodels.text(readmodels.safe(lambda: server.name))
+        if not name:
+            continue
+        if (readmodels.text(readmodels.safe(lambda: server.instance.name)) == wanted_instance
+                and readmodels.text(readmodels.safe(lambda: server.node.name)) == wanted_node):
+            return name
+    return ""
+
+
+def _add_extension_block(document, base: tuple, defaults=None, *, enabled: bool | None = False) -> None:
+    """Create the block at *base* in *document*, seeded from *defaults*, making missing intermediates.
+
+    This is the write an ADD and a card's turn-ON perform: the extension's block is created holding the
+    ``default`` values its own dict declares for that scope (*defaults*, resolved by the caller), so one
+    click yields a card whose values are editable in place. Only DECLARED defaults are written — never an
+    invented value and never a schema ``example``. A block that already exists is left EXACTLY as it is —
+    an already-on card's switch is a no-op, never a replacement (which would discard its values).
+
+    THE CREATED BLOCK IS SWITCHED OFF. ``enabled`` is written as the block's own flag, FALSE by default,
+    because ``core/extension.py`` reads an ABSENT key as ON: a block created without it would start the
+    extension on the node's next start, which is the opposite of what an add means. A switch then writes
+    the value it wants. ``enabled=None`` writes NO flag at all — for a scope whose schema does not
+    declare the key, where writing it would make the block unvalidatable and the save refuse it.
 
     SHAPE-CONSERVATIVE. This helper only ever writes into a mapping slot that is ABSENT; a slot that
     already holds a non-mapping (a scalar, a list, an explicit ``None``) is REFUSED here, with
@@ -1000,7 +1474,10 @@ def _add_extension_block(document, base: tuple) -> None:
     last = base[-1]
     existing = node.get(last, _ABSENT) if isinstance(node, dict) else _ABSENT
     if existing is _ABSENT:
-        node[last] = CommentedMap()
+        block = CommentedMap(defaults or {})
+        if enabled is not None:
+            block["enabled"] = bool(enabled)
+        node[last] = block
     elif not isinstance(existing, dict):
         raise configwrite.ConfigWriteError(
             "This extension's block was not added: this scope already holds a value there that is "
@@ -1008,11 +1485,14 @@ def _add_extension_block(document, base: tuple) -> None:
 
 
 def _remove_extension_block(document, base: tuple) -> None:
-    """Delete exactly the block at *base* in *document* — the write a card's turn-OFF performs.
+    """Delete exactly the block at *base* in *document* — the whole-block removal.
 
-    Only the named key is removed; every sibling (every other extension, every other scope, every other
-    node) is left untouched, so the whole-document patch sees a change to exactly that one key. An absent
-    block is a no-op (an already-off card's switch changes nothing).
+    This is the write the REMOVAL performs, and a removal is reached ONLY through the extension
+    card's trashcan and the confirmation dialog behind it (the ``remove`` action plus the
+    acknowledgement that dialog minted); no switch posts it. Only the named key is removed; every
+    sibling (every other extension, every other scope, every other node) is left untouched, so the
+    whole-document patch sees a change to exactly that one key. An absent block is a no-op (an
+    already-absent block's removal changes nothing).
     """
     node = document
     for token in base[:-1]:
@@ -1025,15 +1505,17 @@ def _remove_extension_block(document, base: tuple) -> None:
 
 
 def _set_extension_enabled(document, base: tuple, enabled: bool) -> None:
-    """Set ``enabled`` in the block at *base*, creating the block (and intermediates) when absent.
+    """Write ``enabled: *enabled*`` into the block at *base*, creating the block (and intermediates)
+    when absent.
 
-    This is the write a DEFAULT extension's switch performs: ``enabled: false`` turns the extension off
-    for that scope and ``enabled: true`` turns it back on — the value the loader reads
-    (``core/extension.py``: ``enabled`` = ``config.get('enabled', True)``). It NEVER removes the block:
-    an absent block means "default on", so a removal would silently RE-ENABLE the extension. The block's
-    other keys are left exactly as they were (only ``enabled`` is written), and the creation is
-    shape-conservative — :func:`_add_extension_block` refuses a non-mapping slot before anything is
-    written, exactly as the turn-ON switch does.
+    This is the write EVERY switch performs — a configured extension's and a DEFAULT extension's
+    alike: ``enabled: false`` turns the extension off for that scope and ``enabled: true`` turns it
+    back on, the value the loader reads (``core/extension.py``: ``enabled`` =
+    ``config.get('enabled', True)``). An absent block is CREATED (it means "default on", so a
+    DEFAULT extension's switch-off has to write the value somewhere); it NEVER removes a block,
+    because a removal would silently RE-ENABLE the extension. The block's other keys are left exactly
+    as they were (only ``enabled`` is written), and the creation is shape-conservative —
+    :func:`_add_extension_block` refuses a non-mapping slot before anything is written.
     """
     _add_extension_block(document, base)
     node = document
@@ -1174,19 +1656,16 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
     if vis["removable"] and document is not None:
         remove_ack = settings_page.mint_remove_ack(request, str(path),
                                                    configwrite.config_revision(path))
-    # THE SWITCH's warning step: ``?warn_ext=<name>`` names the ONE card whose removal was asked for, so
-    # its card renders the inline warning (and the confirm form) instead of the plain turn-off link.
-    warn_ext = readmodels.text(request.query_params.get(NODE_PAGE_EXTENSION_WARN_FIELD)) or ""
     csrf = session.get_csrf_token(request)
     revision = configwrite.config_revision(path)
     node_url = node_page_url(node_name)
     tab_url = f"{node_url}?tab={tab_index}"
     descriptions, ext_scopes = _extension_catalog()
     # THE CARD SET IS SPLIT, AND DEFAULT EXTENSIONS ARE NEVER "NOT CONFIGURED". A CONFIGURED extension
-    # is a TILE of its own (with its cogwheel and a TRASHCAN into the SAME acknowledged removal path).
-    # An extension the scope does NOT configure is a CHOICE inside the ONE "+ Add" tile — UNLESS it is
-    # a DEFAULT extension (a name in ``DEFAULT_EXTENSIONS``): that one RUNS regardless of the file, so
-    # it is shown as a TILE too — ON, wearing the SAME "default" badge a default plugin tile wears, and
+    # is a TILE of its own (with its cogwheel and a TRASHCAN into its own confirmation dialog). An
+    # extension the scope does NOT configure is a CHOICE inside the ONE "+ Add" tile — UNLESS it is a
+    # DEFAULT extension (a name in ``DEFAULT_EXTENSIONS``): that one RUNS regardless of the file, so it
+    # is shown as a TILE too, wearing the SAME "default" badge a default plugin tile wears, and
     # switchable through the ``disable``/``enable`` actions (which WRITE ``enabled: false``/``true``,
     # never removing the block — an absent block means "default on"). Listing it as "not configured"
     # would tell the operator the opposite of the truth.
@@ -1199,15 +1678,31 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
         description = descriptions.get(name.lower(), "")
         scope_label = catalog.SCOPE_LABELS.get(
             ext_scopes.get(name.lower(), catalog.SCOPE_NONE), "")
-        warn_url = f"{tab_url}&{NODE_PAGE_EXTENSION_WARN_FIELD}={quote(name, safe='')}"
         if not is_default and not section["configured"]:
-            # an ADDABLE extension: a row in the "+ Add" tile. Its switch is the SAME add form the
-            # (formerly separate) OFF card carried — the SAME save, the SAME scope guard, nothing new.
+            # an ADDABLE extension: a row in the "+ Add" tile, with ONE control and NO fields. What the
+            # block an add would seed cannot satisfy is decided by the schema's own requirement
+            # computation (:func:`_extension_add_plan`), and it decides the CONTROL:
+            #
+            # * nothing missing → a one-click write of the dict's declared defaults, switched off;
+            # * anything missing → a LINK to this extension's page for THIS scope, where the fields have
+            #   room and the save creates the block. A one-click write there could only be refused.
+            plan = _extension_add_plan(name, section["fields"],
+                                       NODE_PAGE_DICT_SCOPE_NODE if instance is None
+                                       else NODE_PAGE_DICT_SCOPE_INSTANCE)
+            if plan:
+                switch = {"type": "link",
+                          "href": _extension_scope_url(key or node_name, name, instance),
+                          "label": NODE_PAGE_EXTENSION_ADD_LABEL,
+                          "title": NODE_PAGE_EXTENSION_ADD_LINK, "on": False}
+            else:
+                switch = _extension_switch(name, False, tab_url, csrf, revision, add=True)
             extension_options.append({
                 "name": name,
                 "description": description,
                 "scope_label": scope_label,
-                "switch": _extension_switch(name, False, False, tab_url, csrf, revision, ""),
+                "switch": switch,
+                # the add control's own word: it writes a block and enables nothing
+                "labeled": True,
             })
             continue
         block_enabled = _block_enabled(document, section["base"])
@@ -1215,22 +1710,18 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
                              if instance is not None else None)
         enabled = _extension_enabled(is_default, section["configured"], block_enabled,
                                      inherited_enabled)
+        # READINESS IS COMPUTED, and only where the switch LIVES. The Node-wide tab carries no switch
+        # (see below), so there is nothing to gate there; an instance card is gated on the required keys
+        # of BOTH scopes — a node-level required value is what the extension starts with, because
+        # ``load_extension`` merges the node block UNDER the instance block.
+        missing: list[tuple[str, str]] = []
+        if instance is not None:
+            missing = _extension_missing_keys(
+                name, section["fields"],
+                node_block=configgen.value_at(document, (key or node_name, "extensions", name)),
+                instance_block=configgen.value_at(document, section["base"]),
+                node_scope=ext_scopes.get(name.lower()) in (catalog.SCOPE_NODE, catalog.SCOPE_BOTH))
         view = scopes.scope_view(section["fields"], document)
-        # A DEFAULT extension's OFF is the ``disable`` write, not a removal — so no warning step and no
-        # acknowledgement (nothing is discarded); a NON-default configured extension keeps the SAME
-        # acknowledged removal the trashcan uses.
-        confirm = bool(not is_default and warn_ext == name)
-        discard = ""
-        ack = ""
-        if confirm:
-            block = configgen.value_at(document, section["base"])
-            discard = configwrite.dump_config(block) if block is not None else ""
-            # THE ACKNOWLEDGEMENT is minted HERE, by the render that DISPLAYED this block's contents —
-            # so it can only exist as a consequence of the warning. It is stamped with the file's
-            # revision the warning displayed, so a token minted BEFORE a change cannot authorise a
-            # write AFTER it. The confirm form carries it back and the remove save refuses without it
-            # (see _save_extension_switch).
-            ack = mint_extension_ack(request, key or node_name, scope_value, name, revision)
         extensions.append({
             "name": name,
             "kind_label": NODE_PAGE_EXTENSION_KIND,
@@ -1241,21 +1732,31 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
             "fields": section["fields"],
             "configured": section["configured"],
             "locked_note": section["locked_note"],
-            "confirm": confirm,
-            "discard": discard,
             # THE COGWHEEL — the same destination a plugin's cogwheel opens: the extension's OWN
             # configuration page for this node. A DEFAULT extension with no schema fields (``Cloud``)
             # has no configuration page, so it carries no cogwheel.
             "cog_url": node_extension_url(node_name, name) if section["fields"] else "",
-            "switch": _extension_switch(name, section["configured"], confirm, tab_url, csrf, revision,
-                                        ack, is_default=is_default, enabled=enabled),
-            # THE TRASHCAN — a NON-default configured extension's acknowledged removal. A default
-            # extension has NO trashcan: removing its block would RE-ENABLE it (an absent block means
-            # "default on"), so offering a removal would imply the opposite of what it does.
-            "trash_url": "" if is_default else warn_url,
-            "trash_title": NODE_PAGE_EXTENSION_TURN_OFF,
-            "warn_url": warn_url,
-            "keep_url": tab_url,
+            # ON/OFF BELONGS ON THE INSTANCE TAB: ``enable()`` runs on a Server, ``init_extensions()``
+            # needs an instance block to trigger a load at all, and the action writes the INSTANCE
+            # scope — so a Node-wide card carries NO switch at all and shows the shared values only
+            # (they are editable in place on that tab).
+            "switch": (_extension_switch(
+                name, section["configured"], tab_url, csrf, revision,
+                is_default=is_default, enabled=enabled, ready=not missing,
+                # THE JOB WINS over every other state: while it runs, the card shows the disabled
+                # "Enabling…" switch and the page polls until the server says it is done.
+                busy=extension_switch.job_for(request.app.state, key or node_name, instance, name))
+                       if instance is not None else None),
+            # THE LOCK'S ONE LINE: the empty required keys and the tab each is filled on. The cogwheel
+            # beside the switch is the door those values are edited through, so the locked state adds no
+            # control of its own.
+            "warn": _missing_keys_sentence(request, missing) if missing else "",
+            # THE TRASHCAN — a NON-default configured extension's removal, on its OWN URL: the
+            # confirmation dialog (the only place a removal token is minted), never the switch's form.
+            # A default extension has NO trashcan: removing its block would RE-ENABLE it (an absent
+            # block means "default on"), so offering a removal would imply the opposite of what it does.
+            "trash_url": "" if is_default else node_extension_remove_url(node_name, name, tab_index),
+            "trash_title": NODE_PAGE_EXTENSION_REMOVE_TITLE,
             "vals": view.values, "rows": view.rows, "customs": view.customs,
             "elements": view.elements, "choices": view.choices, "sections": view.sections,
             "displays": {field.name: scopes.display_name(field, section["base"])
@@ -1325,13 +1826,7 @@ def node_page_context(request: Request, node_name: str, tab_index: int = 0) -> d
         "ext_action_field": NODE_PAGE_EXTENSION_ACTION_FIELD,
         "ext_add_action": NODE_PAGE_EXTENSION_ADD,
         "ext_remove_action": NODE_PAGE_EXTENSION_REMOVE,
-        "extension_remove_warning": NODE_PAGE_EXTENSION_REMOVE_WARNING,
         "extension_default_badge": NODE_PAGE_EXTENSION_DEFAULT_BADGE,
-        "extension_on": NODE_PAGE_EXTENSION_ON,
-        "extension_off": NODE_PAGE_EXTENSION_OFF,
-        "extension_turn_on": NODE_PAGE_EXTENSION_TURN_ON,
-        "extension_turn_off": NODE_PAGE_EXTENSION_TURN_OFF,
-        "extension_keep": NODE_PAGE_EXTENSION_KEEP,
         "yaml": yaml_text,
         "readonly": readonly or document is None,
         "parse_error": parse_error,
@@ -1397,14 +1892,34 @@ def _resolve_scope(request: Request, form, document, doc_key: str):
 
 async def _save_extension_switch(request: Request, form, existing, doc_key: str, redirect_to: str,
                                  ext_name: str) -> RedirectResponse:
-    """The ONE body for a card's turn-ON / turn-OFF — the same scoped save, a block-shaped mutate.
+    """The ONE body for a card's switch — the same scoped save, a block-shaped mutate.
 
     The scope is CARRIED (:func:`_resolve_scope`), never inferred; a carrier naming no tab of this node
     is refused. The posted extension name must be one the SELECTED scope's schema declares
     (:func:`_scope_extension_names`) — a foreign node or instance (through the scope) or an out-of-scope
-    name is refused with NOTHING written. An ``add`` writes the extension's EMPTY block; a ``remove``
-    deletes exactly that block. Both go through :func:`configwrite.patch_config_file`, so the schema
-    validation, the ``.bak``, the revision guard and the no-op rule are the SAME as any other save.
+    name is refused with NOTHING written. A ``disable``/``enable`` additionally requires the name to
+    be one the selected scope already CONFIGURES, or a DEFAULT extension (which runs with no block at
+    all) — the switch never creates a non-default extension's block. An ``add`` writes the extension's
+    block SEEDED FROM ITS OWN DICT'S DEFAULTS; a ``disable``/``enable`` writes ``enabled: false`` /
+    ``enabled: true`` beside the block's own values; a
+    ``remove`` deletes exactly that block, and only with the acknowledgement its dialog minted. Every
+    action goes through :func:`configwrite.patch_config_file`, so the schema validation, the ``.bak``,
+    the revision guard and the no-op rule are the SAME as any other save.
+
+    TWO WRITES THE READINESS GATE AND THE LIVE ACTION ADD:
+
+    * a ``disable``/``enable`` posted for an extension whose required values are still EMPTY is
+      REFUSED with nothing written (:func:`_extension_missing_keys`) — the same discipline the scope
+      guard applies, and the same answer the locked card cannot post;
+    * an ``add`` whose required key declares no ``default`` is refused BEFORE the patch, naming the
+      key and pointing at Expert Mode, instead of being refused by the schema downstream.
+
+    A switch on an INSTANCE tab whose server this console knows calls the extension's OWN
+    ``enable()``/``disable()`` through :func:`core.actions.call_action` — the live half a config write
+    cannot do — handing it the ``{"Node": …, "Instance": …}`` pair read from the file at POST time,
+    because the process's ``locals`` are stale until its node restarts. With no action available (the
+    bot is down, a headless run) the flag is written into ``nodes.yaml`` as before and the operator is
+    told it applies on the next start.
     """
     path = nodes_yaml_path(request)
     scope = _resolve_scope(request, form, existing, doc_key)
@@ -1417,22 +1932,39 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
             or ext_name not in _scope_extension_names(doc_key, scope)):
         _notice(request, SAVE_REFUSED_UNKNOWN_EXTENSION, ok=False)
         return RedirectResponse(redirect_to, status_code=303)
-    # THE ``disable``/``enable`` ACTIONS ARE FOR DEFAULT EXTENSIONS ONLY. A default extension runs even
-    # with no block, so it is switched off by WRITING ``enabled: false`` — never by removing its block
-    # (an absent block means "default on", and the extension would return). A NON-default extension is
-    # switched off by removing its block (the ``remove`` action); writing ``enabled: false`` into a
-    # block it did not configure would be a different, unintended write, so the two actions are refused
-    # for it here rather than guessed at.
-    if (action in (NODE_PAGE_EXTENSION_DISABLE, NODE_PAGE_EXTENSION_ENABLE)
-            and ext_name.lower() not in catalog.default_extensions()):
-        _notice(request, SAVE_REFUSED_UNKNOWN_EXTENSION, ok=False)
-        return RedirectResponse(redirect_to, status_code=303)
-    # THE REMOVAL'S ACKNOWLEDGEMENT: a ``remove`` must present the token the warning
-    # step minted for EXACTLY this (node, scope, extension), AND that token must have been minted under
-    # the file's CURRENT revision. Absent, stale (a newer warning replaced
-    # it), minted for a different block, or minted before the file changed -> REFUSED here, before the
-    # patch runs, so nothing is written and the refusal says so. An ``add`` needs no acknowledgement —
-    # it writes an empty block and discards nothing.
+    key = _document_node_key(existing, doc_key) or doc_key
+    instance = scope if isinstance(scope, str) else None
+    # A ``disable``/``enable`` writes INTO a block: the scope must already carry one for that name, or
+    # the name must be a DEFAULT extension (which runs with no block at all, so its switch-off has to
+    # CREATE one). A non-default extension the scope does not configure is a choice of the "+ Add"
+    # tile — its card posts ``add``, never a switch action — so a crafted switch action for it would
+    # create a block no control offers. Refused, nothing written.
+    if action in (NODE_PAGE_EXTENSION_DISABLE, NODE_PAGE_EXTENSION_ENABLE):
+        if (ext_name not in _configured_extensions(existing, key, instance)
+                and ext_name.lower() not in catalog.default_extensions()):
+            _notice(request, NODE_PAGE_EXTENSION_UNCONFIGURED, ok=False)
+            return RedirectResponse(redirect_to, status_code=303)
+        # THE LOCK IS A SERVER RULE: an extension whose required values of EITHER scope are still
+        # empty is refused here, exactly as its card cannot post — so a crafted enable can never start
+        # an extension the page shows as not ready, and nothing is written.
+        missing = _extension_missing_keys(
+            ext_name, _tab_extension_fields(doc_key, instance, ext_name),
+            node_block=configgen.value_at(existing, (key, "extensions", ext_name)),
+            instance_block=(configgen.value_at(existing, _extension_base(doc_key, scope, ext_name))
+                            if instance is not None else None),
+            node_scope=_declares_node_scope(ext_name))
+        if missing:
+            _notice(request, i18n.translate(request, NODE_PAGE_EXTENSION_NOT_READY,
+                                            name=ext_name,
+                                            keys=_missing_keys_sentence(request, missing)),
+                     ok=False)
+            return RedirectResponse(redirect_to, status_code=303)
+    # THE ACKNOWLEDGEMENT: the REMOVAL is the ONLY labelled write, and it must present the token the
+    # confirmation dialog minted for EXACTLY this (node, scope, extension), minted under the file's
+    # CURRENT revision. Absent, stale (a newer dialog replaced it), minted for a different block, or
+    # minted before the file changed -> REFUSED here, before the patch runs, so nothing is written and
+    # the refusal says so. An ``add`` needs no acknowledgement — it writes a block seeded from
+    # defaults and discards nothing; ``disable``/``enable`` discard nothing either, so they need none.
     scope_value = (NODE_PAGE_SCOPE_DEFAULT if scope is None
                    else NODE_PAGE_SCOPE_INSTANCE_PREFIX + str(scope))
     if action == NODE_PAGE_EXTENSION_REMOVE:
@@ -1441,11 +1973,73 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
                                       configwrite.config_revision(path)):
             _notice(request, SAVE_REFUSED_EXTENSION_ACK, ok=False)
             return RedirectResponse(redirect_to, status_code=303)
+    dict_scope = (NODE_PAGE_DICT_SCOPE_NODE if instance is None
+                  else NODE_PAGE_DICT_SCOPE_INSTANCE)
+    seed: dict = {}
+    add_enabled: bool | None = False
+    if action == NODE_PAGE_EXTENSION_ADD:
+        # THE ADD WRITES AND ENABLES NOTHING — the values are filled on the extension's own page. The
+        # seed is the dict's declared defaults for THIS scope, plus ``enabled: false``: the block is
+        # created switched off, because the loader reads an ABSENT key as ON. A key the scope's schema
+        # does not declare cannot be written at all, so the seed carries only the keys it knows — and a
+        # scope whose schema does not declare ``enabled`` gets no flag rather than an unvalidatable one.
+        fields = _tab_extension_fields(doc_key, instance, ext_name)
+        declared_keys = {str(field.key) for field in fields}
+        seed = {name: value for name, value in _extension_defaults(ext_name, dict_scope).items()
+                if not declared_keys or name in declared_keys}
+        if declared_keys and "enabled" not in declared_keys:
+            add_enabled = None
+        # A BLOCK THAT CANNOT BE SEEDED IS A LINK, NOT A CLICK: the same schema requirement computation
+        # the node page uses to draw the row as a link refuses a crafted ``add`` for it, before the
+        # patch, naming where the values are actually entered.
+        if _extension_add_plan(ext_name, fields, dict_scope):
+            _notice(request, i18n.translate(request, NODE_PAGE_EXTENSION_ADD_NEEDS_SETUP,
+                                            name=ext_name), ok=False)
+            return RedirectResponse(redirect_to, status_code=303)
+    if action in (NODE_PAGE_EXTENSION_DISABLE, NODE_PAGE_EXTENSION_ENABLE) and instance is not None:
+        # THE LIVE SWITCH: the extension's OWN lifecycle, not a flag write. The pair comes from the
+        # file AS IT IS ON DISK at this moment, because the process's ``locals`` stay stale until its
+        # node restarts. Nothing is patched here — the action's own ``config_extension`` writes
+        # ``enabled``.
+        server_name = _instance_server_name(request, key, instance)
+        qualname = (NODE_PAGE_EXTENSION_ENABLE_ACTION
+                    if action == NODE_PAGE_EXTENSION_ENABLE
+                    else NODE_PAGE_EXTENSION_DISABLE_ACTION)
+        if server_name and action_available(qualname):
+            try:
+                current = configgen.read_document(path)
+            except configwrite.ConfigWriteError:
+                current = existing
+            params: dict = {"server_name": server_name, "extension": ext_name}
+            if action == NODE_PAGE_EXTENSION_ENABLE:
+                params["config"] = _extension_config_pair(current, doc_key, instance, ext_name)
+            # THE SWITCH IS HANDED OVER, NOT AWAITED. An enable runs the extension's ``install()`` — a
+            # pip install for one that ships a package — so awaiting it here held the request open for
+            # minutes: the browser waited with nothing to read, could drop the connection, and a second
+            # click or operator started a SECOND install. The job is claimed in the registry (so a
+            # concurrent attempt is REFUSED here, before anything starts), the action runs as a
+            # background task, and the page reads the job to draw its disabled "Enabling…" switch and to
+            # collect the result once it lands.
+            from urllib.parse import unquote
+            job = extension_switch.begin(request.app.state, key, unquote(_url_node(redirect_to)),
+                                         instance, ext_name, action)
+            if job is None:
+                _notice(request, i18n.translate(request, NODE_PAGE_EXTENSION_SWITCH_BUSY,
+                                                name=ext_name), ok=False)
+                return RedirectResponse(redirect_to, status_code=303)
+            # ``track`` — never a bare ``create_task``: a task nothing references can be collected at
+            # an await point, which cancels it silently and leaves the switch blinking forever.
+            extension_switch.track(request.app.state, job, _run_extension_switch(
+                request.app.state, job, qualname, actions_page.context_for(request), params))
+            started = (NODE_PAGE_EXTENSION_SWITCH_STARTED
+                       if action == NODE_PAGE_EXTENSION_ENABLE else NODE_PAGE_EXTENSION_SWITCH_STOPPED)
+            _notice(request, i18n.translate(request, started, name=ext_name), ok=True)
+            return RedirectResponse(redirect_to, status_code=303)
     revision = readmodels.text(form.get(settings_page.SETTINGS_REVISION_FIELD)) or None
     schema_files = list(configgen.schema_files_for(NODES_SCHEMA_PATH))
     base = _extension_base(doc_key, scope, ext_name)
     if action == NODE_PAGE_EXTENSION_ADD:
-        mutate = lambda document: _add_extension_block(document, base)
+        mutate = lambda document: _add_extension_block(document, base, seed, enabled=add_enabled)
     elif action == NODE_PAGE_EXTENSION_REMOVE:
         mutate = lambda document: _remove_extension_block(document, base)
     else:
@@ -1459,6 +2053,13 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
                                 "rendered. Reload and try again."), ok=False)
         return RedirectResponse(redirect_to, status_code=303)
     except configwrite.ConfigValidationError as ex:
+        if action == NODE_PAGE_EXTENSION_ADD:
+            # THE ADD SPEAKS IN OUR WORDS: a seeded value the schema refused is reported as an add that
+            # did not pass the check, never as pykwalify's line (which names a document path). Nothing
+            # was written either way.
+            _notice(request, i18n.translate(request, NODE_PAGE_EXTENSION_ADD_REJECTED,
+                                            name=ext_name), ok=False)
+            return RedirectResponse(redirect_to, status_code=303)
         detail = settings_page._clean_detail(ex.errors) or str(ex)
         _notice(request, f"{settings_page.REFUSED_BANNER} {detail}", ok=False)
         return RedirectResponse(redirect_to, status_code=303)
@@ -1474,7 +2075,15 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
                  NODE_PAGE_EXTENSION_REMOVE: NODE_PAGE_EXTENSION_REMOVED,
                  NODE_PAGE_EXTENSION_DISABLE: NODE_PAGE_EXTENSION_TURNED_OFF,
                  NODE_PAGE_EXTENSION_ENABLE: NODE_PAGE_EXTENSION_TURNED_ON}[action]
-        _notice(request, i18n.translate(request, msgid, name=ext_name), ok=True)
+        # THE FALLBACK'S OWN SENTENCE: with no live action the flag is written into ``nodes.yaml``,
+        # which is a BOOT file — so the operator is offered the apply control, exactly like any other
+        # save of this file, and told it takes effect on the next start.
+        apply = (config_apply.offer(request, path=path,
+                                    config_dir=settings_page.config_dir(request),
+                                    kind=settings_page.KIND_NODES, name=NODES_YAML_NAME,
+                                    node=doc_key or "", back=redirect_to)
+                 if action in (NODE_PAGE_EXTENSION_DISABLE, NODE_PAGE_EXTENSION_ENABLE) else None)
+        _notice(request, i18n.translate(request, msgid, name=ext_name), ok=True, apply=apply)
     elif action in (NODE_PAGE_EXTENSION_ADD, NODE_PAGE_EXTENSION_REMOVE):
         msgid = (NODE_PAGE_EXTENSION_ADD_EXISTS if action == NODE_PAGE_EXTENSION_ADD
                  else NODE_PAGE_EXTENSION_REMOVE_ABSENT)
@@ -1484,6 +2093,152 @@ async def _save_extension_switch(request: Request, form, existing, doc_key: str,
         # is byte-identical — say so, the SAME sentence every no-op save leaves.
         _notice(request, i18n.translate(request, settings_page.SAVED_NO_CHANGE), ok=True)
     return RedirectResponse(redirect_to, status_code=303)
+
+
+async def _run_extension_switch(state, job, qualname: str, ctx: Any, params: dict) -> None:
+    """Run ONE claimed switch job to completion and record its verdict.
+
+    The job was claimed before this task started (:func:`services.webservice.extension_switch.begin`),
+    so the switch is locked for its whole duration and a second attempt was refused rather than queued.
+    The action's own message is the result — success or the refusal sentence it words (a failed
+    ``install()`` names itself) — and :func:`extension_switch.finish` stores it for the next page render
+    to show as the console's ordinary notice. An exception is caught HERE and recorded as a refusal:
+    nothing awaits this task, so an escaping error would be a silently dead switch, not a traceback an
+    operator could see.
+    """
+    started = time.monotonic()
+    # THE LOG IS THE ONLY PLACE THIS IS VISIBLE: nothing awaits the task, so a switch that never
+    # finishes leaves no traceback anywhere. These two lines name the action, so a stuck switch can be
+    # told apart from one that simply has not finished yet.
+    log.info("extension switch started: %s (%s)", qualname, job.state_key)
+    try:
+        result = await call_action(qualname, ctx, **params)
+        ok = bool(getattr(result, "success", False))
+        message = readmodels.text(getattr(result, "message", ""))
+    except asyncio.CancelledError:
+        # CANCELLED IS A VERDICT TOO: a shutdown or a collected task must still close the job, or the
+        # page has nothing to stop blinking on. Recorded, then re-raised so the loop sees the cancel.
+        log.warning("extension switch cancelled: %s", qualname)
+        extension_switch.finish(state, job, False, extension_switch.STOPPED_SHORT)
+        raise
+    except BaseException as ex:          # noqa: BLE001 - the task has no caller at all; record it
+        # BaseException, not Exception: the action runs extension code inside, and something escaping
+        # as a SystemExit would otherwise kill the task with the job left "running" for ever.
+        log.exception("extension switch failed: %s", qualname)
+        ok, message = False, f"{type(ex).__name__}: {ex}"
+    log.info("extension switch %s: %s in %.1fs — %s", "succeeded" if ok else "failed", qualname,
+             time.monotonic() - started, message[:300])
+    extension_switch.finish(state, job, ok, message)
+
+
+def _surface_switch_results(request: Request, node_name: str) -> None:
+    """Turn every finished-but-unshown switch job of this node into the page's OWN notice.
+
+    Called at the top of a render, BEFORE the notice is popped, so the result of a background switch
+    (the sentence the blocking save used to return inline) arrives on the reload the poll triggers.
+    Each job is taken once — a later reload does not repeat it.
+
+    Reconciled FIRST: a job whose task died closes here rather than staying "running", so a plain
+    reload (with no poll in flight) also ends the blink and says what happened.
+    """
+    extension_switch.reconcile(request.app.state, node_name)
+    for job in extension_switch.take_results(request.app.state, node_name):
+        if job.message:
+            _notice(request, job.message, ok=job.ok)
+
+
+def _scope_from_tab_index(document, doc_key: str, tab_index: int):
+    """The scope a ``?tab=<n>`` index names: ``None`` (DEFAULT), an instance name, or ``_INVALID_SCOPE``."""
+    if tab_index <= 0:
+        return None
+    instances = _document_instances(document, doc_key)
+    if tab_index - 1 >= len(instances):
+        return _INVALID_SCOPE
+    return instances[tab_index - 1]
+
+
+def _scope_label(request: Request, instance: str | None) -> str:
+    """The scope's own NAME, translated — the words the page's tab strip shows."""
+    if instance is None:
+        return i18n.translate(request, NODE_PAGE_SCOPE_NODE_LABEL)
+    return i18n.translate(request, NODE_PAGE_SCOPE_INSTANCE_LABEL, name=readmodels.text(instance))
+
+
+def _extension_remove_dialog(request: Request, node_name: str, doc_key: str, ext_name: str,
+                             instance: str | None, scope_value: str, tab_index: int,
+                             block, path: Path) -> dict:
+    """The removal dialog's context: the console's confirmation page, worded for ONE extension block.
+
+    THE ACKNOWLEDGEMENT IS MINTED HERE — the render that DISPLAYED this block's contents — and stamped
+    with the file revision it displayed, so a token minted before a change cannot authorise a write
+    after it. The form posts the ``remove`` action back to the node page's own save with that token;
+    the save refuses without it (see :func:`_save_extension_switch`). The block's YAML is operator data:
+    it is printed verbatim, escaped before it rides the record's markup.
+    """
+    from markupsafe import escape
+
+    revision = configwrite.config_revision(path)
+    discard = configwrite.dump_config(block) if block is not None else ""
+    ack = mint_extension_ack(request, doc_key, scope_value, ext_name, revision)
+    tab_url = f"{node_page_url(node_name)}?tab={tab_index}"
+    scope_label = _scope_label(request, instance)
+    return {
+        "page_title": {"msgid": NODE_PAGE_EXTENSION_REMOVE_PAGE_TITLE,
+                       "params": {"name": ext_name, "node": node_name}},
+        "back": tab_url,
+        "dialog": {
+            "path": tab_url,
+            "heading": {"msgid": NODE_PAGE_EXTENSION_REMOVE_HEADING,
+                        "params": {"name": ext_name, "scope": escape(scope_label)}},
+            "tag": i18n._("confirm"),
+            "detail": {"msgid": NODE_PAGE_EXTENSION_REMOVE_DETAIL,
+                       "params": {"scope": escape(scope_label)}},
+            "detail_notes": (
+                {"msgid": NODE_PAGE_EXTENSION_REMOVE_BLOCK,
+                 "params": {"yaml": escape(discard)}},
+            ),
+            "warning": {"msgid": NODE_PAGE_EXTENSION_DISCARD_WARNING},
+            "warning_note": "",
+            "target": node_name,
+            "irreversible": False,
+            "danger": True,
+            "go": {"msgid": i18n._("Remove")},
+            "go_title": {"msgid": NODE_PAGE_EXTENSION_REMOVE_TITLE},
+            "inputs": (),
+            # THE WHOLE WRITE travels in the BODY: which scope, which extension, which action — and the
+            # revision the operator was looking at, so a file that changed meanwhile is refused rather
+            # than written over.
+            "hidden": ((NODE_PAGE_SCOPE_FIELD, scope_value),
+                       (NODE_PAGE_EXTENSION_FIELD, ext_name),
+                       (NODE_PAGE_EXTENSION_ACTION_FIELD, NODE_PAGE_EXTENSION_REMOVE),
+                       (settings_page.SETTINGS_REVISION_FIELD, revision)),
+            "csrf_field": session.CSRF_FIELD,
+            "csrf_token": session.get_csrf_token(request),
+            "confirm_field": NODE_PAGE_EXTENSION_ACK_FIELD,
+            "confirm_token": ack,
+        },
+    }
+
+
+def _extension_remove_chrome(request: Request, node_name: str) -> dict:
+    """The shell chrome of the removal dialog — the same sidebar, pills and breadcrumb as the node page."""
+    registrar = getattr(getattr(request, "app", None), "state", None)
+    registrar = getattr(registrar, "webui_registrar", None)
+    state = readmodels.overview(dashboard_page.request_source(request),
+                               level=dashboard_page.log_level(request))
+    return {
+        "title": NODE_SETTINGS_TITLE,
+        "lead": NODE_SETTINGS_LEAD,
+        "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, nodes_page.NODES_TITLE,
+                                      target=node_name),
+        "notice": actions_page.pop_notice(request),
+        "nav_groups": dashboard_page.nav_groups(registrar, permissions.role_names_for(request),
+                                                current=nodes_page.NODES_PATH,
+                                                manager=permissions.manages_console(request)),
+        "user": dashboard_page.identity_summary(request),
+        "env": dashboard_page.environment_marker(state),
+        "pills": dashboard_page.status_pills(state),
+    }
 
 
 def _foreign_scope_field(form, tree: configgen.Field) -> str | None:
@@ -1732,13 +2487,46 @@ def presets_choice_context(request: Request, nodes_document: Any, current: Any,
             "remote": bool(masters) and readmodels.text(node_name) not in masters}
 
 
-def extension_page_context(request: Request, node_name: str, ext_name: str, tab_index: int = 0) -> dict:
+def _derived_tab_index(scope_list) -> int:
+    """The tab a page opens on when the URL names none: the FIRST scope that CARRIES a block.
+
+    The cogwheel of a configured card addresses the page without a tab, so it must land on that card's
+    own scope even when the page also offers a scope that does not exist yet (which comes first for a
+    node-scoped extension). No scope carrying a block means tab 0 — the first one, which then creates
+    it on save.
+    """
+    for index, scope in enumerate(scope_list):
+        if scope.get("present"):
+            return index
+    return 0
+
+
+def _scope_from_carrier(scope: "str | None"):
+    """``(kind, instance)`` named by a ``?scope=`` carrier, or ``None`` when it names neither."""
+    raw = readmodels.text(scope or "")
+    if raw == NODE_PAGE_SCOPE_DEFAULT:
+        return "node", None
+    if raw.startswith(NODE_PAGE_SCOPE_INSTANCE_PREFIX):
+        name = raw[len(NODE_PAGE_SCOPE_INSTANCE_PREFIX):]
+        return ("instance", name) if name else None
+    return None
+
+
+def extension_page_context(request: Request, node_name: str, ext_name: str,
+                           tab_index: "int | None" = 0,
+                           scope: "str | None" = None) -> dict:
     """Everything ``settings_scope.html`` reads for ONE extension's configuration on ONE node.
 
     Returns the SAME shape the plugin/service cogwheel view (:func:`settings.scoped_context`) does, so
     the two surfaces render through the ONE template and the ONE control macro. A ``nodes.yaml`` that
-    does not parse, a node with no block, or an extension the node does not configure renders READ-ONLY
-    with the honest reason rather than a broken form.
+    does not parse, a node with no block, or an extension the node cannot be configured for anywhere
+    renders READ-ONLY with the honest reason rather than a broken form.
+
+    *scope* is the console's scope carrier (``default`` / ``instance:<name>``) and WINS over *tab_index*:
+    it names a scope, where a tab index names a position. *tab_index* ``None`` is the page's own
+    default: it opens on the FIRST scope that already CARRIES a block, so the cogwheel of a configured
+    card lands on that card's scope even when the same page also offers a scope that does not exist yet.
+    An explicit ``?tab=<n>`` is honoured as it is.
     """
     path = nodes_yaml_path(request)
     readonly = False
@@ -1764,19 +2552,29 @@ def extension_page_context(request: Request, node_name: str, ext_name: str, tab_
 
     node_names = settings_page._node_names(settings_page.config_dir(request))
     scope_list, _save_tree = scopes.build_extension_scopes(
-        document if isinstance(document, dict) else {}, ext_name, node_names)
+        document if isinstance(document, dict) else {}, ext_name, node_names, node=key)
     visible = scopes.scopes_for_node(scope_list, key) if key is not None else scope_list
     if not visible:
         readonly = True
         parse_error = NODE_EXTENSION_UNCONFIGURED
 
     base_url = node_extension_url(node_name, ext_name)
+    named = _scope_from_carrier(scope)
+    if named is not None:
+        tab_index = scopes.scope_tab_index(visible, named[0], named[1])
+    elif tab_index is None:
+        tab_index = _derived_tab_index(visible)
     tab_index = max(0, min(tab_index, max(0, len(visible) - 1)))
     tabs = [{"label": scope["label"], "kind": scope["kind"], "active": index == tab_index, "note": "",
              "url": f"{base_url}?tab={index}"} for index, scope in enumerate(visible)]
     node_choices = [{"name": name, "url": f"{node_extension_url(name, ext_name)}?tab=0",
                      "active": name == (key or node_name)} for name in scopes.node_options(scope_list)]
-    active = visible[tab_index] if visible else {"fields": [], "base": (), "kind": "node"}
+    active = visible[tab_index] if visible else {"fields": [], "base": (), "kind": "node",
+                                                "present": True}
+    # A SCOPE WITHOUT A BLOCK RENDERS THE SAME FORM, and its save CREATES the block: the tab set now
+    # includes the scopes this node could configure (``build_extension_scopes(node=…)``), so the page
+    # says which state it is in rather than offering a form that would not save.
+    creates_block = document is not None and not active.get("present", True)
     view = scopes.scope_view(active.get("fields", []), document)
     displays = {field.name: scopes.display_name(field, active.get("base", ()))
                 for field in configgen.flatten(view.root)}
@@ -1827,6 +2625,9 @@ def extension_page_context(request: Request, node_name: str, ext_name: str, tab_
         "scoped": True,
         "ext_name": ext_name,
         "tabs": tabs,
+        # the RESOLVED tab: a page opened by a ``?scope=`` carrier still posts its save to a ``?tab=``
+        # URL, so the save's redirect lands back on the scope the operator was looking at
+        "tab_index": tab_index,
         "fields": active.get("fields", []),
         "displays": displays,
         "values": view.values,
@@ -1843,6 +2644,10 @@ def extension_page_context(request: Request, node_name: str, ext_name: str, tab_
         "remove_ack_field": vis["remove_ack_field"],
         "remove_companion": vis["remove_companion"],
         "scope_note": i18n.translate(request, NODE_EXTENSION_SCOPE_NOTE),
+        # the ACTIVE tab's state: a scope the file carries no block for renders its form anyway, and
+        # this is the sentence that says the save CREATES the block there
+        "creates_block": creates_block,
+        "create_note": i18n.translate(request, NODE_EXTENSION_CREATE_NOTE) if creates_block else "",
         "add_path": "",
         "add_placeholder": settings_page.ADD_BLOCK_INSTANCE_PLACEHOLDER,
         "node_names": node_names,
@@ -1870,22 +2675,26 @@ def extension_page_context(request: Request, node_name: str, ext_name: str, tab_
     }
 
 
-def _foreign_extension_field(form, doc_key: str) -> str | None:
-    """The first posted ``f.`` field whose TOP-LEVEL token is not *doc_key* — or ``None``.
+def _foreign_extension_field(form, doc_key: "str | None", instances=()) -> str | None:
+    """The first posted ``f.`` field the SELECTED node's block cannot place — or ``None``.
 
     The extension page edits ONE node's blocks; every ``f.`` field it renders begins with that node's
     key (``f.<node>.extensions.<Name>…`` or ``f.<node>.instances.<inst>.extensions.<Name>…``). A field
-    naming any other top-level key — a sibling NODE — is refused, never written.
+    naming any other top-level key — a sibling NODE — is refused, never written, and so is one naming an
+    INSTANCE the node's block does not declare: the save tree addresses instances by a ``regex;(.+)``
+    placeholder, which would otherwise CREATE the instance that field names.
     """
     multi = getattr(form, "multi_items", None)
     items = list(multi()) if callable(multi) else []
     for name, _value in items:
         if not isinstance(name, str) or not name.startswith("f."):
             continue
-        token = configgen.decode_token(name[2:].split(".", 1)[0])
-        if token in (configgen.REMOVED_COMPANION, configgen.REMOVE_ACK_COMPANION):
+        tokens = [configgen.decode_token(token) for token in name[2:].split(".")]
+        if tokens[0] in (configgen.REMOVED_COMPANION, configgen.REMOVE_ACK_COMPANION):
             continue              # the removal list / its acknowledgement: guarded by the removal rule
-        if token != doc_key:
+        if tokens[0] != doc_key:
+            return name
+        if len(tokens) > 2 and tokens[1] == "instances" and tokens[2] not in instances:
             return name
     return None
 
@@ -1979,8 +2788,55 @@ def _collapse_presets_choice(form, document):
     return _CollapsedForm(form, [pair for pair in kept if pair[0] not in stale] + derived)
 
 
-async def save_extension(request: Request, node_name: str, ext_name: str,
-                         redirect_to: str) -> RedirectResponse:
+def _page_save_target(scope_list, doc_key: str | None, tab: int, scope: str | None):
+    """The block a page save addresses, and whether that scope's schema declares ``enabled``.
+
+    Resolved from the SAME scope list the page renders its tabs from: a ``?scope=`` carrier names a
+    scope and wins over a ``?tab=`` position, exactly as :func:`extension_page_context` resolves it, so
+    the save writes the block the operator was looking at.
+    """
+    visible = scopes.scopes_for_node(scope_list, doc_key)
+    if not visible:
+        return None, False
+    named = _scope_from_carrier(scope)
+    if named is not None:
+        index = scopes.scope_tab_index(visible, named[0], named[1])
+    else:
+        index = max(0, int(tab or 0))
+    active = visible[max(0, min(index, len(visible) - 1))]
+    declared = any(str(field.key) == "enabled" for field in active.get("fields") or ())
+    return tuple(active.get("base") or ()), declared
+
+
+#: pykwalify's line for a required key the candidate does not carry (``Cannot find required key 'repo'``).
+_REQUIRED_KEY = re.compile(r"Cannot find required key '([^']+)'")
+
+
+def _fixed_alternatives(raw: str) -> list[str]:
+    """A ``regex;`` fixed-alternative key as the names it offers; any other key as itself."""
+    prefix = "regex;("
+    if raw.startswith(prefix) and raw.endswith(")"):
+        return raw[len(prefix):-1].split("|")
+    return [raw]
+
+
+def _refused_field_words(detail: str, error_path: str, base: tuple) -> list[str]:
+    """The fields a refused CREATING save names: the required keys it is missing, else the offending
+    path read RELATIVE to the block (``port`` for ``…/SRS/port``).
+    """
+    words = [" | ".join(_fixed_alternatives(raw)) for raw in _REQUIRED_KEY.findall(detail or "")]
+    words = list(dict.fromkeys(words))
+    if words:
+        return words
+    tokens = [token for token in str(error_path or "").split("/") if token]
+    block = [str(token) for token in base]
+    if tokens[:len(block)] == block:
+        tokens = tokens[len(block):]
+    return [".".join(tokens)] if tokens else []
+
+
+async def save_extension(request: Request, node_name: str, ext_name: str, redirect_to: str,
+                         *, tab: int = 0, scope: str | None = None) -> RedirectResponse:
     """The ONE save body for an extension's configuration on ONE node — the SAME write primitive.
 
     A ``nodes.yaml`` is written as a WHOLE-DOCUMENT patch. The plain form's fields are applied against
@@ -1988,6 +2844,18 @@ async def save_extension(request: Request, node_name: str, ext_name: str,
     NODE's token may be written. The Expert Mode door merges ONLY that node's slice back. Every other
     node, scope and block is left byte-identical, and the no-op rule holds — because it IS the node
     page's save with a different resolve tree.
+
+    A SAVE THAT CREATES THE BLOCK SWITCHES IT OFF. ``apply_form`` never creates a ``False`` bool on a
+    creating save (it would invent the key on every other file), so the new block's own ``enabled`` is
+    written here — ``false``, whatever the form posted: ``core/extension.py`` reads an ABSENT key as ON,
+    so a block created without the flag would start the extension on the node's next start. One rule
+    for every door that creates a block (:func:`_add_extension_block` writes the same value).
+
+    A SAVE OVER AN EXISTING BLOCK NEVER TOUCHES ``enabled``: editing configuration never switches an
+    extension on or off. Only the switch and the enable/disable actions write that value.
+
+    *tab* / *scope* address the scope the page was showing (a ``?scope=`` carrier wins over a ``?tab=``
+    position, exactly as the render resolves it), so the created block is the one on screen.
     """
     path = nodes_yaml_path(request)
     schema_files = list(configgen.schema_files_for(NODES_SCHEMA_PATH))
@@ -2003,7 +2871,9 @@ async def save_extension(request: Request, node_name: str, ext_name: str,
         return RedirectResponse(redirect_to, status_code=303)
     doc_key = _document_node_key(existing, node_name)
     node_names = settings_page._node_names(settings_page.config_dir(request))
-    _scopes, save_tree = scopes.build_extension_scopes(existing, ext_name, node_names)
+    scope_list, save_tree = scopes.build_extension_scopes(existing, ext_name, node_names, node=doc_key)
+    base, enabled_declared = _page_save_target(scope_list, doc_key, tab, scope)
+    creating = base is not None and configgen.value_at(existing, base) is None
     try:
         if expert:
             text = form.get(settings_page.SETTINGS_YAML_FIELD)
@@ -2026,7 +2896,8 @@ async def save_extension(request: Request, node_name: str, ext_name: str,
             # into the field's own value shape BEFORE anything reads the form — the removal reading
             # included, since "no file selected" IS a removal.
             form = _collapse_presets_choice(form, existing)
-            if _foreign_extension_field(form, doc_key) is not None:
+            if _foreign_extension_field(form, doc_key,
+                                        _document_instances(existing, doc_key)) is not None:
                 _notice(request, SAVE_REFUSED_FOREIGN_SCOPE, ok=False)
                 return RedirectResponse(redirect_to, status_code=303)
             # A value-carrying removal needs the acknowledgement the render minted (an unplaceable
@@ -2039,7 +2910,31 @@ async def save_extension(request: Request, node_name: str, ext_name: str,
                     return RedirectResponse(redirect_to, status_code=303)
 
             def mutate(document):
+                before = configgen.value_at(document, base) if base is not None else None
+                # READ THE SWITCH BEFORE ``apply_form``: the value read here is the LIVE mapping it then
+                # mutates, so the flag and its presence have to be captured as plain values first.
+                before_book = before if isinstance(before, dict) else None
+                had_flag = "enabled" in before_book if before_book is not None else False
+                flag = before_book.get("enabled") if before_book is not None else None
                 configgen.apply_form(document, form, save_tree)
+                if base is None:
+                    return
+                after = configgen.value_at(document, base)
+                if not isinstance(after, dict):
+                    return
+                switch_removed = configgen.encode_path(tuple(base) + ("enabled",)) in removals
+                if before is None:
+                    # THE CREATING SAVE WRITES THE FLAG ITSELF: a block created without it reads as ON.
+                    # Only a scope whose schema DECLARES the key may carry it, exactly as the Add row.
+                    if enabled_declared:
+                        after["enabled"] = False
+                elif had_flag and not switch_removed:
+                    # AN EXISTING BLOCK KEEPS ITS SWITCH: the form's toggle is not a switch. An
+                    # ACKNOWLEDGED removal of the field is the operator's own edit, so it stands.
+                    after["enabled"] = flag
+                else:
+                    # absence stays absence — an absent key is ON, and a save may not invent it.
+                    after.pop("enabled", None)
 
             result = configwrite.patch_config_file(path, mutate, schemas=schema_files,
                                                    expect_revision=revision)
@@ -2050,6 +2945,14 @@ async def save_extension(request: Request, node_name: str, ext_name: str,
                                 "rendered. Reload and try again."), ok=False)
         return RedirectResponse(redirect_to, status_code=303)
     except configwrite.ConfigValidationError as ex:
+        if creating:
+            # THE CREATING DOOR SPEAKS IN OUR WORDS: a sentence naming the field the operator must fix,
+            # never the validator's own line. Nothing was written — the patch aborts before the write.
+            fields = _refused_field_words(ex.errors, ex.error_path, base or ())
+            if fields:
+                _notice(request, i18n.translate(request, NODE_EXTENSION_CREATE_REJECTED,
+                                                fields=", ".join(fields)), ok=False)
+                return RedirectResponse(redirect_to, status_code=303)
         detail = settings_page._clean_detail(ex.errors) or str(ex)
         _notice(request, f"{settings_page.REFUSED_BANNER} {detail}", ok=False)
         return RedirectResponse(redirect_to, status_code=303)
@@ -2116,6 +3019,8 @@ def add_routes(router: APIRouter) -> APIRouter:
     def _render_page(request: Request, node_name: str, tab: int) -> HTMLResponse:
         registrar = getattr(request.app.state, "webui_registrar", None)
         roles = permissions.role_names_for(request)
+        # a background switch that finished since the last render speaks on THIS one, as the notice
+        _surface_switch_results(request, node_name)
         context = node_page_context(request, node_name, tab)
         context.update({
             "crumb": dashboard_page.crumb(dashboard_page.CRUMB_GROUP, nodes_page.NODES_TITLE,
@@ -2152,7 +3057,28 @@ def add_routes(router: APIRouter) -> APIRouter:
             from fastapi import HTTPException
             raise HTTPException(status_code=404)
         doc_key = _resolve_doc_key(request, requested) or requested
-        return await save_node(request, doc_key, node_page_url(canonical))
+        return await save_node(request, doc_key, _node_page_back_url(request, canonical))
+
+    @router.get(NODE_PAGE_SWITCH_STATE_PATH, name="node-switch-state")
+    async def node_switch_state(request: Request, node: str):
+        """Which of this node's extensions are switching right now — a READ, nothing written.
+
+        The card whose switch is in flight polls this and reloads when its own job is gone, which is
+        when the result notice is waiting on the page. It answers ONLY the running jobs (the finished
+        ones are the render's to show once), and only for a node the operator may view.
+        """
+        requested = readmodels.text(node)
+        if _viewed_node(dashboard_page.request_source(request), requested) is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        # A JOB ONLY COUNTS AS RUNNING WHILE A LIVE TASK RUNS IT: a task that died (cancelled at
+        # shutdown, collected, or hung past the limit) is closed here, so the page's poll always ends
+        # and the reload that follows shows what happened instead of blinking forever.
+        extension_switch.reconcile(request.app.state, requested)
+        return JSONResponse({"running": {job.state_key: job.action
+                                         for job in extension_switch.running(request.app.state,
+                                                                            requested)}},
+                            headers={"Cache-Control": "no-store"})
 
     @router.post(NODE_PAGE_VALIDATE_PATH,
                  dependencies=[Depends(session.csrf_protect_with(settings_page.SETTINGS_FORM_MAX_FIELDS))])
@@ -2201,11 +3127,14 @@ def add_routes(router: APIRouter) -> APIRouter:
                 return str(key)
         return None
 
-    def _render_extension(request: Request, node_name: str, ext_name: str, tab: int) -> HTMLResponse:
+    def _render_extension(request: Request, node_name: str, ext_name: str,
+                          tab: "int | None", scope: "str | None" = None) -> HTMLResponse:
         registrar = getattr(request.app.state, "webui_registrar", None)
         roles = permissions.role_names_for(request)
         base_url = node_extension_url(node_name, ext_name)
-        context = extension_page_context(request, node_name, ext_name, tab)
+        # the switch's result (a background job that finished) speaks here as the notice
+        _surface_switch_results(request, node_name)
+        context = extension_page_context(request, node_name, ext_name, tab, scope)
         context.update({
             "title": NODE_SETTINGS_TITLE,
             "page_title": NODE_SETTINGS_TITLE,
@@ -2216,7 +3145,7 @@ def add_routes(router: APIRouter) -> APIRouter:
                                                     manager=permissions.manages_console(request)),
             "user": dashboard_page.identity_summary(request),
             "notice": actions_page.pop_notice(request),
-            "save_path": f"{base_url}?tab={tab}",
+            "save_path": f"{base_url}?tab={context.get('tab_index', 0)}",
             "validate_path": _node_extension_validate_url(node_name, ext_name),
             "hints_path": _node_extension_hints_url(node_name, ext_name),
             "revision_field": settings_page.SETTINGS_REVISION_FIELD,
@@ -2239,14 +3168,20 @@ def add_routes(router: APIRouter) -> APIRouter:
         return requested
 
     @router.get(NODE_EXTENSION_PATH, response_class=HTMLResponse, name="node-extension")
-    async def node_extension(request: Request, node: str, name: str, tab: int = 0):
-        """The extension's OWN configuration for ONE node — the cogwheel's destination."""
+    async def node_extension(request: Request, node: str, name: str, tab: "int | None" = None,
+                             scope: "str | None" = None):
+        """The extension's OWN configuration for ONE node — the cogwheel's destination.
+
+        Without ``?tab=`` or ``?scope=`` the page opens on the first scope that already carries a block;
+        the ``+ Add`` link names its SCOPE, so it lands on the scope that creates the block even when
+        that scope is the only one with no block yet.
+        """
         requested = _extension_node(request, node)
         canonical = _canonical_extension(name)
         if canonical is None:
             from fastapi import HTTPException
             raise HTTPException(status_code=404)
-        return _render_extension(request, requested, canonical, tab)
+        return _render_extension(request, requested, canonical, tab, scope)
 
     @router.post(NODE_EXTENSION_PATH,
                  dependencies=[Depends(session.csrf_protect_with(settings_page.SETTINGS_FORM_MAX_FIELDS))])
@@ -2258,7 +3193,12 @@ def add_routes(router: APIRouter) -> APIRouter:
             raise HTTPException(status_code=404)
         tab = readmodels.text(request.query_params.get("tab")) or "0"
         target = f"{node_extension_url(requested, canonical)}?tab={tab}"
-        return await save_extension(request, requested, canonical, target)
+        try:
+            tab_index = int(tab)
+        except ValueError:
+            tab_index = 0
+        return await save_extension(request, requested, canonical, target, tab=tab_index,
+                                    scope=request.query_params.get("scope"))
 
     @router.post(NODE_EXTENSION_VALIDATE_PATH,
                  dependencies=[Depends(session.csrf_protect_with(settings_page.SETTINGS_FORM_MAX_FIELDS))])
@@ -2290,5 +3230,49 @@ def add_routes(router: APIRouter) -> APIRouter:
             from fastapi import HTTPException
             raise HTTPException(status_code=404)
         return nodes_hints(request)
+
+    @router.get(NODE_PAGE_EXTENSION_REMOVE_PATH, response_class=HTMLResponse,
+                name="node-extension-remove")
+    async def node_extension_remove(request: Request, node: str, name: str, tab: int = 0):
+        """The trashcan's target: the console's confirmation page for ONE extension block.
+
+        It writes nothing. It DISPLAYS the block's own YAML and mints the removal acknowledgement for
+        exactly that (node, scope, extension) at exactly that revision — the only place such a token
+        exists — and its form posts the ``remove`` action back to the node page's own save. A scope
+        that does not configure the extension has nothing to discard, so it answers a redirect to the
+        tab rather than a dialog for an absent block.
+        """
+        requested = _extension_node(request, node)
+        canonical = _canonical_extension(name)
+        if canonical is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        path = nodes_yaml_path(request)
+        try:
+            document = configgen.read_document(path)
+        except configwrite.ConfigWriteError:
+            document = None
+        tab_index = max(0, tab)
+        fallback = RedirectResponse(f"{node_page_url(requested)}?tab={tab_index}", status_code=303)
+        doc_key = _document_node_key(document, requested) if isinstance(document, dict) else None
+        if doc_key is None:
+            return fallback
+        scope = _scope_from_tab_index(document, doc_key, tab_index)
+        if scope is _INVALID_SCOPE:
+            return fallback
+        block = configgen.value_at(document, _extension_base(doc_key, scope, canonical))
+        if not isinstance(block, dict):
+            return fallback
+        scope_value = (NODE_PAGE_SCOPE_DEFAULT if scope is None
+                       else NODE_PAGE_SCOPE_INSTANCE_PREFIX + str(scope))
+        context = _extension_remove_dialog(request, requested, doc_key, canonical, scope,
+                                           scope_value, tab_index, block, path)
+        chrome = _extension_remove_chrome(request, requested)
+        chrome["page_title"] = context["page_title"]
+        # ``confirm.html`` reads the return path at the TOP level (its Cancel link and the form's
+        # ``data-back``) and everything else off ``dialog``.
+        return HTMLResponse(i18n.render(request, CONFIRM_TEMPLATE, **chrome,
+                                        back=context["back"], dialog=context["dialog"]),
+                            headers={"Cache-Control": "no-store"})
 
     return router

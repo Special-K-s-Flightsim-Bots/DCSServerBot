@@ -47,6 +47,21 @@ log = logging.getLogger(__name__)
 #: language at CALL time (``core.translations``), never at import.
 _ = get_translation(__name__.split('.')[1])
 
+#: The states in which a mission write is refused on EVERY transport. DCS holds ``net.missionlist``
+#: in memory from ``LOADING`` until it exits, and writes ``serverSettings.lua`` itself while it loads
+#: and while it shuts down; a bot write made then races DCS's own copy of the same file.
+MISSION_LIST_BUSY_STATES = (Status.LOADING, Status.SHUTTING_DOWN)
+
+#: The sentence every surface refuses with, so an operator cannot tell which door refused. The rule
+#: lives in ``core.data.impl.serverimpl`` (:data:`MISSION_LIST_BUSY_REFUSAL`); this module and the
+#: console carry their OWN copies so neither the plugin nor the generic web surface imports the
+#: other, and a test pins all copies equal.
+MISSION_LIST_BUSY_REFUSAL = ("The mission list cannot be changed while the server is starting up "
+                             "or shutting down.")
+
+#: The refusal wordings a caller may import by NAME instead of reaching into the module.
+__all__ = ["MISSION_LIST_BUSY_REFUSAL", "MISSION_DELETE_LOADING_REFUSAL"]
+
 
 # ── Server control ──────────────────────────────────────────────────────────
 
@@ -3601,6 +3616,8 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
 
     The order, and why it matters:
 
+    0. a BUSY state (:data:`MISSION_LIST_BUSY_STATES`) is refused FIRST — before the name check and
+       before any byte is read, staged or written — and the refusal is audited like any other;
     1. the NAME is validated here (:func:`_refuse_upload`), so a traversal or a non-``.miz`` name is
        refused before anything is written, whatever transport called;
     2. the DESTINATION is validated with ``utils.sanitize_filename`` against the server's
@@ -3646,6 +3663,11 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
         return MissionUploadResult(success=False, message=f"Server '{server_name}' not found.",
                                    server_name=server_name)
     display = _server_label(server, server_name)
+    if server.status in MISSION_LIST_BUSY_STATES:
+        # BEFORE the name check and before a byte is read or staged: nothing this attempt could write
+        # would survive DCS's own write of the settings file in these two states.
+        return await _audited_upload(ctx, MissionUploadResult(
+            success=False, message=MISSION_LIST_BUSY_REFUSAL, server_name=server_name), server=server)
     refusal = _refuse_upload(name)
     if refusal:
         return await _audited_upload(ctx, MissionUploadResult(
@@ -3761,6 +3783,11 @@ async def upload_mission(ctx: Any, server_name: str, name: str, source: bytes | 
     elif rc == UploadStatus.FILE_IN_USE:
         message = (f"Mission '{leaf}' is currently in use on server '{display}' and was not "
                    f"replaced.")
+        success = False
+    elif rc == UploadStatus.BUSY:
+        # The state flipped between the pre-check and the write: the refusal is the SAME sentence
+        # every surface uses, not a status name wrapped into a failure line.
+        message = MISSION_LIST_BUSY_REFUSAL
         success = False
     else:
         message = f"Failed to upload mission '{leaf}' to server '{display}' ({status})."
@@ -4248,6 +4275,10 @@ async def add_mission(ctx: Any, server_name: str, path: str, *, autostart: bool 
         return MissionListResult(success=False,
                                  message=f"Timeout while adding mission '{name}'.",
                                  server_name=server_name)
+    except RuntimeError as ex:
+        # the writer's OWN refusal sentence (a busy state), handed through verbatim — a normal
+        # refusal is not a failure and must not produce a traceback
+        return MissionListResult(success=False, message=str(ex), server_name=server_name)
     except Exception as ex:
         log.exception("add_mission failed")
         return MissionListResult(success=False,
@@ -4339,6 +4370,11 @@ async def delete_mission(ctx: Any, server_name: str, mission: int | str, *,
                                  message="Timeout while deleting mission.\n"
                                          "Please reconfirm that the deletion was successful.",
                                  server_name=server_name)
+    except RuntimeError as ex:
+        # the writer's OWN refusal sentence (a busy state), handed through verbatim — a normal
+        # refusal is not a failure and must not produce a traceback
+        return MissionListResult(success=False, message=str(ex), server_name=server_name,
+                                 missions=missions)
     except Exception as ex:
         log.exception("delete_mission failed")
         return MissionListResult(success=False,
@@ -4603,6 +4639,10 @@ async def delete_missions(ctx: Any, server_name: str, missions: list[int], *,
             refused.append(f"mission {name} could not be removed: {ex}")
         except (TimeoutError, asyncio.TimeoutError):
             refused.append(f"mission {name} could not be removed: timeout")
+        except RuntimeError as ex:
+            # the writer's OWN refusal sentence (a busy state), carried into the per-mission report
+            # verbatim — a normal refusal is not a failure and must not produce a traceback
+            refused.append(f"mission {name} could not be removed: {ex}")
         except Exception as ex:
             log.exception("delete_missions failed")
             refused.append(f"mission {name} could not be removed: {ex}")
@@ -4761,6 +4801,11 @@ async def _write_mission_order(server: Any, server_name: str, current: list[str]
     try:
         result_list = await server.setMissionList(reordered)
     except AttributeError as ex:
+        return MissionListResult(success=False, message=str(ex), server_name=server_name,
+                                 missions=current)
+    except RuntimeError as ex:
+        # the writer's OWN refusal sentence (a busy state), handed through verbatim — one rule must
+        # not read as two messages depending on which surface posted the move
         return MissionListResult(success=False, message=str(ex), server_name=server_name,
                                  missions=current)
     except (TimeoutError, asyncio.TimeoutError):

@@ -2873,10 +2873,10 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         "missions_server_field": actions_page.SERVER_CONFIG_FIELD,
         "missions_server": server_name,
         "missions_field": actions_page.MISSION_FIELD,
-        "missions_add_path": actions_page.MISSIONS_ADD_PATH,
-        "missions_load_path": actions_page.MISSIONS_LOAD_PATH,
-        "missions_activate_path": actions_page.MISSIONS_ACTIVATE_PATH,
-        "missions_upload_path": actions_page.MISSIONS_UPLOAD_PATH,
+        "missions_add_path": mount.url(actions_page.MISSIONS_ADD_PATH),
+        "missions_load_path": mount.url(actions_page.MISSIONS_LOAD_PATH),
+        "missions_activate_path": mount.url(actions_page.MISSIONS_ACTIVATE_PATH),
+        "missions_upload_path": mount.url(actions_page.MISSIONS_UPLOAD_PATH),
         "missions_tab_url": server_url(server_name, tab=MISSIONS_TAB),
         #: the DIALOG path suffix (``/confirm``): the ADD opener and the selection bar post to
         #: ``<path><suffix>``, which RENDERS the console's one dialog component (``confirm.html``)
@@ -2906,11 +2906,19 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         #: client script states the SAME wording in the count when the tick is none or several — never
         #: a second copy of the rule written in JavaScript.
         "missions_activate_why": actions_page.MISSIONS_ACTIVATE_SELECTION_REFUSAL,
-        "missions_upload_allowed": upload_allowed,
+        # THE UPLOAD: offered only in the states DCS is not writing ``serverSettings.lua`` itself
+        # (``MISSIONS_UPLOAD_STATES``), so an uploaded mission cannot land in a settings write DCS
+        # overwrites. The CAPABILITY alone rides beside it, so the card's omission in a busy state is
+        # spoken in the upload's OWN sentence rather than drawn as a capability problem — the shape
+        # ``missions_activate_capable`` / ``missions_activate_reason`` already uses.
+        "missions_upload_allowed": upload_allowed
+        and state in actions_page.MISSIONS_UPLOAD_STATES,
+        "missions_upload_capable": upload_allowed,
+        "missions_upload_reason": actions_page.MISSIONS_UPLOAD_BUSY_REFUSAL,
         # THE ORDER CONTROL: the row's grip. Its path is the one the drop posts to, and its gate is
         # the offline one — a write made while DCS is up is reverted — so ``missions_drag_allowed``
         # carries capability + process down, and the tab states the reason where the grip is absent.
-        "missions_reorder_path": actions_page.MISSIONS_REORDER_PATH,
+        "missions_reorder_path": mount.url(actions_page.MISSIONS_REORDER_PATH),
         #: THE DROP'S FIELD: the whole new order, one value per row.
         "missions_order_field": actions_page.MISSION_ORDER_FIELD,
         "missions_drag_allowed": reorder_capable and offline,
@@ -2918,8 +2926,8 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         # row's LOGICAL name ("<index>=<name>") so a write whose list changed since render is refused.
         "missions_name_field": actions_page.MISSION_NAME_FIELD,
         "missions_reorder_capable": reorder_capable,
-        "missions_delete_bulk_path": actions_page.MISSIONS_BULK_DELETE_PATH,
-        "missions_delete_bulk_dialog": (actions_page.MISSIONS_BULK_DELETE_PATH
+        "missions_delete_bulk_path": mount.url(actions_page.MISSIONS_BULK_DELETE_PATH),
+        "missions_delete_bulk_dialog": (mount.url(actions_page.MISSIONS_BULK_DELETE_PATH)
                                         + actions_page.CONFIRM_SUFFIX),
         "missions_delete_bulk_capable": delete_bulk_capable,
         # THE SELECTION AND ITS BAR: present in every state but ``LOADING`` (``bulk_allowed``), the

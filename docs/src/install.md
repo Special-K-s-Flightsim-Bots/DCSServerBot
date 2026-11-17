@@ -5,7 +5,7 @@
 | | Requirement |
 |:--|:------------|
 | **Python** | 3.11 – 3.14, with *Add python.exe to PATH* ticked during the install |
-| **PostgreSQL** | any recent version; on Linux install the `postgresXX-contrib` package too |
+| **PostgreSQL** | version 14+; on Linux install the `postgresXX-contrib` package too |
 | **Git** *(optional)* | only needed for autoupdate straight from the development branch |
 | **DCS** | a client or dedicated-server installation, with write permission for the bot |
 

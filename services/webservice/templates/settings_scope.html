@@ -93,6 +93,9 @@
       </nav>
       <div class="st-panel">
         <p class="note">{{ scope_note | safe }}</p>
+        {#-  THE SCOPE THAT HAS NO BLOCK YET: the form below is the door that CREATES it, so the page
+            says so before the first field rather than reading as an editor for something absent.  -#}
+        {% if create_note | default('') %}<div class="st-note st-create" role="status">{{ create_note }}</div>{% endif %}
         {% if parse_error %}
         <div class="notice bad" role="status"><span class="dot dead" aria-hidden="true"></span>
           <span class="notice-msg">{% trans %}This file could not be read, so its fields cannot be shown. Fix it in Expert Mode.{% endtrans %}</span></div>

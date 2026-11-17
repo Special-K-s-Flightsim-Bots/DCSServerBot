@@ -455,6 +455,24 @@ def local_backend(local_config: Any, *, config_dir: str | Path) -> LocalAuthBack
 
 # --------------------------------------------------------------------------- the CLI
 
+def _read_secret(prompt: str) -> str:
+    """One password line: hidden on a console, read from the pipe when there is no console.
+
+    ``getpass`` talks to the terminal directly, so with a redirected stdin (a script, a CI job, a
+    test harness feeding the answer) it would wait for a console that is not there. A pipe cannot echo
+    anything back to a bystander either, so reading it plainly is the same guarantee.
+    """
+    if sys.stdin is not None and sys.stdin.isatty():
+        return getpass.getpass(prompt)
+    # the prompt goes to stderr, exactly as getpass writes it to the terminal: stdout stays the hash
+    sys.stderr.write(prompt)
+    sys.stderr.flush()
+    line = sys.stdin.readline()
+    if not line:
+        raise EOFError("no password on stdin")
+    return line.rstrip("\r\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     """``python -m services.webservice.auth.local --hash``.
 
@@ -478,8 +496,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.hash:
         parser.print_help()
         return 2
-    first = getpass.getpass("Password: ")
-    second = getpass.getpass("Repeat: ")
+    first = _read_secret("Password: ")
+    second = _read_secret("Repeat: ")
     if first != second:
         print("Passwords do not match.", file=sys.stderr)
         return 1

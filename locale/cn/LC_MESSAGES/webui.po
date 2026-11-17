@@ -2268,7 +2268,7 @@ msgstr "打开节点 {node} 的设置"
 
 #: services/webservice/templates/server_detail.html:841
 msgid "Extensions"
-msgstr ""
+msgstr "扩展"
 
 #: services/webservice/pages/node_settings.py:289
 msgid "extension"
@@ -2320,19 +2320,15 @@ msgstr ""
 
 #: services/webservice/pages/settings.py:349
 msgid "Not configured"
-msgstr ""
+msgstr "未配置"
 
 #: services/webservice/pages/settings.py:359
 msgid "Turn on"
-msgstr ""
+msgstr "开启"
 
 #: services/webservice/pages/settings.py:358
 msgid "Turn off"
-msgstr ""
-
-#: services/webservice/pages/node_settings.py:378
-msgid "Keep it"
-msgstr "保留"
+msgstr "关闭"
 
 #: services/webservice/pages/node_settings.py:386
 msgid "Enabled"
@@ -2344,27 +2340,47 @@ msgstr "已禁用"
 
 #, python-format
 msgid ""
-"Turned off the default extension %(name)s for this scope — it will not "
-"load there."
-msgstr "已为此范围关闭默认扩展 %(name)s — 它将不会在此加载。"
+"Turned off the extension %(name)s for this scope — it will not load there."
+msgstr "已为此范围关闭扩展 %(name)s — 它将不会在此加载。"
 
 #, python-format
-msgid "Turned on the default extension %(name)s for this scope."
-msgstr "已为此范围开启默认扩展 %(name)s。"
+msgid "Turned on the extension %(name)s for this scope."
+msgstr "已为此范围开启扩展 %(name)s。"
 
-#: services/webservice/pages/node_settings.py:396
+#: services/webservice/pages/node_settings.py
+#, python-format
 msgid ""
-"Turning this off REMOVES this extension's block from this scope. "
-"Everything it holds right now is discarded:"
-msgstr "关闭它会将此扩展的区块从该范围中移除。它当前保存的所有内容都会被丢弃："
+"Added the extension %(name)s to this scope with its default values."
+msgstr "已为此范围添加扩展 %(name)s，并采用其默认值。"
 
-#, python-format
-msgid "Added the extension %(name)s to this scope as an empty block."
-msgstr "已将扩展 %(name)s 作为空区块添加到此范围。"
+#: services/webservice/pages/node_settings.py
+msgid ""
+"Needs setup"
+msgstr "需要设置"
 
+#: services/webservice/pages/node_settings.py
 #, python-format
-msgid "Removed the extension %(name)s from this scope."
-msgstr "已从此范围移除扩展 %(name)s。"
+msgid ""
+"Not ready to switch on — %(keys)s."
+msgstr "尚未就绪，无法开启 — %(keys)s。"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"%(keys)s must be set on the Node-wide tab"
+msgstr "%(keys)s 必须在「整节点」标签页中设置"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"%(keys)s must be set on this extension's own tab"
+msgstr "%(keys)s 必须在此扩展自己的标签页中设置"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"No change was saved: the extension %(name)s is not ready to switch on — %(keys)s. Nothing was written."
+msgstr "没有保存任何更改：扩展 %(name)s 尚未就绪，无法开启 — %(keys)s。没有写入任何内容。"
 
 #, python-format
 msgid ""
@@ -2394,22 +2410,11 @@ msgstr "未保存任何更改：此页面未指明你所编辑标签页中的扩
 #: services/webservice/pages/node_settings.py:423
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
-"warning produces, so the extension's block was left exactly as it was. "
-"Open the extension's switch, read the warning that shows what will be "
-"discarded, and confirm from there."
-msgstr "没有删除任何内容：这次删除缺少警告所产生的确认，因此扩展的模块保持原样。请打开扩展的开关，阅读显示将要丢弃内容的警告，并从那里确认。"
-
-#: services/webservice/pages/node_settings.py:528
-msgid ""
-"This extension is not configured for this node yet, so there is nothing "
-"to edit here. Turn it on from the node page first."
-msgstr "此扩展尚未针对此节点配置，因此这里没有可编辑的内容。请先在节点页面上启用它。"
-
-#: services/webservice/pages/node_settings.py:533
-msgid ""
-"Each tab is this extension's block for one scope — the node's own block, "
-"then one per instance that configures it. Nothing is copied between them."
-msgstr "每个标签页都是此扩展在某个范围中的块——节点自身的块，然后是为其配置的每个实例一个块。它们之间不会复制任何内容。"
+"confirmation page produces, so the extension's block was left exactly as "
+"it was. Open the extension's trashcan, read what will be discarded, and "
+"confirm from there."
+msgstr ""
+"未移除任何内容：此移除操作没有携带确认页面生成的确认，因此该扩展的区块保持原样。请打开该扩展的回收站，阅读将被丢弃的内容，然后在那里确认。"
 
 #: services/webservice/pages/node_settings.py:1068
 msgid "No nodes.yaml on this install, so this node has no settings to show."
@@ -7783,7 +7788,6 @@ msgstr "未应用任何更改：站点设置正在重新读取中。"
 msgid "The file holds the change, but the console could not re-read it — %(reason)s. The sites that were installed keep serving; nothing was reloaded or restarted."
 msgstr "文件已保存改动，但控制台无法重新读取它 — %(reason)s。此前已安装的站点继续提供服务；未重新加载或重启任何内容。"
 
-
 #: services/webservice/scheduler_plan.py
 msgid "Stop the DCS server process"
 msgstr "停止 DCS 服务器进程"
@@ -10275,7 +10279,6 @@ msgstr "这些数字属于你，按本站服务器统计。"
 msgid "this account has no record on this site's servers."
 msgstr "该账号在本站服务器上没有记录。"
 
-
 #: services/webservice/templates/site_overview.html:150
 msgid "%"
 msgstr "%"
@@ -10654,7 +10657,6 @@ msgstr "尚未记录任何评分更新。上方的数字是插件当前保存的
 msgid "{mu} μ"
 msgstr "{mu} μ"
 
-
 msgid "A site that is switched off registers no routes: the console reloads and its address answers \"not found\" until it is back on."
 msgstr "关闭的站点不注册任何路由：控制台会重新加载，在它重新开启之前，其地址会回答“未找到”。"
 
@@ -10844,7 +10846,6 @@ msgstr "已手动修改——这已不再完全是 %(name)s 集合。"
 #: services/webservice/pages/site_config.py
 msgid "%(sections)s of %(sectionsTotal)s sections · %(metrics)s of %(metricsTotal)s metrics"
 msgstr "%(sectionsTotal)s 个版块中的 %(sections)s 个 · %(metricsTotal)s 项指标中的 %(metrics)s 项"
-
 
 #: services/webservice/pages/site_config.py
 msgid "The menu and the tiles"
@@ -11251,46 +11252,35 @@ msgstr "由向导写入 · 链接在站点自己的样式表之后"
 msgid "The site"
 msgstr "站点"
 
-
 msgid "its own document · %(path)s"
 msgstr "它自己的文档 · %(path)s"
-
 
 msgid "Open ↗"
 msgstr "打开 ↗"
 
-
 msgid "The site's own document at the box's width — bar, hero, footer. Not a drawing: the page's blocks write into this one frame, and it is the only preview here."
 msgstr "站点自己的文档，取框的宽度：栏、hero、页脚。不是画出来的：本页的各个块都写入这一个框架，它是这里唯一的预览。"
-
 
 msgid "Writes into it: %(branding)s — the mark, the bar's name, the hero's headline and paragraph · %(palette)s — every colour in it · %(links)s — the footer's anchors, beside the attribution · %(menu)s — the bar's nav, in this order."
 msgstr "写入其中：%(branding)s — 标记、栏中的名称、主视觉的标题和段落 · %(palette)s — 其中的每种颜色 · %(links)s — 页脚中的链接，位于固定署名旁 · %(menu)s — 栏中的导航，按此顺序。"
 
-
 msgid "Character changes nothing here: it decides the bands below the hero, which the box's height does not reach."
 msgstr "角色在这里什么都不改：它决定 hero 以下的条带，而框的高度到不了那里。"
-
 
 msgid "Palette"
 msgstr "调色板"
 
-
 msgid "Footer links"
 msgstr "页脚链接"
-
 
 msgid "fields"
 msgstr "个字段"
 
-
 msgid "The site itself"
 msgstr "站点本身"
 
-
 msgid "not part of the look"
 msgstr "不属于外观"
-
 
 msgid "Nothing in the box changes: the character decides the bands below the hero, and which figures the leaderboard ranks. The box draws the bar, the hero and the footer — and no band."
 msgstr "框里什么都不变：角色决定 hero 以下的条带，以及排行榜按哪些数字排序。框只画栏、hero 和页脚——不画任何条带。"
@@ -11560,3 +11550,134 @@ msgstr "该站点还没有自己的地址——这是它将来的样子。机器
 #: services/webservice/i18n.py
 msgid "example"
 msgstr "示例"
+
+msgid "This console is set to HTTPS-only (session.https_only), but it was opened "
+"over plain HTTP, so the browser will not keep the sign-in cookie. Open it "
+"over https://, or set session.https_only: false in "
+"config/services/webservice.yaml."
+msgstr "此控制台已设为仅 HTTPS（session.https_only），但当前是通过普通 HTTP 打开的，因此浏览器不会保留登录 Cookie。请通过 "
+"https:// 打开，或在 config/services/webservice.yaml 中将 session.https_only 设为 "
+"false。"
+
+msgid "Remove the block"
+msgstr "移除区块"
+
+msgid "Remove the {name} extension from {node}"
+msgstr "从 {node} 移除扩展 {name}"
+
+msgid "Remove the {name} extension from {scope}?"
+msgstr "从 {scope} 移除扩展 {name}？"
+
+msgid ""
+"The block is removed from nodes.yaml for {scope}. The bot log records the "
+"removal and your name."
+msgstr "该区块将从 nodes.yaml 中的 {scope} 移除。机器人日志会记录此次移除和你的名字。"
+
+msgid "Everything this block holds is discarded — no value in it is kept."
+msgstr "此区块中的所有内容都会被丢弃 — 不会保留其中任何值。"
+
+msgid ""
+"The block, exactly as it is discarded: <pre "
+"class=\"st-warn-yaml\">{yaml}</pre>"
+msgstr "将被丢弃的区块，原样如下：<pre class=\"st-warn-yaml\">{yaml}</pre>"
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"Each tab is this extension's block for one scope — the node's own "
+"block, then one per instance of that node. Nothing is copied between "
+"them."
+msgstr "每个标签页都是此扩展在某个范围中的块——节点自身的块，然后是该节点的每个实例一个块。它们之间不会复制任何内容。"
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"This extension is not configured for this scope yet, so there is "
+"nothing to switch here. Configure it on the extension's own page "
+"first."
+msgstr "此扩展尚未为此范围配置，因此这里没有可切换的内容。请先在扩展自己的页面上进行配置。"
+
+#: services/webservice/pages/node_settings.py
+msgid "Set up on the extension's page"
+msgstr "在扩展自己的页面上设置"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The extension %(name)s was not added: this scope cannot create its "
+"block from defaults. Nothing was written — open the extension's own "
+"page and save the values there."
+msgstr "未添加扩展 %(name)s：此范围无法根据默认值创建其块。未写入任何内容——请打开扩展自己的页面并在那里保存这些值。"
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"This scope does not configure this extension yet. Fill in what it "
+"needs and save — the save creates the block here."
+msgstr "此范围尚未配置该扩展。填写它所需的内容并保存——保存后会在此处创建该块。"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The block was not created: %(fields)s did not pass the check. Nothing was "
+"written."
+msgstr ""
+"未创建该块：%(fields)s 未通过检查。未写入任何内容。"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid "Removed the extension %(name)s from this scope."
+msgstr "已从此范围移除扩展 %(name)s。"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The extension %(name)s was not added: its values did not pass the "
+"check. Nothing was written."
+msgstr "未添加扩展 %(name)s：其值未通过检查。未写入任何内容。"
+
+#: services/webservice/upgrade.py
+msgid "DCS update running — its servers are stopped (from the background check, not live)"
+msgstr "DCS 更新进行中 — 其服务器已停止（来自后台检查，非实时）"
+
+#: services/webservice/pages/actions.py
+msgid "Force — run it even while a DCS update is running"
+msgstr "强制 — 即使 DCS 更新正在进行也执行"
+
+#: services/webservice/pages/actions.py
+msgid "Off by default. An update in flight already stopped this node's servers; forcing this leaves them stopped and its installer running."
+msgstr "默认关闭。正在进行的更新已停止该节点的服务器；强制执行会让它们保持停止，安装程序继续运行。"
+
+#: services/webservice/pages/actions.py
+msgid "A DCS update is running on this node — its servers were stopped for it and stay stopped until it finishes. Ticking Force runs this operation anyway, leaving those servers stopped and the installer running."
+msgstr "该节点上正在运行 DCS 更新 — 其服务器已为此停止，并会一直保持停止直到更新完成。勾选强制仍会执行此操作：这些服务器保持停止，安装程序继续运行。"
+
+#: services/webservice/pages/actions.py
+msgid "Whether a DCS update is running on this node is not known yet: the background check has not answered, so nothing here claims there is none."
+msgstr "尚不清楚该节点是否有 DCS 更新正在运行：后台检查尚未回复，因此此处并不表示没有更新。"
+
+#: services/webservice/pages/actions.py
+#, python-format
+msgid "Last DCS update check: {when}."
+msgstr "上次 DCS 更新检查：{when}。"
+
+#: services/webservice/pages/node_settings.py
+msgid "Enabling…"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "Disabling…"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "This is running now — the switch unlocks when it is done"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "Turning %(name)s on — installing can take a few minutes. The switch stays locked until it is done and the result follows here."
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "Turning %(name)s off — the switch stays locked until it is done and the result follows here."
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "%(name)s is already being switched — wait for it to finish. Nothing was started."
+msgstr ""

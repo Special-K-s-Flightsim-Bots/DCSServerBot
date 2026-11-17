@@ -19,6 +19,7 @@ from typing import Any, Literal, cast, TYPE_CHECKING, Callable
 
 from plugins.creditsystem.squadron import Squadron
 from plugins.userstats.filter import StatisticsFilter, PeriodFilter
+from plugins.admin.actions import DCS_UPDATE_REFUSAL
 from psycopg.errors import UndefinedTable
 from psycopg.rows import dict_row
 from services.bot import DCSServerBot
@@ -900,41 +901,86 @@ class RestAPI(Plugin):
     # Endpoint:   /node/restart
     # Method:     [POST]
     # Params:     - node_name     [optional, default: all nodes]
+    #             - force         [optional, default: false]
     async def node_restart(
         self,
         background_tasks: BackgroundTasks,
-        node_name: str | None = Query(None, description="Node to restart (default: all nodes)")
+        node_name: str | None = Query(None, description="Node to restart (default: all nodes)"),
+        force: bool = Query(False, description="Restart even while a DCS update is running")
     ):
-        """Restart a node, or all nodes, like /node restart. The response is sent before the restart."""
+        """Restart a node, or all nodes, like /node restart. The response is sent before the restart.
+
+        Every target goes through the ``restart_node`` ACTION, so this door answers exactly what the
+        web console and ``/node restart`` answer: an in-flight DCS update refuses the restart, and a
+        ``force`` call is the one way past it. The action itself audits one entry per node.
+
+        This process restarts ITSELF last — as a background task, so the response is on the wire
+        before ``is_shutdown`` is set. Its refusal therefore cannot come from the action: the node is
+        asked the action's own question HERE, before the call is deferred, so a master that would be
+        refused is answered with a refusal instead of a promise. A node that cannot answer is not
+        busy, so an older node is never frozen out of its own restart.
+        """
         if node_name and node_name not in self.node.all_nodes:
             raise HTTPException(status_code=404, detail=f"Node '{node_name}' not found.")
 
+        ctx = ActionContext.from_plugin(self)
+        restarted = []
+        refusals = []
         try:
-            restarted = []
             for n in await self.node.get_active_nodes():
-                if not node_name or n == node_name:
-                    await self.bus.send_to_node({
-                        "command": "rpc",
-                        "object": "Node",
-                        "method": "restart"
-                    }, node=n)
+                if node_name and n != node_name:
+                    continue
+                result = await call_action("restart_node", ctx, node_name=n, force=force)
+                if result.success:
                     restarted.append(n)
-            if not node_name or node_name == self.node.name:
-                # the RestAPI runs in this process: answer first, restart afterward
-                background_tasks.add_task(self.node.restart)
-                restarted.append(self.node.name)
+                else:
+                    refusals.append(result.message)
         except Exception as ex:
             self.log.exception(ex)
             raise HTTPException(status_code=500, detail=f"Failed to restart node: {str(ex)}")
 
+        self_target = not node_name or node_name == self.node.name
+        if self_target:
+            refusal = await self._self_restart_refusal(force)
+            if refusal:
+                refusals.append(refusal)
+            else:
+                background_tasks.add_task(call_action, "restart_node", ctx,
+                                          node_name=self.node.name, force=force)
+                restarted.append(self.node.name)
         if not restarted:
+            if refusals:
+                # Nothing restarted: the refusals ARE the answer, whichever node produced them.
+                raise HTTPException(status_code=409, detail=" ".join(refusals))
             raise HTTPException(status_code=409, detail=f"Node '{node_name}' is not active.")
-        await self.bot.audit(f"restarted node(s) {', '.join(restarted)} through the RestAPI")
+        message = f"Node(s) {', '.join(restarted)} restarting."
+        if refusals:
+            message = " ".join([message, *refusals])
         return {
             "status": "success",
-            "message": f"Node(s) {', '.join(restarted)} restarting.",
+            "message": message,
             "nodes": restarted
         }
+
+    async def _self_restart_refusal(self, force: bool) -> str | None:
+        """This process's own restart refusal, or None when it would be accepted.
+
+        Asks the LOCAL node the same question the action's guard asks — no RPC, and no race with the
+        shutdown the deferral exists to outrun. A node object that cannot answer (no accessor, or one
+        that raises) is NOT busy, so an older node is never frozen out of its own restart.
+        """
+        accessor: Any = getattr(self.node, "dcs_update_in_progress", None)
+        if not callable(accessor):
+            return None
+        try:
+            answer: Any = accessor()
+            updating = bool(await answer)
+        except Exception as ex:
+            self.log.warning(f"dcs_update_in_progress() failed for node '{self.node.name}': {ex}")
+            return None
+        if not updating or force:
+            return None
+        return DCS_UPDATE_REFUSAL.format(node=self.node.name, method="restart")
 
 
     # Return a listing of available missions
@@ -1136,7 +1182,10 @@ class RestAPI(Plugin):
         resolved_server_name, server = self.get_resolved_server(server_name)
         if not server:
             raise HTTPException(status_code=404, detail=f"Server '{server_name}' not found.")
-        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED]:
+        if server.status not in [Status.RUNNING, Status.PAUSED, Status.STOPPED] \
+                and server.status not in (Status.LOADING, Status.SHUTTING_DOWN):
+            # A BUSY state is NOT answered here: the action's own refusal carries the sentence every
+            # surface uses, and the mapping below hands it to the caller verbatim.
             raise HTTPException(status_code=409, detail=f"Server '{resolved_server_name}' is in {server.status.name} state.")
         use_filename = filename or (file.filename or "")
         contents = await file.read()

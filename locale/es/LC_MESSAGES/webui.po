@@ -723,7 +723,6 @@ msgstr ""
 "para este arranque no se puede elegir un preajuste de un archivo: crea tu"
 " propio clima abajo."
 
-
 #: services/webservice/pages/actions.py:836
 msgid ""
 "One group per preset file on this node; a node carrying a single preset "
@@ -742,14 +741,12 @@ msgstr "Usar un preajuste de un archivo"
 msgid "Pick the preset file, then the preset inside it."
 msgstr "Elige el archivo de preajustes y luego el preajuste que contiene."
 
-
 #: services/webservice/pages/actions.py:744
 msgid "Create your own weather"
 msgstr "Crear tu propio clima"
 #: services/webservice/pages/actions.py:869
 msgid "Build a one-off preset in the fields below."
 msgstr "Crea un preajuste puntual en los campos de abajo."
-
 
 #: services/webservice/pages/actions.py:755
 msgid "Loading current mission …"
@@ -804,7 +801,6 @@ msgstr ""
 "Estos campos son toda la elección en este modo: un preajuste de un "
 "archivo no se aplica junto a ellos."
 
-
 #: services/webservice/pages/actions.py:789
 msgid ""
 "Not done (a preset was picked and the temporary weather fields were "
@@ -834,7 +830,6 @@ msgid ""
 msgstr ""
 "No realizado (ese no es un archivo de preajustes que este nodo del "
 "servidor enumere: vuelve a abrir el diálogo y elige uno de la lista)."
-
 
 #: services/webservice/pages/actions.py:800
 msgid ""
@@ -2762,7 +2757,7 @@ msgstr "Abrir los ajustes del nodo {node}"
 #: services/webservice/pages/node_settings.py:287
 #: services/webservice/templates/server_detail.html:841
 msgid "Extensions"
-msgstr ""
+msgstr "Extensiones"
 
 #: services/webservice/pages/node_settings.py:289
 msgid "extension"
@@ -2835,21 +2830,17 @@ msgstr ""
 #: services/webservice/pages/node_settings.py:375
 #: services/webservice/pages/settings.py:349
 msgid "Not configured"
-msgstr ""
+msgstr "No configurado"
 
 #: services/webservice/pages/node_settings.py:376
 #: services/webservice/pages/settings.py:359
 msgid "Turn on"
-msgstr ""
+msgstr "Activar"
 
 #: services/webservice/pages/node_settings.py:377
 #: services/webservice/pages/settings.py:358
 msgid "Turn off"
-msgstr ""
-
-#: services/webservice/pages/node_settings.py:378
-msgid "Keep it"
-msgstr "Mantenerlo"
+msgstr "Desactivar"
 
 #: services/webservice/pages/node_settings.py:386
 msgid "Enabled"
@@ -2862,34 +2853,55 @@ msgstr "Desactivado"
 #: services/webservice/pages/node_settings.py:390
 #, python-format
 msgid ""
-"Turned off the default extension %(name)s for this scope — it will not "
-"load there."
+"Turned off the extension %(name)s for this scope — it will not load there."
 msgstr ""
-"Se desactivó la extensión predeterminada %(name)s en este ámbito — no se "
-"cargará ahí."
+"Se desactivó la extensión %(name)s en este ámbito — no se cargará ahí."
 
 #: services/webservice/pages/node_settings.py:392
 #, python-format
-msgid "Turned on the default extension %(name)s for this scope."
-msgstr "Se activó la extensión predeterminada %(name)s en este ámbito."
+msgid "Turned on the extension %(name)s for this scope."
+msgstr "Se activó la extensión %(name)s en este ámbito."
 
-#: services/webservice/pages/node_settings.py:396
+#: services/webservice/pages/node_settings.py
+#, python-format
 msgid ""
-"Turning this off REMOVES this extension's block from this scope. "
-"Everything it holds right now is discarded:"
+"Added the extension %(name)s to this scope with its default values."
 msgstr ""
-"Si lo desactivas, se ELIMINA el bloque de esta extensión de este ámbito. "
-"Todo lo que contiene ahora mismo se descarta:"
+"La extensión %(name)s se añadió a este ámbito con sus valores predeterminados."
 
-#: services/webservice/pages/node_settings.py:401
-#, python-format
-msgid "Added the extension %(name)s to this scope as an empty block."
-msgstr "Se añadió la extensión %(name)s a este ámbito como un bloque vacío."
+#: services/webservice/pages/node_settings.py
+msgid ""
+"Needs setup"
+msgstr ""
+"Falta configurar"
 
-#: services/webservice/pages/node_settings.py:402
+#: services/webservice/pages/node_settings.py
 #, python-format
-msgid "Removed the extension %(name)s from this scope."
-msgstr "Se eliminó la extensión %(name)s de este ámbito."
+msgid ""
+"Not ready to switch on — %(keys)s."
+msgstr ""
+"Aún no se puede activar — %(keys)s."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"%(keys)s must be set on the Node-wide tab"
+msgstr ""
+"%(keys)s debe definirse en la pestaña «Todo el nodo»"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"%(keys)s must be set on this extension's own tab"
+msgstr ""
+"%(keys)s debe definirse en la pestaña de esta extensión"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"No change was saved: the extension %(name)s is not ready to switch on — %(keys)s. Nothing was written."
+msgstr ""
+"No se guardó ningún cambio: la extensión %(name)s aún no se puede activar — %(keys)s. No se escribió nada."
 
 #: services/webservice/pages/node_settings.py:404
 #, python-format
@@ -2930,31 +2942,14 @@ msgstr ""
 #: services/webservice/pages/node_settings.py:423
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
-"warning produces, so the extension's block was left exactly as it was. "
-"Open the extension's switch, read the warning that shows what will be "
-"discarded, and confirm from there."
+"confirmation page produces, so the extension's block was left exactly as "
+"it was. Open the extension's trashcan, read what will be discarded, and "
+"confirm from there."
 msgstr ""
-"No se eliminó nada: esta eliminación no incluía la confirmación que "
-"produce la advertencia, así que el bloque de la extensión quedó "
-"exactamente como estaba. Abre el interruptor de la extensión, lee la "
-"advertencia que muestra lo que se descartará y confirma desde ahí."
-
-#: services/webservice/pages/node_settings.py:528
-msgid ""
-"This extension is not configured for this node yet, so there is nothing "
-"to edit here. Turn it on from the node page first."
-msgstr ""
-"Esta extensión aún no está configurada para este nodo, así que no hay "
-"nada que editar aquí. Actívala primero en la página del nodo."
-
-#: services/webservice/pages/node_settings.py:533
-msgid ""
-"Each tab is this extension's block for one scope — the node's own block, "
-"then one per instance that configures it. Nothing is copied between them."
-msgstr ""
-"Cada pestaña es el bloque de esta extensión para un ámbito: el bloque "
-"propio del nodo y luego uno por cada instancia que la configura. No se "
-"copia nada entre ellos."
+"No se eliminó nada: esta eliminación no incluía la confirmación que genera "
+"la página de confirmación, así que el bloque de la extensión quedó "
+"exactamente como estaba. Abre la papelera de la extensión, lee lo que se "
+"descartará y confirma desde ahí."
 
 #: services/webservice/pages/node_settings.py:1068
 msgid "No nodes.yaml on this install, so this node has no settings to show."
@@ -3891,7 +3886,6 @@ msgstr ""
 #~ "Los nombres vienen del archivo que elijas: marca varios para combinarlos "
 #~ "en orden, como siempre hizo el nodo. Sin JavaScript, la lista muestra los"
 #~ " preajustes de cada archivo bajo su propio nombre de archivo."
-
 
 #: services/webservice/pages/presets.py:1194
 msgid ""
@@ -7805,7 +7799,6 @@ msgstr ""
 "configuración, así que este archivo solo lo lee un nodo así — añádelo a ese "
 "ajuste en la página Ajustes para que un nodo lo use."
 
-
 #: services/webservice/pages/presets.py:314
 msgid "Edit preset"
 msgstr "Editar preset"
@@ -9487,7 +9480,6 @@ msgstr "No se aplicó nada: la configuración del sitio ya se está releyendo."
 msgid "The file holds the change, but the console could not re-read it — %(reason)s. The sites that were installed keep serving; nothing was reloaded or restarted."
 msgstr "El archivo contiene el cambio, pero la consola no ha podido releerlo — %(reason)s. Los sitios ya instalados siguen sirviéndose; no se ha recargado ni reiniciado nada."
 
-
 #: services/webservice/scheduler_plan.py
 msgid "Stop the DCS server process"
 msgstr "Detener el proceso del servidor DCS"
@@ -9575,7 +9567,6 @@ msgid "%(count)s player known"
 msgid_plural "%(count)s players known"
 msgstr[0] "%(count)s jugador conocido"
 msgstr[1] "%(count)s jugadores conocidos"
-
 
 #: services/webservice/templates/_table.html
 #, python-format
@@ -10096,7 +10087,6 @@ msgstr "sesiones"
 #: services/webservice/pages/player_detail.py
 msgid "the ban ends"
 msgstr "el ban termina"
-
 
 #: services/webservice/pages/statistics.py
 msgid "30 days"
@@ -10955,7 +10945,6 @@ msgstr "Matriz de acceso actualizada: %(detail)s"
 msgid "Access matrix save refused: %(detail)s"
 msgstr "Guardado de la matriz de acceso rechazado: %(detail)s"
 
-
 #: services/webservice/pages/access.py:333
 #, python-format
 msgid "Ignored: '%(key)s' is not a mapping, so no override was applied."
@@ -11051,7 +11040,6 @@ msgstr "No se guardó nada: ningún rol podría abrir esta página después."
 #: services/webservice/pages/access.py:280
 msgid "Nothing was saved: the page was loaded before the configuration changed on disk. Reload it and apply your change again."
 msgstr "No se guardó nada: la página se cargó antes de que la configuración cambiara en el disco. Recárguela y aplique el cambio de nuevo."
-
 
 #: services/webservice/pages/access.py:116
 msgid "Other"
@@ -11316,7 +11304,6 @@ msgstr "la lista de nodos y la página de un nodo"
 msgid "the page was stale — the file changed on disk"
 msgstr "la página estaba desactualizada — el archivo cambió en el disco"
 
-
 #: services/webservice/pages/access.py:201
 msgid "the per-node settings page"
 msgstr "la página de ajustes de un nodo"
@@ -11394,7 +11381,6 @@ msgstr "No hay ningún servidor en ejecución, así que esta lista no se puede r
 #: services/webservice/templates/music_playlist.html
 msgid "Drag to reorder, or press Alt+Up or Alt+Down"
 msgstr "Arrastra para reordenar, o pulsa Alt+Arriba o Alt+Abajo"
-
 
 #: services/webservice/pages/music.py
 msgid "Repeat is on — press to switch to shuffle"
@@ -12268,7 +12254,6 @@ msgstr "Todavía no se ha registrado ninguna actualización de la valoración. L
 msgid "{mu} μ"
 msgstr "{mu} μ"
 
-
 msgid "A site that is switched off registers no routes: the console reloads and its address answers \"not found\" until it is back on."
 msgstr "Un sitio desactivado no registra ninguna ruta: la consola se recarga y su dirección responde «no encontrado» hasta que vuelva a estar activo."
 
@@ -12458,7 +12443,6 @@ msgstr "Editado a mano — ya no es exactamente el conjunto de %(name)s."
 #: services/webservice/pages/site_config.py
 msgid "%(sections)s of %(sectionsTotal)s sections · %(metrics)s of %(metricsTotal)s metrics"
 msgstr "%(sections)s de %(sectionsTotal)s secciones · %(metrics)s de %(metricsTotal)s métricas"
-
 
 #: services/webservice/pages/site_config.py
 msgid "The menu and the tiles"
@@ -12887,46 +12871,35 @@ msgstr "escrito por el asistente · enlazado tras la hoja propia del sitio"
 msgid "The site"
 msgstr "El sitio"
 
-
 msgid "its own document · %(path)s"
 msgstr "su propio documento · %(path)s"
-
 
 msgid "Open ↗"
 msgstr "Abrir ↗"
 
-
 msgid "The site's own document at the box's width — bar, hero, footer. Not a drawing: the page's blocks write into this one frame, and it is the only preview here."
 msgstr "El propio documento del sitio al ancho de la caja: barra, hero y pie. No es un dibujo: los bloques de esta página escriben en este único marco, y es la única vista previa que hay aquí."
-
 
 msgid "Writes into it: %(branding)s — the mark, the bar's name, the hero's headline and paragraph · %(palette)s — every colour in it · %(links)s — the footer's anchors, beside the attribution · %(menu)s — the bar's nav, in this order."
 msgstr "Escribe en él: %(branding)s — la marca, el nombre de la barra, el titular y el párrafo del héroe · %(palette)s — cada color que contiene · %(links)s — los enlaces del pie, junto a la atribución fija · %(menu)s — la navegación de la barra, en este orden."
 
-
 msgid "Character changes nothing here: it decides the bands below the hero, which the box's height does not reach."
 msgstr "El carácter no cambia nada aquí: decide las bandas bajo el hero, que la altura de la caja no alcanza."
-
 
 msgid "Palette"
 msgstr "Paleta"
 
-
 msgid "Footer links"
 msgstr "Enlaces del pie"
-
 
 msgid "fields"
 msgstr "campos"
 
-
 msgid "The site itself"
 msgstr "El sitio en sí"
 
-
 msgid "not part of the look"
 msgstr "no forma parte del aspecto"
-
 
 msgid "Nothing in the box changes: the character decides the bands below the hero, and which figures the leaderboard ranks. The box draws the bar, the hero and the footer — and no band."
 msgstr "En la caja no cambia nada: el carácter decide las bandas bajo el hero y qué cifras ordena la clasificación. La caja dibuja la barra, el hero y el pie, y ninguna banda."
@@ -13201,3 +13174,155 @@ msgstr "Este sitio aún no tiene dirección propia: así es como se verá. Respo
 #: services/webservice/i18n.py
 msgid "example"
 msgstr "ejemplo"
+
+msgid "This console is set to HTTPS-only (session.https_only), but it was opened "
+"over plain HTTP, so the browser will not keep the sign-in cookie. Open it "
+"over https://, or set session.https_only: false in "
+"config/services/webservice.yaml."
+msgstr "Esta consola está configurada solo para HTTPS (session.https_only), pero se "
+"ha abierto por HTTP simple, así que el navegador no conservará la cookie de "
+"inicio de sesión. Ábrela por https:// o pon session.https_only: false en "
+"config/services/webservice.yaml."
+
+msgid "Remove the block"
+msgstr "Eliminar el bloque"
+
+msgid "Remove the {name} extension from {node}"
+msgstr "Eliminar la extensión {name} de {node}"
+
+msgid "Remove the {name} extension from {scope}?"
+msgstr "¿Eliminar la extensión {name} de {scope}?"
+
+msgid ""
+"The block is removed from nodes.yaml for {scope}. The bot log records the "
+"removal and your name."
+msgstr ""
+"El bloque se elimina de nodes.yaml para {scope}. El registro del bot anota "
+"la eliminación y tu nombre."
+
+msgid "Everything this block holds is discarded — no value in it is kept."
+msgstr ""
+"Todo lo que contiene este bloque se descarta — no se conserva ningún "
+"valor."
+
+msgid ""
+"The block, exactly as it is discarded: <pre "
+"class=\"st-warn-yaml\">{yaml}</pre>"
+msgstr ""
+"El bloque, exactamente como se descarta: <pre "
+"class=\"st-warn-yaml\">{yaml}</pre>"
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"Each tab is this extension's block for one scope — the node's own "
+"block, then one per instance of that node. Nothing is copied between "
+"them."
+msgstr ""
+"Cada pestaña es el bloque de esta extensión para un ámbito: el bloque "
+"propio del nodo y luego uno por cada instancia de ese nodo. No se "
+"copia nada entre ellos."
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"This extension is not configured for this scope yet, so there is "
+"nothing to switch here. Configure it on the extension's own page "
+"first."
+msgstr ""
+"Esta extensión aún no está configurada para este ámbito, así que no "
+"hay nada que activar aquí. Configúrala primero en la página de la "
+"extensión."
+
+#: services/webservice/pages/node_settings.py
+msgid "Set up on the extension's page"
+msgstr "Configurar en la página de la extensión"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The extension %(name)s was not added: this scope cannot create its "
+"block from defaults. Nothing was written — open the extension's own "
+"page and save the values there."
+msgstr ""
+"No se ha añadido la extensión %(name)s: este ámbito no puede crear su "
+"bloque a partir de los valores por defecto. No se escribió nada — abre "
+"la página de la extensión y guarda allí los valores."
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"This scope does not configure this extension yet. Fill in what it "
+"needs and save — the save creates the block here."
+msgstr ""
+"Este ámbito todavía no configura esta extensión. Rellena lo que "
+"necesita y guarda: al guardar se crea el bloque aquí."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The block was not created: %(fields)s did not pass the check. Nothing was "
+"written."
+msgstr ""
+"No se ha creado el bloque: %(fields)s no ha pasado la comprobación. "
+"No se escribió nada."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid "Removed the extension %(name)s from this scope."
+msgstr "Se eliminó la extensión %(name)s de este ámbito."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The extension %(name)s was not added: its values did not pass the "
+"check. Nothing was written."
+msgstr ""
+"No se ha añadido la extensión %(name)s: sus valores no han pasado la "
+"comprobación. No se escribió nada."
+
+#: services/webservice/upgrade.py
+msgid "DCS update running — its servers are stopped (from the background check, not live)"
+msgstr "Actualización de DCS en curso — sus servidores están detenidos (según la comprobación en segundo plano, no en directo)"
+
+#: services/webservice/pages/actions.py
+msgid "Force — run it even while a DCS update is running"
+msgstr "Forzar — ejecutar aunque haya una actualización de DCS en curso"
+
+#: services/webservice/pages/actions.py
+msgid "Off by default. An update in flight already stopped this node's servers; forcing this leaves them stopped and its installer running."
+msgstr "Desactivado por defecto. Una actualización en curso ya detuvo los servidores de este nodo; forzarlo los deja detenidos y el instalador sigue ejecutándose."
+
+#: services/webservice/pages/actions.py
+msgid "A DCS update is running on this node — its servers were stopped for it and stay stopped until it finishes. Ticking Force runs this operation anyway, leaving those servers stopped and the installer running."
+msgstr "En este nodo se está ejecutando una actualización de DCS — sus servidores se detuvieron para ella y siguen detenidos hasta que termine. Si marcas Forzar, esta operación se ejecuta igualmente: esos servidores siguen detenidos y el instalador continúa."
+
+#: services/webservice/pages/actions.py
+msgid "Whether a DCS update is running on this node is not known yet: the background check has not answered, so nothing here claims there is none."
+msgstr "Todavía no se sabe si hay una actualización de DCS en curso en este nodo: la comprobación en segundo plano no ha respondido, así que nada aquí afirma que no la haya."
+
+#: services/webservice/pages/actions.py
+#, python-format
+msgid "Last DCS update check: {when}."
+msgstr "Última comprobación de actualización de DCS: {when}."
+
+#: services/webservice/pages/node_settings.py
+msgid "Enabling…"
+msgstr "Activando…"
+
+#: services/webservice/pages/node_settings.py
+msgid "Disabling…"
+msgstr "Desactivando…"
+
+#: services/webservice/pages/node_settings.py
+msgid "This is running now — the switch unlocks when it is done"
+msgstr "Se está ejecutando ahora — el interruptor se desbloquea cuando termine"
+
+#: services/webservice/pages/node_settings.py
+msgid "Turning %(name)s on — installing can take a few minutes. The switch stays locked until it is done and the result follows here."
+msgstr "Activando %(name)s — la instalación puede tardar unos minutos. El interruptor sigue bloqueado hasta que termine y el resultado aparecerá aquí."
+
+#: services/webservice/pages/node_settings.py
+msgid "Turning %(name)s off — the switch stays locked until it is done and the result follows here."
+msgstr "Desactivando %(name)s — el interruptor sigue bloqueado hasta que termine y el resultado aparecerá aquí."
+
+#: services/webservice/pages/node_settings.py
+msgid "%(name)s is already being switched — wait for it to finish. Nothing was started."
+msgstr "%(name)s ya se está cambiando — espera a que termine. No se inició nada."

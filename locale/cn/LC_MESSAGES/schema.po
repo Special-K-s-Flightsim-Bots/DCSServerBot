@@ -7041,3 +7041,6 @@ msgstr "此账户可查看和操作的 managed_by 值。"
 #~ msgid "Which overview sections the site shows; an absent id is on."
 #~ msgstr "站点显示哪些概览区块；未列出的 ID 默认开启。"
 
+
+msgid "Whether this extension is enabled on this node."
+msgstr "此节点上是否启用此扩展。"

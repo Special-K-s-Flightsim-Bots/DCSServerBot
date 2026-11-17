@@ -52,7 +52,7 @@ This documentation is automatically generated from the RestAPI plugin definition
 | /mission/unit | GET | server_name: string, unit_name: string | Get mission unit data including current position, loadout, navaids, and waypoints. |
 | /mission/upload | POST | server_name: string, file: string, filename: string, load_after: bool | Upload a .miz mission file to the server. |
 | /modulestats | POST | nick: string, [date: string | None], [server_name: string | None] | Get module statistics |
-| /node/restart | POST | [node_name: string | None] | Restart a node, or all nodes. The bot reloads its configuration. |
+| /node/restart | POST | [node_name: string | None], [force: bool] | Restart a node, or all nodes. The bot reloads its configuration. |
 | /player_info | POST | nick: string, [date: string | None], [server_name: string | None] | Get player information |
 | /player_squadrons | POST | nick: string, [date: string | None] | List of player squadrons |
 | /refuelings | GET | ucid: string, [module: string | None], [tanker: string | None], [start_time: datetime | None], [end_time: datetime | None] | Get refueling stats for players |
@@ -2211,8 +2211,14 @@ pattern for a new surface — both machine surfaces above carry the verified key
 | Name | Type | In | Required | Default | Description |
 |------|------|----|----------|---------|-------------|
 | `node_name` | `string | None` | query | No | - | Node to restart (default: all nodes) |
+| `force` | `bool` | query | No | `false` | Restart even while a DCS update is running |
 
 **Response:** `NodeRestartResponse`
+
+A restart is refused with `409` while a DCS update is in flight on the target node; the `detail` is
+the action's own sentence. The master is asked before the reply, so a refused self-restart is a `409`
+too and no restart is scheduled. `force=true` runs the restart anyway and records in the trail that
+it did.
 
 #### Response Example
 

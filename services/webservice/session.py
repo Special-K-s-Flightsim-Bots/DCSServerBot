@@ -176,6 +176,17 @@ def _resolve_https_only(session_config: dict, config: dict) -> bool:
     return derived
 
 
+def cookie_is_secure(config: dict | None) -> bool:
+    """The effective ``Secure`` flag of the session cookie for *config*, validating nothing else.
+
+    The same rule :func:`session_settings` applies — an explicit value wins, an unset one is derived
+    from the bind address — exposed for a caller that needs this flag and no other setting. Raises
+    ``ValueError`` for a configured value that is not a boolean.
+    """
+    service_config = dict(config or {})
+    return _resolve_https_only(dict(service_config.get("session") or {}), service_config)
+
+
 def _warn_about_an_insecure_cookie(settings: dict, config: dict) -> None:
     """Name the exposure when the cookie is knowingly sent without ``Secure`` on a reachable bind."""
     listen = str(config.get("listen") or "").strip() or DEFAULT_LISTEN

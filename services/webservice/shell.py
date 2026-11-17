@@ -590,16 +590,19 @@ def refusal_page(status_code: int, *, wrote: bool = False,
         # has no business being sent into the admin console: the offer is the public site. With no
         # site at the root, ``/`` IS the console's start page, so one address answers both cases.
         if site_at_root:
-            way_out = f'<p><a href="/">{_("Open the public site")}</a></p>'
+            site_label = _("Open the public site")
+            way_out = f'<p><a href="/">{site_label}</a></p>'
         else:
-            way_out = f'<p><a href="{mount.url("/")}">{_("Return to the dashboard")}</a></p>'
+            back_label = _("Return to the dashboard")
+            way_out = f'<p><a href="{mount.url("/")}">{back_label}</a></p>'
     else:
         heading = _("Access denied")
         title = _("access denied")
         message = (_("Your request could not be completed, and nothing was saved.")
                    if wrote else
                    _("Your account does not have access to this page."))
-        way_out = f'<p><a href="{mount.url("/")}">{_("Return to the dashboard")}</a></p>'
+        back_label = _("Return to the dashboard")
+        way_out = f'<p><a href="{mount.url("/")}">{back_label}</a></p>'
     return (
         "<!doctype html>\n"
         f'<html lang="{language}">\n<head>\n<meta charset="utf-8">\n'
@@ -675,18 +678,24 @@ def retryable_page(status_code: int, *, retry_after: int,
                         "just started and is verifying your identity; this page will retry by itself.")
     stopped = json.dumps(_("Still not ready. Retry by hand when you are ready."), ensure_ascii=False)
     changed = json.dumps(_("The answer changed. Reload to continue."), ensure_ascii=False)
+    # the page's own copy, hoisted out of the f-strings: a ``_()`` call inside one is not reachable by
+    # every extraction tool, so a string left there never reaches the catalogs
+    title_text = _("verifying your identity")
+    heading_text = _("The console is starting up")
+    status_text = _("Retrying automatically&hellip;")
+    retry_text = _("Retry now")
     return (
         "<!doctype html>\n"
         f'<html lang="{language}">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>{status_code} - {_('verifying your identity')}</title>\n"
+        f"<title>{status_code} - {title_text}</title>\n"
         f'<link rel="stylesheet" href="{SHELL_ASSET_PATH}/shell.css">\n'
         f"{_REFUSAL_STYLE}\n"
         '</head>\n<body>\n<main class="refusal">\n'
-        f"<h1>{_('The console is starting up')}</h1>\n"
+        f"<h1>{heading_text}</h1>\n"
         f"<p>{still_signed_in}</p>\n"
-        f'<p class="refusal-status" id="retryable-status">{_("Retrying automatically&hellip;")}</p>\n'
-        f'<p><a id="retryable-retry" href="" hidden>{_("Retry now")}</a></p>\n'
+        f'<p class="refusal-status" id="retryable-status">{status_text}</p>\n'
+        f'<p><a id="retryable-retry" href="" hidden>{retry_text}</a></p>\n'
         "</main>\n"
         "<script>\n"
         "(function () {\n"

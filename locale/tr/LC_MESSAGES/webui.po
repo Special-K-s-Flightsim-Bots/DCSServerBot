@@ -2833,10 +2833,6 @@ msgstr "Aç"
 msgid "Turn off"
 msgstr "Kapat"
 
-#: services/webservice/pages/node_settings.py:378
-msgid "Keep it"
-msgstr "Korunmasını sağla"
-
 #: services/webservice/pages/node_settings.py:386
 msgid "Enabled"
 msgstr "Etkin"
@@ -2848,33 +2844,48 @@ msgstr "Devre dışı"
 #: services/webservice/pages/node_settings.py:390
 #, python-format
 msgid ""
-"Turned off the default extension %(name)s for this scope — it will not load "
-"there."
-msgstr ""
-"%(name)s varsayılan uzantısı bu kapsam için kapatıldı — orada yüklenmeyecek."
+"Turned off the extension %(name)s for this scope — it will not load there."
+msgstr "%(name)s uzantısı bu kapsam için kapatıldı — orada yüklenmeyecek."
 
 #: services/webservice/pages/node_settings.py:392
 #, python-format
-msgid "Turned on the default extension %(name)s for this scope."
-msgstr "%(name)s varsayılan uzantısı bu kapsam için açıldı."
+msgid "Turned on the extension %(name)s for this scope."
+msgstr "%(name)s uzantısı bu kapsam için açıldı."
 
-#: services/webservice/pages/node_settings.py:396
+#: services/webservice/pages/node_settings.py
+#, python-format
 msgid ""
-"Turning this off REMOVES this extension's block from this scope. Everything "
-"it holds right now is discarded:"
-msgstr ""
-"Bunu kapatmak, bu uzantının bloğunu bu kapsamdan KALDIRIR. Şu anda "
-"barındırdığı her şey atılır:"
+"Added the extension %(name)s to this scope with its default values."
+msgstr "%(name)s uzantısı varsayılan değerleriyle bu kapsama eklendi."
 
-#: services/webservice/pages/node_settings.py:401
-#, python-format
-msgid "Added the extension %(name)s to this scope as an empty block."
-msgstr "%(name)s uzantısı bu kapsama boş bir blok olarak eklendi."
+#: services/webservice/pages/node_settings.py
+msgid ""
+"Needs setup"
+msgstr "Kurulum gerekli"
 
-#: services/webservice/pages/node_settings.py:402
+#: services/webservice/pages/node_settings.py
 #, python-format
-msgid "Removed the extension %(name)s from this scope."
-msgstr "%(name)s uzantısı bu kapsamdan kaldırıldı."
+msgid ""
+"Not ready to switch on — %(keys)s."
+msgstr "Açmaya hazır değil — %(keys)s."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"%(keys)s must be set on the Node-wide tab"
+msgstr "%(keys)s Oturum geneli sekmesinde ayarlanmalı"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"%(keys)s must be set on this extension's own tab"
+msgstr "%(keys)s bu uzantının kendi sekmesinde ayarlanmalı"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"No change was saved: the extension %(name)s is not ready to switch on — %(keys)s. Nothing was written."
+msgstr "Hiçbir değişiklik kaydedilmedi: %(name)s uzantısı açmaya hazır değil — %(keys)s. Hiçbir şey yazılmadı."
 
 #: services/webservice/pages/node_settings.py:404
 #, python-format
@@ -2915,31 +2926,13 @@ msgstr ""
 #: services/webservice/pages/node_settings.py:423
 msgid ""
 "Nothing was removed: this removal did not carry the acknowledgement the "
-"warning produces, so the extension's block was left exactly as it was. Open "
-"the extension's switch, read the warning that shows what will be discarded, "
-"and confirm from there."
+"confirmation page produces, so the extension's block was left exactly as "
+"it was. Open the extension's trashcan, read what will be discarded, and "
+"confirm from there."
 msgstr ""
-"Hiçbir şey kaldırılmadı: bu kaldırma işlemi uyarının ürettiği onayı "
-"taşımadığından uzantının bloğu tam olarak olduğu gibi bırakıldı. Uzantının "
-"anahtarını açın, nelerin atılacağını gösteren uyarıyı okuyun ve oradan "
-"onaylayın."
-
-#: services/webservice/pages/node_settings.py:528
-msgid ""
-"This extension is not configured for this node yet, so there is nothing to "
-"edit here. Turn it on from the node page first."
-msgstr ""
-"Bu uzantı henüz bu oturum için yapılandırılmadığından burada düzenlenecek "
-"bir şey yok. Önce oturum sayfasından açın."
-
-#: services/webservice/pages/node_settings.py:533
-msgid ""
-"Each tab is this extension's block for one scope — the node's own block, "
-"then one per instance that configures it. Nothing is copied between them."
-msgstr ""
-"Her sekme, bu uzantının tek bir kapsama ait bloğudur — önce oturumun kendi "
-"bloğu, ardından onu yapılandıran her örnek için bir sekme gelir. Aralarında "
-"hiçbir şey kopyalanmaz."
+"Hiçbir şey kaldırılmadı: bu kaldırma, onay sayfasının ürettiği onayı "
+"taşımıyordu, bu yüzden uzantının bloğu olduğu gibi kaldı. Uzantının çöp "
+"kutusunu açın, nelerin atılacağını okuyun ve oradan onaylayın."
 
 #: services/webservice/pages/node_settings.py:1068
 msgid "No nodes.yaml on this install, so this node has no settings to show."
@@ -9605,7 +9598,6 @@ msgstr "Hiçbir şey uygulanmadı: site ayarları zaten yeniden okunuyor."
 msgid "The file holds the change, but the console could not re-read it — %(reason)s. The sites that were installed keep serving; nothing was reloaded or restarted."
 msgstr "Dosya değişikliği içeriyor, ancak konsol onu yeniden okuyamadı — %(reason)s. Daha önce kurulmuş siteler sunulmaya devam ediyor; hiçbir şey yeniden yüklenmedi veya yeniden başlatılmadı."
 
-
 #: services/webservice/scheduler_plan.py
 msgid "Stop the DCS server process"
 msgstr "DCS sunucu işlemini durdur"
@@ -12784,7 +12776,6 @@ msgstr "Henüz hiçbir puan güncellemesi kaydedilmedi. Yukarıdaki sayı, eklen
 msgid "{mu} μ"
 msgstr "{mu} μ"
 
-
 msgid "A site that is switched off registers no routes: the console reloads and its address answers \"not found\" until it is back on."
 msgstr "Kapalı bir site hiçbir yol kaydetmez: konsol yeniden yüklenir ve site tekrar açılana kadar adresi \"bulunamadı\" yanıtı verir."
 
@@ -12974,7 +12965,6 @@ msgstr "Elle düzenlendi — bu artık tam olarak %(name)s kümesi değil."
 #: services/webservice/pages/site_config.py
 msgid "%(sections)s of %(sectionsTotal)s sections · %(metrics)s of %(metricsTotal)s metrics"
 msgstr "%(sectionsTotal)s bölümün %(sections)s tanesi · %(metricsTotal)s ölçütün %(metrics)s tanesi"
-
 
 #: services/webservice/pages/site_config.py
 msgid "The menu and the tiles"
@@ -13401,46 +13391,35 @@ msgstr "sihirbaz tarafından yazıldı · sitenin kendi sayfasından sonra bağl
 msgid "The site"
 msgstr "Site"
 
-
 msgid "its own document · %(path)s"
 msgstr "kendi belgesi · %(path)s"
-
 
 msgid "Open ↗"
 msgstr "Aç ↗"
 
-
 msgid "The site's own document at the box's width — bar, hero, footer. Not a drawing: the page's blocks write into this one frame, and it is the only preview here."
 msgstr "Sitenin kendi belgesi, kutunun genişliğinde — çubuk, hero, altbilgi. Bir çizim değil: bu sayfanın blokları bu tek çerçeveye yazar ve buradaki tek önizleme odur."
-
 
 msgid "Writes into it: %(branding)s — the mark, the bar's name, the hero's headline and paragraph · %(palette)s — every colour in it · %(links)s — the footer's anchors, beside the attribution · %(menu)s — the bar's nav, in this order."
 msgstr "İçine yazar: %(branding)s — işaret, çubuktaki ad, kahramanın başlığı ve paragrafı · %(palette)s — içindeki her renk · %(links)s — alt bilgideki bağlantılar, sabit atfın yanında · %(menu)s — çubuğun gezinmesi, bu sırayla."
 
-
 msgid "Character changes nothing here: it decides the bands below the hero, which the box's height does not reach."
 msgstr "Karakter burada hiçbir şeyi değiştirmez: hero'nun altındaki kuşakları belirler, kutunun yüksekliği oraya ulaşmaz."
-
 
 msgid "Palette"
 msgstr "Palet"
 
-
 msgid "Footer links"
 msgstr "Altbilgi bağlantıları"
-
 
 msgid "fields"
 msgstr "alan"
 
-
 msgid "The site itself"
 msgstr "Sitenin kendisi"
 
-
 msgid "not part of the look"
 msgstr "görünümün parçası değil"
-
 
 msgid "Nothing in the box changes: the character decides the bands below the hero, and which figures the leaderboard ranks. The box draws the bar, the hero and the footer — and no band."
 msgstr "Kutuda hiçbir şey değişmez: karakter hero'nun altındaki kuşakları ve sıralamanın hangi sayıları dizdiğini belirler. Kutu çubuğu, hero'yu ve altbilgiyi çizer — hiçbir kuşak çizmez."
@@ -13714,3 +13693,153 @@ msgstr "Bu sitenin henüz kendi adresi yok — görünümü böyle olacak. Bot y
 #: services/webservice/i18n.py
 msgid "example"
 msgstr "örnek"
+
+msgid "This console is set to HTTPS-only (session.https_only), but it was opened "
+"over plain HTTP, so the browser will not keep the sign-in cookie. Open it "
+"over https://, or set session.https_only: false in "
+"config/services/webservice.yaml."
+msgstr "Bu konsol yalnızca HTTPS olarak ayarlanmış (session.https_only), ancak düz "
+"HTTP üzerinden açıldı; bu yüzden tarayıcı oturum açma çerezini saklamaz. "
+"https:// üzerinden açın veya config/services/webservice.yaml içinde "
+"session.https_only: false ayarlayın."
+
+msgid "Remove the block"
+msgstr "Bloğu kaldır"
+
+msgid "Remove the {name} extension from {node}"
+msgstr "{node} üzerinden {name} uzantısını kaldır"
+
+msgid "Remove the {name} extension from {scope}?"
+msgstr "{scope} kapsamından {name} uzantısı kaldırılsın mı?"
+
+msgid ""
+"The block is removed from nodes.yaml for {scope}. The bot log records the "
+"removal and your name."
+msgstr ""
+"Blok, {scope} için nodes.yaml dosyasından kaldırılır. Bot günlüğü "
+"kaldırmayı ve adınızı kaydeder."
+
+msgid "Everything this block holds is discarded — no value in it is kept."
+msgstr "Bu bloğun içerdiği her şey atılır — içindeki hiçbir değer korunmaz."
+
+msgid ""
+"The block, exactly as it is discarded: <pre "
+"class=\"st-warn-yaml\">{yaml}</pre>"
+msgstr ""
+"Blok, tam olarak atılacağı haliyle: <pre "
+"class=\"st-warn-yaml\">{yaml}</pre>"
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"Each tab is this extension's block for one scope — the node's own "
+"block, then one per instance of that node. Nothing is copied between "
+"them."
+msgstr ""
+"Her sekme, bu uzantının tek bir kapsama ait bloğudur — önce oturumun "
+"kendi bloğu, ardından o oturumun her örneği için bir sekme gelir. "
+"Aralarında hiçbir şey kopyalanmaz."
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"This extension is not configured for this scope yet, so there is "
+"nothing to switch here. Configure it on the extension's own page "
+"first."
+msgstr ""
+"Bu uzantı henüz bu kapsam için yapılandırılmadığından burada "
+"değiştirilecek bir şey yok. Önce uzantının kendi sayfasında "
+"yapılandırın."
+
+#: services/webservice/pages/node_settings.py
+msgid "Set up on the extension's page"
+msgstr "Uzantının kendi sayfasında ayarlayın"
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The extension %(name)s was not added: this scope cannot create its "
+"block from defaults. Nothing was written — open the extension's own "
+"page and save the values there."
+msgstr ""
+"%(name)s uzantısı eklenmedi: bu kapsam bloğunu varsayılan değerlerden "
+"oluşturamıyor. Hiçbir şey yazılmadı — uzantının kendi sayfasını açıp "
+"değerleri orada kaydedin."
+
+#: services/webservice/pages/node_settings.py
+msgid ""
+"This scope does not configure this extension yet. Fill in what it "
+"needs and save — the save creates the block here."
+msgstr ""
+"Bu kapsam bu uzantıyı henüz yapılandırmıyor. Gerekenleri doldurup "
+"kaydedin — kaydetme bloğu burada oluşturur."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The block was not created: %(fields)s did not pass the check. Nothing was "
+"written."
+msgstr ""
+"Blok oluşturulmadı: %(fields)s denetimi geçemedi. Hiçbir şey "
+"yazılmadı."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid "Removed the extension %(name)s from this scope."
+msgstr "%(name)s uzantısı bu kapsamdan kaldırıldı."
+
+#: services/webservice/pages/node_settings.py
+#, python-format
+msgid ""
+"The extension %(name)s was not added: its values did not pass the "
+"check. Nothing was written."
+msgstr ""
+"%(name)s uzantısı eklenmedi: değerleri denetimi geçemedi. Hiçbir şey "
+"yazılmadı."
+
+#: services/webservice/upgrade.py
+msgid "DCS update running — its servers are stopped (from the background check, not live)"
+msgstr "DCS güncellemesi çalışıyor — sunucuları durduruldu (arka plan kontrolünden, canlı değil)"
+
+#: services/webservice/pages/actions.py
+msgid "Force — run it even while a DCS update is running"
+msgstr "Zorla — bir DCS güncellemesi çalışırken bile uygula"
+
+#: services/webservice/pages/actions.py
+msgid "Off by default. An update in flight already stopped this node's servers; forcing this leaves them stopped and its installer running."
+msgstr "Varsayılan olarak kapalı. Sürmekte olan bir güncelleme bu düğümün sunucularını zaten durdurdu; zorlamak onları durdurulmuş bırakır ve yükleyici çalışmaya devam eder."
+
+#: services/webservice/pages/actions.py
+msgid "A DCS update is running on this node — its servers were stopped for it and stay stopped until it finishes. Ticking Force runs this operation anyway, leaving those servers stopped and the installer running."
+msgstr "Bu düğümde bir DCS güncellemesi çalışıyor — sunucuları bunun için durduruldu ve güncelleme bitene kadar durdurulmuş kalacak. Zorla işaretlenirse bu işlem yine de çalıştırılır: bu sunucular durdurulmuş kalır ve yükleyici çalışmaya devam eder."
+
+#: services/webservice/pages/actions.py
+msgid "Whether a DCS update is running on this node is not known yet: the background check has not answered, so nothing here claims there is none."
+msgstr "Bu düğümde bir DCS güncellemesinin çalışıp çalışmadığı henüz bilinmiyor: arka plan kontrolü yanıt vermedi, bu yüzden burada hiçbir şey çalışmadığını iddia etmiyor."
+
+#: services/webservice/pages/actions.py
+#, python-format
+msgid "Last DCS update check: {when}."
+msgstr "Son DCS güncelleme kontrolü: {when}."
+
+#: services/webservice/pages/node_settings.py
+msgid "Enabling…"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "Disabling…"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "This is running now — the switch unlocks when it is done"
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "Turning %(name)s on — installing can take a few minutes. The switch stays locked until it is done and the result follows here."
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "Turning %(name)s off — the switch stays locked until it is done and the result follows here."
+msgstr ""
+
+#: services/webservice/pages/node_settings.py
+msgid "%(name)s is already being switched — wait for it to finish. Nothing was started."
+msgstr ""

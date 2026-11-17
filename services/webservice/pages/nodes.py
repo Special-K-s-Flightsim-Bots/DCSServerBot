@@ -358,11 +358,14 @@ def add_log_download_route(router: APIRouter) -> APIRouter:
         path = readmodels.log_path_for(canonical)
         if path is None:  # pragma: no cover - a reachable node always has a readable name
             return _refuse(404, f"Node '{canonical}' has no name to build a log file from.")
+        #: the WIRE spelling: the node resolves it inside its OWN working directory, so a master-local
+        #: path with this host's separators would name a file the node does not have
+        wire = path.as_posix()
         try:
-            data = await target.read_file(str(path))
+            data = await target.read_file(wire)
         except FileNotFoundError:
             return _refuse(404, f"No log file on node '{canonical}' yet "
-                                f"(looked for '{path}').")
+                                f"(looked for '{wire}').")
         except PermissionError:
             return _refuse(403, f"Node '{canonical}' could not read its own log file: "
                                 f"permission denied.")
@@ -409,7 +412,9 @@ def _node_log_file_path(node_name: str) -> str | None:
     read the same file.
     """
     path = readmodels.log_path_for(readmodels.text(node_name))
-    return str(path) if path is not None else None
+    #: the WIRE spelling is forward-slashed: the node resolves it inside its own working directory, and
+    #: ``logs/dcssb-<node>.log`` is what the sentence on the page names on every platform
+    return path.as_posix() if path is not None else None
 
 
 async def _read_window(node, path: str, node_name: str, *, offset=None,

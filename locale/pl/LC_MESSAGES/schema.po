@@ -7059,3 +7059,6 @@ msgstr "Wartości managed_by, które to konto może widzieć i na których może
 #~ msgid "Which overview sections the site shows; an absent id is on."
 #~ msgstr "Które sekcje przeglądu pokazuje witryna; brakujący identyfikator jest włączony."
 
+
+msgid "Whether this extension is enabled on this node."
+msgstr "Czy to rozszerzenie jest włączone na tym węźle."

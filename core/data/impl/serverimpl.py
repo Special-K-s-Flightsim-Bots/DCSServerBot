@@ -1955,14 +1955,61 @@ class ServerImpl(Server):
 
     @override
     async def disable_extension(self, name: str) -> bool:
-        if name not in self.extensions:
-            raise InstallException(f"Extension '{name}' not found")
-        ext = self.extensions[name]
+        key = name
+        ext = self.extensions.get(name)
+        if ext is None:
+            # NOT LOADED IS NOT A FAILURE, provided the name is one this server KNOWS. An extension
+            # can be configured and still not be loaded — it was skipped at start-up, or it failed to
+            # load — while its block still says ``enabled: true``. A name NO block carries is a
+            # different thing (a typo would write a block for an extension that does not exist), so
+            # that stays a refusal.
+            configured = self._configured_extension_name(name)
+            if configured is None:
+                raise InstallException(f"Extension '{name}' not found")
+            # AND IT IS STILL A SWITCH-OFF TO CARRY OUT: the extension's OWN ``disable()`` is what
+            # runs its shutdown hook and removes a package it installed (Olympus uninstalls its mod
+            # there), so it is built from the configuration and asked — flag-only would leave the
+            # package behind while the configuration claims the extension is off. Only a name whose
+            # CLASS is gone has nothing left to run.
+            key = configured
+            try:
+                ext = self.load_extension(configured)
+            except InstallException:
+                ext = None
+            except Exception:
+                # THE CLASS IS THERE BUT CANNOT BE BUILT (an unusable configuration, a missing
+                # dependency): its own disable() cannot run, so nothing can be uninstalled — but the
+                # operator still asked for OFF, and the runtime keeps nothing alive. Say in the log
+                # that the package was left alone; never answer "not found" and leave the switch ON.
+                self.log.exception(f"Extension {configured} could not be built to disable it")
+                ext = None
+            if ext is None:
+                await self.config_extension(key, {"Instance": {"enabled": False}})
+                return True
         if await ext.disable():
-            await self.config_extension(name, {"Instance": {"enabled": False}})
-            self.extensions.pop(name, None)
+            await self.config_extension(key, {"Instance": {"enabled": False}})
+            self.extensions.pop(key, None)
             return True
         return False
+
+    def _configured_extension_name(self, name: str) -> str | None:
+        """The name this server's configuration holds for *name*, in its own spelling — else ``None``.
+
+        The blocks are the register of names this server knows about: the instance's own block first,
+        then the node's (the per-node default an instance inherits), then the extensions that run with
+        no block at all. The comparison is case-insensitive — a caller may spell a name differently,
+        and a block differing only by case would be a second configuration of one extension — but the
+        spelling returned is the CONFIGURED one, because that is the key a write must land on.
+        """
+        wanted = str(name or "").lower()
+        for blocks in (self.locals.get('extensions', {}), self.node.locals.get('extensions', {})):
+            for configured in blocks or {}:
+                if str(configured).lower() == wanted:
+                    return str(configured)
+        for default in DEFAULT_EXTENSIONS:
+            if str(default).lower() == wanted:
+                return str(default)
+        return None
 
     @override
     async def cleanup(self) -> None:

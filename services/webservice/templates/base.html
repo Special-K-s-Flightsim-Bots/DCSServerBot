@@ -147,6 +147,12 @@
      copy and how the two differ: the DIALOG (a form stating its `data-back`) closes on the press,
      while a form that stays on its page waits for the write's answer. #}
   <script src="/static/submit.js" defer></script>
+  {# The switch's own poll: an extension's ON/OFF action runs as a SERVER-SIDE background job (an
+     install can take minutes), so a busy card counts its elapsed time up and asks the switch-state
+     endpoint until the job is gone, then reloads to show the result. It no-ops on a page with no busy
+     switch, which is every page but a node tab in the middle of a switch — hence loaded once here,
+     never per template. #}
+  <script src="/static/extension-switch.js?v={{ asset_version }}" defer></script>
   {# The live-update script: a progressive enhancement and nothing more. The page is fully rendered
      (log entries, server rows) before it loads, so with JavaScript off nothing is missing — the
      page is simply not live. `live` is passed by a page that wants it (the dashboard, when

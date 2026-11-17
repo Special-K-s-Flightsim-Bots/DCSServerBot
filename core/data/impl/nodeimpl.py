@@ -112,6 +112,26 @@ UPDATE = -3
 #: still small enough that the read can never pull a multi-megabyte log into one response.
 NODE_READ_WINDOW_MAX_BYTES = 1024 * 1024
 
+#: HOW LONG ``NodeImpl.__aexit__`` waits for an in-flight DCS update before the database pools close under it. The
+#: installer runs in a thread and cannot be stopped, so the update task keeps stepping servers down and restoring
+#: them long after the shutdown flag is set; closing the pools first makes that cleanup fail on a closed pool. The
+#: wait is bounded: a shutdown must still finish when the update cannot.
+DCS_UPDATE_SHUTDOWN_WAIT = 30.0
+
+
+def update_done_event(node) -> asyncio.Event:
+    """This node's in-flight record for a DCS update: CLEARED while one runs, SET when none does.
+
+    Created SET, so a node that never updated reads idle. Created on first use rather than in ``__init__`` alone,
+    because ``dcs_update`` and ``__aexit__`` are also driven against light doubles that carry no such field.
+    """
+    event = getattr(node, 'dcs_update_done', None)
+    if event is None:
+        event = asyncio.Event()
+        event.set()
+        node.dcs_update_done = event
+    return event
+
 
 def file_identity(st: os.stat_result) -> int | float:
     """A file's IDENTITY: a value that does NOT change when the file is APPENDED to but DOES change
@@ -268,6 +288,9 @@ class NodeImpl(Node):
         #: whether a DCS installer is running right now. A shared installation's window must NOT be given back while
         #: it is: the window is what keeps the other clusters' servers down for the duration of the install.
         self.installer_running = False
+        #: the in-flight record of a WHOLE update: cleared before the window is taken, set after the servers it stepped
+        #: down are restored. What ``__aexit__`` waits on before it closes the pools.
+        self.dcs_update_done = update_done_event(self)
         self.pool: ConnectionPool | None = None
         self.apool: AsyncConnectionPool | None = None
         self.cpool: AsyncConnectionPool | None = None
@@ -376,8 +399,27 @@ class NodeImpl(Node):
     async def __aexit__(self, _type, _value, _traceback):
         await utils.safe_cancel(self.heartbeat_loop)
         await utils.safe_cancel(self.federation_loop)
+        await self._await_in_flight_update()
         await self.release_windows()
         await self.close_db()
+
+    async def _await_in_flight_update(self) -> None:
+        """Wait, bounded, for a DCS update that is still running to finish before the database pools close.
+
+        The installer runs in a thread, so cancelling the update task does not stop it: it keeps stepping servers
+        down and restoring them, and every one of those steps reads the cluster pool. Waiting here is what keeps that
+        cleanup from landing on a closed pool; the timeout is what keeps a stuck update from hanging the shutdown.
+        """
+        event = update_done_event(self)
+        if event.is_set():
+            return
+        self.log.warning(f'- A DCS update is still in flight on node {self.name}: waiting up to '
+                         f'{DCS_UPDATE_SHUTDOWN_WAIT:g}s for it to finish before the database closes.')
+        try:
+            await asyncio.wait_for(event.wait(), DCS_UPDATE_SHUTDOWN_WAIT)
+        except asyncio.TimeoutError:
+            self.log.warning(f'- The DCS update on node {self.name} did not finish in time, closing the database '
+                             f'under it.')
 
     async def release_own_windows(self) -> None:
         """Clear the window rows a PREVIOUS session of this node left behind, and say so.
@@ -2184,9 +2226,16 @@ class NodeImpl(Node):
             return await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
         finally:
             # Released in this order on purpose: the window goes first, so followers can come back while this node
-            # restores its own — and both happen even when the update raised.
-            await protocol.windows.release(resource_id)
-            await protocol.restore(resource_id)
+            # restores its own — and both happen even when the update raised. Each is BEST-EFFORT: at shutdown the
+            # cluster pool may already be closed, and a cleanup failure must never replace the exception in flight.
+            try:
+                await protocol.windows.release(resource_id)
+            except Exception as ex:
+                self.log.warning(f"- Could not release the window on {resource_id}: {ex}")
+            try:
+                await protocol.restore(resource_id)
+            except Exception as ex:
+                self.log.warning(f"- Could not restore the servers on {resource_id} after the window: {ex}")
 
     @override
     async def dcs_update(self, *, branch: str | None = None, version: str | None = None,
@@ -2194,77 +2243,87 @@ class NodeImpl(Node):
         from services.bot import BotService
         from services.servicebus import ServiceBus
 
-        self.log.info('A new version of DCS World is available. Auto-updating ...')
-        resource_id = self.resource_of_installation()
-        if resource_id:
-            rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
-        else:
-            # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
-            rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
-        if rc == 0:
-            bus = ServiceRegistry.get(ServiceBus)
-            await bus.send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "audit",
-                "params": {
-                    "message": f"DCS World updated to version {version} on node {self.node.name}."
-                }
-            })
-            config = self.locals.get('DCS', {}).get('announce')
-            if config and announce:
-                embed = discord.Embed(
-                    colour=discord.Colour.blue(),
-                    title=config.get(
-                        'title', 'DCS has been updated to version {}!').format(version),
-                    url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{version}/")
-                embed.description = config.get('description', 'The following servers have been updated:')
-                embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
-                                        "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
-                embed.add_field(name=_('Server'),
-                                value='\n'.join([
-                                    f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
-                                ]), inline=False)
-                embed.set_footer(
-                    text=config.get('footer', 'Please make sure you update your DCS client to join!'))
-                params = {
-                    "channel": config['channel'],
-                    "embed": embed.to_dict()
-                }
-                if 'mention' in config:
-                    params['mention'] = config['mention']
+        # from here until the finally, an update owns this node — the federated and the plain path both pass through
+        done = update_done_event(self)
+        done.clear()
+        try:
+            self.log.info('A new version of DCS World is available. Auto-updating ...')
+            resource_id = self.resource_of_installation()
+            if resource_id:
+                rc = await self.federated_update(resource_id, branch=branch, version=version, warn_times=warn_times)
+            else:
+                # no registered installation: nothing to coordinate, so the pre-federation behaviour is kept intact
+                rc = await self.update(warn_times=warn_times or [300, 120, 60], version=version, branch=branch)
+            if rc == 0:
+                bus = ServiceRegistry.get(ServiceBus)
                 await bus.send_to_node({
                     "command": "rpc",
                     "service": BotService.__name__,
-                    "method": "send_message",
-                    "params": params
+                    "method": "audit",
+                    "params": {
+                        "message": f"DCS World updated to version {version} on node {self.node.name}."
+                    }
                 })
-        else:
-            if rc == UPDATE_STOOD_BY:
-                message = (f"DCS World update on node {self.name} did not run: another cluster is updating "
-                           f"the shared DCS installation.")
-            elif rc == UPDATE_SERVERS_UP:
-                message = (f"DCS World update on node {self.name} did not run: servers were still up on the "
-                           f"shared DCS installation.")
-            elif rc == 2:
-                message = f"DCS World update on node {self.name} was aborted (check disk space)!"
-            elif rc in [3, 350]:
-                message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
-                           f"The updater has requested a **reboot** of the system!")
+                config = self.locals.get('DCS', {}).get('announce')
+                if config and announce:
+                    embed = discord.Embed(
+                        colour=discord.Colour.blue(),
+                        title=config.get(
+                            'title', 'DCS has been updated to version {}!').format(version),
+                        url=f"https://www.digitalcombatsimulator.com/en/news/changelog/stable/{version}/")
+                    embed.description = config.get('description', 'The following servers have been updated:')
+                    embed.set_thumbnail(url="https://forum.dcs.world/uploads/monthly_2023_10/"
+                                            "icons_4.png.f3290f2c17710d5ab3d0ec5f1bf99064.png")
+                    embed.add_field(name=_('Server'),
+                                    value='\n'.join([
+                                        f'- {x.display_name}' for x in bus.servers.values() if not x.is_remote
+                                    ]), inline=False)
+                    embed.set_footer(
+                        text=config.get('footer', 'Please make sure you update your DCS client to join!'))
+                    params = {
+                        "channel": config['channel'],
+                        "embed": embed.to_dict()
+                    }
+                    if 'mention' in config:
+                        params['mention'] = config['mention']
+                    await bus.send_to_node({
+                        "command": "rpc",
+                        "service": BotService.__name__,
+                        "method": "send_message",
+                        "params": params
+                    })
             else:
-                message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
-                           f"{utils.get_win32_error_message(rc)}!")
-            self.log.error(message)
-            await ServiceRegistry.get(ServiceBus).send_to_node({
-                "command": "rpc",
-                "service": BotService.__name__,
-                "method": "alert",
-                "params": {
-                    "title": "DCS Update Issue",
-                    "message": message
-                }
-            })
-        return rc
+                if rc == UPDATE_STOOD_BY:
+                    message = (f"DCS World update on node {self.name} did not run: another cluster is updating "
+                               f"the shared DCS installation.")
+                elif rc == UPDATE_SERVERS_UP:
+                    message = (f"DCS World update on node {self.name} did not run: servers were still up on the "
+                               f"shared DCS installation.")
+                elif rc == 2:
+                    message = f"DCS World update on node {self.name} was aborted (check disk space)!"
+                elif rc in [3, 350]:
+                    message = (f"DCS World has been updated to version {version} on node {self.name}.\n"
+                               f"The updater has requested a **reboot** of the system!")
+                else:
+                    message = (f"DCS World could not be updated on node {self.name} due to an error ({rc}): "
+                               f"{utils.get_win32_error_message(rc)}!")
+                self.log.error(message)
+                await ServiceRegistry.get(ServiceBus).send_to_node({
+                    "command": "rpc",
+                    "service": BotService.__name__,
+                    "method": "alert",
+                    "params": {
+                        "title": "DCS Update Issue",
+                        "message": message
+                    }
+                })
+            return rc
+        finally:
+            done.set()
+
+    @override
+    async def dcs_update_in_progress(self) -> bool:
+        return not update_done_event(self).is_set()
 
     async def follow_resources(self) -> dict[str, str]:
         """One follower cycle over every resource this node uses, as ``{resource_id: what it did}``.

@@ -928,25 +928,57 @@ class Admin(Plugin[AdminEventListener]):
             elif method == 'restart':
                 await self.node.restart()
 
+    async def _confirm_node_operation(self, interaction: discord.Interaction, verb: str,
+                                      node: Node | None, *, ephemeral: bool) -> bool:
+        """Ask the one question a node lifecycle command asks, and say when the answer is no.
+
+        ``verb`` is the operation's own word (``shutdown`` / ``restart`` / ``upgrade``); with no
+        *node* the question covers the whole cluster and the embedding says what that means.
+        """
+        if not node:
+            question = _("Are you sure you want to proceed?")
+            message = _("This will {} **all** nodes.").format(_(verb))
+        else:
+            question = _("Are you sure you want to {} node `{}`?").format(_(verb), node.name)
+            message = None
+        embed = discord.Embed(color=discord.Color.red())
+        embed.description = message
+        embed.set_thumbnail(
+            url="https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/blob/master/images/warning.png?raw=true")
+        if await utils.yn_question(interaction, question=question, embed=embed, ephemeral=ephemeral):
+            return True
+        await interaction.followup.send(_('Aborted.'), ephemeral=ephemeral)
+        return False
+
     @node_group.command(description=_('Shuts a specific node down'))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
+    @app_commands.describe(force=_('Shut down even while a DCS update is running'))
     async def shutdown(self, interaction: discord.Interaction,
-                       node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
+                       node: app_commands.Transform[Node, utils.NodeTransformer] | None = None,
+                       force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        await self.run_on_nodes(interaction, "shutdown", node, ephemeral=ephemeral)
+        if not await self._confirm_node_operation(interaction, "shutdown", node, ephemeral=ephemeral):
+            return
+        await self._power_nodes(interaction, "shutdown_node", node, ephemeral=ephemeral,
+                                force=bool(force))
 
     @node_group.command(description=_('Restarts a specific node'))
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
+    @app_commands.describe(force=_('Restart even while a DCS update is running'))
     async def restart(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None,
+                      force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
-        await self.run_on_nodes(interaction, "restart", node, ephemeral=ephemeral)
+        if not await self._confirm_node_operation(interaction, "restart", node, ephemeral=ephemeral):
+            return
+        await self._power_nodes(interaction, "restart_node", node, ephemeral=ephemeral,
+                                force=bool(force))
 
     async def _power_targets(self, node: Node | None) -> list[str]:
         """The node names a power command with no explicit node covers — each ONCE.
@@ -1074,8 +1106,10 @@ class Admin(Plugin[AdminEventListener]):
     @app_commands.guild_only()
     @app_commands.check(utils.restricted_check)
     @utils.app_has_role('Admin')
+    @app_commands.describe(force=_('Upgrade even while a DCS update is running'))
     async def upgrade(self, interaction: discord.Interaction,
-                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None):
+                      node: app_commands.Transform[Node, utils.NodeTransformer] | None = None,
+                      force: bool | None = False):
         ephemeral = utils.get_ephemeral(interaction)
         await interaction.response.defer(ephemeral=ephemeral)
         if not node:
@@ -1090,8 +1124,9 @@ class Admin(Plugin[AdminEventListener]):
             return
         # ONE question per upgrade, and never none: whoever asks first, asks. An agent-node upgrade asks its
         # own (it is the surprising one), the major path asks its own (the offline step and the upgrade are
-        # one operation), and anything else leaves the question to run_on_nodes. Passing ``confirm=False``
-        # unconditionally — as this did — is what silently removed the confirmation from a plain upgrade.
+        # one operation), and anything else asks the shared node-lifecycle question. Asking it
+        # unconditionally — as ``confirm=False`` once did — is what silently removed the confirmation
+        # from a plain upgrade.
         asked = False
         if node and not node.master:
             asked = True
@@ -1103,7 +1138,7 @@ class Admin(Plugin[AdminEventListener]):
         # A MAJOR upgrade moves the bot's version, and a DCS server only talks to a bot whose hook
         # version it carries — so DCS has to be down on every node that updates, or the servers come
         # back speaking the old hook. ONE question covers both halves (taking them offline, then the
-        # upgrade): asking again inside run_on_nodes would be two questions for one operation. The
+        # upgrade): asking again for the upgrade would be two questions for one operation. The
         # action refuses a major upgrade with servers in service as well, and that is the backstop if
         # the version check cannot be read here.
         targets = None if cluster else node
@@ -1130,7 +1165,14 @@ class Admin(Plugin[AdminEventListener]):
                     return
                 await self._power_nodes(interaction, "take_node_offline", targets, ephemeral=ephemeral,
                                         maintenance=True)
-        await self.run_on_nodes(interaction, "upgrade", targets, ephemeral=ephemeral, confirm=not asked)
+        # A CLUSTER upgrade runs on the master: its ``Node.upgrade()`` sets the cluster's
+        # ``update_pending`` flag, and every agent upgrades itself from that flag. So the fan-out is
+        # the master alone here, which is what ``node`` holds once the cluster branch above ran.
+        if not asked and not await self._confirm_node_operation(
+                interaction, "upgrade", None if cluster else node, ephemeral=ephemeral):
+            return
+        await self._power_nodes(interaction, "upgrade_node", node, ephemeral=ephemeral,
+                                force=bool(force))
 
     @node_group.command(description=_('Run a shell command on a node'))
     @app_commands.guild_only()
@@ -1512,13 +1554,11 @@ Please make sure you forward the following ports:
             return
 
         msg = await interaction.followup.send(_("Enabling extension {}...").format(extension), ephemeral=ephemeral)
-        try:
-            if await server.enable_extension(extension, config):
-                await msg.edit(content=_("Extension {} enabled.").format(extension))
-            else:
-                await msg.edit(content=_("Failed to enable extension. See the log for details."))
-        except InstallException as ex:
-            await msg.edit(content=_("Failed to enable extension:\n{}").format(str(ex)))
+        # The modal's answer travels as the action's config: it decides which values the extension
+        # starts with. The ACTION enables, words the outcome and writes the trail.
+        result = await call_action("enable_extension", ActionContext.from_interaction(interaction),
+                                   server_name=server.name, extension=extension, config=config)
+        await msg.edit(content=result.message)
 
     @ext.command(description=_('Disable Extension'))
     @app_commands.guild_only()
@@ -1539,13 +1579,9 @@ Please make sure you forward the following ports:
         )
         msg = await interaction.original_response()
 
-        try:
-            if await server.disable_extension(extension):
-                await msg.edit(content=_("Extension {} disabled.").format(extension))
-            else:
-                await msg.edit(content=_("Failed to disable extension. See the log for details."))
-        except InstallException as ex:
-            await msg.edit(content=_("Failed to disable extension:\n{}").format(str(ex)))
+        result = await call_action("disable_extension", ActionContext.from_interaction(interaction),
+                                   server_name=server.name, extension=extension)
+        await msg.edit(content=result.message)
 
     @ext.command(description=_('List Extensions'))
     @app_commands.guild_only()

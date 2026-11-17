@@ -215,7 +215,10 @@ writes follow the server rows' `scope_grants` rule, so a **manager** reaches the
   *Remove N missions…* once it takes over), while the dialog's own button reads *Remove missions*.
 * **upload**, `POST /actions/server/missions/upload` (`missions.upload`, `upload_mission`) — sends a
   `.miz` file from the operator's own computer into the server's missions directory and adds it.
-  Accepted in **every** state.
+  It **refuses `LOADING` and `SHUTTING_DOWN`** — every other state accepts — because DCS writes
+  `serverSettings.lua` itself in both of those windows, so an upload that adds a mission to the
+  rotation races its own copy of that file. In those two states the Missions tab omits the control
+  and states the refusal where it would have been.
 * **load**, `POST /actions/server/missions/load` (`missions.load`, `load_mission`) — starts the chosen
   mission now; offered only in `RUNNING` / `PAUSED` / `STOPPED`.
 * **set the start mission**, `POST /actions/server/missions/activate` (`missions.activate`,

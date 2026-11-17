@@ -1049,7 +1049,11 @@ html.dlg-gate .dlg-temp, html.dlg-gate .dlg-pick { display: none; }
  * immediately above, shared with the ADD/UPLOAD submit buttons); the focus ring is drawn on that label
  * when the clipped input has it (so a keyboard user can see where they are); and `.file-name` is where
  * `/static/filepick.js` writes the chosen file's name. */
-.file-pick-control { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto;
+/* THE HOLDER IS THE CLIPPED INPUT'S POSITIONING CONTEXT. `.file-input-sr` is absolutely positioned;
+ * with a `static` holder it has no containing block in the card, lands at its raw static offset in
+ * document coordinates past the scroll container, and stretches the document's scroll height by that
+ * offset — a page that scrolls into empty ground. */
+.file-pick-control { position: relative; display: inline-flex; align-items: center; gap: 8px; flex: 1 1 auto;
   min-width: 0; justify-content: flex-end; }
 .file-input-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -1419,8 +1423,11 @@ button.cfg-add:focus-visible, summary.cfg-add:focus-visible {
 .cfg-pick:hover { color: var(--accent); }
 .cfg-pkey { font-size: .8rem; }
 .cfg-pkind { color: var(--text-3); font-size: .72rem; }
-/* A control the picker ADDED. It is not in the file yet, so its own trashcan removes it INSTANTLY. */
-.cfg-added { position: relative; }
+/* A control the picker ADDED. It is not in the file yet, so its own trashcan removes it INSTANTLY.
+ * The trashcan takes a GUTTER on the right: `.cfg-added-x` is pinned to this wrapper's right edge, so
+ * without the gutter it lands on the control it removes — a boolean's checkbox and a text input's right
+ * end both sit exactly there. The row keeps its own control column; it just ends before the gutter. */
+.cfg-added { position: relative; padding-right: 2.4rem; }
 .cfg-added-x { position: absolute; top: .3rem; right: 0; }
 /* THE TRASHCAN a shown, optional, already-set field or block carries. It never removes on the first
  * press: the inline warning names what will be discarded and only confirming it posts the removal. */
@@ -1658,6 +1665,17 @@ ul.CodeMirror-hints li.CodeMirror-hint-active { background: var(--sel-wash2); co
 .st-sw:hover { color: var(--text); }
 .st-sw.off-fixed { cursor: default; color: var(--text-3); }
 .st-sw.off-fixed .bx { opacity: .55; }
+/* THE SWITCH IN FLIGHT: the action runs in the background (an extension install can take minutes), so
+ * the control is a statement, not a button — it pulses. The pulse is the whole animation: a 12 px knob
+ * rotating inside an 18 px track reads as nothing moving. NO CLOCK is drawn beside the label: on a
+ * narrow card the time squeezed the label to "E…" and widened the foot past the card, so the label is
+ * the one part that may give way and nothing else takes its room. */
+.st-sw.busy { cursor: progress; color: var(--text-2); min-width: 0; }
+.st-sw.busy .bx { animation: st-sw-pulse 1.15s ease-in-out infinite; }
+.st-sw.busy .st-sw-label { min-width: 6ch; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+@keyframes st-sw-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .st-sw.busy .bx { animation: none; opacity: .7; } }
 
 .st-cog { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; font: inherit;
   font-size: 11.5px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2);

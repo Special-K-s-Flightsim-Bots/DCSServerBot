@@ -48,6 +48,8 @@ class UploadStatus(Enum):
     FILE_IN_USE = auto()
     READ_ERROR = auto()
     WRITE_ERROR = auto()
+    #: Refused before anything was written: the server is in a state that owns the mission list.
+    BUSY = auto()
 
 
 class SortOrder(Enum):
@@ -230,6 +232,16 @@ class Node(ABC):
 
         An unreachable or failing ED endpoint is answered with ``None``, never an exception: the caller
         reports "no update" rather than propagating a publisher outage.
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def dcs_update_in_progress(self) -> bool:
+        """Whether a DCS update is running on this node RIGHT NOW.
+
+        True from before an update takes its window until after the servers it stepped down are restored, so a
+        caller can tell "an update owns this installation" from ``update_pending`` (the update BODY) and
+        ``installer_running`` (the subprocess). False on a node that never updated or has finished updating.
         """
         raise NotImplementedError()
 

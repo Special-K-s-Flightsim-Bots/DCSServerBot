@@ -7066,3 +7066,6 @@ msgstr "Valores de managed_by que esta conta pode ver e usar."
 #~ msgid "Which overview sections the site shows; an absent id is on."
 #~ msgstr "Quais seções da visão geral o site mostra; um id ausente está ativo."
 
+
+msgid "Whether this extension is enabled on this node."
+msgstr "Se esta extensão está ativada neste nó."

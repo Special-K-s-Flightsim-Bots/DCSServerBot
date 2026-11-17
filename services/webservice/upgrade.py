@@ -1,11 +1,26 @@
-"""The console's CACHED upgrade signal — one background check per node, read by the render.
+"""The console's CACHED upgrade signals — background checks per node, read by the render.
+
+TWO CACHES, ONE POLLER, ONE RULE: a page render issues no node call, so every node fact a page
+shows is polled here and read from it as a dict lookup.
+
+* :data:`CHECKS` — the UPGRADE check: ``Node.upgrade_pending()``, the gate the node row's Upgrade
+  control is offered on;
+* :data:`PROGRESS` — the DCS UPDATE check: ``Node.dcs_update_in_progress()``, whether a whole DCS
+  update is in flight on the node right now. The row warns with it and the three lifecycle dialogs'
+  force box is explained by it (``pages/actions``).
+
+Both are three-valued (True / False / UNKNOWN) and both carry their OWN timestamp, so neither is
+ever presented as live: a value read at a page load is dated, and the row and the dialog say when it
+was taken.
 
 WHY THIS MODULE EXISTS. The Upgrade control on a node row is offered ONLY while the
 node's OWN API says an update is pending. That answer comes from ``Node.upgrade_pending()``
 (``core/data/node.py``), which is an async git/HTTP check on the local node and an RPC on a remote
 one — so it must never be issued from a page RENDER: every page view would call every node, and one
 slow node would stall the page (``readmodels/nodes.py``: no RPC on render). The answer is therefore
-POLLED in the background and CACHED here; the render only ever reads the cache.
+POLLED in the background and CACHED here; the render only ever reads the cache. The DCS update's
+in-flight flag is asked the same way, for the same reason (``Node.dcs_update_in_progress()`` is a
+local attribute read on the node and an RPC on a remote one).
 
 THE CALL IS THE NODE'S OWN API, never its internals. This module calls ``upgrade_pending()`` and
 nothing else: it never reaches ``_upgrade_pending_git`` / ``_upgrade_pending_non_git`` and never
@@ -23,6 +38,12 @@ WHAT IS POLLED, AND WHEN (the poller's four triggers):
   a release published after its last check;
 * **immediately after an Upgrade is accepted** — the node route re-checks that ONE node once the
   action has succeeded (``pages/actions``), so the cache does not wait for the next tick.
+
+AND, ON ITS OWN BEAT: every online node is asked whether a DCS update is IN FLIGHT
+(``Node.dcs_update_in_progress()``) at most once per :data:`IN_PROGRESS_SECONDS`, newcomers and the
+first tick included. That answer feeds the row's warning and the three lifecycle dialogs' force box,
+so it has to move within a minute of an update starting or finishing rather than at the next sweep —
+a six-hour beat would describe an update that ended hours ago.
 
 THE FAILURE RULE, stated here because it is a choice, not an accident. A check
 that RAISES means **UNKNOWN**, never "pending": the control is then not offered. Logging is ONCE PER
@@ -47,9 +68,11 @@ from . import i18n
 
 log = logging.getLogger(__name__)
 
-__all__ = ["SAMPLE_SECONDS", "SWEEP_SECONDS", "NOTE_NO_CHECK", "Check", "UpgradeChecks", "CHECKS",
-           "UpgradePoller", "console_nodes", "check_node", "pending", "checked_at", "entry",
-           "snapshot", "reset", "record"]
+__all__ = ["SAMPLE_SECONDS", "SWEEP_SECONDS", "IN_PROGRESS_SECONDS", "NOTE_NO_CHECK",
+           "NOTE_UPDATE_RUNNING", "Check", "UpgradeChecks", "CHECKS", "UpdateProgress",
+           "ProgressChecks", "PROGRESS", "UPDATE_UNKNOWN", "UpgradePoller", "console_nodes",
+           "check_node", "pending", "checked_at", "entry", "snapshot", "reset", "record",
+           "progress_entry", "progress_running", "progress_checked_at", "record_progress"]
 
 #: how often the transition sampler runs. Short enough that a node coming back after an upgrade is
 #: noticed promptly (the vanish path, item 3), long enough that it is not a polling flood: at 30 s
@@ -60,10 +83,25 @@ SAMPLE_SECONDS = 30
 #: per-node answer is otherwise only refreshed when the node comes online.
 SWEEP_SECONDS = 6 * 60 * 60
 
+#: how often every ONLINE node is asked whether a DCS update is in flight. Short, because that fact
+#: changes at the start and the end of a minutes-long operation and the row has to stop warning soon
+#: after it does; bounded to one call per node per minute otherwise, which is a dict read on the
+#: master's own node and one RPC on a remote one. Kept apart from :data:`SWEEP_SECONDS` because an
+#: update is minutes long and a six-hour beat would warn about one that finished before it was seen.
+IN_PROGRESS_SECONDS = 60
+
 #: the honest statement a row carries while the cached value is UNKNOWN (never checked, or the last
 #: check failed). Marked for translation with the console's ``_`` marker (an
 #: identity at runtime); the template renders it, so the row's note follows the page's language.
 NOTE_NO_CHECK = i18n._("no update check yet")
+
+#: the row's ONE line while the cached DCS update check says an update IS in flight. One msgid, no
+#: figures: the row's note slot is rendered as a plain ``_(…)`` lookup, and the dated half of the
+#: fact (WHEN the poller answered) belongs in the dialog a click opens, where a sentence can carry
+#: the timestamp. The wording states the consequence the update already has and that the value is a
+#: background answer, so a reader never takes it for a live reading.
+NOTE_UPDATE_RUNNING = i18n._(
+    "DCS update running — its servers are stopped (from the background check, not live)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,7 +246,9 @@ CHECKS = UpgradeChecks()
 
 
 def reset() -> None:
+    """Drop EVERY cached answer of this module — both signals and both failure latches."""
     CHECKS.reset()
+    PROGRESS.reset()
 
 
 def snapshot() -> dict[str, Check]:
@@ -238,6 +278,148 @@ async def check_node(node) -> bool | None:
     internals and the poller's own rules (the failure handling above) apply to it unchanged.
     """
     return await CHECKS.check(node)
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateProgress:
+    """ONE cached answer: whether a DCS update is in flight on a node, and when it was asked.
+
+    ``running`` is a THREE-valued fact: ``True`` (an update is running and owns the installation),
+    ``False`` (the node answered, and no update is in flight) or ``None`` (**UNKNOWN** — never
+    checked, an older node that cannot answer, or the last check raised).
+
+    ``checked_at`` is the time of the last check that PRODUCED this value (an aware UTC datetime), or
+    ``None`` while the value is unknown. The dialog shows it, so a stale ``True`` is dated instead of
+    reading like a live figure.
+    """
+
+    running: bool | None
+    checked_at: datetime | None
+
+
+#: a node whose in-flight state is not known: never checked, no readable name, or an answer that
+#: failed with no ``True`` to keep
+UPDATE_UNKNOWN = UpdateProgress(running=None, checked_at=None)
+
+
+class ProgressChecks:
+    """The process's cached DCS-update in-flight answers, keyed by node name — behind one lock.
+
+    PROCESS state, deliberately, exactly like :class:`UpgradeChecks`: the poller writes it in the
+    service and every render reads it, and a per-request object would be a second copy that drifts.
+
+    THE FAILURE RULE: a check that RAISES keeps the last known ``True`` (with its ORIGINAL timestamp —
+    the value is stale and the dialog must be able to say so) and otherwise becomes UNKNOWN. An update
+    in flight must not vanish from the console because one RPC blipped, and an unknown value must
+    never be presented as "nothing is running". Logging is ONCE PER TRANSITION, like the upgrade
+    check's.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._entries: dict[str, UpdateProgress] = {}
+        #: nodes whose LAST check failed — the "log once per transition" latch
+        self._failed: set[str] = set()
+
+    def reset(self) -> None:
+        """Drop every cached answer and every failure latch (the tests' seam)."""
+        with self._lock:
+            self._entries.clear()
+            self._failed.clear()
+
+    def snapshot(self) -> dict[str, UpdateProgress]:
+        """A COPY of the cache, never the live mapping."""
+        with self._lock:
+            return dict(self._entries)
+
+    def entry(self, node_name: str) -> UpdateProgress | None:
+        """The cached record for *node_name*, or ``None`` when nothing has been checked yet."""
+        with self._lock:
+            return self._entries.get(str(node_name))
+
+    def running(self, node_name: str) -> bool | None:
+        """The cached in-flight value: ``True``, ``False`` or ``None`` (UNKNOWN)."""
+        record_ = self.entry(node_name)
+        return None if record_ is None else record_.running
+
+    def checked_at(self, node_name: str) -> datetime | None:
+        """When *node_name*'s cached value was last produced, or ``None``."""
+        record_ = self.entry(node_name)
+        return None if record_ is None else record_.checked_at
+
+    def record(self, node_name: str, running: bool | None, *, at: datetime | None = None
+               ) -> UpdateProgress:
+        """Store one answer for *node_name* (the success path's own write, and the tests' seeding)."""
+        name = str(node_name).strip()
+        stamp = at if at is not None else datetime.now(timezone.utc)
+        value = UpdateProgress(running=running, checked_at=stamp)
+        with self._lock:
+            self._entries[name] = value
+        return value
+
+    def _succeed(self, node_name: str, running: bool) -> None:
+        """A check answered: store the value and clear the node's failure latch."""
+        with self._lock:
+            self._failed.discard(node_name)
+        self.record(node_name, bool(running))
+
+    def _fail(self, node_name: str) -> bool | None:
+        """A check raised: keep a last known ``True``, otherwise UNKNOWN (see the class docstring)."""
+        with self._lock:
+            previous = self._entries.get(node_name)
+            first = node_name not in self._failed
+            self._failed.add(node_name)
+        if first:
+            log.warning("DCS update in-flight check for node '%s' failed; treating it as unknown.",
+                        node_name)
+        if previous is not None and previous.running is True:
+            return True
+        with self._lock:
+            self._entries[node_name] = UPDATE_UNKNOWN
+        return None
+
+    async def check(self, node) -> bool | None:
+        """Run ONE ``dcs_update_in_progress()`` call against *node* and cache the answer.
+
+        A node that does not expose the method (an agent older than this check, a double) is left
+        alone with NO entry — UNKNOWN, which is the truthful answer: the console has not been told
+        whether an update is running, and it must not claim there is none.
+        """
+        name = _node_name(node)
+        if not name:
+            return None
+        accessor: Any = getattr(node, "dcs_update_in_progress", None)
+        if not callable(accessor):
+            return None
+        try:
+            running = bool(await accessor())
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            return self._fail(name)
+        self._succeed(name, running)
+        return running
+
+
+#: THE process-wide in-flight cache, beside :data:`CHECKS`.
+PROGRESS = ProgressChecks()
+
+
+def progress_entry(node_name: str) -> UpdateProgress | None:
+    return PROGRESS.entry(node_name)
+
+
+def progress_running(node_name: str) -> bool | None:
+    return PROGRESS.running(node_name)
+
+
+def progress_checked_at(node_name: str) -> datetime | None:
+    return PROGRESS.checked_at(node_name)
+
+
+def record_progress(node_name: str, running: bool | None, *, at: datetime | None = None
+                    ) -> UpdateProgress:
+    return PROGRESS.record(node_name, running, at=at)
 
 
 def console_nodes() -> dict:
@@ -270,25 +452,36 @@ class UpgradePoller:
     """
 
     def __init__(self, checks: UpgradeChecks | None = None, *, sample_seconds: int = SAMPLE_SECONDS,
-                 sweep_seconds: int = SWEEP_SECONDS, clock=time.monotonic) -> None:
+                 sweep_seconds: int = SWEEP_SECONDS, progress: ProgressChecks | None = None,
+                 progress_seconds: int = IN_PROGRESS_SECONDS, clock=time.monotonic) -> None:
         self.checks = checks if checks is not None else CHECKS
         self.sample_seconds = sample_seconds
         self.sweep_seconds = sweep_seconds
+        self.progress = progress if progress is not None else PROGRESS
+        self.progress_seconds = progress_seconds
         self._clock = clock
         self._online: set[str] = set()
         self._last_sweep: float | None = None
+        #: when each node was last ASKED whether a DCS update is in flight — the in-flight beat's
+        #: own clock, per node and separate from the sweep's
+        self._progress_at: dict[str, float] = {}
 
     async def tick(self, nodes) -> tuple[str, ...]:
         """One round: check every NEWCOMER, and every node when a full sweep is due.
 
         ``nodes`` is ``{name: node-or-None}`` (the console's own mapping; ``None`` is a node the
-        cluster knows and cannot reach). Returns the names actually checked, so a test can assert
-        the triggers without watching the cache.
+        cluster knows and cannot reach). Returns the names the UPGRADE check was issued for, so a
+        test can assert the triggers without watching the cache.
 
         THE FIRST TICK IS A FULL SWEEP (``_last_sweep is None``), which is the "service start"
         trigger; a node that appears afterwards is a newcomer; and ``sweep_seconds`` after the last
         sweep, every node is re-checked. A node that leaves the console's view is simply no longer a
         target — its cached answer is kept, because the row it belongs to is gone with it.
+
+        THE IN-FLIGHT BEAT runs beside it, on its own cadence and its own store: every ONLINE node is
+        asked whether a DCS update is running at most once per ``progress_seconds``, newcomers
+        included. It is not part of the returned tuple and it never touches the upgrade answers — a
+        slow or failing answer here cannot withhold an Upgrade control or the reverse.
         """
         mapping = dict(nodes or {})
         online = {name for name, node in mapping.items() if node is not None}
@@ -303,4 +496,25 @@ class UpgradePoller:
         for name in sorted(targets):
             await self.checks.check(mapping[name])
             checked.append(name)
+        await self._sample_progress(mapping, online)
         return tuple(checked)
+
+    async def _sample_progress(self, mapping: dict, online: set[str]) -> tuple[str, ...]:
+        """Ask each ONLINE node whether a DCS update is in flight, at most once per beat.
+
+        A node with no recorded ask (a newcomer, or the first tick) is due at once, so the row's
+        warning has a value as soon as the console starts rather than after a minute of silence. A
+        node that left the console's view is dropped from the beat's own clock.
+        """
+        now = self._clock()
+        self._progress_at = {name: moment for name, moment in self._progress_at.items()
+                             if name in online}
+        asked: list[str] = []
+        for name in sorted(online):
+            last = self._progress_at.get(name, now - self.progress_seconds)
+            if (now - last) < self.progress_seconds:
+                continue
+            await self.progress.check(mapping[name])
+            self._progress_at[name] = now
+            asked.append(name)
+        return tuple(asked)

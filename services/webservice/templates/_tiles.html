@@ -24,7 +24,6 @@
   ``cog`` reads ``cog_label`` from the RENDER CONTEXT (the pages pass it), the same way the macro did
   before it moved here; an importer must therefore use ``with context``.
 -#}
-
 {% macro cog(url, title) -%}
 <a class="st-cog" href="{{ url }}" title="{{ title }}"><svg class="ic24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M19.1 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z"/></svg>{{ _(cog_label) }}</a>
 {%- endmacro %}
@@ -90,14 +89,17 @@
      * ``static``— a kind the mechanism cannot move here (a not-installed plugin, an unconfigured
        service): the track is drawn dim and inert.
 
-     A ``cancel_url``/``cancel_label`` (a default plugin's "Keep it on", an extension's "Keep it")
+     A ``cancel_url``/``cancel_label`` (a default plugin's "Keep it on")
      is drawn by the caller right after the control, never inside it.
 
      ``labeled`` defaults to TRUE (a tile foot's own switch, which names its state). An ADD row
-     passes ``labeled=False``: its control is the SAME form, but the STATE WORD is dropped (an add
-     choice is off by definition, so "Load off"/"Not configured" is noise) — the control keeps its
-     ``title`` as the visible tooltip AND gains an ``aria-label`` so an icon-only control is still
-     named for a screen reader. One control, one write path.  -#}
+     passes its own ``labeled`` (the add control NAMES what it does — "Add" — instead of dropping the
+     word: it writes a block and enables nothing, so an unlabelled slider was read as a broken switch).
+     The control keeps its ``title`` as the visible tooltip AND gains an ``aria-label`` so an
+     icon-only control is still named for a screen reader. One control, one write path.
+
+     The control carries NO body and NO fields: an add row is one control, and the values a block needs
+     are entered on the extension's own page (where the same form the page renders is the door).  -#}
 {% macro switch_control(sw, labeled=True) -%}
 {%- if sw -%}
 {%- if sw.type == 'form' -%}
@@ -106,6 +108,14 @@
   {% for value in sw.list_values | default([]) %}<input type="hidden" name="{{ sw.list_field }}" value="{{ value }}">{% endfor %}
   <button type="submit" class="st-sw{{ ' on' if sw.on }}" title="{{ _(sw.title) }}"{% if not labeled %} aria-label="{{ _(sw.title) }}"{% endif %}><span class="bx" aria-hidden="true"><i></i></span>{% if labeled %}{{ _(sw.label) }}{% endif %}</button>
 </form>
+{#-  THE SWITCH IN FLIGHT: the action is running in the background (an extension install can take
+     minutes), so this is NOT a form — there is nothing to press — and the box PULSES while the label
+     stays whole. No clock is drawn beside it: on a narrow card the time ate the label ("E… 0:11")
+     and pushed the buttons, and the pulse alone already says "still running"; the elapsed seconds
+     are in the journal's own line when the job ends. `extension-switch.js` polls
+     `data-switch-state` and reloads the page once the server reports the job is gone.  -#}
+{%- elif sw.type == 'busy' -%}
+<span class="st-sw busy" role="status" title="{{ _(sw.title) }}" data-switch-busy="{{ sw.key }}" data-switch-since="{{ sw.since }}" data-switch-state="{{ sw.state_url }}"><span class="bx" aria-hidden="true"><i></i></span><span class="st-sw-label">{{ _(sw.label) }}</span></span>
 {%- elif sw.type == 'link' -%}
 <a class="st-sw{{ ' on' if sw.on }}" href="{{ sw.href }}" title="{{ _(sw.title) }}"{% if not labeled %} aria-label="{{ _(sw.title) }}"{% endif %}><span class="bx" aria-hidden="true"><i></i></span>{% if labeled %}{{ _(sw.label) }}{% endif %}</a>
 {%- else -%}
@@ -156,7 +166,10 @@
      full name and a full tooltip, never an ellipsis. The rows carry NO tile shell (no card border, no
      kind glyph block, no large padding), just a hairline between rows. The tile itself is NOT a form:
      it is a way INTO the existing action, so no new write path and no second component exist.
-     ``options`` is a list of ``{name, description, switch}`` where ``switch`` is the add row-model.
+     ``options`` is a list of ``{name, description, switch}`` where ``switch`` is the add row-model —
+     the one-click ``add`` FORM, or a ``link`` to the item's own page when the block it would write
+     cannot pass that page's schema from its defaults alone. The row carries NO fields either way: the
+     values are entered on the item's own page, where the same form the page renders is the door.
      The list's max height is a CSS concern (``shell.css`` ``.st-add-list``).
 
      THE TILE IS ALWAYS DRAWN. When ``options`` is EMPTY — every item of the
@@ -177,7 +190,7 @@
       <li class="st-add-item">
         <div class="st-add-name"{% if option.description %} tabindex="0" title="{{ _(option.description) }}" aria-describedby="{{ tip_id }}"{% endif %}>{{ option.name }}</div>
         <span class="st-add-sr" id="{{ tip_id }}">{{ _(option.description) }}</span>
-        {{ switch_control(option.switch, labeled=False) }}
+        {{ switch_control(option.switch, labeled=option.labeled | default(false)) }}
       </li>
       {% endfor %}
     </ul>
