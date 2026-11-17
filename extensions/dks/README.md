@@ -44,7 +44,23 @@ The exporter starts with the next server start. DCSServerBot downloads it once, 
 then on the exporter updates itself. It only installs versions signed with DKS's release key, so `autoupdate` doesn't
 apply.
 
-Settings set on the server's page in DKS ("Set in DKS") win over the ones carried over from Tacview.
+Real-time telemetry and Tacview files can also be set on the extension, under the names the exporter uses. They win
+over what was carried over from Tacview, and are needed on an instance that never had Tacview:
+```yaml
+DKS:
+  enabled: true
+  key: "dks1...."
+  rtt: true               # real-time telemetry (Tacview clients connect to the server)
+  rttPort: 42674
+  rttPassword: "secret"   # optional
+  acmi: true              # a Tacview file per mission
+  acmiPerClient: false    # and one per connected player
+  acmiDir: "D:\\Tacview"  # default: Tacview's export folder, else Documents\Tacview
+  acmiMinSeconds: 10      # delete files shorter than this
+```
+
+Settings set on the server's page in DKS ("Set in DKS") win over all of these. Set the real-time port here rather than
+in DKS: the port list and firewall script in `/help` show the port set here.
 
 The install code holds the server's key. Keep it private. It is stored in nodes.yaml, and at log level DEBUG it shows
 up in the bot's log when a master node configures the extension on an agent. After **New key** in DKS, install again

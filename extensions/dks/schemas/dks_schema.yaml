@@ -29,3 +29,41 @@ schema;dks_schema:
       range: {min: 1}
       desc: The install code from your server's page in DKS.
       example: "dks1.eyJka3NVcmwiOi..."
+    rtt:
+      type: bool
+      nullable: false
+      desc: Real-time telemetry (Tacview clients connect to the server). Default, what Tacview did on this instance, else off.
+      example: "true"
+    rttPort:
+      type: int
+      nullable: false
+      range: {min: 1, max: 65535}
+      desc: The real-time telemetry port. Default, Tacview's, else 42674.
+      example: "42674"
+    rttPassword:
+      type: text
+      nullable: false
+      desc: The real-time telemetry password. Default, Tacview's, else none.
+      example: "secret"
+    acmi:
+      type: bool
+      nullable: false
+      desc: Write a Tacview file (.acmi) per mission. Default, what Tacview did on this instance, else off.
+      example: "true"
+    acmiPerClient:
+      type: bool
+      nullable: false
+      desc: Write a Tacview file per connected player as well.
+      example: "false"
+    acmiDir:
+      type: str
+      nullable: false
+      range: {min: 1}
+      desc: Where Tacview files go. Default, Tacview's export folder, else Documents\Tacview.
+      example: "D:\\Tacview"
+    acmiMinSeconds:
+      type: int
+      nullable: false
+      range: {min: 0}
+      desc: Delete Tacview files shorter than this. Default, Tacview's "auto discard flights", else 10.
+      example: "10"

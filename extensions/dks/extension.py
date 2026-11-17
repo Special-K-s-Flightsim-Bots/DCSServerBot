@@ -25,6 +25,30 @@ DKS_EXPORTER_PATH = "/api/telemetry/exporter"
 ZIP_PATHS = ('Scripts/Hooks/DKS-Telemetry.lua', 'Mods/tech/DKSTelemetry/')
 ZIP_MAX_BYTES = 100 * 1024 * 1024
 VERSION_PATTERN = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
+# Exporter settings an admin can set on the extension, as the exporter's config file names them.
+EXPORTER_SETTINGS = {
+    "rtt": bool,
+    "rttPort": int,
+    "rttPassword": str,
+    "acmi": bool,
+    "acmiPerClient": bool,
+    "acmiDir": str,
+    "acmiMinSeconds": int
+}
+
+
+def setting_value(value, kind: type):
+    """A nodes.yaml value as the exporter takes it, or None. YAML reads 12345 as a number and ruamel's scalar types
+    subclass int, so this coerces rather than checks the exact type."""
+    if kind is bool:
+        return bool(value) if isinstance(value, int) and value in (0, 1) else None
+    if isinstance(value, bool):
+        return None
+    if kind is int:
+        if isinstance(value, int):
+            return int(value)
+        return int(value) if isinstance(value, str) and value.strip().isdigit() else None
+    return str(value) if isinstance(value, (str, int)) else None
 
 
 def lua_string(value: str) -> str:
@@ -34,8 +58,9 @@ def lua_string(value: str) -> str:
 class DKS(InstallableExtension):
     """
     Installs the DKS exporter, which records the server for Digital Kneeboard Simulator and replaces Tacview: it takes
-    over Tacview's real-time telemetry port and writes Tacview files to Tacview's folder. The exporter updates itself
-    (signed releases), so this extension installs it once and keeps its key file in sync.
+    over Tacview's real-time telemetry port and writes Tacview files to Tacview's folder. Both can also be set on the
+    extension, which wins over what Tacview did. The exporter updates itself (signed releases), so this extension
+    installs it once and keeps its config file in sync.
     """
 
     CONFIG_DICT = {
@@ -217,18 +242,35 @@ class DKS(InstallableExtension):
         settings = {"acmi": bool(tacview.get('tacviewFlightDataRecordingEnabled', True))}
         if tacview.get('tacviewExportPath'):
             settings['acmiDir'] = tacview['tacviewExportPath']
-        if tacview.get('tacviewRealTimeTelemetryEnabled', True):
-            settings |= {
-                "rtt": True,
-                "rttPort": int(tacview.get('tacviewRealTimeTelemetryPort', 42674)),
-                "rttPassword": tacview.get('tacviewRealTimeTelemetryPassword', '')
-            }
+        # The port and password carry over even with Tacview's real-time telemetry off, for rtt set on the extension.
+        return settings | {
+            "rtt": bool(tacview.get('tacviewRealTimeTelemetryEnabled', True)),
+            "rttPort": int(tacview.get('tacviewRealTimeTelemetryPort', 42674)),
+            "rttPassword": str(tacview.get('tacviewRealTimeTelemetryPassword', ''))
+        }
+
+    def exporter_settings(self, warn: bool = False) -> dict:
+        """What Tacview did, overridden by the settings on the extension. warn: log the settings that can't be used."""
+        settings = self.tacview_settings()
+        for name, kind in EXPORTER_SETTINGS.items():
+            if name not in self.config:
+                continue
+            value = setting_value(self.config[name], kind)
+            if value is None:
+                if warn:
+                    expected = {bool: "true or false", int: "a number", str: "text"}[kind]
+                    self.log.warning(f"  => {self.name}: {name} must be {expected}, ignoring {self.config[name]!r}.")
+                continue
+            settings[name] = value
+        if settings.get('acmiDir'):
+            settings['acmiDir'] = os.path.normpath(os.path.expandvars(settings['acmiDir']))
         return settings
 
     def write_cfg(self):
         identity = self.identity
         lines = [
-            "-- Written by DCSServerBot from nodes.yaml (extension DKS). Keep it private.",
+            "-- Written by DCSServerBot at every server start: edits here are lost, change the DKS extension in nodes.yaml.",
+            "-- Holds the server's key: keep it private.",
             "DKS_TELEMETRY = {",
             f"  dksUrl = {lua_string(self.dks_url)},",
             f"  keyId = {lua_string(identity['keyId'])},",
@@ -236,7 +278,7 @@ class DKS(InstallableExtension):
             f"  ownerId = {lua_string(identity['ownerId'])},",
             f"  serverName = {lua_string(self.server.name)},",
         ]
-        for name, value in self.tacview_settings().items():
+        for name, value in self.exporter_settings(warn=True).items():
             if isinstance(value, bool):
                 lines.append(f"  {name} = {'true' if value else 'false'},")
             elif isinstance(value, int):
@@ -268,9 +310,9 @@ class DKS(InstallableExtension):
         tacview_bin = os.path.join(self.server.instance.home, 'Mods', 'tech', 'Tacview', 'bin')
         real_dll = os.path.join(tacview_bin, 'tacview_real.dll')
         hook = os.path.join(self.server.instance.home, 'Scripts', 'Hooks', 'DKSWeatherSampler.lua')
-        if os.path.exists(hook):
-            os.remove(hook)
         try:
+            if os.path.exists(hook):
+                os.remove(hook)
             if os.path.exists(real_dll):
                 os.replace(real_dll, os.path.join(tacview_bin, 'tacview.dll'))
             for pattern in ['dks.ver', 'dks-wx.*', 'dks-census.txt', 'dks-event*.txt']:
@@ -282,9 +324,9 @@ class DKS(InstallableExtension):
 
     @override
     def get_ports(self) -> dict[str, Port]:
-        settings = self.tacview_settings()
+        settings = self.exporter_settings()
         if settings.get('rtt'):
-            return {"rttPort": Port(settings['rttPort'], PortType.TCP, public=True)}
+            return {"rttPort": Port(settings.get('rttPort', 42674), PortType.TCP, public=True)}
         return {}
 
     @override
@@ -296,8 +338,9 @@ class DKS(InstallableExtension):
             value = f"[DKS]({self.dks_url}/)"
             if self.version:
                 value += f"\nExporter {self.version}"
-            if self.tacview_settings().get('rtt'):
-                value += f"\nReal-time telemetry on port {self.tacview_settings()['rttPort']}"
+            settings = self.exporter_settings()
+            if settings.get('rtt'):
+                value += f"\nReal-time telemetry on port {settings.get('rttPort', 42674)}"
         return ret | {
             "value": value
         }
