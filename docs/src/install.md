@@ -61,6 +61,12 @@ git clone https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot.git
 or download the latest release ZIP and extract it. Give the bot user write permission on the
 folder, and on the DCS installation itself.
 
+!!! tip
+    Install the bot in Documents/GitHub/DCSServerBot, so that it has write permission on your
+    Saved Games folder.
+    If you install it elsewhere, make sure that you have turned 
+    `Ransomware protection => Controlled Folder access` off.
+
 ## 3. Run the setup tour
 
 ```
