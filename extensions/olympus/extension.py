@@ -210,25 +210,26 @@ class Olympus(InstallableExtension):
             "redCommanderPassword": hashlib.sha256(
                 str(self.config.get('authentication', {}).get('redCommanderPassword', '')).encode('utf-8')).hexdigest()
         }
-        if self.version.startswith('2.0'):
-            self.locals['authentication']['adminPassword'] = hashlib.sha256(
-                str(self.config.get('authentication', {}).get('adminPassword', '')).encode('utf-8')).hexdigest()
-            frontend = self.config.get(self.frontend_tag, {})
-            if 'customAuthHeaders' in frontend:
-                self.locals[self.frontend_tag]['customAuthHeaders'] = frontend['customAuthHeaders']
-            if 'elevationProvider' in frontend:
-                self.locals[self.frontend_tag]['elevationProvider'] = frontend['elevationProvider']
-            if 'mapLayers' in frontend:
-                self.locals[self.frontend_tag]['mapLayers'] = frontend['mapLayers']
-            if 'mapMirrors' in frontend:
-                self.locals[self.frontend_tag]['mapMirrors'] = frontend['mapMirrors']
-            extension = cast(SRS, self.server.extensions.get('SRS'))
-            if extension:
-                self.locals['audio'] = {
-                    "SRSPort": extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
-                } | self.config.get('audio', {
-                    "WSPort": 4000
-                })
+        self.locals['authentication']['adminPassword'] = hashlib.sha256(
+            str(self.config.get('authentication', {}).get('adminPassword', '')).encode('utf-8')).hexdigest()
+        frontend = self.config.get(self.frontend_tag, {})
+        if 'customAuthHeaders' in frontend:
+            self.locals[self.frontend_tag]['customAuthHeaders'] = frontend['customAuthHeaders']
+        if 'elevationProvider' in frontend:
+            self.locals[self.frontend_tag]['elevationProvider'] = frontend['elevationProvider']
+        if 'mapLayers' in frontend:
+            self.locals[self.frontend_tag]['mapLayers'] = frontend['mapLayers']
+        if 'mapMirrors' in frontend:
+            self.locals[self.frontend_tag]['mapMirrors'] = frontend['mapMirrors']
+        # TODO: remove after security fix
+        self.locals[self.frontend_tag]['autoconnectWhenLocal'] = False
+        extension = cast(SRS, self.server.extensions.get('SRS'))
+        if extension:
+            self.locals['audio'] = {
+                "SRSPort": extension.config.get('port', extension.locals['Server Settings']['SERVER_PORT'])
+            } | self.config.get('audio', {
+                "WSPort": 4000
+            })
         with open(self.config_path, mode='w', encoding='utf-8') as cfg:
             json.dump(self.locals, cfg, indent=2)
         return True
@@ -274,10 +275,7 @@ class Olympus(InstallableExtension):
             err = subprocess.PIPE if self.config.get('debug', False) else subprocess.STDOUT
             path = os.path.expandvars(
                 self.config.get('frontend', {}).get('path', os.path.join(self.home, self.frontend_tag)))
-            if self.version.startswith('2.0'):
-                frontend_exe = os.path.join(path, 'build', 'www.js')
-            else:
-                frontend_exe = os.path.join(path, 'bin', 'www')
+            frontend_exe = os.path.join(path, 'build', 'www.js')
             if not os.path.exists(frontend_exe):
                 raise AttributeError(f"Path {frontend_exe} does not exist, can't launch Olympus!")
             args = [self.nodejs, frontend_exe, '--config', self.config_path]
