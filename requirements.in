@@ -60,8 +60,7 @@ mgrs==1.7.0
 minidump==0.0.24 ; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
-numpy==2.3.5 ; python_version == "3.11"
-numpy==2.5.4 ; python_version > "3.11"
+numpy==2.3.5
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5
