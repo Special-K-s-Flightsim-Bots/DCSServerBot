@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="{{ language.current if language is defined and language else 'en' }}" data-theme="{{ theme.current if theme is defined and theme else 'dark' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% trans %}Sign in{% endtrans %} — DCSServerBot</title>
+  <link rel="icon" type="image/png" href="/static/logo-256.png">
+  <link rel="stylesheet" href="/static/shell.css?v={{ asset_version }}">
+  <style>
+    /* The plain sign-in page: the shell's own login components on the shell's own ground, with no
+       scene, no canvas and no script. The layout lives in shell.css (`body.login-page`), so this
+       page only narrows the column — a wide form on a 1000px page reads as a page that lost its
+       content. */
+    body.login-simple .login-wrap { max-width: 760px; }
+  </style>
+</head>
+<body class="login-page login-simple">
+  {% include "_login_bar.html" %}
+
+  <main class="login-wrap">
+    <h1>{% trans %}Sign in{% endtrans %}</h1>
+
+    {% include "_login_doors.html" %}
+  </main>
+</body>
+</html>

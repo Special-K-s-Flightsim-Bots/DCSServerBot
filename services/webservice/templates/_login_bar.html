@@ -1,0 +1,15 @@
+  <header class="shell-bar login-bar">
+    <div class="brand">
+      {#  The same mark and text as the shell's sidebar brand (base.html): the logo is a plain static
+          request, the product name is text because the wordmark inside the logo is unreadable at this
+          size. Only the size differs — the bar is 58px, not the sidebar's row.  #}
+      <img class="brand-logo" src="/static/logo-256.png" alt="DCSServerBot logo"
+           width="45" height="30">
+      <div><b>DCSServerBot</b><small>{% trans %}Command Center{% endtrans %}</small></div>
+    </div>
+    <div class="spacer"></div>
+    {% include "_language.html" %}
+    {% include "_theme.html" %}
+    <span class="pill"><span class="dot{{ ' run' if not doors.none else '' }}"
+                             aria-hidden="true"></span>{{ _(doors.status_text) }}</span>
+  </header>

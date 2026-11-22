@@ -192,6 +192,11 @@ DEFAULT:
     # The public origin this console is reachable at (scheme + host, explicit). Redirect URIs are
     # built from this and never from a request.
     public_base_url: http://localhost:9876
+    # Which sign-in page the console renders. `fancy` (the default) is the animated DCS scene;
+    # `simple` is the same doors and form on a plain background — no scene, no canvas, no script.
+    # Both render the same doors, CSRF token, theme and language controls. Any other value is
+    # refused at startup. This is the whole switch for a community that does not want the scene.
+    login_page: fancy
     # Username + password login. Nothing is enabled unless `enabled: true` is set here.
     local:
       enabled: true

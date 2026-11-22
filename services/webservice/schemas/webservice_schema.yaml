@@ -519,6 +519,19 @@ mapping:
             nullable: true
             desc: Public origin the console is reachable at.
             example: "http://localhost:9876"
+          # Which sign-in page the console renders. `fancy` is the shipped page: the animated
+          # DCS scene behind the doors. `simple` is the same doors and form on a plain background
+          # - no scene, no canvas, no script - for a community that prefers a quiet page. Both
+          # render the same doors, CSRF token, theme and language controls. The default is
+          # `fancy`, so a configuration that never sets this key is unchanged. Any other value is
+          # refused at startup.
+          login_page:
+            type: str
+            nullable: true
+            enum: [fancy, simple]
+            default: fancy
+            desc: Sign-in page style; fancy (animated scene) or simple (plain).
+            example: "fancy"
           local:
             type: map
             nullable: true

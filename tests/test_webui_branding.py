@@ -120,7 +120,7 @@ def test_every_page_document_inherits_the_chrome_or_brands_itself():
     """
     documents = {path.name for path in TEMPLATES.glob("*.html")
                  if "<!DOCTYPE html>" in path.read_text(encoding="utf-8")}
-    assert documents == {"base.html", "login.html", "site_base.html"}, (
+    assert documents == {"base.html", "login.html", "login_simple.html", "site_base.html"}, (
         f"a page renderer's document set changed: {sorted(documents)} — a new standalone document "
         "must carry the brand render itself (see login.html)")
     # the public site's shell is the third document: it carries the site's own brand, its favicon
@@ -136,6 +136,11 @@ def test_every_page_document_inherits_the_chrome_or_brands_itself():
             continue  # the public site's shell: asserted above, it carries the site's own brand
         if name == "login.html":
             assert 'class="login-logo"' in text, "the login page renders no logo"
+        elif name == "login_simple.html":
+            # the plain variant carries the shared bar (its brand mark) and the favicon, and ships
+            # no scene of its own — the same document contract as the fancy page, without the hero
+            assert '{% include "_login_bar.html" %}' in text, "the plain login page renders no bar"
+            assert 'href="/static/logo-256.png"' in text, "the plain login page carries no favicon"
         else:
             assert '{% extends "base.html" %}' in text, f"{name} does not extend the chrome"
 

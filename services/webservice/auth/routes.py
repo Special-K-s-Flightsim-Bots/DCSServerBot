@@ -43,6 +43,7 @@ from .. import i18n, mount, permissions, session
 from . import discord_oauth
 
 __all__ = ["LOGIN_PATH", "LOGOUT_PATH", "LOGIN_ALIAS", "LOGOUT_ALIAS", "LOGIN_TEMPLATE",
+           "LOGIN_SIMPLE_TEMPLATE", "LOGIN_PAGE_STYLES", "login_page_style",
            "FAILED_LOGIN_MESSAGE",
            "PASSWORD_DOOR_DISABLED_MESSAGE", "LoginDoors", "doors_for_manager", "login_doors",
            "login_redirect", "discord_auto_start", "capabilities", "add_routes", "discord_link",
@@ -80,6 +81,16 @@ LOGOUT_ALIAS = "/logout"
 
 #: the shell template that renders the form (read by the shell's ONE Jinja environment)
 LOGIN_TEMPLATE = "login.html"
+
+#: the plain variant of the same page: the same doors, form and controls on the shell's own ground,
+#: without the scene, the canvas or the script. Selected by ``auth.login_page: simple``; the fancy
+#: page stays the default, so an installation that never sets the key is unchanged.
+LOGIN_SIMPLE_TEMPLATE = "login_simple.html"
+
+#: the config values ``auth.login_page`` accepts. ``fancy`` is the shipped page; ``simple`` is the
+#: plain one. Anything else falls back to ``fancy`` here — the schema already refuses it at startup,
+#: so this is the second, defensive reading for a config handed straight to the app.
+LOGIN_PAGE_STYLES = ("fancy", "simple")
 
 #: the one sentence a refused login shows. It names no mechanism and no reason. Wrapped for
 #: translation (the marker is an identity, so the runtime value is still this English sentence).
@@ -447,6 +458,20 @@ def _inside(path: str, surface: str) -> bool:
     return path == surface or path.startswith(surface + "/")
 
 
+def login_page_style(source) -> str:
+    """The login page variant this installation configured: ``fancy`` or ``simple``.
+
+    Read from the service's own config on the application (``app.state.webui_config``), the same
+    place the Settings page reads it from. ``fancy`` is the default AND the fallback: an unset key,
+    an empty value or anything the schema would refuse renders the shipped page rather than raising
+    in the one route that must always be reachable.
+    """
+    state = getattr(getattr(source, "app", None), "state", None) or source
+    config = getattr(state, "webui_config", None) or {}
+    value = str(((config.get("auth") or {}).get("login_page")) or "").strip().lower()
+    return value if value in LOGIN_PAGE_STYLES else "fancy"
+
+
 def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str | None = None,
                       status_code: int = 200) -> HTMLResponse:
     """The console's REAL sign-in page, rendered through its one template and one doors value.
@@ -481,8 +506,9 @@ def render_login_page(request: Request, *, next_url: str = SITE_ROOT, error: str
         fleet_servers = readmodels.servers(readmodels.console_source(state))[:3]
     except Exception:
         fleet_servers = []
+    template = LOGIN_SIMPLE_TEMPLATE if login_page_style(request) == "simple" else LOGIN_TEMPLATE
     html = i18n.render(
-        request, LOGIN_TEMPLATE,
+        request, template,
         login_path=LOGIN_PATH, csrf_field=session.CSRF_FIELD, csrf_token=token,
         next_url=next_url, surface=mount.surface_of(next_url, app=request.app),
         error=error, doors=doors,
