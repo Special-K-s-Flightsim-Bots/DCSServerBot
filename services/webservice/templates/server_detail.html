@@ -568,7 +568,15 @@
     {% include "_notice.html" %}
     {% if not missions_available %}
     <p class="empty">{{ _(missions_message) }}</p>
-    {% elif missions %}
+    {% else %}
+    {#-  THE NAME FILTER first: it decides WHICH rows this card draws, so it is read before the
+        selection form, the bar's "All" and the count are — they are all about the rows below it. -#}
+    {% include "_missions_filter.html" %}
+    {% if not missions_total %}
+    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% elif not missions %}
+    <p class="empty">{% trans %}No mission matches the filter.{% endtrans %}</p>
+    {% else %}
     {#- THE SELECTION FORM: the row boxes belong to it through ``form="missions-form"`` (the row's own
         controls are their OWN small forms, so nothing nests); the per-row stale-page map rides it as
         one hidden field per row, and it posts to the ONE dialog that asks the confirmation. -#}
@@ -579,8 +587,11 @@
       {% for m in missions %}<input type="hidden" name="{{ missions_name_field }}" value="{{ m.index }}={{ m.name }}">{% endfor %}
     </form>
     {% endif %}
-    {% if missions_reorder_capable and not missions_offline %}
-    <div class="sub">{{ missions_offline_reason }}</div>
+    {#-  the reason the grip is absent, when it is: the process-down rule, or a filter in force — each
+        in its OWN sentence, never both, and only for a viewer who could otherwise have ordered the
+        list (a capability omission explains nothing). -#}
+    {% if missions_reorder_capable and not missions_drag_allowed %}
+    <div class="sub">{% if not missions_offline %}{{ missions_offline_reason }}{% else %}{{ missions_filter_reorder_reason }}{% endif %}</div>
     {% endif %}
     <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
     {% if missions_drag_allowed %}
@@ -625,7 +636,12 @@
             {% if missions_select_allowed %}<div class="m-box" style="padding-top:2px"><input type="checkbox" form="missions-form" name="{{ missions_field }}" value="{{ m.index }}" data-sel-box></div>{% endif %}
             <div class="m-fact" style="min-width:0">
               <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
-              <div class="hp mono">{{ m.path }}</div>
+              {#-  THE PATH IS A SECOND LINE ONLY WHEN IT SAYS SOMETHING NEW: the logical name and the
+                  physical copy's path are the same string for a mission at the top level of the
+                  missions folder, so a row differing only in font would read as a duplicate. It earns
+                  its line where the copy moved (`.dcssb/`, `.orig`) or the mission sits in a
+                  subfolder. -#}
+              {% if m.path != m.name %}<div class="hp mono">{{ m.path }}</div>{% endif %}
               {% if missions_select_allowed and m.current %}<div class="hp">{% trans %}The running mission can be set as the start mission, but it cannot be removed.{% endtrans %}</div>{% endif %}
             </div>
           </div>
@@ -669,8 +685,7 @@
       {{ editor.field_row('', m_lab, m_ctl, cls='row-active' if m.active else '', attrs=m_attrs) }}
       {% endfor %}
     </div>
-    {% else %}
-    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% endif %}
     {% endif %}
   </div>
 </div>
@@ -771,7 +786,13 @@
   <div class="bd">
     {% if not missions_available %}
     <p class="empty">{{ _(missions_message) }}</p>
-    {% elif missions %}
+    {% else %}
+    {% include "_missions_filter.html" %}
+    {% if not missions_total %}
+    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% elif not missions %}
+    <p class="empty">{% trans %}No mission matches the filter.{% endtrans %}</p>
+    {% else %}
     <div class="sub">{% trans %}Read through the mission plugin's own action — this page never opens a mission file.{% endtrans %}</div>
     {% if missions_reorder_capable and not missions_offline %}
     <div class="sub">{{ missions_offline_reason }}</div>
@@ -785,15 +806,14 @@
           {#-  the same row anatomy without a box (a read-only viewer selects nothing)  -#}
           <div class="m-row" style="display:grid;grid-template-columns:minmax(0, 1fr);align-items:start;padding-left:9px"><div class="m-fact" style="min-width:0">
             <div class="nm"><b>{{ m.name }}</b>{% if m.current %} <span class="dot run" aria-hidden="true"></span>{% endif %}{% if m.active %} <span class="tag a">{% trans %}START{% endtrans %}</span>{% endif %}{% if not m.resolved %} <span class="tag">{% trans %}missing{% endtrans %}</span>{% endif %}</div>
-            <div class="hp mono">{{ m.path }}</div>
+            {% if m.path != m.name %}<div class="hp mono">{{ m.path }}</div>{% endif %}
           </div></div>
       {% endset %}
       {% set ro_ctl %}<a class="act-btn" href="{{ m.download }}" title="{% trans name=m.name %}Download {{ name }} — the mission file this server currently uses{% endtrans %}" aria-label="{% trans name=m.name %}Download mission {{ name }}{% endtrans %}">{{ icons.act('download') }}</a>{% endset %}
       {{ editor.field_row('', ro_lab, ro_ctl, cls='row-active' if m.active else '') }}
       {% endfor %}
     </div>
-    {% else %}
-    <p class="empty">{% trans %}This server has no missions configured in its mission list.{% endtrans %}</p>
+    {% endif %}
     {% endif %}
   </div>
 </div>

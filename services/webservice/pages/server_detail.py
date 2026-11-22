@@ -72,6 +72,7 @@ from ..readmodels.access import attr
 from ..readmodels.model import ExtensionView, value_parts
 from ..readmodels.players import player_views
 from ..readmodels.servers import format_visibility, server_url, server_view
+from ..readmodels import views as view_model
 # THE console's CLUSTER roles: a cluster role is never a "manager ONLY", so the config tab's manager
 # scope grant excludes one — the same rule the write action applies.
 from ..scope import CLUSTER_ROLES
@@ -125,6 +126,7 @@ __all__ = [
     "PAGE_TITLE_SUFFIX", "capabilities", "nav_items", "add_routes",
     "normalise_tab", "tabs_for", "tab_views", "config_request_refused", "tab_request_refused",
     "mission_download_path", "mission_rows", "add_mission_download_route",
+    "MISSIONS_FILTER_FIELD", "mission_filter_text", "filter_mission_rows",
     "add_server_status_route", "add_preset_image_route", "PRESET_IMAGE_PATH",
     "PRESET_IMAGE_MAX_BYTES", "PRESET_IMAGE_MEDIA_TYPE", "preset_image_path", "preset_image_file",
     "MISSION_WEATHER_PATH", "mission_weather_path", "add_mission_weather_route",
@@ -930,6 +932,39 @@ def mission_rows(data: dict, server_name: str) -> list[dict]:
             "download": f"{base}?mission={quote(str(index), safe='')}",
         })
     return rows
+
+
+#: THE MISSIONS TAB'S NAME FILTER — the request field, and the console's own spelling for it (the
+#: players roster, the audit trail and the chat tab all read ``?q=``). A GET: the rows are filtered
+#: BEFORE they are rendered, so the "All" box, the count and the removal selection can only ever name
+#: rows that are on screen — with JavaScript off as well.
+MISSIONS_FILTER_FIELD = "q"
+
+
+def mission_filter_text(value) -> str:
+    """The Missions tab's filter as it may be echoed and matched: the shared query cleaning.
+
+    Control characters are dropped and the text is trimmed and capped (``views.MAX_QUERY_LENGTH``),
+    the same cleaning the players search applies to ``?q=``. A hostile or absurd value therefore
+    reaches neither the match nor the input's echoed value.
+    """
+    return view_model.normalise_query(value)
+
+
+def filter_mission_rows(rows: list[dict], query: str) -> list[dict]:
+    """The rows whose LOGICAL NAME or missions-directory-relative PATH contains *query*.
+
+    Case-insensitive substring. A blank query keeps every row, so the unfiltered list is the filter's
+    own degenerate case and never a second render path. The PATH is matched as well as the name, so a
+    mission is reachable by the words its row shows even where the two differ (a ``.dcssb`` copy, a
+    ``.orig`` twin, a subdirectory) — and a match on the name alone would hide half of what the
+    operator can see.
+    """
+    wanted = (query or "").casefold()
+    if not wanted:
+        return list(rows)
+    return [row for row in rows
+            if wanted in row["name"].casefold() or wanted in row["path"].casefold()]
 
 
 def add_mission_download_route(router: APIRouter) -> APIRouter:
@@ -2902,13 +2937,29 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         data = getattr(result, "data", None)
         data = data if isinstance(data, dict) else {}
         rows = mission_rows(data, server_name)
+        # THE NAME FILTER: a GET on the tab, applied to the rows BEFORE they are rendered. The list,
+        # the count and the "All" box therefore describe the SAME rows — the ones on screen — and the
+        # removal selection can never name a row the operator filtered away.
+        query = mission_filter_text(request.query_params.get(MISSIONS_FILTER_FIELD))
+        shown = filter_mission_rows(rows, query)
+        if query:
+            # A FILTERED LIST CANNOT BE REORDERED: a drop posts the whole new order built from the
+            # rows the list holds, so reordering a subset would rewrite the rotation to that subset.
+            # The grip is omitted while a filter is in force, and the tab states why.
+            context["missions_drag_allowed"] = False
         context.update({
             "missions_available": True,
-            "missions": rows,
-            # THE SERVER-RENDERED COUNT'S OWN TOTAL: every row is selectable (the running row's box
-            # included), so this number and the script's ``N of M`` mean the SAME thing with
+            "missions": shown,
+            # THE SERVER-RENDERED COUNT'S OWN TOTAL: every SHOWN row is selectable (the running row's
+            # box included), so this number and the script's ``N of M`` mean the SAME thing with
             # JavaScript off.
-            "missions_selectable": len(rows),
+            "missions_selectable": len(shown),
+            #: THE FILTER IN FORCE, echoed into the input and the count sentence; the unfiltered TOTAL
+            #: rides beside it so "3 of 12 missions" stays readable.
+            "missions_filter": query,
+            "missions_filtered": bool(query),
+            "missions_shown": len(shown),
+            "missions_total": len(rows),
         })
         return context
     if tab == MODS_TAB:
@@ -3171,6 +3222,16 @@ async def _missions_write_context(request: Request, server, server_name: str) ->
         "missions_activate_path": mount.url(actions_page.MISSIONS_ACTIVATE_PATH),
         "missions_upload_path": mount.url(actions_page.MISSIONS_UPLOAD_PATH),
         "missions_tab_url": server_url(server_name, tab=MISSIONS_TAB),
+        #: THE FILTER FORM'S TARGET: the page's OWN path, without a query. A GET form REPLACES the
+        #: action's query string, so the tab rides as a hidden field instead — and the tab URL above
+        #: is what "Clear" links to, which drops the filter along with the selection.
+        "missions_page_url": server_url(server_name),
+        "missions_filter_field": MISSIONS_FILTER_FIELD,
+        #: THE REORDER'S SECOND REASON: the grip is omitted while a filter is in force, because a drop
+        #: posts the order of the rows the list holds. Stated where the grips are absent, like the
+        #: offline-only sentence beside it.
+        "missions_filter_reorder_reason": i18n._(
+            "Reordering is only offered on the full list — clear the filter to drag rows."),
         #: the DIALOG path suffix (``/confirm``): the ADD opener and the selection bar post to
         #: ``<path><suffix>``, which RENDERS the console's one dialog component (``confirm.html``)
         #: rather than performing the write — the picker/load choice and the delete-file choice are

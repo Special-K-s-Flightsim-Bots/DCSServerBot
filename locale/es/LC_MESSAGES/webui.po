@@ -13635,3 +13635,24 @@ msgstr "El color indica quién puede leerlo: todos, solo rojo, solo azul — los
 msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
 msgstr "Escribe una línea para los jugadores de este servidor…  (Intro envía, Mayús+Intro hace un salto de línea)"
 
+
+#: services/webservice/templates/_missions_filter.html
+msgid "Filter missions"
+msgstr "Filtrar misiones"
+
+#: services/webservice/templates/_missions_filter.html
+msgid "name or path"
+msgstr "nombre o ruta"
+
+#: services/webservice/templates/_missions_filter.html
+#, python-format
+msgid "Filter: name or path contains %(query)s · %(shown)s of %(total)s missions"
+msgstr "Filtro: el nombre o la ruta contiene %(query)s · %(shown)s de %(total)s misiones"
+
+#: services/webservice/templates/server_detail.html
+msgid "No mission matches the filter."
+msgstr "Ninguna misión coincide con el filtro."
+
+#: services/webservice/pages/server_detail.py
+msgid "Reordering is only offered on the full list — clear the filter to drag rows."
+msgstr "Reordenar solo se ofrece en la lista completa — quita el filtro para arrastrar filas."
