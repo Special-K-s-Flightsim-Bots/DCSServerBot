@@ -252,33 +252,5 @@
     </div>
   </section>
   {% endif %}
-
-  {% if model.sections.servers %}
-  <section class="sect" id="servers">
-    <div class="sect-head"><span class="no">{{ model.sections.servers }}</span><h2>{% trans %}The servers{% endtrans %}</h2>
-      <span class="meta">{{ _(model.window_label) }}</span></div>
-    <section class="panel c12" style="grid-column:1/-1">
-      <div class="hd"><h2>{% trans %}Server board{% endtrans %}</h2><span class="meta">{% trans up=model.live.servers_up, total=model.live.servers_total %}{{ up }} of {{ total }} up{% endtrans %}</span></div>
-      {% if model.servers %}
-      <table class="tbl">
-        <thead><tr><th>{% trans %}State{% endtrans %}</th><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Flying{% endtrans %}</th><th class="r">{% trans %}Playtime{% endtrans %}</th><th class="r hide-sm">{% trans %}Sorties{% endtrans %}</th></tr></thead>
-        <tbody>
-          {% for row in model.servers %}
-          <tr>
-            <td><span class="state"><span class="dot{% if not row.online %} quiet{% endif %}" aria-hidden="true"></span><b>{% if row.online %}{% trans %}Up{% endtrans %}{% else %}{% trans %}Off{% endtrans %}{% endif %}</b></span></td>
-            <td>{% if row.href %}<a class="nm" href="{{ row.href }}">{{ row.server_name }}</a>{% else %}<span class="nm">{{ row.server_name }}</span>{% endif %}</td>
-            <td class="r">{{ row.players_online }}</td>
-            <td class="r">{{ row.playtime }} {% trans %}h{% endtrans %}</td>
-            <td class="r hide-sm">{{ row.sorties }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="note">{% trans %}This site has no server of its own yet.{% endtrans %}</p>
-      {% endif %}
-    </section>
-  </section>
-  {% endif %}
 </main>
 {% endblock %}

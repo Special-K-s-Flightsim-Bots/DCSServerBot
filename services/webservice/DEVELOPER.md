@@ -638,6 +638,9 @@ list, so a page added on an API path fails instead of answering the API's refusa
 |------|-------|------------|------|
 | Overview | `GET <site>/` | `public` | `community_totals`, `activity_over_time`, `server_board`, `leaderboard` (playtime / all) and `squadrons` (`services/webservice/site_reads.py`), all bounded to the site's servers |
 | Leaderboard | `GET <site>/rankings` | `public` | `leaderboard` (metric, period, offset, sort column and sort direction from the query string; the column and direction are whitelisted in the read) |
+| Servers | `GET <site>/fleet` | `public` | `server_list` (the live roster plus `mv_serverstats`' all-time figures, bounded to the site's servers) |
+| Fleet live cells | `GET <site>/fleet.json` | `public` | `fleet_live` (the roster half alone: state, players, mission, clocks — no statement and no RPC, so the page polls it). `?server=<name>` narrows it to one server of the site and adds its cached live read's state, which is what that server's own page polls |
+| One server | `GET <site>/fleet/{name}` | `public` | `server_detail` (built on `server_list`), plus the cached live read (`live_read`) for the weather and extension blocks |
 | Pilot search | `GET <site>/players` | `public` | `pilot_search` (query, offset from the query string) |
 | Pilot profile | `GET <site>/player/{ucid}` | `public` | `pilot_profile` for one UCID |
 | My statistics | `GET <site>/me` | `public` | `my_statistics` for the request's own identity; anonymous visitors get the sign-in control, never a redirect |
@@ -646,6 +649,19 @@ Two asset routes exist beside the pages: `GET <site>/theme.css` serves the site'
 (the `theme.preset` sheet, or the `theme.expert` block wrapped in one `:root` rule) and
 `GET <site>/logo.png` serves `branding.logo` (a raster suffix only). Both are `public`; the logo
 route reads one file from the config directory per request.
+
+**The per-server page's two live blocks are cached reads.** Weather (`getFog`) and the public
+extensions render are RPCs to the game server, so `site_reads.live_read` answers the snapshot the
+process holds and refreshes it in the background on a 300 s window — the same window the bot's
+status embed caches `getFog` under. A `down` or `failed` snapshot stands for 20 s only, and one that
+contradicts the roster is never served at all: a server that has started since the read is refreshed
+at once rather than reported as off. The weather itself comes from the mission object the read holds;
+when that block is EMPTY — a page served by a process whose mission copy carries the name, map and
+slots but not the weather — the read asks the game server `getWeatherInfo` (the command the bot's
+own listener uses) under the same short bound, and recomposes the block again on every view so a
+mission that publishes its figures late cannot hide them for a whole window. A page view never waits
+on any of it, and a block with nothing to read states why in one sentence instead of drawing empty
+instruments.
 
 **There is NO write route on this surface.** The site reads; a visitor cannot post, change or
 store anything through it, and the only interactive element that leaves the page is the sign-in

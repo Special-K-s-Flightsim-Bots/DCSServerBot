@@ -4,7 +4,7 @@ The kind is DOMAIN metadata: what the action does to the installation, not which
 it. It is what makes "a READ row never names a WRITE action" provable, so the marking is pinned here
 by NAME and by COUNT — a swap of one read for one write keeps the count at 27 and must still fail.
 
-The pins name the 27 reads and the 59 writes over ``plugins/*/actions.py`` (86 module-level ``@action``
+The pins name the 27 reads and the 60 writes over ``plugins/*/actions.py`` (87 module-level ``@action``
 functions, every name unique). The two fleet reads ``list_servers`` / ``get_server_status`` are part
 of that census: they are real actions of the mission plugin, declared READ.
 """
@@ -39,7 +39,7 @@ READ_ACTIONS: dict[str, tuple[str, ...]] = {
     "scheduler": ("get_server_config", "get_server_coalitions"),
 }
 
-#: The 59 WRITE actions — every one of them an action whose decorator carries no ``kind``.
+#: The 60 WRITE actions — every one of them an action whose decorator carries no ``kind``.
 WRITE_ACTIONS: dict[str, tuple[str, ...]] = {
     "mission": ("start_server", "stop_server", "restart_server", "startup_server", "shutdown_server",
                 "pause_mission", "unpause_mission", "restart_mission", "rotate_mission",
@@ -56,8 +56,8 @@ WRITE_ACTIONS: dict[str, tuple[str, ...]] = {
               "delete_playlist", "upload_music_track", "set_radio_playlist", "control_radio",
               "set_radio_config"),
     "punishment": ("punish_player", "forgive_player"),
-    "scheduler": ("set_server_config", "set_server_channels", "set_coalition_password",
-                  "set_maintenance", "clear_maintenance"),
+    "scheduler": ("set_server_config", "set_server_channels", "set_server_web_passwords",
+                  "set_coalition_password", "set_maintenance", "clear_maintenance"),
 }
 
 #: Every plugin that ships an actions module — imported so its decorators actually run.
@@ -99,16 +99,16 @@ def test_the_read_marked_actions_are_exactly_the_27(installed_actions):
 
 
 def test_the_remaining_59_actions_report_write(installed_actions):
-    """The 59 writes are unmarked decorators — they must answer ``write``, by name."""
+    """The 60 writes are unmarked decorators — they must answer ``write``, by name."""
     writes = {qualname for qualname in installed_actions if kind_of(qualname) == ACTION_KIND_WRITE}
 
     assert writes == _write_names()
-    assert len(writes) == 59
+    assert len(writes) == 60
 
 
 def test_the_census_covers_every_registered_action(installed_actions):
-    """86 registered, 27 read + 59 write, no name in both lists, no action left out."""
-    assert len(installed_actions) == 86
+    """87 registered, 27 read + 60 write, no name in both lists, no action left out."""
+    assert len(installed_actions) == 87
     assert _read_names().isdisjoint(_write_names())
     assert _read_names() | _write_names() == set(installed_actions)
 

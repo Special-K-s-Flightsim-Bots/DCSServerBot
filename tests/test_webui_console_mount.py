@@ -110,7 +110,11 @@ def test_the_console_is_mounted_at_the_configured_root(config_dir, site):
         assert "/" in site_paths, "the site's own overview answers the site root"
         assert "/" not in paths - site_paths, (
             "the site owns the site root — no console page may answer there")
-        assert "/fleet" not in paths
+        # "/fleet" is the one segment BOTH surfaces name: the console's fleet list under its own
+        # mount (asserted above) and the site's Servers page at the site root. The pin is that the
+        # console answers none of the site's address, not that the site leaves the segment unused.
+        assert "/fleet" in site_paths
+        assert "/fleet" not in paths - site_paths
     else:
         assert "/console" not in paths, "no site is configured — the console keeps the site root"
 

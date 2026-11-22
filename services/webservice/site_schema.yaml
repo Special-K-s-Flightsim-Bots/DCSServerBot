@@ -232,7 +232,7 @@ mapping:
           # always run, because the bands above the sections need them: the hero's figure and
           # the standings' denominator come from the community totals, and the live band's
           # servers-up and pilots-flying figures from the server board — so `community: false`
-          # hides the readouts row, and `servers: false` the server table, never those bands.
+          # hides the readouts row, never those bands.
           sections:
             type: map
             nullable: true
@@ -271,11 +271,15 @@ mapping:
                 nullable: true
                 desc: The squadrons section; needs the CreditSystem plugin.
                 example: "false"
+              # LEGACY, ACCEPTED AND IGNORED. The overview's server band left the page, so this id
+              # has no effect: the loader accepts the line and drops it, and the console offers no
+              # switch for it. It stays in the schema so a file that still carries it validates and
+              # loads; the line may be deleted.
               servers:
                 type: bool
                 nullable: true
-                desc: The server board of the overview.
-                example: "true"
+                desc: Deprecated and ignored — the server band left the overview; the line may be deleted.
+                example: "false"
           # Default: every metric. The leaderboard metrics the site offers — a pick from the
           # metric vocabulary (playtime, air_targets, ships, air_defence, ground_targets,
           # kd_ratio, pvp_kd_ratio). An unknown id is refused at startup, and a control for a

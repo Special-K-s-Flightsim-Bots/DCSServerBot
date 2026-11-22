@@ -30,7 +30,7 @@ discord.py==2.7.1
 eyeD3==0.9.9
 
 # FastAPI: A modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints
-fastapi==0.163.2
+fastapi==0.165.0
 
 # FuzzyWuzzy: Python library that uses Levenshtein Distance to calculate the differences between strings
 fuzzywuzzy==0.18.0
@@ -63,8 +63,7 @@ mgrs==1.7.0
 minidump==0.0.24 ; sys_platform == 'win32'
 
 # NumPy: Package for scientific computing with Python
-numpy==2.3.5 ; python_version == "3.11"
-numpy==2.5.4 ; python_version > "3.11"
+numpy==2.3.5
 
 # Openpyxl: Python library to read/write Excel 2010 xlsx/xlsm/xltx/xltm files
 openpyxl==3.1.5

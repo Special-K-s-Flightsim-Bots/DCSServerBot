@@ -168,7 +168,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     )),
     (i18n._("Administration"), (
         "settings.view", "settings.write", "settings.file.view", "settings.file.write",
-        "site.view", "site.write", "site.structure", "site.expert",
+        "site.view", "site.write", "site.structure", "site.expert", "site.passwords",
         CAPABILITY_VIEW, CAPABILITY_WRITE,
     )),
 )
@@ -200,6 +200,7 @@ DESCRIPTIONS: dict[str, str] = {
                          "metrics, language and the preset"),
     "site.structure": i18n._("a site's address, its role and its on/off switch — the console reloads"),
     "site.expert": i18n._("write a site's expert CSS sheet"),
+    "site.passwords": i18n._("decide whether a server prints its join password on the public site"),
     "missions.view": i18n._("the mission list of a server"),
     "missions.load": i18n._("load a mission onto a server"),
     "missions.activate": i18n._("activate a mission and restart the server into it"),

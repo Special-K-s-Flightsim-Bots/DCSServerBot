@@ -109,7 +109,6 @@ class Cloud(Extension):
                 "time_in_mission": int(self.server.current_mission.mission_time),
                 "time_to_restart": int((self.server.restart_time - datetime.now(tz=timezone.utc)).total_seconds()) if self.server.restart_time else -1,
             }
-            # noinspection PyUnresolvedReferences
             await self.post('register_server', payload)
             self.log.debug(f"Server {self.server.name} registered with the cloud.")
         except aiohttp.ClientError as ex:
@@ -118,13 +117,14 @@ class Cloud(Extension):
             self.log.debug(payload)
 
     async def cloud_unregister(self):
+        if not self.config.get('register', True) or not self.server.settings.get('isPublic', True):
+            return
         payload = {}
         try:
             payload = {
                 "guild_id": self.node.guild_id,
                 "server_name": self.server.name
             }
-            # noinspection PyUnresolvedReferences
             await self.post('unregister_server', payload)
             self.log.debug(f"Server {self.server.name} unregistered from the cloud.")
         except aiohttp.ClientError as ex:

@@ -235,6 +235,10 @@ class Sneaker(InstallableExtension):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)
+
+    @override
     def get_ports(self) -> dict[str, Port]:
         return {
             "Sneaker": Port(self.config['bind'].split(':')[1], PortType.TCP, public=True)

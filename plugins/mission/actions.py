@@ -40,6 +40,8 @@ from core.action_results import (
     ServerInfoResult,
 )
 
+from . import chatlog
+
 log = logging.getLogger(__name__)
 
 #: The mission catalog's translator — the SAME domain the plugin's commands use, so the sentences
@@ -1291,6 +1293,9 @@ SERVER_MESSAGE_LABELS: dict[str, str] = {
     "blue": "the Blue coalition",
 }
 
+#: The name an operator's own chat record carries when the transport stated no sender.
+SERVER_MESSAGE_ANONYMOUS = "Server"
+
 
 def _recipient_choices(allowed: tuple[str, ...]) -> str:
     """The recipient allow-list as a sentence fragment: ``'all', 'red' or 'blue'``."""
@@ -1372,7 +1377,29 @@ async def message_server(ctx: Any, server_name: str, message: str, mode: str = "
         log.exception("message_server failed")
         result = ServerControlResult(success=False, message=f"Failed to send the message: {ex}",
                                      server_name=server_name)
+    if result.success:
+        chatlog.append(server, ucid="", name=sender or SERVER_MESSAGE_ANONYMOUS, side="",
+                       audience=recipient, text=body)
     return await _audited(ctx, result, server)
+
+
+@action(kind="read")
+async def chat_history(ctx: Any, server_name: str, after: int = 0) -> ActionResult:
+    """Read the chat lines the listener has recorded for one server, newest last.
+
+    ``after`` is a ``seq`` cursor: 0 reads the whole retained window, any other value reads only the
+    lines recorded after it. The listener records into the process's memory, so this read costs no
+    file IO and no DCS round trip — it is the same ring the ``onChatMessage`` event writes to.
+
+    A read: not audited. ``data["last_seq"]`` is the newest ``seq`` this server has, so a follower
+    that received nothing still knows where it stands.
+    """
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        return ActionResult(success=False, message=f"Server '{server_name}' not found.")
+    records = chatlog.lines(server.name, after=after)
+    return ActionResult(success=True, data={"server_name": server.name, "lines": records,
+                                            "last_seq": chatlog.last_seq(server.name)})
 
 
 # ── Player control: kick / ban / mute (W4b) ─────────────────────────────────

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-14 10:59+0100\n"
+"POT-Creation-Date: 2026-11-21 23:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: de\n"
@@ -44,14 +44,14 @@ msgid "A trusted network in CIDR notation."
 msgstr "Ein vertrauenswürdiges Netzwerk in CIDR-Notation."
 
 #. skyeye_schema:schema;skyeye_config.openai-api-key
-#: extensions/skyeye/schemas/skyeye_schema.yaml:128
+#: extensions/skyeye/schemas/skyeye_schema.yaml:133
 msgid "API key for the OpenAI Whisper API recognizer."
 msgstr "API-Schlüssel für den OpenAI-Whisper-API-Erkenner."
 
 #. realweather_schema:schema;instance_realweather_schema.api.checkwx.key
 #. realweather_schema:schema;node_realweather_schema.api.checkwx.key
-#: extensions/realweather/schemas/realweather_schema.yaml:187
-#: extensions/realweather/schemas/realweather_schema.yaml:423
+#: extensions/realweather/schemas/realweather_schema.yaml:192
+#: extensions/realweather/schemas/realweather_schema.yaml:428
 msgid "API key of your CheckWX account."
 msgstr "API-Schlüssel des CheckWX-Kontos."
 
@@ -82,12 +82,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Geheimer AWS-Zugriffsschlüssel für Amazon Polly."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:551
+#: services/webservice/schemas/webservice_schema.yaml:555
 msgid "Account name of the local console user."
 msgstr "Kontoname des lokalen Konsolenbenutzers."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:540
+#: services/webservice/schemas/webservice_schema.yaml:544
 msgid "Accounts that may sign in with a username and password."
 msgstr "Konten, die sich mit Benutzername und Passwort anmelden dürfen."
 
@@ -123,19 +123,19 @@ msgstr "Eine Falle hinzufügen, die auf die Nachricht reagierende Bots kickt."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.add-metar
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.add-metar
-#: extensions/realweather/schemas/realweather_schema.yaml:114
-#: extensions/realweather/schemas/realweather_schema.yaml:350
+#: extensions/realweather/schemas/realweather_schema.yaml:119
+#: extensions/realweather/schemas/realweather_schema.yaml:355
 msgid "Add the current METAR to the mission briefing."
 msgstr "Das aktuelle METAR zum Missionsbriefing hinzufügen."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers
-#: extensions/olympus/schemas/olympus_schema.yaml:289
+#: extensions/olympus/schemas/olympus_schema.yaml:294
 msgid "Additional map layer providers (Olympus 2.0)."
 msgstr "Zusätzliche Anbieter von Kartenebenen (Olympus 2.0)."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.adminPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.adminPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:68 extensions/olympus/schemas/olympus_schema.yaml:216
+#: extensions/olympus/schemas/olympus_schema.yaml:73 extensions/olympus/schemas/olympus_schema.yaml:221
 msgid "Admin password (Olympus 2.0 and later)."
 msgstr "Admin-Passwort (Olympus 2.0 und neuer)."
 
@@ -145,27 +145,27 @@ msgid "Advanced DCS settings written to serverSettings.lua."
 msgstr "Erweiterte DCS-Einstellungen, in serverSettings.lua geschrieben."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.pressure
-#: extensions/realweather/schemas/realweather_schema.yaml:828
+#: extensions/realweather/schemas/realweather_schema.yaml:833
 msgid "Air pressure generation."
 msgstr "Erzeugung des Luftdrucks."
 
 #. servers_schema:regex;(.+).usage_alarm
-#: schemas/servers_schema.yaml:428
+#: schemas/servers_schema.yaml:434
 msgid "Alert pings when server usage crosses thresholds."
 msgstr "Alarm-Pings, wenn die Serverauslastung Schwellen überschreitet."
 
 #. servers_schema:regex;(.+).usage_alarm.min_threshold
-#: schemas/servers_schema.yaml:438
+#: schemas/servers_schema.yaml:444
 msgid "Alert when fewer players than this are online."
 msgstr "Alarm, wenn weniger Spieler als dies online sind."
 
 #. servers_schema:regex;(.+).usage_alarm.max_threshold
-#: schemas/servers_schema.yaml:444
+#: schemas/servers_schema.yaml:450
 msgid "Alert when more players than this are online."
 msgstr "Alarm, wenn mehr Spieler als dies online sind."
 
 #. srs_schema:schema;node_srs_schema.beta
-#: extensions/srs/schemas/srs_schema.yaml:104
+#: extensions/srs/schemas/srs_schema.yaml:109
 msgid "Allow beta versions of DCS-SRS to be installed."
 msgstr "Beta-Versionen von DCS-SRS zur Installation zulassen."
 
@@ -230,13 +230,13 @@ msgid "Allow players to use dynamic radio channel assignment."
 msgstr "Spielern erlauben, dynamische Funkkanal-Zuweisung zu nutzen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.custom.allow-precipitation
-#: extensions/realweather/schemas/realweather_schema.yaml:726
+#: extensions/realweather/schemas/realweather_schema.yaml:731
 msgid "Allow precipitation with custom clouds."
 msgstr "Niederschlag bei benutzerdefinierten Wolken zulassen."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRemoteControlEnabled
 #. tacview_schema:schema;node_tacview_schema.tacviewRemoteControlEnabled
-#: extensions/tacview/schemas/tacview_schema.yaml:83 extensions/tacview/schemas/tacview_schema.yaml:208
+#: extensions/tacview/schemas/tacview_schema.yaml:88 extensions/tacview/schemas/tacview_schema.yaml:213
 msgid "Allow remote control of Tacview."
 msgstr "Fernsteuerung von Tacview zulassen."
 
@@ -266,7 +266,7 @@ msgid "Allowed deviation from the ratio before slots are blocked."
 msgstr "Erlaubte Abweichung vom Verhältnis, bevor Slots blockiert werden."
 
 #. servers_schema:regex;(.+).slot_spamming.slot_changes
-#: schemas/servers_schema.yaml:479
+#: schemas/servers_schema.yaml:485
 msgid "Allowed slot changes within the observation window."
 msgstr "Erlaubte Slot-Wechsel innerhalb des Beobachtungsfensters."
 
@@ -296,22 +296,22 @@ msgid "Also search subdirectories below the directory."
 msgstr "Auch Unterverzeichnisse unterhalb des Verzeichnisses durchsuchen."
 
 #. lardoon_schema:schema;instance_lardoon_schema.url
-#: extensions/lardoon/schemas/lardoon_schema.yaml:107
+#: extensions/lardoon/schemas/lardoon_schema.yaml:112
 msgid "Alternate hostname shown in the embed; needed if not single process."
 msgstr "Alternativer Hostname, der im Embed angezeigt wird; nötig, wenn nicht Single Process."
 
 #. lardoon_schema:schema;node_lardoon_schema.url
-#: extensions/lardoon/schemas/lardoon_schema.yaml:43
+#: extensions/lardoon/schemas/lardoon_schema.yaml:48
 msgid "Alternate hostname shown in the server status embed."
 msgstr "Alternativer Hostname, der im Serverstatus-Embed angezeigt wird."
 
 #. lardoon_schema:schema;instance_lardoon_schema.tacviewExportPath
-#: extensions/lardoon/schemas/lardoon_schema.yaml:114
+#: extensions/lardoon/schemas/lardoon_schema.yaml:119
 msgid "Alternative directory holding the Tacview files."
 msgstr "Alternatives Verzeichnis für die Tacview-Dateien."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapMirrors
-#: extensions/olympus/schemas/olympus_schema.yaml:322
+#: extensions/olympus/schemas/olympus_schema.yaml:327
 msgid "Alternative map tile sources (Olympus 2.0)."
 msgstr "Alternative Kartenkachel-Quellen (Olympus 2.0)."
 
@@ -336,12 +336,12 @@ msgid "Ambient air temperature in degrees Celsius."
 msgstr "Umgebungslufttemperatur in Grad Celsius."
 
 #. skyeye_schema:schema;skyeye_config.threat-monitoring
-#: extensions/skyeye/schemas/skyeye_schema.yaml:181
+#: extensions/skyeye/schemas/skyeye_schema.yaml:186
 msgid "Announce airborne threats to the players."
 msgstr "Luftbedrohungen an die Spieler melden."
 
 #. srs_schema:schema;node_srs_schema.announce.description
-#: extensions/srs/schemas/srs_schema.yaml:81
+#: extensions/srs/schemas/srs_schema.yaml:86
 msgid "Announcement body text."
 msgstr "Textkörper der Ankündigung."
 
@@ -361,7 +361,7 @@ msgid "Announcement embed title."
 msgstr "Titel des Ankündigungs-Embeds."
 
 #. srs_schema:schema;node_srs_schema.announce.title
-#: extensions/srs/schemas/srs_schema.yaml:75
+#: extensions/srs/schemas/srs_schema.yaml:80
 #, python-brace-format
 msgid "Announcement title; {} is replaced by the version."
 msgstr "Titel der Ankündigung; {} wird durch die Version ersetzt."
@@ -497,7 +497,7 @@ msgid "Arguments passed to the command; supports placeholders."
 msgstr "Argumente, die an den Befehl übergeben werden; unterstützt Platzhalter."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).attribution
-#: extensions/olympus/schemas/olympus_schema.yaml:317
+#: extensions/olympus/schemas/olympus_schema.yaml:322
 msgid "Attribution text displayed on this map layer."
 msgstr "Attributionstext, der auf dieser Kartenebene angezeigt wird."
 
@@ -540,7 +540,7 @@ msgid "Auto-add new mission files found in the missions folder."
 msgstr "Neue Missionsdateien im Missionsordner automatisch hinzufügen."
 
 #. servers_schema:regex;(.+).autoadd
-#: schemas/servers_schema.yaml:525
+#: schemas/servers_schema.yaml:531
 msgid "Auto-add uploaded missions to the mission list."
 msgstr "Hochgeladene Missionen automatisch zur Missionsliste hinzufügen."
 
@@ -570,7 +570,7 @@ msgid "Auto-complete an active plan on landing at the destination."
 msgstr "Einen aktiven Plan bei der Landung am Ziel automatisch abschließen."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).autoconnectWhenLocal
-#: extensions/olympus/schemas/olympus_schema.yaml:330
+#: extensions/olympus/schemas/olympus_schema.yaml:335
 msgid "Auto-connect the client when it runs on the same host."
 msgstr "Client automatisch verbinden, wenn er auf demselben Host läuft."
 
@@ -605,12 +605,12 @@ msgid "Auto-start matches with DM reminders before they begin."
 msgstr "Matches automatisch starten, mit DM-Erinnerungen vor Beginn."
 
 #. olympus_schema:schema;instance_olympus_schema.autoupdate
-#: extensions/olympus/schemas/olympus_schema.yaml:111
+#: extensions/olympus/schemas/olympus_schema.yaml:116
 msgid "Auto-update DCS Olympus on this instance when a new version is available."
 msgstr "DCS Olympus auf dieser Instanz automatisch aktualisieren, wenn eine neue Version verfügbar ist."
 
 #. olympus_schema:schema;node_olympus_schema.autoupdate
-#: extensions/olympus/schemas/olympus_schema.yaml:21
+#: extensions/olympus/schemas/olympus_schema.yaml:26
 msgid "Auto-update DCS Olympus when a new version is available online."
 msgstr "DCS Olympus automatisch aktualisieren, wenn online eine neue Version verfügbar ist."
 
@@ -630,12 +630,12 @@ msgid "Auto-update DSMC to the latest version from GitHub."
 msgstr "DSMC automatisch auf die neueste Version von GitHub aktualisieren."
 
 #. lotatc_schema:schema;node_lotatc_schema.autoupdate
-#: extensions/lotatc/schemas/lotatc_schema.yaml:22
+#: extensions/lotatc/schemas/lotatc_schema.yaml:27
 msgid "Auto-update LotAtc on the node when a new version is available."
 msgstr "LotAtc auf dem Knoten automatisch aktualisieren, wenn eine neue Version verfügbar ist."
 
 #. lotatc_schema:schema;instance_lotatc_schema.autoupdate
-#: extensions/lotatc/schemas/lotatc_schema.yaml:108
+#: extensions/lotatc/schemas/lotatc_schema.yaml:113
 msgid "Auto-update LotAtc on this instance when a new version is available."
 msgstr "LotAtc auf dieser Instanz automatisch aktualisieren, wenn eine neue Version verfügbar ist."
 
@@ -645,7 +645,7 @@ msgid "Automatic CPU affinity assignment for DCS servers."
 msgstr "Automatische CPU-Affinitätszuweisung für DCS-Server."
 
 #. servers_schema:regex;(.+).afk
-#: schemas/servers_schema.yaml:347
+#: schemas/servers_schema.yaml:353
 msgid "Automatic kick of players who sit idle (AFK)."
 msgstr "Automatisches Kicken von Spielern, die untätig sind (AFK)."
 
@@ -671,8 +671,8 @@ msgstr "Den Bot auf diesem Knoten automatisch aktualisieren."
 
 #. realweather_schema:schema;instance_realweather_schema.api.aviationweather
 #. realweather_schema:schema;node_realweather_schema.api.aviationweather
-#: extensions/realweather/schemas/realweather_schema.yaml:158
-#: extensions/realweather/schemas/realweather_schema.yaml:394
+#: extensions/realweather/schemas/realweather_schema.yaml:163
+#: extensions/realweather/schemas/realweather_schema.yaml:399
 msgid "AviationWeather.gov provider settings."
 msgstr "Einstellungen des Anbieters AviationWeather.gov."
 
@@ -785,7 +785,7 @@ msgid "Battery level (%) that warns the players."
 msgstr "Akkustand (%), bei dem die Spieler gewarnt werden."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).address
-#: extensions/olympus/schemas/olympus_schema.yaml:172
+#: extensions/olympus/schemas/olympus_schema.yaml:177
 msgid "Bind address for the Olympus backend service."
 msgstr "Bind-Adresse für den Olympus-Backend-Dienst."
 
@@ -820,7 +820,7 @@ msgid "Body text of the reaction message."
 msgstr "Textkörper der Reaktionsnachricht."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce.description
-#: extensions/lotatc/schemas/lotatc_schema.yaml:52
+#: extensions/lotatc/schemas/lotatc_schema.yaml:57
 msgid "Body text of the update announcement embed."
 msgstr "Haupttext des Update-Ankündigungs-Embeds."
 
@@ -846,8 +846,8 @@ msgstr "Markentitel der Seite."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.insert-key
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.insert-key
-#: extensions/realweather/schemas/realweather_schema.yaml:120
-#: extensions/realweather/schemas/realweather_schema.yaml:356
+#: extensions/realweather/schemas/realweather_schema.yaml:125
+#: extensions/realweather/schemas/realweather_schema.yaml:361
 msgid "Briefing key the METAR text is inserted into."
 msgstr "Briefing-Schlüssel, in den der METAR-Text eingefügt wird."
 
@@ -858,7 +858,7 @@ msgstr "CJK-Schrift, die verwendet wird, wenn Berichte asiatische Zeichen enthal
 
 #. olympus_schema:schema;instance_olympus_schema.auto_affinity
 #. olympus_schema:schema;node_olympus_schema.auto_affinity
-#: extensions/olympus/schemas/olympus_schema.yaml:73 extensions/olympus/schemas/olympus_schema.yaml:137
+#: extensions/olympus/schemas/olympus_schema.yaml:78 extensions/olympus/schemas/olympus_schema.yaml:142
 msgid "CPU affinity applied to the Olympus Node.js process."
 msgstr "CPU-Affinität für den Olympus-Node.js-Prozess."
 
@@ -869,12 +869,12 @@ msgstr "CSAR-Timeout in Sekunden für eine Landung abseits eines Flugplatzes."
 
 #. skyeye_schema:schema;skyeye_config.callsign
 #. skyeye_schema:schema;skyeye_config.callsigns.[0]
-#: extensions/skyeye/schemas/skyeye_schema.yaml:134 extensions/skyeye/schemas/skyeye_schema.yaml:148
+#: extensions/skyeye/schemas/skyeye_schema.yaml:139 extensions/skyeye/schemas/skyeye_schema.yaml:153
 msgid "Callsign SkyEye answers to."
 msgstr "Rufzeichen, auf das SkyEye antwortet."
 
 #. skyeye_schema:schema;skyeye_config.callsigns
-#: extensions/skyeye/schemas/skyeye_schema.yaml:139
+#: extensions/skyeye/schemas/skyeye_schema.yaml:144
 msgid "Callsigns SkyEye rotates through."
 msgstr "Rufzeichen, die SkyEye durchwechselt."
 
@@ -904,27 +904,27 @@ msgid "Central admin channel for alerts and reports."
 msgstr "Zentraler Admin-Kanal für Warnungen und Berichte."
 
 #. servers_schema:regex;(.+).channels.blue_events
-#: schemas/servers_schema.yaml:651
+#: schemas/servers_schema.yaml:657
 msgid "Channel for blue coalition game events."
 msgstr "Kanal für Spielereignisse der blauen Koalition."
 
 #. servers_schema:regex;(.+).channels.events
-#: schemas/servers_schema.yaml:621
+#: schemas/servers_schema.yaml:627
 msgid "Channel for game events, split from chat."
 msgstr "Kanal für Spielereignisse, getrennt vom Chat."
 
 #. servers_schema:regex;(.+).channels.red_events
-#: schemas/servers_schema.yaml:663
+#: schemas/servers_schema.yaml:669
 msgid "Channel for red coalition game events."
 msgstr "Kanal für Spielereignisse der roten Koalition."
 
 #. servers_schema:regex;(.+).channels.blue
-#: schemas/servers_schema.yaml:645
+#: schemas/servers_schema.yaml:651
 msgid "Channel for the blue coalition chat."
 msgstr "Kanal für den Chat der blauen Koalition."
 
 #. servers_schema:regex;(.+).channels.chat
-#: schemas/servers_schema.yaml:615
+#: schemas/servers_schema.yaml:621
 msgid "Channel for the in-game chat replication."
 msgstr "Kanal für die Replikation des In-Game-Chats."
 
@@ -934,12 +934,12 @@ msgid "Channel for the message; -1 sends it as a DM."
 msgstr "Kanal für die Nachricht; -1 sendet sie als DM."
 
 #. servers_schema:regex;(.+).channels.red
-#: schemas/servers_schema.yaml:657
+#: schemas/servers_schema.yaml:663
 msgid "Channel for the red coalition chat."
 msgstr "Kanal für den Chat der roten Koalition."
 
 #. servers_schema:regex;(.+).channels.status
-#: schemas/servers_schema.yaml:609
+#: schemas/servers_schema.yaml:615
 msgid "Channel for the server status and player embeds."
 msgstr "Kanal für Serverstatus und Spieler-Embeds."
 
@@ -986,7 +986,7 @@ msgid "Channel the squadron board is posted to."
 msgstr "Kanal, in dem das Geschwader-Board gepostet wird."
 
 #. servers_schema:regex;(.+).channels.admin
-#: schemas/servers_schema.yaml:627
+#: schemas/servers_schema.yaml:633
 msgid "Channel where admin commands for this server are run."
 msgstr "Kanal, in dem Admin-Befehle für diesen Server ausgeführt werden."
 
@@ -1037,29 +1037,29 @@ msgid "Chat message when a song starts; holds {song} and {frequency}."
 msgstr "Chatnachricht, wenn ein Song startet; enthält {song} und {frequency}."
 
 #. servers_schema:regex;(.+).afk.check_after_landing
-#: schemas/servers_schema.yaml:383
+#: schemas/servers_schema.yaml:389
 msgid "Check for AFK after landing, before the next takeoff."
 msgstr "Nach der Landung, vor dem nächsten Start auf AFK prüfen."
 
 #. servers_schema:regex;(.+).afk.check_on_spawn
-#: schemas/servers_schema.yaml:378
+#: schemas/servers_schema.yaml:384
 msgid "Check for AFK while a player idles on the apron."
 msgstr "Auf AFK prüfen, während ein Spieler auf dem Vorfeld untätig ist."
 
 #. servers_schema:regex;(.+).afk.check_on_join
-#: schemas/servers_schema.yaml:373
+#: schemas/servers_schema.yaml:379
 msgid "Check for AFK while a player sits in slot selection."
 msgstr "Auf AFK prüfen, während ein Spieler in der Slot-Auswahl sitzt."
 
 #. servers_schema:regex;(.+).validate_missions
-#: schemas/servers_schema.yaml:530
+#: schemas/servers_schema.yaml:536
 msgid "Check that missions can load (maps, modules) before use."
 msgstr "Vor der Nutzung prüfen, ob Missionen laden können (Karten, Module)."
 
 #. realweather_schema:schema;instance_realweather_schema.api.checkwx
 #. realweather_schema:schema;node_realweather_schema.api.checkwx
-#: extensions/realweather/schemas/realweather_schema.yaml:171
-#: extensions/realweather/schemas/realweather_schema.yaml:407
+#: extensions/realweather/schemas/realweather_schema.yaml:176
+#: extensions/realweather/schemas/realweather_schema.yaml:412
 msgid "CheckWX provider settings."
 msgstr "Einstellungen des Anbieters CheckWX."
 
@@ -1069,12 +1069,12 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Beim Serverstart jegliche Wartungsmarkierung löschen."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:611
+#: services/webservice/schemas/webservice_schema.yaml:615
 msgid "Client id of your Discord application."
 msgstr "Client-ID der Discord-Anwendung."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.base
-#: extensions/realweather/schemas/realweather_schema.yaml:665
+#: extensions/realweather/schemas/realweather_schema.yaml:670
 msgid "Cloud base altitude limits."
 msgstr "Grenzwerte für die Wolkenuntergrenze."
 
@@ -1084,7 +1084,7 @@ msgid "Cloud density from 0 (clear) to 10 (overcast)."
 msgstr "Wolkendichte von 0 (klar) bis 10 (bedeckt)."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds
-#: extensions/realweather/schemas/realweather_schema.yaml:645
+#: extensions/realweather/schemas/realweather_schema.yaml:650
 msgid "Cloud layer generation."
 msgstr "Erzeugung der Wolkenschichten."
 
@@ -1104,17 +1104,17 @@ msgid "Cloud preset name or a detailed cloud layer map."
 msgstr "Name des Wolken-Presets oder eine detaillierte Wolkenschicht-Karte."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.presets.disallowed.[0]
-#: extensions/realweather/schemas/realweather_schema.yaml:707
+#: extensions/realweather/schemas/realweather_schema.yaml:712
 msgid "Cloud preset name."
 msgstr "Name des Wolken-Presets."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.presets
-#: extensions/realweather/schemas/realweather_schema.yaml:686
+#: extensions/realweather/schemas/realweather_schema.yaml:691
 msgid "Cloud preset selection."
 msgstr "Auswahl des Wolken-Presets."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.presets.disallowed
-#: extensions/realweather/schemas/realweather_schema.yaml:698
+#: extensions/realweather/schemas/realweather_schema.yaml:703
 msgid "Cloud presets Real Weather must not pick."
 msgstr "Wolken-Presets, die Real Weather nicht wählen darf."
 
@@ -1129,12 +1129,12 @@ msgid "Cluster settings; only needed in multi-node installations."
 msgstr "Cluster-Einstellungen; nur bei Multi-Node-Installationen nötig."
 
 #. skyeye_schema:schema;skyeye_config.coalition
-#: extensions/skyeye/schemas/skyeye_schema.yaml:110
+#: extensions/skyeye/schemas/skyeye_schema.yaml:115
 msgid "Coalition SkyEye is active on."
 msgstr "Koalition, auf der SkyEye aktiv ist."
 
 #. servers_schema:regex;(.+).coalitions
-#: schemas/servers_schema.yaml:687
+#: schemas/servers_schema.yaml:693
 msgid "Coalition handling for this server."
 msgstr "Koalitionsbehandlung für diesen Server."
 
@@ -1197,8 +1197,8 @@ msgstr "Befehlszeichenfolge, beginnend mit load, lua, call oder run."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.compress
 #. realweather_schema:schema;node_realweather_schema.realweather.log.compress
-#: extensions/realweather/schemas/realweather_schema.yaml:84
-#: extensions/realweather/schemas/realweather_schema.yaml:322
+#: extensions/realweather/schemas/realweather_schema.yaml:89
+#: extensions/realweather/schemas/realweather_schema.yaml:327
 msgid "Compress rotated log files."
 msgstr "Rotierte Protokolldateien komprimieren."
 
@@ -1233,18 +1233,18 @@ msgstr "Cookie-SameSite-Richtlinie; für OAuth-Logins 'lax' beibehalten."
 
 #. srs_schema:schema;instance_srs_schema.auto_affinity
 #. srs_schema:schema;node_srs_schema.auto_affinity
-#: extensions/srs/schemas/srs_schema.yaml:31 extensions/srs/schemas/srs_schema.yaml:228
+#: extensions/srs/schemas/srs_schema.yaml:36 extensions/srs/schemas/srs_schema.yaml:233
 msgid "Core affinity assigned to the SRS process."
 msgstr "Dem SRS-Prozess zugewiesene Kernaffinität."
 
 #. skyeye_schema:schema;node_skyeye_schema.auto_affinity
-#: extensions/skyeye/schemas/skyeye_schema.yaml:32
+#: extensions/skyeye/schemas/skyeye_schema.yaml:37
 msgid "Core affinity assigned to the SkyEye process."
 msgstr "Kernaffinität, die dem SkyEye-Prozess zugewiesen wird."
 
 #. sneaker_schema:schema;instance_sneaker_schema.auto_affinity
 #. sneaker_schema:schema;node_sneaker_schema.auto_affinity
-#: extensions/sneaker/schemas/sneaker_schema.yaml:39 extensions/sneaker/schemas/sneaker_schema.yaml:98
+#: extensions/sneaker/schemas/sneaker_schema.yaml:44 extensions/sneaker/schemas/sneaker_schema.yaml:103
 msgid "Core affinity assigned to the Sneaker process."
 msgstr "Kernaffinität, die dem Sneaker-Prozess zugewiesen wird."
 
@@ -1255,30 +1255,31 @@ msgstr "Kernqualität für diese Instanz (höher ist besser)."
 
 #. olympus_schema:schema;instance_olympus_schema.auto_affinity.quality
 #. olympus_schema:schema;node_olympus_schema.auto_affinity.quality
-#: extensions/olympus/schemas/olympus_schema.yaml:95 extensions/olympus/schemas/olympus_schema.yaml:159
+#: extensions/olympus/schemas/olympus_schema.yaml:100
+#: extensions/olympus/schemas/olympus_schema.yaml:164
 msgid "Core quality to prefer (0 = E-cores, 1 = normal, 2 = high)."
 msgstr "Bevorzugte Kernqualität (0 = E-Kerne, 1 = normal, 2 = hoch)."
 
 #. skyeye_schema:schema;node_skyeye_schema.auto_affinity.quality
-#: extensions/skyeye/schemas/skyeye_schema.yaml:54
+#: extensions/skyeye/schemas/skyeye_schema.yaml:59
 msgid "Core quality to prefer (0=E, 1=normal, 2=high)."
 msgstr "Bevorzugte Kernqualität (0=E, 1=normal, 2=high)."
 
 #. srs_schema:schema;instance_srs_schema.auto_affinity.quality
 #. srs_schema:schema;node_srs_schema.auto_affinity.quality
-#: extensions/srs/schemas/srs_schema.yaml:53 extensions/srs/schemas/srs_schema.yaml:250
+#: extensions/srs/schemas/srs_schema.yaml:58 extensions/srs/schemas/srs_schema.yaml:255
 msgid "Core quality to prefer (0=low, 1=normal)."
 msgstr "Bevorzugte Kernqualität (0=niedrig, 1=normal)."
 
 #. sneaker_schema:schema;instance_sneaker_schema.auto_affinity.quality
 #. sneaker_schema:schema;node_sneaker_schema.auto_affinity.quality
-#: extensions/sneaker/schemas/sneaker_schema.yaml:61 extensions/sneaker/schemas/sneaker_schema.yaml:120
+#: extensions/sneaker/schemas/sneaker_schema.yaml:66 extensions/sneaker/schemas/sneaker_schema.yaml:125
 msgid "Core quality to prefer (0=low, 1=normal, 2=high)."
 msgstr "Bevorzugte Kernqualität (0=niedrig, 1=normal, 2=hoch)."
 
 #. lardoon_schema:schema;instance_lardoon_schema.auto_affinity.quality
 #. lardoon_schema:schema;node_lardoon_schema.auto_affinity.quality
-#: extensions/lardoon/schemas/lardoon_schema.yaml:70 extensions/lardoon/schemas/lardoon_schema.yaml:141
+#: extensions/lardoon/schemas/lardoon_schema.yaml:75 extensions/lardoon/schemas/lardoon_schema.yaml:146
 msgid "Core quality; 0 = low (E-cores), 1 = normal, 2 = high."
 msgstr "Kernqualität; 0 = niedrig (E-Cores), 1 = normal, 2 = hoch."
 
@@ -1293,7 +1294,7 @@ msgid "Countdown text; supports the same placeholders."
 msgstr "Countdown-Text; unterstützt dieselben Platzhalter."
 
 #. servers_schema:regex;(.+).afk.punish
-#: schemas/servers_schema.yaml:362
+#: schemas/servers_schema.yaml:368
 msgid "Create an \"afk\" punishment instead of kicking."
 msgstr "Eine \"afk\"-Strafe statt eines Kicks verhängen."
 
@@ -1363,14 +1364,14 @@ msgid "Cron expression that defines when the action runs."
 msgstr "Cron-Ausdruck, der festlegt, wann die Aktion läuft."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.custom
-#: extensions/realweather/schemas/realweather_schema.yaml:713
+#: extensions/realweather/schemas/realweather_schema.yaml:718
 msgid "Custom cloud density settings."
 msgstr "Einstellungen für benutzerdefinierte Wolkendichte."
 
 #. realweather_schema:schema;instance_realweather_schema.api.custom
 #. realweather_schema:schema;node_realweather_schema.api.custom
-#: extensions/realweather/schemas/realweather_schema.yaml:193
-#: extensions/realweather/schemas/realweather_schema.yaml:429
+#: extensions/realweather/schemas/realweather_schema.yaml:198
+#: extensions/realweather/schemas/realweather_schema.yaml:434
 msgid "Custom weather provider settings."
 msgstr "Einstellungen des benutzerdefinierten Wetteranbieters."
 
@@ -1400,12 +1401,12 @@ msgid "DCS environments in which loadstring is allowed."
 msgstr "DCS-Umgebungen, in denen loadstring erlaubt ist."
 
 #. skyeye_schema:schema;skyeye_config.grpc-address
-#: extensions/skyeye/schemas/skyeye_schema.yaml:248
+#: extensions/skyeye/schemas/skyeye_schema.yaml:253
 msgid "DCS gRPC address, set automatically (deprecated)."
 msgstr "DCS-gRPC-Adresse, automatisch gesetzt (veraltet)."
 
 #. skyeye_schema:schema;skyeye_config.grpc-password
-#: extensions/skyeye/schemas/skyeye_schema.yaml:255
+#: extensions/skyeye/schemas/skyeye_schema.yaml:260
 msgid "DCS gRPC password, set automatically (deprecated)."
 msgstr "DCS-gRPC-Passwort, automatisch gesetzt (veraltet)."
 
@@ -1500,7 +1501,7 @@ msgid "Default bot language."
 msgstr "Standardsprache des Bots."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.presets
-#: extensions/realweather/schemas/realweather_schema.yaml:693
+#: extensions/realweather/schemas/realweather_schema.yaml:698
 msgid "Default cloud preset used by Real Weather."
 msgstr "Standard-Wolken-Preset, das Real Weather verwendet."
 
@@ -1551,8 +1552,8 @@ msgstr "Definiert eine VIP-Gruppe mit reservierten Slots und benannten Mitgliede
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewPlaybackDelay
 #. tacview_schema:schema;node_tacview_schema.tacviewPlaybackDelay
-#: extensions/tacview/schemas/tacview_schema.yaml:104
-#: extensions/tacview/schemas/tacview_schema.yaml:235
+#: extensions/tacview/schemas/tacview_schema.yaml:109
+#: extensions/tacview/schemas/tacview_schema.yaml:240
 msgid "Delay in seconds before telemetry is played back."
 msgstr "Verzögerung in Sekunden, bevor die Telemetrie wiedergegeben wird."
 
@@ -1585,6 +1586,11 @@ msgstr "Veraltete CPU-Affinität für DCS_Server.exe; auto_affinity verwenden."
 #. webservice_schema:DEFAULT.sites.regex;(.+).branding.copyright
 #: services/webservice/schemas/webservice_schema.yaml:318
 msgid "Deprecated and ignored — the footer carries the fixed attribution."
+msgstr ""
+
+#. webservice_schema:DEFAULT.sites.regex;(.+).sections.servers
+#: services/webservice/schemas/webservice_schema.yaml:466
+msgid "Deprecated and ignored — the server band left the overview; the line may be deleted."
 msgstr ""
 
 #. scheduler_schema:schema;action_map.local_times
@@ -1628,13 +1634,13 @@ msgid "Difficulty options.lua settings to apply."
 msgstr "Anzuwendende Einstellungen aus Difficulty options.lua."
 
 #. servers_schema:regex;(.+).ignore_dirs
-#: schemas/servers_schema.yaml:512
+#: schemas/servers_schema.yaml:518
 msgid "Directories skipped during mission upload and add."
 msgstr "Verzeichnisse, die beim Hochladen und Hinzufügen von Missionen übersprungen werden."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewExportPath
 #. tacview_schema:schema;node_tacview_schema.tacviewExportPath
-#: extensions/tacview/schemas/tacview_schema.yaml:38 extensions/tacview/schemas/tacview_schema.yaml:157
+#: extensions/tacview/schemas/tacview_schema.yaml:43 extensions/tacview/schemas/tacview_schema.yaml:162
 msgid "Directory Tacview exports the ACMI files to."
 msgstr "Verzeichnis, in das Tacview die ACMI-Dateien exportiert."
 
@@ -1649,7 +1655,7 @@ msgid "Directory holding the generated range and trap images."
 msgstr "Verzeichnis mit den generierten Range- und Trap-Bildern."
 
 #. servers_schema:regex;(.+).ignore_dirs.[0]
-#: schemas/servers_schema.yaml:520
+#: schemas/servers_schema.yaml:526
 msgid "Directory name ignored during mission handling."
 msgstr "Verzeichnisname, der bei der Missionsverarbeitung ignoriert wird."
 
@@ -1699,22 +1705,22 @@ msgid "Directory the downloadable files are read from."
 msgstr "Verzeichnis, aus dem die herunterladbaren Dateien gelesen werden."
 
 #. realweather_schema:schema;node_realweather_schema.installation
-#: extensions/realweather/schemas/realweather_schema.yaml:18
+#: extensions/realweather/schemas/realweather_schema.yaml:23
 msgid "Directory where DCS Real Weather is installed."
 msgstr "Verzeichnis, in dem DCS Real Weather installiert ist."
 
 #. srs_schema:schema;node_srs_schema.installation
-#: extensions/srs/schemas/srs_schema.yaml:16
+#: extensions/srs/schemas/srs_schema.yaml:21
 msgid "Directory where DCS-SRS is installed."
 msgstr "Verzeichnis, in dem DCS-SRS installiert ist."
 
 #. skyeye_schema:schema;node_skyeye_schema.installation
-#: extensions/skyeye/schemas/skyeye_schema.yaml:17
+#: extensions/skyeye/schemas/skyeye_schema.yaml:22
 msgid "Directory where SkyEye is installed."
 msgstr "Verzeichnis, in dem SkyEye installiert ist."
 
 #. tacview_schema:schema;node_tacview_schema.installation
-#: extensions/tacview/schemas/tacview_schema.yaml:17
+#: extensions/tacview/schemas/tacview_schema.yaml:22
 msgid "Directory where Tacview is installed."
 msgstr "Verzeichnis, in dem Tacview installiert ist."
 
@@ -1730,7 +1736,7 @@ msgstr "Verzeichnis, dessen alte Dateien gelöscht werden."
 
 #. srs_schema:schema;instance_srs_schema.radio_effect_override
 #. srs_schema:schema;node_srs_schema.radio_effect_override
-#: extensions/srs/schemas/srs_schema.yaml:178 extensions/srs/schemas/srs_schema.yaml:318
+#: extensions/srs/schemas/srs_schema.yaml:183 extensions/srs/schemas/srs_schema.yaml:323
 msgid "Disable SRS radio effects such as line of sight."
 msgstr "SRS-Funkeffekte wie Sichtlinie deaktivieren."
 
@@ -1746,12 +1752,12 @@ msgstr "Die DCS-gRPC-Integritätsprüfung der Missionsdateien deaktivieren."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewAutoDiscardFlights
 #. tacview_schema:schema;node_tacview_schema.tacviewAutoDiscardFlights
-#: extensions/tacview/schemas/tacview_schema.yaml:43 extensions/tacview/schemas/tacview_schema.yaml:162
+#: extensions/tacview/schemas/tacview_schema.yaml:48 extensions/tacview/schemas/tacview_schema.yaml:167
 msgid "Discard flights shorter than this many minutes."
 msgstr "Flüge verwerfen, die kürzer als diese Anzahl Minuten sind."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:596
+#: services/webservice/schemas/webservice_schema.yaml:600
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord-OAuth-Login; die zweite Tür in die Konsole."
 
@@ -1761,7 +1767,7 @@ msgid "Discord announcement posted after a DCS update."
 msgstr "Discord-Ankündigung, die nach einem DCS-Update gepostet wird."
 
 #. srs_schema:schema;node_srs_schema.announce
-#: extensions/srs/schemas/srs_schema.yaml:58
+#: extensions/srs/schemas/srs_schema.yaml:63
 msgid "Discord announcement posted after every SRS update."
 msgstr "Discord-Ankündigung, die nach jedem SRS-Update gepostet wird."
 
@@ -1819,12 +1825,12 @@ msgid "Discord channel for the main FunkMan output."
 msgstr "Discord-Kanal für die Hauptausgabe von FunkMan."
 
 #. servers_schema:regex;(.+).usage_alarm.channel
-#: schemas/servers_schema.yaml:454
+#: schemas/servers_schema.yaml:460
 msgid "Discord channel for the usage alarm (default admin)."
 msgstr "Discord-Kanal für den Auslastungsalarm (Standard: Admin)."
 
 #. tacview_schema:schema;instance_tacview_schema.target
-#: extensions/tacview/schemas/tacview_schema.yaml:247
+#: extensions/tacview/schemas/tacview_schema.yaml:252
 msgid "Discord channel id or directory the ACMI files go to."
 msgstr "Discord-Kanal-ID oder Verzeichnis, in das die ACMI-Dateien gelangen."
 
@@ -1834,12 +1840,12 @@ msgid "Discord channel id or directory the trackfiles are uploaded to."
 msgstr "Discord-Kanal-ID oder Verzeichnis, in das die Trackfiles hochgeladen werden."
 
 #. srs_schema:schema;node_srs_schema.announce.channel
-#: extensions/srs/schemas/srs_schema.yaml:69
+#: extensions/srs/schemas/srs_schema.yaml:74
 msgid "Discord channel id the announcement is posted to."
 msgstr "Discord-Kanal-ID, in der die Ankündigung gepostet wird."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce.channel
-#: extensions/lotatc/schemas/lotatc_schema.yaml:40
+#: extensions/lotatc/schemas/lotatc_schema.yaml:45
 msgid "Discord channel id the update announcement is posted to."
 msgstr "Discord-Kanal-ID, in der die Update-Ankündigung gepostet wird."
 
@@ -1888,7 +1894,7 @@ msgid "Discord channel where the Pretense stats are posted."
 msgstr "Discord-Kanal, in dem die Pretense-Statistiken gepostet werden."
 
 #. servers_schema:regex;(.+).channels
-#: schemas/servers_schema.yaml:599
+#: schemas/servers_schema.yaml:605
 msgid "Discord channels this server uses for its features."
 msgstr "Discord-Kanäle, die dieser Server für seine Funktionen nutzt."
 
@@ -1908,17 +1914,17 @@ msgid "Discord role granted when the achievement is reached."
 msgstr "Discord-Rolle, die beim Erreichen der Auszeichnung vergeben wird."
 
 #. servers_schema:regex;(.+).coalitions.blue_role
-#: schemas/servers_schema.yaml:706
+#: schemas/servers_schema.yaml:712
 msgid "Discord role mapped to the blue coalition."
 msgstr "Discord-Rolle, die der blauen Koalition zugeordnet ist."
 
 #. servers_schema:regex;(.+).coalitions.red_role
-#: schemas/servers_schema.yaml:711
+#: schemas/servers_schema.yaml:717
 msgid "Discord role mapped to the red coalition."
 msgstr "Discord-Rolle, die der roten Koalition zugeordnet ist."
 
 #. servers_schema:regex;(.+).managed_by.[0]
-#: schemas/servers_schema.yaml:594
+#: schemas/servers_schema.yaml:600
 msgid "Discord role name allowed to manage this server."
 msgstr "Name der Discord-Rolle, die diesen Server verwalten darf."
 
@@ -1929,12 +1935,12 @@ msgid "Discord role name allowed to run the command."
 msgstr "Name der Discord-Rolle, die den Befehl ausführen darf."
 
 #. servers_schema:regex;(.+).discord.[0]
-#: schemas/servers_schema.yaml:582
+#: schemas/servers_schema.yaml:588
 msgid "Discord role name allowed to use this server."
 msgstr "Name der Discord-Rolle, die diesen Server nutzen darf."
 
 #. servers_schema:regex;(.+).afk.exemptions.discord.[0]
-#: schemas/servers_schema.yaml:423
+#: schemas/servers_schema.yaml:429
 msgid "Discord role name exempt from AFK kicks."
 msgstr "Name der Discord-Rolle, die von AFK-Kicks ausgenommen ist."
 
@@ -1944,12 +1950,12 @@ msgid "Discord role name this starting balance applies to."
 msgstr "Name der Discord-Rolle, für die dieses Startguthaben gilt."
 
 #. servers_schema:regex;(.+).afk.exemptions.discord
-#: schemas/servers_schema.yaml:416
+#: schemas/servers_schema.yaml:422
 msgid "Discord role names exempt from AFK kicks."
 msgstr "Namen der Discord-Rollen, die von AFK-Kicks ausgenommen sind."
 
 #. servers_schema:regex;(.+).usage_alarm.role
-#: schemas/servers_schema.yaml:449
+#: schemas/servers_schema.yaml:455
 msgid "Discord role to ping for the usage alarm."
 msgstr "Discord-Rolle, die beim Auslastungsalarm gepingt wird."
 
@@ -1973,7 +1979,7 @@ msgid "Discord roles a player must have (prefix with ! to exclude)."
 msgstr "Discord-Rollen, die ein Spieler haben muss (mit ! als Präfix ausschließen)."
 
 #. servers_schema:regex;(.+).managed_by
-#: schemas/servers_schema.yaml:587
+#: schemas/servers_schema.yaml:593
 msgid "Discord roles allowed to manage this server."
 msgstr "Discord-Rollen, die diesen Server verwalten dürfen."
 
@@ -1989,7 +1995,7 @@ msgid "Discord roles allowed to run this command."
 msgstr "Discord-Rollen, die diesen Befehl ausführen dürfen."
 
 #. servers_schema:regex;(.+).discord
-#: schemas/servers_schema.yaml:575
+#: schemas/servers_schema.yaml:581
 msgid "Discord roles allowed to use this server."
 msgstr "Discord-Rollen, die diesen Server nutzen dürfen."
 
@@ -2034,7 +2040,7 @@ msgid "Discord roles mapped to the bot's DCS role."
 msgstr "Discord-Rollen, die der DCS-Rolle des Bots zugeordnet sind."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce.mention
-#: extensions/lotatc/schemas/lotatc_schema.yaml:63
+#: extensions/lotatc/schemas/lotatc_schema.yaml:68
 msgid "Discord roles or users pinged with the announcement."
 msgstr "Discord-Rollen oder -Benutzer, die mit der Ankündigung gepingt werden."
 
@@ -2069,12 +2075,12 @@ msgid "Discord user ID of the bot's owner."
 msgstr "Discord-Benutzer-ID des Bot-Eigentümers."
 
 #. skyeye_schema:schema;skyeye_config.discord-webhook-id
-#: extensions/skyeye/schemas/skyeye_schema.yaml:197
+#: extensions/skyeye/schemas/skyeye_schema.yaml:202
 msgid "Discord webhook id SkyEye posts alerts to."
 msgstr "Discord-Webhook-ID, an die SkyEye Alarme sendet."
 
 #. skyeye_schema:schema;skyeye_config.discord-webhook-token
-#: extensions/skyeye/schemas/skyeye_schema.yaml:203
+#: extensions/skyeye/schemas/skyeye_schema.yaml:208
 msgid "Discord webhook token for those alerts."
 msgstr "Discord-Webhook-Token für diese Alarme."
 
@@ -2101,7 +2107,7 @@ msgid "Draw landings right to left instead of left to right."
 msgstr "Landungen von rechts nach links statt von links nach rechts zeichnen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.dust
-#: extensions/realweather/schemas/realweather_schema.yaml:789
+#: extensions/realweather/schemas/realweather_schema.yaml:794
 msgid "Dust generation."
 msgstr "Erzeugung von Staub."
 
@@ -2126,7 +2132,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Einstellungen für den ElevenLabs-Text-to-Speech-Anbieter."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:658
+#: services/webservice/schemas/webservice_schema.yaml:662
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Notfall-Admin-Zugangsdaten für einen ausgefallenen Identitätsanbieter."
 
@@ -2171,20 +2177,20 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "DDoS-Erkennung aktivieren (erfordert NPCAP unter Windows)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:606
+#: services/webservice/schemas/webservice_schema.yaml:610
 msgid "Enable Discord OAuth login."
 msgstr "Discord-OAuth-Login aktivieren."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.enable
 #. realweather_schema:schema;node_realweather_schema.realweather.log.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:58
-#: extensions/realweather/schemas/realweather_schema.yaml:296
+#: extensions/realweather/schemas/realweather_schema.yaml:63
+#: extensions/realweather/schemas/realweather_schema.yaml:301
 msgid "Enable Real Weather logging (must stay true)."
 msgstr "Real-Weather-Logging aktivieren (muss true bleiben)."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewFlightDataRecordingEnabled
 #. tacview_schema:schema;node_tacview_schema.tacviewFlightDataRecordingEnabled
-#: extensions/tacview/schemas/tacview_schema.yaml:53 extensions/tacview/schemas/tacview_schema.yaml:172
+#: extensions/tacview/schemas/tacview_schema.yaml:58 extensions/tacview/schemas/tacview_schema.yaml:177
 msgid "Enable Tacview flight data recording."
 msgstr "Die Aufzeichnung der Tacview-Flugdaten aktivieren."
 
@@ -2194,7 +2200,7 @@ msgid "Enable automatic CPU affinity for this node."
 msgstr "Automatische CPU-Affinität für diesen Knoten aktivieren."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.enabled
-#: extensions/olympus/schemas/olympus_schema.yaml:250
+#: extensions/olympus/schemas/olympus_schema.yaml:255
 msgid "Enable custom authentication headers."
 msgstr "Benutzerdefinierte Authentifizierungs-Header aktivieren."
 
@@ -2244,7 +2250,7 @@ msgid "Enable statistics gathering on this server instance."
 msgstr "Das Sammeln von Statistiken auf dieser Serverinstanz aktivieren."
 
 #. skyeye_schema:schema;skyeye_config.enable-grpc
-#: extensions/skyeye/schemas/skyeye_schema.yaml:241
+#: extensions/skyeye/schemas/skyeye_schema.yaml:246
 msgid "Enable the DCS gRPC link (deprecated)."
 msgstr "Die DCS-gRPC-Verbindung aktivieren (veraltet)."
 
@@ -2254,49 +2260,49 @@ msgid "Enable the FunkMan integration for this server."
 msgstr "Die FunkMan-Integration für diesen Server aktivieren."
 
 #. realweather_schema:schema;instance_realweather_schema.enabled
-#: extensions/realweather/schemas/realweather_schema.yaml:236
+#: extensions/realweather/schemas/realweather_schema.yaml:241
 msgid "Enable the RealWeather extension for this instance."
 msgstr "Die RealWeather-Erweiterung für diese Instanz aktivieren."
 
 #. srs_schema:schema;instance_srs_schema.http_server_enabled
-#: extensions/srs/schemas/srs_schema.yaml:335
+#: extensions/srs/schemas/srs_schema.yaml:340
 msgid "Enable the SRS HTTP server (SRS 2.3+)."
 msgstr "Den SRS-HTTP-Server aktivieren (SRS 2.3+)."
 
 #. srs_schema:schema;instance_srs_schema.enabled
-#: extensions/srs/schemas/srs_schema.yaml:199
+#: extensions/srs/schemas/srs_schema.yaml:204
 msgid "Enable the SRS extension for this instance."
 msgstr "Die SRS-Erweiterung für diese Instanz aktivieren."
 
 #. srs_schema:schema;instance_srs_schema.awacs
 #. srs_schema:schema;node_srs_schema.awacs
-#: extensions/srs/schemas/srs_schema.yaml:135 extensions/srs/schemas/srs_schema.yaml:270
+#: extensions/srs/schemas/srs_schema.yaml:140 extensions/srs/schemas/srs_schema.yaml:275
 msgid "Enable the SRS external AWACS mode."
 msgstr "Den externen AWACS-Modus von SRS aktivieren."
 
 #. srs_schema:schema;node_srs_schema.instructor_mode
-#: extensions/srs/schemas/srs_schema.yaml:189
+#: extensions/srs/schemas/srs_schema.yaml:194
 msgid "Enable the SRS instructor mode."
 msgstr "Den SRS-Instructormodus aktivieren."
 
 #. skyeye_schema:schema;skyeye_config.enabled
-#: extensions/skyeye/schemas/skyeye_schema.yaml:64
+#: extensions/skyeye/schemas/skyeye_schema.yaml:69
 msgid "Enable the SkyEye extension for this instance."
 msgstr "Die SkyEye-Erweiterung für diese Instanz aktivieren."
 
 #. sneaker_schema:schema;instance_sneaker_schema.enabled
-#: extensions/sneaker/schemas/sneaker_schema.yaml:71
+#: extensions/sneaker/schemas/sneaker_schema.yaml:76
 msgid "Enable the Sneaker extension for this instance."
 msgstr "Die Sneaker-Erweiterung für diese Instanz aktivieren."
 
 #. tacview_schema:schema;instance_tacview_schema.enabled
-#: extensions/tacview/schemas/tacview_schema.yaml:121
+#: extensions/tacview/schemas/tacview_schema.yaml:126
 msgid "Enable the Tacview extension for this instance."
 msgstr "Die Tacview-Erweiterung für diese Instanz aktivieren."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewModuleEnabled
 #. tacview_schema:schema;node_tacview_schema.tacviewModuleEnabled
-#: extensions/tacview/schemas/tacview_schema.yaml:58 extensions/tacview/schemas/tacview_schema.yaml:177
+#: extensions/tacview/schemas/tacview_schema.yaml:63 extensions/tacview/schemas/tacview_schema.yaml:182
 msgid "Enable the Tacview module in DCS."
 msgstr "Das Tacview-Modul in DCS aktivieren."
 
@@ -2311,7 +2317,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Das Competitive-Plugin für diesen Server aktivieren."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:668
+#: services/webservice/schemas/webservice_schema.yaml:672
 msgid "Enable the emergency Admin credential."
 msgstr "Notfall-Admin-Zugangsdaten aktivieren."
 
@@ -2331,7 +2337,7 @@ msgid "Enable the logistics plugin for this server."
 msgstr "Das Logistik-Plugin für diesen Server aktivieren."
 
 #. servers_schema:regex;(.+).smart_bans
-#: schemas/servers_schema.yaml:568
+#: schemas/servers_schema.yaml:574
 msgid "Enable the smart ban system (IPv4 reuse detection)."
 msgstr "Das intelligente Bannsystem aktivieren (IPv4-Wiederverwendungserkennung)."
 
@@ -2341,7 +2347,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Die Turnierfunktionen auf dieser Serverinstanz aktivieren."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:535
+#: services/webservice/schemas/webservice_schema.yaml:539
 msgid "Enable username/password login for the console."
 msgstr "Benutzername/Passwort-Anmeldung für die Konsole aktivieren."
 
@@ -2417,7 +2423,7 @@ msgstr "Ausdruck, der die zu entfernenden Elemente auswählt."
 #. pretense_schema:schema;pretense_schema.name
 #. voicechat_schema:schema;voicechat_schema.name
 #: extensions/dsmc/schemas/dsmc_schema.yaml:19 extensions/grpc/schemas/grpc_schema.yaml:20
-#: extensions/lardoon/schemas/lardoon_schema.yaml:9 extensions/lardoon/schemas/lardoon_schema.yaml:86
+#: extensions/lardoon/schemas/lardoon_schema.yaml:14 extensions/lardoon/schemas/lardoon_schema.yaml:91
 #: extensions/pretense/schemas/pretense_schema.yaml:14
 #: extensions/voicechat/schemas/voicechat_schema.yaml:14
 msgid "Extension name shown in the server status embed."
@@ -2425,13 +2431,13 @@ msgstr "Erweiterungsname, der im Serverstatus-Embed angezeigt wird."
 
 #. srs_schema:schema;instance_srs_schema.blue_password
 #. srs_schema:schema;node_srs_schema.blue_password
-#: extensions/srs/schemas/srs_schema.yaml:141 extensions/srs/schemas/srs_schema.yaml:276
+#: extensions/srs/schemas/srs_schema.yaml:146 extensions/srs/schemas/srs_schema.yaml:281
 msgid "External AWACS password for the blue coalition."
 msgstr "Externes AWACS-Passwort für die blaue Koalition."
 
 #. srs_schema:schema;instance_srs_schema.red_password
 #. srs_schema:schema;node_srs_schema.red_password
-#: extensions/srs/schemas/srs_schema.yaml:147 extensions/srs/schemas/srs_schema.yaml:282
+#: extensions/srs/schemas/srs_schema.yaml:152 extensions/srs/schemas/srs_schema.yaml:287
 msgid "External AWACS password for the red coalition."
 msgstr "Externes AWACS-Passwort für die rote Koalition."
 
@@ -2451,7 +2457,7 @@ msgid "Failures to remove from the mission ([] clears them)."
 msgstr "Ausfälle, die aus der Mission entfernt werden sollen ([] löscht sie)."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.fallback-to-legacy
-#: extensions/realweather/schemas/realweather_schema.yaml:659
+#: extensions/realweather/schemas/realweather_schema.yaml:664
 msgid "Fall back to the legacy cloud model if needed."
 msgstr "Bei Bedarf auf das alte Wolkenmodell zurückfallen."
 
@@ -2491,14 +2497,14 @@ msgid "File pattern (or list) to match, like *.* or *.trk."
 msgstr "Dateimuster (oder Liste) zum Abgleichen, z. B. *.* oder *.trk."
 
 #. skyeye_schema:schema;skyeye_config.log
-#: extensions/skyeye/schemas/skyeye_schema.yaml:92
+#: extensions/skyeye/schemas/skyeye_schema.yaml:97
 msgid "File the SkyEye log is replicated to."
 msgstr "Datei, in die das SkyEye-Log repliziert wird."
 
 #. realweather_schema:schema;instance_realweather_schema.api.custom.file
 #. realweather_schema:schema;node_realweather_schema.api.custom.file
-#: extensions/realweather/schemas/realweather_schema.yaml:208
-#: extensions/realweather/schemas/realweather_schema.yaml:444
+#: extensions/realweather/schemas/realweather_schema.yaml:213
+#: extensions/realweather/schemas/realweather_schema.yaml:449
 msgid "File the custom weather data is read from."
 msgstr "Datei, aus der die benutzerdefinierten Wetterdaten gelesen werden."
 
@@ -2537,7 +2543,7 @@ msgid "Filters that define which players the highscore includes."
 msgstr "Filter, die festlegen, welche Spieler der Highscore umfasst."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.icao
-#: extensions/realweather/schemas/realweather_schema.yaml:552
+#: extensions/realweather/schemas/realweather_schema.yaml:557
 msgid "Fixed ICAO station the weather is taken from."
 msgstr "Feste ICAO-Station, von der das Wetter genommen wird."
 
@@ -2562,12 +2568,12 @@ msgid "Fog configuration, either automatic or time-keyed."
 msgstr "Nebelkonfiguration, entweder automatisch oder zeitgesteuert."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog.mode
-#: extensions/realweather/schemas/realweather_schema.yaml:759
+#: extensions/realweather/schemas/realweather_schema.yaml:764
 msgid "Fog generation mode."
 msgstr "Modus der Nebelerzeugung."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog
-#: extensions/realweather/schemas/realweather_schema.yaml:744
+#: extensions/realweather/schemas/realweather_schema.yaml:749
 msgid "Fog generation."
 msgstr "Nebelerzeugung."
 
@@ -2619,7 +2625,7 @@ msgid "Folder where Moose AIRBOSS writes its trapsheets."
 msgstr "Ordner, in den Moose AIRBOSS seine Trapsheets schreibt."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce.footer
-#: extensions/lotatc/schemas/lotatc_schema.yaml:58
+#: extensions/lotatc/schemas/lotatc_schema.yaml:63
 msgid "Footer text of the update announcement embed."
 msgstr "Fußzeilentext des Update-Ankündigungs-Embeds."
 
@@ -2635,8 +2641,8 @@ msgstr "Anteil der Punkte, der nach diesen Tagen erhalten bleibt."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewDataCaptureMode
 #. tacview_schema:schema;node_tacview_schema.tacviewDataCaptureMode
-#: extensions/tacview/schemas/tacview_schema.yaml:110
-#: extensions/tacview/schemas/tacview_schema.yaml:241
+#: extensions/tacview/schemas/tacview_schema.yaml:115
+#: extensions/tacview/schemas/tacview_schema.yaml:246
 msgid "Frame interval Tacview records at (1 = every frame)."
 msgstr "Frame-Intervall, in dem Tacview aufzeichnet (1 = jeder Frame)."
 
@@ -2676,32 +2682,32 @@ msgid "GameMaster admin channel; falls back to the central one."
 msgstr "GameMaster-Admin-Kanal; fällt auf den zentralen zurück."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.pressure.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:835
+#: extensions/realweather/schemas/realweather_schema.yaml:840
 msgid "Generate air pressure for the mission."
 msgstr "Luftdruck für die Mission erzeugen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:654
+#: extensions/realweather/schemas/realweather_schema.yaml:659
 msgid "Generate clouds for the mission."
 msgstr "Wolken für die Mission erzeugen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.dust.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:797
+#: extensions/realweather/schemas/realweather_schema.yaml:802
 msgid "Generate dust for the mission."
 msgstr "Staub für die Mission erzeugen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:753
+#: extensions/realweather/schemas/realweather_schema.yaml:758
 msgid "Generate fog for the mission."
 msgstr "Nebel für die Mission erzeugen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.temperature.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:822
+#: extensions/realweather/schemas/realweather_schema.yaml:827
 msgid "Generate temperature for the mission."
 msgstr "Temperatur für die Mission erzeugen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:587
+#: extensions/realweather/schemas/realweather_schema.yaml:592
 msgid "Generate wind for the mission."
 msgstr "Wind für die Mission erzeugen."
 
@@ -2766,7 +2772,7 @@ msgid "Group name or Lua pattern that this restriction matches."
 msgstr "Gruppenname oder Lua-Muster, auf das diese Einschränkung zutrifft."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.group
-#: extensions/olympus/schemas/olympus_schema.yaml:262
+#: extensions/olympus/schemas/olympus_schema.yaml:267
 msgid "Group sent in the authentication header."
 msgstr "Gruppe, die im Authentifizierungs-Header gesendet wird."
 
@@ -2776,7 +2782,7 @@ msgid "Grow a process only above this load per assigned core."
 msgstr "Einen Prozess nur oberhalb dieser Last pro zugewiesenem Kern erweitern."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).proxyHeader
-#: extensions/olympus/schemas/olympus_schema.yaml:336
+#: extensions/olympus/schemas/olympus_schema.yaml:341
 msgid "HTTP header used to detect the client behind a proxy."
 msgstr "HTTP-Header zum Erkennen des Clients hinter einem Proxy."
 
@@ -2831,12 +2837,12 @@ msgid "Hide this preset from the mission editor's menu."
 msgstr "Dieses Preset aus dem Menü des Missionseditors ausblenden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.direction-maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:629
+#: extensions/realweather/schemas/realweather_schema.yaml:634
 msgid "Highest wind direction in degrees."
 msgstr "Höchste Windrichtung in Grad."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).maxZoom
-#: extensions/olympus/schemas/olympus_schema.yaml:311
+#: extensions/olympus/schemas/olympus_schema.yaml:316
 msgid "Highest zoom level this map layer is shown at."
 msgstr "Höchste Zoomstufe, bei der diese Kartenebene angezeigt wird."
 
@@ -2857,18 +2863,18 @@ msgstr "Hostname des Cloud-Dienstes."
 
 #. tacview_schema:schema;instance_tacview_schema.host
 #. tacview_schema:schema;node_tacview_schema.host
-#: extensions/tacview/schemas/tacview_schema.yaml:22 extensions/tacview/schemas/tacview_schema.yaml:137
+#: extensions/tacview/schemas/tacview_schema.yaml:27 extensions/tacview/schemas/tacview_schema.yaml:142
 msgid "Hostname or IP shown to players for the telemetry."
 msgstr "Hostname oder IP, die den Spielern für die Telemetrie angezeigt wird."
 
 #. srs_schema:schema;instance_srs_schema.host
 #. srs_schema:schema;node_srs_schema.host
-#: extensions/srs/schemas/srs_schema.yaml:115 extensions/srs/schemas/srs_schema.yaml:217
+#: extensions/srs/schemas/srs_schema.yaml:120 extensions/srs/schemas/srs_schema.yaml:222
 msgid "Hostname or IP written into the SRS autoconnect script."
 msgstr "Hostname oder IP, die in das SRS-autoconnect-Skript geschrieben wird."
 
 #. lotatc_schema:schema;instance_lotatc_schema.host
-#: extensions/lotatc/schemas/lotatc_schema.yaml:92
+#: extensions/lotatc/schemas/lotatc_schema.yaml:97
 msgid "Hostname shown in the status embed instead of the public IP."
 msgstr "Hostname, der im Status-Embed statt der öffentlichen IP angezeigt wird."
 
@@ -2904,7 +2910,7 @@ msgstr "Wie die Nachricht angezeigt wird, im Chat oder als Popup."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_observer
 #. servers_schema:regex;(.+).autoscan_observer
-#: schemas/nodes_schema.yaml:450 schemas/servers_schema.yaml:495
+#: schemas/nodes_schema.yaml:450 schemas/servers_schema.yaml:501
 msgid ""
 "How the missions folder is watched. auto uses polling when the folder is a network share (UNC, "
 "mapped drive or a junction into one) and file notifications otherwise."
@@ -2929,12 +2935,12 @@ msgid "Human-readable Discord guild/server name."
 msgstr "Lesbarer Discord-Gilden-/Servername."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.icao-list.[0]
-#: extensions/realweather/schemas/realweather_schema.yaml:566
+#: extensions/realweather/schemas/realweather_schema.yaml:571
 msgid "ICAO station code."
 msgstr "ICAO-Stationscode."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.icao-list
-#: extensions/realweather/schemas/realweather_schema.yaml:557
+#: extensions/realweather/schemas/realweather_schema.yaml:562
 msgid "ICAO stations to pick weather from; exclusive with icao."
 msgstr "ICAO-Stationen, aus denen Wetter gewählt wird; alternativ zu icao."
 
@@ -2949,12 +2955,12 @@ msgid "IP address the DCS server binds its network interface to."
 msgstr "IP-Adresse, an die der DCS-Server seine Netzwerkschnittstelle bindet."
 
 #. lardoon_schema:schema;node_lardoon_schema.bind
-#: extensions/lardoon/schemas/lardoon_schema.yaml:38
+#: extensions/lardoon/schemas/lardoon_schema.yaml:43
 msgid "IP and port the Lardoon server is listening to."
 msgstr "IP und Port, auf denen der Lardoon-Server lauscht."
 
 #. lardoon_schema:schema;instance_lardoon_schema.bind
-#: extensions/lardoon/schemas/lardoon_schema.yaml:102
+#: extensions/lardoon/schemas/lardoon_schema.yaml:107
 msgid "IP and port this instance listens to; needed if not single process."
 msgstr "IP und Port, auf denen diese Instanz lauscht; nötig, wenn nicht Single Process."
 
@@ -2969,12 +2975,12 @@ msgid "Id of a shipped palette preset; at most one theme source may be set."
 msgstr "Id eines mitgelieferten Paletten-Presets; höchstens eine Theme-Quelle darf gesetzt sein."
 
 #. webservice_schema:DEFAULT.auth
-#: services/webservice/schemas/webservice_schema.yaml:504
+#: services/webservice/schemas/webservice_schema.yaml:508
 msgid "Identity layer of the admin web UI; optional."
 msgstr "Identitätsschicht des Admin-Web-UIs; optional."
 
 #. servers_schema:regex;(.+).chat_log
-#: schemas/servers_schema.yaml:668
+#: schemas/servers_schema.yaml:674
 msgid "In-game chat log written to disk for abuse checks."
 msgstr "In-Game-Chatprotokoll, das für Missbrauchsprüfungen auf die Festplatte geschrieben wird."
 
@@ -2989,19 +2995,19 @@ msgid "Inbound network bandwidth limit per client in bytes/s."
 msgstr "Eingehendes Netzwerk-Bandbreitenlimit pro Client in Bytes/s."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:545
+#: extensions/realweather/schemas/realweather_schema.yaml:550
 msgid "Inject real-world weather into the mission."
 msgstr "Echtweltwetter in die Mission einspielen."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:619
+#: services/webservice/schemas/webservice_schema.yaml:623
 #, fuzzy
 msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "Inline-Discord-Client-Secret; wird verwendet, wenn kein Schlüssel gesetzt ist."
 
 #. srs_schema:schema;instance_srs_schema.autoconnect
 #. srs_schema:schema;node_srs_schema.autoconnect
-#: extensions/srs/schemas/srs_schema.yaml:163 extensions/srs/schemas/srs_schema.yaml:303
+#: extensions/srs/schemas/srs_schema.yaml:168 extensions/srs/schemas/srs_schema.yaml:308
 msgid "Install the SRS autoconnect script for the players."
 msgstr "Das SRS-autoconnect-Skript für die Spieler installieren."
 
@@ -3026,12 +3032,12 @@ msgid "Interface the HTTP server binds to."
 msgstr "Schnittstelle, an die sich der HTTP-Server bindet."
 
 #. skyeye_schema:schema;skyeye_config.auto-picture-interval
-#: extensions/skyeye/schemas/skyeye_schema.yaml:176
+#: extensions/skyeye/schemas/skyeye_schema.yaml:181
 msgid "Interval between automatic pictures."
 msgstr "Intervall zwischen automatischen Lagebildern."
 
 #. skyeye_schema:schema;skyeye_config.threat-monitoring-interval
-#: extensions/skyeye/schemas/skyeye_schema.yaml:187
+#: extensions/skyeye/schemas/skyeye_schema.yaml:192
 msgid "Interval between threat checks."
 msgstr "Intervall zwischen Bedrohungsprüfungen."
 
@@ -3052,7 +3058,7 @@ msgstr ""
 
 #. srs_schema:schema;instance_srs_schema.no_shutdown
 #. srs_schema:schema;node_srs_schema.no_shutdown
-#: extensions/srs/schemas/srs_schema.yaml:152 extensions/srs/schemas/srs_schema.yaml:292
+#: extensions/srs/schemas/srs_schema.yaml:157 extensions/srs/schemas/srs_schema.yaml:297
 msgid "Keep SRS running when the DCS server shuts down."
 msgstr "SRS weiterlaufen lassen, wenn der DCS-Server heruntergefahren wird."
 
@@ -3132,12 +3138,12 @@ msgid "Label shown for this entry in the /download list."
 msgstr "Bezeichnung dieses Eintrags in der /download-Liste."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).lang
-#: services/webservice/schemas/webservice_schema.yaml:485
+#: services/webservice/schemas/webservice_schema.yaml:489
 msgid "Language the site renders in."
 msgstr ""
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).metrics
-#: services/webservice/schemas/webservice_schema.yaml:473
+#: services/webservice/schemas/webservice_schema.yaml:477
 msgid ""
 "Leaderboard metric ids the site offers; the board opens on the character's first choice among "
 "them, else the first one listed."
@@ -3153,12 +3159,12 @@ msgstr ""
 "ausgeliefert."
 
 #. servers_schema:regex;(.+).slot_spamming.check_time
-#: schemas/servers_schema.yaml:474
+#: schemas/servers_schema.yaml:480
 msgid "Length of the observation window in seconds."
 msgstr "Länge des Beobachtungsfensters in Sekunden."
 
 #. servers_schema:regex;(.+).coalitions.allow_players_pool
-#: schemas/servers_schema.yaml:701
+#: schemas/servers_schema.yaml:707
 msgid "Let players switch between unlocked coalitions."
 msgstr "Spielern erlauben, zwischen freigeschalteten Koalitionen zu wechseln."
 
@@ -3179,8 +3185,8 @@ msgstr "Den Bot Missionen im laufenden Betrieb ohne Neustart umschreiben lassen.
 
 #. realweather_schema:schema;instance_realweather_schema.api.custom.override
 #. realweather_schema:schema;node_realweather_schema.api.custom.override
-#: extensions/realweather/schemas/realweather_schema.yaml:213
-#: extensions/realweather/schemas/realweather_schema.yaml:449
+#: extensions/realweather/schemas/realweather_schema.yaml:218
+#: extensions/realweather/schemas/realweather_schema.yaml:454
 msgid "Let the custom provider override fetched weather."
 msgstr "Den benutzerdefinierten Anbieter abgerufenes Wetter überschreiben lassen."
 
@@ -3200,7 +3206,7 @@ msgid "Lifetime of DCS popup messages in seconds."
 msgstr "Lebensdauer von DCS-Popup-Nachrichten in Sekunden."
 
 #. servers_schema:regex;(.+).slot_spamming
-#: schemas/servers_schema.yaml:459
+#: schemas/servers_schema.yaml:465
 msgid "Limit how often a player may change slots."
 msgstr "Begrenzen, wie oft ein Spieler den Slot wechseln darf."
 
@@ -3210,19 +3216,19 @@ msgid "Live update settings of the read-only dashboard."
 msgstr "Einstellungen für Live-Updates der schreibgeschützten Übersicht."
 
 #. sneaker_schema:schema;node_sneaker_schema.bind
-#: extensions/sneaker/schemas/sneaker_schema.yaml:24
+#: extensions/sneaker/schemas/sneaker_schema.yaml:29
 msgid "Local address and port Sneaker listens on."
 msgstr "Lokale Adresse und Port, auf denen Sneaker lauscht."
 
 #. realweather_schema:schema;instance_realweather_schema.ignore_errors
 #. realweather_schema:schema;node_realweather_schema.ignore_errors
-#: extensions/realweather/schemas/realweather_schema.yaml:28
-#: extensions/realweather/schemas/realweather_schema.yaml:252
+#: extensions/realweather/schemas/realweather_schema.yaml:33
+#: extensions/realweather/schemas/realweather_schema.yaml:257
 msgid "Log Real Weather errors and continue instead of failing."
 msgstr "Real-Weather-Fehler protokollieren und fortfahren statt abzubrechen."
 
 #. tacview_schema:schema;instance_tacview_schema.log
-#: extensions/tacview/schemas/tacview_schema.yaml:142
+#: extensions/tacview/schemas/tacview_schema.yaml:147
 msgid "Log file Tacview writes saved-flight messages to."
 msgstr "Logdatei, in die Tacview Meldungen zu gespeicherten Flügen schreibt."
 
@@ -3238,8 +3244,8 @@ msgstr "Protokollierungskonfiguration für den Bot."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.log
 #. realweather_schema:schema;node_realweather_schema.realweather.log
-#: extensions/realweather/schemas/realweather_schema.yaml:47
-#: extensions/realweather/schemas/realweather_schema.yaml:285
+#: extensions/realweather/schemas/realweather_schema.yaml:52
+#: extensions/realweather/schemas/realweather_schema.yaml:290
 msgid "Logging of the DCS Real Weather process."
 msgstr "Protokollierung des DCS-Real-Weather-Prozesses."
 
@@ -3249,12 +3255,12 @@ msgid "Longer help text describing what the command does."
 msgstr "Längerer Hilfetext, der beschreibt, was der Befehl tut."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.direction-minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:623
+#: extensions/realweather/schemas/realweather_schema.yaml:628
 msgid "Lowest wind direction in degrees."
 msgstr "Niedrigste Windrichtung in Grad."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).minZoom
-#: extensions/olympus/schemas/olympus_schema.yaml:306
+#: extensions/olympus/schemas/olympus_schema.yaml:311
 msgid "Lowest zoom level this map layer is shown at."
 msgstr "Niedrigste Zoomstufe, bei der diese Kartenebene angezeigt wird."
 
@@ -3314,8 +3320,8 @@ msgstr "Maximale verwaltete Prozesse, die sich eine logische CPU teilen dürfen.
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.max-age
 #. realweather_schema:schema;node_realweather_schema.realweather.log.max-age
-#: extensions/realweather/schemas/realweather_schema.yaml:79
-#: extensions/realweather/schemas/realweather_schema.yaml:317
+#: extensions/realweather/schemas/realweather_schema.yaml:84
+#: extensions/realweather/schemas/realweather_schema.yaml:322
 msgid "Maximum age of a log file in days."
 msgstr "Maximales Alter einer Protokolldatei in Tagen."
 
@@ -3330,12 +3336,12 @@ msgid "Maximum allowed value of the parameter."
 msgstr "Maximal zulässiger Wert des Parameters."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.base.maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:680
+#: extensions/realweather/schemas/realweather_schema.yaml:685
 msgid "Maximum cloud base altitude in meters."
 msgstr "Maximale Wolkenuntergrenze in Metern."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.custom.density-maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:738
+#: extensions/realweather/schemas/realweather_schema.yaml:743
 msgid "Maximum cloud density (0-10)."
 msgstr "Maximale Wolkendichte (0-10)."
 
@@ -3370,7 +3376,7 @@ msgid "Maximum database connections allowed in the pool."
 msgstr "Maximale Datenbankverbindungen im Pool."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog.thickness-maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:771
+#: extensions/realweather/schemas/realweather_schema.yaml:776
 msgid "Maximum fog thickness in meters."
 msgstr "Maximale Nebeldicke in Metern."
 
@@ -3380,7 +3386,7 @@ msgid "Maximum gRPC throughput in bytes per second."
 msgstr "Maximaler gRPC-Durchsatz in Bytes pro Sekunde."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.gust-maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:611
+#: extensions/realweather/schemas/realweather_schema.yaml:616
 msgid "Maximum gust speed in meters per second."
 msgstr "Maximale Böengeschwindigkeit in Metern pro Sekunde."
 
@@ -3397,8 +3403,8 @@ msgstr "Maximale Leerlaufzeit einer gepoolten Datenbankverbindung."
 #. main_schema:logging.logrotate_size
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.max-size
 #. realweather_schema:schema;node_realweather_schema.realweather.log.max-size
-#: extensions/realweather/schemas/realweather_schema.yaml:69
-#: extensions/realweather/schemas/realweather_schema.yaml:307 schemas/main_schema.yaml:140
+#: extensions/realweather/schemas/realweather_schema.yaml:74
+#: extensions/realweather/schemas/realweather_schema.yaml:312 schemas/main_schema.yaml:140
 msgid "Maximum log file size in bytes before rotation."
 msgstr "Maximale Protokolldateigröße in Bytes vor der Rotation."
 
@@ -3407,15 +3413,15 @@ msgstr "Maximale Protokolldateigröße in Bytes vor der Rotation."
 #. sneaker_schema:schema;node_sneaker_schema.auto_affinity.max_cores
 #. srs_schema:schema;instance_srs_schema.auto_affinity.max_cores
 #. srs_schema:schema;node_srs_schema.auto_affinity.max_cores
-#: extensions/skyeye/schemas/skyeye_schema.yaml:48 extensions/sneaker/schemas/sneaker_schema.yaml:55
-#: extensions/sneaker/schemas/sneaker_schema.yaml:114 extensions/srs/schemas/srs_schema.yaml:47
-#: extensions/srs/schemas/srs_schema.yaml:244
+#: extensions/skyeye/schemas/skyeye_schema.yaml:53 extensions/sneaker/schemas/sneaker_schema.yaml:60
+#: extensions/sneaker/schemas/sneaker_schema.yaml:119 extensions/srs/schemas/srs_schema.yaml:52
+#: extensions/srs/schemas/srs_schema.yaml:249
 msgid "Maximum number of CPU cores to assign."
 msgstr "Maximale Anzahl zuzuweisender CPU-Kerne."
 
 #. lardoon_schema:schema;instance_lardoon_schema.auto_affinity.max_cores
 #. lardoon_schema:schema;node_lardoon_schema.auto_affinity.max_cores
-#: extensions/lardoon/schemas/lardoon_schema.yaml:64 extensions/lardoon/schemas/lardoon_schema.yaml:135
+#: extensions/lardoon/schemas/lardoon_schema.yaml:69 extensions/lardoon/schemas/lardoon_schema.yaml:140
 msgid "Maximum number of CPU cores to use."
 msgstr "Maximale Anzahl zu verwendender CPU-Kerne."
 
@@ -3436,7 +3442,7 @@ msgstr "Maximale Anzahl blauer Spieler, bei Nichtsetzung von Rot abgeleitet."
 
 #. olympus_schema:schema;instance_olympus_schema.auto_affinity.max_cores
 #. olympus_schema:schema;node_olympus_schema.auto_affinity.max_cores
-#: extensions/olympus/schemas/olympus_schema.yaml:89 extensions/olympus/schemas/olympus_schema.yaml:153
+#: extensions/olympus/schemas/olympus_schema.yaml:94 extensions/olympus/schemas/olympus_schema.yaml:158
 msgid "Maximum number of cores reserved for Node.js."
 msgstr "Maximale Anzahl für Node.js reservierter Kerne."
 
@@ -3476,22 +3482,22 @@ msgid "Maximum number of times this choice can be picked."
 msgstr "Maximale Anzahl, wie oft diese Auswahl getroffen werden kann."
 
 #. servers_schema:regex;(.+).chat_log.size
-#: schemas/servers_schema.yaml:682
+#: schemas/servers_schema.yaml:688
 msgid "Maximum size of a chat log file in bytes."
 msgstr "Maximale Größe einer Chatprotokoll-Datei in Bytes."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.dust.visibility-maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:809
+#: extensions/realweather/schemas/realweather_schema.yaml:814
 msgid "Maximum visibility in meters with dust."
 msgstr "Maximale Sichtweite in Metern bei Staub."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog.visibility-maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:783
+#: extensions/realweather/schemas/realweather_schema.yaml:788
 msgid "Maximum visibility in meters with fog."
 msgstr "Maximale Sichtweite in Metern bei Nebel."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.maximum
-#: extensions/realweather/schemas/realweather_schema.yaml:599
+#: extensions/realweather/schemas/realweather_schema.yaml:604
 msgid "Maximum wind speed in meters per second."
 msgstr "Maximale Windgeschwindigkeit in Metern pro Sekunde."
 
@@ -3542,12 +3548,12 @@ msgid "Message shown to banned players ({}) is replaced by the reason."
 msgstr "Nachricht für gebannte Spieler ({} wird durch den Grund ersetzt)."
 
 #. servers_schema:regex;(.+).afk.message
-#: schemas/servers_schema.yaml:389
+#: schemas/servers_schema.yaml:395
 msgid "Message shown to players kicked for being AFK."
 msgstr "Nachricht für Spieler, die wegen AFK gekickt wurden."
 
 #. servers_schema:regex;(.+).slot_spamming.message
-#: schemas/servers_schema.yaml:469
+#: schemas/servers_schema.yaml:475
 msgid "Message shown to players kicked for slot spamming."
 msgstr "Nachricht für Spieler, die wegen Slot-Spammings gekickt wurden."
 
@@ -3645,12 +3651,12 @@ msgid "Minimum allowed value of the parameter."
 msgstr "Minimal zulässiger Wert des Parameters."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.base.minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:674
+#: extensions/realweather/schemas/realweather_schema.yaml:679
 msgid "Minimum cloud base altitude in meters."
 msgstr "Minimale Wolkenuntergrenze in Metern."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.custom.density-minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:732
+#: extensions/realweather/schemas/realweather_schema.yaml:737
 msgid "Minimum cloud density (0-10)."
 msgstr "Minimale Wolkendichte (0-10)."
 
@@ -3675,12 +3681,12 @@ msgid "Minimum flight time in seconds for a valid landing."
 msgstr "Minimale Flugzeit in Sekunden für eine gültige Landung."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog.thickness-minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:765
+#: extensions/realweather/schemas/realweather_schema.yaml:770
 msgid "Minimum fog thickness in meters."
 msgstr "Minimale Nebeldicke in Metern."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.gust-minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:605
+#: extensions/realweather/schemas/realweather_schema.yaml:610
 msgid "Minimum gust speed in meters per second."
 msgstr "Minimale Böengeschwindigkeit in Metern pro Sekunde."
 
@@ -3709,21 +3715,21 @@ msgstr "Minimale Missionslaufzeit in Minuten vor einer Abstimmung."
 #. sneaker_schema:schema;node_sneaker_schema.auto_affinity.min_cores
 #. srs_schema:schema;instance_srs_schema.auto_affinity.min_cores
 #. srs_schema:schema;node_srs_schema.auto_affinity.min_cores
-#: extensions/skyeye/schemas/skyeye_schema.yaml:42 extensions/sneaker/schemas/sneaker_schema.yaml:49
-#: extensions/sneaker/schemas/sneaker_schema.yaml:108 extensions/srs/schemas/srs_schema.yaml:41
-#: extensions/srs/schemas/srs_schema.yaml:238
+#: extensions/skyeye/schemas/skyeye_schema.yaml:47 extensions/sneaker/schemas/sneaker_schema.yaml:54
+#: extensions/sneaker/schemas/sneaker_schema.yaml:113 extensions/srs/schemas/srs_schema.yaml:46
+#: extensions/srs/schemas/srs_schema.yaml:243
 msgid "Minimum number of CPU cores to assign."
 msgstr "Minimale Anzahl zuzuweisender CPU-Kerne."
 
 #. lardoon_schema:schema;instance_lardoon_schema.auto_affinity.min_cores
 #. lardoon_schema:schema;node_lardoon_schema.auto_affinity.min_cores
-#: extensions/lardoon/schemas/lardoon_schema.yaml:58 extensions/lardoon/schemas/lardoon_schema.yaml:129
+#: extensions/lardoon/schemas/lardoon_schema.yaml:63 extensions/lardoon/schemas/lardoon_schema.yaml:134
 msgid "Minimum number of CPU cores to use."
 msgstr "Minimale Anzahl zu verwendender CPU-Kerne."
 
 #. olympus_schema:schema;instance_olympus_schema.auto_affinity.min_cores
 #. olympus_schema:schema;node_olympus_schema.auto_affinity.min_cores
-#: extensions/olympus/schemas/olympus_schema.yaml:83 extensions/olympus/schemas/olympus_schema.yaml:147
+#: extensions/olympus/schemas/olympus_schema.yaml:88 extensions/olympus/schemas/olympus_schema.yaml:152
 msgid "Minimum number of cores reserved for Node.js."
 msgstr "Minimale Anzahl für Node.js reservierter Kerne."
 
@@ -3733,17 +3739,17 @@ msgid "Minimum number of database connections kept in the pool."
 msgstr "Minimale Anzahl an Datenbankverbindungen im Pool."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.dust.visibility-minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:803
+#: extensions/realweather/schemas/realweather_schema.yaml:808
 msgid "Minimum visibility in meters with dust."
 msgstr "Minimale Sichtweite in Metern bei Staub."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.fog.visibility-minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:777
+#: extensions/realweather/schemas/realweather_schema.yaml:782
 msgid "Minimum visibility in meters with fog."
 msgstr "Minimale Sichtweite in Metern bei Nebel."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.minimum
-#: extensions/realweather/schemas/realweather_schema.yaml:593
+#: extensions/realweather/schemas/realweather_schema.yaml:598
 msgid "Minimum wind speed in meters per second."
 msgstr "Minimale Windgeschwindigkeit in Metern pro Sekunde."
 
@@ -3758,7 +3764,7 @@ msgid "Minutes RAM must stay high before warning."
 msgstr "Minuten, die der RAM hoch bleiben muss, bevor gewarnt wird."
 
 #. servers_schema:regex;(.+).coalitions.lock_time
-#: schemas/servers_schema.yaml:696
+#: schemas/servers_schema.yaml:702
 msgid "Minutes a coalition stays locked after joining."
 msgstr "Minuten, die eine Koalition nach dem Beitritt gesperrt bleibt."
 
@@ -3768,12 +3774,12 @@ msgid "Minutes between checks for new donations."
 msgstr "Minuten zwischen Prüfungen auf neue Spenden."
 
 #. lardoon_schema:schema;node_lardoon_schema.minutes
-#: extensions/lardoon/schemas/lardoon_schema.yaml:32
+#: extensions/lardoon/schemas/lardoon_schema.yaml:37
 msgid "Minutes between updates of the Lardoon database."
 msgstr "Minuten zwischen Aktualisierungen der Lardoon-Datenbank."
 
 #. lardoon_schema:schema;instance_lardoon_schema.minutes
-#: extensions/lardoon/schemas/lardoon_schema.yaml:96
+#: extensions/lardoon/schemas/lardoon_schema.yaml:101
 msgid "Minutes between updates; only used if use_single_process is false."
 msgstr "Minuten zwischen Aktualisierungen; nur verwendet, wenn use_single_process false ist."
 
@@ -3803,7 +3809,7 @@ msgid "Miscellaneous options.lua settings to apply."
 msgstr "Verschiedene anzuwendende Einstellungen aus options.lua."
 
 #. realweather_schema:schema;instance_realweather_schema.options.date
-#: extensions/realweather/schemas/realweather_schema.yaml:509
+#: extensions/realweather/schemas/realweather_schema.yaml:514
 msgid "Mission date settings."
 msgstr "Einstellungen für das Missionsdatum."
 
@@ -3863,7 +3869,7 @@ msgid "Mission start time as seconds, 'HH:MM', or a named moment."
 msgstr "Missionsstartzeit als Sekunden, 'HH:MM' oder benannter Moment."
 
 #. realweather_schema:schema;instance_realweather_schema.options.time
-#: extensions/realweather/schemas/realweather_schema.yaml:482
+#: extensions/realweather/schemas/realweather_schema.yaml:487
 msgid "Mission start time settings."
 msgstr "Einstellungen für die Missionsstartzeit."
 
@@ -3920,13 +3926,13 @@ msgid "Multiplier applied to credits earned on proper landings."
 msgstr "Multiplikator für Guthaben aus korrekten Landungen."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.scale-factor
-#: extensions/realweather/schemas/realweather_schema.yaml:617
+#: extensions/realweather/schemas/realweather_schema.yaml:622
 msgid "Multiplier applied to the generated wind speed."
 msgstr "Multiplikator, der auf die erzeugte Windgeschwindigkeit angewendet wird."
 
 #. srs_schema:schema;instance_srs_schema.global_lobby_frequencies
 #. srs_schema:schema;node_srs_schema.global_lobby_frequencies
-#: extensions/srs/schemas/srs_schema.yaml:184 extensions/srs/schemas/srs_schema.yaml:324
+#: extensions/srs/schemas/srs_schema.yaml:189 extensions/srs/schemas/srs_schema.yaml:329
 msgid "Music frequencies available to all SRS clients."
 msgstr "Musikfrequenzen, die allen SRS-Clients zur Verfügung stehen."
 
@@ -3949,33 +3955,33 @@ msgstr "Name eines anderen Presets, das in dieses eingebunden wird."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.file
 #. realweather_schema:schema;node_realweather_schema.realweather.log.file
-#: extensions/realweather/schemas/realweather_schema.yaml:64
-#: extensions/realweather/schemas/realweather_schema.yaml:302
+#: extensions/realweather/schemas/realweather_schema.yaml:69
+#: extensions/realweather/schemas/realweather_schema.yaml:307
 msgid "Name of the Real Weather log file."
 msgstr "Name der Real-Weather-Protokolldatei."
 
 #. realweather_schema:schema;instance_realweather_schema.name
 #. realweather_schema:schema;node_realweather_schema.name
-#: extensions/realweather/schemas/realweather_schema.yaml:10
-#: extensions/realweather/schemas/realweather_schema.yaml:242
+#: extensions/realweather/schemas/realweather_schema.yaml:15
+#: extensions/realweather/schemas/realweather_schema.yaml:247
 msgid "Name of the RealWeather extension in status embeds."
 msgstr "Name der RealWeather-Erweiterung in Status-Embeds."
 
 #. srs_schema:schema;instance_srs_schema.name
 #. srs_schema:schema;node_srs_schema.name
-#: extensions/srs/schemas/srs_schema.yaml:9 extensions/srs/schemas/srs_schema.yaml:205
+#: extensions/srs/schemas/srs_schema.yaml:14 extensions/srs/schemas/srs_schema.yaml:210
 msgid "Name of the SRS extension in status embeds."
 msgstr "Name der SRS-Erweiterung in Status-Embeds."
 
 #. skyeye_schema:schema;node_skyeye_schema.name
 #. skyeye_schema:schema;skyeye_config.name
-#: extensions/skyeye/schemas/skyeye_schema.yaml:9 extensions/skyeye/schemas/skyeye_schema.yaml:70
+#: extensions/skyeye/schemas/skyeye_schema.yaml:14 extensions/skyeye/schemas/skyeye_schema.yaml:75
 msgid "Name of the SkyEye extension in status embeds."
 msgstr "Name der SkyEye-Erweiterung in Status-Embeds."
 
 #. sneaker_schema:schema;instance_sneaker_schema.name
 #. sneaker_schema:schema;node_sneaker_schema.name
-#: extensions/sneaker/schemas/sneaker_schema.yaml:9 extensions/sneaker/schemas/sneaker_schema.yaml:77
+#: extensions/sneaker/schemas/sneaker_schema.yaml:14 extensions/sneaker/schemas/sneaker_schema.yaml:82
 msgid "Name of the Sneaker extension in status embeds."
 msgstr "Name der Sneaker-Erweiterung in Status-Embeds."
 
@@ -3986,7 +3992,7 @@ msgstr "Name des zu verwendenden Supertonic-Stimmstils."
 
 #. tacview_schema:schema;instance_tacview_schema.name
 #. tacview_schema:schema;node_tacview_schema.name
-#: extensions/tacview/schemas/tacview_schema.yaml:10 extensions/tacview/schemas/tacview_schema.yaml:127
+#: extensions/tacview/schemas/tacview_schema.yaml:15 extensions/tacview/schemas/tacview_schema.yaml:132
 msgid "Name of the Tacview extension in status embeds."
 msgstr "Name der Tacview-Erweiterung in Status-Embeds."
 
@@ -4016,18 +4022,18 @@ msgid "Name of this radio as displayed in SRS."
 msgstr "Name dieses Funkgeräts, wie in SRS angezeigt."
 
 #. lotatc_schema:schema;node_lotatc_schema.name
-#: extensions/lotatc/schemas/lotatc_schema.yaml:10
+#: extensions/lotatc/schemas/lotatc_schema.yaml:15
 msgid "Name shown for the LotAtc extension in the server status embed."
 msgstr "Name, der für die LotAtc-Erweiterung im Serverstatus-Embed angezeigt wird."
 
 #. olympus_schema:schema;instance_olympus_schema.name
 #. olympus_schema:schema;node_olympus_schema.name
-#: extensions/olympus/schemas/olympus_schema.yaml:9 extensions/olympus/schemas/olympus_schema.yaml:117
+#: extensions/olympus/schemas/olympus_schema.yaml:14 extensions/olympus/schemas/olympus_schema.yaml:122
 msgid "Name shown for the Olympus extension in the server status embed."
 msgstr "Name, der für die Olympus-Erweiterung im Serverstatus-Embed angezeigt wird."
 
 #. lotatc_schema:schema;instance_lotatc_schema.name
-#: extensions/lotatc/schemas/lotatc_schema.yaml:86
+#: extensions/lotatc/schemas/lotatc_schema.yaml:91
 msgid "Name shown for this instance's LotAtc entry in the status embed."
 msgstr "Name, der für den LotAtc-Eintrag dieser Instanz im Status-Embed angezeigt wird."
 
@@ -4063,7 +4069,7 @@ msgstr "Die VIP-Gruppe benachrichtigen, wenn eines ihrer Mitglieder einem Server
 
 #. srs_schema:schema;instance_srs_schema.srs_nudge_message
 #. srs_schema:schema;node_srs_schema.srs_nudge_message
-#: extensions/srs/schemas/srs_schema.yaml:158 extensions/srs/schemas/srs_schema.yaml:298
+#: extensions/srs/schemas/srs_schema.yaml:163 extensions/srs/schemas/srs_schema.yaml:303
 msgid "Nudge message asking players to connect to SRS."
 msgstr "Erinnerungsnachricht, die Spieler auffordert, sich mit SRS zu verbinden."
 
@@ -4084,7 +4090,7 @@ msgid "Number of CPU threads each Supertonic synthesizer may use."
 msgstr "Anzahl der CPU-Threads, die jeder Supertonic-Synthesizer nutzen darf."
 
 #. servers_schema:regex;(.+).chat_log.count
-#: schemas/servers_schema.yaml:677
+#: schemas/servers_schema.yaml:683
 msgid "Number of chat log files kept on disk."
 msgstr "Anzahl der auf der Festplatte behaltenen Chatprotokoll-Dateien."
 
@@ -4125,8 +4131,8 @@ msgstr "Anzahl der pro Eintrag angezeigten Spieler."
 #. main_schema:logging.logrotate_count
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.max-backups
 #. realweather_schema:schema;node_realweather_schema.realweather.log.max-backups
-#: extensions/realweather/schemas/realweather_schema.yaml:74
-#: extensions/realweather/schemas/realweather_schema.yaml:312 schemas/main_schema.yaml:135
+#: extensions/realweather/schemas/realweather_schema.yaml:79
+#: extensions/realweather/schemas/realweather_schema.yaml:317 schemas/main_schema.yaml:135
 msgid "Number of rotated log files to keep."
 msgstr "Anzahl der aufzubewahrenden rotierten Protokolldateien."
 
@@ -4151,52 +4157,52 @@ msgid "OS process priority for DCS_Server.exe."
 msgstr "Betriebssystem-Prozesspriorität für DCS_Server.exe."
 
 #. lotatc_schema:schema;instance_lotatc_schema.dump_json_stats
-#: extensions/lotatc/schemas/lotatc_schema.yaml:120
+#: extensions/lotatc/schemas/lotatc_schema.yaml:125
 msgid "Obsolete: JSON statistics are now always written."
 msgstr "Veraltet: JSON-Statistiken werden jetzt immer geschrieben."
 
 #. lotatc_schema:schema;instance_lotatc_schema.dedicated_mode
-#: extensions/lotatc/schemas/lotatc_schema.yaml:114
+#: extensions/lotatc/schemas/lotatc_schema.yaml:119
 msgid "Obsolete: dedicated mode is now always enabled."
 msgstr "Veraltet: Der dedizierte Modus ist jetzt immer aktiviert."
 
 #. lotatc_schema:schema;instance_lotatc_schema.srs_path
-#: extensions/lotatc/schemas/lotatc_schema.yaml:127
+#: extensions/lotatc/schemas/lotatc_schema.yaml:132
 msgid "Obsolete: the SRS path is taken from the SRS extension."
 msgstr "Veraltet: Der SRS-Pfad stammt aus der SRS-Erweiterung."
 
 #. olympus_schema:schema;instance_olympus_schema.audio.SRSPort
-#: extensions/olympus/schemas/olympus_schema.yaml:350
+#: extensions/olympus/schemas/olympus_schema.yaml:355
 msgid "Obsolete: the SRS port is filled in from the SRS extension."
 msgstr "Veraltet: Der SRS-Port wird aus der SRS-Erweiterung übernommen."
 
 #. lotatc_schema:schema;instance_lotatc_schema.srs_server_port
-#: extensions/lotatc/schemas/lotatc_schema.yaml:140
+#: extensions/lotatc/schemas/lotatc_schema.yaml:145
 msgid "Obsolete: the SRS port is taken from the SRS extension."
 msgstr "Veraltet: Der SRS-Port stammt aus der SRS-Erweiterung."
 
 #. lotatc_schema:schema;instance_lotatc_schema.srs_server
-#: extensions/lotatc/schemas/lotatc_schema.yaml:134
+#: extensions/lotatc/schemas/lotatc_schema.yaml:139
 msgid "Obsolete: the SRS server address is taken from the SRS extension."
 msgstr "Veraltet: Die SRS-Serveradresse stammt aus der SRS-Erweiterung."
 
 #. lotatc_schema:schema;instance_lotatc_schema.srs_transponder_port
-#: extensions/lotatc/schemas/lotatc_schema.yaml:152
+#: extensions/lotatc/schemas/lotatc_schema.yaml:157
 msgid "Obsolete: the transponder port is taken from the SRS extension."
 msgstr "Veraltet: Der Transponder-Port stammt aus der SRS-Erweiterung."
 
 #. lotatc_schema:schema;instance_lotatc_schema.srs_use_transponder
-#: extensions/lotatc/schemas/lotatc_schema.yaml:146
+#: extensions/lotatc/schemas/lotatc_schema.yaml:151
 msgid "Obsolete: transponder usage is taken from the SRS extension."
 msgstr "Veraltet: Die Transponder-Nutzung stammt aus der SRS-Erweiterung."
 
 #. realweather_schema:schema;instance_realweather_schema.options.date.offset
-#: extensions/realweather/schemas/realweather_schema.yaml:530
+#: extensions/realweather/schemas/realweather_schema.yaml:535
 msgid "Offset applied to the mission date, e.g. 10d."
 msgstr "Versatz, der auf das Missionsdatum angewendet wird, z. B. 10d."
 
 #. realweather_schema:schema;instance_realweather_schema.options.time.offset
-#: extensions/realweather/schemas/realweather_schema.yaml:503
+#: extensions/realweather/schemas/realweather_schema.yaml:508
 msgid "Offset applied to the mission time, e.g. 0h5m."
 msgstr "Versatz, der auf die Missionszeit angewendet wird, z. B. 0h5m."
 
@@ -4211,7 +4217,7 @@ msgid "One entry per MCP client; every entry carries label, level and exactly on
 msgstr ""
 
 #. skyeye_schema:schema;skyeye_config.instances
-#: extensions/skyeye/schemas/skyeye_schema.yaml:260
+#: extensions/skyeye/schemas/skyeye_schema.yaml:265
 msgid "One entry per SkyEye instance, e.g. per coalition."
 msgstr "Ein Eintrag pro SkyEye-Instanz, z. B. pro Koalition."
 
@@ -4267,7 +4273,7 @@ msgid "Only grant credit points once the pilot is back at base."
 msgstr "Guthaben erst gewähren, wenn der Pilot zurück auf der Basis ist."
 
 #. servers_schema:regex;(.+).afk.threshold
-#: schemas/servers_schema.yaml:368
+#: schemas/servers_schema.yaml:374
 msgid "Only kick AFK players above this server fill percentage."
 msgstr "AFK-Spieler nur oberhalb dieser Serverauslastung in Prozent kicken."
 
@@ -4283,8 +4289,8 @@ msgstr "Die Befehlsausgabe nur dem Aufrufer anzeigen."
 
 #. realweather_schema:schema;instance_realweather_schema.api.openmeteo
 #. realweather_schema:schema;node_realweather_schema.api.openmeteo
-#: extensions/realweather/schemas/realweather_schema.yaml:219
-#: extensions/realweather/schemas/realweather_schema.yaml:455
+#: extensions/realweather/schemas/realweather_schema.yaml:224
+#: extensions/realweather/schemas/realweather_schema.yaml:460
 msgid "Open-Meteo provider settings."
 msgstr "Einstellungen des Anbieters Open-Meteo."
 
@@ -4314,7 +4320,7 @@ msgid "OpenAIP API key used to sync navigation fixes."
 msgstr "OpenAIP-API-Schlüssel, mit dem Navigationspunkte synchronisiert werden."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce
-#: extensions/lotatc/schemas/lotatc_schema.yaml:27
+#: extensions/lotatc/schemas/lotatc_schema.yaml:32
 msgid "Optional Discord message posted after every LotAtc update."
 msgstr "Optionale Discord-Nachricht, die nach jedem LotAtc-Update gepostet wird."
 
@@ -4330,7 +4336,7 @@ msgstr "Optionales Abzeichenbild, das zusammen mit der Rolle vergeben wird."
 
 #. lardoon_schema:schema;instance_lardoon_schema.auto_affinity
 #. lardoon_schema:schema;node_lardoon_schema.auto_affinity
-#: extensions/lardoon/schemas/lardoon_schema.yaml:48 extensions/lardoon/schemas/lardoon_schema.yaml:119
+#: extensions/lardoon/schemas/lardoon_schema.yaml:53 extensions/lardoon/schemas/lardoon_schema.yaml:124
 msgid "Optional core affinity settings for the Lardoon process."
 msgstr "Optionale Core-Affinity-Einstellungen für den Lardoon-Prozess."
 
@@ -4371,8 +4377,8 @@ msgstr "Optionaler Proxy für den Zugriff auf Discord."
 
 #. realweather_schema:schema;instance_realweather_schema.api.provider-priority
 #. realweather_schema:schema;node_realweather_schema.api.provider-priority
-#: extensions/realweather/schemas/realweather_schema.yaml:142
-#: extensions/realweather/schemas/realweather_schema.yaml:378
+#: extensions/realweather/schemas/realweather_schema.yaml:147
+#: extensions/realweather/schemas/realweather_schema.yaml:383
 msgid "Ordered providers Real Weather fetches weather from."
 msgstr "Geordnete Anbieter, von denen Real Weather Wetter abruft."
 
@@ -4397,12 +4403,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "Ausgehendes Netzwerk-Bandbreitenlimit pro Client in Bytes/s."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:558
+#: services/webservice/schemas/webservice_schema.yaml:562
 msgid "PBKDF2 hash of the account's password."
 msgstr "PBKDF2-Hash des Kontopassworts."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:678
+#: services/webservice/schemas/webservice_schema.yaml:682
 msgid "PBKDF2 hash of the emergency password."
 msgstr "PBKDF2-Hash des Notfallpassworts."
 
@@ -4433,30 +4439,30 @@ msgstr "Parameter, die dieser Befehl akzeptiert, nach Name geschlüsselt."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.blueCommanderPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.blueCommanderPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:55 extensions/olympus/schemas/olympus_schema.yaml:203
+#: extensions/olympus/schemas/olympus_schema.yaml:60 extensions/olympus/schemas/olympus_schema.yaml:208
 msgid "Password for the Blue Tactical Commander role."
 msgstr "Passwort für die Rolle Blue Tactical Commander."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.gameMasterPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.gameMasterPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:48 extensions/olympus/schemas/olympus_schema.yaml:196
+#: extensions/olympus/schemas/olympus_schema.yaml:53 extensions/olympus/schemas/olympus_schema.yaml:201
 msgid "Password for the Game Master role."
 msgstr "Passwort für die Rolle Game Master."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication.redCommanderPassword
 #. olympus_schema:schema;node_olympus_schema.authentication.redCommanderPassword
-#: extensions/olympus/schemas/olympus_schema.yaml:62 extensions/olympus/schemas/olympus_schema.yaml:210
+#: extensions/olympus/schemas/olympus_schema.yaml:67 extensions/olympus/schemas/olympus_schema.yaml:215
 msgid "Password for the Red Tactical Commander role."
 msgstr "Passwort für die Rolle Red Tactical Commander."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRemoteControlPassword
 #. tacview_schema:schema;node_tacview_schema.tacviewRemoteControlPassword
-#: extensions/tacview/schemas/tacview_schema.yaml:88 extensions/tacview/schemas/tacview_schema.yaml:219
+#: extensions/tacview/schemas/tacview_schema.yaml:93 extensions/tacview/schemas/tacview_schema.yaml:224
 msgid "Password for the Tacview remote control."
 msgstr "Passwort für die Tacview-Fernsteuerung."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.password
-#: extensions/olympus/schemas/olympus_schema.yaml:284
+#: extensions/olympus/schemas/olympus_schema.yaml:289
 msgid "Password for the elevation provider, if required."
 msgstr "Passwort für den Höhenanbieter, falls erforderlich."
 
@@ -4467,7 +4473,7 @@ msgstr "Passwort für den Proxy; in den Secret Store verschoben."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRealTimeTelemetryPassword
 #. tacview_schema:schema;node_tacview_schema.tacviewRealTimeTelemetryPassword
-#: extensions/tacview/schemas/tacview_schema.yaml:78 extensions/tacview/schemas/tacview_schema.yaml:203
+#: extensions/tacview/schemas/tacview_schema.yaml:83 extensions/tacview/schemas/tacview_schema.yaml:208
 msgid "Password for the telemetry stream."
 msgstr "Passwort für den Telemetrie-Stream."
 
@@ -4493,7 +4499,7 @@ msgstr "Passwort für die Authentifizierung am Proxy."
 
 #. olympus_schema:schema;instance_olympus_schema.authentication
 #. olympus_schema:schema;node_olympus_schema.authentication
-#: extensions/olympus/schemas/olympus_schema.yaml:37 extensions/olympus/schemas/olympus_schema.yaml:184
+#: extensions/olympus/schemas/olympus_schema.yaml:42 extensions/olympus/schemas/olympus_schema.yaml:189
 msgid "Passwords that guard the Olympus roles."
 msgstr "Passwörter, die die Olympus-Rollen schützen."
 
@@ -4508,12 +4514,12 @@ msgid "Path to the DCS World installation on this node."
 msgstr "Pfad zur DCS-World-Installation auf diesem Knoten."
 
 #. lardoon_schema:schema;node_lardoon_schema.cmd
-#: extensions/lardoon/schemas/lardoon_schema.yaml:27
+#: extensions/lardoon/schemas/lardoon_schema.yaml:32
 msgid "Path to the Lardoon executable."
 msgstr "Pfad zur Lardoon-Programmdatei."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).path
-#: extensions/olympus/schemas/olympus_schema.yaml:230
+#: extensions/olympus/schemas/olympus_schema.yaml:235
 msgid "Path to the Olympus frontend installation."
 msgstr "Pfad zur Olympus-Frontend-Installation."
 
@@ -4523,12 +4529,12 @@ msgid "Path to the Pretense player_stats JSON file."
 msgstr "Pfad zur JSON-Datei player_stats von Pretense."
 
 #. srs_schema:schema;instance_srs_schema.config
-#: extensions/srs/schemas/srs_schema.yaml:211
+#: extensions/srs/schemas/srs_schema.yaml:216
 msgid "Path to the SRS server.cfg used by this instance."
 msgstr "Pfad zur von dieser Instanz verwendeten SRS server.cfg."
 
 #. sneaker_schema:schema;node_sneaker_schema.cmd
-#: extensions/sneaker/schemas/sneaker_schema.yaml:17
+#: extensions/sneaker/schemas/sneaker_schema.yaml:22
 msgid "Path to the Sneaker executable."
 msgstr "Pfad zur ausführbaren Sneaker-Datei."
 
@@ -4560,22 +4566,22 @@ msgid "Path to your Google Cloud service account JSON file."
 msgstr "Pfad zur JSON-Datei des Google-Cloud-Dienstkontos."
 
 #. lotatc_schema:schema;node_lotatc_schema.installation
-#: extensions/lotatc/schemas/lotatc_schema.yaml:17
+#: extensions/lotatc/schemas/lotatc_schema.yaml:22
 msgid "Path to your LotAtc base installation."
 msgstr "Pfad zur LotAtc-Basisinstallation."
 
 #. olympus_schema:schema;node_olympus_schema.nodejs
-#: extensions/olympus/schemas/olympus_schema.yaml:16
+#: extensions/olympus/schemas/olympus_schema.yaml:21
 msgid "Path to your Node.js installation."
 msgstr "Pfad zur Node.js-Installation."
 
 #. skyeye_schema:schema;skyeye_config.config
-#: extensions/skyeye/schemas/skyeye_schema.yaml:104
+#: extensions/skyeye/schemas/skyeye_schema.yaml:109
 msgid "Path to your SkyEye configuration file."
 msgstr "Pfad zur SkyEye-Konfigurationsdatei."
 
 #. skyeye_schema:schema;skyeye_config.voice-playback-pause
-#: extensions/skyeye/schemas/skyeye_schema.yaml:165
+#: extensions/skyeye/schemas/skyeye_schema.yaml:170
 msgid "Pause played after each spoken sentence."
 msgstr "Pause, die nach jedem gesprochenen Satz abgespielt wird."
 
@@ -4652,7 +4658,7 @@ msgid "Per-squadron boards with their own display channel."
 msgstr "Boards pro Geschwader mit je eigenem Anzeigekanal."
 
 #. realweather_schema:schema;instance_realweather_schema.terrains
-#: extensions/realweather/schemas/realweather_schema.yaml:258
+#: extensions/realweather/schemas/realweather_schema.yaml:263
 msgid "Per-terrain option overrides, keyed by the DCS map name."
 msgstr "Optionsüberschreibungen pro Gelände, mit dem DCS-Kartennamen als Schlüssel."
 
@@ -4672,17 +4678,17 @@ msgid "Pick a random message from the list on every repeat."
 msgstr "Bei jeder Wiederholung eine zufällige Nachricht aus der Liste wählen."
 
 #. servers_schema:regex;(.+).ping_admin_on_crash
-#: schemas/servers_schema.yaml:484
+#: schemas/servers_schema.yaml:490
 msgid "Ping the DCS Admin role when the server crashes."
 msgstr "Die Rolle DCS Admin anpingen, wenn der Server abstürzt."
 
 #. skyeye_schema:schema;skyeye_config.affinity
-#: extensions/skyeye/schemas/skyeye_schema.yaml:98
+#: extensions/skyeye/schemas/skyeye_schema.yaml:103
 msgid "Pinned CPU cores for SkyEye (deprecated)."
 msgstr "Fest zugewiesene CPU-Kerne für SkyEye (veraltet)."
 
 #. sneaker_schema:schema;instance_sneaker_schema.affinity
-#: extensions/sneaker/schemas/sneaker_schema.yaml:93
+#: extensions/sneaker/schemas/sneaker_schema.yaml:98
 msgid "Pinned CPU cores for Sneaker (deprecated)."
 msgstr "Angeheftete CPU-Kerne für Sneaker (veraltet)."
 
@@ -4702,7 +4708,7 @@ msgid "Playback mode, 1 repeats the list, 2 shuffles it."
 msgstr "Wiedergabemodus, 1 wiederholt die Liste, 2 mischt sie."
 
 #. skyeye_schema:schema;skyeye_config.voice-playback-speed
-#: extensions/skyeye/schemas/skyeye_schema.yaml:159
+#: extensions/skyeye/schemas/skyeye_schema.yaml:164
 msgid "Playback speed of the SkyEye voice."
 msgstr "Wiedergabegeschwindigkeit der SkyEye-Stimme."
 
@@ -4712,7 +4718,7 @@ msgid "Playback volume between 0.0 and 1.0."
 msgstr "Wiedergabelautstärke zwischen 0.0 und 1.0."
 
 #. servers_schema:regex;(.+).afk.exemptions.ucid.[0]
-#: schemas/servers_schema.yaml:412
+#: schemas/servers_schema.yaml:418
 msgid "Player UCID exempt from AFK kicks."
 msgstr "Spieler-UCID, die von AFK-Kicks ausgenommen ist."
 
@@ -4809,17 +4815,17 @@ msgid "Popup when a song starts; holds {song}, {frequency}, {modulation}."
 msgstr "Popup, wenn ein Song startet; enthält {song}, {frequency}, {modulation}."
 
 #. srs_schema:schema;instance_srs_schema.lotatc_export_port
-#: extensions/srs/schemas/srs_schema.yaml:330
+#: extensions/srs/schemas/srs_schema.yaml:335
 msgid "Port SRS exports LotAtc data on."
 msgstr "Port, auf dem SRS LotAtc-Daten exportiert."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRealTimeTelemetryPort
-#: extensions/tacview/schemas/tacview_schema.yaml:198
+#: extensions/tacview/schemas/tacview_schema.yaml:203
 msgid "Port for the Tacview real-time telemetry."
 msgstr "Port für die Tacview-Echtzeittelemetrie."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRemoteControlPort
-#: extensions/tacview/schemas/tacview_schema.yaml:214
+#: extensions/tacview/schemas/tacview_schema.yaml:219
 msgid "Port for the Tacview remote control."
 msgstr "Port für die Tacview-Fernsteuerung."
 
@@ -4834,7 +4840,7 @@ msgid "Port of the NUT server."
 msgstr "Port des NUT-Servers."
 
 #. olympus_schema:schema;instance_olympus_schema.audio.WSPort
-#: extensions/olympus/schemas/olympus_schema.yaml:356
+#: extensions/olympus/schemas/olympus_schema.yaml:361
 msgid "Port of the Olympus audio backend WebSocket."
 msgstr "Port des Olympus-Audio-Backend-WebSocket."
 
@@ -4844,12 +4850,12 @@ msgid "Port of the cloud service."
 msgstr "Port des Cloud-Dienstes."
 
 #. srs_schema:schema;instance_srs_schema.http_server_port
-#: extensions/srs/schemas/srs_schema.yaml:341
+#: extensions/srs/schemas/srs_schema.yaml:346
 msgid "Port the SRS HTTP server listens on."
 msgstr "Port, auf dem der SRS-HTTP-Server lauscht."
 
 #. srs_schema:schema;instance_srs_schema.port
-#: extensions/srs/schemas/srs_schema.yaml:223
+#: extensions/srs/schemas/srs_schema.yaml:228
 msgid "Port the SRS server listens on."
 msgstr "Port, auf dem der SRS-Server lauscht."
 
@@ -4864,7 +4870,7 @@ msgid "Port the bot uses to communicate with this instance."
 msgstr "Port, über den der Bot mit dieser Instanz kommuniziert."
 
 #. skyeye_schema:schema;skyeye_config.auto-picture
-#: extensions/skyeye/schemas/skyeye_schema.yaml:170
+#: extensions/skyeye/schemas/skyeye_schema.yaml:175
 msgid "Post an automatic picture at regular intervals."
 msgstr "In regelmäßigen Abständen ein automatisches Lagebild posten."
 
@@ -5005,18 +5011,18 @@ msgid "Public IP of this node; set it only with a static IP."
 msgstr "Öffentliche IP dieses Knotens; nur bei einer statischen IP setzen."
 
 #. olympus_schema:schema;instance_olympus_schema.url
-#: extensions/olympus/schemas/olympus_schema.yaml:132
+#: extensions/olympus/schemas/olympus_schema.yaml:137
 msgid "Public URL of the Olympus frontend, if you have one."
 msgstr "Öffentliche URL des Olympus-Frontends, falls vorhanden."
 
 #. sneaker_schema:schema;instance_sneaker_schema.url
 #. sneaker_schema:schema;node_sneaker_schema.url
-#: extensions/sneaker/schemas/sneaker_schema.yaml:29 extensions/sneaker/schemas/sneaker_schema.yaml:87
+#: extensions/sneaker/schemas/sneaker_schema.yaml:34 extensions/sneaker/schemas/sneaker_schema.yaml:92
 msgid "Public URL shown to players instead of the server IP."
 msgstr "Öffentliche URL, die Spielern statt der Server-IP angezeigt wird."
 
 #. webservice_schema:DEFAULT.auth.public_base_url
-#: services/webservice/schemas/webservice_schema.yaml:516
+#: services/webservice/schemas/webservice_schema.yaml:520
 msgid "Public origin the console is reachable at."
 msgstr "Öffentlicher Origin, unter dem die Konsole erreichbar ist."
 
@@ -5051,7 +5057,7 @@ msgid "Radio type. Only SRSRadio is supported."
 msgstr "Funkgerätetyp. Nur SRSRadio wird unterstützt."
 
 #. skyeye_schema:schema;skyeye_config.mandatory-threat-radius
-#: extensions/skyeye/schemas/skyeye_schema.yaml:192
+#: extensions/skyeye/schemas/skyeye_schema.yaml:197
 msgid "Radius in nautical miles that always counts as a threat."
 msgstr "Radius in Seemeilen, der immer als Bedrohung zählt."
 
@@ -5067,15 +5073,15 @@ msgstr "Reaktionsrollen-Nachricht, die Rollen vergibt."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather
 #. realweather_schema:schema;node_realweather_schema.realweather
-#: extensions/realweather/schemas/realweather_schema.yaml:34
-#: extensions/realweather/schemas/realweather_schema.yaml:275
+#: extensions/realweather/schemas/realweather_schema.yaml:39
+#: extensions/realweather/schemas/realweather_schema.yaml:280
 msgid "Real Weather TOML overrides and log settings."
 msgstr "Real-Weather-TOML-Überschreibungen und Log-Einstellungen."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission
 #. realweather_schema:schema;node_realweather_schema.realweather.mission
-#: extensions/realweather/schemas/realweather_schema.yaml:96
-#: extensions/realweather/schemas/realweather_schema.yaml:334
+#: extensions/realweather/schemas/realweather_schema.yaml:101
+#: extensions/realweather/schemas/realweather_schema.yaml:339
 msgid "Real Weather mission processing options."
 msgstr "Optionen der Missionsverarbeitung von Real Weather."
 
@@ -5086,25 +5092,25 @@ msgstr "Grund, der auf Discord gebannten Spielern beim Beitreten eines Servers a
 
 #. tacview_schema:schema;instance_tacview_schema.alternate_recording
 #. tacview_schema:schema;node_tacview_schema.alternate_recording
-#: extensions/tacview/schemas/tacview_schema.yaml:32 extensions/tacview/schemas/tacview_schema.yaml:152
+#: extensions/tacview/schemas/tacview_schema.yaml:37 extensions/tacview/schemas/tacview_schema.yaml:157
 msgid "Record the flight with the bot's own recorder."
 msgstr "Den Flug mit dem eigenen Recorder des Bots aufzeichnen."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewMultiplayerFlightsAsClient
 #. tacview_schema:schema;node_tacview_schema.tacviewMultiplayerFlightsAsClient
-#: extensions/tacview/schemas/tacview_schema.yaml:63 extensions/tacview/schemas/tacview_schema.yaml:182
+#: extensions/tacview/schemas/tacview_schema.yaml:68 extensions/tacview/schemas/tacview_schema.yaml:187
 msgid "Recording mode for multiplayer flights as client."
 msgstr "Aufzeichnungsmodus für Multiplayer-Flüge als Client."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewMultiplayerFlightsAsHost
 #. tacview_schema:schema;node_tacview_schema.tacviewMultiplayerFlightsAsHost
-#: extensions/tacview/schemas/tacview_schema.yaml:68 extensions/tacview/schemas/tacview_schema.yaml:187
+#: extensions/tacview/schemas/tacview_schema.yaml:73 extensions/tacview/schemas/tacview_schema.yaml:192
 msgid "Recording mode for multiplayer flights as host."
 msgstr "Aufzeichnungsmodus für Multiplayer-Flüge als Host."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewSinglePlayerFlights
 #. tacview_schema:schema;node_tacview_schema.tacviewSinglePlayerFlights
-#: extensions/tacview/schemas/tacview_schema.yaml:93 extensions/tacview/schemas/tacview_schema.yaml:224
+#: extensions/tacview/schemas/tacview_schema.yaml:98 extensions/tacview/schemas/tacview_schema.yaml:229
 msgid "Recording mode for single player flights."
 msgstr "Aufzeichnungsmodus für Einzelspielerflüge."
 
@@ -5165,13 +5171,13 @@ msgstr "KI-Chatnachrichten in den Discord-Chat-Kanal weiterleiten."
 
 #. srs_schema:schema;instance_srs_schema.debug
 #. srs_schema:schema;node_srs_schema.debug
-#: extensions/srs/schemas/srs_schema.yaml:125 extensions/srs/schemas/srs_schema.yaml:265
+#: extensions/srs/schemas/srs_schema.yaml:130 extensions/srs/schemas/srs_schema.yaml:270
 msgid "Replicate the SRS console output into the bot log."
 msgstr "Die SRS-Konsolenausgabe in das Bot-Log übernehmen."
 
 #. skyeye_schema:schema;node_skyeye_schema.debug
 #. skyeye_schema:schema;skyeye_config.debug
-#: extensions/skyeye/schemas/skyeye_schema.yaml:27 extensions/skyeye/schemas/skyeye_schema.yaml:75
+#: extensions/skyeye/schemas/skyeye_schema.yaml:32 extensions/skyeye/schemas/skyeye_schema.yaml:80
 msgid "Replicate the SkyEye console log into the bot log."
 msgstr "Das SkyEye-Konsolenlog in das Bot-Log replizieren."
 
@@ -5202,7 +5208,7 @@ msgid "Require a landing event to auto-complete a task."
 msgstr "Ein Landeereignis erfordern, um eine Aufgabe automatisch abzuschließen."
 
 #. servers_schema:regex;(.+).accept_rules_on_join
-#: schemas/servers_schema.yaml:563
+#: schemas/servers_schema.yaml:569
 msgid "Require acknowledgement of the rules on join."
 msgstr "Bestätigung der Regeln beim Beitritt verlangen."
 
@@ -5212,7 +5218,7 @@ msgid "Require both credits and playtime instead of either."
 msgstr "Sowohl Guthaben als auch Spielzeit verlangen statt eines von beiden."
 
 #. servers_schema:regex;(.+).force_voice
-#: schemas/servers_schema.yaml:550
+#: schemas/servers_schema.yaml:556
 msgid "Require players to join a Discord voice channel."
 msgstr "Spieler müssen einem Discord-Sprachkanal beitreten."
 
@@ -5257,7 +5263,7 @@ msgid "Retries to connect to the database on startup."
 msgstr "Verbindungsversuche zur Datenbank beim Start."
 
 #. servers_schema:regex;(.+).mission_rewrite
-#: schemas/servers_schema.yaml:342
+#: schemas/servers_schema.yaml:348
 msgid "Rewrite the mission file before loading it."
 msgstr "Die Missionsdatei vor dem Laden neu schreiben."
 
@@ -5282,7 +5288,7 @@ msgid "Role given while a member is online on a server."
 msgstr "Rolle, die vergeben wird, während ein Mitglied auf einem Server online ist."
 
 #. servers_schema:regex;(.+).autorole
-#: schemas/servers_schema.yaml:535
+#: schemas/servers_schema.yaml:541
 msgid "Role granted to players online on this server."
 msgstr "Rolle, die online befindlichen Spielern auf diesem Server gewährt wird."
 
@@ -5297,18 +5303,18 @@ msgid "Role mentioned in the welcome message."
 msgstr "Rolle, die in der Begrüßungsnachricht erwähnt wird."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:565
+#: services/webservice/schemas/webservice_schema.yaml:569
 msgid "Role names granted to this account, validated at startup."
 msgstr "Rollennamen, die diesem Konto gewährt werden, beim Start geprüft."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce.mention.[0]
 #. nodes_schema:regex;(.+).DCS.announce.mention.[0]
-#: extensions/lotatc/schemas/lotatc_schema.yaml:69 schemas/nodes_schema.yaml:314
+#: extensions/lotatc/schemas/lotatc_schema.yaml:74 schemas/nodes_schema.yaml:314
 msgid "Role or user name to mention."
 msgstr "Rolle oder Benutzername, der erwähnt werden soll."
 
 #. srs_schema:schema;node_srs_schema.announce.mention.[0]
-#: extensions/srs/schemas/srs_schema.yaml:99
+#: extensions/srs/schemas/srs_schema.yaml:104
 msgid "Role or user to mention."
 msgstr "Rolle oder Benutzer, die/der erwähnt wird."
 
@@ -5368,7 +5374,7 @@ msgid "Roles granted this capability in addition to the declared ones."
 msgstr ""
 
 #. srs_schema:schema;node_srs_schema.announce.mention
-#: extensions/srs/schemas/srs_schema.yaml:92
+#: extensions/srs/schemas/srs_schema.yaml:97
 msgid "Roles or users mentioned in the announcement."
 msgstr "Rollen oder Benutzer, die in der Ankündigung erwähnt werden."
 
@@ -5393,7 +5399,7 @@ msgid "Rule that decides whether a voting passes."
 msgstr "Regel, die entscheidet, ob eine Abstimmung durchgeht."
 
 #. servers_schema:regex;(.+).rules
-#: schemas/servers_schema.yaml:556
+#: schemas/servers_schema.yaml:562
 msgid "Rules text displayed to new players (needs MissionStats)."
 msgstr "Regeltext für neue Spieler (benötigt MissionStats)."
 
@@ -5403,7 +5409,7 @@ msgid "Rules used to detect automatic task delivery."
 msgstr "Regeln, mit denen die automatische Aufgabenlieferung erkannt wird."
 
 #. lardoon_schema:schema;node_lardoon_schema.master_only
-#: extensions/lardoon/schemas/lardoon_schema.yaml:19
+#: extensions/lardoon/schemas/lardoon_schema.yaml:24
 msgid "Run a single Lardoon instance on the master node when clustered."
 msgstr "Bei Clusterbetrieb eine einzelne Lardoon-Instanz auf dem Master-Knoten ausführen."
 
@@ -5423,12 +5429,12 @@ msgid "Run the command through the shell; needed for bat or cmd."
 msgstr "Den Befehl über die Shell ausführen; nötig für bat oder cmd."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.runway-elevation
-#: extensions/realweather/schemas/realweather_schema.yaml:572
+#: extensions/realweather/schemas/realweather_schema.yaml:577
 msgid "Runway elevation in meters, used for the QNH."
 msgstr "Startbahnhöhe in Metern, verwendet für das QNH."
 
 #. olympus_schema:schema;instance_olympus_schema.audio
-#: extensions/olympus/schemas/olympus_schema.yaml:341
+#: extensions/olympus/schemas/olympus_schema.yaml:346
 msgid "SRS audio settings for the Olympus web client (Olympus 2.0)."
 msgstr "SRS-Audio-Einstellungen für den Olympus-Web-Client (Olympus 2.0)."
 
@@ -5438,17 +5444,17 @@ msgid "SRS channel the music is played on."
 msgstr "SRS-Kanal, auf dem die Musik abgespielt wird."
 
 #. skyeye_schema:schema;skyeye_config.srs-eam-password
-#: extensions/skyeye/schemas/skyeye_schema.yaml:230
+#: extensions/skyeye/schemas/skyeye_schema.yaml:235
 msgid "SRS external AWACS password, set automatically (deprecated)."
 msgstr "SRS-External-AWACS-Passwort, automatisch gesetzt (veraltet)."
 
 #. skyeye_schema:schema;skyeye_config.srs-frequencies
-#: extensions/skyeye/schemas/skyeye_schema.yaml:235
+#: extensions/skyeye/schemas/skyeye_schema.yaml:240
 msgid "SRS frequencies SkyEye broadcasts on."
 msgstr "SRS-Frequenzen, auf denen SkyEye sendet."
 
 #. skyeye_schema:schema;skyeye_config.srs-server-address
-#: extensions/skyeye/schemas/skyeye_schema.yaml:223
+#: extensions/skyeye/schemas/skyeye_schema.yaml:228
 msgid "SRS server address, set automatically (deprecated)."
 msgstr "SRS-Serveradresse, automatisch gesetzt (veraltet)."
 
@@ -5458,7 +5464,7 @@ msgid "Scale credit rewards by the TrueSkill rating difference."
 msgstr "Credit-Belohnungen an der TrueSkill-Wertungsdifferenz skalieren."
 
 #. servers_schema:regex;(.+).autoscan
-#: schemas/servers_schema.yaml:489
+#: schemas/servers_schema.yaml:495
 msgid "Scan for new missions and auto-add them to the list."
 msgstr "Nach neuen Missionen suchen und sie automatisch zur Liste hinzufügen."
 
@@ -5468,18 +5474,18 @@ msgid "Scheduled actions and the cron times they run at."
 msgstr "Geplante Aktionen und die Cron-Zeiten, zu denen sie laufen."
 
 #. servers_schema:regex;(.+).smooth_pause
-#: schemas/servers_schema.yaml:540
+#: schemas/servers_schema.yaml:546
 msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Sekunden, die ein Server mit PAUSE beim Start läuft, bevor er erneut pausiert."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:640
+#: services/webservice/schemas/webservice_schema.yaml:644
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Sekunden, die eine Mitgliederauflösung ohne die Intent zwischengespeichert wird."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_stable_timeout
 #. servers_schema:regex;(.+).autoscan_stable_timeout
-#: schemas/nodes_schema.yaml:462 schemas/servers_schema.yaml:507
+#: schemas/nodes_schema.yaml:462 schemas/servers_schema.yaml:513
 msgid "Seconds a new mission file may keep growing before autoscan gives up on it."
 msgstr ""
 "Sekunden, die eine neue Missionsdatei weiter wachsen darf, bevor die automatische Suche sie "
@@ -5515,7 +5521,7 @@ msgid "Seconds after death before a player is kicked."
 msgstr "Sekunden nach dem Tod, bevor ein Spieler gekickt wird."
 
 #. servers_schema:regex;(.+).afk.afk_time
-#: schemas/servers_schema.yaml:357
+#: schemas/servers_schema.yaml:363
 msgid "Seconds before a player counts as AFK (-1 disables)."
 msgstr "Sekunden, bevor ein Spieler als AFK gilt (-1 deaktiviert)."
 
@@ -5561,7 +5567,7 @@ msgstr "Sekunden zwischen den Heartbeats von Master und Agent."
 
 #. nodes_schema:regex;(.+).instances.regex;(.+).autoscan_poll_interval
 #. servers_schema:regex;(.+).autoscan_poll_interval
-#: schemas/nodes_schema.yaml:456 schemas/servers_schema.yaml:501
+#: schemas/nodes_schema.yaml:456 schemas/servers_schema.yaml:507
 msgid "Seconds between polls of the missions folder (polling observer only)."
 msgstr "Sekunden zwischen den Abfragen des Missionsordners (nur Polling-Observer)."
 
@@ -5626,7 +5632,7 @@ msgid "Seconds the voting stays open for players."
 msgstr "Sekunden, die die Abstimmung für Spieler offen bleibt."
 
 #. servers_schema:regex;(.+).lock_on_load
-#: schemas/servers_schema.yaml:545
+#: schemas/servers_schema.yaml:551
 msgid "Seconds to lock a server after a mission restart."
 msgstr "Sekunden, um einen Server nach einem Missionsneustart zu sperren."
 
@@ -5661,7 +5667,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Sekunden ohne gegnerischen Spieler, die das Match gewinnen."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:629
+#: services/webservice/schemas/webservice_schema.yaml:633
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Schlüssel im Secret Store mit dem Client-Secret; hat Vorrang vor inline."
 
@@ -5679,7 +5685,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "Anonyme Nutzungsstatistiken an den Cloud-Dienst senden."
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:651
+#: services/webservice/schemas/webservice_schema.yaml:655
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -5724,7 +5730,7 @@ msgid "Server(s) this command is restricted to."
 msgstr "Server, auf die dieser Befehl beschränkt ist."
 
 #. servers_schema:regex;(.+).channels.audit
-#: schemas/servers_schema.yaml:639
+#: schemas/servers_schema.yaml:645
 msgid "Server-specific channel for audit events."
 msgstr "Serverspezifischer Kanal für Audit-Ereignisse."
 
@@ -5787,12 +5793,12 @@ msgid "Shared key a valid JWT must carry to be accepted."
 msgstr "Gemeinsamer Schlüssel, den ein gültiges JWT tragen muss, um akzeptiert zu werden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.date.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:518
+#: extensions/realweather/schemas/realweather_schema.yaml:523
 msgid "Shift the mission date."
 msgstr "Das Missionsdatum verschieben."
 
 #. realweather_schema:schema;instance_realweather_schema.options.time.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:491
+#: extensions/realweather/schemas/realweather_schema.yaml:496
 msgid "Shift the mission start time."
 msgstr "Die Missionsstartzeit verschieben."
 
@@ -5807,7 +5813,7 @@ msgid "Short label shown in the board legend."
 msgstr "Kurzes Label, das in der Board-Legende angezeigt wird."
 
 #. servers_schema:regex;(.+).show_atis
-#: schemas/servers_schema.yaml:337
+#: schemas/servers_schema.yaml:343
 msgid "Show ATIS information in the join popup."
 msgstr "ATIS-Informationen im Beitritts-Popup anzeigen."
 
@@ -5835,41 +5841,41 @@ msgstr "Nur lokale Server auf dem Master-Knoten anzeigen."
 
 #. srs_schema:schema;instance_srs_schema.show_passwords
 #. srs_schema:schema;node_srs_schema.show_passwords
-#: extensions/srs/schemas/srs_schema.yaml:168 extensions/srs/schemas/srs_schema.yaml:308
+#: extensions/srs/schemas/srs_schema.yaml:173 extensions/srs/schemas/srs_schema.yaml:313
 msgid "Show the AWACS passwords in the status embed."
 msgstr "Die AWACS-Passwörter im Status-Embed anzeigen."
 
 #. lotatc_schema:schema;instance_lotatc_schema.show_passwords
-#: extensions/lotatc/schemas/lotatc_schema.yaml:103
+#: extensions/lotatc/schemas/lotatc_schema.yaml:108
 msgid "Show the GCI passwords in the server status embed."
 msgstr "Die GCI-Passwörter im Serverstatus-Embed anzeigen."
 
 #. lardoon_schema:schema;instance_lardoon_schema.debug
-#: extensions/lardoon/schemas/lardoon_schema.yaml:91
+#: extensions/lardoon/schemas/lardoon_schema.yaml:96
 msgid "Show the Lardoon console output in the DCSSB console."
 msgstr "Die Konsolenausgabe von Lardoon in der DCSSB-Konsole anzeigen."
 
 #. olympus_schema:schema;instance_olympus_schema.debug
 #. olympus_schema:schema;node_olympus_schema.debug
-#: extensions/olympus/schemas/olympus_schema.yaml:26 extensions/olympus/schemas/olympus_schema.yaml:122
+#: extensions/olympus/schemas/olympus_schema.yaml:31 extensions/olympus/schemas/olympus_schema.yaml:127
 msgid "Show the Olympus console output in the bot console."
 msgstr "Die Olympus-Konsolenausgabe in der Bot-Konsole anzeigen."
 
 #. olympus_schema:schema;instance_olympus_schema.show_passwords
 #. olympus_schema:schema;node_olympus_schema.show_passwords
-#: extensions/olympus/schemas/olympus_schema.yaml:31 extensions/olympus/schemas/olympus_schema.yaml:127
+#: extensions/olympus/schemas/olympus_schema.yaml:36 extensions/olympus/schemas/olympus_schema.yaml:132
 msgid "Show the Olympus passwords in the server status embed."
 msgstr "Die Olympus-Passwörter im Serverstatus-Embed anzeigen."
 
 #. sneaker_schema:schema;instance_sneaker_schema.debug
 #. sneaker_schema:schema;node_sneaker_schema.debug
-#: extensions/sneaker/schemas/sneaker_schema.yaml:34 extensions/sneaker/schemas/sneaker_schema.yaml:82
+#: extensions/sneaker/schemas/sneaker_schema.yaml:39 extensions/sneaker/schemas/sneaker_schema.yaml:87
 msgid "Show the Sneaker console output in the bot log."
 msgstr "Die Konsolenausgabe von Sneaker im Bot-Log anzeigen."
 
 #. tacview_schema:schema;instance_tacview_schema.show_passwords
 #. tacview_schema:schema;node_tacview_schema.show_passwords
-#: extensions/tacview/schemas/tacview_schema.yaml:27 extensions/tacview/schemas/tacview_schema.yaml:147
+#: extensions/tacview/schemas/tacview_schema.yaml:32 extensions/tacview/schemas/tacview_schema.yaml:152
 msgid "Show the Tacview passwords in the status embed."
 msgstr "Die Tacview-Passwörter im Status-Embed anzeigen."
 
@@ -5882,6 +5888,15 @@ msgstr "Das Missionsstatistik-Embed in einem Status-Kanal anzeigen."
 #: schemas/servers_schema.yaml:332
 msgid "Show the server password in the status embed."
 msgstr "Das Serverpasswort im Status-Embed anzeigen."
+
+#. servers_schema:regex;(.+).show_web_passwords
+#: schemas/servers_schema.yaml:337
+msgid ""
+"Show the server password on the public site. Applies to the public site only; the Discord status "
+"embed keeps its own setting (show_passwords)."
+msgstr ""
+"Das Serverpasswort auf der öffentlichen Site anzeigen. Gilt nur für die öffentliche Site; das "
+"Discord-Status-Embed behält seine eigene Einstellung (show_passwords)."
 
 #. logistics_schema:schema;element_schema.markers.show_deadline
 #: plugins/logistics/schemas/logistics_schema.yaml:92
@@ -5919,7 +5934,7 @@ msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "Seite, für die diese Einschränkung gilt: 0 beide, 1 rot, 2 blau."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
-#: extensions/olympus/schemas/olympus_schema.yaml:241
+#: extensions/olympus/schemas/olympus_schema.yaml:246
 msgid "Single sign-on header configuration (Olympus 2.0)."
 msgstr "Konfiguration der Single-Sign-on-Header (Olympus 2.0)."
 
@@ -5934,7 +5949,7 @@ msgid "Single-character prefix used for legacy chat commands."
 msgstr "Ein-Zeichen-Präfix für alte Chat-Befehle."
 
 #. servers_schema:regex;(.+).no_coalition_chat
-#: schemas/servers_schema.yaml:716
+#: schemas/servers_schema.yaml:722
 msgid "Skip replicating red and blue chats to Discord."
 msgstr "Das Weiterleiten von rotem und blauem Chat zu Discord überspringen."
 
@@ -5944,12 +5959,12 @@ msgid "Skip the DCS ban when a player is banned on Discord."
 msgstr "Den DCS-Bann überspringen, wenn ein Spieler auf Discord gebannt wird."
 
 #. skyeye_schema:schema;skyeye_config.remote
-#: extensions/skyeye/schemas/skyeye_schema.yaml:80
+#: extensions/skyeye/schemas/skyeye_schema.yaml:85
 msgid "SkyEye runs on a different machine than this node."
 msgstr "SkyEye läuft auf einer anderen Maschine als dieser Node."
 
 #. skyeye_schema:schema;skyeye_config.version
-#: extensions/skyeye/schemas/skyeye_schema.yaml:86
+#: extensions/skyeye/schemas/skyeye_schema.yaml:91
 msgid "SkyEye version, needed when it runs remotely."
 msgstr "SkyEye-Version, erforderlich beim Remote-Betrieb."
 
@@ -5985,7 +6000,7 @@ msgid "Source networks that are treated as trusted."
 msgstr "Quellnetzwerke, die als vertrauenswürdig behandelt werden."
 
 #. skyeye_schema:schema;skyeye_config.recognizer
-#: extensions/skyeye/schemas/skyeye_schema.yaml:116
+#: extensions/skyeye/schemas/skyeye_schema.yaml:121
 msgid "Speech recognizer used by SkyEye."
 msgstr "Spracherkenner, der von SkyEye verwendet wird."
 
@@ -6001,24 +6016,24 @@ msgstr "DCS-Server minimiert starten."
 
 #. srs_schema:schema;instance_srs_schema.always_on
 #. srs_schema:schema;node_srs_schema.always_on
-#: extensions/srs/schemas/srs_schema.yaml:173 extensions/srs/schemas/srs_schema.yaml:313
+#: extensions/srs/schemas/srs_schema.yaml:178 extensions/srs/schemas/srs_schema.yaml:318
 msgid "Start SRS as soon as possible, independently of DCS."
 msgstr "SRS so früh wie möglich starten, unabhängig von DCS."
 
 #. lardoon_schema:schema;node_lardoon_schema.use_single_process
-#: extensions/lardoon/schemas/lardoon_schema.yaml:14
+#: extensions/lardoon/schemas/lardoon_schema.yaml:19
 msgid "Start one Lardoon process instead of one per instance."
 msgstr "Einen Lardoon-Prozess starten statt einen pro Instanz."
 
 #. srs_schema:schema;instance_srs_schema.minimized
 #. srs_schema:schema;node_srs_schema.minimized
-#: extensions/srs/schemas/srs_schema.yaml:120 extensions/srs/schemas/srs_schema.yaml:260
+#: extensions/srs/schemas/srs_schema.yaml:125 extensions/srs/schemas/srs_schema.yaml:265
 msgid "Start the SRS GUI server minimized."
 msgstr "Den SRS-GUI-Server minimiert starten."
 
 #. srs_schema:schema;instance_srs_schema.autostart
 #. srs_schema:schema;node_srs_schema.autostart
-#: extensions/srs/schemas/srs_schema.yaml:109 extensions/srs/schemas/srs_schema.yaml:287
+#: extensions/srs/schemas/srs_schema.yaml:114 extensions/srs/schemas/srs_schema.yaml:292
 msgid "Start the SRS server together with the DCS server."
 msgstr "Den SRS-Server zusammen mit dem DCS-Server starten."
 
@@ -6034,7 +6049,7 @@ msgstr ""
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewRealTimeTelemetryEnabled
 #. tacview_schema:schema;node_tacview_schema.tacviewRealTimeTelemetryEnabled
-#: extensions/tacview/schemas/tacview_schema.yaml:73 extensions/tacview/schemas/tacview_schema.yaml:192
+#: extensions/tacview/schemas/tacview_schema.yaml:78 extensions/tacview/schemas/tacview_schema.yaml:197
 msgid "Stream the Tacview real-time telemetry."
 msgstr "Die Tacview-Echtzeittelemetrie streamen."
 
@@ -6064,7 +6079,7 @@ msgid "Sync the PC clock with a time server twice a day."
 msgstr "Die PC-Uhr zweimal täglich mit einem Zeitserver synchronisieren."
 
 #. tacview_schema:schema;instance_tacview_schema.autoupdate
-#: extensions/tacview/schemas/tacview_schema.yaml:132
+#: extensions/tacview/schemas/tacview_schema.yaml:137
 msgid "Sync the Tacview mod when Tacview is updated."
 msgstr "Den Tacview-Mod synchronisieren, wenn Tacview aktualisiert wird."
 
@@ -6079,7 +6094,7 @@ msgid "TCP port the service listens on; unique per node."
 msgstr "TCP-Port, auf dem der Dienst lauscht; pro Knoten eindeutig."
 
 #. lotatc_schema:schema;instance_lotatc_schema.port
-#: extensions/lotatc/schemas/lotatc_schema.yaml:98
+#: extensions/lotatc/schemas/lotatc_schema.yaml:103
 msgid "TCP port your LotAtc server listens on."
 msgstr "TCP-Port, auf dem der LotAtc-Server lauscht."
 
@@ -6090,23 +6105,24 @@ msgstr "Tabellen, die beim Autoexport nicht exportiert werden."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewDebugMode
 #. tacview_schema:schema;node_tacview_schema.tacviewDebugMode
-#: extensions/tacview/schemas/tacview_schema.yaml:48 extensions/tacview/schemas/tacview_schema.yaml:167
+#: extensions/tacview/schemas/tacview_schema.yaml:53 extensions/tacview/schemas/tacview_schema.yaml:172
 msgid "Tacview debug verbosity."
 msgstr "Ausführlichkeit der Tacview-Debugausgabe."
 
 #. skyeye_schema:schema;skyeye_config.telemetry-address
-#: extensions/skyeye/schemas/skyeye_schema.yaml:210
+#: extensions/skyeye/schemas/skyeye_schema.yaml:215
 msgid "Tacview telemetry address, set automatically (deprecated)."
 msgstr "Tacview-Telemetrieadresse, automatisch gesetzt (veraltet)."
 
 #. skyeye_schema:schema;skyeye_config.telemetry-password
-#: extensions/skyeye/schemas/skyeye_schema.yaml:216
+#: extensions/skyeye/schemas/skyeye_schema.yaml:221
 msgid "Tacview telemetry password, set automatically (deprecated)."
 msgstr "Tacview-Telemetriepasswort, automatisch gesetzt (veraltet)."
 
 #. tacview_schema:schema;instance_tacview_schema.tacviewTerrainExport
 #. tacview_schema:schema;node_tacview_schema.tacviewTerrainExport
-#: extensions/tacview/schemas/tacview_schema.yaml:98 extensions/tacview/schemas/tacview_schema.yaml:229
+#: extensions/tacview/schemas/tacview_schema.yaml:103
+#: extensions/tacview/schemas/tacview_schema.yaml:234
 msgid "Tacview terrain export mode."
 msgstr "Terrain-Exportmodus von Tacview."
 
@@ -6126,12 +6142,12 @@ msgid "Task approval, expiry, and per-player limits."
 msgstr "Aufgabengenehmigung, Ablauf und Limits pro Spieler."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.temperature
-#: extensions/realweather/schemas/realweather_schema.yaml:815
+#: extensions/realweather/schemas/realweather_schema.yaml:820
 msgid "Temperature generation."
 msgstr "Temperaturerzeugung."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider
-#: extensions/olympus/schemas/olympus_schema.yaml:267
+#: extensions/olympus/schemas/olympus_schema.yaml:272
 msgid "Terrain elevation data provider (Olympus 2.0)."
 msgstr "Anbieter von Geländehöhendaten (Olympus 2.0)."
 
@@ -6147,8 +6163,8 @@ msgstr "Terrain-Namen, für die dieses Preset gilt."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief.remarks
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief.remarks
-#: extensions/realweather/schemas/realweather_schema.yaml:125
-#: extensions/realweather/schemas/realweather_schema.yaml:361
+#: extensions/realweather/schemas/realweather_schema.yaml:130
+#: extensions/realweather/schemas/realweather_schema.yaml:366
 msgid "Text appended after the METAR in the briefing."
 msgstr "Text, der im Briefing nach dem METAR angehängt wird."
 
@@ -6158,7 +6174,7 @@ msgid "Text shown as the bot's Discord activity status."
 msgstr "Text, der als Discord-Aktivitätsstatus des Bots angezeigt wird."
 
 #. srs_schema:schema;node_srs_schema.announce.footer
-#: extensions/srs/schemas/srs_schema.yaml:87
+#: extensions/srs/schemas/srs_schema.yaml:92
 msgid "Text shown in the announcement footer."
 msgstr "Text, der in der Fußzeile der Ankündigung angezeigt wird."
 
@@ -6213,7 +6229,7 @@ msgid "The install code from your server's page in DKS."
 msgstr ""
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).character
-#: services/webservice/schemas/webservice_schema.yaml:497
+#: services/webservice/schemas/webservice_schema.yaml:501
 msgid "The kind of community the site is; decides which figures lead and which metric the board opens on."
 msgstr ""
 "Die Art Community, die diese Seite ist; entscheidet, welche Zahlen vorangehen und mit welcher "
@@ -6233,11 +6249,6 @@ msgstr "Der Name, der für die Erweiterung angezeigt wird."
 #: services/webservice/schemas/webservice_schema.yaml:437
 msgid "The season panel (hours and sorties per week)."
 msgstr "Das Saison-Panel (Stunden und Einsätze pro Woche)."
-
-#. webservice_schema:DEFAULT.sites.regex;(.+).sections.servers
-#: services/webservice/schemas/webservice_schema.yaml:462
-msgid "The server board of the overview."
-msgstr "Die Serverliste der Übersicht."
 
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections.squadrons
 #: services/webservice/schemas/webservice_schema.yaml:457
@@ -6318,7 +6329,7 @@ msgid "Title of the reaction message embed."
 msgstr "Titel des Embeds der Reaktionsnachricht."
 
 #. lotatc_schema:schema;node_lotatc_schema.announce.title
-#: extensions/lotatc/schemas/lotatc_schema.yaml:46
+#: extensions/lotatc/schemas/lotatc_schema.yaml:51
 msgid "Title of the update announcement embed."
 msgstr "Titel des Update-Ankündigungs-Embeds."
 
@@ -6345,12 +6356,12 @@ msgid "UCIDs allowed to use this menu entry."
 msgstr "UCIDs, die diesen Menüeintrag verwenden dürfen."
 
 #. servers_schema:regex;(.+).afk.exemptions
-#: schemas/servers_schema.yaml:394
+#: schemas/servers_schema.yaml:400
 msgid "UCIDs and Discord roles exempt from AFK kicks."
 msgstr "UCIDs und Discord-Rollen, die von AFK-Kicks ausgenommen sind."
 
 #. servers_schema:regex;(.+).afk.exemptions.ucid
-#: schemas/servers_schema.yaml:404
+#: schemas/servers_schema.yaml:410
 msgid "UCIDs exempt from AFK kicks."
 msgstr "UCIDs, die von AFK-Kicks ausgenommen sind."
 
@@ -6400,12 +6411,12 @@ msgid "URL or slug of the GoFundMe campaign."
 msgstr "URL oder Slug der GoFundMe-Kampagne."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.provider
-#: extensions/olympus/schemas/olympus_schema.yaml:276
+#: extensions/olympus/schemas/olympus_schema.yaml:281
 msgid "URL template of the elevation data source."
 msgstr "URL-Vorlage der Höhendatenquelle."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).urlTemplate
-#: extensions/olympus/schemas/olympus_schema.yaml:301
+#: extensions/olympus/schemas/olympus_schema.yaml:306
 msgid "URL template of this map layer's tiles."
 msgstr "URL-Vorlage der Kacheln dieser Kartenebene."
 
@@ -6415,12 +6426,12 @@ msgid "URL-safe path segment of the site; the root site's is empty."
 msgstr ""
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
-#: extensions/olympus/schemas/olympus_schema.yaml:178
+#: extensions/olympus/schemas/olympus_schema.yaml:183
 msgid "Unique TCP port for Olympus internal communication."
 msgstr "Eindeutiger TCP-Port für die interne Kommunikation von Olympus."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).port
-#: extensions/olympus/schemas/olympus_schema.yaml:236
+#: extensions/olympus/schemas/olympus_schema.yaml:241
 msgid "Unique TCP port the Olympus web client connects to."
 msgstr "Eindeutiger TCP-Port, mit dem sich der Olympus-Web-Client verbindet."
 
@@ -6452,12 +6463,12 @@ msgid "Unsafe DCS API features allowed for scripts."
 msgstr "Unsichere DCS-API-Funktionen, die für Skripte erlaubt sind."
 
 #. realweather_schema:schema;node_realweather_schema.autoupdate
-#: extensions/realweather/schemas/realweather_schema.yaml:23
+#: extensions/realweather/schemas/realweather_schema.yaml:28
 msgid "Update DCS Real Weather automatically on new releases."
 msgstr "DCS Real Weather bei neuen Releases automatisch aktualisieren."
 
 #. srs_schema:schema;node_srs_schema.autoupdate
-#: extensions/srs/schemas/srs_schema.yaml:21
+#: extensions/srs/schemas/srs_schema.yaml:26
 msgid "Update DCS-SRS automatically on new releases."
 msgstr "DCS-SRS bei neuen Versionen automatisch aktualisieren."
 
@@ -6477,7 +6488,7 @@ msgid "Update Discord when a flight plan is completed."
 msgstr "Discord aktualisieren, wenn ein Flugplan abgeschlossen wird."
 
 #. skyeye_schema:schema;node_skyeye_schema.autoupdate
-#: extensions/skyeye/schemas/skyeye_schema.yaml:22
+#: extensions/skyeye/schemas/skyeye_schema.yaml:27
 msgid "Update SkyEye automatically on new releases."
 msgstr "SkyEye bei neuen Releases automatisch aktualisieren."
 
@@ -6493,15 +6504,15 @@ msgstr "Verwendungshinweis für die Parameter des Befehls."
 
 #. realweather_schema:schema;instance_realweather_schema.api.aviationweather.enable
 #. realweather_schema:schema;node_realweather_schema.api.aviationweather.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:165
-#: extensions/realweather/schemas/realweather_schema.yaml:401
+#: extensions/realweather/schemas/realweather_schema.yaml:170
+#: extensions/realweather/schemas/realweather_schema.yaml:406
 msgid "Use AviationWeather.gov as a weather source."
 msgstr "AviationWeather.gov als Wetterquelle verwenden."
 
 #. realweather_schema:schema;instance_realweather_schema.api.checkwx.enable
 #. realweather_schema:schema;node_realweather_schema.api.checkwx.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:180
-#: extensions/realweather/schemas/realweather_schema.yaml:416
+#: extensions/realweather/schemas/realweather_schema.yaml:185
+#: extensions/realweather/schemas/realweather_schema.yaml:421
 msgid "Use CheckWX as a weather source."
 msgstr "CheckWX als Wetterquelle verwenden."
 
@@ -6512,46 +6523,46 @@ msgstr "Die Member- und Message-Content-Intents von Discord verwenden."
 
 #. realweather_schema:schema;instance_realweather_schema.api.openmeteo.enable
 #. realweather_schema:schema;node_realweather_schema.api.openmeteo.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:226
-#: extensions/realweather/schemas/realweather_schema.yaml:462
+#: extensions/realweather/schemas/realweather_schema.yaml:231
+#: extensions/realweather/schemas/realweather_schema.yaml:467
 msgid "Use Open-Meteo as a weather source."
 msgstr "Open-Meteo als Wetterquelle verwenden."
 
 #. srs_schema:schema;node_srs_schema.use_upnp
-#: extensions/srs/schemas/srs_schema.yaml:26
+#: extensions/srs/schemas/srs_schema.yaml:31
 msgid "Use UPnP to forward the SRS ports automatically."
 msgstr "UPnP verwenden, um die SRS-Ports automatisch weiterzuleiten."
 
 #. realweather_schema:schema;instance_realweather_schema.api.custom.enable
 #. realweather_schema:schema;node_realweather_schema.api.custom.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:202
-#: extensions/realweather/schemas/realweather_schema.yaml:438
+#: extensions/realweather/schemas/realweather_schema.yaml:207
+#: extensions/realweather/schemas/realweather_schema.yaml:443
 msgid "Use a custom weather source."
 msgstr "Eine benutzerdefinierte Wetterquelle verwenden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.fixed-reference
-#: extensions/realweather/schemas/realweather_schema.yaml:639
+#: extensions/realweather/schemas/realweather_schema.yaml:644
 msgid "Use a fixed direction reference instead of random."
 msgstr "Eine feste Richtungsreferenz statt zufällig verwenden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.clouds.custom.enable
-#: extensions/realweather/schemas/realweather_schema.yaml:721
+#: extensions/realweather/schemas/realweather_schema.yaml:726
 msgid "Use custom cloud density settings."
 msgstr "Benutzerdefinierte Wolkendichteeinstellungen verwenden."
 
 #. srs_schema:schema;instance_srs_schema.gui_server
 #. srs_schema:schema;node_srs_schema.gui_server
-#: extensions/srs/schemas/srs_schema.yaml:130 extensions/srs/schemas/srs_schema.yaml:255
+#: extensions/srs/schemas/srs_schema.yaml:135 extensions/srs/schemas/srs_schema.yaml:260
 msgid "Use the SRS GUI server instead of the command line one."
 msgstr "Den SRS-GUI-Server statt des Kommandozeilen-Servers verwenden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.date.system-date
-#: extensions/realweather/schemas/realweather_schema.yaml:523
+#: extensions/realweather/schemas/realweather_schema.yaml:528
 msgid "Use the current system date as the base."
 msgstr "Das aktuelle Systemdatum als Basis verwenden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.time.system-time
-#: extensions/realweather/schemas/realweather_schema.yaml:496
+#: extensions/realweather/schemas/realweather_schema.yaml:501
 msgid "Use the current system time as the base."
 msgstr "Die aktuelle Systemzeit als Basis verwenden."
 
@@ -6571,12 +6582,12 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "Benutzer zur Anmeldung am NUT-Server (optional)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:521
+#: services/webservice/schemas/webservice_schema.yaml:525
 msgid "Username and password login for the console."
 msgstr "Benutzername-und-Passwort-Anmeldung für die Konsole."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.username
-#: extensions/olympus/schemas/olympus_schema.yaml:280
+#: extensions/olympus/schemas/olympus_schema.yaml:285
 msgid "Username for the elevation provider, if required."
 msgstr "Benutzername für den Höhenanbieter, falls erforderlich."
 
@@ -6586,12 +6597,12 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Benutzername für den Proxy, falls dieser eine Authentifizierung benötigt."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:673
+#: services/webservice/schemas/webservice_schema.yaml:677
 msgid "Username of the emergency Admin account."
 msgstr "Benutzername des Notfall-Admin-Kontos."
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.username
-#: extensions/olympus/schemas/olympus_schema.yaml:256
+#: extensions/olympus/schemas/olympus_schema.yaml:261
 msgid "Username sent in the authentication header."
 msgstr "Benutzername, der im Authentifizierungs-Header gesendet wird."
 
@@ -6622,8 +6633,8 @@ msgstr "Variablen, die zur Verwendung in Ausdrücken definiert oder extrahiert w
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.log.level
 #. realweather_schema:schema;node_realweather_schema.realweather.log.level
-#: extensions/realweather/schemas/realweather_schema.yaml:90
-#: extensions/realweather/schemas/realweather_schema.yaml:328
+#: extensions/realweather/schemas/realweather_schema.yaml:95
+#: extensions/realweather/schemas/realweather_schema.yaml:333
 msgid "Verbosity of the Real Weather log."
 msgstr "Ausführlichkeit des Real-Weather-Logs."
 
@@ -6633,12 +6644,12 @@ msgid "Version to install, or 'latest' for the newest one."
 msgstr "Zu installierende Version oder 'latest' für die neueste."
 
 #. skyeye_schema:schema;skyeye_config.voice
-#: extensions/skyeye/schemas/skyeye_schema.yaml:154
+#: extensions/skyeye/schemas/skyeye_schema.yaml:159
 msgid "Voice SkyEye uses for spoken messages."
 msgstr "Stimme, die SkyEye für gesprochene Meldungen verwendet."
 
 #. servers_schema:regex;(.+).channels.voice
-#: schemas/servers_schema.yaml:633
+#: schemas/servers_schema.yaml:639
 msgid "Voice channel players must join when force_voice is on."
 msgstr "Sprachkanal, dem Spieler beitreten müssen, wenn force_voice aktiv ist."
 
@@ -6715,32 +6726,32 @@ msgstr "Warnzeit in Sekunden vor dem Neustart."
 
 #. realweather_schema:schema;instance_realweather_schema.realweather.mission.brief
 #. realweather_schema:schema;node_realweather_schema.realweather.mission.brief
-#: extensions/realweather/schemas/realweather_schema.yaml:106
-#: extensions/realweather/schemas/realweather_schema.yaml:342
+#: extensions/realweather/schemas/realweather_schema.yaml:111
+#: extensions/realweather/schemas/realweather_schema.yaml:347
 msgid "Weather briefing injected into the mission."
 msgstr "Wetterbriefing, das in die Mission eingespielt wird."
 
 #. realweather_schema:schema;instance_realweather_schema.api.provider-priority.[0]
 #. realweather_schema:schema;node_realweather_schema.api.provider-priority.[0]
-#: extensions/realweather/schemas/realweather_schema.yaml:152
-#: extensions/realweather/schemas/realweather_schema.yaml:388
+#: extensions/realweather/schemas/realweather_schema.yaml:157
+#: extensions/realweather/schemas/realweather_schema.yaml:393
 msgid "Weather data provider name."
 msgstr "Name des Wetterdatenanbieters."
 
 #. realweather_schema:schema;instance_realweather_schema.api
 #. realweather_schema:schema;node_realweather_schema.api
-#: extensions/realweather/schemas/realweather_schema.yaml:131
-#: extensions/realweather/schemas/realweather_schema.yaml:367
+#: extensions/realweather/schemas/realweather_schema.yaml:136
+#: extensions/realweather/schemas/realweather_schema.yaml:372
 msgid "Weather data providers and the order they are tried in."
 msgstr "Wetterdatenanbieter und die Reihenfolge, in der sie versucht werden."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather
-#: extensions/realweather/schemas/realweather_schema.yaml:536
+#: extensions/realweather/schemas/realweather_schema.yaml:541
 msgid "Weather injected into the mission by Real Weather."
 msgstr "Wetter, das von Real Weather in die Mission eingespielt wird."
 
 #. realweather_schema:schema;instance_realweather_schema.options
-#: extensions/realweather/schemas/realweather_schema.yaml:468
+#: extensions/realweather/schemas/realweather_schema.yaml:473
 msgid "Weather, time and date injected into the mission."
 msgstr "Wetter, Uhrzeit und Datum, die in die Mission eingespielt werden."
 
@@ -6750,7 +6761,7 @@ msgid "Web service settings applied to every node."
 msgstr "Webdienst-Einstellungen, die auf jeden Knoten angewendet werden."
 
 #. olympus_schema:schema;instance_olympus_schema.audio.WSEndpoint
-#: extensions/olympus/schemas/olympus_schema.yaml:362
+#: extensions/olympus/schemas/olympus_schema.yaml:367
 msgid "WebSocket endpoint exposed through a reverse proxy."
 msgstr "WebSocket-Endpunkt, über einen Reverse-Proxy bereitgestellt."
 
@@ -6846,12 +6857,12 @@ msgid "Whether the HoundTTS text-to-speech extension is enabled."
 msgstr "Ob die HoundTTS-Text-to-Speech-Erweiterung aktiviert ist."
 
 #. lardoon_schema:schema;instance_lardoon_schema.enabled
-#: extensions/lardoon/schemas/lardoon_schema.yaml:80
+#: extensions/lardoon/schemas/lardoon_schema.yaml:85
 msgid "Whether the Lardoon extension is enabled."
 msgstr "Ob die Lardoon-Erweiterung aktiviert ist."
 
 #. lotatc_schema:schema;instance_lotatc_schema.enabled
-#: extensions/lotatc/schemas/lotatc_schema.yaml:80
+#: extensions/lotatc/schemas/lotatc_schema.yaml:85
 msgid "Whether the LotAtc extension is enabled on this instance."
 msgstr "Ob die LotAtc-Erweiterung auf dieser Instanz aktiviert ist."
 
@@ -6861,7 +6872,7 @@ msgid "Whether the MizEdit extension is enabled on this instance."
 msgstr "Ob die MizEdit-Erweiterung auf dieser Instanz aktiviert ist."
 
 #. olympus_schema:schema;instance_olympus_schema.enabled
-#: extensions/olympus/schemas/olympus_schema.yaml:106
+#: extensions/olympus/schemas/olympus_schema.yaml:111
 msgid "Whether the Olympus extension is enabled on this instance."
 msgstr "Ob die Olympus-Erweiterung auf dieser Instanz aktiviert ist."
 
@@ -6910,6 +6921,22 @@ msgstr "Ob die Required-Mods-Erweiterung aktiviert ist."
 msgid "Whether the victim must be an AI unit or a human player."
 msgstr "Ob das Opfer eine KI-Einheit oder ein menschlicher Spieler sein muss."
 
+#. lardoon_schema:schema;node_lardoon_schema.enabled
+#. lotatc_schema:schema;node_lotatc_schema.enabled
+#. olympus_schema:schema;node_olympus_schema.enabled
+#. realweather_schema:schema;node_realweather_schema.enabled
+#. skyeye_schema:schema;node_skyeye_schema.enabled
+#. sneaker_schema:schema;node_sneaker_schema.enabled
+#. srs_schema:schema;node_srs_schema.enabled
+#. tacview_schema:schema;node_tacview_schema.enabled
+#: extensions/lardoon/schemas/lardoon_schema.yaml:8 extensions/lotatc/schemas/lotatc_schema.yaml:9
+#: extensions/olympus/schemas/olympus_schema.yaml:8
+#: extensions/realweather/schemas/realweather_schema.yaml:9
+#: extensions/skyeye/schemas/skyeye_schema.yaml:8 extensions/sneaker/schemas/sneaker_schema.yaml:8
+#: extensions/srs/schemas/srs_schema.yaml:8 extensions/tacview/schemas/tacview_schema.yaml:9
+msgid "Whether this extension is enabled on this node."
+msgstr "Ob diese Erweiterung auf diesem Knoten aktiviert ist."
+
 #. webservice_schema:DEFAULT.sites.regex;(.+).sections
 #: services/webservice/schemas/webservice_schema.yaml:424
 msgid ""
@@ -6922,7 +6949,7 @@ msgstr ""
 "Bereichen zeigt ihre Zahlen. Die Hauptzahl bleibt immer."
 
 #. skyeye_schema:schema;skyeye_config.whisper-model
-#: extensions/skyeye/schemas/skyeye_schema.yaml:122
+#: extensions/skyeye/schemas/skyeye_schema.yaml:127
 msgid "Whisper model used by the local recognizer."
 msgstr "Whisper-Modell, das vom lokalen Erkenner verwendet wird."
 
@@ -6942,7 +6969,7 @@ msgid "Wind direction at ground level in degrees."
 msgstr "Windrichtung in Bodennähe in Grad."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind
-#: extensions/realweather/schemas/realweather_schema.yaml:578
+#: extensions/realweather/schemas/realweather_schema.yaml:583
 msgid "Wind generation limits."
 msgstr "Grenzwerte der Winderzeugung."
 
@@ -6982,7 +7009,7 @@ msgid "Wind speed at ground level in m/s."
 msgstr "Windgeschwindigkeit in Bodennähe in m/s."
 
 #. realweather_schema:schema;instance_realweather_schema.options.weather.wind.stability
-#: extensions/realweather/schemas/realweather_schema.yaml:634
+#: extensions/realweather/schemas/realweather_schema.yaml:639
 msgid "Wind stability factor between 0.0 and 1.0."
 msgstr "Windstabilitätsfaktor zwischen 0.0 und 1.0."
 
@@ -7017,7 +7044,7 @@ msgid "Write the DCS-SR-ExternalAudio output to the bot log."
 msgstr "Die Ausgabe von DCS-SR-ExternalAudio in das Bot-Log schreiben."
 
 #. realweather_schema:schema;instance_realweather_schema.debug
-#: extensions/realweather/schemas/realweather_schema.yaml:247
+#: extensions/realweather/schemas/realweather_schema.yaml:252
 msgid "Write the Real Weather output to the bot log."
 msgstr "Die Real-Weather-Ausgabe in das Bot-Log schreiben."
 
@@ -7037,7 +7064,7 @@ msgid "managed_by token this site shows; absent only for the root site."
 msgstr ""
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:581
+#: services/webservice/schemas/webservice_schema.yaml:585
 msgid "managed_by values this account may see and act on."
 msgstr "managed_by-Werte, die dieses Konto sehen und bearbeiten darf."
 
@@ -7056,12 +7083,12 @@ msgstr "managed_by-Werte, die dieses Konto sehen und bearbeiten darf."
 #~ msgid "The holder the footer's copyright line names, printed as text."
 #~ msgstr ""
 
+#~ msgid "The server board of the overview."
+#~ msgstr "Die Serverliste der Übersicht."
+
 #~ msgid "Token-only stylesheet; relative to the config directory."
 #~ msgstr ""
 
 #~ msgid "Which overview sections the site shows; an absent id is on."
 #~ msgstr "Welche Übersichtsabschnitte die Seite zeigt; eine fehlende Id ist an."
 
-
-msgid "Whether this extension is enabled on this node."
-msgstr "Ob diese Erweiterung auf diesem Knoten aktiviert ist."

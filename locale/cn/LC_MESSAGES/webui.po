@@ -1049,7 +1049,7 @@ msgstr ""
 
 #: services/webservice/pages/actions.py:1047
 msgid "Send to"
-msgstr ""
+msgstr "发送至"
 
 #: services/webservice/pages/actions.py:1028
 msgid "Chat — a chat line in game, to the recipients you choose"
@@ -10036,26 +10036,11 @@ msgstr "%(members)s 名成员"
 msgid "rating"
 msgstr "评分"
 
-msgid "The servers"
-msgstr "服务器"
-
-msgid "Server board"
-msgstr "服务器面板"
-
 msgid "%(up)s of %(total)s up"
 msgstr "%(up)s / %(total)s 在线"
 
-msgid "Flying"
-msgstr "在空中"
-
 msgid "Sorties"
 msgstr "架次"
-
-msgid "Up"
-msgstr "在线"
-
-msgid "Off"
-msgstr "离线"
 
 msgid "Public data."
 msgstr "公开数据。"
@@ -11681,3 +11666,314 @@ msgstr ""
 #: services/webservice/pages/node_settings.py
 msgid "%(name)s is already being switched — wait for it to finish. Nothing was started."
 msgstr ""
+
+# ---------------------------------------------------------------- the public fleet pages
+msgid "%(count)s credential line(s) withheld"
+msgstr "%(count)s 行凭据已隐藏"
+
+msgid "%(count)s pilots in the air"
+msgstr "%(count)s 名飞行员在飞行"
+
+msgid "%(count)s servers · address, slots and clocks on the list"
+msgstr "%(count)s 台服务器 · 列表上有地址、槽位和时钟"
+
+msgid "A password is required to join. Its value is never shown on this site."
+msgstr "加入需要密码。本网站从不显示密码内容。"
+
+msgid "Blue slots"
+msgstr "蓝方槽位"
+
+msgid "Client limits"
+msgstr "客户端限制"
+
+msgid "Clouds"
+msgstr "云"
+
+msgid "Coalitions — seats are assigned by role"
+msgstr "阵营 — 席位按角色分配"
+
+msgid "Connection"
+msgstr "连接"
+
+msgid "DCS version"
+msgstr "DCS 版本"
+
+msgid "DCSServerBot"
+msgstr "DCSServerBot"
+
+msgid "Date / time in mission"
+msgstr "任务中的日期 / 时间"
+
+msgid "Every server this community runs — its state, its mission and who is in the air, and one page per server with the rest of what it reports."
+msgstr "这个社区运行的每一台服务器 — 它的状态、它的任务、谁在飞，以及每台服务器一个页面列出它报告的其余内容。"
+
+msgid "How to join"
+msgstr "如何加入"
+
+msgid "Last updated"
+msgstr "最后更新"
+
+msgid "Loading"
+msgstr "加载中"
+
+msgid "Locked"
+msgstr "已锁定"
+
+msgid "No address"
+msgstr "无地址"
+
+msgid "No client limit is in force."
+msgstr "没有生效的客户端限制。"
+
+msgid "No extension publishes anything for this server."
+msgstr "没有扩展为这台服务器发布任何内容。"
+
+msgid "No mission"
+msgstr "无任务"
+
+msgid "No slots — not in a mission"
+msgstr "无槽位 — 不在任务中"
+
+msgid "No trial clients"
+msgstr "不允许试用客户端"
+
+msgid "Not found"
+msgstr "未找到"
+
+msgid "One server"
+msgstr "一台服务器"
+
+msgid "Paused"
+msgstr "已暂停"
+
+msgid "Pure clients"
+msgstr "纯净客户端"
+
+msgid "Pure models"
+msgstr "纯净模型"
+
+msgid "Pure scripts"
+msgstr "纯净脚本"
+
+msgid "Pure textures"
+msgstr "纯净贴图"
+
+msgid "QNH"
+msgstr "QNH"
+
+msgid "Red slots"
+msgstr "红方槽位"
+
+msgid "Restart in"
+msgstr "距离重启"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "That server was not found on this site."
+msgstr "在本网站上找不到那台服务器。"
+
+msgid "The fleet"
+msgstr "服务器群"
+
+msgid "The live read has not answered yet; this page will show it once it has."
+msgstr "实时读取尚未返回；返回后本页面就会显示。"
+
+msgid "The mission reports no weather."
+msgstr "任务没有报告天气。"
+
+msgid "The server did not answer the live read, so there is no live report right now."
+msgstr "服务器没有回应实时读取，所以现在没有实时报告。"
+
+msgid "The server is not running, so there is no live report to read."
+msgstr "服务器未运行，所以没有可读取的实时报告。"
+
+msgid "The statistics database is not available yet, so this page shows no figures."
+msgstr "统计数据库尚不可用，所以本页面不显示数字。"
+
+msgid "Unregistered"
+msgstr "未注册"
+
+msgid "What is loaded"
+msgstr "已加载的内容"
+
+msgid "What it runs on"
+msgstr "运行环境"
+
+msgid "What the mission is flying in"
+msgstr "任务天气"
+
+msgid "What the server enforces"
+msgstr "服务器强制执行的内容"
+
+msgid "What this server reports right now: its mission, its weather, the limits it enforces and when it restarts."
+msgstr "这台服务器现在报告的内容：它的任务、天气、强制执行的限制以及何时重启。"
+
+msgid "address"
+msgstr "地址"
+
+msgid "cached live read · 300 s"
+msgstr "缓存实时读取 · 300 秒"
+
+msgid "flying now"
+msgstr "正在飞行"
+
+msgid "in slots"
+msgstr "在槽位中"
+
+msgid "no map"
+msgstr "无地图"
+
+msgid "servers"
+msgstr "台服务器"
+
+msgid "the switches in force"
+msgstr "生效的开关"
+
+#: services/webservice/pages/site_config.py:326
+msgid "Server passwords"
+msgstr "服务器密码"
+
+#: services/webservice/pages/site_config.py:328
+msgid "Each server's join password is printed on this site only when its own switch is on. The Discord status embed keeps its own password setting; this one affects the public site only."
+msgstr "只有当服务器自己的开关打开时，其加入密码才会显示在此站点上。Discord 状态嵌入保留自己的密码设置；此项仅影响公共站点。"
+
+#: services/webservice/pages/site_config.py:330
+msgid "Shown"
+msgstr "已显示"
+
+#: services/webservice/pages/site_config.py:331
+msgid "Hidden"
+msgstr "已隐藏"
+
+#: services/webservice/pages/site_config.py:332
+msgid "no password"
+msgstr "无密码"
+
+#: services/webservice/pages/site_config.py:333
+msgid "Save passwords"
+msgstr "保存密码"
+
+#: services/webservice/pages/site_config.py:335
+msgid "No server belongs to this site yet: a server joins a site by naming its role in servers.yaml, and none names this one."
+msgstr "还没有服务器属于此站点：服务器通过在 servers.yaml 中声明其角色来加入站点，而没有任何服务器声明此站点。"
+
+#: services/webservice/pages/site_config.py:338
+msgid "Public site only. The Discord embed keeps its own password setting and is not affected by this switch."
+msgstr "仅限公共站点。Discord 嵌入保留自己的密码设置，不受此开关影响。"
+
+#: services/webservice/pages/site_config.py:340
+msgid "Saved %(count)s password switch(es)."
+msgstr "已保存 %(count)s 个密码开关。"
+
+#: services/webservice/pages/site_config.py:341
+msgid "No password switch changed."
+msgstr "没有密码开关发生变化。"
+
+#: services/webservice/pages/site_config.py:342
+msgid "The password switches could not be saved."
+msgstr "无法保存密码开关。"
+
+#: services/webservice/pages/site_config.py:343
+msgid "A join password is set"
+msgstr "已设置加入密码"
+
+#: services/webservice/templates/site_config.html:633
+msgid "Also drawn in %(site)s — one value, the same state there."
+msgstr "也在 %(site)s 中显示——同一个值，那里是同一状态。"
+
+#: services/webservice/templates/site_server.html:58
+msgid "A password is required to join. This server publishes its value on the public site."
+msgstr "加入需要密码。此服务器在公共站点上公布其值。"
+
+#: services/webservice/pages/access.py:203
+msgid "decide whether a server prints its join password on the public site"
+msgstr "决定服务器是否在公共站点上显示其加入密码"
+
+#: services/webservice/pages/site_servers.py:295
+msgid "runs"
+msgstr "运行"
+
+#: services/webservice/pages/site_servers.py:296
+msgid "shuts down with no players"
+msgstr "无玩家时关闭"
+
+#: services/webservice/pages/site_servers.py:304
+msgid "The weekly schedule could not be read."
+msgstr "无法读取每周时间表。"
+
+#: services/webservice/pages/site_servers.py:323
+msgid "The week: %(days)s."
+msgstr "本周：%(days)s。"
+
+#: services/webservice/templates/site_server.html:116
+msgid "The weekly schedule"
+msgstr "每周时间表"
+
+#: services/webservice/templates/server_detail.html
+msgid "Game chat"
+msgstr "游戏聊天"
+
+#: services/webservice/templates/server_detail.html
+msgid "Search sender"
+msgstr "搜索发送者"
+
+#: services/webservice/templates/server_detail.html
+msgid "Search text"
+msgstr "搜索文本"
+
+#: services/webservice/templates/server_detail.html
+msgid "Sender…"
+msgstr "发送者…"
+
+#: services/webservice/templates/server_detail.html
+msgid "Text…"
+msgstr "文本…"
+
+#: services/webservice/templates/server_detail.html
+msgid "Send"
+msgstr "发送"
+
+#: services/webservice/pages/server_detail.py
+msgid "Red only"
+msgstr "仅红方"
+
+#: services/webservice/pages/server_detail.py
+msgid "Blue only"
+msgstr "仅蓝方"
+
+#: services/webservice/pages/server_detail.py
+msgid "{shown} of {total} lines"
+msgstr "共 {total} 行，显示 {shown} 行"
+
+#: services/webservice/pages/server_detail.py
+msgid "No chat lines yet — the tab fills as players talk on this server."
+msgstr "还没有聊天消息——玩家在这个服务器上说话时，此标签页会逐渐填充。"
+
+#: services/webservice/i18n.py
+msgid "— the bot restarted; the chat history starts again —"
+msgstr "——机器人已重启；聊天记录重新开始——"
+
+#: services/webservice/pages/server_detail.py
+msgid "No lines match this search."
+msgstr "没有符合此搜索的行。"
+
+#: services/webservice/pages/server_detail.py
+msgid "The Chat tab is only offered while the mission plugin is active for this server."
+msgstr "只有在此服务器上启用了任务插件时，才会提供聊天标签页。"
+
+#: services/webservice/pages/server_detail.py
+msgid "The server is not running — there is nobody to send to. Start it from the Overview tab."
+msgstr "服务器未运行 — 没有可以发送的对象。请从概览标签页启动它。"
+
+#: services/webservice/pages/server_detail.py
+msgid "Coloured by who can read it: everyone, Red only, Blue only — players can only type to everyone, so your side lines are whispers."
+msgstr "颜色表示谁能读到：所有人、仅红方、仅蓝方 — 玩家只能对所有人说话，所以你的阵营消息是私语。"
+
+#: services/webservice/pages/server_detail.py
+msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
+msgstr "给此服务器上的玩家写一句话…（回车发送，Shift+回车换行）"
+

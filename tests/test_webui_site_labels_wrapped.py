@@ -193,7 +193,25 @@ def config_dir(tmp_path):
 
 @pytest.fixture
 def app(config_dir):
-    return build(config_dir, cluster(), users=_users())
+    """The page with a locked server and the scheduler plugin installed.
+
+    The password block's switch, its Shown/Hidden words and its Save are drawn only for a server
+    that HAS a password and a process that carries the write action — so the pin renders an
+    installation that has both, instead of a branch no installation can reach.
+    """
+    import importlib
+
+    import core.actions as actions_module
+
+    fleet = cluster()
+    fleet.servers[0].settings = {"password": "secret"}
+    saved = dict(actions_module._ACTIONS)
+    importlib.import_module("plugins.scheduler.actions")
+    try:
+        yield build(config_dir, fleet, users=_users())
+    finally:
+        actions_module._ACTIONS.clear()
+        actions_module._ACTIONS.update(saved)
 
 
 @pytest.fixture

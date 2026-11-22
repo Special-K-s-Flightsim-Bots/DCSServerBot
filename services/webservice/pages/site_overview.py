@@ -8,7 +8,7 @@ it returned; it composes and formats, it never queries. Five reads answer the wh
 * :func:`~services.webservice.site_reads.activity_over_time` — the weekly buckets (zero-filled by the
   read), the chart and the four week figures beside it;
 * :func:`~services.webservice.site_reads.server_board` — the live band's servers-up and pilots-flying
-  figures and the server table;
+  figures;
 * :func:`~services.webservice.site_reads.leaderboard` — the top pilots by playtime;
 * :func:`~services.webservice.site_reads.squadrons` — the squadrons by campaign points.
 
@@ -28,10 +28,9 @@ computed and the empty states are decided in :func:`view`, so the template only 
 figures can be asserted without parsing HTML. Units and labels stay ENGLISH MSGIDS
 (``i18n._``-marked) and are translated where they render.
 
-TWO ADDRESSES ARE BUILT HERE, both from the reads' own rows: a standings row links to its pilot's
-profile (``site_pages.player_url`` of the UCID that read returned) and a server row links to the
-leaderboard narrowed to that server (``NAV_PATHS["leaderboard"]`` plus the leaderboard's own
-``server`` parameter). No page has a second lookup for either.
+TWO ADDRESSES ARE BUILT HERE: a standings row links to its pilot's profile (``site_pages.player_url``
+of the UCID that read returned) and the picker submits to this page (``site_pages.site_url``). No page
+has a second lookup for either, and the leaderboard's own ``?server=`` filter is not reached from here.
 
 THE SERVER PICKER NARROWS THE WHOLE PAGE. ``?server=<name>`` names one of the site's own servers and
 every read of this page then runs against a site context holding that one name; the request is
@@ -64,13 +63,12 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from typing import Any
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from .. import i18n, site_pages, site_reads, sites
-from ..site_pages import NAV_PATHS, player_url, render_site_page, resolve_site, site_url
+from ..site_pages import player_url, render_site_page, resolve_site, site_url
 
 __all__ = [
     "NAV_ID",
@@ -472,22 +470,6 @@ def _player_href(resolved: Any, ucid: Any) -> str:
     return player_url(resolved, ucid) if ucid and resolved is not None else ""
 
 
-def _server_href(resolved: Any, server_name: Any) -> str:
-    """The leaderboard's own address narrowed to ONE server.
-
-    The path is ``site_pages.NAV_PATHS``' leaderboard entry and the parameter is the one that page
-    reads (:data:`~services.webservice.pages.site_leaderboard.SERVER_PARAM`), so the server name in
-    the table is the leaderboard's ``server`` filter rather than a second, private scope spelling.
-    The import sits inside the call: the pages are siblings and load in any order.
-    """
-    from .site_leaderboard import SERVER_PARAM
-
-    name = str(server_name or "")
-    if not name or resolved is None:
-        return ""
-    return f"{site_url(resolved, NAV_PATHS['leaderboard'])}?{urlencode({SERVER_PARAM: name})}"
-
-
 def credits_present() -> bool:
     """Whether the CreditSystem plugin is loaded on this installation.
 
@@ -537,19 +519,6 @@ def _readouts(totals: dict) -> list[dict]:
         {"key": "sessions", "value": count(totals.get("sessions")), "unit": None,
          "label": i18n._("Sessions recorded"), "change": None, "share": None, "tone": ""},
     ]
-
-
-def _server_board(board: list[dict], resolved: Any = None) -> list[dict]:
-    """The server table's rows: the live state and the all-time figures, per server."""
-    return [{
-        "server_name": row.get("server_name") or "",
-        "href": _server_href(resolved, row.get("server_name")),
-        "online": bool(row.get("online")),
-        "players_online": count(row.get("players_online")),
-        "playtime": count(hours(row.get("playtime"))),
-        "sorties": count(row.get("sorties")),
-        "window": row.get("window") or site_reads.BOARD_WINDOW_LABEL,
-    } for row in (board or [])]
 
 
 def _standings(pilots: dict, resolved: Any = None) -> list[dict]:
@@ -675,8 +644,8 @@ def view(totals: dict, activity: dict, board: list[dict], pilots: dict,
          sections: Any = None, scope: str = "", servers: Any = ()) -> dict:
     """The page's whole model from the seven reads' own answers — pure, so a test can pin it.
 
-    *resolved* is the request's site context, used to build the standings' and the server table's
-    addresses and the picker's own address; without it every row renders its name as plain text.
+    *resolved* is the request's site context, used to build the standings' and the picker's own
+    addresses; without it every row renders its name as plain text.
     *credits* states whether the CreditSystem plugin is installed on this installation
     (:func:`credits_present`). *sections* is the site's own enabled section ids and decides which
     bands the model numbers (``sections``, the only switch the template reads); without it every
@@ -689,9 +658,9 @@ def view(totals: dict, activity: dict, board: list[dict], pilots: dict,
     """
     aircraft_rows = list((aircraft or {}).get("rows") or [])
     weeks = list((activity or {}).get("weeks") or [])
-    server_rows = _server_board(board, resolved)
-    up = sum(1 for row in (board or []) if row.get("online"))
-    flying = sum(int(row.get("players_online") or 0) for row in (board or []))
+    board_rows = list(board or [])
+    up = sum(1 for row in board_rows if row.get("online"))
+    flying = sum(int(row.get("players_online") or 0) for row in board_rows)
     standings = _standings(pilots, resolved)
     squadron_rows = _squadrons(squadrons)
     sortie_entries = _sortie_entries(weeks)
@@ -706,14 +675,14 @@ def view(totals: dict, activity: dict, board: list[dict], pilots: dict,
     return {
         "hero": {
             "hours": count(hours(totals.get("total_playtime"))),
-            "server_count": count(len(server_rows)),
+            "server_count": count(len(board_rows)),
             "known_pilots": count(totals.get("known_pilots")),
         },
         # the live band: what is running right now, and one figure that says how big the community is
         "live": {
             "pilots_flying": count(flying),
             "servers_up": count(up),
-            "servers_total": count(len(server_rows)),
+            "servers_total": count(len(board_rows)),
             "active_this_week": count(totals.get("active_this_week")),
         },
         "picker": _picker(resolved, scope, servers),
@@ -751,9 +720,6 @@ def view(totals: dict, activity: dict, board: list[dict], pilots: dict,
         "squadrons": squadron_rows,
         "squadrons_section": show_squadrons,
         "sections": _sections(rendered),
-        "servers": server_rows,
-        "window_label": (server_rows[0]["window"] if server_rows
-                         else site_reads.BOARD_WINDOW_LABEL),
     }
 
 

@@ -23,7 +23,8 @@ from test_webui_site_settings import (  # noqa: F401 - fixtures imported on purp
 
 #: the page's order, exactly as `DESIGN.md` §11.1 states it. The identity fold and the sheet are the
 #: last two: the sheet is outside the two columns and is still the page's last block.
-BLOCK_ORDER = ("branding", "palette", "character", "menu", "links", "pages", "identity", "expert")
+BLOCK_ORDER = ("branding", "palette", "character", "menu", "links", "pages", "passwords",
+               "identity", "expert")
 
 
 def _blocks(html: str) -> list[str]:

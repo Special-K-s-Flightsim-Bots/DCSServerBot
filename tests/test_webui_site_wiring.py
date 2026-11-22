@@ -25,8 +25,9 @@ from services.webservice import site_pages  # noqa: E402
 SAMPLE = REPO_ROOT / "samples" / "services" / "webservice.yaml"
 DEVELOPER_MD = REPO_ROOT / "services" / "webservice" / "DEVELOPER.md"
 
-#: a nav entry of the sample's commented ``nav:`` example, as the file writes it.
-NAV_LINE = re.compile(r"^  #\s+- (overview|leaderboard|players|squadrons)\b", re.MULTILINE)
+#: a nav entry of the sample's commented ``nav:`` example, as the file writes it. `servers` is in
+#: the set: an example naming the fleet must be checked like any other id.
+NAV_LINE = re.compile(r"^  #\s+- (overview|servers|leaderboard|players|squadrons)\b", re.MULTILINE)
 
 
 def nav_ids(sample_text: str) -> list[str]:
@@ -34,14 +35,25 @@ def nav_ids(sample_text: str) -> list[str]:
     return NAV_LINE.findall(sample_text)
 
 
-def test_every_sample_nav_entry_is_a_page_this_build_serves():
-    declared = nav_ids(SAMPLE.read_text(encoding="utf-8"))
-    assert declared, "the sample declares no nav entry at all"
-    assert [page for page in declared if page not in site_pages.SERVED_NAV_IDS] == []
+def test_the_sample_declares_no_live_nav_so_a_copy_offers_every_page():
+    """THE OWNER'S REPORT: a site copied from the sample had no Servers entry.
+
+    A stored ``nav:`` freezes the bar at the day it was written, so the sample must not hand an
+    operator one: omitting the key is what keeps every page the running build serves on, and what
+    keeps a page a later release adds on too.
+    """
+    text = SAMPLE.read_text(encoding="utf-8")
+    assert nav_ids(text) == [], f"the sample still enumerates a nav: {nav_ids(text)}"
+    assert "OMIT THIS KEY" in text
+    assert "servers" in text, "the sample never mentions the fleet page"
 
 
-def test_the_sample_does_not_offer_the_unbuilt_squadrons_pages():
-    assert "squadrons" not in nav_ids(SAMPLE.read_text(encoding="utf-8"))
+def test_the_sample_example_names_only_pages_this_build_serves():
+    """The example is commented twice; uncommenting one level must still name served pages."""
+    text = SAMPLE.read_text(encoding="utf-8")
+    example = re.findall(r"^  #\s+#\s+- (\w+)\b", text, re.MULTILINE)
+    assert example, "the sample carries no commented example to check"
+    assert [page for page in example if page not in site_pages.SERVED_NAV_IDS] == []
 
 
 def test_the_nav_reader_rejects_an_unserved_entry():

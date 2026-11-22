@@ -1,0 +1,10 @@
+{#-
+  The chat lines — the fragment the Chat tab's follow responses carry and the page itself
+  includes. ONE source of line markup for both, so the initial paint and every poll agree.
+
+  Each line is a ``ChatLine`` (readmodels.chattail): ``clock``, ``name``, ``audience`` and ``text``.
+  THE COLOUR IS THE AUDIENCE: ``aud-red`` / ``aud-blue`` on the line, no class for ``all``; the
+  timestamp keeps the stylesheet's metadata colour and the chip names the side in words.
+  Autoescape handles the name and the text — both are player-supplied, never markup.
+-#}
+{% for line in lines %}<div class="ln{% if line.audience_class %} {{ line.audience_class }}{% endif %}"><span class="t">{{ line.clock }}</span> <span class="who">{{ line.name }}</span>{% if line.audience_word %} <span class="aud">{{ _(line.audience_word) }}</span>{% endif %} <span class="txt">{{ line.text }}</span></div>{% endfor %}

@@ -85,16 +85,22 @@ def _returns_a_capability_map(function) -> bool:
 
 
 def _shell_merges(stem: str) -> bool:
-    """Whether ``shell._core_router`` merges *stem*'s ``capabilities()`` into the ONE registration.
+    """Whether the module that registers *stem*'s routes merges its ``capabilities()``.
 
-    Read from the real module: the aggregated shape is a declaration only if the shell actually
-    consumes it, so a page cannot satisfy this pin by defining a function nobody calls.
+    Read from the real modules: the aggregated shape is a declaration only if the registrar actually
+    consumes it, so a page cannot satisfy this pin by defining a function nobody calls. Two
+    registrars answer — ``shell._core_router`` for the console's own pages, and
+    ``pages/settings.add_routes`` for the settings group (whose site page joins there).
     """
-    try:
-        text = (WEBSERVICE_DIR / "shell.py").read_text(encoding="utf-8")
-    except OSError:                                     # pragma: no cover - the shell always ships
-        return False
-    return f"capabilities.update({stem}_page.capabilities())" in text
+    for relative in ("shell.py", "pages/settings.py"):
+        try:
+            text = (WEBSERVICE_DIR / relative).read_text(encoding="utf-8")
+        except OSError:                                 # pragma: no cover - both always ship
+            continue
+        if f"capabilities.update({stem}_page.capabilities())" in text \
+                or f"declared.update({stem}_page.capabilities())" in text:
+            return True
+    return False
 
 
 def write_route_offenders(root: Path) -> list[str]:

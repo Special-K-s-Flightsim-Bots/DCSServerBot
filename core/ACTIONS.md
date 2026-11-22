@@ -37,10 +37,10 @@ plugin's actions exist in a process only if that process imported its `actions.p
 | `monitoring` | 0 | 3 | 3 |
 | `music` | 9 | 4 | 13 |
 | `punishment` | 2 | 0 | 2 |
-| `scheduler` | 5 | 2 | 7 |
-| **all** | **59** | **27** | **86** |
+| `scheduler` | 6 | 2 | 8 |
+| **all** | **60** | **27** | **87** |
 
-Seven plugin modules declare every one of the 86 actions, and `plugins/mission/actions.py` holds 43
+Seven plugin modules declare every one of the 87 actions, and `plugins/mission/actions.py` holds 43
 of them. The counts above are asserted against the live registry by
 `tests/test_docs_action_counts.py`: a new `@action` breaks that test instead of drifting away from
 this table.

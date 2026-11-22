@@ -32,7 +32,9 @@ from core.action_results import ServerConfigResult, ServerControlResult
 from core.actions import (TRANSPORT_DISCORD, TRANSPORT_PLUGIN, TRANSPORT_SERVICE, TRANSPORT_WEB,
                           action, audit_action, server_write_lock)
 from core.data.const import Coalition, Status
-from core.server_config import CHANNELS_ITEM, MANAGER_DENIED, MANAGER_DENIED_KEYS, manager_denial
+from core.server_config import (CHANNELS_ITEM, MANAGER_DENIED, MANAGER_DENIED_KEYS, WEB_PASSWORDS_ITEM,
+                                manager_denial)
+from core.utils import configwrite
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +51,8 @@ __all__ = [
     "get_server_config", "set_server_config",
     # the bot-face channels write
     "CHANNEL_KEYS", "CHANNEL_ADMIN_KEY", "CHANNEL_UNSET", "set_server_channels",
+    # the public site's password switch (the per-server servers.yaml key)
+    "SHOW_WEB_PASSWORDS_KEY", "SERVERS_SCHEMA", "set_server_web_passwords",
     # the coalition face: the plaintext read and the write that goes through the bot's own method
     "get_server_coalitions", "set_coalition_password", "WRITABLE_COALITION_STATES",
     "COALITION_KEYS", "COALITION_STATE_SENTENCE", "COALITION_REST_REFUSAL",
@@ -1022,6 +1026,138 @@ async def set_server_channels(ctx: Any, server_name: str, channels: dict) -> Ser
     result = ServerConfigResult(
         success=bool(applied), server_name=name, applied=applied, skipped=skipped,
         message=_set_message(name, applied, skipped))
+    return await _audited_config(ctx, result, server)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# The PUBLIC SITE's password switch — the per-server ``servers.yaml`` key
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# ``show_web_passwords`` decides whether the PUBLIC SITE prints a server's join password. It is the
+# site's own key, INDEPENDENT of the Discord status embed's ``show_passwords``
+# (``plugins/mission/status.py``): neither reads the other, so an install that shows the password in
+# the embed publishes nothing until an operator turns this one on.
+#
+# The write is the file primitive (``core.utils.configwrite.patch_config_file``) and not
+# ``Server.update_channels``'s merge: only ONE scalar key changes, and the primitive is the one place
+# that keeps the operator's comments, key order and every key it does not own.
+
+#: The ``servers.yaml`` key this action writes — and the only one it touches.
+SHOW_WEB_PASSWORDS_KEY = "show_web_passwords"
+
+#: The schema ``config/servers.yaml`` is validated against — the bot's OWN, so a write can never
+#: leave a file the next boot refuses.
+SERVERS_SCHEMA = str(Path(__file__).resolve().parents[2] / "schemas" / "servers_schema.yaml")
+
+
+class _NoServerEntry(Exception):
+    """The file carries no block for the resolved server: the mutation aborts and NOTHING is written."""
+
+
+def _web_passwords_authorised(ctx: Any) -> str | None:
+    """The typed refusal a caller of the public-site password write gets, or ``None``.
+
+    ADMIN ONLY, with no manager and no scope grant: the write publishes a server's password onto a
+    page anyone can read, which is a stronger secret than the channels map the manager deny-list
+    already guards. Enforced HERE, server-side, so a crafted request and a direct caller are refused
+    alike — hiding the block is not the control.
+
+    MCP is refused the shared way (:data:`SERVICE_REFUSAL`); every other non-Admin — a DCS Admin, a
+    manager, an API-key caller without roles — takes the console's own sentence
+    (:data:`ADMIN_ONLY_SENTENCE` and, for a manager, the deny-list's own wording).
+    """
+    if getattr(ctx, "transport", "") == TRANSPORT_SERVICE:
+        return SERVICE_REFUSAL
+    if _admin(ctx):
+        return None
+    if _manages_only(ctx):
+        return MANAGER_DENIED[WEB_PASSWORDS_ITEM]
+    return ADMIN_ONLY_SENTENCE
+
+
+@action
+async def set_server_web_passwords(ctx: Any, server_name: str, show: bool) -> ServerConfigResult:
+    """Write ONE server's ``servers.yaml`` ``show_web_passwords`` — the public site's own switch.
+
+    The order mirrors :func:`set_server_channels`:
+
+    1. AUTHORISE here (:func:`_web_passwords_authorised`) — Admin only, refused to a manager;
+    2. resolve the server — an unknown name is the seam's own typed refusal, never a silent success;
+    3. check the submitted value is a real boolean;
+    4. hold the per-server WRITE lock, so this write cannot interleave with the other faces;
+    5. write the ONE key in the ONE block through ``configwrite.patch_config_file``: the primitive
+       validates the candidate against the bot's own ``schemas/servers_schema.yaml`` first, and a file
+       whose block for this server is missing is left untouched (a typed refusal, never a new block);
+    6. move the in-memory copy, so the page reads the value the file now holds;
+    7. audit once, whatever the outcome.
+
+    The value ALREADY in force is a skip, not a rewrite: the primitive's no-op rule would leave the
+    file byte-identical anyway, and saying so is more honest than reporting a write that did nothing.
+    """
+    refusal = _web_passwords_authorised(ctx)
+    if refusal:
+        return await _audited_config(ctx, ServerConfigResult(
+            success=False, server_name=server_name, refused=refusal, message=refusal))
+    server = ctx.resolve_server(server_name)
+    if server is None:
+        message = f"Server '{server_name}' not found."
+        return await _audited_config(ctx, ServerConfigResult(
+            success=False, server_name=server_name, refused=message, message=message))
+    name = _label(server, server_name)
+    if not isinstance(show, bool):
+        reason = f"'{SHOW_WEB_PASSWORDS_KEY}' expects a true/false value."
+        return await _audited_config(ctx, ServerConfigResult(
+            success=False, server_name=name, skipped={SHOW_WEB_PASSWORDS_KEY: reason},
+            message=f'Server "{name}": {reason}'), server)
+    node = getattr(server, "node", None)
+    config_dir = getattr(node, "config_dir", None)
+    if not config_dir:
+        reason = (f'Server "{name}" has no configuration directory, so its '
+                  f'{SHOW_WEB_PASSWORDS_KEY} setting cannot be written.')
+        return await _audited_config(ctx, ServerConfigResult(
+            success=False, server_name=name, refused=reason, message=reason), server)
+    path = Path(config_dir) / "servers.yaml"
+    current = bool((getattr(server, "locals", None) or {}).get(SHOW_WEB_PASSWORDS_KEY, False))
+    if current is show:
+        reason = f"'{SHOW_WEB_PASSWORDS_KEY}' is unchanged."
+        return await _audited_config(ctx, ServerConfigResult(
+            success=False, server_name=name, skipped={SHOW_WEB_PASSWORDS_KEY: reason},
+            message=f'Server "{name}": nothing changed; skipped {SHOW_WEB_PASSWORDS_KEY}.'), server)
+
+    async with server_write_lock(str(server.name)):
+        def mutate(document) -> None:
+            """Set the ONE key in the ONE block; a missing block aborts the whole write."""
+            entry = document.get(name) if hasattr(document, "get") else None
+            if not isinstance(entry, dict):
+                raise _NoServerEntry(name)
+            entry[SHOW_WEB_PASSWORDS_KEY] = show
+
+        try:
+            configwrite.patch_config_file(path, mutate, schemas=[SERVERS_SCHEMA])
+        except _NoServerEntry:
+            reason = (f'Server "{name}" has no entry in {path.name}, so nothing was written.')
+            return await _audited_config(ctx, ServerConfigResult(
+                success=False, server_name=name, refused=reason, message=reason), server)
+        except configwrite.ConfigWriteError as ex:
+            log.exception("Public-site password: could not write %s for server '%s'.", path, name)
+            reason = f'Failed to write {SHOW_WEB_PASSWORDS_KEY} of server "{name}": {ex}'
+            return await _audited_config(ctx, ServerConfigResult(
+                success=False, server_name=name, refused=reason, message=reason), server)
+        except Exception as ex:                     # a transport never gets a stack trace
+            log.exception("Public-site password: the write of %s raised for server '%s'.", path, name)
+            reason = f'Failed to write {SHOW_WEB_PASSWORDS_KEY} of server "{name}": {ex}'
+            return await _audited_config(ctx, ServerConfigResult(
+                success=False, server_name=name, refused=reason, message=reason), server)
+        # The file is the store and ``server.locals`` the copy every reader holds: move it, so the
+        # console and the public site follow the switch without a restart.
+        locals_ = getattr(server, "locals", None)
+        if isinstance(locals_, dict):
+            locals_[SHOW_WEB_PASSWORDS_KEY] = show
+
+    result = ServerConfigResult(
+        success=True, server_name=name,
+        applied={SHOW_WEB_PASSWORDS_KEY: {"from": current, "to": show}},
+        message=_set_message(name, {SHOW_WEB_PASSWORDS_KEY: {"from": current, "to": show}}, {}))
     return await _audited_config(ctx, result, server)
 
 

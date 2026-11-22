@@ -38,8 +38,10 @@ through the mission plugin's READ actions (``pages/actions.mission_list`` / ``do
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
+import time
 import unicodedata
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -63,6 +65,7 @@ from ..dcs_install import PRESET_IMAGE_MAX_BYTES, PRESET_IMAGE_MEDIA_TYPE, prese
 # rendered for the REQUEST's language here, server-side, so the JavaScript carries no translation
 # logic (``templating.SENTENCE_GLOBAL``).
 from ..templating import SENTENCE_GLOBAL
+from ..readmodels import chattail as chat_tail
 from ..readmodels import dcslog as dcs_log
 from ..readmodels import serverconfig as server_config
 from ..readmodels.access import attr
@@ -108,6 +111,9 @@ __all__ = [
     "music_tab_stream_path", "music_tab_fragments_path", "music_tab_fragment",
     "music_tab_render_for", "music_tab_event_stream", "music_tab_live", "refuse_without_music_view",
     "add_music_tab_stream_routes",
+    "CHAT_TAB", "CHAT_READ_ACTION", "CHAT_REFUSED_SENTENCE", "CHAT_STREAM_PATH",
+    "chat_tab_gate", "chat_request_refused", "chat_stream_path", "chat_event_stream",
+    "add_chat_stream_route",
     "MISSIONS_DOWNLOAD_PATH", "MISSIONS_DOWNLOAD_MAX_BYTES", "MISSIONS_DOWNLOAD_MEDIA_TYPE",
     "LOG_TAB", "LOG_READ_CAPABILITY", "LOG_WINDOW_PATH", "log_window_path",
     "EVENTS_TAB", "LOG_DOWNLOAD_PATH", "LOG_DOWNLOAD_MAX_BYTES", "log_download_path",
@@ -215,6 +221,26 @@ MUSIC_TAB_TARGET = "mus-tab-players"
 #: reason the page route uses it: a server name may contain slashes.
 MUSIC_TAB_STREAM_PATH = "/api/server/{name:path}/music/stream"
 MUSIC_TAB_FRAGMENTS_PATH = "/api/server/{name:path}/music/fragments"
+
+#: THE CHAT TAB — the server's in-game chat, read from the ring the mission plugin's listener fills.
+#: It declares no capability of its own: the page already resolved this server through the scoped
+#: source. Its ONE write is the EXISTING ``message_server`` action (``servers.message``), posted by
+#: the composer with the page's own one-shot confirm token — there is no second write path.
+CHAT_TAB = "chat"
+
+#: the READ the tab consumes: the mission plugin's ``chat_history`` action, which reads the ring its
+#: ``onChatMessage`` listener writes. The tab is offered only while it is registered
+#: (:func:`chat_tab_gate`), so an installation without the mission plugin draws no tab and a crafted
+#: ``?tab=chat`` is refused rather than served empty.
+CHAT_READ_ACTION = "chat_history"
+
+#: the sentence a request for the Chat tab gets while the mission plugin is not registered.
+CHAT_REFUSED_SENTENCE = i18n._("The Chat tab is only offered while the mission plugin is active "
+                               "for this server.")
+
+#: THE CHAT STREAM route — the tab's live read of the ring. Under ``/api`` like the Music tab's two
+#: doors, ``{name:path}`` for the same reason: a server name may contain slashes.
+CHAT_STREAM_PATH = "/api/server/{name:path}/chat/stream"
 
 CONFIG_TEMPLATE = "server_detail.html"
 PAGE_TITLE_SUFFIX = " — DCSServerBot"
@@ -369,9 +395,10 @@ LOG_DOWNLOAD_MAX_BYTES = nodes_page.LOG_DOWNLOAD_MAX_BYTES
 #: ``logs.view`` (the cluster log panel's own capability, ``Admin`` only); ``configuration`` only to a
 #: viewer holding ``servers.config``.
 TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB, SCHEDULER_TAB,
-                              MODS_TAB, MUSIC_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
+                              MODS_TAB, MUSIC_TAB, CHAT_TAB, LOG_TAB, EVENTS_TAB, CONFIG_TAB)
 OPTIONAL_TAB_ORDER: tuple[str, ...] = ("overview", "players", STATISTICS_TAB, MISSIONS_TAB,
-                                       SCHEDULER_TAB, MODS_TAB, MUSIC_TAB, LOG_TAB, EVENTS_TAB)
+                                       SCHEDULER_TAB, MODS_TAB, MUSIC_TAB, CHAT_TAB, LOG_TAB,
+                                       EVENTS_TAB)
 
 TAB_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"), "players": i18n._("Players"), MISSIONS_TAB: i18n._("Missions"),
@@ -382,6 +409,7 @@ TAB_LABELS: dict[str, str] = {
     MODS_TAB: mods_page.MODS_LABEL,
     # the music area's own word, for the same reason: the tab and the music pages name one area
     MUSIC_TAB: i18n._("Music"),
+    CHAT_TAB: i18n._("Chat"),
     LOG_TAB: i18n._("Log"), EVENTS_TAB: i18n._("Events"), CONFIG_TAB: i18n._("Configuration"),
 }
 
@@ -558,6 +586,22 @@ def music_request_refused(reason: str) -> HTTPException:
     return HTTPException(status_code=403, detail=reason or MUSIC_NO_RADIOS)
 
 
+def chat_tab_gate(server) -> bool:
+    """Whether the Chat tab is offered for *server* — ONE fact: the mission plugin is registered.
+
+    The writer (``plugins.mission.chatlog``) and the ``message_server`` action both live in the
+    mission plugin, so the tab is offered on the SAME registration check the Music tab uses
+    (``action_available``): an installation without the plugin draws no tab and its crafted
+    ``?tab=chat`` is refused.
+    """
+    return action_available(CHAT_READ_ACTION)
+
+
+def chat_request_refused() -> HTTPException:
+    """The refusal a request for the Chat tab gets while the mission plugin is not registered."""
+    return HTTPException(status_code=403, detail=CHAT_REFUSED_SENTENCE)
+
+
 def music_page_module():
     """The music area's own page module — the ONE home of the editor's URL and of its capability.
 
@@ -618,7 +662,7 @@ def normalise_tab(value) -> str:
 
 def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
              debug_plugin: bool = False, scheduler_view: bool = False,
-             music: bool = False) -> tuple[str, ...]:
+             music: bool = False, chat: bool = False) -> tuple[str, ...]:
     """The tabs a viewer holding *roles* (and, for a manager, the SCOPE) may be offered — and RENDER.
 
     ONE answer for the strip and for the tab in force: ``missions`` is offered exactly when
@@ -669,6 +713,13 @@ def tabs_for(roles, *, manager: bool = False, config_manager: bool = False,
             if music:
                 tabs.append(key)
             continue
+        if key == CHAT_TAB:
+            # THE CHAT TAB'S ONE FACT, computed once by ``chat_tab_gate``: the mission plugin is
+            # registered, so the history file has a writer and the composer has an action. The tab's
+            # ONE capability is the message write's (``servers.message``) — who may send may read.
+            if chat and permissions.allows(actions_page.SERVER_MESSAGE_CAPABILITY, roles or ()):
+                tabs.append(key)
+            continue
         if key in (LOG_TAB, EVENTS_TAB):
             # both log-family tabs need the log panel's own capability; ``events`` ADDITIONALLY needs
             # the debug plugin active — a tab that could never serve is never drawn.
@@ -709,6 +760,7 @@ def tab_request_refused(tab: str) -> HTTPException:
     capability = {CONFIG_TAB: CONFIG_CAPABILITY, MISSIONS_TAB: MISSIONS_CAPABILITY,
                   SCHEDULER_TAB: SCHEDULER_CAPABILITY,
                   MODS_TAB: MODS_VIEW_CAPABILITY,
+                  CHAT_TAB: actions_page.SERVER_MESSAGE_CAPABILITY,
                   LOG_TAB: LOG_READ_CAPABILITY, EVENTS_TAB: LOG_READ_CAPABILITY}.get(
         tab, MISSIONS_CAPABILITY)
     requirement = permissions.requirement_text(capability)
@@ -807,6 +859,9 @@ def capabilities() -> dict[str, str]:
             # capability a playlist editor is opened on AND the server's own scope, in the route.
             MUSIC_TAB_STREAM_PATH: music_page_module().CAPABILITY_VIEW,
             MUSIC_TAB_FRAGMENTS_PATH: music_page_module().CAPABILITY_VIEW,
+            # THE CHAT WINDOW is the tab's own read of the same file, gated by the SAME capability
+            # the composer's write takes (``servers.message``): who may send may read.
+            CHAT_STREAM_PATH: actions_page.SERVER_MESSAGE_CAPABILITY,
             # THE STATUS POLL is a READ of the server page's own data (the status the page head and
             # the Overview card render), so it carries the PAGE's capability and its scope — the same
             # predicate the page route is gated with, never a new one.
@@ -1534,6 +1589,221 @@ async def _log_tab_context(request: Request, server, server_name: str, *,
                    "log_lines": state["lines"], "log_offset": state["offset"],
                    "log_before": state["before"], "log_size": state["size"],
                    "log_identity": state["identity"], "log_at_start": state["at_start"]}
+
+
+# ---------------------------------------------------------------------------------- the Chat tab
+# The server's in-game chat: the mission plugin's listener records every line into a bounded
+# in-memory ring (``plugins.mission.chatlog``) and the console reads it back through the
+# ``chat_history`` action. The tab shows the ring's tail, filtered server-side by sender and text,
+# and follows it on an event stream while the tab is open. Nothing is written to disk.
+
+#: the "N of M lines" sentence a filtered view states. TRANSLATABLE; rendered by the route.
+CHAT_COUNT_LABEL = i18n._("{shown} of {total} lines")
+
+#: the composer's own note, under the field: which colour is which audience.
+CHAT_NOTE_SENTENCE = i18n._("Coloured by who can read it: everyone, Red only, Blue only — players "
+                            "can only type to everyone, so your side lines are whispers.")
+
+#: the sentence a STOPPED (or otherwise not-running) server's card carries in place of the composer.
+CHAT_OFF_SENTENCE = i18n._("The server is not running — there is nobody to send to. Start it from "
+                           "the Overview tab.")
+
+
+def chat_stream_path(server_name: str) -> str:
+    """The URL of *server_name*'s chat stream, the name as ONE percent-encoded segment."""
+    return mount.url(f"/api/server/{quote(readmodels.text(server_name), safe='')}/chat/stream")
+
+
+def _chat_pairs(records) -> list[tuple[dict, chat_tail.ChatLine]]:
+    """The records a template can show, each paired with its record so ``seq`` stays readable."""
+    pairs = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        line = chat_tail.from_record(record)
+        if line is not None:
+            pairs.append((record, line))
+    return pairs
+
+
+def _chat_view(records, *, who: str, q: str, after: int = 0) -> dict:
+    """The kept lines, the ``N of M`` counts and the lines newer than *after*.
+
+    ``kept`` is every record the filters keep in the whole ring (the count the tab states);
+    ``fresh`` is the subset newer than *after* (what a follower appends).
+    """
+    pairs = _chat_pairs(records)
+    kept = [(record, line) for record, line in pairs if chat_tail.matches(line, who, q)]
+    fresh = [line for record, line in kept if int(record.get("seq") or 0) > after]
+    return {"kept": [line for _, line in kept], "fresh": fresh, "total": len(pairs),
+            "shown": len(kept)}
+
+
+async def _chat_records(request: Request, server_name: str, *, after: int = 0):
+    """The ring's records for *server_name*, plus its newest ``seq`` — or a typed refusal."""
+    ctx = actions_page.context_for(request)
+    result = await read_action(CHAT_READ_ACTION, ctx, server_name=server_name, after=after)
+    if not getattr(result, "success", False):
+        return None, 0, readmodels.text(getattr(result, "message", ""))
+    data = getattr(result, "data", None) or {}
+    records = [record for record in (data.get("lines") or []) if isinstance(record, dict)]
+    return records, int(data.get("last_seq") or 0), ""
+
+
+def _chat_lines_html(environment, records) -> str:
+    """The lines rendered by the SAME partial the page includes."""
+    return environment.get_template("_chat_lines.html").render(lines=records)
+
+
+def _chat_count(environment, shown: int, total: int, *, filtered: bool) -> str:
+    """The ``N of M lines`` sentence, or empty when no filter is in force."""
+    return _rendered(environment, CHAT_COUNT_LABEL, shown=shown, total=total) if filtered else ""
+
+
+def _chat_frame(environment, view: dict, *, last_seq: int, filtered: bool,
+                reset: bool = False) -> str:
+    """One SSE frame: the new lines as markup, the cursor and the counts."""
+    payload = {"lines": _chat_lines_html(environment, view["fresh"]), "last_seq": last_seq,
+               "shown": view["shown"], "total": view["total"], "filtered": filtered,
+               "count_label": _chat_count(environment, view["shown"], view["total"],
+                                          filtered=filtered),
+               "message": "" if view["fresh"] else (
+                   _rendered(environment, chat_tail.NO_MATCH_SENTENCE) if filtered else "")}
+    if reset:
+        payload["reset"] = True
+    return f"event: chat\nid: {last_seq}\ndata: {json.dumps(payload)}\n\n"
+
+
+async def _chat_tab_context(request: Request, server, server_name: str, who: str, q: str) -> dict:
+    """The Chat tab's initial render: the ring's tail, filtered, plus the composer."""
+    # THE COMPOSER'S TARGET is the RESOLVED server's canonical name — the value its form posts as
+    # ``server`` and the one the confirm token is minted for, so the action's own check of that pair
+    # (``consume_confirm_token(request, path, name)``) cannot be handed two spellings of one target.
+    target = readmodels.text(attr(server, "name", None)) or server_name
+    environment = i18n.environment_for(request)
+    status = actions_page.state_of(attr(server, "status", None))
+    filtered = bool(chat_tail.normalise_filter(who) or chat_tail.normalise_filter(q))
+    base = {
+        "chat_stream_url": chat_stream_path(server_name),
+        "chat_after": 0,
+        "chat_who": who,
+        "chat_q": q,
+        "chat_filtered": filtered,
+        "chat_lines": (),
+        "chat_available": False,
+        "chat_message": "",
+        "chat_shown": 0,
+        "chat_total": 0,
+        "chat_count": "",
+        "chat_note_sentence": CHAT_NOTE_SENTENCE,
+        "chat_tab_url": server_url(server_name),
+        "chat_tab_key": CHAT_TAB,
+        "chat_server": target,
+        "chat_server_field": actions_page.SERVER_CONFIG_FIELD,
+        "chat_action_path": mount.url(actions_page.SERVER_CHAT_PATH),
+        "chat_mode": "chat",
+        "chat_field": "message",
+        "chat_coalition_field": "coalition",
+        "chat_audiences": actions_page.SERVER_MESSAGE_AUDIENCE,
+        "chat_message_max": actions_page.MESSAGE_FIELD_MAX,
+        "chat_confirm_field": actions_page.CONFIRM_FIELD,
+        "chat_confirm_token": actions_page.mint_confirm_token(
+            request, actions_page.SERVER_CHAT_PATH, target),
+        "chat_csrf_field": session.CSRF_FIELD,
+        "chat_csrf_token": session.get_csrf_token(request),
+        "chat_can_send": status in ("RUNNING", "PAUSED"),
+        "chat_off_sentence": CHAT_OFF_SENTENCE,
+    }
+    records, last_seq, message = await _chat_records(request, server_name)
+    if records is None:
+        return base | {"chat_message": message}
+    view = _chat_view(records, who=who, q=q)
+    shown = view["kept"][-chat_tail.TAIL_LINES:]
+    sentence = "" if shown else _rendered(
+        environment, chat_tail.NO_MATCH_SENTENCE if filtered else chat_tail.MISSING_SENTENCE)
+    return base | {"chat_available": True, "chat_message": sentence, "chat_lines": shown,
+                   "chat_after": last_seq, "chat_shown": view["shown"], "chat_total": view["total"],
+                   "chat_count": _chat_count(environment, view["shown"], view["total"],
+                                             filtered=filtered)}
+
+
+async def chat_event_stream(request: Request, server_name: str, *, after: int, who: str, q: str):
+    """The SSE generator of one connection: the ring's new lines while the tab is open.
+
+    The WHOLE ring is read each tick (bounded, in-process, no IO) so the ``N of M`` count stays
+    honest; only the lines newer than the cursor are sent. A ``seq`` that went BACKWARDS means the
+    process restarted and the ring is empty — the frame then carries ``reset`` and the whole tail,
+    so the browser never splices two histories.
+    """
+    environment = i18n.environment_for(request)
+    config = live_page.dashboard_config(request.app)
+    registry = live_page.get_registry(request.app, config)
+    acquired = registry.try_acquire() if config.enabled else False
+    filtered = bool(chat_tail.normalise_filter(who) or chat_tail.normalise_filter(q))
+    cursor = max(0, int(after or 0))
+    try:
+        records, last_seq, _ = await _chat_records(request, server_name)
+        if records is None:
+            yield _chat_frame(environment, {"fresh": [], "shown": 0, "total": 0},
+                              last_seq=0, filtered=filtered)
+            return
+        reset = cursor > last_seq
+        if reset:
+            cursor = 0
+        view = _chat_view(records, who=who, q=q, after=cursor)
+        yield _chat_frame(environment, view, last_seq=last_seq, filtered=filtered, reset=reset)
+        cursor = last_seq
+        if not config.enabled or not acquired:
+            # over the cap (or live updates are off): the client got its snapshot, and the stream
+            # closes cleanly rather than queueing for a slot it will never be given
+            return
+        last_beat = time.monotonic()
+        while True:
+            await asyncio.sleep(config.refresh_seconds)
+            now = time.monotonic()
+            if now - last_beat >= config.heartbeat_seconds:
+                yield ": keepalive\n\n"
+                last_beat = now
+            records, last_seq, _ = await _chat_records(request, server_name)
+            if records is None:
+                continue
+            reset = cursor > last_seq
+            if reset:
+                cursor = 0
+            view = _chat_view(records, who=who, q=q, after=cursor)
+            if not view["fresh"] and not reset:
+                continue
+            yield _chat_frame(environment, view, last_seq=last_seq, filtered=filtered, reset=reset)
+            cursor = last_seq
+    finally:
+        if acquired:
+            registry.release()
+
+
+def add_chat_stream_route(router: APIRouter) -> APIRouter:
+    """The Chat tab's live route: ``GET /api/server/{name}/chat/stream``."""
+    @router.get(CHAT_STREAM_PATH, name="server-chat-stream", response_class=StreamingResponse)
+    async def chat_stream(request: Request, name: str, after: str = "0", who: str = "",
+                          q: str = "") -> Response:
+        # BOTH gates run before the generator exists: the tab's plugin gate and the server's own
+        # scope, resolved through the scoped source the page rendered from — so a name the caller
+        # cannot see cannot be streamed, and the refusal is the console's 403/404 rather than a
+        # stream that dies on its first frame.
+        if not action_available(CHAT_READ_ACTION):
+            raise chat_request_refused()
+        dashboard_page.scoped_server(request, name)
+        # THE BROWSER'S OWN RESUME POINT wins over the URL: an EventSource reconnects with the
+        # ``Last-Event-ID`` header set to the last frame's id, which is exactly the cursor.
+        held = readmodels.text(request.headers.get("last-event-id"))
+        cursor = _byte(held if held else after)
+        if cursor is None:
+            cursor = 0
+        return StreamingResponse(chat_event_stream(request, name, after=cursor, who=who, q=q),
+                                 media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache",
+                                          "X-Accel-Buffering": "no"})
+
+    return router
 
 
 def _log_refuse(status_code: int, sentence: str) -> PlainTextResponse:
@@ -2448,10 +2718,12 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
     # THE MUSIC TAB'S TWO FACTS, decided ONCE: the action is registered here AND the file configures
     # a radio for THIS server. The strip and the refusal read this one answer.
     music_offered, music_reason = music_tab_gate(server)
+    # THE CHAT TAB'S ONE FACT: the mission plugin is registered in this process.
+    chat_offered = chat_tab_gate(server)
     allowed_tabs = tabs_for(roles, manager=manager, config_manager=config_viewer,
                             debug_plugin=events_offered,
                             scheduler_view=settings_page.scheduler_access(request, server).view,
-                            music=music_offered)
+                            music=music_offered, chat=chat_offered)
     tab = normalise_tab(request.query_params.get("tab"))
     if tab not in allowed_tabs:
         # the tab exists but this viewer may not open it: REFUSE the request, naming ITS OWN
@@ -2463,6 +2735,9 @@ async def _render_server_detail(request: Request, name: str) -> HTMLResponse:
             raise events_request_refused()
         if tab == MUSIC_TAB:
             raise music_request_refused(music_reason)
+        if tab == CHAT_TAB and not chat_offered:
+            # the plugin is the missing fact, not the viewer's rights: the gate's own sentence.
+            raise chat_request_refused()
         raise tab_request_refused(tab)
     if tab == SCHEDULER_TAB:
         # THE WIZARD IS THE WRITE: a viewer who may read this server's plan and not write it is
@@ -2514,6 +2789,7 @@ def add_routes(router: APIRouter) -> APIRouter:
     """
     add_mission_download_route(router)
     add_log_window_route(router)
+    add_chat_stream_route(router)
     add_log_download_route(router)
     add_server_status_route(router)
     add_preset_image_route(router)
@@ -2633,6 +2909,11 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
         # the service is the ONE reader of its own configuration), with the writes declared in
         # ``pages/actions.py`` posting to their own routes.
         return await _music_tab_context(request, server_name)
+    if tab == CHAT_TAB:
+        # THE GAME CHAT: the mission plugin's JSONL history, filtered by the URL's two fields.
+        return await _chat_tab_context(request, server, server_name,
+                                       readmodels.text(request.query_params.get("who")),
+                                       readmodels.text(request.query_params.get("q")))
     if tab == LOG_TAB:
         # THE SERVER'S OWN DCS LOG: the config-driven path and the initial TAIL, read as a
         # BOUNDED window. Failures render their own sentence, never a blank panel.

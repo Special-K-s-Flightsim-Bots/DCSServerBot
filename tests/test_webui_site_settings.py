@@ -1166,9 +1166,9 @@ def test_the_wide_page_is_the_design_s_two_columns_and_640_measures():
 
 #: the design's B1 table, section by section, in ``sites.SECTION_IDS`` order.
 B1_SECTIONS: dict[str, tuple[str, ...]] = {
-    "pvp": ("community", "standings", "aircraft", "when_we_fly", "servers"),
-    "pve": ("community", "season", "aircraft", "when_we_fly", "squadrons", "servers"),
-    "pvpve": ("community", "season", "standings", "aircraft", "when_we_fly", "squadrons", "servers"),
+    "pvp": ("community", "standings", "aircraft", "when_we_fly"),
+    "pve": ("community", "season", "aircraft", "when_we_fly", "squadrons"),
+    "pvpve": ("community", "season", "standings", "aircraft", "when_we_fly", "squadrons"),
 }
 
 #: the design's B1 table, metric by metric, in the order the table states them.
@@ -1188,11 +1188,11 @@ B1_WITHDRAWN: dict[str, tuple[str, ...]] = {
 
 
 def test_the_character_table_is_the_design_s_b1_table():
-    """PIN 3: the code-side table IS the design's B1 table — three characters, seven and seven."""
+    """PIN 3: the code-side table IS the design's B1 table — three characters, six and seven."""
     assert set(site_page.CHARACTER_SETS) == set(sites.CHARACTERS), (
         f"the table is keyed by {sorted(site_page.CHARACTER_SETS)}, the model names "
         f"{sorted(sites.CHARACTERS)}")
-    assert len(sites.SECTION_IDS) == 7 and len(sites.LEADERBOARD_METRICS) == 7
+    assert len(sites.SECTION_IDS) == 6 and len(sites.LEADERBOARD_METRICS) == 7
     for ident in sites.CHARACTERS:
         spec = site_page.CHARACTER_SETS[ident]
         assert tuple(spec.sections) == B1_SECTIONS[ident], (
@@ -1288,6 +1288,10 @@ async def test_without_scripts_the_card_saves_the_character_and_keeps_the_stored
 
     sections = [node for node in root_form.walk() if node.attrs.get("data-sc-section")]
     assert len(sections) == len(sites.SECTION_IDS)
+    assert [node.attrs.get("data-sc-section") for node in sections] == list(sites.SECTION_IDS), (
+        "the overview-section switch lists an id the page cannot draw, or lists them out of order")
+    assert "servers" not in [node.attrs.get("data-sc-section") for node in sections], (
+        "the switch still offers the overview band that left the page")
     assert [node.attrs.get("data-sc-section") for node in sections if "checked" in node.attrs] == \
         [ident for ident in sites.SECTION_IDS if ident != "season"], (
         "the rendered switches do not carry the stored section values")
@@ -1435,8 +1439,9 @@ def test_every_tile_id_has_a_label_and_the_nav_labels_are_the_bar_s_own():
 def test_a_hidden_id_is_drawn_after_the_shown_ones_in_vocabulary_order():
     """PIN 5: the sequence holds the SHOWN ids, so a hidden one has no stored position."""
     rows = site_page.list_rows(("players", "overview"), sites.NAV_PAGE_IDS, {})
-    assert [row["id"] for row in rows] == ["players", "overview", "leaderboard", "squadrons"]
-    assert [row["on"] for row in rows] == [True, True, False, False]
+    assert [row["id"] for row in rows] == ["players", "overview", "servers", "leaderboard",
+                                           "squadrons"]
+    assert [row["on"] for row in rows] == [True, True, False, False, False]
     duplicates = site_page.list_rows(("players", "players"), sites.NAV_PAGE_IDS, {})
     assert [row["id"] for row in duplicates].count("players") == 1, (
         "a repeated id is drawn twice")
@@ -1532,7 +1537,7 @@ async def test_a_reordered_list_saves_in_the_posted_order(app, site_file):
     The metric idiom, applied to `nav`: one checkbox per id under one name, so the order of the
     posted values is the order of the list. Nothing is renumbered and no index is posted.
     """
-    wanted = ["squadrons", "players", "overview", "leaderboard"]
+    wanted = ["squadrons", "players", "overview", "servers", "leaderboard"]
     async with client(app) as http:
         await sign_in_as(http, ADMIN)
         html = await open_page(http)
@@ -1547,6 +1552,104 @@ async def test_a_reordered_list_saves_in_the_posted_order(app, site_file):
     assert _row_ids(_blocks(html)["nav"]) == wanted, (
         "the page draws an order the file no longer carries")
     assert "notice bad" not in html, notice_of(html)
+
+
+#: the nav id this pin follows end to end: the row the console did not offer and the menu did not carry.
+SERVERS_ID = "servers"
+
+
+async def _public_menu(config_dir) -> list[tuple[str, str]]:
+    """The menu the PUBLIC site draws from ``site.yaml`` as it stands: (label, href) per entry.
+
+    A FRESH application is built from the same directory, so the menu is the file's own — the
+    console's save is the only thing that changes it (a running installation registers its sites at
+    start-up, so a save reaches the pages on the next one).
+    """
+    fresh = build(config_dir, cluster(), users=_users())
+    async with client(fresh) as http:
+        page = await http.get("/")
+        assert page.status_code == 200, page.text[:400]
+    nav = page.text.split('<nav class="nav"', 1)[1].split("</nav>", 1)[0]
+    return [(label.strip(), href)
+            for href, label in re.findall(r'href="([^"]*)"[^>]*>([^<]*)</a>', nav)]
+
+
+@pytest.mark.asyncio
+async def test_the_nav_editor_offers_servers_and_the_tick_moves_the_public_menu(app, config_dir,
+                                                                               site_file):
+    """THE OWNER'S REPORT: the menu had no Servers entry and the editor no row to tick.
+
+    The card now draws the row — the id under the bar's own word, ticked, because a site that names
+    no ``nav:`` offers every page. Unticking it writes the file, and the menu a fresh application
+    renders loses the entry; ticking it back restores ``/fleet``, which answers.
+    """
+    def root_block() -> dict:
+        """The root site's block in ``site.yaml`` as it stands."""
+        return (sites.load_site_block(site_file.parent) or {}).get("root") or {}
+
+    assert "nav" not in root_block(), (
+        "the fixture's site declares a nav, so this pin would not be reading the default")
+
+    async with client(app) as http:
+        await sign_in_as(http, ADMIN)
+        html = await open_page(http)
+        rows = _rows_of(_blocks(html)["nav"])
+        assert "servers" in _row_ids(_blocks(html)["nav"]), (
+            f"the editor offers {_row_ids(_blocks(html)['nav'])}")
+        row = next(node for node in rows if node.attrs.get("data-reorder-id") == SERVERS_ID)
+        assert "Servers" in _dump(row), f"the servers row reads {_dump(row)!r}"
+        assert [node for node in row.walk() if node.tag == "input" and "checked" in node.attrs], (
+            "the row for a page the site offers is drawn unticked")
+
+        kept = [ident for ident in _row_ids(_blocks(html)["nav"]) if ident != SERVERS_ID]
+        reply = await post(http, html, {"_site": "root", "f.sites.root.nav": kept})
+        assert reply.status_code == 303, reply.text[:300]
+
+        written = root_block().get("nav")
+        assert written == kept, f"the file carries nav: {written!r}"
+        unticked = await _public_menu(config_dir)
+        assert unticked == [("Overview", "/"), ("Leaderboard", "/rankings"),
+                            ("Pilots", "/players")], (
+            f"the menu still offers the entry the card unticked: {unticked}")
+
+        html = await open_page(http)
+        back = [ident for ident in _row_ids(_blocks(html)["nav"])]
+        reply = await post(http, html, {"_site": "root", "f.sites.root.nav": back})
+        assert reply.status_code == 303, reply.text[:300]
+
+    assert root_block().get("nav") == back
+    # a re-ticked row is drawn AFTER the rows that stayed on, so the tick's own order is the file's
+    assert back[0] == "overview" and back[-1] == SERVERS_ID, back
+    menu = await _public_menu(config_dir)
+    assert menu == [("Overview", "/"), ("Leaderboard", "/rankings"), ("Pilots", "/players"),
+                    ("Servers", "/fleet")], menu
+
+
+@pytest.mark.asyncio
+async def test_a_save_that_hides_nothing_drops_the_nav_key_again(app, config_dir, site_file):
+    """THE OWNER'S REPORT: a stored ``nav:`` froze the bar, so a page added later stayed off.
+
+    Saving the page set the model already defaults to removes the key, so the default applies again
+    — which is what lets a page a later release serves appear without anyone ticking it. A hidden
+    page, a reordered bar or an all-off list is a decision and stays written.
+    """
+    def root_block() -> dict:
+        return (sites.load_site_block(site_file.parent) or {}).get("root") or {}
+
+    def served_order() -> list[str]:
+        return [ident for ident in sites.NAV_PAGE_IDS if ident in site_pages.SERVED_NAV_IDS]
+
+    async with client(app) as http:
+        await sign_in_as(http, ADMIN)
+        html = await open_page(http)
+        reply = await post(http, html, {"_site": "root", "f.sites.root.nav": served_order()})
+        assert reply.status_code == 303, reply.text[:300]
+
+    assert "nav" not in root_block(), (
+        f"a save that hides nothing still wrote nav: {root_block().get('nav')!r}")
+    menu = await _public_menu(config_dir)
+    assert menu == [("Overview", "/"), ("Servers", "/fleet"), ("Leaderboard", "/rankings"),
+                    ("Pilots", "/players")], menu
 
 
 @pytest.mark.asyncio

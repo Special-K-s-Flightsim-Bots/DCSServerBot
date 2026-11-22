@@ -148,7 +148,9 @@ def _declared_paths() -> list[str]:
     """
     pages = [path or "/" for path in site_pages.NAV_PATHS.values()]
     pages += [site_pages.PLAYER_PATH + "/u-somebody", site_pages.ME_PATH,
-              site_pages.SEARCH_JSON_PATH, site_pages.LOGO_PATH, site_pages.THEME_SHEET_PATH,
+              site_pages.SERVER_PATH + "/u-somebody",
+              site_pages.SEARCH_JSON_PATH, site_pages.FLEET_LIVE_PATH,
+              site_pages.LOGO_PATH, site_pages.THEME_SHEET_PATH,
               site_pages.AVATAR_PATH, site_pages.CHROME_PREVIEW_PATH]
     return pages
 
@@ -193,7 +195,8 @@ async def test_every_served_site_address_answers_a_visitor_while_the_rest_api_se
     addresses = _served_paths(app)
     expected = {site_pages.NAV_PATHS[page] or "/" for page in site_pages.SERVED_NAV_IDS}
     expected |= {site_pages.ME_PATH, site_pages.PLAYER_PATH + "/u-somebody",
-                 site_pages.SEARCH_JSON_PATH, site_pages.LOGO_PATH, site_pages.THEME_SHEET_PATH,
+                 site_pages.SEARCH_JSON_PATH, site_pages.FLEET_LIVE_PATH,
+                 site_pages.LOGO_PATH, site_pages.THEME_SHEET_PATH,
                  site_pages.AVATAR_PATH}
     assert expected <= set(addresses), (
         f"the census lost {sorted(expected - set(addresses))}: it would then pass while that "

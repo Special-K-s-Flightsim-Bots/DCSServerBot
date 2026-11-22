@@ -65,7 +65,9 @@ The other per-site keys
 ``enabled`` is the site's own switch: absent or ``true`` = served, ``false`` = the block is kept but
 no route is registered for it. ``sections`` is a map of section id -> ``true``/``false`` over
 :data:`SECTION_IDS`, and an id the map does not name is ON — so an install that declares no map
-shows every section, and a section a later release adds is on for every existing site. ``metrics``
+shows every section, and a section a later release adds is on for every existing site. An id a
+previous release retired (:data:`RETIRED_SECTION_IDS`) is accepted and dropped, so a file written
+for that release keeps loading. ``metrics``
 is a LIST over :data:`~services.webservice.site_reads.LEADERBOARD_METRICS` (unlike ``sections``,
 because it is a pick from a vocabulary the operator can see); absent means every metric.
 ``theme.preset``/``theme.sheet``/``theme.expert`` are three spellings of one intent and at most one
@@ -133,6 +135,7 @@ __all__ = [
     "DEFAULT_NAV",
     "DEFAULT_TILES",
     "NAV_PAGE_IDS",
+    "RETIRED_SECTION_IDS",
     "ROOT_KEY",
     "SECTION_IDS",
     "SITE_FILE",
@@ -180,7 +183,7 @@ SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 #: the nav page ids a site may offer, in the order they are offered when the block names none.
 #: A page that joins the site adds its id HERE: an id this list does not carry is refused, so a
 #: typo cannot render a nav entry that leads nowhere.
-NAV_PAGE_IDS: tuple[str, ...] = ("overview", "leaderboard", "squadrons", "players")
+NAV_PAGE_IDS: tuple[str, ...] = ("overview", "servers", "leaderboard", "squadrons", "players")
 
 #: the tile ids a site may show, in the order they are shown when the block names none. Same rule
 #: as the nav: the id set is this constant, and an unknown id is a refusal.
@@ -188,9 +191,17 @@ TILE_IDS: tuple[str, ...] = ("active_week", "online_now", "playtime_total", "avg
 
 #: the overview section ids a site may switch, in the order the page numbers them. An id the
 #: ``sections:`` map does not name is ON, so this tuple is also the default: every section on. A
-#: section that joins the page adds its id HERE, and the id must be what the template branches on.
+#: section that joins the page adds its id HERE, and the id must be what the template branches on;
+#: a section that leaves the page takes its id out and ADDS it to :data:`RETIRED_SECTION_IDS`.
 SECTION_IDS: tuple[str, ...] = ("community", "season", "standings", "aircraft", "when_we_fly",
-                                "squadrons", "servers")
+                                "squadrons")
+
+#: the section ids an earlier release carried and this one does not. A section that leaves the page
+#: takes its id out of :data:`SECTION_IDS` and ADDS it here, so a ``sections:`` map that still names
+#: it — the shape every install has once that band was switched off in the console — keeps loading.
+#: A retired id is ACCEPTED, DROPPED and never part of the tuple :func:`_sections` builds; its value
+#: is not read, and the console offers no switch for it. An id in neither tuple is still refused.
+RETIRED_SECTION_IDS: tuple[str, ...] = ("servers",)
 
 #: the sections a site shows when its block names none: all of them, in page order.
 DEFAULT_SECTIONS: tuple[str, ...] = SECTION_IDS
@@ -862,9 +873,10 @@ def _sections(path: str, value) -> tuple[str, ...]:
     """The section ids a site shows: a map of id -> boolean, and an id it does not name is ON.
 
     A map rather than a list, so a section a later release adds is on for every existing site and
-    the operator's own file still says what they thought about the ones they switched. An unknown
-    id is refused here and by the schema's closed mapping, because both doors (form and Expert
-    Mode) exist.
+    the operator's own file still says what they thought about the ones they switched. An id this
+    release RETIRED (:data:`RETIRED_SECTION_IDS`) is accepted and dropped: its value is not read and
+    it is never part of the tuple returned here. Any other unknown id is refused here and by the
+    schema's closed mapping, because both doors (form and Expert Mode) exist.
     """
     if value is None:
         return DEFAULT_SECTIONS
@@ -872,6 +884,8 @@ def _sections(path: str, value) -> tuple[str, ...]:
         _fail(path, f"must be a map of section id -> true/false; known section ids: "
                     f"{', '.join(SECTION_IDS)}")
     for ident, flag in value.items():
+        if ident in RETIRED_SECTION_IDS:
+            continue
         if ident not in SECTION_IDS:
             _fail(f"{path}.{ident}", f"unknown section id; known section ids: {', '.join(SECTION_IDS)}")
         _flag(f"{path}.{ident}", flag, default=True)

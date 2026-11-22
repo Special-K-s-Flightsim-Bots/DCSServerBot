@@ -25,14 +25,13 @@ import re
 import sys
 import types
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
 from conftest import asgi_client, create_app, install_shell, link_or_copy
 from core.utils.helper import ThreadSafeDict
 from services.webservice import i18n, mount, permissions, site_pages, sites, theme_css
-from services.webservice.pages import site_leaderboard, site_overview
+from services.webservice.pages import site_overview
 
 REPO = Path(__file__).resolve().parent.parent
 SITE_CSS = REPO / "services" / "webservice" / "static" / "site.css"
@@ -321,8 +320,12 @@ def without_charts(markup: str) -> str:
     return SVG_ELEMENT.sub("", markup)
 
 
-def test_the_server_board_says_all_time_not_a_trailing_window(config_dir, bus):
-    """The board reads mv_serverstats, which is all-time; its copy must not claim 30 days."""
+def test_no_section_claims_a_trailing_window(config_dir, bus):
+    """The figures are all-time (mv_serverstats), so no copy on the page may claim 30 days.
+
+    The band that carried the board's own window label left the page; the remaining sections
+    still state their own all-time window.
+    """
     app, _ = build(config_dir)
     import asyncio
 
@@ -780,8 +783,9 @@ def test_the_week_figures_and_the_readouts_come_from_the_reads():
     assert model["activity"]["figures"]["busiest_week"] == "W44"
     assert model["standings"]["rows"][0]["hours"] == "2"
     assert model["squadrons"][0]["share"] == 100.0
-    assert model["servers"][0]["playtime"] == "1"
-    assert model["window_label"] == "all time"
+    # the server band left the page with its model: no rows, no fleet link, no window label
+    for gone in ("servers", "servers_href", "window_label"):
+        assert gone not in model, f"the model still builds '{gone}'"
 
 
 # ------------------------------------------------------------------------ the stylesheet
@@ -1048,38 +1052,32 @@ def test_the_rendered_standings_table_has_one_profile_anchor_per_row(config_dir,
     assert 'href="/player/u-Root%20Pilot"' in table, "the link is not the pilot's own UCID"
 
 
-def test_a_server_rows_name_links_to_the_leaderboard_narrowed_to_that_server(config_dir, bus):
-    site = resolved_site()
-    model = site_overview.view(
-        {}, {}, [{"server_name": "Root-1", "online": True, "playtime": 3600, "sorties": 1}],
-        {}, [], resolved=site)
-    href = model["servers"][0]["href"]
-    split = urlsplit(href)
-    # the leaderboard's OWN path and the leaderboard's OWN parameter — imported, not respelled
-    assert split.path == site_pages.NAV_PATHS["leaderboard"]
-    assert parse_qs(split.query) == {site_leaderboard.SERVER_PARAM: ["Root-1"]}
-    # a group's site keeps its prefix here too
-    grouped = site_overview.view(
-        {}, {}, [{"server_name": "Root-1", "online": True, "playtime": 3600, "sorties": 1}],
-        {}, [], resolved=resolved_site("/group1"))
-    assert grouped["servers"][0]["href"] == "/group1/rankings?server=Root-1"
+def test_the_overview_renders_no_server_table_and_keeps_its_other_sections(config_dir, bus):
+    """The server list lives on the Servers page: the overview's band is gone, table and all."""
+    page = overview_markup(config_dir)
+    main = page.split("<main", 1)[1]
 
+    assert 'id="servers"' not in page, "the band's section is still there"
+    assert "Server board" not in page, "the band's heading survives"
+    assert "<h2>The servers</h2>" not in page, "the section heading survives"
+    for header in ("<th>State</th>", "<th>Server</th>", '<th class="r">Flying</th>',
+                   '<th class="r hide-sm">Sorties</th>'):
+        assert header not in main, f"the '{header}' column survives"
+    assert "All servers</a>" not in page, "the heading's fleet link outlived the band"
 
-def test_the_servers_name_links_and_the_address_it_names_both_resolve(config_dir, bus):
-    app, registrar = build(config_dir)
-    path = site_pages.NAV_PATHS["leaderboard"]
+    # the ONE table left is the standings', and it keeps its own three columns
+    table = main.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert table.count("<th") == 3, f"the overview's last table lost a column: {table}"
 
-    async def run():
-        async with asgi_client(app) as client:
-            return ((await client.get("/")).text, await client.get(f"{path}?server=Root-1"))
+    # the picker's empty choice is not that link: it is an <option>, and it stays
+    assert '<option value="" selected>All servers</option>' in page
 
-    markup, target = __import__("asyncio").run(run())
-    table = markup.split('id="servers"', 1)[1].split("</table>", 1)[0]
-    assert '<a class="nm" href="/rankings?server=Root-1">Root-1</a>' in table, table
-    # the address the name points at is the leaderboard's own, registered and answering
-    owned = {route.path for route in registrar.routes if getattr(route, "path", None)}
-    assert path in owned
-    assert target.status_code == 200
+    # the sections the page still has, in their old order and numbering
+    headings = [text.strip() for text in
+                re.findall(r'<div class="sect-head">.*?<h2>(.*?)</h2>', page, re.S)]
+    assert headings == ["The season so far", "The standings", "The aircraft"], headings
+    assert section_numbers(page) == ["01", "02", "03", "04"]
+    assert "<h2>This community</h2>" in page
 
 
 # ------------------------------------------------------------------- the server picker
@@ -1338,13 +1336,13 @@ def test_the_sections_are_numbered_without_a_gap_when_the_squadrons_section_appl
     assert model["sections"]["standings"] == "03"
     assert model["sections"]["aircraft"] == "04"
     assert model["sections"]["squadrons"] == "05"
-    assert model["sections"]["servers"] == "06"
     # the aircraft section is not conditional: it numbers the same with or without the plugin
     plain = site_overview.view({}, {}, [], {}, [], credits=False)
-    assert plain["sections"]["aircraft"] == "04" and plain["sections"]["servers"] == "05"
+    assert plain["sections"]["aircraft"] == "04"
+    assert "servers" not in plain["sections"], "the retired band still answers a number"
 
 
-def test_a_rendered_page_numbers_its_sections_01_to_06_with_the_squadrons_section(
+def test_a_rendered_page_numbers_its_sections_01_to_05_with_the_squadrons_section(
         config_dir, bus, monkeypatch):
     monkeypatch.setattr(site_overview, "credits_present", lambda: True)
     bus.apool.squadrons = [dict(row) for row in SQUADRONS]
@@ -1355,7 +1353,7 @@ def test_a_rendered_page_numbers_its_sections_01_to_06_with_the_squadrons_sectio
     assert "5th Guards" in markup
     assert "Bar length is the squadron’s points against the leader’s" not in markup, \
         "the panel still explains how its bars are scaled"
-    assert section_numbers(markup) == ["01", "02", "03", "04", "05", "06"]
+    assert section_numbers(markup) == ["01", "02", "03", "04", "05"]
 
 
 @pytest.mark.parametrize("credits, squadrons", [(False, SQUADRONS), (True, [])],
@@ -1372,9 +1370,9 @@ def test_the_rendered_page_carries_nothing_of_the_squadrons_section_when_it_does
     assert "No squadron has a member who flew" not in markup
     assert "Campaign points" not in markup
     assert "5th Guards" not in markup
-    # the sections that do render keep reading 01–05 — no hole where the squadrons section was
-    assert section_numbers(markup) == ["01", "02", "03", "04", "05"]
-    assert "<h2>The servers</h2>" in markup
+    # the sections that do render keep reading 01–04 — no hole where the squadrons section was
+    assert section_numbers(markup) == ["01", "02", "03", "04"]
+    assert "<h2>The servers</h2>" not in markup
 
 
 def test_the_squadrons_section_needs_both_the_plugin_and_a_row():
@@ -1746,13 +1744,16 @@ WITHHELD_FRAGMENTS = (
 )
 
 
-def test_the_servers_panel_closes_on_its_table_and_prints_no_withheld_inventory(config_dir, bus):
-    """The panel ends with the table above it: no note naming what the site does not publish.
+def test_the_overview_prints_no_withheld_inventory_and_keeps_its_standings_table(
+        config_dir, bus):
+    """The page states what it shows: no note naming what the site does not publish.
 
-    The table is the positive half of the pin — an empty page could not satisfy the absence."""
+    The standings table is the positive half of the pin — an empty page could not satisfy the
+    absence — and the table that used to close the old page is not back."""
     markup = overview_markup(config_dir)
-    table = markup.split('id="servers"', 1)[1].split("</table>", 1)[0]
-    assert "Root-1" in table, "the servers table did not render"
-    assert table.count("<tr") > 1, "the servers table carries no row"
+    table = markup.split('id="standings"', 1)[1].split("</table>", 1)[0]
+    assert "Root Pilot" in table, "the standings table did not render"
+    assert table.count("<tr") > 1, "the standings table carries no row"
+    assert 'id="servers"' not in markup, "the server table is back as a positive control"
     for fragment in WITHHELD_FRAGMENTS:
         assert fragment not in markup, f"{fragment!r} is printed on the site overview"

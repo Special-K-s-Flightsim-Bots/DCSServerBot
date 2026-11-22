@@ -226,7 +226,8 @@ def _drag_row(page, card, selector: str, source: int, target: int) -> None:
 
 
 def _reorder(page, site: str) -> dict:
-    """Drag row 3 above row 1, then Alt+Down on the focused grip — then Save and read the order back.
+    """Drag the squadrons row above the first row, then Alt+Down on the focused grip — then Save
+    and read the order back.
 
     A LOCAL reorder posts nothing: the rows live in the card's form, so the DOM order after the move
     IS the payload. The pin is the order before, after the drag and after the key press, the pixels of
@@ -260,7 +261,8 @@ def _reorder(page, site: str) -> dict:
         }
 
     report = {"before": state()}
-    _drag_row(page, card, selector, 2, 0)
+    # the row the pins name by id, wherever the site's own order has put it
+    _drag_row(page, card, selector, _row_ids(card, selector).index("squadrons"), 0)
     report["after_drag"] = state()
 
     grip = card.locator(f"{selector} [data-reorder-row]").first.locator("[data-reorder-handle]").first
@@ -2037,8 +2039,15 @@ def _page(page, site: str) -> dict:
     report["frames_after_typing"] = page.locator("iframe").count()
 
     def nav_hrefs() -> list:
-        return frame.evaluate("(f) => [...f.contentDocument.querySelectorAll('.top .nav a')]"
-                              ".map((a) => a.getAttribute('href'))")
+        # the demo is re-rendered by a background POST, so a read can land on the empty document
+        # that a navigation is replacing: wait (bounded) until the document carries the menu again
+        for _attempt in range(20):
+            hrefs = frame.evaluate("(f) => [...f.contentDocument.querySelectorAll('.top .nav a')]"
+                                   ".map((a) => a.getAttribute('href'))")
+            if hrefs:
+                return hrefs
+            page.wait_for_timeout(100)
+        return []
 
     report["nav_before"] = nav_hrefs()
     report["nav_rows_before"] = card.locator(

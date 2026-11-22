@@ -670,6 +670,26 @@ class SRS(InstallableExtension, FileSystemEventHandler):
         }
 
     @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        """The address line only; ``withheld`` counts the passphrase lines left out."""
+        if not self.locals:
+            raise NotImplementedError()
+
+        ret = await super().render_public(param)
+        host = self.config.get('host', self.node.public_ip)
+        value = f"{host}:{self.locals['Server Settings']['SERVER_PORT']}"
+        withheld = 0
+        if self.locals['General Settings'].get('EXTERNAL_AWACS_MODE', False) and \
+                'External AWACS Mode Settings' in self.locals:
+            awacs = self.locals['External AWACS Mode Settings']
+            withheld = sum(1 for key in ('EXTERNAL_AWACS_MODE_BLUE_PASSWORD',
+                                         'EXTERNAL_AWACS_MODE_RED_PASSWORD') if awacs.get(key))
+        return ret | {
+            "value": value,
+            "withheld": withheld
+        }
+
+    @override
     def is_available(self) -> bool:
         return os.path.exists(self.get_exe_path())
 

@@ -796,6 +796,51 @@ def test_the_nav_offers_the_pages_that_are_served(config_dir, bus):
     assert "/squadrons" not in markup, "the nav offers a page this build does not serve"
 
 
+#: the menu a site renders when its block names NO ``nav:``: the model's own order, without the id
+#: whose page this build does not serve (``squadrons``), each at the address the site serves it at.
+DEFAULT_MENU = [("Overview", ""), ("Servers", "/fleet"), ("Leaderboard", "/rankings"),
+                ("Pilots", "/players")]
+
+
+def _menu(markup: str) -> list[tuple[str, str]]:
+    """The site's menu as (label, href) per entry, in the order the document draws them."""
+    nav = markup.split('<nav class="nav"', 1)[1].split("</nav>", 1)[0]
+    return [(label.strip(), href)
+            for href, label in re.findall(r'href="([^"]*)"[^>]*>([^<]*)</a>', nav)]
+
+
+def _expected_menu(prefix: str = "") -> list[tuple[str, str]]:
+    """The default menu with *prefix* in front of every address (the empty path is the site root)."""
+    site = types.SimpleNamespace(prefix=prefix)
+    return [(label, site_pages.site_url(site, path)) for label, path in DEFAULT_MENU]
+
+
+def _no_nav_config() -> dict:
+    """Two sites, neither naming a ``nav:`` list — the menu is then the model's default."""
+    return {"sites": {"root": {"slug": "", "branding": {"title": "Root Site"}},
+                      "group1": {"slug": "group1", "group_role": "5th Guards",
+                                 "branding": {"title": "5th Guards"}}}}
+
+
+def test_a_site_that_names_no_nav_renders_the_default_menu_with_servers(config_dir, bus):
+    """A site whose block names no nav still offers Servers, at ``/fleet``, with no configuration."""
+    app, _ = build(config_dir, config=_no_nav_config())
+    menu = _menu(get(app, "/").text)
+    assert menu == _expected_menu(), menu
+    assert ("Servers", "/fleet") in menu, menu
+    for _label, href in menu:
+        assert get(app, href).status_code == 200, f"the menu entry {href} does not answer"
+
+
+def test_a_group_site_renders_the_same_menu_inside_its_own_prefix(config_dir, bus):
+    """The group site's `Servers` sits inside its own tree, like every other entry it renders."""
+    app, _ = build(config_dir, config=_no_nav_config())
+    menu = _menu(get(app, "/group1/rankings").text)
+    assert menu == _expected_menu("/group1"), menu
+    assert ("Servers", "/group1/fleet") in menu, menu
+    assert get(app, "/group1/fleet").status_code == 200
+
+
 def test_the_served_page_ids_are_registered(config_dir, bus):
     app, registrar = build(config_dir)
     owned = {route.path for route in registrar.routes if getattr(route, "path", None)}
@@ -941,7 +986,7 @@ def test_the_page_helpers_format_the_figures_the_bot_reports():
 def test_the_players_page_is_the_search_path_the_nav_declares():
     assert site_pages.SEARCH_PATH == site_pages.NAV_PATHS["players"]
     assert site_pages.page_modules()[1] is site_leaderboard
-    assert set(site_pages.SERVED_NAV_IDS) == {"overview", "leaderboard", "players"}
+    assert set(site_pages.SERVED_NAV_IDS) == {"overview", "leaderboard", "servers", "players"}
 
 
 # ----------------------------------------------------------------------------- the sign-in control

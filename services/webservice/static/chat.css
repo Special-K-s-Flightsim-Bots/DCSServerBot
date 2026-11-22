@@ -1,0 +1,42 @@
+/* The Chat tab's own delta sheet: the audience colouring, the filter row and the composer in the
+ * card's foot. Everything else — the card, the log well, the controls, the tokens — is shell.css. */
+
+/* the chat card grows with the viewport: the log scrolls, the composer stays put */
+.chat-card { display: flex; flex-direction: column; }
+.chat-card > .log { max-height: calc(100vh - 330px); min-height: 220px; overflow: auto; }
+
+/* THE COLOUR IS THE AUDIENCE: everyone = the normal text colour, Red-only = red, Blue-only = blue.
+ * A reader sees at a glance which lines a side could read, so a whisper can never be mistaken for
+ * something everyone heard. The timestamp stays --stop (metadata, never coloured). */
+.log .ln { display: flex; align-items: baseline; gap: 7px; color: var(--text); white-space: normal; }
+.log .ln.aud-red { color: var(--dead); }
+.log .ln.aud-blue { color: var(--link); }
+.log .who { flex: 0 0 auto; font-weight: 600; }
+.log .txt { flex: 1 1 auto; min-width: 0; white-space: pre-wrap; }
+.log .aud { flex: 0 0 auto; font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase;
+  border: 1px solid currentColor; border-radius: 99px; padding: 0 6px; }
+
+/* the filter row: two fields and one press, in the card's head — a GET, so the filter is a read the
+ * URL carries and a reload keeps */
+.chat-card > .hd { flex-wrap: wrap; }
+.chat-filter { display: flex; align-items: center; gap: 6px; }
+.chat-filter .cfg-input { height: 28px; padding: 3px 8px; font-size: 12px; }
+.chat-filter .f-who { width: 150px; }
+.chat-filter .f-text { width: 210px; }
+.chat-filter .btn { height: 28px; padding: 3px 10px; font-size: 12px; }
+
+/* the composer: the message field takes ALL the room the card has, Send sits at its bottom-right
+ * corner. The foot is re-declared as a block with the card's own specificity, because shell.css's
+ * `.log-card > .ft` is a flex row that would size the form to its content and leave the card empty. */
+.chat-card > .ft.chat-foot { display: block; padding: 12px 14px; border-top: 1px solid var(--line); }
+.chat-send { display: flex; gap: 8px; align-items: flex-end; }
+.chat-send .sel-aud { flex: 0 0 150px; height: 34px; }
+.chat-send .msg { flex: 1 1 auto; min-width: 0; min-height: 62px; padding: 7px 9px; font-size: 12.5px;
+  line-height: 1.45; resize: vertical; font-family: inherit; }
+.chat-send .btn { flex: 0 0 auto; height: 34px; padding: 0 18px; }
+.chat-note { margin: 7px 0 0; font-size: 11px; color: var(--text-3); }
+.chat-note .cnt { margin-left: 6px; font-family: var(--font-mono); }
+.chat-foot.off { color: var(--text-3); font-size: 12px; }
+
+/* a label that names a control for assistive technology without drawing */
+.chat-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

@@ -261,6 +261,10 @@ class RealWeather(InstallableExtension):
             "value": value
         }
 
+    @override
+    async def render_public(self, param: dict | None = None) -> dict:
+        return await self.render(param)
+
     def is_available(self) -> bool:
         installation = self.config.get('installation')
         if not installation:

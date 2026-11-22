@@ -97,6 +97,68 @@
   </div>
 </div>
 {% endmacro %}
+{#-  THE CHAT CARD. The server's in-game chat, streamed to `/static/chat-log.js` over the event
+    stream the card carries. ONE card, the mockup's own shape:
+
+    * the HEAD carries the two server-side filters (`who` = sender, `q` = text; a GET, so the filter
+      survives a reload and the follower carries it), the `N of M lines` count while a filter is in
+      force, and the follow's status line;
+    * `#chat-body` is ALWAYS rendered — even while no lines have arrived yet — so the follower
+      starts from the empty state and the honest sentence (in `#chat-note`, beside the body) gives way
+      the moment real lines arrive;
+    * THE COMPOSER posts to the EXISTING `message_server` write route, carrying the page's one-shot
+      confirm token: one write path, one gate, one audit trail — and a POST without the token is
+      refused by that route. It is ABSENT while the server cannot take a message (`chat_can_send` is
+      the action's own status rule), and the card says why in its place.
+
+    THE FOOT IS A BLOCK (``chat.css``), not shell.css's flex row: the message field takes the card's
+    remaining width and Send sits at its bottom-right corner. -#}
+{% macro chat_card() %}
+<div class="card log-card chat-card" id="chat-card"
+     data-stream-url="{{ chat_stream_url }}" data-after="{{ chat_after }}"
+     data-who="{{ chat_who }}" data-q="{{ chat_q }}">
+  <div class="hd">
+    <h3>{% trans %}Game chat{% endtrans %}</h3>
+    <div class="spacer"></div>
+    <form class="chat-filter" method="get" action="{{ chat_tab_url }}">
+      <input type="hidden" name="tab" value="{{ chat_tab_key }}">
+      <label class="chat-vh" for="chat-who">{% trans %}Search sender{% endtrans %}</label>
+      <input id="chat-who" name="who" class="cfg-input f-who" type="search" value="{{ chat_who }}"
+             placeholder="{% trans %}Sender…{% endtrans %}" autocomplete="off">
+      <label class="chat-vh" for="chat-q">{% trans %}Search text{% endtrans %}</label>
+      <input id="chat-q" name="q" class="cfg-input f-text" type="search" value="{{ chat_q }}"
+             placeholder="{% trans %}Text…{% endtrans %}" autocomplete="off">
+      <button class="btn" type="submit">{% trans %}Search{% endtrans %}</button>
+    </form>
+    <span class="tag" id="chat-count">{{ chat_count }}</span>
+    <span class="live-status" id="chat-status">{% if chat_available %}{% trans %}following while this tab is open{% endtrans %}{% else %}{% trans %}not available{% endtrans %}{% endif %}</span>
+  </div>
+  <div class="log" id="chat-body">{% with lines = chat_lines %}{% include "_chat_lines.html" %}{% endwith %}</div>
+  <div class="bd" id="chat-note"{% if chat_lines %} hidden{% endif %}><p class="empty" id="chat-note-text">{{ _(chat_message) }}</p></div>
+  {% if chat_can_send %}
+  <div class="ft chat-foot">
+    <form class="chat-send" method="post" action="{{ chat_action_path }}" data-async>
+      <input type="hidden" name="{{ chat_server_field }}" value="{{ chat_server }}">
+      <input type="hidden" name="mode" value="{{ chat_mode }}">
+      <input type="hidden" name="{{ chat_confirm_field }}" value="{{ chat_confirm_token }}">
+      <input type="hidden" name="{{ chat_csrf_field }}" value="{{ chat_csrf_token }}">
+      <label class="chat-vh" for="chat-aud">{% trans %}Send to{% endtrans %}</label>
+      <select id="chat-aud" name="{{ chat_coalition_field }}" class="cfg-input sel-aud">
+        {% for option in chat_audiences %}<option value="{{ option.value }}">{{ _(option.label) }}</option>{% endfor %}
+      </select>
+      <label class="chat-vh" for="chat-msg">{% trans %}Message{% endtrans %}</label>
+      <textarea id="chat-msg" name="{{ chat_field }}" class="cfg-input msg" rows="3"
+                maxlength="{{ chat_message_max }}" data-counter="chat-cnt"
+                placeholder="{% trans %}Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line){% endtrans %}"></textarea>
+      <button class="btn primary" type="submit">{% trans %}Send{% endtrans %}</button>
+    </form>
+    <p class="chat-note">{{ _(chat_note_sentence) }} <span class="cnt" id="chat-cnt">0 / {{ chat_message_max }}</span></p>
+  </div>
+  {% else %}
+  <div class="ft chat-foot off"><span class="chat-off">{{ _(chat_off_sentence) }}</span></div>
+  {% endif %}
+</div>
+{% endmacro %}
 {% block title %}{{ page_title }} — DCSServerBot{% endblock %}
 {% block content %}
 
@@ -767,6 +829,13 @@
     refuses `?tab=music` with the same predicate that withholds the link. -#}
 {% include "music_body.html" %}
 
+{% elif tab == 'chat' %}
+{# ---------------------------------------------------------------- the Chat tab: this server's game chat #}
+{#-  THE SERVER'S IN-GAME CHAT: the mission plugin's JSONL history, filtered server-side by sender and
+    text. One macro renders the card. A server whose mission plugin is not registered never reaches
+    this branch — the route refuses `?tab=chat` with the same gate that withholds the link. -#}
+{{ chat_card() }}
+
 {% elif tab == 'log' %}
 {# ---------------------------------------------------------------- the Log tab: the server's own dcs.log #}
 {#  THE SERVER'S OWN LOG: the DCS ``dcs.log``, tailed, level-filtered, downloadable. One macro
@@ -955,6 +1024,10 @@
 {% block head %}<link rel="stylesheet" href="/static/settings-scope.css">
 <link rel="stylesheet" href="/static/mods.css">
 <link rel="stylesheet" href="/static/scheduler.css">
+{#  THE CHAT PANE's delta (`static/chat.css`) is the Chat tab's own: the audience colouring, the filter
+    row and the composer in the card's foot. Linked only while that tab is in force, so every other tab
+    loads exactly what it loaded before.  #}
+{% if tab == 'chat' %}<link rel="stylesheet" href="/static/chat.css">{% endif %}
 {% if tab == 'statistics' %}<link rel="stylesheet" href="/static/{{ style }}">{% endif %}{% endblock %}
 
 {% block scripts %}<script src="/static/reveal.js" defer></script>
@@ -968,6 +1041,9 @@
 {#  THE SERVER LOG's follow + page-back: a progressive enhancement. With JavaScript off the tail
     the page rendered is all there is — the page is not live and "Load older" does nothing.  #}
 <script src="/static/server-log.js" defer></script>
+{#  THE CHAT follower (`static/chat-log.js`) — the same progressive enhancement for the Chat tab: with
+    JavaScript off the window the page rendered is all there is, and the page is not live.  #}
+{% if tab == 'chat' %}<script src="/static/chat-log.js" defer></script>{% endif %}
 {#  THE SERVER'S STATUS's own poll: a progressive enhancement. It keeps the status "at the top"
     (and the Overview card's copy) current on its OWN interval, on every tab — separate from the log
     follower on purpose, so one fact has one updater and the two can never drift.  #}

@@ -1530,11 +1530,11 @@ class ServerImpl(Server):
             new_yaml().dump(config, outfile)
 
     @override
-    async def render_extensions(self) -> list[dict]:
+    async def render_extensions(self, *, public: bool = False) -> list[dict]:
         ret: list[dict] = []
         for ext in self.extensions.values():
             with suppress(NotImplementedError):
-                ret.append(await ext.render())
+                ret.append(await (ext.render_public() if public else ext.render()))
         return ret
 
     @override

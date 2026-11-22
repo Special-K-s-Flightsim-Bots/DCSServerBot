@@ -63,6 +63,7 @@ from core.services.registry import ServiceRegistry
 from core.utils import configwrite
 from core.utils.configwrite import ConfigWriteError
 from core.utils.helper import YAMLError, cache_with_expiration
+from core.utils.os import read_version_marker
 
 from core.utils.yaml_helper import new_yaml
 from ruamel.yaml.error import MarkedYAMLError
@@ -95,6 +96,17 @@ def _discard_own_file(path: str, log: Any) -> None:
 
 
 REPO_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
+#: The branch an installation that came from an ARCHIVE follows - the same one ``update.py``
+#: installs. A checkout follows the branch it sits on instead, and asks git about it.
+MAIN_BRANCH = 'master'
+BRANCH_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/branches/{}"
+#: The main branch's own ``version.py``, read raw: it is the version such an installation would move
+#: to, and a release tag cannot answer that (the branch moves without one).
+BRANCH_VERSION_URL = f"https://raw.githubusercontent.com/Special-K-s-Flightsim-Bots/DCSServerBot/{MAIN_BRANCH}/version.py"
+
+#: How long GitHub gets to answer an update check on a RUNNING node. A check that hangs must not
+#: stall a boot, a console poll or a lifecycle command.
+GITHUB_CHECK_TIMEOUT = 15.0
 LOGIN_URL = 'https://api.digitalcombatsimulator.com/gameapi/login/'
 LOGOUT_URL = 'https://api.digitalcombatsimulator.com/gameapi/logout/'
 UPDATER_URL = 'https://api.digitalcombatsimulator.com/gameapi/updater/branch/{}/'
@@ -946,14 +958,14 @@ class NodeImpl(Node):
                     # has to be able to see it, because ``/node upgrade`` is what offers to move back
                     # onto the update stream. The version check needs no git at all, so it answers
                     # this case too.
-                    return await self._upgrade_pending_non_git()
+                    return await self._upgrade_pending_release()
                 origin = repo.remotes.origin
                 origin.fetch()
                 state = _read_git_state(repo)     # the fetch moved the remote refs, not HEAD
                 if state.target and state.target != state.current:
                     return True
         except git.InvalidGitRepositoryError:
-            return await self._upgrade_pending_non_git()
+            return await self._upgrade_pending_zip()
         except git.GitCommandError as ex:
             self.log.error('  => Autoupdate failed!')
             changed_files = set()
@@ -973,24 +985,71 @@ class NodeImpl(Node):
             self.log.error(ex)
         return False
 
-    async def _upgrade_pending_non_git(self) -> bool:
+    async def _github_json(self, url: str, what: str) -> Any | None:
+        """GET *url* as JSON, or ``None`` when it could not be read — SAYING WHY in the log.
+
+        ``None`` is "unknown", never "nothing to do". An update check that was refused or that timed
+        out has to be visible as a failed check: reported as an installation with nothing waiting, a
+        rate-limited node looks exactly like a current one and never updates again.
+        """
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                async with session.get(url, proxy=self.proxy, proxy_auth=self.proxy_auth,
+                                       timeout=aiohttp.ClientTimeout(total=GITHUB_CHECK_TIMEOUT)) as response:
+                    if response.status == 403:
+                        self.log.warning(f'- GitHub refused the check for {what} (anonymous rate limit '
+                                         f'exhausted): whether an update is available is UNKNOWN.')
+                        return None
                     response.raise_for_status()
-                    result = await response.json()
-                    current_version = re.sub('^v', '', __version__)
-                    latest_version = re.sub('^v', '', result[0]["tag_name"])
+                    return await response.json(content_type=None)
+        except Exception as ex:
+            self.log.warning(f'- Could not check {what}: {ex}')
+            return None
 
-                    if parse(latest_version) > parse(current_version):
-                        return True
-        except aiohttp.ClientResponseError as ex:
-            # ignore rate limits
-            if ex.status != 403:
-                raise
-        except IndexError:
+    async def _upgrade_pending_release(self) -> bool:
+        """Whether a RELEASE newer than this installation exists.
+
+        The question a PINNED checkout has to ask: it follows no branch, so a tag is the only thing it
+        could move to — and leaving the pin is the operator's decision, not this check's.
+        """
+        result = await self._github_json(REPO_URL, 'the release list')
+        if not isinstance(result, list) or not result:
+            if result is not None:
+                self.log.error(f"Corrupt response from GitHub: {repr(result)}")
+            return False
+        try:
+            latest_version = re.sub('^v', '', result[0]["tag_name"])
+        except (KeyError, TypeError):
             self.log.error(f"Corrupt response from GitHub: {repr(result)}")
-        return False
+            return False
+        current_version = re.sub('^v', '', __version__)
+        return parse(latest_version) > parse(current_version)
+
+    async def _main_branch_commit(self) -> str | None:
+        """The commit the MAIN branch is on, or ``None`` when GitHub could not be read."""
+        result = await self._github_json(BRANCH_URL.format(MAIN_BRANCH), f'the {MAIN_BRANCH} branch')
+        if not isinstance(result, dict):
+            if result is not None:
+                self.log.warning(f'- GitHub answered the {MAIN_BRANCH} branch check without a commit.')
+            return None
+        try:
+            return result['commit']['sha']
+        except (KeyError, TypeError):
+            self.log.warning(f'- GitHub answered the {MAIN_BRANCH} branch check without a commit.')
+            return None
+
+    async def _upgrade_pending_zip(self) -> bool:
+        """Whether an installation that came from an ARCHIVE has a newer commit to move to.
+
+        It follows the MAIN branch — the one ``update.py`` installs — and it has no history of its own,
+        so the comparison is that branch's tip against the commit the last SUCCESSFUL update recorded
+        (``version.sha``). No marker means no update has ever completed, so an update IS pending: that
+        is the answer ``update.py`` gives for the same installation, and the two must not disagree.
+        """
+        target = await self._main_branch_commit()
+        if not target:
+            return False
+        return target != read_version_marker()
 
     async def _latest_version(self) -> str | None:
         """The version number of the revision this install would move to, or ``None`` when it cannot be read.
@@ -999,8 +1058,9 @@ class NodeImpl(Node):
 
         * a checkout updates from its **branch**, so the number is the branch tip's own ``version.py`` — a branch
           carries no release tags, so the tag would answer a different question entirely;
-        * an install that came from a release (no checkout) updates to the newest **release**, and that tag is
-          exactly the number it would move to.
+        * an install that came from an **archive** (no checkout) follows the MAIN branch too, so the number is
+          that branch's ``version.py``. Its release tag is NOT the answer: the branch moves between releases
+          without moving the tag, and a feature release read as the old tag would be applied unattended.
 
         ``None`` means "could not be read", never "no update": the caller then keeps the previous behaviour and lets
         the update through — the safe direction, because a guess here could hold an update back for a version the
@@ -1009,12 +1069,12 @@ class NodeImpl(Node):
         try:
             import git  # type: ignore[import-not-found]
         except ImportError:
-            return await self._latest_version_release()
+            return await self._latest_version_main()
         try:
             repo = git.Repo('.')
         except git.InvalidGitRepositoryError:
-            # no checkout at all: the install came from a release, and that tag is what it would move to
-            return await self._latest_version_release()
+            # no checkout at all: this install came from an archive and follows the main branch
+            return await self._latest_version_main()
         try:
             with closing(repo) as repo:
                 branch = repo.active_branch.name
@@ -1028,21 +1088,23 @@ class NodeImpl(Node):
             self.log.debug(f"Could not read the version of the remote branch: {ex}")
             return None
 
-    async def _latest_version_release(self) -> str | None:
-        """The newest release tag GitHub reports, read the way ``_upgrade_pending_non_git`` reads it.
+    async def _latest_version_main(self) -> str | None:
+        """The version an ARCHIVE installation would move to: the MAIN branch's own ``version.py``.
 
-        Deliberately its own request instead of a refactor of that check: that one answers a yes/no and this one
-        needs the number, and editing a working update path for six duplicated lines is the worse trade.
+        The branch is read raw because that file is the only place its version number lives — a
+        branch publishes no tag, so there is nothing else to ask.
         """
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(REPO_URL, proxy=self.proxy, proxy_auth=self.proxy_auth) as response:
+                async with session.get(BRANCH_VERSION_URL, proxy=self.proxy, proxy_auth=self.proxy_auth,
+                                       timeout=aiohttp.ClientTimeout(total=GITHUB_CHECK_TIMEOUT)) as response:
                     response.raise_for_status()
-                    result = await response.json()
-                    return re.sub('^v', '', result[0]["tag_name"])
+                    blob = await response.text()
         except Exception as ex:
-            self.log.debug(f"Could not read the latest release tag: {ex}")
+            self.log.warning(f"Could not read the version of the {MAIN_BRANCH} branch: {ex}")
             return None
+        match = re.search(r'^__version__\s*=\s*[\'"]([^\'"]+)', blob, re.MULTILINE)
+        return match.group(1) if match else None
 
     async def upgrade_versions(self) -> tuple[str, str] | None:
         """``(installed, latest)`` when an upgrade is pending AND both numbers could be read, else ``None``.
@@ -1075,7 +1137,7 @@ class NodeImpl(Node):
             try:
                 rc = await self._upgrade_pending_git()
             except ImportError:
-                rc = await self._upgrade_pending_non_git()
+                rc = await self._upgrade_pending_zip()
         except Exception as ex:
             self.log.exception(ex)
             raise

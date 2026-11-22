@@ -98,7 +98,8 @@ __all__ = [
     "SITE_MARK_PATH", "mark_slot", "mark_form_dependency", "SITE_MARK_STAGED_SUFFIX",
     "stage_mark_file", "stage_sheet_file",
     "SITE_VIEW_CAPABILITY", "SITE_WRITE_CAPABILITY", "SITE_STRUCTURE_CAPABILITY",
-    "SITE_EXPERT_CAPABILITY", "SITE_ROLES", "SITE_CONFIG_TEMPLATE", "SITE_TITLE", "SITE_LEAD",
+    "SITE_EXPERT_CAPABILITY", "SITE_PASSWORDS_CAPABILITY", "SITE_ROLES", "SITE_CONFIG_TEMPLATE",
+    "SITE_TITLE", "SITE_LEAD", "SITE_PASSWORDS_PATH", "SITE_PASSWORD_FIELD",
     "SITE_KEY_FIELD", "SITE_SHEET_FIELD", "SITE_STRUCTURAL_KEYS", "SECTION_LABELS",
     "CHARACTER_LABELS", "CHARACTER_NOTES", "CharacterSet", "CHARACTER_SETS",
     "READOUT_ORDER", "COMBAT_LAYOUT", "character_payload",
@@ -147,13 +148,24 @@ SITE_MARK_PATH = "/settings/site/mark/{token}/{size}.png"
 #: names it has landed. A rename onto the live name is the only thing that publishes a mark.
 SITE_MARK_STAGED_SUFFIX = ".tmp"
 
-#: the four capabilities. ``site.view``/``site.write`` are grantable to a managing scope (a group
-#: admin edits their own site's CONTENT); ``site.structure``/``site.expert`` never are.
+#: the five capabilities. ``site.view``/``site.write`` are grantable to a managing scope (a group
+#: admin edits their own site's CONTENT); ``site.structure``/``site.expert``/``site.passwords``
+#: never are. The last one publishes a server's join password on a page anyone can read, so a
+#: manager scoped to the server may not reach it.
 SITE_VIEW_CAPABILITY = "site.view"
 SITE_WRITE_CAPABILITY = "site.write"
 SITE_STRUCTURE_CAPABILITY = "site.structure"
 SITE_EXPERT_CAPABILITY = "site.expert"
+SITE_PASSWORDS_CAPABILITY = "site.passwords"
 SITE_ROLES: tuple[str, ...] = ("Admin",)
+
+#: THE PASSWORD SWITCH'S OWN POST door, beside the card's save. One form per card posts the
+#: ``show_password.<server>`` switches to the action ``set_server_web_passwords``; the action
+#: writes ONE key in ONE server's ``servers.yaml`` block.
+SITE_PASSWORDS_PATH = "/actions/settings/site/passwords"
+#: the switch name's prefix. The suffix is the server's name as the site resolves it, so a row's
+#: field is ``show_password.<server>`` and the handler reads the flag off the field's presence.
+SITE_PASSWORD_FIELD = "show_password"
 
 SITE_CONFIG_TEMPLATE = "site_config.html"
 #: the page's own query parameter naming the ONE card that must be open. A save answers with it, so
@@ -208,7 +220,6 @@ SECTION_LABELS: dict[str, str] = {
     "aircraft": i18n._("Most flown"),
     "when_we_fly": i18n._("When we fly"),
     "squadrons": i18n._("Squadrons"),
-    "servers": i18n._("Servers"),
 }
 
 #: one line per character, saying which figures it leads with. The ids are
@@ -249,7 +260,7 @@ class CharacterSet(NamedTuple):
 #: ``site_player``'s readout order and combat layout.
 CHARACTER_SETS: dict[str, CharacterSet] = {
     "pvp": CharacterSet(
-        sections=("community", "standings", "aircraft", "when_we_fly", "servers"),
+        sections=("community", "standings", "aircraft", "when_we_fly"),
         metrics=("playtime", "air_targets", "kd_ratio", "pvp_kd_ratio"),
         readout=READOUT_ORDER["pvp"],
         combat=COMBAT_LAYOUT["pvp"],
@@ -263,7 +274,7 @@ CHARACTER_SETS: dict[str, CharacterSet] = {
                            "ranks fights, not strike work."),
     ),
     "pve": CharacterSet(
-        sections=("community", "season", "aircraft", "when_we_fly", "squadrons", "servers"),
+        sections=("community", "season", "aircraft", "when_we_fly", "squadrons"),
         metrics=("playtime", "air_targets", "ships", "air_defence", "ground_targets", "kd_ratio"),
         readout=READOUT_ORDER["pve"],
         combat=COMBAT_LAYOUT["pve"],
@@ -309,6 +320,26 @@ SITE_EMPTY = i18n._("No site is configured yet, so there is nothing to edit here
 SITE_READ_FAILED = i18n._("The site settings could not be read.")
 SITE_BRANDING = i18n._("Branding")
 SITE_PAGES = i18n._("Pages")
+#: the password block: its heading, the one line saying what the switch does, the switch's own two
+#: words, the row's "no password" cell, the Save's label and the sentence the empty state prints.
+SITE_PASSWORDS = i18n._("Server passwords")
+SITE_PASSWORDS_WHAT = i18n._(
+    "Each server's join password is printed on this site only when its own switch is on. The "
+    "Discord status embed keeps its own password setting; this one affects the public site only.")
+SITE_PASSWORDS_SHOWN = i18n._("Shown")
+SITE_PASSWORDS_HIDDEN = i18n._("Hidden")
+SITE_PASSWORDS_NONE = i18n._("no password")
+SITE_PASSWORDS_SAVE = i18n._("Save passwords")
+SITE_PASSWORDS_EMPTY = i18n._(
+    "No server belongs to this site yet: a server joins a site by naming its role in servers.yaml, "
+    "and none names this one.")
+SITE_PASSWORDS_NOTE = i18n._(
+    "Public site only. The Discord embed keeps its own password setting and is not affected by this "
+    "switch.")
+SITE_PASSWORDS_SAVED = i18n._("Saved %(count)s password switch(es).")
+SITE_PASSWORDS_NOTHING = i18n._("No password switch changed.")
+SITE_PASSWORDS_REFUSED = i18n._("The password switches could not be saved.")
+SITE_PASSWORDS_LOCK = i18n._("A join password is set")
 SITE_SECTIONS = i18n._("What the overview shows")
 SITE_METRICS = i18n._("What the leaderboard ranks")
 SITE_CHARACTER_BEHAVIOUR = i18n._(
@@ -826,17 +857,20 @@ SITE_CHARACTER_BOX = i18n._("Nothing in the box changes: the character decides t
 
 
 def declare() -> None:
-    """Declare the four site capabilities. Idempotent for the same roles and grants.
+    """Declare the five site capabilities. Idempotent for the same roles and grants.
 
     ``site.view``/``site.write`` carry the manager-scope grant because a group admin edits their own
     site's content; the handler narrows the grant to one site. ``site.structure``/``site.expert`` are
     the Admin's alone: a structural key moves the console's route table, and expert CSS is published
-    on the installation's own origin.
+    on the installation's own origin. ``site.passwords`` is the Admin's alone for the strongest
+    reason: it publishes a server's join password on a page anyone can read, so NO manager and NO
+    scope grant may reach it (the action enforces the same rule server-side).
     """
     permissions.declare_capability(SITE_VIEW_CAPABILITY, SITE_ROLES, scope_grants=True)
     permissions.declare_capability(SITE_WRITE_CAPABILITY, SITE_ROLES, scope_grants=True)
     permissions.declare_capability(SITE_STRUCTURE_CAPABILITY, SITE_ROLES)
     permissions.declare_capability(SITE_EXPERT_CAPABILITY, SITE_ROLES)
+    permissions.declare_capability(SITE_PASSWORDS_CAPABILITY, SITE_ROLES)
 
 
 declare()
@@ -850,10 +884,11 @@ class SiteAccess:
     write: bool
     structure: bool
     expert: bool
+    passwords: bool
 
 
 def site_access(request: Request) -> SiteAccess:
-    """THE capability decision for this request: view, write, structure and the expert sheet."""
+    """THE capability decision for this request: view, write, structure, expert and the switches."""
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
     return SiteAccess(
@@ -861,7 +896,65 @@ def site_access(request: Request) -> SiteAccess:
         write=permissions.allows(SITE_WRITE_CAPABILITY, roles, manager=manager),
         structure=permissions.allows(SITE_STRUCTURE_CAPABILITY, roles, manager=manager),
         expert=permissions.allows(SITE_EXPERT_CAPABILITY, roles, manager=manager),
+        # NO manager flag: ``site.passwords`` carries no scope grant, so a manager scoped to the
+        # server is refused by the capability itself, not merely by the missing block.
+        passwords=permissions.allows(SITE_PASSWORDS_CAPABILITY, roles),
     )
+
+
+# --------------------------------------------------------- the site's servers and their switches
+
+def _site_server_pairs(request: Request, site: "sites.Site") -> list[tuple[str, Any]]:
+    """The ``(name, server)`` pairs of THIS site's servers, resolved the way the site resolves them.
+
+    ``site.members`` is the ONE membership rule (``managed_by``; the root site takes the untagged
+    servers), so the block draws exactly the servers the public pages draw. The registry is the
+    request's SCOPED source — the same one every page reads — so a row can never name a server the
+    viewer cannot see.
+    """
+    registry = getattr(dashboard_page.request_source(request), "servers", ()) or ()
+    names = site.members(registry)
+    return [(name, server) for name, server in sites._registry_pairs(registry)
+            if name in names]
+
+
+def _password_rows(request: Request, site: "sites.Site", catalog: "sites.SiteCatalog") -> list[dict]:
+    """One row per server of *site*: the name, the console's state word, the lock, the switch.
+
+    ``has_password`` is the server's own ``password`` setting; ``shown`` is the ``servers.yaml``
+    ``show_web_passwords`` flag the site reads (absent = OFF). ``other`` names the FIRST other site
+    that also draws this server — the value is the server's, so a second site's row shows the same
+    state; ``""`` when no other site draws it.
+    """
+    registry = getattr(dashboard_page.request_source(request), "servers", ()) or ()
+    rows: list[dict] = []
+    for name, server in _site_server_pairs(request, site):
+        settings = getattr(server, "settings", None)
+        settings = settings if isinstance(settings, dict) else {}
+        locals_ = getattr(server, "locals", None)
+        locals_ = locals_ if isinstance(locals_, dict) else {}
+        state = readmodels.status_view(getattr(server, "status", None))
+        other = next((candidate for candidate in catalog.sites
+                      if candidate.key != site.key and name in candidate.members(registry)), None)
+        rows.append({
+            "name": name,
+            "status": state.word,
+            "dot": state.dot,
+            "locked": bool(settings.get("password")),
+            "shown": bool(locals_.get("show_web_passwords", False)),
+            "other": other.prefix if other is not None else "",
+        })
+    rows.sort(key=lambda row: row["name"].casefold())
+    return rows
+
+
+def passwords_write_available() -> bool:
+    """Whether the password action is registered in THIS process (the ``action_available`` rule).
+
+    A control whose action is absent is not offered: the block still renders its rows, but the Save
+    is withheld and the page says so in one sentence. The rule is the channels write's.
+    """
+    return actions_page.action_available("set_server_web_passwords")
 
 
 def site_in_scope(request: Request, site: "sites.Site") -> bool:
@@ -1442,7 +1535,8 @@ def _mtime_stamp(path: Path) -> str:
 
 
 def _card(request: Request, tree: configgen.Field, site: "sites.Site", document,
-          access: SiteAccess, config_dir, installed: frozenset) -> dict:
+          access: SiteAccess, config_dir, installed: frozenset,
+          catalog: "sites.SiteCatalog | None" = None) -> dict:
     """ONE site's card: its generated leaves, its hand-rendered groups and what may be edited.
 
     ``installed`` is the ``(key, prefix)`` set this process registered at startup. A site the file
@@ -1619,6 +1713,13 @@ def _card(request: Request, tree: configgen.Field, site: "sites.Site", document,
         }, ensure_ascii=False),
         "structure": access.structure,
         "expert_allowed": access.expert,
+        # the password block: its capability, its rows (built only for a viewer that holds it) and
+        # whether the action is registered in THIS process (a control whose action is absent is not
+        # offered — the same rule the channels write follows).
+        "passwords": access.passwords,
+        "password_rows": (_password_rows(request, site, catalog)
+                          if access.passwords and catalog is not None else []),
+        "passwords_available": passwords_write_available(),
         # §2: the palette wizard — its table, its three starting points and the words it prints
         "wizard": wizard,
         "wizard_json": json.dumps(wizard, ensure_ascii=False),
@@ -1645,7 +1746,7 @@ def page_context(request: Request) -> dict:
         tree = form_tree()
         installed = frozenset((candidate.key, candidate.prefix)
                               for candidate in sites.sites_for(request.app).sites)
-        cards = [_card(request, tree, site, document, access, config_dir, installed)
+        cards = [_card(request, tree, site, document, access, config_dir, installed, catalog)
                  for site in catalog.sites
                  if site_in_scope(request, site)]
     return {
@@ -1666,6 +1767,8 @@ def page_context(request: Request) -> dict:
         "file_name": path.name,
         "revision": configwrite.config_revision(path) if path.is_file() else "",
         "save_path": mount.url(SITE_CONFIG_SAVE_PATH),
+        "passwords_path": mount.url(SITE_PASSWORDS_PATH),
+        "password_field": SITE_PASSWORD_FIELD,
         "draft_path": mount.url(SITE_CONFIG_DRAFT_PATH),
         # the two Admin-only blocks at the foot of the page. Each is rendered only for a request
         # that has the capability, and each route checks it again — a hidden block is not a guard.
@@ -1697,6 +1800,11 @@ def page_context(request: Request) -> dict:
         "csrf_token": session.get_csrf_token(request),
         "labels": {
             "branding": SITE_BRANDING, "pages": SITE_PAGES,
+            "passwords": SITE_PASSWORDS, "passwords_what": SITE_PASSWORDS_WHAT,
+            "passwords_shown": SITE_PASSWORDS_SHOWN, "passwords_hidden": SITE_PASSWORDS_HIDDEN,
+            "passwords_none": SITE_PASSWORDS_NONE, "passwords_save": SITE_PASSWORDS_SAVE,
+            "passwords_empty": SITE_PASSWORDS_EMPTY, "passwords_note": SITE_PASSWORDS_NOTE,
+            "passwords_lock": SITE_PASSWORDS_LOCK,
             "palette": SITE_PALETTE, "links": SITE_LINKS, "fields": SITE_FIELDS,
             "expert_mode": SITE_EXPERT_MODE,
             "sections": SITE_SECTIONS, "metrics": SITE_METRICS,
@@ -1889,6 +1997,45 @@ def _apply_empty_lists(document, form, key: str) -> None:
         entry[leaf] = CommentedSeq()
 
 
+#: the closed sets whose stored list states NO CHOICE when it names every page the running build
+#: serves: the model's own order. A save that leaves one of them at that value DROPS the key, so a
+#: page a later release adds appears by itself — a stored list freezes the bar at the day it was
+#: written, which is how a site copied from the sample lost its fleet page.
+_DEFAULT_LIST_FIELDS: tuple[str, ...] = ("nav",)
+
+
+def _served_nav_default() -> tuple[str, ...]:
+    """The ``nav`` a site naming nothing hidden stores: the served page ids, in the model's order."""
+    from .. import site_pages
+
+    return tuple(ident for ident in sites.NAV_PAGE_IDS if ident in site_pages.SERVED_NAV_IDS)
+
+
+def _drop_default_lists(document, key: str) -> None:
+    """Remove a list key whose value IS the default, so the default goes on applying.
+
+    Two spellings are the default: the served ids in the model's order (what the card draws when
+    every row that has a page is ticked) and :data:`sites.DEFAULT_NAV` (every id, served or not).
+    Anything else — a hidden page, a reordered bar, an all-off empty list — is a decision and stays
+    written.
+    """
+    block = document.get("sites")
+    if not isinstance(block, Mapping):
+        return
+    entry = block.get(key)
+    if not isinstance(entry, dict):
+        return
+    for leaf in _DEFAULT_LIST_FIELDS:
+        stored = entry.get(leaf)
+        if stored is None or isinstance(stored, (str, bytes)):
+            continue
+        if not hasattr(stored, "__iter__"):
+            continue
+        sequence = tuple(str(item) for item in stored)
+        if sequence in (sites.DEFAULT_NAV, _served_nav_default()):
+            del entry[leaf]
+
+
 def _restore_expert(block, document, key: str) -> None:
     """Put *block*'s expert sheet back to the one the site serves today.
 
@@ -1935,6 +2082,63 @@ def _refuse(request: Request, msgid: str, **params: Any):
     """Store one refusal sentence and go back — nothing was written."""
     settings_page._notice(request, i18n.translate(request, msgid, **params), ok=False, refusal=True)
     return _back(request)
+
+
+def _switch_value(form, name: str) -> bool:
+    """Whether a posted checkbox is ON. A checkbox posts its value only when checked."""
+    raw = form.get(name)
+    if raw is None:
+        return False
+    return readmodels.text(raw).strip().lower() not in ("", "0", "false", "off", "no")
+
+
+async def _save_passwords(request: Request):
+    """Write ONE site's password switches: one action call per server whose flag changed.
+
+    The order is the console's standard write path: identity, form, scoped resolution, action,
+    one-shot notice, redirect. The action writes only ``show_web_passwords`` in that server's
+    ``servers.yaml`` block and audits its own outcome; this handler only decides WHICH servers moved
+    and reports the batch in one notice.
+    """
+    access = site_access(request)
+    if not access.passwords:
+        return _refuse(request, SITE_REFUSED_SCOPE)
+    form = await request.form(max_fields=settings_page.SETTINGS_FORM_MAX_FIELDS)
+    key = readmodels.text(form.get(SITE_KEY_FIELD))
+    if not key:
+        return _refuse(request, SITE_REFUSED_UNKNOWN)
+    try:
+        catalog = site_catalog(request)
+    except sites.SiteConfigError as ex:
+        return _refuse_detail(request, str(ex))
+    site = next((candidate for candidate in catalog.sites if candidate.key == key), None)
+    if site is None or not site_in_scope(request, site):
+        return _refuse(request, SITE_REFUSED_UNKNOWN)
+    identity = actions_page._identity(request)
+    if identity is None:
+        return _refuse(request, SITE_REFUSED_SCOPE)
+    ctx = actions_page._context(request, identity)
+    changed = 0
+    for name, server in _site_server_pairs(request, site):
+        locals_ = getattr(server, "locals", None)
+        current = bool(locals_.get("show_web_passwords", False)) if isinstance(locals_, dict) else False
+        desired = _switch_value(form, f"{SITE_PASSWORD_FIELD}.{name}")
+        if desired == current:
+            continue
+        result = await actions_page.call_action("set_server_web_passwords", ctx,
+                                                server_name=name, show=desired)
+        if not bool(getattr(result, "success", False)):
+            message = readmodels.text(getattr(result, "message", ""))
+            settings_page._notice(request, message or i18n.translate(request, SITE_PASSWORDS_REFUSED),
+                                  ok=False, refusal=not message)
+            return _back(request, site.key)
+        changed += 1
+    if changed:
+        settings_page._notice(request, i18n.translate(request, SITE_PASSWORDS_SAVED, count=changed),
+                              ok=True)
+    else:
+        settings_page._notice(request, i18n.translate(request, SITE_PASSWORDS_NOTHING), ok=True)
+    return _back(request, site.key)
 
 
 def _refuse_detail(request: Request, detail: str):
@@ -2557,6 +2761,7 @@ def add_routes(router: APIRouter) -> APIRouter:
             configgen.apply_form(target, form, tree)
             _apply_absent_false(target, form, key)
             _apply_empty_lists(target, form, key)
+            _drop_default_lists(target, key)
 
         # THE EXPERT SHEET IS CHECKED BY ITS OWN VALIDATOR FIRST: the parser bounds it but does not
         # read its grammar, and a sheet the site would refuse to SERVE must be refused where it is
@@ -2621,6 +2826,13 @@ def add_routes(router: APIRouter) -> APIRouter:
         settings_page._notice(request, SITE_SAVED_LIVE, ok=True, refusal=True,
                               applies=result.applies)
         return _back(request, key)
+
+    @router.post(SITE_PASSWORDS_PATH,
+                 dependencies=[Depends(session.csrf_protect_with(
+                     settings_page.SETTINGS_FORM_MAX_FIELDS))])
+    async def site_settings_passwords(request: Request):
+        """Write ONE site's password switches — its own form and its own POST."""
+        return await _save_passwords(request)
 
     @router.post(SITE_CONFIG_DRAFT_PATH,
                  dependencies=[Depends(draft_size_guard(SITE_DRAFT_BODY_BYTES)),
@@ -3159,6 +3371,7 @@ def capabilities() -> dict[str, str]:
             SITE_MOCK_PATH: SITE_VIEW_CAPABILITY,
             SITE_MARK_PATH: SITE_VIEW_CAPABILITY,
             SITE_CONFIG_SAVE_PATH: SITE_WRITE_CAPABILITY,
+            SITE_PASSWORDS_PATH: SITE_PASSWORDS_CAPABILITY,
             SITE_CONFIG_DRAFT_PATH: SITE_WRITE_CAPABILITY,
             SITE_CSS_VALIDATE_PATH: settings_page.SETTINGS_WRITE_CAPABILITY,
             SITE_ADD_PATH: SITE_STRUCTURE_CAPABILITY,

@@ -73,8 +73,10 @@ __all__ = [
     "THEME_SHEET_PATH",
     "ME_PATH",
     "PLAYER_PATH",
+    "SERVER_PATH",
     "SEARCH_PATH",
     "SEARCH_JSON_PATH",
+    "FLEET_LIVE_PATH",
     "catalog_from_file",
     "chip",
     "community_name",
@@ -97,6 +99,7 @@ __all__ = [
     "render_site_page",
     "resolve_site",
     "safe_return",
+    "server_url",
     "sign_in_href",
     "sign_out_context",
     "signed_in",
@@ -124,6 +127,9 @@ NAV_PATHS: dict[str, str] = {
     "overview": "",
     "leaderboard": "/rankings",
     "squadrons": "/squads",
+    # the fleet page's label reads "Servers"; its ADDRESS cannot be ``/servers`` because the legacy
+    # REST surface claims that path on the same application (see the note above)
+    "servers": "/fleet",
     "players": "/players",
 }
 
@@ -133,12 +139,17 @@ NAV_LABELS: dict[str, str] = {
     "overview": i18n._("Overview"),
     "leaderboard": i18n._("Leaderboard"),
     "squadrons": i18n._("Squadrons"),
+    "servers": i18n._("Servers"),
     "players": i18n._("Pilots"),
 }
 
 #: the nav page ids whose page THIS build serves. An id absent here is not offered, whatever the
 #: site's ``nav:`` list says.
-SERVED_NAV_IDS: tuple[str, ...] = ("overview", "leaderboard", "players")
+SERVED_NAV_IDS: tuple[str, ...] = ("overview", "leaderboard", "servers", "players")
+
+#: the path (inside the site) of the server list — the ``servers`` nav entry's own address, and the
+#: prefix the per-server page appends one encoded name segment to.
+SERVER_PATH: str = NAV_PATHS["servers"]
 
 #: the path (inside the site) of one pilot's profile; its UCID is appended as one path segment.
 PLAYER_PATH = "/player"
@@ -155,6 +166,11 @@ SEARCH_PATH: str = NAV_PATHS["players"]
 #: the visitor types. Its own address, not the search page's — the page answers HTML and this one
 #: answers ``{"pilots": [...]}``.
 SEARCH_JSON_PATH = "/search.json"
+
+#: the path (inside the site) of the fleet's own JSON: the live cells the servers page repaints from
+#: (``pages/site_servers.live_route``). Its own address, not the page's — the page answers HTML and
+#: this one answers the figures that move within seconds.
+FLEET_LIVE_PATH = "/fleet.json"
 
 #: the path (inside the site) of the site's palette sheet, served as CSS.
 THEME_SHEET_PATH = "/theme.css"
@@ -225,6 +241,16 @@ def site_url(site: Any, path: str = "") -> str:
 def player_url(site: Any, ucid: Any) -> str:
     """The address of one pilot's profile: :data:`PLAYER_PATH` with the UCID as one encoded segment."""
     return site_url(site, f"{PLAYER_PATH}/{quote(str(ucid or ''), safe='')}")
+
+
+def server_url(site: Any, name: Any) -> str:
+    """The address of one server's page: :data:`SERVER_PATH` with its name as one encoded segment.
+
+    ``quote(..., safe="")`` percent-encodes every reserved character a DCS server name may carry (a
+    space, ``&``, ``#``, ``?``, ``/``), so the name round-trips through the segment instead of
+    truncating it or opening a query string. The ONE encoding of a server name on this site.
+    """
+    return site_url(site, f"{SERVER_PATH}/{quote(str(name or ''), safe='')}")
 
 
 def nav_items(context: Any, active: str = "") -> list[dict]:
@@ -745,8 +771,9 @@ def page_modules() -> tuple[Any, ...]:
     page module imports this module for :func:`site_url` and :func:`render_site_page`.
     """
     from .pages import site_leaderboard, site_me, site_overview, site_player, site_players
+    from .pages import site_servers
 
-    return (site_overview, site_leaderboard, site_player, site_players, site_me)
+    return (site_overview, site_leaderboard, site_servers, site_player, site_players, site_me)
 
 
 #: the template the preview route renders: ``site_base.html``'s shell with the overview's hero for
@@ -1177,7 +1204,7 @@ def _build_router(catalog) -> tuple[APIRouter, dict[str, str]] | None:
     """
     if not catalog:
         return None
-    from .pages import site_players
+    from .pages import site_players, site_servers
 
     modules = page_modules()
     router = APIRouter()
@@ -1188,6 +1215,14 @@ def _build_router(catalog) -> tuple[APIRouter, dict[str, str]] | None:
             for module in modules:
                 path = module.add_route(router, site)
                 capabilities[path] = permissions.PUBLIC
+            # the per-server page: the list's own path plus one encoded name segment, declared
+            # ``public`` exactly like the page whose row links it
+            detail_path = site_servers.detail_route(router, site)
+            capabilities[detail_path] = permissions.PUBLIC
+            # the fleet's live cells: the JSON the list page polls, declared ``public`` exactly like
+            # the page whose figures it republishes
+            live_path = site_servers.live_route(router, site)
+            capabilities[live_path] = permissions.PUBLIC
             # the top bar's suggestions: a JSON sibling of the search page, registered here so it
             # is declared ``public`` exactly like the page whose read it reuses.
             search_path = site_players.search_route(router, site)

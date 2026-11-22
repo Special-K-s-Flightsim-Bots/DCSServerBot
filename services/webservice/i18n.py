@@ -655,6 +655,9 @@ JS_MESSAGES: dict[str, str] = {
     "log.start_of_log": _("Start of log"),
     "log.following": _("following while this tab is open"),
     "log.paused": _("paused — this tab is hidden"),
+    # the chat stream (static/chat-log.js, on the Chat tab): its ring lives in the bot's memory, so a
+    # restart starts it empty — the sentence says so instead of calling it a rotation
+    "chat.restarted": _("— the bot restarted; the chat history starts again —"),
     # the missions selection bar (static/mission-select.js, on the Missions tab)
     "mission.count": _("{n} of {total} selected"),
     "mission.remove_selected": _("Remove selected…"),

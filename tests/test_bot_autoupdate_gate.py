@@ -173,32 +173,41 @@ async def test_the_new_version_comes_from_the_branch_even_where_there_are_no_tag
 
 
 @pytest.mark.asyncio
-async def test_a_failed_branch_read_stays_unknown_and_is_never_a_release_tag(checkout, monkeypatch):
-    """On a checkout the release tag answers a different question, so it must not be a fallback."""
+async def test_a_failed_branch_read_stays_unknown_and_never_falls_back(checkout, monkeypatch):
+    """A checkout is updated from its branch, so neither fallback answers the question it asks."""
     _remote, work = checkout
     _push_version(work, "3.0.4.28")
     _git(work, 'checkout', '--detach')                      # no branch to read
     monkeypatch.chdir(work)
 
     async def must_not_be_used(self):
-        raise AssertionError("a checkout must never fall back to a release tag")
+        raise AssertionError("a checkout must never fall back to the release tag or the main branch")
 
-    monkeypatch.setattr(NodeImpl, '_latest_version_release', must_not_be_used)
+    monkeypatch.setattr(NodeImpl, '_latest_version_release', must_not_be_used, raising=False)
+    monkeypatch.setattr(NodeImpl, '_latest_version_main', must_not_be_used)
     assert await NodeImpl._latest_version(_Node()) is None
 
 
 @pytest.mark.asyncio
-async def test_an_install_without_a_checkout_reads_the_release_tag(tmp_path, monkeypatch):
-    """The other install kind: it updates to the newest RELEASE, and that tag is the number it would move to."""
+async def test_an_install_without_a_checkout_reads_the_main_branchs_version(tmp_path, monkeypatch):
+    """An archive installation follows the MAIN branch, so that branch's ``version.py`` is its target.
+
+    Not the release tag: the branch moves between releases without moving the tag, and a feature
+    release read as the old tag would be applied unattended.
+    """
     if subprocess.run(['git', 'rev-parse', '--git-dir'], cwd=tmp_path,
                       capture_output=True).returncode == 0:
         pytest.skip("tmp_path sits inside a repository, so there is no checkout-free case to test")
     monkeypatch.chdir(tmp_path)
 
-    async def tag(self):
+    async def main_branch(self):
         return "3.0.5.0"
 
-    monkeypatch.setattr(NodeImpl, '_latest_version_release', tag)
+    async def must_not_be_used(self):
+        raise AssertionError("an archive installation must not read the release tag")
+
+    monkeypatch.setattr(NodeImpl, '_latest_version_main', main_branch)
+    monkeypatch.setattr(NodeImpl, '_latest_version_release', must_not_be_used, raising=False)
     assert await NodeImpl._latest_version(_Node()) == "3.0.5.0"
 
 

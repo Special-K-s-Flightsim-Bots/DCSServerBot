@@ -161,6 +161,36 @@ def make_unix_filename(*args) -> str:
     return '/'.join(arg.replace('\\', '/').strip('/') for arg in args)
 
 
+#: Records the commit of the MAIN branch this installation was last updated to. A checkout answers
+#: that from git itself; an installation that came from an archive has nothing to ask, so the update
+#: that installs it writes the answer here. It lives beside the code, never in the configuration:
+#: it describes the installation, not the operator's setup. Ignored by git.
+VERSION_MARKER_FILE = 'version.sha'
+
+
+def read_version_marker() -> str | None:
+    """The commit the last successful update recorded, or ``None`` when this installation has none.
+
+    ``None`` means UNKNOWN, never "up to date": an installation with no marker has never been
+    updated through the archive path, so there is nothing to compare a branch tip against.
+    """
+    try:
+        with open(VERSION_MARKER_FILE, 'r', encoding='utf-8') as marker:
+            return marker.read().strip() or None
+    except FileNotFoundError:
+        return None
+
+
+def write_version_marker(commit: str) -> None:
+    """Record *commit* as the state this installation was updated to.
+
+    Written only once an update has actually completed - files AND the environment - so a failed
+    run stays pending and is retried by the next one.
+    """
+    with open(VERSION_MARKER_FILE, 'w', encoding='utf-8') as marker:
+        marker.write(commit)
+
+
 def safe_rmtree(path: str | Path):
     # if path is a single file, delete that
     if os.path.isfile(path):

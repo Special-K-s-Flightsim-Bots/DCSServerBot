@@ -70,14 +70,38 @@ The one statement that carries no server filter is the ``to_regclass`` probe in
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import math
+import time
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 
+log = logging.getLogger(__name__)
+
 __all__ = [
     "SERVER_FILTER",
     "EXEMPT_STATEMENTS",
+    "LIVE_READ_TTL",
+    "LIVE_STALE_TTL",
+    "FOG_TIMEOUT",
+    "EXTENSIONS_TIMEOUT",
+    "BLOCK_READY",
+    "BLOCK_FAILED",
+    "BLOCK_EMPTY",
+    "LIMIT_FLAGS",
+    "SCHEDULE_READY",
+    "SCHEDULE_ABSENT",
+    "SCHEDULE_FAILED",
+    "SCHEDULE_TRIVIAL",
+    "live_read",
+    "remember_live_read",
+    "prefetch_live",
+    "forget_live_reads",
+    "server_list",
+    "server_detail",
+    "fleet_live",
     "LEADERBOARD_PAGE_SIZE",
     "SEARCH_PAGE_SIZE",
     "PILOT_RECENT_SESSIONS",
@@ -1289,6 +1313,693 @@ async def server_board(site: Any, pool: Any, live: Any = None) -> list[dict]:
             "window": BOARD_WINDOW_LABEL,
         })
     return board
+
+
+# --------------------------------------------------------------------------- the fleet
+
+#: The live blocks' cache window, in seconds: the same 300 s the bot's own status embed caches its
+#: ``getFog`` read for. Weather and extensions are RPCs to the server and the weekly schedule is the
+#: scheduler plugin's own config, so one page view must not cost a round trip or a plugin call —
+#: :func:`live_read` answers the cached snapshot and refreshes it off the render path.
+LIVE_READ_TTL = 300
+
+#: How long a live read that is NOT ready stands. ``down`` and ``failed`` describe a MOMENT: a server
+#: starting, stopping or recovering flips them within seconds, and a 300 s window kept telling a
+#: visitor a running server was off long after it had started.
+LIVE_STALE_TTL = 20
+
+#: How long the extensions RPC may take before this read answers without it. A page render must not
+#: wait on a slow node for a decorative list.
+EXTENSIONS_TIMEOUT = 5.0
+
+#: How long the ``getFog`` RPC may take. It only refines the visibility figure — the weather itself
+#: is already in memory (:func:`_weather_payload`) — so a silent node costs this bound and nothing
+#: else: not the state, not the extensions block, not the schedule.
+FOG_TIMEOUT = 5.0
+
+#: The states ONE block of a live read can be in, beside the payload's own :data:`LIVE_READY` /
+#: :data:`LIVE_DOWN` / :data:`LIVE_FAILED`: ``ready`` carries figures, ``failed`` is a block whose
+#: read did not answer (the page says so in one sentence and draws nothing else of it), and
+#: ``empty`` is a block the mission or the plugin simply states nothing for.
+BLOCK_READY = "ready"
+BLOCK_FAILED = "failed"
+BLOCK_EMPTY = "empty"
+
+#: The client-integrity switches, in the page's order, as ``(settings key, path, default, in force
+#: when TRUE)``. ``path`` is where the value lives — ``settings`` itself or its ``advanced`` block.
+#: The defaults are the DCS config schema's own, so a server that states nothing reads like one that
+#: states the default.
+LIMIT_FLAGS: tuple[tuple[str, str, bool, bool], ...] = (
+    ("allow_trial_only_clients", "advanced", False, False),
+    ("require_pure_clients", "", True, True),
+    ("require_pure_scripts", "", False, True),
+    ("require_pure_models", "", True, True),
+    ("require_pure_textures", "", True, True),
+)
+
+#: the statuses a live read can be in besides ``ready``.
+LIVE_PENDING = "pending"
+LIVE_DOWN = "down"
+LIVE_FAILED = "failed"
+LIVE_READY = "ready"
+
+
+def _text(value: Any) -> str:
+    """*value* as a stripped string; anything unreadable is ``''``."""
+    return str(value).strip() if value is not None and not isinstance(value, bool) else ""
+
+
+def _float(value: Any) -> float | None:
+    """*value* as a float, or ``None`` — a tolerant read of a DCS-reported number."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _settings(server: Any) -> dict:
+    """A server's own settings block as a dict (``{}`` when it carries none)."""
+    settings = getattr(server, "settings", None) if server is not None else None
+    return settings if isinstance(settings, dict) else {}
+
+
+def _advanced(server: Any) -> dict:
+    """The ``advanced`` block of a server's settings as a dict (``{}`` when it carries none)."""
+    block = _settings(server).get("advanced")
+    return block if isinstance(block, dict) else {}
+
+
+def _mission_of(server: Any) -> Any:
+    """The server's current mission object, or ``None``."""
+    return getattr(server, "current_mission", None) if server is not None else None
+
+
+def _side_counts(server: Any) -> dict[str, int]:
+    """The players sitting in a slot per coalition, keyed ``blue``/``red``."""
+    counts = {"blue": 0, "red": 0}
+    players = getattr(server, "players", None) if server is not None else None
+    if not players:
+        return counts
+    try:
+        for player in players.values():
+            if not getattr(player, "active", False):
+                continue
+            side = str(getattr(getattr(player, "side", None), "name", "") or "").strip().lower()
+            if side in counts:
+                counts[side] += 1
+    except Exception:  # noqa: BLE001 - a half-read roster contributes nobody
+        return {"blue": 0, "red": 0}
+    return counts
+
+
+def _slots(server: Any) -> tuple[dict, dict]:
+    """``(blue, red)`` as ``{"current", "total"}`` — the live count against the mission's own seats.
+
+    ``total`` is the mission's ``num_slots_blue`` / ``num_slots_red``; a mission that reports no
+    count answers ``0`` and the page prints no figure rather than a zero seat row.
+    """
+    mission = _mission_of(server)
+    counts = _side_counts(server)
+    blue_total = _number(getattr(mission, "num_slots_blue", 0)) if mission is not None else 0
+    red_total = _number(getattr(mission, "num_slots_red", 0)) if mission is not None else 0
+    return ({"current": counts["blue"], "total": int(blue_total or 0)},
+            {"current": counts["red"], "total": int(red_total or 0)})
+
+
+def _max_players(server: Any) -> int | None:
+    """The seats a real player can take (``settings.maxPlayers`` less the observer slot), or None."""
+    configured = _number(_settings(server).get("maxPlayers"))
+    if not configured:
+        return None
+    from core.utils.helper import player_slots
+    return player_slots(int(configured))
+
+
+def _restart_seconds(server: Any) -> int | None:
+    """Seconds until the scheduled restart, or ``None`` — the embed's own rule.
+
+    Only a server with a ``restart_time`` and NOT in maintenance reports a countdown; a restart in
+    the past answers ``None`` rather than a negative figure.
+    """
+    if server is None or bool(getattr(server, "maintenance", False)):
+        return None
+    restart_time = getattr(server, "restart_time", None)
+    if not isinstance(restart_time, datetime):
+        return None
+    return max(int((restart_time - datetime.now(timezone.utc)).total_seconds()), 0)
+
+
+def _address(server: Any) -> str:
+    """``public_ip:port`` for a server, or ``''`` when the node reports no address."""
+    node = getattr(server, "node", None) if server is not None else None
+    ip = _text(getattr(node, "public_ip", None))
+    port = _number(getattr(server, "port", None)) if server is not None else 0
+    return f"{ip}:{int(port)}" if ip and port else ""
+
+
+def _mission_clock(mission: Any) -> dict[str, str]:
+    """The in-mission date and time as ``{"date", "time"}``, or two empty strings.
+
+    ``Mission.date`` is the mission's own calendar date and ``start_time`` the clock at its start;
+    adding the elapsed ``mission_time`` gives the moment the mission has reached. ``date`` arrives
+    as a ``datetime`` from one DCS build and as an ISO-ish string from another, so both shapes are
+    rendered (a formatted date, or the raw value beside the elapsed clock).
+    """
+    if mission is None:
+        return {"date": "", "time": ""}
+    elapsed = int(_number(getattr(mission, "mission_time", 0)) or 0)
+    start = int(_number(getattr(mission, "start_time", 0)) or 0)
+    date = getattr(mission, "date", None)
+    if isinstance(date, datetime):
+        moment = datetime.fromtimestamp(date.timestamp() + start + elapsed)
+        return {"date": f"{moment:%d %b %Y}", "time": f"{moment:%H:%M:%S}"}
+    if not _text(date):
+        return {"date": "", "time": ""}
+    return {"date": _text(date),
+            "time": str(timedelta(seconds=max(start + elapsed, 0))).zfill(8)}
+
+
+def _limits(server: Any) -> list[dict]:
+    """Every client-integrity switch with whether it is IN FORCE, in :data:`LIMIT_FLAGS`' order."""
+    settings = _settings(server)
+    advanced = _advanced(server)
+    rows: list[dict] = []
+    for key, path, default, true_is_in_force in LIMIT_FLAGS:
+        source = advanced if path == "advanced" else settings
+        value = bool(source.get(key, default))
+        rows.append({"key": key, "enabled": value if true_is_in_force else not value})
+    return rows
+
+
+def _bot_version(server: Any) -> str:
+    """The bot's own version as the server's node reports it (``sub_version`` appended), or ``''``."""
+    node = getattr(server, "node", None) if server is not None else None
+    version = _text(getattr(node, "bot_version", None))
+    sub = getattr(node, "sub_version", None)
+    if version and isinstance(sub, str) and sub.strip() and sub.strip() != "0":
+        return f"{version}.{sub.strip()}"
+    return version
+
+
+def _live_key(server: Any) -> str:
+    """The name a live read is cached under (the server's own name)."""
+    return _text(getattr(server, "name", None)) if server is not None else ""
+
+
+def _plain_version(value: Any) -> str:
+    """An extension's version, or ``''`` for the spellings that mean "there is no version"."""
+    text = _text(value)
+    return "" if text.lower() in ("n/a", "n.a.", "na", "-", "none") else text
+
+
+def _weather_payload(server: Any, fog: Any, answer: Any = None) -> dict | None:
+    """The mission's weather as raw figures, or ``None`` when it reports no weather block.
+
+    The live ``getFog`` reading (when the server answered one) is the visibility, because DYNAMIC
+    weather moves it after the mission starts; the mission's own figure is the fallback.
+
+    ``answer`` is the game server's own ``getWeatherInfo`` reply, used only when the mission object
+    in THIS process carries no weather: a page served from a node that holds a copied mission gets
+    the mission's name and map but not its weather block, and the block would otherwise read as
+    "the mission reports no weather" while the status embed shows it.
+    """
+    mission = _mission_of(server)
+    weather = getattr(mission, "weather", None) if mission is not None else None
+    clouds = getattr(mission, "clouds", None) if mission is not None else None
+    weather = weather if isinstance(weather, dict) else {}
+    clouds = clouds if isinstance(clouds, dict) else {}
+    if answer is not None:
+        remote_weather = answer.get("weather")
+        remote_clouds = answer.get("clouds")
+        if not weather and isinstance(remote_weather, dict):
+            weather = remote_weather
+        if not clouds and isinstance(remote_clouds, dict):
+            clouds = remote_clouds
+    if not weather and not clouds:
+        return None
+    raw_wind = weather.get("wind")
+    wind = raw_wind if isinstance(raw_wind, dict) else {}
+
+    def level(key: str) -> dict | None:
+        branch = wind.get(key)
+        if not isinstance(branch, dict):
+            return None
+        direction = _float(branch.get("dir"))
+        speed = _float(branch.get("speed"))
+        if direction is None or speed is None:
+            return None
+        return {"dir": direction, "speed": speed}
+
+    raw_visibility = weather.get("visibility")
+    visibility = (_float(raw_visibility.get("distance"))
+                  if isinstance(raw_visibility, dict) else None)
+    live_visibility = False
+    if isinstance(fog, dict) and fog.get("visibility") is not None:
+        measured = _float(fog.get("visibility"))
+        if measured is not None:
+            visibility, live_visibility = measured, True
+    raw_preset = clouds.get("preset")
+    preset = raw_preset if isinstance(raw_preset, dict) else {}
+    raw_season = weather.get("season")
+    temperature = (_float(raw_season.get("temperature"))
+                   if isinstance(raw_season, dict) else None)
+    density = clouds.get("density")
+    return {
+        "temperature": temperature,
+        "qnh_mmhg": _float(weather.get("qnh")),
+        "visibility": visibility,
+        "live_visibility": live_visibility,
+        "clouds": {"preset": _text(preset.get("readableName")).split("/")[-1].strip(),
+                   "base": _float(clouds.get("base")),
+                   "density": int(_number(density)) if density is not None else None,
+                   "thickness": _float(clouds.get("thickness"))},
+        "wind": {"ground": level("atGround"), "low": level("at2000"), "high": level("at8000")},
+    }
+
+
+def _extensions_payload(entries: Any) -> list[dict]:
+    """The public extension render as plain dicts: name, version, value lines, withheld count."""
+    rows: list[dict] = []
+    for entry in entries or ():
+        if not isinstance(entry, dict):
+            continue
+        name = _text(entry.get("name"))
+        if not name:
+            continue
+        rows.append({"name": name, "version": _plain_version(entry.get("version")),
+                     "value": _text(entry.get("value")),
+                     "withheld": int(_number(entry.get("withheld")) or 0)})
+    return rows
+
+
+# --------------------------------------------------------------------------- the weekly schedule
+
+#: The scheduler block's three states inside a live read. ``ready`` carries the week, ``absent`` is
+#: the case no page may draw at all (no Scheduler plugin, no ``schedule``, or the trivial always-on
+#: week), and ``failed`` is a config this read could not take apart — the page states that in one
+#: sentence and still draws no grid.
+SCHEDULE_READY = "ready"
+SCHEDULE_ABSENT = "absent"
+SCHEDULE_FAILED = "failed"
+
+#: the one week that means "no schedule": a server that always runs.
+SCHEDULE_TRIVIAL = {"00-24": "YYYYYYY"}
+
+#: the letters a day cell may carry: ``Y`` runs, ``N`` off, ``P`` shuts down with no players.
+SCHEDULE_LETTERS = "YNP"
+
+#: the day count of one period's pattern.
+SCHEDULE_DAYS = 7
+
+
+def _scheduler(server: Any) -> Any:
+    """The connected bot's ``Scheduler`` cog — the plugin's own per-server config — or ``None``.
+
+    Read through the service registry (``BotService.bot.cogs['Scheduler']``), never from a second
+    parse of ``scheduler.yaml``. A process with no bus, no bot or no plugin answers ``None``.
+    """
+    try:
+        from core.services.registry import ServiceRegistry
+        from services.bot.service import BotService
+
+        bot = getattr(ServiceRegistry.get(BotService), "bot", None)
+        cogs = getattr(bot, "cogs", None)
+        return cogs.get("Scheduler") if cogs is not None else None
+    except Exception:  # noqa: BLE001 - an absent bot or plugin is "no schedule", not an error
+        return None
+
+
+def _schedule_rows(schedule: dict) -> list[dict]:
+    """Every readable period of a ``schedule`` map as ``{"period", "days"}``, in file order.
+
+    A period is ``"HH-HH"`` and its value exactly seven letters of :data:`SCHEDULE_LETTERS`; the
+    block's own ``timezone`` key is not a period and every entry this read cannot take apart is
+    dropped rather than guessed into a state.
+    """
+    rows: list[dict] = []
+    for period, pattern in schedule.items():
+        name = _text(period)
+        if not name or name == "timezone":
+            continue
+        days = _text(pattern).upper()
+        if len(days) != SCHEDULE_DAYS or any(day not in SCHEDULE_LETTERS for day in days):
+            continue
+        rows.append({"period": name, "days": days})
+    return rows
+
+
+def _schedule_payload(server: Any) -> dict:
+    """The server's weekly schedule as the live read carries it — ``state``, ``rows``, ``timezone``.
+
+    The plugin is asked HERE, inside the cached read, so a page render never reaches it. The
+    timezone is the config's own; the ``schedule`` block may state it instead, so that key is read
+    as a fallback.
+    """
+    empty = {"state": SCHEDULE_ABSENT, "rows": [], "timezone": ""}
+    scheduler = _scheduler(server)
+    if scheduler is None:
+        return empty
+    try:
+        config = scheduler.get_config(server)
+    except Exception as ex:  # noqa: BLE001 - a plugin that will not answer is one sentence
+        _warn(_live_key(server), "schedule", ex)
+        return {**empty, "state": SCHEDULE_FAILED}
+    if not isinstance(config, dict):
+        return empty
+    schedule = config.get("schedule")
+    if not isinstance(schedule, dict) or not schedule or schedule == SCHEDULE_TRIVIAL:
+        return empty
+    rows = _schedule_rows(schedule)
+    if not rows:
+        return {**empty, "state": SCHEDULE_FAILED}
+    timezone = _text(config.get("timezone")) or _text(schedule.get("timezone"))
+    return {"state": SCHEDULE_READY, "rows": rows, "timezone": timezone}
+
+
+#: one cached live reading per server name: ``(monotonic stamp, payload)``.
+_live_cache: dict[str, tuple[float, dict]] = {}
+#: the refresh in flight per server name, so a second page view joins it instead of firing another.
+_live_refreshing: dict[str, Any] = {}
+
+
+def _warn(name: str, block: str, ex: BaseException) -> None:
+    """One warning line for a live block that did not answer: the server, the block, the failure type.
+
+    Never the payload and never ``exc_info``: a DCS reply carries mission data this line must not
+    copy into the log.
+    """
+    log.warning("%s: the %s read did not answer (%s)", name or "?", block, type(ex).__name__)
+
+
+async def _bounded(call: Any, timeout: float, name: str, block: str) -> Any:
+    """Await ``call()`` for at most *timeout* seconds; ``None`` when it hung or refused.
+
+    A block's failure is one warning line and NOTHING else: the caller keeps whatever it already
+    holds and states the block as failed, so a silent RPC never pins the rest of the payload.
+    """
+    try:
+        return await asyncio.wait_for(call(), timeout)
+    except Exception as ex:  # noqa: BLE001 - a hung or refusing RPC is one sentence, not an error
+        _warn(name, block, ex)
+        return None
+
+
+def _payload(state: str, weather: Any = None, extensions: Any = None,
+             schedule: Any = None, weather_state: str | None = None,
+             extensions_state: str | None = None) -> dict:
+    """A live read's answer: its state, the three blocks, and each block's own state.
+
+    ``weather_state`` / ``extensions_state`` are :data:`BLOCK_READY`, :data:`BLOCK_FAILED` or
+    :data:`BLOCK_EMPTY`, and default from what the block carries: a block with figures is ready, one
+    without is empty.
+    """
+    entries = list(extensions or ())
+    return {
+        "state": state,
+        "weather": weather,
+        "weather_state": weather_state or (BLOCK_READY if weather is not None else BLOCK_EMPTY),
+        "extensions": entries,
+        "extensions_state": extensions_state or (BLOCK_READY if entries else BLOCK_EMPTY),
+        "schedule": schedule or {"state": SCHEDULE_ABSENT, "rows": [], "timezone": ""},
+    }
+
+
+async def _read_live(server: Any) -> dict:
+    """Read the server's weather, public extensions and weekly schedule — the ONE live read.
+
+    The weather is built from the mission object FIRST, so its figures are cached whether or not the
+    node answers. The two RPCs — ``getFog`` (a refinement of the visibility figure only) and the
+    public extensions render — are each bounded (:data:`FOG_TIMEOUT`, :data:`EXTENSIONS_TIMEOUT`)
+    and asked together, so one silent node costs the longer bound once instead of a reply timeout.
+    """
+    name = _live_key(server)
+    # the schedule is the plugin's per-server config, in process: it is read whether the server is
+    # up or not, so a stopped server still states the week it will run on
+    schedule = _schedule_payload(server)
+    if _status_text(server) not in ONLINE_STATUSES:
+        return _payload(LIVE_DOWN, schedule=schedule)
+    try:
+        weather = _weather_payload(server, None)
+        weather_state = BLOCK_READY if weather is not None else BLOCK_EMPTY
+    except Exception as ex:  # noqa: BLE001 - a half-read weather block states nothing
+        _warn(name, "weather", ex)
+        weather, weather_state = None, BLOCK_FAILED
+    fog, entries = await asyncio.gather(
+        _bounded(lambda: server.send_to_dcs_sync({"command": "getFog"}),
+                 FOG_TIMEOUT, name, "weather"),
+        _bounded(lambda: server.render_extensions(public=True),
+                 EXTENSIONS_TIMEOUT, name, "extensions"))
+    if weather_state != BLOCK_READY:
+        # THE MISSION OBJECT DOES NOT CARRY THE WEATHER IN EVERY PROCESS. The status embed is drawn
+        # where the mission data arrives; a page served by another node's copy can hold the mission
+        # (name, map, slots) with an empty ``weather`` block, and the block then reads as "the
+        # mission reports no weather" while the embed shows it. The game server is the source of
+        # record, so one bounded ``getWeatherInfo`` asks for exactly the two dicts the block needs.
+        answer = await _bounded(lambda: server.send_to_dcs_sync({"command": "getWeatherInfo"}),
+                                FOG_TIMEOUT, name, "weather")
+        if isinstance(answer, dict) and (answer.get("weather") or answer.get("clouds")):
+            try:
+                weather = _weather_payload(server, fog, answer=answer)
+                weather_state = BLOCK_READY if weather is not None else BLOCK_EMPTY
+            except Exception as ex:  # noqa: BLE001 - the fallback is one attempt, not a retry loop
+                _warn(name, "weather", ex)
+    elif isinstance(fog, dict) and weather_state == BLOCK_READY:
+        try:
+            weather = _weather_payload(server, fog) or weather
+        except Exception:  # noqa: BLE001 - the mission's own figures already answer the block
+            pass
+    if entries is None:
+        extensions, extensions_state = [], BLOCK_FAILED
+    else:
+        extensions, extensions_state = _extensions_payload(entries), BLOCK_READY
+    return _payload(LIVE_READY, weather, extensions, schedule,
+                    weather_state=weather_state, extensions_state=extensions_state)
+
+
+def _refresh_live(server: Any, name: str) -> None:
+    """Schedule one background refresh of *server*'s live read; a running one is reused."""
+    running = _live_refreshing.get(name)
+    if running is not None and not running.done():
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:  # pragma: no cover - a page render always runs inside a loop
+        return
+
+    async def run() -> None:
+        try:
+            answer = await _read_live(server)
+        except Exception as ex:  # noqa: BLE001 - a read that blew up is a cached failure, not a pin
+            _warn(name, "live", ex)
+            answer = _payload(LIVE_FAILED)
+        finally:
+            _live_refreshing.pop(name, None)
+        _live_cache[name] = (time.monotonic(), answer)
+
+    task = loop.create_task(run())
+    _live_refreshing[name] = task
+
+
+def live_read(server: Any) -> dict:
+    """The cached live read for *server*, refreshing it in the background when it is stale.
+
+    NEVER AWAITS: a page view answers the snapshot at hand and schedules the next one, so the two
+    RPCs behind this block (``getFog`` and the public extensions render) never sit on the render
+    path. EVERY outcome is cached — ready, down and failed — so ``pending`` is the state of the very
+    first view of a server this process has not read yet, and never again after that: the page says
+    so in one sentence instead of drawing empty instruments.
+
+    A SNAPSHOT THAT CONTRADICTS THE ROSTER IS NOT SERVED. A read taken while the server was off says
+    ``down``; once the roster says the server is up, that answer is stale the moment it is asked for,
+    whatever its age. The read is refreshed at once and the caller is told the read is in flight —
+    saying "the server is not running" about a running server is worse than one view without
+    figures. A ready snapshot is dropped the same way when the server stops.
+    """
+    name = _live_key(server)
+    if not name:
+        return _payload(LIVE_PENDING)
+    now = time.monotonic()
+    entry = _live_cache.get(name)
+    if entry is None:
+        _refresh_live(server, name)
+        return _payload(LIVE_PENDING)
+    payload = dict(entry[1])
+    online = _status_text(server) in ONLINE_STATUSES
+    reads_online = payload.get("state") != LIVE_DOWN
+    # THE MEMORY HALF IS RECOMPOSED ON EVERY CALL. The weather is the mission's own dict — no RPC,
+    # no statement — so a snapshot cached while the mission was still loading (state ``ready`` with
+    # an empty weather block) must not hide the weather for its whole window. Only an EMPTY block is
+    # filled: a payload already carrying figures, live visibility included, is left alone.
+    if payload.get("state") == LIVE_READY and not payload.get("weather"):
+        try:
+            fresh = _weather_payload(server, None)
+        except Exception as ex:  # noqa: BLE001 - a half-read mission keeps the cached answer
+            _warn(name, "weather", ex)
+            fresh = None
+        if fresh:
+            payload["weather"] = fresh
+            payload["weather_state"] = BLOCK_READY
+    window = LIVE_READ_TTL if payload.get("state") == LIVE_READY else LIVE_STALE_TTL
+    if not payload.get("weather"):
+        # an empty weather block is re-read like a non-ready answer: the mission may simply not have
+        # published its figures yet
+        window = min(window, LIVE_STALE_TTL)
+    if now - entry[0] >= window or online != reads_online:
+        _refresh_live(server, name)
+    if online != reads_online:
+        # the schedule is the plugin's config and states itself whether the server runs, so it
+        # survives the wait this answer imposes on the live blocks
+        return _payload(LIVE_PENDING, schedule=payload.get("schedule"))
+    return payload
+
+
+def prefetch_live(servers: Any = None) -> int:
+    """Schedule a live read for every ONLINE server whose cached answer is stale or absent.
+
+    A page already does this for the one server it shows; a fleet view warms all of them, so the
+    first visit to a server's page is not the one that pays the read. Never raises: a server that
+    cannot be read caches that outcome like any other. Returns how many reads it scheduled.
+    """
+    registry = _live_servers(servers)
+    scheduled = 0
+    for server in list(registry.values()):
+        name = _live_key(server)
+        if not name or _status_text(server) not in ONLINE_STATUSES:
+            continue
+        entry = _live_cache.get(name)
+        if entry is not None and time.monotonic() - entry[0] < LIVE_READ_TTL:
+            continue
+        try:
+            live_read(server)
+        except Exception as ex:  # noqa: BLE001 - a prefix is an optimisation, never a failure
+            _warn(name, "live", ex)
+            continue
+        scheduled += 1
+    return scheduled
+
+
+def remember_live_read(name: str, payload: dict) -> None:
+    """File *payload* as the fresh live read of *name* (the suite's own entry point)."""
+    _live_cache[str(name)] = (time.monotonic(), dict(payload))
+
+
+def forget_live_reads() -> None:
+    """Empty the live-read cache (the suite's own entry point; a live process never needs it)."""
+    _live_cache.clear()
+
+
+def _published_password(server: Any) -> str:
+    """The join password the PUBLIC SITE may print, or ``""``.
+
+    Two conditions, both required: the server's ``servers.yaml`` entry carries
+    ``show_web_passwords: true`` (absent means OFF), and the server actually holds a non-blank
+    password. The Discord embed's own ``show_passwords`` is deliberately NOT read here — the two
+    settings are independent, so one being on never publishes the other's value.
+    """
+    locals_ = getattr(server, "locals", None)
+    if not isinstance(locals_, dict) or not locals_.get("show_web_passwords", False):
+        return ""
+    password = _settings(server).get("password")
+    if not isinstance(password, str) or not password.strip():
+        return ""
+    return password
+
+
+def _live_half(name: str, server: Any) -> dict:
+    """The roster half of one fleet row: state, players, mission, options, address and clocks.
+
+    Read from the process's own server object and NOTHING else — no statement, no RPC — which is
+    what lets a page poll it as often as it likes. The historical half (``playtime``/``sorties``)
+    comes from the database and belongs to :func:`server_list`.
+    """
+    mission = _mission_of(server)
+    blue, red = _slots(server)
+    status = _status_text(server)
+    locals_ = getattr(server, "locals", None)
+    return {
+        "name": name,
+        "status": status,
+        "online": status in ONLINE_STATUSES,
+        "locked": bool(_settings(server).get("password")),
+        "password": _published_password(server),
+        "players": _active_players(server),
+        "max_players": _max_players(server),
+        "mission": _text(getattr(mission, "name", None)) if mission is not None else "",
+        "map": _text(getattr(mission, "map", None)) if mission is not None else "",
+        "runtime": int(_number(getattr(mission, "mission_time", 0)) or 0) if mission is not None
+        else None,
+        "restart_in": _restart_seconds(server),
+        "blue": blue,
+        "red": red,
+        "coalitions": bool(isinstance(locals_, dict) and locals_.get("coalitions")),
+        "address": _address(server),
+    }
+
+
+def _server_row(name: str, server: Any, figures: dict) -> dict:
+    """One fleet row: the live half from the roster, the historical half from ``mv_serverstats``."""
+    return {**_live_half(name, server),
+            "playtime": _number(figures.get("playtime")),
+            "sorties": _number(figures.get("sorties")),
+            "window": BOARD_WINDOW_LABEL}
+
+
+def fleet_live(site: Any, live: Any = None) -> list[dict]:
+    """The live half of the site's fleet rows, one per server, in the page's own order.
+
+    No database and no RPC: the state, the players in slots, the mission, the options and the two
+    clocks come from the process registry the dashboard reads. This is what the fleet page polls —
+    every figure here changes within seconds, and none of it costs a query, so a visitor's browser
+    may ask for it as often as the page likes.
+    """
+    registry = _live_servers(live)
+    fleet = [_live_half(name, registry.get(name)) for name in _server_list(site)]
+    fleet.sort(key=lambda row: (0 if row["online"] else 1, row["name"].lower()))
+    return fleet
+
+
+async def server_list(site: Any, pool: Any, live: Any = None) -> list[dict]:
+    """One row per server of the site, up first and then by name — the fleet the page draws.
+
+    The live half is the in-process roster the dashboard reads (state, players, mission, map,
+    runtime, restart-in, lock); the historical half is ``mv_serverstats``' all-time
+    playtime and sorties, read in the SAME statement the site filter binds. A server with no
+    recorded session is still a row, at zero.
+    """
+    names = _server_list(site)
+    async with pool.connection() as conn:
+        rows = await _fetch_all(conn, _BOARD_SQL, _params(site))
+    figures = {str(row.get("server_name")): row for row in rows}
+    registry = _live_servers(live)
+    fleet = [_server_row(name, registry.get(name), figures.get(name, {})) for name in names]
+    fleet.sort(key=lambda row: (0 if row["online"] else 1, row["name"].lower()))
+    return fleet
+
+
+async def server_detail(site: Any, pool: Any, live: Any = None, name: str = "") -> dict:
+    """One server's inventory, or ``{"found": False}``.
+
+    Built on :func:`server_list`, so the page's list and its detail can never disagree about a live
+    figure, and a name that is not one of THIS site's servers answers not-found before anything is
+    read — a group's server is never handed to another site's page.
+    """
+    wanted = str(name or "").strip()
+    fleet = await server_list(site, pool, live)
+    row = next((entry for entry in fleet if entry["name"] == wanted), None)
+    if row is None:
+        return {"found": False, "name": wanted}
+    server = _live_servers(live).get(wanted)
+    return {
+        "found": True,
+        "name": wanted,
+        "server": row,
+        "address": row["address"],
+        "mission_clock": _mission_clock(_mission_of(server)),
+        "limits": _limits(server),
+        "dcs_version": _text(getattr(getattr(server, "node", None), "dcs_version", "")),
+        "bot_version": _bot_version(server),
+        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
 
 
 # --------------------------------------------------------------------------- my statistics

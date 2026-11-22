@@ -10,12 +10,21 @@ import zipfile
 
 from contextlib import closing
 from core import utils, COMMAND_LINE_ARGS
+from core.utils.os import read_version_marker, write_version_marker
 from packaging import version
 from pathlib import Path
 from typing import Iterable
 from version import __version__
 
-VERSION_TRAILER_FILE = "version.sha"
+#: The GitHub repository this installation updates from. The API is read for the checks; the branch
+#: archive is what an installation without git history is replaced with.
+RELEASES_URL = "https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases"
+MAIN_BRANCH = 'master'
+MAIN_BRANCH_URL = f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/branches/{MAIN_BRANCH}"
+MAIN_BRANCH_ZIP_URL = f"https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/zipball/{MAIN_BRANCH}"
+
+#: How long GitHub gets to answer an update check.
+REQUEST_TIMEOUT = 30
 
 
 def install_requirements() -> subprocess.CompletedProcess:
@@ -187,27 +196,54 @@ def delete_path(path: str):
         shutil.rmtree(path)
 
 
-def get_last_successful_sha() -> str | None:
-    """Reads the SHA from the version trailer file."""
-    if os.path.exists(VERSION_TRAILER_FILE):
-        with open(VERSION_TRAILER_FILE, 'r') as f:
-            return f.read().strip()
-    return None
+def _github_get(url: str, what: str) -> requests.Response | None:
+    """GET *url*, SAYING WHY when the check cannot be made.
 
-
-def set_last_successful_sha(new_sha: str):
-    """Writes the current successful SHA to the version trailer file."""
-    with open(VERSION_TRAILER_FILE, 'w') as f:
-        f.write(new_sha)
-    print(f"  [Version Tracker] Successfully updated state marker to {new_sha[:7]}.")
+    ``None`` means "could not check", never "nothing to do". A refused or unreachable check that
+    reads as "no update found" is indistinguishable from an installation that is already current,
+    and that is how a rate-limited install came to look like an up-to-date one.
+    """
+    try:
+        response = requests.get(url, timeout=REQUEST_TIMEOUT, headers={'User-Agent': 'DCSServerBot'})
+    except requests.exceptions.RequestException as ex:
+        print(f'  => Could not reach GitHub to check {what}: {ex}')
+        return None
+    if response.status_code != 200:
+        reason = f'HTTP {response.status_code}'
+        if response.status_code == 403:
+            reason += ' (GitHub refused the request - the anonymous rate limit is exhausted, try again later)'
+        elif response.reason:
+            reason += f' {response.reason}'
+        print(f'  => Could not check {what}: {reason}')
+        return None
+    return response
 
 
 def do_update_github() -> int:
-    # 1. Check for Releases
-    response = requests.get(f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/releases")
+    """Update an installation that came from an archive, and answer whether it is now current.
+
+    Two sources, in this order: a newer RELEASE (a version number that moved), then the MAIN branch
+    (a new commit, which moves no version number at all and is what an archive installation follows
+    between releases). The branch is compared with the commit the last successful update recorded,
+    because an archive carries no history of its own to compare against.
+
+    A check that could not be made is a FAILURE, never "no update found": the operator has to be
+    able to tell a refused request from an installation that is already current.
+    """
+    unchecked = False
+
+    # 1. A newer release: its version number is ahead of the installed one.
     latest_release = None
-    if response.status_code == 200 and response.json():
-        latest_release = response.json()[0]
+    response = _github_get(RELEASES_URL, 'the release list')
+    if response is None:
+        unchecked = True
+    else:
+        try:
+            releases = response.json()
+        except ValueError:
+            releases = None
+        if releases:
+            latest_release = releases[0]
 
     current_version = re.sub('^v', '', __version__)
     update_url = None
@@ -215,65 +251,91 @@ def do_update_github() -> int:
     new_sha = None
 
     if latest_release:
-        latest_version = re.sub('^v', '', latest_release["tag_name"])
-        if version.parse(latest_version) > version.parse(current_version):
+        try:
+            latest_version = re.sub('^v', '', latest_release["tag_name"])
+        except (KeyError, TypeError):
+            latest_version = None
+            print('  => GitHub answered the release list without a tag name.')
+        if latest_version and version.parse(latest_version) > version.parse(current_version):
             update_url = latest_release['zipball_url']
             new_tag = latest_version
 
-    # 2. Check master branch if no release update was found
+    # 2. A new commit on the main branch, which no version number reports.
     if not update_url:
-        branch_res = requests.get(f"https://api.github.com/repos/Special-K-s-Flightsim-Bots/DCSServerBot/branches/master")
-        if branch_res.status_code == 200:
-            master_sha = branch_res.json()['commit']['sha']
-            last_sha = get_last_successful_sha()
-            if master_sha != last_sha:
-                print(f"- New changes detected on master branch ({master_sha[:7]}).")
-                update_url = "https://github.com/Special-K-s-Flightsim-Bots/DCSServerBot/zipball/master"
-                new_sha = master_sha
-                new_tag = f"master ({master_sha[:7]})"
+        branch_res = _github_get(MAIN_BRANCH_URL, f'the {MAIN_BRANCH} branch')
+        if branch_res is None:
+            unchecked = True
+        else:
+            try:
+                main_sha = branch_res.json()['commit']['sha']
+            except (ValueError, KeyError, TypeError):
+                print(f'  => GitHub answered the {MAIN_BRANCH} branch check without a commit.')
+                unchecked = True
+            else:
+                if main_sha != read_version_marker():
+                    print(f"- New changes detected on {MAIN_BRANCH} branch ({main_sha[:7]}).")
+                    update_url = MAIN_BRANCH_ZIP_URL
+                    new_sha = main_sha
+                    new_tag = f"{MAIN_BRANCH} ({main_sha[:7]})"
 
-    if update_url:
-        print(f'- Updating myself to {new_tag}...')
-        zip_res = requests.get(update_url)
-
-        with io.BytesIO() as bytes_io:
-            bytes_io.write(zip_res.content)
-            bytes_io.seek(0)
-
-            with zipfile.ZipFile(bytes_io) as zip_ref:
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    zip_ref.extractall(temp_dir)
-                    extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
-
-                    # check for necessary file deletions
-                    old_files_set = set(utils.list_all_files(os.getcwd()))
-                    new_files_set = set(utils.list_all_files(extracted_folder))
-                    to_delete_set = old_files_set - new_files_set
-                    cleanup_local_files(to_delete_set, extracted_folder)
-
-                    for root, dirs, files in os.walk(extracted_folder):
-                        for file in files:
-                            old_file_path = os.path.join(root, file)
-                            relative_path = os.path.relpath(old_file_path, extracted_folder)
-                            new_file_path = os.path.join(os.getcwd(), relative_path)
-
-                            # make the necessary directories
-                            new_file_dir = os.path.dirname(new_file_path)
-                            os.makedirs(new_file_dir, exist_ok=True)
-
-                            # Exchange files only if they differ (shutil.copy2 preserves metadata)
-                            shutil.copy2(old_file_path, new_file_path)
-
-            if new_sha:
-                set_last_successful_sha(new_sha)
-
-            rc = install_requirements()
-            if rc.returncode:
-                print('  => Autoupdate failed!')
-                return -1
-        print(f'  => DCSServerBot updated to {new_tag}.')
-    else:
+    if not update_url:
+        if unchecked:
+            print('- The update check could not be completed, so this is NOT "no update available".')
+            return -1
         print('- No update found for DCSServerBot.')
+        return 0
+
+    print(f'- Updating myself to {new_tag}...')
+    zip_res = _github_get(update_url, 'the update archive')
+    if zip_res is None:
+        print('  => Autoupdate failed!')
+        return -1
+
+    with io.BytesIO() as bytes_io:
+        bytes_io.write(zip_res.content)
+        bytes_io.seek(0)
+
+        with zipfile.ZipFile(bytes_io) as zip_ref:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                zip_ref.extractall(temp_dir)
+                extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
+
+                # check for necessary file deletions
+                old_files_set = set(utils.list_all_files(os.getcwd()))
+                new_files_set = set(utils.list_all_files(extracted_folder))
+                to_delete_set = old_files_set - new_files_set
+                cleanup_local_files(to_delete_set, extracted_folder)
+
+                for root, dirs, files in os.walk(extracted_folder):
+                    for file in files:
+                        old_file_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(old_file_path, extracted_folder)
+                        new_file_path = os.path.join(os.getcwd(), relative_path)
+
+                        # make the necessary directories
+                        new_file_dir = os.path.dirname(new_file_path)
+                        os.makedirs(new_file_dir, exist_ok=True)
+
+                        # Exchange files only if they differ (shutil.copy2 preserves metadata)
+                        shutil.copy2(old_file_path, new_file_path)
+
+        # The marker is the state this installation claims to be in, so it is written only once the
+        # update has actually completed - the files AND the environment. Written any earlier, a run
+        # that failed afterwards records a success, and every later run answers "no update found"
+        # while the install sits on a half-applied update it can no longer repair itself.
+        rc = install_requirements()
+        if rc.returncode:
+            print('  => Autoupdate failed!')
+            print('     The files were replaced, but the Python environment could not be synchronised.')
+            print('     Fix the problem above and run update.cmd again: this update stays pending')
+            print('     until it completes.')
+            return -1
+
+        if new_sha:
+            write_version_marker(new_sha)
+            print(f"  [Version Tracker] Recorded {new_sha[:7]} as the state of this installation.")
+
+    print(f'  => DCSServerBot updated to {new_tag}.')
     return 0
 
 

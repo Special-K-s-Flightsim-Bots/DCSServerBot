@@ -1203,7 +1203,7 @@ msgstr ""
 #: services/webservice/pages/actions.py:1025
 #: services/webservice/pages/actions.py:1047
 msgid "Send to"
-msgstr ""
+msgstr "Senden an"
 
 #: services/webservice/pages/actions.py:1028
 msgid "Chat — a chat line in game, to the recipients you choose"
@@ -11825,26 +11825,11 @@ msgstr "%(members)s Mitglieder"
 msgid "rating"
 msgstr "Rating"
 
-msgid "The servers"
-msgstr "Die Server"
-
-msgid "Server board"
-msgstr "Server-Übersicht"
-
 msgid "%(up)s of %(total)s up"
 msgstr "%(up)s von %(total)s online"
 
-msgid "Flying"
-msgstr "Im Flug"
-
 msgid "Sorties"
 msgstr "Einsätze"
-
-msgid "Up"
-msgstr "Online"
-
-msgid "Off"
-msgstr "Offline"
 
 msgid "Public data."
 msgstr "Öffentliche Daten."
@@ -13377,3 +13362,314 @@ msgstr "Schalte %(name)s aus — der Schalter bleibt gesperrt, bis es fertig ist
 #: services/webservice/pages/node_settings.py
 msgid "%(name)s is already being switched — wait for it to finish. Nothing was started."
 msgstr "%(name)s wird bereits umgeschaltet — warte, bis es fertig ist. Es wurde nichts gestartet."
+
+# ---------------------------------------------------------------- the public fleet pages
+msgid "%(count)s credential line(s) withheld"
+msgstr "%(count)s Zugangsdaten-Zeile(n) zurückgehalten"
+
+msgid "%(count)s pilots in the air"
+msgstr "%(count)s Piloten in der Luft"
+
+msgid "%(count)s servers · address, slots and clocks on the list"
+msgstr "%(count)s Server · Adresse, Slots und Uhrzeiten auf der Liste"
+
+msgid "A password is required to join. Its value is never shown on this site."
+msgstr "Zum Beitreten ist ein Passwort erforderlich. Sein Wert wird auf dieser Seite nie angezeigt."
+
+msgid "Blue slots"
+msgstr "Blaue Slots"
+
+msgid "Client limits"
+msgstr "Client-Limits"
+
+msgid "Clouds"
+msgstr "Wolken"
+
+msgid "Coalitions — seats are assigned by role"
+msgstr "Koalitionen — Sitze werden per Rolle vergeben"
+
+msgid "Connection"
+msgstr "Verbindung"
+
+msgid "DCS version"
+msgstr "DCS-Version"
+
+msgid "DCSServerBot"
+msgstr "DCSServerBot"
+
+msgid "Date / time in mission"
+msgstr "Datum / Uhrzeit in der Mission"
+
+msgid "Every server this community runs — its state, its mission and who is in the air, and one page per server with the rest of what it reports."
+msgstr "Jeder Server dieser Community — sein Status, seine Mission und wer in der Luft ist, und eine Seite pro Server mit dem Rest, den er meldet."
+
+msgid "How to join"
+msgstr "So kommst du rein"
+
+msgid "Last updated"
+msgstr "Zuletzt aktualisiert"
+
+msgid "Loading"
+msgstr "Lädt"
+
+msgid "Locked"
+msgstr "Gesperrt"
+
+msgid "No address"
+msgstr "Keine Adresse"
+
+msgid "No client limit is in force."
+msgstr "Es ist keine Client-Einschränkung aktiv."
+
+msgid "No extension publishes anything for this server."
+msgstr "Keine Erweiterung veröffentlicht etwas für diesen Server."
+
+msgid "No mission"
+msgstr "Keine Mission"
+
+msgid "No slots — not in a mission"
+msgstr "Keine Slots — nicht in einer Mission"
+
+msgid "No trial clients"
+msgstr "Keine Test-Clients"
+
+msgid "Not found"
+msgstr "Nicht gefunden"
+
+msgid "One server"
+msgstr "Ein Server"
+
+msgid "Paused"
+msgstr "Pausiert"
+
+msgid "Pure clients"
+msgstr "Reine Clients"
+
+msgid "Pure models"
+msgstr "Reine Modelle"
+
+msgid "Pure scripts"
+msgstr "Reine Skripte"
+
+msgid "Pure textures"
+msgstr "Reine Texturen"
+
+msgid "QNH"
+msgstr "QNH"
+
+msgid "Red slots"
+msgstr "Rote Slots"
+
+msgid "Restart in"
+msgstr "Neustart in"
+
+msgid "Running"
+msgstr "Läuft"
+
+msgid "Stopped"
+msgstr "Gestoppt"
+
+msgid "That server was not found on this site."
+msgstr "Dieser Server wurde auf dieser Seite nicht gefunden."
+
+msgid "The fleet"
+msgstr "Die Flotte"
+
+msgid "The live read has not answered yet; this page will show it once it has."
+msgstr "Die Live-Abfrage hat noch nicht geantwortet; diese Seite zeigt sie, sobald sie da ist."
+
+msgid "The mission reports no weather."
+msgstr "Die Mission meldet kein Wetter."
+
+msgid "The server did not answer the live read, so there is no live report right now."
+msgstr "Der Server hat die Live-Abfrage nicht beantwortet, daher gibt es gerade keinen Live-Bericht."
+
+msgid "The server is not running, so there is no live report to read."
+msgstr "Der Server läuft nicht, daher gibt es keinen Live-Bericht zu lesen."
+
+msgid "The statistics database is not available yet, so this page shows no figures."
+msgstr "Die Statistikdatenbank ist noch nicht verfügbar, daher zeigt diese Seite keine Zahlen."
+
+msgid "Unregistered"
+msgstr "Nicht registriert"
+
+msgid "What is loaded"
+msgstr "Was geladen ist"
+
+msgid "What it runs on"
+msgstr "Worauf er läuft"
+
+msgid "What the mission is flying in"
+msgstr "Wetter der Mission"
+
+msgid "What the server enforces"
+msgstr "Was der Server erzwingt"
+
+msgid "What this server reports right now: its mission, its weather, the limits it enforces and when it restarts."
+msgstr "Was dieser Server gerade meldet: seine Mission, sein Wetter, die Limits, die er erzwingt, und wann er neu startet."
+
+msgid "address"
+msgstr "Adresse"
+
+msgid "cached live read · 300 s"
+msgstr "zwischengespeicherte Live-Abfrage · 300 s"
+
+msgid "flying now"
+msgstr "fliegen jetzt"
+
+msgid "in slots"
+msgstr "in Slots"
+
+msgid "no map"
+msgstr "keine Karte"
+
+msgid "servers"
+msgstr "Server"
+
+msgid "the switches in force"
+msgstr "die aktiven Schalter"
+
+#: services/webservice/pages/site_config.py:326
+msgid "Server passwords"
+msgstr "Server-Passwörter"
+
+#: services/webservice/pages/site_config.py:328
+msgid "Each server's join password is printed on this site only when its own switch is on. The Discord status embed keeps its own password setting; this one affects the public site only."
+msgstr "Das Beitrittspasswort jedes Servers wird auf dieser Site nur gedruckt, wenn sein eigener Schalter an ist. Das Discord-Status-Embed behält seine eigene Passwort-Einstellung; dieser hier betrifft nur die öffentliche Site."
+
+#: services/webservice/pages/site_config.py:330
+msgid "Shown"
+msgstr "Sichtbar"
+
+#: services/webservice/pages/site_config.py:331
+msgid "Hidden"
+msgstr "Verborgen"
+
+#: services/webservice/pages/site_config.py:332
+msgid "no password"
+msgstr "kein Passwort"
+
+#: services/webservice/pages/site_config.py:333
+msgid "Save passwords"
+msgstr "Passwörter speichern"
+
+#: services/webservice/pages/site_config.py:335
+msgid "No server belongs to this site yet: a server joins a site by naming its role in servers.yaml, and none names this one."
+msgstr "Noch kein Server gehört zu dieser Site: Ein Server tritt einer Site bei, indem er seine Rolle in servers.yaml nennt, und keiner nennt diese."
+
+#: services/webservice/pages/site_config.py:338
+msgid "Public site only. The Discord embed keeps its own password setting and is not affected by this switch."
+msgstr "Nur öffentliche Site. Das Discord-Embed behält seine eigene Passwort-Einstellung und wird von diesem Schalter nicht beeinflusst."
+
+#: services/webservice/pages/site_config.py:340
+msgid "Saved %(count)s password switch(es)."
+msgstr "%(count)s Passwort-Schalter gespeichert."
+
+#: services/webservice/pages/site_config.py:341
+msgid "No password switch changed."
+msgstr "Kein Passwort-Schalter geändert."
+
+#: services/webservice/pages/site_config.py:342
+msgid "The password switches could not be saved."
+msgstr "Die Passwort-Schalter konnten nicht gespeichert werden."
+
+#: services/webservice/pages/site_config.py:343
+msgid "A join password is set"
+msgstr "Ein Beitrittspasswort ist gesetzt"
+
+#: services/webservice/templates/site_config.html:633
+msgid "Also drawn in %(site)s — one value, the same state there."
+msgstr "Auch in %(site)s dargestellt – ein Wert, derselbe Zustand dort."
+
+#: services/webservice/templates/site_server.html:58
+msgid "A password is required to join. This server publishes its value on the public site."
+msgstr "Zum Beitritt ist ein Passwort erforderlich. Dieser Server veröffentlicht seinen Wert auf der öffentlichen Site."
+
+#: services/webservice/pages/access.py:203
+msgid "decide whether a server prints its join password on the public site"
+msgstr "entscheiden, ob ein Server sein Beitrittspasswort auf der öffentlichen Site druckt"
+
+#: services/webservice/pages/site_servers.py:295
+msgid "runs"
+msgstr "läuft"
+
+#: services/webservice/pages/site_servers.py:296
+msgid "shuts down with no players"
+msgstr "fährt ohne Spieler herunter"
+
+#: services/webservice/pages/site_servers.py:304
+msgid "The weekly schedule could not be read."
+msgstr "Der Wochenplan konnte nicht gelesen werden."
+
+#: services/webservice/pages/site_servers.py:323
+msgid "The week: %(days)s."
+msgstr "Die Woche: %(days)s."
+
+#: services/webservice/templates/site_server.html:116
+msgid "The weekly schedule"
+msgstr "Der Wochenplan"
+
+#: services/webservice/templates/server_detail.html
+msgid "Game chat"
+msgstr "Spiel-Chat"
+
+#: services/webservice/templates/server_detail.html
+msgid "Search sender"
+msgstr "Absender suchen"
+
+#: services/webservice/templates/server_detail.html
+msgid "Search text"
+msgstr "Text suchen"
+
+#: services/webservice/templates/server_detail.html
+msgid "Sender…"
+msgstr "Absender…"
+
+#: services/webservice/templates/server_detail.html
+msgid "Text…"
+msgstr "Text…"
+
+#: services/webservice/templates/server_detail.html
+msgid "Send"
+msgstr "Senden"
+
+#: services/webservice/pages/server_detail.py
+msgid "Red only"
+msgstr "Nur Rot"
+
+#: services/webservice/pages/server_detail.py
+msgid "Blue only"
+msgstr "Nur Blau"
+
+#: services/webservice/pages/server_detail.py
+msgid "{shown} of {total} lines"
+msgstr "{shown} von {total} Zeilen"
+
+#: services/webservice/pages/server_detail.py
+msgid "No chat lines yet — the tab fills as players talk on this server."
+msgstr "Noch keine Chatzeilen — der Tab füllt sich, sobald Spieler auf diesem Server reden."
+
+#: services/webservice/i18n.py
+msgid "— the bot restarted; the chat history starts again —"
+msgstr "— der Bot wurde neu gestartet; der Chatverlauf beginnt von vorn —"
+
+#: services/webservice/pages/server_detail.py
+msgid "No lines match this search."
+msgstr "Keine Zeile passt zu dieser Suche."
+
+#: services/webservice/pages/server_detail.py
+msgid "The Chat tab is only offered while the mission plugin is active for this server."
+msgstr "Der Chat-Tab wird nur angeboten, solange das Mission-Plugin für diesen Server aktiv ist."
+
+#: services/webservice/pages/server_detail.py
+msgid "The server is not running — there is nobody to send to. Start it from the Overview tab."
+msgstr "Der Server läuft nicht — es gibt niemanden, an den gesendet werden könnte. Starte ihn im Tab Übersicht."
+
+#: services/webservice/pages/server_detail.py
+msgid "Coloured by who can read it: everyone, Red only, Blue only — players can only type to everyone, so your side lines are whispers."
+msgstr "Die Farbe zeigt, wer mitliest: alle, nur Rot, nur Blau — Spieler können nur an alle schreiben, deine Seitenzeilen sind also Geflüster."
+
+#: services/webservice/pages/server_detail.py
+msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
+msgstr "Schreibe eine Zeile an die Spieler auf diesem Server…  (Eingabe sendet, Umschalt+Eingabe bricht die Zeile)"
+

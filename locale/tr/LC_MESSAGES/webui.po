@@ -12299,26 +12299,11 @@ msgstr "%(members)s üye"
 msgid "rating"
 msgstr "derecelendirme"
 
-msgid "The servers"
-msgstr "Sunucular"
-
-msgid "Server board"
-msgstr "Sunucu panosu"
-
 msgid "%(up)s of %(total)s up"
 msgstr "%(up)s / %(total)s açık"
 
-msgid "Flying"
-msgstr "Havada"
-
 msgid "Sorties"
 msgstr "Sorti"
-
-msgid "Up"
-msgstr "Açık"
-
-msgid "Off"
-msgstr "Kapalı"
 
 msgid "Public data."
 msgstr "Herkese açık veri."
@@ -13843,3 +13828,314 @@ msgstr ""
 #: services/webservice/pages/node_settings.py
 msgid "%(name)s is already being switched — wait for it to finish. Nothing was started."
 msgstr ""
+
+# ---------------------------------------------------------------- the public fleet pages
+msgid "%(count)s credential line(s) withheld"
+msgstr "%(count)s kimlik satırı gizlendi"
+
+msgid "%(count)s pilots in the air"
+msgstr "%(count)s pilot havada"
+
+msgid "%(count)s servers · address, slots and clocks on the list"
+msgstr "%(count)s sunucu · listede adres, slotlar ve saatler"
+
+msgid "A password is required to join. Its value is never shown on this site."
+msgstr "Katılmak için parola gerekli. Değeri bu sitede hiçbir zaman gösterilmez."
+
+msgid "Blue slots"
+msgstr "Mavi slotlar"
+
+msgid "Client limits"
+msgstr "İstemci sınırları"
+
+msgid "Clouds"
+msgstr "Bulutlar"
+
+msgid "Coalitions — seats are assigned by role"
+msgstr "Koalisyonlar — koltuklar role göre atanır"
+
+msgid "Connection"
+msgstr "Bağlantı"
+
+msgid "DCS version"
+msgstr "DCS sürümü"
+
+msgid "DCSServerBot"
+msgstr "DCSServerBot"
+
+msgid "Date / time in mission"
+msgstr "Görevdeki tarih / saat"
+
+msgid "Every server this community runs — its state, its mission and who is in the air, and one page per server with the rest of what it reports."
+msgstr "Bu topluluğun çalıştırdığı her sunucu — durumu, görevi ve kim havada, ve her sunucu için bildirdiği geri kalanı gösteren bir sayfa."
+
+msgid "How to join"
+msgstr "Nasıl katılınır"
+
+msgid "Last updated"
+msgstr "Son güncelleme"
+
+msgid "Loading"
+msgstr "Yükleniyor"
+
+msgid "Locked"
+msgstr "Kilitli"
+
+msgid "No address"
+msgstr "Adres yok"
+
+msgid "No client limit is in force."
+msgstr "Yürürlükte istemci sınırı yok."
+
+msgid "No extension publishes anything for this server."
+msgstr "Hiçbir eklenti bu sunucu için bir şey yayınlamıyor."
+
+msgid "No mission"
+msgstr "Görev yok"
+
+msgid "No slots — not in a mission"
+msgstr "Slot yok — görevde değil"
+
+msgid "No trial clients"
+msgstr "Deneme istemcisi yok"
+
+msgid "Not found"
+msgstr "Bulunamadı"
+
+msgid "One server"
+msgstr "Bir sunucu"
+
+msgid "Paused"
+msgstr "Duraklatıldı"
+
+msgid "Pure clients"
+msgstr "Saf istemciler"
+
+msgid "Pure models"
+msgstr "Saf modeller"
+
+msgid "Pure scripts"
+msgstr "Saf betikler"
+
+msgid "Pure textures"
+msgstr "Saf dokular"
+
+msgid "QNH"
+msgstr "QNH"
+
+msgid "Red slots"
+msgstr "Kırmızı slotlar"
+
+msgid "Restart in"
+msgstr "Yeniden başlatmaya"
+
+msgid "Running"
+msgstr "Çalışıyor"
+
+msgid "Stopped"
+msgstr "Durduruldu"
+
+msgid "That server was not found on this site."
+msgstr "O sunucu bu sitede bulunamadı."
+
+msgid "The fleet"
+msgstr "Filo"
+
+msgid "The live read has not answered yet; this page will show it once it has."
+msgstr "Canlı okuma henüz yanıt vermedi; yanıt verince bu sayfa gösterecek."
+
+msgid "The mission reports no weather."
+msgstr "Görev hava durumu bildirmiyor."
+
+msgid "The server did not answer the live read, so there is no live report right now."
+msgstr "Sunucu canlı okumaya yanıt vermedi, bu yüzden şu anda canlı rapor yok."
+
+msgid "The server is not running, so there is no live report to read."
+msgstr "Sunucu çalışmıyor, bu yüzden okunacak canlı rapor yok."
+
+msgid "The statistics database is not available yet, so this page shows no figures."
+msgstr "İstatistik veritabanı henüz kullanılamıyor, bu yüzden bu sayfa rakam göstermiyor."
+
+msgid "Unregistered"
+msgstr "Kayıtlı değil"
+
+msgid "What is loaded"
+msgstr "Yüklü olanlar"
+
+msgid "What it runs on"
+msgstr "Üzerinde çalıştığı"
+
+msgid "What the mission is flying in"
+msgstr "Görevin hava durumu"
+
+msgid "What the server enforces"
+msgstr "Sunucunun zorladığı"
+
+msgid "What this server reports right now: its mission, its weather, the limits it enforces and when it restarts."
+msgstr "Bu sunucunun şu anda bildirdiği: görevi, havası, zorladığı sınırlar ve ne zaman yeniden başlayacağı."
+
+msgid "address"
+msgstr "adres"
+
+msgid "cached live read · 300 s"
+msgstr "önbellekteki canlı okuma · 300 s"
+
+msgid "flying now"
+msgstr "şu anda uçan"
+
+msgid "in slots"
+msgstr "slotlarda"
+
+msgid "no map"
+msgstr "harita yok"
+
+msgid "servers"
+msgstr "sunucu"
+
+msgid "the switches in force"
+msgstr "yürürlükteki anahtarlar"
+
+#: services/webservice/pages/site_config.py:326
+msgid "Server passwords"
+msgstr "Sunucu parolaları"
+
+#: services/webservice/pages/site_config.py:328
+msgid "Each server's join password is printed on this site only when its own switch is on. The Discord status embed keeps its own password setting; this one affects the public site only."
+msgstr "Her sunucunun katılım parolası, yalnızca kendi anahtarı açıkken bu sitede yazdırılır. Discord durum embed'i kendi parola ayarını korur; bu ayar yalnızca genel siteyi etkiler."
+
+#: services/webservice/pages/site_config.py:330
+msgid "Shown"
+msgstr "Gösteriliyor"
+
+#: services/webservice/pages/site_config.py:331
+msgid "Hidden"
+msgstr "Gizli"
+
+#: services/webservice/pages/site_config.py:332
+msgid "no password"
+msgstr "parola yok"
+
+#: services/webservice/pages/site_config.py:333
+msgid "Save passwords"
+msgstr "Parolaları kaydet"
+
+#: services/webservice/pages/site_config.py:335
+msgid "No server belongs to this site yet: a server joins a site by naming its role in servers.yaml, and none names this one."
+msgstr "Bu siteye henüz hiçbir sunucu ait değil: bir sunucu servers.yaml içinde rolünü belirterek bir siteye katılır ve hiçbiri bu siteyi belirtmiyor."
+
+#: services/webservice/pages/site_config.py:338
+msgid "Public site only. The Discord embed keeps its own password setting and is not affected by this switch."
+msgstr "Yalnızca genel site. Discord embed'i kendi parola ayarını korur ve bu anahtardan etkilenmez."
+
+#: services/webservice/pages/site_config.py:340
+msgid "Saved %(count)s password switch(es)."
+msgstr "%(count)s parola anahtarı kaydedildi."
+
+#: services/webservice/pages/site_config.py:341
+msgid "No password switch changed."
+msgstr "Hiçbir parola anahtarı değişmedi."
+
+#: services/webservice/pages/site_config.py:342
+msgid "The password switches could not be saved."
+msgstr "Parola anahtarları kaydedilemedi."
+
+#: services/webservice/pages/site_config.py:343
+msgid "A join password is set"
+msgstr "Katılım parolası ayarlı"
+
+#: services/webservice/templates/site_config.html:633
+msgid "Also drawn in %(site)s — one value, the same state there."
+msgstr "Ayrıca %(site)s içinde gösterilir — tek değer, orada aynı durum."
+
+#: services/webservice/templates/site_server.html:58
+msgid "A password is required to join. This server publishes its value on the public site."
+msgstr "Katılmak için parola gerekli. Bu sunucu değerini genel sitede yayınlıyor."
+
+#: services/webservice/pages/access.py:203
+msgid "decide whether a server prints its join password on the public site"
+msgstr "bir sunucunun katılım parolasını genel sitede yazdırıp yazdırmayacağına karar vermek"
+
+#: services/webservice/pages/site_servers.py:295
+msgid "runs"
+msgstr "çalışır"
+
+#: services/webservice/pages/site_servers.py:296
+msgid "shuts down with no players"
+msgstr "oyuncu yokken kapanır"
+
+#: services/webservice/pages/site_servers.py:304
+msgid "The weekly schedule could not be read."
+msgstr "Haftalık program okunamadı."
+
+#: services/webservice/pages/site_servers.py:323
+msgid "The week: %(days)s."
+msgstr "Hafta: %(days)s."
+
+#: services/webservice/templates/site_server.html:116
+msgid "The weekly schedule"
+msgstr "Haftalık program"
+
+#: services/webservice/templates/server_detail.html
+msgid "Game chat"
+msgstr "Oyun sohbeti"
+
+#: services/webservice/templates/server_detail.html
+msgid "Search sender"
+msgstr "Göndereni ara"
+
+#: services/webservice/templates/server_detail.html
+msgid "Search text"
+msgstr "Metni ara"
+
+#: services/webservice/templates/server_detail.html
+msgid "Sender…"
+msgstr "Gönderen…"
+
+#: services/webservice/templates/server_detail.html
+msgid "Text…"
+msgstr "Metin…"
+
+#: services/webservice/templates/server_detail.html
+msgid "Send"
+msgstr "Gönder"
+
+#: services/webservice/pages/server_detail.py
+msgid "Red only"
+msgstr "Yalnızca kırmızı"
+
+#: services/webservice/pages/server_detail.py
+msgid "Blue only"
+msgstr "Yalnızca mavi"
+
+#: services/webservice/pages/server_detail.py
+msgid "{shown} of {total} lines"
+msgstr "{total} satırın {shown} tanesi"
+
+#: services/webservice/pages/server_detail.py
+msgid "No chat lines yet — the tab fills as players talk on this server."
+msgstr "Henüz sohbet satırı yok — oyuncular bu sunucuda konuştukça sekme dolar."
+
+#: services/webservice/i18n.py
+msgid "— the bot restarted; the chat history starts again —"
+msgstr "— bot yeniden başlatıldı; sohbet geçmişi baştan başlıyor —"
+
+#: services/webservice/pages/server_detail.py
+msgid "No lines match this search."
+msgstr "Bu aramayla eşleşen satır yok."
+
+#: services/webservice/pages/server_detail.py
+msgid "The Chat tab is only offered while the mission plugin is active for this server."
+msgstr "Sohbet sekmesi yalnızca görev eklentisi bu sunucuda etkinken sunulur."
+
+#: services/webservice/pages/server_detail.py
+msgid "The server is not running — there is nobody to send to. Start it from the Overview tab."
+msgstr "Sunucu çalışmıyor — gönderilecek kimse yok. Genel bakış sekmesinden başlatın."
+
+#: services/webservice/pages/server_detail.py
+msgid "Coloured by who can read it: everyone, Red only, Blue only — players can only type to everyone, so your side lines are whispers."
+msgstr "Renk kimin okuyabileceğini gösterir: herkes, yalnızca kırmızı, yalnızca mavi — oyuncular yalnızca herkese yazabilir, bu yüzden taraf satırların fısıltıdır."
+
+#: services/webservice/pages/server_detail.py
+msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
+msgstr "Bu sunucudaki oyunculara bir satır yaz…  (Enter gönderir, Shift+Enter satırı böler)"
+

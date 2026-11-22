@@ -47,6 +47,46 @@ The wizard builds the schedule you would otherwise write by hand in `config/plug
 a timezone, a table of hours against days, and for every cell whether the server must run (`Y`), must
 be off (`N`) or stays up until the last player leaves (`P`). Five steps, then it saves the file.
 
+## Chat
+
+A server's **Chat** tab is a window onto that server's in-game chat, with a composer to write into
+it. It sits in the tab strip between **Music** and **Log**, and it is offered only while the
+**mission** plugin is registered — that plugin writes the history the tab reads and carries the
+action the composer posts to. Reading it is the same right as writing it: the tab needs
+`servers.message`.
+
+A line is coloured by **who can read it**, not by who wrote it:
+
+| Colour | Who reads the line |
+|:-------|:-------------------|
+| normal | everyone on the server |
+| red | the Red coalition only |
+| blue | the Blue coalition only |
+
+A line to one side carries its chip (*Red only*, *Blue only*) beside the sender's name; the
+timestamp stays plain, because it is metadata. Players can only type to everyone — DCS has no
+player-side chat — so a line to one coalition is a whisper to that side's players.
+
+The composer at the card's foot writes a chat line into the game:
+
+| Control | What it does |
+|:--------|:-------------|
+| **Send to** | The audience: *Everyone*, *Red coalition* or *Blue coalition* |
+| **Message** | A multi-line box — Enter sends, Shift+Enter breaks the line — of up to **1024 characters**, with a live counter under it |
+| **Send** | Posts the line; it appears in the players' game chat on this server **under your name**, as if you had typed it there |
+
+The composer is absent while the server is not `RUNNING` or `PAUSED` — a stopped server has nobody to
+send to, and the card says exactly that instead.
+
+Two search fields sit in the card's header: **sender** and **text**. Both are case-insensitive
+substring matches, both are optional, and they combine — a filtered view states how many of the lines
+matched. The filters live in the URL, so a reload and the live follower keep them.
+
+The tab follows the lines the mission plugin's `onChatMessage` listener receives from DCS. They are
+kept in the bot's memory — a bounded ring per server, nothing written to disk — and the tab streams
+them while it is open. There is nothing to configure: no key, no schedule, no per-server setting. A
+bot restart starts the ring empty.
+
 ## Configuration pages
 
 A save tells you what it costs before you make it: a plugin configuration reloads that plugin in

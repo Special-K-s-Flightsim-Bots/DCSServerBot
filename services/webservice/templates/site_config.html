@@ -606,7 +606,47 @@
             {% for leaf in card.pages_fields %}{{ render_field(leaf, card.vals, card.rows, card.customs, card.elements, card.choices, 1, {}, card.hidden, card.picks, card.removable) }}{% endfor %}
           </section>
 
-          {#-  7 · THE SITE ITSELF — the role alone. The address and the switch are the card's own header
+          {#-  7 · SERVER PASSWORDS — one row per server of this site, one switch per row, one Save.
+               A server's password is the server's own setting (servers.yaml), so this block is the
+               one place a member server gets a setting of its own. Its controls name the sibling
+               form below; the block's own POST is its own route.  -#}
+          {% if card.passwords %}
+          <section class="px" data-sc-block="passwords">
+            <div class="sc-sechd">
+              <h3>{{ _(labels.passwords) }}</h3>
+            </div>
+            <p class="px-what">{{ _(labels.passwords_what) }}</p>
+            {% if card.password_rows %}
+            <div class="px-list">
+              {% for row in card.password_rows %}
+              <div class="px-row">
+                <span class="px-nm" title="{{ row.name }}">{{ row.name }}</span>
+                <span class="px-state"><span class="dot {{ row.dot }}"></span>{{ row.status }}</span>
+                <span class="px-lock">{% if row.locked %}<span role="img" title="{{ _(labels.passwords_lock) }}" aria-label="{{ _(labels.passwords_lock) }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7"/></svg></span>{% endif %}</span>
+                <span class="px-sw">
+                  {% if row.locked %}
+                  <label class="sc-sl"><input type="checkbox" role="switch" name="{{ password_field }}.{{ row.name }}" value="1" form="sc-pass-{{ card.token }}" {{ 'checked' if row.shown }}><span class="lb"><span class="on">{{ _(labels.passwords_shown) }}</span><span class="off">{{ _(labels.passwords_hidden) }}</span></span></label>
+                  {% else %}
+                  <span class="px-none">{{ _(labels.passwords_none) }}</span>
+                  {% endif %}
+                </span>
+                {% if row.other %}<p class="px-note">{{ _('Also drawn in %(site)s — one value, the same state there.') % {'site': row.other} }}</p>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            <div class="px-foot">
+              <p class="px-note">{{ _(labels.passwords_note) }}</p>
+              {% if card.passwords_available %}
+              <button type="submit" class="st-btn" form="sc-pass-{{ card.token }}">{{ _(labels.passwords_save) }}</button>
+              {% endif %}
+            </div>
+            {% else %}
+            <p class="px-empty">{{ _(labels.passwords_empty) }}</p>
+            {% endif %}
+          </section>
+          {% endif %}
+
+          {#-  8 · THE SITE ITSELF — the role alone. The address and the card's own header
                row now; `group_role` is the one structural key that changes no pixel, so it is the one
                folded here. READ-ONLY on purpose for a group admin: membership is computed per request
                from each server's `managed_by`, so a second place to set it would disagree.  -#}
@@ -798,6 +838,17 @@
         enctype="multipart/form-data">
     <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
     <input type="hidden" name="{{ revision_field }}" value="{{ revision }}">
+    <input type="hidden" name="{{ key_field }}" value="{{ card.key }}">
+  </form>
+  {% endif %}
+  {% if card.passwords and card.password_rows %}
+  {#-  THE PASSWORD SWITCHES' OWN FORM, for the same reason as the mark's and the sheet's: the
+       switches and the Save sit inside the card's save form, and a second submit there would post
+       the whole card. Their controls name THIS element with `form="…"`, so one Save posts the
+       switches to their own route with the session's CSRF field and the site key.  -#}
+  <form class="sc-mark" id="sc-pass-{{ card.token }}" method="post" action="{{ passwords_path }}"
+        data-async>
+    <input type="hidden" name="{{ csrf_field }}" value="{{ csrf_token }}">
     <input type="hidden" name="{{ key_field }}" value="{{ card.key }}">
   </form>
   {% endif %}

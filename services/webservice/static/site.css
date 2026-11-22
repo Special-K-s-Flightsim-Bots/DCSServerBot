@@ -173,6 +173,17 @@
   --pick-caret: 22px;
   --ctl-h: 30px;
   --ctl-lbl-w: 76px;
+
+  /* the fleet pages: the strip's column widths and the detail rail's label column, so a breakpoint
+   * restates a token instead of a pixel */
+  --srow-st: 148px;
+  --srow-addr: 190px;
+  --srow-slots: 236px;
+  --srow-figs: 176px;
+  --srow-st-md: 140px;
+  --srow-addr-md: 220px;
+  --rail-k: 224px;
+  --sched-w: 460px;
 }
 
 /* ---------------------------------------------------------------- the palette's scheme
@@ -1245,4 +1256,291 @@ p:last-child { margin-bottom: 0; }
   .fig-grid.three { grid-template-columns: 1fr; }
   .fig-grid.three > div { border-left: 0; padding-left: 0; }
   .feature .stat { gap: var(--sp-3); }
+}
+
+/* ================================================================== the fleet (servers pages)
+ *
+ * The Servers list's full-width strips and the per-server page's rails. Every value reads a token
+ * declared in :root; no colour, type size or radius is spelled here.
+ *
+ * No blue and no red exist in this sheet, so the two coalitions are named in text and their bars
+ * differ by fill: brass for blue, the bright ink for red. Length carries occupancy, the label
+ * carries the side — colour never carries the distinction alone.
+ */
+
+/* ------------------------------------------------------------------ state dots */
+.dot.st-paused { background: var(--brass); }
+.dot.st-stopped { background: var(--fg-3); }
+.dot.st-loading { background: var(--sage); }
+.dot.st-unreg { background: transparent; box-shadow: inset 0 0 0 var(--rule-w) var(--fg-3); }
+
+/* ------------------------------------------------------------------ the back link */
+.back {
+  display: inline-flex; align-items: center; gap: var(--sp-0h);
+  margin-top: var(--sp-4);
+  font-family: var(--body); font-size: var(--t-sm); font-weight: 600;
+  color: var(--fg-2); text-decoration: none;
+  border-bottom: var(--hair-w) solid transparent;
+}
+.back:hover { color: var(--fg); border-bottom-color: var(--brass); }
+.back::before { content: "\2039"; font-size: var(--t-lg); line-height: 1; color: var(--brass); }
+
+/* ------------------------------------------------------------------ the strip list */
+.board { border-top: var(--hair-w) solid var(--line-2); }
+
+.srow { border-bottom: var(--hair-w) solid var(--line); }
+.srow:hover { background: var(--brass-wash); }
+.srow > a {
+  display: grid; align-items: center;
+  grid-template-columns: var(--srow-st) minmax(0, 1fr) var(--srow-addr) var(--srow-slots) var(--srow-figs);
+  grid-template-areas: "st id addr slots figs";
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-2);
+  text-decoration: none; color: inherit;
+}
+.srow > a:focus-visible { outline: var(--focus-w) solid var(--brass); outline-offset: calc(-1 * var(--focus-w)); }
+.srow.is-off { background: transparent; }
+.srow.is-off .id h3, .srow.is-off .figs .v { color: var(--fg-2); }
+
+/* 1. the state: dot, word, and the one live element in the strip */
+.st { grid-area: st; display: flex; flex-direction: column; gap: var(--sp-0f); }
+.st .w { display: inline-flex; align-items: center; gap: var(--sp-0t); }
+.st .w b {
+  font-family: var(--body); font-size: var(--t-sm); font-weight: 600; color: var(--fg);
+  white-space: nowrap;
+}
+.st .live {
+  display: inline-flex; align-items: center; gap: var(--sp-0f);
+  font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3);
+}
+.st .live b { font-weight: 600; color: var(--sage); }
+
+/* 2. the identity: name, the marks, the mission and its map */
+.id { grid-area: id; min-width: 0; }
+.id h3 {
+  display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap;
+  font-family: var(--disp); font-size: var(--t-lg); font-weight: 700;
+  letter-spacing: -.01em; line-height: 1.2; color: var(--fg); margin: 0 0 var(--sp-0h);
+}
+.id .m { font-size: var(--t-sm); color: var(--fg-2); margin: 0; overflow-wrap: anywhere; }
+.id .m.quiet { color: var(--fg-3); }
+.id .map { font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); display: block; margin-top: var(--sp-0x); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: var(--sp-0f);
+  font-family: var(--body); font-size: var(--t-2xs); font-weight: 600; line-height: 1.3;
+  padding: var(--sp-0y) var(--sp-0e); border-radius: var(--radius);
+  border: var(--hair-w) solid var(--line-2); color: var(--fg-2); white-space: nowrap;
+}
+.chip.lock { color: var(--brass); border-color: var(--brass-dim); }
+.chip.lock::before {
+  content: ""; width: var(--sp-0h); height: var(--sp-0h);
+  border: var(--rule-w) solid currentColor; border-radius: var(--radius);
+  border-bottom: 0; margin-top: var(--sp-0x);
+}
+
+/* 3. the address: the one value a visitor copies out of the page */
+.addr { grid-area: addr; min-width: 0; }
+.addr .v {
+  display: block; font-family: var(--mono); font-size: var(--t-sm);
+  color: var(--fg); font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.addr .k {
+  display: block; font-family: var(--body); font-size: var(--t-2xs);
+  color: var(--fg-3); margin-top: var(--sp-0x);
+}
+.addr .none { color: var(--fg-3); font-family: var(--body); font-size: var(--t-sm); }
+
+/* 4. the slots: two coalitions, each a label, a figure and its occupancy bar */
+.slots { grid-area: slots; display: grid; gap: var(--sp-0f); min-width: 0; }
+.slots .side { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--sp-2); align-items: baseline; }
+.slots .side .nm { font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+.slots .side .vv { font-family: var(--mono); font-size: var(--t-2xs); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.slots .side .bar {
+  grid-column: 1 / -1; position: relative; height: var(--bar-h);
+  background: var(--line-2); margin-top: var(--sp-0x);
+}
+.slots .side .bar i { position: absolute; inset: 0 auto 0 0; background: var(--brass); }
+.slots .side.red .bar i { background: var(--fg-2); }
+.slots .none { font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+
+/* 5. the two clocks */
+.figs { grid-area: figs; display: flex; gap: var(--sp-4); justify-content: flex-end; }
+.figs .k { display: block; font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+.figs .v {
+  font-family: var(--mono); font-size: var(--t-sm); color: var(--fg);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.figs .v.hot { color: var(--brass); }
+
+/* ------------------------------------------------------------------ detail: the rails
+ * The strip's own anatomy at full width: a label rail on the left, the facts on the right. */
+.rail {
+  display: grid; grid-template-columns: var(--rail-k) minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-5);
+  padding: var(--sp-4) var(--panel-pad);
+  background: var(--panel);
+  border: var(--hair-w) solid var(--line);
+  border-left: var(--rule-w) solid var(--brass);
+  border-radius: var(--radius);
+}
+.rail > .k h2 {
+  font-family: var(--disp); font-size: var(--t-xl); font-weight: 700;
+  letter-spacing: -.01em; line-height: 1.15; color: var(--fg); margin: var(--sp-1) 0 0;
+}
+.rail > .k .sub { font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); margin-top: var(--sp-0h); }
+
+/* the fact grid inside a rail */
+.rail .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+.rail .facts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rail .facts .cell { min-width: 0; }
+.rail .facts .cell .k {
+  display: block;
+  font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); line-height: 1.4;
+}
+.rail .facts .cell .v {
+  display: block;
+  font-family: var(--mono); font-size: var(--t-md); color: var(--fg);
+  font-variant-numeric: tabular-nums; line-height: 1.4; overflow-wrap: anywhere;
+}
+.rail .facts .cell .v.plain { font-family: var(--body); }
+.rail .facts .cell .v small { display: block; font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+
+/* the weather instrument row: one cell per reading, hairline-separated */
+.rail .instr {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: var(--hair-w) solid var(--line); border-radius: var(--radius); background: var(--panel-2);
+}
+.rail .instr .cell { padding: var(--sp-3); border-left: var(--hair-w) solid var(--line); min-width: 0; }
+.rail .instr .cell:first-child { border-left: 0; }
+.rail .instr .k { display: block; font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+.rail .instr .v {
+  display: block;
+  font-family: var(--mono); font-size: var(--t-md); color: var(--fg);
+  font-variant-numeric: tabular-nums; line-height: 1.4; margin-top: var(--sp-0h);
+}
+.rail .instr .v small { display: block; font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+.rail .instr .wind { display: grid; gap: var(--sp-0f); }
+.rail .instr .wind .l {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  font-family: var(--mono); font-size: var(--t-2xs); color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+.rail .instr .wind .l span:first-child { font-family: var(--body); color: var(--fg-3); }
+
+/* the client limits: one line each, no table */
+.rail .lines { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.rail .lines li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 var(--sp-3);
+  padding-bottom: var(--sp-2); border-bottom: var(--hair-w) solid var(--line);
+}
+.rail .lines li:last-child { border-bottom: 0; padding-bottom: 0; }
+.rail .lines .nm { font-family: var(--body); font-size: var(--t-md); font-weight: 600; color: var(--fg); }
+.rail .lines.ticked li::before {
+  content: "\2713"; grid-column: 1; color: var(--sage); font-size: var(--t-sm);
+}
+.rail .lines.ticked li { grid-template-columns: auto minmax(0, 1fr); }
+.rail .lines.ticked .nm { font-weight: 400; color: var(--fg-2); font-size: var(--t-md); }
+
+/* the live-read label on the two blocks that cost the server a round trip */
+.liveread {
+  display: inline-flex; align-items: center; gap: var(--sp-0f);
+  font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3);
+}
+.liveread::before {
+  content: ""; width: var(--sp-0h); height: var(--sp-0h); border-radius: 50%;
+  border: var(--hair-w) solid var(--fg-3);
+}
+
+/* ------------------------------------------------------------------ the extension tiles */
+.rail .xtiles {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3);
+}
+.rail .xtile {
+  display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0;
+  padding: var(--sp-3);
+  background: var(--panel-2);
+  border: var(--hair-w) solid var(--line);
+  border-radius: var(--radius);
+}
+.rail .xtile .xh {
+  display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap;
+  padding-bottom: var(--sp-0h); border-bottom: var(--hair-w) solid var(--line);
+}
+.rail .xtile .xn { font-family: var(--body); font-size: var(--t-md); font-weight: 600; color: var(--fg); }
+.rail .xtile .xv { margin-left: auto; font-family: var(--mono); font-size: var(--t-2xs); color: var(--fg-3); }
+.rail .xtile .xl { display: grid; gap: var(--sp-0h); }
+.rail .xtile .xa {
+  font-family: var(--mono); font-size: var(--t-sm); color: var(--fg);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.rail .xtile .xd { font-family: var(--body); font-size: var(--t-sm); color: var(--fg-2); }
+/* the withheld mark reuses the page's own chip: the same shape the lock chip wears, so a
+ * suppression reads as this page's language and not as a missing line. */
+.rail .xtile .chip.hold {
+  align-self: flex-start; margin-top: auto;
+  color: var(--fg-3); border-color: var(--brass-dim);
+}
+
+/* the weekly schedule: one period row per range, seven day squares and the legend under them.
+ * No state is carried by colour alone — every cell also states its word as a title, and the row
+ * repeats the whole week as its aria label. */
+.rail .schedweeks { display: grid; gap: var(--sp-3); }
+.rail .schedweek { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-4);
+  align-items: center; }
+.rail .schedweek .rng { font-family: var(--mono); font-size: var(--t-2xs); color: var(--fg-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rail .sched { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-2);
+  max-width: var(--sched-w); }
+.rail .sched .day { text-align: center; }
+.rail .sched .day .d { display: block; font-family: var(--body); font-size: var(--t-2xs);
+  color: var(--fg-3); margin-bottom: var(--sp-0h); }
+.rail .sched .day .c {
+  display: block; height: var(--sp-0w); border-radius: var(--radius); background: var(--line-2);
+}
+.rail .sched .day.on .c { background: var(--brass); }
+.rail .sched .day.idle .c { background: transparent;
+  box-shadow: inset 0 0 0 var(--hair-w) var(--brass-dim); }
+.rail .sched-legend { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-3);
+  font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3); }
+.rail .sched-legend i { display: inline-block; width: var(--sp-0u); height: var(--sp-0u);
+  margin-right: var(--sp-0f); vertical-align: middle; border-radius: var(--radius); }
+.rail .sched-legend i.on { background: var(--brass); }
+.rail .sched-legend i.idle { box-shadow: inset 0 0 0 var(--hair-w) var(--brass-dim); }
+.rail .sched-legend i.off { background: var(--line-2); }
+
+/* the password's second state — drawn by the block that reads the operator's publishing switch */
+.chip.shown { color: var(--sage); border-color: color-mix(in srgb, var(--sage) 45%, transparent); }
+.rail .facts .cell .v .pw { font-family: var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------------ responsive */
+@media (max-width: 1180px) {
+  .srow > a {
+    grid-template-columns: var(--srow-st-md) minmax(0, 1fr) var(--srow-addr-md);
+    grid-template-areas: "st id figs" "st addr slots";
+    row-gap: var(--sp-3);
+  }
+  .figs { justify-content: flex-start; }
+  .rail .instr { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rail .instr .cell:nth-child(4) { border-left: 0; }
+  .rail { grid-template-columns: minmax(0, 1fr); }
+  .rail .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rail .xtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .srow > a {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "st" "id" "addr" "slots" "figs";
+    align-items: start;
+    gap: var(--sp-2); padding: var(--sp-3) 0;
+  }
+  .st { flex-direction: row; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+  .rail .instr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rail .instr .cell { border-left: var(--hair-w) solid var(--line); }
+  .rail .instr .cell:nth-child(odd) { border-left: 0; }
+  .rail .facts, .rail .facts.two { grid-template-columns: minmax(0, 1fr); }
+  .rail .xtiles { grid-template-columns: minmax(0, 1fr); }
+  .rail .schedweek { grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); }
+  .rail .sched { max-width: none; }
 }

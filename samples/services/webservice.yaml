@@ -102,14 +102,18 @@ DEFAULT:
   #                               #   YAML literal block (`expert: |`), so the whole variant keeps
   #                               #   the one write path.
   #       light: false            # default false — render the light palette instead of the dark one
-  #     nav:                      # default every nav page id this build serves, in this order.
-  #                               #   Only ids with a built page belong here: an id with no page
-  #                               #   renders no entry, and a nav link that answers 404 is worse
-  #                               #   than an absent one.
-  #       - overview
-  #       - leaderboard
-  #       - players             # `squadrons` is NOT listed: its list and detail pages are not
-  #                               #   built yet, so a `- squadrons` entry would lead nowhere.
+  #     # nav:                    # OMIT THIS KEY. Absent means every page the running build
+  #     #                         #   serves, in the model's own order — so a page a later release
+  #     #                         #   adds appears by itself. A stored list freezes the bar at the
+  #     #                         #   day it was written. Declare one only to hide a page or to
+  #     #                         #   reorder the bar, and name only ids with a built page: an id
+  #     #                         #   with no page renders no entry, and a nav link that answers
+  #     #                         #   404 is worse than an absent one. Example — the fleet and the
+  #     #                         #   pilots, no rankings (uncomment one level to use it):
+  #     # nav:
+  #     #   - overview
+  #     #   - servers
+  #     #   - players
   #     tiles:                    # default every tile id, in this order
   #       - active_week
   #       - online_now
@@ -123,8 +127,9 @@ DEFAULT:
   #                               #   shows everything. A switched-off section is neither rendered
   #                               #   nor queried; `community: false` hides the readouts row, not the
   #                               #   hero's headline. The ids: community, season, standings,
-  #                               #   aircraft, when_we_fly, squadrons, servers. An unknown id is
-  #                               #   refused at startup. Example:
+  #                               #   aircraft, when_we_fly, squadrons. An unknown id is refused at
+  #                               #   startup; an id an earlier release retired (`servers`) is
+  #                               #   accepted and dropped, so an older file still loads. Example:
   #                               #     sections:
   #                               #       squadrons: false   # the CreditSystem plugin is not installed
   #                               #       season: false

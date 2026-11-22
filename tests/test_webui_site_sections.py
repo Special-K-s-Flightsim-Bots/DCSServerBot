@@ -262,8 +262,8 @@ def test_a_switched_off_section_renders_nothing_and_runs_no_statement(config_dir
                      "hours_of_day"):
         assert bus.apool.ran(still_on), f"'{still_on}' did not run on a site that shows it"
 
-    # the sections below the missing one move up: 01 02 03 04, with no gap where standings was
-    assert section_numbers(page) == ["01", "02", "03", "04"]
+    # the sections below the missing one move up: 01 02 03, with no gap where standings was
+    assert section_numbers(page) == ["01", "02", "03"]
 
 
 def test_the_hero_figure_survives_every_switch(config_dir, bus):
@@ -288,7 +288,6 @@ HEADINGS = {
     "standings": "The standings",
     "aircraft": "Most flown",
     "when_we_fly": "When we fly",
-    "servers": "The servers",
 }
 
 
@@ -349,11 +348,16 @@ def test_the_schema_offers_exactly_the_section_vocabulary():
     schema = YAML(typ="safe").load(SCHEMA_PATH.read_text(encoding="utf-8"))
     site_block = schema["mapping"]["DEFAULT"]["mapping"]["sites"]["mapping"]["regex;(.+)"]
     declared = site_block["mapping"]["sections"]["mapping"]
-    assert set(declared) == set(sites.SECTION_IDS)
+    # the live vocabulary, plus the ids an earlier release retired (accepted and ignored, so a file
+    # that still names one validates) — and nothing else
+    assert set(declared) - set(sites.RETIRED_SECTION_IDS) == set(sites.SECTION_IDS)
+    assert set(sites.RETIRED_SECTION_IDS) <= set(declared)
     # every switch is a boolean an operator can write, and its prose says what it does
     for key, rule in declared.items():
         assert rule["type"] == "bool", key
         assert rule["desc"].strip(), key
+    for key in sites.RETIRED_SECTION_IDS:
+        assert "ignored" in declared[key]["desc"], f"'{key}' does not say it is ignored"
 
 
 def test_the_metrics_block_offers_exactly_the_metric_vocabulary():
@@ -398,17 +402,17 @@ def test_the_aircraft_row_is_gone_when_both_panels_are_off(config_dir, bus):
         assert gone not in page, f"'{gone}' is still on the page"
     assert not bus.apool.ran("aircraft") and not bus.apool.ran("hours_of_day")
     # … and the numbering closes over the missing row instead of skipping a number
-    assert section_numbers(page) == ["01", "02", "03", "04"]
+    assert section_numbers(page) == ["01", "02", "03"]
 
 
 def test_the_two_panels_of_the_row_share_one_number():
     numbers = site_overview._sections(sites.DEFAULT_SECTIONS)
     assert numbers["aircraft"] == numbers["when_we_fly"] == "04"
-    assert numbers["squadrons"] == "05" and numbers["servers"] == "06"
+    assert numbers["squadrons"] == "05" and "servers" not in numbers
     # a switched-off id answers no number at all, which is what the template branches on
-    off = site_overview._sections(["community", "servers"])
-    assert off["community"] == "01" and off["servers"] == "02"
-    for key in ("season", "standings", "aircraft", "when_we_fly", "squadrons"):
+    off = site_overview._sections(["community", "standings"])
+    assert off["community"] == "01" and off["standings"] == "02"
+    for key in ("season", "aircraft", "when_we_fly", "squadrons"):
         assert off[key] == "", key
 
 
