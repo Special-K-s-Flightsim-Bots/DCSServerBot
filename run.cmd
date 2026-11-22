@@ -75,6 +75,17 @@ REM The environment exists now, so run the bot with its own interpreter.
 SET "PYTHON=%VENV%\Scripts\python.exe"
 SET PROGRAM=run.py
 :loop
+REM The environment can predate the code it runs: another node's upgrade installs into THAT node's
+REM environment, and a restart re-enters this loop without going through the setup above. Checked
+REM before every run, so a restart after an upgrade picks the new packages up too. A failure is a
+REM warning, never a refusal - a node with a stale environment still boots, and update.cmd --install
+REM repairs it.
+"%PYTHON%" deps.py "%UVEXE%"
+if errorlevel 1 (
+    echo.
+    echo ***  WARNING  *** the Python environment could not be synchronised with requirements.txt.
+    echo Run update.cmd --install to repair it.
+)
 "%PYTHON%" %PROGRAM% %ARGS%
 if %ERRORLEVEL% EQU -1 (
     IF NOT %restarted% == true (

@@ -114,8 +114,11 @@ def test_run_py_fallback_uses_uv(monkeypatch):
         runpy.run_path(str(REPO / 'run.py'), run_name='run_py_uv_probe')
 
     assert calls, "the missing-module fallback never ran"
-    assert calls[0][:3] == ['uv', 'pip', 'sync']
-    assert 'piptools' not in calls[0]
+    # Grade the uv call, not its position: the same patched subprocess.run records an unrelated
+    # ``file -b`` during run.py's own imports on interpreters where platform.libc_ver() shells out.
+    uv_calls = [call for call in calls if call[:3] == ['uv', 'pip', 'sync']]
+    assert uv_calls, "the missing-module fallback never ran"
+    assert 'piptools' not in uv_calls[0]
 
 
 def test_run_py_fallback_reports_missing_uv(monkeypatch):
@@ -134,7 +137,25 @@ def test_run_py_fallback_reports_missing_uv(monkeypatch):
     with pytest.raises(SystemExit):
         runpy.run_path(str(REPO / 'run.py'), run_name='run_py_uv_probe')
 
-    assert calls == [], "must not shell out when uv is absent"
+    assert not [call for call in calls if call[:3] == ['uv', 'pip', 'sync']], \
+        "must not shell out when uv is absent"
+
+
+def test_launchers_reconcile_the_environment_on_every_start():
+    """A node upgraded by another node never runs update.py: the node that updated installed into its
+    own environment, and every node has its own. So the boot compares the environment with the
+    requirement files (deps.py, a no-op when they match) — inside the launch LOOP, because a node
+    told to restart (rc -1) re-enters that loop without going through the setup above."""
+    cmd = (REPO / 'run.cmd').read_text(encoding='utf-8')
+    sh = (REPO / 'run.sh').read_text(encoding='utf-8')
+    assert '"%PYTHON%" deps.py "%UVEXE%"' in cmd
+    assert '"$PYTHON" deps.py "$UVEXE"' in sh
+    assert cmd.index('deps.py') < cmd.index('"%PYTHON%" %PROGRAM%'), \
+        "run.cmd must reconcile the environment before it runs the bot"
+    assert sh.index('deps.py') < sh.index('"$PYTHON" "$PROGRAM"'), \
+        "run.sh must reconcile the environment before it runs the bot"
+    assert sh.index('while true; do') < sh.index('deps.py'), \
+        "a restart must pass through the check as well"
 
 
 def test_launchers_create_and_sync_with_uv():

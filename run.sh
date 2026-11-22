@@ -82,8 +82,18 @@ PYTHON="$VENV/bin/python"
 
 PROGRAM="run.py"
 
-# Main loop
+# The environment can predate the code it runs: another node's upgrade installs into THAT node's
+# environment, and a restart re-enters this loop without going through the setup above. Checked
+# before every run, so a restart after an upgrade picks the new packages up too. A failure is a
+# warning, never a refusal - a node with a stale environment still boots, and update.sh --install
+# repairs it.
 while true; do
+    "$PYTHON" deps.py "$UVEXE"
+    if [ $? -ne 0 ]; then
+        echo "***  WARNING  *** the Python environment could not be synchronised with requirements.txt."
+        echo "Run ./update.sh --install to repair it."
+    fi
+
     "$PYTHON" "$PROGRAM" "${ARGS[@]}"
     EXIT_CODE=$?
 
