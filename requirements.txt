@@ -12,7 +12,7 @@ astral==3.2
 attrs==26.1.0
 audioop-lts==0.2.2 ; python_version >= "3.13"
 blessed==1.53.0 ; sys_platform == 'win32'
-certifi==2026.10.23
+certifi==2026.11.20
 cffi==2.1.1 ; platform_python_implementation != 'PyPy'
 charset-normalizer==3.5.2
 click==8.5.1
@@ -51,7 +51,7 @@ matplotlib==3.11.2
 mcp==2.3.0
 mcp-types==2.3.0
 mdurl==0.1.2
-mgrs==1.7.0
+mgrs==1.7.1
 minidump==0.0.24 ; sys_platform == 'win32'
 miniupnpc==2.3.3 ; python_full_version < '3.14'
 multidict==7.2.1
@@ -103,6 +103,6 @@ tzfpy==2.1.2
 upnpy==1.1.8 ; python_version >= "3.14"
 urllib3==2.8.0
 uvicorn==0.54.0
-watchdog==7.1.0
-wcwidth==0.9.4
+watchdog==7.1.1
+wcwidth==0.9.5
 yarl==1.25.1
