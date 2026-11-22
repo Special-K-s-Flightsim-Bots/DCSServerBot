@@ -2861,6 +2861,10 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             params=readmodels.view_params(request.query_params),
             carry={"tab": "players"})
         players_tab = server_url(server_name, tab="players")
+        # THE ROWS THIS TAB RENDERS, stashed for the control builder (``actions.controls_for``) — the
+        # same pattern the bans and directory pages use, so the strip describes this server's players
+        # and no other server's, and an Actions column never appears over an empty table.
+        request.state.player_rows = view.tables["players"].rows
         return {
             "table": view.tables["players"], "view": view,
             "search_action": players_tab,
@@ -2868,6 +2872,14 @@ async def _tab_context(request: Request, server, server_name: str, tab: str) -> 
             "search_hidden": {"tab": "players"},
             "empty": {"players": readmodels.NO_PLAYERS_MESSAGE,
                       "players_matched": i18n._("No players match this search.")},
+            # THE SAME PLAYER STRIP the dashboard's Players tab and /players draw, asked for by the
+            # table this tab renders: every row here is an ACTIVE player of this server, so the map
+            # answers for every one of them. ``origin`` is this page for honesty, but the page path
+            # carries a parameter the origin allow-list cannot hold, so the return rides in
+            # ``SERVER_PAGE_FIELD`` and is rebuilt from the RESOLVED server.
+            "row_controls": actions_page.controls_for(
+                request, "players", server_url(server_name),
+                server_page=actions_page.SERVER_PAGE_PLAYERS),
         }
     if tab == STATISTICS_TAB:
         # THE SAME BODY the Admin-only Statistics page renders, read for THIS server. The server name

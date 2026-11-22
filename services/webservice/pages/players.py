@@ -16,12 +16,15 @@ as the state it keeps rows by, so the rows, the total, the count sentence and th
 the filtered set — this page never drops a row after the read, which would make a player on an
 earlier page of the directory unreachable from the view.
 
-THE ROWS CARRY THE MODERATION STRIP. A directory row's controls are the four writes that need no
-live session — Ban / Lift ban and Watch / Unwatch — because all four key on the UCID: the ban ADD
-resolves no server and looks no player up, and the watch trio is the same shape. Message, Popup, Kick
-and Screenshot act on a LIVE session, so they stay on the player page, where the slot facts are. The
-controls are built from the SAME scoped rows this page renders, so a player outside the caller's scope
-has no control and a crafted POST naming one is refused like a UCID nothing answers to.
+THE ROWS CARRY THE PLAYER STRIP, WHEREVER IT APPLIES. A row's controls key on the UCID, so the four
+that need no live session — Ban / Lift ban and Watch / Unwatch — are offered on every row: the ban ADD
+resolves no server and looks no player up, and the watch trio is the same shape. A row whose player
+HOLDS A SLOT additionally carries the session strip the dashboard's Players tab draws — kick, ban,
+chat, popup, mute — because the roster already tells this page who is flying and on which server
+(``readmodels.players_online``, matched on the UCID). The Ban is ONE glyph either way: the live one
+while online, the bare ban ADD while offline, the LIFT on a banned row. The controls are built from the
+SAME scoped rows this page renders, so a player outside the caller's scope has no control and a
+crafted POST naming one is refused like a UCID nothing answers to.
 
 A LEADING STATUS COLUMN marks who is flying: the console's dot+word pair, matched on the UCID against
 the in-memory roster (a database read cannot answer it). Grey ``dot stop`` for an offline player —
@@ -210,6 +213,15 @@ async def players_context(request: Request) -> dict:
     if show == SHOW_ONLINE:
         context = lists_page.page_context(request, PAGE, rows=())
         context["table"] = context["view"].tables[PLAYERS_ROSTER_TABLE]
+        # THE CONTROLS ARE ASKED FOR BY THE TABLE ACTUALLY RENDERED. The roster view renders the
+        # dashboard's ``players`` table, not this page's directory table — and ``controls_for`` keys
+        # on the table name, so asking for the page's own table here handed the table a map keyed by
+        # UCID while every row looks its strip up by ``(server, ucid)``: the column arrived and every
+        # cell stayed empty. It is the SAME call the dashboard's Players tab makes.
+        from . import actions as actions_page
+
+        context["row_controls"] = actions_page.controls_for(request, PLAYERS_ROSTER_TABLE,
+                                                            mount.url(PLAYERS_PATH))
         context["directory"] = None
         # the switch stays on this view too: "Online now" is one link away from the directory, and
         # without it here the reader could not come back.

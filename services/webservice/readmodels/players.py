@@ -29,13 +29,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Mapping, Sequence
+from urllib.parse import quote
 
+from .. import mount
 from .access import attr, safe, text
 from .bans import ALL_SERVERS, NEVER, STAMP_FORMAT, permanent
 from .model import NO_PLAYERS_MESSAGE, PlayerView
 from .servers import server_url
 
-__all__ = ["players_online", "player_views", "playtime_text",
+__all__ = ["PLAYERS_HREF_PREFIX", "player_url", "players_online", "player_views", "playtime_text",
            "DirectoryRow", "DirectoryView", "directory_view",
            "IdentityEntry", "BanState", "WatchState", "PlayerDetailView", "player_detail",
            "PlaytimeEntry", "CountEntry", "SessionEntry", "PlayerStatisticsView",
@@ -56,6 +58,22 @@ def _(message: str) -> str:
 
 #: the empty-state copy this module owns
 EMPTY_MESSAGE = NO_PLAYERS_MESSAGE
+
+#: the per-player page's path prefix — the SAME route ``pages/player_detail`` registers
+#: (``PLAYER_PATH``, ``/players/{ucid}``). A roster row's name links to the player's page, so the
+#: read model that shapes the row owns its URL: :func:`player_url` is the one encoding, and the
+#: name a row carries is the name always yields the same page.
+PLAYERS_HREF_PREFIX = "/players/"
+
+
+def player_url(ucid) -> str:
+    """The player's own page for *ucid* — the ONE encoding of a UCID into a URL.
+
+    ``quote(str(ucid), safe='')`` percent-encodes every reserved character a UCID may carry (a UCID
+    is opaque: it holds a space, ``&``, ``#`` or ``/`` in some installations), so it round-trips
+    through the path segment instead of truncating it or opening a query string.
+    """
+    return mount.url(f"{PLAYERS_HREF_PREFIX}{quote(str(ucid), safe='')}")
 
 
 #: The seat a player currently occupies is read from ``unit_display_name`` ALONE — never
@@ -100,9 +118,10 @@ def player_views(server_name: str, players) -> list[PlayerView]:
     for player in (players or {}).values():
         if not attr(player, "active", False):
             continue
+        ucid = text(attr(player, "ucid", None))
         out.append(PlayerView(
             name=text(attr(player, "name", None)),
-            ucid=text(attr(player, "ucid", None)),
+            ucid=ucid,
             server_name=server_name,
             slot=safe(lambda: _slot(player), "") or "",
             coalition=safe(lambda: _coalition(player), "") or "",
@@ -110,6 +129,10 @@ def player_views(server_name: str, players) -> list[PlayerView]:
             # the server the player is on is the link to its page, built from the same name the row
             # renders — a player row exists only for a server that survived the scope.
             link=server_url(server_name) if server_name else "",
+            # the NAME is the door to the player's own page (:func:`player_url`), exactly as a
+            # directory row's name is: the same player is one click from its overview wherever it is
+            # listed, and the server column keeps the server's page.
+            page=player_url(ucid),
         ))
     out.sort(key=lambda view: view.name)
     return out

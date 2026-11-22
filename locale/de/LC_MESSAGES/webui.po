@@ -2262,6 +2262,19 @@ msgstr "Steuerung für Knoten {node}"
 msgid "Controls for {player} on {server}"
 msgstr "Steuerung für {player} auf {server}"
 
+#: services/webservice/pages/actions.py:4362
+#, python-brace-format
+msgid "Controls for {player}"
+msgstr "Steuerung für {player}"
+
+#: services/webservice/pages/actions.py:4363
+msgid ""
+"The watchlist pair lives here: it changes the player's record, not their "
+"session."
+msgstr ""
+"Das Watchlist-Paar liegt hier: es ändert den Eintrag des Spielers, nicht "
+"seine Sitzung."
+
 #: services/webservice/pages/actions.py:3435
 #, python-brace-format
 msgid "{label} {target}?"

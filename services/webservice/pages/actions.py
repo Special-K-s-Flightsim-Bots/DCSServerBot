@@ -89,6 +89,7 @@ __all__ = [
     "SERVER_MAINTENANCE_CAPABILITY", "SERVER_CLEAR_MAINTENANCE_CAPABILITY",
     "NOTICE_MAX_CHARS", "CONFIRM_SUFFIX", "CONFIRM_FIELD", "CONFIRM_TEMPLATE", "CONFIRM_MAX_PENDING",
     "ORIGIN_FIELD", "TAB_FIELD", "origin_path", "origin_url", "posted_tab", "tabbed_origin",
+    "SERVER_PAGE_FIELD", "SERVER_PAGE_PLAYERS", "server_page_url", "PLAYER_STRIP_LIMIT",
     "dialog_back",
     "ROW_STRIP", "ROW_MENU",
     "NODE_RESTART_CAPABILITY", "NODE_SHUTDOWN_CAPABILITY", "NODE_UPGRADE_CAPABILITY",
@@ -635,6 +636,14 @@ ORIGIN_FIELD = "_origin"
 #: control on a page whose table is its path (``/fleet``, ``/players``, ``/nodes``) carries no tab
 #: at all, and neither does the dashboard's default tab: an unadorned page stays unadorned.
 TAB_FIELD = "_tab"
+#: THE SERVER-PAGE RETURN — a closed vocabulary, never a URL. A player write pressed on a SERVER's
+#: own page (``/fleet/<name>``) must come back to that page, and the registry's origin allow-list
+#: holds top-level page paths only: ``/fleet/<name>`` is a route with a parameter, so ``_origin``
+#: cannot name it. The control states which TAB of that page drew it and the route rebuilds the URL
+#: from the RESOLVED server (:func:`server_page_url`), so no request value reaches the redirect —
+#: the same rule ``_tab`` follows.
+SERVER_PAGE_FIELD = "_server_page"
+SERVER_PAGE_PLAYERS = "players"
 CONFIRM_KEY = "_action_confirms"
 CONFIRM_MAX_PENDING = 8
 
@@ -643,6 +652,19 @@ ROW_MENU = "menu"
 
 MENU_NOTE = i18n._("Start and Stop live only here: they act on fewer states than Startup and "
                    "Shutdown, so they do not earn a place in the strip.")
+
+#: HOW MANY GLYPHS a player row's strip carries before the rest move behind its overflow trigger.
+#: SIX is the row's own set — kick, ban, chat, popup, mute and screenshot, which is exactly what the
+#: dashboard has always drawn on a server that allows screenshots — so a row that ALSO carries the
+#: watchlist pair (a directory row) opens the trigger instead of widening the cell. A row below the
+#: limit never gets a trigger at all.
+PLAYER_STRIP_LIMIT = 6
+
+#: What a player row's overflow trigger says the controls in it are FOR — the one sentence a person
+#: reads before opening it. The row itself names the player and the server; this explains why these
+#: two did not fit beside the session writes.
+PLAYER_MENU_NOTE = i18n._("The watchlist pair lives here: it changes the player's record, not their "
+                          "session.")
 
 #: THE BUSY SENTENCE a pending control's own glyph carries (see :func:`_control`). It is a
 #: per-request record like every other composed sentence: the control's own ``label`` and the
@@ -4059,7 +4081,8 @@ def _node_control(action: NodeAction, name: str, token: str, origin: str, *, tab
             "csrf_field": session.CSRF_FIELD, "csrf_token": token}
 
 
-def controls_for(request: Request, table: str, origin: str, *, tab: str = "") -> dict:
+def controls_for(request: Request, table: str, origin: str, *, tab: str = "",
+                 server_page: str = "") -> dict:
     """The row controls the table *table* may render — ONE call a list page makes for its own table.
 
     A list page asks for controls by the table it renders, so the page never decides which map
@@ -4078,7 +4101,7 @@ def controls_for(request: Request, table: str, origin: str, *, tab: str = "") ->
     table IS its path passes nothing (the default tab included — see :func:`dashboard.row_controls_for`).
     """
     if table == "players":
-        return player_controls(request, origin, tab=tab)
+        return player_controls(request, origin, tab=tab, server_page=server_page)
     if table == "servers":
         return server_controls(request, origin, tab=tab)
     if table == "nodes":
@@ -4259,14 +4282,16 @@ def _muted_state(source) -> dict[tuple[str, str], bool]:
     return out
 
 
-def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tuple[str, str], dict]:
+def player_controls(request: Request, origin: str, *, tab: str = "",
+                    server_page: str = "") -> dict[tuple[str, str], dict]:
     """The controls each PLAYER row may render, keyed by ``(server name, ucid)`` — and nothing for a
     row whose control may not be offered.
 
     ``origin`` is the PAGE this strip is being rendered on, carried into every control as a hidden
     field so the write returns there — the registry re-checks it (:func:`origin_path`) — and ``tab``
     is the dashboard's active tab, carried beside it for the page whose tables share one path
-    (:func:`controls_for`).
+    (:func:`controls_for`). ``server_page`` is the second return carrier: the tab of the SERVER page
+    the strip was drawn on, whose path the origin allow-list cannot hold (:data:`SERVER_PAGE_FIELD`).
 
     Same three conditions as :func:`server_controls`, each read from the ONE place that decides it,
     and the control is OMITTED — never rendered disabled — when any is false:
@@ -4291,8 +4316,9 @@ def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tup
 
     The value is ONE record per row, in the SAME shape :func:`server_controls` builds — the row is
     ONE component at two widths (``templates/_strip.html``), and the player row shares it rather than
-    growing a second. A player row has no overflow menu: its five glyphs go
-    to the strip, and folding five icons into a menu would be a different design.
+    growing a second. The split is :func:`_strip_record`'s: the row's own glyphs stay on it, and a row
+    that carries more than :data:`PLAYER_STRIP_LIMIT` opens the ``⋮`` trigger — a directory row's
+    seventh control (the watchlist pair) is the one that overflows, so the dashboard keeps its shape.
     """
     source = dashboard_page.request_source(request)
     roles = permissions.role_names_for(request)
@@ -4301,36 +4327,75 @@ def player_controls(request: Request, origin: str, *, tab: str = "") -> dict[tup
     muted = _muted_state(source)
     capable = _screenshot_capable(source)
     controls: dict[tuple[str, str], dict] = {}
-    for index, view in enumerate(readmodels.players_online(source)):
-        server_name = readmodels.text(view.server_name)
-        ucid = readmodels.text(view.ucid)
+    for index, (server_name, ucid, name) in enumerate(_player_rows(request, source)):
         if not server_name or not ucid:
             continue
         is_muted = bool(muted.get((server_name, ucid), False))
-        name = readmodels.text(view.name) or ucid
-        offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab)
+        offered = tuple(_player_control(action, server_name, ucid, name, token, origin, tab,
+                                        server_page)
                         for action in PLAYER_ACTIONS
                         if (action.when_muted is None or action.when_muted == is_muted)
                         and (not action.when_server_allows or capable.get(server_name, False))
                         and permissions.allows(action.capability, roles, manager=manager)
                         and action_available(action.qualname))
         if offered:
-            controls[(server_name, ucid)] = {
-                "strip": offered, "menu": (), "wide": False,
-                "menu_id": f"act-menu-p{index}", "server": server_name, "ucid": ucid,
-                "aria": _sentence(i18n._("Controls for {player} on {server}"),
-                                  player=name, server=server_name)}
+            controls[(server_name, ucid)] = _strip_record(offered, index, server_name, ucid, name)
     return controls
 
 
+def _player_rows(request: Request, source) -> list[tuple[str, str, str]]:
+    """The ``(server, ucid, name)`` rows this table may draw a strip for.
+
+    THE ROWS THE PAGE RENDERED, when it stashed them: a page that renders ONE server's players sets
+    ``request.state.player_rows`` (``pages/server_detail``) so its controls describe its own rows and
+    nothing else — the same pattern ``ban_controls`` and ``directory_controls`` follow. A page that
+    asks for the whole roster (the dashboard's Players tab, ``/players?show=online``) stashes nothing
+    and gets :func:`readmodels.players_online` — the very read model its table renders, so
+    ``controls ⊆ rows`` holds either way.
+    """
+    stashed = getattr(request.state, "player_rows", None)
+    if stashed is not None:
+        return [(readmodels.text(getattr(row, "server_name", "")),
+                 readmodels.text(getattr(row, "ucid", "")),
+                 readmodels.text(getattr(row, "name", "")) or readmodels.text(getattr(row, "ucid", "")))
+                for row in stashed]
+    return [(readmodels.text(view.server_name), readmodels.text(view.ucid),
+             readmodels.text(view.name) or readmodels.text(view.ucid))
+            for view in readmodels.players_online(source)]
+
+
+def _strip_record(offered: tuple[dict, ...], index: int, server_name: str, ucid: str,
+                  player_name: str) -> dict:
+    """ONE player row's record, as :data:`templates._strip.html` reads it — the split into the strip
+    and its overflow menu.
+
+    A player row shows GLYPHS ONLY, and :data:`PLAYER_STRIP_LIMIT` describes how many fit: the row's
+    own session writes are the six the dashboard draws (screenshot included on a server that allows
+    it), so a seventh control — the watchlist pair a directory row adds — opens the `⋮` trigger
+    instead of widening the cell. The split is POSITIONAL, so a row inside the limit looks exactly as
+    it did before: no trigger, every glyph on the row.
+    """
+    strip = tuple(offered[:PLAYER_STRIP_LIMIT])
+    menu = tuple(offered[PLAYER_STRIP_LIMIT:])
+    aria = (_sentence(i18n._("Controls for {player} on {server}"), player=player_name, server=server_name)
+            if server_name else _sentence(i18n._("Controls for {player}"), player=player_name))
+    return {"strip": strip, "menu": menu, "wide": bool(strip) and bool(menu),
+            "menu_id": f"act-menu-p{index}", "server": server_name, "ucid": ucid,
+            "aria": aria, "menu_note": PLAYER_MENU_NOTE if menu else ""}
+
+
 def _player_control(action: PlayerAction, server_name: str, ucid: str, player_name: str,
-                    token: str, origin: str, tab: str = "") -> dict:
+                    token: str, origin: str, tab: str = "", server_page: str = "") -> dict:
     """One rendered PLAYER control, as data: path, glyph, the two names, target, token.
 
     BOTH halves of the target travel in the request BODY — there is no URL a person
     can edit to point a write at another server or another player — and the ORIGIN travels beside
     them, the page this control is rendered on, with the dashboard's TAB beside the origin
     (:func:`_hidden_fields`).
+
+    ``server_page`` is the OTHER return carrier (:data:`SERVER_PAGE_FIELD`): the tab of a SERVER's
+    own page, which the origin allow-list cannot name. It rides beside the origin and is the value the
+    route builds the return URL from (:func:`server_page_url`); empty means \"not a server page\".
 
     A CONFIRM-REQUIRED control posts to its DIALOG's path, not to the action's (see
     :data:`CONFIRM_SUFFIX`): the action's own route refuses a POST that did not come through the
@@ -4348,7 +4413,8 @@ def _player_control(action: PlayerAction, server_name: str, ucid: str, player_na
         "hint": action.hint, "danger": action.danger,
         "server": server_name, "ucid": ucid,
         "direct": not action.confirm,
-        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid),
+                                 (SERVER_PAGE_FIELD, server_page)),
         "csrf_field": session.CSRF_FIELD, "csrf_token": token,
     }
 
@@ -4446,54 +4512,98 @@ DIRECTORY_BAN_SENTENCE = i18n._("Ban {player}")
 
 
 def directory_controls(request: Request, rows, origin: str) -> dict[str, dict]:
-    """The Ban/Watch controls a PLAYER-DIRECTORY row may render, keyed by the row's UCID.
+    """The controls a PLAYER-DIRECTORY row may render, keyed by the row's UCID.
 
     The rows are the SAME scoped :class:`~services.webservice.pages.players.DirectoryRowView` records
     the table renders (the page stashed them for :func:`controls_for`), so ``controls ⊆ rows`` holds
     by construction: a player outside the caller's scope is not in the rows at all, and a crafted
     POST naming one is refused by the action layer exactly like a UCID nothing answers to.
 
-    Both pairs key on the UCID and need no live session — the ban ADD resolves no server and looks no
-    player up, and the watch trio is the same shape — which is why they are row controls here while
-    Message / Popup / Kick / Screenshot stay on the player page.
+    A row whose player HOLDS A SLOT carries the SAME session strip the dashboard's Players tab draws —
+    kick, ban, chat, popup, mute/unmute — because the caller may act on a player wherever they are
+    reading them, and the roster already tells this page who is flying and on which server. The
+    strip's target is that roster server, and it rides the request BODY like every other half of a
+    target: the row's UCID alone cannot say which session a kick ends.
+
+    THE BAN IS ONE GLYPH, never two. A row carries the LIVE Ban (a duration, and the session it ends)
+    when the player is online; a row whose player is offline carries the directory's own ban ADD,
+    which needs no session at all; a banned row carries the LIFT. A UCID online on more than one
+    server is acted on through the FIRST server the roster names — the tooltip names it, and the
+    action's own lookup is the authority a stale page meets.
 
     EACH control is gated on its OWN capability (``permissions.allows``, the predicate the gate runs)
-    and its own action (``action_available``), and on the ROW's state: a banned row offers the LIFT
-    and never the ADD, a watched row the REMOVE and never the ADD. A control the caller may not use,
-    or that does not apply to the row, is ABSENT — never rendered disabled.
+    and its own action (``action_available``), and the entry-level pair on the ROW's state: a banned
+    row offers the LIFT and never the ADD, a watched row the REMOVE and never the ADD. A control the
+    caller may not use, or that does not apply to the row, is ABSENT — never rendered disabled.
 
-    The shape is the row strip's (``templates/_strip.html``): ``{"strip": (control, …), "wide":
-    False}``, so a directory row draws the same component every other row does. A row nothing applies
-    to gets no entry at all, and its Actions cell renders nothing.
+    The shape is the row strip's (``templates/_strip.html``), split by :data:`PLAYER_STRIP_LIMIT`:
+    the session glyphs stay on the row and the watchlist pair moves behind the `⋮` trigger once the
+    strip is full. A row nothing applies to gets no entry at all, so its Actions cell renders nothing.
     """
     roles = permissions.role_names_for(request)
     manager = permissions.manages_console(request)
+    source = dashboard_page.request_source(request)
 
     def offered(action) -> bool:
         return (permissions.allows(action.capability, roles, manager=manager)
                 and action_available(action.qualname))
 
-    ban = tuple(action for action in (BAN_ADD_ACTION, BAN_LIFT_ACTION) if offered(action))
-    watch = tuple(action for action in (WATCH_ADD_ACTION, WATCH_REMOVE_ACTION) if offered(action))
-    if not ban and not watch:
-        return {}
     token = session.get_csrf_token(request)
+    online = _live_servers_by_ucid(source)
+    muted = _muted_state(source)
+    capable = _screenshot_capable(source)
     controls: dict[str, dict] = {}
-    for row in rows:
+    for index, row in enumerate(rows):
         ucid = readmodels.text(getattr(row, "ucid", ""))
         if not ucid:
             continue
         banned = bool(getattr(row, "banned", False))
         watched = bool(getattr(row, "watched", False))
         name = readmodels.text(getattr(row, "name", "")) or ucid
-        applicable = (tuple(action for action in ban if (action.key == BAN_LIFT_ACTION.key) == banned)
-                      + tuple(action for action in watch
-                              if (action.key == WATCH_REMOVE_ACTION.key) == watched))
-        if applicable:
-            controls[ucid] = {"strip": tuple(_directory_control(action, ucid, name, token, origin)
-                                             for action in applicable),
-                              "wide": False}
+        server_name = online.get(ucid, "")
+        records: list[dict] = []
+        if server_name:
+            is_muted = bool(muted.get((server_name, ucid), False))
+            for action in PLAYER_ACTIONS:
+                if action.key == "ban" and banned:
+                    # the LIFT owns a banned row — two ban glyphs would be two dialogs for one write
+                    continue
+                if action.when_muted is not None and action.when_muted != is_muted:
+                    continue
+                if action.when_server_allows and not capable.get(server_name, False):
+                    continue
+                if not offered(action):
+                    continue
+                records.append(_player_control(action, server_name, ucid, name, token, origin))
+        if banned and offered(BAN_LIFT_ACTION):
+            records.append(_directory_control(BAN_LIFT_ACTION, ucid, name, token, origin))
+        elif not server_name and offered(BAN_ADD_ACTION):
+            records.append(_directory_control(BAN_ADD_ACTION, ucid, name, token, origin))
+        if watched and offered(WATCH_REMOVE_ACTION):
+            records.append(_directory_control(WATCH_REMOVE_ACTION, ucid, name, token, origin))
+        elif not watched and offered(WATCH_ADD_ACTION):
+            records.append(_directory_control(WATCH_ADD_ACTION, ucid, name, token, origin))
+        if records:
+            controls[ucid] = _strip_record(tuple(records), index, server_name, ucid, name)
     return controls
+
+
+def _live_servers_by_ucid(source) -> dict[str, str]:
+    """The server each ACTIVE player of the caller's view holds a slot on, keyed by UCID.
+
+    Read from the SAME scoped source the rows come from, so a directory row can be matched to its
+    session without a second lookup and without ever naming a server outside the caller's view. A
+    UCID reports the FIRST server the roster lists (it is sorted by server, then name), which keeps
+    the answer stable across renders; a second session for the same UCID is not offered as a second
+    strip — the glyph names one server in its tooltip, and the action resolves it again.
+    """
+    out: dict[str, str] = {}
+    for view in readmodels.players_online(source):
+        server_name = readmodels.text(view.server_name)
+        ucid = readmodels.text(view.ucid)
+        if server_name and ucid and ucid not in out:
+            out[ucid] = server_name
+    return out
 
 
 def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: str, token: str,
@@ -4511,7 +4621,7 @@ def _directory_control(action: BanAction | WatchAction, ucid: str, player_name: 
         "path": mount.url(action.path + CONFIRM_SUFFIX if action.dialog else action.path),
         "label": action.label, "icon": DIRECTORY_GLYPHS[action.key],
         "title": _sentence(sentence, **values), "aria": _sentence(sentence, **values),
-        "danger": bool(action.danger),
+        "hint": action.hint, "danger": bool(action.danger),
         "key": ucid,
         "hidden": _hidden_fields(origin, "", ("ucid", ucid)),
         "csrf_field": session.CSRF_FIELD, "csrf_token": token,
@@ -4852,7 +4962,7 @@ def _player_name(player: Any, ucid: str) -> str:
 
 def player_confirm_context(request: Request, action: PlayerAction, server: Any, player: Any,
                            server_name: str, ucid: str, token: str, origin: str,
-                           tab: str = "") -> dict:
+                           tab: str = "", server_page: str = "") -> dict:
     """Everything a PLAYER confirm dialog's page reads — the twin of :func:`confirm_context`.
 
     Same discipline, one difference that is the whole point: the dialog carries the SECOND half of
@@ -4894,7 +5004,8 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "path": mount.url(action.path),
         "server": server_name,
         "target": label,
-        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid)),
+        "hidden": _hidden_fields(origin, tab, ("server", server_name), ("ucid", ucid),
+                                 (SERVER_PAGE_FIELD, server_page)),
         "inputs": tuple(inputs),
         "body_inputs": (),
         "tag": i18n._("confirm"),
@@ -4915,7 +5026,8 @@ def player_confirm_context(request: Request, action: PlayerAction, server: Any, 
         "user": dashboard_page.identity_summary(request),
         "env": dashboard_page.environment_marker(state),
         "pills": dashboard_page.status_pills(state),
-        "back": dialog_back(request, tabbed_origin(origin, tab)),
+        "back": dialog_back(request, server_page_url(server_page, server_name)
+                            or tabbed_origin(origin, tab)),
         "dialog": dialog,
     }
 
@@ -9771,15 +9883,24 @@ def _player_handler(action: PlayerAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
-        # 303 back to the PAGE the control was rendered on — the Dashboard's
-        # Players tab and /players render the same row strip, so the write must not re-orient the
-        # person, and the tab in force is re-attached so a player write pressed on the Players tab
-        # lands back on the Players tab; never a re-render of a POST.
-        return RedirectResponse(
-            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
-            status_code=303)
+        return RedirectResponse(_player_write_back(request, form, resolution), status_code=303)
 
     return handle
+
+
+def _player_write_back(request: Request, form, resolution) -> str:
+    """Where a PLAYER write returns: the SERVER page it was drawn on, else its origin page.
+
+    ONE composition for both player routes (the write and the screenshot), so the two cannot disagree
+    about the destination. The server page is built from the RESOLVED server
+    (:func:`server_page_url`) because ``/fleet/<name>`` is a parameterised path the origin allow-list
+    cannot hold; every other surface falls back to :func:`origin_url`, which is the allow-listed page
+    the control stated.
+    """
+    server_name = (readmodels.text(readmodels.safe(
+        lambda: getattr(resolution.server, "name", ""), "")) if resolution.is_found else "")
+    return (server_page_url(form.get(SERVER_PAGE_FIELD), server_name)
+            or origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()))
 
 
 def _screenshot_handler(action: PlayerAction):
@@ -9829,9 +9950,7 @@ def _screenshot_handler(action: PlayerAction):
             result = await audit_action(ctx, ActionResult(success=False,
                                                           message=resolution.message))
         _remember_notice(request, action, result)
-        return RedirectResponse(
-            origin_url(request, form.get(ORIGIN_FIELD), form.get(TAB_FIELD), _players_path()),
-            status_code=303)
+        return RedirectResponse(_player_write_back(request, form, resolution), status_code=303)
 
     return handle
 
@@ -9912,8 +10031,9 @@ def _player_confirm_handler(action: PlayerAction):
         token = mint_confirm_token(request, action.path, _player_target(name, ucid))
         origin = origin_path(request, form.get(ORIGIN_FIELD), _players_path())
         tab = posted_tab(form.get(TAB_FIELD))
+        server_page = readmodels.text(form.get(SERVER_PAGE_FIELD))
         dialog = player_confirm_context(request, action, resolution.server, player, name, ucid,
-                                        token, origin, tab)
+                                        token, origin, tab, server_page)
         # no-store: the dialog is a console page too, and a browser must re-render it rather than
         # serve it from its cache (the console's pages set this for themselves; `live.py` does the
         # same for its poll).
@@ -10071,6 +10191,25 @@ def tabbed_origin(origin: str, tab: Any) -> str:
     if origin == mount.url(dashboard_page.DASHBOARD_PATH) and key:
         return f"{origin}?{urlencode({'tab': key})}"
     return origin
+
+
+def server_page_url(posted: Any, server_name: str) -> str:
+    """The SERVER's own page at the tab *posted* names — ``""`` when it names no tab we serve.
+
+    The return carrier :data:`SERVER_PAGE_FIELD` resolves here: *posted* is a MEMBER of the closed
+    vocabulary this module declares (a tab of a server page), never a URL, and the server name in the
+    URL is the RESOLVED one the route already holds — so no request value reaches the redirect, which
+    is :func:`origin_path`'s whole rule. An empty answer means \"the control was not drawn on a server
+    page\": the caller then falls back to :func:`origin_url`.
+
+    It exists because ``/fleet/<name>`` is a route with a PARAMETER and the origin allow-list
+    (``Registrar.page_paths``) holds top-level page paths only, so a control rendered on a server's
+    Players tab cannot state that page as its origin.
+    """
+    wanted = readmodels.text(posted)
+    if wanted != SERVER_PAGE_PLAYERS or not server_name:
+        return ""
+    return server_url(server_name, tab=SERVER_PAGE_PLAYERS)
 
 
 def dialog_back(request: Request, target: str) -> str:

@@ -99,7 +99,7 @@ the module body then runs without a `strip` record — an absent one draws nothi
     <button class="act-btn more" type="button" popovertarget="{{ strip.menu_id }}" aria-haspopup="menu" title="{% trans %}More controls{% endtrans %}" aria-label="{{ say(strip.aria) }}" style="anchor-name: --{{ strip.menu_id }}">{{ icons.act('more') }}</button>
     <div class="menu" id="{{ strip.menu_id }}" popover role="menu" aria-label="{{ say(strip.aria) }}" style="position-anchor: --{{ strip.menu_id }}">
       {% for control in strip.menu %}{{ menu_item(control) }}{% endfor %}
-      {% if strip.menu_note %}<div class="mnote">{{ _(strip.menu_note) }}</div>{% endif %}
+      {% if strip.get('menu_note') %}<div class="mnote">{{ _(strip.get('menu_note')) }}</div>{% endif %}
     </div>
   </span>
   {% endif %}

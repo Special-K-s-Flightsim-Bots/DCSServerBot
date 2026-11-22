@@ -32,7 +32,12 @@
         {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td>{{ row.node_name }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name or '—' }}{% endif %}</td><td class="num">{{ row.dcs_port or '—' }}</td><td class="num">{{ row.webgui_port or '—' }}</td></tr>
         {% endfor %}
       {% elif table.name == 'players' %}
-        {% for row in table.rows %}<tr><td><b>{{ row.name }}</b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name }}{% endif %}</td><td>{{ row.slot or '—' }}</td><td>{{ row.coalition or '—' }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
+        {#- A ROSTER ROW: one player holding a slot on one server. The NAME is the door to the player's
+            own page (``row.page``, the same target a directory row's name opens), so the same person
+            is one click from its overview on the dashboard, on a server's Players tab and on
+            ``/players?show=online``. The SERVER cell keeps the server's page (``row.link``) — two
+            doors on purpose: the name opens the player, the server name opens the server. -#}
+        {% for row in table.rows %}<tr><td><b>{% if row.page %}<a class="srv-name" href="{{ row.page }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</b></td><td class="mono">{{ row.ucid }}</td><td>{% if row.link %}<a class="srv-name" href="{{ row.link }}">{{ row.server_name }}</a>{% else %}{{ row.server_name }}{% endif %}</td><td>{{ row.slot or '—' }}</td><td>{{ row.coalition or '—' }}</td>{% if row_controls is defined and row_controls %}<td class="acts">{% set strip = row_controls.get((row.server_name, row.ucid)) %}{% if strip %}{% include "_strip.html" %}{% endif %}</td>{% endif %}</tr>
         {% endfor %}
       {% elif table.name == 'player_directory' %}
         {#- A DIRECTORY ROW: one PLAYER of the database. The STATUS cell leads — the console's own dot+word
