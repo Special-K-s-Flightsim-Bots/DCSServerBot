@@ -21,6 +21,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import types
 from pathlib import Path
 from urllib.parse import urljoin
@@ -105,6 +107,93 @@ def link_or_copy(target, link) -> None:
         link.symlink_to(target, target_is_directory=True)
     except (OSError, NotImplementedError):
         shutil.copytree(target, link)
+
+
+# --------------------------------------------------------- the Chromium the browser probes drive
+
+#: How long one install may take, and how long a worker waits for another worker's install.
+BROWSER_INSTALL_TIMEOUT = 900
+
+#: Interpreter -> the Chromium ITS playwright would launch, ``None`` when it has no playwright at
+#: all. Asked once per interpreter; the answer is library-version specific, so it is never cached
+#: across a run.
+_BROWSER_EXECUTABLE: dict[str, str | None] = {}
+
+
+def expected_browser(interpreter: str) -> str | None:
+    """The Chromium executable *interpreter*'s playwright expects, or ``None`` if it has none.
+
+    Asked of the INTERPRETER rather than this process: the probes run under ``venv/bin/python`` when
+    that exists and this conftest under the pytest process, and the two need not share a library.
+    """
+    if interpreter not in _BROWSER_EXECUTABLE:
+        program = ("from playwright.sync_api import sync_playwright as s\n"
+                   "with s() as p:\n"
+                   "    print(p.chromium.executable_path)")
+        try:
+            finished = subprocess.run([interpreter, "-c", program], capture_output=True,
+                                      text=True, encoding="utf-8", timeout=120)
+        except (OSError, subprocess.SubprocessError):
+            _BROWSER_EXECUTABLE[interpreter] = None
+        else:
+            _BROWSER_EXECUTABLE[interpreter] = (finished.stdout or "").strip() or None
+    return _BROWSER_EXECUTABLE[interpreter]
+
+
+def _install_browser(interpreter: str) -> None:
+    """Run ``playwright install chromium`` for *interpreter*, once across a parallel run.
+
+    Every xdist worker reaches a missing browser at the same moment. A lock file beside the temp
+    directory makes one of them download while the others wait for it; a lock older than the install
+    timeout is a crashed run's and is taken over.
+    """
+    lock = Path(tempfile.gettempdir()) / "dcssb-playwright-install.lock"
+    deadline = time.monotonic() + BROWSER_INSTALL_TIMEOUT
+    while time.monotonic() < deadline:
+        try:
+            os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+        except FileExistsError:
+            try:
+                stale = time.time() - lock.stat().st_mtime > BROWSER_INSTALL_TIMEOUT
+            except OSError:
+                stale = True
+            if stale:
+                lock.unlink(missing_ok=True)
+                continue
+            time.sleep(2)
+            continue
+        try:
+            print(f"tests: installing the Chromium this playwright version expects "
+                  f"(`{interpreter} -m playwright install chromium`)", file=sys.stderr, flush=True)
+            subprocess.run([interpreter, "-m", "playwright", "install", "chromium"],
+                           capture_output=True, text=True, encoding="utf-8",
+                           timeout=BROWSER_INSTALL_TIMEOUT)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        finally:
+            lock.unlink(missing_ok=True)
+        return
+
+
+def ensure_playwright_browser(interpreter: str | None = None) -> None:
+    """Skip the calling test unless *interpreter* can launch a Chromium, installing it once if not.
+
+    The browser belongs to the LIBRARY version, not to the machine: an upgrade asks for a build
+    nobody has downloaded, and every probe then dies inside its subprocess instead of naming the
+    reason. Cheap on a machine that is already set up — one ``exists()`` — so the probe helpers may
+    call it on every use.
+    """
+    interpreter = interpreter or sys.executable
+    executable = expected_browser(interpreter)
+    if executable is None:
+        pytest.skip(f"playwright is not installed for {interpreter} - run "
+                    f"`{interpreter} -m pip install -r requirements-dev.txt`")
+    if Path(executable).exists():
+        return
+    _install_browser(interpreter)
+    if not Path(executable).exists():
+        pytest.skip(f"the Chromium this playwright version expects is not installed "
+                    f"({executable}) - run `{interpreter} -m playwright install chromium`")
 
 
 # ``services/webservice/__init__.py`` used to eagerly import ``.service`` -> the bot's ``core``
@@ -293,6 +382,26 @@ def back_target(markup: str, page_path: str) -> str:
     return urljoin(page_path, match.group(1))
 
 
+def reset_identity_resolvers() -> None:
+    """Clear the three process-global resolvers if the console package is ALREADY in this process.
+
+    ``install_auth`` is their only writer, and every later request in the process reads them. A test
+    module that reaches the console through this conftest's own lazy names (``install_shell``,
+    ``create_app``) carries no ``services.webservice`` literal, so the source match that gates
+    :func:`clean_capability_state` cannot see it and its install is never cleaned up — a real leak,
+    proved by ``test_plugin_load_action_discovery`` reddening
+    ``test_webui_setup_boot.test_the_setup_console_install_does_not_touch_the_normal_identity_layer``
+    when the two run in that order. Reading ``sys.modules`` costs no import, so a test that touches
+    nothing of the console still pays nothing.
+    """
+    module = sys.modules.get("services.webservice.permissions")
+    if module is None:
+        return
+    module.set_role_resolver(None)
+    module.set_scope_resolver(None)
+    module.set_manager_resolver(None)
+
+
 @pytest.fixture(autouse=True)
 def clean_capability_state(request):
     """Capabilities and the three resolvers are process state: restore them after every test so a
@@ -313,7 +422,10 @@ def clean_capability_state(request):
     gets no snapshot and needs none — nothing it can reach writes these tables.
     """
     if not console_test(request):
-        yield
+        try:
+            yield
+        finally:
+            reset_identity_resolvers()
         return
 
     from services.webservice import permissions

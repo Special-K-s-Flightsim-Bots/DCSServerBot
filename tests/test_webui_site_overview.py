@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import asgi_client, create_app, install_shell, link_or_copy
+from conftest import asgi_client, create_app, ensure_playwright_browser, install_shell, link_or_copy
 from core.utils.helper import ThreadSafeDict
 from services.webservice import i18n, mount, permissions, site_pages, sites, theme_css
 from services.webservice.pages import site_overview
@@ -1643,6 +1643,7 @@ def rendered(tmp_path_factory):
     import subprocess
 
     shots = directory / "shots"
+    ensure_playwright_browser(sys.executable)
     finished = subprocess.run([sys.executable, str(SITE_PROBE), str(directory), str(shots)],
                               capture_output=True, text=True, encoding="utf-8", timeout=180, check=True)
     payload = json.loads(finished.stdout.strip().splitlines()[-1])

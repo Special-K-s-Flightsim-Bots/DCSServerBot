@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-21 23:01+0100\n"
+"POT-Creation-Date: 2026-11-22 17:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -81,12 +81,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "用于 Amazon Polly 的 AWS 私有访问密钥。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:555
+#: services/webservice/schemas/webservice_schema.yaml:568
 msgid "Account name of the local console user."
 msgstr "本地控制台用户的账户名称。"
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:544
+#: services/webservice/schemas/webservice_schema.yaml:557
 msgid "Accounts that may sign in with a username and password."
 msgstr "可以使用用户名和密码登录的账户。"
 
@@ -1068,7 +1068,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "服务器启动时清除所有维护标记。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:615
+#: services/webservice/schemas/webservice_schema.yaml:628
 msgid "Client id of your Discord application."
 msgstr "你的 Discord 应用程序的客户端 ID。"
 
@@ -1754,7 +1754,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "丢弃短于该分钟数的飞行。"
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:600
+#: services/webservice/schemas/webservice_schema.yaml:613
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord OAuth 登录；进入控制台的第二道门。"
 
@@ -2129,7 +2129,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "ElevenLabs 文本转语音提供商设置。"
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:662
+#: services/webservice/schemas/webservice_schema.yaml:675
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "身份提供商损坏时使用的应急管理员凭据。"
 
@@ -2174,7 +2174,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "启用 DDoS 检测（Windows 上需要 NPCAP）。"
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:610
+#: services/webservice/schemas/webservice_schema.yaml:623
 msgid "Enable Discord OAuth login."
 msgstr "启用 Discord OAuth 登录。"
 
@@ -2314,7 +2314,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "为此服务器启用 competitive 插件。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:672
+#: services/webservice/schemas/webservice_schema.yaml:685
 msgid "Enable the emergency Admin credential."
 msgstr "启用应急管理员凭据。"
 
@@ -2344,7 +2344,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "在此服务器实例上启用锦标赛功能。"
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:539
+#: services/webservice/schemas/webservice_schema.yaml:552
 msgid "Enable username/password login for the console."
 msgstr "为控制台启用用户名/密码登录。"
 
@@ -2994,7 +2994,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "将真实世界天气注入任务。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:623
+#: services/webservice/schemas/webservice_schema.yaml:636
 #, fuzzy
 msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "内联的 Discord 客户端密钥；未设置密钥时使用。"
@@ -4391,12 +4391,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "每个客户端的出站网络带宽限制，单位为字节/秒。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:562
+#: services/webservice/schemas/webservice_schema.yaml:575
 msgid "PBKDF2 hash of the account's password."
 msgstr "账户密码的 PBKDF2 哈希。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:682
+#: services/webservice/schemas/webservice_schema.yaml:695
 msgid "PBKDF2 hash of the emergency password."
 msgstr "应急密码的 PBKDF2 哈希。"
 
@@ -5289,7 +5289,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "欢迎消息中提及的角色。"
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:569
+#: services/webservice/schemas/webservice_schema.yaml:582
 msgid "Role names granted to this account, validated at startup."
 msgstr "授予此账户的角色名称，启动时校验。"
 
@@ -5465,7 +5465,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "启动即暂停的服务器再次暂停前运行的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:644
+#: services/webservice/schemas/webservice_schema.yaml:657
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "未启用 intent 时成员解析的缓存秒数。"
 
@@ -5651,7 +5651,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "没有对手玩家并赢得比赛的秒数。"
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:633
+#: services/webservice/schemas/webservice_schema.yaml:646
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "保存客户端密钥的密钥库键；优先于内联值。"
 
@@ -5669,7 +5669,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "向云服务发送匿名使用统计。"
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:655
+#: services/webservice/schemas/webservice_schema.yaml:668
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -5914,6 +5914,11 @@ msgstr "免于处罚的一方。"
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:131
 msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "此限制适用的阵营：0 双方，1 红方，2 蓝方。"
+
+#. webservice_schema:DEFAULT.auth.login_page
+#: services/webservice/schemas/webservice_schema.yaml:533
+msgid "Sign-in page style; fancy (animated scene) or simple (plain)."
+msgstr ""
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
 #: extensions/olympus/schemas/olympus_schema.yaml:246
@@ -6562,7 +6567,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "登录 NUT 服务器的用户（可选）。"
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:525
+#: services/webservice/schemas/webservice_schema.yaml:538
 msgid "Username and password login for the console."
 msgstr "控制台的用户名和密码登录。"
 
@@ -6577,7 +6582,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "代理的用户名（若需要身份验证）。"
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:677
+#: services/webservice/schemas/webservice_schema.yaml:690
 msgid "Username of the emergency Admin account."
 msgstr "应急管理员账户的用户名。"
 
@@ -7041,7 +7046,7 @@ msgid "managed_by token this site shows; absent only for the root site."
 msgstr ""
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:585
+#: services/webservice/schemas/webservice_schema.yaml:598
 msgid "managed_by values this account may see and act on."
 msgstr "此账户可查看和操作的 managed_by 值。"
 

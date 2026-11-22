@@ -87,7 +87,7 @@ Server 2:
     assert root.prefix == "" and group.prefix == "/group1"
 
     # every key is optional, and the defaults are the ones the sample states
-    assert root.nav == DEFAULT_NAV == ("overview", "leaderboard", "squadrons", "players")
+    assert root.nav == DEFAULT_NAV == ("overview", "servers", "leaderboard", "squadrons", "players")
     assert root.tiles == DEFAULT_TILES == ("active_week", "online_now", "playtime_total",
                                            "avg_session", "peak_hour")
     assert root.lang == DEFAULT_LANG == "en"
@@ -646,7 +646,7 @@ def test_an_install_that_declares_nothing_keeps_every_section_and_the_shipped_pa
     assert root.enabled is True, "an absent switch is an enabled site"
     assert root.avatar is False, "an absent avatar flag is a site with no uploaded image"
     assert root.sections == sites.SECTION_IDS == ("community", "season", "standings", "aircraft",
-                                                 "when_we_fly", "squadrons", "servers")
+                                                 "when_we_fly", "squadrons")
     assert root.metrics == site_reads.LEADERBOARD_METRICS
     assert root.character == sites.DEFAULT_CHARACTER == "pvpve"
     assert root.theme.preset is None and root.theme.expert is None
@@ -695,7 +695,7 @@ def test_a_bad_character_is_refused_with_the_key_the_value_and_the_accepted_set(
 
 def test_sections_is_a_closed_map_of_booleans_and_absence_means_on():
     root = parse_sites({"root": {"sections": {"season": False, "squadrons": False}}}).root
-    assert root.sections == ("community", "standings", "aircraft", "when_we_fly", "servers")
+    assert root.sections == ("community", "standings", "aircraft", "when_we_fly")
     assert root.sections == tuple(ident for ident in sites.SECTION_IDS
                                   if ident not in ("season", "squadrons")), \
         "the enabled ids keep the vocabulary's order"

@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import asgi_client, link_or_copy
+from conftest import asgi_client, ensure_playwright_browser, link_or_copy
 from services.webservice import sites
 from test_webui_site_overview import SERVERS_YAML, StubBus, build, page_markup
 
@@ -219,6 +219,7 @@ def measured(tmp_path_factory):
     (directory / "avatar.png").write_bytes(_png(256))
     shots = directory / "shots"
     interpreter = str(VENV_PYTHON) if VENV_PYTHON.is_file() else sys.executable
+    ensure_playwright_browser(interpreter)
     finished = subprocess.run([interpreter, str(PROBE), str(directory), str(shots)],
                               capture_output=True, text=True, encoding="utf-8", timeout=180, check=True)
     payload = json.loads(finished.stdout.strip().splitlines()[-1])

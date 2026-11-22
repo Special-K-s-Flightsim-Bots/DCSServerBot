@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from services.webservice import site_pages
+from services.webservice.sites import NAV_PAGE_IDS
 from test_webui_site_settings_page import (  # noqa: F401 - fixtures imported on purpose
     ADMIN, SITE_KEY, _probe, live_config, served,
 )
@@ -34,10 +35,9 @@ def _address(path: str) -> str:
     return "/" + path.lstrip("/")
 
 
-#: the nav page ids in the site's shipped order, with the address the root site serves each at.
-NAV_ORDER = [("overview", site_pages.NAV_PATHS["overview"]),
-             ("leaderboard", site_pages.NAV_PATHS["leaderboard"]),
-             ("players", site_pages.NAV_PATHS["players"])]
+#: the nav page ids this build serves, in the shipped order, with the address the root site answers
+#: each at. Read from the product: a page that joins the site changes this list, not the pin.
+NAV_ORDER = [(ident, site_pages.NAV_PATHS[ident]) for ident in site_pages.SERVED_NAV_IDS]
 
 
 #: the probe's answer, kept for this process: one browser run answers every pin below, and the
@@ -128,8 +128,10 @@ def test_a_palette_edit_in_the_second_card_repaints_that_card_s_frame_only(serve
 def test_a_nav_reorder_writes_the_bar_s_nav(report, served):
     """PIN 2, live: one move DOWN in Menu & Tiles reorders `.top .nav` before Save."""
     rows_before, rows_after = report["nav_rows_before"], report["nav_rows_after"]
-    assert rows_before[:2] == ["overview", "leaderboard"], rows_before
-    assert rows_after[:2] == ["leaderboard", "overview"], (
+    # the shipped default order, not a literal: a page that joins the site changes it here
+    first, second = NAV_PAGE_IDS[:2]
+    assert rows_before[:2] == [first, second], rows_before
+    assert rows_after[:2] == [second, first], (
         f"the page's own rows did not move: {rows_after}")
     moved = [ident for ident in rows_after if ident in dict(NAV_ORDER)]
     assert report["nav_after"] == [_address(site_pages.NAV_PATHS[ident]) for ident in moved], (

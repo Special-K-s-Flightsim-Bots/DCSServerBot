@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-21 23:01+0100\n"
+"POT-Creation-Date: 2026-11-22 17:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: ru\n"
@@ -83,12 +83,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Секретный ключ доступа AWS для Amazon Polly."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:555
+#: services/webservice/schemas/webservice_schema.yaml:568
 msgid "Account name of the local console user."
 msgstr "Имя учётной записи локального пользователя консоли."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:544
+#: services/webservice/schemas/webservice_schema.yaml:557
 msgid "Accounts that may sign in with a username and password."
 msgstr "Учётные записи, которые могут войти по имени пользователя и паролю."
 
@@ -1070,7 +1070,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Снимать любую отметку обслуживания при запуске сервера."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:615
+#: services/webservice/schemas/webservice_schema.yaml:628
 msgid "Client id of your Discord application."
 msgstr "ID клиента твоего приложения Discord."
 
@@ -1758,7 +1758,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "Отбрасывать полёты короче этого числа минут."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:600
+#: services/webservice/schemas/webservice_schema.yaml:613
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Вход через Discord OAuth; вторая дверь в консоль."
 
@@ -2133,7 +2133,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "Настройки провайдера синтеза речи ElevenLabs."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:662
+#: services/webservice/schemas/webservice_schema.yaml:675
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Экстренные учётные данные администратора при нерабочем провайдере идентификации."
 
@@ -2178,7 +2178,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "Включить обнаружение DDoS (требуется NPCAP в Windows)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:610
+#: services/webservice/schemas/webservice_schema.yaml:623
 msgid "Enable Discord OAuth login."
 msgstr "Включить вход через Discord OAuth."
 
@@ -2318,7 +2318,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Включить плагин competitive для этого сервера."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:672
+#: services/webservice/schemas/webservice_schema.yaml:685
 msgid "Enable the emergency Admin credential."
 msgstr "Включить экстренные учётные данные администратора."
 
@@ -2348,7 +2348,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Включить функции турнира на этом серверном инстансе."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:539
+#: services/webservice/schemas/webservice_schema.yaml:552
 msgid "Enable username/password login for the console."
 msgstr "Включить вход по имени пользователя и паролю для консоли."
 
@@ -3000,7 +3000,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "Внедрять реальную погоду в миссию."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:623
+#: services/webservice/schemas/webservice_schema.yaml:636
 #, fuzzy
 msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "Встроенный секрет клиента Discord; используется, если ключ не задан."
@@ -4401,12 +4401,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "Ограничение исходящей пропускной способности на клиента в байтах/с."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:562
+#: services/webservice/schemas/webservice_schema.yaml:575
 msgid "PBKDF2 hash of the account's password."
 msgstr "Хеш PBKDF2 пароля учётной записи."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:682
+#: services/webservice/schemas/webservice_schema.yaml:695
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Хеш PBKDF2 аварийного пароля."
 
@@ -5299,7 +5299,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "Роль, упоминаемая в приветственном сообщении."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:569
+#: services/webservice/schemas/webservice_schema.yaml:582
 msgid "Role names granted to this account, validated at startup."
 msgstr "Имена ролей, выданных этой учётной записи, проверяются при запуске."
 
@@ -5475,7 +5475,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Секунды работы сервера с ПАУЗОЙ при старте до повторной паузы."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:644
+#: services/webservice/schemas/webservice_schema.yaml:657
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Секунды кэширования разрешения участника без intent."
 
@@ -5663,7 +5663,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Секунды без игрока-противника, которые выигрывают матч."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:633
+#: services/webservice/schemas/webservice_schema.yaml:646
 msgid "Secret store key holding the client secret; wins inline."
 msgstr "Ключ хранилища секретов с секретом клиента; приоритетнее встроенного."
 
@@ -5681,7 +5681,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "Отправлять анонимную статистику использования в облачный сервис."
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:655
+#: services/webservice/schemas/webservice_schema.yaml:668
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -5928,6 +5928,11 @@ msgstr "Сторона, освобождённая от наказаний."
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:131
 msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "Сторона, к которой применяется ограничение: 0 обе, 1 красная, 2 синяя."
+
+#. webservice_schema:DEFAULT.auth.login_page
+#: services/webservice/schemas/webservice_schema.yaml:533
+msgid "Sign-in page style; fancy (animated scene) or simple (plain)."
+msgstr ""
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
 #: extensions/olympus/schemas/olympus_schema.yaml:246
@@ -6578,7 +6583,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "Пользователь для входа на сервер NUT (необязательно)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:525
+#: services/webservice/schemas/webservice_schema.yaml:538
 msgid "Username and password login for the console."
 msgstr "Вход по имени пользователя и паролю для консоли."
 
@@ -6593,7 +6598,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Имя пользователя для прокси, если требуется аутентификация."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:677
+#: services/webservice/schemas/webservice_schema.yaml:690
 msgid "Username of the emergency Admin account."
 msgstr "Имя пользователя экстренной учётной записи администратора."
 
@@ -7060,7 +7065,7 @@ msgid "managed_by token this site shows; absent only for the root site."
 msgstr ""
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:585
+#: services/webservice/schemas/webservice_schema.yaml:598
 msgid "managed_by values this account may see and act on."
 msgstr "Значения managed_by, которые эта учётная запись может видеть и изменять."
 

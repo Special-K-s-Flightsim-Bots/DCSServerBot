@@ -32,6 +32,7 @@ MISSION_ACTIONS = (
     "add_mission",
     "ban_player",
     "ban_ucid",
+    "chat_history",
     "delete_mission",
     "delete_missions",
     "download_mission",

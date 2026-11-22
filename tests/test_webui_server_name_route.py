@@ -18,6 +18,7 @@ from urllib.parse import quote
 
 import pytest
 
+from services.webservice.pages import actions as actions_page
 from services.webservice.pages import instances as instances_page
 from services.webservice.pages import players as players_page
 from services.webservice.pages import servers as servers_page
@@ -83,7 +84,9 @@ def test_the_route_declares_the_same_capability_as_before():
     (``music.view`` — a stream outlives the render that resolved the server, so it re-checks the
     capability the music area is opened on AND the server's scope in its own route), plus the Scheduler
     review panel's completion hints (the scheduler area's own ``scheduler.view`` — a read of its schema,
-    with the server and the section resolved in the route). Those are the only other paths it declares.
+    with the server and the section resolved in the route), and the Chat tab's live stream (the
+    capability the tab is opened on, ``servers.message`` -- a stream outlives the render that resolved
+    the server, as the Music tab's two do). Those are the only other paths it declares.
     """
     declared = detail_page.capabilities()
     assert declared[detail_page.SERVER_DETAIL_PATH] == detail_page.SERVER_DETAIL_CAPABILITY
@@ -99,6 +102,7 @@ def test_the_route_declares_the_same_capability_as_before():
         detail_page.MUSIC_TAB_STREAM_PATH: detail_page.music_page_module().CAPABILITY_VIEW,
         detail_page.MUSIC_TAB_FRAGMENTS_PATH: detail_page.music_page_module().CAPABILITY_VIEW,
         detail_page.SCHEDULER_HINTS_PATH: settings_page.SCHEDULER_VIEW_CAPABILITY,
+        detail_page.CHAT_STREAM_PATH: actions_page.SERVER_MESSAGE_CAPABILITY,
     }
 
 

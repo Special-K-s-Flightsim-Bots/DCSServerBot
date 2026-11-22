@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import asgi_client, create_app, install_shell, link_or_copy
+from conftest import asgi_client, create_app, ensure_playwright_browser, install_shell, link_or_copy
 from services.webservice import i18n, mount, site_pages, sites
 
 REPO = Path(__file__).resolve().parent.parent
@@ -320,6 +320,7 @@ def test_a_forty_character_name_wraps_without_a_horizontal_scroll(config_dir, tm
     (directory / "overview.html").write_text(markup, encoding="utf-8")
     link_or_copy(REPO / "services" / "webservice" / "static", directory / "static")
 
+    ensure_playwright_browser(sys.executable)
     finished = subprocess.run([sys.executable, str(SITE_PROBE), str(directory),
                                str(tmp_path / "shots")],
                               capture_output=True, text=True, encoding="utf-8", timeout=180, check=True)

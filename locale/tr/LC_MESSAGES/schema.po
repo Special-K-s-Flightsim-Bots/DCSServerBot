@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-21 23:01+0100\n"
+"POT-Creation-Date: 2026-11-22 17:53+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: tr\n"
@@ -82,12 +82,12 @@ msgid "AWS secret access key used for Amazon Polly."
 msgstr "Amazon Polly için kullanılan AWS gizli erişim anahtarı."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].username
-#: services/webservice/schemas/webservice_schema.yaml:555
+#: services/webservice/schemas/webservice_schema.yaml:568
 msgid "Account name of the local console user."
 msgstr "Yerel konsol kullanıcısının hesap adı."
 
 #. webservice_schema:DEFAULT.auth.local.users
-#: services/webservice/schemas/webservice_schema.yaml:544
+#: services/webservice/schemas/webservice_schema.yaml:557
 msgid "Accounts that may sign in with a username and password."
 msgstr "Kullanıcı adı ve parola ile oturum açabilen hesaplar."
 
@@ -1069,7 +1069,7 @@ msgid "Clear any maintenance flag when the server starts."
 msgstr "Sunucu başladığında mevcut bakım işaretini temizle."
 
 #. webservice_schema:DEFAULT.auth.discord.client_id
-#: services/webservice/schemas/webservice_schema.yaml:615
+#: services/webservice/schemas/webservice_schema.yaml:628
 msgid "Client id of your Discord application."
 msgstr "Discord uygulamanızın istemci kimliği (Client ID)."
 
@@ -1761,7 +1761,7 @@ msgid "Discard flights shorter than this many minutes."
 msgstr "Belirtilen dakikadan daha kısa süren uçuşları yoksay."
 
 #. webservice_schema:DEFAULT.auth.discord
-#: services/webservice/schemas/webservice_schema.yaml:600
+#: services/webservice/schemas/webservice_schema.yaml:613
 msgid "Discord OAuth login; the second door into the console."
 msgstr "Discord OAuth girişi; konsola açılan ikinci kapı."
 
@@ -2136,7 +2136,7 @@ msgid "ElevenLabs text-to-speech provider settings."
 msgstr "ElevenLabs metin okuma (TTS) sağlayıcı ayarları."
 
 #. webservice_schema:DEFAULT.auth.breakglass
-#: services/webservice/schemas/webservice_schema.yaml:662
+#: services/webservice/schemas/webservice_schema.yaml:675
 msgid "Emergency Admin credential for a broken identity provider."
 msgstr "Çalışmayan bir kimlik sağlayıcı durumunda kullanılacak acil durum Admin kimlik bilgisi."
 
@@ -2181,7 +2181,7 @@ msgid "Enable DDoS detection (needs NPCAP on Windows)."
 msgstr "DDoS tespitini etkinleştir (Windows'ta NPCAP gerektirir)."
 
 #. webservice_schema:DEFAULT.auth.discord.enabled
-#: services/webservice/schemas/webservice_schema.yaml:610
+#: services/webservice/schemas/webservice_schema.yaml:623
 msgid "Enable Discord OAuth login."
 msgstr "Discord OAuth girişini etkinleştir."
 
@@ -2321,7 +2321,7 @@ msgid "Enable the competitive plugin for this server."
 msgstr "Bu sunucu için rekabetçi (competitive) eklentiyi etkinleştir."
 
 #. webservice_schema:DEFAULT.auth.breakglass.enabled
-#: services/webservice/schemas/webservice_schema.yaml:672
+#: services/webservice/schemas/webservice_schema.yaml:685
 msgid "Enable the emergency Admin credential."
 msgstr "Acil durum Admin kimlik bilgisini etkinleştir."
 
@@ -2351,7 +2351,7 @@ msgid "Enable the tournament features on this server instance."
 msgstr "Bu sunucu örneğinde turnuva özelliklerini etkinleştir."
 
 #. webservice_schema:DEFAULT.auth.local.enabled
-#: services/webservice/schemas/webservice_schema.yaml:539
+#: services/webservice/schemas/webservice_schema.yaml:552
 msgid "Enable username/password login for the console."
 msgstr "Konsol için kullanıcı adı/parola ile girişi etkinleştir."
 
@@ -3003,7 +3003,7 @@ msgid "Inject real-world weather into the mission."
 msgstr "Göreve gerçek dünya hava durumunu aktar."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret
-#: services/webservice/schemas/webservice_schema.yaml:623
+#: services/webservice/schemas/webservice_schema.yaml:636
 #, fuzzy
 msgid "Inline Discord client secret; moved to the secret store at startup."
 msgstr "Satır içi Discord istemci gizli anahtarı (client secret); anahtar ayarlanmadığında kullanılır."
@@ -4412,12 +4412,12 @@ msgid "Outbound network bandwidth limit per client in bytes/s."
 msgstr "İstemci başına bayt/sn cinsinden giden ağ bant genişliği sınırı."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].password_hash
-#: services/webservice/schemas/webservice_schema.yaml:562
+#: services/webservice/schemas/webservice_schema.yaml:575
 msgid "PBKDF2 hash of the account's password."
 msgstr "Hesap parolasının PBKDF2 özeti (hash)."
 
 #. webservice_schema:DEFAULT.auth.breakglass.password_hash
-#: services/webservice/schemas/webservice_schema.yaml:682
+#: services/webservice/schemas/webservice_schema.yaml:695
 msgid "PBKDF2 hash of the emergency password."
 msgstr "Acil durum parolasının PBKDF2 özeti (hash)."
 
@@ -5314,7 +5314,7 @@ msgid "Role mentioned in the welcome message."
 msgstr "Hoş geldin mesajında etiketlenen rol."
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].roles
-#: services/webservice/schemas/webservice_schema.yaml:569
+#: services/webservice/schemas/webservice_schema.yaml:582
 msgid "Role names granted to this account, validated at startup."
 msgstr "Bu hesaba verilen ve başlangıçta doğrulanan rol adları."
 
@@ -5490,7 +5490,7 @@ msgid "Seconds a PAUSE-on-start server runs before pausing again."
 msgstr "Başlangıçta duraklatmalı (PAUSE) bir sunucunun tekrar duraklatmadan önce çalışacağı saniye süresi."
 
 #. webservice_schema:DEFAULT.auth.discord.member_ttl
-#: services/webservice/schemas/webservice_schema.yaml:644
+#: services/webservice/schemas/webservice_schema.yaml:657
 msgid "Seconds a member resolution is cached without the intent."
 msgstr "Intent olmadan üye çözümlemesinin önbellekte tutulacağı saniye süresi."
 
@@ -5678,7 +5678,7 @@ msgid "Seconds without an opposing player that wins the match."
 msgstr "Rakip oyuncu olmadığında maçın kazanılması için geçmesi gereken saniye süresi."
 
 #. webservice_schema:DEFAULT.auth.discord.client_secret_key
-#: services/webservice/schemas/webservice_schema.yaml:633
+#: services/webservice/schemas/webservice_schema.yaml:646
 msgid "Secret store key holding the client secret; wins inline."
 msgstr ""
 "İstemci gizli anahtarını (client secret) tutan secret store anahtarı; satır içi değere göre "
@@ -5698,7 +5698,7 @@ msgid "Send anonymous usage statistics to the cloud service."
 msgstr "Bulut servisine anonim kullanım istatistikleri gönder."
 
 #. webservice_schema:DEFAULT.auth.discord.auto_start
-#: services/webservice/schemas/webservice_schema.yaml:655
+#: services/webservice/schemas/webservice_schema.yaml:668
 msgid "Send anonymous visitors straight into Discord sign-in."
 msgstr ""
 
@@ -5945,6 +5945,11 @@ msgstr "Cezalardan muaf tutulan taraf."
 #: plugins/slotblocking/schemas/slotblocking_schema.yaml:131
 msgid "Side this restriction applies to, 0 both, 1 red, 2 blue."
 msgstr "Bu kısıtlamanın uygulandığı taraf: 0 her ikisi, 1 kırmızı, 2 mavi."
+
+#. webservice_schema:DEFAULT.auth.login_page
+#: services/webservice/schemas/webservice_schema.yaml:533
+msgid "Sign-in page style; fancy (animated scene) or simple (plain)."
+msgstr ""
 
 #. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
 #: extensions/olympus/schemas/olympus_schema.yaml:246
@@ -6595,7 +6600,7 @@ msgid "User to log in to the NUT server (optional)."
 msgstr "NUT sunucusunda oturum açacak kullanıcı (isteğe bağlı)."
 
 #. webservice_schema:DEFAULT.auth.local
-#: services/webservice/schemas/webservice_schema.yaml:525
+#: services/webservice/schemas/webservice_schema.yaml:538
 msgid "Username and password login for the console."
 msgstr "Konsol için kullanıcı adı ve şifre ile giriş."
 
@@ -6610,7 +6615,7 @@ msgid "Username for the proxy, if it needs authentication."
 msgstr "Kimlik doğrulama gerekiyorsa proxy için kullanıcı adı."
 
 #. webservice_schema:DEFAULT.auth.breakglass.username
-#: services/webservice/schemas/webservice_schema.yaml:677
+#: services/webservice/schemas/webservice_schema.yaml:690
 msgid "Username of the emergency Admin account."
 msgstr "Acil durum Admin hesabının kullanıcı adı."
 
@@ -7077,7 +7082,7 @@ msgid "managed_by token this site shows; absent only for the root site."
 msgstr ""
 
 #. webservice_schema:DEFAULT.auth.local.users.[0].scope
-#: services/webservice/schemas/webservice_schema.yaml:585
+#: services/webservice/schemas/webservice_schema.yaml:598
 msgid "managed_by values this account may see and act on."
 msgstr "Bu hesabın görebileceği ve işlem yapabileceği managed_by değerleri."
 

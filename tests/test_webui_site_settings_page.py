@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, ensure_playwright_browser
 from services.webservice import mount, sites, theme_css
 from services.webservice.auth import local as local_auth
 from services.webservice.pages import site_config as site_page
@@ -190,6 +190,7 @@ def _probe(base: str, phase: str, site_file: Path | None = None, site: str = SIT
     their own arguments (the render paths).
     """
     interpreter = str(VENV_PYTHON) if VENV_PYTHON.is_file() else sys.executable
+    ensure_playwright_browser(interpreter)
     page_path = mount.url(site_page.SITE_CONFIG_PATH)
     argv = [interpreter, str(PROBE), base, ADMIN, PASSWORD, page_path, phase, site]
     argv.extend(extra)
@@ -379,8 +380,9 @@ def test_switching_a_site_on_mounts_the_box_and_switching_it_off_puts_it_back(se
 
 # ==================================== §B · a press rewrites the two lists, in a real browser (pins 1, 2)
 
-#: the design's B1 sets, read back from the DOM after a press.
-PVP_SECTIONS = ["community", "standings", "aircraft", "when_we_fly", "servers"]
+#: the design's B1 sets, read back from the DOM after a press. ``servers`` left the sections when it
+#: became a nav page (``sites.RETIRED_SECTION_IDS``), so the press switches the four that remain.
+PVP_SECTIONS = ["community", "standings", "aircraft", "when_we_fly"]
 PVP_METRICS = ["playtime", "air_targets", "kd_ratio", "pvp_kd_ratio"]
 
 
@@ -401,7 +403,8 @@ def test_pressing_a_character_rewrites_the_lists_and_posts_nothing(served, live_
         f"the press left these sections on: {pressed['sections']}")
     assert pressed["metrics"] == PVP_METRICS, (
         f"the press left these metrics on: {pressed['metrics']}")
-    assert pressed["count"] == "5 of 7 sections \u00b7 4 of 7 metrics", (
+    assert pressed["count"] == (f"{len(PVP_SECTIONS)} of {len(sites.SECTION_IDS)} sections "
+                               f"\u00b7 {len(PVP_METRICS)} of {len(sites.LEADERBOARD_METRICS)} metrics"), (
         f"the card's chip reads {pressed['count']!r}")
     assert pressed["chip"] == "PvP", f"the card's character chip reads {pressed['chip']!r}"
     assert "fight-night community" in (pressed["what"] or ""), (
@@ -433,10 +436,12 @@ def test_pressing_a_character_rewrites_the_lists_and_posts_nothing(served, live_
 
 # ==================== §C · the rows move by mouse on the shared grip, in a real browser (pins 1, 2, 4)
 
-#: the order after the probe's drag: row 3 (squadrons) taken above row 1 (overview).
-AFTER_DRAG = ["squadrons", "overview", "leaderboard", "players"]
-#: and after Alt+Down on the focused grip of the row that was first.
-AFTER_KEY = ["overview", "squadrons", "leaderboard", "players"]
+#: The shipped nav order, then the two states the probe's own moves produce from it: it drags the
+#: squadrons row to the top wherever that row sits, then Alt+Downs the grip of the row that is now
+#: first. Both are derived from the product, so a page that joins the site cannot rot them.
+SHIPPED_NAV = list(sites.NAV_PAGE_IDS)
+AFTER_DRAG = ["squadrons"] + [ident for ident in SHIPPED_NAV if ident != "squadrons"]
+AFTER_KEY = [SHIPPED_NAV[0], "squadrons"] + [ident for ident in SHIPPED_NAV[1:] if ident != "squadrons"]
 
 
 def test_a_drop_reorders_posts_nothing_and_save_writes_the_order(served, live_config):
@@ -453,7 +458,7 @@ def test_a_drop_reorders_posts_nothing_and_save_writes_the_order(served, live_co
     moved = report["reorder"]
 
     assert "reorder.js" in " ".join(moved["scripts"] if "scripts" in moved else report["scripts"])         or any("reorder.js" in (src or "") for src in report["scripts"]), report["scripts"]
-    assert moved["before"]["ids"] == ["overview", "leaderboard", "squadrons", "players"], (
+    assert moved["before"]["ids"] == SHIPPED_NAV, (
         f"the block starts in {moved['before']['ids']}")
     assert moved["after_drag"]["ids"] == AFTER_DRAG, (
         f"dragging row 3 above row 1 left {moved['after_drag']['ids']}")

@@ -4,8 +4,9 @@ The kind is DOMAIN metadata: what the action does to the installation, not which
 it. It is what makes "a READ row never names a WRITE action" provable, so the marking is pinned here
 by NAME and by COUNT — a swap of one read for one write keeps the count at 27 and must still fail.
 
-The pins name the 27 reads and the 60 writes over ``plugins/*/actions.py`` (87 module-level ``@action``
-functions, every name unique). The two fleet reads ``list_servers`` / ``get_server_status`` are part
+The pins name the reads and the writes over ``plugins/*/actions.py`` (88 module-level ``@action``
+functions today, every name unique); the totals are asserted beside the name lists, so a deleted
+action is noticed as well as an added one. The two fleet reads ``list_servers`` / ``get_server_status`` are part
 of that census: they are real actions of the mission plugin, declared READ.
 """
 from __future__ import annotations
@@ -25,9 +26,10 @@ from core.actions import (
     kind_of,
 )
 
-#: The 27 READ actions, by the module that declares them.
+#: The READ actions, by the module that declares them.
 READ_ACTIONS: dict[str, tuple[str, ...]] = {
-    "mission": ("list_missions", "get_mission_list", "get_mission_info", "read_mission_weather",
+    "mission": ("chat_history", "list_missions", "get_mission_list", "get_mission_info",
+                "read_mission_weather",
                 "get_addable_missions", "download_mission", "list_bans", "list_player_directory",
                 "get_player_detail", "get_player_statistics", "get_player_infractions",
                 "search_players", "list_servers", "get_server_status"),
@@ -86,19 +88,19 @@ def installed_actions() -> dict:
 
 # --------------------------------------------------------------- 1. the marking, by name and count
 
-def test_the_read_marked_actions_are_exactly_the_27(installed_actions):
+def test_the_read_marked_actions_are_exactly_the_census(installed_actions):
     """The read set equals the census BY NAME — a count alone would hide a read/write swap."""
     reads = {qualname for qualname in installed_actions if kind_of(qualname) == ACTION_KIND_READ}
 
     assert reads == _read_names()
-    assert len(reads) == 27
+    assert len(reads) == 28
     for plugin, names in READ_ACTIONS.items():
         module_reads = {q for q in installed_actions if kind_of(q) == ACTION_KIND_READ
                         and installed_actions[q].__module__ == f"plugins.{plugin}.actions"}
         assert module_reads == set(names), f"{plugin}: read marking drifted"
 
 
-def test_the_remaining_59_actions_report_write(installed_actions):
+def test_every_unmarked_action_reports_write(installed_actions):
     """The 60 writes are unmarked decorators — they must answer ``write``, by name."""
     writes = {qualname for qualname in installed_actions if kind_of(qualname) == ACTION_KIND_WRITE}
 
@@ -107,8 +109,8 @@ def test_the_remaining_59_actions_report_write(installed_actions):
 
 
 def test_the_census_covers_every_registered_action(installed_actions):
-    """87 registered, 27 read + 60 write, no name in both lists, no action left out."""
-    assert len(installed_actions) == 87
+    """88 registered, 28 read + 60 write, no name in both lists, no action left out."""
+    assert len(installed_actions) == 88
     assert _read_names().isdisjoint(_write_names())
     assert _read_names() | _write_names() == set(installed_actions)
 

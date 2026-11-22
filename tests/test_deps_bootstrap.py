@@ -6,6 +6,7 @@ real with a temporary directory standing in for the install and for the environm
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -106,12 +107,15 @@ def test_sync_refuses_without_uv(install, monkeypatch):
 def test_the_stamp_belongs_to_the_environment_not_the_installation(install, monkeypatch):
     """Two nodes share one installation directory and have separate environments, so the stamp must
     follow ``sys.prefix``: one node's synchronisation may never make the other look up to date."""
-    monkeypatch.setattr(sys, 'prefix', '/envs/.dcssb-nodeA')
+    # the prefixes are strings, and the stamp joins them with the HOST's separator: `pathlib` would
+    # normalise a POSIX-looking prefix on Windows ('/envs' -> '\\envs') and pin the wrong spelling
+    node_a, node_b = '/envs/.dcssb-nodeA', '/envs/.dcssb-nodeB'
+    monkeypatch.setattr(sys, 'prefix', node_a)
     first = deps.stamp_path()
-    monkeypatch.setattr(sys, 'prefix', '/envs/.dcssb-nodeB')
+    monkeypatch.setattr(sys, 'prefix', node_b)
     second = deps.stamp_path()
-    assert first == '/envs/.dcssb-nodeA/requirements.sha256'
-    assert second == '/envs/.dcssb-nodeB/requirements.sha256'
+    assert first == os.path.join(node_a, deps.STAMP_NAME)
+    assert second == os.path.join(node_b, deps.STAMP_NAME)
 
 
 def test_a_bare_interpreter_carries_no_stamp(install, monkeypatch):
