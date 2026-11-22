@@ -24,6 +24,33 @@ DEFAULT_LISTEN = '0.0.0.0'
 DEFAULT_PORT = 9876
 
 
+class DropCancellationRecords(logging.Filter):
+    """Drop a log record whose exception IS a cancellation.
+
+    A cancelled request carries no failure to act on and nothing to fix, and a forced server exit
+    (see :meth:`WebService.stop`) cancels every request in flight, so an open event stream ends in a
+    ``CancelledError`` raised inside ``receive()``. uvicorn logs any exception escaping an ASGI app
+    as ``Exception in ASGI application``; this keeps that shape out of the log without touching a
+    record that reports a real error. The filter sits on the logger, so it also stops the record
+    reaching the handlers the bot attached to the root logger.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc = record.exc_info[1] if record.exc_info else None
+        return not isinstance(exc, asyncio.CancelledError)
+
+
+def drop_cancellation_records(logger: logging.Logger | None = None) -> None:
+    """Install :class:`DropCancellationRecords` on uvicorn's error logger, once per process.
+
+    ``logger`` is for the tests; the service passes nothing and gets ``uvicorn.error``, the logger
+    every ASGI-app failure is reported through.
+    """
+    logger = logger if logger is not None else logging.getLogger("uvicorn.error")
+    if not any(isinstance(f, DropCancellationRecords) for f in logger.filters):
+        logger.addFilter(DropCancellationRecords())
+
+
 @ServiceRegistry.register(master_only=True, depends_on=[ServiceBus])
 class WebService(Service):
 
@@ -43,6 +70,9 @@ class WebService(Service):
 
     def __init__(self, node: NodeImpl):
         super().__init__(node)
+        # installed before the server exists, and unconditionally: a config auto-created later, or an
+        # app rebuilt after a master/agent switch, is then still covered
+        drop_cancellation_records()
         if self._secure_client_secret():
             self.save_config()
         cfg = self.get_config()
@@ -370,6 +400,24 @@ class WebService(Service):
         except Exception:
             self.log.debug("WebService: the ready-time scope audit could not run.", exc_info=True)
 
+    def _close_in_flight_connections(self) -> None:
+        """Close the requests still open, so uvicorn's shutdown can actually finish.
+
+        ``force_exit`` skips uvicorn's wait-for-connections loop, but ``shutdown()`` ends by awaiting
+        ``wait_closed()`` on every listener, and that returns only once no connection is left. A live
+        update stream never ends on its own, so without this the stop waits out the whole graceful
+        timeout and then cancels the server task anyway. Closing the in-flight sockets is what makes
+        that wait short: the stream sees its disconnect and ends instead of being torn down.
+        """
+        server_state = getattr(self.server, 'server_state', None)
+        for connection in list(getattr(server_state, 'connections', ()) or ()):
+            try:
+                connection.transport.close()
+            except Exception:
+                # a connection that closed itself between the snapshot and the call is the same
+                # outcome this is asking for
+                continue
+
     @override
     async def stop(self):
         if self.scope_task:
@@ -410,6 +458,7 @@ class WebService(Service):
             # Explicitly trigger the shutdown of the uvicorn server
             if hasattr(self.server, 'force_exit'):
                 self.server.force_exit = True
+            self._close_in_flight_connections()
 
             # Give uvicorn a moment to shut down gracefully, then cancel if it hangs
             try:
