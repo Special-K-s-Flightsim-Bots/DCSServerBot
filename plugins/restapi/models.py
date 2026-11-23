@@ -9,7 +9,7 @@ class UserEntry(BaseModel):
     ucid: str = Field(..., description="DCS account ID")
     discord_id: int = Field(..., description="Discord user ID")
     nick: str = Field(..., description="Player nickname")
-    date: datetime = Field(..., description="Last seen timestamp")
+    date: datetime | None = Field(None, description="Last seen timestamp, null if the player never connected")
     current_server: Optional[str] = Field(None, description="Current server")
 
     model_config = {

@@ -2450,6 +2450,7 @@ class RestAPI(Plugin):
                                    DATE_TRUNC('second', last_seen) AS "date"
                             FROM players
                             WHERE discord_id = %s
+                            AND length(ucid) > 4
                             ORDER BY 4 DESC
                             """
                     params = (discord_id,)
