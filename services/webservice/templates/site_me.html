@@ -31,7 +31,7 @@
       {% if model.sign_in_href %}
       <p><a class="btn btn-solid" href="{{ model.sign_in_href }}">{% trans %}Sign in{% endtrans %}</a></p>
       {% else %}
-      <p class="note plain">{% trans %}This installation has no sign-in method enabled.{% endtrans %}</p>
+      <p class="note plain">{% trans %}Signing in is not available on this site.{% endtrans %}</p>
       {% endif %}
     </section>
   </section>
@@ -64,13 +64,13 @@
 <main class="in">
 {% if model.unavailable %}
   <section class="sect" style="padding-top:var(--sp-4)">
-    <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+    <p class="note">{% trans %}Statistics are not available yet. They appear as soon as the servers report in.{% endtrans %}</p>
   </section>
 {% elif not model.found %}
   <section class="sect" style="padding-top:var(--sp-4)">
     <section class="panel">
       <div class="hd"><h2>{% trans %}No record on these servers{% endtrans %}</h2></div>
-      <p class="note">{% trans %}The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not.{% endtrans %}</p>
+      <p class="note">{% trans %}Your Discord account is not connected to any pilot who has flown here. Another site of this community may have your record; this one does not.{% endtrans %}</p>
       <p><a class="btn" href="{{ model.leaderboard_href }}">{% trans %}Back to the leaderboard{% endtrans %}</a></p>
     </section>
   </section>
@@ -88,7 +88,7 @@
   <section class="sect">
     <div class="sect-head"><span class="no">01</span><h2>{% trans %}What you fly{% endtrans %}</h2>
       <span class="meta">{% trans count=model.airframes | length %}{{ count }} airframes{% endtrans %}</span></div>
-    <p class="intro">{% trans %}Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot.{% endtrans %}</p>
+    <p class="intro">{% trans %}Where your hours went, airframe by airframe.{% endtrans %}</p>
     <div class="grid">
       <section class="panel c12">
         <div class="hd"><h2>{% trans %}Airframe hours{% endtrans %}</h2><span class="meta">{% trans %}on this site's servers{% endtrans %}</span></div>
@@ -134,9 +134,89 @@
   </section>
 
   <section class="sect">
+    <div class="sect-head"><span class="no">03</span><h2>{% trans %}How you fly{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.discipline.sorties %}{{ count }} sorties{% endtrans %}</span></div>
+    <div class="grid">
+      <section class="panel {% if model.rating %}c7{% else %}c12{% endif %}">
+        <div class="hd"><h2>{% trans %}Flight discipline{% endtrans %}</h2>
+          <span class="meta">{% trans landings=model.discipline.landings, takeoffs=model.discipline.takeoffs %}{{ landings }} landings of {{ takeoffs }} takeoffs{% endtrans %}</span></div>
+        <ul class="hbars disc">
+          {% for row in model.discipline.rows %}
+          <li>
+            <div class="row"><span class="nm">{{ _(row.label) }}</span><span class="vv">{{ row.rate }}%</span></div>
+            <div class="track"><b style="width:{{ row.rate }}%"></b></div>
+            <div class="sub">{% trans count=row.value %}{{ count }} recorded{% endtrans %}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        <p class="note plain">{% trans %}Rates are of your own sorties; the bar is the rate, not a rank against other pilots.{% endtrans %}</p>
+      </section>
+      {% if model.rating %}
+      <section class="panel c5" id="rating">
+        <div class="hd"><h2>{% trans %}Competitive rating{% endtrans %}</h2><span class="meta">{% trans %}TrueSkill · global{% endtrans %}</span></div>
+        <div class="readout rating">
+          <div class="v">{{ model.rating.value }}<small>σ {{ model.rating.sigma }}</small></div>
+          <div class="k">{% trans %}Conservative rating{% endtrans %}</div>
+          <div class="q">{{ say(model.rating.note) }}</div>
+        </div>
+        {% include "_rating_chart.html" %}
+        <p class="note plain">{% trans %}The line is your own history. Every pilot has one rating, and it is the same on every site of this community.{% endtrans %}</p>
+      </section>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="sect">
+    <div class="sect-head"><span class="no">04</span><h2>{% trans %}Recent sorties{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.recent | length %}{{ count }} sessions{% endtrans %}</span></div>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Last flights{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+        {% if model.recent %}
+        <table class="tbl recent">
+          <thead><tr><th>{% trans %}Date{% endtrans %}</th><th>{% trans %}Aircraft{% endtrans %}</th><th class="hide-sm">{% trans %}Mission{% endtrans %}</th><th>{% trans %}Server{% endtrans %}</th><th class="r">{% trans %}Duration{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for sortie in model.recent %}
+            <tr><td>{{ sortie.date }}</td><td><span class="nm">{{ sortie.aircraft }}</span></td><td class="hide-sm">{{ sortie.mission }}</td><td>{{ sortie.server }}</td><td class="r dur">{{ sortie.hours }} {% trans %}h{% endtrans %} {{ sortie.minutes }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="note">{% trans %}No session has been recorded for this account on this site's servers yet.{% endtrans %}</p>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+
+  {% if model.campaigns %}
+  <section class="sect">
+    <div class="sect-head"><span class="no">05</span><h2>{% trans %}Campaigns{% endtrans %}</h2>
+      <span class="meta">{% trans count=model.campaigns | length %}{{ count }} campaigns{% endtrans %}</span></div>
+    <p class="intro">{% trans %}The credits you earned and the badge you were awarded in the campaigns run on this site's servers.{% endtrans %}</p>
+    <div class="grid">
+      <section class="panel c12">
+        <div class="hd"><h2>{% trans %}Credits and badges{% endtrans %}</h2><span class="meta">{% trans %}newest first{% endtrans %}</span></div>
+        <table class="tbl">
+          <thead><tr><th>{% trans %}Campaign{% endtrans %}</th><th class="r">{% trans %}Credits{% endtrans %}</th><th>{% trans %}Badge{% endtrans %}</th></tr></thead>
+          <tbody>
+            {% for campaign in model.campaigns %}
+            <tr>
+              <td><span class="nm">{{ campaign.name }}</span>{% if campaign.running %} <span class="tag hot">{% trans %}running{% endtrans %}</span>{% endif %}</td>
+              <td class="r">{{ campaign.points }}</td>
+              <td>{% if campaign.badge %}<span class="badge">{% if campaign.badge_url %}<img src="{{ campaign.badge_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}<span class="nm">{{ campaign.badge }}</span></span>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="sect">
     <section class="panel">
       <div class="hd"><h2>{% trans %}What others see{% endtrans %}</h2><span class="meta">{% trans %}Public profile{% endtrans %}</span></div>
-      <p class="note">{% trans %}The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history.{% endtrans %}</p>
+      <p class="note">{% trans %}Your public profile shows the name, the playtime and the combat figures — the same numbers as above, without the discipline, the recent sorties and the rating history.{% endtrans %}</p>
       {% if model.public_href %}<p><a class="btn" href="{{ model.public_href }}">{% trans %}Open my public profile{% endtrans %}</a></p>{% endif %}
     </section>
   </section>

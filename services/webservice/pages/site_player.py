@@ -39,7 +39,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from .. import i18n, site_reads, sites
-from ..site_pages import (NAV_PATHS, PLAYER_PATH, SEARCH_PATH, player_url, pool, render_site_page,
+from ..auth import routes as auth_routes
+from ..site_pages import (PLAYER_PATH, SEARCH_PATH, identity, pool, render_site_page,
                           resolve_site, site_url)
 
 __all__ = [
@@ -55,7 +56,6 @@ __all__ = [
     "sentence",
     "airframes",
     "servers",
-    "linked",
     "last_flown",
     "most_flown",
     "readouts",
@@ -197,21 +197,6 @@ def most_flown(rows: list[dict]) -> str:
     return best
 
 
-def linked(rows: list[dict], resolved: Any, ucid: str) -> list[dict]:
-    """Every OTHER UCID of the same Discord link, as a link to that UCID's own profile.
-
-    The primary UCID is the page's own and is not repeated here; a pilot with one UCID answers an
-    empty list, so the section renders nothing.
-    """
-    entries: list[dict] = []
-    for row in (rows or []):
-        other = str(row.get("ucid") or "")
-        if not other or other == str(ucid):
-            continue
-        entries.append({"name": row.get("name") or "", "href": player_url(resolved, other)})
-    return entries
-
-
 def last_flown(recent: list[dict]) -> str:
     """The date of the most recent session (``2026-11-06``), or ``""`` when there is none.
 
@@ -280,7 +265,7 @@ def _headlines(totals: dict, character: str = sites.DEFAULT_CHARACTER) -> dict[s
                                  per_sortie(totals.get("pvp"), totals.get("takeoffs")))},
         "kd": {"key": "kd", "value": ratio(totals.get("kills"), totals.get("deaths")),
                "unit": None, "label": i18n._("K/D"),
-               "note": sentence(i18n._("%(count)s deaths"), count(totals.get("deaths")))},
+               "note": sentence(i18n._("{count} deaths"), count(totals.get("deaths")))},
     }
 
 
@@ -646,20 +631,24 @@ def rating_view(rating: dict | None) -> dict | None:
 
 # --------------------------------------------------------------------------------- the view
 
-def view(resolved: Any, profile: dict) -> dict:
-    """The page's whole model from the read's own answer — pure, so a test can pin it."""
+def view(resolved: Any, profile: dict, discord_sign_in: bool = False) -> dict:
+    """The page's whole model from the read's own answer — pure, so a test can pin it.
+
+    ``discord_sign_in`` is the one fact that is not the pilot's: whether this installation offers
+    the Discord door AND the visitor is still anonymous, which is what draws the panel pointing a
+    visitor at their own record. It is computed by the route, never here.
+    """
     found = bool(profile.get("found"))
     totals = dict(profile.get("totals") or {})
-    ucid = str(profile.get("ucid") or "")
     character = _character(resolved)
     aircraft = profile.get("per_aircraft") or []
     return {
         "found": found,
         "not_found": False,
         "unavailable": False,
+        "discord_sign_in": bool(discord_sign_in),
         "name": profile.get("name") or "",
         "last_flown": last_flown(profile.get("recent") or []),
-        "discord_linked": int(profile.get("discord_id") or -1) > 0,
         "character": character,
         "character_line": CHARACTER_LINES.get(character, CHARACTER_LINES["pvpve"]),
         "readouts": readouts(totals, character),
@@ -667,12 +656,10 @@ def view(resolved: Any, profile: dict) -> dict:
         "discipline": discipline(totals),
         "rating": rating_view(profile.get("rating")),
         "search_href": site_url(resolved, SEARCH_PATH),
-        "leaderboard_href": site_url(resolved, NAV_PATHS["leaderboard"]),
         "airframes": airframes(aircraft, totals.get("playtime")),
         "most_flown": most_flown(aircraft),
         "servers": servers(profile.get("per_server") or []),
         "recent": recent(profile.get("recent") or []),
-        "linked": linked(profile.get("ucids") or [], resolved, ucid),
     }
 
 
@@ -692,6 +679,18 @@ def _not_found(resolved: Any) -> dict:
 
 # --------------------------------------------------------------------------------- the route
 
+def _discord_sign_in(request: Request) -> bool:
+    """Whether to point an anonymous visitor at their own record.
+
+    Two conditions, both required: this installation offers the Discord door, and the visitor is
+    still anonymous. ``sign_in_href`` is not the test — a password-only installation answers one
+    too, and the panel names Discord — and a signed-in visitor already has the shell's chip.
+    """
+    if identity(request) is not None:
+        return False
+    return bool(auth_routes.login_doors(request).discord)
+
+
 def add_route(router: APIRouter, site: Any) -> str:
     """Serve one pilot's profile at ``<site>/player/<ucid>`` and return the registered path."""
     path = site_url(site, f"{PLAYER_PATH}/{{ucid}}")
@@ -708,7 +707,7 @@ def add_route(router: APIRouter, site: Any) -> str:
         if not profile.get("found"):
             return render_site_page(request, site, TEMPLATE, active=NAV_ID, resolved=resolved,
                                     model=_not_found(resolved), status_code=404)
-        model = view(resolved, profile)
+        model = view(resolved, profile, discord_sign_in=_discord_sign_in(request))
         return render_site_page(request, site, TEMPLATE, active=NAV_ID, resolved=resolved,
                                 model=model)
 

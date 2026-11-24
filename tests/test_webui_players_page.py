@@ -517,21 +517,27 @@ def control_paths(cell: str) -> set[str]:
 
 
 @pytest.mark.asyncio
-async def test_online_and_offline_rows_both_offer_ban_and_watch(app, read, built):
-    """The offline half is the point: neither control needs a live session."""
+async def test_an_online_row_offers_the_live_controls_and_an_offline_row_the_ban_list_pair(app, read, built):
+    """The row's own STATE decides which writes it carries: a player holding a slot gets the live
+    ones, an offline player gets the ban-list ADD, and neither is drawn on the other row."""
     async with client(app) as http:
         await sign_in(http, "mod1")
         html = await open_page(http, "?show=all")
 
     controls = built[players_page.PLAYERS_TABLE]
-    assert control_icons(controls[DIRK]) == ["ban", "reveal"], "an ONLINE clean row: Ban + Watch"
-    assert control_icons(controls[CLEAN]) == ["ban", "reveal"], "an OFFLINE clean row: the same pair"
+    assert control_icons(controls[DIRK]) == ["kick", "ban", "chat", "popup", "mute", "reveal"], \
+        "an ONLINE clean row: the live writes, then Watch"
+    assert control_icons(controls[CLEAN]) == ["ban", "reveal"], \
+        "an OFFLINE clean row: the ban-list pair only"
 
-    for name in ("Dirk", "Kolya"):
-        cell = row_html(html, name)
-        assert control_paths(cell) == {actions_page.BAN_ADD_ACTION.path + actions_page.CONFIRM_SUFFIX,
-                                       actions_page.WATCH_ADD_PATH + actions_page.CONFIRM_SUFFIX}, \
-            f"{name} must render the two glyph forms"
+    online = control_paths(row_html(html, "Dirk"))
+    assert actions_page.CHAT_PATH + actions_page.CONFIRM_SUFFIX in online
+    assert "/actions/player/ban" + actions_page.CONFIRM_SUFFIX in online, \
+        "a live row's Ban ends the session, so it is the live write, not the ban-list ADD"
+    offline = control_paths(row_html(html, "Kolya"))
+    assert offline == {actions_page.BAN_ADD_ACTION.path + actions_page.CONFIRM_SUFFIX,
+                       actions_page.WATCH_ADD_PATH + actions_page.CONFIRM_SUFFIX}, \
+        "an offline row must render only the ban-list pair"
 
 
 @pytest.mark.asyncio
@@ -573,16 +579,29 @@ async def test_a_clean_row_offers_ban_and_watch_and_neither_release_glyph(app, r
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("query", ["", "?show=online", "?show=banned", "?show=watched"])
-async def test_no_view_renders_a_live_session_control(app, read, query):
-    """Message / Popup / Kick / Screenshot need a slot, so they are not row controls anywhere here."""
+@pytest.mark.parametrize("query", ["?show=banned", "?show=watched"])
+async def test_a_view_of_offline_players_draws_no_live_session_control(app, read, query):
+    """A live-session write needs a slot: a view that lists no online player draws none of them."""
     async with client(app) as http:
         await sign_in(http, "mod1")
         html = await open_page(http, query)
 
     for path in (actions_page.CHAT_PATH, actions_page.POPUP_PATH,
                  "/actions/player/kick", "/actions/player/screenshot"):
-        assert path not in html, f"a live-session control ({path}) must not be a row control"
+        assert path not in html, f"a live-session control ({path}) on a view with no live session"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("query", ["", "?show=online"])
+async def test_a_live_row_offers_the_live_session_controls(app, read, query):
+    """The row that DOES hold a slot offers the writes that need one."""
+    async with client(app) as http:
+        await sign_in(http, "mod1")
+        html = await open_page(http, query)
+
+    for path in (actions_page.CHAT_PATH, actions_page.POPUP_PATH, "/actions/player/kick"):
+        assert path + actions_page.CONFIRM_SUFFIX in html, \
+            f"a live row must offer {path}"
 
 
 @pytest.mark.asyncio

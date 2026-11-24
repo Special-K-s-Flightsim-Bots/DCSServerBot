@@ -3118,10 +3118,6 @@ msgid "Every bar is one UTC hour: flight time is split across the hours each ses
 msgstr "Каждый столбец — один час UTC: время полёта распределяется по часам, которые сессия действительно охватывала."
 
 #: services/webservice/templates/site_leaderboard.html:18
-msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
-msgstr "Все пилоты на этих серверах, с цифрами за местом в рейтинге. Выбери показатель или отсортируй любой столбец."
-
-#: services/webservice/pages/site_overview.py:505
 msgid "Flew this week"
 msgstr "Летал на этой неделе"
 
@@ -11609,9 +11605,6 @@ msgstr "пилотов на этой неделе"
 msgid "Hours in the air"
 msgstr "Часы в воздухе"
 
-msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
-msgstr "База статистики пока недоступна, поэтому страница не показывает цифры. Она заполнится, как только бот подключится."
-
 msgid "%(count)s vs. last week"
 msgstr "%(count)s к прошлой неделе"
 
@@ -11702,9 +11695,6 @@ msgstr "Воздушные цели"
 msgid "Airframe hours"
 msgstr "Часы по типам"
 
-msgid "Also known as"
-msgstr "Также известен как"
-
 msgid "Back to the first page"
 msgstr "Вернуться на первую страницу"
 
@@ -11714,20 +11704,11 @@ msgstr "Вернуться к таблице лидеров"
 msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
 msgstr "Полосы масштабированы по налёту этого пилота: самая длинная — наиболее используемый тип."
 
-msgid "Discord link"
-msgstr "Связь с Discord"
-
-msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
-msgstr "Либо адрес указан неверно, либо у этого пилота нет сессий на серверах этого сайта. Найдите пилота по имени."
-
 msgid "Find a pilot"
 msgstr "Найти пилота"
 
 msgid "Ground Targets"
 msgstr "Наземные цели"
-
-msgid "Is this you?"
-msgstr "Это вы?"
 
 msgid "KD-Ratio"
 msgstr "Соотношение K/D"
@@ -11765,9 +11746,6 @@ msgstr "Поиск пилотов"
 msgid "Pilots whose name contains “%(query)s”"
 msgstr "Пилоты, чьё имя содержит «%(query)s»"
 
-msgid "Public profile."
-msgstr "Публичный профиль."
-
 msgid "Public record · no account needed"
 msgstr "Публичная запись · аккаунт не нужен"
 
@@ -11783,20 +11761,8 @@ msgstr "Рейтинг · %(metric)s"
 msgid "Sessions per server"
 msgstr "Сессии по серверам"
 
-msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
-msgstr "Одна и та же учётная запись Discord летала под несколькими ID игрока. Каждое имя открывает соответствующий профиль."
-
 msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
 msgstr "Три окна — это месяц, квартал и год движка статистики, предложенные как 30, 90 и 365 дней."
-
-msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
-msgstr "Это видит каждый о пилоте без входа: имя, эскадрилья, налёт и боевые показатели."
-
-msgid "This page holds no rows; the board ends earlier."
-msgstr "На этой странице нет строк; таблица заканчивается раньше."
-
-msgid "This page holds no rows; the result ends earlier."
-msgstr "На этой странице нет строк; результат заканчивается раньше."
 
 msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
 msgstr "Введите первые буквы имени в поле выше. Поиск сравнивает начало имени, а не любую его часть."
@@ -11815,9 +11781,6 @@ msgstr "последний вылет %(when)s"
 
 msgid "on this site's servers"
 msgstr "на серверах этого сайта"
-
-msgid "one Discord account, several player IDs"
-msgstr "одна учётная запись Discord, несколько ID"
 
 msgid "recorded"
 msgstr "записано"
@@ -11861,17 +11824,8 @@ msgstr "Вы вошли"
 msgid "Signed out"
 msgstr "Вы вышли"
 
-msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
-msgstr "Учётная запись, под которой вы вошли, не привязана ни к одному ID игрока, летавшему на серверах этого сайта. Возможно, ваша запись есть на другом сайте этого сообщества; на этом её нет."
-
-msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
-msgstr "Цифры выше — те же, что любой читает в вашем публичном профиле: имя, время полёта и боевые цифры. Ни ID Discord, ни IP-адреса (даже его хеша), ни адреса почты, ни статуса бана или наблюдения, ни истории модерации."
-
 msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
 msgstr "Те же сессии, посчитанные по серверу, на котором они прошли. Показываются только серверы этого сайта."
-
-msgid "This installation has no sign-in method enabled."
-msgstr "На этой установке не включено ни одного способа входа."
 
 msgid "This is you"
 msgstr "Это вы"
@@ -11888,17 +11842,11 @@ msgstr "На чём вы летаете"
 msgid "Where you fly"
 msgstr "Где вы летаете"
 
-msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
-msgstr "Куда ушли ваши часы, модуль за модулем, так, как их записывает плагин статистики по слоту."
-
 msgid "these figures are yours, counted on this site's servers."
 msgstr "эти цифры ваши, посчитаны на серверах этого сайта."
 
 msgid "this account has no record on this site's servers."
 msgstr "у этой учётной записи нет записей на серверах этого сайта."
-
-msgid "%(count)s deaths"
-msgstr "%(count)s потерь"
 
 msgid "%(count)s recorded"
 msgstr "%(count)s записано"
@@ -11935,9 +11883,6 @@ msgstr "Как они летают"
 
 msgid "Last flights"
 msgstr "Последние полёты"
-
-msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
-msgstr "Один рейтинг на пилота, его ведёт плагин соревнований. У него нет колонки сервера, поэтому на каждом сайте это одно и то же значение."
 
 msgid "PvE community"
 msgstr "PvE-сообщество"
@@ -13509,3 +13454,72 @@ msgstr "Цвет показывает, кто это прочтёт: все, т�
 msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
 msgstr "Напишите строку игрокам на этом сервере…  (Enter отправляет, Shift+Enter переносит строку)"
 
+#: services/webservice/pages/site_overview.py:505
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a figure to rank by, or sort the table."
+msgstr "Каждый пилот на этих серверах, с цифрами, стоящими за местом. Выберите показатель для ранжирования или отсортируйте таблицу."
+
+msgid "Statistics are not available yet. They appear as soon as the servers report in."
+msgstr "Статистика пока недоступна. Она появится, как только серверы выйдут на связь."
+
+msgid "running"
+msgstr "идёт"
+
+msgid "%(count)s campaigns"
+msgstr "%(count)s кампаний"
+
+msgid "Badge"
+msgstr "Значок"
+
+msgid "Campaign"
+msgstr "Кампания"
+
+msgid "Campaigns"
+msgstr "Кампании"
+
+msgid "Credits"
+msgstr "Кредиты"
+
+msgid "Credits and badges"
+msgstr "Кредиты и значки"
+
+msgid "Either the address is mistyped, or this pilot has not flown on these servers. Search for a pilot by name instead."
+msgstr "Либо адрес написан с ошибкой, либо этот пилот не летал на этих серверах. Поищите пилота по имени."
+
+msgid "If you want to see your own statistics with more details, make sure to link your account and sign in with Discord."
+msgstr "Если хотите видеть свою статистику подробнее, привяжите аккаунт и войдите через Discord."
+
+msgid "Rates are of your own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "Доли считаются от ваших собственных вылетов; полоса — это доля, а не место среди других пилотов."
+
+msgid "The credits you earned and the badge you were awarded in the campaigns run on this site's servers."
+msgstr "Кредиты, которые вы заработали, и значок, полученный в кампаниях на серверах этого сайта."
+
+msgid "The line is your own history. Every pilot has one rating, and it is the same on every site of this community."
+msgstr "Линия — это ваша собственная история. У каждого пилота один рейтинг, и он одинаков на всех сайтах сообщества."
+
+msgid "This page is empty — the board ends on an earlier page."
+msgstr "Эта страница пуста — таблица заканчивается на предыдущей."
+
+msgid "This page is empty — the list ends on an earlier page."
+msgstr "Эта страница пуста — список заканчивается на предыдущей."
+
+msgid "Your own statistics"
+msgstr "Ваша статистика"
+
+msgid "Your public profile shows the name, the playtime and the combat figures — the same numbers as above, without the discipline, the recent sorties and the rating history."
+msgstr "В вашем публичном профиле видны имя, наигранное время и боевые цифры — те же числа, что выше, но без дисциплины, последних вылетов и истории рейтинга."
+
+msgid "Your Discord account is not connected to any pilot who has flown here. Another site of this community may have your record; this one does not."
+msgstr "Ваш аккаунт Discord не связан ни с одним пилотом, летавшим здесь. Возможно, ваш профиль есть на другом сайте сообщества; на этом — нет."
+
+msgid "Signing in is not available on this site."
+msgstr "Вход на этом сайте недоступен."
+
+msgid "Where your hours went, airframe by airframe."
+msgstr "Куда ушли ваши часы — по типам."
+
+msgid "How you fly"
+msgstr "Как вы летаете"
+
+msgid "Every pilot has one rating, and it is the same on every site of this community."
+msgstr "У каждого пилота один рейтинг, и он одинаков на всех сайтах сообщества."

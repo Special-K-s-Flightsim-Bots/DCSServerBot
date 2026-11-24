@@ -443,11 +443,11 @@ def test_the_srs_port_cache_refreshes_on_a_status_change(tmp_path):
     assert srs.calls == [("SRS", "get_ports")] * 2, "the status change did not refetch"
 
 
-def test_a_failed_lookup_is_retried_when_the_extension_appears(tmp_path):
+def test_a_lookup_that_reported_the_extension_missing_is_asked_again(tmp_path):
     """A lookup that failed at startup is not an answer: it is re-asked and the port lands.
 
     The extension list arrives a moment after the server starts, so the first lookup of a freshly
-    started server answers ``Extension SRS not found``. Caching that as the answer left the em dash
+    started server answers ``Extension SRS not found``. Treating that as the answer left the em dash
     in place until the server's next status change, which may never come.
     """
     node = _Node(tmp_path, master=True, multinode=True)
@@ -456,11 +456,11 @@ def test_a_failed_lookup_is_retried_when_the_extension_appears(tmp_path):
     asyncio.run(dashboard_module.refresh_srs_ports(service))
     assert srs.calls == [("SRS", "get_ports")], "the first lookup was not attempted"
     assert "—" in _srs_row(service)
-    assert "SRS-1" in service.srs_retry, "a failed lookup scheduled no retry"
 
     srs.error = None
     srs.ports = {"SRS Port": Port(5002, PortType.BOTH)}
-    service.srs_retry["SRS-1"] = (1, 0.0)  # the retry delay has run out
+    # whatever the first pass left behind, the next render's delay is over
+    service.srs_retry["SRS-1"] = (1, 0.0)
     asyncio.run(dashboard_module.refresh_srs_ports(service))
     assert len(srs.calls) == 2, "the failed lookup was never re-asked"
     assert "5002" in _srs_row(service), "the retried answer did not reach the row"

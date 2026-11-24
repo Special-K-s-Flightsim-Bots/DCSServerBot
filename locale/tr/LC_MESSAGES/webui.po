@@ -12043,10 +12043,6 @@ msgid "Every bar is one UTC hour: flight time is split across the hours each ses
 msgstr "Her çubuk bir UTC saatidir: uçuş süresi, her oturumun gerçekte kapsadığı saatlere bölünür."
 
 #: services/webservice/templates/site_leaderboard.html:18
-msgid "Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column."
-msgstr "Bu sunuculardaki tüm pilotlar, sıralamanın arkasındaki sayılarla. Bir ölçüt seçin ya da herhangi bir sütunu sıralayın."
-
-#: services/webservice/pages/site_overview.py:505
 msgid "Flew this week"
 msgstr "Bu hafta uçtu"
 
@@ -12239,9 +12235,6 @@ msgstr "pilot bu hafta"
 msgid "Hours in the air"
 msgstr "Havada geçen saat"
 
-msgid "The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected."
-msgstr "İstatistik veritabanı henüz kullanılamıyor, bu yüzden sayfa hiçbir sayı göstermiyor. Bot bağlanır bağlanmaz dolar."
-
 msgid "%(count)s vs. last week"
 msgstr "%(count)s geçen haftaya göre"
 
@@ -12332,9 +12325,6 @@ msgstr "Hava hedefleri"
 msgid "Airframe hours"
 msgstr "Hava aracı saatleri"
 
-msgid "Also known as"
-msgstr "Diğer adları"
-
 msgid "Back to the first page"
 msgstr "İlk sayfaya dön"
 
@@ -12344,20 +12334,11 @@ msgstr "Sıralamaya dön"
 msgid "Bars are scaled to this pilot's own flying, so the longest bar is the airframe they fly most."
 msgstr "Çubuklar bu pilotun uçuş süresine göre ölçeklenir; en uzun çubuk en çok uçtuğu hava aracıdır."
 
-msgid "Discord link"
-msgstr "Discord bağlantısı"
-
-msgid "Either the address is mistyped, or this pilot has no session on this site's servers. Search for a pilot by name instead."
-msgstr "Ya adres yanlış yazıldı ya da bu pilotun bu sitenin sunucularında hiç oturumu yok. Bunun yerine adla pilot arayın."
-
 msgid "Find a pilot"
 msgstr "Pilot bul"
 
 msgid "Ground Targets"
 msgstr "Kara hedefleri"
-
-msgid "Is this you?"
-msgstr "Bu siz misiniz?"
 
 msgid "KD-Ratio"
 msgstr "K/D oranı"
@@ -12395,9 +12376,6 @@ msgstr "Pilot arama"
 msgid "Pilots whose name contains “%(query)s”"
 msgstr "Adı “%(query)s” içeren pilotlar"
 
-msgid "Public profile."
-msgstr "Herkese açık profil."
-
 msgid "Public record · no account needed"
 msgstr "Herkese açık kayıt · hesap gerekmez"
 
@@ -12413,20 +12391,8 @@ msgstr "Sıralama · %(metric)s"
 msgid "Sessions per server"
 msgstr "Sunucu başına oturum"
 
-msgid "The same Discord account has flown under more than one player ID. Each name opens that profile."
-msgstr "Aynı Discord hesabı birden fazla oyuncu kimliğiyle uçmuş. Her ad ilgili profili açar."
-
 msgid "The three windows are the statistics engine's own month, quarter and year, offered as 30, 90 and 365 days."
 msgstr "Üç dönem, istatistik motorunun kendi ay, çeyrek ve yılıdır; 30, 90 ve 365 gün olarak sunulur."
-
-msgid "This is what anybody sees for a pilot without signing in: name, squadron, playtime and the combat figures."
-msgstr "Bir pilot için giriş yapmadan herkesin gördüğü şey budur: ad, filo, uçuş süresi ve muharebe verileri."
-
-msgid "This page holds no rows; the board ends earlier."
-msgstr "Bu sayfada satır yok; tablo daha önce bitiyor."
-
-msgid "This page holds no rows; the result ends earlier."
-msgstr "Bu sayfada satır yok; sonuç daha önce bitiyor."
 
 msgid "Type the first letters of a name in the search box above. The search matches the beginning of a pilot's name, not any part of it."
 msgstr "Yukarıdaki arama kutusuna bir adın ilk harflerini yazın. Arama, adın herhangi bir yerini değil başlangıcını eşler."
@@ -12445,9 +12411,6 @@ msgstr "son uçuş %(when)s"
 
 msgid "on this site's servers"
 msgstr "bu sitenin sunucularında"
-
-msgid "one Discord account, several player IDs"
-msgstr "tek Discord hesabı, birden fazla oyuncu kimliği"
 
 msgid "recorded"
 msgstr "kayıtlı"
@@ -12491,17 +12454,8 @@ msgstr "Giriş yapıldı"
 msgid "Signed out"
 msgstr "Çıkış yapıldı"
 
-msgid "The account you signed in with is linked to no player ID that has flown on this site's servers. Another site of this community may well have your record; this one does not."
-msgstr "Giriş yaptığınız hesap, bu sitenin sunucularında uçmuş hiçbir oyuncu kimliğine bağlı değil. Bu topluluğun başka bir sitesinde kaydınız olabilir; burada yok."
-
-msgid "The figures above are the same ones anybody reads on your public profile: name, playtime and the combat figures. No Discord ID, no IP address (not even its hash), no email, no ban or watch state, no moderation history."
-msgstr "Yukarıdaki sayılar herkesin herkese açık profilinizde okuduğu sayılardır: ad, uçuş süresi ve muharebe sayıları. Discord kimliği yok, IP adresi (hash'i bile) yok, e-posta yok, ban veya izleme durumu yok, moderasyon geçmişi yok."
-
 msgid "The same sessions counted by the server they ran on. Only this site's servers appear."
 msgstr "Aynı oturumlar, üzerinde geçtikleri sunucuya göre sayılmış. Yalnızca bu sitenin sunucuları görünür."
-
-msgid "This installation has no sign-in method enabled."
-msgstr "Bu kurulumda hiçbir giriş yöntemi etkin değil."
 
 msgid "This is you"
 msgstr "Bu sizsiniz"
@@ -12518,17 +12472,11 @@ msgstr "Ne uçuyorsunuz"
 msgid "Where you fly"
 msgstr "Nerede uçuyorsunuz"
 
-msgid "Where your hours went, airframe by airframe, as the statistics plugin recorded them per slot."
-msgstr "Saatlerinizin nereye gittiği, modül modül, istatistik eklentisinin her slot için kaydettiği gibi."
-
 msgid "these figures are yours, counted on this site's servers."
 msgstr "bu sayılar sizin, bu sitenin sunucularında sayıldı."
 
 msgid "this account has no record on this site's servers."
 msgstr "bu hesabın bu sitenin sunucularında kaydı yok."
-
-msgid "%(count)s deaths"
-msgstr "%(count)s kayıp"
 
 msgid "%(count)s recorded"
 msgstr "%(count)s kayıtlı"
@@ -12565,9 +12513,6 @@ msgstr "Nasıl uçuyorlar"
 
 msgid "Last flights"
 msgstr "Son uçuşlar"
-
-msgid "One rating per pilot, held by the competitive plugin. It has no server column, so it is the same value on every site."
-msgstr "Pilot başına tek derecelendirme, rekabet eklentisi tarafından tutulur. Sunucu sütunu yoktur, bu yüzden her sitede aynı değerdir."
 
 msgid "PvE community"
 msgstr "PvE topluluğu"
@@ -14139,3 +14084,72 @@ msgstr "Renk kimin okuyabileceğini gösterir: herkes, yalnızca kırmızı, yal
 msgid "Type a line to the players on this server…  (Enter sends, Shift+Enter breaks the line)"
 msgstr "Bu sunucudaki oyunculara bir satır yaz…  (Enter gönderir, Shift+Enter satırı böler)"
 
+#: services/webservice/pages/site_overview.py:505
+msgid "Every pilot on these servers, with the numbers behind the rank. Pick a figure to rank by, or sort the table."
+msgstr "Bu sunuculardaki her pilot, sıralamanın arkasındaki sayılarla. Sıralamak için bir ölçüt seçin veya tabloyu sıralayın."
+
+msgid "Statistics are not available yet. They appear as soon as the servers report in."
+msgstr "İstatistikler henüz yok. Sunucular bildirir bildirmez görünecek."
+
+msgid "running"
+msgstr "sürüyor"
+
+msgid "%(count)s campaigns"
+msgstr "%(count)s kampanya"
+
+msgid "Badge"
+msgstr "Rozet"
+
+msgid "Campaign"
+msgstr "Kampanya"
+
+msgid "Campaigns"
+msgstr "Kampanyalar"
+
+msgid "Credits"
+msgstr "Krediler"
+
+msgid "Credits and badges"
+msgstr "Krediler ve rozetler"
+
+msgid "Either the address is mistyped, or this pilot has not flown on these servers. Search for a pilot by name instead."
+msgstr "Ya adres yanlış yazılmış ya da bu pilot bu sunucularda uçmamış. Bunun yerine ada göre pilot arayın."
+
+msgid "If you want to see your own statistics with more details, make sure to link your account and sign in with Discord."
+msgstr "Kendi istatistiklerinizi daha ayrıntılı görmek istiyorsanız hesabınızı bağlayıp Discord ile oturum açın."
+
+msgid "Rates are of your own sorties; the bar is the rate, not a rank against other pilots."
+msgstr "Oranlar kendi sortilerinize göredir; çubuk oranı gösterir, diğer pilotlara karşı bir sıralama değildir."
+
+msgid "The credits you earned and the badge you were awarded in the campaigns run on this site's servers."
+msgstr "Bu sitenin sunucularındaki kampanyalarda kazandığınız krediler ve aldığınız rozet."
+
+msgid "The line is your own history. Every pilot has one rating, and it is the same on every site of this community."
+msgstr "Çizgi kendi geçmişinizdir. Her pilotun tek bir derecelendirmesi vardır ve bu topluluğun her sitesinde aynıdır."
+
+msgid "This page is empty — the board ends on an earlier page."
+msgstr "Bu sayfa boş — tablo daha önceki bir sayfada bitiyor."
+
+msgid "This page is empty — the list ends on an earlier page."
+msgstr "Bu sayfa boş — liste daha önceki bir sayfada bitiyor."
+
+msgid "Your own statistics"
+msgstr "Kendi istatistikleriniz"
+
+msgid "Your public profile shows the name, the playtime and the combat figures — the same numbers as above, without the discipline, the recent sorties and the rating history."
+msgstr "Herkese açık profiliniz adı, oynama süresini ve muharebe sayılarını gösterir — yukarıdakiyle aynı sayılar, ancak disiplin, son sortiler ve derecelendirme geçmişi olmadan."
+
+msgid "Your Discord account is not connected to any pilot who has flown here. Another site of this community may have your record; this one does not."
+msgstr "Discord hesabınız burada uçmuş hiçbir pilota bağlı değil. Bu topluluğun başka bir sitesinde kaydınız olabilir; burada yok."
+
+msgid "Signing in is not available on this site."
+msgstr "Bu sitede oturum açma kullanılamıyor."
+
+msgid "Where your hours went, airframe by airframe."
+msgstr "Saatleriniz nereye gitti, hava aracı bazında."
+
+msgid "How you fly"
+msgstr "Nasıl uçuyorsunuz"
+
+msgid "Every pilot has one rating, and it is the same on every site of this community."
+msgstr "Her pilotun tek bir derecelendirmesi vardır ve bu topluluğun her sitesinde aynıdır."

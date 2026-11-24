@@ -20,6 +20,7 @@ not re-run here.
 from __future__ import annotations
 
 import asyncio
+import datetime
 import re
 import types
 
@@ -90,17 +91,35 @@ class _Connection:
 
 
 class StubPool:
-    """The viewer's own record, bound to the site's servers — the read's own shape."""
+    """The viewer's own record, bound to the site's servers — the read's own shape.
 
-    def __init__(self):
+    ``tables`` decides which plugin tables exist (the rating's and the campaign's panels vanish
+    without them), ``rating``/``history`` are the competitive plugin's rows and ``campaigns`` the
+    credits-and-badge answer.
+    """
+
+    def __init__(self, *, tables=(), rating=None, history=None, campaigns=None):
         self.calls: list[tuple[str, dict]] = []
         self.linked: dict[str, tuple[str, ...]] = dict(LINKED)
+        self.tables = set(tables)
+        self.rating = rating
+        self.history = list(history or [])
+        self.campaigns = list(campaigns or [])
 
     def connection(self):
         return _Connection(self)
 
     def answer(self, statement, params):
         params = params or {}
+        if "to_regclass" in statement:
+            return [{"present": params.get("name") in self.tables}]
+        if "FROM campaigns c" in statement:
+            return list(self.campaigns)
+        if "FROM trueskill_hist" in statement:
+            rows = [*self.history, *([self.rating] if self.rating else [])]
+            return sorted(rows, key=lambda row: str(row.get("time") or ""))
+        if "FROM trueskill" in statement:
+            return [self.rating] if self.rating else []
         names = list(params.get("servers") or ())
         if "WHERE p.discord_id = %(discord_id)s" in statement:
             key = "group1" if "Group-1" in names else ""
@@ -232,7 +251,7 @@ def test_an_installation_with_no_door_offers_none(config_dir, pool):
     response, _ = fetch(app, "/group1/me")
     assert response.status_code == 200
     assert "/auth/" not in response.text
-    assert "no sign-in method enabled" in response.text
+    assert "Signing in is not available on this site." in response.text
 
 
 def test_the_sign_in_control_walks_the_existing_start_route_into_this_site(config_dir, pool,
@@ -475,3 +494,86 @@ def test_the_view_is_pure_and_names_the_viewers_own_record(config_dir, pool):
     assert [row["value"] for row in model["readouts"]] == ["111", "1,111", "1,119", "1,113",
                                                            "1.00"]
     assert model["public_href"] == "/group1/player/u-me-1"
+
+
+# ------------------------------------------- the panels only the pilot's own page carries
+
+RATING = {"skill_mu": 43.7, "skill_sigma": 4.1, "time": "2026-11-01T20:00:00"}
+HISTORY = [{"skill_mu": 40.0, "skill_sigma": 6.2, "time": "2025-05-04T20:12:00"},
+           {"skill_mu": 42.0, "skill_sigma": 5.0, "time": "2026-04-02T19:05:00"}]
+
+CAMPAIGNS = [
+    {"name": "Syria 82", "start": datetime.datetime(2026, 1, 10, 12, 0),
+     "stop": None, "points": 1234, "badge_name": "Veteran",
+     "badge_url": "https://example.com/veteran.png"},
+    {"name": "Kola Cold War", "start": datetime.datetime(2025, 3, 1, 12, 0),
+     "stop": datetime.datetime(2025, 6, 1, 12, 0), "points": 87, "badge_name": None,
+     "badge_url": None},
+]
+
+
+def test_the_rating_history_is_drawn_on_the_pilots_own_page(config_dir, bus):
+    """The split: the public profile states the number, the pilot's page draws how it got there."""
+    bus.apool = StubPool(tables=("trueskill", "trueskill_hist"), rating=RATING, history=HISTORY)
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Competitive rating" in markup
+    assert "43.7" in markup
+    assert 'role="img"' in markup, "the chart's one accessibility sentence is missing"
+    assert '<path class="rc-band"' in markup and '<polyline class="rc-line"' in markup
+    assert "Up 3.7 points across this span." in markup
+
+
+def test_the_rating_panel_is_absent_without_the_plugin_tables(config_dir, bus):
+    bus.apool = StubPool()
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Competitive rating" not in markup
+    assert 'class="rc' not in markup, "a missing table leaves no empty shell"
+
+
+def test_the_discipline_and_the_recent_sorties_reach_the_own_page(config_dir, bus):
+    bus.apool = StubPool()
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Flight discipline" in markup and "Takeoffs" in markup
+    assert "Recent sorties" in markup and "Last flights" in markup
+
+
+def test_the_campaigns_panel_carries_credits_and_the_badge_image(config_dir, bus):
+    bus.apool = StubPool(tables=("campaigns", "campaigns_servers", "credits", "players_badges"),
+                         campaigns=CAMPAIGNS)
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Campaigns" in markup and "Credits and badges" in markup
+    assert "Syria 82" in markup and "Kola Cold War" in markup
+    assert "1,234" in markup and "87" in markup
+    assert 'src="https://example.com/veteran.png"' in markup, "the badge image is not rendered"
+    assert 'referrerpolicy="no-referrer"' in markup, "a third-party badge leaks the visitor"
+    assert "running" in markup, "the open campaign is not marked"
+    assert "Veteran" in markup
+
+
+def test_the_campaigns_panel_is_absent_without_the_plugin_tables(config_dir, bus):
+    bus.apool = StubPool(campaigns=CAMPAIGNS)  # rows, but no tables to read them from
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+    markup = fetch(app, "/group1/me")[0].text
+    assert "Credits and badges" not in markup
+
+
+def test_the_rating_chart_speaks_the_pages_language(config_dir, bus):
+    """The chart's own sentences and date labels come from the catalog, through the partial."""
+    from services.webservice import i18n
+
+    bus.apool = StubPool(tables=("trueskill", "trueskill_hist"), rating=RATING, history=HISTORY)
+    app = as_viewer(build(config_dir)[0], viewer(roles={"DCS"}))
+
+    async def run():
+        async with asgi_client(app) as client:
+            client.cookies.set(i18n.COOKIE_NAME, "de")
+            return await client.get("/group1/me")
+
+    markup = asyncio.run(run()).text
+    assert "Seit 4. Mai 2025 um 3.7 Punkte gestiegen." in markup
+    assert "Über diesen Zeitraum um 3.7 Punkte gestiegen." in markup
+    assert "Mai 2025" in markup and "November 2026" in markup

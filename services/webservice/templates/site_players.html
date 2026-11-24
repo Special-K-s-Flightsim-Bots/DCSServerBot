@@ -31,7 +31,7 @@
     <section class="panel">
       <div class="hd"><h2>{% if model.searched %}{% trans query=model.query %}Pilots whose name contains “{{ query }}”{% endtrans %}{% else %}{% trans %}Find a pilot{% endtrans %}{% endif %}</h2><span class="meta">{% if model.rows %}{% trans first=model.first, last=model.last %}rows {{ first }} – {{ last }}{% endtrans %}{% endif %}</span></div>
       {% if model.unavailable %}
-      <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+      <p class="note">{% trans %}Statistics are not available yet. They appear as soon as the servers report in.{% endtrans %}</p>
       {% elif model.rows %}
       <table class="tbl">
         <thead><tr><th>{% trans %}Pilot{% endtrans %}</th><th class="r">{% trans %}Last seen{% endtrans %}</th></tr></thead>
@@ -44,7 +44,7 @@
       {% elif not model.searched %}
       <p class="note">{% trans %}No search yet: type part of a pilot's name in the search box above.{% endtrans %}</p>
       {% elif model.past_end %}
-      <p class="note">{% trans %}This page holds no rows; the result ends earlier.{% endtrans %} <a href="{{ model.first_href }}">{% trans %}Back to the first page{% endtrans %}</a>.</p>
+      <p class="note">{% trans %}This page is empty — the list ends on an earlier page.{% endtrans %} <a href="{{ model.first_href }}">{% trans %}Back to the first page{% endtrans %}</a>.</p>
       {% else %}
       <p class="note">{% trans %}No pilot's name contains that. Try fewer letters.{% endtrans %}</p>
       {% endif %}

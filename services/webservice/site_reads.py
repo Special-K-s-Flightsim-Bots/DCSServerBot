@@ -145,6 +145,12 @@ EXEMPT_STATEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
          "the competitive plugin's rating has no server column: one rating per pilot, the same on "
          "every site"),
     ),
+    "my_statistics": (
+        ("to_regclass", "a catalog probe: a table exists per database, not per site"),
+        ("FROM trueskill",
+         "the competitive plugin's rating has no server column: one rating per pilot, the same on "
+         "every site"),
+    ),
 }
 
 #: Page caps. A caller may ask for a page index, never a page size.
@@ -159,6 +165,10 @@ PILOT_RECENT_SESSIONS = 10
 #: points — the first and the newest always kept — so a player with thousands of updates renders a
 #: bounded path rather than one vertex per row.
 PILOT_RATING_POINTS = 60
+
+#: How many campaigns a pilot's own page lists: the campaigns bound to the site's servers in which
+#: the pilot holds credits or a badge, newest first.
+PILOT_CAMPAIGN_ROWS = 20
 
 #: The leaderboard metrics, in the order ``plugins/userstats/reports/highscore.json`` shows them,
 #: with the display name each ``HighscoreElement`` is titled with.
@@ -930,7 +940,7 @@ def _empty_profile(ucid: str) -> dict:
     """The shape a profile answers with when the pilot has no session on the site."""
     return {"ucid": ucid, "name": "", "found": False, "discord_id": -1, "ucids": [],
             "totals": _totals({}), "per_aircraft": [], "per_server": [], "recent": [],
-            "rating": None}
+            "rating": None, "campaigns": []}
 
 
 #: The competitive plugin's latest rating, one row per UCID. It carries no server column, so it is
@@ -1038,6 +1048,57 @@ async def _pilot_rating(conn: Any, ucid: str) -> dict | None:
         "count": len(points),
         "history": len(points) > 1,
     }
+
+
+#: The campaign tables the credits and badges panels read. All four must exist: a campaign list
+#: with neither credits nor badges has nothing to show, so the panel is absent rather than empty.
+_CAMPAIGN_TABLES = ("campaigns", "campaigns_servers", "credits", "players_badges")
+
+#: The pilot's campaigns ON THIS SITE, newest first: the credits held in each and the badge earned.
+#: A campaign belongs to servers, not to a site, so the site scope is the ``campaigns_servers``
+#: join — the same membership rule every other figure on the page obeys.
+_CAMPAIGNS_SQL = f"""
+SELECT c.name, c.start, c.stop,
+       cr.points,
+       b.badge_name, b.badge_url
+  FROM campaigns c
+  LEFT JOIN (SELECT campaign_id, SUM(points) AS points
+               FROM credits
+              WHERE player_ucid = %(ucid)s
+              GROUP BY campaign_id) cr ON cr.campaign_id = c.id
+  LEFT JOIN players_badges b ON b.campaign_id = c.id AND b.player_ucid = %(ucid)s
+ WHERE EXISTS (SELECT 1
+                 FROM campaigns_servers cs
+                WHERE cs.campaign_id = c.id
+                  AND {SERVER_FILTER})
+   AND (cr.points IS NOT NULL OR b.badge_name IS NOT NULL)
+ ORDER BY c.start DESC
+ LIMIT %(limit)s
+"""
+
+
+def _running(row: dict) -> bool:
+    """Whether a campaign row is the one running now — ``stop`` may be NULL, meaning open-ended."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    start = row.get("start")
+    stop = row.get("stop")
+    if not isinstance(start, datetime) or start > now:
+        return False
+    return not isinstance(stop, datetime) or stop >= now
+
+
+async def _campaigns(conn: Any, site: Any, ucid: str) -> list[dict]:
+    """The credits and badges the pilot holds per campaign, or ``[]`` without the plugin's tables."""
+    for table in _CAMPAIGN_TABLES:
+        if not await _table_exists(conn, table):
+            return []
+    rows = await _fetch_all(conn, _CAMPAIGNS_SQL,
+                            _params(site, ucid=ucid, limit=PILOT_CAMPAIGN_ROWS))
+    return [{"name": row.get("name") or "",
+             "points": _number(row.get("points")),
+             "badge": row.get("badge_name") or "",
+             "badge_url": row.get("badge_url") or "",
+             "running": _running(row)} for row in rows]
 
 
 async def pilot_profile(site: Any, pool: Any, ucid: str) -> dict:
@@ -2009,7 +2070,9 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any) -> dict:
 
     The UCID union is read from ``players`` (a link lives per player, not per server), but only for
     UCIDs seen on the site's servers; every figure is then the pilot profile's own set, bound to
-    those servers. No linked UCID on the site answers ``found`` False with the profile's keys.
+    those servers, plus the two panels the public profile does not carry: the competitive rating
+    with its recorded history and the pilot's campaigns (credits and badge). No linked UCID on the
+    site answers ``found`` False with the profile's keys.
     """
     try:
         wanted = int(discord_id)
@@ -2026,11 +2089,15 @@ async def my_statistics(site: Any, pool: Any, discord_id: Any) -> dict:
         if not ucids:
             return empty
         detail = await _pilot_detail(conn, site, ucids)
+        rating = await _pilot_rating(conn, ucids[0])
+        campaigns = await _campaigns(conn, site, ucids[0])
     return {
         "ucid": ucids[0],
         "name": "",
         "found": True,
         "discord_id": wanted,
+        "rating": rating,
+        "campaigns": campaigns,
         "ucids": [{"ucid": row.get("ucid"), "name": row.get("name") or ""} for row in linked],
         **detail,
     }

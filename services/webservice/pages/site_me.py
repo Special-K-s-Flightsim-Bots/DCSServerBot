@@ -28,12 +28,14 @@ from fastapi.responses import HTMLResponse
 from .. import i18n, site_reads
 from ..site_pages import (ME_PATH, NAV_PATHS, SEARCH_PATH, identity, player_url, pool,
                           render_site_page, resolve_site, sign_in_href, sign_out_context, site_url)
-from .site_player import airframes, count, hours, last_flown, ratio, sentence, servers
+from .site_player import (airframes, count, discipline, hours, last_flown, ratio, rating_view,
+                          recent, sentence, servers)
 
 __all__ = [
     "NAV_ID",
     "TEMPLATE",
     "readouts",
+    "campaigns",
     "view",
     "anonymous",
     "add_route",
@@ -89,6 +91,21 @@ def _ucids(rows: list[dict], resolved: Any) -> list[dict]:
             for row in (rows or []) if row.get("ucid")]
 
 
+def campaigns(rows: list[dict]) -> list[dict]:
+    """The campaigns the viewer holds credits or a badge in, newest first, ready for the table.
+
+    A campaign is a server's own structure, so this list is the site's campaigns the viewer took
+    part in — never the whole table. ``badge_url`` is the plugin's configured image address and may
+    be empty: a badge with no image renders its name alone.
+    """
+    return [{"name": row.get("name") or "",
+             "points": count(row.get("points")),
+             "badge": row.get("badge") or "",
+             "badge_url": row.get("badge_url") or "",
+             "running": bool(row.get("running"))}
+            for row in (rows or []) if row.get("name")]
+
+
 # --------------------------------------------------------------------------------- the model
 
 def view(resolved: Any, who: Any, stats: dict) -> dict:
@@ -103,8 +120,12 @@ def view(resolved: Any, who: Any, stats: dict) -> dict:
         "name": (linked[0]["name"] if linked else "") or _shown_name(who),
         "last_flown": last_flown(stats.get("recent") or []),
         "readouts": readouts(totals),
+        "discipline": discipline(totals),
+        "rating": rating_view(stats.get("rating")),
         "airframes": airframes(stats.get("per_aircraft") or [], totals.get("playtime")),
         "servers": servers(stats.get("per_server") or []),
+        "recent": recent(stats.get("recent") or []),
+        "campaigns": campaigns(stats.get("campaigns") or []),
         "public_href": linked[0]["href"] if linked else None,
         "search_href": site_url(resolved, SEARCH_PATH),
         "leaderboard_href": site_url(resolved, NAV_PATHS["leaderboard"]),

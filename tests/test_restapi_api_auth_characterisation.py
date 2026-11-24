@@ -946,3 +946,23 @@ def test_a_valid_api_key_beside_a_junk_bearer_passes_without_an_error_record(cap
     severe = [(record.levelname, record.getMessage()) for record in _log_records(caplog)
               if record.levelno >= logging.ERROR]
     assert severe == [], f"a junk bearer beside a valid key logged {severe}"
+
+
+# ------------------------------------------- the built-in default, when the config states none
+
+def test_a_config_without_a_security_default_refuses_a_credential_less_local_caller():
+    """The BUILT-IN default must not treat loopback as authenticated.
+
+    A reverse proxy on the bot host — and the webservice never trusts a forwarded address — makes
+    every outside request arrive from 127.0.0.1. With ``local: none`` as the default, such an
+    install answered every endpoint, writes included, to callers who presented no credential at
+    all. A config that wants that behaviour must now state it.
+    """
+    config = {"auth": {"api_key": API_KEY, "jwt": {"key": SHARED_KEY, "jwks_url": JWKS_URL}},
+              "security": {"trusted": ["10.0.0.0/8"]}}
+    app = legacy_app(config)
+    assert matches("denied", _run(ask_legacy(app, "local", "none")), LEGACY_ANSWER), \
+        "an anonymous loopback caller is not a trusted caller"
+    assert matches("allowed", _run(ask_legacy(app, "local", "api_key")), LEGACY_ANSWER), \
+        "the key must still open the endpoint"
+

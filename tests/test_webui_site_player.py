@@ -429,12 +429,14 @@ def test_the_line_has_one_vertex_per_point_and_x_is_monotonic():
 
 
 def test_the_dates_and_sentences_follow_the_pages_language(config_dir, bus):
+    # the public panel carries the figure and its sentence; the SERIES (and its date labels) is the
+    # signed-in page's, so the language pin here is the readout's own note
     panel = rating_panel(markup(config_dir, bus,
                                 StubPool(tables=("trueskill", "trueskill_hist")),
                                 language="de"))
-    assert "Mai 2025" in panel and "April 2026" in panel and "November 2026" in panel
-    assert "Seit 4. Mai 2025 um 3.7 Punkte gestiegen." in panel
-    assert "Über diesen Zeitraum um 3.7 Punkte gestiegen." in panel
+    assert "Wettkampfwert" in panel or "Competitive rating" in panel
+    assert "43.7" in panel
+    assert "Mai 2025" not in panel, "the public panel draws no history"
 
 
 def test_the_rating_block_renders_from_the_plugins_tables(config_dir, bus):
@@ -444,20 +446,18 @@ def test_the_rating_block_renders_from_the_plugins_tables(config_dir, bus):
     assert "σ 4.1" in page
     assert "43.7 μ · 3 rating updates" in page
     panel = rating_panel(page)
-    assert '<figure class="rc">' in panel
-    assert '<path class="rc-band"' in panel and '<polyline class="rc-line"' in panel
+    assert '<figure class="rc">' not in panel, "the history belongs to the signed-in page"
+    assert '<path class="rc-band"' not in panel and '<polyline class="rc-line"' not in panel
     assert 'class="panel c7"' in page, "the discipline panel narrows when the rating is shown"
 
 
-def test_the_chart_carries_the_accessibility_sentence_and_the_caption(config_dir, bus):
-    panel = rating_panel(markup(config_dir, bus,
-                                StubPool(tables=("trueskill", "trueskill_hist"))))
-    assert 'role="img"' in panel
-    assert "Rating 43.7, confidence plus or minus 4.1." in panel
-    assert "Up 3.7 points since 4 May 2025." in panel
-    assert "μ is the expected rating; the band is ±σ, the confidence around it." in panel
-    assert "Up 3.7 points across this span." in panel
-    assert '<div class="rc-legend" aria-hidden="true">' in panel
+def test_the_chart_is_not_on_the_public_profile_at_all(config_dir, bus):
+    """The split: a visitor reads the rating, the pilot reads how it got there."""
+    page = markup(config_dir, bus, StubPool(tables=("trueskill", "trueskill_hist")))
+    panel = rating_panel(page)
+    for marker in ('class="rc"', "rc-band", "rc-line", "rc-whisk", 'role="img"',
+                   "rc-legend", "rc-empty"):
+        assert marker not in panel, f"the public rating panel carries {marker}"
 
 
 def test_the_block_is_gone_when_the_tables_are_absent(config_dir, bus):
@@ -481,9 +481,7 @@ def test_a_rating_without_recorded_history_shows_the_value_and_no_line(config_di
     assert "Competitive rating" in page and "31.4" in page
     assert "43.7 μ · 1 rating updates" in panel
     assert "<svg" not in panel and "rc-band" not in panel and "rc-line" not in panel
-    assert "rc-whisk" in panel, "one reading is a ±σ bar, not a line across time"
-    assert "No earlier values exist, so there is no trend to draw." in panel
-    assert "1 November 2026" in panel, "the one-point label is the full date"
+    assert "rc-whisk" not in panel, "the one-point figure is the signed-in page's too"
 
 
 def test_the_one_point_model_draws_no_line_and_no_band():
@@ -498,9 +496,10 @@ def test_the_empty_state_renders_the_sentence_and_no_svg(config_dir, bus):
     pool = StubPool(tables=("trueskill", "trueskill_hist"),
                     rating={"skill_mu": 43.7, "skill_sigma": 4.1, "time": None}, history=[])
     panel = rating_panel(markup(config_dir, bus, pool))
-    assert "No rating update has been recorded yet." in panel
-    assert "<svg" not in panel and "<figure" not in panel
     assert "43.7 μ" in panel and "rating updates" not in panel, "a count of zero is not printed"
+    assert "<svg" not in panel and "<figure" not in panel
+    assert "No rating update has been recorded yet." not in panel, \
+        "the empty-history sentence belongs to the signed-in page's chart"
 
 
 def test_the_empty_state_model_omits_the_count():
@@ -625,3 +624,49 @@ def test_the_read_is_not_found_for_a_pilot_outside_the_site():
     assert result["found"] is False and result["rating"] is None
     identity = next(params for text, params in pool.calls if "SELECT p.ucid, p.name" in text)
     assert identity["servers"] == ["Root-1"], "the scope probe binds the site's servers"
+
+
+# ------------------------------------------------------- the panel pointing at one's own record
+
+def _doors(*, discord: bool, password: bool = False):
+    return types.SimpleNamespace(discord=discord, password=password, none=not (discord or password))
+
+
+def test_the_own_record_panel_names_the_discord_door(config_dir, bus, monkeypatch):
+    from services.webservice.auth import routes as auth_routes
+
+    monkeypatch.setattr(auth_routes, "login_doors", lambda request: _doors(discord=True))
+    page = markup(config_dir, bus, StubPool(tables=()))
+    assert "Your own statistics" in page
+    assert "sign in with Discord" in page
+    assert 'href="/auth/discord?next=' in page
+    assert "Is this you?" not in page, "the question with no answer is gone"
+    assert "Discord link" not in page, "the label promised a link the panel did not carry"
+
+
+def test_the_own_record_panel_is_absent_without_the_discord_door(config_dir, bus, monkeypatch):
+    """The panel names Discord, so a password-only or doorless installation must not draw it."""
+    from services.webservice.auth import routes as auth_routes
+
+    for doors in (_doors(discord=False, password=True), _doors(discord=False)):
+        monkeypatch.setattr(auth_routes, "login_doors", lambda request, d=doors: d)
+        page = markup(config_dir, bus, StubPool(tables=()))
+        assert "Your own statistics" not in page
+
+
+def test_the_own_record_panel_is_for_anonymous_visitors_only(config_dir, bus, monkeypatch):
+    from services.webservice.auth import routes as auth_routes
+
+    monkeypatch.setattr(auth_routes, "login_doors", lambda request: _doors(discord=True))
+    monkeypatch.setattr(site_player, "identity", lambda request: object())
+    page = markup(config_dir, bus, StubPool(tables=()))
+    assert "Your own statistics" not in page, "a signed-in visitor already has the shell's chip"
+
+
+def test_no_sentence_reaches_the_page_with_a_raw_placeholder(config_dir, bus):
+    """A note is a sentence RECORD: ``say`` translates it and formats it with ``{count}``-style
+    holes. A msgid written in gettext's ``%(count)s`` style survives ``str.format`` untouched and
+    prints the placeholder itself on a public page."""
+    page = markup(config_dir, bus, StubPool(tables=()))
+    assert "%(" not in page, "a sentence record reached the page with its gettext placeholder"
+    assert "4 deaths" in page, "the K/D note lost its figure"

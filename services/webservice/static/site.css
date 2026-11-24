@@ -143,6 +143,9 @@
   --medal-silver: linear-gradient(160deg, #e6e9ee, #9aa3ad);
   --medal-bronze: linear-gradient(160deg, #e0a878, #a4682f);
 
+  /* a badge's image beside its name in a table cell */
+  --badge: 28px;
+
   /* the hero, the enormous figure and the inner masthead */
   --hero-cap: 540px;
   --hero-pad-top: clamp(26px, 3.2vw, 44px);
@@ -783,6 +786,13 @@ p:last-child { margin-bottom: 0; }
 .tbl tr.podium td { background: var(--hair); }
 .tbl .nm { color: var(--fg); text-decoration: none; font-weight: 600; font-size: var(--t-sm); }
 .tbl .nm:hover { color: var(--brass); text-decoration: underline; }
+/* a badge in a table cell: the plugin's configured image beside its name. The image is optional —
+   a badge with no configured address renders the name alone. */
+.tbl .badge { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.tbl .badge img {
+  width: var(--badge); height: var(--badge); object-fit: contain; display: block;
+  border-radius: var(--radius); background: var(--panel-2);
+}
 .tbl .sub {
   display: block; font-family: var(--body); font-size: var(--t-2xs); color: var(--fg-3);
   letter-spacing: 0; margin-top: var(--sp-0y); font-weight: 400;

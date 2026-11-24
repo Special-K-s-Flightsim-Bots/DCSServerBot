@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: DCSServerBot schema descriptions \n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-22 17:53+0100\n"
+"POT-Creation-Date: 2026-11-24 22:06+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: cn\n"
@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.18.0\n"
+"Generated-By: Babel 2.17.0\n"
 
 #. punishment_schema:schema;element_schema.exemptions.discord.[0]
 #: plugins/punishment/schemas/punishment_schema.yaml:230
@@ -127,7 +127,7 @@ msgstr "添加一个陷阱，用于踢出对消息做出反应的机器人。"
 msgid "Add the current METAR to the mission briefing."
 msgstr "将当前 METAR 添加到任务简报中。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers
 #: extensions/olympus/schemas/olympus_schema.yaml:294
 msgid "Additional map layer providers (Olympus 2.0)."
 msgstr "附加的地图图层提供商（Olympus 2.0）。"
@@ -309,7 +309,7 @@ msgstr "服务器状态嵌入中显示的备用主机名。"
 msgid "Alternative directory holding the Tacview files."
 msgstr "存放 Tacview 文件的备用目录。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapMirrors
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapMirrors
 #: extensions/olympus/schemas/olympus_schema.yaml:327
 msgid "Alternative map tile sources (Olympus 2.0)."
 msgstr "备用的地图瓦片源（Olympus 2.0）。"
@@ -495,7 +495,7 @@ msgstr "传递给命令或游戏事件的参数。"
 msgid "Arguments passed to the command; supports placeholders."
 msgstr "传递给命令的参数；支持占位符。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).attribution
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).attribution
 #: extensions/olympus/schemas/olympus_schema.yaml:322
 msgid "Attribution text displayed on this map layer."
 msgstr "在此地图图层上显示的归属文本。"
@@ -568,7 +568,7 @@ msgstr "任务开始时自动取消过期的飞行计划。"
 msgid "Auto-complete an active plan on landing at the destination."
 msgstr "在目的地降落时自动完成活动计划。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).autoconnectWhenLocal
+#. olympus_schema:schema;instance_olympus_schema.frontend.autoconnectWhenLocal
 #: extensions/olympus/schemas/olympus_schema.yaml:335
 msgid "Auto-connect the client when it runs on the same host."
 msgstr "当客户端在同一主机上运行时自动连接。"
@@ -783,7 +783,7 @@ msgstr "关闭整台 PC 的电量 (%)。"
 msgid "Battery level (%) that warns the players."
 msgstr "向玩家发出警告的电量 (%)。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).address
+#. olympus_schema:schema;instance_olympus_schema.backend.address
 #: extensions/olympus/schemas/olympus_schema.yaml:177
 msgid "Bind address for the Olympus backend service."
 msgstr "Olympus 后端服务的绑定地址。"
@@ -2196,7 +2196,7 @@ msgstr "启用 Tacview 飞行数据记录。"
 msgid "Enable automatic CPU affinity for this node."
 msgstr "为此节点启用自动 CPU 亲和性。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.enabled
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders.enabled
 #: extensions/olympus/schemas/olympus_schema.yaml:255
 msgid "Enable custom authentication headers."
 msgstr "启用自定义认证请求头。"
@@ -2768,7 +2768,7 @@ msgstr "地面湍流强度。"
 msgid "Group name or Lua pattern that this restriction matches."
 msgstr "此限制匹配的组名或 Lua 模式。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.group
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders.group
 #: extensions/olympus/schemas/olympus_schema.yaml:267
 msgid "Group sent in the authentication header."
 msgstr "在认证请求头中发送的组。"
@@ -2778,7 +2778,7 @@ msgstr "在认证请求头中发送的组。"
 msgid "Grow a process only above this load per assigned core."
 msgstr "仅在每分配核心负载高于此值时扩展进程。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).proxyHeader
+#. olympus_schema:schema;instance_olympus_schema.frontend.proxyHeader
 #: extensions/olympus/schemas/olympus_schema.yaml:341
 msgid "HTTP header used to detect the client behind a proxy."
 msgstr "用于检测代理背后客户端的 HTTP 请求头。"
@@ -2838,7 +2838,7 @@ msgstr "在任务编辑器菜单中隐藏此预设。"
 msgid "Highest wind direction in degrees."
 msgstr "最高风向（度）。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).maxZoom
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).maxZoom
 #: extensions/olympus/schemas/olympus_schema.yaml:316
 msgid "Highest zoom level this map layer is shown at."
 msgstr "显示此地图图层的最高缩放级别。"
@@ -3249,7 +3249,7 @@ msgstr "描述命令用途的较长帮助文本。"
 msgid "Lowest wind direction in degrees."
 msgstr "最低风向（度）。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).minZoom
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).minZoom
 #: extensions/olympus/schemas/olympus_schema.yaml:311
 msgid "Lowest zoom level this map layer is shown at."
 msgstr "显示此地图图层的最低缩放级别。"
@@ -4449,7 +4449,7 @@ msgstr "Red Tactical Commander 角色的密码。"
 msgid "Password for the Tacview remote control."
 msgstr "Tacview 远程控制的密码。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.password
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider.password
 #: extensions/olympus/schemas/olympus_schema.yaml:289
 msgid "Password for the elevation provider, if required."
 msgstr "高程提供商的密码，如需要。"
@@ -4506,7 +4506,7 @@ msgstr "此节点上 DCS World 安装的路径。"
 msgid "Path to the Lardoon executable."
 msgstr "Lardoon 可执行文件的路径。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).path
+#. olympus_schema:schema;instance_olympus_schema.frontend.path
 #: extensions/olympus/schemas/olympus_schema.yaml:235
 msgid "Path to the Olympus frontend installation."
 msgstr "Olympus 前端安装的路径。"
@@ -5920,7 +5920,7 @@ msgstr "此限制适用的阵营：0 双方，1 红方，2 蓝方。"
 msgid "Sign-in page style; fancy (animated scene) or simple (plain)."
 msgstr ""
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders
 #: extensions/olympus/schemas/olympus_schema.yaml:246
 msgid "Single sign-on header configuration (Olympus 2.0)."
 msgstr "单点登录请求头配置（Olympus 2.0）。"
@@ -6133,7 +6133,7 @@ msgstr "任务审批、过期以及每位玩家的限制。"
 msgid "Temperature generation."
 msgstr "温度生成。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider
 #: extensions/olympus/schemas/olympus_schema.yaml:272
 msgid "Terrain elevation data provider (Olympus 2.0)."
 msgstr "地形高程数据提供商（Olympus 2.0）。"
@@ -6395,12 +6395,12 @@ msgstr "代理服务器的 URL。"
 msgid "URL or slug of the GoFundMe campaign."
 msgstr "GoFundMe 活动的 URL 或别名。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.provider
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider.provider
 #: extensions/olympus/schemas/olympus_schema.yaml:281
 msgid "URL template of the elevation data source."
 msgstr "高程数据源的 URL 模板。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).mapLayers.regex;(.+).urlTemplate
+#. olympus_schema:schema;instance_olympus_schema.frontend.mapLayers.regex;(.+).urlTemplate
 #: extensions/olympus/schemas/olympus_schema.yaml:306
 msgid "URL template of this map layer's tiles."
 msgstr "此地图图层瓦片的 URL 模板。"
@@ -6410,12 +6410,12 @@ msgstr "此地图图层瓦片的 URL 模板。"
 msgid "URL-safe path segment of the site; the root site's is empty."
 msgstr ""
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(backend|server).port
+#. olympus_schema:schema;instance_olympus_schema.backend.port
 #: extensions/olympus/schemas/olympus_schema.yaml:183
 msgid "Unique TCP port for Olympus internal communication."
 msgstr "用于 Olympus 内部通信的唯一 TCP 端口。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).port
+#. olympus_schema:schema;instance_olympus_schema.frontend.port
 #: extensions/olympus/schemas/olympus_schema.yaml:241
 msgid "Unique TCP port the Olympus web client connects to."
 msgstr "Olympus Web 客户端连接的唯一 TCP 端口。"
@@ -6571,7 +6571,7 @@ msgstr "登录 NUT 服务器的用户（可选）。"
 msgid "Username and password login for the console."
 msgstr "控制台的用户名和密码登录。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).elevationProvider.username
+#. olympus_schema:schema;instance_olympus_schema.frontend.elevationProvider.username
 #: extensions/olympus/schemas/olympus_schema.yaml:285
 msgid "Username for the elevation provider, if required."
 msgstr "高程提供商的用户名，如需要。"
@@ -6586,7 +6586,7 @@ msgstr "代理的用户名（若需要身份验证）。"
 msgid "Username of the emergency Admin account."
 msgstr "应急管理员账户的用户名。"
 
-#. olympus_schema:schema;instance_olympus_schema.regex;(frontend|client).customAuthHeaders.username
+#. olympus_schema:schema;instance_olympus_schema.frontend.customAuthHeaders.username
 #: extensions/olympus/schemas/olympus_schema.yaml:261
 msgid "Username sent in the authentication header."
 msgstr "在认证请求头中发送的用户名。"

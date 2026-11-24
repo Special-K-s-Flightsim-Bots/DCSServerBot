@@ -21,7 +21,7 @@
     <div>
       <div class="lbl hot">{% trans metric=metric_label %}Ranking · {{ metric }}{% endtrans %}</div>
       <h1>{% trans %}Leaderboard{% endtrans %}</h1>
-      <p class="sub">{% trans %}Every pilot on these servers, with the numbers behind the rank. Pick a metric or sort any column.{% endtrans %}</p>
+      <p class="sub">{% trans %}Every pilot on these servers, with the numbers behind the rank. Pick a figure to rank by, or sort the table.{% endtrans %}</p>
     </div>
     <div class="side">
       <div class="lbl">{% trans %}Page{% endtrans %}</div>
@@ -59,7 +59,7 @@
     <section class="panel">
       <div class="hd"><h2>{% trans %}Ranked{% endtrans %} · {{ metric_label }}</h2><span class="meta">{% if model.rows %}{% trans first=model.first, last=model.last %}rows {{ first }} – {{ last }}{% endtrans %}{% endif %}</span></div>
       {% if model.unavailable %}
-      <p class="note">{% trans %}The statistics database is not available yet, so this page shows no figures. It fills in as soon as the bot has connected.{% endtrans %}</p>
+      <p class="note">{% trans %}Statistics are not available yet. They appear as soon as the servers report in.{% endtrans %}</p>
       {% elif model.rows %}
       <table class="tbl">
         <thead><tr>
@@ -89,7 +89,7 @@
         </tbody>
       </table>
       {% else %}
-      <p class="note">{% if model.past_end %}{% trans %}This page holds no rows; the board ends earlier.{% endtrans %} <a href="{{ model.first_href }}">{% trans %}Back to the first page{% endtrans %}</a>.{% else %}{% trans %}No pilot has a figure on this board yet. Try another metric, server or period.{% endtrans %}{% endif %}</p>
+      <p class="note">{% if model.past_end %}{% trans %}This page is empty — the board ends on an earlier page.{% endtrans %} <a href="{{ model.first_href }}">{% trans %}Back to the first page{% endtrans %}</a>.{% else %}{% trans %}No pilot has a figure on this board yet. Try another metric, server or period.{% endtrans %}{% endif %}</p>
       {% endif %}
     </section>
 

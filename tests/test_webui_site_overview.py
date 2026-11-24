@@ -368,7 +368,7 @@ def test_no_database_renders_the_empty_state(config_dir):
 
     response = asyncio.run(run())
     assert response.status_code == 200
-    assert "The statistics database is not available yet" in response.text
+    assert "Statistics are not available yet" in response.text
     assert "Average sortie" in response.text, "the board still renders, at zero"
 
 
