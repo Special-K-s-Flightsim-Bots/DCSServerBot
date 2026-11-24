@@ -1,10 +1,11 @@
 import asyncio
+import hmac
 import ipaddress
 import jwt
 import os
 import psycopg
-import random
 import re
+import secrets
 
 from core import (Plugin, DEFAULT_TAG, Side, DataObjectFactory, utils, Status, ServiceRegistry, ServiceProxy,
                   PluginInstallationError, Server, async_cache, const)
@@ -252,7 +253,7 @@ class RestAPI(Plugin):
                     request.state.jwt_payload = payload
                     return "jwt"
 
-            if api_key and provided_api_key == str(api_key):
+            if api_key and provided_api_key and hmac.compare_digest(provided_api_key, str(api_key)):
                 request.state.auth_scheme = "api_key"
                 return "api_key"
 
@@ -1993,7 +1994,7 @@ class RestAPI(Plugin):
 
                 # Add top missions (from TopMissionPerServer)  
                 await cursor.execute(f"""
-                    SELECT trim(regexp_replace(m.mission_name, '{self.bot.filter['mission_name']}', ' ', 'g')) AS mission_name, 
+                    SELECT trim(regexp_replace(m.mission_name, %(mission_filter)s, ' ', 'g')) AS mission_name, 
                            ROUND(SUM(EXTRACT(EPOCH FROM (s.hop_off - s.hop_on))) / 3600) AS playtime_hours 
                     FROM missions m, statistics s 
                     WHERE m.id = s.mission_id 
@@ -2002,7 +2003,7 @@ class RestAPI(Plugin):
                     GROUP BY 1
                     ORDER BY 2 DESC
                     LIMIT 3
-                """, params)
+                """, {**params, "mission_filter": self.bot.filter['mission_name']})
                 missions_data = await cursor.fetchall()
                 stats["top_missions"] = [
                     {
@@ -2302,13 +2303,14 @@ class RestAPI(Plugin):
                         END AS "kdr_pvp",
                         SUM(playtime)::BIGINT AS playtime,
                         MAX(COALESCE(c.points, 0)) AS "credits",
-                        COUNT(s.usage) as total_count
+                        COUNT(*) OVER () AS total_count
                         FROM mv_statistics s 
                         JOIN players p ON s.player_ucid = p.ucid 
                         LEFT OUTER JOIN credits c ON c.player_ucid = s.player_ucid
                         LEFT OUTER JOIN campaigns ca ON ca.id = c.campaign_id AND NOW() AT TIME ZONE 'utc' BETWEEN ca.start AND COALESCE(ca.stop, NOW() AT TIME ZONE 'utc')
                         WHERE 1=1
                         {where}
+                        AND (%(query)s::text IS NULL OR p.name ILIKE %(query)s)
                         GROUP BY 1, 2 
                         ORDER BY {order_column} {order} 
                         LIMIT %(limit)s
@@ -2316,7 +2318,8 @@ class RestAPI(Plugin):
                     )
                     SELECT ROW_NUMBER() OVER (ORDER BY {order_column} {order}) as row_num, * 
                     FROM result_with_count
-                """, {"server_name": resolved_server_name, "query": f"%{query}%", "limit": limit, "offset": offset})
+                """, {"server_name": resolved_server_name, "query": f"%{query}%" if query else None,
+                      "limit": limit, "offset": offset})
                 rows = await cursor.fetchall()
                 if not rows:
                     return LeaderBoard.model_validate({
@@ -2331,7 +2334,7 @@ class RestAPI(Plugin):
                     del row['total_count']
 
                 return LeaderBoard.model_validate({
-                    'items': [row for row in rows if not query or query.casefold() in row['nick'].casefold()],
+                    'items': rows,
                     'total_count': total_count,
                     'offset': offset
                 })
@@ -2832,9 +2835,9 @@ class RestAPI(Plugin):
                      limit: int | None = Query(default=10)):
         where = ""
         if event:
-            where += f"AND event = '{event}' "
+            where += "AND event = %(event)s "
         if init_type:
-            where += f"AND init_type = '{init_type}' "
+            where += "AND init_type = %(init_type)s "
         if limit:
             sql_part = f"LIMIT {limit} OFFSET {offset}"
         else:
@@ -2851,7 +2854,8 @@ class RestAPI(Plugin):
                       AND time between %(start_time)s AND %(end_time)s
                       {where}
                       {sql_part}
-                """, {"ucid": ucid, "start_time": start_time, "end_time": end_time})
+                """, {"ucid": ucid, "start_time": start_time, "end_time": end_time,
+                      "event": event, "init_type": init_type})
                 return [EventEntry.model_validate(result) for result in await cursor.fetchall()]
 
     async def refuelings(self,
@@ -2944,7 +2948,7 @@ class RestAPI(Plugin):
         async def create_token() -> str:
             while True:
                 try:
-                    token = str(random.randint(1000, 9999))
+                    token = str(1000 + secrets.randbelow(9000))
                     await cursor.execute("""
                         INSERT INTO players (ucid, discord_id, last_seen)
                         VALUES (%s, %s, NOW() AT TIME ZONE 'utc')
