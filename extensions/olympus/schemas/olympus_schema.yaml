@@ -163,7 +163,7 @@ schema;instance_olympus_schema:
           range: {min: 0, max: 2}
           desc: Core quality to prefer (0 = E-cores, 1 = normal, 2 = high).
           example: "1"
-    regex;(backend|server):
+    backend:
       type: map
       nullable: false
       required: true
@@ -220,7 +220,7 @@ schema;instance_olympus_schema:
           range: {min: 1}
           desc: Admin password (Olympus 2.0 and later).
           example: "***"
-    regex;(frontend|client):
+    frontend:
       type: map
       nullable: false
       required: true
