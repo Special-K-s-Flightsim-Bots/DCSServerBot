@@ -7,8 +7,8 @@ import inspect
 import os
 import pandas as pd
 import psycopg
-import random
 import re
+import secrets
 import traceback
 import warnings
 
@@ -2311,7 +2311,7 @@ class Mission(Plugin[MissionEventListener]):
                 # in the very unlikely event that we have generated the very same random number twice
                 while True:
                     try:
-                        token = str(random.randrange(1000, 9999))
+                        token = str(1000 + secrets.randbelow(9000))
                         await cursor.execute("""
                             INSERT INTO players (ucid, discord_id, last_seen) 
                             VALUES (%s, %s, NOW() AT TIME ZONE 'UTC')
