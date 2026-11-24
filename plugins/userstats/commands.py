@@ -818,7 +818,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
         global _refresh_fallback_warned
         views = ", ".join(_REFRESH_VIEWS)
         try:
-            self.log.info("Refreshing materialized views (%s): %s", "concurrent", views)
+            self.log.debug("Refreshing materialized views (%s): %s", "concurrent", views)
             async with self.apool.connection() as conn:
                 await conn.set_autocommit(True)
                 try:
@@ -841,7 +841,7 @@ class UserStatistics(Plugin[UserStatisticsEventListener]):
                     "non-concurrent refresh, which locks the views for its duration. This warning "
                     "is logged once per process."
                 )
-            self.log.info("Refreshing materialized views (%s): %s", "locking", views)
+            self.log.debug("Refreshing materialized views (%s): %s", "locking", views)
             async with self.apool.connection() as conn:
                 await conn.execute("REFRESH MATERIALIZED VIEW mv_statistics;")
                 await conn.execute("REFRESH MATERIALIZED VIEW mv_serverstats;")
