@@ -112,7 +112,7 @@ The following commands are available through the API. For detailed parameter def
 | /getuser | POST | [nick: string], [discord_id: string] | Get users by name |
 | /greenieboard | POST | [date: string | None], [server_name: string | None] | Get a greenieboard |
 | /highscore | GET | [server_name: string], [period: string], [limit: int] | Get highscore statistics for players |
-| /instance/log             | GET        | server_name: string, [file], [contains], [regex], [level], [since], [until], [lines], [tail], [cursor] | Read a DCS log file of a server (see [Log endpoints](#log-endpoints)).   |
+| /instance/log             | GET        | server_name: string, [file], [contains], [level], [since], [until], [lines], [tail], [cursor] | Read a DCS log file of a server (see [Log endpoints](#log-endpoints)).   |
 | /instance/logs            | GET        | server_name: string                                                               | List the DCS log files of a server.                                                |
 | /instance/mission/load | POST | server_name: string, mission_name: string | Load a mission on a given server. |
 | /instance/mission/pause | POST | server_name: string | Pause the mission on a given server. |

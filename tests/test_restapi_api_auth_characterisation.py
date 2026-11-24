@@ -815,7 +815,8 @@ def test_a_disabled_endpoint_is_skipped_at_registration_time():
     api = legacy_plugin(plugin_config("none", False))
     routes = list(cast(Any, api.router).routes)
 
-    assert len(routes) == 48, f"{len(routes)} routes registered"
+    # 48 legacy routes, plus the 4 log endpoints (/node/logs, /node/log, /instance/logs, /instance/log)
+    assert len(routes) == 52, f"{len(routes)} routes registered"
     assert PROBE_PATH not in {route.path for route in routes}
 
 
